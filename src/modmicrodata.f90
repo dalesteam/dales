@@ -33,7 +33,7 @@
   integer, parameter :: imicro_drizzle = 1
   integer, parameter :: imicro_bulk    = 2
   integer, parameter :: imicro_bin     = 3
-  integer, parameter :: imicro_grab    = 5
+  integer, parameter :: imicro_smplice = 5
   integer, parameter :: imicro_user    = 10
   logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
@@ -119,37 +119,6 @@
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-! Grabowski microphysics
-! Latent heats, Tetens formula constants and drop concentration taken from initial droplet concentration input and global parameters
-  real, parameter :: &
-      ! cc mass, terminal velocity, diameter
-     aar=5.2e2 &
-     ,bbr=3. &
-     ,ccr=130. &
-     ,ddr=0.5 &
-     ,aas=2.5e-2 &
-     ,bbs=2. &
-     ,ccs=4. &
-     ,dds=0.25 &
-      ! cc collection ef., alpha, beta
-     ,eer=0.8 &
-     ,alphr=1. &
-     ,betr=2. &
-     ,ees=0.2 &
-     ,alphs=.3 &
-     ,bets=3. &
-     ! N_0 in Marshall_Palmer Distribution
-     ,anor=2*1.e7 &
-     ,anos=2*1.e7 &
-     ! Temperature range over which mixed phase occurs
-     ,tup=268. &
-     ,tdn=253. &
-     !cc gammas:
-     ,gamb1r=6.0 &
-     ,gambd1r=11.7 &
-     ,gamb1s=2.0 &
-     ,gambd1s=2.56
-
   real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets mixing ratio [kg_w/kg_a]
                                        ,Nc  & !<  cloud droplets number conc.  [#/m^3]
                                        ,nuc & !<  width parameter of cloud DSD
@@ -165,12 +134,12 @@
   real,allocatable, dimension(:,:,:) ::  &
     exnz               &      !<  3D exner function
     ,presz             &      !<  3D pressure
-      ,Dvc               &      !<  cloud water mean diameter
-          ,xc                &      !<  mean mass of cloud water droplets
+    ,Dvc               &      !<  cloud water mean diameter
+    ,xc                &      !<  mean mass of cloud water droplets
     ,Dvr               &      !<  prec water mean diameter
     ,xr                &      !<  mean mass of prec. water drops
-          ,mur               &      !<  mu parameter in rain gamma distribution
-          ,lbdr              &      !<  slope parameter (lambda) in rain gamma distribution
+    ,mur               &      !<  mu parameter in rain gamma distribution
+    ,lbdr              &      !<  slope parameter (lambda) in rain gamma distribution
     ,au                &      !<  autoconversion rate
     ,phi               &      !<  correction function (see SB2001)
     ,tau               &      !<  internal time scale
@@ -181,9 +150,8 @@
     ,Nevap             &      !<  concentration tendency due to rain evap/cond
     ,wfall_qr          &      !<  fall velocity for qr
     ,wfall_Nr                 !<  fall velocity for Nr
+
   real :: csed                      !<  parameter in cloud water grav. settling formula
-
-
 
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
@@ -194,5 +162,44 @@
   real :: delt
 
   logical ,allocatable,dimension(:,:,:):: qcmask,qrmask
+
+! Grabowski simple ice microphysics
+! Latent heats taken from modglobal.f90
+! Saturation formula parameters for simple ice micro also saved in modglobal.f90
+! Drop concentration from initial droplet concentration input Nc_0
+
+  ! 
+  real, parameter :: &
+     ! cc mass, terminal velocity, diameter relationship parameters A, B, C, and D
+     aal=5.2e2 &
+     ,bbl=3. &
+     ,ccl=130. &
+     ,ddl=0.5 &
+     ,aai=2.5e-2 &
+     ,bbi=2. &
+     ,cci=4. &
+     ,ddi=0.25 &
+     ! cc collection ef., alpha, beta
+     ,ceffl=0.8 &
+     ,alphal=1. &
+     ,betal=2. &
+     ,ceffi=0.2 &
+     ,alphai=.3 &
+     ,betai=3. &
+     ! N_0 in Marshall_Palmer Distribution
+     ,n0rl=2*1.e7 &
+     ,n0ri=2*1.e7 &
+     ! Temperature range over which mixed phase occurs
+     ,tup=268. &
+     ,tdn=253. &
+     !cc gammas:
+     ,gamb1l=6.0 &
+     ,gambd1l=11.7 &
+     ,gamb1i=2.0 &
+     ,gambd1i=2.56
+
+   ! Fields related to ice-liquid partitioning
+   real,allocatable,dimension(:,:,:) :: ilratio,lambdal,lambdai
+
   end module modmicrodata
 
