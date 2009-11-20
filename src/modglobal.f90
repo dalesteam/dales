@@ -68,8 +68,8 @@ save
       real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
-      real,parameter :: rlv      = 2.5e6            !<    *latent heat for vaporisation.
-      real,parameter :: rli     = 2.84e6          !<    *and sublimation
+      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation.
+      real,parameter :: riv     = 2.84e6           !<    *and sublimation
       real,parameter :: ep       = rd/rv            !<    0.622
       real,parameter :: ep2      = rv/rd - 1.       !<    0.61
       !< real,parameter :: cv       = cp-rd            !<    716.96
@@ -115,7 +115,7 @@ save
       !Thermodynamic variable
       integer :: ithe_var = 1
       integer, parameter :: ithe_thli    = 1 !< Theta_li
-      integer, parameter :: ithe_thet    = 2 !< Theta
+      integer, parameter :: ithe_texp    = 2 !< Exponential version
       integer, parameter :: ithe_lise    = 3 !< LISE
 
       !Advection scheme
