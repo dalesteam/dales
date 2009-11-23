@@ -96,8 +96,6 @@ contains
     case(imicro_bin)
 !       call binmicro
     case(imicro_user)
-    case(imicro_sice)
-      call simpleice
     end select
   end subroutine microphysics
 
@@ -116,6 +114,8 @@ contains
       call bulkmicro
     case(imicro_bin)
 !       call binmicrosources
+    case(imicro_sice)
+      call simpleice
     case(imicro_user)
       call micro_user
     end select

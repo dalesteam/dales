@@ -196,7 +196,7 @@
      ,gambd1i=2.56
 
    ! Fields related to ice-liquid partitioning
-   real,allocatable,dimension(:,:,:) :: omega,lambdal,lambdai
+   real,allocatable,dimension(:,:,:) :: ilratio,lambdal,lambdai
 
   end module modmicrodata
 
