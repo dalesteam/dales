@@ -7,6 +7,7 @@
 !!  Also provides the drizzle routine
 !!  \author Hans Cuijpers, IMAU
 !!  \author Thijs Heus,MPI-M
+!!  \author Steef B\"oing, TU Delft
 !!  \todo Documentation
 !!  \par Revision list
 !  This file is part of DALES.
@@ -39,6 +40,7 @@ contains
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_integer,mpi_real,mpi_logical
     use modglobal,only :ifnamopt,fname_options
     use modbulkmicro, only : initbulkmicro
+    use modsimpleice, only : initsimpleice
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
@@ -74,12 +76,15 @@ contains
       call initbulkmicro
     case(imicro_bin)
 !       call initbinmicro
+    case(imicro_sice)
+      call initsimpleice
     case(imicro_user)
     end select
   end subroutine initmicrophysics
 
 
   subroutine microphysics
+!     module currently obsolete
 !     use modbulkmicro, only : bulkmicro
 !     use modbinmicro,  only : binmicro
     implicit none
@@ -91,12 +96,15 @@ contains
     case(imicro_bin)
 !       call binmicro
     case(imicro_user)
+    case(imicro_sice)
+      call simpleice
     end select
   end subroutine microphysics
 
   subroutine microsources
    use moduser,      only : micro_user
    use modbulkmicro, only : bulkmicro
+   use modsimpleice, only : simpleice
 !     use modbinmicro,  only : binmicrosources
     implicit none
 
@@ -113,8 +121,10 @@ contains
     end select
 
   end subroutine microsources
+
   subroutine exitmicrophysics
     use modbulkmicro, only : exitbulkmicro
+    use modsimpleice, only : exitsimpleice
  !     use modbinmicro,  only : exitbinmicro
     implicit none
 
@@ -122,12 +132,15 @@ contains
      case(imicro_none)
      case(imicro_drizzle)
      case(imicro_bulk)
-       call exitbulkmicro
+!       call exitbulkmicro
      case(imicro_bin)
- !       call exitbinmicro
-      case(imicro_user)
-     end select
+!       call exitbinmicro
+     case(imicro_user)
+     case(imicro_sice)
+      call exitsimpleice
+  end select
   end subroutine exitmicrophysics
+
  subroutine drizzle
 
 !-----------------------------------------------------------------|
