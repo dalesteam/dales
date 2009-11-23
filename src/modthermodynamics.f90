@@ -466,14 +466,14 @@ contains
   implicit none
 
   integer i, j, k
-  real :: tl, omegat, esl, esi, qsatur, thlguess, omegatmin, eslmin, esimin, qsaturmin, thlguessmin
+  real :: tl, ilratio1, esl, esi, qsatur, thlguess, ilratiomin, eslmin, esimin, qsaturmin, thlguessmin
   real, intent(in)  :: qt(2-ih:i1+ih,2-jh:j1+jh,k1),thl(2-ih:i1+ih,2-jh:j1+jh,k1),exner(k1),pressure(k1)
   real, intent(out) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1),tmp(2-ih:i1+ih,2-jh:j1+jh,k1)
   real :: Tnr,Tnr_old
   integer :: niter,nitert
 
-!mc      calculation of T with Newton-Raphson method
-!mc      first guess is Tnr=tl
+!     calculation of T with Newton-Raphson method
+!     first guess is Tnr=tl
 
       nitert = 0
       do j=2,j1
@@ -484,16 +484,16 @@ contains
             Tnr=tl
             Tnr_old=0
             do while (abs(Tnr-Tnr_old)/Tnr>1e-5)
-               omegat = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
+               ilratio1= amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
                esl    = es0*exp(rlv/rv*(1./tmelt-1./Tnr))
                esi    = es0*exp(riv/rv*(1./tmelt-1./Tnr))
-               qsatur = omegat*rd/rv*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-omegat)*rd/rv*esi/(pressure(k)-(1.-rd/rv)*esi)
+               qsatur = ilratio1*rd/rv*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio1)*rd/rv*esi/(pressure(k)-(1.-rd/rv)*esi)
                thlguess = Tnr*exner(k)-(rlv/cp*exner(k))*(qt(i,j,k)-qsatur) !riv does not occur yet: no melting in grabowski scheme
  
-               omegatmin = amax1(0.,amin1(1.,(Tnr-1e-5-tdn)/(tup-tdn)))
+               ilratiomin = amax1(0.,amin1(1.,(Tnr-1e-5-tdn)/(tup-tdn)))
                eslmin    = es0*exp(rlv/rv*(1./tmelt-1./(Tnr-1e-5)))
                esimin    = es0*exp(riv/rv*(1./tmelt-1./(Tnr-1e-5)))
-               qsaturmin = omegatmin*rd/rv*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-omegatmin)*rd/rv*esimin/(pressure(k)-(1.-rd/rv)*esimin)
+               qsaturmin = ilratiomin*rd/rv*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-ilratiomin)*rd/rv*esimin/(pressure(k)-(1.-rd/rv)*esimin)
                thlguessmin = Tnr*exner(k)-(rlv/cp*exner(k))*(qt(i,j,k)-qsaturmin)!riv does not occur yet: no melting in grabowski scheme
  
                Tnr = Tnr - thlguess/((thlguess-thlguessmin)/1e-5)

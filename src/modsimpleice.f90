@@ -37,7 +37,26 @@ module modsimpleice
 
 !> Initializes and allocates the arrays
   subroutine initsimpleice
+    use modglobal, only : ih,i1,jh,j1,k1
+    use modmpi,    only : myid
     implicit none
+
+    allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr is converted from a scalar variable
+             ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
+             ,thlpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! thl tendency due to microphysics only, for statistics
+             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qt tendency due to microphysics only, for statistics
+             ,sed_qr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! sedimentation rain droplets mixing ratio
+             ,qr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! time-splitting substep qr
+             ,ilratio(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! partition ratio liquid/solid
+             ,lambdal(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for liquid phase
+             ,lambdai(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for ice phase
+
+    allocate (Nr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! CDC, only for statistics
+             ,qc(2-ih:i1+ih,2-jh:j1+jh,k1))         ! = ql, also for statistics
+
+    allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
+             ,qcmask(2-ih:i1+ih,2-jh:j1+jh,k1))     ! mask for cloud water
+
   end subroutine initsimpleice
 
 !> Cleaning up after the run
@@ -57,7 +76,7 @@ module modsimpleice
 !     call bulkmicrotend
       call evaposite
 !     call bulkmicrotend
-      call precip
+      call precipitate
 !     call bulkmicrotend
     endif
 
@@ -73,12 +92,12 @@ module modsimpleice
 
   subroutine precipitate
     implicit none
-  end subroutine precip
+  end subroutine precipitate
 
   subroutine evaposite
     implicit none
   end subroutine evaposite
 
-end module modbulkmicro
+end module modsimpleice
 
 
