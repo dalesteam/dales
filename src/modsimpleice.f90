@@ -51,9 +51,6 @@ module modsimpleice
              ,lambdal(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for liquid phase
              ,lambdai(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for ice phase
 
-    allocate (Nr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! Nrain, only for statistics
-             ,qc(2-ih:i1+ih,2-jh:j1+jh,k1))         ! = ql, also for statistics
-
     allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
              ,qcmask(2-ih:i1+ih,2-jh:j1+jh,k1))     ! mask for cloud water
 
@@ -62,7 +59,7 @@ module modsimpleice
 !> Cleaning up after the run
   subroutine exitsimpleice
     implicit none
-    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,lambdal,lambdai,Nr,qc)
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,lambdal,lambdai)
     deallocate(qrmask,qcmask) 
 
   end subroutine exitsimpleice
@@ -85,16 +82,12 @@ module modsimpleice
     qrp=0.
     thlpmcr=0.
     qtpmcr=0.
-    ! Nr=0, only for statistics module
-    Nr= 0.
 
     do k=1,k1
     do i=2,i1
     do j=2,j1
       ! initialise qr
       qr(i,j,k)= sv0(i,j,k,iqr)
-      ! initialise qc only for statistics 
-      qc(i,j,k)= ql0(i,j,k)
       ! initialise qc mask
       if (ql0(i,j,k) > qcmin) then
         qcmask(i,j,k) = .true.
@@ -133,15 +126,15 @@ module modsimpleice
     enddo
 
     if (l_rain) then       
-!     call bulkmicrotend   
+!     call icemicrotend   
       call autoconvert
-!     call bulkmicrotend   
+!     call icemicrotend   
       call accrete         
-!     call bulkmicrotend
+!     call icemicrotend
       call evaposite       
-!     call bulkmicrotend   
+!     call icemicrotend   
       call precipitate
-!     call bulkmicrotend
+!     call icemicrotend
     endif
 
     do k=1,k1
@@ -279,10 +272,88 @@ module modsimpleice
   end subroutine evaposite
 
   subroutine precipitate
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,dzf,pi
+    use modfields, only : rhobf
+    use modmpi,    only : myid
     implicit none
+    integer :: i,j,k,jn
+    integer :: n_spl      !<  sedimentation time splitting loop
+    real :: dt_spl,wfallmax,vtl,vti,vtf
+
+    wfallmax = 9.9
+    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
+    dt_spl = delt/real(n_spl) !fixed time step
+
+    sed_qr = 0.
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      if (qrmask(i,j,k)==.true.) then
+        qr_spl(i,j,k) = qr(i,j,k)
+        vtl=ccl*gambd1l/gamb1l/lambdal(i,j,k)**ddl  ! terminal velocity liquid
+        vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
+        vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
+        vtf = amin1(wfallmax,vtf)
+        sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+      end if
+    enddo
+    enddo
+    enddo
+
+    ! upwind-like scheme
+    do k=1,kmax
+    do i=2,i1
+    do j=2,j1
+      qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+    enddo
+    enddo
+    enddo
+
+    if (n_spl > 1) then
+
+    do jn = 2 , n_spl ! time splitting loop
+
+    ! reset sedimentation fluxes
+    sed_qr = 0.
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      if (qr_spl(i,j,k) > qrmin) then
+      ! re-evaluate lambda
+        lambdal(i,j,k)=(aal*n0rl*gamb1l/rhobf(k)/(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
+        lambdai(i,j,k)=(aai*n0ri*gamb1i/rhobf(k)/(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
+        vtl=ccl*gambd1l/gamb1l/lambdal(i,j,k)**ddl  ! terminal velocity liquid
+        vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
+        vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
+        vtf = amin1(wfallmax,vtf)
+        sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+      endif
+    enddo
+    enddo
+    enddo
+
+    do k=1,kmax
+    do i=2,i1
+    do j=2,j1
+      qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+    enddo
+    enddo
+    enddo
+
+    enddo ! end time splitting loop
+    endif ! end if n_spl >1
+
+    ! no thl and qt tendencies
+    do k=1,kmax
+    do i=2,i1
+    do j=2,j1
+    qrp(i,j,k)= qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k))/delt
+    enddo
+    enddo
+    enddo
 
   end subroutine precipitate
 
 end module modsimpleice
-
-
