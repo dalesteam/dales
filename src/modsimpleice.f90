@@ -69,8 +69,8 @@ module modsimpleice
 
 !> Calculates the microphysical source term.
   subroutine simpleice
-    use modglobal, only : ih,jh,i1,j1,k1,dt,rk3step,timee,kmax,rlv,cp
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf
+    use modglobal, only : ih,jh,i1,j1,k1,dt,rk3step,timee,kmax,rlv,cp,tup,tdn
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhobf,tmp0
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     implicit none
@@ -81,17 +81,20 @@ module modsimpleice
 
     qrsum=0.
     qrsmall=0.
+    ! reset microphysics tendencies 
+    qrp=0.
+    thlpmcr=0.
+    qtpmcr=0.
+    ! Nr=0, only for statistics module
+    Nr= 0.
+
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      ! initialise qr and reset microphysics tendencies 
+      ! initialise qr
       qr(i,j,k)= sv0(i,j,k,iqr)
-      qrp(i,j,k)= 0.0
-      thlpmcr(i,j,k)=0.0
-      qtpmcr(i,j,k)=0.0
-      ! initialise qc and Nr, only for 
+      ! initialise qc only for statistics 
       qc(i,j,k)= ql0(i,j,k)
-      Nr(i,j,k)= 0
       ! initialise qc mask
       if (ql0(i,j,k) > qcmin) then
         qcmask(i,j,k) = .true.
@@ -103,8 +106,8 @@ module modsimpleice
         qrsum = qrsum+ qr(i,j,k)
         if (qr(i,j,k) <= qrmin) then
           qrmask(i,j,k) = .false.
-          if(qr(i,j,k)<0) then
-          qr(i,j,k)=0
+          if(qr(i,j,k)<0.) then
+          qr(i,j,k)=0.
           qrsmall = qrsmall-qr(i,j,k)
           end if
         else
@@ -118,6 +121,16 @@ module modsimpleice
     if (qrsmall > 0.000001*qrsum) then
       write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
     end if
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! liquid contribution
+      lambdal(i,j,k)=(aal*n0rl*gamb1l/rhobf(k)/(ql0(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
+      lambdai(i,j,k)=(aai*n0ri*gamb1i/rhobf(k)/(ql0(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
+    enddo
+    enddo
+    enddo
 
     if (l_rain) then       
 !     call bulkmicrotend   
@@ -150,20 +163,125 @@ module modsimpleice
   end subroutine simpleice
 
   subroutine autoconvert
+    use modglobal, only : ih,jh,i1,j1,k1,rlv,cp, tmelt
+    use modfields, only : ql0,exnf,rhobf,tmp0
+    use modmpi,    only : myid
     implicit none
+    real :: qll,qli,ddisp,del2,autl,tc,times,auti,aut
+    integer:: i,j,k
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      if (qcmask(i,j,k)==.true.) then
+        qll=ql0(i,j,k)*ilratio(i,j,k)
+        qli=ql0(i,j,k)-qll
+        ddisp=0.146-5.964e-2*alog(Nc_0/2000.) ! relative dispersion for Barry autoconversion
+        del2=1.e3*rhobf(k)*qll ! liquid water content
+        autl=1./rhobf(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(ddisp*(del2+1.E-6)))
+        tc=tmp0(i,j,k)-tmelt
+        times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
+        auti=qli/times
+        aut = autl + auti
+        qrp(i,j,k) = qrp(i,j,k)+aut
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+      endif
+    enddo
+    enddo
+    enddo
+
   end subroutine autoconvert
 
   subroutine accrete
+    use modglobal, only : ih,jh,i1,j1,k1,rlv,cp,pi
+    use modfields, only : ql0,exnf,rhobf
+    use modmpi,    only : myid
     implicit none
+    real :: qrl,qri,conl,coni,massl,massi,diaml,diami,g_acc_l,g_acc_i,acc_l,acc_i,acc
+    integer:: i,j,k
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      if (qrmask(i,j,k)==.true. .and. qcmask(i,j,k)==.true.) then
+        ! ql partitioning
+        qrl=qr(i,j,k)*ilratio(i,j,k)
+        qri=qr(i,j,k)-qrl
+        conl=n0rl/lambdal(i,j,k) ! liquid concentration
+        coni=n0ri/lambdai(i,j,k) ! ice concentration
+        massl=rhobf(k)*(qrl+1.e-7) / conl  ! mass liquid particles
+        massi=rhobf(k)*(qri+1.e-7) / coni  ! mass ice particles
+        diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
+        diami=(massi/aal)**(1./bbi) ! diameter ice particles
+        g_acc_l=pi/4.*ccl*diaml**(2.+ddl)*ceffl*alphai*rhobf(k)*ql0(i,j,k)
+        g_acc_i=pi/4.*cci*diami**(2.+ddi)*ceffi*alphal*rhobf(k)*ql0(i,j,k)
+        acc_l=conl*g_acc_l* qrl/(qrl+1.e-9)
+        acc_i=coni*g_acc_i* qri/(qri+1.e-9)
+        acc= acc_l + acc_i  ! growth by accretion
+        qrp(i,j,k) = qrp(i,j,k)+acc
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
+      end if
+    enddo
+    enddo
+    enddo
+
   end subroutine accrete
+
+  subroutine evaposite
+    use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
+    use modfields, only : qt0,ql0,exnf,rhobf,tmp0,presf
+    use modmpi,    only : myid
+    implicit none
+    real :: qrl,qri,esl,qvsl,ssl,esi,qvsi,ssi, conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
+    integer:: i,j,k
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      if (qrmask(i,j,k)==.true.) then
+        ! qr partitioning
+        qrl=qr(i,j,k)*ilratio(i,j,k)
+        qri=qr(i,j,k)-qrl
+        ! saturation ratio wrt liquid phase
+        esl=es0*exp(rlv/rv*(1./tmelt-1./tmp0(i,j,k)))
+        qvsl=rd/rv*esl/(presf(k)-(1.-rd/rv)*esl)
+        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl
+        ! saturation ratio wrt ice phase
+        esi= es0*exp(riv/rv*(1./tmelt-1./tmp0(i,j,k)))
+        qvsi=rd/rv*esi/(presf(k)-(1.-rd/rv)*esi)
+        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi
+        conl=n0rl/lambdal(i,j,k) ! liquid concentration
+        coni=n0ri/lambdai(i,j,k) ! ice concentration
+        massl=rhobf(k)*(qrl+1.e-7) / conl  ! mass liquid particles
+        massi=rhobf(k)*(qri+1.e-7) / coni  ! mass ice particles
+        diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
+        diami=(massi/aal)**(1./bbi) ! diameter ice particles
+        rel=ccl*diaml**(ddl+1.)/2.e-5  ! Reynolds number liquid
+        rei=cci*diami**(ddi+1.)/2.e-5  ! Reynolds number ice
+        ventl=amax1(1.,.78+.27*sqrt(rel))  ! ventilation factor liquid
+        venti=amax1(1.,.65+.39*sqrt(rei))  ! ventilation factor ice
+        thfun=1.e-7/(2.2*tmp0(i,j,k)/ssl+2.2e-2/tmp0(i,j,k))  ! thermodynamic fun.
+        g_devap_l=4.*pi*diaml/betal*(ssl-1.)*ventl*thfun   ! growth/evap
+        g_devap_i=4.*pi*diami/betai*(ssi-1.)*venti*thfun   ! growth/evap
+        devap_l=conl * g_devap_l * qrl / (qrl + 1.e-9)
+        devap_i=coni * g_devap_i * qri / (qri + 1.e-9)
+        devap= devap_l + devap_i  ! growth by deposition
+        qrp(i,j,k) = qrp(i,j,k)+devap
+        qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
+        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
+      end if
+    enddo
+    enddo
+    enddo
+
+  end subroutine evaposite
 
   subroutine precipitate
     implicit none
-  end subroutine precipitate
 
-  subroutine evaposite
-    implicit none
-  end subroutine evaposite
+  end subroutine precipitate
 
 end module modsimpleice
 
