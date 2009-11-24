@@ -166,7 +166,7 @@ module modsimpleice
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      if (qcmask(i,j,k)==.true.) then
+      if (qcmask(i,j,k).eqv..true.) then
         qll=ql0(i,j,k)*ilratio(i,j,k)
         qli=ql0(i,j,k)-qll
         ddisp=0.146-5.964e-2*alog(Nc_0/2000.) ! relative dispersion for Barry autoconversion
@@ -197,7 +197,7 @@ module modsimpleice
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      if (qrmask(i,j,k)==.true. .and. qcmask(i,j,k)==.true.) then
+      if (qrmask(i,j,k).eqv..true. .and. qcmask(i,j,k).eqv..true.) then
         ! ql partitioning
         qrl=qr(i,j,k)*ilratio(i,j,k)
         qri=qr(i,j,k)-qrl
@@ -233,7 +233,7 @@ module modsimpleice
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      if (qrmask(i,j,k)==.true.) then
+      if (qrmask(i,j,k).eqv..true.) then
         ! qr partitioning
         qrl=qr(i,j,k)*ilratio(i,j,k)
         qri=qr(i,j,k)-qrl
@@ -289,7 +289,7 @@ module modsimpleice
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      if (qrmask(i,j,k)==.true.) then
+      if (qrmask(i,j,k).eqv..true.) then
         qr_spl(i,j,k) = qr(i,j,k)
         vtl=ccl*gambd1l/gamb1l/lambdal(i,j,k)**ddl  ! terminal velocity liquid
         vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
