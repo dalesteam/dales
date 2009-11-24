@@ -32,15 +32,16 @@
 !! - Anelastic advection
 !! - Anelastic buoyancy
 !! - Anelastic poisson solver
+!! - (Grabowski/KR) microphysics scheme
 !! \todo
 !! This subversion
-!! - (Grabowski/KR) microphysics scheme
-!! - Radiation (old version/not full) and radstat based on anelastic density
+!! - Radiation (old version/parameterised) and radstat based on anelastic density
+!! - Icemicrostat
 !! Later subversions
 !! - Full radiation based on anelastic density
-!! - Revised TKE subgrid scheme
+!! - Revised TKE subgrid scheme (diffusion)
 !! - Thermodynamic variable conversion
-!! - TKE term in momentum equation
+!! - TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! - 2D option
 !! - Parallelization
 !! - Diagnostics
