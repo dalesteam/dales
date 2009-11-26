@@ -57,25 +57,23 @@ contains
   subroutine thermodynamics
     use modglobal, only : lmoist, timee
     use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh
-    use modmicrophysics, only : microphysics
-    use modmicrophysics, only : imicro, imicro_none, imicro_drizzle
+    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     implicit none
     if (timee==0) call diagfld
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      if (imicro==5) then
+      if (imicro==imicro_sice) then
       call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
       else
       call thermo(thl0,qt0,ql0,presf,exnf)
       end if
-      if (imicro/=imicro_none) call microphysics
+!      if (imicro/=imicro_none) call microphysics
     end if
-
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      if (imicro==5) then
+      if (imicro==imicro_sice) then
       call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
       else
       call thermo(thl0,qt0,ql0,presf,exnf)
@@ -468,44 +466,48 @@ contains
   integer i, j, k
   real :: tl, ilratio1, esl, esi, qsatur, thlguess, ilratiomin, eslmin, esimin, qsaturmin, thlguessmin
   real, intent(in)  :: qt(2-ih:i1+ih,2-jh:j1+jh,k1),thl(2-ih:i1+ih,2-jh:j1+jh,k1),exner(k1),pressure(k1)
-  real, intent(out) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1),tmp(2-ih:i1+ih,2-jh:j1+jh,k1)
+  real, intent(out) :: tmp(2-ih:i1+ih,2-jh:j1+jh,k1)
+  real, intent(inout) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1)
   real :: Tnr,Tnr_old
   integer :: niter,nitert
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
-
       nitert = 0
+      write(6,*) '101'
+      do k=1,k1
       do j=2,j1
-        do i=2,i1
-          do k=1,k1
-
-            tl  = thl(i,j,k)*exner(k)
-            Tnr=tl
+      do i=2,i1
+            ! first guess for temperature based on old ql
+            Tnr=exner(k)*thl(i,j,k)+rlv/cp*ql(i,j,k)
             Tnr_old=0
-            do while (abs(Tnr-Tnr_old)/Tnr>1e-5)
+            do while (abs(Tnr-Tnr_old)>3e-3)
+               niter = niter+1
+               Tnr_old=Tnr
                ilratio1= amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-               esl    = es0*exp(rlv/rv*(1./tmelt-1./Tnr))
-               esi    = es0*exp(riv/rv*(1./tmelt-1./Tnr))
-               qsatur = ilratio1*rd/rv*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio1)*rd/rv*esi/(pressure(k)-(1.-rd/rv)*esi)
-               thlguess = Tnr*exner(k)-(rlv/cp*exner(k))*(qt(i,j,k)-qsatur) !riv does not occur yet: no melting in grabowski scheme
+               esl    = es0*exp((rlv/rv)*(1./tmelt-1./Tnr))
+               esi    = es0*exp((riv/rv)*(1./tmelt-1./Tnr))
+               qsatur = ilratio1*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio1)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
+               thlguess = Tnr/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
  
-               ilratiomin = amax1(0.,amin1(1.,(Tnr-1e-5-tdn)/(tup-tdn)))
-               eslmin    = es0*exp(rlv/rv*(1./tmelt-1./(Tnr-1e-5)))
-               esimin    = es0*exp(riv/rv*(1./tmelt-1./(Tnr-1e-5)))
-               qsaturmin = ilratiomin*rd/rv*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-ilratiomin)*rd/rv*esimin/(pressure(k)-(1.-rd/rv)*esimin)
-               thlguessmin = Tnr*exner(k)-(rlv/cp*exner(k))*(qt(i,j,k)-qsaturmin)!riv does not occur yet: no melting in grabowski scheme
+               ilratiomin = amax1(0.,amin1(1.,(Tnr-3e-3-tdn)/(tup-tdn)))
+               eslmin    = es0*exp((rlv/rv)*(1./tmelt-1./(Tnr-3e-3)))
+               esimin    = es0*exp((riv/rv)*(1./tmelt-1./(Tnr-3e-3)))
+               qsaturmin = ilratiomin*(rd/rv)*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-ilratiomin)*(rd/rv)*esimin/(pressure(k)-(1.-rd/rv)*esimin)
+               thlguessmin = (Tnr-3e-3)/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
  
-               Tnr = Tnr - thlguess/((thlguess-thlguessmin)/1e-5)
+               Tnr = Tnr - (thlguess-thl(i,j,k))/((thlguess-thlguessmin)/3e-3)
             end do
             nitert =max(nitert,niter)
-            niter = 0.0
+            niter = 0
             ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
             tmp(i,j,k)= Tnr
           end do
         end do
       end do
+      write(6,*) '102'
 
+  return
   end subroutine icethermo
 
 !> Calculates the scalars at half levels.

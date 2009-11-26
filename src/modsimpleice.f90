@@ -92,7 +92,7 @@ module modsimpleice
       if (ql0(i,j,k) > qcmin) then
         qcmask(i,j,k) = .true.
       else
-        qcmask = .false.
+        qcmask(i,j,k) = .false.
       end if
       ! initialise qr mask
       if (l_rain) then
