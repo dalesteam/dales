@@ -68,7 +68,7 @@ module modsimpleice
   subroutine simpleice
     use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhobf,tmp0
-    use modbulkmicrostat, only : bulkmicrotend
+    use modsimpleicestat, only : simpleicetend
     use modmpi,    only : myid
     implicit none
     integer:: i,j,k 
@@ -126,15 +126,15 @@ module modsimpleice
     enddo
 
     if (l_rain) then       
-!     call icemicrotend   
+      call simpleicetend
       call autoconvert
-!     call icemicrotend   
+      call simpleicetend
       call accrete         
-!     call icemicrotend
+      call simpleicetend
       call evaposite       
-!     call icemicrotend   
+      call simpleicetend
       call precipitate
-!     call icemicrotend
+      call simpleicetend
     endif
 
     do k=1,k1
