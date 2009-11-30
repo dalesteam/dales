@@ -484,14 +484,16 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio1= amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
+!               esl  = es0*exp(at*(Tnr-tmelt)/(Tnr-bt))
                esl    = es0*exp((rlv/rv)*(Tnr-tmelt)/(Tnr*tmelt))
                esi    = es0*exp((riv/rv)*(Tnr-tmelt)/(Tnr*tmelt))
                qsatur = ilratio1*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio1)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
                thlguess = Tnr/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
  
                ilratiomin = amax1(0.,amin1(1.,(Tnr-2e-3-tdn)/(tup-tdn)))
-               eslmin    = es0*((rlv/rv)*(Tnr-2e-3-tmelt)/((Tnr-2e-3)*tmelt))
-               esimin    = es0*((riv/rv)*(Tnr-2e-3-tmelt)/((Tnr-2e-3)*tmelt))
+!               eslmin    = es0*exp(at*(Tnr-2e-3-tmelt)/(Tnr-2e-3-bt))
+               eslmin    = es0*exp((rlv/rv)*(Tnr-2e-3-tmelt)/((Tnr-2e-3)*tmelt))
+               esimin    = es0*exp((riv/rv)*(Tnr-2e-3-tmelt)/((Tnr-2e-3)*tmelt))
                qsaturmin = ilratiomin*(rd/rv)*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-ilratiomin)*(rd/rv)*esimin/(pressure(k)-(1.-rd/rv)*esimin)
                thlguessmin = (Tnr-2e-3)/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsaturmin,0.)
  
