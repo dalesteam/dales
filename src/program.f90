@@ -30,18 +30,24 @@
 
 !! This subversion
 !! - Anelastic advection
-!! - Anelastic buoyancy
+!! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v)
 !! - Anelastic poisson solver
-!! - (Grabowski/KR) microphysics scheme
+!! - Simple ice microphysics scheme (Grabowski)
+!! - Icemicrostat (including precipitation)
 !! \todo
-!! This subversion
-!! - Radiation (old version/parameterised) and radstat based on anelastic density
-!! - Improved icemicrostat (include precipitation)
+!! - Test scheme on a number of cases (e.g. TRMM LBA, Kuang and Bretherton, ARM case of K&R)
 !! Later subversions
+!! 4.0.1 improved thermodynamics
+!! - Do away with the slab averaged variables?
+!! - Thermodynamic variables
+!! - Saturation pressure formula
+!! - Radiation (old version/parameterised) and radstat based on anelastic density
 !! - Full radiation based on anelastic density
+!! 4.0.2 Improved subgrid scheme
 !! - Revised TKE subgrid scheme (diffusion, subgrid buoyancy)
-!! - Thermodynamic variable conversion
 !! - TKE term in momentum equation (consistent Lipps-Hemler implementation)
+!! Further
+!! - Seifert Beheng Ice microphysics (with prognostic number concentrations)
 !! - 2D option
 !! - Parallelization
 !! - Diagnostics
