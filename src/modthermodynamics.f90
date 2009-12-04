@@ -56,7 +56,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist, timee
-    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh
+    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,tmp0h
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     implicit none
     if (timee==0) call diagfld
@@ -74,9 +74,9 @@ contains
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
       if (imicro==imicro_sice) then
-      call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
+      call icethermo(thl0h,tmp0h,qt0h,ql0h,presh,exnh)
       else
-      call thermo(thl0,qt0,ql0,presf,exnf)
+      call thermo(thl0h,qt0h,ql0h,presh,exnh)
       end if
     end if
     call calthv
@@ -220,7 +220,7 @@ contains
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,rslabs,grav,rlv,cp,rd,rv,pref0
   use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh, rhof
+                        presf,presh,exnf,exnh, rhof,prsbf,prsbh
   use modsurfdata,only : thls,ps
   use modmpi,    only : slabsum
   implicit none
@@ -323,7 +323,7 @@ contains
   subroutine fromztop
 
   use modglobal, only : k1,dzf,dzh,rv,rd,cp,tmelt,zf,grav,pref0
-  use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf
+  use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf,thobf,rhobh
   use modsurfdata,only : ps,thvs
   implicit none
 
@@ -339,9 +339,9 @@ contains
 !**************************************************
 
   do k=2,k1
-    thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
-    qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
-    qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
+    thetah(k) = (rhobf(k)*th0av(k)*dzf(k-1) + rhobf(k-1)*th0av(k-1)*dzf(k))/(2*rhobh(k)*dzh(k))
+    qth   (k) = (rhobf(k)*qt0av(k)*dzf(k-1) + rhobf(k-1)*qt0av(k-1)*dzf(k))/(2*rhobh(k)*dzh(k))
+    qlh   (k) = (rhobf(k)*ql0av(k)*dzf(k-1) + rhobf(k-1)*ql0av(k-1)*dzf(k))/(2*rhobh(k)*dzh(k))
   end do
 
 !**************************************************
