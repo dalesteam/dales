@@ -127,6 +127,11 @@ save
       integer, parameter :: iadv_cd6    = 6
       integer, parameter :: iadv_kappa  = 7
 
+      ! Tabulated saturation relation
+      real, dimension(1:80000) :: ttab
+      real, dimension(1:80000) :: esatltab
+      real, dimension(1:80000) :: esatitab     
+                                             
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
 
@@ -213,7 +218,7 @@ contains
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
-    integer :: k, n
+    integer :: k, n, m
     character(80) chmess
 
     !timestepping
@@ -265,6 +270,12 @@ contains
 
 
     ! Global constants
+
+    do m=1,80000
+    ttab(m)=180.+0.002*m
+    esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+    esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
+    end do
 
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
     if (iadv_tke<0) iadv_tke = iadv_mom
