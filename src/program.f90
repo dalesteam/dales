@@ -31,18 +31,15 @@
 !! - Anelastic poisson solver
 !! - Simple ice microphysics scheme (Grabowski)
 !! - Icemicrostat (including precipitation)
+!! - Review saturation pressure with table lookup fiormula (Murphy and Koop)
 !! \todo
 !! - Test scheme on a number of cases (e.g. TRMM LBA, Kuang and Bretherton, ARM case of K&R)
-!! Later subversions
+!! Todo
 !! 4.0.1 improved thermodynamics
-!! - Do away with the slab averaged variables?
-!! - Thermodynamic variables
-!! - Saturation pressure formula
-!! - Radiation (old version/parameterised) and radstat based on anelastic density
-!! - Full radiation based on anelastic density
+!! - Review Thermodynamic variables and fromztop (rhof, thetav, etc)
 !! 4.0.2 Improved subgrid scheme
-!! - Revised TKE subgrid scheme (diffusion, subgrid buoyancy)
-!! - TKE term in momentum equation (consistent Lipps-Hemler implementation)
+!! - Revised TKE subgrid scheme (diffusion)
+!! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! Further
 !! - Seifert Beheng Ice microphysics (with prognostic number concentrations)
 !! - 2D option
