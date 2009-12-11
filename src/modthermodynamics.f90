@@ -513,8 +513,16 @@ contains
             end do
             nitert =max(nitert,niter)
             niter = 0
-            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
             tmp(i,j,k)= Tnr
+            ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
+            tlonr=floor((Tnr-180.)/0.002)
+            thinr=tlonr+1
+            tlo=ttab(tlonr)
+            thi=ttab(thinr)
+            esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
+            esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+            qsatur = ilratio*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
+            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
           end do
         end do
       end do
