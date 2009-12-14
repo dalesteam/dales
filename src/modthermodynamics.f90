@@ -486,10 +486,7 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-!               esl  = es0*exp(at*(Tnr-tmelt)/(Tnr-bt)) alternative using Tetens formula
-!               esl    = es0*exp((rlv/rv)*(Tnr-tmelt)/(Tnr*tmelt)) or Grabowski
-!               esi    = es0*exp((riv/rv)*(Tnr-tmelt)/(Tnr*tmelt)) Grabowski-ice
-               tlonr=floor((Tnr-180.)/0.002)
+               tlonr=floor((Tnr-160.)/0.002)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
@@ -500,7 +497,7 @@ contains
 
                ttry=Tnr-2e-3
                ilratio = amax1(0.,amin1(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((ttry-180.)/0.002)
+               tlonr=floor((ttry-160.)/0.002)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
@@ -515,7 +512,7 @@ contains
             niter = 0
             tmp(i,j,k)= Tnr
             ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=floor((Tnr-180.)/0.002)
+            tlonr=floor((Tnr-160.)/0.002)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)

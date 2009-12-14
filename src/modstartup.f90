@@ -598,9 +598,11 @@ contains
       dthvbdzh(k) = (thvbf(k)-thvbf(k-1))/dzh(k)
       dprsbdzh(k) = (prsbf(k)-prsbf(k-1))/dzh(k)
     end do
-  
+
+
+    write (6,*) ' height   rhobf       alpbf       thvbf       prsbf       rhobh       alpbh       thvbh       prsbh'
     do k=k1,1,-1
-        write (6,'(1f7.1,16e12.4)') &
+        write (6,'(1f7.1,8e12.4)') &
               height (k), &
               rhobf (k), &
               alpbf (k), &
@@ -609,7 +611,12 @@ contains
               rhobh (k), &
               alpbh (k), &
               thvbh (k), &
-              prsbh (k), &
+              prsbh (k)
+    end do
+    write (6,*) ' height   drhobdzf    dalpbdzf    dthvbdzf   dprsbdzf    drhobdzh     dalpbdzh    dthvbdzh   dprsbdzh'
+    do k=k1,1,-1
+        write (6,'(1f7.1,8e12.4)') &
+              height (k), &
               drhobdzf (k), &
               dalpbdzf (k), &
               dthvbdzf (k), &
