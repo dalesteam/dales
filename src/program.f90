@@ -36,16 +36,17 @@
 !! - Test scheme on a number of cases (e.g. TRMM LBA, Kuang and Bretherton, ARM case of K&R)
 !! Todo
 !! 4.0.1 improved thermodynamics
-!! - Review Thermodynamic variables and fromztop (rhof, thetav, etc)
+!! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc)
 !! 4.0.2 Improved subgrid scheme
 !! - Revised TKE subgrid scheme (diffusion)
 !! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! Further
-!! - Seifert Beheng Ice microphysics (with prognostic number concentrations)
+!! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
 !! - 2D option
-!! - Parallelization
-!! - Diagnostics
-!! - I/O: Netcdf/warm start including base state variables
+!! - Parallelization (merge with dales 3.3)
+!! - Review diagnostics (in particular budgets)
+!! - Review particle routine
+!! - I/O: Check for necessity of netcdf/warm start including base state variables
 !!
 !! \section License License
 !!  This file is part of DALES.
