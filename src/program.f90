@@ -31,14 +31,16 @@
 !! - Anelastic poisson solver
 !! - Simple ice microphysics scheme (Grabowski)
 !! - Icemicrostat (including precipitation)
-!! - Review saturation pressure with table lookup fiormula (Murphy and Koop)
+!! - Reviewed saturation pressure with table lookup fiormula (Murphy and Koop)
+!! - Gravity wave damping towards mean state
+!! - Analytical function for surface forcing (may be removed later)
 !! \todo
 !! - Test scheme on a number of cases (e.g. TRMM LBA, Kuang and Bretherton, ARM case of K&R)
 !! Todo
 !! 4.0.1 improved thermodynamics
 !! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc)
 !! 4.0.2 Improved subgrid scheme
-!! - Revised TKE subgrid scheme (diffusion)
+!! - Revised TKE subgrid scheme (consider diffusion)
 !! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! Further
 !! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
