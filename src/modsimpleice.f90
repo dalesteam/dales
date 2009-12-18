@@ -4,7 +4,8 @@
 !!  Ice microphysics.
 !>
 !! Calculates ice microphysics in a cheap scheme without prognostic Nr
-!  simpleice is called from *modmicrophysics*
+!!  simpleice is called from *modmicrophysics*
+!! Replaced autoconversion scheme by simple Kessler for now (Berry commented out)
 !! \see  Grabowski, 1998, JAS
 !!  \author Steef B\"oing, TU Delft
 !!  \par Revision list
@@ -171,9 +172,10 @@ module modsimpleice
       if (qcmask(i,j,k).eqv..true.) then
         qll=ql0(i,j,k)*ilratio(i,j,k)
         qli=ql0(i,j,k)-qll
-        ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! relative dispersion for Berry autoconversion
-        del2=1.e3*rhobf(k)*qll ! liquid water content
-        autl=1./rhobf(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
+!        ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! relative dispersion for Berry autoconversion
+!       del2=1.e3*rhobf(k)*qll ! liquid water content
+!        autl=1./rhobf(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
+        autl=max(0.,0.001*(qll-1e-3))
         tc=tmp0(i,j,k)-tmelt
         times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
         auti=qli/times
