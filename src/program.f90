@@ -39,10 +39,15 @@
 !! Todo
 !! 4.0.1 improved thermodynamics
 !! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc)
-!! 4.0.2 Improved subgrid scheme
-!! - Revised TKE subgrid scheme (consider diffusion)
+!! - Thermodynamic variables!
 !! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
+!! - Revised TKE subgrid scheme (consider diffusion) and diffusion
+!! - Namoptions switch for autoconversion
+!! - Integrate ice micophysics with bulk microphysics?
+!! - Make ql first scalar? 
+!! - Fix basic warm start
 !! Further
+!! - Look into influence of advection scheme for deep convection (Walcek scheme??)
 !! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
 !! - 2D option
 !! - Parallelization (merge with dales 3.3)
