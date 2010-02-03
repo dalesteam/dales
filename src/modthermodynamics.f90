@@ -59,17 +59,17 @@ contains
     use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,tmp0h
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     implicit none
-    if (timee==0) call diagfld
+    if (timee < 0.01) then
+    call diagfld
+    end if
     if (lmoist) then
-!       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
-!      if (imicro/=imicro_none) call microphysics
+      call icethermo0
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
+
     if (lmoist) then
-!       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      call icethermo(thl0h,tmp0h,qt0h,ql0h,presh,exnh)
+      call icethermoh
     end if
     call calthv
 
@@ -228,14 +228,12 @@ contains
     ql0av  = 0.0
     sv0av = 0.
 
-
   !CvH changed momentum array dimensions to same value as scalars!
   call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-
     u0av  = u0av  /rslabs + cu
     v0av  = v0av  /rslabs + cv
     thl0av = thl0av/rslabs
@@ -244,12 +242,10 @@ contains
    exnf   = 1-grav*zf/(cp*thls)
     exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
-
   do n=1,nsv
     call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   end do
   sv0av = sv0av/rslabs
-
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
@@ -260,11 +256,9 @@ contains
   exnf = (presf/pref0)**(rd/cp)
   th0av = thl0av + (rlv/cp)*ql0av/exnf
 
-
 !    2.2 Use new updated value of theta for determination of pressure
 
   call fromztop
-
 
 
 !***********************************************************
@@ -280,7 +274,6 @@ contains
     exnf(k) = (presf(k)/pref0)**(rd/cp)
     exnh(k) = (presh(k)/pref0)**(rd/cp)
   end do
-
   tv      = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   rhof(1) = presf(1)/(rd*tv)
 
@@ -290,6 +283,7 @@ contains
     tv      = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     rhof(k) = presf(k)/(rd*tv)
   end do
+
   return
   end subroutine diagfld
 
@@ -442,78 +436,146 @@ contains
   return
   end subroutine thermo
 
-  subroutine icethermo (thl,tmp,qt,ql,pressure,exner)
+  subroutine icethermo0
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
-  use modfields, only : qvsl, qvsi
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0
   use modsurfdata, only : thls
+  use modmpi, only : myid
   implicit none
 
   integer i, j, k
   real :: tl, ilratio, esl, esi, qsatur, thlguess, thlguessmin,tlo,thi,ttry
-  real, intent(in)  :: qt(2-ih:i1+ih,2-jh:j1+jh,k1),thl(2-ih:i1+ih,2-jh:j1+jh,k1),exner(k1),pressure(k1)
-  real, intent(out) :: tmp(2-ih:i1+ih,2-jh:j1+jh,k1)
-  real, intent(inout) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1)
   real :: Tnr,Tnr_old
-  integer :: niter,nitert,tlonr,thinr
+  integer :: niter,nitert,tlonr,thinr,mid
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
       nitert = 0
+      do k=1,k1
       do j=2,j1
       do i=2,i1
-      do k=1,k1
             ! first guess for temperature
-            Tnr=exner(k)*thl(i,j,k)
+            Tnr=exnf(k)*thl0(i,j,k)
             Tnr_old=0.
-            do while (abs(Tnr-Tnr_old)>2e-3)
+            do while (abs(Tnr-Tnr_old) > 0.002)
                niter = niter+1
                Tnr_old=Tnr
-               ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)/0.002)
+               ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+               tlonr=floor((Tnr-150.)*500.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
                esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
                esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
-               qsatur = ilratio*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
-               thlguess = Tnr/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
+               qsatur = ilratio*(rd/rv)*esl/(presf(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presf(k)-(1.-rd/rv)*esi)
+               thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
 
-               ttry=Tnr-2e-3
-               ilratio = amax1(0.,amin1(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((ttry-150.)/0.002)
+               ttry=Tnr-0.002
+               ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+               tlonr=floor((ttry-150.)*500.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
                esl=(thi-ttry)*500.*esatltab(tlonr)+(ttry-tlo)*500.*esatltab(thinr)
                esi=(thi-ttry)*500.*esatitab(tlonr)+(ttry-tlo)*500.*esatitab(thinr)
-               qsatur = ilratio*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
-               thlguessmin = ttry/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
+               qsatur = ilratio*(rd/rv)*esl/(presf(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presf(k)-(1.-rd/rv)*esi)
+               thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
  
-               Tnr = Tnr - (thlguess-thl(i,j,k))/((thlguess-thlguessmin)/2e-3)
-            end do
+               Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
+            enddo
             nitert =max(nitert,niter)
             niter = 0
-            tmp(i,j,k)= Tnr
-            ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=floor((Tnr-150.)/0.002)
+            tmp0(i,j,k)= Tnr
+            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+            tlonr=floor((Tnr-150.)*500.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
             esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
             esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
-            qvsl(i,j,k)=rd/rv*esl/(pressure(k)-(1.-rd/rv)*esl)
-            qvsi(i,j,k)=rd/rv*esi/(pressure(k)-(1.-rd/rv)*esi)
+            qvsl(i,j,k)=rd/rv*esl/(presf(k)-(1.-rd/rv)*esl)
+            qvsi(i,j,k)=rd/rv*esi/(presf(k)-(1.-rd/rv)*esi)
             qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
-            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
-          end do
-        end do
+            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+      end do
+      end do
       end do
 
-  return
-  end subroutine icethermo
+  end subroutine icethermo0
+
+  subroutine icethermoh
+!> Calculates liquid water content.and temperature
+!! \author Steef B\"oing
+
+  use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
+  use modfields, only : qt0h,thl0h,exnh,presh,tmp0h,ql0h
+  use modsurfdata, only : thls
+  use modmpi, only : myid
+  implicit none
+
+  integer i, j, k
+  real :: tl, ilratio, esl, esi, qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: Tnr,Tnr_old
+  integer :: niter,nitert,tlonr,thinr,mid
+  real :: qvsl1,qvsi1
+
+!     calculation of T with Newton-Raphson method
+!     first guess is Tnr=tl
+      nitert = 0
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+            ! first guess for temperature
+            Tnr=exnh(k)*thl0h(i,j,k)
+            Tnr_old=0.
+            do while (abs(Tnr-Tnr_old) > 0.002)
+               niter = niter+1
+               Tnr_old=Tnr
+               ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+               tlonr=floor((Tnr-150.)*500.)
+               thinr=tlonr+1
+               tlo=ttab(tlonr)
+               thi=ttab(thinr)
+               esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
+               esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+               qsatur = ilratio*(rd/rv)*esl/(presh(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presh(k)-(1.-rd/rv)*esi)
+               thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+
+               ttry=Tnr-0.002
+               ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+               tlonr=floor((Tnr-150.)*500.)
+               thinr=tlonr+1
+               tlo=ttab(tlonr)
+               thi=ttab(thinr)
+               esl=(thi-ttry)*500.*esatltab(tlonr)+(ttry-tlo)*500.*esatltab(thinr)
+               esi=(thi-ttry)*500.*esatitab(tlonr)+(ttry-tlo)*500.*esatitab(thinr)
+               qsatur = ilratio*(rd/rv)*esl/(presh(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presh(k)-(1.-rd/rv)*esi)
+               thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+ 
+               Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
+            enddo
+            nitert =max(nitert,niter)
+            niter = 0
+            tmp0h(i,j,k)= Tnr
+            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+            tlonr=nint((Tnr-150.001)*500.)
+            thinr=tlonr+1
+            tlo=ttab(tlonr)
+            thi=ttab(thinr)
+            esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
+            esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+            qvsl1=rd/rv*esl/(presh(k)-(1.-rd/rv)*esl)
+            qvsi1=rd/rv*esi/(presh(k)-(1.-rd/rv)*esi)
+            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
+            ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
+      end do
+      end do
+      end do
+
+  end subroutine icethermoh
 
 !> Calculates the scalars at half levels.
 !! If the kappa advection scheme is active, interpolation needs to be done consistently.
