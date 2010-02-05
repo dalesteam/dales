@@ -40,12 +40,11 @@
   real,external :: rlim
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
    real      d1,d2,cf
 
   integer   i,j,k
 
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -129,7 +128,6 @@
     end do
   end do
 
-  deallocate(rhoputin)
 
   return
   end subroutine advecc_kappa
@@ -142,11 +140,10 @@ subroutine  halflev_kappa(putin,putout)
     real,external :: rlim
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-    real, allocatable, dimension(:,:,:) :: rhoput
+    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
     real      d1,d2,cf
     integer   i,j,k
 
-  allocate(rhoput(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -187,8 +184,6 @@ subroutine  halflev_kappa(putin,putout)
         putout(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
       end do
     end do
-
-  deallocate(rhoput)
 
   end subroutine halflev_kappa
 

@@ -37,12 +37,11 @@ subroutine advecc_6th(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
 !   if (leq) then
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -198,7 +197,6 @@ subroutine advecc_6th(putin, putout)
     end do
   end do
 
-deallocate(rhoputin)
 
 !   end if
 
@@ -215,11 +213,10 @@ subroutine advecu_6th(putin,putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -374,7 +371,6 @@ subroutine advecu_6th(putin,putout)
     end do
 
 !   end if
-deallocate(rhoputin)
 
 end subroutine advecu_6th
 
@@ -387,11 +383,9 @@ subroutine advecv_6th(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
-
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -546,7 +540,6 @@ subroutine advecv_6th(putin, putout)
       end do
     end do
 
-deallocate(rhoputin)
 
 !   end if
 
@@ -562,11 +555,10 @@ subroutine advecw_6th(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -694,7 +686,5 @@ subroutine advecw_6th(putin, putout)
         end do
       end do
     end do
-
-deallocate(rhoputin)
 
 end subroutine advecw_6th

@@ -30,12 +30,10 @@ subroutine advecc_upw(putin,putout)
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
-  real, allocatable, dimension(:,:,:) :: put
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: put
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
   integer :: i,j,k
 
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
-  allocate(put(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -107,9 +105,6 @@ subroutine advecc_upw(putin,putout)
       enddo
     enddo
   enddo
-
-deallocate(put)
-deallocate(rhoputin)
 
 end subroutine advecc_upw
 
