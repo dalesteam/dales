@@ -166,27 +166,47 @@ module modsimpleice
     real :: qll,qli,ddisp,del2,autl,tc,times,auti,aut
     integer:: i,j,k
 
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      if (qcmask(i,j,k).eqv..true.) then
-        qll=ql0(i,j,k)*ilratio(i,j,k)
-        qli=ql0(i,j,k)-qll
-!        ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! relative dispersion for Berry autoconversion
-!       del2=1.e3*rhobf(k)*qll ! liquid water content
-!        autl=1./rhobf(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
-        autl=max(0.,0.001*(qll-1e-3))
-        tc=tmp0(i,j,k)-tmelt
-        times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
-        auti=qli/times
-        aut = min(autl + auti,ql0(i,j,k)/delt)
-        qrp(i,j,k) = qrp(i,j,k)+aut
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+    if(l_berry.eqv..true.) then
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qcmask(i,j,k).eqv..true.) then
+          qll=ql0(i,j,k)*ilratio(i,j,k)
+          qli=ql0(i,j,k)-qll
+          ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! relative dispersion for Berry autoconversion
+          del2=1.e3*rhobf(k)*qll ! liquid water content
+          autl=1./rhobf(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
+          tc=tmp0(i,j,k)-tmelt
+          times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
+          auti=qli/times
+          aut = min(autl + auti,ql0(i,j,k)/delt)
+          qrp(i,j,k) = qrp(i,j,k)+aut
+          qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+        endif
+      enddo
+      enddo
+      enddo
+    else
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qcmask(i,j,k).eqv..true.) then
+          qll=ql0(i,j,k)*ilratio(i,j,k)
+          qli=ql0(i,j,k)-qll
+          autl=max(0.,0.001*(qll-1e-3))
+          tc=tmp0(i,j,k)-tmelt
+          times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
+          auti=qli/times
+          aut = min(autl + auti,ql0(i,j,k)/delt)
+          qrp(i,j,k) = qrp(i,j,k)+aut
+          qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
+        endif
+      enddo
+      enddo
+      enddo
       endif
-    enddo
-    enddo
-    enddo
 
   end subroutine autoconvert
 
