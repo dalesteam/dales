@@ -43,13 +43,11 @@ subroutine advecc_5th(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
   !if (leq) then
-
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -162,8 +160,6 @@ subroutine advecc_5th(putin, putout)
   end do
 
   !end if
-deallocate(rhoputin)
-
 end subroutine advecc_5th
 
 
@@ -176,11 +172,9 @@ subroutine advecu_5th(putin,putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
-
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -295,7 +289,6 @@ subroutine advecu_5th(putin,putout)
     end do
 
   !end if
-deallocate(rhoputin)
 
 end subroutine advecu_5th
 
@@ -309,11 +302,10 @@ subroutine advecv_5th(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -428,7 +420,6 @@ subroutine advecv_5th(putin, putout)
     end do
 
   !end if
-deallocate(rhoputin)
 
 end subroutine advecv_5th
 
@@ -441,11 +432,9 @@ subroutine advecw_5th(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, allocatable, dimension(:,:,:) :: rhoputin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
-
-  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
 
   do k=1,k1
     do j=2-jh,j1+jh
@@ -528,6 +517,5 @@ subroutine advecw_5th(putin, putout)
      end do
 
   !end if
-deallocate(rhoputin)
 
 end subroutine advecw_5th
