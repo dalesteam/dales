@@ -466,23 +466,23 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)*500.)
+               tlonr=floor((Tnr-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
-               esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+               esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+               esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
                qsatur = ilratio*(rd/rv)*esl/(presf(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presf(k)-(1.-rd/rv)*esi)
                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
 
                ttry=Tnr-0.002
                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((ttry-150.)*500.)
+               tlonr=floor((ttry-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-ttry)*500.*esatltab(tlonr)+(ttry-tlo)*500.*esatltab(thinr)
-               esi=(thi-ttry)*500.*esatitab(tlonr)+(ttry-tlo)*500.*esatitab(thinr)
+               esl=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+               esi=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
                qsatur = ilratio*(rd/rv)*esl/(presf(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presf(k)-(1.-rd/rv)*esi)
                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
  
@@ -492,12 +492,12 @@ contains
             niter = 0
             tmp0(i,j,k)= Tnr
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=floor((Tnr-150.)*500.)
+            tlonr=floor((Tnr-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
-            esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
-            esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+            esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qvsl(i,j,k)=rd/rv*esl/(presf(k)-(1.-rd/rv)*esl)
             qvsi(i,j,k)=rd/rv*esi/(presf(k)-(1.-rd/rv)*esi)
             qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
@@ -537,23 +537,23 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)*500.)
+               tlonr=floor((Tnr-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
-               esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+               esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+               esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
                qsatur = ilratio*(rd/rv)*esl/(presh(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presh(k)-(1.-rd/rv)*esi)
                thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
 
                ttry=Tnr-0.002
                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)*500.)
+               tlonr=floor((Tnr-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-ttry)*500.*esatltab(tlonr)+(ttry-tlo)*500.*esatltab(thinr)
-               esi=(thi-ttry)*500.*esatitab(tlonr)+(ttry-tlo)*500.*esatitab(thinr)
+               esl=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+               esi=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
                qsatur = ilratio*(rd/rv)*esl/(presh(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presh(k)-(1.-rd/rv)*esi)
                thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
  
