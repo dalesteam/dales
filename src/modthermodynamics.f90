@@ -563,12 +563,12 @@ contains
             niter = 0
             tmp0h(i,j,k)= Tnr
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=nint((Tnr-150.001)*500.)
+            tlonr=floor((Tnr-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
-            esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
-            esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
+            esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qvsl1=rd/rv*esl/(presh(k)-(1.-rd/rv)*esl)
             qvsi1=rd/rv*esi/(presh(k)-(1.-rd/rv)*esi)
             qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
