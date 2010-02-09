@@ -808,7 +808,7 @@ contains
            ,'  LEV  HGHT_F HGHT_H   PRES   COV_F  COV_H       W       THL      QT      ' &
            ,'QL       THV     P   WW_RES_H   WW_SUB_H'
         do k=1,kmax
-          write(ifoutput,'(i5,2F6.0,F7.1,2F10.5,5F11.5,E14.5,2F14.5)') &
+          write(ifoutput,'(i5,2F8.0,F7.1,2F10.5,5F11.5,E14.5,2F14.5)') &
               k, &
               zf       (k), &
               zh       (k), &
@@ -840,7 +840,7 @@ contains
             ,'   LEV  HGHT  PRES       AW                WTHL                WQT                ' &
             ,'WQL                WTHV                UW                VW'
         do k=1,kmax
-          write(ifoutput,'(i5,F6.0,F7.1,7E16.8)') &
+          write(ifoutput,'(i5,F8.0,F7.1,7E16.8)') &
                 k, &
                 zh         (k), &
                 presh      (k)/100., &
@@ -869,7 +869,7 @@ contains
            ,'    DTAUDZHMN     DTAUDXHMN    CORIOLIS     RESIDUAL    WS_END   SIG_END ' &
            ,'  '
         do k=1,kmax
-          write(ifoutput,'(i5,F6.0,F7.1,F9.4,11F13.7)') &
+          write(ifoutput,'(i5,F8.0,F7.1,F9.4,11F13.7)') &
               k, &
               zh        (k), &
               presh     (k)/100., &
