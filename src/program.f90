@@ -32,12 +32,14 @@
 !! - Anelastic advection
 !! - Anelastic buoyancy
 !! - Anelastic poisson solver
+!! \todo
+!! This subversion
+!! - (Grabowski/KR) microphysics scheme
 !! - Radiation (old version/not full) and radstat based on anelastic density
 !! Later subversions
 !! - Full radiation based on anelastic density
 !! - Revised TKE subgrid scheme
 !! - Thermodynamic variable conversion
-!! - (Grabowski/KR) microphysics scheme
 !! - TKE term in momentum equation
 !! - 2D option
 !! - Parallelization
@@ -108,17 +110,11 @@ program DALES      !Version 4.0.0alpha
 
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
-<<<<<<< HEAD:src/program.f90
   !use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   !use modchem,         only : initchem,inputchem,twostep
 
 
-=======
-  use modnudge,        only : initnudge, nudge, exitnudge
-  
-  use modchem,         only : initchem,inputchem, twostep
->>>>>>> Fixed program:src/program.f90
   implicit none
 
 !----------------------------------------------------------------
