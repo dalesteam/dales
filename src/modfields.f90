@@ -57,6 +57,25 @@ save
   real, allocatable :: sv0(:,:,:,:)   !<  scalar sv(n) at time step t
   real, allocatable :: svp(:,:,:,:)   !<  tendency of sv(n)
 
+  ! Base state variables
+  real, allocatable :: rhobf(:)       !<   Base state density, full level
+  real, allocatable :: alpbf(:)       !<   Base state specific volume (1/rho), full level
+  real, allocatable :: thvbf(:)       !<   Base state thv, full level
+  real, allocatable :: prsbf(:)       !<   Base state pressure, full level
+  real, allocatable :: rhobh(:)       !<   Base state density, half level
+  real, allocatable :: alpbh(:)       !<   Base state specific volume (1/rho), half level
+  real, allocatable :: thvbh(:)       !<   Base state thv, half level
+  real, allocatable :: prsbh(:)       !<   Base state pressure, half level
+
+  real, allocatable :: drhobdzf(:)       !<   Base state density, derivative at full level
+  real, allocatable :: dalpbdzf(:)       !<   Base state specific volume (1/rho), derivative at  full level
+  real, allocatable :: dthvbdzf(:)       !<   Base state thv, derivative at full level
+  real, allocatable :: dprsbdzf(:)       !<   Base state pressure, derivative at full level
+
+  real, allocatable :: drhobdzh(:)       !<   Base state density, derivative at half level
+  real, allocatable :: dalpbdzh(:)       !<   Base state specific volume (1/rho), derivative at half level
+  real, allocatable :: dthvbdzh(:)       !<   Base state thv, derivative at half level
+  real, allocatable :: dprsbdzh(:)       !<   Base state pressure, derivative at half level
   ! Diagnostic variables
 
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
@@ -111,7 +130,7 @@ save
 
 contains
 !> Allocate and initialize the prognostic variables
-  subroutine initfields
+subroutine initfields
 
     use modglobal, only : i1,ih,j1,jh,kmax,k1,nsv
     ! Allocation of prognostic variables
@@ -141,6 +160,24 @@ contains
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+
+    ! Allocation of base state variables
+    allocate(rhobf(k1))
+    allocate(alpbf(k1))
+    allocate(thvbf(k1))
+    allocate(prsbf(k1))
+    allocate(rhobh(k1))
+    allocate(alpbh(k1))
+    allocate(thvbh(k1))
+    allocate(prsbh(k1))
+    allocate(drhobdzf(k1))
+    allocate(dalpbdzf(k1))
+    allocate(dthvbdzf(k1))
+    allocate(dprsbdzf(k1))
+    allocate(drhobdzh(k1))
+    allocate(dalpbdzh(k1))
+    allocate(dthvbdzh(k1))
+    allocate(dprsbdzh(k1))
 
     ! Allocation of diagnostic variables
     allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -195,6 +232,9 @@ contains
     e12m=0;e120=0;e12p=0
     svm=0;sv0=0;svp=0
 
+    rhobf=0;alpbf=0;thvbf=0;prsbf=0;rhobh=0;alpbh=0;thvbh=0;prsbh=0
+    drhobdzf=0;dalpbdzf=0;dthvbdzf=0;dprsbdzf=0;drhobdzh=0;dalpbdzh=0;dthvbdzh=0;dprsbdzh=0
+
     ql0=0;thv0h=0;thl0h=0;qt0h=0
     presf=0;presh=0;exnf=0;exnh=0;thvf=0;thvh=0;rhof=0    ! OG
     qt0av=0;ql0av=0;thl0av=0;u0av=0;v0av=0;sv0av=0
@@ -213,6 +253,8 @@ contains
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
+    deallocate(rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh)
+    deallocate(drhobdzf,dalpbdzf,dthvbdzf,dprsbdzf,drhobdzh,dalpbdzh,dthvbdzh,dprsbdzh)
     deallocate(ql0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvf,thvh,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,dvdxls,dvdyls,wfls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)

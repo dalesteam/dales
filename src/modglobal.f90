@@ -69,6 +69,7 @@ save
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
       real,parameter :: rlv      = 2.5e6            !<    *latent heat for vaporisation.
+      real,parameter :: rli     = 2.84e6          !<    *and sublimation
       real,parameter :: ep       = rd/rv            !<    0.622
       real,parameter :: ep2      = rv/rd - 1.       !<    0.61
       !< real,parameter :: cv       = cp-rd            !<    716.96
@@ -100,9 +101,26 @@ save
       real    :: xlat    = 52.              !<    *latitude  in degrees.
       real    :: xlon    = 0.               !<    *longitude in degrees.
 
+      !Momentum equation
+      integer :: imom_eqn = 2
+      integer, parameter :: imom_wo    = 1 !< Wilhelmson-Ogura (Boussinesq is special case)
+      integer, parameter :: imom_lh    = 2 !< Lipps-Hemler
+
+      !Base state
+      integer :: ibas_prf = 1
+      integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)
+      integer, parameter :: ibas_bou    = 2 !< Old Boussinesq (Base states inconsistent)
+      integer, parameter :: ibas_rho    = 3 !< Density constant
+      integer, parameter :: ibas_vma    = 4 !< Moist adiabat
+      integer, parameter :: ibas_usr    = 5 !< User specified
+
+      !Thermodynamic variable
+      integer :: ithe_var = 1
+      integer, parameter :: ithe_thli    = 1 !< Theta_li
+      integer, parameter :: ithe_thet    = 2 !< Theta
+      integer, parameter :: ithe_lise    = 3 !< LISE
 
       !Advection scheme
-
       integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
