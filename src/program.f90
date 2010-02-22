@@ -6,7 +6,7 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 3.2 RC 1
+!! @version 4.0.0alpha
 !!
 !! @author
 !! Stephan de Roode
@@ -17,24 +17,31 @@
 !! \author
 !! Thijs Heus
 !! (Max Planck Institute Hamburg)
+!! \author
+!! Steef B\"oing
+!! (TU Delft)
 !>
 !! \section Log Change log
 !! \par New Features
-!!  - Land Surface model
-!!  - Chemistry
-!!  - NetCDF output
-!!  - Gitourius repository, including case database
-!!  - Optional Smagorinsky SFS-scheme
 !! \par Changes
-!! - Newton-Raphson Ql calculations now by default true\n
-!! - Subsidence by default off for momentum. Changable with lmomsubs switch in
-!! physics
-!!
+!! - Changed Modfields+modglobal+modmicrodata switches
+!! - Startup with new variables
 !! \todo
-!! - Test everywhere, especially in radiation and LSM
-!! - Check restart files
-!! - Check whether all variables are present in the netCDF output
-!! - Documentation: Build one coherent story of the paper, Huugs/Johans description, CMake and Git HOWTOS
+!! This subversion
+!! - Anelastic advection
+!! - Anelastic buoyancy
+!! - Anelastic poisson solver
+!! - Radiation (old version/not full) and radstat based on anelastic density
+!! Later subversions
+!! - Full radiation based on anelastic density
+!! - Revised TKE subgrid scheme
+!! - Thermodynamic variable conversion
+!! - (Grabowski/KR) microphysics scheme
+!! - TKE term in momentum equation
+!! - 2D option
+!! - Parallelization
+!! - Diagnostics
+!! - I/O: Netcdf/warm start including base state variables
 !!
 !! \section License License
 !!  This file is part of DALES.
@@ -54,7 +61,7 @@
 !!  Copyright 1993-2009 Delft University of Technology, Wageningen University,
 !! Utrecht University, KNMI
 !!
-program DALES      !Version 3.2 RC 1
+program DALES      !Version 4.0.0alpha
 
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
@@ -97,8 +104,6 @@ program DALES      !Version 3.2 RC 1
   use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
-!   use modnetcdfstats,  only : initnetcdfstats, netcdfstats, exitnetcdfstats
-!   use modnetcdfmovie,  only : initnetcdfmovie, netcdfmovie, exitnetcdfmovie
   use modchem,         only : initchem,inputchem, twostep
   implicit none
 
@@ -126,8 +131,6 @@ program DALES      !Version 3.2 RC 1
   call initradstat
   call initparticles
   call initnudge
-  ! call initnetcdfstats
-  ! call initnetcdfmovie
   call initbulkmicrostat
   call initbudget
   call initstressbudget
@@ -219,9 +222,6 @@ program DALES      !Version 3.2 RC 1
     call bulkmicrostat
     call budgetstat
     call stressbudgetstat
-
-    ! call netcdfmovie
-
     call writerestartfiles
   end do
 
@@ -244,7 +244,6 @@ program DALES      !Version 3.2 RC 1
   call exitstressbudget
   call exitcrosssection
   call exitfielddump
-  ! call exitnetcdfmovie
   call exitmodules
 
 end program DALES

@@ -56,7 +56,7 @@ contains
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
+                                  imom_eqn,ibas_prf,ithe_var,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -91,7 +91,7 @@ contains
         lcoriol,lmomsubs, ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, cu, cv, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lqlnr, cu, cv, imom_eqn, ibas_prf, ithe_var, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
 !   logical :: ldelta   = .false. ! switch for subgrid
   !read namelists
 
@@ -209,6 +209,9 @@ contains
     call MPI_BCAST(peclet,1,MY_REAL   ,0,comm3d,mpierr)
 
     call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(imom_eqn,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(ithe_var,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,comm3d,mpierr)
@@ -254,7 +257,7 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps
-    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart
+    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
     use modmpi,    only : myid, nprocs,mpierr
 
 
@@ -283,8 +286,8 @@ contains
 
     if (runtime < 0)stop 'runtime out of range/not set'
     if (dtmax < 0)  stop 'dtmax out of range/not set '
-    if (ps < 0)     stop 'psout of range/not set'
-    if (thls < 0)   stop 'thls out of range/not set'
+    if (ps < eps1)     stop 'psout of range/not set'
+    if (thls < eps1)   stop 'thls out of range/not set'
     if (xsize < 0)  stop 'xsize out of range/not set'
     if (ysize < 0)  stop 'ysize out of range/not set '
 
@@ -312,14 +315,16 @@ contains
   subroutine readinitfiles
     use modfields,         only : u0,v0,w0,um,vm,wm,thlm,thl0,thl0h,qtm,qt0,qt0h,&
                                   ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
+                                  rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh,&
+                                  drhobdzf,dalpbdzf,dthvbdzf,dprsbdzf,drhobdzh,dalpbdzh,dthvbdzh,dprsbdzh,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
                                   thlpcar
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,rtimee,timee,ntimee,ntrun,btime,nsv,&
-                                  zf,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,trestart, ladaptive,llsadv,tnextrestart
+                                  zf,zh,dzf,dzh,rv,rd,rcp,grav,cp,rlv,pref0,om23_gs,&
+                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,trestart, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,thvs,ustin,ps,qts,isurf,svs,obl,oblav
@@ -466,6 +471,165 @@ contains
           end do
         end do
       end do
+
+!-----------------------------------------------------------------
+!    1.3 Read and initialise base states
+!-----------------------------------------------------------------
+
+    if(myid==0)then
+
+      select case (ibas_prf)
+  
+        case(1) ! Constant theta_v
+          thvbh(1)= thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0, to be revised with thermo
+          alpbh(1)= (rd*thvbh(1)*(ps/pref0)**rcp)/ps
+          rhobh(1)= 1./alpbh(1)
+          do  k=1,k1
+            thvbf(k)=thvbh(1)
+            thvbh(k)=thvbh(1)
+            prsbf(k)=pref0*((-zf(k)+cp*thvbh(1)*(ps/pref0)**(rd/cp))/(cp*thvbh(1)))**(cp/rd)
+            prsbh(k)=pref0*((-zh(k)+cp*thvbh(1)*(ps/pref0)**(rd/cp))/(cp*thvbh(1)))**(cp/rd)
+            alpbf(k)=rd*thvbh(1)*((ps/pref0)**(rd/cp))/prsbf(k)
+            alpbh(k)=rd*thvbh(1)*((ps/pref0)**(rd/cp))/prsbh(k)
+            rhobf(k)=1./alpbf(k)
+            rhobh(k)=1./alpbh(k)
+          end do
+    
+        case(2) ! Boussinesq as in Dales 3: pressure states (not used in Wilhelmson-Ogura equations) from hydrostatic balance
+          thvbh(1) = thls*(1+(rv/rd-1)*qts)
+          alpbh(1)=(rd*thvbh(1)*(ps/pref0)**rcp)/ps
+          rhobh(1)=1./alpbh(1)
+          do  k=1,k1
+            thvbf(k)=thvbh(1)
+            thvbh(k)=thvbh(1)
+            alpbf(k)=alpbh(1)
+            alpbh(k)=alpbh(1)
+            rhobf(k)=rhobh(1)
+            rhobh(k)=rhobh(1)
+            prsbf(k)=ps-rhobh(1)*grav*zf(k)
+            prsbh(k)=ps-rhobh(1)*grav*zh(k)
+          end do
+
+        case(3) ! Constant Density, implemented consistent with both hydrostatic balance and eqn. of state
+          thvbh(1) = thls*(1+(rv/rd-1)*qts)
+          alpbh(1)=(rd*thvbh(1)*(ps/pref0)**rcp)/ps
+          rhobh(1)=1./alpbh(1)
+          do  k=1,k1
+            rhobf(k)=rhobh(1)
+            rhobh(k)=rhobh(1)
+            alpbf(k)=alpbh(1)
+            alpbh(k)=alpbh(1)
+            prsbf(k)=ps-rhobh(1)*grav*zf(k)
+            prsbh(k)=ps-rhobh(1)*grav*zh(k)
+            thvbf(k)=(prsbf(k)*alpbf(k))/(rd*(prsbf(k)/pref0)**rcp)
+            thvbh(k)=(prsbh(k)*alpbf(k))/(rd*(prsbh(k)/pref0)**rcp)
+          end do
+
+        case(4) ! Moist Adiabat: theta_l constant 
+          stop 'profile not yet implemented'
+
+        case(5) ! User specified
+          open (ifinput,file='baseprof.inp.'//cexpnr)
+          read (ifinput,'(a80)') chmess
+          read (ifinput,'(a80)') chmess
+          
+          do  k=1,kmax
+            read (ifinput,*) &
+                    height(k), &
+                    rhobf (k), &
+                    thvbf (k), &
+                    prsbf (k)
+            alpbf(k)=1./rhobf(k)
+          end do
+        
+          rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
+          thvbf(k1)=thvbf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(thvbf(kmax)-thvbf(kmax-1))
+          prsbf(k1)=prsbf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(prsbf(kmax)-prsbf(kmax-1))
+          alpbf(k1)=1./rhobf(k1)
+    
+          do k=2,k1
+          thvbh(k) = (thvbf(k)*dzf(k-1)+thvbf(k-1)*dzf(k))/(2*dzh(k))
+          rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(2*dzh(k))
+          prsbh(k) = (prsbf(k)*dzf(k-1)+prsbf(k-1)*dzf(k))/(2*dzh(k))
+          alpbh(k) = 1./rhobf(k)
+	  end do
+
+          rhobh(1) = thvbf(1)+(thvbh(2)-thvbh(1))/(zf(2)-zf(1))*(zf(1)-zh(1))
+          thvbh(1) = thvbf(1)+(thvbh(2)-thvbh(1))/(zf(2)-zf(1))*(zf(1)-zh(1))
+          prsbh(1) = thvbf(1)+(thvbh(2)-thvbh(1))/(zf(2)-zf(1))*(zf(1)-zh(1))
+          alpbh(1) = 1./rhobh(1)
+          close(ifinput)
+
+        case default
+        stop 'background profile not set'
+
+      end select
+  
+    do  k=1,kmax
+      drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
+      dalpbdzf(k) = (alpbh(k+1) - alpbh(k))/dzf(k)
+      dthvbdzf(k) = (thvbh(k+1) - thvbh(k))/dzf(k)
+      dprsbdzf(k) = (prsbh(k+1) - prsbh(k))/dzf(k)
+    end do
+
+    drhobdzf(k1) = drhobdzf(kmax)
+    dthvbdzf(k1) = dthvbdzf(kmax)
+    dprsbdzf(k1) = dprsbdzf(kmax)
+    dalpbdzf(k1) = -(1/(rhobf(k1)*rhobf(k1)))*drhobdzf(k1)
+  
+    drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
+    dthvbdzh(1) = 2*(thvbf(1)-thvbh(1))/dzh(1)
+    dprsbdzh(1) = 2*(prsbf(1)-prsbh(1))/dzh(1)
+    dalpbdzh(1) = -(1/(rhobh(1)*rhobh(1)))*drhobdzh(1)
+
+    do k=2,k1
+      drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
+      dalpbdzh(k) = (alpbf(k)-alpbf(k-1))/dzh(k)
+      dthvbdzh(k) = (thvbf(k)-thvbf(k-1))/dzh(k)
+      dprsbdzh(k) = (prsbf(k)-prsbf(k-1))/dzh(k)
+    end do
+  
+    do k=k1,1,-1
+        write (6,'(1f7.1,16e12.4)') &
+              height (k), &
+              rhobf (k), &
+              alpbf (k), &
+              thvbf (k), &
+              prsbf (k), &
+              rhobh (k), &
+              alpbh (k), &
+              thvbh (k), &
+              prsbh (k), &
+              drhobdzf (k), &
+              dalpbdzf (k), &
+              dthvbdzf (k), &
+              dprsbdzf (k), &
+              drhobdzh (k), &
+              dalpbdzh (k), &
+              dthvbdzh (k), &
+              dprsbdzh (k)
+    end do
+
+    end if
+
+! MPI broadcast variables
+
+    call MPI_BCAST(rhobf       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(alpbf       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(thvbf       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(prsbf       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(rhobh       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(alpbh       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(thvbh       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(prsbh       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(drhobdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(dalpbdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(dthvbdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(dprsbdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(drhobdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(dalpbdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(dthvbdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(dprsbdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
 
 !-----------------------------------------------------------------
 !    2.2 Initialize surface layer
