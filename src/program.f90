@@ -26,17 +26,17 @@
 !! \par Changes
 !! - Changed Modfields+modglobal+modmicrodata switches
 !! - Startup with new variables
-!! \todo
-!! This subversion
 !! - Anelastic advection
 !! - Anelastic buoyancy
 !! - Anelastic poisson solver
+!! \todo
+!! This subversion
+!! - (Grabowski/KR) microphysics scheme
 !! - Radiation (old version/not full) and radstat based on anelastic density
 !! Later subversions
 !! - Full radiation based on anelastic density
 !! - Revised TKE subgrid scheme
 !! - Thermodynamic variable conversion
-!! - (Grabowski/KR) microphysics scheme
 !! - TKE term in momentum equation
 !! - 2D option
 !! - Parallelization
