@@ -9,6 +9,7 @@
 !!  \author Stephan de Roode,TU Delft
 !!  \author Chiel van Heerwaarden, Wageningen U.R.
 !!  \author Thijs Heus,MPI-M
+!!  \author Steef Böing, TU Delft
 !!  \par Revision list
 !!  \todo Documentation
 !  This file is part of DALES.
@@ -60,7 +61,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal, only : i1,j1,kmax,dzh,dzf,grav
-  use modfields, only : u0,v0,w0,up,vp,wp,thv0h,dpdxl,dpdyl
+  use modfields, only : u0,v0,w0,up,vp,wp,thv0h,dpdxl,dpdyl,thvbh
   use modsurfdata,only : thvs
   use moduser,   only : force_user
   implicit none
@@ -76,17 +77,13 @@ contains
     jp=j+1
     jm=j-1
   do i=2,i1
-
     up(i,j,k) = up(i,j,k) - dpdxl(k)
     vp(i,j,k) = vp(i,j,k) - dpdyl(k)
+    wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvbh(k))/thvbh(k)
+  end do
+  end do
+  end do
 
-    wp(i,j,k) = wp(i,j,k)+ grav/thvs * thv0h(i,j,k)
-
-  end do
-  end do
-!     -------------------------------------------end i&j-loop
-  end do
-!     -------------------------------------------end k-loop
 
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
