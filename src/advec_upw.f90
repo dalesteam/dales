@@ -24,24 +24,34 @@
 subroutine advecc_upw(putin,putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzi
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0, rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
   real, allocatable, dimension(:,:,:) :: put
+  real, allocatable, dimension(:,:,:) :: rhoputin
   integer :: i,j,k
 
+  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
   allocate(put(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=1,k1
     do j=2,j1
       do i=2,i1+1
        if( u0(i,j,k) > 0 ) then
-           put(i,j,k) = putin(i-1,j,k)
+           put(i,j,k) = rhoputin(i-1,j,k)
        else
-           put(i,j,k) = putin(i,j,k)
+           put(i,j,k) = rhoputin(i,j,k)
        endif
       enddo
     enddo
@@ -51,7 +61,7 @@ subroutine advecc_upw(putin,putout)
     do j=2,j1
       do i=2,i1
         putout(i,j,k) = putout(i,j,k) - &
-            (u0(i+1,j,k)*put(i+1,j,k)-u0(i,j,k)*put(i,j,k))*dxi
+            (1./rhobf(k))*(u0(i+1,j,k)*put(i+1,j,k)-u0(i,j,k)*put(i,j,k))*dxi
       enddo
     enddo
   enddo
@@ -60,9 +70,9 @@ subroutine advecc_upw(putin,putout)
     do j=2,j1+1
       do i=2,i1
        if( v0(i,j,k) > 0 ) then
-           put(i,j,k) = putin(i,j-1,k)
+           put(i,j,k) = rhoputin(i,j-1,k)
        else
-           put(i,j,k) = putin(i,j,k)
+           put(i,j,k) = rhoputin(i,j,k)
        endif
       enddo
     enddo
@@ -71,7 +81,7 @@ subroutine advecc_upw(putin,putout)
     do j=2,j1
       do i=2,i1
         putout(i,j,k) = putout(i,j,k) - &
-            (v0(i,j+1,k)*put(i,j+1,k)-v0(i,j,k)*put(i,j,k))*dyi
+            (1./rhobf(k))*(v0(i,j+1,k)*put(i,j+1,k)-v0(i,j,k)*put(i,j,k))*dyi
       enddo
     enddo
   enddo
@@ -82,9 +92,9 @@ subroutine advecc_upw(putin,putout)
     do j=2,j1
       do i=2,i1
        if( w0(i,j,k) > 0 ) then
-           put(i,j,k) = putin(i,j,k-1)
+           put(i,j,k) = rhoputin(i,j,k-1)
        else
-           put(i,j,k) = putin(i,j,k)
+           put(i,j,k) = rhoputin(i,j,k)
        endif
       enddo
     enddo
@@ -93,12 +103,13 @@ subroutine advecc_upw(putin,putout)
     do j=2,j1
       do i=2,i1
         putout(i,j,k) = putout(i,j,k) - &
-            (w0(i,j,k+1)*put(i,j,k+1)-w0(i,j,k)*put(i,j,k))*dzi
+            (1./rhobf(k))*(w0(i,j,k+1)*put(i,j,k+1)-w0(i,j,k)*put(i,j,k))*dzi
       enddo
     enddo
   enddo
 
 deallocate(put)
+deallocate(rhoputin)
 
 end subroutine advecc_upw
 
