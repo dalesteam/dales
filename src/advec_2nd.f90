@@ -33,13 +33,24 @@
 subroutine advecc_2nd(putin,putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0, rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, allocatable, dimension(:,:,:) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
+
+  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=1,kmax
   km=k-1
@@ -72,15 +83,15 @@ subroutine advecc_2nd(putin,putout)
       do i=2,i1
       im=i-1
       ip=i+1
-        putout(i,j,1)  = putout(i,j,1)- ( &
-                w0(i,j,2) * (putin(i,j,2) + putin(i,j,1) ) &
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+                w0(i,j,2) * (rhoputin(i,j,2) + rhoputin(i,j,1) ) &
                 ) * dzi5
         do k=2,kmax
         km=k-1
         kp=k+1
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                w0(i,j,kp) * (putin(i,j,kp)+putin(i,j,k)) &
-                -w0(i,j,k)   * (putin(i,j,km)+putin(i,j,k)) &
+          putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
+                w0(i,j,kp) * (rhoputin(i,j,kp)+rhoputin(i,j,k)) &
+                -w0(i,j,k)   * (rhoputin(i,j,km)+rhoputin(i,j,k)) &
                 )*dzi5
         end do
       end do
@@ -94,22 +105,24 @@ subroutine advecc_2nd(putin,putout)
       do i=2,i1
       im=i-1
       ip=i+1
-        putout(i,j,1)  = putout(i,j,1)- ( &
-                w0(i,j,2) * (putin(i,j,2)*dzf(1) + putin(i,j,1)*dzf(2) ) / (2.*dzh(2)) &
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+                w0(i,j,2) * (rhoputin(i,j,2)*dzf(1) + rhoputin(i,j,1)*dzf(2) ) / (2.*dzh(2)) &
                 ) / dzf(1)
 
         do k=2,kmax
         km=k-1
         kp=k+1
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                w0(i,j,kp) * (putin(i,j,kp)*dzf(k) + putin(i,j,k)*dzf(kp) ) / dzh(kp) &
-               -w0(i,j,k ) * (putin(i,j,km)*dzf(k) + putin(i,j,k)*dzf(km) ) / dzh(k) &
+          putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
+                w0(i,j,kp) * (rhoputin(i,j,kp)*dzf(k) + rhoputin(i,j,k)*dzf(kp) ) / dzh(kp) &
+               -w0(i,j,k ) * (rhoputin(i,j,km)*dzf(k) + rhoputin(i,j,k)*dzf(km) ) / dzh(k) &
                 )/ (2. * dzf(k))
         end do
       end do
     end do
 
   end if
+
+deallocate(rhoputin)
 
 end subroutine advecc_2nd
 
@@ -118,14 +131,24 @@ end subroutine advecc_2nd
 subroutine advecu_2nd(putin, putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u-field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+  real, allocatable, dimension(:,:,:) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
+
+  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=1,kmax
   km=k-1
@@ -158,38 +181,39 @@ subroutine advecu_2nd(putin, putout)
       do i=2,i1
       im=i-1
       ip=i+1
-        putout(i,j,1)  = putout(i,j,1)-( &
-            ( putin(i,j,2) + putin(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
+        putout(i,j,1)  = putout(i,j,1)-(1./rhobf(1))*( &
+            ( rhoputin(i,j,2) + rhoputin(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
             ) *dziq
         do k=2,kmax
         km=k-1
         kp=k+1
 
-          putout(i,j,k)  = putout(i,j,k)- ( &
-              (putin(i,j,k)+putin(i,j,kp) )*(w0(i,j,kp)+w0(im,j,kp)) &
-              -(putin(i,j,k)+putin(i,j,km) )*(w0(i,j,k )+w0(im,j,k )) &
+          putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
+              (rhoputin(i,j,k)+rhoputin(i,j,kp) )*(w0(i,j,kp)+w0(im,j,kp)) &
+              -(rhoputin(i,j,k)+rhoputin(i,j,km) )*(w0(i,j,k )+w0(im,j,k )) &
                   )*dziq
         end do
       end do
     end do
 
   else
+
     do j=2,j1
     jm=j-1
     jp=j+1
       do i=2,i1
       im=i-1
       ip=i+1
-        putout(i,j,1)  = putout(i,j,1)-( &
-              ( putin(i,j,2)*dzf(1) + putin(i,j,1)*dzf(2) ) / dzh(2) &
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+              ( rhoputin(i,j,2)*dzf(1) + rhoputin(i,j,1)*dzf(2) ) / dzh(2) &
                 *( w0(i,j,2)+ w0(im,j,2) ))/ (4.*dzf(1))
         do k=2,kmax
         km=k-1
         kp=k+1
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                ( putin(i,j,kp)*dzf(k) + putin(i,j,k)*dzf(kp) ) / dzh(kp) &
+          putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
+                ( rhoputin(i,j,kp)*dzf(k) + rhoputin(i,j,k)*dzf(kp) ) / dzh(kp) &
                   *( w0(i,j,kp)+ w0(im,j,kp) ) &
-               -( putin(i,j,k)*dzf(km) + putin(i,j,km)*dzf(k) ) / dzh(k) &
+               -( rhoputin(i,j,k)*dzf(km) + rhoputin(i,j,km)*dzf(k) ) / dzh(k) &
                   *( w0(i,j,k)  + w0(im,j,k)   ) &
                 )/ (4.*dzf(k))
         end do
@@ -201,6 +225,8 @@ subroutine advecu_2nd(putin, putout)
 
   end if
 
+deallocate(rhoputin)
+
 end subroutine advecu_2nd
 
 
@@ -208,13 +234,25 @@ end subroutine advecu_2nd
 subroutine advecv_2nd(putin, putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0, rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v-field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, allocatable, dimension(:,:,:) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
+
+  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
+
   do k=1,kmax
   km=k-1
   kp=k+1
@@ -246,16 +284,16 @@ subroutine advecv_2nd(putin, putout)
       do i=2,i1
       im=i-1
       ip=i+1
-        putout(i,j,1)  = putout(i,j,1)- ( &
-           (w0(i,j,2)+w0(i,jm,2))*(putin(i,j,2)+putin(i,j,1)) &
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
+           (w0(i,j,2)+w0(i,jm,2))*(rhoputin(i,j,2)+rhoputin(i,j,1)) &
             )*dziq
 
         do k=2,kmax
         km=k-1
         kp=k+1
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                ( w0(i,j,kp)+w0(i,jm,kp))*(putin(i,j,kp)+putin(i,j,k)) &
-                -(w0(i,j,k) +w0(i,jm,k)) *(putin(i,j,km)+putin(i,j,k)) &
+          putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
+                ( w0(i,j,kp)+w0(i,jm,kp))*(rhoputin(i,j,kp)+rhoputin(i,j,k)) &
+                -(w0(i,j,k) +w0(i,jm,k)) *(rhoputin(i,j,km)+rhoputin(i,j,k)) &
                 )*dziq
         end do
       end do
@@ -268,24 +306,26 @@ subroutine advecv_2nd(putin, putout)
       do i=2,i1
         im=i-1
         ip=i+1
-        putout(i,j,1)  = putout(i,j,1) - ( &
+        putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
           (w0(i,j,2)+w0(i,jm,2)) &
-          *(putin(i,j,2)*dzf(1)+putin(i,j,1)*dzf(2) )/ dzh(2) &
+          *(rhoputin(i,j,2)*dzf(1)+rhoputin(i,j,1)*dzf(2) )/ dzh(2) &
           ) / (4. * dzf(1))
         do k=2,kmax
           km=k-1
           kp=k+1
-          putout(i,j,k)  = putout(i,j,k)- ( &
+          putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
             (w0(i,j,kp)+w0(i,jm,kp)) &
-            *(putin(i,j,kp)*dzf(k)+putin(i,j,k)*dzf(kp) )/ dzh(kp) &
+            *(rhoputin(i,j,kp)*dzf(k)+rhoputin(i,j,k)*dzf(kp) )/ dzh(kp) &
             -(w0(i,j,k)+w0(i,jm,k)) &
-            *(putin(i,j,km)*dzf(k)+putin(i,j,k)*dzf(km)) / dzh(k) &
+            *(rhoputin(i,j,km)*dzf(k)+rhoputin(i,j,k)*dzf(km)) / dzh(k) &
             ) / (4. * dzf(k))
         end do
       end do
     end do
 
   end if
+
+deallocate(rhoputin)
 
 end subroutine advecv_2nd
 
@@ -295,13 +335,24 @@ end subroutine advecv_2nd
 subroutine advecw_2nd(putin,putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0, rhobh
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w-field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, allocatable, dimension(:,:,:) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
+
+  allocate(rhoputin(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobh(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   if (leq) then
 
@@ -347,24 +398,24 @@ subroutine advecw_2nd(putin,putout)
         im=i-1
         ip=i+1
 
-          putout(i,j,k)  = - ( &
+          putout(i,j,k)  = - (1./rhobh(k))*( &
                 ( &
-                ( putin(ip,j,k) + putin(i,j,k) ) &
+                ( rhoputin(ip,j,k) + rhoputin(i,j,k) ) &
               *( dzf(km)*u0(ip,j,k) + dzf(k)*u0(ip,j,km) ) &
-              -( putin(i,j,k) + putin(im,j,k) ) &
+              -( rhoputin(i,j,k) + rhoputin(im,j,k) ) &
               *( dzf(km)*u0(i,j,k)+dzf(k)*u0(i ,j,km) ) &
                 )*dxiq / dzh(k) &
               + &
                 ( &
-                ( putin(i,jp,k) + putin(i,j,k) ) &
+                ( rhoputin(i,jp,k) + rhoputin(i,j,k) ) &
               *( dzf(km)*v0(i,jp,k) + dzf(k)*v0(i,jp,km) ) &
-              -( putin(i,j,k) + putin(i,j-1,k) ) &
+              -( rhoputin(i,j,k) + rhoputin(i,j-1,k) ) &
               *( dzf(km)*v0(i,j,k) + dzf(k)*v0(i,j,km) ) &
                 ) *dyiq / dzh(k) &
               + &
                 ( &
-                ( putin(i,j,k)+putin(i,j,kp) ) * (w0(i,j,k) + w0(i,j,kp) ) &
-              -( putin(i,j,k)+putin(i,j,km) ) * (w0(i,j,k) + w0(i,j,km) ) &
+                ( rhoputin(i,j,k)+rhoputin(i,j,kp) ) * (w0(i,j,k) + w0(i,j,kp) ) &
+              -( rhoputin(i,j,k)+rhoputin(i,j,km) ) * (w0(i,j,k) + w0(i,j,km) ) &
                 ) / (4. *dzh(k) ) &
                 )
 
@@ -373,5 +424,7 @@ subroutine advecw_2nd(putin,putout)
     end do
 
   end if
+
+deallocate(rhoputin)
 
 end subroutine advecw_2nd
