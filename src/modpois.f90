@@ -64,8 +64,8 @@ contains
   ! Adapted fillps for RK3 time loop
 
 
-    use modfields, only : up, vp, wp, u0, v0, w0
-    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
+    use modfields, only : up, vp, wp, u0, v0, w0, drhobdzf, rhobf
+    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt,imom_eqn
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
@@ -121,6 +121,22 @@ contains
     call excjs( pvp          , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( pwp          , 2,i1,2,j1,1,k1,ih,jh)
 
+    select case (imom_eqn)
+
+    case(1)
+
+    do k=1,kmax
+      do j=2,j1
+        do i=2,i1
+          p(i,j,k)  =  rhobf(k)*(( pup(i+1,j,k)-pup(i,j,k) ) / dx &
+                          +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy &
+                          +( pwp(i,j,k+1)-pwp(i,j,k) ) / dzf(k)) + drhobdzf(k)*(pwp(i,j,k+1)+pwp(i,j,k))/2
+        end do
+      end do
+    end do
+
+    case(2)
+
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -130,6 +146,10 @@ contains
         end do
       end do
     end do
+
+    case default
+        stop 'momentum equation not set'
+    end select
 
     deallocate( pup,pvp,pwp )
 
@@ -276,16 +296,17 @@ contains
     yrt(jtot ) = -4.*dyi*dyi
 
   ! Generate tridiagonal matrix
+
     do k=1,kmax
       a(k)=1./(dzf(k)*dzh(k))
       c(k)=1./(dzf(k)*dzh(k+1))
       b(k)=-(a(k)+c(k))
     end do
+
     b(1   )=b(1   )+a(1   )
     a(1   )=0.
     b(kmax)=b(kmax)+c(kmax)
     c(kmax)=0.
-
 
   ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     do j=1,jmax
@@ -411,8 +432,8 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-    use modfields, only : up, vp, wp
-    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh
+    use modfields, only : up, vp, wp, rhobf, prsbh, rhobh
+    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh,imom_eqn,grav,rd,cp
     use modmpi,    only : excj
     implicit none
     integer i,j,k
@@ -436,17 +457,16 @@ contains
   ! **  pressure gradients.  ***************************************
   !*****************************************************************
 
+    select case(imom_eqn)
+
+    case(1)
+
     do k=1,kmax
     do j=2,j1
     do i=2,i1
 
-      up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
-      vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
-
-  !      up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
-  !     1            - 0.5 * um(i,j,k)/dt
-  !      vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
-  !     1            - 0.5 * vm(i,j,k)/dt
+      up(i,j,k) = up(i,j,k)-(1./rhobf(k))*(p(i,j,k)-p(i-1,j,k))/dx
+      vp(i,j,k) = vp(i,j,k)-(1./rhobf(k))*(p(i,j,k)-p(i,j-1,k))/dy
 
     end do
     end do
@@ -455,14 +475,36 @@ contains
     do k=2,kmax
     do j=2,j1
     do i=2,i1
-  !      wp(i,j,k) = wp(i,j,k)+presgrad(i,j,k)
-  !     1            - 0.5 * wm(i,j,k)/dt
+      wp(i,j,k) = wp(i,j,k)-(1./rhobh(k))*(p(i,j,k)-p(i,j,k-1))/dzh(k)
+    end do
+    end do
+    end do
+
+    case(2)
+
+    do k=1,kmax
+    do j=2,j1
+    do i=2,i1
+
+      up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
+      vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
+
+    end do
+    end do
+    end do
+
+    do k=2,kmax
+    do j=2,j1
+    do i=2,i1
       wp(i,j,k) = wp(i,j,k)-(p(i,j,k)-p(i,j,k-1))/dzh(k)
     end do
     end do
     end do
 
+    case default
+        stop 'momentum equation not set'
 
+    end select
     return
   end subroutine tderive
 
