@@ -78,7 +78,7 @@ save
   ! Diagnostic variables
 
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
-
+  real, allocatable :: tmp0(:,:,:) !<   temperature at full level
   real, allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
   real, allocatable :: whls(:)                       !<   large scale vert velocity at half levels
@@ -178,6 +178,7 @@ subroutine initfields
 
     ! Allocation of diagnostic variables
     allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(tmp0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(whls(k1))
     allocate(presf(k1))
@@ -219,24 +220,24 @@ subroutine initfields
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
-    um=0;u0=0;up=0
-    vm=0;v0=0;vp=0
-    wm=0;w0=0;wp=0
-    thlm=0.;thl0=0.;thlp=0
-    qtm=0;qt0=0;qtp=0
-    e12m=0;e120=0;e12p=0
-    svm=0;sv0=0;svp=0
+    um=0.;u0=0.;up=0.
+    vm=0.;v0=0.;vp=0.
+    wm=0.;w0=0.;wp=0.
+    thlm=0.;thl0=0.;thlp=0.
+    qtm=0.;qt0=0.;qtp=0.
+    e12m=0.;e120=0.;e12p=0.
+    svm=0.;sv0=0.;svp=0.
 
-    rhobf=0;alpbf=0;thvbf=0;prsbf=0;rhobh=0;alpbh=0;thvbh=0;prsbh=0
-    drhobdzf=0;dalpbdzf=0;dthvbdzf=0;dprsbdzf=0;drhobdzh=0;dalpbdzh=0;dthvbdzh=0;dprsbdzh=0
+    rhobf=0.;alpbf=0.;thvbf=0.;prsbf=0.;rhobh=0.;alpbh=0.;thvbh=0.;prsbh=0.
+    drhobdzf=0.;dalpbdzf=0.;dthvbdzf=0.;dprsbdzf=0.;drhobdzh=0.;dalpbdzh=0.;dthvbdzh=0.;dprsbdzh=0.
 
-    ql0=0;thv0h=0;thl0h=0;qt0h=0
-    presf=0;presh=0;exnf=0;exnh=0;rhof=0    ! OG
-    qt0av=0;ql0av=0;thl0av=0;u0av=0;v0av=0;sv0av=0
-    thlprof=0;qtprof=0;uprof=0;vprof=0;e12prof=0;svprof=0
-    ug=0;vg=0;dpdxl=0;dpdyl=0;wfls=0;whls=0;thlpcar = 0
-    dthldxls=0;dthldyls=0;dqtdxls=0;dqtdyls=0;dudxls=0;dudyls=0;dvdxls=0;dvdyls=0
-    dthvdz=0
+    ql0=0.;tmp0=0.;thv0h=0.;thl0h=0.;qt0h=0.
+    presf=0.;presh=0.;exnf=0.;exnh=0.;rhof=0.    ! OG
+    qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
+    thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
+    ug=0.;vg=0.;dpdxl=0.;dpdyl=0.;wfls=0.;whls=0.;thlpcar = 0.
+    dthldxls=0.;dthldyls=0.;dqtdxls=0.;dqtdyls=0.;dudxls=0.;dudyls=0.;dvdxls=0.;dvdyls=0.
+    dthvdz=0.
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
 
   end subroutine initfields
@@ -250,7 +251,7 @@ subroutine initfields
     deallocate(svm,sv0,svp)
     deallocate(rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh)
     deallocate(drhobdzf,dalpbdzf,dthvbdzf,dprsbdzf,drhobdzh,dalpbdzh,dthvbdzh,dprsbdzh)
-    deallocate(ql0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,dvdxls,dvdyls,wfls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
