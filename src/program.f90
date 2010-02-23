@@ -32,39 +32,30 @@
 !! - Anelastic advection
 !! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v)
 !! - Anelastic poisson solver
-!! - Simple ice microphysics scheme (Grabowski)
-!! - Icemicrostat (including precipitation)
+!! - Simple ice microphysics scheme (Grabowski, with switch for autoconversion formula)
+!! - Icemicrostat
 !! - Reviewed saturation pressure with table lookup fiormula (Murphy and Koop)
-!! - Gravity wave damping towards mean state
 !! - Analytical function for surface forcing (may be removed later)
-!! \todo
-!! - Test scheme on a number of cases (e.g. TRMM LBA, Kuang and Bretherton, ARM case of K&R)
-!! Todo
-!! 4.0.1 improved thermodynamics
-!! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc)
-!! - Remove allocation from loops
+!! - Remove allocation from rho loops
+!! \par todo
+!! Improved (thermo)dynamics
 !! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc), maybe let fromztop integrate from top of domain
-!! - Thermodynamic variables!
-!! - Make SFS-TKE itself a thermodynamic variable
+!! - Make SFS-TKE itself a thermodynamic variable? -> later
 !! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
-!! - Revised TKE subgrid scheme (consider diffusion) and diffusion
-!! - Namoptions switch for autoconversion
-!! - Integrate ice micophysics with bulk microphysics?
+!! - Revised TKE subgrid scheme and diffusion
 !! - Make ql first scalar? 
 !! - Fix basic warm start
-!! - Check surface boundary condition!
-!! - Reimplement time-step from Thijs
-!! Further
+!! - Check fromztop boundary conditions!
 !! - Fix fielddump routine
 !! - Look into evaporation
 !! - Netcdf for small variables (e.g. evaporation tendencies)
+!! Further
 !! - Look into influence of advection scheme for deep convection (Walcek scheme??)
 !! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
 !! - 2D option
 !! - Parallelization (merge with dales 3.3)
 !! - Review diagnostics (in particular budgets)
 !! - Review particle routine
-!! - I/O: Check for necessity of netcdf/warm start including base state variables
 !!
 !! \section License License
 !!  This file is part of DALES.
