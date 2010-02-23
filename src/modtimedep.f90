@@ -362,6 +362,11 @@ contains
     return
     elseif(lidealised) then
     call idealisedfluxes
+    if (lmoist) then
+       call qtsurf
+    else
+       qts = 0.
+    endif
     else
   !     --- interpolate! ----
     
