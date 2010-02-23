@@ -121,10 +121,6 @@ contains
     call excjs( pvp          , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( pwp          , 2,i1,2,j1,1,k1,ih,jh)
 
-    select case (imom_eqn)
-
-    case(1)
-
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -134,22 +130,6 @@ contains
         end do
       end do
     end do
-
-    case(2)
-
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          p(i,j,k)  =  ( pup(i+1,j,k)-pup(i,j,k) ) / dx &
-                          +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy &
-                          +( pwp(i,j,k+1)-pwp(i,j,k) ) / dzf(k)
-        end do
-      end do
-    end do
-
-    case default
-        stop 'momentum equation not set'
-    end select
 
     deallocate( pup,pvp,pwp )
 
@@ -209,12 +189,13 @@ contains
 !              copy times all included
 
     use modmpi,    only : myid,comm3d,mpierr,nprocs, barrou
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh,imom_eqn
+    use modfields, only : rhobf, drhobdzf
     implicit none
 
     real, intent (inout) :: p1(0:i1,0:j1,0:k1)
     real, allocatable, dimension(:,:,:) :: d,p2
-    real, allocatable, dimension(:,:) :: xyrt
+    real, allocatable, dimension(:,:,:) :: xyzrt
     real, allocatable, dimension(:) :: xrt,yrt,a,b,c,FFTI,FFTJ,winew,wjnew
     real    z,ak,bk,bbk,fac
     integer jv
@@ -228,7 +209,7 @@ contains
 
   ! re-distributed p1:
 
-    allocate(xyrt(0:i1,0:jtot+1),xrt(0:i1),yrt(0:jtot+1))
+    allocate(xyzrt(0:i1,0:jtot+1,0:k1),xrt(0:i1),yrt(0:jtot+1))
     allocate(a(0:kmax+1),b(0:kmax+1),c(0:kmax+1))
     allocate(FFTI(imax),FFTJ(jtot),winew(2*imax+15),wjnew(2*jtot+15))
 
@@ -297,24 +278,56 @@ contains
 
   ! Generate tridiagonal matrix
 
-    do k=1,kmax
-      a(k)=1./(dzf(k)*dzh(k))
-      c(k)=1./(dzf(k)*dzh(k+1))
-      b(k)=-(a(k)+c(k))
-    end do
+    select case (imom_eqn)
+      case(1)
+        do k=1,kmax
+        a(k)=1./(dzf(k)*dzh(k))
+        c(k)=1./(dzf(k)*dzh(k+1))
+        b(k)=-(a(k)+c(k))
+        end do
+      case(2)
+        do k=1,kmax
+        a(k)=rhobf(k)/(dzf(k)*dzh(k))-drhobdzf(k)/(dzh(k)+dzh(k+1))
+        c(k)=rhobf(k)/(dzf(k)*dzh(k+1))+drhobdzf(k)/(dzh(k)+dzh(k+1))
+        b(k)=-(a(k)+c(k))
+        end do
+    end select
 
-    b(1   )=b(1   )+a(1   )
+    b(1   )=b(1)+a(1)
     a(1   )=0.
     b(kmax)=b(kmax)+c(kmax)
     c(kmax)=0.
 
   ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
+    select case (imom_eqn)
+    case(1)
+      do k=1,kmax
+        do  j=1,jmax
+        jv = j + myid*jmax
+          do  i=1,imax
+          xyzrt(i,j,k)= (xrt(i)+yrt(jv)) !!! WO -> unchanged
+          end do
+        end do
+      end do
+    case(2)
+      do k=1,kmax
+        do  j=1,jmax
+        jv = j + myid*jmax
+          do  i=1,imax
+          xyzrt(i,j,k)= rhobf(k)*(xrt(i)+yrt(jv)) !!! LH
+          end do
+        end do
+      end do
+    case default
+        stop 'momentum equation not set'
+
+    end select
+
+  ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     do j=1,jmax
       jv = j + myid*jmax
       do i=1,imax
-        xyrt(i,j)= xrt(i)+yrt(jv) !!! changed!!!
-  !         xyrt(i,j)= xrt(i)+yrt(j) !!! changed!!!
-        z        = 1./(b(1)+xyrt(i,j))
+        z        = 1./(b(1)+xyzrt(i,j,1))
         d(i,j,1) = c(1)*z
         p1(i,j,1) = p1(i,j,1)*z
       end do
@@ -322,8 +335,9 @@ contains
 
     do k=2,kmax-1
       do  j=1,jmax
+      jv = j + myid*jmax
         do  i=1,imax
-          bbk      = b(k)+xyrt(i,j)
+          bbk      = b(k)+xyzrt(i,j,k)
           z        = 1./(bbk-a(k)*d(i,j,k-1))
           d(i,j,k) = c(k)*z
           p1(i,j,k) = (p1(i,j,k)-a(k)*p1(i,j,k-1))*z
@@ -336,9 +350,9 @@ contains
     ak =a(kmax)
     bk =b(kmax)
     do j=1,jmax
+      jv = j + myid*jmax
       do i=1,imax
-  !         bbk = bk +xrt(i)+yrt(j)
-        bbk = bk +xyrt(i,j)
+        bbk = bk +xyzrt(i,j,kmax)
         z        = bbk-ak*d(i,j,kmax-1)
         if(z/=0.) then
           p1(i,j,kmax) = (p1(i,j,kmax)-ak*p1(i,j,kmax-1))/z
@@ -347,6 +361,7 @@ contains
         end if
       end do
     end do
+
     do k=kmax-1,1,-1
       do j=1,jmax
         do i=1,imax
@@ -400,7 +415,7 @@ contains
         end do
       end do
     end do
-    deallocate(d,p2,xyrt,xrt,yrt,a,b,c,FFTI,FFTJ,winew,wjnew)
+    deallocate(d,p2,xyzrt,xrt,yrt,a,b,c,FFTI,FFTJ,winew,wjnew)
 !     call barrou()
     return
   end subroutine solmpj
