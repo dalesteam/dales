@@ -371,7 +371,7 @@ contains
           ,'#    (M)    (M)      (W/M^2)      (W/M^2)      (W/M^2)      (W/M^2)      ' &
           ,'(K/H)         (K/H)        (K/H)        (K/H)'
       do k=1,kmax
-        write(ifoutput,'(I3,2F8.2,12E13.4)') &
+        write(ifoutput,'(I4,2F10.2,12E13.4)') &
             k,zh(k), zf(k),&
             lwumn(k),&
             lwdmn(k),&
