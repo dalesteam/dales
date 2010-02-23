@@ -459,7 +459,7 @@ contains
 
   subroutine icethermo (thl,tmp,qt,ql,pressure,exner)
 !> Calculates liquid water content.and temperature
-!! \author Steef Böing
+!! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt
   use modsurfdata, only : thls
@@ -476,29 +476,28 @@ contains
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
       nitert = 0
-      write(6,*) '101'
-      do k=1,k1
       do j=2,j1
       do i=2,i1
-            ! first guess for temperature based on old ql
-            Tnr=exner(k)*thl(i,j,k)+rlv/cp*ql(i,j,k)
-            Tnr_old=0
-            do while (abs(Tnr-Tnr_old)>3e-3)
+      do k=1,k1
+            ! first guess for temperature
+            Tnr=exner(k)*thl(i,j,k)
+            Tnr_old=0.
+            do while (abs(Tnr-Tnr_old)>2e-3)
                niter = niter+1
                Tnr_old=Tnr
                ilratio1= amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-               esl    = es0*exp((rlv/rv)*(1./tmelt-1./Tnr))
-               esi    = es0*exp((riv/rv)*(1./tmelt-1./Tnr))
+               esl    = es0*exp((rlv/rv)*(Tnr-tmelt)/(Tnr*tmelt))
+               esi    = es0*exp((riv/rv)*(Tnr-tmelt)/(Tnr*tmelt))
                qsatur = ilratio1*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio1)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
                thlguess = Tnr/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
  
-               ilratiomin = amax1(0.,amin1(1.,(Tnr-3e-3-tdn)/(tup-tdn)))
-               eslmin    = es0*exp((rlv/rv)*(1./tmelt-1./(Tnr-3e-3)))
-               esimin    = es0*exp((riv/rv)*(1./tmelt-1./(Tnr-3e-3)))
+               ilratiomin = amax1(0.,amin1(1.,(Tnr-2e-3-tdn)/(tup-tdn)))
+               eslmin    = es0*((rlv/rv)*(Tnr-2e-3-tmelt)/((Tnr-2e-3)*tmelt))
+               esimin    = es0*((riv/rv)*(Tnr-2e-3-tmelt)/((Tnr-2e-3)*tmelt))
                qsaturmin = ilratiomin*(rd/rv)*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-ilratiomin)*(rd/rv)*esimin/(pressure(k)-(1.-rd/rv)*esimin)
-               thlguessmin = (Tnr-3e-3)/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsatur,0.)
+               thlguessmin = (Tnr-2e-3)/exner(k)-(rlv/(cp*exner(k)))*dim(qt(i,j,k)-qsaturmin,0.)
  
-               Tnr = Tnr - (thlguess-thl(i,j,k))/((thlguess-thlguessmin)/3e-3)
+               Tnr = Tnr - (thlguess-thl(i,j,k))/((thlguess-thlguessmin)/2e-3)
             end do
             nitert =max(nitert,niter)
             niter = 0
@@ -507,7 +506,6 @@ contains
           end do
         end do
       end do
-      write(6,*) '102'
 
   return
   end subroutine icethermo
