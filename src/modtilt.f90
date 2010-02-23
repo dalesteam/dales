@@ -538,7 +538,7 @@ contains
             ,'#LEV  HGHT     THLDEF        THLA     ' &
             ,'#      (M)    (---- (KELVIN) --_------)    '
        do k=1,kmax
-          write(ifoutput,'(I3,F8.2,2F10.4)') &
+          write(ifoutput,'(I4,F10.2,2F10.4)') &
                k,          &
                zf      (k), &
                thldefmn(k),&

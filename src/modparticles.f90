@@ -683,7 +683,7 @@ contains
               ,'#      (M)    (-)    (----------- (M/S) ---------------)    (----------- (M/S)^2 ---------------)' &
               ,'    (----------- (M/S) ---------------)    (-------------- (M/S)^2 ------------------)'
 
-          write(ifoutput,'(F8.2,I10,13E13.5)') &
+          write(ifoutput,'(F10.2,I10,13E13.5)') &
                 (zf       (k), nrparticlesav(k),uresav(k),vresav(k),wresav(k),u2resav(k),v2resav(k),w2resav(k),&
                 usgsav(k),vsgsav(k),wsgsav(k),u2sgsav(k),v2sgsav(k),w2sgsav(k),tkesgsav(k),k=1,kmax)
           close(ifoutput)
