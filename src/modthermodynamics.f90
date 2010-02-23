@@ -486,7 +486,7 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-160.)/0.002)
+               tlonr=floor((Tnr-150.)/0.002)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
@@ -497,7 +497,7 @@ contains
 
                ttry=Tnr-2e-3
                ilratio = amax1(0.,amin1(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((ttry-160.)/0.002)
+               tlonr=floor((ttry-150.)/0.002)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
@@ -512,7 +512,7 @@ contains
             niter = 0
             tmp(i,j,k)= Tnr
             ilratio = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=floor((Tnr-160.)/0.002)
+            tlonr=floor((Tnr-150.)/0.002)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
