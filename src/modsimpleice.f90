@@ -69,7 +69,7 @@ module modsimpleice
 
 !> Calculates the microphysical source term.
   subroutine simpleice
-    use modglobal, only : ih,jh,i1,j1,k1,dt,rk3step,timee,kmax,rlv,cp,tup,tdn
+    use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhobf,tmp0
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
@@ -77,7 +77,7 @@ module modsimpleice
     integer:: i,j,k 
     real:: qrsmall, qrsum
 
-    delt = dt/ (4. - dble(rk3step))
+    delt = rdt/ (4. - dble(rk3step))
 
     qrsum=0.
     qrsmall=0.
