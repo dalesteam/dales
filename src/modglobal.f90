@@ -128,9 +128,9 @@ save
       integer, parameter :: iadv_kappa  = 7
 
       ! Tabulated saturation relation
-      real, dimension(1:80000) :: ttab
-      real, dimension(1:80000) :: esatltab
-      real, dimension(1:80000) :: esatitab     
+      real, dimension(1:100000) :: ttab
+      real, dimension(1:100000) :: esatltab
+      real, dimension(1:100000) :: esatitab     
                                              
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
