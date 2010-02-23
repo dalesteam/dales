@@ -258,7 +258,7 @@ subroutine initsimpleicestat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, rslabs
     use modfields,    only : ql0
-    use modmicrodata,  only  : qr, precep, Dvr, epscloud, epsqr, epsprec
+    use modmicrodata,  only  : qr, precep, epscloud, epsqr, epsprec
     implicit none
 
     integer      :: k
@@ -277,8 +277,8 @@ subroutine initsimpleicestat
       raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr)
       preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec)
       prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k)  , precep(2:i1,2:j1,k) > epsprec)
-      Dvravl       (k)  = sum  (Dvr  (2:i1,2:j1,k)  , qr  (2:i1,2:j1,k) > epsqr)
-      Nrrainavl    (k)  = 0
+      Dvravl       (k)  = 0.
+      Nrrainavl    (k)  = 0.
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
       qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
     end do
