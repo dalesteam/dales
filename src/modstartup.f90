@@ -488,9 +488,8 @@ contains
 
     if(myid==0)then
 
-      select case (ibas_prf)
+      if(ibas_prf==1) then
   
-        case(1) ! Constant theta_v
           thvbh(1)= thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0, to be revised with thermo
           alpbh(1)= (rd*thvbh(1)*(ps/pref0)**rcp)/ps
           rhobh(1)= 1./alpbh(1)
@@ -505,7 +504,7 @@ contains
             rhobh(k)=1./alpbh(k)
           end do
     
-        case(2) ! Boussinesq as in Dales 3: pressure states (not used in Wilhelmson-Ogura equations) from hydrostatic balance
+      elseif(ibas_prf==2) then ! Boussinesq as in Dales 3: pressure states (not used in Wilhelmson-Ogura equations) from hydrostatic balance
           thvbh(1) = thls*(1+(rv/rd-1)*qts)
           alpbh(1)=(rd*thvbh(1)*(ps/pref0)**rcp)/ps
           rhobh(1)=1./alpbh(1)
@@ -520,7 +519,7 @@ contains
             prsbh(k)=ps-rhobh(1)*grav*zh(k)
           end do
 
-        case(3) ! Constant Density, implemented consistent with both hydrostatic balance and eqn. of state
+      elseif(ibas_prf==3) then ! Constant Density, implemented consistent with both hydrostatic balance and eqn. of state
           thvbh(1) = thls*(1+(rv/rd-1)*qts)
           alpbh(1)=(rd*thvbh(1)*(ps/pref0)**rcp)/ps
           rhobh(1)=1./alpbh(1)
@@ -535,21 +534,25 @@ contains
             thvbh(k)=(prsbh(k)*alpbf(k))/(rd*(prsbh(k)/pref0)**rcp)
           end do
 
-        case(4) ! Moist Adiabat: theta_l constant 
+      elseif(ibas_prf==4) then ! Moist Adiabat: theta_l constant 
           stop 'profile not yet implemented'
 
-        case(5) ! User specified
+      elseif(ibas_prf==5) then ! User specified
           open (ifinput,file='baseprof.inp.'//cexpnr)
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
           
-          do  k=1,kmax
+          do k=1,kmax
             read (ifinput,*) &
                     height(k), &
                     rhobf (k), &
                     thvbf (k), &
                     prsbf (k)
-            alpbf(k)=1./rhobf(k)
+          end do
+          close(ifinput)
+
+          do k=1,kmax
+          alpbf(k)=1./rhobf(k)
           end do
         
           rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
@@ -558,22 +561,21 @@ contains
           alpbf(k1)=1./rhobf(k1)
     
           do k=2,k1
-          thvbh(k) = (thvbf(k)*dzf(k-1)+thvbf(k-1)*dzf(k))/(2*dzh(k))
-          rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(2*dzh(k))
-          prsbh(k) = (prsbf(k)*dzf(k-1)+prsbf(k-1)*dzf(k))/(2*dzh(k))
+          thvbh(k) = (thvbf(k)*dzf(k-1)+thvbf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
+          rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
+          prsbh(k) = (prsbf(k)*dzf(k-1)+prsbf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
           alpbh(k) = 1./rhobf(k)
 	  end do
 
-          rhobh(1) = thvbf(1)+(thvbh(2)-thvbh(1))/(zf(2)-zf(1))*(zf(1)-zh(1))
-          thvbh(1) = thvbf(1)+(thvbh(2)-thvbh(1))/(zf(2)-zf(1))*(zf(1)-zh(1))
-          prsbh(1) = thvbf(1)+(thvbh(2)-thvbh(1))/(zf(2)-zf(1))*(zf(1)-zh(1))
+          rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
+          thvbh(1) = thvbf(1)-(thvbf(2)-thvbf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
+          prsbh(1) = prsbf(1)-(prsbf(2)-prsbf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
           alpbh(1) = 1./rhobh(1)
-          close(ifinput)
 
-        case default
+        else
         stop 'background profile not set'
 
-      end select
+      endif
   
     do  k=1,kmax
       drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
@@ -591,6 +593,7 @@ contains
     dthvbdzh(1) = 2*(thvbf(1)-thvbh(1))/dzh(1)
     dprsbdzh(1) = 2*(prsbf(1)-prsbh(1))/dzh(1)
     dalpbdzh(1) = -(1/(rhobh(1)*rhobh(1)))*drhobdzh(1)
+    dalpbdzf(1) = -(1/(rhobf(1)*rhobf(1)))*drhobdzf(1)
 
     do k=2,k1
       drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
