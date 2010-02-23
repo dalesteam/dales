@@ -208,7 +208,7 @@ contains
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,rslabs,grav,rlv,cp,rd,rv,pref0
   use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh, rhof,prsbf,prsbh
+                        presf,presh,exnf,exnh, rhof
   use modsurfdata,only : thls,ps
   use modmpi,    only : slabsum
   implicit none
