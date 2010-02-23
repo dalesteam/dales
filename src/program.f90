@@ -36,10 +36,10 @@
 !! \todo
 !! This subversion
 !! - Radiation (old version/parameterised) and radstat based on anelastic density
-!! - Icemicrostat
+!! - Improved icemicrostat (include precipitation)
 !! Later subversions
 !! - Full radiation based on anelastic density
-!! - Revised TKE subgrid scheme (diffusion)
+!! - Revised TKE subgrid scheme (diffusion, subgrid buoyancy)
 !! - Thermodynamic variable conversion
 !! - TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! - 2D option
