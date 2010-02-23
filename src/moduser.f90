@@ -39,24 +39,4 @@ subroutine surf_user
   implicit none
 end subroutine surf_user
 
-subroutine idealisedfluxes
-!    thls is not nudged
-!    ps is not given
-use modsurfdata, only: wqsurf,wtsurf
-use modglobal, only : timee,xtime, pi, cp, rlv
-use modfields, only : rhobh ! use base state since transports are considered
-implicit none
-real :: xfact
-
-if (rhobh(1)>1e-2) then ! prevents problems during initialisation
-xfact=cos(pi/2.*(12.75-(xtime+timee/3600.))/5.25)
-if(xfact.le.0.) then
-xfact=0.
-endif
-wqsurf =(554.*xfact**1.3)/(rlv*rhobh(1))
-wtsurf =(270.*xfact**1.5)/(cp*rhobh(1))
-endif
-
-end subroutine idealisedfluxes
-
 end module moduser
