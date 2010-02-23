@@ -128,7 +128,8 @@ save
 
   real, allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:)
-
+  real, allocatable :: qvsl(:,:,:)
+  real, allocatable :: qvsi(:,:,:)
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -225,6 +226,9 @@ subroutine initfields
     allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
+
+    allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
+             ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1))     ! qv-ice
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
     um=0.;u0=0.;up=0.
@@ -245,6 +249,7 @@ subroutine initfields
     dthldxls=0.;dthldyls=0.;dqtdxls=0.;dqtdyls=0.;dudxls=0.;dudyls=0.;dvdxls=0.;dvdyls=0.
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
+    qvsl=0.;qvsi=0.
 
   end subroutine initfields
 
@@ -262,6 +267,7 @@ subroutine initfields
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
+    deallocate(qvsl,qvsi)
 
    end subroutine exitfields
 

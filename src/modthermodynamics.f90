@@ -462,6 +462,7 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
+  use modfields, only : qvsl, qvsi
   use modsurfdata, only : thls
   implicit none
 
@@ -518,7 +519,9 @@ contains
             thi=ttab(thinr)
             esl=(thi-Tnr)*500.*esatltab(tlonr)+(Tnr-tlo)*500.*esatltab(thinr)
             esi=(thi-Tnr)*500.*esatitab(tlonr)+(Tnr-tlo)*500.*esatitab(thinr)
-            qsatur = ilratio*(rd/rv)*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(pressure(k)-(1.-rd/rv)*esi)
+            qvsl(i,j,k)=rd/rv*esl/(pressure(k)-(1.-rd/rv)*esl)
+            qvsi(i,j,k)=rd/rv*esi/(pressure(k)-(1.-rd/rv)*esi)
+            qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
             ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
           end do
         end do
