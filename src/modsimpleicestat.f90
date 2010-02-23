@@ -512,11 +512,11 @@ subroutine initsimpleicestat
       close(ifoutput)
       if (lnetcdf) then
         vars(:, 1) = cloudcountmn
-        vars(:, 2) = prec_prcmn  (:)*rhof(2,2,:)*rlv
+        vars(:, 2) = prec_prcmn  (:)*rhof(:)*rlv
         vars(:, 3) = preccountmn  (:)
         vars(:, 4) = Nrrainmn  (:)
         vars(:, 5) = raincountmn  (:)
-        vars(:, 6) = precmn    (:)*rhof(2,2,:)*rlv
+        vars(:, 6) = precmn    (:)*rhof(:)*rlv
         vars(:, 7) = Dvrmn    (:)
         vars(:, 8) = qrmn    (:)
         vars(:, 9) =Npmn    (k,iauto)
