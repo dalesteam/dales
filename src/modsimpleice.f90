@@ -179,7 +179,7 @@ module modsimpleice
         tc=tmp0(i,j,k)-tmelt
         times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
         auti=qli/times
-        aut = autl + auti
+        aut = min(autl + auti,ql0(i,j,k)/delt)
         qrp(i,j,k) = qrp(i,j,k)+aut
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*aut
@@ -215,7 +215,7 @@ module modsimpleice
         g_acc_i=pi/4.*cci*diami**(2.+ddi)*ceffi*alphal*rhobf(k)*ql0(i,j,k)
         acc_l=conl*g_acc_l* qrl/(qrl+1.e-9)
         acc_i=coni*g_acc_i* qri/(qri+1.e-9)
-        acc= acc_l + acc_i  ! growth by accretion
+        acc= min(acc_l + acc_i,ql0(i,j,k)/delt)  ! growth by accretion
         qrp(i,j,k) = qrp(i,j,k)+acc
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
@@ -264,7 +264,7 @@ module modsimpleice
         g_devap_i=4.*pi*diami/betai*(ssi-1.)*venti*thfun   ! growth/evap
         devap_l=conl * g_devap_l * qrl / (qrl + 1.e-9)
         devap_i=coni * g_devap_i * qri / (qri + 1.e-9)
-        devap= devap_l + devap_i  ! growth by deposition
+        devap= min(devap_l + devap_i,ql0(i,j,k)/delt)  ! growth by deposition
         qrp(i,j,k) = qrp(i,j,k)+devap
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
@@ -305,7 +305,6 @@ module modsimpleice
     enddo
     enddo
     enddo
-
         
 
     ! upwind-like scheme
