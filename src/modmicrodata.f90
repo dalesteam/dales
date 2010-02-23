@@ -38,7 +38,7 @@
   logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
              l_rain      = .true. , & !<  rain formation / evolution flag              (in namelist NAMMICROPHYSICS)
-             l_mur_cst   = .false.    ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
+             l_mur_cst   = .false., & ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
              l_berry     = .true.
   real    :: mur_cst     = 5        & !<  mur value if l_mur_cst=T                     (in namelist NAMMICROPHYSICS)
                  ,Nc_0 = 70e6       & !<  initial cloud droplet number
