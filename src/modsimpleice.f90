@@ -54,6 +54,8 @@ module modsimpleice
     allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
              ,qcmask(2-ih:i1+ih,2-jh:j1+jh,k1))     ! mask for cloud water
 
+    allocate(precep(2-ih:i1+ih,2-jh:j1+jh,k1))      ! precipitation for statistics
+
   end subroutine initsimpleice
 
 !> Cleaning up after the run
@@ -61,7 +63,7 @@ module modsimpleice
     implicit none
     deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,lambdal,lambdai)
     deallocate(qrmask,qcmask) 
-
+    deallocate(precep)
   end subroutine exitsimpleice
 
 !> Calculates the microphysical source term.
@@ -295,11 +297,14 @@ module modsimpleice
         vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
         vtf = amin1(wfallmax,vtf)
-        sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+        precep(i,j,k) = vtf*qr_spl(i,j,k)
+        sed_qr(i,j,k) = precep(i,j,k)*rhobf(k)
       end if
     enddo
     enddo
     enddo
+
+        
 
     ! upwind-like scheme
     do k=1,kmax
