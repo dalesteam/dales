@@ -68,16 +68,17 @@ save
       real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
-      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation.
-      real,parameter :: riv     = 2.84e6           !<    *and sublimation
+      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation 
+      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation 
+      real,parameter :: tup     = 268.             !<    * Temperature range over which mixed phase occurs (high)
+      real,parameter :: tdn     = 253.             !<    * Temperature range over which mixed phase occurs (low)
       real,parameter :: ep       = rd/rv            !<    0.622
       real,parameter :: ep2      = rv/rd - 1.       !<    0.61
       !< real,parameter :: cv       = cp-rd            !<    716.96
       real,parameter :: rcp      = rd/cp            !<    0.286
       real,parameter :: cpr      = cp/rd            !<    3.50
       real,parameter :: rlvocp   = rlv/cp           !<    2.49
-      real, parameter :: mair    = 28.967          !< Molar mass of air
-
+      real,parameter :: mair     = 28.967           !< Molar mass of air
       real,parameter :: rhow     = 0.998e3          !<    * Density of water
       real,parameter :: pref0    = 1.e5             !<    *standard pressure used in exner function.
       real,parameter :: tmelt    = 273.16           !<    *temperature of melting of ice.
