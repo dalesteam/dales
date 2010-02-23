@@ -148,7 +148,7 @@ subroutine  halflev_kappa(putin,putout)
   do k=1,k1
     do j=2-jh,j1+jh
       do i=2-ih,i1+ih
-      rhoput(i,j,k)=rhobf(k)*putin(i,j,k)
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
       end do
     end do
   end do
@@ -157,13 +157,13 @@ subroutine  halflev_kappa(putin,putout)
       do j=2,j1
         do i=2,i1
           if (w0(i,j,k)>=0) then
-            d1 = rhoput(i,j,k-1)-rhoput(i,j,k-2)
-            d2 = rhoput(i,j,k  )-rhoput(i,j,k-1)
-            cf = rhoput(i,j,k-1)
+            d1 = rhoputin(i,j,k-1)-rhoputin(i,j,k-2)
+            d2 = rhoputin(i,j,k  )-rhoputin(i,j,k-1)
+            cf = rhoputin(i,j,k-1)
           else
-            d1 = rhoput(i,j,k  )-rhoput(i,j,k+1)
-            d2 = rhoput(i,j,k-1)-rhoput(i,j,k  )
-            cf = rhoput(i,j,k  )
+            d1 = rhoputin(i,j,k  )-rhoputin(i,j,k+1)
+            d2 = rhoputin(i,j,k-1)-rhoputin(i,j,k  )
+            cf = rhoputin(i,j,k  )
           end if
           putout(i,j,k) = (1./rhobh(k))*(cf + rlim(d1,d2))
         end do
@@ -174,12 +174,12 @@ subroutine  halflev_kappa(putin,putout)
       do i=2,i1
         if (w0(i,j,2)>=0) then
           d1 = 0
-          d2 = rhoput(i,j,2)-rhoput(i,j,1)
-          cf = rhoput(i,j,1)
+          d2 = rhoputin(i,j,2)-rhoputin(i,j,1)
+          cf = rhoputin(i,j,1)
         else
-          d1 = rhoput(i,j,2)-rhoput(i,j,3)
-          d2 = rhoput(i,j,1)-rhoput(i,j,2)
-          cf = rhoput(i,j,2)
+          d1 = rhoputin(i,j,2)-rhoputin(i,j,3)
+          d2 = rhoputin(i,j,1)-rhoputin(i,j,2)
+          cf = rhoputin(i,j,2)
         end if
         putout(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
       end do
