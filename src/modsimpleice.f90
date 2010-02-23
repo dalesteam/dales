@@ -3,7 +3,7 @@
 !>
 !!  Ice microphysics.
 !>
-!! Calculates ice microphysics in a cheap scheme without prognostic CDC
+!! Calculates ice microphysics in a cheap scheme without prognostic Nr
 !  simpleice is called from *modmicrophysics*
 !! \see  Grabowski, 1998, JAS
 !!  \author Steef B\"oing, TU Delft
@@ -51,7 +51,7 @@ module modsimpleice
              ,lambdal(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for liquid phase
              ,lambdai(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for ice phase
 
-    allocate (Nr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! CDC, only for statistics
+    allocate (Nr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! Nrain, only for statistics
              ,qc(2-ih:i1+ih,2-jh:j1+jh,k1))         ! = ql, also for statistics
 
     allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
@@ -62,23 +62,90 @@ module modsimpleice
 !> Cleaning up after the run
   subroutine exitsimpleice
     implicit none
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,lambdal,lambdai,Nr,qc)
+    deallocate(qrmask,qcmask) 
+
   end subroutine exitsimpleice
 
 !> Calculates the microphysical source term.
   subroutine simpleice
+    use modglobal, only : ih,jh,i1,j1,k1,dt,rk3step,timee,kmax,rlv,cp
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf
+    use modbulkmicrostat, only : bulkmicrotend
+    use modmpi,    only : myid
     implicit none
+    integer:: i,j,k 
+    real:: qrsmall, qrsum
 
-    if (l_rain) then
-!     call bulkmicrotend
+    delt = dt/ (4. - dble(rk3step))
+
+    qrsum=0.
+    qrsmall=0.
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      ! initialise qr and reset microphysics tendencies 
+      qr(i,j,k)= sv0(i,j,k,iqr)
+      qrp(i,j,k)= 0.0
+      thlpmcr(i,j,k)=0.0
+      qtpmcr(i,j,k)=0.0
+      ! initialise qc and Nr, only for 
+      qc(i,j,k)= ql0(i,j,k)
+      Nr(i,j,k)= 0
+      ! initialise qc mask
+      if (ql0(i,j,k) > qcmin) then
+        qcmask(i,j,k) = .true.
+      else
+        qcmask = .false.
+      end if
+      ! initialise qr mask
+      if (l_rain) then
+        qrsum = qrsum+ qr(i,j,k)
+        if (qr(i,j,k) <= qrmin) then
+          qrmask(i,j,k) = .false.
+          if(qr(i,j,k)<0) then
+          qr(i,j,k)=0
+          qrsmall = qrsmall-qr(i,j,k)
+          end if
+        else
+          qrmask(i,j,k)=.true.
+        endif
+      endif
+    enddo
+    enddo
+    enddo
+
+    if (qrsmall > 0.000001*qrsum) then
+      write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
+    end if
+
+    if (l_rain) then       
+!     call bulkmicrotend   
       call autoconvert
+!     call bulkmicrotend   
+      call accrete         
 !     call bulkmicrotend
-      call accrete
-!     call bulkmicrotend
-      call evaposite
-!     call bulkmicrotend
+      call evaposite       
+!     call bulkmicrotend   
       call precipitate
 !     call bulkmicrotend
     endif
+
+    do k=1,k1
+    do i=2,i1
+    do j=2,j1
+      svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
+      thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
+      qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
+      ! adjust negative qr tendencies at the end of the time-step
+      if (svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt < qrmin) then
+        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
+        qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqr)/delt
+        thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnf(k)))*svm(i,j,k,iqr)/delt
+      endif
+    enddo
+    enddo
+    enddo
 
   end subroutine simpleice
 
