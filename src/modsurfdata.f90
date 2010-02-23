@@ -127,6 +127,7 @@ SAVE
   ! Turbulent exchange variables
   logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
+  logical           :: lidealised = .false. !< Use analytical expressions for surface fluxes
   real, allocatable :: obl   (:,:)      !<  Obukhov length [m]
   real              :: oblav            !<  Spatially averaged obukhov length [m]
   real, allocatable :: Cm    (:,:)      !<  Drag coefficient for momentum [-]
