@@ -351,23 +351,28 @@ contains
 
   subroutine timedepsurf
     use modglobal,   only : rtimee, lmoist
-    use modsurfdata, only : wtsurf,wqsurf,thls,qts,ps
+    use modsurfdata, only : wtsurf,wqsurf,thls,qts,ps,lidealised
     use modsurface,  only : qtsurf
-
+    use moduser,     only : idealisedfluxes
     implicit none
     integer t
     real fac
 
 
-    if(.not.(ltimedepsurf)) return
+    if(.not.(ltimedepsurf)) then
+    return
+    elseif(lidealised) then
+    call idealisedfluxes
+    else
   !     --- interpolate! ----
+    
     t=1
     do while(rtimee>timeflux(t))
       t=t+1
     end do
     if (rtimee/=timeflux(t)) then
       t=t-1
-    end if
+    endif
 
     fac = ( rtimee-timeflux(t) ) / ( timeflux(t+1)-timeflux(t))
     wqsurf = wqsurft(t) + fac * ( wqsurft(t+1) - wqsurft(t)  )
@@ -381,6 +386,7 @@ contains
        qts = 0.
     endif
 
+    end if
     return
   end subroutine timedepsurf
 
