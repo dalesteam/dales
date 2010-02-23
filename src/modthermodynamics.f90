@@ -56,14 +56,18 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist, timee
-    use modfields, only : thl0,thl0h,qt0,qt0h,ql0,ql0h,presf,presh,exnf,exnh
+    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh
     use modmicrophysics, only : microphysics
     use modmicrophysics, only : imicro, imicro_none, imicro_drizzle
     implicit none
     if (timee==0) call diagfld
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
+      if (imicro==5) then
+      call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
+      else
       call thermo(thl0,qt0,ql0,presf,exnf)
+      end if
       if (imicro/=imicro_none) call microphysics
     end if
 
@@ -71,7 +75,11 @@ contains
     call calc_halflev !calculate halflevel values of qt0 and thl0
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      call thermo(thl0h,qt0h,ql0h,presh,exnh)
+      if (imicro==5) then
+      call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
+      else
+      call thermo(thl0,qt0,ql0,presf,exnf)
+      end if
     end if
     call calthv
 
@@ -450,6 +458,57 @@ contains
 
   return
   end subroutine thermo
+
+  subroutine icethermo (thl,tmp,qt,ql,pressure,exner)
+!> Calculates liquid water content.and temperature
+!! \author Steef Böing
+
+  use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt
+  use modsurfdata, only : thls
+  implicit none
+
+  integer i, j, k
+  real :: tl, omegat, esl, esi, qsatur, thlguess, omegatmin, eslmin, esimin, qsaturmin, thlguessmin
+  real, intent(in)  :: qt(2-ih:i1+ih,2-jh:j1+jh,k1),thl(2-ih:i1+ih,2-jh:j1+jh,k1),exner(k1),pressure(k1)
+  real, intent(out) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1),tmp(2-ih:i1+ih,2-jh:j1+jh,k1)
+  real :: Tnr,Tnr_old
+  integer :: niter,nitert
+
+!mc      calculation of T with Newton-Raphson method
+!mc      first guess is Tnr=tl
+
+      nitert = 0
+      do j=2,j1
+        do i=2,i1
+          do k=1,k1
+
+            tl  = thl(i,j,k)*exner(k)
+            Tnr=tl
+            Tnr_old=0
+            do while (abs(Tnr-Tnr_old)/Tnr>1e-5)
+               omegat = amax1(0.,amin1(1.,(Tnr-tdn)/(tup-tdn)))
+               esl    = es0*exp(rlv/rv*(1./tmelt-1./Tnr))
+               esi    = es0*exp(riv/rv*(1./tmelt-1./Tnr))
+               qsatur = omegat*rd/rv*esl/(pressure(k)-(1.-rd/rv)*esl)+(1.-omegat)*rd/rv*esi/(pressure(k)-(1.-rd/rv)*esi)
+               thlguess = Tnr*exner(k)-(rlv/cp*exner(k))*(qt(i,j,k)-qsatur) !riv does not occur yet: no melting in grabowski scheme
+ 
+               omegatmin = amax1(0.,amin1(1.,(Tnr-1e-5-tdn)/(tup-tdn)))
+               eslmin    = es0*exp(rlv/rv*(1./tmelt-1./(Tnr-1e-5)))
+               esimin    = es0*exp(riv/rv*(1./tmelt-1./(Tnr-1e-5)))
+               qsaturmin = omegatmin*rd/rv*eslmin/(pressure(k)-(1.-rd/rv)*eslmin)+(1.-omegatmin)*rd/rv*esimin/(pressure(k)-(1.-rd/rv)*esimin)
+               thlguessmin = Tnr*exner(k)-(rlv/cp*exner(k))*(qt(i,j,k)-qsaturmin)!riv does not occur yet: no melting in grabowski scheme
+ 
+               Tnr = Tnr - thlguess/((thlguess-thlguessmin)/1e-5)
+            end do
+            nitert =max(nitert,niter)
+            niter = 0.0
+            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
+            tmp(i,j,k)= Tnr
+          end do
+        end do
+      end do
+
+  end subroutine icethermo
 
 !> Calculates the scalars at half levels.
 !! If the kappa advection scheme is active, interpolation needs to be done consistently.

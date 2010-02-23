@@ -189,9 +189,6 @@
      ! N_0 in Marshall_Palmer Distribution
      ,n0rl=2*1.e7 &
      ,n0ri=2*1.e7 &
-     ! Temperature range over which mixed phase occurs
-     ,tup=268. &
-     ,tdn=253. &
      !cc gammas:
      ,gamb1l=6.0 &
      ,gambd1l=11.7 &
@@ -199,7 +196,7 @@
      ,gambd1i=2.56
 
    ! Fields related to ice-liquid partitioning
-   real,allocatable,dimension(:,:,:) :: ilratio,lambdal,lambdai
+   real,allocatable,dimension(:,:,:) :: omega,lambdal,lambdai
 
   end module modmicrodata
 
