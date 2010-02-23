@@ -39,14 +39,22 @@
 !! Todo
 !! 4.0.1 improved thermodynamics
 !! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc)
+!! - Remove allocation from loops
+!! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc), maybe let fromztop integrate from top of domain
 !! - Thermodynamic variables!
+!! - Make SFS-TKE itself a thermodynamic variable
 !! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! - Revised TKE subgrid scheme (consider diffusion) and diffusion
 !! - Namoptions switch for autoconversion
 !! - Integrate ice micophysics with bulk microphysics?
 !! - Make ql first scalar? 
 !! - Fix basic warm start
+!! - Check surface boundary condition!
+!! - Reimplement time-step from Thijs
 !! Further
+!! - Fix fielddump routine
+!! - Look into evaporation
+!! - Netcdf for small variables (e.g. evaporation tendencies)
 !! - Look into influence of advection scheme for deep convection (Walcek scheme??)
 !! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
 !! - 2D option
