@@ -128,9 +128,9 @@ save
       integer, parameter :: iadv_kappa  = 7
 
       ! Tabulated saturation relation
-      real, dimension(1:100000) :: ttab
-      real, dimension(1:100000) :: esatltab
-      real, dimension(1:100000) :: esatitab     
+      real, dimension(1:200000) :: ttab
+      real, dimension(1:200000) :: esatltab
+      real, dimension(1:200000) :: esatitab     
                                              
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
@@ -271,8 +271,8 @@ contains
 
     ! Global constants
 
-    do m=1,100000
-    ttab(m)=160.+0.002*m
+    do m=1,200000
+    ttab(m)=150.+0.002*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
@@ -406,7 +406,7 @@ contains
     if(myid==0)then
       write (6,*) 'lev    dz     zf      zh       dzh    delta'
       do k=k1,1,-1
-        write(6,'(i4,5f8.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
+        write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
     end if
     tnextrestart = trestart/tres
