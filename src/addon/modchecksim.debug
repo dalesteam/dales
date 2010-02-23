@@ -1,0 +1,370 @@
+!> \file modchecksim.f90
+!!  Monitors Courant and Peclet numbers, and divergence.
+
+!>
+!!  Monitors Courant and Peclet numbers, and divergence.
+!>
+!!  These numbers are put out to screen either every tcheck seconds, or every time step (if tcheck=0).
+!!  \author Thijs Heus,MPI-M
+!!  \author Hans Cuijpers, KNMI
+!!  \par Revision list
+!  This file is part of DALES.
+!
+! DALES is free software; you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation; either version 3 of the License, or
+! (at your option) any later version.
+!
+! DALES is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
+!
+!
+module modchecksim
+  use modglobal, only : longint
+
+  implicit none
+  private
+  public initchecksim,checksim, inithandbug, handbug
+
+  real    :: tcheck = 0.
+  integer(kind=longint) :: tnext = 3600.,itcheck
+  real    :: dtmn =0.,ndt =0.
+
+  save
+contains
+!> Initializing Checksim. Read out the namelist, initializing the variables
+  subroutine initchecksim
+    use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres
+    use modmpi,    only : myid,my_real,comm3d,mpierr
+    implicit none
+    integer :: ierr
+    namelist/NAMCHECKSIM/ &
+    tcheck
+
+    if(myid==0)then
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,NAMCHECKSIM,iostat=ierr)
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMCHECKSIM'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMCHECKSIM'
+      endif
+      write(6 ,NAMCHECKSIM)
+      close(ifnamopt)
+
+      if (.not. ladaptive .and. tcheck < dtmax) then
+        tcheck = dtmax
+      end if
+    end if
+
+    call MPI_BCAST(tcheck     ,1,MY_REAL   ,0,comm3d,mpierr)
+    itcheck = floor(tcheck/tres)
+    tnext = itcheck+btime
+
+
+  end subroutine initchecksim
+!>Run checksim. Timekeeping, and output
+  subroutine checksim
+    use modglobal, only : timee,rtimee, rk3step, dt_lim,rdt
+    use modmpi,    only : myid
+    implicit none
+    character(20) :: timeday
+    if (timee ==0) return
+    if (rk3step/=3) return
+    dtmn = dtmn +rdt; ndt =ndt+1.
+    if(timee<tnext) return
+    tnext = tnext+itcheck
+    dtmn  = dtmn / ndt
+    if (myid==0) then
+      call date_and_time(time=timeday)
+      write (*,*) '================================================================='
+      write (*,'(3A,F9.2,A,F12.9)') 'Time of Day: ', timeday(1:10),'    Time of Simulation: ', rtimee, '    dt: ',dtmn
+    end if
+    call calccourant
+    call calcpeclet
+    call chkdiv
+    dtmn  = 0.
+    ndt   = 0.
+
+  end subroutine checksim
+!>      Calculates the courant number as in max(w)*deltat/deltaz
+  subroutine calccourant
+    use modglobal, only : i1,j1,kmax,k1,dx,dy,dzh,dt,timee
+    use modfields, only : u0,v0,w0
+    use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    implicit none
+
+
+    real          :: courxl,courx,couryl,coury
+    real, allocatable, dimension (:) :: courzl,courz,courtotl,courtot
+    integer       :: k
+
+    allocate(courzl(k1),courz(k1),courtotl(k1),courtot(k1))
+    courzl = 0.0
+    courz  = 0.0
+    courtotl = 0.0
+    courtot  = 0.0
+    do k=1,kmax
+      courzl(k)=maxval(abs(w0(2:i1,2:j1,k)))*dtmn/dzh(k)
+      courtotl(k)=maxval(abs(u0(2:i1,2:j1,k)/dx)+abs(v0(2:i1,2:j1,k)/dy)+abs(w0(2:i1,2:j1,k)/dzh(k)))*dtmn
+    end do
+    courxl = maxval(abs(u0))*dtmn/dx
+    couryl = maxval(abs(v0))*dtmn/dy
+
+    call MPI_ALLREDUCE(courxl,courx,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(couryl,coury,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(courzl,courz,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    if (myid==0) then
+      write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',courx,coury,maxval(courz(1:kmax)),maxloc(courz(1:kmax)),maxval(courtot(1:kmax)),maxloc(courtot(1:kmax))
+    end if
+
+    deallocate(courzl,courz,courtotl,courtot)
+
+    return
+  end subroutine calccourant
+!> Calculates the cell peclet number as max(ekm) *deltat/deltax**2
+  subroutine calcpeclet
+
+    use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh,dt,timee
+    use modsubgrid,only : ekm
+    use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    implicit none
+
+
+    real, allocatable, dimension (:) :: peclettotl,peclettot
+    integer       :: k
+
+    allocate(peclettotl(k1),peclettot(k1))
+    peclettotl = 0.
+    peclettot  = 0.
+    do k=1,kmax
+      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+    end do
+
+    call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    if (myid==0) then
+      write(6,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
+    end if
+
+    deallocate(peclettotl,peclettot)
+
+    return
+  end subroutine calcpeclet
+!> Checks local and total divergence
+  subroutine chkdiv
+
+    use modglobal, only : i1,j1,kmax,dx,dy,dzf
+    use modfields, only : um,vm,wm
+    use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,my_real,mpierr
+    implicit none
+
+
+
+    real div, divmax, divtot
+    real divmaxl, divtotl
+    integer i, j, k
+
+    divmax = 0.
+    divtot = 0.
+    divmaxl= 0.
+    divtotl= 0.
+
+    do k=1,kmax
+    do j=2,j1
+    do i=2,i1
+      div = &
+                (um(i+1,j,k) - um(i,j,k) )/dx + &
+                (vm(i,j+1,k) - vm(i,j,k) )/dy + &
+                (wm(i,j,k+1) - wm(i,j,k) )/dzf(k)
+      divmaxl = max(divmaxl,abs(div))
+      divtotl = divtotl + div*dx*dy*dzf(k)
+    end do
+    end do
+    end do
+
+    call MPI_ALLREDUCE(divtotl, divtot, 1,    MY_REAL, &
+                          MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(divmaxl, divmax, 1,    MY_REAL, &
+                          MPI_MAX, comm3d,mpierr)
+
+    if(myid==0)then
+      write(6,'(A,2ES11.2)')'divmax, divtot = ', divmax, divtot
+    end if
+
+    return
+  end subroutine chkdiv
+
+  subroutine inithandbug
+    use modglobal, only : ifoutput, cexpnr
+    use modmpi,    only : myid
+    implicit none
+
+    if(myid==0)then
+      open (ifoutput,file='valbug.'//cexpnr,status='replace')
+      close (ifoutput)
+      open (ifoutput,file='tendbug.'//cexpnr,status='replace')
+      close (ifoutput)
+    end if
+
+  end subroutine
+
+  subroutine handbug(procnr)
+
+    use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh,rdt,rk3step,timee,rtimee, ifoutput, cexpnr
+    use modfields, only : up, vp, wp, thlp, e12p, qtp,u0, v0, w0, thl0, e120, qt0
+    use modmpi,    only : myid,comm3d,mpierr,mpi_max,mpi_min,my_real
+    implicit none
+
+    integer procnr
+    real, allocatable, dimension (:) :: u0maxl,u0max,v0maxl,v0max,w0maxl,w0max,thl0maxl,thl0max,e120maxl,e120max,qt0maxl,qt0max,upmaxl,upmax,vpmaxl,vpmax,wpmaxl,wpmax,thlpmaxl,thlpmax,e12pmaxl,e12pmax,qtpmaxl,qtpmax  
+    real, allocatable, dimension (:) :: u0minl,u0min,v0minl,v0min,w0minl,w0min,thl0minl,thl0min,e120minl,e120min,qt0minl,qt0min,upminl,upmin,vpminl,vpmin,wpminl,wpmin,thlpminl,thlpmin,e12pminl,e12pmin,qtpminl,qtpmin
+    integer       :: k
+
+    allocate(u0maxl(k1),u0max(k1),v0maxl(k1),v0max(k1),w0maxl(k1),w0max(k1),thl0maxl(k1),thl0max(k1),e120maxl(k1),e120max(k1),qt0maxl(k1),qt0max(k1),upmaxl(k1),upmax(k1),vpmaxl(k1),vpmax(k1),wpmaxl(k1),wpmax(k1),thlpmaxl(k1),thlpmax(k1),e12pmaxl(k1),e12pmax(k1),qtpmaxl(k1),qtpmax(k1))
+    allocate(u0minl(k1),u0min(k1),v0minl(k1),v0min(k1),w0minl(k1),w0min(k1),thl0minl(k1),thl0min(k1),e120minl(k1),e120min(k1),qt0minl(k1),qt0min(k1),upminl(k1),upmin(k1),vpminl(k1),vpmin(k1),wpminl(k1),wpmin(k1),thlpminl(k1),thlpmin(k1),e12pminl(k1),e12pmin(k1),qtpminl(k1),qtpmin(k1))
+
+    u0maxl =0.
+    u0max = 0.
+    v0maxl = 0. 
+    v0max=0.
+    w0maxl=0.
+    w0max=0.
+    thl0maxl=0.
+    thl0max=0.
+    e120maxl=0.
+    e120max=0.
+    qt0maxl=0.
+    qt0max=0.
+    upmaxl=0.
+    upmax=0.
+    vpmaxl=0.
+    vpmax=0.
+    wpmaxl=0.
+    wpmax=0.
+    thlpmaxl=0.
+    thlpmax=0.
+    e12pmaxl=0.
+    e12pmax=0.
+    qtpmaxl=0.
+    qtpmax=0.
+    u0minl =0.
+    u0min = 0.
+    v0minl = 0. 
+    v0min=0.
+    w0minl=0.
+    w0min=0.
+    thl0minl=0.
+    thl0min=0.
+    e120minl=0.
+    e120min=0.
+    qt0minl=0.
+    qt0min=0.
+    upminl=0.
+    upmin=0.
+    vpminl=0.
+    vpmin=0.
+    wpminl=0.
+    wpmin=0.
+    thlpminl=0.
+    thlpmin=0.
+    e12pminl=0.
+    e12pmin=0.
+    qtpminl=0.
+    qtpmin=0.
+
+    do k=1,kmax
+      u0maxl(k)=maxval(u0(2:i1,2:j1,k))
+      v0maxl(k)=maxval(v0(2:i1,2:j1,k))
+      w0maxl(k)=maxval(w0(2:i1,2:j1,k))
+      thl0maxl(k)=maxval(thl0(2:i1,2:j1,k))
+      e120maxl(k)=maxval(e120(2:i1,2:j1,k))
+      qt0maxl(k)=maxval(qt0(2:i1,2:j1,k))
+      upmaxl(k)=maxval(up(2:i1,2:j1,k))
+      vpmaxl(k)=maxval(vp(2:i1,2:j1,k))
+      wpmaxl(k)=maxval(wp(2:i1,2:j1,k))
+      thlpmaxl(k)=maxval(thlp(2:i1,2:j1,k))
+      e12pmaxl(k)=maxval(e12p(2:i1,2:j1,k))
+      qtpmaxl(k)=maxval(qtp(2:i1,2:j1,k))
+      u0minl(k)=minval(u0(2:i1,2:j1,k))
+      v0minl(k)=minval(v0(2:i1,2:j1,k))
+      w0minl(k)=minval(w0(2:i1,2:j1,k))
+      thl0minl(k)=minval(thl0(2:i1,2:j1,k))
+      e120minl(k)=minval(e120(2:i1,2:j1,k))
+      qt0minl(k)=minval(qt0(2:i1,2:j1,k))
+      upminl(k)=minval(up(2:i1,2:j1,k))
+      vpminl(k)=minval(vp(2:i1,2:j1,k))
+      wpminl(k)=minval(wp(2:i1,2:j1,k))
+      thlpminl(k)=minval(thlp(2:i1,2:j1,k))
+      e12pminl(k)=minval(e12p(2:i1,2:j1,k))
+      qtpminl(k)=minval(qtp(2:i1,2:j1,k))
+    end do
+
+    call MPI_ALLREDUCE(u0maxl,u0max,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(v0maxl,v0max,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(w0maxl,w0max,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(thl0maxl,thl0max,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(e120maxl,e120max,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(qt0maxl,qt0max,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(upmaxl,upmax,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(vpmaxl,vpmax,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(wpmaxl,wpmax,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(thlpmaxl,thlpmax,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(e12pmaxl,e12pmax,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(qtpmaxl,qtpmax,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(u0minl,u0min,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(v0minl,v0min,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(w0minl,w0min,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(thl0minl,thl0min,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(e120minl,e120min,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(qt0minl,qt0min,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(upminl,upmin,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(vpminl,vpmin,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(wpminl,wpmin,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(thlpminl,thlpmin,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(e12pminl,e12pmin,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+    call MPI_ALLREDUCE(qtpminl,qtpmin,k1,MY_REAL,MPI_MIN,comm3d,mpierr)
+                       
+    if (myid==0) then 
+    if (procnr==1) then
+    open (ifoutput,file='valbug.'//cexpnr,position='append')
+    write (ifoutput,'(A)') '            procnr      myid    rtimee     dtmn'
+    write (ifoutput,'(A,2I10,F9.2,F12.9)') 'VALUES :',procnr,myid,rtimee,dtmn
+    write (ifoutput,'(A)') '                 u         v         w       thl       e12        qt'
+    write (ifoutput,'(A,6ES10.2)') 'max vals',maxval(u0max(1:kmax)), maxval(v0max(1:kmax)), maxval(w0max(1:kmax)), maxval(thl0max(1:kmax)), maxval(e120max(1:kmax)), maxval(qt0max(1:kmax))
+    write (ifoutput,'(A,6I10)') 'max vloc',maxloc(u0max(1:kmax)), maxloc(v0max(1:kmax)), maxloc(w0max(1:kmax)), maxloc(thl0max(1:kmax)), maxloc(e120max(1:kmax)), maxloc(qt0max(1:kmax))
+    write (ifoutput,'(A)') ' '
+    write (ifoutput,'(A,6ES10.2)') 'min vals',minval(u0min(1:kmax)), minval(v0min(1:kmax)), minval(w0min(1:kmax)), minval(thl0min(1:kmax)), minval(e120min(1:kmax)), minval(qt0min(1:kmax))
+    write (ifoutput,'(A,6I10))') 'min vloc',minloc(u0min(1:kmax)), minloc(v0min(1:kmax)), minloc(w0min(1:kmax)), minloc(thl0min(1:kmax)), minloc(e120min(1:kmax)), minloc(qt0min(1:kmax))
+    write (ifoutput,'(A)') ' '
+    write (ifoutput,'(A)') ' '
+    close(ifoutput)
+    end if
+    open (ifoutput,file='tendbug.'//cexpnr,position='append')
+    write (ifoutput,'(A)') '            procnr      myid    rtimee     dtmn'
+    write (ifoutput,'(A,2I10,F9.2,F12.9)') 'TENDENCY',procnr,myid,rtimee,dtmn
+    write (ifoutput,'(A)') '                 u         v         w       thl       e12        qt'
+    write (ifoutput,'(A,6ES10.2)') 'max tend',maxval(upmax(1:kmax)), maxval(vpmax(1:kmax)), maxval(wpmax(1:kmax)), maxval(thlpmax(1:kmax)), maxval(e12pmax(1:kmax)), maxval(qtpmax(1:kmax))
+    write (ifoutput,'(A,6I10)') 'max tloc',maxloc(upmax(1:kmax)), maxloc(vpmax(1:kmax)), maxloc(wpmax(1:kmax)), maxloc(thlpmax(1:kmax)), maxloc(e12pmax(1:kmax)), maxloc(qtpmax(1:kmax))
+    write (ifoutput,'(A)') ' '
+    write (ifoutput,'(A,6ES10.2)') 'min tend',minval(upmin(1:kmax)), minval(vpmin(1:kmax)), minval(wpmin(1:kmax)), minval(thlpmin(1:kmax)), minval(e12pmin(1:kmax)), minval(qtpmin(1:kmax))
+    write (ifoutput,'(A,6I10))') 'min tloc',minloc(upmin(1:kmax)), minloc(vpmin(1:kmax)), minloc(wpmin(1:kmax)), minloc(thlpmin(1:kmax)), minloc(e12pmin(1:kmax)), minloc(qtpmin(1:kmax))
+    write (ifoutput,'(A)') ' '
+    close(ifoutput)
+    end if             
+                       
+    deallocate(u0maxl,u0max,v0maxl,v0max,w0maxl,w0max,thl0maxl,thl0max,e120maxl,e120max,qt0maxl,qt0max,upmaxl,upmax,vpmaxl,vpmax,wpmaxl,wpmax,thlpmaxl,thlpmax,e12pmaxl,e12pmax,qtpmaxl,qtpmax)
+    deallocate(u0minl,u0min,v0minl,v0min,w0minl,w0min,thl0minl,thl0min,e120minl,e120min,qt0minl,qt0min,upminl,upmin,vpminl,vpmin,wpminl,wpmin,thlpminl,thlpmin,e12pminl,e12pmin,qtpminl,qtpmin)
+
+    return
+  end subroutine
+
+end module modchecksim
+
