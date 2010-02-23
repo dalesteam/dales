@@ -228,10 +228,10 @@ module modsimpleice
 
   subroutine evaposite
     use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
-    use modfields, only : qt0,ql0,exnf,rhobf,tmp0,presf
+    use modfields, only : qt0,ql0,exnf,rhobf,tmp0,presf,qvsl,qvsi
     use modmpi,    only : myid
     implicit none
-    real :: qrl,qri,esl,qvsl,ssl,esi,qvsi,ssi, conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
+    real :: qrl,qri,esl,ssl,esi,ssi,conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
     integer:: i,j,k
 
     do k=1,k1
@@ -241,14 +241,8 @@ module modsimpleice
         ! qr partitioning
         qrl=qr(i,j,k)*ilratio(i,j,k)
         qri=qr(i,j,k)-qrl
-        ! saturation ratio wrt liquid phase
-        esl=es0*exp((rlv/rv)*(tmp0(i,j,k)-tmelt)/(tmp0(i,j,k)*tmelt))
-        qvsl=rd/rv*esl/(presf(k)-(1.-rd/rv)*esl)
-        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl
-        ! saturation ratio wrt ice phase
-        esi=es0*exp((riv/rv)*(tmp0(i,j,k)-tmelt)/(tmp0(i,j,k)*tmelt))
-        qvsi=rd/rv*esi/(presf(k)-(1.-rd/rv)*esi)
-        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi
+        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
+        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
         conl=n0rl/lambdal(i,j,k) ! liquid concentration
         coni=n0ri/lambdai(i,j,k) ! ice concentration
         massl=rhobf(k)*(qrl+1.e-7) / conl  ! mass liquid particles
