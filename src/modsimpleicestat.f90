@@ -96,7 +96,7 @@ subroutine initsimpleicestat
     implicit none
     integer      :: ierr
 
-    namelist/NAMBULKMICROSTAT/ &
+    namelist/NAMSIMPLEICESTAT/ &
     lmicrostat, dtav, timeav
 
     if (imicro /=imicro_sice) return
@@ -105,13 +105,13 @@ subroutine initsimpleicestat
     timeav  = timeav_glob
     if(myid==0)then
       open (ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMBULKMICROSTAT,iostat=ierr)
+      read (ifnamopt,NAMSIMPLEICESTAT,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMBULKMICROSTAT'
+        print *, 'Problem in namoptions NAMSIMPLEICESTAT'
         print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMBULKMICROSTAT'
+        stop 'ERROR: Problem in namoptions NAMSIMPLEICESTAT'
       endif
-      write(6,NAMBULKMICROSTAT)
+      write(6,NAMSIMPLEICESTAT)
       close(ifnamopt)
     end if
 
@@ -127,10 +127,10 @@ subroutine initsimpleicestat
     
     if (.not. lmicrostat) return
     if (abs(timeav/dtav - nsamples) > 1e-4) then
-      stop 'timeav must be an integer multiple of dtav (NAMBULKMICROSTAT)'
+      stop 'timeav must be an integer multiple of dtav (NAMSIMPLEICESTAT)'
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax - nint(dtav/dtmax)) > 1e-4) then
-      stop 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)'
+      stop 'dtav must be an integer multiple of dtmax (NAMSIMPLEICESTAT)'
     end if
 
     allocate(Npav    (k1, nrfields)  , &
@@ -357,8 +357,7 @@ subroutine initsimpleicestat
     use modmpi,    only  : myid
     use modglobal,    only  : rtimee, ifoutput, cexpnr, k1,kmax, &
               rlv, zf
-    use modfields,    only  : presf
-    use modmicrodata,  only  : rhoz
+    use modfields,    only  : presf,rhof
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
 
@@ -415,14 +414,14 @@ subroutine initsimpleicestat
     write(ifoutput,'(I4,F8.2,F8.3,F7.1,8E13.5)') &
       (k          , &
       zf    (k)      , &
-      rhoz    (2,2,k)      , &
+      rhof    (k)      , &
       presf    (k)/100.    , &
       cloudcountmn  (k)      , &
-      prec_prcmn  (k)*rhoz(2,2,k)*rlv  , &
+      prec_prcmn  (k)*rhof(k)*rlv  , &
       preccountmn  (k)      , &
       Nrrainmn  (k)      , &
       raincountmn  (k)      , &
-      precmn    (k)*rhoz(2,2,k)*rlv  , &
+      precmn    (k)*rhof(k)*rlv  , &
       Dvrmn    (k)      , &
       qrmn    (k)      , &
       k=1,kmax)
@@ -513,11 +512,11 @@ subroutine initsimpleicestat
       close(ifoutput)
       if (lnetcdf) then
         vars(:, 1) = cloudcountmn
-        vars(:, 2) = prec_prcmn  (:)*rhoz(2,2,:)*rlv
+        vars(:, 2) = prec_prcmn  (:)*rhof(2,2,:)*rlv
         vars(:, 3) = preccountmn  (:)
         vars(:, 4) = Nrrainmn  (:)
         vars(:, 5) = raincountmn  (:)
-        vars(:, 6) = precmn    (:)*rhoz(2,2,:)*rlv
+        vars(:, 6) = precmn    (:)*rhof(2,2,:)*rlv
         vars(:, 7) = Dvrmn    (:)
         vars(:, 8) = qrmn    (:)
         vars(:, 9) =Npmn    (k,iauto)
