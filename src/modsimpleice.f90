@@ -238,11 +238,11 @@ module modsimpleice
         qrl=qr(i,j,k)*ilratio(i,j,k)
         qri=qr(i,j,k)-qrl
         ! saturation ratio wrt liquid phase
-        esl=es0*exp(rlv/rv*(1./tmelt-1./tmp0(i,j,k)))
+        esl=es0*exp((rlv/rv)*(tmp0(i,j,k)-tmelt)/(tmp0(i,j,k)*tmelt))
         qvsl=rd/rv*esl/(presf(k)-(1.-rd/rv)*esl)
         ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl
         ! saturation ratio wrt ice phase
-        esi= es0*exp(riv/rv*(1./tmelt-1./tmp0(i,j,k)))
+        esi=es0*exp((riv/rv)*(tmp0(i,j,k)-tmelt)/(tmp0(i,j,k)*tmelt))
         qvsi=rd/rv*esi/(presf(k)-(1.-rd/rv)*esi)
         ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi
         conl=n0rl/lambdal(i,j,k) ! liquid concentration
