@@ -62,22 +62,14 @@ contains
     if (timee==0) call diagfld
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      if (imicro==imicro_sice) then
       call icethermo(thl0,tmp0,qt0,ql0,presf,exnf)
-      else
-      call thermo(thl0,qt0,ql0,presf,exnf)
-      end if
 !      if (imicro/=imicro_none) call microphysics
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
     if (lmoist) then
 !       if (imicro==imicro_none .or. imicro == imicro_drizzle)
-      if (imicro==imicro_sice) then
       call icethermo(thl0h,tmp0h,qt0h,ql0h,presh,exnh)
-      else
-      call thermo(thl0h,qt0h,ql0h,presh,exnh)
-      end if
     end if
     call calthv
 
@@ -91,14 +83,14 @@ contains
 !> Calculate thetav and dthvdz
   subroutine calthv
     use modglobal, only : lmoist,i1,j1,k1,kmax,zf,zh,dzh,rlv,rd,rv,cp,eps1
-    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,sv0,exnf,exnh,thv0h,dthvdz
+    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,sv0,exnf,exnh,thv0h,dthvdz,tmp0
     use modsurfdata,only : dthldz,dqtdz
-
+    use modmpi, only: myid
     implicit none
 
     integer i, j, k
     real    qs
-    real    c1,c2,dq,dth,dthv,temp
+    real    a_surf,b_surf,dq,dth,dthv,temp
     real    a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi
     real    del_thv_sat, del_thv_dry
     dthvdz = 0
@@ -134,7 +126,7 @@ contains
 
         if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
 
-           temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
+           temp = tmp0(i,j,k)
            qs   = qt0(i,j,k) - ql0(i,j,k)
 
            a_moist = (1.-qt0(i,j,k)+qs/epsilon*(1.+rlv/(rv*temp))) &
@@ -161,18 +153,19 @@ contains
 
 
         if(ql0(i,j,1)>0) then
-          temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
+          temp = tmp0(i,j,1)
           qs   = qt0(i,j,1) - ql0(i,j,1)
-          c1   = (1.-qt0(i,j,1)+rv/rd*qs*(1.+rlv/(rv*temp))) &
+          a_surf = (1.-qt0(i,j,k)+qs/epsilon*(1.+rlv/(rv*temp))) &
                     /(1.+rlv**2*qs/(cp*rv*temp**2))
-          c2   = c1*rlv/(temp*cp)-1.
+          b_surf = a_surf*rlv/cp-temp
 
         else
-          c1 = 1.+(rv/rd-1)*qt0(i,j,1)
-          c2 = rv/rd-1
-
+          epsilon = rd/rv
+          eps_I = 1/epsilon - 1.  !cstep approx 0.608
+          a_surf = 1. + eps_I * qt0(i,j,1)
+          b_surf = eps_I * thl0(i,j,1)
         end if
-        dthvdz(i,j,1) = c1*dthldz(i,j) + c2*thl0(i,j,1)*dqtdz(i,j)
+        dthvdz(i,j,1) = a_surf*dthldz(i,j) + b_surf*dqtdz(i,j)
 
       end do
       end do
@@ -193,10 +186,6 @@ contains
       end do
     end if
 
-    !CvH remove WHERE
-    !where (abs(dthvdz)<eps1)
-    !  dthvdz = sign(eps1,dthvdz)
-    !end where
     do k=1,kmax
       do j=2,j1
         do i=2,i1
