@@ -192,7 +192,7 @@ contains
     end if
     close (ifoutput)
 
-    field = NINT(1.0E3*(thlm-300),2)
+    field = NINT(1.0E2*(thlm-300),2)
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
     if (ldiracc) then
       open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
