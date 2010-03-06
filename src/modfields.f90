@@ -88,6 +88,7 @@ save
   real, allocatable :: presh(:)                      !<   hydrostatic pressure at half level
   real, allocatable :: exnf(:)                       !<   hydrostatic exner function at full level
   real, allocatable :: exnh(:)                       !<   hydrostatic exner function at half level
+  real, allocatable :: thvh(:)                       !<   hydrostatic thetav at half helvel
 
   real, allocatable :: rhof(:)                       !<   slab averaged density at full level
   real, allocatable :: qt0av(:)                      !<   slab averaged q_tot
@@ -128,6 +129,7 @@ save
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:)
   real, allocatable :: qvsl(:,:,:)
   real, allocatable :: qvsi(:,:,:)
+  real, allocatable :: esl(:,:,:)
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -188,6 +190,7 @@ subroutine initfields
     allocate(presh(k1))
     allocate(exnf(k1))
     allocate(exnh(k1))
+    allocate(thvh(k1))
     allocate(rhof(k1))
     allocate(qt0av(k1))
     allocate(ql0av(k1))
@@ -223,7 +226,8 @@ subroutine initfields
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
-             ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1))     ! qv-ice
+             ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
+             ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
     um=0.;u0=0.;up=0.
@@ -238,14 +242,14 @@ subroutine initfields
     drhobdzf=0.;dalpbdzf=0.;dthvbdzf=0.;dprsbdzf=0.;drhobdzh=0.;dalpbdzh=0.;dthvbdzh=0.;dprsbdzh=0.
 
     ql0=0.;tmp0=0.;ql0h=0.;tmp0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
-    presf=0.;presh=0.;exnf=0.;exnh=0.;rhof=0.    ! OG
+    presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
     ug=0.;vg=0.;dpdxl=0.;dpdyl=0.;wfls=0.;whls=0.;thlpcar = 0.
     dthldxls=0.;dthldyls=0.;dqtdxls=0.;dqtdyls=0.;dudxls=0.;dudyls=0.;dvdxls=0.;dvdyls=0.
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
-    qvsl=0.;qvsi=0.
+    qvsl=0.;qvsi=0.;esl=0.
 
   end subroutine initfields
 
@@ -258,12 +262,12 @@ subroutine initfields
     deallocate(svm,sv0,svp)
     deallocate(rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh)
     deallocate(drhobdzf,dalpbdzf,dthvbdzf,dprsbdzf,drhobdzh,dalpbdzh,dthvbdzh,dprsbdzh)
-    deallocate(ql0,tmp0,tmp0h,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,tmp0,tmp0h,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,dvdxls,dvdyls,wfls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
-    deallocate(qvsl,qvsi)
+    deallocate(qvsl,qvsi,esl)
 
    end subroutine exitfields
 
