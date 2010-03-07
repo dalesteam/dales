@@ -207,7 +207,7 @@ contains
   use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0av,qt0av,sv0av,&
-                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls
+                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,rhobf
   implicit none
 
   integer k,n
@@ -247,11 +247,9 @@ contains
   up(2:i1,2:j1,1)   = up  (2:i1,2:j1,1) -u0av(k)*dudxls(k)  -v0av(k)*dudyls  (k)-subs_u
   vp(2:i1,2:j1,1)   = vp  (2:i1,2:j1,1) -u0av(k)*dvdxls(k)  -v0av(k)*dvdyls  (k)-subs_v
 
-
 !     1.2 other model levels twostream
 
   do k=2,kmax
-
     if (whls(k+1).lt.0) then   !downwind scheme for subsidence
       subs_thl    = whls(k+1) * (thl0av(k+1) - thl0av(k))/dzh(k+1)
       subs_qt     = whls(k+1) * (qt0av (k+1) - qt0av (k))/dzh(k+1)
