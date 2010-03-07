@@ -246,12 +246,13 @@ module modsimpleice
 
   end subroutine accrete
 
+
   subroutine evaposite
     use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
-    use modfields, only : qt0,ql0,exnf,rhobf,tmp0,presf,qvsl,qvsi
+    use modfields, only : qt0,ql0,exnf,rhobf,tmp0,presf,qvsl,qvsi,esl
     use modmpi,    only : myid
     implicit none
-    real :: qrl,qri,esl,ssl,esi,ssi,conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
+    real :: qrl,qri,ssl,ssi,conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
     integer:: i,j,k
 
     do k=1,k1
@@ -268,12 +269,12 @@ module modsimpleice
         massl=rhobf(k)*(qrl+1.e-7) / conl  ! mass liquid particles
         massi=rhobf(k)*(qri+1.e-7) / coni  ! mass ice particles
         diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
-        diami=(massi/aal)**(1./bbi) ! diameter ice particles
+        diami=(massi/aai)**(1./bbi) ! diameter ice particles
         rel=ccl*diaml**(ddl+1.)/2.e-5  ! Reynolds number liquid
         rei=cci*diami**(ddi+1.)/2.e-5  ! Reynolds number ice
         ventl=amax1(1.,.78+.27*sqrt(rel))  ! ventilation factor liquid
         venti=amax1(1.,.65+.39*sqrt(rei))  ! ventilation factor ice
-        thfun=1.e-7/(2.2*tmp0(i,j,k)/ssl+2.2e-2/tmp0(i,j,k))  ! thermodynamic fun.
+        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e-2/tmp0(i,j,k))  ! thermodynamic fun.
         g_devap_l=4.*pi*diaml/betal*(ssl-1.)*ventl*thfun   ! growth/evap
         g_devap_i=4.*pi*diami/betai*(ssi-1.)*venti*thfun   ! growth/evap
         devap_l=conl * g_devap_l * qrl / (qrl + 1.e-9)
@@ -290,7 +291,7 @@ module modsimpleice
   end subroutine evaposite
 
   subroutine precipitate
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,dzf,pi
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,dzf,pi,dzh
     use modfields, only : rhobf
     use modmpi,    only : myid
     implicit none
@@ -325,7 +326,7 @@ module modsimpleice
     do k=1,kmax
     do i=2,i1
     do j=2,j1
-      qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+      qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzh(k+1)*rhobf(k))
     enddo
     enddo
     enddo
