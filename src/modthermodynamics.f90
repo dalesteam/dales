@@ -305,12 +305,12 @@ contains
   subroutine fromztop
 
   use modglobal, only : k1,dzf,dzh,rv,rd,cp,tmelt,zf,grav,pref0
-  use modfields, only : qt0av,ql0av,presf,presh,rhobf,rhobh
+  use modfields, only : qt0av,ql0av,presf,presh,rhobf,rhobh,thvh
   use modsurfdata,only : ps,thls
   implicit none
 
   integer   k
-  real      thetav, rdocp
+  real      rdocp
   real,allocatable,dimension (:) :: thetah, qth, qlh
 
   allocate(thetah(k1), qth(k1), qlh(k1))
@@ -333,18 +333,18 @@ contains
 
 !     1: lowest level
 
-  thetav   = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+  thvh(1)   = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - &
-                 grav*(pref0**rdocp)*zf(1) /(cp*thetav)
+                 grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
 
 !     2: higher levels
 
   do k=2,k1
 
-    thetav   = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
+    thvh(k)   = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzh(k) /(cp*thetav)
+                   grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
     presf(k) = presf(k)**(1./rdocp)
   end do
 
@@ -355,9 +355,9 @@ contains
 
   presh(1) = ps
   do k=2,k1
-    thetav   = th0av(k-1)*(1+(rv/rd-1)*qt0av(k-1)-rv/rd*ql0av(k-1))
+    thvh(k)   = th0av(k-1)*(1+(rv/rd-1)*qt0av(k-1)-rv/rd*ql0av(k-1))
     presh(k) = presh(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzf(k-1) / (cp*thetav)
+                   grav*(pref0**rdocp)*dzf(k-1) / (cp*thvh(k))
     presh(k) = presh(k)**(1./rdocp)
   end do
 
@@ -443,13 +443,13 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
   use modsurfdata, only : thls
   use modmpi, only : myid
   implicit none
 
   integer i, j, k
-  real :: tl, ilratio, esl, esi, qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: tl, ilratio, esl1,esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
   integer :: niter,nitert,tlonr,thinr,mid
 
@@ -466,24 +466,24 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)*5.)
+               tlonr=int((Tnr-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-               esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-               qsatur = ilratio*(rd/rv)*esl/(presf(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presf(k)-(1.-rd/rv)*esi)
+               esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+               qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
 
                ttry=Tnr-0.002
                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((ttry-150.)*5.)
+               tlonr=int((ttry-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-               esi=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-               qsatur = ilratio*(rd/rv)*esl/(presf(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presf(k)-(1.-rd/rv)*esi)
+               esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+               qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
  
                Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
@@ -492,14 +492,14 @@ contains
             niter = 0
             tmp0(i,j,k)= Tnr
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=floor((Tnr-150.)*5.)
+            tlonr=int((Tnr-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
-            esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl(i,j,k)=rd/rv*esl/(presf(k)-(1.-rd/rv)*esl)
-            qvsi(i,j,k)=rd/rv*esi/(presf(k)-(1.-rd/rv)*esi)
+            esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+            qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
+            qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
             qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
       end do
@@ -519,7 +519,7 @@ contains
   implicit none
 
   integer i, j, k
-  real :: tl, ilratio, esl, esi, qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: tl, ilratio, esl1, esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
   integer :: niter,nitert,tlonr,thinr,mid
   real :: qvsl1,qvsi1
@@ -537,24 +537,24 @@ contains
                niter = niter+1
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)*5.)
+               tlonr=int((Tnr-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-               esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-               qsatur = ilratio*(rd/rv)*esl/(presh(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presh(k)-(1.-rd/rv)*esi)
+               esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+               qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
                thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
 
                ttry=Tnr-0.002
                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-               tlonr=floor((Tnr-150.)*5.)
+               tlonr=int((Tnr-150.)*5.)
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
-               esl=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-               esi=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-               qsatur = ilratio*(rd/rv)*esl/(presh(k)-(1.-rd/rv)*esl)+(1.-ilratio)*(rd/rv)*esi/(presh(k)-(1.-rd/rv)*esi)
+               esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+               qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
                thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
  
                Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
@@ -563,14 +563,14 @@ contains
             niter = 0
             tmp0h(i,j,k)= Tnr
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=floor((Tnr-150.)*5.)
+            tlonr=int((Tnr-150.)*5.)
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
-            esl=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl1=rd/rv*esl/(presh(k)-(1.-rd/rv)*esl)
-            qvsi1=rd/rv*esi/(presh(k)-(1.-rd/rv)*esi)
+            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+            qvsl1=rd/rv*esl1/(presh(k)-(1.-rd/rv)*esl1)
+            qvsi1=rd/rv*esi1/(presh(k)-(1.-rd/rv)*esi1)
             qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
             ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
       end do
