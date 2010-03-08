@@ -449,7 +449,7 @@ contains
 ! **  Include shear and buoyancy production terms and dissipation **
 
     sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
-    sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvbf(k)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+    sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvbf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
     sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)/delta(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
   end do
   end do
