@@ -103,8 +103,8 @@ module modsimpleice
         if (qr(i,j,k) <= qrmin) then
           qrmask(i,j,k) = .false.
           if(qr(i,j,k)<0.) then
-          qr(i,j,k)=0.
           qrsmall = qrsmall-qr(i,j,k)
+          qr(i,j,k)=0.
           end if
         else
           qrmask(i,j,k)=.true.
@@ -346,8 +346,8 @@ module modsimpleice
       ! re-evaluate lambda
         lambdal(i,j,k)=(aal*n0rl*gamb1l/rhof(k)/(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
         lambdai(i,j,k)=(aai*n0ri*gamb1i/rhof(k)/(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
-        vtl=ccl*gambd1l/gamb1l/lambdal(i,j,k)**ddl  ! terminal velocity liquid
-        vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
+        vtl=ccl*gambd1l/gamb1l / lambdal(i,j,k)**ddl  ! terminal velocity liquid
+        vti=cci*gambd1i/gamb1i / lambdai(i,j,k)**ddi  ! terminal velocity ice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
         vtf = amin1(wfallmax,vtf)
         sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
