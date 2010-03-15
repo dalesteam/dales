@@ -70,7 +70,7 @@ module modsimpleice
 !> Calculates the microphysical source term.
   subroutine simpleice
     use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp,tup,tdn
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhobf,tmp0
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0
     use modsimpleicestat, only : simpleicetend
     use modmpi,    only : myid
     implicit none
@@ -122,8 +122,8 @@ module modsimpleice
     do i=2,i1
     do j=2,j1
       ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! liquid contribution
-      lambdal(i,j,k)=(aal*n0rl*gamb1l/rhobf(k)/(ql0(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
-      lambdai(i,j,k)=(aai*n0ri*gamb1i/rhobf(k)/(ql0(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
+      lambdal(i,j,k)=(aal*n0rl*gamb1l/rhof(k)/(qr(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
+      lambdai(i,j,k)=(aai*n0ri*gamb1i/rhof(k)/(qr(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
     enddo
     enddo
     enddo
@@ -160,7 +160,7 @@ module modsimpleice
 
   subroutine autoconvert
     use modglobal, only : ih,jh,i1,j1,k1,rlv,cp, tmelt
-    use modfields, only : ql0,exnf,rhobf,tmp0
+    use modfields, only : ql0,exnf,rhof,tmp0
     use modmpi,    only : myid
     implicit none
     real :: qll,qli,ddisp,del2,autl,tc,times,auti,aut
@@ -174,8 +174,8 @@ module modsimpleice
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
           ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! relative dispersion for Berry autoconversion
-          del2=1.e3*rhobf(k)*qll ! liquid water content
-          autl=1./rhobf(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
+          del2=1.e3*rhof(k)*qll ! liquid water content
+          autl=1./rhof(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
           tc=tmp0(i,j,k)-tmelt
           times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
           auti=qli/times
@@ -212,7 +212,7 @@ module modsimpleice
 
   subroutine accrete
     use modglobal, only : ih,jh,i1,j1,k1,rlv,cp,pi
-    use modfields, only : ql0,exnf,rhobf
+    use modfields, only : ql0,exnf,rhof
     use modmpi,    only : myid
     implicit none
     real :: qrl,qri,conl,coni,massl,massi,diaml,diami,g_acc_l,g_acc_i,acc_l,acc_i,acc
@@ -227,12 +227,12 @@ module modsimpleice
         qri=qr(i,j,k)-qrl
         conl=n0rl/lambdal(i,j,k) ! liquid concentration
         coni=n0ri/lambdai(i,j,k) ! ice concentration
-        massl=rhobf(k)*(qrl+1.e-7) / conl  ! mass liquid particles
-        massi=rhobf(k)*(qri+1.e-7) / coni  ! mass ice particles
+        massl=rhof(k)*(qrl+1.e-7) / conl  ! mass liquid particles
+        massi=rhof(k)*(qri+1.e-7) / coni  ! mass ice particles
         diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
         diami=(massi/aal)**(1./bbi) ! diameter ice particles
-        g_acc_l=pi/4.*ccl*diaml**(2.+ddl)*ceffl*alphai*rhobf(k)*ql0(i,j,k)
-        g_acc_i=pi/4.*cci*diami**(2.+ddi)*ceffi*alphal*rhobf(k)*ql0(i,j,k)
+        g_acc_l=pi/4.*ccl*diaml**(2.+ddl)*ceffl*alphal*rhof(k)*ql0(i,j,k)
+        g_acc_i=pi/4.*cci*diami**(2.+ddi)*ceffi*alphai*rhof(k)*ql0(i,j,k)
         acc_l=conl*g_acc_l* qrl/(qrl+1.e-9)
         acc_i=coni*g_acc_i* qri/(qri+1.e-9)
         acc= min(acc_l + acc_i,ql0(i,j,k)/delt)  ! growth by accretion
@@ -249,7 +249,7 @@ module modsimpleice
 
   subroutine evaposite
     use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
-    use modfields, only : qt0,ql0,exnf,rhobf,tmp0,presf,qvsl,qvsi,esl
+    use modfields, only : qt0,ql0,exnf,rhof,tmp0,presf,qvsl,qvsi,esl
     use modmpi,    only : myid
     implicit none
     real :: qrl,qri,ssl,ssi,conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
@@ -266,8 +266,8 @@ module modsimpleice
         ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
         conl=n0rl/lambdal(i,j,k) ! liquid concentration
         coni=n0ri/lambdai(i,j,k) ! ice concentration
-        massl=rhobf(k)*(qrl+1.e-7) / conl  ! mass liquid particles
-        massi=rhobf(k)*(qri+1.e-7) / coni  ! mass ice particles
+        massl=rhof(k)*(qrl+1.e-7) / conl  ! mass liquid particles
+        massi=rhof(k)*(qri+1.e-7) / coni  ! mass ice particles
         diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
         diami=(massi/aai)**(1./bbi) ! diameter ice particles
         rel=ccl*diaml**(ddl+1.)/2.e-5  ! Reynolds number liquid
@@ -279,7 +279,8 @@ module modsimpleice
         g_devap_i=4.*pi*diami/betai*(ssi-1.)*venti*thfun   ! growth/evap
         devap_l=conl * g_devap_l * qrl / (qrl + 1.e-9)
         devap_i=coni * g_devap_i * qri / (qri + 1.e-9)
-        devap= min(devap_l + devap_i,ql0(i,j,k)/delt)  ! growth by deposition
+        ! limit with qr and ql after accretion and autoconversion
+        devap= max(min(devap_l + devap_i,ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! growth by deposition
         qrp(i,j,k) = qrp(i,j,k)+devap
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
@@ -292,7 +293,7 @@ module modsimpleice
 
   subroutine precipitate
     use modglobal, only : ih,i1,jh,j1,k1,kmax,dzf,pi,dzh
-    use modfields, only : rhobf
+    use modfields, only : rhof,rhobf
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k,jn
@@ -343,8 +344,8 @@ module modsimpleice
     do j=2,j1
       if (qr_spl(i,j,k) > qrmin) then
       ! re-evaluate lambda
-        lambdal(i,j,k)=(aal*n0rl*gamb1l/rhobf(k)/(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
-        lambdai(i,j,k)=(aai*n0ri*gamb1i/rhobf(k)/(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
+        lambdal(i,j,k)=(aal*n0rl*gamb1l/rhof(k)/(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
+        lambdai(i,j,k)=(aai*n0ri*gamb1i/rhof(k)/(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
         vtl=ccl*gambd1l/gamb1l/lambdal(i,j,k)**ddl  ! terminal velocity liquid
         vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
