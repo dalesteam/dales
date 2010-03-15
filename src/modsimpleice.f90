@@ -309,14 +309,17 @@ module modsimpleice
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      if (qrmask(i,j,k).eqv..true.) then
         qr_spl(i,j,k) = qr(i,j,k)
+      if (qrmask(i,j,k).eqv..true.) then
         vtl=ccl*(gambd1l/gamb1l)/(lambdal(i,j,k)**ddl)  ! terminal velocity liquid
         vti=cci*(gambd1i/gamb1i)/(lambdai(i,j,k)**ddi)  ! terminal velocity ice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
         vtf = amin1(wfallmax,vtf)
         precep(i,j,k) = vtf*qr_spl(i,j,k)
         sed_qr(i,j,k) = precep(i,j,k)*rhobf(k)
+      else
+        precep(i,j,k) = 0.
+        sed_qr(i,j,k) = 0.
       end if
     enddo
     enddo
@@ -351,6 +354,8 @@ module modsimpleice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
         vtf = amin1(wfallmax,vtf)
         sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+      else
+        sed_qr(i,j,k) = 0.
       endif
     enddo
     enddo
