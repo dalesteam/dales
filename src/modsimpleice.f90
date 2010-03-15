@@ -122,8 +122,8 @@ module modsimpleice
     do i=2,i1
     do j=2,j1
       ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! liquid contribution
-      lambdal(i,j,k)=(aal*n0rl*gamb1l/rhof(k)/(qr(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
-      lambdai(i,j,k)=(aai*n0ri*gamb1i/rhof(k)/(qr(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
+      lambdal(i,j,k)=(aal*n0rl*gamb1l/(rhof(k)*(qr(i,j,k)*ilratio(i,j,k)+1.e-6)))**(1./(1.+bbl)) ! lambda rain
+      lambdai(i,j,k)=(aai*n0ri*gamb1i/(rhof(k)*(qr(i,j,k)*(1.-ilratio(i,j,k))+1.e-6)))**(1./(1.+bbi)) ! lambda ice
     enddo
     enddo
     enddo
@@ -311,8 +311,8 @@ module modsimpleice
     do j=2,j1
       if (qrmask(i,j,k).eqv..true.) then
         qr_spl(i,j,k) = qr(i,j,k)
-        vtl=ccl*gambd1l/gamb1l/lambdal(i,j,k)**ddl  ! terminal velocity liquid
-        vti=cci*gambd1i/gamb1i/lambdai(i,j,k)**ddi  ! terminal velocity ice
+        vtl=ccl*(gambd1l/gamb1l)/(lambdal(i,j,k)**ddl)  ! terminal velocity liquid
+        vti=cci*(gambd1i/gamb1i)/(lambdai(i,j,k)**ddi)  ! terminal velocity ice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
         vtf = amin1(wfallmax,vtf)
         precep(i,j,k) = vtf*qr_spl(i,j,k)
@@ -344,10 +344,10 @@ module modsimpleice
     do j=2,j1
       if (qr_spl(i,j,k) > qrmin) then
       ! re-evaluate lambda
-        lambdal(i,j,k)=(aal*n0rl*gamb1l/rhof(k)/(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6))**(1./(1.+bbl)) ! lambda rain
-        lambdai(i,j,k)=(aai*n0ri*gamb1i/rhof(k)/(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6))**(1./(1.+bbi)) ! lambda ice
-        vtl=ccl*gambd1l/gamb1l / lambdal(i,j,k)**ddl  ! terminal velocity liquid
-        vti=cci*gambd1i/gamb1i / lambdai(i,j,k)**ddi  ! terminal velocity ice
+        lambdal(i,j,k)=(aal*n0rl*gamb1l/(rhof(k)*(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6)))**(1./(1.+bbl)) ! lambda rain
+        lambdai(i,j,k)=(aai*n0ri*gamb1i/(rhof(k)*(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6)))**(1./(1.+bbi)) ! lambda ice
+        vtl=ccl*(gambd1l/gamb1l)/(lambdal(i,j,k)**ddl)  ! terminal velocity liquid
+        vti=cci*(gambd1i/gamb1i)/(lambdai(i,j,k)**ddi)  ! terminal velocity ice
         vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
         vtf = amin1(wfallmax,vtf)
         sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
