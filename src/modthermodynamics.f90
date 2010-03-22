@@ -305,8 +305,8 @@ contains
   subroutine fromztop
 
   use modglobal, only : k1,dzf,dzh,rv,rd,cp,tmelt,zf,grav,pref0
-  use modfields, only : qt0av,ql0av,presf,presh,rhobf,rhobh,thvh
-  use modsurfdata,only : ps,thls
+  use modfields, only : qt0av,ql0av,presf,presh,rhobf,rhobh,thvh,thvf
+  use modsurfdata, only : thvs,ps
   implicit none
 
   integer   k
@@ -321,9 +321,9 @@ contains
 !**************************************************
 
   do k=2,k1
-    thetah(k) = (rhobf(k)*th0av(k)*dzf(k-1) + rhobf(k-1)*th0av(k-1)*dzf(k))/(2*rhobh(k)*dzh(k))
-    qth   (k) = (rhobf(k)*qt0av(k)*dzf(k-1) + rhobf(k-1)*qt0av(k-1)*dzf(k))/(2*rhobh(k)*dzh(k))
-    qlh   (k) = (rhobf(k)*ql0av(k)*dzf(k-1) + rhobf(k-1)*ql0av(k-1)*dzf(k))/(2*rhobh(k)*dzh(k))
+    thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
+    qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
+    qlh   (k) = (ql0av(k)*dzf(k-1) + ql0av(k-1)*dzf(k))/(2*dzh(k))
   end do
 
 !**************************************************
@@ -331,9 +331,9 @@ contains
 !          assuming hydrostatic equilibrium       *
 !**************************************************
 
-!     1: lowest level
+!     1: lowest level: use thvs
 
-  thvh(1)   = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+  thvh(1) = thvs
   presf(1) = ps**rdocp - &
                  grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
@@ -353,11 +353,12 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
+  thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presh(1) = ps
   do k=2,k1
-    thvh(k)   = th0av(k-1)*(1+(rv/rd-1)*qt0av(k-1)-rv/rd*ql0av(k-1))
+    thvf(k)   = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
-                   grav*(pref0**rdocp)*dzf(k-1) / (cp*thvh(k))
+                   grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
     presh(k) = presh(k)**(1./rdocp)
   end do
 
