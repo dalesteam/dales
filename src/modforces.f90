@@ -61,8 +61,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal, only : i1,j1,kmax,dzh,dzf,grav
-  use modfields, only : u0,v0,w0,up,vp,wp,thv0h,dpdxl,dpdyl,thvbh
-  use modsurfdata,only : thvs
+  use modfields, only : u0,v0,w0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
   implicit none
 
@@ -79,7 +78,7 @@ contains
   do i=2,i1
     up(i,j,k) = up(i,j,k) - dpdxl(k)
     vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-    wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvbh(k))/thvbh(k)
+    wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
   end do
   end do
   end do
