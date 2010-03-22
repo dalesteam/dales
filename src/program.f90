@@ -23,39 +23,36 @@
 !>
 !! \section Log Change log
 !! \par New Features
-!! \par Changes
+!! \par Main Changes
 !! - Changed Modfields+modglobal+modmicrodata switches
 !! - Startup with new variables
 !! \todo
 
 !! This subversion
 !! - Anelastic advection
-!! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v)
 !! - Anelastic poisson solver
+!! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v) and theta_v0
 !! - Simple ice microphysics scheme (Grabowski, with switch for autoconversion formula)
 !! - Icemicrostat
-!! - Reviewed saturation pressure with table lookup fiormula (Murphy and Koop)
+!! - Reviewed saturation pressure with table lookup formula (Murphy and Koop)
 !! - Analytical function for surface forcing (may be removed later)
-!! - Remove allocation from rho loops
+!! - Fixed fielddump range for temperatures
+!! - Fixed statistics for heights above 10000 m
 !! \par todo
-!! Improved (thermo)dynamics
-!! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc), maybe let fromztop integrate from top of domain
-!! - Make SFS-TKE itself a thermodynamic variable? -> later
+!! - Review Thermodynamic variables, pressure gradient expansion (fromztop, rhof, thetav, etc), buoyancy maybe let fromztop integrate from top of domain
+!! - Review diagnostics (in particular budgets)
+!! - Revised TKE subgrid scheme and diffusion (see branch)
 !! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
-!! - Revised TKE subgrid scheme and diffusion
-!! - Make ql first scalar? 
-!! - Fix basic warm start
-!! - Check fromztop boundary conditions!
-!! - Fix fielddump routine
-!! - Look into evaporation
-!! - Netcdf for small variables (e.g. evaporation tendencies)
+!! - Make ql first scalar (saves one advection diffusion)?
+!! - Fix (warm) startup, write baseprof files
+!! - Clean up netcdf (e.g. microphysics, empty files)
+!! - CAPE, CIN etc calculations
 !! Further
+!! - Make SFS-TKE itself a variable? (see branch)
 !! - Look into influence of advection scheme for deep convection (Walcek scheme??)
 !! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
-!! - 2D option
 !! - Parallelization (merge with dales 3.3)
-!! - Review diagnostics (in particular budgets)
-!! - Review particle routine
+!! - Extra cross-section outputs
 !!
 !! \section License License
 !!  This file is part of DALES.
