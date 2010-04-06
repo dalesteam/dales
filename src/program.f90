@@ -39,20 +39,20 @@
 !! - Fixed fielddump range for temperatures
 !! - Fixed statistics for heights above 10000 m
 !! \par todo
+!! - Check runs with graupel class
 !! - Review Thermodynamic variables, pressure gradient expansion (fromztop, rhof, thetav, etc), buoyancy maybe let fromztop integrate from top of domain
-!! - Review diagnostics (in particular budgets)
-!! - Revised TKE subgrid scheme and diffusion (see branch)
-!! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
-!! - Make ql first scalar (saves one advection diffusion)?
+!! - Review diagnostics (in particular (conditional) budgets of TKE and w, possibly write these from the tendency routines)
+!! - Revised TKE subgrid scheme and diffusion (see branch, implement after this has been checked for consistency)
+!! - Look at possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
+!! - Make ql first scalar (saves advection and diffusion of one scalar)?
 !! - Fix (warm) startup, write baseprof files
 !! - Clean up netcdf (e.g. microphysics, empty files)
-!! - CAPE, CIN etc calculations
 !! Further
-!! - Make SFS-TKE itself a variable? (see branch)
 !! - Look into influence of advection scheme for deep convection (Walcek scheme??)
-!! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
-!! - Parallelization (merge with dales 3.3)
-!! - Extra cross-section outputs
+!! - Add 2-moment scheme (Thijs working on this)
+!! - Parallelization (Merge with dales 3.3)
+!! - Extra cross-section outputs (in particular related to w-budgets and microphysics tendencies)
+!! - CAPE/CAPEcloud and CIN/CINcloud cross-sections, use LNB and points below
 !!
 !! \section License License
 !!  This file is part of DALES.
