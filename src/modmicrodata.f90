@@ -38,8 +38,8 @@
   logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
              l_rain      = .true. , & !<  rain formation / evolution flag              (in namelist NAMMICROPHYSICS)
-             l_mur_cst   = .false., & ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
-             l_berry     = .true.
+             l_mur_cst   = .false. ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
+
   real    :: mur_cst     = 5        & !<  mur value if l_mur_cst=T                     (in namelist NAMMICROPHYSICS)
                  ,Nc_0 = 70e6       & !<  initial cloud droplet number
                  ,sig_g = 1.34      & !<  geom. std dev of cloud droplet DSD
@@ -164,40 +164,71 @@
 
   logical ,allocatable,dimension(:,:,:):: qcmask,qrmask
 
-! Grabowski simple ice microphysics
-! Latent heats taken from modglobal.f90
-! Saturation formula parameters for simple ice micro also saved in modglobal.f90
-! Drop concentration from initial droplet concentration input Nc_0
+! Parameters for simple ice microphysics (Grabowski, JAS, 1998)
+! With extension to graupel class if l_graupel=.true.
+! Latent heats saved in modglobal.f90
+! Tup and Tdn for distinction between cloud water and cloud ice  saved in modglobal.f90
+! Drop concentration from initial droplet concentration input Nc_0 saved in modglobal.f90
 
-  ! 
+
+  ! user settings
+  logical :: l_berry = .true.   !  Berry-Hsie (Grabowski, 1998) autoconversion vs Kessler-Lin (Khairoutdinov and Randall, 2006)
+  logical :: l_graupel = .true. !  Switch for graupel
+  real :: evapfactor = 1.0      !  Prefactor to reduce evaporation
+  real :: courantp = 1.0        !  CFLmax-criterion for precipitation
+
   real, parameter :: &
-     ! cc mass, terminal velocity, diameter relationship parameters A, B, C, and D
-     aal=5.2e2 &
-     ,bbl=3. &
-     ,ccl=130. &
-     ,ddl=0.5 &
-     ,aai=2.5e-2 &
-     ,bbi=2. &
-     ,cci=4. &
-     ,ddi=0.25 &
-     ! cc collection ef., alpha, beta
-     ,ceffl=0.8 &
-     ,alphal=1. &
-     ,betal=2. &
-     ,ceffi=0.2 &
-     ,alphai=.3 &
-     ,betai=3. &
-     ! N_0 in Marshall_Palmer Distribution
-     ,n0rl=2*1.e7 &
-     ,n0ri=2*1.e7 &
-     !cc gammas:
-     ,gamb1l=6.0 &
-     ,gambd1l=11.7 &
-     ,gamb1i=2.0 &
-     ,gambd1i=2.56
+     ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
+     aar=5.2e2 &
+     ,bbr=3. &
+     ,ccr=130. &
+     ,ddr=0.5 &
+     ! For snow
+     ,aas=2.5e-2 &
+     ,bbs=2. &
+     ,ccs=4. &
+     ,dds=0.25 &
+     ! For graupel (if present, following Tomita 2008 for terminal velocities and using mass-diameter relationship as for rain, but with only 40% of density)
+     ,aag=2.e2 &
+     ,bbg=3.&
+     ,ccg=82.5 &
+     ,ddg=0.25 &
+     ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here
+     ,ceffrl=0.8 &
+     ,ceffsl=0.06 &
+     ,ceffgl=0.06 &
+     ,ceffri=0.8 &
+     ,ceffsi=0.06 &
+     ,ceffgi=0.06 &
+     ! Shape factors beta
+     ,betar=2. &
+     ,betas=3. &
+     ,betag=2. &
+     ! N_0 in Marshall-Palmer Distribution
+     ,n0rr=2*1.e7 &
+     ,n0rs=2*1.e7 &
+     ,n0rg=2*1.e7 &
+     ! Gamma distribution parameters, calculated only once
+     ,gamb1r=gamma(bbr+1) &
+     ,gambd1r=gamma(bbr+ddr+1) &
+     ,gamb1s=gamma(bbs+1) &
+     ,gambd1s=gamma(bbs+dds+1) &
+     ,gamb1g=gamma(bbg+1) &
+     ,gambd1g=gamma(bbg+ddg+1) &
+     ! Parameters for Kessler/Lin type autoconversion
+     ,timekessl=0.001 &
+     ,betakessi=0.001 &
+     ,qll0=0.001 &
+     ,qli0=0.0001 &
+     ! Diagnostic division between rain, snow and graupel
+     ,tuprsg=268. &
+     ,tdnrsg=253. &
+     ,tupsg=283. &
+     ,tdnsg=223.
 
-   ! Fields related to ice-liquid partitioning
-   real,allocatable,dimension(:,:,:) :: ilratio,lambdal,lambdai
+   ! Fields related to ice-liquid partitioning and slope of distribution
+   real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
+   ! Density-corrected A coefficients for terminal velocity
+   real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
 
   end module modmicrodata
-

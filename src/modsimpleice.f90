@@ -5,11 +5,9 @@
 !>
 !! Calculates ice microphysics in a cheap scheme without prognostic Nr
 !!  simpleice is called from *modmicrophysics*
-!! Replaced autoconversion scheme by simple Kessler for now (Berry commented out)
-!! \see  Grabowski, 1998, JAS
+!! \see  Grabowski, 1998, JAS and Khairoutdinov and Randall, 2006, JAS
 !!  \author Steef B\"oing, TU Delft
 !!  \par Revision list
-!! \todo test
 !  This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
@@ -39,32 +37,47 @@ module modsimpleice
 !> Initializes and allocates the arrays
   subroutine initsimpleice
     use modglobal, only : ih,i1,jh,j1,k1
+    use modfields, only : rhobf
     use modmpi,    only : myid
-    implicit none
 
-    allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr is converted from a scalar variable
+    implicit none
+    real:: k
+
+    allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
              ,thlpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! thl tendency due to microphysics only, for statistics
              ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qt tendency due to microphysics only, for statistics
              ,sed_qr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! sedimentation rain droplets mixing ratio
              ,qr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! time-splitting substep qr
-             ,ilratio(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! partition ratio liquid/solid
-             ,lambdal(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for liquid phase
-             ,lambdai(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for ice phase
+             ,ilratio(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! partition ratio cloud water vs cloud ice
+             ,rsgratio(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! partition ratio rain vs. snow/graupel
+             ,sgratio(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! partition ratio snow vs graupel
+             ,lambdar(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for rain
+             ,lambdas(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for snow
+             ,lambdag(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for graupel
 
     allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
              ,qcmask(2-ih:i1+ih,2-jh:j1+jh,k1))     ! mask for cloud water
 
     allocate(precep(2-ih:i1+ih,2-jh:j1+jh,k1))      ! precipitation for statistics
 
+    allocate(ccrz(k1),ccsz(k1),ccgz(k1))
+
+    do k=1,k1
+    ccrz(k)=ccr*(1.29/rhobf(k))**0.5
+    ccsz(k)=ccs*(1.29/rhobf(k))**0.5
+    ccgz(k)=ccg*(1.29/rhobf(k))**0.5
+    end do
+
   end subroutine initsimpleice
 
 !> Cleaning up after the run
   subroutine exitsimpleice
     implicit none
-    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,lambdal,lambdai)
+    deallocate(qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(qrmask,qcmask) 
     deallocate(precep)
+    deallocate(ccrz,ccsz,ccgz)
   end subroutine exitsimpleice
 
 !> Calculates the microphysical source term.
@@ -97,9 +110,9 @@ module modsimpleice
       else
         qcmask(i,j,k) = .false.
       end if
-      ! initialise qr mask
+      ! initialise qr mask and check if we are not throwing away too much rain
       if (l_rain) then
-        qrsum = qrsum+ qr(i,j,k)
+        qrsum = qrsum+qr(i,j,k)
         if (qr(i,j,k) <= qrmin) then
           qrmask(i,j,k) = .false.
           if(qr(i,j,k)<0.) then
@@ -118,23 +131,39 @@ module modsimpleice
       write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
     end if
 
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! liquid contribution
-      lambdal(i,j,k)=(aal*n0rl*gamb1l/(rhof(k)*(qr(i,j,k)*ilratio(i,j,k)+1.e-6)))**(1./(1.+bbl)) ! lambda rain
-      lambdai(i,j,k)=(aai*n0ri*gamb1i/(rhof(k)*(qr(i,j,k)*(1.-ilratio(i,j,k))+1.e-6)))**(1./(1.+bbi)) ! lambda ice
-    enddo
-    enddo
-    enddo
+    if(l_graupel) then !partitioning and determination of intercept parameter
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! cloud water vs cloud ice partitioning
+        rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
+        sgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg)))   ! snow versus graupel partitioning
+        lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
+        lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! lambda graupel
+      enddo
+      enddo
+      enddo
+    else
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! cloud water vs cloud ice partitioning
+        rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
+        lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
+      enddo
+      enddo
+      enddo
+    endif
 
-    if (l_rain) then       
+    if (l_rain) then
       call simpleicetend
       call autoconvert
       call simpleicetend
       call accrete         
       call simpleicetend
-      call evaposite       
+      call evapdep       
       call simpleicetend
       call precipitate
       call simpleicetend
@@ -159,25 +188,26 @@ module modsimpleice
   end subroutine simpleice
 
   subroutine autoconvert
-    use modglobal, only : ih,jh,i1,j1,k1,rlv,cp, tmelt
+    use modglobal, only : ih,jh,i1,j1,k1,rlv,cp,tmelt
     use modfields, only : ql0,exnf,rhof,tmp0
     use modmpi,    only : myid
     implicit none
-    real :: qll,qli,ddisp,del2,autl,tc,times,auti,aut
+    real :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
     integer:: i,j,k
 
-    if(l_berry.eqv..true.) then
+    if(l_berry.eqv..true.) then ! Berry/Hsie autoconversion
       do k=1,k1
       do i=2,i1
       do j=2,j1
         if (qcmask(i,j,k).eqv..true.) then
+          ! ql partitioning 
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
-          ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! relative dispersion for Berry autoconversion
-          del2=1.e3*rhof(k)*qll ! liquid water content
-          autl=1./rhof(k)*1.67e-5*del2*del2/(5. + .0366*Nc_0/(1.e6*ddisp*(del2+1.e-6)))
-          tc=tmp0(i,j,k)-tmelt
-          times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
+          ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
+          lwc=1.e3*rhof(k)*qll ! Liquid water content in g/kg
+          autl=1./rhof(k)*1.67e-5*lwc*lwc/(5. + .0366*Nc_0/(1.e6*ddisp*(lwc+1.e-6)))
+          tc=tmp0(i,j,k)-tmelt ! Temperature wrt melting point
+          times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! Time scale for ice autoconversion
           auti=qli/times
           aut = min(autl + auti,ql0(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
@@ -187,17 +217,17 @@ module modsimpleice
       enddo
       enddo
       enddo
-    else
+    else ! Lin/Kessler autoconversion as in Khairoutdinov and Randall, 2006
       do k=1,k1
       do i=2,i1
       do j=2,j1
         if (qcmask(i,j,k).eqv..true.) then
+          ! ql partitioning 
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
-          autl=max(0.,0.001*(qll-1e-3))
+          autl=max(0.,timekessl*(qll-qll0))
           tc=tmp0(i,j,k)-tmelt
-          times=amin1(1.e3,(3.56*tc+106.7)*tc+1.e3) ! time scale for ice autoconversion
-          auti=qli/times
+          auti=max(0.,betakessi*exp(0.025*tc)*(qli-qli0))
           aut = min(autl + auti,ql0(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut
@@ -206,7 +236,7 @@ module modsimpleice
       enddo
       enddo
       enddo
-      endif
+    endif
 
   end subroutine autoconvert
 
@@ -215,81 +245,171 @@ module modsimpleice
     use modfields, only : ql0,exnf,rhof
     use modmpi,    only : myid
     implicit none
-    real :: qrl,qri,conl,coni,massl,massi,diaml,diami,g_acc_l,g_acc_i,acc_l,acc_i,acc
+    real :: qll,qli,qrr,qrs,qrg,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
     integer:: i,j,k
 
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      if (qrmask(i,j,k).eqv..true. .and. qcmask(i,j,k).eqv..true.) then
-        ! ql partitioning
-        qrl=qr(i,j,k)*ilratio(i,j,k)
-        qri=qr(i,j,k)-qrl
-        conl=n0rl/lambdal(i,j,k) ! liquid concentration
-        coni=n0ri/lambdai(i,j,k) ! ice concentration
-        massl=rhof(k)*(qrl+1.e-7) / conl  ! mass liquid particles
-        massi=rhof(k)*(qri+1.e-7) / coni  ! mass ice particles
-        diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
-        diami=(massi/aal)**(1./bbi) ! diameter ice particles
-        g_acc_l=pi/4.*ccl*diaml**(2.+ddl)*ceffl*alphal*rhof(k)*ql0(i,j,k)
-        g_acc_i=pi/4.*cci*diami**(2.+ddi)*ceffi*alphai*rhof(k)*ql0(i,j,k)
-        acc_l=conl*g_acc_l* qrl/(qrl+1.e-9)
-        acc_i=coni*g_acc_i* qri/(qri+1.e-9)
-        acc= min(acc_l + acc_i,ql0(i,j,k)/delt)  ! growth by accretion
-        qrp(i,j,k) = qrp(i,j,k)+acc
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
-      end if
-    enddo
-    enddo
-    enddo
+    if (l_graupel) then
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qrmask(i,j,k).eqv..true. .and. qcmask(i,j,k).eqv..true.) then ! apply mask
+          ! ql partitioning
+          qll=ql0(i,j,k)*ilratio(i,j,k)
+          qli=ql0(i,j,k)-qll
+          ! qr partitioning 
+          qrr=qr(i,j,k)*rsgratio(i,j,k)
+          qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))
+          qrg=qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)
+          conr=n0rr/lambdar(i,j,k) ! rain concentration
+          cons=n0rs/lambdas(i,j,k) ! snow concentration
+          cong=n0rg/lambdag(i,j,k) ! graupel concentration
+          massr =rhof(k)*(qrr+1.e-7)/conr  ! mass of rain
+          masss =rhof(k)*(qrs+1.e-7)/cons  ! mass of snow
+          massg =rhof(k)*(qrg+1.e-7)/cong  ! mass of graupel
+          diamr=(massr/aar)**(1./bbr) ! diameter liquid particles
+          diams=(masss/aas)**(1./bbs) ! diameter ice particles
+          diamg=(massg/aag)**(1./bbg) ! diameter ice particles
+          gaccrl=pi/4.*ccrz(k)*diamr**(2.+ddr)*ceffrl*rhof(k)*qll ! collection of cloud water by rain etc.
+          gaccsl=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsl*rhof(k)*qll
+          gaccgl=pi/4.*ccgz(k)*diamg**(2.+ddg)*ceffgl*rhof(k)*qll
+          gaccri=pi/4.*ccrz(k)*diamr**(2.+ddr)*ceffri*rhof(k)*qli
+          gaccsi=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsi*rhof(k)*qli
+          gaccgi=pi/4.*ccgz(k)*diamg**(2.+ddg)*ceffgi*rhof(k)*qli
+          accr=conr*(gaccrl*gaccri)*qrr/(qrr+1.e-9)
+          accs=cons*(gaccsl*gaccri)*qrs/(qrs+1.e-9)
+          accg=cong*(gaccgl*gaccri)*qrg/(qrg+1.e-9)
+          acc= min(accr+accs+accg,ql0(i,j,k)/delt)  ! total growth by accretion
+          qrp(i,j,k) = qrp(i,j,k)+acc
+          qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
+        end if
+      enddo
+      enddo
+      enddo
+    else ! no graupel
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qrmask(i,j,k).eqv..true. .and. qcmask(i,j,k).eqv..true.) then ! apply mask
+          ! ql partitioning
+          qll=ql0(i,j,k)*ilratio(i,j,k)
+          qli=ql0(i,j,k)-qll
+          ! qr partitioning 
+          qrr=qr(i,j,k)*rsgratio(i,j,k)
+          qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))
+          conr=n0rr/lambdar(i,j,k) ! rain concentration
+          cons=n0rs/lambdas(i,j,k) ! snow concentration
+          massr =rhof(k)*(qrr+1.e-7)/conr  ! mass of rain
+          masss =rhof(k)*(qrs+1.e-7)/cons  ! mass of snow
+          diamr=(massr/aar)**(1./bbr) ! diameter liquid particles
+          diams=(masss/aas)**(1./bbs) ! diameter ice particles
+          gaccrl=pi/4.*ccrz(k)*diamr**(2.+ddr)*ceffrl*rhof(k)*qll ! collection of cloud water by rain etc.
+          gaccsl=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsl*rhof(k)*qll
+          gaccri=pi/4.*ccrz(k)*diamr**(2.+ddr)*ceffri*rhof(k)*qli
+          gaccsi=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsi*rhof(k)*qli
+          accr=conr*(gaccrl*gaccri)*qrr/(qrr+1.e-9)
+          accs=cons*(gaccsl*gaccri)*qrs/(qrs+1.e-9)
+          acc= min(accr+accs,ql0(i,j,k)/delt)  ! total growth by accretion
+          qrp(i,j,k) = qrp(i,j,k)+acc
+          qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
+        end if
+      enddo
+      enddo
+      enddo
+    end if
 
   end subroutine accrete
 
-
-  subroutine evaposite
+  subroutine evapdep
     use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
     use modfields, only : qt0,ql0,exnf,rhof,tmp0,presf,qvsl,qvsi,esl
     use modmpi,    only : myid
     implicit none
-    real :: qrl,qri,ssl,ssi,conl,coni,massl,massi,diaml,diami,rel,rei,ventl,venti,thfun,g_devap_l,g_devap_i,devap_l,devap_i,devap
+    real :: qrr,qrs,qrg,ssl,ssi,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,rer,res,reg,ventr,vents,ventg,thfun,gevapdepr,gevapdeps,gevapdepg,evapdepr,evapdeps,evapdepg,devap
     integer:: i,j,k
 
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      if (qrmask(i,j,k).eqv..true.) then
-        ! qr partitioning
-        qrl=qr(i,j,k)*ilratio(i,j,k)
-        qri=qr(i,j,k)-qrl
-        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
-        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
-        conl=n0rl/lambdal(i,j,k) ! liquid concentration
-        coni=n0ri/lambdai(i,j,k) ! ice concentration
-        massl=rhof(k)*(qrl+1.e-7) / conl  ! mass liquid particles
-        massi=rhof(k)*(qri+1.e-7) / coni  ! mass ice particles
-        diaml=(massl/aal)**(1./bbl) ! diameter liquid particles
-        diami=(massi/aai)**(1./bbi) ! diameter ice particles
-        rel=ccl*diaml**(ddl+1.)/2.e-5  ! Reynolds number liquid
-        rei=cci*diami**(ddi+1.)/2.e-5  ! Reynolds number ice
-        ventl=amax1(1.,.78+.27*sqrt(rel))  ! ventilation factor liquid
-        venti=amax1(1.,.65+.39*sqrt(rei))  ! ventilation factor ice
-        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e-2/tmp0(i,j,k))  ! thermodynamic fun.
-        g_devap_l=4.*pi*diaml/betal*(ssl-1.)*ventl*thfun   ! growth/evap
-        g_devap_i=4.*pi*diami/betai*(ssi-1.)*venti*thfun   ! growth/evap
-        devap_l=conl * g_devap_l * qrl / (qrl + 1.e-9)
-        devap_i=coni * g_devap_i * qri / (qri + 1.e-9)
-        ! limit with qr and ql after accretion and autoconversion
-        devap= max(min(devap_l + devap_i,ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! growth by deposition
-        qrp(i,j,k) = qrp(i,j,k)+devap
-        qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
-        thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
-      end if
-    enddo
-    enddo
-    enddo
+    if (l_graupel) then
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qrmask(i,j,k).eqv..true.) then
+          ! saturation ratios
+          ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
+          ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
+          ! qr partitioning
+          qrr=qr(i,j,k)*rsgratio(i,j,k)
+          qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))
+          qrg=qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)
+          conr=n0rr/lambdar(i,j,k) ! rain concentration
+          cons=n0rs/lambdas(i,j,k) ! snow concentration
+          cong=n0rg/lambdag(i,j,k) ! graupel concentration
+          massr =rhof(k)*(qrr+1.e-7)/conr ! mass of rain
+          masss =rhof(k)*(qrs+1.e-7)/cons ! mass of snow
+          massg =rhof(k)*(qrg+1.e-7)/cong ! mass of graupel
+          diamr=(massr/aar)**(1./bbr) ! diameter liquid particles
+          diams=(masss/aas)**(1./bbs) ! diameter ice particles
+          diamg=(massg/aag)**(1./bbg) ! diameter ice particles
+          rer=ccrz(k)*diamr**(ddr+1.)/2.e-5  ! Reynolds number rain
+          res=ccsz(k)*diams**(dds+1.)/2.e-5  ! Reynolds number snow
+          reg=ccgz(k)*diamg**(ddg+1.)/2.e-5  ! Reynolds number graupel
+          ventr=amax1(1.,.78+.27*sqrt(rer))  ! ventilation factor rain
+          vents=amax1(1.,.65+.39*sqrt(res))  ! ventilation factor snow
+          ventg=amax1(1.,.78+.27*sqrt(reg))  ! ventilation factor graupel: like rain (Khairoutdinov and Randall)
+          thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e-2/tmp0(i,j,k))  ! thermodynamic function
+          gevapdepr=4.*pi*diamr/betar*(ssl-1.)*ventr*thfun ! evaporation/deposition rain
+          gevapdeps=4.*pi*diams/betas*(ssi-1.)*vents*thfun ! evaporation/deposition snow
+          gevapdepg=4.*pi*diamg/betag*(ssi-1.)*ventg*thfun ! evaporation/deposition graupel
+          evapdepr=conr*gevapdepr* qrr / (qrr + 1.e-9)
+          evapdeps=cons*gevapdeps* qrs / (qrs + 1.e-9)
+          evapdepg=cong*gevapdepg* qrg / (qrg + 1.e-9)
+          ! limit with qr and ql after accretion and autoconversion
+          devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! total growth by deposition and evaporation
+          qrp(i,j,k) = qrp(i,j,k)+devap
+          qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
+        end if
+      enddo
+      enddo
+      enddo
+    else !no graupel
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qrmask(i,j,k).eqv..true.) then
+          ! saturation ratios
+          ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
+          ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
+          ! qr partitioning
+          qrr=qr(i,j,k)*rsgratio(i,j,k)
+          qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))
+          conr=n0rr/lambdar(i,j,k) ! rain concentration
+          cons=n0rs/lambdas(i,j,k) ! snow concentration
+          massr =rhof(k)*(qrr+1.e-7)/conr ! mass of rain
+          masss =rhof(k)*(qrs+1.e-7)/cons ! mass of snow
+          diamr=(massr/aar)**(1./bbr) ! diameter liquid particles
+          diams=(masss/aas)**(1./bbs) ! diameter ice particles
+          rer=ccrz(k)*diamr**(ddr+1.)/2.e-5  ! Reynolds number rain
+          res=ccsz(k)*diams**(dds+1.)/2.e-5  ! Reynolds number snow
+          ventr=amax1(1.,.78+.27*sqrt(rer))  ! ventilation factor rain
+          vents=amax1(1.,.65+.39*sqrt(res))  ! ventilation factor snow
+          thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e-2/tmp0(i,j,k))  ! thermodynamic function
+          gevapdepr=4.*pi*diamr/betar*(ssl-1.)*ventr*thfun ! evaporation/deposition rain
+          gevapdeps=4.*pi*diams/betas*(ssi-1.)*vents*thfun ! evaporation/deposition snow
+          evapdepr=conr*gevapdepr*qrr/(qrr + 1.e-9)
+          evapdeps=cons*gevapdeps*qrs/(qrs + 1.e-9)
+          ! limit with qr and ql after accretion and autoconversion
+          devap= max(min(evapdepr+evapdeps,ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! growth by deposition
+          qrp(i,j,k) = qrp(i,j,k)+devap
+          qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
+          thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
+        end if
+      enddo
+      enddo
+      enddo
+    endif
 
-  end subroutine evaposite
+  end subroutine evapdep
 
   subroutine precipitate
     use modglobal, only : ih,i1,jh,j1,k1,kmax,dzf,pi,dzh
@@ -298,35 +418,56 @@ module modsimpleice
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
-    real :: dt_spl,wfallmax,vtl,vti,vtf
+    real :: dt_spl,wfallmax,vtr,vts,vtg,vtf
 
     wfallmax = 9.9
-    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
+    n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp))
     dt_spl = delt/real(n_spl) !fixed time step
 
-    sed_qr = 0.
+    sed_qr = 0. ! reset sedimentation fluxes
 
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-        qr_spl(i,j,k) = qr(i,j,k)
-      if (qrmask(i,j,k).eqv..true.) then
-        vtl=ccl*(gambd1l/gamb1l)/(lambdal(i,j,k)**ddl)  ! terminal velocity liquid
-        vti=cci*(gambd1i/gamb1i)/(lambdai(i,j,k)**ddi)  ! terminal velocity ice
-        vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
-        vtf = amin1(wfallmax,vtf)
-        precep(i,j,k) = vtf*qr_spl(i,j,k)
-        sed_qr(i,j,k) = precep(i,j,k)*rhobf(k)
-      else
-        precep(i,j,k) = 0.
-        sed_qr(i,j,k) = 0.
-      end if
-    enddo
-    enddo
-    enddo
-        
+    if(l_graupel) then
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+          qr_spl(i,j,k) = qr(i,j,k)
+        if (qrmask(i,j,k).eqv..true.) then
+          vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
+          vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
+          vtg=ccgz(k)*(gambd1g/gamb1g)/(lambdag(i,j,k)**ddg)  ! terminal velocity graupel
+          vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))*vts+(1.-rsgratio(i,j,k))*sgratio(i,j,k)*vtg  ! mass-weighted terminal velocity
+          vtf = amin1(wfallmax,vtf)
+          precep(i,j,k) = vtf*qr_spl(i,j,k)
+          sed_qr(i,j,k) = precep(i,j,k)*rhobf(k) ! convert to flux
+        else
+          precep(i,j,k) = 0.
+          sed_qr(i,j,k) = 0.
+        end if
+      enddo
+      enddo
+      enddo
+    else !no graupel
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+          qr_spl(i,j,k) = qr(i,j,k)
+        if (qrmask(i,j,k).eqv..true.) then
+          vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
+          vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
+          vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*vts  ! mass-weighted terminal velocity
+          vtf = amin1(wfallmax,vtf)
+          precep(i,j,k) = vtf*qr_spl(i,j,k)
+          sed_qr(i,j,k) = precep(i,j,k)*rhobf(k) ! convert to flux
+        else
+          precep(i,j,k) = 0.
+          sed_qr(i,j,k) = 0.
+        end if
+      enddo
+      enddo
+      enddo
+    endif
 
-    ! upwind-like scheme
+    !  advect precipitation using upwind scheme
     do k=1,kmax
     do i=2,i1
     do j=2,j1
@@ -335,44 +476,74 @@ module modsimpleice
     enddo
     enddo
 
+    ! begin time splitting loop
     if (n_spl > 1) then
+    do jn = 2 , n_spl 
 
-    do jn = 2 , n_spl ! time splitting loop
-
-    ! reset sedimentation fluxes
+    ! reset fluxes at each step of loop
     sed_qr = 0.
 
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      if (qr_spl(i,j,k) > qrmin) then
-      ! re-evaluate lambda
-        lambdal(i,j,k)=(aal*n0rl*gamb1l/(rhof(k)*(qr_spl(i,j,k)*ilratio(i,j,k)+1.e-6)))**(1./(1.+bbl)) ! lambda rain
-        lambdai(i,j,k)=(aai*n0ri*gamb1i/(rhof(k)*(qr_spl(i,j,k)*(1.-ilratio(i,j,k))+1.e-6)))**(1./(1.+bbi)) ! lambda ice
-        vtl=ccl*(gambd1l/gamb1l)/(lambdal(i,j,k)**ddl)  ! terminal velocity liquid
-        vti=cci*(gambd1i/gamb1i)/(lambdai(i,j,k)**ddi)  ! terminal velocity ice
-        vtf=ilratio(i,j,k)*vtl+(1.-ilratio(i,j,k))*vti   ! TERMINAL VELOCITY
-        vtf = amin1(wfallmax,vtf)
-        sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
-      else
-        sed_qr(i,j,k) = 0.
-      endif
-    enddo
-    enddo
-    enddo
+    if(l_graupel) then
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qr_spl(i,j,k) > qrmin) then
+        ! re-evaluate lambda
+          lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+          lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
+          lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! lambda graupel
+          vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
+          vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
+          vtg=ccgz(k)*(gambd1g/gamb1g)/(lambdag(i,j,k)**ddg)  ! terminal velocity graupel
+          vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))*vts+(1.-rsgratio(i,j,k))*sgratio(i,j,k)*vtg  ! mass-weighted terminal velocity
+          vtf=amin1(wfallmax,vtf)
+          sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+        else
+          sed_qr(i,j,k) = 0.
+        endif
+      enddo
+      enddo
+      enddo
+      do k=1,kmax
+      do i=2,i1
+      do j=2,j1
+        qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+      enddo
+      enddo
+      enddo
+    else !no graupel
+      do k=1,k1
+      do i=2,i1
+      do j=2,j1
+        if (qr_spl(i,j,k) > qrmin) then
+        ! re-evaluate lambda
+          lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+          lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
+          vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
+          vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
+          vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*vts ! mass-weighted terminal velocity
+          vtf=amin1(wfallmax,vtf)
+          sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+        else
+          sed_qr(i,j,k) = 0.
+        endif
+      enddo
+      enddo
+      enddo
+      do k=1,kmax
+      do i=2,i1
+      do j=2,j1
+        qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+      enddo
+      enddo
+      enddo
+    end if
 
-    do k=1,kmax
-    do i=2,i1
-    do j=2,j1
-      qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+    ! end time splitting loop and if n>1
     enddo
-    enddo
-    enddo
+    endif
 
-    enddo ! end time splitting loop
-    endif ! end if n_spl >1
-
-    ! no thl and qt tendencies
+    ! no thl and qt tendencies build in, implying no heat transfer between precipitation and air
     do k=1,kmax
     do i=2,i1
     do j=2,j1
