@@ -63,12 +63,6 @@ module modsimpleice
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
 
-    do k=1,k1
-    ccrz(k)=ccr*(1.29/rhobf(k))**0.5
-    ccsz(k)=ccs*(1.29/rhobf(k))**0.5
-    ccgz(k)=ccg*(1.29/rhobf(k))**0.5
-    end do
-
   end subroutine initsimpleice
 
 !> Cleaning up after the run
@@ -83,7 +77,7 @@ module modsimpleice
 !> Calculates the microphysical source term.
   subroutine simpleice
     use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp,tup,tdn
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf
     use modsimpleicestat, only : simpleicetend
     use modmpi,    only : myid
     implicit none
@@ -98,6 +92,12 @@ module modsimpleice
     qrp=0.
     thlpmcr=0.
     qtpmcr=0.
+
+    do k=1,k1
+    ccrz(k)=ccr*(1.29/rhobf(k))**0.5
+    ccsz(k)=ccs*(1.29/rhobf(k))**0.5
+    ccgz(k)=ccg*(1.29/rhobf(k))**0.5
+    end do
 
     do k=1,k1
     do i=2,i1
