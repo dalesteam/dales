@@ -41,7 +41,8 @@
 !! \par todo
 !! - Check runs with graupel class
 !! - Review Thermodynamic variables, pressure gradient expansion (fromztop, rhof, thetav, etc), buoyancy maybe let fromztop integrate from top of domain
-!! - Review diagnostics (in particular (conditional) budgets of TKE and w, possibly write these from the tendency routines)
+!! - Review diagnostics (in particular (conditional) budgets of TKE and w, possibly write these from a tendency routine?)
+!! - Document hydrometeor drag
 !! - Revised TKE subgrid scheme and diffusion (see branch, implement after this has been checked for consistency)
 !! - Look at possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
 !! - Make ql first scalar (saves advection and diffusion of one scalar)?
