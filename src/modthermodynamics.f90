@@ -448,9 +448,9 @@ contains
   implicit none
 
   integer i, j, k
-  real :: tl, ilratio, esl1,esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: ilratio, esl1,esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
-  integer :: niter,nitert,tlonr,thinr,mid
+  integer :: niter,nitert,tlonr,thinr
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
@@ -518,9 +518,9 @@ contains
   implicit none
 
   integer i, j, k
-  real :: tl, ilratio, esl1, esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: ilratio, esl1, esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
-  integer :: niter,nitert,tlonr,thinr,mid
+  integer :: niter,nitert,tlonr,thinr
   real :: qvsl1,qvsi1
 
 !     calculation of T with Newton-Raphson method
