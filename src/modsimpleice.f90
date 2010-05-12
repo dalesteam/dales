@@ -275,9 +275,9 @@ module modsimpleice
           gaccri=pi/4.*ccrz(k)*diamr**(2.+ddr)*ceffri*rhof(k)*qli
           gaccsi=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsi*rhof(k)*qli
           gaccgi=pi/4.*ccgz(k)*diamg**(2.+ddg)*ceffgi*rhof(k)*qli
-          accr=conr*(gaccrl*gaccri)*qrr/(qrr+1.e-9)
-          accs=cons*(gaccsl*gaccri)*qrs/(qrs+1.e-9)
-          accg=cong*(gaccgl*gaccri)*qrg/(qrg+1.e-9)
+          accr=conr*(gaccrl+gaccri)*qrr/(qrr+1.e-9)
+          accs=cons*(gaccsl+gaccsi)*qrs/(qrs+1.e-9)
+          accg=cong*(gaccgl+gaccgi)*qrg/(qrg+1.e-9)
           acc= min(accr+accs+accg,ql0(i,j,k)/delt)  ! total growth by accretion
           qrp(i,j,k) = qrp(i,j,k)+acc
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
@@ -307,8 +307,8 @@ module modsimpleice
           gaccsl=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsl*rhof(k)*qll
           gaccri=pi/4.*ccrz(k)*diamr**(2.+ddr)*ceffri*rhof(k)*qli
           gaccsi=pi/4.*ccsz(k)*diams**(2.+dds)*ceffsi*rhof(k)*qli
-          accr=conr*(gaccrl*gaccri)*qrr/(qrr+1.e-9)
-          accs=cons*(gaccsl*gaccri)*qrs/(qrs+1.e-9)
+          accr=conr*(gaccrl+gaccri)*qrr/(qrr+1.e-9)
+          accs=cons*(gaccsl+gaccsi)*qrs/(qrs+1.e-9)
           acc= min(accr+accs,ql0(i,j,k)/delt)  ! total growth by accretion
           qrp(i,j,k) = qrp(i,j,k)+acc
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
