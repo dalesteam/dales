@@ -156,4 +156,31 @@ SAVE
   real              :: wqsurf = -1      !<  Prescribed kinematic moisture flux [kg/kg m/s]
   real              :: wsvsurf(100) = 0 !<  Prescribed surface scalar(n) flux [- m/s]
 
+  ! Heterogeneous surfaces
+  integer, parameter:: max_lands                   = 10 !<  Amount of land types that can be defined
+  integer, parameter:: mpatch                      =  4 !<  Maximum amount of patches that can be defined in each direction
+  logical           :: lhetero                 = .false.!<  Switch to apply heterogeneous surfaces using surface.inp.xxx
+  integer           :: xpatches                    =  2 !<  Amount of patches in the x-direction
+  integer           :: ypatches                    =  1 !<  Amount of patches in the y-direction
+  integer           :: land_use(mpatch,mpatch)     =  0 !<  Indicator for the land type
+  integer           :: landtype(max_lands)         = -1 !< Type nr of the land in surface.inp.xxx
+  character(len=10),dimension(max_lands) :: landname = "none" !< Name of the land type in surface.inp.xxx
+  real              :: z0mav_land(max_lands)       = -1 !< Roughness length per land type for momentum [m]
+  real              :: z0hav_land(max_lands)       = -1 !< Roughness length per land type for heat [m]
+  real, allocatable :: z0mav_patch(:,:)                 !< Rougness length per patch
+  real, allocatable :: z0hav_patch(:,:)                 !< Rougness length per patch
+  real              :: thls_land(max_lands)        = -1 !< Surface liquid water potential temperature [K]
+  real, allocatable :: thls_patch(:,:)                  !< Surface liquid water potential temperature [K]
+  real, allocatable :: thvs_patch(:,:)                  !< Surface virtual potential temperature [K]
+  real              :: ps_land(max_lands)          = -1 !< Surface pressure [Pa]
+  real, allocatable :: ps_patch(:,:)                    !< Surface pressure [Pa]
+  real              :: ustin_land(max_lands)       = -1 !< Prescribed friction velocity [m/s]
+  real, allocatable :: ustin_patch(:,:)                 !< Prescribed friction velocity [m/s]
+  real              :: wt_land(max_lands)          = -1 !< Prescribed kinematic temperature flux [K m/s]
+  real              :: wq_land(max_lands)          = -1 !< Prescribed kinematic moisture flux [kg/kg m/s]
+  real              :: wsv_land(100,max_lands)     = -1 !< Prescribed surface scalar(n) flux [- m/s]
+  real, allocatable :: wt_patch(:,:)                    !< Prescribed kinematic temperature flux [K m/s]
+  real, allocatable :: wq_patch(:,:)                    !< Prescribed kinematic moisture flux [kg/kg m/s]
+  real, allocatable :: wsv_patch(:,:,:)                 !< Prescribed surface scalar(n) flux [- m/s]
+
 end module modsurfdata

@@ -29,6 +29,19 @@
 !! \todo implement water reservoir at land surface for dew and interception water
 !! \todo add moisture transport between soil layers
 !!  \deprecated Modsurface replaces the old modsurf.f90
+!
+!   TODO: apply heterogeneity on pressure and temperature fields throughout the DALES code (e.g. thermodynamics) (HGO)
+!
+!
+!Able to handle heterogeneous surfaces using the switch lhetero
+!In case of heterogeneity an input file is needed
+!EXAMPLE of surface.inp.xxx:
+
+!#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
+!#typenr    name       z0mav  z0hav    thls   ps    ustin  wtsurf  wqsurf  wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
+!    0   "standard  "  0.035  0.035   300.0  1.0e5   0.1    0.15   0.1e-3          1.0          0.0          0.0       0.0005
+!    1   "forest    "  0.500  0.500   300.0  1.0e5   0.1    0.15   0.2e-3          1.0          0.0          0.0       0.0005
+!    2   "grass     "  0.035  0.035   300.0  1.0e5   0.1    0.30   0.1e-3          1.0          0.0          0.0       0.0005
 
 module modsurface
   use modsurfdata
@@ -41,7 +54,7 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, cp, rlv, zf, nsv, ifnamopt, fname_options
+    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr
     use modraddata, only : iradiation
     use modfields,  only : thl0, qt0
     use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
@@ -49,7 +62,8 @@ contains
 
     implicit none
 
-    integer   :: i,j,k, ierr
+    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
+    character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -57,7 +71,9 @@ contains
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf
+      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
+      ! Heterogeneous variables
+      lhetero, xpatches, ypatches, land_use
 
     ! 1    -   Initialize soil
 
@@ -108,11 +124,138 @@ contains
     call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
 
-    if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
-      z0mav = z0
-      z0hav = z0
-      write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
-    end if
+    call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
+
+    if(lhetero) then
+      if(xpatches .gt. mpatch) then
+        stop "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)"
+      endif
+      if(ypatches .gt. mpatch) then
+        stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
+      endif
+      if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and heterogeneous surface conditions (lhetero) at the same time' 
+      if (mod(imax,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
+      if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
+
+      allocate(z0mav_patch(xpatches,ypatches))
+      allocate(z0hav_patch(xpatches,ypatches))
+      allocate(thls_patch(xpatches,ypatches))
+      allocate(thvs_patch(xpatches,ypatches))
+      allocate(ps_patch(xpatches,ypatches))
+      allocate(ustin_patch(xpatches,ypatches))
+      allocate(wt_patch(xpatches,ypatches))
+      allocate(wq_patch(xpatches,ypatches))
+      allocate(wsv_patch(100,xpatches,ypatches))
+
+      z0mav_patch = -1
+      z0hav_patch = -1
+      thls_patch  = -1
+      thvs_patch  = -1
+      ps_patch    = -1
+      ustin_patch = -1
+      wt_patch    = -1
+      wq_patch    = -1
+      wsv_patch   = -1
+
+      defined_landtypes = 0
+      open (ifinput,file='surface.inp.'//cexpnr)
+      ierr = 0
+      do while (ierr == 0)  
+        read(ifinput, '(A)', iostat=ierr) readbuffer
+        if (ierr == 0) then                               !So no end of file is encountered
+          if (readbuffer(1:1)=='#') then
+            if (myid == 0)   print *,trim(readbuffer)
+          else
+            if (myid == 0)   print *,trim(readbuffer)
+            defined_landtypes = defined_landtypes + 1
+            i = defined_landtypes
+            read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
+              ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i) 
+
+            if (ustin_land(i) .lt. 0) then
+              if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+            endif
+            if(isurf .ne. 3) then
+              if(z0mav_land(i) .lt. 0) then
+                if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+              end if
+              if(z0hav_land(i) .lt. 0) then
+                if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+              end if
+            end if
+
+            if (landtype(i) .eq. 0) landtype_0 = i
+            do j = 1, (i-1)
+              if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+            enddo
+                
+          endif
+        endif
+      enddo
+      close(ifinput)
+
+      if (myid == 0) then
+        if (landtype_0 .eq. -1) then
+          stop "NAMSURFACE: no standard land type (0) is defined"
+        else
+          print "(a,i2,a,i2)","There are ",defined_landtypes," land types defined in the surface input file. The standard land type is defined by line ",landtype_0
+        endif
+      endif
+
+      thls   = 0
+      ps     = 0
+      ustin  = 0
+      wtsurf = 0
+      wqsurf = 0
+      wsvsurf(1:nsv) = 0
+
+      do i = 1, xpatches
+        do j = 1, ypatches
+          landindex = landtype_0
+          do k = 1, defined_landtypes
+            if (landtype(k) .eq. land_use(i,j)) then
+              landindex = k
+            endif
+          enddo
+        
+          z0mav_patch(i,j)     = z0mav_land(landindex)
+          z0hav_patch(i,j)     = z0hav_land(landindex)
+          thls_patch(i,j)      = thls_land(landindex)
+          ps_patch(i,j)        = ps_land(landindex)
+          ustin_patch(i,j)     = ustin_land(landindex)
+          wt_patch(i,j)        = wt_land(landindex)
+          wq_patch(i,j)        = wq_land(landindex)
+          wsv_patch(1:nsv,i,j) = wsv_land(1:nsv,landindex)
+
+          thls   = thls   + ( thls_patch(i,j)  / ( xpatches * ypatches ) )
+          ps     = ps     + ( ps_patch(i,j)    / ( xpatches * ypatches ) )
+          ustin  = ustin  + ( ustin_patch(i,j) / ( xpatches * ypatches ) )
+          wtsurf = wtsurf + ( wt_patch(i,j)    / ( xpatches * ypatches ) )
+          wqsurf = wqsurf + ( wq_patch(i,j)    / ( xpatches * ypatches ) )
+          wsvsurf(1:nsv) = wsvsurf(1:nsv) + ( wsv_patch(1:nsv,i,j) / ( xpatches * ypatches ) )
+        enddo
+      enddo
+    else
+      if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
+        z0mav = z0
+        z0hav = z0
+        write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
+      end if
+
+      if(isurf .ne. 3) then
+        if(z0mav == -1) then
+          stop "NAMSURFACE: z0mav is not set"
+        end if
+        if(z0hav == -1) then
+          stop "NAMSURFACE: z0hav is not set"
+        end if
+      end if
+  
+    endif
+
 
     if(isurf == 1) then
       if(tsoilav(1) == -1 .or. tsoilav(2) == -1 .or. tsoilav(3) == -1 .or. tsoilav(4) == -1) then
@@ -156,19 +299,6 @@ contains
     !    stop "NAMSURFACE: Set rsisurf2 if you use isurf = 2 over land "
     !  end if
     !end if
-
-
-    if(isurf .ne. 3) then
-      if(z0mav == -1) then
-        stop "NAMSURFACE: z0mav is not set"
-      end if
-      if(z0hav == -1) then
-        stop "NAMSURFACE: z0hav is not set"
-      end if
-    end if
-
-    if(isurf == 1) then
-    end if
 
     ! 1.1  -   Allocate arrays
     if(isurf == 1) then
@@ -319,8 +449,17 @@ contains
     albedo     = albedoav
 
 
-    z0m        = z0mav
-    z0h        = z0hav
+    if(lhetero) then
+      do j=1,j2
+        do i=1,i2
+          z0m(i,j)   = z0mav_patch(patchxnr(i),patchynr(j))
+          z0h(i,j)   = z0hav_patch(patchxnr(i),patchynr(j))
+        enddo
+      enddo
+    else
+      z0m        = z0mav
+      z0h        = z0hav
+    endif
 
 ! CvH heterogeneous roughness test
 !    do j=1,j2
@@ -367,14 +506,18 @@ contains
     use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, rslabs, pi, pref0, rd, eps1, boltz
     use modraddata, only : iradiation, swu, swd, lwu, lwd, useMcICA
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,   only : surf_user
     use modsubgrid, only : ldynsub
     implicit none
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
-    integer  :: i, j, k, m, n
-    real     :: upcu, vpcv, horv, horvav
+    integer  :: i, j, k, m, n, patchx, patchy
+    real     :: upcu, vpcv, horv, horvav, horvpatch(xpatches,ypatches)
+    real     :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
+    real     :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
+    integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
+    real     :: lthls_patch(xpatches,ypatches)
     real     :: phimzf, phihzf
     real     :: rk3coef, thlsl
 
@@ -389,6 +532,30 @@ contains
       call surf_user
       return
     end if
+
+    if(lhetero) then 
+      upatch = 0
+      vpatch = 0
+      Npatch = 0
+
+      do j = 2, j1
+        do i = 2, i1
+          patchx = patchxnr(i)
+          patchy = patchynr(j) 
+          upatch(patchx,patchy) = upatch(patchx,patchy) + 0.5 * (u0(i,j,1) + u0(i+1,j,1))
+          vpatch(patchx,patchy) = vpatch(patchx,patchy) + 0.5 * (v0(i,j,1) + v0(i,j+1,1))
+          Npatch(patchx,patchy) = Npatch(patchx,patchy) + 1
+        enddo
+      enddo
+
+      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches),Supatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches),Svpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+          
+      horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
+      horvpatch = max(horvpatch, 1.e-2)
+    endif 
+
     ! 1     -   Calculate the surface temperature
     
     ! CvH start with computation of drag coefficients to allow for implicit solver
@@ -408,6 +575,10 @@ contains
           if(isurf == 2) then
             rs(i,j) = rsisurf2
           else
+            if(lhetero) then
+              patchx = patchxnr(i)
+              patchy = patchynr(j) 
+            endif
             ! 2.1   -   Calculate the surface resistance 
             ! Stomatal opening as a function of incoming short wave radiation
             if (iradiation > 0) then
@@ -421,7 +592,13 @@ contains
 
             ! Response of stomata to vapor deficit of atmosphere
             esat = 0.611e3 * exp(17.2694 * (thl0(i,j,1) - 273.16) / (thl0(i,j,1) - 35.86))
-            e    = qt0(i,j,1) * ps / 0.622
+
+            if(lhetero) then
+              e    = qt0(i,j,1) * ps_patch(patchx,patchy) / 0.622
+            else
+              e    = qt0(i,j,1) * ps / 0.622
+            endif
+
             f3   = 1. / exp(-gD(i,j) * (esat - e) / 100.)
 
             ! Response to temperature
@@ -449,10 +626,14 @@ contains
             horv  = max(horv, 1.e-2)
             ra(i,j) = 1. / ( Cs(i,j) * horv )
           else
-            !CvH test smoothz0
-            horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-            horvav  = max(horvav, 1.e-2)
-            ra(i,j) = 1. / ( Cs(i,j) * horvav )
+            if (lhetero) then
+              ra(i,j) = 1. / ( Cs(i,j) * horvpatch(patchx,patchy) )
+            else
+              !CvH test smoothz0
+              horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
+              horvav  = max(horvav, 1.e-2)
+              ra(i,j) = 1. / ( Cs(i,j) * horvav )
+            endif
           end if
 
         end do
@@ -462,8 +643,16 @@ contains
     ! Solve the surface energy balance and the heat and moisture transport in the soil
     if(isurf == 1) then
       thlsl = 0.0
+      if(lhetero) then
+        lthls_patch = 0.0
+        Npatch      = 0
+      endif
       do j = 2, j1
         do i = 2, i1
+          if(lhetero) then
+            patchx = patchxnr(i)
+            patchy = patchynr(j) 
+          endif
           ! 1.1   -   Calculate the heat transport properties of the soil
           ! CvH I put it in the init function, as we don't have prognostic soil moisture at this stage
 
@@ -499,13 +688,25 @@ contains
             tskinm(i,j) = tskin(i,j)
           end if
 
-          exner   = (ps / pref0) ** (rd/cp)
+          if(lhetero) then
+            exner   = (ps_patch(patchx,patchy) / pref0) ** (rd/cp)
+          else
+            exner   = (ps / pref0) ** (rd/cp)
+          endif
           tsurfm  = tskinm(i,j) * exner
           
           esat    = 0.611e3 * exp(17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86))
-          qsat    = 0.622 * esat / ps
+          if(lhetero) then
+            qsat    = 0.622 * esat / ps_patch(patchx,patchy)
+          else
+            qsat    = 0.622 * esat / ps 
+          endif
           desatdT = esat * (17.2694 / (tsurfm - 35.86) - 17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86)**2.)
-          dqsatdT = 0.622 * desatdT / ps
+          if(lhetero) then
+            dqsatdT = 0.622 * desatdT / ps_patch(patchx,patchy)
+          else
+            dqsatdT = 0.622 * desatdT / ps 
+          endif
 
           ! First, remove LWup from Qnet calculation
           Qnet(i,j) = Qnet(i,j) + boltz * tsurfm ** 4.
@@ -588,19 +789,33 @@ contains
           end do
           tsoil(i,j,ksoilmax) = tsoil(i,j,ksoilmax) + rdt / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * (tsoildeep(i,j) - tsoil(i,j,ksoilmax)) / dzsoil(ksoilmax) - lambdah(i,j,ksoilmax-1) * (tsoil(i,j,ksoilmax) - tsoil(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) ) / dzsoil(ksoilmax)
 
-          thlsl = thlsl + tskin(i,j)
+          thlsl  = thlsl + tskin(i,j)
+          if (lhetero) then
+            lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
+            Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
+          endif
         end do
       end do
 
-      call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(thlsl      , thls      , 1                ,     MY_REAL, MPI_SUM, comm3d,mpierr)
       thls = thls / rslabs
+
+      if (lhetero) then
+        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        thls_patch = thls_patch / SNpatch
+      endif
 
       call qtsurf
 
     elseif(isurf == 2) then
       do j = 2, j1
         do i = 2, i1
-          tskin(i,j) = thls
+          if(lhetero) then
+            tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
+          else
+            tskin(i,j) = thls
+          endif
         end do
       end do
 
@@ -618,11 +833,20 @@ contains
           horv   = max(horv, 1.e-2)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
           horvav = max(horvav, 1.e-2)
+            
+          if(lhetero) then
+            patchx = patchxnr(i)
+            patchy = patchynr(j) 
+          endif
           
-          if(lmostlocal) then 
+          if(lmostlocal) then
             ustar  (i,j) = sqrt(Cm(i,j)) * horv 
           else
-            ustar  (i,j) = sqrt(Cm(i,j)) * horvav
+            if(lhetero) then
+              ustar  (i,j) = sqrt(Cm(i,j)) * horvpatch(patchx,patchy) 
+            else
+              ustar  (i,j) = sqrt(Cm(i,j)) * horvav
+            endif
           end if
           thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
 
@@ -634,9 +858,15 @@ contains
           !end if
           qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
           
-          do n=1,nsv
-            svflux(i,j,n) = wsvsurf(n) 
-          enddo
+          if(lhetero) then
+            do n=1,nsv
+              svflux(i,j,n) = wsv_patch(n,patchx,patchy) 
+            enddo
+          else
+            do n=1,nsv
+              svflux(i,j,n) = wsvsurf(n) 
+            enddo
+          endif
 
           if (obl(i,j) < 0.) then
             !phimzf = (1.-16.*zf(1)/obl)**(-0.25)
@@ -719,8 +949,16 @@ contains
       end if
 
       thlsl = 0.
+      if(lhetero) then
+        lthls_patch = 0.0
+        Npatch      = 0
+      endif
       do j = 2, j1
         do i = 2, i1
+          if(lhetero) then
+            patchx = patchxnr(i)
+            patchy = patchynr(j) 
+          endif
 
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
@@ -728,25 +966,49 @@ contains
           horv   = max(horv, 1.e-2)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
 
+          if(lhetero) then
+            patchx = patchxnr(i)
+            patchy = patchynr(j) 
+          endif
+          
           ! CvH insert slab averaged velocity. Essential for reproduction of log
           ! layer at the first levels
           if( isurf == 4) then
             if(lmostlocal) then
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
             else
-              ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+              if(lhetero) then
+                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+              else
+                ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+              endif
             end if
           else
-            ustar (i,j) = ustin
+            if(lhetero) then
+              ustar (i,j) = ustin_patch(patchx,patchy)
+            else
+              ustar (i,j) = ustin
+            endif
           end if
 
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
-          thlflux(i,j) = wtsurf
-          qtflux (i,j) = wqsurf
+          if(lhetero) then
+            thlflux(i,j) = wt_patch(patchx,patchynr(j)) 
+            qtflux (i,j) = wq_patch(patchx,patchynr(j))
+          else
+            thlflux(i,j) = wtsurf
+            qtflux (i,j) = wqsurf
+          endif
 
-          do n=1,nsv
-            svflux(i,j,n) = wsvsurf(n)
-          enddo
+          if(lhetero) then
+            do n=1,nsv
+              svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j)) 
+            enddo
+          else
+            do n=1,nsv
+              svflux(i,j,n) = wsvsurf(n) 
+            enddo
+          endif
 
           if (obl(i,j) < 0.) then
             !phimzf = (1.-16.*zf(1)/obl)**(-0.25)
@@ -768,16 +1030,29 @@ contains
 
           Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
 
-          tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
+          if(lhetero) then
+            tskin(i,j) = wt_patch(patchx,patchy) / (Cs(i,j) * horv) + thl0(i,j,1)
+          else
+            tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
+          endif
           thlsl      = thlsl + tskin(i,j)
+          if (lhetero) then
+            lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
+            Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
+          endif
         end do
       end do
 
       call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
       thls = thls / rslabs
 
-      call qtsurf
+      if (lhetero) then
+        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        thls_patch = thls_patch / SNpatch
+      endif
 
+      call qtsurf
     end if
 
     ! Transfer ustar to neighbouring cells
@@ -809,11 +1084,14 @@ contains
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
     use modfields,   only : qt0
     use modsurfdata, only : rs, ra
-    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,myid
+    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,myid,mpi_integer
 
     implicit none
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
-    integer    :: i,j
+    integer    :: i,j, patchx, patchy
+    integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
+    real       :: lqts_patch(xpatches,ypatches), qts_patch(xpatches,ypatches)
+    real       :: tsurf_patch(xpatches,ypatches), exner_patch(xpatches,ypatches), es_patch(xpatches,ypatches)
 
     if(isurf <= 2) then
       qtsl = 0.
@@ -834,9 +1112,40 @@ contains
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, &
                          MPI_SUM, comm3d,mpierr)
       qts = qts / rslabs
+
+      if (lhetero) then 
+        lqts_patch = 0.
+        Npatch     = 0
+        do j = 2, j1
+          do i = 2, i1
+            patchx     = patchxnr(i)
+            patchy     = patchynr(j)
+            exner      = (ps_patch(patchx,patchy) / pref0)**(rd/cp)
+            tsurf      = tskin(i,j) * exner
+            es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
+            qsatsurf   = rd / rv * es / (ps_patch(patchx,patchy)-(1-rd/rv)*es)
+            surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
+            qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
+
+            lqts_patch(patchx,patchy) = lqts_patch(patchx,patchy) + qskin(i,j)
+            Npatch(patchx,patchy)     = Npatch(patchx,patchy)     + 1
+          enddo
+        enddo  
+        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  , xpatches*ypatches,MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        qts_patch = qts_patch / SNpatch
+       
+      endif
     else
+      if (lhetero) then
+        exner_patch = (ps_patch/pref0)**(rd/cp)
+        tsurf_patch = thls_patch * exner_patch
+        es_patch    = es0*exp(at*(tsurf_patch-tmelt)/(tsurf_patch-bt))
+        qts_patch   = rd/rv*es_patch/(ps_patch-(1-rd/rv)*es_patch)
+        qts_patch   = max(qts_patch, 0.)
+      endif
       exner = (ps/pref0)**(rd/cp)
-      tsurf = thls*exner
+      tsurf = thls*exner 
       es    = es0*exp(at*(tsurf-tmelt)/(tsurf-bt))
       qts   = rd/rv*es/(ps-(1-rd/rv)*es)
       ! CvH Check to prevent collapse of spinup u* = 0 and  u = 0 free convection case
@@ -844,6 +1153,9 @@ contains
     end if
 
     thvs = thls * (1. + (rv/rd - 1.) * qts)
+    if (lhetero) then
+      thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
+    endif
 
     return
 
@@ -853,12 +1165,17 @@ contains
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, rslabs, i1, j1, i2, j2, timee, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
-    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj
+    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj,mpi_integer
     implicit none
 
-    integer             :: i,j,iter
-    real                :: thv, L, horv2, oblavl
+    integer             :: i,j,iter,patchx,patchy
+    real                :: thv, L, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
     real                :: Rib, Lstart, Lend, fx, fxdif, Lold
+    real                :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
+    real                :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
+    integer             :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
+    real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches), lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
+    real                :: loblpatch(xpatches,ypatches), oblpatch(xpatches,ypatches) 
 
     if(lmostlocal) then
 
@@ -870,7 +1187,13 @@ contains
           horv2 = u0(i,j,1)*u0(i,j,1) + v0(i,j,1)*v0(i,j,1)
           horv2 = max(horv2, 1.e-3)
 
-          Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
+          if(lhetero) then
+            patchx = patchxnr(i)
+            patchy = patchynr(j)
+            Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvs_patch(patchx,patchy)) / horv2
+          else
+            Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
+          endif
 
           iter = 0
           L = obl(i,j)
@@ -913,8 +1236,80 @@ contains
 
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
     !else
-    end if
+    
+    elseif(lhetero) then 
+      upatch    = 0
+      vpatch    = 0
+      Npatch    = 0
+      lthlpatch = 0
+      lqpatch   = 0
+      loblpatch = 0 
 
+      do j = 2, j1
+        do i = 2, i1
+          patchx = patchxnr(i)
+          patchy = patchynr(j)
+          upatch(patchx,patchy)    = upatch(patchx,patchy)    + 0.5 * (u0(i,j,1) + u0(i+1,j,1))
+          vpatch(patchx,patchy)    = vpatch(patchx,patchy)    + 0.5 * (v0(i,j,1) + v0(i,j+1,1))
+          Npatch(patchx,patchy)    = Npatch(patchx,patchy)    + 1
+          lthlpatch(patchx,patchy) = lthlpatch(patchx,patchy) + thl0(i,j,1)
+          lqpatch(patchx,patchy)   = lqpatch(patchx,patchy)   + qt0(i,j,1)
+          loblpatch(patchx,patchy) = loblpatch(patchx,patchy) + obl(i,j)
+        enddo
+      enddo
+
+      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches)   ,Supatch(1:xpatches,1:ypatches) ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches)   ,Svpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)   ,SNpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lthlpatch(1:xpatches,1:ypatches),thlpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lqpatch(1:xpatches,1:ypatches)  ,qpatch(1:xpatches,1:ypatches)  ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+          
+      horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
+      horvpatch = max(horvpatch, 1.e-2)
+
+      thlpatch  = thlpatch / SNpatch
+      qpatch    = qpatch   / SNpatch
+      oblpatch  = oblpatch / SNpatch
+          
+      thvpatch  = thlpatch * (1. + (rv/rd - 1.) * qpatch)
+
+      do patchy = 1, ypatches
+        do patchx = 1, xpatches
+          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / horvpatch(patchx,patchy)
+          iter = 0
+          L = oblpatch(patchx,patchy)
+
+          if(Rib * L < 0. .or. abs(L) == 1e5) then
+            if(Rib > 0) L = 0.01
+            if(Rib < 0) L = -0.01
+          end if
+
+          do while (.true.)
+            iter    = iter + 1
+            Lold    = L
+            fx      = Rib - zf(1) / L * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / L) + psih(z0hav_patch(patchx,patchy) / L)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / L) + psim(z0mav_patch(patchx,patchy) / L)) ** 2.
+            Lstart  = L - 0.001*L
+            Lend    = L + 0.001*L
+            fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / Lstart) + psih(z0hav_patch(patchx,patchy) / Lstart)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lstart) + psim(z0mav_patch(patchx,patchy) / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / Lend) + psih(z0hav_patch(patchx,patchy) / Lend)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lend) + psim(z0mav_patch(patchx,patchy) / Lend)) ** 2.) ) / (Lstart - Lend)
+            L       = L - fx / fxdif
+            if(Rib * L < 0. .or. abs(L) == 1e5) then
+              if(Rib > 0) L = 0.01
+              if(Rib < 0) L = -0.01
+            end if
+            if(abs(L - Lold) < 0.0001) exit
+          end do
+
+          oblpatch(patchx,patchy) = L
+        enddo
+      enddo
+      do i=1,i2
+        do j=1,j2
+          obl(i,j) = oblpatch(patchxnr(i),patchynr(j))
+        enddo
+      enddo
+    endif 
+    
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
     !horv2l = sum( (u0(2:i1,2:j1,1) + cu ) ** 2.)  +  sum( (v0(2:i1,2:j1,1) + cv ) ** 2.)
     !horv2l = max(horv2l, 1.e-2)
@@ -952,7 +1347,9 @@ contains
     end do
 
     if(.not. lmostlocal) then
-      obl(:,:) = L
+      if(.not. lhetero) then 
+        obl(:,:) = L
+      endif
     end if
     oblav = L
 
@@ -1003,6 +1400,36 @@ contains
     return
 
   end function psih
+
+  function patchxnr(xpos)
+    use modglobal,  only : imax
+    implicit none
+    integer             :: patchxnr
+    integer             :: positionx
+    integer, intent(in) :: xpos
+
+    positionx = xpos - 2                                   !First grid point lies at i = 2. This lines makes sure that position = 0 for first grid point 
+    if (positionx .lt. 0)    positionx = positionx + imax  !To account for border grid points
+    if (positionx .ge. imax) positionx = positionx - imax  !To account for border grid points
+    patchxnr  = 1 + (positionx*xpatches)/imax              !Converts position to patch number
+    return
+  end function
+
+  function patchynr(ypos)
+    use modmpi,     only : myid
+    use modglobal,  only : jmax,jtot
+    implicit none
+    integer             :: patchynr
+    integer             :: yposreal, positiony
+    integer, intent(in) :: ypos
+    
+    yposreal  = ypos + (myid * jmax)                       !Converting the j position to the real j position by taking the processor number into account
+    positiony = yposreal - 2                               !First grid point lies at j = 2. This lines makes sure that position = 0 for first grid point
+    if (positiony .lt. 0)    positiony = positiony + jtot  !To account for border grid points
+    if (positiony .ge. jtot) positiony = positiony - jtot  !To account for border grid points
+    patchynr  = 1 + (positiony*ypatches)/jtot              !Converts position to patch number
+    return
+  end function
 !>
   subroutine exitsurface
     implicit none
