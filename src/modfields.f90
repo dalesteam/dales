@@ -194,7 +194,6 @@ subroutine initfields
     allocate(exnh(k1))
     allocate(thvf(k1))
     allocate(thvh(k1))
-    allocate(thvf(k1))
     allocate(rhof(k1))
     allocate(qt0av(k1))
     allocate(ql0av(k1))
