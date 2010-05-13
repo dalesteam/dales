@@ -303,7 +303,7 @@ contains
 
   use modglobal, only : k1,dzf,dzh,rv,rd,cp,tmelt,zf,grav,pref0
   use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf,rhobf,rhobh
-  use modsurfdata,only : ps,thvs
+  use modsurfdata,only : ps
   implicit none
 
   integer   k
@@ -328,9 +328,9 @@ contains
 !          assuming hydrostatic equilibrium       *
 !**************************************************
 
-!     1: lowest level: use thvs
+!     1: lowest level: use first level value for safety!
 
-  thvh(1) = thvs
+  thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - &
                  grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
@@ -350,7 +350,6 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
-  thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   do k=2,k1
