@@ -303,7 +303,7 @@ contains
 
   use modglobal, only : k1,dzf,dzh,rv,rd,cp,tmelt,zf,grav,pref0
   use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf,rhobf,rhobh
-  use modsurfdata,only : ps
+  use modsurfdata,only : ps,thvs
   implicit none
 
   integer   k
