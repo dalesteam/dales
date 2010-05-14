@@ -142,6 +142,7 @@ contains
       allocate(z0mav_patch(xpatches,ypatches))
       allocate(z0hav_patch(xpatches,ypatches))
       allocate(thls_patch(xpatches,ypatches))
+      allocate(qts_patch(xpatches,ypatches))
       allocate(thvs_patch(xpatches,ypatches))
       allocate(ps_patch(xpatches,ypatches))
       allocate(ustin_patch(xpatches,ypatches))
@@ -152,6 +153,7 @@ contains
       z0mav_patch = -1
       z0hav_patch = -1
       thls_patch  = -1
+      qts_patch   = -1
       thvs_patch  = -1
       ps_patch    = -1
       ustin_patch = -1
@@ -1057,8 +1059,8 @@ contains
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
     integer    :: i,j, patchx, patchy
     integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
-    !real       :: lqts_patch(xpatches,ypatches), qts_patch(xpatches,ypatches)
-    real       :: tsurf_patch(xpatches,ypatches), exner_patch(xpatches,ypatches), es_patch(xpatches,ypatches)
+    real       :: lqts_patch(xpatches,ypatches)!, qts_patch(xpatches,ypatches)
+    !real       :: tsurf_patch(xpatches,ypatches), exner_patch(xpatches,ypatches), es_patch(xpatches,ypatches)
 
     if(isurf <= 2) then
       qtsl = 0.
