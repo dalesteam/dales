@@ -1193,8 +1193,6 @@ contains
 
         end do
       end do
-
-    !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
     
     elseif(lhetero) then 
       upatch    = 0
@@ -1269,6 +1267,8 @@ contains
       enddo
     endif 
     
+    !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
+
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
     horv2 = u0av(1)**2. + v0av(1)**2.
