@@ -171,6 +171,7 @@ SAVE
   real, allocatable :: z0hav_patch(:,:)                 !< Rougness length per patch
   real              :: thls_land(max_lands)        = -1 !< Surface liquid water potential temperature [K]
   real, allocatable :: thls_patch(:,:)                  !< Surface liquid water potential temperature [K]
+  real, allocatable :: qts_patch(:,:)                   !< Surface liquid water potential temperature [K]
   real, allocatable :: thvs_patch(:,:)                  !< Surface virtual potential temperature [K]
   real              :: ps_land(max_lands)          = -1 !< Surface pressure [Pa]
   real, allocatable :: ps_patch(:,:)                    !< Surface pressure [Pa]
