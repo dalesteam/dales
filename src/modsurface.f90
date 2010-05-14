@@ -1090,7 +1090,7 @@ contains
             exner      = (ps_patch(patchx,patchy) / pref0)**(rd/cp)
             tsurf      = tskin(i,j) * exner
             es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
-            qsatsurf   = rd / rv * es / ps_patch
+            qsatsurf   = rd / rv * es / ps_patch(patchx,patchy)
             surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
             qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
 
