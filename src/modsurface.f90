@@ -816,8 +816,7 @@ contains
           end if
           
           thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
-
-          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+          qtflux(i,j)  = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
           
           if(lhetero) then
             do n=1,nsv
@@ -994,8 +993,8 @@ contains
           Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
 
           if(lhetero) then
-            tskin(i,j) = wt_patch(patchx,patchy) / (Cs(i,j) * horv) + thl0(i,j,1))
-            qskin(i,j) = wq_patch(patchx,patchy) / (Cs(i,j) * horv) + qt0(i,j,1))
+            tskin(i,j) = wt_patch(patchx,patchy) / (Cs(i,j) * horv) + thl0(i,j,1)
+            qskin(i,j) = wq_patch(patchx,patchy) / (Cs(i,j) * horv) + qt0(i,j,1)
           else
             tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
             qskin(i,j) = wqsurf / (Cs(i,j) * horv) + qt0(i,j,1)
@@ -1092,6 +1091,7 @@ contains
         qts_patch = qts_patch / SNpatch
        
       endif
+    else
       if (lhetero) then
         exner_patch = (ps_patch/pref0)**(rd/cp)
         tsurf_patch = thls_patch * exner_patch
@@ -1099,8 +1099,6 @@ contains
         qts_patch   = rd/rv*es_patch/(ps_patch-(1-rd/rv)*es_patch)
         qts_patch   = max(qts_patch, 0.)
       endif
-
-    !else
     !  exner = (ps/pref0)**(rd/cp)
     !  tsurf = thls*exner
     !  es    = es0*exp(at*(tsurf-tmelt)/(tsurf-bt))
@@ -1115,6 +1113,7 @@ contains
     if (lhetero) then
       thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
     endif
+
     return
 
   end subroutine qtsurf
