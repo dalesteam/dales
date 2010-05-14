@@ -494,6 +494,7 @@ contains
     real     :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real     :: lthls_patch(xpatches,ypatches)
+    real     :: lqts_patch(xpatches,ypatches)
     real     :: phimzf, phihzf
     real     :: rk3coef, thlsl, qtsl
 
@@ -914,6 +915,7 @@ contains
       
       if(lhetero) then
         lthls_patch = 0.0
+        lqts_patch  = 0.0
         Npatch      = 0
       endif
       do j = 2, j1
@@ -1003,6 +1005,7 @@ contains
           qtsl       = qtsl  + qskin(i,j)
           if (lhetero) then
             lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
+            lqts_patch(patchx,patchy)  = lqts_patch(patchx,patchy)  + qskin(i,j)
             Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
           endif
         end do
@@ -1017,11 +1020,18 @@ contains
 
       if (lhetero) then
         call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches),  qts_patch(1:xpatches,1:ypatches),  xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
         call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
         thls_patch = thls_patch / SNpatch
+        qts_patch  = qts_patch  / SNpatch
+        thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
       endif
 
+    !if (lhetero) then
+    !  thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
+    !endif
       !call qtsurf ! CvH check this!
+
     end if
 
     ! Transfer ustar to neighbouring cells
@@ -1047,7 +1057,7 @@ contains
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
     integer    :: i,j, patchx, patchy
     integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
-    real       :: lqts_patch(xpatches,ypatches), qts_patch(xpatches,ypatches)
+    !real       :: lqts_patch(xpatches,ypatches), qts_patch(xpatches,ypatches)
     real       :: tsurf_patch(xpatches,ypatches), exner_patch(xpatches,ypatches), es_patch(xpatches,ypatches)
 
     if(isurf <= 2) then
@@ -1091,14 +1101,15 @@ contains
         qts_patch = qts_patch / SNpatch
        
       endif
-    else
-      if (lhetero) then
-        exner_patch = (ps_patch/pref0)**(rd/cp)
-        tsurf_patch = thls_patch * exner_patch
-        es_patch    = es0*exp(at*(tsurf_patch-tmelt)/(tsurf_patch-bt))
-        qts_patch   = rd/rv*es_patch/(ps_patch-(1-rd/rv)*es_patch)
-        qts_patch   = max(qts_patch, 0.)
-      endif
+    !else
+    !  if (lhetero) then
+    !    exner_patch = (ps_patch/pref0)**(rd/cp)
+    !    tsurf_patch = thls_patch * exner_patch
+    !    es_patch    = es0*exp(at*(tsurf_patch-tmelt)/(tsurf_patch-bt))
+    !    qts_patch   = rd/rv*es_patch/(ps_patch-(1-rd/rv)*es_patch)
+    !    qts_patch   = max(qts_patch, 0.)
+
+    !  endif
     !  exner = (ps/pref0)**(rd/cp)
     !  tsurf = thls*exner
     !  es    = es0*exp(at*(tsurf-tmelt)/(tsurf-bt))
@@ -1109,10 +1120,10 @@ contains
     !  qskin(:,:) = qts
     end if
     
-    thvs = thls * (1. + (rv/rd - 1.) * qts)
-    if (lhetero) then
-      thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
-    endif
+    !thvs = thls * (1. + (rv/rd - 1.) * qts)
+    !if (lhetero) then
+    !  thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
+    !endif
 
     return
 
