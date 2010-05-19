@@ -108,11 +108,17 @@ program DALES      !Version 4.0.0alpha
 
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
+<<<<<<< HEAD:src/program.f90
   !use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   !use modchem,         only : initchem,inputchem,twostep
 
 
+=======
+  use modnudge,        only : initnudge, nudge, exitnudge
+  
+  use modchem,         only : initchem,inputchem, twostep
+>>>>>>> Fixed program:src/program.f90
   implicit none
 
 !----------------------------------------------------------------
@@ -141,6 +147,7 @@ program DALES      !Version 4.0.0alpha
   call initlsmstat
   !call initparticles
   !call initnudge
+  !call initparticles
   call initbulkmicrostat
   call initbudget
   !call initstressbudget
