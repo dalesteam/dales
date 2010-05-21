@@ -99,10 +99,7 @@ program DALES      !Version 4.0.0alpha
   use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
-<<<<<<< HEAD:src/program.f90
-=======
   use modspectra2,     only : dospecthermo
->>>>>>> Modspectra2 added flexibility of input:src/program.f90
   use modtimestat,     only : inittimestat, timestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
