@@ -264,7 +264,7 @@ program DALES      !Version 4.0.0alpha
   call exitradstat
   call exitlsmstat
   !call exitparticles
-  !call exitnudge
+  call exitnudge
   call exitsampling
   call exitstattend
   call exitbulkmicrostat
