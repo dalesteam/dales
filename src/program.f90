@@ -99,7 +99,7 @@ program DALES      !Version 4.0.0alpha
   use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
-  use modspectra2,     only : dospecthermo
+  use modspectra2,     only : dospecs,initspectra2
   use modtimestat,     only : inittimestat, timestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
@@ -166,6 +166,8 @@ program DALES      !Version 4.0.0alpha
   !call initchem
   !call initheterostats
   call initcape
+
+
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
@@ -212,7 +214,7 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 
     call nudge
-    call dospecthermo
+    call dospecs
 !    call tiltedgravity
 
     call stattend(tend_addon)
