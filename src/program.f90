@@ -205,7 +205,7 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
-    !call nudge
+    call nudge
     !call tiltedgravity
     call stattend(tend_addon)
 
