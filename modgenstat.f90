@@ -553,7 +553,7 @@ contains
 
     do  j=2,j1
     do  i=2,i1
-    do  k=1,kmax
+    do  k=1,k1
       thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                     *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
     enddo
