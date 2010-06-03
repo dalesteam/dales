@@ -102,7 +102,7 @@ program DALES      !Version 3.2 RC 1
   !use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   
-  !use modchem,         only : initchem, twostep
+  use modchem,         only : initchem, twostep
 
   implicit none
 
@@ -205,7 +205,7 @@ program DALES      !Version 3.2 RC 1
 !-----------------------------------------------------
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
-    !call twostep
+    call twostep
 
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
