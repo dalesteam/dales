@@ -135,7 +135,7 @@ program DALES      !Version 3.2 RC 1
   call initbulkmicrostat
   call initbudget
   !call initstressbudget
-  !call initchem
+  call initchem
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
