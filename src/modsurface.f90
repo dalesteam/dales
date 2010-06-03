@@ -369,7 +369,7 @@ contains
     implicit none
 
 !merge    integer  :: i, j, n
-    integer  :: i, j, k, n, patchx, patchy
+    integer  :: i, j, n, patchx, patchy
     real     :: upcu, vpcv, horv, horvav, horvpatch(xpatches,ypatches)
     real     :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
     real     :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
@@ -381,6 +381,9 @@ contains
 
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
+
+    patchx = 0
+    patchy = 0
 
     if (isurf==10) then
       call surf_user
@@ -460,24 +463,7 @@ contains
     ! Solve the surface energy balance and the heat and moisture transport in the soil
     if(isurf == 1) then
       call do_lsm
-      if(lhetero) then
-        lthls_patch = 0.0
-        Npatch      = 0
-      endif
-          if(lhetero) then
-            patchx = patchxnr(i)
-            patchy = patchynr(j) 
-          endif
 
-          if (lhetero) then
-            lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
-            Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
-          endif
-      if (lhetero) then
-        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
-        thls_patch = thls_patch / SNpatch
-      endif
 
 
     elseif(isurf == 2) then
@@ -622,6 +608,7 @@ contains
         lqts_patch  = 0.0
         Npatch      = 0
       endif
+
       do j = 2, j1
         do i = 2, i1
           if(lhetero) then
@@ -1201,16 +1188,23 @@ contains
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rk3step
     use modfields, only : ql0,qt0,thl0,rhof,presf
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
-    use modmpi, only :comm3d,my_real,mpi_sum,mpierr
+    use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k
+    integer  :: patchx, patchy
     real     :: rk3coef,thlsl
 
     real     :: swdav, swuav, lwdav, lwuav
     real     :: exner, exnera, tsurfm, Tatm, e,esat, qsat, desatdT, dqsatdT, Acoef, Bcoef
     real     :: fH, fLE, fLEveg, fLEsoil, fLEliq, LEveg, LEsoil, LEliq
     real     :: Wlmx
+
+    real     :: lthls_patch(xpatches,ypatches)
+    integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
+
+    patchx = 0
+    patchy = 0
 
     ! 1.X - Compute water content per layer
     do j = 2,j1
@@ -1229,10 +1223,18 @@ contains
     end do
 
     thlsl = 0.0
+    if(lhetero) then
+      lthls_patch = 0.0
+      Npatch      = 0
+    endif
+
     do j = 2, j1
       do i = 2, i1
         ! merge copy lines to create patches...
-        
+        if(lhetero) then
+          patchx = patchxnr(i)
+          patchy = patchynr(j) 
+        endif 
         ! 2.1   -   Calculate the surface resistance
         ! Stomatal opening as a function of incoming short wave radiation
         if (iradiation > 0) then
@@ -1390,6 +1392,11 @@ contains
         end if
 
         thlsl = thlsl + tskin(i,j)
+        if (lhetero) then
+          lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
+          Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
+        endif
+
         if(lhetero) then
           exner   = (ps_patch(patchx,patchy) / pref0) ** (rd/cp)
         else
@@ -1460,7 +1467,12 @@ contains
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
     thls = thls / rslabs
-
+    if (lhetero) then
+      call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+      thls_patch = thls_patch / SNpatch
+    endif
+      
     call qtsurf
 
   end subroutine do_lsm
