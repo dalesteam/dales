@@ -239,7 +239,6 @@ contains
           call ncinfo(ncname(26,:,isamp),'resid'//samplname(isamp),trim(longsamplname(isamp))//' '//'residual term in sampled budget eqn','m/s^2','mt')
           call ncinfo(ncname(27,:,isamp),'whend'//samplname(isamp),trim(longsamplname(isamp))//' '//'ws at end of sampling period','m/s','mt')
           call ncinfo(ncname(28,:,isamp),'sighend'//samplname(isamp),trim(longsamplname(isamp))//' '//'sigma at end of period','-','mt')
-
           call define_nc( ncid_prof, NVar, ncname(:,:,isamp))
         end do
      end if
@@ -567,6 +566,14 @@ contains
       pfavl   (k,isamp) = pfavl   (k,isamp)+sum  (p    (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
     end do
 
+    do k=1,kmax
+    do j=2,j1
+    do i=2,i1
+      teavl(k,isamp) = teavl(k,isamp)+thl0(i,j,k)*mask(i,j,k)+rlv/(cpd*exnf(k))*ql0(i,j,k)
+    end do
+    end do
+    end do
+
 !     2)       fluxes on half levels
 
     do k=2,kmax
@@ -584,7 +591,6 @@ contains
                                             
       wh_el      (k,isamp) =                        sum(w0 (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       sigh_el    (k,isamp) =                        count(maskh(2:i1,2:j1,k))
-
 
       do j=2,j1
       do i=2,i1
@@ -612,8 +618,6 @@ contains
     deallocate(maskf,wtlth,wqtth,wqlth,wtvth,uwth,vwth,thvav,w0f,thv0)
     deallocate(maskh,uwsh,vwsh,uwrh,vwrh)
     deallocate(wwrh,wwsf,thvhav)
-
-
 
   end subroutine dosampling
 !> Write the statistics to file
@@ -695,8 +699,6 @@ contains
     call MPI_ALLREDUCE(wh_el      ,wh_e       ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(sigh_el    ,sigh_e     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
-
-
 !reset variables
     nrsampfl    = 0.0
     wfavl       = 0.0
@@ -728,7 +730,6 @@ contains
     wh_el       = 0.
     sigh_el     = 0.
 
-
     if (myid==0) then
       do isamp = 1,isamptot
 
@@ -737,7 +738,6 @@ contains
          thvfmn   = 0.
          qtfmn    = 0.
          qlfmn    = 0.
-
          pfmn     = 0.
          dwdthmn  = 0.
          dwwdzhmn = 0.
@@ -788,7 +788,6 @@ contains
           wqlthmn    (k) = wqlthav   (k,isamp)/inorm
           uwthmn     (k) = uwthav    (k,isamp)/inorm
           vwthmn     (k) = vwthav    (k,isamp)/inorm
-
           nrsamphmn  (k) = nrsamph   (k,isamp)/inorm
 
 
@@ -823,7 +822,6 @@ contains
               pfmn     (k), &
               wwrhmn   (k),&
               wwshmn   (k)
-
         end do
         close(ifoutput)
 
@@ -837,10 +835,10 @@ contains
         write (ifoutput,'(2A/2A)') &
             '#------------------------------------------------------' &
             ,'------------------------------' &
-            ,'   LEV  HGHT  PRES       AW                WTHL                WQT                ' &
-            ,'WQL                WTHV                UW                VW'
+            ,'   LEV  HGHT  PRES       AW                WTHL                 WTHE                ' &
+            ,'WQT                WQL                WTHV                UW                VW'
         do k=1,kmax
-          write(ifoutput,'(i5,F8.0,F7.1,7E16.8)') &
+          write(ifoutput,'(i5,F8.0,F7.1,8E16.8)') &
                 k, &
                 zh         (k), &
                 presh      (k)/100., &
