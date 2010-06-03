@@ -677,7 +677,7 @@ contains
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux, &
-                          lhetero,xpatches,ypatches, thls_patch, qts_patch !HGO
+                          lhetero,xpatches,ypatches, thls_patch, qts_patch 
     use modsurface,only:  patchxnr,patchynr
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -750,64 +750,64 @@ contains
     real    qls
     real    qpresent(imax,jmax,k1)
 
-    real,allocatable, dimension(:,:)  :: qls_patch, tsurf_patch, qsat_patch, c1_patch, c2_patch  !HGO
-    real,allocatable, dimension(:,:)  :: den_patch, cthl_patch, cqt_patch !HGO
-    real,allocatable, dimension(:,:,:):: qlhav_patch, u2av_patch, v2av_patch, w2av_patch, w3av_patch, w2subav_patch !HGO
-    real,allocatable, dimension(:,:,:):: qt2av_patch, thl2av_patch, thv2av_patch, th2av_patch, ql2av_patch !HGO
-    real,allocatable, dimension(:,:,:,:):: sv2av_patch !HGO
-    real,allocatable, dimension(:,:)  :: uw_field, vw_field, u_field, v_field, w_field !HGO
-    real,allocatable, dimension(:,:)  :: qt_field, thl_field, thv_field, th_field, ql_field !HGO
-    real,allocatable, dimension(:,:,:):: wsv_field !HGO
-    real,allocatable, dimension(:,:)  :: wqlsub_field, wtlsub_field, wtvsub_field, wqtsub_field, uwsub_field, vwsub_field !HGO
-    real,allocatable, dimension(:,:)  :: wqlres_field, wtlres_field, wtvres_field, wqtres_field, uwres_field, vwres_field !HGO
+    real,allocatable, dimension(:,:)  :: qls_patch, tsurf_patch, qsat_patch, c1_patch, c2_patch 
+    real,allocatable, dimension(:,:)  :: den_patch, cthl_patch, cqt_patch 
+    real,allocatable, dimension(:,:,:):: qlhav_patch, u2av_patch, v2av_patch, w2av_patch, w3av_patch, w2subav_patch 
+    real,allocatable, dimension(:,:,:):: qt2av_patch, thl2av_patch, thv2av_patch, th2av_patch, ql2av_patch 
+    real,allocatable, dimension(:,:,:,:):: sv2av_patch 
+    real,allocatable, dimension(:,:)  :: uw_field, vw_field, u_field, v_field, w_field 
+    real,allocatable, dimension(:,:)  :: qt_field, thl_field, thv_field, th_field, ql_field 
+    real,allocatable, dimension(:,:,:):: wsv_field 
+    real,allocatable, dimension(:,:)  :: wqlsub_field, wtlsub_field, wtvsub_field, wqtsub_field, uwsub_field, vwsub_field 
+    real,allocatable, dimension(:,:)  :: wqlres_field, wtlres_field, wtvres_field, wqtres_field, uwres_field, vwres_field 
     real,allocatable, dimension(:,:)  :: wsvres_field, wsvsub_field
 
     if (lhetero) then
-      allocate(qls_patch(xpatches,ypatches)) !HGO 
-      allocate(tsurf_patch(xpatches,ypatches)) !HGO 
-      allocate(qsat_patch(xpatches,ypatches)) !HGO 
-      allocate(c1_patch(xpatches,ypatches)) !HGO 
-      allocate(c2_patch(xpatches,ypatches)) !HGO 
-      allocate(den_patch(xpatches,ypatches)) !HGO 
-      allocate(cthl_patch(xpatches,ypatches)) !HGO 
-      allocate(cqt_patch(xpatches,ypatches)) !HGO 
-      allocate(qlhav_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(u2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(v2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(w2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(w3av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(w2subav_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(qt2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(thl2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(thv2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(th2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(ql2av_patch(xpatches,ypatches,k1)) !HGO 
-      allocate(sv2av_patch(xpatches,ypatches,k1,nsv)) !HGO 
-      allocate(uw_field(2:i1,2:j1)) !HGO 
-      allocate(vw_field(2:i1,2:j1)) !HGO 
-      allocate(u_field(2:i1,2:j1)) !HGO 
-      allocate(v_field(2:i1,2:j1)) !HGO 
-      allocate(w_field(2:i1,2:j1)) !HGO 
-      allocate(qt_field(2:i1,2:j1)) !HGO 
-      allocate(thl_field(2:i1,2:j1)) !HGO 
-      allocate(thv_field(2:i1,2:j1)) !HGO 
-      allocate(th_field(2:i1,2:j1)) !HGO 
-      allocate(ql_field(2:i1,2:j1)) !HGO 
-      allocate(wsv_field(2:i1,2:j1,nsv)) !HGO 
-      allocate(wqlsub_field(2:i1,2:j1)) !HGO 
-      allocate(wtlsub_field(2:i1,2:j1)) !HGO 
-      allocate(wtvsub_field(2:i1,2:j1)) !HGO 
-      allocate(wqtsub_field(2:i1,2:j1)) !HGO 
-      allocate(uwsub_field(2:i1,2:j1)) !HGO 
-      allocate(vwsub_field(2:i1,2:j1)) !HGO 
-      allocate(wqlres_field(2:i1,2:j1)) !HGO 
-      allocate(wtlres_field(2:i1,2:j1)) !HGO 
-      allocate(wtvres_field(2:i1,2:j1)) !HGO 
-      allocate(wqtres_field(2:i1,2:j1)) !HGO 
-      allocate(uwres_field(2:i1,2:j1)) !HGO 
-      allocate(vwres_field(2:i1,2:j1)) !HGO 
-      allocate(wsvres_field(2:i1,2:j1)) !HGO 
-      allocate(wsvsub_field(2:i1,2:j1)) !HGO 
+      allocate(qls_patch(xpatches,ypatches))  
+      allocate(tsurf_patch(xpatches,ypatches))  
+      allocate(qsat_patch(xpatches,ypatches))  
+      allocate(c1_patch(xpatches,ypatches))  
+      allocate(c2_patch(xpatches,ypatches))  
+      allocate(den_patch(xpatches,ypatches))  
+      allocate(cthl_patch(xpatches,ypatches))  
+      allocate(cqt_patch(xpatches,ypatches))  
+      allocate(qlhav_patch(xpatches,ypatches,k1))  
+      allocate(u2av_patch(xpatches,ypatches,k1))  
+      allocate(v2av_patch(xpatches,ypatches,k1))  
+      allocate(w2av_patch(xpatches,ypatches,k1))  
+      allocate(w3av_patch(xpatches,ypatches,k1))  
+      allocate(w2subav_patch(xpatches,ypatches,k1))  
+      allocate(qt2av_patch(xpatches,ypatches,k1))  
+      allocate(thl2av_patch(xpatches,ypatches,k1))  
+      allocate(thv2av_patch(xpatches,ypatches,k1))  
+      allocate(th2av_patch(xpatches,ypatches,k1))  
+      allocate(ql2av_patch(xpatches,ypatches,k1))  
+      allocate(sv2av_patch(xpatches,ypatches,k1,nsv))  
+      allocate(uw_field(2:i1,2:j1))  
+      allocate(vw_field(2:i1,2:j1))  
+      allocate(u_field(2:i1,2:j1))  
+      allocate(v_field(2:i1,2:j1))  
+      allocate(w_field(2:i1,2:j1))  
+      allocate(qt_field(2:i1,2:j1))  
+      allocate(thl_field(2:i1,2:j1))  
+      allocate(thv_field(2:i1,2:j1))  
+      allocate(th_field(2:i1,2:j1))  
+      allocate(ql_field(2:i1,2:j1))  
+      allocate(wsv_field(2:i1,2:j1,nsv))  
+      allocate(wqlsub_field(2:i1,2:j1))  
+      allocate(wtlsub_field(2:i1,2:j1))  
+      allocate(wtvsub_field(2:i1,2:j1))  
+      allocate(wqtsub_field(2:i1,2:j1))  
+      allocate(uwsub_field(2:i1,2:j1))  
+      allocate(vwsub_field(2:i1,2:j1))  
+      allocate(wqlres_field(2:i1,2:j1))  
+      allocate(wtlres_field(2:i1,2:j1))  
+      allocate(wtvres_field(2:i1,2:j1))  
+      allocate(wqtres_field(2:i1,2:j1))  
+      allocate(uwres_field(2:i1,2:j1))  
+      allocate(vwres_field(2:i1,2:j1))  
+      allocate(wsvres_field(2:i1,2:j1))  
+      allocate(wsvsub_field(2:i1,2:j1))  
     endif
 
     allocate( &
@@ -1824,51 +1824,51 @@ contains
 
 
     if (lhetero) then
-      deallocate(qls_patch) !HGO 
-      deallocate(tsurf_patch) !HGO 
-      deallocate(qsat_patch) !HGO 
-      deallocate(c1_patch) !HGO 
-      deallocate(c2_patch) !HGO 
-      deallocate(den_patch) !HGO 
-      deallocate(cthl_patch) !HGO 
-      deallocate(cqt_patch) !HGO 
-      deallocate(qlhav_patch) !HGO 
-      deallocate(u2av_patch) !HGO 
-      deallocate(v2av_patch) !HGO 
-      deallocate(w2av_patch) !HGO 
-      deallocate(w3av_patch) !HGO 
-      deallocate(w2subav_patch) !HGO 
-      deallocate(qt2av_patch) !HGO 
-      deallocate(thl2av_patch) !HGO 
-      deallocate(thv2av_patch) !HGO 
-      deallocate(th2av_patch) !HGO 
-      deallocate(ql2av_patch) !HGO 
-      deallocate(sv2av_patch) !HGO 
-      deallocate(uw_field) !HGO 
-      deallocate(vw_field) !HGO 
-      deallocate(u_field) !HGO 
-      deallocate(v_field) !HGO 
-      deallocate(w_field) !HGO 
-      deallocate(qt_field) !HGO 
-      deallocate(thl_field) !HGO 
-      deallocate(thv_field) !HGO 
-      deallocate(th_field) !HGO 
-      deallocate(ql_field) !HGO 
-      deallocate(wsv_field) !HGO 
-      deallocate(wqlsub_field) !HGO 
-      deallocate(wtlsub_field) !HGO 
-      deallocate(wtvsub_field) !HGO 
-      deallocate(wqtsub_field) !HGO 
-      deallocate(uwsub_field) !HGO 
-      deallocate(vwsub_field) !HGO 
-      deallocate(wqlres_field) !HGO 
-      deallocate(wtlres_field) !HGO 
-      deallocate(wtvres_field) !HGO 
-      deallocate(wqtres_field) !HGO 
-      deallocate(uwres_field) !HGO 
-      deallocate(vwres_field) !HGO 
-      deallocate(wsvres_field) !HGO 
-      deallocate(wsvsub_field) !HGO 
+      deallocate(qls_patch)  
+      deallocate(tsurf_patch)  
+      deallocate(qsat_patch)  
+      deallocate(c1_patch)  
+      deallocate(c2_patch)  
+      deallocate(den_patch)  
+      deallocate(cthl_patch)  
+      deallocate(cqt_patch)  
+      deallocate(qlhav_patch)  
+      deallocate(u2av_patch)  
+      deallocate(v2av_patch)  
+      deallocate(w2av_patch)  
+      deallocate(w3av_patch)  
+      deallocate(w2subav_patch)  
+      deallocate(qt2av_patch)  
+      deallocate(thl2av_patch)  
+      deallocate(thv2av_patch)  
+      deallocate(th2av_patch)  
+      deallocate(ql2av_patch)  
+      deallocate(sv2av_patch)  
+      deallocate(uw_field)  
+      deallocate(vw_field)  
+      deallocate(u_field)  
+      deallocate(v_field)  
+      deallocate(w_field)  
+      deallocate(qt_field)  
+      deallocate(thl_field)  
+      deallocate(thv_field)  
+      deallocate(th_field)  
+      deallocate(ql_field)  
+      deallocate(wsv_field)  
+      deallocate(wqlsub_field)  
+      deallocate(wtlsub_field)  
+      deallocate(wtvsub_field)  
+      deallocate(wqtsub_field)  
+      deallocate(uwsub_field)  
+      deallocate(vwsub_field)  
+      deallocate(wqlres_field)  
+      deallocate(wtlres_field)  
+      deallocate(wtvres_field)  
+      deallocate(wqtres_field)  
+      deallocate(uwres_field)  
+      deallocate(vwres_field)  
+      deallocate(wsvres_field)  
+      deallocate(wsvsub_field)  
     endif
   end subroutine do_genstat
 
@@ -2491,7 +2491,7 @@ contains
         close(ifoutput)
 
 
-        if(lhetero) then !HGO till here
+        if(lhetero) then 
           do j=1,ypatches
             do i=1,xpatches
               name = 'svnnnflxpatchiiixjjj.'//cexpnr
