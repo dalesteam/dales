@@ -259,8 +259,8 @@ contains
         qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
         qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
         qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-        qlma(i,j,k) = max(qtcb(i,j)-qsatur,0.)
-        thvma(i,j,k)=(thlcb(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qtcb(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
+        qlma(i,j,k) = max(qt0(i,j,1)-qsatur,0.)
+        thvma(i,j,k)=(thl0(i,j,1)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,1)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
         if(thvma(i,j,k)<thvf(k)-10) then
           matop(i,j)=k
         endif
