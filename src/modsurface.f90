@@ -368,7 +368,6 @@ contains
     use moduser,    only : surf_user
     implicit none
 
-!merge    integer  :: i, j, n
     integer  :: i, j, n, patchx, patchy
     real     :: upcu, vpcv, horv, horvav, horvpatch(xpatches,ypatches)
     real     :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
@@ -428,13 +427,10 @@ contains
 
       do j = 2, j1
         do i = 2, i1
-            !merge check location for next if statement
-            if(lhetero) then
-              patchx = patchxnr(i)
-              patchy = patchynr(j) 
-            endif
-
-
+          if(lhetero) then
+            patchx = patchxnr(i)
+            patchy = patchynr(j) 
+          endif
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
           Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
@@ -750,6 +746,9 @@ contains
     integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real       :: lqts_patch(xpatches,ypatches)!, qts_patch(xpatches,ypatches)
     !real       :: tsurf_patch(xpatches,ypatches), exner_patch(xpatches,ypatches), es_patch(xpatches,ypatches)
+
+    patchx = 0
+    patchy = 0
 
     if(isurf <= 2) then
       qtsl = 0.
@@ -1230,7 +1229,6 @@ contains
 
     do j = 2, j1
       do i = 2, i1
-        ! merge copy lines to create patches...
         if(lhetero) then
           patchx = patchxnr(i)
           patchy = patchynr(j) 
