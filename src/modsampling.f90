@@ -495,7 +495,6 @@ contains
 
       wqlrh   = w0(i,j,k)*ql0h(i,j,k)
       wqlth(i,j,k)   = wqlrh + wqls
-
       wtvsh   = c1*wtlsh + c2*thl0h(i,j,k)*wqtsh
       wtvrh   = w0(i,j,k)*thv0h(i,j,k)
       wtvth(i,j,k)   = wtvrh + wtvsh
@@ -564,14 +563,6 @@ contains
       qtfavl  (k,isamp) = qtfavl  (k,isamp)+sum  (qt0  (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
       qlfavl  (k,isamp) = qlfavl  (k,isamp)+sum  (ql0  (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
       pfavl   (k,isamp) = pfavl   (k,isamp)+sum  (p    (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
-    end do
-
-    do k=1,kmax
-    do j=2,j1
-    do i=2,i1
-      teavl(k,isamp) = teavl(k,isamp)+thl0(i,j,k)*mask(i,j,k)+rlv/(cpd*exnf(k))*ql0(i,j,k)
-    end do
-    end do
     end do
 
 !     2)       fluxes on half levels
