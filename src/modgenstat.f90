@@ -808,6 +808,52 @@ contains
       allocate(vwres_field(2:i1,2:j1))  
       allocate(wsvres_field(2:i1,2:j1))  
       allocate(wsvsub_field(2:i1,2:j1))  
+
+      qls_patch     = 0  
+      tsurf_patch   = 0  
+      qsat_patch    = 0  
+      c1_patch      = 0  
+      c2_patch      = 0  
+      den_patch     = 0  
+      cthl_patch    = 0  
+      cqt_patch     = 0  
+      qlhav_patch   = 0  
+      u2av_patch    = 0  
+      v2av_patch    = 0  
+      w2av_patch    = 0  
+      w3av_patch    = 0  
+      w2subav_patch = 0  
+      qt2av_patch   = 0  
+      thl2av_patch  = 0  
+      thv2av_patch  = 0  
+      th2av_patch   = 0  
+      ql2av_patch   = 0  
+      sv2av_patch   = 0  
+      uw_field      = 0  
+      vw_field      = 0  
+      u_field       = 0  
+      v_field       = 0  
+      w_field       = 0  
+      qt_field      = 0  
+      thl_field     = 0  
+      thv_field     = 0  
+      th_field      = 0  
+      ql_field      = 0  
+      wsv_field     = 0  
+      wqlsub_field  = 0  
+      wtlsub_field  = 0  
+      wtvsub_field  = 0  
+      wqtsub_field  = 0  
+      uwsub_field   = 0  
+      vwsub_field   = 0  
+      wqlres_field  = 0  
+      wtlres_field  = 0  
+      wtvres_field  = 0  
+      wqtres_field  = 0  
+      uwres_field   = 0  
+      vwres_field   = 0  
+      wsvres_field  = 0  
+      wsvsub_field  = 0  
     endif
 
     allocate( &
@@ -1899,6 +1945,8 @@ contains
       allocate(tmn   (k1), thmn  (k1))
       if (lhetero) then
         allocate(tmn_patch(xpatches,ypatches,k1), thmn_patch(xpatches,ypatches,k1))
+        tmn_patch  = 0
+        thmn_patch = 0
       endif
 
       umn    = umn    /nsamples
