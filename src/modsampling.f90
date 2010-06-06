@@ -927,6 +927,7 @@ contains
     deallocate (wh_e,sigh_e)
 
 
+
   end subroutine writesampling
 
 end module modsampling
