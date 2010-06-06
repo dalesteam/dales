@@ -69,7 +69,7 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(dtav      ,1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(lcape     ,1,MPI_LOGICAL,0,comm3d,mpierr)
 
     idtav = dtav/tres
@@ -175,6 +175,7 @@ contains
     do i=2,i1
       capemask(i,j,k)=.false. ! reset
       qlma(i,j,k)=0. ! reset
+      thvma(i,j,k)=0.
       thvfull(i,j,k)=(thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                       *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
       lwp(i,j)=lwp(i,j)+ql0(i,j,k)*dzf(k)
@@ -207,19 +208,16 @@ contains
     hw2cb(i,j)=0.5*wcb(i,j)*abs(wcb(i,j))
     qtcb(i,j)=qt0(i,j,kcb)
     qlcb(i,j)=ql0(i,j,kcb)
-    capetop(i,j)=0
-    matop(i,j)=0
+    capetop(i,j)=0.
+    matop(i,j)=0.
     enddo
     enddo
-
-    !calculate moist adiabat from cloud base: let pressure adjust to slab mean
-
-    do  k=1,k1 
-    do  j=2,j1
-    do  i=2,i1
+    !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
+    k=1
+    do j=2,j1
+    do i=2,i1
     ! full level
-      if(matop(i,j)==0) then
-        Tnr=exnf(k)*thlcb(i,j)+(rlv/cp)*qlma(i,j,k-1) ! First guess for full level, use ql from below
+        Tnr=exnf(k)*thl0(i,j,1) ! First guess for full level, use no ql from below
         Tnr_old=0.
           do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
             niter = niter+1
@@ -261,6 +259,55 @@ contains
         qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
         qlma(i,j,k) = max(qt0(i,j,1)-qsatur,0.)
         thvma(i,j,k)=(thl0(i,j,1)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,1)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
+    enddo
+    enddo
+    do k=2,k1
+    do j=2,j1
+    do i=2,i1
+    ! full level
+      if(matop(i,j)==0) then
+        Tnr=exnf(k)*thl0(i,j,1)+(rlv/cp)*qlma(i,j,k-1) ! First guess for full level, use no ql from below
+        Tnr_old=0.
+          do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
+            niter = niter+1
+            Tnr_old=Tnr
+            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+            tlonr=int((Tnr-150.)*5.)
+            thinr=tlonr+1
+            tlo=ttab(tlonr)
+            thi=ttab(thinr)
+            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+            qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
+    
+            ttry=Tnr-0.002
+            ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+            tlonr=int((Tnr-150.)*5.)
+            thinr=tlonr+1
+            tlo=ttab(tlonr)
+            thi=ttab(thinr)
+            esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+            esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+            qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
+    
+            Tnr = Tnr - (thlguess-thl0(i,j,1))/((thlguess-thlguessmin)*500.)
+          enddo
+        nitert =max(nitert,niter)
+        niter = 0
+        ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+        tlonr=int((Tnr-150.)*5.)
+        thinr=tlonr+1
+        tlo=ttab(tlonr)
+        thi=ttab(thinr)
+        esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+        esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+        qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
+        qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
+        qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
+        qlma(i,j,k) = max(qt0(i,j,1)-qsatur,0.)
+        thvma(i,j,k)=(thl0(i,j,1)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,1)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
         if(thvma(i,j,k)<thvf(k)-10) then
           matop(i,j)=k
         endif
@@ -270,7 +317,7 @@ contains
     enddo
 
     ! calculate top of moist adiabat for capereal calculations
-    do k=kcb,k1 
+    do k=1,k1 
     do j=2,j1
     do i=2,i1
       if(k<matop(i,j)) then
@@ -351,7 +398,7 @@ contains
 !     close(ifoutput)
 
     if (lnetcdf) then
-      allocate(vars(1:imax,1:jmax,15))
+      allocate(vars(1:imax,1:jmax,16))
       vars(:,:,1) = capereal(2:i1,2:j1)
       vars(:,:,2) = cinlower(2:i1,2:j1)
       vars(:,:,3) = cinupper(2:i1,2:j1)
