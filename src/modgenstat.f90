@@ -163,7 +163,7 @@ save
 !And now for patches
 !     ----  total fields  ---
 
-  real, allocatable  :: umn_patch   (:,:,:)       ,vmn_patch   (:,:,:)
+  real, allocatable  :: umn_patch   (:,:,:)       ,vmn_patch   (:,:,:)       ,wmn_patch   (:,:,:)
   real, allocatable  :: thlmn_patch (:,:,:)       ,thvmn_patch (:,:,:)
   real, allocatable  :: qtmn_patch  (:,:,:)       ,qlmn_patch  (:,:,:),  qlhmn_patch(:,:,:),cfracmn_patch(:,:,:)
 
@@ -404,7 +404,7 @@ contains
       cszmn = 0.
 
       if(lhetero) then
-        allocate(umn_patch(xpatches,ypatches,k1),vmn_patch(xpatches,ypatches,k1))
+        allocate(umn_patch(xpatches,ypatches,k1),vmn_patch(xpatches,ypatches,k1),wmn_patch(xpatches,ypatches,k1))
         allocate(thlmn_patch(xpatches,ypatches,k1),thvmn_patch(xpatches,ypatches,k1))
         allocate(qtmn_patch(xpatches,ypatches,k1) ,qlmn_patch (xpatches,ypatches,k1),qlhmn_patch(xpatches,ypatches,k1),cfracmn_patch(xpatches,ypatches,k1))
         allocate(wtlsmn_patch (xpatches,ypatches,k1),wtlrmn_patch (xpatches,ypatches,k1),wtltmn_patch(xpatches,ypatches,k1))
@@ -467,6 +467,7 @@ contains
 
         umn_patch      = 0.
         vmn_patch      = 0.
+        wmn_patch      = 0.
         thlmn_patch    = 0.
         thvmn_patch    = 0.
         qtmn_patch     = 0.
@@ -1763,6 +1764,7 @@ contains
     if (lhetero) then
       umn_patch      = umn_patch    + umav_patch
       vmn_patch      = vmn_patch    + vmav_patch
+      wmn_patch      = wmn_patch    + wmav_patch
       thvmn_patch    = thvmn_patch  + thvmav_patch
       thlmn_patch    = thlmn_patch  + thlmav_patch
       qtmn_patch     = qtmn_patch   + qtmav_patch
@@ -2015,6 +2017,7 @@ contains
       if (lhetero) then
         umn_patch      =  umn_patch    /nsamples
         vmn_patch      =  vmn_patch    /nsamples
+        wmn_patch      =  wmn_patch    /nsamples
         thvmn_patch    =  thvmn_patch  /nsamples
         thlmn_patch    =  thlmn_patch  /nsamples
         qtmn_patch     =  qtmn_patch   /nsamples
@@ -2133,11 +2136,11 @@ contains
             write (ifoutput,'(A/2A/2A)') &
                 '#--------------------------------------------------------' &
                 ,'#LEV  HGHT    PRES    TEMP       TH_L     THETA      TH_V     ' &
-                ,'  QT_AV      QL_AV      U       V   CLOUD FRACTION  CS' &
+                ,'  QT_AV      QL_AV      U       V   CLOUD FRACTION  CS          W' &
                 ,'#      (M)    (MB)   (----------- (KELVIN) ---------------)    ' &
-                ,'(----(G/KG)------)  (--- (M/S ---)   (-----------)  (---)'
+                ,'(----(G/KG)------)  (--- (M/S ---)   (-----------)  (---)      (--(M/S)--)'
             do k=1,kmax
-              write(ifoutput,'(I3,F8.2,F7.1,5F10.4,F12.5,3F11.4,F11.5)') &
+              write(ifoutput,'(I3,F8.2,F7.1,5F10.4,F12.5,3F11.4,2F11.5)') &
                   k, &
                   zf    (k), &
                   presf (k)/100., &
@@ -2150,7 +2153,8 @@ contains
                   umn_patch    (i,j,k), &
                   vmn_patch    (i,j,k), &
                   cfracmn_patch(i,j,k), &
-                  cszmn_patch  (i,j,k)
+                  cszmn_patch  (i,j,k), &
+                  wmn_patch    (i,j,k)
             end do
 
             close (ifoutput)
@@ -2697,6 +2701,7 @@ contains
       if (lhetero) then
         umn_patch      = 0.
         vmn_patch      = 0.
+        wmn_patch      = 0.
         thlmn_patch    = 0.
         thvmn_patch    = 0.
         qtmn_patch     = 0.
@@ -2824,7 +2829,7 @@ contains
     deallocate(cszav)
 
     if(lhetero) then
-      deallocate (umn_patch,vmn_patch)
+      deallocate (umn_patch,vmn_patch,wmn_patch)
       deallocate (thlmn_patch,thvmn_patch)
       deallocate (qtmn_patch ,qlmn_patch ,qlhmn_patch,cfracmn_patch)
       deallocate (wtlsmn_patch ,wtlrmn_patch ,wtltmn_patch)
