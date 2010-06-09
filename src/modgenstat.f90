@@ -1087,9 +1087,9 @@ contains
       qsat_patch  = qts_patch - qls_patch != qts_patch
       c1_patch    = 1.+(rv/rd-1)*qts_patch
       c2_patch    = (rv/rd-1)
-      den_patch   = 1. + (rlv**2)*qsat_patch/(rv*cp*(tsurf_patch**2))
-      cthl_patch  = (exnh(1)*cp/rlv)*((1-den_patch)/den_patch)
-      cqt_patch   = 1./den_patch 
+      !den_patch   = 1. + (rlv**2)*qsat_patch/(rv*cp*(tsurf_patch**2))
+      !cthl_patch  = (exnh(1)*cp/rlv)*((1-den_patch)/den_patch)
+      !cqt_patch   = 1./den_patch 
     endif
 
     do j=2,j1
