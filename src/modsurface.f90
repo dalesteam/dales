@@ -374,7 +374,7 @@ contains
     real     :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real     :: lthls_patch(xpatches,ypatches)
-    real     :: lqts_patch(xpatches,ypatches), qts_patch(xpatches,ypatches)
+    real     :: lqts_patch(xpatches,ypatches)!, qts_patch(xpatches,ypatches)
     real     :: phimzf, phihzf
     real     :: thlsl, qtsl
 
