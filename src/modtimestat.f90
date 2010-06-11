@@ -62,6 +62,7 @@ save
   real   :: qlintav, qlintmax, tke_tot
   real   :: cc, wmax, qlmax
   real   :: qlint
+  logical:: store_zi = .false.
 
   !Variables for heterogeneity 
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
@@ -74,7 +75,7 @@ save
   !In combination with isurf = 1    
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
-  real,allocatable, dimension(:,:) :: zi_patch,zi_patchl,ziold_patch,we_patch,N_patch,N_patchl
+  real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
 
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
@@ -323,12 +324,10 @@ contains
       allocate(obl_patch     (xpatches,ypatches))
 
       allocate(zi_patch      (xpatches,ypatches))
-      allocate(zi_patchl     (xpatches,ypatches))
+      allocate(zi_field      (2:i1,2:j1))
       allocate(ziold_patch   (xpatches,ypatches))
       ziold_patch = -1
       allocate(we_patch      (xpatches,ypatches))
-      allocate(N_patch       (xpatches,ypatches))
-      allocate(N_patchl      (xpatches,ypatches))
     endif
 
   end subroutine inittimestat
@@ -365,6 +364,15 @@ contains
 
     ! heterogeneity variables
     integer:: patchx, patchy
+
+    if (.not.(ltimestat)) return
+    if (rk3step/=3) return
+    if(timee<tnext) then
+      dt_lim = min(dt_lim,tnext-timee)
+      return
+    end if
+    tnext = tnext+idtav
+    dt_lim = minval((/dt_lim,tnext-timee/))
 
     if (lhetero) then
       zbase_field    = 0
@@ -411,20 +419,9 @@ contains
       obl_patch      = 0
 
       zi_patch       = 0
-      zi_patchl      = 0
+      zi_field       = 0
       we_patch       = 0
-      N_patch        = 0
-      N_patchl       = 0
     endif
-
-    if (.not.(ltimestat)) return
-    if (rk3step/=3) return
-    if(timee<tnext) then
-      dt_lim = min(dt_lim,tnext-timee)
-      return
-    end if
-    tnext = tnext+idtav
-    dt_lim = minval((/dt_lim,tnext-timee/))
 
     !      -----------------------------------------------------------
   !     1     EVALUATION OF CLOUD COVER, CLOUD BASE, ETC.
@@ -438,7 +435,9 @@ contains
     ztopavl = 0.0
     zbaseminl = zf(kmax)
 
+    store_zi = .true.
     call calcblheight
+    store_zi = .false.
 
   !     --------------------------------------------------------------
   !     9.2  liq. waterpath, cloudcover, cloudbase and cloudtop
@@ -616,11 +615,11 @@ contains
                                   ) + e12m(i,j,k)**2
 
         if (lhetero) then
-          tke_tot_field(i,j) = 0.5*( &
+          tke_tot_field(i,j) = tke_tot_field(i,j) + 0.5*( &
                                    (0.5*(um(i,j,k)+um(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
                                    (0.5*(vm(i,j,k)+vm(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
                                    (0.5*(wm(i,j,k)+wm(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
-                                       ) + e12m(i,j,k)**2 
+                                       ) + e12m(i,j,k)**2
         endif
       end do
       end do
@@ -634,6 +633,7 @@ contains
     if (lhetero) then
       tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/rslabs)
     endif
+
 !     -------------------------
 !     9.6  Horizontally  Averaged ustar, tstar and obl
 !     -------------------------
@@ -932,17 +932,16 @@ contains
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
     integer :: patchx, patchy
-    real, allocatable,dimension(:,:,:) :: blh_fld,  sv0h
+    real, allocatable,dimension(:,:,:) :: blh_fld,  sv0h, blh_fld2
     real, allocatable, dimension(:) :: profile, gradient, dgrad
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(profile(k1),gradient(k1),dgrad(k1))
+    if (lhetero) then
+      allocate(blh_fld2(2:i1,2:j1,k1))
+    endif
     zil = 0.0
     gradient = 0.0
     dgrad = 0.0
-    if (lhetero) then
-      zi_patchl = 0
-      N_patchl  = 0
-    endif
     select case (iblh_meth)
     case (iblh_flux)
       select case (iblh_var)
@@ -988,33 +987,17 @@ contains
     case (iblh_flux)
       stride = ceiling(real(imax)/real(blh_nsamp))
       do i=2,stride+1
-        if (lhetero) then
-          patchx = patchxnr(i)
-        endif
         nsamp =  ceiling(real(i1-i+1)/real(stride))
         do j=2,j1
-          if (lhetero) then
-            patchy = patchynr(j)
-          endif
           zil = zil + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
-          if (lhetero) then
-            zi_patchl(patchx,patchy) = zi_patchl(patchx,patchy) + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
-            N_patchl(patchx,patchy)  = N_patchl(patchx,patchy)  + nsamp
-          endif
         end do
       end do
 
     case (iblh_grad)
       stride = ceiling(real(imax)/real(blh_nsamp))
       do i=2,stride+1
-        if (lhetero) then
-          patchx = patchxnr(i)
-        endif
         nsamp =  ceiling(real(i1-i+1)/real(stride))
         do j=2,j1
-          if (lhetero) then
-            patchy = patchynr(j)
-          endif
           profile  = sum(blh_fld(i:i1:stride,j,:),1)
           select case (iblh_var)
           case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
@@ -1027,23 +1010,13 @@ contains
           dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
           location = maxloc(gradient,1)
           zil  = zil + nsamp*(zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-          if (lhetero) then
-            zi_patchl(patchx,patchy) = zi_patchl(patchx,patchy) + nsamp*(zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-            N_patchl(patchx,patchy)  = N_patchl(patchx,patchy)  + nsamp
-          endif
         enddo
       enddo
     case (iblh_thres)
       stride = ceiling(real(imax)/real(blh_nsamp))
       do i=2,stride+1
-        if (lhetero) then
-          patchx = patchxnr(i)
-        endif
         nsamp =  ceiling(real(i1-i+1)/real(stride))
         do j=2,j1
-          if (lhetero) then
-            patchy = patchynr(j)
-          endif
           locval = 0.0
           do k=kmax,1,-1
             oldlocval = locval
@@ -1051,10 +1024,6 @@ contains
             if (locval < blh_sign*blh_thres) then
               zil = zil + nsamp *(zf(k) +  (blh_sign*blh_thres-locval) &
                         *dzh(k+1)/(oldlocval-locval))
-              if (lhetero) then
-                zi_patchl(patchx,patchy) = zi_patchl(patchx,patchy) + nsamp *(zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
-                N_patchl(patchx,patchy)  = N_patchl(patchx,patchy)  + nsamp
-              endif
               exit
             endif
           enddo
@@ -1063,17 +1032,76 @@ contains
 
     end select
 
+    if (lhetero) then !Not using stride, instead use adjacent grid points in x-direction (to prevent processor communication)
+
+      select case (iblh_meth)
+
+      case (iblh_flux)
+        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+
+        do i=2,i1
+          do j=2,j1
+            zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
+          end do
+        end do
+ 
+      case (iblh_grad)
+        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+
+        do i=2,i1
+          do j=2,j1
+            profile  = blh_fld2(i,j,:)
+            select case (iblh_var)
+            case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
+              gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+            case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
+              gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+            case default
+              gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+            end select
+            dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
+            location = maxloc(gradient,1)
+            zi_field(i,j) = (zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
+          enddo
+        enddo
+
+      case (iblh_thres)
+        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+
+        do i=2,i1
+          do j=2,j1
+            locval = 0.0
+            do k=kmax,1,-1
+              oldlocval = locval
+              locval = blh_sign*blh_fld2(i,j,k)/3
+              if (locval < blh_sign*blh_thres) then
+                zi_field(i,j) = (zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
+                exit
+              endif
+            enddo
+          enddo
+        enddo
+
+      end select
+
+    endif
+
     call MPI_ALLREDUCE(zil, zi, 1, MY_REAL, MPI_SUM, comm3d,mpierr)
     zi = zi / rslabs
 
     if (lhetero) then
-      call MPI_ALLREDUCE(zi_patchl(1:xpatches,1:ypatches),zi_patch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(N_patchl(1:xpatches,1:ypatches) ,N_patch(1:xpatches,1:ypatches) ,xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+      zi_patch = patchsum_1level(zi_field) * (xpatches*ypatches/rslabs)
     endif
 
     if (ziold< 0) ziold = zi
     dhdt = (zi-ziold)/dtav
-    ziold = zi
+    if(store_zi) ziold = zi
 
     k=2
     do while (zh(k)<zi .and. k < kmax)
@@ -1092,10 +1120,13 @@ contains
         we_patch(i,j) = ((zi_patch(i,j)-ziold_patch(i,j))/dtav) - whls(k)
       enddo
       enddo
-      ziold_patch = zi_patch
+      if(store_zi) ziold_patch = zi_patch
     endif
 
     deallocate(blh_fld,sv0h)
+    if (lhetero) then
+      deallocate(blh_fld2)
+    endif
     deallocate(profile,gradient,dgrad)
 
   end subroutine calcblheight
@@ -1158,11 +1189,9 @@ contains
       deallocate(obl_patch     )
       
       deallocate(zi_patch      )
-      deallocate(zi_patchl     )
+      deallocate(zi_field      )
       deallocate(ziold_patch   )
       deallocate(we_patch      )
-      deallocate(N_patch       )
-      deallocate(N_patchl      )
     endif
   end subroutine exittimestat
 
