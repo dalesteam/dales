@@ -873,8 +873,9 @@ contains
 
         end do
       end do
+    endif
     
-    elseif(lhetero) then 
+    if(lhetero) then 
       upatch    = 0
       vpatch    = 0
       Npatch    = 0
@@ -913,7 +914,7 @@ contains
 
       do patchy = 1, ypatches
         do patchx = 1, xpatches
-          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / horvpatch(patchx,patchy)
+          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2.)
           iter = 0
           L = oblpatch(patchx,patchy)
 
@@ -940,11 +941,13 @@ contains
           oblpatch(patchx,patchy) = L
         enddo
       enddo
-      do i=1,i2
-        do j=1,j2
-          obl(i,j) = oblpatch(patchxnr(i),patchynr(j))
+      if(.not. lmostlocal) then
+        do i=1,i2
+          do j=1,j2
+            obl(i,j) = oblpatch(patchxnr(i),patchynr(j))
+          enddo
         enddo
-      enddo
+      endif
     endif 
     
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
@@ -985,7 +988,6 @@ contains
       endif
     end if
     oblav = L
-
     return
 
   end subroutine getobl
