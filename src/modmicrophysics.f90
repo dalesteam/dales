@@ -44,7 +44,7 @@ contains
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
-    imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,mur_cst, &     ! OG
+    imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
     Nc_0, sig_g, sig_gr                                ! SdeR
 
     if(myid==0)then
@@ -66,6 +66,7 @@ contains
     call MPI_BCAST(l_mur_cst,1, MPI_INTEGER ,0,comm3d,ierr)
     call MPI_BCAST(l_berry,   1, MPI_LOGICAL    ,0,comm3d,ierr)
     call MPI_BCAST(l_graupel,   1, MPI_LOGICAL    ,0,comm3d,ierr)
+    call MPI_BCAST(l_warm,   1, MPI_LOGICAL    ,0,comm3d,ierr)
     call MPI_BCAST(mur_cst,  1, MPI_REAL    ,0,comm3d,ierr)
     call MPI_BCAST(Nc_0  ,   1, MPI_LOGICAL ,0,comm3d,ierr)
     call MPI_BCAST(sig_g,    1, MPI_INTEGER ,0,comm3d,ierr)

@@ -174,6 +174,7 @@
   ! user settings
   logical :: l_berry = .true.   !  Berry-Hsie (Grabowski, 1998) autoconversion vs Kessler-Lin (Khairoutdinov and Randall, 2006)
   logical :: l_graupel = .true. !  Switch for graupel
+  logical :: l_warm = .false.   !  Run ice micro in warm mode, as a check
   real :: evapfactor = 1.0      !  Prefactor to reduce evaporation
   real :: courantp = 1.0        !  CFLmax-criterion for precipitation
 
