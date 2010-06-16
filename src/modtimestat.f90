@@ -856,17 +856,17 @@ contains
             open (ifoutput,file=name,position='append')
             write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3)') &
               rtimee, &
-              cc_patch, &
-              zbase_patch, &
-              ztop_patch, &
-              ztopmax_patch, &
-              zi_patch, &
-              we_patch, &
-              qlint_patch*1000., &
-              qlintmax_patch*1000., &
-              wmax_patch, &
-              tke_tot_patch*dzf(1), &
-              qlmax_patch*1000.
+              cc_patch(i,j), &
+              zbase_patch(i,j), &
+              ztop_patch(i,j), &
+              ztopmax_patch(i,j), &
+              zi_patch(i,j), &
+              we_patch(i,j), &
+              qlint_patch(i,j)*1000., &
+              qlintmax_patch(i,j)*1000., &
+              wmax_patch(i,j), &
+              tke_tot_patch(i,j)*dzf(1), &
+              qlmax_patch(i,j)*1000.
             close(ifoutput)
 
             name = 'tmsurfpatchiiixjjj.'//cexpnr
@@ -875,15 +875,15 @@ contains
             open (ifoutput,file=name,position='append')
             write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
               rtimee      ,&
-              ust_patch   ,&
-              tst_patch   ,&
-              qst_patch   ,&
-              obl_patch   ,&
-              thls_patch  ,&
-              z0mav_patch ,&
-              wts_patch   ,&
-              wtvs_patch  ,&
-              wqls_patch
+              ust_patch(i,j)   ,&
+              tst_patch(i,j)   ,&
+              qst_patch(i,j)   ,&
+              obl_patch(i,j)   ,&
+              thls_patch(i,j)  ,&
+              z0mav_patch(i,j) ,&
+              wts_patch(i,j)   ,&
+              wtvs_patch(i,j)  ,&
+              wqls_patch(i,j)
             close(ifoutput)
 
             if(isurf == 1) then
@@ -893,18 +893,18 @@ contains
               open (ifoutput,file=name,position='append')
               write(ifoutput,'(f10.2,9f11.3,e13.3, 2f11.3)') &
                 rtimee           ,&
-                Qnet_patch       ,&
-                H_patch          ,&
-                LE_patch         ,&
-                G0_patch         ,&
-                tendskin_patch   ,&
-                rs_patch         ,&
-                ra_patch         ,&
-                tskin_patch      ,&
-                cliq_patch       ,&
-                wl_patch         ,&
-                rssoil_patch     ,&
-                rsveg_patch     
+                Qnet_patch(i,j)       ,&
+                H_patch(i,j)          ,&
+                LE_patch(i,j)         ,&
+                G0_patch(i,j)         ,&
+                tendskin_patch(i,j)   ,&
+                rs_patch(i,j)         ,&
+                ra_patch(i,j)         ,&
+                tskin_patch(i,j)      ,&
+                cliq_patch(i,j)       ,&
+                wl_patch(i,j)         ,&
+                rssoil_patch(i,j)     ,&
+                rsveg_patch(i,j)     
               close(ifoutput)
             endif
           enddo
