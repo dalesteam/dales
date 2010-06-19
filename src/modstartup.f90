@@ -1018,7 +1018,7 @@ contains
         open (ifoutput,file='baseprof.inp.'//cexpnr)
         write(ifoutput,*) '#LBA';
         write(ifoutput,*) '#height rhobf thvbf prsbf';
-        do k=kmax,1,-1
+        do k=1,kmax
           write (ifoutput,'(1f7.1,3e12.4)') &
                 zf (k), &
                 rhobf (k), &
@@ -1028,7 +1028,7 @@ contains
         close(ifoutput)
       elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3 if thvbh would be used for denominator in buoyancy)
         thvbh(1)=thls*(1+(rv/rd-1)*qts)
-        rhobh(1)=1./(rd*thvbh(1)*(ps/pref0)**(rd/cp))/ps
+        rhobh(1)=ps/(rd*thvbh(1)*(ps/pref0)**(rd/cp))
         do k=1,k1
           thvbf(k)=thvbh(1)
           prsbf(k)=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvbh(1)))**(cp/rd) !As in thermodynamics
@@ -1037,7 +1037,7 @@ contains
         open (ifoutput,file='baseprof.inp.'//cexpnr)
         write(ifoutput,*) '#LBA';
         write(ifoutput,*) '#height rhobf thvbf prsbf';
-        do k=kmax,1,-1
+        do k=1,kmax
           write (ifoutput,'(1f7.1,3e12.4)') &
                 zf (k), &
                 rhobf (k), &
@@ -1056,7 +1056,7 @@ contains
         open (ifoutput,file='baseprof.inp.'//cexpnr)
         write(ifoutput,*) '#LBA';
         write(ifoutput,*) '#height rhobf thvbf prsbf';
-        do k=kmax,1,-1
+        do k=1,kmax
           write (ifoutput,'(1f7.1,3e12.4)') &
                 zf (k), &
                 rhobf (k), &
@@ -1215,7 +1215,7 @@ contains
         open (ifoutput,file='baseprof.inp.'//cexpnr)
         write(ifoutput,*) '#LBA';
         write(ifoutput,*) '#height rhobf thvbf prsbf';
-        do k=kmax,1,-1
+        do k=1,kmax
             write (ifoutput,'(1f7.1,3e12.4)') &
                   zf (k), &
                   rhobf (k), &
