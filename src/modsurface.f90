@@ -48,11 +48,11 @@ contains
 
     implicit none
 
-    integer   ::ierr
+    integer   :: ierr
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
-      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
+      lmostlocal, lmlfilter, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
@@ -83,6 +83,7 @@ contains
     call MPI_BCAST(rootfav      , ksoilmax, MY_REAL, 0, comm3d, mpierr)
 
     call MPI_BCAST(lmostlocal   , 1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lmlfilter    , 1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lsmoothflux  , 1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lneutral     , 1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(z0mav        , 1, MY_REAL, 0, comm3d, mpierr)
@@ -211,7 +212,18 @@ contains
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
 
+    ! Allocate filtered variables
+    if (lmostlocal) then
+      allocate(u0bar   (2-ih:i1+ih,2-jh:j1+jh))
+      allocate(v0bar   (2-ih:i1+ih,2-jh:j1+jh))
+      allocate(thl0bar (2-ih:i1+ih,2-jh:j1+jh))
+      allocate(qt0bar  (2-ih:i1+ih,2-jh:j1+jh))
+      allocate(tskinbar(i2,j2))
+      allocate(qskinbar(i2,j2))
+    end if
+
     return
+
   end subroutine initsurface
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
@@ -235,6 +247,25 @@ contains
       return
     end if
 
+    ! Filter variables
+    if (lmostlocal) then
+      u0bar  (2-ih:i1+ih,2-jh:j1+jh) = u0  (2-ih:i1+ih,2-jh:j1+jh,1)
+      v0bar  (2-ih:i1+ih,2-jh:j1+jh) = v0  (2-ih:i1+ih,2-jh:j1+jh,1)
+      thl0bar(2-ih:i1+ih,2-jh:j1+jh) = thl0(2-ih:i1+ih,2-jh:j1+jh,1)
+      qt0bar (2-ih:i1+ih,2-jh:j1+jh) = qt0 (2-ih:i1+ih,2-jh:j1+jh,1)
+      tskinbar(:,:) = tskin(:,:)
+      qskinbar(:,:) = qskin(:,:)
+
+      if(lmlfilter) then
+        call filter(u0bar,    3, ih, jh)
+        call filter(v0bar,    3, ih, jh)
+        call filter(thl0bar,  3, ih, jh)
+        call filter(qt0bar,   3, ih, jh)
+        call filter(tskinbar, 3, 1,  1 )
+        call filter(qskinbar, 3, 1,  1 )
+      end if
+    end if
+
     ! CvH start with computation of drag coefficients to allow for implicit solver
     if(isurf <= 2) then
 
@@ -255,8 +286,8 @@ contains
           Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
 
           if(lmostlocal) then
-            upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-            vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+            upcu  = 0.5 * (u0bar(i,j) + u0bar(i+1,j)) + cu
+            vpcv  = 0.5 * (v0bar(i,j) + v0bar(i,j+1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
             horv  = max(horv, 0.1)
             ra(i,j) = 1. / ( Cs(i,j) * horv )
@@ -289,22 +320,27 @@ contains
     if(isurf <= 2) then
       do j = 2, j1
         do i = 2, i1
-          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-          horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
           horvav = max(horvav, 0.1)
           
           if(lmostlocal) then 
-            ustar  (i,j) = sqrt(Cm(i,j)) * horv 
+            upcu         = 0.5 * (u0bar(i,j) + u0bar(i+1,j)) + cu
+            vpcv         = 0.5 * (v0bar(i,j) + v0bar(i,j+1)) + cv
+            horv         = sqrt(upcu ** 2. + vpcv ** 2.)
+            horv         = max(horv, 0.1)
+            ustar(i,j)   = sqrt(Cm(i,j)) * horv 
+            thlflux(i,j) = - ( thl0bar(i,j) - tskinbar(i,j)) / ra(i,j) 
+            qtflux(i,j)  = - ( qt0bar(i,j)  - qskinbar(i,j)) / ra(i,j)
           else
-            ustar  (i,j) = sqrt(Cm(i,j)) * horvav
+            upcu         = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+            vpcv         = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+            horv         = sqrt(upcu ** 2. + vpcv ** 2.)
+            horv         = max(horv, 0.1)
+            ustar(i,j)   = sqrt(Cm(i,j)) * horvav
+            thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j)) / ra(i,j) 
+            qtflux(i,j)  = - ( qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
           end if
           
-          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
-
-          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
           
           do n=1,nsv
             svflux(i,j,n) = wsvsurf(n) 
@@ -395,14 +431,22 @@ contains
       do j = 2, j1
         do i = 2, i1
 
-          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-          horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
+          if(lmostlocal) then
+            upcu   = 0.5 * (u0bar(i,j) + u0bar(i+1,j)) + cu
+            vpcv   = 0.5 * (v0bar(i,j) + v0bar(i,j+1)) + cv
+            horv   = sqrt(upcu ** 2. + vpcv ** 2.)
+            horv   = max(horv, 0.1)
+          else
+            upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+            vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+            horv   = sqrt(upcu ** 2. + vpcv ** 2.)
+            horv   = max(horv, 0.1)
+          end if
+
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
           horvav = max(horvav, 0.1)
 
-          if( isurf == 4) then
+          if(isurf == 4) then
             if(lmostlocal) then
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
             else
@@ -460,11 +504,22 @@ contains
 
     ! Transfer ustar to neighbouring cells
     do j=1,j2
-      ustar(1,j)=ustar(i1,j)
-      ustar(i2,j)=ustar(2,j)
+      ustar(1,j)  = ustar(i1,j)
+      ustar(i2,j) = ustar(2,j)
     end do
 
     call excj( ustar  , 1, i2, 1, j2, 1,1)
+
+    if(lmostlocal .and. lmlfilter) then
+      do j=1,j2
+        tskin(1,j)  = tskin(i1,j)
+        tskin(i2,j) = tskin(2,j)
+        qskin(1,j)  = qskin(i1,j)
+        qskin(i2,j) = qskin(2,j)
+      end do
+      call excj( tskin  , 1, i2, 1, j2, 1,1)
+      call excj( qskin  , 1, i2, 1, j2, 1,1)
+    end if
 
     return
 
@@ -512,9 +567,10 @@ contains
     use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj
     implicit none
 
-    integer             :: i,j,iter
-    real                :: thv, thvsl, L, horv2, oblavl
-    real                :: Rib, Lstart, Lend, fx, fxdif, Lold
+    integer        :: i,j,iter
+    real           :: upcu, vpcv
+    real           :: thv, thvsl, L, horv2, oblavl
+    real           :: Rib, Lstart, Lend, fx, fxdif, Lold
 
     if(lmostlocal) then
 
@@ -522,12 +578,14 @@ contains
 
       do i=2,i1
         do j=2,j1
-          thv    = thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
-          thvsl  = tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
-          horv2 = u0(i,j,1)*u0(i,j,1) + v0(i,j,1)*v0(i,j,1)
-          horv2 = max(horv2, 0.01)
+          thv     = thl0bar(i,j)  * (1. + (rv/rd - 1.) * qt0bar(i,j))
+          thvsl   = tskinbar(i,j) * (1. + (rv/rd - 1.) * qskinbar(i,j))
+          upcu    = 0.5 * (u0bar(i,j) + u0bar(i+1,j)) + cu
+          vpcv    = 0.5 * (v0bar(i,j) + v0bar(i,j+1)) + cv
+          horv2   = upcu ** 2. + vpcv ** 2.
+          horv2   = max(horv2, 0.01)
 
-          Rib   = grav / thvs * zf(1) * (thv - thvsl) / horv2
+          Rib     = grav / thvs * zf(1) * (thv - thvsl) / horv2
 
           iter = 0
           L = obl(i,j)

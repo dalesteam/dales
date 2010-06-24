@@ -42,6 +42,7 @@ lcoriol    =  .true.
 
 &NAMSURFACE
 lmostlocal   = .false.
+lmlfilter    = .false.
 lsmoothflux  = .false.
 rsisurf2     = 0.
 

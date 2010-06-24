@@ -141,6 +141,14 @@ SAVE
 
   ! Turbulent exchange variables
   logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length
+  logical           :: lmlfilter   = .false.  !<  Filter variables at 3 dx to if MOST-local is enabled prevent peak in dimensionless wind profile
+  real, allocatable :: u0bar (:,:)      !<  Filtered u-wind component
+  real, allocatable :: v0bar (:,:)      !<  Filtered v-wind component
+  real, allocatable :: thl0bar (:,:)    !<  Filtered liquid water potential temperature at first level
+  real, allocatable :: qt0bar (:,:)     !<  Filtered specific humidity at first full level
+  real, allocatable :: tskinbar (:,:)   !<  Filtered surface temperature
+  real, allocatable :: qskinbar (:,:)   !<  Filtered surface specific humidity
+
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
   real, allocatable :: obl   (:,:)      !<  Obukhov length [m]
