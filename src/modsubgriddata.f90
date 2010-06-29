@@ -57,6 +57,7 @@ save
   real, allocatable :: zlt(:,:,:)   !< filter width
   
   real, allocatable :: csz(:)       !< Smagorinsky constant
+  real, allocatable :: fi(:)        !< Correction factor for cell anisotropy
 
 end module modsubgriddata
 

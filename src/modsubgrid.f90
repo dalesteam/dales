@@ -37,7 +37,7 @@ save
 contains
   subroutine initsubgrid
     use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar, &
-                          pi,ifnamopt,fname_options
+                          pi,ifnamopt,fname_options,dx,dy,dzf
     use modmpi, only : myid
 
     implicit none
@@ -46,6 +46,7 @@ contains
 
     real :: ceps, ch
     real :: mlen
+    real :: a1, a2, dmax
 
     call subgridnamelist
 
@@ -56,6 +57,8 @@ contains
     allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(csz(k1))
+    ! CvH anisotropy correction following Scotti et al 1993
+    allocate(fi(k1))
 
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
@@ -66,6 +69,15 @@ contains
     ceps = 2. * pi / cf * (1.5*alpha_kolm)**(-1.5)
     ce1  = (cn**2)* (cm/Rigc - ch1*cm )
     ce2  = ceps - ce1
+
+    dmax = dx
+    a1   = dy / dx
+
+    do k = 1,k1
+      a2    = dzf(k) / dx
+      fi(k) = cosh(4./27. * sqrt(log(a1)**2. - log(a1)*log(a2) + log(a2)**2.))
+      write(6,*) "Aniso correction", k, fi(k), a1, a2
+    end do
 
     if(cs == -1.) then
       csz(:)  = (cm**3/ceps)**0.25   !< Smagorinsky constant
@@ -292,12 +304,15 @@ contains
           if (ldelta .or. (dthvdz(i,j,k)<=0)) then
             zlt(i,j,k) = delta(k)
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+            ! CvH anisotropy correction
+            zlt(i,j,k) = zlt(i,j,k) * fi(k)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
             ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
           else
             zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvs*abs(dthvdz(i,j,k))))
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
-
+            ! CvH anisotropy correction
+            zlt(i,j,k) = zlt(i,j,k) * fi(k)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
             ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)/delta(k)) * ekm(i,j,k)
           endif
