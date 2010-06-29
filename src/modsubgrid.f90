@@ -80,9 +80,9 @@ contains
     end do
 
     if(cs == -1.) then
-      csz(:)  = (cm**3/ceps)**0.25   !< Smagorinsky constant
+      csz(:)  = (cm**3/ceps)**0.25 cs * fi(:)  !< Smagorinsky constant
     else
-      csz(:)  = cs
+      csz(:)  = cs * fi(:)
     end if
 
     if(lmason) then
