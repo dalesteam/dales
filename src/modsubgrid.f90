@@ -75,7 +75,7 @@ contains
 
     do k = 1,k1
       a2    = dzf(k) / dx
-      fi(k) = cosh(4./27. * sqrt(log(a1)**2. - log(a1)*log(a2) + log(a2)**2.))
+      fi(k) = cosh(sqrt(4./27. * (log(a1)**2. - log(a1)*log(a2) + log(a2)**2.)))
       write(6,*) "Aniso correction", k, fi(k), a1, a2
     end do
 
