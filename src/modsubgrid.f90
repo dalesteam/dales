@@ -70,19 +70,26 @@ contains
     ce1  = (cn**2)* (cm/Rigc - ch1*cm )
     ce2  = ceps - ce1
 
-    dmax = dx
-    a1   = dy / dx
-
     do k = 1,k1
-      a2    = dzf(k) / dx
+      dmax  = max(dx,dy,dzf(k))
+      if(dmax == dx) then
+        a1 = dy     / dx
+        a2 = dzf(k) / dx
+      elseif(dmax == dy) then
+        a1 = dx     / dy
+        a2 = dzf(k) / dy
+      else
+        a1 = dx     / dzf(k)
+        a2 = dy     / dzf(k)
+      end if
       fi(k) = cosh(sqrt(4./27. * (log(a1)**2. - log(a1)*log(a2) + log(a2)**2.)))
       write(6,*) "Aniso correction", k, fi(k), a1, a2
     end do
 
     if(cs == -1.) then
-      csz(:)  = (cm**3/ceps)**0.25 cs * fi(:)  !< Smagorinsky constant
+      csz(:) = (cm**3/ceps)**0.25 * fi(:)  !< Smagorinsky constant
     else
-      csz(:)  = cs * fi(:)
+      csz(:) = cs * fi(:)
     end if
 
     if(lmason) then
