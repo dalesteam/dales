@@ -32,8 +32,8 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 15
-  integer :: ncid = 0
+  integer,parameter :: nvar = 16
+  integer :: ncid4 = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
@@ -96,16 +96,17 @@ contains
     call ncinfo(ncname( 8,:),'qtcb','xy crosssections of qt at cloudbase','kg/kg','tt0t')
     call ncinfo(ncname( 9,:),'thlcb','xy crosssections of thl at cloudbase','K','tt0t')
     call ncinfo(ncname( 10,:),'wcb','xy crosssections of w at cloudbase','m/s','tt0t')
-    call ncinfo(ncname( 11,:),'thvcb','xy crosssections thv at cloudbase','K','tt0t')
-    call ncinfo(ncname( 12,:),'qlcb','xy crosssections ql at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 13,:),'lwp','xy crosssections liquid water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 14,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 15,:),'cldtop','xy crosssections cloud top height','m','tt0t')
-    call open_nc(fname,  ncid,n1=imax,n2=jmax)
-    call define_nc( ncid, 1, tncname)
-    call writestat_dims_nc(ncid)
-    call redefine_nc(ncid)
-    call define_nc(ncid, NVar, ncname)
+    call ncinfo(ncname( 11,:),'buoycb','xy crosssections buoyancy at cloudbase','K','tt0t')
+    call ncinfo(ncname( 12,:),'buoymax','xy crosssections maximum buoyancy','K','tt0t')
+    call ncinfo(ncname( 13,:),'qlcb','xy crosssections ql at cloudbase','kg/kg','tt0t')
+    call ncinfo(ncname( 14,:),'lwp','xy crosssections liquid water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 15,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 16,:),'cldtop','xy crosssections cloud top height','m','tt0t')
+    call open_nc(fname,  ncid4,n1=imax,n2=jmax)
+    call define_nc( ncid4, 1, tncname)
+    call writestat_dims_nc(ncid4)
+    call redefine_nc(ncid4)
+    call define_nc(ncid4, NVar, ncname)
     end if
 
   end subroutine initcape
@@ -149,7 +150,7 @@ contains
     kcb=1
     ! find robust minimum of buoyancy flux (determined at half-level!)
     if(any(abs(wtvtmnlast)>1e-10)) then
-      do k=kmax-2,1,-1
+      do k=kmax-2,2,-1
         if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2))) then
           ktest = k
         end if
@@ -409,13 +410,14 @@ contains
       vars(:,:,8) = qtcb(2:i1,2:j1)
       vars(:,:,9) = thlcb(2:i1,2:j1)
       vars(:,:,10) = wcb(2:i1,2:j1)
-      vars(:,:,11) = thvcb(2:i1,2:j1)
-      vars(:,:,12) = qlcb(2:i1,2:j1)
-      vars(:,:,13) = lwp(2:i1,2:j1)
-      vars(:,:,14) = rwp(2:i1,2:j1)
-      vars(:,:,15) = cldtop(2:i1,2:j1)
-      call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid,15,ncname(1:15,:),vars,nrec,imax,jmax)
+      vars(:,:,11) = buoycb(2:i1,2:j1)
+      vars(:,:,12) = buoymax(2:i1,2:j1)
+      vars(:,:,13) = qlcb(2:i1,2:j1)
+      vars(:,:,14) = lwp(2:i1,2:j1)
+      vars(:,:,15) = rwp(2:i1,2:j1)
+      vars(:,:,16) = cldtop(2:i1,2:j1)
+      call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
+      call writestat_nc(ncid4,16,ncname(1:16,:),vars,nrec,imax,jmax)
       deallocate(vars)
     end if
 
@@ -430,7 +432,7 @@ contains
     implicit none
 
     if(lcape .and. lnetcdf) then
-    call exitstat_nc(ncid)
+    call exitstat_nc(ncid4)
     end if
 
   end subroutine exitcape
