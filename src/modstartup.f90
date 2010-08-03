@@ -588,6 +588,7 @@ contains
       call baseprofs !call baseprofs
       call boundary
       call thermodynamics
+
     end if
 
 !-----------------------------------------------------------------
