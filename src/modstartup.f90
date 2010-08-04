@@ -586,7 +586,8 @@ contains
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
       call baseprofs !call baseprofs
-
+      call boundary
+      call thermodynamics
     end if
 
 !-----------------------------------------------------------------
