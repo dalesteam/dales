@@ -96,6 +96,7 @@ program DALES      !Version 4.0.0alpha
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
 !----------------------------------------------------------------
+  use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
   use modtimestat,     only : inittimestat, timestat
@@ -158,9 +159,12 @@ program DALES      !Version 4.0.0alpha
   call initsimpleicestat
   call initbudget
   !call initstressbudget
-  call initchem
+  !call initchem
   call initheterostats
 
+  !call initchem
+  !call initheterostats
+  call initcape
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
@@ -229,7 +233,7 @@ program DALES      !Version 4.0.0alpha
 !-----------------------------------------------------
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
-    call twostep
+    !call twostep
 
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
@@ -239,6 +243,8 @@ program DALES      !Version 4.0.0alpha
     call sampling
     call crosssection
     call lsmcrosssection
+    call docape
+    !call projection
     call cloudfield
     call fielddump
     !call particles
@@ -273,6 +279,7 @@ program DALES      !Version 4.0.0alpha
   !call exitstressbudget
   call exitcrosssection
   call exitlsmcrosssection
+  call exitcape
   call exitfielddump
   call exitheterostats
   call exitmodules
