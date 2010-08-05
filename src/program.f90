@@ -205,7 +205,7 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
-    call nudge
+    !call nudge
     !call tiltedgravity
     call stattend(tend_addon)
 
@@ -264,7 +264,7 @@ program DALES      !Version 4.0.0alpha
   call exitradstat
   call exitlsmstat
   !call exitparticles
-  call exitnudge
+  !call exitnudge
   call exitsampling
   call exitstattend
   call exitbulkmicrostat
