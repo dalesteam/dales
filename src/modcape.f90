@@ -114,14 +114,14 @@ contains
 !>Run crosssection.
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn
-    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf
+    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
     use modmicrodata, only : iqr
     implicit none
 
-    real, allocatable :: capereal(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),thvcb(:,:),qlcb(:,:),lwp(:,:),rwp(:,:),cldtop(:,:)
+    real, allocatable :: capereal(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),rwp(:,:),cldtop(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -143,7 +143,7 @@ contains
     allocate(capereal(2:i1,2:j1),cinlower(2:i1,2:j1),cinupper(2:i1,2:j1))
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
     allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
-    allocate(thvcb(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1))
+    allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1))
 
     ! DETERMINE CLOUD BASE, UNFORTUNATELY HAVE TO USE STATS HERE: END UP JUST BELOW
@@ -171,6 +171,7 @@ contains
     rwp=0.
     cldtop=0.
     hw2max=0.
+    buoymax=0.
     do k=1,k1
     do j=2,j1
     do i=2,i1
@@ -179,12 +180,15 @@ contains
       thvma(i,j,k)=0.
       thvfull(i,j,k)=(thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                       *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
-      lwp(i,j)=lwp(i,j)+ql0(i,j,k)*dzf(k)
+      lwp(i,j)=lwp(i,j)+rhobf(k)*ql0(i,j,k)*dzf(k)
       if (ql0(i,j,k) > eps1) then
         cldtop(i,j)=zf(k)
       endif
       if (w0(i,j,k)**2 > hw2max(i,j)) then
         hw2max(i,j)=0.5*w0(i,j,k)*abs(w0(i,j,k))
+      endif
+      if ((thvfull(i,j,k)-thvf(k))>buoymax(i,j)) then
+        buoymax(i,j)=thvfull(i,j,k)-thvf(k)
       endif
     enddo
     enddo
@@ -194,7 +198,7 @@ contains
       do k=1,k1
       do j=2,j1
       do i=2,i1
-      rwp(i,j)=rwp(i,j)+sv0(i,j,k,iqr)*dzf(k)
+      rwp(i,j)=rwp(i,j)+rhobf(k)*sv0(i,j,k,iqr)*dzf(k)
       enddo
       enddo
       enddo
@@ -204,7 +208,7 @@ contains
     do  j=2,j1
     do  i=2,i1
     thlcb(i,j)=thl0(i,j,kcb)
-    thvcb(i,j)=thvfull(i,j,kcb)
+    buoycb(i,j)=thvfull(i,j,kcb)-thvf(kcb)
     wcb(i,j)=(w0(i,j,kcb)+w0(i,j,kcb+1))/2.
     hw2cb(i,j)=0.5*wcb(i,j)*abs(wcb(i,j))
     qtcb(i,j)=qt0(i,j,kcb)
@@ -214,6 +218,7 @@ contains
     enddo
     enddo
     !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
+
     k=1
     do j=2,j1
     do i=2,i1
@@ -231,7 +236,7 @@ contains
             esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qtcb(i,j)-qsatur,0.)
+            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
     
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
@@ -242,9 +247,9 @@ contains
             esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
             esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qtcb(i,j)-qsatur,0.)
+            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
     
-            Tnr = Tnr - (thlguess-thlcb(i,j))/((thlguess-thlguessmin)*500.)
+            Tnr = Tnr - (thlguess-thl0(i,j,1))/((thlguess-thlguessmin)*500.)
           enddo
         nitert =max(nitert,niter)
         niter = 0
@@ -343,7 +348,7 @@ contains
     enddo
     enddo
 
-    do k=kcb,k1
+    do k=1,k1
     do j=2,j1
     do i=2,i1
       if(k<capetop(i,j)) then
@@ -421,7 +426,7 @@ contains
       deallocate(vars)
     end if
 
-    deallocate(capereal,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,thvcb,qlcb,lwp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop)
+    deallocate(capereal,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop)
 
   end subroutine docape
 
