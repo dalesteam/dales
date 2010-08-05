@@ -154,16 +154,16 @@ contains
           if(ql0(i,j,1)>0) then
             temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
             qs   = qt0(i,j,1) - ql0(i,j,1)
-            c1   = (1.-qt0(i,j,1)+rv/rd*qs*(1.+rlv/(rv*temp))) &
+            a_surf   = (1.-qt0(i,j,1)+rv/rd*qs*(1.+rlv/(rv*temp))) &
                       /(1.+rlv**2*qs/(cp*rv*temp**2))
-            c2   = c1*rlv/(temp*cp)-1.
+            b_surf   = a_surf*rlv/(temp*cp)-1.
 
           else
-            c1 = 1.+(rv/rd-1)*qt0(i,j,1)
-            c2 = rv/rd-1
+            a_surf = 1.+(rv/rd-1)*qt0(i,j,1)
+            b_surf = rv/rd-1
 
           end if
-          dthvdz(i,j,1) = c1*dthldz(i,j) + c2*thl0(i,j,1)*dqtdz(i,j)
+          dthvdz(i,j,1) = a_surf*dthldz(i,j) + b_surf*thl0(i,j,1)*dqtdz(i,j)
         end do
       end do
 
