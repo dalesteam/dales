@@ -181,7 +181,6 @@ module modsimpleice
       call evapdep       
       call simpleicetend
       call precipitate
-      call simpleicetend
     endif
 
     do k=1,k1
@@ -200,6 +199,9 @@ module modsimpleice
     enddo
     enddo
 
+    if (l_rain) then
+      call simpleicetend !after corrections
+    endif
   end subroutine simpleice
 
   subroutine autoconvert
