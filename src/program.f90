@@ -165,6 +165,7 @@ program DALES      !Version 4.0.0alpha
 
   !call initchem
   !call initheterostats
+  call initspectra2
   call initcape
 
 
