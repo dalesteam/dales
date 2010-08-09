@@ -91,7 +91,7 @@ program DALES      !Version 4.0.0alpha
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
-  use modedgedeep,       only : cloudedge
+  use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
@@ -213,7 +213,7 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
-    call cloudedge
+    call coldedge
     call nudge
     call dospecs
 !    call tiltedgravity
