@@ -159,7 +159,6 @@ save
  real, allocatable :: cszmn(:)    ! Smagorinsky constant
  real, allocatable :: cszav(:)    ! Smagorinsky constant
 
-
 !And now for patches
 !     ----  total fields  ---
 
@@ -235,6 +234,10 @@ save
 
  real, allocatable :: cszmn_patch(:,:,:)     ! Smagorinsky constant
  real, allocatable :: cszav_patch(:,:,:)     ! Smagorinsky constant
+ real, allocatable :: qlmnlast(:)
+ real, allocatable :: wtvtmnlast(:)
+
+
 contains
 
   subroutine initgenstat
@@ -339,6 +342,9 @@ contains
     allocate(svpav(k1,nsv))
 
     allocate(cszmn(k1), cszav(k1))
+
+    allocate(qlmnlast(k1))
+    allocate(wtvtmnlast(k1))
 
       umn      = 0.
       vmn      = 0.
@@ -527,6 +533,9 @@ contains
         cszav_patch  = 0.
         cszmn_patch  = 0.
       endif
+      qlmnlast = 0.
+      wtvtmnlast = 0.
+
 
       if(myid==0)then
         open (ifoutput,file='field.'//cexpnr,status='replace')
@@ -1949,10 +1958,11 @@ contains
 
 
       real,dimension(k1,nvar) :: vars
-
       real,allocatable, dimension(:)     :: tmn, thmn
       real,allocatable, dimension(:,:,:) :: tmn_patch, thmn_patch
       integer nsecs, nhrs, nminut,i,j,k,n
+      real,allocatable, dimension(:) :: tmn, thmn
+      integer nsecs, nhrs, nminut,k,n
       real convt, convq
       character(40) :: name
       nsecs   = nint(rtimee)
@@ -2654,8 +2664,11 @@ contains
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
       end if
 
-
     end if ! end if(myid==0)
+
+      qlmnlast=qlmn
+      wtvtmnlast=wtvtmn
+
       umn      = 0.
       vmn      = 0.
       thlmn    = 0.
@@ -2854,6 +2867,7 @@ contains
     deallocate(cszmn)
     deallocate(cszav)
 
+<<<<<<< HEAD:src/modgenstat.f90
     if(lhetero) then
       deallocate (umn_patch,vmn_patch,wmn_patch)
       deallocate (thlmn_patch,thvmn_patch)
@@ -2916,6 +2930,9 @@ contains
 
       deallocate (cszmn_patch, cszav_patch)
     endif
+    deallocate(qlmnlast)
+    deallocate(wtvtmnlast)
+
   end subroutine exitgenstat
 
   function patchsum(x)
