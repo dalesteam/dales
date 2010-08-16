@@ -31,6 +31,7 @@ subroutine advection
                          iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw
   use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid, only : lsmagorinsky
+  use modmicro,   only : imicro,imicro_sice,iqr
   implicit none
   integer :: n
 
@@ -116,6 +117,27 @@ subroutine advection
         stop "Unknown advection scheme "
     end select
   end if
+  if(imicro==imicro_sice) then
+  n=iqr
+  select case(iadv_sv(n))
+  case(iadv_cd2)
+    call advecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
+  case(iadv_5th)
+    call advecc_5th(sv0(:,:,:,n),svp(:,:,:,n))
+  case(iadv_52)
+    call advecc_52(sv0(:,:,:,n),svp(:,:,:,n))
+  case(iadv_cd6)
+    call advecc_6th(sv0(:,:,:,n),svp(:,:,:,n))
+  case(iadv_62)
+    call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
+  case(iadv_kappa)
+    call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
+  case(iadv_upw)
+    call advecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
+  case default
+    stop "Unknown advection scheme "
+  end select
+  else
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)
@@ -136,5 +158,6 @@ subroutine advection
       stop "Unknown advection scheme "
     end select
   end do
+  endif
 
 end subroutine advection
