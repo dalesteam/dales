@@ -31,7 +31,7 @@ subroutine advection
                          iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw
   use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid, only : lsmagorinsky
-  use modmicro,   only : imicro,imicro_sice,iqr
+  use modmicrodata,   only : imicro,imicro_sice,iqr
   implicit none
   integer :: n
 
