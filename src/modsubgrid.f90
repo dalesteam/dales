@@ -138,6 +138,7 @@ contains
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,nsv, lmoist
     use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
     use modsurfdata,only : ustar,thlflux,qtflux,svflux
+    use modmicrodata, only : imicro, imicro_sice, iqr
     implicit none
     integer n
 
@@ -148,9 +149,14 @@ contains
     if (.not. lsmagorinsky) call diffe(e12p)
     call diffc(thl0,thlp,thlflux)
     if (lmoist) call diffc( qt0, qtp, qtflux)
+    if(imicro==imicro_sice) then
+    n=iqr
+    call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
+    else
     do n=1,nsv
       call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
     end do
+    endif
     if (.not. lsmagorinsky) call sources
   end subroutine
 
