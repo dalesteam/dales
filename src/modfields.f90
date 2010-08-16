@@ -131,6 +131,16 @@ save
   real, allocatable :: qvsl(:,:,:)
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
+
+  real, allocatable :: dummy1(:,:,:)
+  real, allocatable :: dummy2(:,:,:)
+  real, allocatable :: dummy3(:,:,:)
+  real, allocatable :: dummy4(:,:,:)
+  real, allocatable :: dummy5(:,:,:)
+  real, allocatable :: dummy6(:,:,:)
+  real, allocatable :: dummy7(:,:,:)
+  real, allocatable :: dummy8(:,:,:)
+
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -163,6 +173,14 @@ subroutine initfields
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(dummy1(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy2(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy3(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy4(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy5(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy6(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy7(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dummy8(2-ih:i1+ih,2-jh:j1+jh,k1))
 
     ! Allocation of base state variables
     allocate(rhobf(k1))
@@ -252,6 +270,7 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
+    dummy1=0.;dummy2=0.;dummy3=0.;dummy4=0.;dummy5=0.;dummy6=0.;dummy7=0.;dummy8=0.;
 
   end subroutine initfields
 
@@ -270,6 +289,7 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
+    deallocate(dummy1,dummy2,dummy3,dummy4,dummy5,dummy6,dummy7,dummy8)
 
    end subroutine exitfields
 

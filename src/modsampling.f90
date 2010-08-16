@@ -565,6 +565,16 @@ contains
       pfavl   (k,isamp) = pfavl   (k,isamp)+sum  (p    (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
     end do
 
+    do k=1,kmax
+    do j=2,j1
+    do i=2,i1
+      if(mask(i,j,k).eqv..true.) then
+        teavl(k,isamp) = teavl(k,isamp)+thl0(i,j,k)+(rlv/cp)*qt0(i,j,k)
+      endif
+    end do
+    end do
+    end do
+
 !     2)       fluxes on half levels
 
     do k=2,kmax

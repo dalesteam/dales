@@ -37,6 +37,7 @@ PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
   integer,parameter :: nvar = 9
+  integer,parameter :: nvarxy = 17
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -53,7 +54,7 @@ save
   character(80) :: fname3 = 'crossyz.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname1
   character(80),dimension(1,4) :: tncname1
-  character(80),dimension(nvar,4) :: ncname2
+  character(80),dimension(nvarxy,4) :: ncname2
   character(80),dimension(1,4) :: tncname2
   character(80),dimension(nvar,4) :: ncname3
   character(80),dimension(1,4) :: tncname3
@@ -159,6 +160,14 @@ contains
       call ncinfo(ncname2( 7,:),'qlxy','xy crosssections of the Liquid water mixing ratio','kg/kg','tt0t')
       call ncinfo(ncname2( 8,:),'buoyxy','xy crosssection of the Buoyancy','K','tt0t')
       call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water mixing ratio','kg/kg','tt0t')
+      call ncinfo(ncname2(10,:),'dummy1','dummy1','-','tt0t')
+      call ncinfo(ncname2(11,:),'dummy2','dummy2','-','tt0t')
+      call ncinfo(ncname2(12,:),'dummy3','dummy3','-','tt0t')
+      call ncinfo(ncname2(13,:),'dummy4','dummy4','-','tt0t')
+      call ncinfo(ncname2(14,:),'dummy5','dummy5','-','tt0t')
+      call ncinfo(ncname2(15,:),'dummy6','dummy6','-','tt0t')
+      call ncinfo(ncname2(16,:),'dummy7','dummy7','-','tt0t')
+      call ncinfo(ncname2(17,:),'dummy8','dummy8','-','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
@@ -307,7 +316,7 @@ contains
 !> Do the xy crosssections and dump them to file
   subroutine wrthorz
     use modglobal, only : imax,jmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,dummy1,dummy2,dummy3,dummy4,dummy5,dummy6,dummy7,dummy8
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
@@ -379,7 +388,7 @@ contains
 
     if (lnetcdf) then
       do cross=1,nxy
-      allocate(vars(1:imax,1:jmax,9))
+      allocate(vars(1:imax,1:jmax,17))
       vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
       vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
       vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
@@ -393,8 +402,16 @@ contains
       else 
       vars(:,:,9) = 0.
       end if
+      vars(:,:,10)=dummy1(2:i1,2:j1,crossheight(cross))
+      vars(:,:,11)=dummy2(2:i1,2:j1,crossheight(cross))
+      vars(:,:,12)=dummy3(2:i1,2:j1,crossheight(cross))
+      vars(:,:,13)=dummy4(2:i1,2:j1,crossheight(cross))
+      vars(:,:,14)=dummy5(2:i1,2:j1,crossheight(cross))
+      vars(:,:,15)=dummy6(2:i1,2:j1,crossheight(cross))
+      vars(:,:,16)=dummy7(2:i1,2:j1,crossheight(cross))
+      vars(:,:,17)=dummy8(2:i1,2:j1,crossheight(cross))
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-      call writestat_nc(ncid2(cross),9,ncname2(1:9,:),vars,nrec2(cross),imax,jmax)
+      call writestat_nc(ncid2(cross),17,ncname2(1:17,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
       end do
     end if

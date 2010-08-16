@@ -358,7 +358,6 @@ contains
 
     if (.not. lwarmstart) then
 
-
     !********************************************************************
 
     !    1.0 prepare initial fields from files 'prog.inp' and 'scalar.inp'
@@ -516,9 +515,7 @@ contains
       thl0av(1) = thlprof(1)
       svs = svprof(1,:)
      
-      call boundary
-      call thermodynamics
-
+      call baseprofs ! call baseprofs before thermodynamics
       call surface
 
       dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
@@ -527,7 +524,6 @@ contains
         dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
       end do
 
-      call baseprofs ! call baseprofs before thermodynamics
       call boundary
       call thermodynamics
 
