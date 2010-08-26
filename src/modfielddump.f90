@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 6
+  integer,parameter :: nvar = 7
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -94,9 +94,10 @@ contains
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
       call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
+      call ncinfo(ncname( 4,:),'thl','Liquid water potential temperature','K','tttt')
+      call ncinfo(ncname( 5,:),'qt','Total water mixing ratio','kg/kg','tttt')
+      call ncinfo(ncname( 6,:),'ekm','Diffusivity for momentum','kg/kg','tttt')
+      call ncinfo(ncname( 7,:),'ekh','Diffusivity for heat','kg/kg','tttt')
 
       call open_nc(fname,  ncid,n1=imax,n2=jmax,n3=khigh-klow+1)
       call define_nc( ncid, 1, tncname)
@@ -109,7 +110,8 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : um,vm,wm,thlm,qtm,ql0
+    use modfields, only : um,vm,wm,thlm,qtm
+    use modsubgrid, only : ekm, ekh
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
@@ -117,7 +119,7 @@ contains
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
-    integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:),vars(:,:,:,:)
+    real, allocatable :: field(:,:,:),vars(:,:,:,:)
     integer i,j,k
     integer :: writecounter = 1
     integer :: reclength
@@ -137,71 +139,79 @@ contains
 
     reclength = imax*jmax*(khigh-klow+1)*2
 
-    field = NINT(1.0E3*um,2)
+    field = um !NINT(1.0E3*um,2)
     if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+    !if (ldiracc) then
+    !  open (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !  write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !else
+    !  open  (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+    !  write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !end if
+    !close (ifoutput)
 
-    field = NINT(1.0E3*vm,2)
+    field = vm !NINT(1.0E3*vm,2)
     if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+    !if (ldiracc) then
+    !  open (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !  write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !else
+    !  open  (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+    !  write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !end if
+    !close (ifoutput)
 
-    field = NINT(1.0E3*wm,2)
+    field = wm !NINT(1.0E3*wm,2)
     if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+    !if (ldiracc) then
+    !  open (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !  write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !else
+    !  open  (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+    !  write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !end if
+    !close (ifoutput)
 
-    field = NINT(1.0E5*qtm,2)
+    !field = qtm !NINT(1.0E5*qtm,2)
+    !if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
+    !if (ldiracc) then
+    !  open (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !  write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !else
+    !  open  (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+    !  write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !end if
+    !close (ifoutput)
+
+    !field = !NINT(1.0E5*ql0,2)
+    !if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
+    !if (ldiracc) then
+    !  open (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !  write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !else
+    !  open  (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+    !  write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !end if
+    !close (ifoutput)
+
+    field = thlm !NINT(1.0E3*(thlm-300),2)
     if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E5*ql0,2)
+    !if (ldiracc) then
+    !  open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !  write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !else
+    !  open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+    !  write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !end if
+    !close (ifoutput)
+    
+    field = qtm
     if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E3*(thlm-300),2)
+    field = ekm
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+    field = ekh
+    if (lnetcdf) vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
+
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid,nvar,ncname,vars,nrec,imax,jmax,khigh-klow+1)
