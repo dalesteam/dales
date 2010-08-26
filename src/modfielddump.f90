@@ -205,13 +205,15 @@ contains
       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
     end if
     close (ifoutput)
-    if(lnetcdf) then
-      call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid,nvar,ncname,vars,nrec,imax,jmax,khigh-klow+1)
-    end if
 
     if(imicro/=imicro_none) then
-    field = NINT(1.0E2*(1.0E5*svm(:,:,:,iqr)),2)
+    do i=2-ih,i1+ih
+    do j=2-jh,j1+jh
+    do k=1,k1
+    field = NINT(1.0E5*svm(i,j,k,iqr),2)
+    enddo
+    enddo
+    enddo
     else
     field = 0.
     endif
@@ -224,14 +226,9 @@ contains
       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
     end if
     close (ifoutput)
-    if(lnetcdf) then
-      call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid,nvar,ncname,vars,nrec,imax,jmax,khigh-klow+1)
-    end if
-
     
-    do i=2,i1
-    do j=2,j1
+    do i=2-ih,i1+ih
+    do j=2-jh,j1+jh
     do k=1,k1
     field = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
     enddo
@@ -239,10 +236,10 @@ contains
     enddo
     if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
     if (ldiracc) then
-      open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+      open (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
     else
-      open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+      open  (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
     end if
     close (ifoutput)
