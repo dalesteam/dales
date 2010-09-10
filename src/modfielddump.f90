@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 7
+  integer,parameter :: nvar = 8
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -98,6 +98,7 @@ contains
       call ncinfo(ncname( 5,:),'qt','Total water mixing ratio','kg/kg','tttt')
       call ncinfo(ncname( 6,:),'ekm','Diffusivity for momentum','kg/kg','tttt')
       call ncinfo(ncname( 7,:),'ekh','Diffusivity for heat','kg/kg','tttt')
+      call ncinfo(ncname( 8,:),'e12','Subgrid TKE^1/2','m/s','tttt')
 
       call open_nc(fname,  ncid,n1=imax,n2=jmax,n3=khigh-klow+1)
       call define_nc( ncid, 1, tncname)
@@ -110,7 +111,7 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : um,vm,wm,thlm,qtm
+    use modfields, only : um,vm,wm,thlm,qtm,e12m
     use modsubgrid, only : ekm, ekh
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
@@ -211,6 +212,8 @@ contains
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
     field = ekh
     if (lnetcdf) vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
+    field = e12m
+    if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
