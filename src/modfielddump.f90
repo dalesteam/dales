@@ -210,7 +210,7 @@ contains
     do i=2-ih,i1+ih
     do j=2-jh,j1+jh
     do k=1,k1
-    field = NINT(1.0E5*svm(i,j,k,iqr),2)
+    field(i,j,k) = NINT(1.0E5*svm(i,j,k,iqr),2)
     enddo
     enddo
     enddo
@@ -227,10 +227,11 @@ contains
     end if
     close (ifoutput)
     
+    field=0.
     do i=2-ih,i1+ih
     do j=2-jh,j1+jh
-    do k=1,k1
-    field = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
+    do k=2,k1
+    field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
     enddo
     enddo
     enddo
