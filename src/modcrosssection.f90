@@ -37,7 +37,7 @@ PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
   integer,parameter :: nvar = 9
-  integer,parameter :: nvarxy = 14
+  integer,parameter :: nvarxy = 15
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -165,12 +165,13 @@ contains
       call ncinfo(ncname2(12,:),'dummy3','dummy3','-','tt0t')
       call ncinfo(ncname2(13,:),'dummy4','dummy4','-','tt0t')
       call ncinfo(ncname2(14,:),'dummy5','dummy5','-','tt0t')
+      call ncinfo(ncname2(15,:),'dummy6','dummy6','-','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
         call writestat_dims_nc(ncid2(cross))
       end if
-      call define_nc( ncid2(cross), NVar, ncname2)
+      call define_nc( ncid2(cross), NVarxy, ncname2)
     end do
     fname3(9:11) = cmyid
     fname3(13:15) = cexpnr
@@ -313,7 +314,7 @@ contains
 !> Do the xy crosssections and dump them to file
   subroutine wrthorz
     use modglobal, only : imax,jmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,dummy1,dummy2,dummy3,dummy4,dummy5
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,dummy1,dummy2,dummy3,dummy4,dummy5,dummy6
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
@@ -385,7 +386,7 @@ contains
 
     if (lnetcdf) then
       do cross=1,nxy
-      allocate(vars(1:imax,1:jmax,14))
+      allocate(vars(1:imax,1:jmax,15))
       vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
       vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
       vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
@@ -404,8 +405,9 @@ contains
       vars(:,:,12)=dummy3(2:i1,2:j1,crossheight(cross))
       vars(:,:,13)=dummy4(2:i1,2:j1,crossheight(cross))
       vars(:,:,14)=dummy5(2:i1,2:j1,crossheight(cross))
+      vars(:,:,15)=dummy6(2:i1,2:j1,crossheight(cross))
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-      call writestat_nc(ncid2(cross),14,ncname2(1:14,:),vars,nrec2(cross),imax,jmax)
+      call writestat_nc(ncid2(cross),15,ncname2(1:15,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
       end do
     end if
