@@ -146,6 +146,7 @@ contains
       call define_nc( ncid1, NVar, ncname1)
     end if
     do cross=1,nxy
+<<<<<<< HEAD:src/modcrosssection.f90
       write(cheight,'(i4.4)') crossheight(cross)
       fname2(9:12) = cheight
       fname2(14:16) = cmyid
@@ -160,12 +161,12 @@ contains
       call ncinfo(ncname2( 7,:),'qlxy','xy crosssections of the Liquid water mixing ratio','kg/kg','tt0t')
       call ncinfo(ncname2( 8,:),'buoyxy','xy crosssection of the Buoyancy','K','tt0t')
       call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water mixing ratio','kg/kg','tt0t')
-      call ncinfo(ncname2(10,:),'dummy1','dummy1','-','tt0t')
-      call ncinfo(ncname2(11,:),'dummy2','dummy2','-','tt0t')
-      call ncinfo(ncname2(12,:),'dummy3','dummy3','-','tt0t')
-      call ncinfo(ncname2(13,:),'dummy4','dummy4','-','tt0t')
-      call ncinfo(ncname2(14,:),'dummy5','dummy5','-','tt0t')
-      call ncinfo(ncname2(15,:),'dummy6','dummy6','-','tt0t')
+      call ncinfo(ncname2(10,:),'cpcloud','liquid water sampling distance','-','tt0t')
+      call ncinfo(ncname2(11,:),'cpcore','core sampling distance','-','tt0t')
+      call ncinfo(ncname2(12,:),'cpw','cold pool w sampling distance','-','tt0t')
+      call ncinfo(ncname2(13,:),'cpbuoy','cold pool negative buoyancy distance','-','tt0t')
+      call ncinfo(ncname2(14,:),'cpqr','cold pool qr distance','-','tt0t')
+      call ncinfo(ncname2(15,:),'cpdiv','cold pool divergence distance','-','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
