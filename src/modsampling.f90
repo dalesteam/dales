@@ -292,12 +292,14 @@ contains
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,rslabs, &
                           grav,om22,cu,timee
-    use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh, &
-                          wp_store
-    use modsubgrid,only : ekh,ekm
+
+    use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
+                          wp,sv0,wp_store
+    use modsubgriddata,only : ekh,ekm
     use modmpi    ,only : slabsum
     use modpois,   only : p
     use modsurfdata,only: thvs
+    use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
     implicit none
 
     logical, allocatable, dimension(:,:,:) :: maskf
@@ -335,8 +337,6 @@ contains
              wwsf  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvhav(k1))
     
-    beta = grav/thvs
-
     do k=1,k1
       thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
                         *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
@@ -593,28 +593,48 @@ contains
       wh_el      (k,isamp) =                        sum(w0 (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       sigh_el    (k,isamp) =                        count(maskh(2:i1,2:j1,k))
 
-      do j=2,j1
-      do i=2,i1
-       if (maskh(i,j,k)) then
-         thvhavl   (k,isamp) = thvhavl   (k,isamp) + thv0h(i,j,k) - thvhav(k)
-         dpdzhavl  (k,isamp) = dpdzhavl  (k,isamp) - (p(i,j,k)-p(i,j,k-1))/dzh(k) &
-                                                   + beta * thvhav(k)
-         dwwdzhavl (k,isamp) = dwwdzhavl (k,isamp) - (w0f(i,j,k)**2- w0f(i,j,k-1)**2)/dzh(k)
-         duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwrh(i+1,j,k) - uwrh (i,j,k))/dx - &
-                                                     (vwrh(i,j+1,k) - vwrh (i,j,k))/dy
-         dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uwsh(i+1,j,k) - uwsh (i,j,k))/dx - &
-                                                     (vwsh(i,j+1,k) - vwsh (i,j,k))/dy   
-         dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (wwsf(i,j,k)   - wwsf(i,j,k-1))/dzh(k)
-         fcorhavl  (k,isamp) = fcorhavl(k,isamp) + om22 * cu  &
-                                    +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
-                                    +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
-                                    * om22*0.25
-       endif
-      end do
-      end do
+      if((imicro==imicro_sice).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+        do j=2,j1
+        do i=2,i1
+         if (maskh(i,j,k)) then
+           thvhavl   (k,isamp) = thvhavl   (k,isamp) + grav*(thv0h(i,j,k) - thvh(k))/thvh(k) - grav*sv0(i,j,k,iqr)
+           dpdzhavl  (k,isamp) = dpdzhavl  (k,isamp) - (p(i,j,k)-p(i,j,k-1))/dzh(k) &
+                                                     + beta * thvhav(k)
+           dwwdzhavl (k,isamp) = dwwdzhavl (k,isamp) - (1./rhobh(k))*(rhobf(k)*w0f(i,j,k)**2-rhobf(k-1)*w0f(i,j,k-1)**2)/dzh(k)
+           duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwrh(i+1,j,k) - uwrh (i,j,k))/dx - &
+                                                       (vwrh(i,j+1,k) - vwrh (i,j,k))/dy
+           dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uwsh(i+1,j,k) - uwsh (i,j,k))/dx - &
+                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy   
+           dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (wwsf(i,j,k)   - wwsf(i,j,k-1))/dzh(k)
+           fcorhavl  (k,isamp) = fcorhavl(k,isamp) + om22 * cu  &
+                                      +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
+                                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                                      * om22*0.25
+          endif
+        end do
+        end do
+      else
+        do j=2,j1
+        do i=2,i1
+         if (maskh(i,j,k)) then
+           thvhavl   (k,isamp) = thvhavl   (k,isamp) + grav*(thv0h(i,j,k) - thvh(k))/thvh(k) - grav*sv0(i,j,k,iqr)
+           dpdzhavl  (k,isamp) = dpdzhavl  (k,isamp) - (p(i,j,k)-p(i,j,k-1))/dzh(k) &
+                                                     + beta * thvhav(k)
+           dwwdzhavl (k,isamp) = dwwdzhavl (k,isamp) - (1./rhobh(k))*(rhobf(k)*w0f(i,j,k)**2-rhobf(k-1)*w0f(i,j,k-1)**2)/dzh(k)
+           duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwrh(i+1,j,k) - uwrh (i,j,k))/dx - &
+                                                       (vwrh(i,j+1,k) - vwrh (i,j,k))/dy
+           dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uwsh(i+1,j,k) - uwsh (i,j,k))/dx - &
+                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy   
+           dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (wwsf(i,j,k)   - wwsf(i,j,k-1))/dzh(k)
+           fcorhavl  (k,isamp) = fcorhavl(k,isamp) + om22 * cu  &
+                                      +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
+                                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                                      * om22*0.25
+          endif
+        end do
+        end do
+      end if
     enddo
-
-
 
     deallocate(maskf,wtlth,wqtth,wqlth,wtvth,uwth,vwth,thvav,w0f,thv0)
     deallocate(maskh,uwsh,vwsh,uwrh,vwrh)
@@ -870,17 +890,17 @@ contains
         do k=1,kmax
           write(ifoutput,'(i5,F8.0,F7.1,F9.4,11F13.7)') &
               k, &
-              zh        (k), &
-              presh     (k)/100., &
-              nrsamphmn (k),&
-              dwdthmn   (k),&
+              zh      (k), &
+              presh   (k)/100., &
+              nrsamphmn(k),&
+              dwdthmn  (k),&
               grav/thvs*thvhmn(k),&
-              dpdzhmn   (k),&
-              dwwdzhmn  (k),&
-              duwdxhmn  (k),&
-              dtaudzhmn (k),&
-              dtaudxhmn (k),&
-              fcorhmn   (k),&
+              dpdzhmn  (k),&
+              dwwdzhmn (k),&
+              duwdxhmn (k),&
+              dtaudzhmn(k),&
+              dtaudxhmn(k),&
+              fcormn   (k),&
               dwwdzhmn(k) +  grav/thvs*thvhmn(k) + dpdzhmn  (k) +  duwdxhmn(k) + dtaudxhmn(k) + dtaudzhmn(k) + &
                 fcorhmn(k) -  dwdthmn  (k),&
               wh_e      (k,isamp),&
