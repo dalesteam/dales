@@ -107,7 +107,7 @@ program DALES      !Version 4.0.0alpha
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
-  use modstattend,     only : initstattend, stattend,exitstattend, tend_start,tend_adv,tend_subg,tend_force,&
+  use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
@@ -148,7 +148,7 @@ program DALES      !Version 4.0.0alpha
   !call initprojection
   call initcloudfield
   call initfielddump
-  call initstattend
+  call initsamptend
   call initradstat
   call initlsmstat
   !call initparticles
@@ -174,13 +174,13 @@ program DALES      !Version 4.0.0alpha
   do while (timeleft>0 .or. rk3step < 3)
     call tstep_update
     call timedep
-    call stattend(tend_start)
+    call samptend(tend_start,firstterm=.true.)
 
 !-----------------------------------------------------
 !   3.1   RADIATION         
 !-----------------------------------------------------
     call radiation !radiation scheme
-    call stattend(tend_rad)
+    call samptend(tend_rad)
 
 !-----------------------------------------------------
 !   3.2   THE SURFACE LAYER
@@ -191,22 +191,22 @@ program DALES      !Version 4.0.0alpha
 !   3.3   ADVECTION AND DIFFUSION
 !-----------------------------------------------------
     call advection
-    call stattend(tend_adv)
+    call samptend(tend_adv)
     call subgrid
-    call stattend(tend_subg)
+    call samptend(tend_subg)
 
 !-----------------------------------------------------
 !   3.4   REMAINING TERMS
 !-----------------------------------------------------
     call coriolis !remaining terms of ns equation
-    call stattend(tend_coriolis)
+    call samptend(tend_coriolis)
     call forces !remaining terms of ns equation
-    call stattend(tend_force)
+    call samptend(tend_force)
 
     call lstend !large scale forcings
-    call stattend(tend_ls)
+    call samptend(tend_ls)
     call microsources !Drizzle etc.
-    call stattend(tend_micro)
+    call samptend(tend_micro)
 
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
@@ -216,16 +216,16 @@ program DALES      !Version 4.0.0alpha
     call dospecs
 !    call tiltedgravity
 
-    call stattend(tend_addon)
+    call samptend(tend_addon)
 
 !-----------------------------------------------------------------------
 !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
     call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
-    call stattend(tend_topbound)
+    call samptend(tend_topbound)
     call poisson
-    call stattend(tend_pois,lastterm=.true.)
+    call samptend(tend_pois,lastterm=.true.)
 
     call tstep_integrate
     call boundary
@@ -277,7 +277,7 @@ program DALES      !Version 4.0.0alpha
   !call exitparticles
   !call exitnudge
   call exitsampling
-  call exitstattend
+  call exitsamptend
   call exitbulkmicrostat
   call exitsimpleicestat
   call exitbudget
