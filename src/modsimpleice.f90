@@ -336,16 +336,14 @@ module modsimpleice
         rer=ccrz(k)*diamr**(ddr+1.)/2.e-5  ! Reynolds number rain
         res=ccsz(k)*diams**(dds+1.)/2.e-5  ! Reynolds number snow
         reg=ccgz(k)*diamg**(ddg+1.)/2.e-5  ! Reynolds number graupel
-        ventr=amax1(1.,.78+.27*sqrt(rer))  ! ventilation factor rain
-        vents=amax1(1.,.65+.39*sqrt(res))  ! ventilation factor snow
-        ventg=amax1(1.,.78+.27*sqrt(reg))  ! ventilation factor graupel: like rain (Khairoutdinov and Randall)
-        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e-2/tmp0(i,j,k))  ! thermodynamic function
-        gevapdepr=4.*pi*diamr/betar*(ssl-1.)*ventr*thfun ! evaporation/deposition rain
-        gevapdeps=4.*pi*diams/betas*(ssi-1.)*vents*thfun ! evaporation/deposition snow
-        gevapdepg=4.*pi*diamg/betag*(ssi-1.)*ventg*thfun ! evaporation/deposition graupel
-        evapdepr=conr*gevapdepr* qrr / (qrr + 1.e-9)
-        evapdeps=cons*gevapdeps* qrs / (qrs + 1.e-9)
-        evapdepg=cong*gevapdepg* qrg / (qrg + 1.e-9)
+        !integration over ventilation factors
+        ventr=.78*n0rr/lambdar(i,j,k)**2 + gam2dr*(.27*n0rr*sqrt(ccrz(k)/2.e-5)*lambdar(i,j,k)**(-2.5-0.5*ddr))
+        vents=.78*n0rs/lambdas(i,j,k)**2 + gam2ds*(.27*n0rs*sqrt(ccsz(k)/2.e-5)*lambdar(i,j,k)**(-2.5-0.5*dds))
+        ventg=.78*n0rg/lambdag(i,j,k)**2 + gam2dg*(.27*n0rg*sqrt(ccgz(k)/2.e-5)*lambdar(i,j,k)**(-2.5-0.5*ddg))
+        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e2/tmp0(i,j,k))  ! thermodynamic function
+        evapdepr=4.*pi/(betar*rhof(k))*(ssl-1.)*ventr*thfun
+        evapdeps=4.*pi/(betas*rhof(k))*(ssi-1.)*vents*thfun
+        evapdepg=4.*pi/(betag*rhof(k))*(ssi-1.)*ventg*thfun
         ! limit with qr and ql after accretion and autoconversion
         devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! total growth by deposition and evaporation
         qrp(i,j,k) = qrp(i,j,k)+devap
@@ -403,49 +401,50 @@ module modsimpleice
     enddo
 
     ! begin time splitting loop
-    if (n_spl > 1) then
-    do jn = 2 , n_spl 
+    IF (n_spl > 1) THEN
+      DO jn = 2 , n_spl 
+    
+        ! reset fluxes at each step of loop
+        sed_qr = 0.
+    
+        do k=1,k1
+        do i=2,i1
+        do j=2,j1
+          if (qr_spl(i,j,k) > qrmin) then
+          ! re-evaluate lambda
+            lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+            lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
+            lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! lambda graupel
+            vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
+            vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
+            vtg=ccgz(k)*(gambd1g/gamb1g)/(lambdag(i,j,k)**ddg)  ! terminal velocity graupel
+            vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))*vts+(1.-rsgratio(i,j,k))*sgratio(i,j,k)*vtg  ! mass-weighted terminal velocity
+            vtf=amin1(wfallmax,vtf)
+            sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
+          else
+            sed_qr(i,j,k) = 0.
+          endif
+        enddo
+        enddo
+        enddo
 
-    ! reset fluxes at each step of loop
-    sed_qr = 0.
-
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      if (qr_spl(i,j,k) > qrmin) then
-      ! re-evaluate lambda
-        lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
-        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
-        lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr_spl(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! lambda graupel
-        vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
-        vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
-        vtg=ccgz(k)*(gambd1g/gamb1g)/(lambdag(i,j,k)**ddg)  ! terminal velocity graupel
-        vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))*vts+(1.-rsgratio(i,j,k))*sgratio(i,j,k)*vtg  ! mass-weighted terminal velocity
-        vtf=amin1(wfallmax,vtf)
-        sed_qr(i,j,k) = vtf*qr_spl(i,j,k)*rhobf(k)
-      else
-        sed_qr(i,j,k) = 0.
-      endif
-    enddo
-    enddo
-    enddo
-    do k=1,kmax
-    do i=2,i1
-    do j=2,j1
-      qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
-    enddo
-    enddo
-    enddo
-  
-    ! end time splitting loop and if n>1
-    enddo
-    endif
+        do k=1,kmax
+        do i=2,i1
+        do j=2,j1
+          qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+        enddo
+        enddo
+        enddo
+    
+      ! end time splitting loop and if n>1
+      ENDDO
+    ENDIF
 
     ! no thl and qt tendencies build in, implying no heat transfer between precipitation and air
     do k=1,kmax
     do i=2,i1
     do j=2,j1
-    qrp(i,j,k)= qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k))/delt
+      qrp(i,j,k)= qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k))/delt
     enddo
     enddo
     enddo
