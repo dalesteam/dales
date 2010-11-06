@@ -216,6 +216,9 @@
      ,gambd1s=gamma(bbs+dds+1) &
      ,gamb1g=gamma(bbg+1) &
      ,gambd1g=gamma(bbg+ddg+1) &
+     ,gam2dr=gamma(2.5+0.5*ddr) &
+     ,gam2ds=gamma(2.5+0.5*dds) &
+     ,gam2dg=gamma(2.5+0.5*ddg) &
      ! Parameters for Kessler/Lin type autoconversion
      ,timekessl=0.001 &
      ,betakessi=0.001 &
