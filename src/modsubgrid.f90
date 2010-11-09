@@ -149,14 +149,9 @@ contains
     if (.not. lsmagorinsky) call diffe(e12p)
     call diffc(thl0,thlp,thlflux)
     if (lmoist) call diffc( qt0, qtp, qtflux)
-    if(imicro==imicro_sice) then
-    n=iqr
-    call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
-    else
     do n=1,nsv
       call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
     end do
-    endif
     if (.not. lsmagorinsky) call sources
   end subroutine
 
