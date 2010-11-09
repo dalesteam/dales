@@ -117,27 +117,6 @@ subroutine advection
         stop "Unknown advection scheme "
     end select
   end if
-  if(imicro==imicro_sice) then
-  n=iqr
-  select case(iadv_sv(n))
-  case(iadv_cd2)
-    call advecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
-  case(iadv_5th)
-    call advecc_5th(sv0(:,:,:,n),svp(:,:,:,n))
-  case(iadv_52)
-    call advecc_52(sv0(:,:,:,n),svp(:,:,:,n))
-  case(iadv_cd6)
-    call advecc_6th(sv0(:,:,:,n),svp(:,:,:,n))
-  case(iadv_62)
-    call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
-  case(iadv_kappa)
-    call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
-  case(iadv_upw)
-    call advecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
-  case default
-    stop "Unknown advection scheme "
-  end select
-  else
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)
@@ -158,6 +137,5 @@ subroutine advection
       stop "Unknown advection scheme "
     end select
   end do
-  endif
 
 end subroutine advection
