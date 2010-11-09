@@ -182,8 +182,10 @@
      ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
      aar=5.2e2 &
      ,bbr=3. &
-     ,ccr=130. &
-     ,ddr=0.5 &
+!     ,ccr=130. &
+!     ,ddr=0.5 &
+     ,ccr=842. &
+     ,ddr=0.8 &
      ! For snow
      ,aas=2.5e-2 &
      ,bbs=2. &
@@ -206,9 +208,9 @@
      ,betas=3. &
      ,betag=2. &
      ! N_0 in Marshall-Palmer Distribution
-     ,n0rr=2*1.e7 &
-     ,n0rs=2*1.e7 &
-     ,n0rg=2*1.e7 &
+     ,n0rr=8.e6 &
+     ,n0rs=4.e6 &
+     ,n0rg=3.e6 &
      ! Gamma distribution parameters, calculated only once
      ,gamb1r=gamma(bbr+1) &
      ,gambd1r=gamma(bbr+ddr+1) &
