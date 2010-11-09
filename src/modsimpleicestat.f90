@@ -3,7 +3,7 @@
 
 
 !>
-!!  Calculates profiles coming from the simpleicephysics, based on bulkmicrophysics
+!!  Calculates profiles coming from the simpleicephysics
 !>
 !! Profiles coming from the simpleicephysics. Written to precep.expnr for the
 !! rain rates etc., and to qlptend.expnr, nptend.expnr and qtptend.expnr for the
@@ -12,7 +12,6 @@
 !! If netcdf is true, this module also writes in the profiles.expnr.nc output
 !!  \author Olivier Geoffroy, KNMI
 !!  \author Johan van de Dussen, TU Delft
-!!  \author Steef B"oing, TU Delft
 !  This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
@@ -257,8 +256,8 @@ subroutine initsimpleicestat
   subroutine dosimpleicestat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, rslabs
-    use modfields,    only : ql0
-    use modmicrodata,  only  : qr, precep, epscloud, epsqr, epsprec
+    use modmicrodata,  only  : qr, precep, Nr, epscloud, epsqr, epsprec
+    use modfields, only :ql0
     implicit none
 
     integer      :: k
@@ -273,12 +272,12 @@ subroutine initsimpleicestat
     Dvrav      = 0.0
 
     do k = 1,k1
-      cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)
+      cloudcountavl(k)  = count(ql0      (2:i1,2:j1,k) > epscloud)
       raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr)
       preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec)
       prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k)  , precep(2:i1,2:j1,k) > epsprec)
       Dvravl       (k)  = 0.
-      Nrrainavl    (k)  = 0.
+      Nrrainavl    (k)  = sum  (Nr  (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
       qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
     end do
@@ -309,7 +308,7 @@ subroutine initsimpleicestat
     use modmpi,    only  : slabsum
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, rslabs
     use modfields,    only  : qtp
-    use modmicrodata,  only  : qrp
+    use modmicrodata,  only  : qrp, Nrp
     implicit none
 
     real, dimension(:), allocatable  :: avfield
@@ -329,7 +328,8 @@ subroutine initsimpleicestat
     ifield    = mod(ifield, nrfields) + 1
 
     avfield    = 0.0
-    Npav(:,ifield)  = 0.0
+    call slabsum(avfield  ,1,k1,Nrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
 
     avfield    = 0.0
     call slabsum(avfield  ,1,k1,qrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
