@@ -173,7 +173,7 @@ SAVE
 
   ! Heterogeneous surfaces
   integer, parameter:: max_lands                   = 10 !<  Amount of land types that can be defined
-  integer, parameter:: mpatch                      =  4 !<  Maximum amount of patches that can be defined in each direction
+  integer, parameter:: mpatch                      = 16 !<  Maximum amount of patches that can be defined in each direction
   logical           :: lhetero                 = .false.!<  Switch to apply heterogeneous surfaces using surface.inp.xxx
   integer           :: xpatches                    =  2 !<  Amount of patches in the x-direction
   integer           :: ypatches                    =  1 !<  Amount of patches in the y-direction
