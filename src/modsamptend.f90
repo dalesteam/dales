@@ -32,7 +32,7 @@ module modsamptend
   public :: initsamptend, samptend, exitsamptend
   save
 !NetCDF variables
-  integer, parameter :: nvar = 51
+  integer, parameter :: nvar = 59
   integer, dimension(10) :: nrec5
   integer, dimension(10) :: ncid5
   character(80), dimension(10) :: fname5
@@ -51,9 +51,9 @@ module modsamptend
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampall = .false. !< switch for sampling all data (on/off)
 
-  real, allocatable :: uptm(:,:,:),vptm(:,:,:),wptm(:,:,:),thlptm(:,:,:),qtptm(:,:,:),qrptm(:,:,:)
-  real, allocatable :: upav(:,:,:),vpav(:,:,:),wpav(:,:,:),thlpav(:,:,:),qtpav(:,:,:),qrpav(:,:,:)
-  real, allocatable :: upmn(:,:,:),vpmn(:,:,:),wpmn(:,:,:),thlpmn(:,:,:),qtpmn(:,:,:),qrpmn(:,:,:)
+  real, allocatable :: uptm(:,:,:),vptm(:,:,:),wptm(:,:,:),thlptm(:,:,:),qtptm(:,:,:),qrptm(:,:,:),nrptm(:,:,:)
+  real, allocatable :: upav(:,:,:),vpav(:,:,:),wpav(:,:,:),thlpav(:,:,:),qtpav(:,:,:),qrpav(:,:,:),nrpav(:,:,:)
+  real, allocatable :: upmn(:,:,:),vpmn(:,:,:),wpmn(:,:,:),thlpmn(:,:,:),qtpmn(:,:,:),qrpmn(:,:,:),nrpmn(:,:,:)
   logical, allocatable :: tendmask(:,:,:,:)
   integer, allocatable :: nrsamptot(:,:),nrsamp(:,:)
 
@@ -135,9 +135,9 @@ subroutine initsamptend
       stop 'timeav should be a integer multiple of dtav'
     end if
 
-    allocate (uptm(k1,nrfields,isamptot),vptm(k1,nrfields,isamptot),wptm(k1,nrfields,isamptot),thlptm(k1,nrfields,isamptot),qtptm(k1,nrfields,isamptot),qrptm(k1,nrfields,isamptot))
-    allocate (upmn(k1,nrfields,isamptot),vpmn(k1,nrfields,isamptot),wpmn(k1,nrfields,isamptot),thlpmn(k1,nrfields,isamptot),qtpmn(k1,nrfields,isamptot),qrpmn(k1,nrfields,isamptot))
-    allocate (upav(k1,nrfields,isamptot),vpav(k1,nrfields,isamptot),wpav(k1,nrfields,isamptot),thlpav(k1,nrfields,isamptot),qtpav(k1,nrfields,isamptot),qrpav(k1,nrfields,isamptot))
+    allocate (uptm(k1,nrfields,isamptot),vptm(k1,nrfields,isamptot),wptm(k1,nrfields,isamptot),thlptm(k1,nrfields,isamptot),qtptm(k1,nrfields,isamptot),qrptm(k1,nrfields,isamptot),nrptm(k1,nrfields,isamptot))
+    allocate (upmn(k1,nrfields,isamptot),vpmn(k1,nrfields,isamptot),wpmn(k1,nrfields,isamptot),thlpmn(k1,nrfields,isamptot),qtpmn(k1,nrfields,isamptot),qrpmn(k1,nrfields,isamptot),nrpmn(k1,nrfields,isamptot))
+    allocate (upav(k1,nrfields,isamptot),vpav(k1,nrfields,isamptot),wpav(k1,nrfields,isamptot),thlpav(k1,nrfields,isamptot),qtpav(k1,nrfields,isamptot),qrpav(k1,nrfields,isamptot),nrpav(k1,nrfields,isamptot))
     allocate (tendmask(2-ih:i1+ih,2-jh:j1+jh,k1,isamptot))
     allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot))
 
@@ -147,18 +147,21 @@ subroutine initsamptend
     thlptm = 0.
     qtptm = 0.
     qrptm = 0.
+    nrptm = 0.
     upmn = 0.
     vpmn = 0.
     wpmn = 0.
     thlpmn = 0.
     qtpmn = 0.
     qrpmn = 0.
+    nrpmn = 0.
     upav = 0.
     vpav = 0.
     wpav = 0.
     thlpav = 0.
     qtpav = 0.
     qrpav = 0.
+    nrpav = 0.
     tendmask=.false.
     nrsamp=0
     nrsamptot=0
@@ -234,6 +237,14 @@ subroutine initsamptend
         call ncinfo(ncname5(49,:),'qrtendtop','total water content  top boundary tendency','kg/kg/s','tt')
         call ncinfo(ncname5(50,:),'qrtendaddon','total water content in addons tendency','kg/kg/s','tt')
         call ncinfo(ncname5(51,:),'qrtendtot','total water content total tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(52,:),'nrtendadv','RDNC advective tendency','/s','tt')
+        call ncinfo(ncname5(53,:),'nrtenddif','RDNC diffusive tendency','/s','tt')
+        call ncinfo(ncname5(54,:),'nrtendrad','RDNC radiative tendency','/s','tt')
+        call ncinfo(ncname5(55,:),'nrtendmicro','RDNC microphysical tendency','/s','tt')
+        call ncinfo(ncname5(56,:),'nrtendls','RDNC large scale tendency','/s','tt')
+        call ncinfo(ncname5(57,:),'nrtendtop','RDNC top boundary tendency','/s','tt')
+        call ncinfo(ncname5(58,:),'nrtendaddon','RDNC addons tendency','/s','tt')
+        call ncinfo(ncname5(59,:),'nrtendtot','RDNC total tendency','/s','tt')
         call open_nc(fname5(isamp),ncid5(isamp),n3=kmax)
         call define_nc(ncid5(isamp),1,tncname5)
         call writestat_dims_nc(ncid5(isamp))
@@ -251,7 +262,7 @@ subroutine initsamptend
                           cp,rv,rlv,rd,rslabs,&
                           grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0
-    use modmicrodata, only : iqr
+    use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
@@ -352,6 +363,7 @@ subroutine initsamptend
     thlptm = 0.
     qtptm = 0.
     qrptm = 0.
+    nrptm = 0.
 
     allocate(wpf(2-ih:i1+ih,2-jh:j1+jh,k1))  
     
@@ -367,18 +379,21 @@ subroutine initsamptend
       thlptm(k,tendterm,isamp) = sum(thlp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-thlptm (k,tend_tot,isamp)
       qtptm(k,tendterm,isamp) = sum(qtp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-qtptm (k,tend_tot,isamp)
       qrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))-qrptm (k,tend_tot,isamp)
+      nrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))-nrptm (k,tend_tot,isamp)
       uptm(k,tend_tot,isamp) = sum(up (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       vptm(k,tend_tot,isamp) = sum(vp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       wptm(k,tend_tot,isamp) = sum(wpf (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       thlptm(k,tend_tot,isamp) = sum(thlp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       qtptm(k,tend_tot,isamp) = sum(qtp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       qrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))
+      nrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))
       upav(k,tendterm,isamp) = upav(k,tendterm,isamp)+uptm(k,tendterm,isamp)
       vpav(k,tendterm,isamp) = vpav(k,tendterm,isamp)+vptm(k,tendterm,isamp)
       wpav(k,tendterm,isamp) = wpav(k,tendterm,isamp)+wptm(k,tendterm,isamp)
       thlpav(k,tendterm,isamp) = thlpav(k,tendterm,isamp)+thlptm(k,tendterm,isamp)
       qtpav(k,tendterm,isamp) = qtpav(k,tendterm,isamp)+qtptm(k,tendterm,isamp)
       qrpav(k,tendterm,isamp) = qrpav(k,tendterm,isamp)+qrptm(k,tendterm,isamp)
+      nrpav(k,tendterm,isamp) = nrpav(k,tendterm,isamp)+nrptm(k,tendterm,isamp)
     end do
     end do
 
@@ -394,6 +409,7 @@ subroutine initsamptend
         thlpav(k,tend_tot,isamp) = thlpav(k,tend_tot,isamp)+thlptm(k,tend_tot,isamp)
         qtpav(k,tend_tot,isamp) = qtpav(k,tend_tot,isamp)+qtptm(k,tend_tot,isamp)
         qrpav(k,tend_tot,isamp) = qrpav(k,tend_tot,isamp)+qrptm(k,tend_tot,isamp)
+        nrpav(k,tend_tot,isamp) = nrpav(k,tend_tot,isamp)+nrptm(k,tend_tot,isamp)
       enddo
       enddo
       tnext = tnext+idtav
@@ -407,6 +423,7 @@ subroutine initsamptend
         thlpav = 0.
         qtpav = 0.
         qrpav = 0.
+        nrpav = 0.
         nrsamp = 0
       end if
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
@@ -430,6 +447,7 @@ subroutine initsamptend
     thlpmn = 0.
     qtpmn = 0.
     qrpmn = 0.
+    nrpmn = 0.
     nrsamptot=0
 
     call MPI_ALLREDUCE(nrsamp   ,nrsamptot ,k1*isamptot,MPI_INTEGER,MPI_SUM,comm3d,mpierr)
@@ -439,6 +457,7 @@ subroutine initsamptend
     call MPI_ALLREDUCE(thlpav   ,thlpmn    ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qtpav    ,qtpmn     ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qrpav    ,qrpmn     ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(nrpav    ,nrpmn     ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
 
     do field=1,nrfields
     do isamp=1,isamptot
@@ -450,6 +469,7 @@ subroutine initsamptend
         thlpmn(k,field,isamp) = thlpmn (k,field,isamp)/nrsamptot(k,isamp)
         qtpmn (k,field,isamp) = qtpmn (k,field,isamp)/nrsamptot(k,isamp)
         qrpmn (k,field,isamp) = qrpmn (k,field,isamp)/nrsamptot(k,isamp)
+        nrpmn (k,field,isamp) = nrpmn (k,field,isamp)/nrsamptot(k,isamp)
       endif
     enddo
     enddo
@@ -510,6 +530,14 @@ subroutine initsamptend
           vars(:,49) =qrpmn(:,tend_topbound,isamp)
           vars(:,50) =qrpmn(:,tend_addon,isamp)
           vars(:,51) =qrpmn(:,tend_tot,isamp)
+          vars(:,52) =nrpmn(:,tend_adv,isamp)
+          vars(:,53) =nrpmn(:,tend_subg,isamp)
+          vars(:,54) =nrpmn(:,tend_rad,isamp)
+          vars(:,55) =nrpmn(:,tend_micro,isamp)
+          vars(:,56) =nrpmn(:,tend_ls,isamp)
+          vars(:,57) =nrpmn(:,tend_topbound,isamp)
+          vars(:,58) =nrpmn(:,tend_addon,isamp)
+          vars(:,59) =nrpmn(:,tend_tot,isamp)
           call writestat_nc(ncid5(isamp),1,tncname5,(/rtimee/),nrec5(isamp),.true.)
           call writestat_nc(ncid5(isamp),nvar,ncname5,vars(1:kmax,:),nrec5(isamp),kmax)
         enddo
@@ -526,9 +554,9 @@ subroutine initsamptend
 
     if(isamptot == 0) return
     if(.not.(lnetcdf)) return
-    deallocate (uptm,vptm,wptm,thlptm,qtptm,qrptm)
-    deallocate (upmn,vpmn,wpmn,thlpmn,qtpmn,qrpmn)
-    deallocate (upav,vpav,wpav,thlpav,qtpav,qrpav)
+    deallocate (uptm,vptm,wptm,thlptm,qtptm,qrptm,nrptm)
+    deallocate (upmn,vpmn,wpmn,thlpmn,qtpmn,qrpmn,nrpmn)
+    deallocate (upav,vpav,wpav,thlpav,qtpav,qrpav,nrpav)
     deallocate (tendmask)
     deallocate (nrsamptot,nrsamp)
 
