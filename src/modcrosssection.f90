@@ -36,8 +36,8 @@ private
 PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
-  integer,parameter :: nvar = 9
-  integer,parameter :: nvarxy = 15
+  integer,parameter :: nvar = 10
+  integer,parameter :: nvarxy = 16
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -138,6 +138,7 @@ contains
       call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water mixing ratio','kg/kg','t0tt')
       call ncinfo(ncname1( 8,:),'buoyxz','xz crosssection of the Buoyancy','K','t0tt')
       call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water mixing ratio','kg/kg','t0tt')
+      call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
       call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
       if (nrec1 == 0) then
         call define_nc( ncid1, 1, tncname1)
@@ -146,7 +147,6 @@ contains
       call define_nc( ncid1, NVar, ncname1)
     end if
     do cross=1,nxy
-<<<<<<< HEAD:src/modcrosssection.f90
       write(cheight,'(i4.4)') crossheight(cross)
       fname2(9:12) = cheight
       fname2(14:16) = cmyid
@@ -167,6 +167,7 @@ contains
       call ncinfo(ncname2(13,:),'cpbuoy','cold pool negative buoyancy distance','-','tt0t')
       call ncinfo(ncname2(14,:),'cpqr','cold pool qr distance','-','tt0t')
       call ncinfo(ncname2(15,:),'cpdiv','cold pool divergence distance','-','tt0t')
+      call ncinfo(ncname2(16,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
@@ -186,12 +187,12 @@ contains
     call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water mixing ratio','kg/kg','0ttt')
     call ncinfo(ncname3( 8,:),'buoyyz','yz crosssection of the Buoyancy','K','0ttt')
     call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water mixing ratio','kg/kg','0ttt')
+    call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
     call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
     if (nrec3==0) then
       call define_nc( ncid3, 1, tncname3)
       call writestat_dims_nc(ncid3)
     end if
-
     call define_nc( ncid3, NVar, ncname3)
     end if
 
@@ -290,7 +291,7 @@ contains
       close(ifoutput)
     end do
     if (lnetcdf) then
-      allocate(vars(1:imax,1:kmax,9))
+      allocate(vars(1:imax,1:kmax,10))
       vars(:,:,1) = um(2:i1,crossplane,1:kmax)+cu
       vars(:,:,2) = vm(2:i1,crossplane,1:kmax)+cv
       vars(:,:,3) = wm(2:i1,crossplane,1:kmax)
@@ -301,11 +302,13 @@ contains
       vars(:,:,8) = buoy(2:i1,1:kmax)
       if(nsv>1) then
       vars(:,:,9) = svm(2:i1,crossplane,1:kmax,2)
-      else 
+      vars(:,:,10) = svm(2:i1,crossplane,1:kmax,1)
+      else
       vars(:,:,9) = 0.
+      vars(:,:,10) = 0.
       end if
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
-      call writestat_nc(ncid1,9,ncname1(1:9,:),vars,nrec1,imax,kmax)
+      call writestat_nc(ncid1,10,ncname1(1:10,:),vars,nrec1,imax,kmax)
       deallocate(vars)
     end if
     deallocate(thv0,buoy)
@@ -387,7 +390,7 @@ contains
 
     if (lnetcdf) then
       do cross=1,nxy
-      allocate(vars(1:imax,1:jmax,15))
+      allocate(vars(1:imax,1:jmax,16))
       vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
       vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
       vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
@@ -398,8 +401,10 @@ contains
       vars(:,:,8) = buoy(2:i1,2:j1,cross)
       if(nsv>1) then
       vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),2)
+      vars(:,:,16) = svm(2:i1,2:j1,crossheight(cross),1)
       else 
       vars(:,:,9) = 0.
+      vars(:,:,16) = 0.
       end if
       vars(:,:,10)=dummy1(2:i1,2:j1,crossheight(cross))
       vars(:,:,11)=dummy2(2:i1,2:j1,crossheight(cross))
@@ -408,7 +413,7 @@ contains
       vars(:,:,14)=dummy5(2:i1,2:j1,crossheight(cross))
       vars(:,:,15)=dummy6(2:i1,2:j1,crossheight(cross))
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-      call writestat_nc(ncid2(cross),15,ncname2(1:15,:),vars,nrec2(cross),imax,jmax)
+      call writestat_nc(ncid2(cross),16,ncname2(1:16,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
       end do
     end if
@@ -484,7 +489,7 @@ contains
       close(ifoutput)
     end do
     if (lnetcdf) then
-      allocate(vars(1:jmax,1:kmax,9))
+      allocate(vars(1:jmax,1:kmax,10))
       vars(:,:,1) = um(crossortho,2:j1,1:kmax)+cu
       vars(:,:,2) = vm(crossortho,2:j1,1:kmax)+cv
       vars(:,:,3) = wm(crossortho,2:j1,1:kmax)
@@ -495,11 +500,13 @@ contains
       vars(:,:,8) = buoy(2:j1,1:kmax)
       if(nsv>1) then
       vars(:,:,9) = svm(crossortho,2:j1,1:kmax,2)
+      vars(:,:,10) = svm(crossortho,2:j1,1:kmax,1)
       else 
       vars(:,:,9) = 0.
+      vars(:,:,10) = 0.
       end if
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
-      call writestat_nc(ncid3,9,ncname3(1:9,:),vars,nrec3,jmax,kmax)
+      call writestat_nc(ncid3,10,ncname3(1:10,:),vars,nrec3,jmax,kmax)
       deallocate(vars)
     end if
 
