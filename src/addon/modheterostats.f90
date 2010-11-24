@@ -118,7 +118,7 @@ contains
 
     ncfile = 'heterostats123.nc'
     write(ncfile(12:14),'(i3.3)') myid
-    write(6,*) "HETEROSTATS: Creating: ", ncfile
+!    write(6,*) "HETEROSTATS: Creating: ", ncfile
 
     !create file
     status = nf90_create(ncfile, nf90_clobber, ncid)
@@ -787,7 +787,7 @@ contains
 
     if(.not.(lheterostats)) return
 
-    write(6,*) "HETEROSTATS: Closing: ", myid
+!    write(6,*) "HETEROSTATS: Closing: ", myid
 
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call nchandle_error(status)
