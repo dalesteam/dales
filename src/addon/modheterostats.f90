@@ -118,7 +118,7 @@ contains
 
     ncfile = 'heterostats123.nc'
     write(ncfile(12:14),'(i3.3)') myid
-    write(6,*) "HETEROSTATS: Creating: ", ncfile
+!    write(6,*) "HETEROSTATS: Creating: ", ncfile
 
     !create file
     status = nf90_create(ncfile, nf90_clobber, ncid)
@@ -442,7 +442,7 @@ contains
     end do
 
     do n = 1,nsv
-      do k = 2,ncklimit
+      do k = 1,ncklimit
         do j = 1,jmax
           do i = 1,imax
             !shift prognostic fields one step as 1st column
@@ -559,12 +559,23 @@ contains
       end do
     end do
 
+    do n = 1,nsv
+      do k = 1,ncklimit
+        do j = 1,jmax
+          do i = 1,imax
+            svvar(j,k,n) = svvar(j,k,n) + (sv0(i+1,j+1,k,n)-svavg(j,k,n))*(sv0(i+1,j+1,k,n)-svavg(j,k,n))
+          end do
+        end do
+      end do
+    end do
+
     uvar = uvar / imax
     vvar = vvar / imax
     wvar = wvar / imax
     thlvar = thlvar / imax
     thvvar = thvvar / imax
     qtvar = qtvar / imax
+    svvar = svvar / imax
 
     status = nf90_put_var(ncid, uvarid, uvar, (/1,1,nccall/), (/jmax, ncklimit , 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
@@ -578,6 +589,10 @@ contains
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, qtvarid, qtvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
+    do n=1,nsv
+      status = nf90_put_var(ncid, svvarid(n), svvar(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
+      if(status /= nf90_noerr) call nchandle_error(status)
+    enddo
 
     !calculate covariances and store them
     do k = 2,ncklimit
@@ -772,7 +787,7 @@ contains
 
     if(.not.(lheterostats)) return
 
-    write(6,*) "HETEROSTATS: Closing: ", myid
+!    write(6,*) "HETEROSTATS: Closing: ", myid
 
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call nchandle_error(status)
