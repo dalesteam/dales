@@ -98,7 +98,9 @@ module modbulkmicro
              ,qr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Nr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,wfall_qr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1))
+             ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,diag_mp (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,diag_zh (2-ih:i1+ih,2-jh:j1+jh,k1))
 
     allocate(precep    (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qrmask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -726,23 +728,18 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep
-    use modfields, only : exnf,thl0,qt0,svm
+    use modfields, only : exnf,thl0,qt0,svm,qvsl,tmp0,ql0,esl,qvsl
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
     real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:), T(:,:,:),&
                          esat(:,:,:),qsat(:,:,:),tl(:,:,:),b1(:,:,:),qsl(:,:,:),&
                          f_gamma_2_5(:,:,:),f_gamma_2(:,:,:),f_gamma_1(:,:,:)
+    real :: f_mp,f_zh,lambda_mp,lambda_zh
 
     allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
               ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
               ,G(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! cond/evap rate of a drop
-              ,T(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! temperature
-              ,esat(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! sat. pressure
-              ,qsat(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! sat. water vapor
-              ,tl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! T_l
-              ,b1(2-ih:i1+ih,2-jh:j1+jh,k1)    &
-              ,qsl(2-ih:i1+ih,2-jh:j1+jh,k1)   &
               ,f_gamma_2_5(2-ih:i1+ih,2-jh:j1+jh,k1) &
               ,f_gamma_2  (2-ih:i1+ih,2-jh:j1+jh,k1) &
               ,f_gamma_1  (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -754,21 +751,16 @@ module modbulkmicro
     do i=2,i1
     do k=1,k1
       if (qrmask(i,j,k)) then
-        tl  (i,j,k) = thl0(i,j,k) * exnz(i,j,k)
-        esat(i,j,k) = es0 * exp(at*(tl(i,j,k)-tmelt) / (tl(i,j,k)-bt))
-        qsl (i,j,k) = ep * esat(i,j,k) / (presz(i,j,k)-(1-ep)*esat(i,j,k))
-        b1  (i,j,k) = rlv**2/(cp*rv*tl(i,j,k)**2)
-        qsat(i,j,k) = qsl(i,j,k) * (1.+b1(i,j,k) * qt0(i,j,k)) / (1.+b1(i,j,k)*qsl(i,j,k))
-        S   (i,j,k) =  min(0.,(qt0(i,j,k) - qc(i,j,k)) / qsat(i,j,k) - 1.)
-        T   (i,j,k) = tl(i,j,k) + (rlv/cp) * qc(i,j,k)
-        G   (i,j,k) = (Rv * T(i,j,k)) / (Dv*esat(i,j,k)) + rlv/(Kt*T(i,j,k))*(rlv/(Rv*T(i,j,k)) -1.)
+        S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+        G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
         G   (i,j,k) = 1./G(i,j,k)
       endif
     enddo
     enddo
     enddo
 
-    
+    diag_mp=0.
+    diag_zh=0.
 
     if (l_sb ) then
        f_gamma_2_5 (2:i1,2:j1,1:k1) = f_gamma(mur(2:i1,2:j1,1:k1)+2.5)
@@ -787,6 +779,22 @@ module modbulkmicro
             evap(i,j,k) = 2*pi*(Nr(i,j,k)*lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k)) &
                           *G(i,j,k)*F(i,j,k)*S(i,j,k)/rhoz(i,j,k)
             Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhoz(i,j,k)/xr(i,j,k)
+            lambda_mp=6.**(1./3.)/Dvr(i,j,k)
+            lambda_zh=2700.
+            f_mp = avf/lambda_mp**2. +  &
+              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(2.5)/lambda_mp**2.5 * &
+              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_mp/(   c_tvsb+lambda_mp))**2.5  &
+                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_mp/(2.*c_tvsb+lambda_mp))**2.5  &
+                 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_mp/(3.*c_tvsb+lambda_mp))**2.5 &
+                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_mp/(4.*c_tvsb+lambda_mp))**2.5  )
+            f_zh = avf/lambda_zh**3. +  &
+              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(3.5)/lambda_zh**3.5 * &
+              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_zh/(   c_tvsb+lambda_zh))**3.5  &
+                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_zh/(2.*c_tvsb+lambda_zh))**3.5  &
+                 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_zh/(3.*c_tvsb+lambda_zh))**3.5 &
+                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_zh/(4.*c_tvsb+lambda_zh))**3.5  )
+            diag_mp(i,j,k)=2*pi*((n0rr**(3./4.)*qr(i,j,k)**(1./4.)*(rhoz(i,j,k)/pi*rhow)**(1./4.)*lambda_mp))*G(i,j,k)*f_mp*S(i,j,k)/rhoz(i,j,k)
+            diag_zh(i,j,k)=2*pi*((6.*lambda_zh**3.*rhoz(i,j,k)*qr(i,j,k)*lambda_zh**2.)/(pi*rhow*12.))*G(i,j,k)*f_zh*S(i,j,k)/rhoz(i,j,k)
          endif
        enddo
        enddo
@@ -823,7 +831,7 @@ module modbulkmicro
     qtpmcr(2:i1,2:j1,1:k1) = qtpmcr(2:i1,2:j1,1:k1) -evap(2:i1,2:j1,1:k1)
     thlpmcr(2:i1,2:j1,1:k1) = thlpmcr(2:i1,2:j1,1:k1) + (rlv/cp)*evap(2:i1,2:j1,1:k1)
 
-    deallocate (F,S,G,T,esat,qsat,tl,b1,qsl,f_gamma_2_5,f_gamma_2,f_gamma_1)
+    deallocate (F,S,G,f_gamma_2_5,f_gamma_2,f_gamma_1)
 
 
   end subroutine evaporation

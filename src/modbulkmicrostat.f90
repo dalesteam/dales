@@ -37,7 +37,7 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
-  integer,parameter :: nvar = 23
+  integer,parameter :: nvar = 25
   integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
@@ -80,7 +80,13 @@ save
                qrmn    , &
                Dvravl  , &
                Dvrav  , &
-               Dvrmn
+               Dvrmn, &
+               mp_avl  , &
+               mp_av  , &
+               mp_mn,&
+               zh_avl  , &
+               zh_av  , &
+               zh_mn
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -160,7 +166,13 @@ subroutine initbulkmicrostat
        qrmn    (k1)    , &
        Dvravl    (k1)    , &
        Dvrav    (k1)    , &
-       Dvrmn    (k1)    )
+       Dvrmn    (k1)    ,&
+       mp_avl    (k1)    , &
+       mp_av    (k1)    , &
+       mp_mn    (k1)    , &
+       zh_avl    (k1)    , &
+       zh_av    (k1)    , &
+       zh_mn    (k1)    )
     Npmn    = 0.0
     qlpmn    = 0.0
     qtpmn    = 0.0
@@ -172,6 +184,8 @@ subroutine initbulkmicrostat
     Nrrainmn  = 0.0
     qrmn    = 0.0
     Dvrmn    = 0.0
+    mp_mn=0.
+    zh_mn=0.
 
     if (myid == 0) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
@@ -214,6 +228,8 @@ subroutine initbulkmicrostat
         call ncinfo(ncname(21,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(22,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(23,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(24,:),'diag_zh','Diagnosed zh rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(25,:),'diag_mp','Diagnosed mp rain water content tendency','kg/kg/s','tt')
         call define_nc( ncid_prof, NVar, ncname)
       end if
 
@@ -250,7 +266,7 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec
+    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec, diag_mp, diag_zh
     implicit none
 
     integer      :: k
@@ -263,6 +279,8 @@ subroutine initbulkmicrostat
     Nrrainav    = 0.0
     qrav      = 0.0
     Dvrav      = 0.0
+    mp_av = 0.0
+    zh_av= 0.0
 
     do k = 1,k1
       cloudcountavl(k)  = count(qc      (2:i1,2:j1,k) > epscloud)
@@ -273,6 +291,8 @@ subroutine initbulkmicrostat
       Nrrainavl    (k)  = sum  (Nr  (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
       qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
+      mp_avl        (k)  = sum  (diag_mp  (2:i1,2:j1,k))
+      zh_avl        (k)  = sum  (diag_zh  (2:i1,2:j1,k))
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -283,6 +303,8 @@ subroutine initbulkmicrostat
     call MPI_ALLREDUCE(Nrrainavl  ,Nrrainav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(precavl  ,precav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qravl  ,qrav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(mp_avl  ,mp_av    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(zh_avl  ,zh_av    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
     cloudcountmn  = cloudcountmn  +  cloudcountav  /rslabs
     raincountmn  = raincountmn  +  raincountav  /rslabs
@@ -292,6 +314,8 @@ subroutine initbulkmicrostat
     Nrrainmn  = Nrrainmn  +  Nrrainav  /rslabs
     precmn    = precmn  +  precav    /rslabs
     qrmn    = qrmn    +  qrav    /rslabs
+    mp_mn    = mp_mn    +  mp_av    /rslabs
+    zh_mn    = zh_mn    +  zh_av    /rslabs
 
   end subroutine dobulkmicrostat
 
@@ -301,7 +325,7 @@ subroutine initbulkmicrostat
     use modmpi,    only  : slabsum
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, rslabs
     use modfields,    only  : qtp
-    use modmicrodata,  only  : qrp, Nrp
+    use modmicrodata,  only  : qrp, Nrp, diag_zh, diag_mp
     implicit none
 
     real, dimension(:), allocatable  :: avfield
@@ -374,6 +398,8 @@ subroutine initbulkmicrostat
                 Nrrainmn        = Nrrainmn      /nsamples
                 precmn          = precmn        /nsamples
                 qrmn            = qrmn          /nsamples
+                mp_mn           = mp_mn         /nsamples
+                zh_mn           = zh_mn         /nsamples
 
     where (raincountmn > 0.)
       Dvrmn        = Dvrmn / raincountmn
@@ -534,6 +560,8 @@ subroutine initbulkmicrostat
         do k=1,k1
         vars(k,23) =sum(qtpmn  (k,2:nrfields))
         enddo
+        vars(:,24) =mp_mn    (:)
+        vars(:,25) =zh_mn    (:)
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
 
@@ -550,6 +578,8 @@ subroutine initbulkmicrostat
     Npmn      = 0.0
     qlpmn      = 0.0
     qtpmn      = 0.0
+    mp_mn      = 0.0
+    zh_mn      = 0.0
 
   end subroutine writebulkmicrostat
 
@@ -588,7 +618,14 @@ subroutine initbulkmicrostat
          qrmn      , &
          Dvravl    , &
          Dvrav    , &
-         Dvrmn    )
+         Dvrmn    , &
+         mp_avl    , &
+         mp_av      , &
+         mp_mn      , &
+         zh_avl    , &
+         zh_av    , &
+         zh_mn    )
+
   end subroutine exitbulkmicrostat
 
 !------------------------------------------------------------------------------!
