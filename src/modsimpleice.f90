@@ -146,25 +146,6 @@ module modsimpleice
       write(*,*)'amount of neg. nr thrown away is too high  ',timee,' sec'
     end if
 
-    ! Use nr for rain fraction, reset at beginning of sedimentation routine
-    ! Also reset in sv0 in modfields. Svm only has to satisfy the [0,1] constraint
-    ! Move to time integration in a proper scheme?
-    do k=1,k1
-    do i=2,i1
-    do j=2,j1
-      if ((qcmask(i,j,k).eqv..true.).and.(qrmask(i,j,k).eqv..true.)) then
-        nr(i,j,k)=1.
-      elseif (qrmask(i,j,k).eqv..false.) then
-        nr(i,j,k)=0.
-      else
-        nr(i,j,k)=max(0.,min(1.,nr(i,j,k)))
-      endif
-      sv0(i,j,k,inr)=nr(i,j,k)
-      svm(i,j,k,inr)=max(0.,min(1.,svm(i,j,k,inr)))
-    enddo
-    enddo
-    enddo
-
     if(l_warm) then !partitioning and determination of intercept parameter
       do k=1,k1
       do i=2,i1
@@ -367,9 +348,9 @@ module modsimpleice
         vents=.78*n0rs/lambdas(i,j,k)**2 + gam2ds*.27*n0rs*sqrt(ccsz(k)/2.e-5)*lambdas(i,j,k)**(-2.5-0.5*dds)
         ventg=.78*n0rg/lambdag(i,j,k)**2 + gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)*lambdag(i,j,k)**(-2.5-0.5*ddg)
         thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e2/tmp0(i,j,k))  ! thermodynamic function
-        evapdepr=(4.*pi/(betar*rhof(k)))*(ssl-1.)*ventr*thfun*nr(i,j,k)
-        evapdeps=(4.*pi/(betas*rhof(k)))*(ssi-1.)*vents*thfun*nr(i,j,k)
-        evapdepg=(4.*pi/(betag*rhof(k)))*(ssi-1.)*ventg*thfun*nr(i,j,k)
+        evapdepr=(4.*pi/(betar*rhof(k)))*(ssl-1.)*ventr*thfun
+        evapdeps=(4.*pi/(betas*rhof(k)))*(ssi-1.)*vents*thfun
+        evapdepg=(4.*pi/(betag*rhof(k)))*(ssi-1.)*ventg*thfun
         ! limit with qr and ql after accretion and autoconversion
         devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! total growth by deposition and evaporation
         qrp(i,j,k) = qrp(i,j,k)+devap
@@ -411,7 +392,7 @@ module modsimpleice
         vtf = amin1(wfallmax,vtf)
         precep(i,j,k) = vtf*qr_spl(i,j,k)*nr_spl(i,j,k)  ! note multiplication by nr_spl
         sed_qr(i,j,k) = precep(i,j,k)*rhobf(k) ! convert to flux
-        sed_nr(i,j,k) = vtf*nr_spl(i,j,k)*rhobf(k)*nr_spl(i,j,k)  ! note multiplication by nr_spl
+        sed_nr(i,j,k) = vtf*nr_spl(i,j,k)*rhobf(k)  ! note multiplication by nr_spl
       else
         precep(i,j,k) = 0.
         sed_qr(i,j,k) = 0.
