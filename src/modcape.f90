@@ -1,9 +1,9 @@
 !> \file modcape.f90
-!!   Dumps cross sections of CAPEreal, CAPEmax, CINlower,CINupper, CINmax, ALE, W2max, QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
+!!   Dumps cross sections of dcape, CAPEmax, CINlower,CINupper, CINmax, ALE, W2max, QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
 !
 !>
 !! Crosssections in the xy-plane
-!! If netcdf is true, this module leads the capereal.myid.expnr.nc output
+!! If netcdf is true, this module leads the dcape.myid.expnr.nc output
 
 !!  \par Revision list
 !  This file is part of DALES.
@@ -77,7 +77,7 @@ contains
     if(.not.(lcape)) return
     dt_lim = min(dt_lim,tnext)
 
-    !CAPEreal, CAPEmax, CINreal, CINmax, ALE, W2max, QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
+    !dcape, CAPEmax, CINreal, CINmax, ALE, W2max, QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
 
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'cape: dtav should be a integer multiple of dtmax'
@@ -86,7 +86,7 @@ contains
     fname(6:8) = cmyid
     fname(10:12) = cexpnr
     call ncinfo(tncname(1,:),'time','Time','s','time')
-    call ncinfo(ncname( 1,:),'capereal','xy crosssections of actual capereal','J/m^2','tt0t')
+    call ncinfo(ncname( 1,:),'dcape','xy crosssections of actual dcape','J/m^2','tt0t')
     call ncinfo(ncname( 2,:),'cinlower','xy crosssections of actual CIN in CINmax-region','J/m^2','tt0t')
     call ncinfo(ncname( 3,:),'cinupper','xy crosssections of actual CIN above','J/m^2','tt0t')
     call ncinfo(ncname( 4,:),'capemax','xy crosssections of CAPEmax','J/m^2','tt0t')
@@ -113,7 +113,7 @@ contains
 
 !>Run crosssection.
   subroutine docape
-    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn
+    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -121,7 +121,7 @@ contains
     use modmicrodata, only : iqr
     implicit none
 
-    real, allocatable :: capereal(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),rwp(:,:),cldtop(:,:)
+    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -140,8 +140,9 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-    allocate(capereal(2:i1,2:j1),cinlower(2:i1,2:j1),cinupper(2:i1,2:j1))
+    allocate(dcape(2:i1,2:j1),cinlower(2:i1,2:j1),cinupper(2:i1,2:j1))
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
+    allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
     allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
     allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1))
@@ -151,7 +152,7 @@ contains
     ! find robust minimum of buoyancy flux (determined at half-level!)
     if(any(abs(wtvtmnlast)>1e-10)) then
       do k=kmax-2,2,-1
-        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2))) then
+        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.(wtvtmnlast(k)<wtvtmnlast(k+4)).and.(wtvtmnlast(k)<wtvtmnlast(k+5)).and.(wtvtmnlast(k)<wtvtmnlast(k+6)).and.(wtvtmnlast(k)<wtvtmnlast(k+7))) then
           ktest = k
         end if
       end do
@@ -172,6 +173,8 @@ contains
     cldtop=0.
     hw2max=0.
     buoymax=0.
+    thl200400=0.
+    qt200400=0.
     do k=1,k1
     do j=2,j1
     do i=2,i1
@@ -190,7 +193,20 @@ contains
       if ((thvfull(i,j,k)-thvf(k))>buoymax(i,j)) then
         buoymax(i,j)=thvfull(i,j,k)-thvf(k)
       endif
+      if (k>1) then
+      if ((zh(k+1)>200.).and.(zh(k)<400.)) then
+        thl200400(i,j)=thl200400(i,j)+thl0(i,j,k)*max(min(zh(k+1),400.)-max(zh(k),200.),0.)
+        qt200400(i,j)=qt200400(i,j)+qt0(i,j,k)*max(min(zh(k+1),400.)-max(zh(k),200.),0.)
+      endif
+      endif
     enddo
+    enddo
+    enddo
+
+    do j=2,j1
+    do i=2,i1
+        thl200400(i,j)=thl200400(i,j)/200.
+        qt200400(i,j)=qt200400(i,j)/200.
     enddo
     enddo
 
@@ -223,7 +239,7 @@ contains
     do j=2,j1
     do i=2,i1
     ! full level
-        Tnr=exnf(k)*thl0(i,j,1) ! First guess for full level, use no ql from below
+        Tnr=exnf(k)*thl200400(i,j) ! First guess for full level, use no ql from below
         Tnr_old=0.
           do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
             niter = niter+1
@@ -236,7 +252,7 @@ contains
             esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
+            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
     
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
@@ -247,9 +263,9 @@ contains
             esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
             esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
+            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
     
-            Tnr = Tnr - (thlguess-thl0(i,j,1))/((thlguess-thlguessmin)*500.)
+            Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
           enddo
         nitert =max(nitert,niter)
         niter = 0
@@ -263,8 +279,8 @@ contains
         qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
         qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
         qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-        qlma(i,j,k) = max(qt0(i,j,1)-qsatur,0.)
-        thvma(i,j,k)=(thl0(i,j,1)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,1)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
+        qlma(i,j,k) = max(qt200400(i,j)-qsatur,0.)
+        thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
     enddo
     enddo
     do k=2,k1
@@ -272,9 +288,9 @@ contains
     do i=2,i1
     ! full level
       if(matop(i,j)==0) then
-        Tnr=exnf(k)*thl0(i,j,1)+(rlv/cp)*qlma(i,j,k-1) ! First guess for full level, use no ql from below
+        Tnr=exnf(k)*thl200400(i,j)+(rlv/cp)*qlma(i,j,k-1) ! Guess for full level
         Tnr_old=0.
-          do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
+          do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at level
             niter = niter+1
             Tnr_old=Tnr
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
@@ -285,7 +301,7 @@ contains
             esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
+            thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
     
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
@@ -296,9 +312,9 @@ contains
             esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
             esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,1)-qsatur,0.)
+            thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
     
-            Tnr = Tnr - (thlguess-thl0(i,j,1))/((thlguess-thlguessmin)*500.)
+            Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
           enddo
         nitert =max(nitert,niter)
         niter = 0
@@ -312,8 +328,8 @@ contains
         qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
         qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
         qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-        qlma(i,j,k) = max(qt0(i,j,1)-qsatur,0.)
-        thvma(i,j,k)=(thl0(i,j,1)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt0(i,j,1)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
+        qlma(i,j,k) = max(qt200400(i,j)-qsatur,0.)
+        thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
         if(thvma(i,j,k)<thvf(k)-10) then
           matop(i,j)=k
         endif
@@ -322,7 +338,7 @@ contains
     enddo
     enddo
 
-    ! calculate top of moist adiabat for capereal calculations
+    ! calculate top of moist adiabat for dcape calculations
     do k=1,k1 
     do j=2,j1
     do i=2,i1
@@ -336,13 +352,13 @@ contains
     enddo
     enddo
 
-    ! capereal and CIN of Moist Adiabat
+    ! dcape and CIN of Moist Adiabat
     ! no nice interpolation yet
     do j=2,j1
     do i=2,i1
     capemax(i,j)=0.
     cinmax(i,j)=0.
-    capereal(i,j)=0.
+    dcape(i,j)=0.
     cinlower(i,j)=0.
     cinupper(i,j)=0.
     enddo
@@ -355,10 +371,10 @@ contains
         cinmax(i,j)=cinmax(i,j)+max(grav*dzf(k)*(thvf(k)-thvma(i,j,k))/thvf(k),0.)
         capemax(i,j)=capemax(i,j)+max(grav*dzf(k)*(thvma(i,j,k)-thvf(k))/thvf(k),0.)
         if(capemask(i,j,k).eqv..true.) then
-          capereal(i,j)=capereal(i,j)+max(grav*dzf(k)*(thvfull(i,j,k)-thvf(k))/thvf(k),0.)
+          dcape(i,j)=dcape(i,j)+max(grav*dzf(k)*(thvfull(i,j,k)-thvf(k))/thvf(k),0.)
           cinupper(i,j)=cinupper(i,j)+max(grav*dzf(k)*(thvf(k)-thvfull(i,j,k))/thvf(k),0.)
         else
-          capereal(i,j)=capereal(i,j)+max(grav*dzf(k)*(thvfull(i,j,k)-thvf(k))/thvf(k),0.)
+          dcape(i,j)=dcape(i,j)+max(grav*dzf(k)*(thvfull(i,j,k)-thvf(k))/thvf(k),0.)
           cinlower(i,j)=cinlower(i,j)+max(grav*dzf(k)*(thvf(k)-thvfull(i,j,k))/thvf(k),0.)
         endif
       endif
@@ -366,46 +382,9 @@ contains
     enddo
     enddo
 
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-!     open(ifoutput,file='XXX'//cmyid//'.'//cexpnr,position='append',action='write')
-!     write(ifoutput,'(es12.5)') ((XXX(i,j),i=2,i1),j=2,j1)
-!     close(ifoutput)
-
     if (lnetcdf) then
       allocate(vars(1:imax,1:jmax,16))
-      vars(:,:,1) = capereal(2:i1,2:j1)
+      vars(:,:,1) = dcape(2:i1,2:j1)
       vars(:,:,2) = cinlower(2:i1,2:j1)
       vars(:,:,3) = cinupper(2:i1,2:j1)
       vars(:,:,4) = capemax(2:i1,2:j1)
@@ -426,7 +405,7 @@ contains
       deallocate(vars)
     end if
 
-    deallocate(capereal,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop)
+    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400)
 
   end subroutine docape
 
