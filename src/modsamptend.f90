@@ -66,7 +66,6 @@ subroutine initsamptend
 
     implicit none
     integer :: ierr,i
-    character(2) :: cisamp
 
     namelist/NAMSAMPLING/ &
     dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampall
@@ -183,8 +182,7 @@ subroutine initsamptend
 
     if (myid==0) then
       do isamp=1,isamptot
-        write(cisamp,'(i2.2)') isamp
-        fname5(isamp)='samptend.'//cisamp//'.'//cexpnr//'.nc'
+        fname5(isamp)='samptend.'//trim(samplname(isamp))//'.'//cexpnr//'.nc'
         call ncinfo(tncname5(1,:),'time','Time','s','time')
         call ncinfo(ncname5( 1,:),'utendadv','U advective tendency','m/s^2','tt')
         call ncinfo(ncname5( 2,:),'utenddif','U diffusive tendency','m/s^2','tt')
@@ -237,14 +235,14 @@ subroutine initsamptend
         call ncinfo(ncname5(49,:),'qrtendtop','total water content  top boundary tendency','kg/kg/s','tt')
         call ncinfo(ncname5(50,:),'qrtendaddon','total water content in addons tendency','kg/kg/s','tt')
         call ncinfo(ncname5(51,:),'qrtendtot','total water content total tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(52,:),'nrtendadv','RDNC advective tendency','/s','tt')
-        call ncinfo(ncname5(53,:),'nrtenddif','RDNC diffusive tendency','/s','tt')
-        call ncinfo(ncname5(54,:),'nrtendrad','RDNC radiative tendency','/s','tt')
-        call ncinfo(ncname5(55,:),'nrtendmicro','RDNC microphysical tendency','/s','tt')
-        call ncinfo(ncname5(56,:),'nrtendls','RDNC large scale tendency','/s','tt')
-        call ncinfo(ncname5(57,:),'nrtendtop','RDNC top boundary tendency','/s','tt')
-        call ncinfo(ncname5(58,:),'nrtendaddon','RDNC addons tendency','/s','tt')
-        call ncinfo(ncname5(59,:),'nrtendtot','RDNC total tendency','/s','tt')
+        call ncinfo(ncname5(52,:),'nrtendadv','RDNC advective tendency','/kg/s','tt')
+        call ncinfo(ncname5(53,:),'nrtenddif','RDNC diffusive tendency','/kg/s','tt')
+        call ncinfo(ncname5(54,:),'nrtendrad','RDNC radiative tendency','/kg/s','tt')
+        call ncinfo(ncname5(55,:),'nrtendmicro','RDNC microphysical tendency','/kg/s','tt')
+        call ncinfo(ncname5(56,:),'nrtendls','RDNC large scale tendency','/kg/s','tt')
+        call ncinfo(ncname5(57,:),'nrtendtop','RDNC top boundary tendency','/kg/s','tt')
+        call ncinfo(ncname5(58,:),'nrtendaddon','RDNC addons tendency','/kg/s','tt')
+        call ncinfo(ncname5(59,:),'nrtendtot','RDNC total tendency','/kg/s','tt')
         call open_nc(fname5(isamp),ncid5(isamp),n3=kmax)
         call define_nc(ncid5(isamp),1,tncname5)
         call writestat_dims_nc(ncid5(isamp))
@@ -284,6 +282,13 @@ subroutine initsamptend
     IF (present(firstterm)) THEN
     IF (firstterm) THEN
       tendmask=.false.
+      uptm = 0.
+      vptm = 0.
+      wptm = 0.
+      thlptm = 0.
+      qtptm = 0.
+      qrptm = 0.
+      nrptm = 0.
 
       allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1),&
                 w0f(2-ih:i1+ih,2-jh:j1+jh,k1))   
@@ -356,14 +361,6 @@ subroutine initsamptend
 
     ENDIF
     ENDIF
-
-    uptm = 0.
-    vptm = 0.
-    wptm = 0.
-    thlptm = 0.
-    qtptm = 0.
-    qrptm = 0.
-    nrptm = 0.
 
     allocate(wpf(2-ih:i1+ih,2-jh:j1+jh,k1))  
     
