@@ -159,6 +159,7 @@
 
    real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
    real,allocatable,dimension(:,:,:) :: precep
+   real,allocatable,dimension(:,:,:) :: diag_mp,diag_zh !< diagnose what a marshall-palmer/zhang distribution would do
 
   real :: delt
 
@@ -175,6 +176,7 @@
   logical :: l_berry = .true.   !  Berry-Hsie (Grabowski, 1998) autoconversion vs Kessler-Lin (Khairoutdinov and Randall, 2006)
   logical :: l_graupel = .true. !  Switch for graupel
   logical :: l_warm = .false.   !  Run ice micro in warm mode, as a check
+  logical :: l_mp = .true.      !  Use marshall-palmer distribution for rain?
   real :: evapfactor = 1.0      !  Prefactor to reduce evaporation
   real :: courantp = 1.0        !  CFLmax-criterion for precipitation
 
@@ -182,10 +184,10 @@
      ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
      aar=5.2e2 &
      ,bbr=3. &
-!     ,ccr=130. &
-!     ,ddr=0.5 &
-     ,ccr=842. &
-     ,ddr=0.8 &
+     ,ccr=130. &
+     ,ddr=0.5 &
+!     ,ccr=842. & coefficients in Khairoutdinov and Randall
+!     ,ddr=0.8 & coefficients in Khairoutdinov and Randall
      ! For snow
      ,aas=2.5e-2 &
      ,bbs=2. &
@@ -207,10 +209,14 @@
      ,betar=2. &
      ,betas=3. &
      ,betag=2. &
-     ! N_0 in Marshall-Palmer Distribution
-     ,n0rr=8.e6 &
-     ,n0rs=4.e6 &
-     ,n0rg=3.e6 &
+     ! N_0 in Marshall-Palmer Distribution following Grabowski
+     ,n0rr=2.e7 &
+     ,n0rs=2.e7 &
+     ,n0rg=2.e7 &
+     ! N_0 in Marshall-Palmer Distribution following Tomita
+     ! ,n0rr=8.e6 &
+     ! ,n0rs=4.e6 &
+     ! ,n0rg=3.e6 &
      ! Gamma distribution parameters, calculated only once
      ,gamb1r=gamma(bbr+1) &
      ,gambd1r=gamma(bbr+ddr+1) &
@@ -229,8 +235,8 @@
      ! Diagnostic division between rain, snow and graupel
      ,tuprsg=268. &
      ,tdnrsg=253. &
-     ,tupsg=283. &
-     ,tdnsg=223.
+     ,tupsg=283. & ! Following Khairoutdinov and Randall
+     ,tdnsg=223.   ! Following Khairoutdinov and Randall
 
    ! Fields related to ice-liquid partitioning and slope of distribution
    real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
