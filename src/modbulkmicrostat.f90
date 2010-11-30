@@ -38,7 +38,6 @@ PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
   integer,parameter :: nvar = 25
-  integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
 
@@ -376,8 +375,8 @@ subroutine initbulkmicrostat
               rlv, zf
     use modfields,    only  : presf
     use modmicrodata,  only  : rhoz
-      use modstat_nc, only: lnetcdf, writestat_nc
-      use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
+    use modstat_nc, only: lnetcdf, writestat_nc
+    use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
 
       implicit none
       real,dimension(k1,nvar) :: vars
