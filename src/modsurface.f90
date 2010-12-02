@@ -30,9 +30,6 @@
 !! \todo add moisture transport between soil layers
 !!  \deprecated Modsurface replaces the old modsurf.f90
 !
-!   TODO: apply heterogeneity on pressure and temperature fields throughout the DALES code (e.g. thermodynamics) (HGO)
-!
-!
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
 !EXAMPLE of surface.inp.xxx:
@@ -62,7 +59,7 @@ contains
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
-    character(len=1500) :: readbuffer
+ character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -255,7 +252,7 @@ contains
           stop "NAMSURFACE: z0hav is not set"
         end if
       end if
-  
+
     endif
 
 
@@ -409,7 +406,7 @@ contains
       call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
           
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
-      horvpatch = max(horvpatch, 1.e-2)
+      horvpatch = max(horvpatch, 0.1)
     endif 
 
 
@@ -440,14 +437,14 @@ contains
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 1.e-2)
+            horv  = max(horv, 0.1)
             ra(i,j) = 1. / ( Cs(i,j) * horv )
           else
             if (lhetero) then
               ra(i,j) = 1. / ( Cs(i,j) * horvpatch(patchx,patchy) )
             else
               horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-              horvav  = max(horvav, 1.e-2)
+              horvav  = max(horvav, 0.1)
               ra(i,j) = 1. / ( Cs(i,j) * horvav )
             endif
           end if
@@ -459,8 +456,6 @@ contains
     ! Solve the surface energy balance and the heat and moisture transport in the soil
     if(isurf == 1) then
       call do_lsm
-
-
 
     elseif(isurf == 2) then
       do j = 2, j1
@@ -484,16 +479,16 @@ contains
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 1.e-2)
+          horv   = max(horv, 0.1)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 1.e-2)
+          horvav = max(horvav, 0.1)
             
           if(lhetero) then
             patchx = patchxnr(i)
             patchy = patchynr(j) 
           endif
           
-          if(lmostlocal) then
+          if(lmostlocal) then 
             ustar  (i,j) = sqrt(Cm(i,j)) * horv 
           else
             if(lhetero) then
@@ -504,7 +499,7 @@ contains
           end if
           
           thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
-          qtflux(i,j)  = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
           
           if(lhetero) then
             do n=1,nsv
@@ -516,7 +511,6 @@ contains
             enddo
           endif
 
-          ! Using classical Businger-Dyer functions
           if (obl(i,j) < 0.) then
             phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
             !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
@@ -576,7 +570,7 @@ contains
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 1.e-2)
+            horv  = max(horv, 0.1)
 
             dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
             dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
@@ -615,15 +609,9 @@ contains
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 1.e-2)
+          horv   = max(horv, 0.1)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 1.e-2)
-
-          if(lhetero) then
-            patchx = patchxnr(i)
-            patchy = patchynr(j) 
-          endif
-          
+          horvav = max(horvav, 0.1)
           if( isurf == 4) then
             if(lmostlocal) then
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
@@ -657,7 +645,7 @@ contains
             enddo
           else
             do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n) 
+              svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
 
@@ -687,7 +675,7 @@ contains
           else
             tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
             qskin(i,j) = wqsurf / (Cs(i,j) * horv) + qt0(i,j,1)
-          end if
+          endif
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
           if (lhetero) then
@@ -717,7 +705,7 @@ contains
     !if (lhetero) then
     !  thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
     !endif
-      !call qtsurf ! CvH check this!
+      !call qtsurf
 
     end if
 
@@ -744,8 +732,7 @@ contains
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
     integer    :: i,j, patchx, patchy
     integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
-    real       :: lqts_patch(xpatches,ypatches)!, qts_patch(xpatches,ypatches)
-    !real       :: tsurf_patch(xpatches,ypatches), exner_patch(xpatches,ypatches), es_patch(xpatches,ypatches)
+    real       :: lqts_patch(xpatches,ypatches)
 
     patchx = 0
     patchy = 0
@@ -767,6 +754,7 @@ contains
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, &
                          MPI_SUM, comm3d,mpierr)
       qts  = qts / rslabs
+      thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then 
         lqts_patch = 0.
@@ -789,22 +777,9 @@ contains
         call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
         call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  , xpatches*ypatches,MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
         qts_patch = qts_patch / SNpatch
-       
+        thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
       endif
-    !  if (lhetero) then
-    !    exner_patch = (ps_patch/pref0)**(rd/cp)
-    !    tsurf_patch = thls_patch * exner_patch
-    !    es_patch    = es0*exp(at*(tsurf_patch-tmelt)/(tsurf_patch-bt))
-    !    qts_patch   = rd/rv*es_patch/(ps_patch-(1-rd/rv)*es_patch)
-    !    qts_patch   = max(qts_patch, 0.)
-
-    !  endif
     end if
-    
-    !thvs = thls * (1. + (rv/rd - 1.) * qts)
-    !if (lhetero) then
-    !  thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
-    !endif
 
     return
 
@@ -820,6 +795,7 @@ contains
     integer             :: i,j,iter,patchx,patchy
     real                :: thv, thvsl, L, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
     real                :: Rib, Lstart, Lend, fx, fxdif, Lold
+    real                :: upcu, vpcv
     real                :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
     real                :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
     integer             :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
@@ -832,17 +808,19 @@ contains
 
       do i=2,i1
         do j=2,j1
-          thv    = thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
-          thvsl  = tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
-          horv2 = u0(i,j,1)*u0(i,j,1) + v0(i,j,1)*v0(i,j,1)
-          horv2 = max(horv2, 1.e-4)
+          thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
+          thvsl   =   tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
+          upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+          vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+          horv2   =   upcu ** 2. + vpcv ** 2.
+          horv2   =   max(horv2, 0.01)
 
           if(lhetero) then
             patchx = patchxnr(i)
             patchy = patchynr(j)
-            Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvs_patch(patchx,patchy)) / horv2
+            Rib    = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvs_patch(patchx,patchy)) / horv2
           else
-            Rib   = grav / thvs * zf(1) * (thv - thvsl) / horv2
+            Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
           endif
 
           iter = 0
@@ -865,16 +843,16 @@ contains
               if(Rib > 0) L = 0.01
               if(Rib < 0) L = -0.01
             end if
-            if(abs((L - Lold)/L) < 0.000001) exit
+            if(abs((L - Lold)/L) < 1e-4) exit
             if(iter > 1000) stop 'Obukhov length calculation does not converge!'
           end do
 
-          if (abs(L)>1e5) L = sign(1.0e5,L) 
+          if (abs(L)>1e6) L = sign(1.0e6,L)
           obl(i,j) = L
 
         end do
       end do
-    endif
+    end if
     
     if(lhetero) then 
       upatch    = 0
@@ -905,7 +883,7 @@ contains
       call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
           
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
-      horvpatch = max(horvpatch, 1.e-2)
+      horvpatch = max(horvpatch, 0.1)
 
       thlpatch  = thlpatch / SNpatch
       qpatch    = qpatch   / SNpatch
@@ -936,10 +914,10 @@ contains
               if(Rib > 0) L = 0.01
               if(Rib < 0) L = -0.01
             end if
-            if(abs((L - Lold)/L) < 0.000001) exit
+            if(abs((L - Lold)/L) < 1e-4) exit
           end do
 
-          if (abs(L)>1e5) L = sign(1.0e5,L) 
+          if (abs(L)>1e6) L = sign(1.0e6,L) 
           oblpatch(patchx,patchy) = L
         enddo
       enddo
@@ -950,13 +928,13 @@ contains
           enddo
         enddo
       endif
-    endif 
-    
+    endif
+
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
     horv2 = u0av(1)**2. + v0av(1)**2.
-    horv2 = max(horv2, 1.e-4)
+    horv2 = max(horv2, 0.01)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
 
@@ -980,17 +958,18 @@ contains
         if(Rib > 0) L = 0.01
         if(Rib < 0) L = -0.01
       end if
-      if(abs((L - Lold)/L) < 0.000001) exit
+      if(abs((L - Lold)/L) < 1e-4) exit
       if(iter > 1000) stop 'Obukhov length calculation does not converge!'
     end do
 
-    if (abs(L)>1e5) L = sign(1.0e5,L) 
+    if (abs(L)>1e6) L = sign(1.0e6,L)
     if(.not. lmostlocal) then
       if(.not. lhetero) then 
         obl(:,:) = L
       endif
     end if
     oblav = L
+
     return
 
   end subroutine getobl
@@ -1006,8 +985,8 @@ contains
       x     = (1. - 16. * zeta) ** (0.25)
       psim  = 3.14159265 / 2. - 2. * atan(x) + log( (1.+x) ** 2. * (1. + x ** 2.) / 8.)
       ! CvH use Wilson, 2001 rather than Businger-Dyer for correct free convection limit
-!      x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
-!      psim = 3. * log( (1. + 1. / x) / 2.)
+      !x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
+      !psim = 3. * log( (1. + 1. / x) / 2.)
     else
       psim  = -2./3. * (zeta - 5./0.35)*exp(-0.35 * zeta) - zeta - (10./3.) / 0.35
     end if
@@ -1065,6 +1044,7 @@ contains
     patchynr  = 1 + (positiony*ypatches)/jtot              !Converts position to patch number
     return
   end function
+  
   subroutine exitsurface
     implicit none
     return
@@ -1320,18 +1300,18 @@ contains
           exner   = (ps / pref0) ** (rd/cp)
         endif
         tsurfm  = tskinm(i,j) * exner
-          
+
         esat    = 0.611e3 * exp(17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86))
         if(lhetero) then
           qsat    = 0.622 * esat / ps_patch(patchx,patchy)
         else
-          qsat    = 0.622 * esat / ps 
+          qsat    = 0.622 * esat / ps
         endif
         desatdT = esat * (17.2694 / (tsurfm - 35.86) - 17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86)**2.)
         if(lhetero) then
           dqsatdT = 0.622 * desatdT / ps_patch(patchx,patchy)
         else
-          dqsatdT = 0.622 * desatdT / ps 
+          dqsatdT = 0.622 * desatdT / ps
         endif
 
         ! First, remove LWup from Qnet calculation
@@ -1400,26 +1380,6 @@ contains
           Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
         endif
 
-        if(lhetero) then
-          exner   = (ps_patch(patchx,patchy) / pref0) ** (rd/cp)
-        else
-          exner   = (ps / pref0) ** (rd/cp)
-        endif
-        tsurfm  = tskinm(i,j) * exner
-          
-        esat    = 0.611e3 * exp(17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86))
-        if(lhetero) then
-          qsat    = 0.622 * esat / ps_patch(patchx,patchy)
-        else
-          qsat    = 0.622 * esat / ps 
-        endif
-        desatdT = esat * (17.2694 / (tsurfm - 35.86) - 17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86)**2.)
-        if(lhetero) then
-          dqsatdT = 0.622 * desatdT / ps_patch(patchx,patchy)
-        else
-          dqsatdT = 0.622 * desatdT / ps 
-        endif
-
         ! Solve the soil
         if(rk3step == 1) then
           tsoilm(i,j,:) = tsoil(i,j,:)
@@ -1475,7 +1435,7 @@ contains
       call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
       thls_patch = thls_patch / SNpatch
     endif
-      
+
     call qtsurf
 
   end subroutine do_lsm
