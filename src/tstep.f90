@@ -64,11 +64,9 @@ subroutine tstep_update
       if (ladaptive) then
         courold = courtot
         pecletold = peclettot
-        courtotl=0
-        peclettotl = 0
         do k=1,kmax
-          courtotl=max(courtotl,maxval(abs(um(2:i1,2:j1,k)/dx)+abs(vm(2:i1,2:j1,k)/dy)+abs(wm(2:i1,2:j1,k)/dzh(k)))*rdt)
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          courtotl=max(0.,maxval(abs(um(2:i1,2:j1,k)/dx)),maxval(abs(vm(2:i1,2:j1,k)/dy)),maxval(abs(wm(2:i1,2:j1,k)/dzh(k))))*rdt
+          peclettotl=max(0.,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(courtotl,courtot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
@@ -96,12 +94,9 @@ subroutine tstep_update
     ! Normal time loop
     else
       if (ladaptive) then
-        courtotl=0
-        peclettotl = 1e-5
         do k=1,kmax
-          courtotl=max(courtotl,maxval(abs(um(2:i1,2:j1,k)/dx)+abs(vm(2:i1,2:j1,k)/dy)+abs(wm(2:i1,2:j1,k)/dzh(k)))*rdt)
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))/minval((/dzh(k),dx,dy/))**2*rdt)
-
+          courtotl=max(0.,maxval(abs(um(2:i1,2:j1,k)/dx)),maxval(abs(vm(2:i1,2:j1,k)/dy)),maxval(abs(wm(2:i1,2:j1,k)/dzh(k))))*rdt
+          peclettotl=max(1e-5,maxval(ekm(2:i1,2:j1,k))/minval((/dzh(k),dx,dy/))**2*rdt)
         end do
         call MPI_ALLREDUCE(courtotl,courtot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
@@ -146,7 +141,7 @@ subroutine tstep_integrate
 
 
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist
-  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
+  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
 
@@ -156,6 +151,7 @@ subroutine tstep_integrate
   real rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
+  wp_store = wp
 
   do k=1,kmax
     do j=2,j1
