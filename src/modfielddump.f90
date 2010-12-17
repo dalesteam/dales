@@ -142,69 +142,69 @@ contains
 
     field = NINT(1.0E3*um,2)
     if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
 
     field = NINT(1.0E3*vm,2)
     if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
 
     field = NINT(1.0E3*wm,2)
     if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
 
     field = NINT(1.0E5*qtm,2)
     if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
 
     field = NINT(1.0E5*ql0,2)
     if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
 
     field = NINT(1.0E2*(thlm-300),2)
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
 
     if(imicro/=imicro_none) then
     do i=2-ih,i1+ih
@@ -218,14 +218,14 @@ contains
     field = 0.
     endif
     if (lnetcdf) vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbqr.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbqr.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbqr.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbqr.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
     
     field=0.
     do i=2-ih,i1+ih
@@ -235,15 +235,16 @@ contains
     enddo
     enddo
     enddo
+    
     if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
+!~     if (ldiracc) then
+!~       open (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+!~       write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+!~     else
+!~       open  (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+!~       write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+!~     end if
+!~     close (ifoutput)
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid,nvar,ncname,vars,nrec,imax,jmax,khigh-klow+1)
