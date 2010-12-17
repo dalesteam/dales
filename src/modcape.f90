@@ -32,7 +32,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 16
+  integer,parameter :: nvar = 22
   integer :: ncid4 = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -101,7 +101,13 @@ contains
     call ncinfo(ncname( 13,:),'qlcb','xy crosssections ql at cloudbase','kg/kg','tt0t')
     call ncinfo(ncname( 14,:),'lwp','xy crosssections liquid water path','kg/m^2','tt0t')
     call ncinfo(ncname( 15,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 16,:),'cldtop','xy crosssections cloud top height','m','tt0t')
+    call ncinfo(ncname( 16,:),'twp','total water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 17,:),'cldtop','xy crosssections cloud top height','m','tt0t')
+    call ncinfo(ncname( 18,:),'distw','cold pool w sampling distance','-','tt0t')
+    call ncinfo(ncname( 19,:),'distbuoy','cold pool negative buoyancy distance','-','tt0t')
+    call ncinfo(ncname( 20,:),'distqr','cold pool qr distance','-','tt0t')
+    call ncinfo(ncname( 21,:),'distdiv','cold pool divergence distance','-','tt0t')
+    call ncinfo(ncname( 22,:),'distcon','cold pool convergence distance','-','tt0t')
     call open_nc(fname,  ncid4,n1=imax,n2=jmax)
     call define_nc( ncid4, 1, tncname)
     call writestat_dims_nc(ncid4)
@@ -114,14 +120,14 @@ contains
 !>Run crosssection.
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh
-    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
+    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
     use modmicrodata, only : iqr
     implicit none
 
-    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:)
+    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -144,14 +150,15 @@ contains
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
     allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
     allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
-    allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1))
+    allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1))
 
     ! DETERMINE CLOUD BASE, UNFORTUNATELY HAVE TO USE STATS HERE: END UP JUST BELOW
     kcb=1
+    ktest=0
     ! find robust minimum of buoyancy flux (determined at half-level!)
     if(any(abs(wtvtmnlast)>1e-10)) then
-      do k=kmax-2,2,-1
+      do k=kmax-7,2,-1
         if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.(wtvtmnlast(k)<wtvtmnlast(k+4)).and.(wtvtmnlast(k)<wtvtmnlast(k+5)).and.(wtvtmnlast(k)<wtvtmnlast(k+6)).and.(wtvtmnlast(k)<wtvtmnlast(k+7))) then
           ktest = k
         end if
@@ -169,6 +176,7 @@ contains
 
     ! loops over i,j,k
     lwp=0.
+    twp=0.
     rwp=0.
     cldtop=0.
     hw2max=0.
@@ -184,6 +192,7 @@ contains
       thvfull(i,j,k)=(thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                       *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
       lwp(i,j)=lwp(i,j)+rhobf(k)*ql0(i,j,k)*dzf(k)
+      twp(i,j)=twp(i,j)+rhobf(k)*qt0(i,j,k)*dzf(k)
       if (ql0(i,j,k) > eps1) then
         cldtop(i,j)=zf(k)
       endif
@@ -193,7 +202,7 @@ contains
       if ((thvfull(i,j,k)-thvf(k))>buoymax(i,j)) then
         buoymax(i,j)=thvfull(i,j,k)-thvf(k)
       endif
-      if (k>1) then
+      if ((k>1).and.(k<k1)) then
       if ((zh(k+1)>200.).and.(zh(k)<400.)) then
         thl200400(i,j)=thl200400(i,j)+thl0(i,j,k)*max(min(zh(k+1),400.)-max(zh(k),200.),0.)
         qt200400(i,j)=qt200400(i,j)+qt0(i,j,k)*max(min(zh(k+1),400.)-max(zh(k),200.),0.)
@@ -229,8 +238,8 @@ contains
     hw2cb(i,j)=0.5*wcb(i,j)*abs(wcb(i,j))
     qtcb(i,j)=qt0(i,j,kcb)
     qlcb(i,j)=ql0(i,j,kcb)
-    capetop(i,j)=0.
-    matop(i,j)=0.
+    capetop(i,j)=1
+    matop(i,j)=0
     enddo
     enddo
     !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
@@ -332,6 +341,8 @@ contains
         thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
         if(thvma(i,j,k)<thvf(k)-10) then
           matop(i,j)=k
+        elseif(k==k1) then
+          matop(i,j)=k        
         endif
       endif
     enddo
@@ -383,7 +394,7 @@ contains
     enddo
 
     if (lnetcdf) then
-      allocate(vars(1:imax,1:jmax,16))
+      allocate(vars(1:imax,1:jmax,22))
       vars(:,:,1) = dcape(2:i1,2:j1)
       vars(:,:,2) = cinlower(2:i1,2:j1)
       vars(:,:,3) = cinupper(2:i1,2:j1)
@@ -399,13 +410,19 @@ contains
       vars(:,:,13) = qlcb(2:i1,2:j1)
       vars(:,:,14) = lwp(2:i1,2:j1)
       vars(:,:,15) = rwp(2:i1,2:j1)
-      vars(:,:,16) = cldtop(2:i1,2:j1)
+      vars(:,:,16) = twp(2:i1,2:j1)
+      vars(:,:,17) = cldtop(2:i1,2:j1)
+      vars(:,:,18)= distw(2:i1,2:j1)
+      vars(:,:,19)= distbuoy(2:i1,2:j1)
+      vars(:,:,20)= distqr(2:i1,2:j1)
+      vars(:,:,21)= distdiv(2:i1,2:j1)
+      vars(:,:,22)= distcon(2:i1,2:j1)
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid4,16,ncname(1:16,:),vars,nrec,imax,jmax)
+      call writestat_nc(ncid4,22,ncname(1:22,:),vars,nrec,imax,jmax)
       deallocate(vars)
     end if
 
-    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400)
+    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400)
 
   end subroutine docape
 
