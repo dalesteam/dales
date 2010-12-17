@@ -132,12 +132,13 @@ save
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
 
-  real, allocatable :: dummy1(:,:,:)
-  real, allocatable :: dummy2(:,:,:)
-  real, allocatable :: dummy3(:,:,:)
-  real, allocatable :: dummy4(:,:,:)
-  real, allocatable :: dummy5(:,:,:)
-  real, allocatable :: dummy6(:,:,:)
+  real, allocatable :: distcld(:,:,:)
+  real, allocatable :: distcr(:,:,:)
+  real, allocatable :: distw(:,:)
+  real, allocatable :: distcon(:,:)
+  real, allocatable :: distdiv(:,:)
+  real, allocatable :: distqr(:,:)
+  real, allocatable :: distbuoy(:,:)
 
 contains
 !> Allocate and initialize the prognostic variables
@@ -171,12 +172,13 @@ subroutine initfields
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(dummy1(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(dummy2(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(dummy3(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(dummy4(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(dummy5(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(dummy6(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distbuoy(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distw(2-ih:i1+ih,2-jh:j1+jh))
 
     ! Allocation of base state variables
     allocate(rhobf(k1))
@@ -266,7 +268,7 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
-    dummy1=0.;dummy2=0.;dummy3=0.;dummy4=0.;dummy5=0.;dummy6=0.
+    distcld=0.;distcr=0.;distcon=0.;distdiv=0.;distqr=0.;distbuoy=0.;distw=0.
 
   end subroutine initfields
 
@@ -285,7 +287,7 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
-    deallocate(dummy1,dummy2,dummy3,dummy4,dummy5,dummy6)
+    deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw)
 
    end subroutine exitfields
 
