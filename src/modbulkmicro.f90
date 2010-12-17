@@ -727,7 +727,7 @@ module modbulkmicro
   ! Evaporation of prec. : Seifert (2008)
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21
     use modfields, only : exnf,thl0,qt0,svm,qvsl,tmp0,ql0,esl,qvsl
     use modmpi,    only : myid
     implicit none
@@ -736,13 +736,12 @@ module modbulkmicro
                          esat(:,:,:),qsat(:,:,:),tl(:,:,:),b1(:,:,:),qsl(:,:,:),&
                          f_gamma_2_5(:,:,:),f_gamma_2(:,:,:),f_gamma_1(:,:,:)
     real :: f_mp,f_zh,lambda_mp,lambda_zh
+    integer :: numel
 
     allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
               ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
               ,G(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! cond/evap rate of a drop
-              ,f_gamma_2_5(2-ih:i1+ih,2-jh:j1+jh,k1) &
-              ,f_gamma_2  (2-ih:i1+ih,2-jh:j1+jh,k1) &
-              ,f_gamma_1  (2-ih:i1+ih,2-jh:j1+jh,k1))
+             )
 
     evap(2:i1,2:j1,1:k1) = 0.
     Nevap(2:i1,2:j1,1:k1) = 0.
@@ -762,38 +761,37 @@ module modbulkmicro
     diag_mp=0.
     diag_zh=0.
 
+	lambda_zh=2700.
+	f_zh = avf/lambda_zh**3. +  &
+	  bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(3.5)/lambda_zh**3.5 * &
+	  (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_zh/(   c_tvsb+lambda_zh))**3.5  &
+		 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_zh/(2.*c_tvsb+lambda_zh))**3.5  &
+		 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_zh/(3.*c_tvsb+lambda_zh))**3.5 &
+		 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_zh/(4.*c_tvsb+lambda_zh))**3.5  )
+                 
     if (l_sb ) then
-       f_gamma_2_5 (2:i1,2:j1,1:k1) = f_gamma(mur(2:i1,2:j1,1:k1)+2.5)
-       f_gamma_2   (2:i1,2:j1,1:k1) = f_gamma(mur(2:i1,2:j1,1:k1)+2)
-       f_gamma_1   (2:i1,2:j1,1:k1) = f_gamma(mur(2:i1,2:j1,1:k1)+1)
        do j=2,j1
        do i=2,i1
        do k=1,k1
          if (qrmask(i,j,k)) then
-           F(i,j,k) = avf * f_gamma_2(i,j,k) /lbdr(i,j,k)**(mur(i,j,k)+2.)    +  &
-              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*f_gamma_2_5(i,j,k)/lbdr(i,j,k)**(mur(i,j,k)+2.5) * &
+           numel=nint(mur(i,j,k)*100.)
+           F(i,j,k) = avf * mygamma21(numel)*Dvr(i,j,k)**(1./3.)    +  &
+              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(1./2.) * &
               (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
                  -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
-            evap(i,j,k) = 2*pi*(Nr(i,j,k)*lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k)) &
-                          *G(i,j,k)*F(i,j,k)*S(i,j,k)/rhoz(i,j,k)
+! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
+            evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhoz(i,j,k)
             Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhoz(i,j,k)/xr(i,j,k)
             lambda_mp=6.**(1./3.)/Dvr(i,j,k)
-            lambda_zh=2700.
             f_mp = avf/lambda_mp**2. +  &
               bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(2.5)/lambda_mp**2.5 * &
               (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_mp/(   c_tvsb+lambda_mp))**2.5  &
                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_mp/(2.*c_tvsb+lambda_mp))**2.5  &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_mp/(3.*c_tvsb+lambda_mp))**2.5 &
                  -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_mp/(4.*c_tvsb+lambda_mp))**2.5  )
-            f_zh = avf/lambda_zh**3. +  &
-              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(3.5)/lambda_zh**3.5 * &
-              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_zh/(   c_tvsb+lambda_zh))**3.5  &
-                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_zh/(2.*c_tvsb+lambda_zh))**3.5  &
-                 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_zh/(3.*c_tvsb+lambda_zh))**3.5 &
-                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_zh/(4.*c_tvsb+lambda_zh))**3.5  )
-            diag_mp(i,j,k)=2*pi*((n0rr**(3./4.)*qr(i,j,k)**(1./4.)*(rhoz(i,j,k)/pi*rhow)**(1./4.)*lambda_mp))*G(i,j,k)*f_mp*S(i,j,k)/rhoz(i,j,k)
+            diag_mp(i,j,k)=2*pi*((n0rr**(3./4.)*qr(i,j,k)**(1./4.)*(rhoz(i,j,k)/(pi*rhow))**(1./4.)*lambda_mp))*G(i,j,k)*f_mp*S(i,j,k)/rhoz(i,j,k)
             diag_zh(i,j,k)=2*pi*((6.*lambda_zh**3.*rhoz(i,j,k)*qr(i,j,k)*lambda_zh**2.)/(pi*rhow*12.))*G(i,j,k)*f_zh*S(i,j,k)/rhoz(i,j,k)
          endif
        enddo
@@ -831,7 +829,7 @@ module modbulkmicro
     qtpmcr(2:i1,2:j1,1:k1) = qtpmcr(2:i1,2:j1,1:k1) -evap(2:i1,2:j1,1:k1)
     thlpmcr(2:i1,2:j1,1:k1) = thlpmcr(2:i1,2:j1,1:k1) + (rlv/cp)*evap(2:i1,2:j1,1:k1)
 
-    deallocate (F,S,G,f_gamma_2_5,f_gamma_2,f_gamma_1)
+    deallocate (F,S,G)
 
 
   end subroutine evaporation

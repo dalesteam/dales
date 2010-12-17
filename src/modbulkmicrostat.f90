@@ -38,8 +38,11 @@ PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
   integer,parameter :: nvar = 25
+  integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
+  character(80) :: fname = 'dummy.nc'
+  integer :: ncid,nrec = 0
 
   real          :: dtav, timeav
   integer(kind=longint):: idtav, itimeav, tnext, tnextwrite
@@ -206,10 +209,10 @@ subroutine initbulkmicrostat
         call ncinfo(tncname(1,:),'time','Time','s','time')
         call ncinfo(ncname( 1,:),'cfrac','Cloud fraction','-','tt')
         call ncinfo(ncname( 2,:),'rainrate','Echo Rain Rate','W/m^2','tt')
-        call ncinfo(ncname( 3,:),'preccount','Preccount','W/m^2','mt')
-        call ncinfo(ncname( 4,:),'nrrain','nrrain','W/m^2','mt')
+        call ncinfo(ncname( 3,:),'preccount','Preccount','W/m^2','tt')
+        call ncinfo(ncname( 4,:),'nrrain','nrrain','W/m^2','tt')
         call ncinfo(ncname( 5,:),'raincount','raincount','W/m^2','tt')
-        call ncinfo(ncname( 6,:),'precmn','precmn','W/m^2','mt')
+        call ncinfo(ncname( 6,:),'precmn','precmn','W/m^2','tt')
         call ncinfo(ncname( 7,:),'dvrmn','dvrmn','W/m^2','tt')
         call ncinfo(ncname( 8,:),'qrmn','qrmn','W/m^2','tt')
         call ncinfo(ncname( 9,:),'npauto','Autoconversion rain drop tendency','#/m3/s','tt')
@@ -227,8 +230,8 @@ subroutine initbulkmicrostat
         call ncinfo(ncname(21,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(22,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(23,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(24,:),'diag_zh','Diagnosed zh rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(25,:),'diag_mp','Diagnosed mp rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(24,:),'diagzh','Diagnosed zh rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(25,:),'diagmp','Diagnosed mp rain water content tendency','kg/kg/s','tt')
         call define_nc( ncid_prof, NVar, ncname)
       end if
 

@@ -135,6 +135,8 @@ save
       real, dimension(1:2000) :: ttab
       real, dimension(1:2000) :: esatltab
       real, dimension(1:2000) :: esatitab     
+      real, dimension(-100:4000) :: mygamma251
+      real, dimension(-100:4000) :: mygamma21
                                              
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
@@ -303,6 +305,13 @@ contains
     ttab(m)=150.+0.2*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
+    end do
+
+    do m=-99,4000
+    mygamma251(-100)=0.
+    mygamma21(-100)=0.
+    mygamma251(m)=max(gamma(m/100.+2.5)/gamma(m/100.+1.)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
+    mygamma21(m)=max(gamma(m/100.+2.)/gamma(m/100.+1.)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
     end do
 
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
