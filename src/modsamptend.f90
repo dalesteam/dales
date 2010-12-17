@@ -29,10 +29,10 @@ module modsamptend
   use modglobal, only : longint
   implicit none
   private
-  public :: initsamptend, samptend, exitsamptend
+  public :: initsamptend, samptend, exitsamptend, leibniztend
   save
 !NetCDF variables
-  integer, parameter :: nvar = 59
+  integer, parameter :: nvar = 66
   integer, dimension(10) :: nrec5
   integer, dimension(10) :: ncid5
   character(80), dimension(10) :: fname5
@@ -41,8 +41,8 @@ module modsamptend
   real    :: dtav, timeav
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   integer,public,parameter :: tend_tot=1,tend_start=1,tend_adv=2,tend_subg=3,tend_force=4,&
-                       tend_rad=5,tend_ls=6,tend_micro=7, tend_topbound=8,tend_pois=9,tend_addon=10, tend_coriolis=11
-  integer,parameter :: nrfields = 11
+                       tend_rad=5,tend_ls=6,tend_micro=7, tend_topbound=8,tend_pois=9,tend_addon=10, tend_coriolis=11, tend_totlb=12
+  integer,parameter :: nrfields = 12
   character(20),dimension(10) :: samplname,longsamplname
   integer :: nsamples,isamp,isamptot
   logical :: lsampcl  = .false. !< switch for conditional sampling cloud (on/off)
@@ -50,12 +50,16 @@ module modsamptend
   logical :: lsampup  = .false. !< switch for conditional sampling updraft (on/off)
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampall = .false. !< switch for sampling all data (on/off)
+  logical :: ldosamptendwrite = .false. !< write tendencies after leibniz terms have been detemined
+  logical :: ldosamptendleib = .false. !< determine leibniz terms
+  real :: lastrk3coef
 
   real, allocatable :: uptm(:,:,:),vptm(:,:,:),wptm(:,:,:),thlptm(:,:,:),qtptm(:,:,:),qrptm(:,:,:),nrptm(:,:,:)
   real, allocatable :: upav(:,:,:),vpav(:,:,:),wpav(:,:,:),thlpav(:,:,:),qtpav(:,:,:),qrpav(:,:,:),nrpav(:,:,:)
   real, allocatable :: upmn(:,:,:),vpmn(:,:,:),wpmn(:,:,:),thlpmn(:,:,:),qtpmn(:,:,:),qrpmn(:,:,:),nrpmn(:,:,:)
+  real, allocatable :: ust(:,:),vst(:,:),wst(:,:),thlst(:,:),qtst(:,:),qrst(:,:),nrst(:,:)
   logical, allocatable :: tendmask(:,:,:,:)
-  integer, allocatable :: nrsamptot(:,:),nrsamp(:,:)
+  integer, allocatable :: nrsamptot(:,:),nrsamp(:,:),nrsamplast(:,:),nrsampnew(:,:)
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -138,8 +142,8 @@ subroutine initsamptend
     allocate (upmn(k1,nrfields,isamptot),vpmn(k1,nrfields,isamptot),wpmn(k1,nrfields,isamptot),thlpmn(k1,nrfields,isamptot),qtpmn(k1,nrfields,isamptot),qrpmn(k1,nrfields,isamptot),nrpmn(k1,nrfields,isamptot))
     allocate (upav(k1,nrfields,isamptot),vpav(k1,nrfields,isamptot),wpav(k1,nrfields,isamptot),thlpav(k1,nrfields,isamptot),qtpav(k1,nrfields,isamptot),qrpav(k1,nrfields,isamptot),nrpav(k1,nrfields,isamptot))
     allocate (tendmask(2-ih:i1+ih,2-jh:j1+jh,k1,isamptot))
-    allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot))
-
+    allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot),nrsamplast(k1,isamptot),nrsampnew(k1,isamptot))
+    allocate (ust(k1,isamptot),vst(k1,isamptot),wst(k1,isamptot),thlst(k1,isamptot),qtst(k1,isamptot),qrst(k1,isamptot),nrst(k1,isamptot))
     uptm = 0.
     vptm = 0.
     wptm = 0.
@@ -161,9 +165,19 @@ subroutine initsamptend
     qtpav = 0.
     qrpav = 0.
     nrpav = 0.
+    ust = 0.
+    vst = 0.
+    wst = 0.
+    thlst = 0.
+    qtst = 0.
+    qrst = 0.
+    nrst = 0.
+
     tendmask=.false.
     nrsamp=0
     nrsamptot=0
+    nrsamplast=0
+    nrsampnew=0
 
     nrec5=0
     ncid5=0
@@ -193,56 +207,63 @@ subroutine initsamptend
         call ncinfo(ncname5( 7,:),'utendpois','U pressure gradient tendency','m/s^2','tt')
         call ncinfo(ncname5( 8,:),'utendaddon','U in addons tendency','m/s^2','tt')
         call ncinfo(ncname5( 9,:),'utendtot','U total tendency','m/s^2','tt')
-        call ncinfo(ncname5(10,:),'vtendadv','V advective tendency','m/s^2','tt')
-        call ncinfo(ncname5(11,:),'vtenddif','V diffusive tendency','m/s^2','tt')
-        call ncinfo(ncname5(12,:),'vtendfor','V tendency due to other forces','m/s^2','tt')
-        call ncinfo(ncname5(13,:),'vtendcor','V coriolis tendency','m/s^2','tt')
-        call ncinfo(ncname5(14,:),'vtendls','V large scale tendency','m/s^2','tt')
-        call ncinfo(ncname5(15,:),'vtendtop','V top boundary tendency','m/s^2','tt')
-        call ncinfo(ncname5(16,:),'vtendpois','V pressure gradient tendency','m/s^2','tt')
-        call ncinfo(ncname5(17,:),'vtendaddon','V in addons tendency','m/s^2','tt')
-        call ncinfo(ncname5(18,:),'vtendtot','V total tendency','m/s^2','tt')
-        call ncinfo(ncname5(19,:),'wtendadv','W advective tendency','m/s^2','mt')
-        call ncinfo(ncname5(20,:),'wtenddif','W diffusive tendency','m/s^2','mt')
-        call ncinfo(ncname5(21,:),'wtendfor','W tendency due to other forces','m/s^2','mt')
-        call ncinfo(ncname5(22,:),'wtendcor','W coriolis tendency','m/s^2','mt')
-        call ncinfo(ncname5(23,:),'wtendls','W large scale tendency','m/s^2','mt')
-        call ncinfo(ncname5(24,:),'wtendtop','W top boundary tendency','m/s^2','mt')
-        call ncinfo(ncname5(25,:),'wtendpois','W pressure gradient tendency','m/s^2','mt')
-        call ncinfo(ncname5(26,:),'wtendaddon','W in addons tendency','m/s^2','mt')
-        call ncinfo(ncname5(27,:),'wtendtot','W total tendency','m/s^2','mt')
-        call ncinfo(ncname5(28,:),'tltendadv','theta_l advective tendency','K/s','tt')
-        call ncinfo(ncname5(29,:),'tltenddif','theta_l diffusive tendency','K/s','tt')
-        call ncinfo(ncname5(30,:),'tltendrad','theta_l radiative tendency','K/s','tt')
-        call ncinfo(ncname5(31,:),'tltendmicro','theta_l microphysical tendency','K/s','tt')
-        call ncinfo(ncname5(32,:),'tltendls','theta_l large scale tendency','K/s','tt')
-        call ncinfo(ncname5(33,:),'tltendtop','theta_l  top boundary tendency','K/s','tt')
-        call ncinfo(ncname5(34,:),'tltendaddon','theta_l in addons tendency','K/s','tt')
-        call ncinfo(ncname5(35,:),'tltendtot','theta_l total tendency','K/s','tt')
-        call ncinfo(ncname5(36,:),'qttendadv','total water content advective tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(37,:),'qttenddif','total water content diffusive tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(38,:),'qttendrad','total water content radiative tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(39,:),'qttendmicro','total water content microphysical tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(40,:),'qttendls','total water content large scale tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(41,:),'qttendtop','total water content  top boundary tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(42,:),'qttendaddon','total water content in addons tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(43,:),'qttendtot','total water content total tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(44,:),'qrtendadv','total water content advective tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(45,:),'qrtenddif','total water content diffusive tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(46,:),'qrtendrad','total water content radiative tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(47,:),'qrtendmicro','total water content microphysical tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(48,:),'qrtendls','total water content large scale tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(49,:),'qrtendtop','total water content  top boundary tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(50,:),'qrtendaddon','total water content in addons tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(51,:),'qrtendtot','total water content total tendency','kg/kg/s','tt')
-        call ncinfo(ncname5(52,:),'nrtendadv','RDNC advective tendency','/kg/s','tt')
-        call ncinfo(ncname5(53,:),'nrtenddif','RDNC diffusive tendency','/kg/s','tt')
-        call ncinfo(ncname5(54,:),'nrtendrad','RDNC radiative tendency','/kg/s','tt')
-        call ncinfo(ncname5(55,:),'nrtendmicro','RDNC microphysical tendency','/kg/s','tt')
-        call ncinfo(ncname5(56,:),'nrtendls','RDNC large scale tendency','/kg/s','tt')
-        call ncinfo(ncname5(57,:),'nrtendtop','RDNC top boundary tendency','/kg/s','tt')
-        call ncinfo(ncname5(58,:),'nrtendaddon','RDNC addons tendency','/kg/s','tt')
-        call ncinfo(ncname5(59,:),'nrtendtot','RDNC total tendency','/kg/s','tt')
+        call ncinfo(ncname5(10,:),'utendleib','U total tendency with leibniz terms','m/s^2','tt')
+        call ncinfo(ncname5(11,:),'vtendadv','V advective tendency','m/s^2','tt')
+        call ncinfo(ncname5(12,:),'vtenddif','V diffusive tendency','m/s^2','tt')
+        call ncinfo(ncname5(13,:),'vtendfor','V tendency due to other forces','m/s^2','tt')
+        call ncinfo(ncname5(14,:),'vtendcor','V coriolis tendency','m/s^2','tt')
+        call ncinfo(ncname5(15,:),'vtendls','V large scale tendency','m/s^2','tt')
+        call ncinfo(ncname5(16,:),'vtendtop','V top boundary tendency','m/s^2','tt')
+        call ncinfo(ncname5(17,:),'vtendpois','V pressure gradient tendency','m/s^2','tt')
+        call ncinfo(ncname5(18,:),'vtendaddon','V in addons tendency','m/s^2','tt')
+        call ncinfo(ncname5(19,:),'vtendtot','V total tendency','m/s^2','tt')
+        call ncinfo(ncname5(20,:),'vtendleib','V total tendency with leibniz terms','m/s^2','tt')
+        call ncinfo(ncname5(21,:),'wtendadv','W advective tendency','m/s^2','mt')
+        call ncinfo(ncname5(22,:),'wtenddif','W diffusive tendency','m/s^2','mt')
+        call ncinfo(ncname5(23,:),'wtendfor','W tendency due to other forces','m/s^2','mt')
+        call ncinfo(ncname5(24,:),'wtendcor','W coriolis tendency','m/s^2','mt')
+        call ncinfo(ncname5(25,:),'wtendls','W large scale tendency','m/s^2','mt')
+        call ncinfo(ncname5(26,:),'wtendtop','W top boundary tendency','m/s^2','mt')
+        call ncinfo(ncname5(27,:),'wtendpois','W pressure gradient tendency','m/s^2','mt')
+        call ncinfo(ncname5(28,:),'wtendaddon','W in addons tendency','m/s^2','mt')
+        call ncinfo(ncname5(29,:),'wtendtot','W total tendency','m/s^2','mt')
+        call ncinfo(ncname5(30,:),'wtendleib','W total tendency with leibniz terms','m/s^2','tt')
+        call ncinfo(ncname5(31,:),'tltendadv','theta_l advective tendency','K/s','tt')
+        call ncinfo(ncname5(32,:),'tltenddif','theta_l diffusive tendency','K/s','tt')
+        call ncinfo(ncname5(33,:),'tltendrad','theta_l radiative tendency','K/s','tt')
+        call ncinfo(ncname5(34,:),'tltendmicro','theta_l microphysical tendency','K/s','tt')
+        call ncinfo(ncname5(35,:),'tltendls','theta_l large scale tendency','K/s','tt')
+        call ncinfo(ncname5(36,:),'tltendtop','theta_l  top boundary tendency','K/s','tt')
+        call ncinfo(ncname5(37,:),'tltendaddon','theta_l in addons tendency','K/s','tt')
+        call ncinfo(ncname5(38,:),'tltendtot','theta_l total tendency','K/s','tt')
+        call ncinfo(ncname5(39,:),'tltendleib','theta_l total tendency with leibniz terms','K/s','tt')
+        call ncinfo(ncname5(40,:),'qttendadv','total water content advective tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(41,:),'qttenddif','total water content diffusive tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(42,:),'qttendrad','total water content radiative tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(43,:),'qttendmicro','total water content microphysical tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(44,:),'qttendls','total water content large scale tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(45,:),'qttendtop','total water content  top boundary tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(46,:),'qttendaddon','total water content in addons tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(47,:),'qttendtot','total water content total tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(48,:),'qttendleib','total water content total tendency with leibniz terms','kg/kg/s','tt')
+        call ncinfo(ncname5(49,:),'qrtendadv','total water content advective tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(50,:),'qrtenddif','total water content diffusive tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(51,:),'qrtendrad','total water content radiative tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(52,:),'qrtendmicro','total water content microphysical tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(53,:),'qrtendls','total water content large scale tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(54,:),'qrtendtop','total water content  top boundary tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(55,:),'qrtendaddon','total water content in addons tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(56,:),'qrtendtot','total water content total tendency','kg/kg/s','tt')
+        call ncinfo(ncname5(57,:),'qrtendleib','total water content total tendency with leibniz terms','kg/kg/s','tt')
+        call ncinfo(ncname5(58,:),'nrtendadv','RDNC advective tendency','/kg/s','tt')
+        call ncinfo(ncname5(59,:),'nrtenddif','RDNC diffusive tendency','/kg/s','tt')
+        call ncinfo(ncname5(60,:),'nrtendrad','RDNC radiative tendency','/kg/s','tt')
+        call ncinfo(ncname5(61,:),'nrtendmicro','RDNC microphysical tendency','/kg/s','tt')
+        call ncinfo(ncname5(62,:),'nrtendls','RDNC large scale tendency','/kg/s','tt')
+        call ncinfo(ncname5(63,:),'nrtendtop','RDNC top boundary tendency','/kg/s','tt')
+        call ncinfo(ncname5(64,:),'nrtendaddon','RDNC addons tendency','/kg/s','tt')
+        call ncinfo(ncname5(65,:),'nrtendtot','RDNC total tendency','/kg/s','tt')
+        call ncinfo(ncname5(66,:),'nrtendleib','RDNC total tendency with leibniz terms','/kg/s','tt')
         call open_nc(fname5(isamp),ncid5(isamp),n3=kmax)
         call define_nc(ncid5(isamp),1,tncname5)
         call writestat_dims_nc(ncid5(isamp))
@@ -258,8 +279,8 @@ subroutine initsamptend
     use modmpi,    only : myid,slabsum
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,rslabs,&
-                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime
-    use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0
+                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime,nsv,rdt
+    use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
     implicit none
@@ -281,6 +302,7 @@ subroutine initsamptend
 
     IF (present(firstterm)) THEN
     IF (firstterm) THEN
+      nrsamplast=0
       tendmask=.false.
       uptm = 0.
       vptm = 0.
@@ -289,6 +311,13 @@ subroutine initsamptend
       qtptm = 0.
       qrptm = 0.
       nrptm = 0.
+      ust = 0.
+      vst = 0.
+      wst = 0.
+      thlst = 0.
+      qtst = 0.
+      qrst = 0.
+      nrst = 0.
 
       allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1),&
                 w0f(2-ih:i1+ih,2-jh:j1+jh,k1))   
@@ -351,13 +380,31 @@ subroutine initsamptend
         case ('all')
             tendmask(:,:,:,isamp)  = .true.
         end select
-      do k=1,kmax
-        nrsamp(k,isamp)= nrsamp(k,isamp)+count(tendmask(2:i1,2:j1,k,isamp))
-      end do
+        do k=1,kmax
+          nrsamp(k,isamp)= nrsamp(k,isamp)+count(tendmask(2:i1,2:j1,k,isamp))
+          nrsamplast(k,isamp)= count(tendmask(2:i1,2:j1,k,isamp))
+        end do
       enddo
 
       deallocate(thv0,w0f)
       deallocate(thvav)
+
+      do isamp=1,isamptot
+      do k=1,kmax
+        ust(k,isamp) = sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+        vst(k,isamp) = sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+        wst(k,isamp) = sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+        thlst(k,isamp) = sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+        qtst(k,isamp) = sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+        if(nsv>1) then
+        qrst(k,isamp) = sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))
+        nrst(k,isamp) = sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))
+        endif
+      end do
+      end do
+
+      ldosamptendleib=.true.
+      lastrk3coef = rdt / (4. - dble(rk3step))
 
     ENDIF
     ENDIF
@@ -375,8 +422,10 @@ subroutine initsamptend
       wptm(k,tendterm,isamp) = sum(wpf (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-wptm (k,tend_tot,isamp)
       thlptm(k,tendterm,isamp) = sum(thlp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-thlptm (k,tend_tot,isamp)
       qtptm(k,tendterm,isamp) = sum(qtp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-qtptm (k,tend_tot,isamp)
+      if(nsv>1) then
       qrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))-qrptm (k,tend_tot,isamp)
       nrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))-nrptm (k,tend_tot,isamp)
+      endif
       uptm(k,tend_tot,isamp) = sum(up (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       vptm(k,tend_tot,isamp) = sum(vp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       wptm(k,tend_tot,isamp) = sum(wpf (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
@@ -413,6 +462,119 @@ subroutine initsamptend
 
       if (timee>=tnextwrite) then
         tnextwrite = tnextwrite+itimeav
+        ldosamptendwrite = .true.
+      end if
+      dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
+    END IF
+    END IF
+    
+  end subroutine samptend
+
+  subroutine leibniztend
+    use modmpi,    only : myid,slabsum
+    use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
+                          cp,rv,rlv,rd,rslabs,&
+                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime,nsv,rdt
+    use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
+    use modmicrodata, only : iqr,inr
+    implicit none
+    real, allocatable, dimension(:,:,:) :: w0f,wpf
+    real, allocatable, dimension(:,:,:) :: thv0
+    real, allocatable, dimension(:) :: thvav
+    integer :: i,j,k
+
+      if(.not.(ldosamptendleib)) return
+      ldosamptendleib=.false.
+      tendmask=.false.
+      nrsampnew=0
+
+      allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1),&
+                w0f(2-ih:i1+ih,2-jh:j1+jh,k1))   
+      allocate(thvav(k1))
+  
+      do k=1,k1
+        thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
+                    *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
+      enddo
+      do k=1,kmax
+        w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
+      end do
+  
+      thvav = 0.0
+      call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      thvav = thvav/rslabs
+
+      do isamp=1,isamptot
+        select case (samplname(isamp))
+        case ('upd')
+          do i=2,i1
+          do j=2,j1
+          do k=1,kmax
+            if (w0f(i,j,k)>0.) then
+                tendmask(i,j,k,isamp) = .true.
+            endif
+          enddo
+          enddo
+          enddo
+        case ('buup')
+          do i=2,i1
+          do j=2,j1
+          do k=1,kmax
+            if ((w0f(i,j,k)>0.0).and.(thv0(i,j,k) > thvav(k))) then
+                tendmask(i,j,k,isamp) = .true.
+            endif
+          enddo
+          enddo
+          enddo
+        case ('cld')
+          do i=2,i1
+          do j=2,j1
+          do k=1,kmax
+            if (ql0(i,j,k)>epsilon(1.0)) then
+                tendmask(i,j,k,isamp) = .true.
+            endif
+          enddo
+          enddo
+          enddo
+        case ('cldcr')
+          do i=2,i1
+          do j=2,j1
+          do k=1,kmax
+            if (ql0(i,j,k)>epsilon(1.0).and.thv0(i,j,k) > thvav(k)) then
+                tendmask(i,j,k,isamp) = .true.
+            endif
+          enddo
+          enddo
+          enddo
+        case ('all')
+            tendmask(:,:,:,isamp)  = .true.
+        end select
+        do k=1,kmax
+          nrsampnew(k,isamp)= count(tendmask(2:i1,2:j1,k,isamp))
+        end do
+      enddo
+
+      deallocate(thv0,w0f)
+      deallocate(thvav)
+
+      do isamp=1,isamptot
+      do k=1,kmax
+        if((nrsampnew(k,isamp)>0).and.(nrsamplast(k,isamp)>0)) then! only do if sampling can be performed at both points in time
+        upav(k,tend_totlb,isamp) = upav(k,tend_totlb,isamp)+(ust(k,isamp)-sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        vpav(k,tend_totlb,isamp) = vpav(k,tend_totlb,isamp)+(vst(k,isamp)-sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        wpav(k,tend_totlb,isamp) = wpav(k,tend_totlb,isamp)+(wst(k,isamp)-sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        thlpav(k,tend_totlb,isamp) = thlpav(k,tend_totlb,isamp)+(thlst(k,isamp)-sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        qtpav(k,tend_totlb,isamp) = qtpav(k,tend_totlb,isamp)+(qtst(k,isamp)-sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        if(nsv>1) then
+        qrpav(k,tend_totlb,isamp) = qrpav(k,tend_totlb,isamp)+(qrst(k,isamp)-sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        nrpav(k,tend_totlb,isamp) = nrpav(k,tend_totlb,isamp)+(nrst(k,isamp)-sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        endif
+        endif
+      enddo
+      enddo
+
+      if(ldosamptendwrite) then
+        ldosamptendwrite=.false.
         call writesamptend
         upav = 0.
         vpav = 0.
@@ -422,12 +584,9 @@ subroutine initsamptend
         qrpav = 0.
         nrpav = 0.
         nrsamp = 0
-      end if
-      dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
-    END IF
-    END IF
-    
-  end subroutine samptend
+      endif
+
+  end subroutine leibniztend
 
 !> Write the statistics to file
   subroutine writesamptend
@@ -476,65 +635,72 @@ subroutine initsamptend
       if (lnetcdf) then
         do isamp=1,isamptot
           vars=0.
-          vars(:, 1) =upmn(:,tend_adv,isamp)
-          vars(:, 2) =upmn(:,tend_subg,isamp)
-          vars(:, 3) =upmn(:,tend_force,isamp)
-          vars(:, 4) =upmn(:,tend_coriolis,isamp)
-          vars(:, 5) =upmn(:,tend_ls,isamp)
-          vars(:, 6) =upmn(:,tend_topbound,isamp)
-          vars(:, 7) =upmn(:,tend_pois,isamp)
-          vars(:, 8) =upmn(:,tend_addon,isamp)
-          vars(:, 9) =upmn(:,tend_tot,isamp)
-          vars(:,10) =vpmn(:,tend_adv,isamp)
-          vars(:,11) =vpmn(:,tend_subg,isamp)
-          vars(:,12) =vpmn(:,tend_force,isamp)
-          vars(:,13) =vpmn(:,tend_coriolis,isamp)
-          vars(:,14) =vpmn(:,tend_ls,isamp)
-          vars(:,15) =vpmn(:,tend_topbound,isamp)
-          vars(:,16) =vpmn(:,tend_pois,isamp)
-          vars(:,17) =vpmn(:,tend_addon,isamp)
-          vars(:,18) =vpmn(:,tend_tot,isamp)
-          vars(:,19) =wpmn(:,tend_adv,isamp)
-          vars(:,20) =wpmn(:,tend_subg,isamp)
-          vars(:,21) =wpmn(:,tend_force,isamp)
-          vars(:,22) =wpmn(:,tend_coriolis,isamp)
-          vars(:,23) =wpmn(:,tend_ls,isamp)
-          vars(:,24) =wpmn(:,tend_topbound,isamp)
-          vars(:,25) =wpmn(:,tend_pois,isamp)
-          vars(:,26) =wpmn(:,tend_addon,isamp)
-          vars(:,27) =wpmn(:,tend_tot,isamp)
-          vars(:,28) =thlpmn(:,tend_adv,isamp)
-          vars(:,29) =thlpmn(:,tend_subg,isamp)
-          vars(:,30) =thlpmn(:,tend_rad,isamp)
-          vars(:,31) =thlpmn(:,tend_micro,isamp)
-          vars(:,32) =thlpmn(:,tend_ls,isamp)
-          vars(:,33) =thlpmn(:,tend_topbound,isamp)
-          vars(:,34) =thlpmn(:,tend_addon,isamp)
-          vars(:,35) =thlpmn(:,tend_tot,isamp)
-          vars(:,36) =qtpmn(:,tend_adv,isamp)
-          vars(:,37) =qtpmn(:,tend_subg,isamp)
-          vars(:,38) =qtpmn(:,tend_rad,isamp)
-          vars(:,39) =qtpmn(:,tend_micro,isamp)
-          vars(:,40) =qtpmn(:,tend_ls,isamp)
-          vars(:,41) =qtpmn(:,tend_topbound,isamp)
-          vars(:,42) =qtpmn(:,tend_addon,isamp)
-          vars(:,43) =qrpmn(:,tend_tot,isamp)
-          vars(:,44) =qrpmn(:,tend_adv,isamp)
-          vars(:,45) =qrpmn(:,tend_subg,isamp)
-          vars(:,46) =qrpmn(:,tend_rad,isamp)
-          vars(:,47) =qrpmn(:,tend_micro,isamp)
-          vars(:,48) =qrpmn(:,tend_ls,isamp)
-          vars(:,49) =qrpmn(:,tend_topbound,isamp)
-          vars(:,50) =qrpmn(:,tend_addon,isamp)
-          vars(:,51) =qrpmn(:,tend_tot,isamp)
-          vars(:,52) =nrpmn(:,tend_adv,isamp)
-          vars(:,53) =nrpmn(:,tend_subg,isamp)
-          vars(:,54) =nrpmn(:,tend_rad,isamp)
-          vars(:,55) =nrpmn(:,tend_micro,isamp)
-          vars(:,56) =nrpmn(:,tend_ls,isamp)
-          vars(:,57) =nrpmn(:,tend_topbound,isamp)
-          vars(:,58) =nrpmn(:,tend_addon,isamp)
-          vars(:,59) =nrpmn(:,tend_tot,isamp)
+          vars(:, 1) = upmn(:,tend_adv,isamp)
+          vars(:, 2) = upmn(:,tend_subg,isamp)
+          vars(:, 3) = upmn(:,tend_force,isamp)
+          vars(:, 4) = upmn(:,tend_coriolis,isamp)
+          vars(:, 5) = upmn(:,tend_ls,isamp)
+          vars(:, 6) = upmn(:,tend_topbound,isamp)
+          vars(:, 7) = upmn(:,tend_pois,isamp)
+          vars(:, 8) = upmn(:,tend_addon,isamp)
+          vars(:, 9) = upmn(:,tend_tot,isamp)
+          vars(:,10) = upmn(:,tend_totlb,isamp)
+          vars(:,11) = vpmn(:,tend_adv,isamp)
+          vars(:,12) = vpmn(:,tend_subg,isamp)
+          vars(:,13) = vpmn(:,tend_force,isamp)
+          vars(:,14) = vpmn(:,tend_coriolis,isamp)
+          vars(:,15) = vpmn(:,tend_ls,isamp)
+          vars(:,16) = vpmn(:,tend_topbound,isamp)
+          vars(:,17) = vpmn(:,tend_pois,isamp)
+          vars(:,18) = vpmn(:,tend_addon,isamp)
+          vars(:,19) = vpmn(:,tend_tot,isamp)
+          vars(:,20) = vpmn(:,tend_totlb,isamp)
+          vars(:,21) = wpmn(:,tend_adv,isamp)
+          vars(:,22) = wpmn(:,tend_subg,isamp)
+          vars(:,23) = wpmn(:,tend_force,isamp)
+          vars(:,24) = wpmn(:,tend_coriolis,isamp)
+          vars(:,25) = wpmn(:,tend_ls,isamp)
+          vars(:,26) = wpmn(:,tend_topbound,isamp)
+          vars(:,27) = wpmn(:,tend_pois,isamp)
+          vars(:,28) = wpmn(:,tend_addon,isamp)
+          vars(:,29) = wpmn(:,tend_tot,isamp)
+          vars(:,30) = wpmn(:,tend_totlb,isamp)
+          vars(:,31) = thlpmn(:,tend_adv,isamp)
+          vars(:,32) = thlpmn(:,tend_subg,isamp)
+          vars(:,33) = thlpmn(:,tend_rad,isamp)
+          vars(:,34) = thlpmn(:,tend_micro,isamp)
+          vars(:,35) = thlpmn(:,tend_ls,isamp)
+          vars(:,36) = thlpmn(:,tend_topbound,isamp)
+          vars(:,37) = thlpmn(:,tend_addon,isamp)
+          vars(:,38) = thlpmn(:,tend_tot,isamp)
+          vars(:,39) = thlpmn(:,tend_totlb,isamp)
+          vars(:,40) = qtpmn(:,tend_adv,isamp)
+          vars(:,41) = qtpmn(:,tend_subg,isamp)
+          vars(:,42) = qtpmn(:,tend_rad,isamp)
+          vars(:,43) = qtpmn(:,tend_micro,isamp)
+          vars(:,44) = qtpmn(:,tend_ls,isamp)
+          vars(:,45) = qtpmn(:,tend_topbound,isamp)
+          vars(:,46) = qtpmn(:,tend_addon,isamp)
+          vars(:,47) = qrpmn(:,tend_tot,isamp)
+          vars(:,48) = qrpmn(:,tend_totlb,isamp)
+          vars(:,49) = qrpmn(:,tend_adv,isamp)
+          vars(:,50) = qrpmn(:,tend_subg,isamp)
+          vars(:,51) = qrpmn(:,tend_rad,isamp)
+          vars(:,52) = qrpmn(:,tend_micro,isamp)
+          vars(:,53) = qrpmn(:,tend_ls,isamp)
+          vars(:,54) = qrpmn(:,tend_topbound,isamp)
+          vars(:,55) = qrpmn(:,tend_addon,isamp)
+          vars(:,56) = qrpmn(:,tend_tot,isamp)
+          vars(:,57) = qrpmn(:,tend_totlb,isamp)
+          vars(:,58) = nrpmn(:,tend_adv,isamp)
+          vars(:,59) = nrpmn(:,tend_subg,isamp)
+          vars(:,60) = nrpmn(:,tend_rad,isamp)
+          vars(:,61) = nrpmn(:,tend_micro,isamp)
+          vars(:,62) = nrpmn(:,tend_ls,isamp)
+          vars(:,63) = nrpmn(:,tend_topbound,isamp)
+          vars(:,64) = nrpmn(:,tend_addon,isamp)
+          vars(:,65) = nrpmn(:,tend_tot,isamp)
+          vars(:,66) = nrpmn(:,tend_totlb,isamp)
           call writestat_nc(ncid5(isamp),1,tncname5,(/rtimee/),nrec5(isamp),.true.)
           call writestat_nc(ncid5(isamp),nvar,ncname5,vars(1:kmax,:),nrec5(isamp),kmax)
         enddo
@@ -554,8 +720,9 @@ subroutine initsamptend
     deallocate (uptm,vptm,wptm,thlptm,qtptm,qrptm,nrptm)
     deallocate (upmn,vpmn,wpmn,thlpmn,qtpmn,qrpmn,nrpmn)
     deallocate (upav,vpav,wpav,thlpav,qtpav,qrpav,nrpav)
+    deallocate (ust,vst,wst,thlst,qtst,qrst,nrst)
     deallocate (tendmask)
-    deallocate (nrsamptot,nrsamp)
+    deallocate (nrsamptot,nrsamp,nrsamplast,nrsampnew)
 
   end subroutine exitsamptend
 
