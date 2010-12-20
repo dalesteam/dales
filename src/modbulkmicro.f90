@@ -762,7 +762,7 @@ module modbulkmicro
     diag_zh=0.
 
 	lambda_zh=2700.
-	f_zh = avf/lambda_zh**3. +  &
+	f_zh = avf*gamma(3.)/lambda_zh**3. +  &
 	  bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(3.5)/lambda_zh**3.5 * &
 	  (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_zh/(   c_tvsb+lambda_zh))**3.5  &
 		 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_zh/(2.*c_tvsb+lambda_zh))**3.5  &
@@ -775,8 +775,8 @@ module modbulkmicro
        do k=1,k1
          if (qrmask(i,j,k)) then
            numel=nint(mur(i,j,k)*100.)
-           F(i,j,k) = avf * mygamma21(numel)*Dvr(i,j,k)**(1./3.)    +  &
-              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(1./2.) * &
+           F(i,j,k) = avf * mygamma21(numel)*Dvr(i,j,k) +  &
+              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
               (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
