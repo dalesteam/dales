@@ -231,30 +231,30 @@ contains
     if (courant<0) then
       select case(iadv_mom)
       case(iadv_cd2)
-        courant = 1.5
+        courant = 1.
       case(iadv_cd6)
-        courant = 1.1
+        courant = 0.7
       case(iadv_62)
-        courant = 1.1
+        courant = 0.7
       case(iadv_5th)
-        courant = 1.4
+        courant = 1.
       case(iadv_52)
-        courant = 1.4
+        courant = 1.
       case default
-        courant = 1.4
+        courant = 1.
       end select
       if (any(iadv_sv(1:nsv)==iadv_cd6) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd6)) then
-        courant = min(courant, 1.1)
+        courant = min(courant, 0.7)
       elseif (any(iadv_sv(1:nsv)==iadv_62) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_62)) then
-        courant = min(courant, 1.1)
+        courant = min(courant, 0.7)
       elseif (any(iadv_sv(1:nsv)==iadv_kappa) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_kappa)) then
-        courant = min(courant, 1.1)
+        courant = min(courant, 0.7)
       elseif (any(iadv_sv(1:nsv)==iadv_5th) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_5th)) then
-        courant = min(courant, 1.4)
+        courant = min(courant, 1.0)
       elseif (any(iadv_sv(1:nsv)==iadv_52 ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_52)) then
-        courant = min(courant, 1.4)
+        courant = min(courant, 1.0)
       elseif (any(iadv_sv(1:nsv)==iadv_cd2) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
-        courant = min(courant, 1.5)
+        courant = min(courant, 1.0)
       end if
    end if
 
@@ -307,9 +307,9 @@ contains
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
 
-    do m=-99,4000
     mygamma251(-100)=0.
     mygamma21(-100)=0.
+    do m=-99,4000
     mygamma251(m)=max(gamma(m/100.+2.5)/gamma(m/100.+1.)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
     mygamma21(m)=max(gamma(m/100.+2.)/gamma(m/100.+1.)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
     end do
