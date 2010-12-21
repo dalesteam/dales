@@ -120,7 +120,7 @@ contains
 
 !>Run crosssection.
   subroutine docape
-    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh
+    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -134,7 +134,7 @@ contains
     logical,allocatable :: capemask(:,:,:)
 
     ! LOCAL VARIABLES
-    integer :: i,j,k,kcb,ktest,tlonr,thinr,niter,nitert
+    integer :: i,j,k,ktest,tlonr,thinr,niter,nitert
     character(40) :: name
     real :: Tnr,Tnr_old,ilratio,tlo,thi,esl1,esi1,qsatur,thlguess,thlguessmin,ttry,qvsl1,qvsi1
 

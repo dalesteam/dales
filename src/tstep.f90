@@ -144,15 +144,18 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist
-  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
+  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,k1,ih,jh,rslabs
+  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
-
+  use modglobal, only : kcb
+  use modmpi, only : slabsum
   implicit none
 
   integer i,j,k,n
   real rk3coef
+  real, dimension(k1) :: qt0avr,thl0avr,thldevsum,qtdevsum
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thldev,qtdev
 
   rk3coef = rdt / (4. - dble(rk3step))
   wp_store = wp
@@ -187,6 +190,49 @@ subroutine tstep_integrate
   svp=0.
   e12p=0.
 
+  thl0avr = 0.0
+  qt0avr  = 0.0
+  call slabsum(thl0avr,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+  call slabsum(qt0avr,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+  thl0avr = thl0avr/rslabs
+  qt0avr = qt0avr/rslabs
+  thldev=0.0
+  qtdev=0.0
+  if(kcb>1) then
+    do k=1,kcb
+    do j=2,j1
+    do i=2,i1    
+      if (thl0(i,j,k)-thl0avr(k)>1.) then
+      thl0(i,j,k)=thl0avr(k)+1
+      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)-1.
+      elseif (thl0(i,j,k)-thl0avr(k)<-1.) then
+      thl0(i,j,k)=thl0avr(k)-1.
+      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)+1.
+      endif
+      if (qt0(i,j,k)-qt0avr(k)>0.003) then
+      qt0(i,j,k)=qt0avr(k)+0.003
+      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)-0.003
+      elseif(qt0(i,j,k)-qt0avr(k)<-0.003) then
+      qt0(i,j,k)=qt0avr(k)-0.003
+      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)+0.003      
+      endif
+    enddo
+    enddo
+    enddo
+    thldevsum = 0.
+    qtdevsum = 0.
+    call slabsum(thldevsum,1,k1,thldev,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qtdevsum ,1,k1,qtdev ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    do k=1,kcb
+    do j=2,j1
+    do i=2,i1    
+      thl0(i,j,k)= thl0(i,j,k)-thldevsum(k)/rslabs
+      qt0(k,j,k) = qt0(i,j,k)-qtdevsum(k)/rslabs
+    enddo
+    enddo
+    enddo
+  endif  
+    
   if(rk3step == 3) then
     um = u0
     vm = v0
@@ -196,4 +242,5 @@ subroutine tstep_integrate
     e12m = e120
     svm = sv0
   end if
+   
 end subroutine tstep_integrate

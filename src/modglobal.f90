@@ -45,7 +45,8 @@ save
       integer ::  ih=3
       integer ::  jh=3
       integer ::  kh=1
-
+      integer ::  kcb=0
+      
       character(50) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
