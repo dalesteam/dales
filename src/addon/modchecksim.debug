@@ -31,7 +31,7 @@ module modchecksim
 
   implicit none
   private
-  public initchecksim,checksim, inithandbug, handbug
+  public initchecksim,checksim,inithandbug,handbug
 
   real    :: tcheck = 0.
   integer(kind=longint) :: tnext = 3600.,itcheck
@@ -215,7 +215,7 @@ contains
     end if
 
   end subroutine
-
+  
   subroutine handbug(procnr)
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh,rdt,rk3step,timee,rtimee, ifoutput, cexpnr
@@ -365,6 +365,6 @@ contains
 
     return
   end subroutine
-
+  
 end module modchecksim
 

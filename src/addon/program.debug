@@ -23,32 +23,32 @@
 !>
 !! \section Log Change log
 !! \par New Features
-!! \par Changes
+!! \par Main Changes
 !! - Changed Modfields+modglobal+modmicrodata switches
 !! - Startup with new variables
 !! - Anelastic advection
-!! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v)
 !! - Anelastic poisson solver
-!! - Simple ice microphysics scheme (Grabowski)
-!! - Icemicrostat (including precipitation)
-!! - Reviewed saturation pressure with table lookup fiormula (Murphy and Koop)
-!! - Gravity wave damping towards mean state
+!! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v) and theta_v0
+!! - Simple ice microphysics scheme (Grabowski, with switch for autoconversion formula)
+!! - Icemicrostat
+!! - Reviewed saturation pressure with table lookup formula (Murphy and Koop)
 !! - Analytical function for surface forcing (may be removed later)
-!! \todo
-!! - Test scheme on a number of cases (e.g. TRMM LBA, Kuang and Bretherton, ARM case of K&R)
-!! Todo
-!! 4.0.1 improved thermodynamics
-!! - Review Thermodynamic variables and pressure gradient expansion (fromztop, rhof, thetav, etc)
-!! 4.0.2 Improved subgrid scheme
-!! - Revised TKE subgrid scheme (consider diffusion)
-!! - Look at Lipps-Hemler scheme and possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
+!! - Fixed fielddump range for temperatures
+!! - Fixed statistics for heights above 10000 m
+!! - No advection/diffusion of Nr for ice micro (backwards compatible)
+!! \par todo
+!! - Review Thermodynamic variables, pressure gradient expansion (fromztop, rhof, thetav, etc), buoyancy maybe let fromztop integrate from top of domain
+!! - Review diagnostics (in particular (conditional) budgets of TKE and w, possibly write these from a tendency routine?)
+!! - Document hydrometeor drag
+!! - Revise TKE subgrid scheme and diffusion (see branch, implement after this has been checked for consistency)
+!! - Look at possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
+!! - Check (warm) startup
 !! Further
-!! - Seifert Beheng Ice microphysics (with prognostic precipitate number concentrations)
-!! - 2D option
-!! - Parallelization (merge with dales 3.3)
-!! - Review diagnostics (in particular budgets)
-!! - Review particle routine
-!! - I/O: Check for necessity of netcdf/warm start including base state variables
+!! - Look into influence of advection scheme for deep convection (Walcek scheme??)
+!! - Add 2-moment scheme (Thijs working on this, or use Grabowski/Morrison)
+!! - Parallelization (Merge with dales 3.3)
+!! - Extra cross-section outputs (in particular related to w-budgets and microphysics tendencies)
+!! - CAPE/CAPEcloud and CIN/CINcloud cross-sections, use LNB and points below
 !!
 !! \section License License
 !!  This file is part of DALES.
@@ -86,33 +86,41 @@ program DALES      !Version 4.0.0alpha
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
-
+  use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
 !----------------------------------------------------------------
+  use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim, inithandbug, handbug
   use modstat_nc,      only : initstat_nc
+  use modspectra2,     only : dospecs,initspectra2
   use modtimestat,     only : inittimestat, timestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
+  use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
-  use modprojection,   only : initprojection, projection
+  use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
-  use modstattend,     only : initstattend, stattend,exitstattend, tend_start,tend_adv,tend_subg,tend_force,&
+  use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
   use modsimpleicestat,only : initsimpleicestat, simpleicestat,exitsimpleicestat
   use modbudget,       only : initbudget, budgetstat, exitbudget
-  use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
+  !use modheterostats,  only : initheterostats, heterostats, exitheterostats
 
-  use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
-  use modparticles,    only : initparticles, particles, exitparticles
-  use modnudge,        only : initnudge, nudge, exitnudge
-  use modchem,         only : initchem,inputchem, twostep
+  ! modules below are disabled by default to improve compilation time
+  !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
+
+  !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
+  !use modparticles,    only : initparticles, particles, exitparticles
+  !use modnudge,        only : initnudge, nudge, exitnudge
+  !use modprojection,   only : initprojection, projection
+  !use modchem,         only : initchem,inputchem, twostep
+
   implicit none
 
 !----------------------------------------------------------------
@@ -127,24 +135,31 @@ program DALES      !Version 4.0.0alpha
 !---------------------------------------------------------
   call initchecksim
   call inithandbug
-  call initstat_nc  ! should be called before stat-routines that might do netCDF
-  call inittimestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-  call initgenstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
-  call inittilt
+  call initstat_nc   ! Should be called before stat-routines that might do netCDF
+  call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
+  call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+  !call inittilt
   call initsampling
   call initcrosssection
-  call initprojection
+  call initlsmcrosssection
+  !call initprojection
   call initcloudfield
   call initfielddump
-  call initstattend
+  call initsamptend
   call initradstat
-  call initparticles
-  call initnudge
+  call initlsmstat
+  !call initparticles
+  !call initnudge
+  !call initparticles
   call initbulkmicrostat
   call initsimpleicestat
   call initbudget
-  call initstressbudget
-  call initchem
+  !call initstressbudget
+  !call initchem
+  !call initheterostats
+  call initspectra2
+  call initcape
+
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -152,105 +167,107 @@ program DALES      !Version 4.0.0alpha
   write(*,*)'START myid ', myid
   do while (timeleft>0 .or. rk3step < 3)
     call tstep_update
-    call timedep
-    call stattend(tend_start)
     call handbug(1)
+    call timedep
+    call samptend(tend_start,firstterm=.true.)
 
 !-----------------------------------------------------
 !   3.1   RADIATION         
 !-----------------------------------------------------
     call radiation !radiation scheme
-    call stattend(tend_rad)
-    call handbug(2)
+    call handbug(1)
+    call samptend(tend_rad)
 
 !-----------------------------------------------------
 !   3.2   THE SURFACE LAYER
 !-----------------------------------------------------
     call surface
-    call handbug(3)
-
+    call handbug(2)
 !-----------------------------------------------------
 !   3.3   ADVECTION AND DIFFUSION
 !-----------------------------------------------------
     call advection
-    call stattend(tend_adv)
-    call handbug(4)
+    call handbug(3)
+    call samptend(tend_adv)
     call subgrid
-    call stattend(tend_subg)
-    call handbug(5)
+    call handbug(4)
+    call samptend(tend_subg)
 
 !-----------------------------------------------------
 !   3.4   REMAINING TERMS
 !-----------------------------------------------------
     call coriolis !remaining terms of ns equation
-    call stattend(tend_coriolis)
-    call handbug(6)
+    call samptend(tend_coriolis)
     call forces !remaining terms of ns equation
-    call stattend(tend_force)
-    call handbug(7)
+    call handbug(5)
+    call samptend(tend_force)
 
     call lstend !large scale forcings
-    call stattend(tend_ls)
-    call handbug(8)
+    call samptend(tend_ls)
     call microsources !Drizzle etc.
-    call stattend(tend_micro)
-    call handbug(9)
+    call handbug(6)
+    call samptend(tend_micro)
 
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
-    call nudge
-    call handbug(10)
-    call tiltedgravity
-    call stattend(tend_addon)
-    call handbug(11)
+    call coldedge
+    call handbug(7)
+!    call nudge
+    call dospecs
+    call handbug(8)
+!    call tiltedgravity
+
+    call samptend(tend_addon)
 
 !-----------------------------------------------------------------------
 !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
-    call handbug(12)
+    call handbug(9)
     call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
-    call stattend(tend_topbound)
-    call handbug(13)
+    call handbug(10)
+    call samptend(tend_topbound)
     call poisson
-    call stattend(tend_pois,lastterm=.true.)
-    call handbug(14)
+    call handbug(11)
+    call samptend(tend_pois,lastterm=.true.)
 
     call tstep_integrate
-    call handbug(15)
+    call handbug(12)
     call boundary
-    call handbug(16)
-    call tiltedboundary
-    call handbug(17)
+    call handbug(13)
+    !call tiltedboundary
 !-----------------------------------------------------
 !   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
 !-----------------------------------------------------
     call thermodynamics
-    call handbug(18)
-
+    call handbug(14)
 !-----------------------------------------------------
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
-    ! Chemistry
-    call twostep
+    !call twostep
 
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
     call radstat
+    call lsmstat
     call sampling
     call crosssection
-    call projection
+    call lsmcrosssection
+    call docape
+    !call projection
     call cloudfield
     call fielddump
-    call particles
+    !call particles
 
     call bulkmicrostat
     call simpleicestat
     call budgetstat
-    call stressbudgetstat
+    !call stressbudgetstat
+    !call heterostats
     call writerestartfiles
+    call handbug(15)
   end do
 
 !-------------------------------------------------------
@@ -263,16 +280,20 @@ program DALES      !Version 4.0.0alpha
 !-------------------------------------------------------
   call exitgenstat
   call exitradstat
-  call exitparticles
-  call exitnudge
+  call exitlsmstat
+  !call exitparticles
+  !call exitnudge
   call exitsampling
-  call exitstattend
+  call exitsamptend
   call exitbulkmicrostat
   call exitsimpleicestat
   call exitbudget
-  call exitstressbudget
+  !call exitstressbudget
   call exitcrosssection
+  call exitlsmcrosssection
+  call exitcape
   call exitfielddump
+  !call exitheterostats
   call exitmodules
 
 end program DALES
