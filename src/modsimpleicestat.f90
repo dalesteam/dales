@@ -524,17 +524,17 @@ subroutine initsimpleicestat
         do k=1,k1
         vars(k,13) =sum(Npmn  (k,2:nrfields))
         enddo
-        vars(:,14) =qlpmn    (k,iauto)
-        vars(:,15) =qlpmn    (k,iaccr)
-        vars(:,16) =qlpmn    (k,ised)
-        vars(:,17) =qlpmn    (k,ievap)
+        vars(:,14) =qlpmn    (:,iauto)
+        vars(:,15) =qlpmn    (:,iaccr)
+        vars(:,16) =qlpmn    (:,ised)
+        vars(:,17) =qlpmn    (:,ievap)
         do k=1,k1
         vars(k,18) =sum(qlpmn  (k,2:nrfields))
         enddo
-        vars(:,19) =qtpmn    (k,iauto)
-        vars(:,20) =qtpmn    (k,iaccr)
-        vars(:,21) =qtpmn    (k,ised)
-        vars(:,22) =qtpmn    (k,ievap)
+        vars(:,19) =qtpmn    (:,iauto)
+        vars(:,20) =qtpmn    (:,iaccr)
+        vars(:,21) =qtpmn    (:,ised)
+        vars(:,22) =qtpmn    (:,ievap)
         do k=1,k1
         vars(k,23) = sum    (qtpmn(k,2:nrfields))
         enddo
