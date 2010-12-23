@@ -202,19 +202,19 @@ subroutine tstep_integrate
     do k=1,kcb
     do j=2,j1
     do i=2,i1    
-      if (thl0(i,j,k)-thl0avr(k)>1.) then
-      thl0(i,j,k)=thl0avr(k)+1
-      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)-1.
-      elseif (thl0(i,j,k)-thl0avr(k)<-1.) then
-      thl0(i,j,k)=thl0avr(k)-1.
-      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)+1.
+      if (thl0(i,j,k)-thl0avr(k)>0.8) then
+      thl0(i,j,k)=thl0avr(k)+0.8
+      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)-0.8
+      elseif (thl0(i,j,k)-thl0avr(k)<-0.8) then
+      thl0(i,j,k)=thl0avr(k)-0.8
+      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)+0.8
       endif
-      if (qt0(i,j,k)-qt0avr(k)>0.003) then
-      qt0(i,j,k)=qt0avr(k)+0.003
-      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)-0.003
-      elseif(qt0(i,j,k)-qt0avr(k)<-0.003) then
-      qt0(i,j,k)=qt0avr(k)-0.003
-      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)+0.003      
+      if (qt0(i,j,k)-qt0avr(k)>0.002) then
+      qt0(i,j,k)=qt0avr(k)+0.002
+      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)-0.002
+      elseif(qt0(i,j,k)-qt0avr(k)<-0.002) then
+      qt0(i,j,k)=qt0avr(k)-0.002
+      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)+0.002      
       endif
     enddo
     enddo
