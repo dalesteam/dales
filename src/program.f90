@@ -108,7 +108,7 @@ program DALES      !Version 4.0.0alpha
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
-                              tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis
+                              tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,leibniztend
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
   use modsimpleicestat,only : initsimpleicestat, simpleicestat,exitsimpleicestat
@@ -234,7 +234,7 @@ program DALES      !Version 4.0.0alpha
 !   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
 !-----------------------------------------------------
     call thermodynamics
-
+    call leibniztend
 !-----------------------------------------------------
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
