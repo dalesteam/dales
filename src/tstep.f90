@@ -154,9 +154,10 @@ subroutine tstep_integrate
 
   integer i,j,k,n
   real rk3coef
-  real, dimension(k1) :: qt0avr,thl0avr,thldevsum,qtdevsum
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thldev,qtdev
+  real, dimension(k1) :: qt0avr,thl0avr
+  real :: tau
 
+  tau=600
   rk3coef = rdt / (4. - dble(rk3step))
   wp_store = wp
 
@@ -196,38 +197,12 @@ subroutine tstep_integrate
   call slabsum(qt0avr,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   thl0avr = thl0avr/rslabs
   qt0avr = qt0avr/rslabs
-  thldev=0.0
-  qtdev=0.0
   if(kcb>1) then
     do k=1,kcb
     do j=2,j1
     do i=2,i1    
-      if (thl0(i,j,k)-thl0avr(k)>0.8) then
-      thl0(i,j,k)=thl0avr(k)+0.8
-      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)-0.8
-      elseif (thl0(i,j,k)-thl0avr(k)<-0.8) then
-      thl0(i,j,k)=thl0avr(k)-0.8
-      thldev(i,j,k)=thl0(i,j,k)-thl0avr(k)+0.8
-      endif
-      if (qt0(i,j,k)-qt0avr(k)>0.002) then
-      qt0(i,j,k)=qt0avr(k)+0.002
-      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)-0.002
-      elseif(qt0(i,j,k)-qt0avr(k)<-0.002) then
-      qt0(i,j,k)=qt0avr(k)-0.002
-      qtdev(i,j,k)=qt0(i,j,k)-qt0avr(k)+0.002      
-      endif
-    enddo
-    enddo
-    enddo
-    thldevsum = 0.
-    qtdevsum = 0.
-    call slabsum(thldevsum,1,k1,thldev,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtdevsum ,1,k1,qtdev ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    do k=1,kcb
-    do j=2,j1
-    do i=2,i1    
-      thl0(i,j,k)= thl0(i,j,k)-thldevsum(k)/rslabs
-      qt0(k,j,k) = qt0(i,j,k)-qtdevsum(k)/rslabs
+      thl0(i,j,k)=thl0(i,j,k)-(thl0(i,j,k)-thl0avr(k))/tau
+      qt0(i,j,k)=qt0(i,j,k)-(qt0(i,j,k)-qt0avr(k))/tau
     enddo
     enddo
     enddo
