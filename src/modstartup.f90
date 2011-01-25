@@ -223,16 +223,16 @@ contains
 
     call initboundary
     call initthermodynamics
+    call initradiation
     call initsurface
     call initsubgrid
-    call initradiation
     call initpois
     call initmicrophysics
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues
     call readinitfiles
-!     call initradiation
+
 
   end subroutine startup
 
@@ -324,7 +324,7 @@ contains
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav
-    use modsurface,        only : surface,qtsurf
+    use modsurface,        only : surface,qtsurf,dthldz
     use modboundary,       only : boundary,tqaver
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
@@ -486,7 +486,6 @@ contains
         thls = thlprof(1)
         qts  = qtprof(1)
       case(10)
-print *,'su',ps,pref0,cp
         call initsurf_user
       end select
 
@@ -495,7 +494,8 @@ print *,'su',ps,pref0,cp
       oblav = -0.1
 
       call qtsurf
-
+      
+      dthldz = (thlprof(1) - thls)/zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       u0av(1)   = uprof(1)
@@ -786,7 +786,7 @@ print *,'su',ps,pref0,cp
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
-                          ntimee,rtimee,rk3step,ifoutput,nsv,runtime,dtheta,dqt,dt,cu,cv
+                          ntimee,rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm
 
@@ -794,17 +794,12 @@ print *,'su',ps,pref0,cp
     logical :: lexitnow = .false.
     integer imin,ihour
     integer i,j,k,n
-    character(20) name
+    character(20) name,linkname
 
     if (timee == 0) return
     if (rk3step /=3) return
     name = 'exit_now.'//cexpnr
     inquire(file=trim(name), EXIST=lexitnow)
-    if (lexitnow .and. myid == 0 ) then
-      open(1, file=trim(name), status='old')
-      close(1,status='delete')
-      write(*,*) 'Stopped at t=',rtimee
-    end if
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
     if (timee>=tnextrestart .or. lexitnow) then
@@ -839,6 +834,9 @@ print *,'su',ps,pref0,cp
       write(ifoutput)  dtheta,dqt,timee,  dt,tres
 
       close (ifoutput)
+      linkname = name
+      linkname(6:11) = "latest"
+      call system("ln -sf "//name //" "//linkname)
 
       if (nsv>0) then
         name  = 'inits  h  m   .'
@@ -853,6 +851,10 @@ print *,'su',ps,pref0,cp
         write(ifoutput)  timee
 
         close (ifoutput)
+        linkname = name
+        linkname(6:11) = "latest"
+        call system("ln -sf "//name //" "//linkname)
+
       end if
 
       if (isurf == 1) then
@@ -876,9 +878,17 @@ print *,'su',ps,pref0,cp
         write(ifoutput)  timee
 
         close (ifoutput)
+        linkname = name
+        linkname(6:11) = "latest"
+        call system("ln -sf "//name //" "//linkname)
       end if
       if (lexitnow) then
-        runtime = 0  !jump out of the time loop
+        timeleft = 0  !jump out of the time loop
+      end if
+      if (lexitnow .and. myid == 0 ) then
+        open(1, file=trim(name), status='old')
+        close(1,status='delete')
+        write(*,*) 'Stopped at t=',rtimee
       end if
 
       if (myid==0) then

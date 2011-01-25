@@ -38,8 +38,9 @@ wsvsurf    =  0.0
 lmoist     =  .false.
 isurf      =  4
 iradiation =  2
-rad_smoke = .true.
-rad_longw = .true.
+rad_smoke  = .true.
+rad_longw  = .true.
+rad_shortw = .false.
 timerad    =  600
 lcoriol    =  .false.
 dlwtop     =  60.
@@ -55,10 +56,10 @@ lqlnr      =  .false.
 cu         =  0.
 cv         =  0.
 
-iadv_mom    =  5
-iadv_tke    =  5
-iadv_thl    =  5
-iadv_qt     =  5
+iadv_mom    =  2
+iadv_tke    =  2
+iadv_thl    =  7
+iadv_qt     =  7
 iadv_sv     =  7
 /
 &NAMCHECKSIM

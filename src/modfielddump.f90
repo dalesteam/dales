@@ -51,7 +51,7 @@ contains
   subroutine initfielddump
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
-    use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
     integer :: ierr
 
@@ -98,11 +98,12 @@ contains
       call ncinfo(ncname( 5,:),'ql','Liquid water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
 
-      call open_nc(fname,  ncid,n1=imax,n2=jmax,n3=khigh-klow+1)
-      call define_nc( ncid, 1, tncname)
-      call writestat_dims_nc(ncid)
-      call redefine_nc(ncid)
-      call define_nc( ncid, NVar, ncname)
+      call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
+      if (nrec==0) then
+        call define_nc( ncid, 1, tncname)
+        call writestat_dims_nc(ncid)
+      end if
+     call define_nc( ncid, NVar, ncname)
     end if
 
   end subroutine initfielddump
