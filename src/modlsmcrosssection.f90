@@ -70,7 +70,7 @@ contains
   subroutine initlsmcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,i1,dt_lim,cexpnr,tres,btime
-    use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
 
     integer :: ierr
@@ -119,11 +119,12 @@ contains
         call ncinfo(tncname1(1,:),'time','Time','s','time')
         call ncinfo(ncname1( 1,:),'tsoil', 'xz crosssection of the Soil temperature','K','t0tts')
         call ncinfo(ncname1( 2,:),'phiw', 'xz crosssection of the Soil moisture','m3/m3','t0tts')
-        call open_nc(fname1,  ncid1,n1=imax,ns=ksoilmax)
-        call define_nc( ncid1, 1, tncname1)
-        call writestat_dims_nc(ncid1)
-        call redefine_nc(ncid1)
-        call define_nc( ncid1, NVar, ncname1)
+        call open_nc(fname1,  ncid1,nrec1,n1=imax,ns=ksoilmax)
+        if (nrec1==0) then
+          call define_nc( ncid1, 1, tncname1)
+          call writestat_dims_nc(ncid1)
+          call define_nc( ncid1, NVar, ncname1)
+        end if
       end if
         write(cheight,'(i4.4)') crossheight
         fname2(12:15) = cheight
@@ -132,12 +133,12 @@ contains
         call ncinfo(tncname2(1,:),'time','Time','s','time')
         call ncinfo(ncname2( 1,:),'tsoil', 'xy crosssection of the Soil temperature','K','tt0t')
         call ncinfo(ncname2( 2,:),'phiw', 'xy crosssection of the Soil moisture','m3/m3','tt0t')
-        call open_nc(fname2,  ncid2,n1=imax,n2=jmax)
-        call define_nc( ncid2, 1, tncname2)
-        call writestat_dims_nc(ncid2)
-        call redefine_nc(ncid2)
-        call define_nc( ncid2, NVar, ncname2)
-
+        call open_nc(fname2,  ncid2,nrec2,n1=imax,n2=jmax)
+        if (nrec2==0) then
+          call define_nc( ncid2, 1, tncname2)
+          call writestat_dims_nc(ncid2)
+          call define_nc( ncid2, NVar, ncname2)
+        end if
 ! 
 ! !Surface values
         fname3(11:13) = cmyid
@@ -155,10 +156,11 @@ contains
         call ncinfo(ncname3(10,:),'Wl','Liquid water reservoir','m','tt0t')
         call ncinfo(ncname3(11,:),'rssoil','Soil evaporation resistance','s/m','tt0t')
         call ncinfo(ncname3(12,:),'rsveg','Vegitation resistance','s/m','tt0t')
-        call open_nc(fname3,  ncid3,n1=imax,n2=jmax)
-        call define_nc( ncid3, 1, tncname3)
-        call writestat_dims_nc(ncid3)
-        call redefine_nc(ncid3)
+        call open_nc(fname3,  ncid3,nrec3,n1=imax,n2=jmax)
+        if (nrec3==0) then
+          call define_nc( ncid3, 1, tncname3)
+          call writestat_dims_nc(ncid3)
+        end if
         call define_nc( ncid3, NVar3, ncname3)
     end if
 
