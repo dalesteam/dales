@@ -32,7 +32,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 22
+  integer,parameter :: nvar = 23
   integer :: ncid4 = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -108,6 +108,7 @@ contains
     call ncinfo(ncname( 20,:),'distqr','cold pool qr distance','-','tt0t')
     call ncinfo(ncname( 21,:),'distdiv','cold pool divergence distance','-','tt0t')
     call ncinfo(ncname( 22,:),'distcon','cold pool convergence distance','-','tt0t')
+    call ncinfo(ncname( 23,:),'surfprec','surface precipitation','-','tt0t')
     call open_nc(fname,  ncid4,n1=imax,n2=jmax)
     call define_nc( ncid4, 1, tncname)
     call writestat_dims_nc(ncid4)
@@ -124,10 +125,10 @@ contains
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
-    use modmicrodata, only : iqr
+    use modmicrodata, only : iqr, precep
     implicit none
 
-    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:)
+    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -151,7 +152,7 @@ contains
     allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
     allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
     allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
-    allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1))
+    allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
 
     ! DETERMINE CLOUD BASE, UNFORTUNATELY HAVE TO USE STATS HERE: END UP JUST BELOW
     kcb=1
@@ -225,6 +226,11 @@ contains
       do i=2,i1
       rwp(i,j)=rwp(i,j)+rhobf(k)*sv0(i,j,k,iqr)*dzf(k)
       enddo
+      enddo
+      enddo
+      do j=2,j1
+      do i=2,i1
+      sprec(i,j)=precep(i,j,1)*rhobf(1) ! correct for density to find total rain mass-flux
       enddo
       enddo
     endif
@@ -394,7 +400,7 @@ contains
     enddo
 
     if (lnetcdf) then
-      allocate(vars(1:imax,1:jmax,22))
+      allocate(vars(1:imax,1:jmax,23))
       vars(:,:,1) = dcape(2:i1,2:j1)
       vars(:,:,2) = cinlower(2:i1,2:j1)
       vars(:,:,3) = cinupper(2:i1,2:j1)
@@ -417,12 +423,13 @@ contains
       vars(:,:,20)= distqr(2:i1,2:j1)
       vars(:,:,21)= distdiv(2:i1,2:j1)
       vars(:,:,22)= distcon(2:i1,2:j1)
+      vars(:,:,23)= sprec(2:i1,2:j1)
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid4,22,ncname(1:22,:),vars,nrec,imax,jmax)
+      call writestat_nc(ncid4,23,ncname(1:23,:),vars,nrec,imax,jmax)
       deallocate(vars)
     end if
 
-    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400)
+    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
 
   end subroutine docape
 
