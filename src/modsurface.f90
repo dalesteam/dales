@@ -138,7 +138,6 @@ contains
     call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(lidealised ,1,MPI_LOGICAL,0,comm3d,mpierr)
 
     call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
