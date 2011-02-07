@@ -431,8 +431,10 @@ subroutine initsamptend
       wptm(k,tend_tot,isamp) = sum(wpf (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       thlptm(k,tend_tot,isamp) = sum(thlp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       qtptm(k,tend_tot,isamp) = sum(qtp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+      if(nsv>1) then
       qrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))
       nrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))
+      endif
       upav(k,tendterm,isamp) = upav(k,tendterm,isamp)+uptm(k,tendterm,isamp)
       vpav(k,tendterm,isamp) = vpav(k,tendterm,isamp)+vptm(k,tendterm,isamp)
       wpav(k,tendterm,isamp) = wpav(k,tendterm,isamp)+wptm(k,tendterm,isamp)
