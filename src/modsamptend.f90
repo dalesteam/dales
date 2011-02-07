@@ -554,7 +554,7 @@ subroutine initsamptend
         end do
       enddo
 
-      deallocate(thv0,w0f)
+      deallocate(thv0)
       deallocate(thvav)
 
       do isamp=1,isamptot
@@ -562,7 +562,7 @@ subroutine initsamptend
         if((nrsampnew(k,isamp)>0).and.(nrsamplast(k,isamp)>0)) then! only do if sampling can be performed at both points in time
         upav(k,tend_totlb,isamp) = upav(k,tend_totlb,isamp)+(ust(k,isamp)-sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
         vpav(k,tend_totlb,isamp) = vpav(k,tend_totlb,isamp)+(vst(k,isamp)-sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        wpav(k,tend_totlb,isamp) = wpav(k,tend_totlb,isamp)+(wst(k,isamp)-sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+        wpav(k,tend_totlb,isamp) = wpav(k,tend_totlb,isamp)+(wst(k,isamp)-sum(w0f(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
         thlpav(k,tend_totlb,isamp) = thlpav(k,tend_totlb,isamp)+(thlst(k,isamp)-sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
         qtpav(k,tend_totlb,isamp) = qtpav(k,tend_totlb,isamp)+(qtst(k,isamp)-sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
         if(nsv>1) then
@@ -572,6 +572,8 @@ subroutine initsamptend
         endif
       enddo
       enddo
+
+      deallocate(w0f)
 
       if(ldosamptendwrite) then
         ldosamptendwrite=.false.
