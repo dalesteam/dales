@@ -465,7 +465,7 @@ contains
             ! first guess for temperature
             Tnr=exnf(k)*thl0(i,j,k)
             Tnr_old=0.
-            do while (abs(Tnr-Tnr_old) > 0.002)
+            do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
                niter = niter+1
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
@@ -508,7 +508,9 @@ contains
       end do
       end do
       end do
-
+      if(nitert>99) then
+      write(*,*) 'thermowarning'
+      endif
   end subroutine icethermo0
 
   subroutine icethermoh
@@ -536,7 +538,7 @@ contains
             ! first guess for temperature
             Tnr=exnh(k)*thl0h(i,j,k)
             Tnr_old=0.
-            do while (abs(Tnr-Tnr_old) > 0.002)
+            do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
                niter = niter+1
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
@@ -579,6 +581,9 @@ contains
       end do
       end do
       end do
+      if(nitert>99) then
+      write(*,*) 'thermowarning'
+      endif
 
   end subroutine icethermoh
 
