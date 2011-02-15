@@ -196,7 +196,7 @@ contains
 
   use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
                          dxi,dyi,dzf,dzh,rk3step,rslabs
-  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf
+  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf,rhobh
   use modsurfdata, only : dudz,dvdz,thvs,z0m
   use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum
   implicit none
@@ -306,8 +306,8 @@ contains
     end do
   end if
 
-  ekm(:,:,:) = max(ekm(:,:,:),ekmin)
-  ekh(:,:,:) = max(ekh(:,:,:),ekmin)
+  ekm(:,:,:) = max(rhobf(k)*ekm(:,:,:),ekmin)
+  ekh(:,:,:) = max(rhobh(k)*ekh(:,:,:),ekmin)
 
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
@@ -463,6 +463,7 @@ contains
   subroutine diffc (putin,putout,flux)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
+    use modfields, only : rhobf
     implicit none
 
     real, intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -487,7 +488,7 @@ contains
                     + &
                   ( (ekh(i,jp,k)+ekh(i,j,k)) *(putin(i,jp,k)-putin(i,j,k)) &
                     -(ekh(i,j,k)+ekh(i,jm,k)) *(putin(i,j,k)-putin(i,jm,k)) )*dy2i &
-                    + &
+                  + (1./rhobf(k))*&
                   ( (dzf(kp)*ekh(i,j,k) + dzf(k)*ekh(i,j,kp)) &
                     *  (putin(i,j,kp)-putin(i,j,k)) / dzh(kp)**2 &
                     - &
@@ -509,7 +510,7 @@ contains
                   + &
                 ( (ekh(i,j+1,1)+ekh(i,j,1))*(putin(i,j+1,1)-putin(i,j,1)) &
                   -(ekh(i,j,1)+ekh(i,j-1,1))*(putin(i,j,1)-putin(i,j-1,1)) )*dy2i &
-                  + &
+                  + (1./rhobf(1))*&
                 ( (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
                   *  (putin(i,j,2)-putin(i,j,1)) / dzh(2)**2 &
                   + flux(i,j) *2.                        )/dzf(1) &
@@ -525,7 +526,7 @@ contains
   subroutine diffe(putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
-    use modfields, only : e120
+    use modfields, only : e120,rhobf
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -548,7 +549,7 @@ contains
                   + &
               ((ekm(i,jp,k)+ekm(i,j,k)) *(e120(i,jp,k)-e120(i,j,k)) &
               -(ekm(i,j,k)+ekm(i,jm,k)) *(e120(i,j,k)-e120(i,jm,k)) )*dy2i &
-                  + &
+                  + (1./rhobf(k))*&
               ((dzf(kp)*ekm(i,j,k) + dzf(k)*ekm(i,j,kp)) &
               *(e120(i,j,kp)-e120(i,j,k)) / dzh(kp)**2 &
               -(dzf(km)*ekm(i,j,k) + dzf(k)*ekm(i,j,km)) &
@@ -572,7 +573,7 @@ contains
             + &
             ( (ekm(i,j+1,1)+ekm(i,j,1))*(e120(i,j+1,1)-e120(i,j,1)) &
               -(ekm(i,j,1)+ekm(i,j-1,1))*(e120(i,j,1)-e120(i,j-1,1)) )*dy2i &
-            + &
+            + (1./rhobf(1))*&
               ( (dzf(2)*ekm(i,j,1) + dzf(1)*ekm(i,j,2)) &
               *  (e120(i,j,2)-e120(i,j,1)) / dzh(2)**2              )/dzf(1)
 
@@ -585,7 +586,7 @@ contains
   subroutine diffu (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dxi,dx2i,dzf,dy,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0
+    use modfields, only : u0,v0,w0,rhobf
     use modsurfdata,only : ustar
     implicit none
 
@@ -629,7 +630,7 @@ contains
                             +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
                     -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
                             +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) / dy &
-                  + &
+                  + (1./rhobf(k))*&
                   ( emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                             +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
                     -emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
@@ -682,7 +683,7 @@ contains
                         +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
               -emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
                         +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) / dy &
-                + &
+               + (1./rhobf(1))*&
               ( emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                         +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
                 -fu   ) / dzf(1)
@@ -696,7 +697,7 @@ contains
   subroutine diffv (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dzf,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0
+    use modfields, only : u0,v0,w0,rhobf
     use modsurfdata,only : ustar
 
     implicit none
@@ -740,7 +741,7 @@ contains
                 + &
               (ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
               -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
-                + &
+                + (1./rhobf(k))* &
               ( eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                         +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
                 -eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
@@ -790,7 +791,7 @@ contains
                   + &
                 ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
                   -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
-                  + &
+                  + (1./rhobf(1))*&
                 ( eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                           +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
                   -fv   ) / dzf(1)
@@ -805,7 +806,7 @@ contains
   subroutine diffw(putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dy,dyi,dy2i,dzf,dzh
-    use modfields, only : u0,v0,w0
+    use modfields, only : u0,v0,w0,rhobh
     implicit none
 
   !*****************************************************************
@@ -850,7 +851,7 @@ contains
                             +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
                     -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
                             +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))/dy &
-                + &
+                + (1./rhobh(k))*&
                   ( ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
                   -ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
                                                               / dzh(k)
