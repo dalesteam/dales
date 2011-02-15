@@ -41,11 +41,11 @@ save
   integer :: yid, zid, tid             
 
   !id of variables (means)
-  integer :: uavgid, vavgid, wavgid, thlavgid, thvavgid, qtavgid, eavgid
+  integer :: uavgid, vavgid, wavgid, thlavgid, thvavgid, qtavgid, qlavgid, eavgid
   integer, allocatable :: svavgid(:)
 
   !id of variables (variances)
-  integer :: uvarid, vvarid, wvarid, thlvarid, thvvarid, qtvarid
+  integer :: uvarid, vvarid, wvarid, thlvarid, thvvarid, qtvarid, qlvarid
   integer, allocatable :: svvarid(:)
 
   !id of variables (covariances)
@@ -57,6 +57,8 @@ save
   integer :: wthvcovsid
   integer :: uqtcovid, vqtcovid, wqtcovid
   integer :: wqtcovsid
+  integer :: uqlcovid, vqlcovid, wqlcovid
+  integer :: wqlcovsid
   integer :: thlqcovid
   integer, allocatable :: usvcovid(:), vsvcovid(:), wsvcovid(:)
   integer, allocatable :: wsvcovsid(:)
@@ -146,6 +148,8 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_var(ncid, "qtavg", nf90_float, (/yid, zid, tid/), qtavgid)
     if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "qlavg", nf90_float, (/yid, zid, tid/), qlavgid)
+    if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_var(ncid, "eavg", nf90_float, (/yid, zid, tid/), eavgid)
     if (status /= nf90_noerr) call nchandle_error(status)
     do n=1,nsv
@@ -167,6 +171,8 @@ contains
     status = nf90_def_var(ncid, "thvvar", nf90_float, (/yid, zid, tid/), thvvarid)
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_var(ncid, "qtvar", nf90_float, (/yid, zid, tid/), qtvarid)
+    if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "qlvar", nf90_float, (/yid, zid, tid/), qlvarid)
     if (status /= nf90_noerr) call nchandle_error(status)
     do n=1,nsv
       filename = "svnnnvar"
@@ -194,7 +200,11 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_var(ncid, "wqtcov", nf90_float, (/yid, zid, tid/), wqtcovid)
     if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "wqlcov", nf90_float, (/yid, zid, tid/), wqlcovid)
+    if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_var(ncid, "wqtcovs", nf90_float, (/yid, zid, tid/), wqtcovsid)
+    if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "wqlcovs", nf90_float, (/yid, zid, tid/), wqlcovsid)
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_var(ncid, "thlqcov", nf90_float, (/yid, zid, tid/), thlqcovid)
     if (status /= nf90_noerr) call nchandle_error(status)
@@ -252,10 +262,10 @@ contains
     integer n,i,j,k
     integer status
 
-    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, eavg, thlhavg, thvhavg, qthavg, vonwavg, uonwavg
-    real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar
+    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg, thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
+    real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
     real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
-    real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov
+    real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
     real, dimension(jmax,ncklimit,nsv) :: svavg, svhavg, svvar,  wsvcov, wsvcovs
 
     real  vonw(2-ih:i1+ih,2-jh:j1+jh,k1),putout(2-ih:i1+ih,2-jh:j1+jh,k1),uonw(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -270,10 +280,12 @@ contains
     thvavg(:,:)   = 0.0
     eavg(:,:)     = 0.0
     qtavg(:,:)    = 0.0
+    qlavg(:,:)    = 0.0
 
     thlhavg(:,:)  = 0.0
     thvhavg(:,:)  = 0.0
     qthavg(:,:)   = 0.0
+    qlhavg(:,:)   = 0.0
     vonwavg(:,:)  = 0.0
     uonwavg(:,:)  = 0.0
 
@@ -283,6 +295,7 @@ contains
     thlvar(:,:)   = 0.0
     thvvar(:,:)   = 0.0
     qtvar(:,:)    = 0.0
+    qlvar(:,:)    = 0.0
 
     uwcov(:,:)    = 0.0
     uwcovs(:,:)   = 0.0
@@ -293,7 +306,9 @@ contains
     wthvcov(:,:)  = 0.0
     wthvcovs(:,:) = 0.0
     wqtcov(:,:)   = 0.0
+    wqlcov(:,:)   = 0.0
     wqtcovs(:,:)  = 0.0
+    wqlcovs(:,:)  = 0.0
     thlqcov(:,:)  = 0.0
 
     svavg(:,:,:)  = 0.0
@@ -411,6 +426,16 @@ contains
         do i = 1,imax
           !shift prognostic fields one step as 1st column
           !is dummy column because of MPI and periodicity
+          qlavg(j,k) = qlavg(j,k) + ql0(i+1,j+1,k)
+        end do
+      end do
+    end do
+
+    do k = 1,ncklimit
+      do j = 1,jmax
+        do i = 1,imax
+          !shift prognostic fields one step as 1st column
+          !is dummy column because of MPI and periodicity
           eavg(j,k) = eavg(j,k) + (e120(i+1,j+1,k))**2.0
         end do
       end do
@@ -444,6 +469,17 @@ contains
           !shift prognostic fields one step as 1st column
           !is dummy column because of MPI and periodicity
           qthavg(j,k) = qthavg(j,k) + qt0h(i+1,j+1,k)
+        end do
+      end do
+    end do
+
+    !create average for ql0h - only used for cov
+    do k = 1,ncklimit
+      do j = 1,jmax
+        do i = 1,imax
+          !shift prognostic fields one step as 1st column
+          !is dummy column because of MPI and periodicity
+          qlhavg(j,k) = qlhavg(j,k) + ql0h(i+1,j+1,k)
         end do
       end do
     end do
@@ -499,12 +535,14 @@ contains
     thlavg = thlavg / imax
     thvavg = thvavg / imax
     qtavg  = qtavg / imax
+    qlavg  = qlavg / imax
     eavg   = eavg / imax
     svavg  = svavg / imax
 
     thlhavg = thlhavg / imax
     thvhavg = thvhavg / imax
     qthavg  = qthavg / imax
+    qlhavg  = qlhavg / imax
     vonwavg = vonwavg / imax
     uonwavg = uonwavg / imax
     svhavg  = svhavg / imax
@@ -520,6 +558,8 @@ contains
     status = nf90_put_var(ncid, thvavgid, thvavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, qtavgid, qtavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, qlavgid, qlavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, eavgid, eavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
@@ -589,6 +629,16 @@ contains
       end do
     end do
 
+    do k = 1,ncklimit
+      do j = 1,jmax
+        do i = 1,imax
+          !shift prognostic fields one step as 1st column
+          !is dummy column because of MPI and periodicity
+          qlvar(j,k) = qlvar(j,k) + (ql0(i+1,j+1,k)-qlavg(j,k))**2.
+        end do
+      end do
+    end do
+
     do n = 1,nsv
       do k = 1,ncklimit
         do j = 1,jmax
@@ -605,6 +655,7 @@ contains
     thlvar = thlvar / imax
     thvvar = thvvar / imax
     qtvar = qtvar / imax
+    qlvar = qlvar / imax
     svvar = svvar / imax
 
     status = nf90_put_var(ncid, uvarid, uvar, (/1,1,nccall/), (/jmax, ncklimit , 1/))
@@ -618,6 +669,8 @@ contains
     status = nf90_put_var(ncid, thvvarid, thvvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, qtvarid, qtvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, qlvarid, qlvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     do n=1,nsv
       status = nf90_put_var(ncid, svvarid(n), svvar(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
@@ -710,6 +763,16 @@ contains
       end do
     end do
 
+    do k = 2,ncklimit
+      do j = 1,jmax
+        do i = 1,imax
+          !shift prognostic fields one step as 1st column
+          !is dummy column because of MPI and periodicity
+          wqlcov(j,k) = wqlcov(j,k) + (w0(i+1,j+1,k)-wavg(j,k)) * (ql0h(i+1,j+1,k)-qlhavg(j,k))
+        end do
+      end do
+    end do
+
     do k = 1,ncklimit
       do j = 1,jmax
         do i = 1,imax
@@ -719,6 +782,20 @@ contains
             wqtcovs(j,k) = wqtcovs(j,k) + qtflux(i+1,j+1)
           else
             wqtcovs(j,k) = wqtcovs(j,k) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) * (qt0(i+1,j+1,k) - qt0(i+1,j+1,k-1)) / dz
+          endif
+        end do
+      end do
+    end do
+
+    do k = 1,ncklimit
+      do j = 1,jmax
+        do i = 1,imax
+          !shift prognostic fields one step as 1st column
+          !is dummy column because of MPI and periodicity
+          if(k==1) then
+            wqlcovs(j,k) = 0.0 
+          else
+            wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) * (ql0(i+1,j+1,k) - ql0(i+1,j+1,k-1)) / dz
           endif
         end do
       end do
@@ -809,6 +886,8 @@ contains
     wthvcovs = wthvcovs / imax
     wqtcov   = wqtcov   / imax
     wqtcovs  = wqtcovs  / imax
+    wqlcov   = wqlcov   / imax
+    wqlcovs  = wqlcovs  / imax
     wsvcov   = wsvcov   / imax
     wsvcovs  = wsvcovs  / imax
     thlqcov  = thlqcov  / imax
@@ -832,6 +911,10 @@ contains
     status = nf90_put_var(ncid, wqtcovid, wqtcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, wqtcovsid, wqtcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, wqlcovid, wqlcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, wqlcovsid, wqlcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, thlqcovid, thlqcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
