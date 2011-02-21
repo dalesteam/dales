@@ -222,7 +222,7 @@ contains
   use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0av,qt0av,sv0av,&
-                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,rhobf
+                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls
   implicit none
 
   integer k,n
@@ -230,7 +230,7 @@ contains
 !   if (ltimedep) then
 ! !     call ls
 !   end if
-
+! NOTE EVERYTHING IS IN ADVECTIVE FORM
 
 !     1. DETERMINE LARGE SCALE TENDENCIES
 !        --------------------------------
