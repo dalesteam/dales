@@ -38,11 +38,12 @@ save
   integer :: ncid
 
   !id of dimensions
-  integer :: yid, zid, tid             
+  integer :: xid, yid, zid, tid             
 
   !id of variables (means)
   integer :: uavgid, vavgid, wavgid, thlavgid, thvavgid, qtavgid, qlavgid, eavgid
   integer, allocatable :: svavgid(:)
+  integer :: lwpid
 
   !id of variables (variances)
   integer :: uvarid, vvarid, wvarid, thlvarid, thvvarid, qtvarid, qlvarid
@@ -127,6 +128,8 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
 
     !create dimensions
+    status = nf90_def_dim(ncid, "x", imax, xid)
+    if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_dim(ncid, "y", jmax, yid)
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_dim(ncid, "z", ncklimit, zid)
@@ -158,6 +161,9 @@ contains
       status = nf90_def_var(ncid, filename, nf90_float, (/yid, zid, tid/), svavgid(n))
       if (status /= nf90_noerr) call nchandle_error(status)
     enddo
+
+    status = nf90_def_var(ncid, "lwp", nf90_float, (/xid,yid, tid/), lwpid)
+    if (status /= nf90_noerr) call nchandle_error(status)
 
     !variances
     status = nf90_def_var(ncid, "uvar", nf90_float, (/yid, zid, tid/), uvarid)
@@ -263,6 +269,7 @@ contains
     integer status
 
     real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg, thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
+    real, dimension(imax,jmax)         :: lwpavg 
     real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
     real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
     real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
@@ -288,6 +295,8 @@ contains
     qlhavg(:,:)   = 0.0
     vonwavg(:,:)  = 0.0
     uonwavg(:,:)  = 0.0
+
+    lwpavg(:,:)   = 0.0
 
     uvar(:,:)     = 0.0
     vvar(:,:)     = 0.0
@@ -567,6 +576,18 @@ contains
       status = nf90_put_var(ncid, svavgid(n), svavg(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
       if(status /= nf90_noerr) call nchandle_error(status)
     enddo
+
+    !calculate liquid water path and store it
+    do j = 1,jmax
+      do i = 1,imax
+        do k = 1,kmax
+          lwpavg(i,j) = lwpavg(i,j) + ql0(i+1,j+1,k)*rhof(k)*dzf(k)
+        end do
+      end do
+    end do
+
+    status = nf90_put_var(ncid, lwpid, lwpavg, (/1,1,nccall/), (/imax, jmax, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
 
     !calculate variances and store them
     do k = 1,ncklimit
