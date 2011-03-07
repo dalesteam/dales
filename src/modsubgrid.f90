@@ -306,9 +306,14 @@ contains
     end do
   end if
 
-  ekm(:,:,:) = max(rhobf(k)*ekm(:,:,:),ekmin)
-  ekh(:,:,:) = max(rhobh(k)*ekh(:,:,:),ekmin)
-
+  do k=1,k1
+    do j=2,j1
+      do i=2,i1
+        ekm(i,j,k) = max(rhobf(k)*ekm(i,j,k),rhobf(k)*ekmin)
+        ekh(i,j,k) = max(rhobh(k)*ekh(i,j,k),rhobf(k)*ekmin)
+      end do
+    end do
+  end do
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
@@ -355,7 +360,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav
-  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
+  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf,rhobf
   use modsurfdata,  only : dudz,dvdz
   implicit none
 
@@ -406,8 +411,8 @@ contains
                (w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2    )
 
 
-    sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
-    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
+    sbshr(i,j,k)  = (ekm(i,j,k)/rhobf(k))*tdef2/ ( 2*e120(i,j,k))
+    sbbuo(i,j,k)  = -(ekh(i,j,k)/rhobf(k))*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
     sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
   end do
   end do
@@ -448,8 +453,8 @@ contains
 
 ! **  Include shear and buoyancy production terms and dissipation **
 
-    sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
-    sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+    sbshr(i,j,1)  = (ekm(i,j,1)/rhobf(1))*tdef2/ ( 2*e120(i,j,1))
+    sbbuo(i,j,1)  = -(ekh(i,j,1)/rhobf(1))*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
     sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)/delta(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
   end do
   end do
