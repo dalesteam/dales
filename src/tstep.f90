@@ -148,16 +148,11 @@ subroutine tstep_integrate
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
-  use modglobal, only : kcb
-  use modmpi, only : slabsum
   implicit none
 
   integer i,j,k,n
   real rk3coef
-  real, dimension(k1) :: qt0avr,thl0avr
-  real :: tau
 
-  tau=600
   rk3coef = rdt / (4. - dble(rk3step))
   wp_store = wp
 
@@ -191,23 +186,6 @@ subroutine tstep_integrate
   svp=0.
   e12p=0.
 
-  thl0avr = 0.0
-  qt0avr  = 0.0
-  call slabsum(thl0avr,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(qt0avr,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  thl0avr = thl0avr/rslabs
-  qt0avr = qt0avr/rslabs
-  if(kcb>1) then
-    do k=1,kcb
-    do j=2,j1
-    do i=2,i1    
-      thl0(i,j,k)=thl0(i,j,k)-(thl0(i,j,k)-thl0avr(k))/tau
-      qt0(i,j,k)=qt0(i,j,k)-(qt0(i,j,k)-qt0avr(k))/tau
-    enddo
-    enddo
-    enddo
-  endif  
-    
   if(rk3step == 3) then
     um = u0
     vm = v0
