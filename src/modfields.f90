@@ -135,6 +135,7 @@ save
 
   real, allocatable :: distcld(:,:,:)
   real, allocatable :: distcr(:,:,:)
+  logical, allocatable :: lprotected(:,:,:)
   real, allocatable :: distw(:,:)
   real, allocatable :: distcon(:,:)
   real, allocatable :: distdiv(:,:)
@@ -175,6 +176,7 @@ subroutine initfields
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(lprotected(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
     allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
     allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
@@ -270,7 +272,7 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
-    distcld=0.;distcr=0.;distcon=0.;distdiv=0.;distqr=0.;distbuoy=0.;distw=0.
+    distcld=0.;distcr=0.;distcon=0.;distdiv=0.;distqr=0.;distbuoy=0.;distw=0.;lprotected=.false.
 
   end subroutine initfields
 
@@ -289,7 +291,7 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
-    deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw)
+    deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw,lprotected)
 
    end subroutine exitfields
 
