@@ -44,6 +44,7 @@ save
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
   real, allocatable :: e120(:,:,:)      !<   turb. kin. energy at time step t
   real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
+  real, allocatable :: wcluster(:,:,:)       !<   tendency of qtm
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
@@ -174,6 +175,7 @@ subroutine initfields
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(wcluster(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lprotected(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -257,7 +259,7 @@ subroutine initfields
     vm=0.;v0=0.;vp=0.
     wm=0.;w0=0.;wp=0.;wp_store=0.
     thlm=0.;thl0=0.;thlp=0.
-    qtm=0.;qt0=0.;qtp=0.
+    qtm=0.;qt0=0.;qtp=0.;wcluster=0.
     e12m=0.;e120=0.;e12p=0.
     svm=0.;sv0=0.;svp=0.
 
@@ -279,8 +281,7 @@ subroutine initfields
 !> Deallocate the fields
   subroutine exitfields
   implicit none
-
-    deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
+    deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0,wcluster)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
     deallocate(rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh)

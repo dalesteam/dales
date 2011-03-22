@@ -287,7 +287,7 @@ contains
 !~       close(ifoutput)
 !~     end do
     if (lnetcdf) then
-      allocate(vars(1:imax,1:kmax,14))
+      allocate(vars(1:imax,1:kmax,15))
       vars(:,:,1) = um(2:i1,crossplane,1:kmax)+cu
       vars(:,:,2) = vm(2:i1,crossplane,1:kmax)+cv
       vars(:,:,3) = wm(2:i1,crossplane,1:kmax)
@@ -306,9 +306,10 @@ contains
       vars(:,:,12) = 0.
       vars(:,:,13) = 0.
       vars(:,:,14) = 0.
+      vars(:,:,15) = 0.
       end if
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
-      call writestat_nc(ncid1,14,ncname1(1:14,:),vars,nrec1,imax,kmax)
+      call writestat_nc(ncid1,15,ncname1(1:15,:),vars,nrec1,imax,kmax)
       deallocate(vars)
     end if
     deallocate(thv0,buoy)
@@ -391,7 +392,7 @@ contains
 
     if (lnetcdf) then
       do cross=1,nxy
-      allocate(vars(1:imax,1:jmax,16))
+      allocate(vars(1:imax,1:jmax,17))
       vars=0.
       vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
       vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
@@ -411,11 +412,12 @@ contains
       vars(:,:,14) = 0.
       vars(:,:,15) = 0.
       vars(:,:,16) = 0.
+      vars(:,:,17) = 0.
       end if
       vars(:,:,11) = distcld(2:i1,2:j1,crossheight(cross))
       vars(:,:,12) = distcr(2:i1,2:j1,crossheight(cross))
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-      call writestat_nc(ncid2(cross),16,ncname2(1:16,:),vars,nrec2(cross),imax,jmax)
+      call writestat_nc(ncid2(cross),17,ncname2(1:17,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
       end do
     end if
@@ -491,7 +493,7 @@ contains
 !~       close(ifoutput)
 !~     end do
     if (lnetcdf) then
-      allocate(vars(1:jmax,1:kmax,14))
+      allocate(vars(1:jmax,1:kmax,15))
       vars(:,:,1) = um(crossortho,2:j1,1:kmax)+cu
       vars(:,:,2) = vm(crossortho,2:j1,1:kmax)+cv
       vars(:,:,3) = wm(crossortho,2:j1,1:kmax)
@@ -510,9 +512,10 @@ contains
       vars(:,:,12) = 0.
       vars(:,:,13) = 0.
       vars(:,:,14) = 0.
+      vars(:,:,15) = 0.
       end if
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
-      call writestat_nc(ncid3,14,ncname3(1:14,:),vars,nrec3,jmax,kmax)
+      call writestat_nc(ncid3,15,ncname3(1:15,:),vars,nrec3,jmax,kmax)
       deallocate(vars)
     end if
 

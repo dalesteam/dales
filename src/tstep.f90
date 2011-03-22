@@ -147,7 +147,7 @@ subroutine tstep_integrate
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,k1,ih,jh,rslabs,kcb
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store&
                         thl0,thlm,thlp,qt0,qtm,qtp,lprotected,&
-                        e120,e12m,e12p,sv0,svm,svp
+                        e120,e12m,e12p,sv0,svm,svp,wcluster
   implicit none
 
   integer i,j,k,n
@@ -187,6 +187,7 @@ subroutine tstep_integrate
        sv0(i,j,k,4) = thl0(i,j,k) ! purity-thl
        sv0(i,j,k,5) = qt0(i,j,k) ! purity-qt
        sv0(i,j,k,6) = w0(i,j,k)+w0(i,j,k+1) ! purity-w at full level
+       sv0(i,j,k,7) = wcluster(i,j,k)+wcluster(i,j,k+1) ! purity-wcluster at full level
       end do
     end do
   end do
@@ -201,6 +202,7 @@ subroutine tstep_integrate
        sv0(i,j,k,4) = 0.
        sv0(i,j,k,5) = 0.
        sv0(i,j,k,6) = 0.
+       sv0(i,j,k,7) = 0.
        endif
       end do
     end do

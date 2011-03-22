@@ -32,7 +32,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 23
+  integer,parameter :: nvar = 24
   integer :: ncid4 = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -109,6 +109,7 @@ contains
     call ncinfo(ncname( 21,:),'distdiv','cold pool divergence distance','-','tt0t')
     call ncinfo(ncname( 22,:),'distcon','cold pool convergence distance','-','tt0t')
     call ncinfo(ncname( 23,:),'surfprec','surface precipitation','-','tt0t')
+    call ncinfo(ncname( 24,:),'wlclustercb','cloud base wcluster','-','tt0t')
     call open_nc(fname,  ncid4,n1=imax,n2=jmax)
     call define_nc( ncid4, 1, tncname)
     call writestat_dims_nc(ncid4)
@@ -121,14 +122,14 @@ contains
 !>Run crosssection.
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
-    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon
+    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon,wcluster
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
     use modmicrodata, only : iqr, precep
     implicit none
 
-    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
+    real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),wclustercb(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -150,7 +151,7 @@ contains
     allocate(dcape(2:i1,2:j1),cinlower(2:i1,2:j1),cinupper(2:i1,2:j1))
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
     allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
-    allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
+    allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1),wclustercb(2:i1,2:j1))
     allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
 
@@ -241,6 +242,7 @@ contains
     thlcb(i,j)=thl0(i,j,kcb)
     buoycb(i,j)=thvfull(i,j,kcb)-thvf(kcb)
     wcb(i,j)=(w0(i,j,kcb)+w0(i,j,kcb+1))/2.
+    wclustercb(i,j)=(wcluster(i,j,kcb)+wcluster(i,j,kcb+1))/2.
     hw2cb(i,j)=0.5*wcb(i,j)*abs(wcb(i,j))
     qtcb(i,j)=qt0(i,j,kcb)
     qlcb(i,j)=ql0(i,j,kcb)
@@ -400,7 +402,7 @@ contains
     enddo
 
     if (lnetcdf) then
-      allocate(vars(1:imax,1:jmax,23))
+      allocate(vars(1:imax,1:jmax,24))
       vars(:,:,1) = dcape(2:i1,2:j1)
       vars(:,:,2) = cinlower(2:i1,2:j1)
       vars(:,:,3) = cinupper(2:i1,2:j1)
@@ -424,12 +426,13 @@ contains
       vars(:,:,21)= distdiv(2:i1,2:j1)
       vars(:,:,22)= distcon(2:i1,2:j1)
       vars(:,:,23)= sprec(2:i1,2:j1)
+      vars(:,:,24)= wclustercb(2:i1,2:j1)
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid4,23,ncname(1:23,:),vars,nrec,imax,jmax)
+      call writestat_nc(ncid4,24,ncname(1:24,:),vars,nrec,imax,jmax)
       deallocate(vars)
     end if
 
-    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
+    deallocate(dcape,cinlower,cinupper,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,wclustercb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
 
   end subroutine docape
 
