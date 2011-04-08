@@ -126,7 +126,7 @@ contains
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
-    use modmicrodata, only : iqr, precep
+    use modmicrodata, only : iqr, precep, imicro
     implicit none
 
     real, allocatable :: dcape(:,:),cinlower(:,:),cinupper(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),wclustercb(:,:)
@@ -161,7 +161,7 @@ contains
     ! find robust minimum of buoyancy flux (determined at half-level!)
     if(any(abs(wtvtmnlast)>1e-10)) then
       do k=kmax-7,2,-1
-        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.(wtvtmnlast(k)<wtvtmnlast(k+4)).and.(wtvtmnlast(k)<wtvtmnlast(k+5)).and.(wtvtmnlast(k)<wtvtmnlast(k+6)).and.(wtvtmnlast(k)<wtvtmnlast(k+7))) then
+        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.(wtvtmnlast(k)<wtvtmnlast(k+4))) then
           ktest = k
         end if
       end do
@@ -170,7 +170,7 @@ contains
     ! Take highest half-level below which it is non-cloudy
     if (ktest>0) then
       do k=2,ktest
-        if(qlmnlast(k-1)<0.01) then
+        if(qlmnlast(k-1)<0.001) then
         kcb=k
         end if
       end do
@@ -222,6 +222,7 @@ contains
     enddo
 
     if(nsv>1) then
+    if(imicro>0) then
       do k=1,k1
       do j=2,j1
       do i=2,i1
@@ -234,6 +235,7 @@ contains
       sprec(i,j)=precep(i,j,1)*rhobf(1) ! correct for density to find total rain mass-flux
       enddo
       enddo
+    endif
     endif
 
     ! Cloud base level quantities and reset tops

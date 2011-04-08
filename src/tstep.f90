@@ -180,7 +180,7 @@ subroutine tstep_integrate
 
   if (kcb>1) then
   ! purity tracer in boundary layer
-  do k=1,kcb
+  do k=1,kcb+3
     do j=2,j1
       do i=2,i1
        sv0(i,j,k,3) = 1. ! purity
@@ -194,7 +194,7 @@ subroutine tstep_integrate
   end if
 
   ! purity tracer above cloud base, reset if necessary
-  do k=kcb+1,kmax
+  do k=kcb+4,kmax
     do j=2,j1
       do i=2,i1
        if(lprotected(i,j,k).eqv..false.) then
