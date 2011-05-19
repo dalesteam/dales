@@ -119,7 +119,7 @@ program DALES      !Version 4.0.0alpha
   !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
 
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
-  !use modparticles,    only : initparticles, particles, exitparticles
+  use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   !use modchem,         only : initchem,inputchem,twostep
@@ -151,7 +151,7 @@ program DALES      !Version 4.0.0alpha
   call initsamptend
   call initradstat
   call initlsmstat
-  !call initparticles
+  call initparticles
   call initnudge
   !call initparticles
   call initbulkmicrostat
@@ -252,7 +252,7 @@ program DALES      !Version 4.0.0alpha
     !call projection
     call cloudfield
     call fielddump
-    !call particles
+    call particles
 
     call bulkmicrostat
     call simpleicestat
@@ -274,7 +274,7 @@ program DALES      !Version 4.0.0alpha
   call exitgenstat
   call exitradstat
   call exitlsmstat
-  !call exitparticles
+  call exitparticles
   call exitnudge
   call exitsampling
   call exitsamptend
