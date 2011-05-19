@@ -182,6 +182,7 @@
 
   real, parameter :: &
      ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
+     ! GRABOWSKI
      aar=5.2e2 &
      ,bbr=3. &
      ,ccr=130. &
@@ -189,6 +190,7 @@
 !     ,ccr=842. & coefficients in Khairoutdinov and Randall
 !     ,ddr=0.8 & coefficients in Khairoutdinov and Randall
      ! For snow
+     ! GRABOWSKI
      ,aas=2.5e-2 &
      ,bbs=2. &
      ,ccs=4. &
@@ -198,14 +200,14 @@
      ,bbg=3.&
      ,ccg=82.5 &
      ,ddg=0.25 &
-     ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here
+     ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here GRABOSKWI 
      ,ceffrl=0.8 &
-     ,ceffsl=0.06 &
-     ,ceffgl=0.06 &
+     ,ceffsl=0.06 & ! probably 0.8 is better, wsa exp 156
+     ,ceffgl=0.06 & ! probably 0.8 is better
      ,ceffri=0.8 &
      ,ceffsi=0.06 &
      ,ceffgi=0.06 &
-     ! Shape factors beta
+     ! Shape factors beta GRABOWSKI
      ,betar=2. &
      ,betas=3. &
      ,betag=2. &
