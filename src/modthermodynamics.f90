@@ -55,11 +55,13 @@ contains
 !> Do moist thermodynamics.
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist, timee,k1,i1,j1,ih,jh,rd,rv,rslabs
-    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,tmp0h,thvh,thv0h,qt0av,ql0av
+    use modglobal, only : lmoist, timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv
+    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,tmp0h,thvh,thv0h,qt0av,ql0av,thv0av
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     use modmpi, only : slabsum
     implicit none
+    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
+    integer:: k
     if (timee < 0.01) then
     call diagfld
     end if
@@ -77,6 +79,13 @@ contains
    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
    thvh = thvh/rslabs
    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+   do k=1,k1
+     thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
+                 *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
+   enddo
+   thv0av = 0.0
+   call slabsum(thv0av,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+   thv0av = thv0av/rslabs
 
   end subroutine thermodynamics
 !> Cleans up after the run
