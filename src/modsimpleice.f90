@@ -318,7 +318,7 @@ module modsimpleice
         ! saturation ratios
         ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
         ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
-        !integration over ventilation factors and diameters, see e.g. seifert
+        !integration over ventilation factors and diameters, see e.g. seifert 2008
         ventr=.78*n0rr/lambdar(i,j,k)**2 + gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)*lambdar(i,j,k)**(-2.5-0.5*ddr)
         vents=.78*n0rs/lambdas(i,j,k)**2 + gam2ds*.27*n0rs*sqrt(ccsz(k)/2.e-5)*lambdas(i,j,k)**(-2.5-0.5*dds)
         ventg=.78*n0rg/lambdag(i,j,k)**2 + gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)*lambdag(i,j,k)**(-2.5-0.5*ddg)
