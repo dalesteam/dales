@@ -147,7 +147,7 @@ subroutine tstep_integrate
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,k1,ih,jh,rslabs,kcb
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store&
                         thl0,thlm,thlp,qt0,qtm,qtp,lprotected,&
-                        e120,e12m,e12p,sv0,svm,svp,wcluster
+                        e120,e12m,e12p,sv0,svm,svp
   implicit none
 
   integer i,j,k,n
@@ -174,36 +174,6 @@ subroutine tstep_integrate
           sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
         end do
 
-      end do
-    end do
-  end do
-
-  if (kcb>1) then
-  ! purity tracer in boundary layer
-  do k=1,kcb+3
-    do j=2,j1
-      do i=2,i1
-       sv0(i,j,k,3) = 1. ! purity
-       sv0(i,j,k,4) = thl0(i,j,k) ! purity-thl
-       sv0(i,j,k,5) = qt0(i,j,k) ! purity-qt
-       sv0(i,j,k,6) = w0(i,j,k)+w0(i,j,k+1) ! purity-w at full level
-       sv0(i,j,k,7) = wcluster(i,j,k)+wcluster(i,j,k+1) ! purity-wcluster at full level
-      end do
-    end do
-  end do
-  end if
-
-  ! purity tracer above cloud base, reset if necessary
-  do k=kcb+4,kmax
-    do j=2,j1
-      do i=2,i1
-       if(lprotected(i,j,k).eqv..false.) then
-       sv0(i,j,k,3) = 0.
-       sv0(i,j,k,4) = 0.
-       sv0(i,j,k,5) = 0.
-       sv0(i,j,k,6) = 0.
-       sv0(i,j,k,7) = 0.
-       endif
       end do
     end do
   end do
