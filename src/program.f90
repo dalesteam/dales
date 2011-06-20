@@ -6,10 +6,10 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 3.2 RC 1
+!! @version 3.2.0
 !!
 !! @author
-!! Stephan de Roode
+!! Steef Boing
 !! (TU Delft)
 !! \author
 !! Chiel van Heerwaarden
@@ -31,10 +31,6 @@
 !! physics
 !!
 !! \todo
-!! - Test everywhere, especially in radiation and LSM
-!! - Check restart files
-!! - Check whether all variables are present in the netCDF output
-!! - Documentation: Build one coherent story of the paper, Huugs/Johans description, CMake and Git HOWTOS
 !!
 !! \section License License
 !!  This file is part of DALES.
@@ -54,7 +50,7 @@
 !!  Copyright 1993-2009 Delft University of Technology, Wageningen University,
 !! Utrecht University, KNMI
 !!
-program DALES      !Version 3.2 RC 1
+program DALES      !Version 3.2.0
 
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
@@ -85,7 +81,6 @@ program DALES      !Version 3.2 RC 1
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection  
-  use modprojection,   only : initprojection, projection
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
@@ -125,7 +120,6 @@ program DALES      !Version 3.2 RC 1
   !call inittilt
   call initsampling
   call initcrosssection
-  call initprojection
   call initlsmcrosssection
   !call initprojection
   call initcloudfield
@@ -220,7 +214,6 @@ program DALES      !Version 3.2 RC 1
     call sampling
     call crosssection
     call lsmcrosssection
-    call projection
     call cloudfield
     call fielddump
     !call particles

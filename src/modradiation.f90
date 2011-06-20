@@ -36,6 +36,7 @@ contains
   subroutine initradiation
     use modglobal,    only : kmax,i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim
     use modmpi,       only : myid
+    use modsurfdata,  only : albedoav
     implicit none
 
     allocate(thlprad(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -86,6 +87,12 @@ contains
         rad_smoke  = .true.
       end select
     end if
+    if(iradiation==0 .or. iradiation==10) then
+      rad_shortw = .false.
+      rad_longw  = .false.
+      rad_smoke  = .false.
+    end if
+    
     if (iradiation == 0) return
     itimerad = floor(timerad/tres)
     tnext = itimerad+btime
@@ -121,11 +128,7 @@ contains
           case (irad_full)
             call radfull
           case (irad_par)
-            if (rad_ls) then
-                call radprof
-            endif
-
-            if(rad_longw.or.rad_shortw) then
+             if(rad_longw.or.rad_shortw) then
               call radpar
             endif
           case (irad_lsm)
@@ -137,11 +140,11 @@ contains
             endif
     
             call rad_user    
-            if (rad_ls) then
-               call radprof
-            endif   
              
       end select
+      if (rad_ls) then
+        call radprof
+      endif   
     end if
     thlp = thlp + thlprad
 

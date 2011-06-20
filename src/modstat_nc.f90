@@ -135,18 +135,22 @@ contains
       end if
 
     else
+       nrec = 0
+       ncall= 0
        iret = nf90_open (trim(fname), NF90_WRITE, ncid)
        iret = nf90_inquire(ncid, unlimitedDimId = RecordDimID)
        iret = nf90_inquire_dimension(ncid, RecordDimID, len=nrec)
-       ncall=1
-       iret = nf90_inq_varid(ncid,'time',timeID)
-       allocate (xtimes(nrec+1))
-       iret = nf90_get_var(ncid, timeId, xtimes(1:nrec))
-       ncall = 1
-       do while(ncall <= nrec .and. xtimes(ncall) < rtimee - spacing(1.))
-          ncall=ncall+1
-       end do
-       deallocate(xtimes)
+       if (nrec>0) then
+        iret = nf90_inq_varid(ncid,'time',timeID)
+        allocate (xtimes(nrec))
+        iret = nf90_get_var(ncid, timeId, xtimes(1:nrec))
+
+        do while(xtimes(ncall+1) < rtimee - spacing(1.))
+            ncall=ncall+1
+            if (ncall >= nrec) exit 
+        end do
+        deallocate(xtimes)
+       end if
        if (present(n1)) then
          iret = nf90_inq_dimid(ncid,'xt',xtId)
          iret = nf90_inq_dimid(ncid,'xm',xmId)
@@ -166,6 +170,7 @@ contains
     nrec = ncall
     iret = nf90_sync(ncid)
 
+    iret= nf90_enddef(ncID)
 
   end subroutine open_nc
 
@@ -185,6 +190,15 @@ contains
                       dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0
 
     integer :: iret, n, VarID
+    iret = nf90_inq_dimid(ncid,'time',timeId)
+    iret = nf90_inq_dimid(ncid,'xt',xtId)
+    iret = nf90_inq_dimid(ncid,'xm',xmId)
+    iret = nf90_inq_dimid(ncid,'yt',ytId)
+    iret = nf90_inq_dimid(ncid,'ym',ymId)
+    iret = nf90_inq_dimid(ncid,'zt',ztId)
+    iret = nf90_inq_dimid(ncid,'zm',zmId)
+    iret = nf90_inq_dimid(ncid,'zts',ztsId)
+    iret = nf90_redef(ncid) 
     dim_tt = (/ztId,timeId/)
     dim_mt = (/zmId,timeId/)
 
@@ -261,7 +275,7 @@ contains
       end select
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
-print *,dim_tttt
+
         call nchandle_error(iret)
       end if
       iret=nf90_put_att(ncID,VarID,'longname',sx(n,2))
