@@ -1,0 +1,104 @@
+&RUN
+iexpnr     =  001
+lwarmstart =  .false.
+startfile  =  'initd06h00m000.001'
+  runtime  =  108000.0
+trestart   =  3600
+ladaptive  =  .true.
+irandom    =  43
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  2
+/
+
+&DOMAIN
+imax       =  128
+jtot       =  128
+kmax       =  140
+xsize      =  6400
+ysize      =  6400
+
+  xlat     =  0.
+  xlon     =  0.
+  xday     =  0.
+  xtime    =  0.
+/
+
+&PHYSICS
+lmoist     =  .true.
+iradiation =  0
+lcoriol    =  .false.
+tau(1)     = 900.
+tau(2)     = 3600.
+/
+&NAMSURFACE
+ps       =  100000.00
+thls     =  290.
+wtsurf   = 0.0007
+isurf    = 10
+wsvsurf  = 1.
+z0       = 0.1
+/
+
+
+&DYNAMICS
+llsadv     =  .false.
+lqlnr      =  .false.
+  cu       =  0.
+  cv       =   0.
+
+iadv_mom   =  2
+iadv_tke   =  2
+iadv_thl   =  2
+iadv_qt    =  2
+iadv_sv    =  7
+/
+&NAMMICROPHYSICS
+imicro     = 0
+/
+&NAMBULKMICROSTAT
+lstat      = .false.
+timeav     = 3600
+dtav       = 60
+/
+&NAMCHECKSIM
+tcheck     = 0
+/
+&NAMSAMPLING
+lsampcl    = .true.
+lsampco    = .true.
+lsampplume = .true.
+lsampmoistplume = .true.
+nplume     = 1
+plumefac   = 1.
+dtav       = 60
+timeav     = 3600
+/
+&NAMTIMESTAT
+ltimestat  = .true.
+dtav       = 60
+/
+&NAMCROSSSECTION
+lcross     = .false.
+dtav       = 60
+/
+&NAMGENSTAT
+lstat      = .true.
+dtav       = 60
+timeav     = 3600
+/
+
+&NAMFIELDDUMP
+lfielddump = .false.
+dtav       = 60
+ldiracc    = .true.
+/
+&NAMSTATTEND
+dtav       = 60
+timeav     = 3600
+ltend      = .true.
+/
+&NAMCLOUDFIELD
+dtav=60
+lcloudfield = .true.
+/
