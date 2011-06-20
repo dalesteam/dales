@@ -1195,6 +1195,7 @@ contains
       integer nsecs, nhrs, nminut,k,n
       real convt, convq
       character(20) :: name
+      character(3)  :: csvname
       nsecs   = nint(rtimee)
       nhrs    = int(nsecs/3600)
       nminut  = int(nsecs/60)-nhrs*60

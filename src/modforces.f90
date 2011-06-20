@@ -36,8 +36,9 @@ module modforces
 implicit none
 save
 private
-public :: forces, coriolis, lstend,lforce_user
+public :: forces, coriolis, lstend,lforce_user, radioactivity, tau
 logical :: lforce_user = .false.
+real, dimension (1000) :: tau = 0.
 contains
   subroutine forces
 
@@ -269,5 +270,26 @@ contains
 
   return
   end subroutine lstend
+
+  subroutine radioactivity
+    use modglobal,       only : i1,j1,kmax, nsv, rdt
+    use modfields,       only : svp, sv0
+
+    integer :: i, j, k, n
+    real    :: rate
+    do n = 1, nsv
+      if (tau(n) > 0 ) then
+        rate = 1./(max(tau(n), rdt))    
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              svp(i,j,k,n) = svp(i,j,k,n) - sv0(i,j,k,n) * rate
+            end do
+          end do
+        end do
+      end if
+    end do
+              
+  end subroutine
 
 end module modforces

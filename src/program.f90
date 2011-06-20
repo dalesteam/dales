@@ -69,7 +69,7 @@ program DALES      !Version 3.2 RC 1
   use modmicrophysics,   only : microsources
   use modsurface,        only : surface
   use modsubgrid,        only : subgrid
-  use modforces,         only : forces, coriolis, lstend
+  use modforces,         only : forces, coriolis, lstend, radioactivity
   use modradiation,      only : radiation
   use modpois,           only : poisson
 
@@ -179,6 +179,7 @@ program DALES      !Version 3.2 RC 1
 
     call lstend !large scale forcings
     call stattend(tend_ls)
+    call radioactivity
     call microsources !Drizzle etc.
     call stattend(tend_micro)
 

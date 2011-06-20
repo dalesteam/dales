@@ -43,14 +43,16 @@ save
 !NetCDF variables
   integer,parameter :: nvar = 28
   character(80),allocatable,dimension(:,:,:) :: ncname
-  real :: dtav, timeav
+  real :: dtav, timeav, plumefac = 1
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
-  integer :: nsamples,isamp,isamptot
+  integer :: nsamples,isamp,isamptot, nplume = 0
   character(20),dimension(10) :: samplname,longsamplname
   logical :: lsampall = .false. !< switch for sampling (on/off)
   logical :: lsampcl  = .false. !< switch for conditional sampling cloud (on/off)
   logical :: lsampco  = .false. !< switch for conditional sampling core (on/off)
   logical :: lsampup  = .false. !< switch for conditional sampling updraft (on/off)
+  logical :: lsampplume  = .false. !< switch for conditional sampling updraft (on/off)
+  logical :: lsampmoistplume  = .false. !< switch for conditional sampling updraft (on/off)
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampcldup = .false. !<switch for condtional sampling cloudy updraft (on/off)
   real, allocatable, dimension(:,:) ::  wfavl,thlfavl,thvfavl,qtfavl,qlfavl,nrsampfl,massflxhavl, &
@@ -65,7 +67,7 @@ contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
 
-    use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
+    use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical,mpi_integer
     use modglobal, only : ladaptive, dtmax,rk3step,k1,ifnamopt,fname_options,   &
                            dtav_glob,timeav_glob,dt_lim,btime,tres,cexpnr,ifoutput
     use modstat_nc, only : lnetcdf, redefine_nc,define_nc,ncinfo
@@ -75,7 +77,7 @@ contains
     integer :: ierr
 
     namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
+    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup, lsampmoistplume, lsampplume, nplume, plumefac
 
     dtav=dtav_glob;timeav=timeav_glob
 
@@ -98,8 +100,12 @@ contains
     call MPI_BCAST(lsampcl   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampco   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampup   ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lsampplume,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lsampmoistplume,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampbuup ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampcldup,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(nplume,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(plumefac,1,MY_REAL,0,comm3d,mpierr)
 
     isamptot = 0
     if (lsampall) then
@@ -116,6 +122,16 @@ contains
       isamptot = isamptot + 1
       samplname(isamptot) = 'buup'
       longsamplname(isamptot) = 'Buoyant Updraft '
+    end if
+    if (lsampplume) then
+      isamptot = isamptot + 1
+      samplname(isamptot) = 'plume'
+      longsamplname(isamptot) = 'Plume '
+    end if
+    if (lsampmoistplume) then
+      isamptot = isamptot + 1
+      samplname(isamptot) = 'plume'
+      longsamplname(isamptot) = 'Moist plume '
     end if
     if (lsampcl) then
       isamptot = isamptot + 1
@@ -292,11 +308,11 @@ contains
   subroutine dosampling
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,rslabs, &
-                          grav,om22,cu,timee
+                          grav,om22,cu,timee, zf, zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh, &
-                          wp_store
+                          wp_store, svm, sv0av
     use modsubgrid,only : ekh,ekm
-    use modmpi    ,only : slabsum
+    use modmpi    ,only : slabsum, my_real, mpi_sum, mpi_max, mpi_min, comm3d, mpierr
     use modpois,   only : p
     use modsurfdata,only: thvs
     implicit none
@@ -316,6 +332,7 @@ contains
     real :: cqt,cthl,den,ekhalf,c2,c1,t0h,qs0h,ekav
     real :: wtvsh,wtvrh,wtlsh,wtlrh,wqtrh,wqtsh,wqlrh,wqls
     real :: beta
+    real :: sv2avl, sv2av, svdiv,svdivmin, zbaseminl, zbasemin, ztopmaxl, ztopmax, zthres
 
     allocate(thvav(k1))
     allocate( maskf(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -429,6 +446,92 @@ contains
       enddo
       enddo
 
+    case ('plume')
+      if (nplume /= 0) then
+  ! calculate mean and standard diviation of the plume-scalar
+        svdivmin = 0.
+        do k=1,kmax
+          sv2avl = 0.
+          do i=2,i1
+            do j=2,j1
+              sv2avl = sv2avl + (svm(i,j,k,nplume) - sv0av(k,nplume))**2
+            end do
+          end do
+          call MPI_ALLREDUCE(sv2avl,sv2av,1,MY_REAL, &
+                          MPI_SUM, comm3d,mpierr)
+          svdiv = sqrt(sv2av/rslabs)
+          svdivmin = svdivmin + svdiv * dzh(k)
+          svdiv = min(svdiv, 0.05/zf(k) * svdivmin)
+          do i=2,i1
+            do j=2,j1
+              if ( w0f(i,j,k).gt.0. &
+                  .and. svm(i,j,k,nplume) > sv0av(k,nplume) + plumefac * svdiv) then
+                  maskf(i,j,k) = .true.
+              endif
+              if ( w0(i,j,k).gt.0. &
+                  .and. svm(i,j,k,nplume) > sv0av(k,nplume) + plumefac * svdiv) then
+                  maskh(i,j,k) = .true.
+              endif
+            enddo
+          enddo
+        enddo
+      end if
+    case ('moistplume')
+      if (nplume /= 0) then
+  ! calculate cloudbase/top
+        ztopmaxl = 0.0
+        zbaseminl = 1e10
+        do j=2,j1
+          do i=2,i1
+            do k=1,kmax
+              if (ql0(i,j,k) > 0.) then
+                zbaseminl = min(zf(k),zbaseminl)
+              exit
+              end if
+            end do
+            do k=kmax,1,-1
+              if (ql0(i,j,k) > 0.) then
+                ztopmaxl = min(zf(k),ztopmaxl)
+              exit
+              end if
+            end do
+          end do
+        end do
+        call MPI_ALLREDUCE(zbaseminl, zbasemin, 1,    MY_REAL, &
+                              MPI_MAX, comm3d,mpierr)
+        call MPI_ALLREDUCE(ztopmaxl, ztopmax, 1,    MY_REAL, &
+                              MPI_MAX, comm3d,mpierr)
+        zthres = zbasemin + 0.25 * (ztopmax - zbasemin)
+  ! calculate mean and standard diviation of the plume-scalar
+        svdivmin = 0.
+        do k=1,kmax
+          sv2avl = 0.
+          do i=2,i1
+            do j=2,j1
+              sv2avl = sv2avl + (svm(i,j,k,nplume) - sv0av(k,nplume))**2
+            end do
+          end do
+          call MPI_ALLREDUCE(sv2avl,sv2av,1,MY_REAL, &
+                          MPI_SUM, comm3d,mpierr)
+          svdiv = sqrt(sv2av/rslabs)
+          svdivmin = svdivmin + svdiv * dzf(k)
+          svdiv = min(svdiv, 0.05/zf(k) * svdivmin)
+          do i=2,i1
+            do j=2,j1
+              if ((zf(k) < zthres .or. ql0(i,j,k)>epsilon(1.0)) &
+                  .and. w0f(i,j,k).gt.0. &
+                  .and. svm(i,j,k,nplume) > sv0av(k,nplume) + plumefac * svdiv) then
+                  maskf(i,j,k) = .true.
+              endif
+              if ((zh(k) < zthres .or. ql0h(i,j,k)>epsilon(1.0)) &
+                  .and. w0(i,j,k).gt.0. &
+                  .and. svm(i,j,k,nplume) > sv0av(k,nplume) + plumefac * svdiv) then
+                  maskh(i,j,k) = .true.
+              endif
+            enddo
+          enddo
+        enddo
+      end if
 
     case ('all')
         maskf  = .true.

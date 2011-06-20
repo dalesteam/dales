@@ -31,10 +31,10 @@ CC = gcc
 CFLAGS = -g -O2
 CPPFLAGS =  -DVERSION=\"$(VERSION)\"
 
-LEX = flex
+LEX = :
 LFLAGS = -i -B 
 
-YACC = bison -y
+YACC = yacc
 YFLAGS = 
 
 # Where to install stuff

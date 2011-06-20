@@ -10,7 +10,7 @@ endif($ENV{SYST} STREQUAL "")
 
 if($ENV{SYST} STREQUAL "localpc_gfortran")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none -I/include -I/usr/include -I/usr/local/include" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none -I/usr/lib64/gfortran/modules -I/include -I/usr/include -I/usr/local/include" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif($ENV{SYST}  STREQUAL "HUYGENS")
@@ -28,37 +28,59 @@ PROJECT(DALES Fortran)
 cmake_minimum_required(VERSION 2.6)
 
 set(VERSION_MAJOR "3")
-set(VERSION_MINOR "1")
-set(VERSION_PATCH "90")
+set(VERSION_MINOR "2")
+set(VERSION_PATCH "0")
+
+# FIND NETCDF
 find_path(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   DOC "NetCDF include directory (must contain netcdf.mod)"
   PATHS
-  /usr/include
+  $ENV{NETCDF_INCLUDE}
   $ENV{HOME}/include
+  /usr/include
+  /usr/lib64/gfortran/modules
   $ENV{SARA_NETCDF_INCLUDE}
-/sw/sles10-x64/netcdf-3.6.3-intel/include
-PATH_SUFFIXES netcdf-3)
+)
+if(NETCDF_INCLUDE_DIR)
+  MESSAGE(STATUS "NETCDF module found in " ${NETCDF_INCLUDE_DIR})
+else()
+  MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
+endif()
+
 find_library(NETCDF_C_LIB netcdf
   DOC "NetCDF C library"
   PATHS
+  $ENV{NETCDF_LIB}
+#   $ENV{HOME}/lib
+#   $ENV{HOME}/lib64
   /usr/lib
   /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
   $ENV{SARA_NETCDF_LIB}
-/sw/sles10-x64/netcdf-3.6.3-intel/lib
 )
+if(NETCDF_C_LIB)
+  set(NETCDF_LIBS ${NETCDF_C_LIB})
+  MESSAGE(STATUS "NETCDF C library: " ${NETCDF_C_LIB})
+else()
+  MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
+endif()
+
 find_library(NETCDF_FORTRAN_LIB netcdff
   DOC "NetCDF Fortran library"
   PATHS
+  $ENV{NETCDF_LIB}
+#   $ENV{HOME}/lib
+#   $ENV{HOME}/lib64
   /usr/lib
   /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
   $ENV{SARA_NETCDF_LIB}
-/sw/sles10-x64/netcdf-3.6.3-intel/lib
-
 )
+if(NETCDF_FORTRAN_LIB)
+  set(NETCDF_LIBS ${NETCDF_LIBS} ${NETCDF_FORTRAN_LIB})
+  MESSAGE(STATUS "NETCDF Fortran library: " ${NETCDF_FORTRAN_LIB})
+else()
+  MESSAGE(STATUS "WARNING: No Fortran NETCDF bindings are found. This is not always fatal.")
+endif()
+
 
 if(NETCDF_INCLUDE_DIR)
 else(NETCDF_INCLUDE_DIR)
