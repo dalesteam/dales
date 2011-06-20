@@ -130,7 +130,7 @@ contains
     end if
     if (lsampmoistplume) then
       isamptot = isamptot + 1
-      samplname(isamptot) = 'plume'
+      samplname(isamptot) = 'mstplume'
       longsamplname(isamptot) = 'Moist plume '
     end if
     if (lsampcl) then
@@ -476,7 +476,7 @@ contains
           enddo
         enddo
       end if
-    case ('moistplume')
+    case ('mstplume')
       if (nplume /= 0) then
   ! calculate cloudbase/top
         ztopmaxl = 0.0
