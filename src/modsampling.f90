@@ -261,8 +261,8 @@ contains
           call ncinfo(ncname(27,:,isamp),'whend'//samplname(isamp),trim(longsamplname(isamp))//' '//'ws at end of sampling period','m/s','mt')
           call ncinfo(ncname(28,:,isamp),'sighend'//samplname(isamp),trim(longsamplname(isamp))//' '//'sigma at end of period','-','mt')
           do n = 1, nsv
-            write (cscalname, '(i3.3)') nsv
-            call ncinfo(ncname(28+nsv,:,isamp),'sv'//cscalname//samplname(isamp),trim(longsamplname(isamp))//' '//'mean scalar '//cscalname,'kg/kg','tt')
+            write (cscalname, '(i3.3)') n
+            call ncinfo(ncname(28+n,:,isamp),'sv'//cscalname//samplname(isamp),trim(longsamplname(isamp))//' '//'mean scalar '//cscalname,'kg/kg','tt')
           end do 
 
           call define_nc( ncid_prof, NVar, ncname(:,:,isamp))
