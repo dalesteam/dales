@@ -49,9 +49,9 @@ subroutine initsurf_user
 end subroutine initsurf_user
 
 subroutine surf_user
- use modglobal,  only : zf,i1,j1,i2,j2,grav,nsv,fkar,cv,cu,tmelt,bt,at,rd,rv,cp,es0,pref0,ep2
+ use modglobal,  only : zf,i1,j1,i2,j2,grav,nsv,fkar,cv,cu,tmelt,bt,at,rd,rv,cp,es0,pref0,ep2,rslabs
  use modsurfdata,only : ustar,dudz,dvdz,dqtdz,dthldz,&
-                          svs,z0,qts,thls,thvs,thlflux,qtflux,wsvsurf,svflux, ps
+                          svs,z0,qts,thls,thvs,thlflux,qtflux,wsvsurf,svflux, ps, wtsurf, wqsurf
   use modfields, only : u0,v0,thl0,qt0,sv0,u0av,v0av,qt0av,thl0av, sv0av
   use modmpi,    only :  excj
   implicit none
@@ -62,14 +62,20 @@ subroutine surf_user
   real, parameter :: v_bulk = 0.01
   real       :: es,bflx
 
+    thls = 289.
+    es   = es0 * exp(at*(thls-tmelt) / (thls-bt))
+    qts  = rd / rv * es / ps   
     bflx = grav/thl0av(1)*v_bulk*((thls - thl0av(1))+ep2*thl0av(1)*(qts-qt0av(1)))
-    do while (abs(bflx-bflx0)/bflx0 < 1e-4)
-      thls = v_bulk*thl0av(1)/grav * bflx + thl0av(1) - ep2*thl0av(1)*(qts-qt0av(1))
+
+    do while ((bflx0-bflx)/bflx0 > 1e-4)
+      thls = thls + 0.001
       es   = es0 * exp(at*(thls-tmelt) / (thls-bt))
       qts  = rd / rv * es / ps
       bflx = grav/thl0av(1)*v_bulk*((thls - thl0av(1))+ep2*thl0av(1)*(qts-qt0av(1)))
     end do
-    
+    wtsurf = v_bulk * (thls - thl0av(1))
+    wqsurf = v_bulk * (qts - qt0av(1))
+
   do j=2,j1
   do i=2,i1
     thlflux(i,j) = v_bulk * (thls - thl0(i,j,1))
@@ -82,17 +88,18 @@ subroutine surf_user
     horv2 = (upcu**2 + vpcv**2)
     ustar (i,j) = diag_ustar(zf(1),z0,bflx,horv)
     obl   = -ustar(i,j)**3/(fkar*(grav/thvs)*(thlflux(i,j)+0.61*thvs*qtflux(i,j)))
-    if (stab < 0.) then
+    
+    if (bflx > 0.) then
        phimzf = (1.-16.*zf(1)/obl)**(-0.25)
        phihzf = (1.-16.*zf(1)/obl)**(-0.50)
     endif
 
-    if (stab == 0.) then
+    if (bflx == 0.) then
        phimzf = 1.
        phihzf = 1.
     endif
 
-    if (stab > 0.) then
+    if (bflx < 0.) then
        phimzf = (1.+5.*zf(1)/obl)
        phihzf = (1.+8.*zf(1)/obl)
     endif
@@ -112,11 +119,11 @@ subroutine surf_user
   end do
 
   call excj( ustar  , 1, i2, 1, j2, 1,1)
-
   do n=1,nsv
     svflux(:,:,n) = wsvsurf(n)
     svs(n)        = wsvsurf(n)/v_bulk+ sv0av(1,n)
   enddo
+
   contains
   !
   ! ----------------------------------------------------------------------
