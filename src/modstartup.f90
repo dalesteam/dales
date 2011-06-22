@@ -40,7 +40,7 @@ save
   integer (KIND=selected_int_kind(6)) :: irandom= 0     !    * number to seed the randomnizer with
   integer :: krand = huge(0)
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
-
+  real :: wctimemax
 contains
   subroutine startup
 
@@ -81,7 +81,7 @@ contains
 
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile, runtime, dtmax,dtav_glob,timeav_glob,&
-        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author
+        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author, wctimemax
     namelist/DOMAIN/ &
         imax,jtot,kmax,&
         xsize,ysize,&
@@ -146,6 +146,7 @@ contains
     call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,comm3d,mpierr)
     call MPI_BCAST(author     ,80,MPI_CHARACTER,0,comm3d,mpierr)
     call MPI_BCAST(runtime    ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(wctimemax  ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,comm3d,mpierr)
@@ -787,11 +788,12 @@ contains
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
                           ntimee,rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
-    use modmpi,    only : cmyid,myid
+    use modmpi,    only : cmyid,myid, cpu_program0, mpi_logical, comm3d, mpierr, mpi_wtime
     use modsubgriddata, only : ekm
 
     implicit none
     logical :: lexitnow = .false.
+    real    :: cpu_program
     integer imin,ihour
     integer i,j,k,n
     character(20) name,linkname
@@ -800,6 +802,14 @@ contains
     if (rk3step /=3) return
     name = 'exit_now.'//cexpnr
     inquire(file=trim(name), EXIST=lexitnow)
+
+    if(myid==0)then
+      CPU_program = MPI_Wtime() - CPU_program0
+      if (CPU_program > wctimemax) then
+        lexitnow = .true.
+        call MPI_BCAST(lexitnow,1,MPI_LOGICAL,0,comm3d,mpierr)
+      end if
+    end if
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
     if (timee>=tnextrestart .or. lexitnow) then
