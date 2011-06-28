@@ -32,13 +32,22 @@
 !
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
-!EXAMPLE of surface.inp.xxx:
+!EXAMPLE of surface.inp.xxx for isurf = 3,4:
 
 !#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
 !#typenr    name       z0mav  z0hav    thls   ps    ustin  wtsurf  wqsurf  wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
 !    0   "standard  "  0.035  0.035   300.0  1.0e5   0.1    0.15   0.1e-3          1.0          0.0          0.0       0.0005
 !    1   "forest    "  0.500  0.500   300.0  1.0e5   0.1    0.15   0.2e-3          1.0          0.0          0.0       0.0005
 !    2   "grass     "  0.035  0.035   300.0  1.0e5   0.1    0.30   0.1e-3          1.0          0.0          0.0       0.0005
+
+!EXAMPLE of surface.inp.xxx for isurf = 2:
+
+!#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
+!#typenr    name       z0mav  z0hav    thls   ps    albedo  rsi_s2  wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
+!    0   "standard  "  0.035  0.035   300.0  1.0e5   0.20     50.0          1.0          0.0          0.0       0.0005
+!    1   "forest    "  0.500  0.500   300.0  1.0e5   0.15     50.0          1.0          0.0          0.0       0.0005
+!    2   "grass     "  0.035  0.035   300.0  1.0e5   0.25     50.0          1.0          0.0          0.0       0.0005
+
 
 module modsurface
   use modsurfdata
