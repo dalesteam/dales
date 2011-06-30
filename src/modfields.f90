@@ -52,14 +52,14 @@ save
   real, allocatable :: qtcluster11(:,:,:)       !<  windowed updraft
   real, allocatable :: qtcluster22(:,:,:)       !<  windowed updraft
   real, allocatable :: qtcluster44(:,:,:)       !<  windowed updraft
-  real, allocatable :: wdecay300(:,:,:)       !<   decay function updraft
-  real, allocatable :: wdecay600(:,:,:)       !<   decay function updraft
-  real, allocatable :: wdecay1200(:,:,:)       !<   decay function updraft
-  real, allocatable :: wdecay2400(:,:,:)       !<   decay function updraft
-  real, allocatable :: qtdecay300(:,:,:)       !<   decay function updraft
-  real, allocatable :: qtdecay600(:,:,:)       !<   decay function updraft
-  real, allocatable :: qtdecay1200(:,:,:)       !<   decay function updraft
-  real, allocatable :: qtdecay2400(:,:,:)       !<   decay function updraft
+  real, allocatable :: thlcluster6(:,:,:)       !<  windowed updraft
+  real, allocatable :: thlcluster11(:,:,:)       !<  windowed updraft
+  real, allocatable :: thlcluster22(:,:,:)       !<  windowed updraft
+  real, allocatable :: thlcluster44(:,:,:)       !<  windowed updraft
+  real, allocatable :: thvcluster6(:,:,:)       !<  windowed updraft
+  real, allocatable :: thvcluster11(:,:,:)       !<  windowed updraft
+  real, allocatable :: thvcluster22(:,:,:)       !<  windowed updraft
+  real, allocatable :: thvcluster44(:,:,:)       !<  windowed updraft
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
@@ -198,14 +198,14 @@ subroutine initfields
     allocate(qtcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wdecay300(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wdecay600(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wdecay1200(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wdecay2400(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtdecay300(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtdecay600(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtdecay1200(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtdecay2400(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlcluster6(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thvcluster6(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thvcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thvcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thvcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lprotected(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -289,7 +289,7 @@ subroutine initfields
     vm=0.;v0=0.;vp=0.
     wm=0.;w0=0.;wp=0.;wp_store=0.
     thlm=0.;thl0=0.;thlp=0.
-    qtm=0.;qt0=0.;qtp=0.;wcluster6=0.;wcluster11=0.;wcluster22=0.;wcluster44=0.;wdecay300=0.;wdecay600=0.;wdecay1200=0.;wdecay2400=0.;qtcluster6=0.;qtcluster11=0.;qtcluster22=0.;qtcluster44=0.;qtdecay300=0.;qtdecay600=0.;qtdecay1200=0.;qtdecay2400=0.
+    qtm=0.;qt0=0.;qtp=0.;wcluster6=0.;wcluster11=0.;wcluster22=0.;wcluster44=0.;qtcluster6=0.;qtcluster11=0.;qtcluster22=0.;qtcluster44=0.;thlcluster11=0.;thlcluster22=0.;thlcluster44=0.;thvcluster6=0.;thvcluster11=0.;thvcluster22=0.;thvcluster44=0.;
     e12m=0.;e120=0.;e12p=0.
     svm=0.;sv0=0.;svp=0.
 
@@ -323,7 +323,7 @@ subroutine initfields
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
     deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw,lprotected)
-    deallocate(wcluster6,wcluster11,wcluster22,qtcluster44,qtcluster6,qtcluster11,qtcluster22,wcluster44,wdecay300,wdecay600,wdecay1200,wdecay2400,qtdecay300,qtdecay600,qtdecay1200,qtdecay2400)
+    deallocate(wcluster6,wcluster11,wcluster22,qtcluster44,qtcluster6,qtcluster11,qtcluster22,wcluster44,thlcluster6,thlcluster11,thlcluster22,thlcluster44,thvcluster6,thvcluster11,thvcluster22,thvcluster44)
    end subroutine exitfields
 
 end module modfields

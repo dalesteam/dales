@@ -97,7 +97,7 @@ program DALES      !Version 4.0.0alpha
   use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
-  use modspectra2,     only : dospecs,initspectra2
+  use modspectra2,     only : dospecs,initspectra2,tanhfilter
   use modtimestat,     only : inittimestat, timestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
@@ -248,6 +248,7 @@ program DALES      !Version 4.0.0alpha
     call sampling
     call crosssection
     call lsmcrosssection
+    call tanhfilter
     call docape
     !call projection
     call cloudfield
