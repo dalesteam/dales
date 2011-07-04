@@ -421,6 +421,7 @@ contains
     cinmax(i,j)=0.
     dcape(i,j)=0.
     dcin(i,j)=0.
+    dscin(i,j)=0.
     dcintot(i,j)=0.
     dscape(i,j)=0.
     enddo
