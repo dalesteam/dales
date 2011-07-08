@@ -72,7 +72,6 @@ contains
     use modraddata, only : iradiation,rad_shortw,irad_full
     use modfields,  only : thl0, qt0
     use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
-!    use modtimedep, only : ltimedep
 
     implicit none
 
@@ -154,7 +153,6 @@ contains
         stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
       if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and heterogeneous surface conditions (lhetero) at the same time' 
-!      if (ltimedep .eqv. .true.) write(6,*) 'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
       if (mod(imax,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
 
