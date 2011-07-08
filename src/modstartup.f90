@@ -254,9 +254,10 @@ contains
   !                                                                 |
   !-----------------------------------------------------------------|
 
-    use modsurfdata,only : wtsurf,wqsurf,ustin,thls,isurf,ps
+    use modsurfdata,only : wtsurf,wqsurf,ustin,thls,isurf,ps,lhetero
     use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart
     use modmpi,    only : myid, nprocs,mpierr
+    use modtimedep, only : ltimedep
 
 
       if(mod(jtot,nprocs) /= 0) then
@@ -307,6 +308,11 @@ contains
         if (ustin < 0)  stop 'ustin out of range/not set'
       end if
     end if
+
+    if (ltimedep .and. lhetero) then
+      if (myid == 0) write(6,*) 'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      if (myid == 0) write(0,*) 'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+    endif
 
   end subroutine checkinitvalues
 
