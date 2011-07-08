@@ -32,7 +32,7 @@
 !
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
-!EXAMPLE of surface.inp.xxx for isurf = 3,4:
+!EXAMPLE of the old surface.inp.xxx for isurf = 3,4 (use switch loldtable for compatibility):
 
 !#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
 !#typenr    name       z0mav  z0hav    thls   ps    ustin  wtsurf  wqsurf  wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
@@ -40,13 +40,21 @@
 !    1   "forest    "  0.500  0.500   300.0  1.0e5   0.1    0.15   0.2e-3          1.0          0.0          0.0       0.0005
 !    2   "grass     "  0.035  0.035   300.0  1.0e5   0.1    0.30   0.1e-3          1.0          0.0          0.0       0.0005
 
-!EXAMPLE of surface.inp.xxx for isurf = 2:
+!EXAMPLE of surface.interactive.inp.xxx for isurf = 1:
 
 !#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
-!#typenr    name       z0mav  z0hav    thls   ps    albedo  rsi_s2  wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
-!    0   "standard  "  0.035  0.035   300.0  1.0e5   0.20     50.0          1.0          0.0          0.0       0.0005
-!    1   "forest    "  0.500  0.500   300.0  1.0e5   0.15     50.0          1.0          0.0          0.0       0.0005
-!    2   "grass     "  0.035  0.035   300.0  1.0e5   0.25     50.0          1.0          0.0          0.0       0.0005
+!#typenr    name       z0mav  z0hav   ps    albedo  tsoil1 tsoil2 tsoil3 tsoil4 tsoildeep phiw1 phiw2 phiw3 phiw4 rootf1 rootf2 rootf3 rootf4 Cskin  lambdaskin  Qnet  cveg  Wlav   rsmin  LAI     gD    wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
+!    0   "standard  "  0.035  0.035  1.0e5   0.20      290    287    285    283       283   0.3   0.3   0.3   0.3   0.35   0.38   0.23   0.04 20000         5.0   450   0.9   0.0     110  4.0     0.            1.0          0.0          0.0       0.0005
+!    1   "forest    "  0.500  0.500  1.0e5   0.15      290    287    285    283       283   0.3   0.3   0.3   0.3   0.35   0.38   0.23   0.04 20000         5.0   450   0.9   0.0     110  6.0     0.            1.0          0.0          0.0       0.0005
+!    2   "grass     "  0.035  0.035  1.0e5   0.25      290    287    285    283       283   0.3   0.3   0.3   0.3   0.35   0.38   0.23   0.04 20000         5.0   450   0.9   0.0     110  2.0     0.            1.0          0.0          0.0       0.0005
+
+!EXAMPLE of surface.prescribed.inp.xxx for isurf = 2,3,4:
+
+!#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
+!#typenr    name       z0mav  z0hav    thls   ps    albedo  rsi_s2  ustin  wtsurf  wqsurf  wsvsurf(01)  wsvsurf(02)  wsvsurf(03)  wsvsurf(04)
+!    0   "standard  "  0.035  0.035   300.0  1.0e5   0.20     50.0   0.1    0.15   0.1e-3          1.0          0.0          0.0       0.0005
+!    1   "forest    "  0.500  0.500   300.0  1.0e5   0.15     50.0   0.1    0.15   0.2e-3          1.0          0.0          0.0       0.0005
+!    2   "grass     "  0.035  0.035   300.0  1.0e5   0.25     50.0   0.1    0.30   0.1e-3          1.0          0.0          0.0       0.0005
 
 
 module modsurface
@@ -64,10 +72,12 @@ contains
     use modraddata, only : iradiation,rad_shortw,irad_full
     use modfields,  only : thl0, qt0
     use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+!    use modtimedep, only : ltimedep
 
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
+    integer   :: tempx,tempy
  character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
@@ -78,7 +88,7 @@ contains
       ! Prescribed values for isurf 2, 3, 4
       z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
       ! Heterogeneous variables
-      lhetero, xpatches, ypatches, land_use
+      lhetero, xpatches, ypatches, land_use, loldtable
 
     ! 1    -   Initialize soil
 
@@ -131,6 +141,7 @@ contains
     call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
 
     call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
@@ -143,6 +154,7 @@ contains
         stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
       if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and heterogeneous surface conditions (lhetero) at the same time' 
+!      if (ltimedep .eqv. .true.) write(6,*) 'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
       if (mod(imax,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
 
@@ -156,6 +168,21 @@ contains
       allocate(wt_patch(xpatches,ypatches))
       allocate(wq_patch(xpatches,ypatches))
       allocate(wsv_patch(100,xpatches,ypatches))
+      allocate(rsisurf2_patch(xpatches,ypatches))
+      allocate(albedo_patch(xpatches,ypatches))
+
+      allocate(tsoil_patch(ksoilmax,xpatches,ypatches))
+      allocate(tsoildeep_patch(xpatches,ypatches))
+      allocate(phiw_patch(ksoilmax,xpatches,ypatches))
+      allocate(rootf_patch(ksoilmax,xpatches,ypatches))
+      allocate(Cskin_patch(xpatches,ypatches))
+      allocate(lambdaskin_patch(xpatches,ypatches))
+      allocate(Qnet_patch(xpatches,ypatches))
+      allocate(cveg_patch(xpatches,ypatches))
+      allocate(Wl_patch(xpatches,ypatches))
+      allocate(rsmin_patch(xpatches,ypatches))
+      allocate(LAI_patch(xpatches,ypatches))
+      allocate(gD_patch(xpatches,ypatches))
 
       z0mav_patch = -1
       z0hav_patch = -1
@@ -167,43 +194,148 @@ contains
       wt_patch    = -1
       wq_patch    = -1
       wsv_patch   = -1
+      rsisurf2_patch = 0
+      albedo_patch= -1
+
+      tsoil_patch      = -1
+      tsoildeep_patch  = -1
+      phiw_patch       = -1
+      rootf_patch      = -1
+      Cskin_patch      = -1
+      lambdaskin_patch = -1
+      Qnet_patch       = -1
+      cveg_patch       = -1
+      Wl_patch         = -1
+      rsmin_patch      = -1
+      LAI_patch        = -1
+      gD_patch         = -1
 
       defined_landtypes = 0
-      open (ifinput,file='surface.inp.'//cexpnr)
-      ierr = 0
-      do while (ierr == 0)  
-        read(ifinput, '(A)', iostat=ierr) readbuffer
-        if (ierr == 0) then                               !So no end of file is encountered
-          if (readbuffer(1:1)=='#') then
-            if (myid == 0)   print *,trim(readbuffer)
-          else
-            if (myid == 0)   print *,trim(readbuffer)
-            defined_landtypes = defined_landtypes + 1
-            i = defined_landtypes
-            read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
-              ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i) 
-
-            if (ustin_land(i) .lt. 0) then
-              if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+      if(loldtable) then !Old input-file for heterogeneous surfaces: only valid w/o sw-radiation (due to albedo) and isurf = 3,4
+        open (ifinput,file='surface.inp.'//cexpnr)
+        ierr = 0
+        do while (ierr == 0)  
+          read(ifinput, '(A)', iostat=ierr) readbuffer
+          if (ierr == 0) then                               !So no end of file is encountered
+            if (readbuffer(1:1)=='#') then
+              if (myid == 0)   print *,trim(readbuffer)
+            else
+              if (myid == 0)   print *,trim(readbuffer)
+              defined_landtypes = defined_landtypes + 1
+              i = defined_landtypes
+              read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
+                ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i) 
+  
+              if (ustin_land(i) .lt. 0) then
+                if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+              endif
+              if(isurf .ne. 3) then
+                if(z0mav_land(i) .lt. 0) then
+                  if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                end if
+                if(z0hav_land(i) .lt. 0) then
+                  if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                end if
+              end if
+  
+              if (landtype(i) .eq. 0) landtype_0 = i
+              do j = 1, (i-1)
+                if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+              enddo
+                  
             endif
-            if(isurf .ne. 3) then
-              if(z0mav_land(i) .lt. 0) then
-                if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
-              end if
-              if(z0hav_land(i) .lt. 0) then
-                if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
-              end if
-            end if
-
-            if (landtype(i) .eq. 0) landtype_0 = i
-            do j = 1, (i-1)
-              if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
-            enddo
-                
           endif
-        endif
-      enddo
-      close(ifinput)
+        enddo
+        close(ifinput)
+      else
+        select case (isurf)
+          case (1) ! Interactive land surface
+            open (ifinput,file='surface.interactive.inp.'//cexpnr)
+            ierr = 0
+            do while (ierr == 0)  
+              read(ifinput, '(A)', iostat=ierr) readbuffer
+              if (ierr == 0) then                               !So no end of file is encountered
+                if (readbuffer(1:1)=='#') then
+                  if (myid == 0)   print *,trim(readbuffer)
+                else
+                  if (myid == 0)   print *,trim(readbuffer)
+                  defined_landtypes = defined_landtypes + 1
+                  i = defined_landtypes
+                  read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), ps_land(i), &
+                    albedo_land(i), tsoil_land(1:ksoilmax,i), tsoildeep_land(i), phiw_land(1:ksoilmax,i), rootf_land(1:ksoilmax,i), &
+                    Cskin_land(i), lambdaskin_land(i), Qnet_land(i), cveg_land(i), Wl_land(i), rsmin_land(i), LAI_land(i), &
+                    gD_land(i), wsv_land(1:nsv,i) 
+  
+                  if(z0mav_land(i) .lt. 0) then
+                    if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                  end if
+                  if(z0hav_land(i) .lt. 0) then
+                    if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                  end if
+                  if (albedo_land(i) .lt. 0) then
+                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is negative"
+                  endif
+                  if (albedo_land(i) .gt. 1) then
+                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
+                  endif
+  
+                  if (landtype(i) .eq. 0) landtype_0 = i
+                  do j = 1, (i-1)
+                    if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                  enddo
+                      
+                endif
+              endif
+            enddo
+            close(ifinput)
+            
+          case default ! Prescribed land surfaces: isurf = 2, 3, 4 (& 10)
+            open (ifinput,file='surface.prescribed.inp.'//cexpnr)
+            ierr = 0
+            do while (ierr == 0)  
+              read(ifinput, '(A)', iostat=ierr) readbuffer
+              if (ierr == -1) then
+                if (myid == 0)  print *, "iostat = ",ierr,": No file ",'surface.prescribed.inp.'//cexpnr," found"
+              endif
+              if (ierr == 0) then                               !So no end of file is encountered
+                if (readbuffer(1:1)=='#') then
+                  if (myid == 0)   print *,trim(readbuffer)
+                else
+                  if (myid == 0)   print *,trim(readbuffer)
+                  defined_landtypes = defined_landtypes + 1
+                  i = defined_landtypes
+                  read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
+                    ps_land(i), albedo_land(i), rsisurf2_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i) 
+  
+                  if (ustin_land(i) .lt. 0) then
+                    if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
+                  endif
+                  if (albedo_land(i) .lt. 0) then
+                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is negative"
+                  endif
+                  if (albedo_land(i) .gt. 1) then
+                    if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
+                  endif
+                  if(isurf .ne. 3) then
+                    if(z0mav_land(i) .lt. 0) then
+                      if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
+                    end if
+                    if(z0hav_land(i) .lt. 0) then
+                      if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
+                    end if
+                  end if
+  
+                  if (landtype(i) .eq. 0) landtype_0 = i
+                  do j = 1, (i-1)
+                    if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
+                  enddo
+                      
+                endif
+              endif
+            enddo
+            close(ifinput)
+        end select
+      endif
 
       if (myid == 0) then
         if (landtype_0 .eq. -1) then
@@ -213,39 +345,120 @@ contains
         endif
       endif
 
-      thls   = 0
-      ps     = 0
-      ustin  = 0
-      wtsurf = 0
-      wqsurf = 0
-      wsvsurf(1:nsv) = 0
+      select case (isurf)
+        case (1) ! Interactive land surface
+          tsoilav      = 0
+          tsoildeepav  = 0
+          phiwav       = 0
+          rootfav      = 0
+          Cskinav      = 0
+          lambdaskinav = 0
+          albedoav     = 0
+          Qnetav       = 0
+          cvegav       = 0
+          rsminav      = 0
+          LAIav        = 0
+          gDav         = 0
+          Wlav         = 0
 
-      do i = 1, xpatches
-        do j = 1, ypatches
-          landindex = landtype_0
-          do k = 1, defined_landtypes
-            if (landtype(k) .eq. land_use(i,j)) then
-              landindex = k
-            endif
+          z0mav        = 0
+          z0hav        = 0
+
+          do i = 1, xpatches
+            do j = 1, ypatches
+              landindex = landtype_0
+              do k = 1, defined_landtypes
+                if (landtype(k) .eq. land_use(i,j)) then
+                  landindex = k
+                endif
+              enddo
+            
+              tsoil_patch(:,i,j)    = tsoil_land(:,landindex)   
+              tsoildeep_patch(i,j)  = tsoildeep_land(landindex) 
+              phiw_patch(:,i,j)     = phiw_land(:,landindex)    
+              rootf_patch(:,i,j)    = rootf_land(:,landindex)   
+              Cskin_patch(i,j)      = Cskin_land(landindex)     
+              lambdaskin_patch(i,j) = lambdaskin_land(landindex)
+              albedo_patch(i,j)     = albedo_land(landindex)    
+              Qnet_patch(i,j)       = Qnet_land(landindex)      
+              cveg_patch(i,j)       = cveg_land(landindex)      
+              rsmin_patch(i,j)      = rsmin_land(landindex)     
+              LAI_patch(i,j)        = LAI_land(landindex)       
+              gD_patch(i,j)         = gD_land(landindex)        
+              Wl_patch(i,j)         = Wl_land(landindex)        
+
+              z0mav_patch(i,j)     = z0mav_land(landindex)
+              z0hav_patch(i,j)     = z0hav_land(landindex)
+            
+              tsoilav(:)    = tsoilav(:)   +  ( tsoil_patch(:,i,j)    / ( xpatches * ypatches ) ) 
+              tsoildeepav   = tsoildeepav  +  ( tsoildeep_patch(i,j)  / ( xpatches * ypatches ) )
+              phiwav(:)     = phiwav(:)    +  ( phiw_patch(:,i,j)     / ( xpatches * ypatches ) )
+              rootfav(:)    = rootfav(:)   +  ( rootf_patch(:,i,j)    / ( xpatches * ypatches ) )
+              Cskinav       = Cskinav      +  ( Cskin_patch(i,j)      / ( xpatches * ypatches ) )
+              lambdaskinav  = lambdaskinav +  ( lambdaskin_patch(i,j) / ( xpatches * ypatches ) )
+              albedoav      = albedoav     +  ( albedo_patch(i,j)     / ( xpatches * ypatches ) )
+              Qnetav        = Qnetav       +  ( Qnet_patch(i,j)       / ( xpatches * ypatches ) )
+              cvegav        = cvegav       +  ( cveg_patch(i,j)       / ( xpatches * ypatches ) )
+              rsminav       = rsminav      +  ( rsmin_patch(i,j)      / ( xpatches * ypatches ) )
+              LAIav         = LAIav        +  ( LAI_patch(i,j)        / ( xpatches * ypatches ) )
+              gDav          = gDav         +  ( gD_patch(i,j)         / ( xpatches * ypatches ) )
+              Wlav          = Wlav         +  ( Wl_patch(i,j)         / ( xpatches * ypatches ) )
+   
+              z0mav         = z0mav        +  ( z0mav_patch(i,j)      / ( xpatches * ypatches ) ) 
+              z0hav         = z0hav        +  ( z0hav_patch(i,j)      / ( xpatches * ypatches ) ) 
+            enddo
           enddo
-        
-          z0mav_patch(i,j)     = z0mav_land(landindex)
-          z0hav_patch(i,j)     = z0hav_land(landindex)
-          thls_patch(i,j)      = thls_land(landindex)
-          ps_patch(i,j)        = ps_land(landindex)
-          ustin_patch(i,j)     = ustin_land(landindex)
-          wt_patch(i,j)        = wt_land(landindex)
-          wq_patch(i,j)        = wq_land(landindex)
-          wsv_patch(1:nsv,i,j) = wsv_land(1:nsv,landindex)
+        case default ! Prescribed land surfaces: isurf = 2, 3, 4 (& 10)
+          thls   = 0
+          ps     = 0
+          ustin  = 0
+          wtsurf = 0
+          wqsurf = 0
+          wsvsurf(1:nsv) = 0
+          if (.not. loldtable) then
+            albedoav  = 0
+          endif
 
-          thls   = thls   + ( thls_patch(i,j)  / ( xpatches * ypatches ) )
-          ps     = ps     + ( ps_patch(i,j)    / ( xpatches * ypatches ) )
-          ustin  = ustin  + ( ustin_patch(i,j) / ( xpatches * ypatches ) )
-          wtsurf = wtsurf + ( wt_patch(i,j)    / ( xpatches * ypatches ) )
-          wqsurf = wqsurf + ( wq_patch(i,j)    / ( xpatches * ypatches ) )
-          wsvsurf(1:nsv) = wsvsurf(1:nsv) + ( wsv_patch(1:nsv,i,j) / ( xpatches * ypatches ) )
-        enddo
-      enddo
+          z0mav        = 0
+          z0hav        = 0
+    
+          do i = 1, xpatches
+            do j = 1, ypatches
+              landindex = landtype_0
+              do k = 1, defined_landtypes
+                if (landtype(k) .eq. land_use(i,j)) then
+                  landindex = k
+                endif
+              enddo
+            
+              z0mav_patch(i,j)     = z0mav_land(landindex)
+              z0hav_patch(i,j)     = z0hav_land(landindex)
+              thls_patch(i,j)      = thls_land(landindex)
+              ps_patch(i,j)        = ps_land(landindex)
+              ustin_patch(i,j)     = ustin_land(landindex)
+              wt_patch(i,j)        = wt_land(landindex)
+              wq_patch(i,j)        = wq_land(landindex)
+              wsv_patch(1:nsv,i,j) = wsv_land(1:nsv,landindex)
+              if (.not. loldtable) then
+                albedo_patch(i,j)  = albedo_land(landindex)
+                rsisurf2_patch(i,j)= rsisurf2_land(landindex)
+              endif
+    
+              thls   = thls   + ( thls_patch(i,j)  / ( xpatches * ypatches ) )
+              ps     = ps     + ( ps_patch(i,j)    / ( xpatches * ypatches ) )
+              ustin  = ustin  + ( ustin_patch(i,j) / ( xpatches * ypatches ) )
+              wtsurf = wtsurf + ( wt_patch(i,j)    / ( xpatches * ypatches ) )
+              wqsurf = wqsurf + ( wq_patch(i,j)    / ( xpatches * ypatches ) )
+              wsvsurf(1:nsv) = wsvsurf(1:nsv) + ( wsv_patch(1:nsv,i,j) / ( xpatches * ypatches ) )
+              if (.not. loldtable) then
+                albedoav  = albedoav + ( albedo_patch(i,j) / ( xpatches * ypatches ) ) 
+              endif
+   
+              z0mav  = z0mav  + ( z0mav_patch(i,j) / ( xpatches * ypatches ) ) 
+              z0hav  = z0hav  + ( z0hav_patch(i,j) / ( xpatches * ypatches ) ) 
+            enddo
+          enddo
+      end select
     else
       if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
         z0mav = z0
@@ -290,6 +503,9 @@ contains
       if(Qnetav == -1) then
         stop "NAMSURFACE: Qnetav is not set"
       end if
+      if(cvegav == -1) then
+        stop "NAMSURFACE: cvegav is not set"
+      end if
       if(rsminav == -1) then
         stop "NAMSURFACE: rsminav is not set"
       end if
@@ -308,8 +524,8 @@ contains
       call initlsm
     end if
  
+    allocate(rs(i2,j2))
     if(isurf <= 2) then
-      allocate(rs(i2,j2))
       allocate(ra(i2,j2))
 
       ! CvH set initial values for rs and ra to be able to compute qskin
@@ -350,9 +566,17 @@ contains
     albedo     = albedoav
     if(lhetero) then
       do j=1,j2
+        tempy=patchynr(j)
         do i=1,i2
-          z0m(i,j)   = z0mav_patch(patchxnr(i),patchynr(j))
-          z0h(i,j)   = z0hav_patch(patchxnr(i),patchynr(j))
+          tempx=patchxnr(i)
+          z0m(i,j)   = z0mav_patch(tempx,tempy)
+          z0h(i,j)   = z0hav_patch(tempx,tempy)
+          if (.not. loldtable) then
+            albedo(i,j) = albedo_patch(tempx,tempy)
+            if(isurf .ne. 1) then
+              rs(i,j)     = rsisurf2_patch(tempx,tempy)
+            endif
+          endif
         enddo
       enddo
     else
@@ -1071,7 +1295,7 @@ contains
 
   subroutine initlsm
     use modglobal, only : i2,j2
-    integer :: k
+    integer :: k,j,i,tempy,tempx
 
     ! 1.1  -   Allocate arrays
     allocate(zsoil(ksoilmax))
@@ -1114,41 +1338,10 @@ contains
     end do
     dzsoilh(ksoilmax) = 0.5 * dzsoil(ksoilmax)
 
-    ! 1.4   -   Set evaporation related properties
-    ! Set water content of soil - constant in this scheme
-    phiw(:,:,1) = phiwav(1)
-    phiw(:,:,2) = phiwav(2)
-    phiw(:,:,3) = phiwav(3)
-    phiw(:,:,4) = phiwav(4)
-
     phitot = 0.0
-
-    do k = 1, ksoilmax
-      phitot(:,:) = phitot(:,:) + phiw(:,:,k) * dzsoil(k)
-    end do
-
-    phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
-
-    do k = 1, ksoilmax
-      phifrac(:,:,k) = phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
-    end do
-
-    ! Set root fraction per layer for short grass
-    rootf(:,:,1) = rootfav(1)
-    rootf(:,:,2) = rootfav(2)
-    rootf(:,:,3) = rootfav(3)
-    rootf(:,:,4) = rootfav(4)
-
     ! Calculate conductivity saturated soil
     lambdasat = lambdasm ** (1. - phi) * lambdaw ** (phi)
 
-    tsoil(:,:,1)   = tsoilav(1)
-    tsoil(:,:,2)   = tsoilav(2)
-    tsoil(:,:,3)   = tsoilav(3)
-    tsoil(:,:,4)   = tsoilav(4)
-    tsoildeep(:,:) = tsoildeepav
-
-    ! 2    -   Initialize land surface
     ! 2.1  -   Allocate arrays
     allocate(Qnet(i2,j2))
     allocate(LE(i2,j2))
@@ -1170,18 +1363,79 @@ contains
     allocate(Wl(i2,j2))
     allocate(Wlm(i2,j2))
 
-    Qnet       = Qnetav
+    if(lhetero) then
+      do j=1,j2
+        tempy=patchynr(j)
+        do i=1,i2
+          tempx=patchxnr(i)
 
-    Cskin      = Cskinav
-    lambdaskin = lambdaskinav
-    rsmin      = rsminav
-    rssoilmin  = rsminav
-    LAI        = LAIav
-    gD         = gDav
+          phiw( i,j,:)   = phiw_patch( :,  tempx,tempy)
+          rootf(i,j,:)   = rootf_patch(:,  tempx,tempy)
+          tsoil(i,j,:)   = tsoil_patch(:,  tempx,tempy)
+          tsoildeep(i,j) = tsoildeep_patch(tempx,tempy)
 
-    cveg       = cvegav
+          Qnet       (i,j) = Qnet_patch      (tempx,tempy)
+          Cskin      (i,j) = Cskin_patch     (tempx,tempy)
+          lambdaskin (i,j) = lambdaskin_patch(tempx,tempy)
+          rsmin      (i,j) = rsmin_patch     (tempx,tempy)
+          rssoilmin  (i,j) = rsmin_patch     (tempx,tempy)
+          LAI        (i,j) = LAI_patch       (tempx,tempy)
+          gD         (i,j) = gD_patch        (tempx,tempy)
+          cveg       (i,j) = cveg_patch      (tempx,tempy)
+          Wl         (i,j) = Wl_patch        (tempx,tempy)
+        enddo
+      enddo
+
+      do k = 1, ksoilmax
+        phitot(:,:) = phitot(:,:) + phiw(:,:,k) * dzsoil(k)
+      end do
+      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
+
+      do k = 1, ksoilmax
+        phifrac(:,:,k) = phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+      end do
+
+    else
+      ! 1.4   -   Set evaporation related properties
+      ! Set water content of soil - constant in this scheme
+      phiw(:,:,1) = phiwav(1)
+      phiw(:,:,2) = phiwav(2)
+      phiw(:,:,3) = phiwav(3)
+      phiw(:,:,4) = phiwav(4)
+
+      do k = 1, ksoilmax
+        phitot(:,:) = phitot(:,:) + phiw(:,:,k) * dzsoil(k)
+      end do
+      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
+
+      do k = 1, ksoilmax
+        phifrac(:,:,k) = phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+      end do
+
+      ! Set root fraction per layer for short grass
+      rootf(:,:,1) = rootfav(1)
+      rootf(:,:,2) = rootfav(2)
+      rootf(:,:,3) = rootfav(3)
+      rootf(:,:,4) = rootfav(4)
+
+      tsoil(:,:,1)   = tsoilav(1)
+      tsoil(:,:,2)   = tsoilav(2)
+      tsoil(:,:,3)   = tsoilav(3)
+      tsoil(:,:,4)   = tsoilav(4)
+      tsoildeep(:,:) = tsoildeepav
+
+      ! 2    -   Initialize land surface
+      Qnet       = Qnetav
+      Cskin      = Cskinav
+      lambdaskin = lambdaskinav
+      rsmin      = rsminav
+      rssoilmin  = rsminav
+      LAI        = LAIav
+      gD         = gDav
+      cveg       = cvegav
+      Wl         = Wlav
+    endif
     cliq       = 0.
-    Wl         = Wlav
   end subroutine initlsm
 
 
@@ -1264,7 +1518,11 @@ contains
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
           end if
         else
-          Qnet(i,j) = Qnetav
+          if(lhetero) then
+            Qnet(i,j) = Qnet_patch(patchx,patchy)
+          else
+            Qnet(i,j) = Qnetav
+          endif
         end if
 
         ! 2.1   -   Calculate the surface resistance

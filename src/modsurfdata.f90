@@ -175,6 +175,7 @@ SAVE
   integer, parameter:: max_lands                   = 10 !<  Amount of land types that can be defined
   integer, parameter:: mpatch                      = 16 !<  Maximum amount of patches that can be defined in each direction
   logical           :: lhetero                 = .false.!<  Switch to apply heterogeneous surfaces using surface.inp.xxx
+  logical           :: loldtable               = .false.!<  Switch to use surface.inp.xxx instead of updated surface.<name>.inp.xxx
   integer           :: xpatches                    =  2 !<  Amount of patches in the x-direction
   integer           :: ypatches                    =  1 !<  Amount of patches in the y-direction
   integer           :: land_use(mpatch,mpatch)     =  0 !<  Indicator for the land type
@@ -198,5 +199,33 @@ SAVE
   real, allocatable :: wt_patch(:,:)                    !< Prescribed kinematic temperature flux [K m/s]
   real, allocatable :: wq_patch(:,:)                    !< Prescribed kinematic moisture flux [kg/kg m/s]
   real, allocatable :: wsv_patch(:,:,:)                 !< Prescribed surface scalar(n) flux [- m/s]
+  real, allocatable :: rsisurf2_patch(:,:)              !< Vegetation resistance [s/m] if isurf2 is used
+  real              :: rsisurf2_land(max_lands)    = 0  !< Vegetation resistance [s/m] if isurf2 is used
+  real, allocatable :: albedo_patch(:,:)                !< Albedo
+  real              :: albedo_land(max_lands)      = -1 !< Albedo
+  real, allocatable :: tsoil_patch(:,:,:)               !< Soil temperature [K]
+  real, allocatable :: tsoildeep_patch(:,:)             !< Soil temperature [K]
+  real, allocatable :: phiw_patch(:,:,:)                !< 
+  real, allocatable :: rootf_patch(:,:,:)               !< Root fraction per soil layer [-]
+  real, allocatable :: Cskin_patch(:,:)                 !< Heat capacity skin layer [J]
+  real, allocatable :: lambdaskin_patch(:,:)            !< Heat conductivity skin layer [W/m/K]
+  real, allocatable :: Qnet_patch(:,:)                  !< Net radiation [W/m2]
+  real, allocatable :: cveg_patch(:,:)                  !< Vegetation cover [-]
+  real, allocatable :: Wl_patch(:,:)                    !< Liquid water reservoir [m]
+  real, allocatable :: rsmin_patch(:,:)                 !< Minimum vegetation resistance [s/m]
+  real, allocatable :: LAI_patch(:,:)                   !< Leaf area index vegetation [-]
+  real, allocatable :: gD_patch(:,:)                    !< Response factor vegetation to vapor pressure deficit [-]
+  real              :: tsoil_land(ksoilmax,max_lands)=-1!< Soil temperature [K]
+  real              :: tsoildeep_land(max_lands)   = -1 !< Soil temperature [K]
+  real              :: phiw_land(ksoilmax,max_lands) =-1!< 
+  real              :: rootf_land(ksoilmax,max_lands)=-1!< Root fraction per soil layer [-]
+  real              :: Cskin_land(max_lands)       = -1 !< Heat capacity skin layer [J]
+  real              :: lambdaskin_land(max_lands)  = -1 !< Heat conductivity skin layer [W/m/K]
+  real              :: Qnet_land(max_lands)        = -1 !< Net radiation [W/m2]
+  real              :: cveg_land(max_lands)        = -1 !< Vegetation cover [-]
+  real              :: Wl_land(max_lands)          = -1 !< Liquid water reservoir [m]
+  real              :: rsmin_land(max_lands)       = -1 !< Minimum vegetation resistance [s/m]
+  real              :: LAI_land(max_lands)         = -1 !< Leaf area index vegetation [-]
+  real              :: gD_land(max_lands)          = -1 !< Response factor vegetation to vapor pressure deficit [-]
 
 end module modsurfdata
