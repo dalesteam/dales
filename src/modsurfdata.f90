@@ -227,5 +227,6 @@ SAVE
   real              :: rsmin_land(max_lands)       = -1 !< Minimum vegetation resistance [s/m]
   real              :: LAI_land(max_lands)         = -1 !< Leaf area index vegetation [-]
   real              :: gD_land(max_lands)          = -1 !< Response factor vegetation to vapor pressure deficit [-]
+  real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
 
 end module modsurfdata

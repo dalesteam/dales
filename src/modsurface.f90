@@ -182,6 +182,8 @@ contains
       allocate(LAI_patch(xpatches,ypatches))
       allocate(gD_patch(xpatches,ypatches))
 
+      allocate(oblpatch(xpatches,ypatches))
+
       z0mav_patch = -1
       z0hav_patch = -1
       thls_patch  = -1
@@ -207,6 +209,8 @@ contains
       rsmin_patch      = -1
       LAI_patch        = -1
       gD_patch         = -1
+
+      oblpatch         = -0.1
 
       defined_landtypes = 0
       if(loldtable) then !Old input-file for heterogeneous surfaces: only valid w/o sw-radiation (due to albedo) and isurf = 3,4
@@ -361,6 +365,7 @@ contains
 
           z0mav        = 0
           z0hav        = 0
+          ps           = 0
 
           do i = 1, xpatches
             do j = 1, ypatches
@@ -387,6 +392,7 @@ contains
 
               z0mav_patch(i,j)     = z0mav_land(landindex)
               z0hav_patch(i,j)     = z0hav_land(landindex)
+              ps_patch(i,j)        = ps_land(landindex)
             
               tsoilav(:)    = tsoilav(:)   +  ( tsoil_patch(:,i,j)    / ( xpatches * ypatches ) ) 
               tsoildeepav   = tsoildeepav  +  ( tsoildeep_patch(i,j)  / ( xpatches * ypatches ) )
@@ -404,6 +410,7 @@ contains
    
               z0mav         = z0mav        +  ( z0mav_patch(i,j)      / ( xpatches * ypatches ) ) 
               z0hav         = z0hav        +  ( z0hav_patch(i,j)      / ( xpatches * ypatches ) ) 
+              ps            = ps           +  ( ps_patch(i,j)         / ( xpatches * ypatches ) ) 
             enddo
           enddo
         case default ! Prescribed land surfaces: isurf = 2, 3, 4 (& 10)
@@ -1041,7 +1048,7 @@ contains
     real                :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
     integer             :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches), lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
-    real                :: loblpatch(xpatches,ypatches), oblpatch(xpatches,ypatches) 
+    real                :: loblpatch(xpatches,ypatches) 
 
     if(lmostlocal) then
 
