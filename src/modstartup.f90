@@ -40,7 +40,7 @@ save
   integer (KIND=selected_int_kind(6)) :: irandom= 0     !    * number to seed the randomnizer with
   integer :: krand = huge(0)
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
-  real :: wctimemax
+  real :: wctimemax = 1e10
 contains
   subroutine startup
 
@@ -806,11 +806,10 @@ contains
     if(myid==0)then
       CPU_program = MPI_Wtime() - CPU_program0
       if (CPU_program > wctimemax) then
-        lexitnow = .true.
-        call MPI_BCAST(lexitnow,1,MPI_LOGICAL,0,comm3d,mpierr)
+        lexitnow = .true.      
       end if
     end if
-
+        call MPI_BCAST(lexitnow,1,MPI_LOGICAL,0,comm3d,mpierr)
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
     if (timee>=tnextrestart .or. lexitnow) then
       tnextrestart = tnextrestart+itrestart
@@ -846,7 +845,7 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("ln -sf "//name //" "//linkname)
+      call system("cp "//name //" "//linkname)
 
       if (nsv>0) then
         name  = 'inits  h  m   .'
@@ -863,7 +862,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
 
       end if
 
@@ -890,8 +889,9 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
       end if
+      call MPI_BARRIER(comm3d, mpierr)
       if (lexitnow) then
         timeleft = 0  !jump out of the time loop
       end if
