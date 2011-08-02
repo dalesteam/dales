@@ -145,8 +145,8 @@ subroutine tstep_integrate
 
 
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,k1,ih,jh,rslabs,kcb
-  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store&
-                        thl0,thlm,thlp,qt0,qtm,qtp,lprotected,&
+  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
+                        thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
 

@@ -32,7 +32,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 41
+  integer,parameter :: nvar = 25
   integer :: ncid4 = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -111,22 +111,6 @@ contains
     call ncinfo(ncname( 23,:),'distdiv','cold pool divergence distance','-','tt0t')
     call ncinfo(ncname( 24,:),'distcon','cold pool convergence distance','-','tt0t')
     call ncinfo(ncname( 25,:),'surfprec','surface precipitation','-','tt0t')
-    call ncinfo(ncname( 26,:),'wcluster6cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 27,:),'wcluster11cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 28,:),'wcluster22cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 29,:),'wcluster44cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 30,:),'qtcluster6cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 31,:),'qtcluster11cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 32,:),'qtcluster22cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 33,:),'qtcluster44cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 34,:),'thlcluster6cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 35,:),'thlcluster11cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 36,:),'thlcluster22cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 37,:),'thlcluster44cb','cloud base wcluster','-','tt0t')
-    call ncinfo(ncname( 38,:),'thvcluster6cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 39,:),'thvcluster11cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 40,:),'thvcluster22cb','cloud base qtcluster','-','tt0t')
-    call ncinfo(ncname( 41,:),'thvcluster44cb','cloud base qtcluster','-','tt0t')
     call open_nc(fname,  ncid4,n1=imax,n2=jmax)
     call define_nc( ncid4, 1, tncname)
     call writestat_dims_nc(ncid4)
@@ -139,7 +123,7 @@ contains
 !>Run crosssection.
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
-    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon,wcluster6,wcluster11,wcluster22,wcluster44,qtcluster6,qtcluster11,qtcluster22,qtcluster44,thlcluster6,thlcluster11,thlcluster22,thlcluster44,thvcluster6,thvcluster11,thvcluster22,thvcluster44
+    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
@@ -147,7 +131,7 @@ contains
     use modmpi
     implicit none
 
-    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),wcluster6cb(:,:),wcluster11cb(:,:),wcluster22cb(:,:),wcluster44cb(:,:),qtcluster6cb(:,:),qtcluster11cb(:,:),qtcluster22cb(:,:),qtcluster44cb(:,:),thlcluster6cb(:,:),thlcluster11cb(:,:),thlcluster22cb(:,:),thlcluster44cb(:,:),thvcluster6cb(:,:),thvcluster11cb(:,:),thvcluster22cb(:,:),thvcluster44cb(:,:)
+    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -169,7 +153,7 @@ contains
     allocate(dcape(2:i1,2:j1),dscape(2:i1,2:j1),dcin(2:i1,2:j1),dscin(2:i1,2:j1),dcintot(2:i1,2:j1))
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
     allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
-    allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1),wcluster6cb(2:i1,2:j1),wcluster11cb(2:i1,2:j1),wcluster22cb(2:i1,2:j1),wcluster44cb(2:i1,2:j1),qtcluster6cb(2:i1,2:j1),qtcluster11cb(2:i1,2:j1),qtcluster22cb(2:i1,2:j1),qtcluster44cb(2:i1,2:j1),thlcluster6cb(2:i1,2:j1),thlcluster11cb(2:i1,2:j1),thlcluster22cb(2:i1,2:j1),thlcluster44cb(2:i1,2:j1),thvcluster6cb(2:i1,2:j1),thvcluster11cb(2:i1,2:j1),thvcluster22cb(2:i1,2:j1),thvcluster44cb(2:i1,2:j1))
+    allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
     allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
 
@@ -269,22 +253,6 @@ contains
     thlcb(i,j)=thl0(i,j,kcb)
     buoycb(i,j)=thvfull(i,j,kcb)-thvf(kcb)
     wcb(i,j)=(w0(i,j,kcb)+w0(i,j,kcb+1))/2.
-    wcluster6cb(i,j)=(wcluster6(i,j,kcb)+wcluster6(i,j,kcb+1))/2.
-    wcluster11cb(i,j)=(wcluster11(i,j,kcb)+wcluster11(i,j,kcb+1))/2.
-    wcluster22cb(i,j)=(wcluster22(i,j,kcb)+wcluster22(i,j,kcb+1))/2.
-    wcluster44cb(i,j)=(wcluster44(i,j,kcb)+wcluster44(i,j,kcb+1))/2.
-    qtcluster6cb(i,j)=qtcluster6(i,j,kcb)
-    qtcluster11cb(i,j)=qtcluster11(i,j,kcb)
-    qtcluster22cb(i,j)=qtcluster22(i,j,kcb)
-    qtcluster44cb(i,j)=qtcluster44(i,j,kcb)
-    thlcluster6cb(i,j)=thlcluster6(i,j,kcb)
-    thlcluster11cb(i,j)=thlcluster11(i,j,kcb)
-    thlcluster22cb(i,j)=thlcluster22(i,j,kcb)
-    thlcluster44cb(i,j)=thlcluster44(i,j,kcb)
-    thvcluster6cb(i,j)=thvcluster6(i,j,kcb)
-    thvcluster11cb(i,j)=thvcluster11(i,j,kcb)
-    thvcluster22cb(i,j)=thvcluster22(i,j,kcb)
-    thvcluster44cb(i,j)=thvcluster44(i,j,kcb)
     hw2cb(i,j)=0.5*wcb(i,j)*abs(wcb(i,j))
     qtcb(i,j)=qt0(i,j,kcb)
     qlcb(i,j)=ql0(i,j,kcb)
@@ -477,28 +445,12 @@ contains
       vars(:,:,23)= distdiv(2:i1,2:j1)
       vars(:,:,24)= distcon(2:i1,2:j1)
       vars(:,:,25)= sprec(2:i1,2:j1)
-      vars(:,:,26)= wcluster6cb(2:i1,2:j1)
-      vars(:,:,27)= wcluster11cb(2:i1,2:j1)
-      vars(:,:,28)= wcluster22cb(2:i1,2:j1)
-      vars(:,:,29)= wcluster44cb(2:i1,2:j1)
-      vars(:,:,30)= qtcluster6cb(2:i1,2:j1)
-      vars(:,:,31)= qtcluster11cb(2:i1,2:j1)
-      vars(:,:,32)= qtcluster22cb(2:i1,2:j1)
-      vars(:,:,33)= qtcluster44cb(2:i1,2:j1)
-      vars(:,:,34)= thlcluster6cb(2:i1,2:j1)
-      vars(:,:,35)= thlcluster11cb(2:i1,2:j1)
-      vars(:,:,36)= thlcluster22cb(2:i1,2:j1)
-      vars(:,:,37)= thlcluster44cb(2:i1,2:j1)
-      vars(:,:,38)= thvcluster6cb(2:i1,2:j1)
-      vars(:,:,39)= thvcluster11cb(2:i1,2:j1)
-      vars(:,:,40)= thvcluster22cb(2:i1,2:j1)
-      vars(:,:,41)= thvcluster44cb(2:i1,2:j1)
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
       deallocate(vars)
     end if
 
-    deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,wcluster6cb,wcluster11cb,wcluster22cb,wcluster44cb,qtcluster6cb,qtcluster11cb,qtcluster22cb,qtcluster44cb,thlcluster6cb,thlcluster11cb,thlcluster22cb,thlcluster44cb,thvcluster6cb,thvcluster11cb,thvcluster22cb,thvcluster44cb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
+    deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
 
   end subroutine docape
 

@@ -44,22 +44,6 @@ save
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
   real, allocatable :: e120(:,:,:)      !<   turb. kin. energy at time step t
   real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
-  real, allocatable :: wcluster6(:,:,:)       !<  windowed updraft
-  real, allocatable :: wcluster11(:,:,:)       !<  windowed updraft
-  real, allocatable :: wcluster22(:,:,:)       !<  windowed updraft
-  real, allocatable :: wcluster44(:,:,:)       !<  windowed updraft
-  real, allocatable :: qtcluster6(:,:,:)       !<  windowed updraft
-  real, allocatable :: qtcluster11(:,:,:)       !<  windowed updraft
-  real, allocatable :: qtcluster22(:,:,:)       !<  windowed updraft
-  real, allocatable :: qtcluster44(:,:,:)       !<  windowed updraft
-  real, allocatable :: thlcluster6(:,:,:)       !<  windowed updraft
-  real, allocatable :: thlcluster11(:,:,:)       !<  windowed updraft
-  real, allocatable :: thlcluster22(:,:,:)       !<  windowed updraft
-  real, allocatable :: thlcluster44(:,:,:)       !<  windowed updraft
-  real, allocatable :: thvcluster6(:,:,:)       !<  windowed updraft
-  real, allocatable :: thvcluster11(:,:,:)       !<  windowed updraft
-  real, allocatable :: thvcluster22(:,:,:)       !<  windowed updraft
-  real, allocatable :: thvcluster44(:,:,:)       !<  windowed updraft
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
@@ -151,7 +135,7 @@ save
 
   real, allocatable :: distcld(:,:,:)
   real, allocatable :: distcr(:,:,:)
-  logical, allocatable :: lprotected(:,:,:)
+  integer, allocatable :: cloudnr(:,:,:)
   real, allocatable :: distw(:,:)
   real, allocatable :: distcon(:,:)
   real, allocatable :: distdiv(:,:)
@@ -190,25 +174,9 @@ subroutine initfields
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(wcluster6(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtcluster6(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlcluster6(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thvcluster6(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thvcluster11(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thvcluster22(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thvcluster44(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(lprotected(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
     allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
     allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
@@ -289,7 +257,7 @@ subroutine initfields
     vm=0.;v0=0.;vp=0.
     wm=0.;w0=0.;wp=0.;wp_store=0.
     thlm=0.;thl0=0.;thlp=0.
-    qtm=0.;qt0=0.;qtp=0.;wcluster6=0.;wcluster11=0.;wcluster22=0.;wcluster44=0.;qtcluster6=0.;qtcluster11=0.;qtcluster22=0.;qtcluster44=0.;thlcluster11=0.;thlcluster22=0.;thlcluster44=0.;thvcluster6=0.;thvcluster11=0.;thvcluster22=0.;thvcluster44=0.;
+    qtm=0.;qt0=0.;qtp=0.
     e12m=0.;e120=0.;e12p=0.
     svm=0.;sv0=0.;svp=0.
 
@@ -304,7 +272,7 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
-    distcld=0.;distcr=0.;distcon=0.;distdiv=0.;distqr=0.;distbuoy=0.;distw=0.;lprotected=.false.
+    distcld=0.;distcr=0.;distcon=0.;distdiv=0.;distqr=0.;distbuoy=0.;distw=0.;cloudnr=0
 
   end subroutine initfields
 
@@ -322,8 +290,7 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
-    deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw,lprotected)
-    deallocate(wcluster6,wcluster11,wcluster22,qtcluster44,qtcluster6,qtcluster11,qtcluster22,wcluster44,thlcluster6,thlcluster11,thlcluster22,thlcluster44,thvcluster6,thvcluster11,thvcluster22,thvcluster44)
+    deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw,cloudnr)
    end subroutine exitfields
 
 end module modfields
