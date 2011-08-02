@@ -214,10 +214,6 @@ subroutine initsimpleicestat
         call ncinfo(ncname(21,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(22,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(23,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
-        call open_nc(fname,ncid,n3=kmax)
-        call define_nc(ncid, 1, tncname)
-        call writestat_dims_nc(ncid)
-        call redefine_nc(ncid_prof)
         call define_nc( ncid_prof, NVar, ncname)
       end if
 
