@@ -279,7 +279,7 @@ subroutine initfields
 !> Deallocate the fields
   subroutine exitfields
   implicit none
-    deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0,wcluster,wdecay)
+    deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
     deallocate(rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh)
