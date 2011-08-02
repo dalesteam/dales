@@ -34,6 +34,7 @@ save
 !NetCDF variables
   integer,parameter :: nvar = 25
   integer :: ncid4 = 0
+  integer :: nrec = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
@@ -111,11 +112,12 @@ contains
     call ncinfo(ncname( 23,:),'distdiv','cold pool divergence distance','-','tt0t')
     call ncinfo(ncname( 24,:),'distcon','cold pool convergence distance','-','tt0t')
     call ncinfo(ncname( 25,:),'surfprec','surface precipitation','-','tt0t')
-    call open_nc(fname,  ncid4,n1=imax,n2=jmax)
-    call define_nc( ncid4, 1, tncname)
-    call writestat_dims_nc(ncid4)
-    call redefine_nc(ncid4)
-    call define_nc(ncid4, NVar, ncname)
+    call open_nc(fname,  ncid4,nrec,n1=imax,n2=jmax)
+    if (nrec==0) then
+      call define_nc( ncid4, 1, tncname)
+      call writestat_dims_nc(ncid4)
+    end if
+    call define_nc( ncid4, NVar, ncname)
     end if
 
   end subroutine initcape
