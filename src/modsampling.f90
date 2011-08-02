@@ -569,7 +569,7 @@ contains
       do k=1,kmax
       do j=2,j1
       do i=2,i2
-        if(mask(i,j,k).eqv..true.) then
+        if(maskf(i,j,k).eqv..true.) then
         qrfavl (k,isamp) = qrfavl (k,isamp)+sv0(i,j,k,iqr)
         end if
       end do
@@ -623,18 +623,19 @@ contains
         do j=2,j1
         do i=2,i1
           if (maskh(i,j,k)) then
-            thvhavl   (k,isamp) = thvhavl   (k,isamp) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
-            dpdzhavl  (k,isamp) = dpdzhavl  (k,isamp) - (p(i,j,k)-p(i,j,k-1))/dzh(k) 
-            dwwdzhavl (k,isamp) = dwwdzhavl (k,isamp) - (1./rhobh(k))*(rhobf(k)*w0f(i,j,k)**2-rhobf(k-1)*w0f(i,j,k-1)**2)/dzh(k)
-            duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwr(i+1,j,k) - uwr (i,j,k))/dx - &
-                                                        (vwr(i,j+1,k) - vwr (i,j,k))/dy
-            dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uws(i+1,j,k) - uws (i,j,k))/dx - &
-                                                        (vws(i,j+1,k) - vws (i,j,k))/dy   
-            dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (wwsf(i,j,k)  - wwsf(i,j,k-1))/dzh(k)
-            fcoravl(k,isamp) = fcoravl(k,isamp) + om22 * cu  &
-                                        +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
-                                        +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
-                                        * om22*0.25
+           thvhavl   (k,isamp) = thvhavl   (k,isamp) + grav*(thv0h(i,j,k) - thvh(k))/thvh(k)
+           dpdzhavl  (k,isamp) = dpdzhavl  (k,isamp) - (p(i,j,k)-p(i,j,k-1))/dzh(k) &
+                                                     + beta * thvhav(k)
+           dwwdzhavl (k,isamp) = dwwdzhavl (k,isamp) - (1./rhobh(k))*(rhobf(k)*w0f(i,j,k)**2-rhobf(k-1)*w0f(i,j,k-1)**2)/dzh(k)
+           duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwrh(i+1,j,k) - uwrh (i,j,k))/dx - &
+                                                       (vwrh(i,j+1,k) - vwrh (i,j,k))/dy
+           dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uwsh(i+1,j,k) - uwsh (i,j,k))/dx - &
+                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy   
+           dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (wwsf(i,j,k)   - wwsf(i,j,k-1))/dzh(k)
+           fcorhavl  (k,isamp) = fcorhavl(k,isamp) + om22 * cu  &
+                                      +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
+                                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                                      * om22*0.25
           endif
         end do
         end do
@@ -662,7 +663,7 @@ contains
     real, allocatable, dimension(:)  :: wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, &
                                         wtlthmn,wtvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn
     real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
-                                        wtlthav,wtvthav,wqtthav,wqlthav,uwthav,vwthav
+                                        wtlthav,wtvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
     real, allocatable, dimension(:)  :: nrsamphmn, wwrhmn,wwshmn,&
                                         pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                                         dtaudxhmn,dtaudzhmn,thvhmn, &
@@ -910,7 +911,7 @@ contains
               duwdxhmn (k),&
               dtaudzhmn(k),&
               dtaudxhmn(k),&
-              fcormn   (k),&
+              fcorhmn   (k),&
               dwwdzhmn(k) +  grav/thvs*thvhmn(k) + dpdzhmn  (k) +  duwdxhmn(k) + dtaudxhmn(k) + dtaudzhmn(k) + &
                 fcorhmn(k) -  dwdthmn  (k),&
               wh_e      (k,isamp),&
