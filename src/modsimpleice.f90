@@ -412,7 +412,7 @@ module modsimpleice
         do k=1,kmax
         do i=2,i1
         do j=2,j1
-          qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhobf(k))
+          qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzh(k+1)*rhobf(k))
         enddo
         enddo
         enddo
