@@ -321,12 +321,6 @@ module modbulkmicro
     sv0(2:i1,2:j1,1:k1,inr)=Nr(2:i1,2:j1,1:k1)
     sv0(2:i1,2:j1,1:k1,iqr)=qr(2:i1,2:j1,1:k1)
 
-    svp(2:i1,2:j1,1:k1,inr)=svp(2:i1,2:j1,1:k1,inr)+Nrp(2:i1,2:j1,1:k1)
-    svp(2:i1,2:j1,1:k1,iqr)=svp(2:i1,2:j1,1:k1,iqr)+qrp(2:i1,2:j1,1:k1)
-
-    thlp(2:i1,2:j1,1:k1)=thlp(2:i1,2:j1,1:k1)+thlpmcr(2:i1,2:j1,1:k1)
-    qtp(2:i1,2:j1,1:k1)=qtp(2:i1,2:j1,1:k1)+qtpmcr(2:i1,2:j1,1:k1)
-
   !*********************************************************************
   ! remove negative values and non physical low values
   !*********************************************************************
@@ -338,12 +332,22 @@ module modbulkmicro
           svp (i,j,k,inr) = - svm(i,j,k,inr)/delt
           qtp (i,j,k) = qtp (i,j,k) + svm(i,j,k,iqr)/delt
           thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnz(i,j,k)))*svm(i,j,k,iqr)/delt
+       else
+          svp(i,j,k,inr)=svp(i,j,k,inr)+Nrp(i,j,k)
+          svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
+          thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
+          qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
        endif
        if (svp(i,j,k,inr) + svm(i,j,k,inr)/delt .lt. 0.) then
           svp (i,j,k,iqr) = - svm(i,j,k,iqr)/delt
           svp (i,j,k,inr) = - svm(i,j,k,inr)/delt
           qtp (i,j,k) = qtp (i,j,k) + svm(i,j,k,iqr)/delt
           thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnz(i,j,k)))*svm(i,j,k,iqr)/delt
+       else
+          svp(i,j,k,inr)=svp(i,j,k,inr)+Nrp(i,j,k)
+          svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
+          thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
+          qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
        endif
     enddo
     enddo

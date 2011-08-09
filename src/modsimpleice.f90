@@ -192,16 +192,16 @@ module modsimpleice
     do k=1,k1
     do i=2,i1
     do j=2,j1
-      svp(i,j,k,inr)=svp(i,j,k,inr)+nrp(i,j,k)
+      if (svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt < qrmin) then ! correction, jerome
+        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
+        qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqr)/delt
+        thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnf(k)))*svm(i,j,k,iqr)/delt
+      else
       svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
       thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
       qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
       ! adjust negative qr tendencies at the end of the time-step
-      if (svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt < qrmin) then
-        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-        qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqr)/delt
-        thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnf(k)))*svm(i,j,k,iqr)/delt
-      endif
+     end if
     enddo
     enddo
     enddo
