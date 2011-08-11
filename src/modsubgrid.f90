@@ -196,7 +196,7 @@ contains
 
   use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
                          dxi,dyi,dzf,dzh,rk3step,rslabs
-  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf,rhobh
+  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf
   use modsurfdata, only : dudz,dvdz,thvs,z0m
   use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum
   implicit none
@@ -310,7 +310,7 @@ contains
     do j=2,j1
       do i=2,i1
         ekm(i,j,k) = max(rhobf(k)*ekm(i,j,k),rhobf(k)*ekmin)
-        ekh(i,j,k) = max(rhobh(k)*ekh(i,j,k),rhobf(k)*ekmin)
+        ekh(i,j,k) = max(rhobf(k)*ekh(i,j,k),rhobf(k)*ekmin)
       end do
     end do
   end do
@@ -360,7 +360,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav
-  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf,rhobf
+  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf
   use modsurfdata,  only : dudz,dvdz
   implicit none
 
@@ -487,13 +487,13 @@ contains
 
         do i=2,i1
           putout(i,j,k) = putout(i,j,k) &
-                    +  0.5 *  ( &
+                    +  0.5 * (1./rhobf(k))*  ( &
                   ( (ekh(i+1,j,k)+ekh(i,j,k))*(putin(i+1,j,k)-putin(i,j,k)) &
                     -(ekh(i,j,k)+ekh(i-1,j,k))*(putin(i,j,k)-putin(i-1,j,k)))*dx2i &
                     + &
                   ( (ekh(i,jp,k)+ekh(i,j,k)) *(putin(i,jp,k)-putin(i,j,k)) &
                     -(ekh(i,j,k)+ekh(i,jm,k)) *(putin(i,j,k)-putin(i,jm,k)) )*dy2i &
-                  + (1./rhobf(k))*&
+                  + &
                   ( (dzf(kp)*ekh(i,j,k) + dzf(k)*ekh(i,j,kp)) &
                     *  (putin(i,j,kp)-putin(i,j,k)) / dzh(kp)**2 &
                     - &
@@ -509,16 +509,16 @@ contains
       do i=2,i1
 
         putout(i,j,1) = putout(i,j,1) &
-                  + 0.5 * ( &
+                  + 0.5 * (1./rhobf(1)) * ( &
                 ( (ekh(i+1,j,1)+ekh(i,j,1))*(putin(i+1,j,1)-putin(i,j,1)) &
                   -(ekh(i,j,1)+ekh(i-1,j,1))*(putin(i,j,1)-putin(i-1,j,1)) )*dx2i &
                   + &
                 ( (ekh(i,j+1,1)+ekh(i,j,1))*(putin(i,j+1,1)-putin(i,j,1)) &
                   -(ekh(i,j,1)+ekh(i,j-1,1))*(putin(i,j,1)-putin(i,j-1,1)) )*dy2i &
-                  + (1./rhobf(1))*&
+                  + &
                 ( (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
                   *  (putin(i,j,2)-putin(i,j,1)) / dzh(2)**2 &
-                  + flux(i,j) *2.                        )/dzf(1) &
+                  + rhobf(1)*flux(i,j) *2.                        )/dzf(1) &
                           )
 
       end do
@@ -548,13 +548,13 @@ contains
         do i=2,i1
 
           putout(i,j,k) = putout(i,j,k) &
-                  +  1.0 *  ( &
+                  +  (1./rhobf(k)) * ( &
               ((ekm(i+1,j,k)+ekm(i,j,k))*(e120(i+1,j,k)-e120(i,j,k)) &
               -(ekm(i,j,k)+ekm(i-1,j,k))*(e120(i,j,k)-e120(i-1,j,k)))*dx2i &
                   + &
               ((ekm(i,jp,k)+ekm(i,j,k)) *(e120(i,jp,k)-e120(i,j,k)) &
               -(ekm(i,j,k)+ekm(i,jm,k)) *(e120(i,j,k)-e120(i,jm,k)) )*dy2i &
-                  + (1./rhobf(k))*&
+                  + &
               ((dzf(kp)*ekm(i,j,k) + dzf(k)*ekm(i,j,kp)) &
               *(e120(i,j,kp)-e120(i,j,k)) / dzh(kp)**2 &
               -(dzf(km)*ekm(i,j,k) + dzf(k)*ekm(i,j,km)) &
@@ -572,13 +572,13 @@ contains
     do j=2,j1
       do i=2,i1
 
-        putout(i,j,1) = putout(i,j,1) + &
+        putout(i,j,1) = putout(i,j,1) + (1./rhobf(1)) * &
             ( (ekm(i+1,j,1)+ekm(i,j,1))*(e120(i+1,j,1)-e120(i,j,1)) &
               -(ekm(i,j,1)+ekm(i-1,j,1))*(e120(i,j,1)-e120(i-1,j,1)) )*dx2i &
-            + &
+            + (1./rhobf(1)) * &
             ( (ekm(i,j+1,1)+ekm(i,j,1))*(e120(i,j+1,1)-e120(i,j,1)) &
               -(ekm(i,j,1)+ekm(i,j-1,1))*(e120(i,j,1)-e120(i,j-1,1)) )*dy2i &
-            + (1./rhobf(1))*&
+            + (1./rhobf(1)) * &
               ( (dzf(2)*ekm(i,j,1) + dzf(1)*ekm(i,j,2)) &
               *  (e120(i,j,2)-e120(i,j,1)) / dzh(2)**2              )/dzf(1)
 
@@ -627,15 +627,15 @@ contains
 
 
           putout(i,j,k) = putout(i,j,k) &
-                  + &
+                  + (1./rhobf(k)) * &
                   ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
                     -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
-                  + &
+                  + (1./rhobf(k)) * &
                   ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
                             +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
                     -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
                             +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) / dy &
-                  + (1./rhobf(k))*&
+                  + (1./rhobf(k)) * &
                   ( emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                             +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
                     -emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
@@ -680,18 +680,18 @@ contains
                 ((v0(i,j,1)+v0(i-1,j,1)+v0(i,jp,1)+v0(i-1,jp,1))/4.+cv)**2)
 
         putout(i,j,1) = putout(i,j,1) &
-                + &
+                + (1./rhobf(1))*&
               ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
               -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i &
-                + &
+                + (1./rhobf(1)) * &
               ( empo * ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
                         +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
               -emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
                         +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) / dy &
-               + (1./rhobf(1))*&
+               + (1./rhobf(1))* &
               ( emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                         +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
-                -fu   ) / dzf(1)
+                -rhobf(1)*fu   ) / dzf(1)
 
       end do
     end do
@@ -738,12 +738,12 @@ contains
 
 
         putout(i,j,k) = putout(i,j,k) &
-                + &
+                + (1./rhobf(k))* &
               ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                         +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
                 -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) / dx &
-                + &
+                + (1./rhobf(k))* &
               (ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
               -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
                 + (1./rhobf(k))* &
@@ -788,18 +788,18 @@ contains
                 ((u0(i,j,1)+u0(i+1,j,1)+u0(i,jm,1)+u0(i+1,jm,1))/4.+cu)**2)
 
         putout(i,j,1) = putout(i,j,1) &
-                  + &
+                  + (1./rhobf(1))*&
                   ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                             +(u0(i+1,j,1)-u0(i+1,jm,1))*dyi) &
                     -emmo * ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
                             +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) / dx &
-                  + &
+                  + (1./rhobf(1))*&
                 ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
                   -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
                   + (1./rhobf(1))*&
                 ( eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                           +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
-                  -fv   ) / dzf(1)
+                  -rhobf(1)*fv   ) / dzf(1)
 
       end do
     end do
@@ -846,12 +846,12 @@ contains
 
 
           putout(i,j,k) = putout(i,j,k) &
-                + &
+                + (1./rhobh(k))* &
                   ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
                             +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
                     -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
                             +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))/dx &
-                + &
+                + (1./rhobh(k))* &
                   ( eopm * ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
                             +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
                     -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
