@@ -50,14 +50,14 @@
   integer :: inr = 1, iqr=2
 
   real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
-                     ,qcmin = 1.e-7     & !<  Cloud mixing ratio treshold for calculations
-                     ,qrmin = 1.e-13    & !<  Rain  mixing ratio treshold for calculations
+                     ,qcmin = 1.0e-7     & !<  Cloud mixing ratio treshold for calculations
+                     ,qrmin = 1.0e-13    & !<  Rain  mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD
                      ,pluseps = 1e-25   &
                      ,mineps = -1e-50   &
                      ,epscloud= 0.01e-3 &
                      ,epsprec = 3.65e-5 & !<  RICO threshold
-                     ,epsqr = 1.e-8     &
+                     ,epsqr = 1.0e-8     &
 !  values picked by Verica Savic-Jovcic to optimize for Sc, note x and D have to be chosen consistently
 !                ,xcmin = 4.2e-15       & !<  min mean mass of cw
 !                ,xcmax = 6.5e-11       & !<  max mean mass of cw
