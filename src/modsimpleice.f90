@@ -192,10 +192,10 @@ module modsimpleice
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      qrtest=svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt
-      if (qrtest < qrmin) then ! correction, jerome
-        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k)  + qrtest
-        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*qrtest
+      qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
+      if (qrtest .lt. qrmin) then ! correction, jerome
+        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
+        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
         svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
       else
       svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
@@ -410,7 +410,7 @@ module modsimpleice
         enddo
         enddo
 
-        do k=1,k1
+        do k=1,kmax
         do j=2,j1
         do i=2,i1
           qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzh(k+1)*rhobf(k))

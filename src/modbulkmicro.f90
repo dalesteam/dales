@@ -331,8 +331,8 @@ module modbulkmicro
       qrtest=svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt
       nrtest=svp(i,j,k,inr)+svm(i,j,k,inr)/delt
       if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, jerome
-        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k)  + qrtest
-        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*qrtest
+        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
+        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
         svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
         svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
       else
