@@ -135,6 +135,7 @@ module modbulkmicro
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
+    real :: qrtest,nrtest
 
     do i=2,i1
     do j=2,j1
@@ -324,31 +325,23 @@ module modbulkmicro
   !*********************************************************************
   ! remove negative values and non physical low values
   !*********************************************************************
+    do k=1,k1
     do j=2,j1
     do i=2,i1
-    do k=1,k1
-       if (svp(i,j,k,iqr) + svm(i,j,k,iqr)/delt .lt. qrmin) then
-          svp (i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-          svp (i,j,k,inr) = - svm(i,j,k,inr)/delt
-          qtp (i,j,k) = qtp (i,j,k) + svm(i,j,k,iqr)/delt
-          thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnz(i,j,k)))*svm(i,j,k,iqr)/delt
-       else
-          svp(i,j,k,inr)=svp(i,j,k,inr)+Nrp(i,j,k)
-          svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-          thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-          qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-       endif
-       if (svp(i,j,k,inr) + svm(i,j,k,inr)/delt .lt. 0.) then
-          svp (i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-          svp (i,j,k,inr) = - svm(i,j,k,inr)/delt
-          qtp (i,j,k) = qtp (i,j,k) + svm(i,j,k,iqr)/delt
-          thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnz(i,j,k)))*svm(i,j,k,iqr)/delt
-       else
-          svp(i,j,k,inr)=svp(i,j,k,inr)+Nrp(i,j,k)
-          svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-          thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-          qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-       endif
+      qrtest=svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt
+      nrtest=svp(i,j,k,inr)+svm(i,j,k,inr)/delt
+      if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, jerome
+        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k)  + qrtest
+        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*qrtest
+        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
+        svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
+      else
+      svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
+      svp(i,j,k,inr) =svp(i,j,k,inr)+nrp(i,j,k)
+      thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
+      qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
+      ! adjust negative qr tendencies at the end of the time-step
+     end if
     enddo
     enddo
     enddo

@@ -84,7 +84,7 @@ module modsimpleice
     use modmpi,    only : myid
     implicit none
     integer:: i,j,k 
-    real:: qrsmall, qrsum
+    real:: qrsmall, qrsum,qrtest
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -106,8 +106,8 @@ module modsimpleice
     end do
 
     do k=1,k1
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
       ! initialise qr
       qr(i,j,k)= sv0(i,j,k,iqr)
       ! initialise qc mask
@@ -139,8 +139,8 @@ module modsimpleice
 
     if(l_warm) then !partitioning and determination of intercept parameter
       do k=1,k1
-      do i=2,i1
       do j=2,j1
+      do i=2,i1
         ilratio(i,j,k)=1.   ! cloud water vs cloud ice partitioning
         rsgratio(i,j,k)=1.   ! rain vs snow/graupel partitioning
         sgratio(i,j,k)=0.   ! snow versus graupel partitioning
@@ -152,8 +152,8 @@ module modsimpleice
       enddo
     elseif(l_graupel) then
       do k=1,k1
-      do i=2,i1
       do j=2,j1
+      do i=2,i1
         ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! cloud water vs cloud ice partitioning
         rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
         sgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg)))   ! snow versus graupel partitioning
@@ -165,8 +165,8 @@ module modsimpleice
       enddo
     else
       do k=1,k1
-      do i=2,i1
       do j=2,j1
+      do i=2,i1
         ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! cloud water vs cloud ice partitioning
         rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
         sgratio(i,j,k)=0.
@@ -190,12 +190,13 @@ module modsimpleice
     endif
 
     do k=1,k1
-    do i=2,i1
     do j=2,j1
-      if (svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt < qrmin) then ! correction, jerome
+    do i=2,i1
+      qrtest=svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt
+      if (qrtest < qrmin) then ! correction, jerome
+        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k)  + qrtest
+        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*qrtest
         svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-        qtp(i,j,k) = qtp(i,j,k) + svm(i,j,k,iqr)/delt
-        thlp(i,j,k) = thlp(i,j,k) - (rlv/(cp*exnf(k)))*svm(i,j,k,iqr)/delt
       else
       svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
       thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
@@ -220,9 +221,9 @@ module modsimpleice
     integer:: i,j,k
 
     if(l_berry.eqv..true.) then ! Berry/Hsie autoconversion
-      do k=1,k1
-      do i=2,i1
-      do j=2,j1
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
           ! ql partitioning 
           qll=ql0(i,j,k)*ilratio(i,j,k)
@@ -243,8 +244,8 @@ module modsimpleice
       enddo
     else ! Lin/Kessler autoconversion as in Khairoutdinov and Randall, 2006
       do k=1,k1
-      do i=2,i1
       do j=2,j1
+      do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
           ! ql partitioning 
           qll=ql0(i,j,k)*ilratio(i,j,k)
@@ -273,8 +274,8 @@ module modsimpleice
     integer:: i,j,k
 
     do k=1,k1
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
       if (qrmask(i,j,k).eqv..true. .and. qcmask(i,j,k).eqv..true.) then ! apply mask
         ! ql partitioning
         qll=ql0(i,j,k)*ilratio(i,j,k)
@@ -312,8 +313,8 @@ module modsimpleice
     integer:: i,j,k
 
     do k=1,k1
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
       if (qrmask(i,j,k).eqv..true.) then
         ! saturation ratios
         ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
@@ -354,8 +355,8 @@ module modsimpleice
     sed_qr = 0. ! reset sedimentation fluxes
 
     do k=1,k1
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
         qr_spl(i,j,k) = qr(i,j,k)
       if (qrmask(i,j,k).eqv..true.) then
         vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
@@ -375,8 +376,8 @@ module modsimpleice
    
     !  advect precipitation using upwind scheme
     do k=1,kmax
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
       qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzh(k+1)*rhobf(k))
     enddo
     enddo
@@ -388,9 +389,9 @@ module modsimpleice
     
         ! reset fluxes at each step of loop
         sed_qr = 0.
-        do k=1,k1
-        do i=2,i1
-        do j=2,j1
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
           if (qr_spl(i,j,k) > qrmin) then
             ! re-evaluate lambda
             lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
@@ -409,9 +410,9 @@ module modsimpleice
         enddo
         enddo
 
-        do k=1,kmax
-        do i=2,i1
+        do k=1,k1
         do j=2,j1
+        do i=2,i1
           qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzh(k+1)*rhobf(k))
         enddo
         enddo
@@ -423,8 +424,8 @@ module modsimpleice
 
     ! no thl and qt tendencies build in, implying no heat transfer between precipitation and air
     do k=1,kmax
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
       qrp(i,j,k)= qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k))/delt
     enddo
     enddo
