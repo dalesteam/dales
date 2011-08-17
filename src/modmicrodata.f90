@@ -24,7 +24,7 @@
 
   module modmicrodata
 
-  use modglobal, only : rhow
+  use modglobal, only : rhow,lacz_gamma
   implicit none
   save
   integer :: imicro = 0
@@ -220,15 +220,6 @@
      ! ,n0rs=4.e6 &
      ! ,n0rg=3.e6 &
      ! Gamma distribution parameters, calculated only once
-     ,gamb1r=gamma(bbr+1) &
-     ,gambd1r=gamma(bbr+ddr+1) &
-     ,gamb1s=gamma(bbs+1) &
-     ,gambd1s=gamma(bbs+dds+1) &
-     ,gamb1g=gamma(bbg+1) &
-     ,gambd1g=gamma(bbg+ddg+1) &
-     ,gam2dr=gamma(2.5+0.5*ddr) &
-     ,gam2ds=gamma(2.5+0.5*dds) &
-     ,gam2dg=gamma(2.5+0.5*ddg) &
      ! Parameters for Kessler/Lin type autoconversion
      ,timekessl=0.001 &
      ,betakessi=0.001 &

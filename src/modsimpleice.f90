@@ -31,12 +31,23 @@ module modsimpleice
   use modmicrodata
 
   implicit none
-  save
+  real :: gamb1r
+  real :: gambd1r
+  real :: gamb1s
+  real :: gambd1s
+  real :: gamb1g
+  real :: gambd1g
+  real :: gam2dr
+  real :: gam2ds
+  real :: gam2dg
+  real :: gammaddr3
+  real :: gammadds3
+  real :: gammaddg3
   contains
 
 !> Initializes and allocates the arrays
   subroutine initsimpleice
-    use modglobal, only : ih,i1,jh,j1,k1
+    use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
     use modfields, only : rhobf
     use modmpi,    only : myid
 
@@ -64,6 +75,19 @@ module modsimpleice
     allocate(precep(2-ih:i1+ih,2-jh:j1+jh,k1))      ! precipitation for statistics
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
+
+     gamb1r=lacz_gamma(bbr+1)
+     gambd1r=lacz_gamma(bbr+ddr+1)
+     gamb1s=lacz_gamma(bbs+1)
+     gambd1s=lacz_gamma(bbs+dds+1)
+     gamb1g=lacz_gamma(bbg+1)
+     gambd1g=lacz_gamma(bbg+ddg+1)
+     gam2dr=lacz_gamma(2.5+0.5*ddr)
+     gam2ds=lacz_gamma(2.5+0.5*dds)
+     gam2dg=lacz_gamma(2.5+0.5*ddg)
+     gammaddr3=lacz_gamma(3.+ddr)
+     gammadds3=lacz_gamma(3.+dds)
+     gammaddg3=lacz_gamma(3.+ddg)
 
   end subroutine initsimpleice
 
@@ -284,12 +308,12 @@ module modsimpleice
         qrr=qr(i,j,k)*rsgratio(i,j,k)
         qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))
         qrg=qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)
-        gaccrl=pi/4.*ccrz(k)*ceffrl*rhof(k)*qll*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gamma(ddr+3.)/(aar*gamb1r) ! collection of cloud water by rain etc.
-        gaccsl=pi/4.*ccsz(k)*ceffsl*rhof(k)*qll*qrs*lambdas(i,j,k)**(bbs-2.-dds)*gamma(dds+3.)/(aas*gamb1s)
-        gaccgl=pi/4.*ccgz(k)*ceffgl*rhof(k)*qll*qrg*lambdag(i,j,k)**(bbg-2.-ddg)*gamma(ddg+3.)/(aag*gamb1g)
-        gaccri=pi/4.*ccrz(k)*ceffri*rhof(k)*qli*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gamma(ddr+3.)/(aar*gamb1r)
-        gaccsi=pi/4.*ccsz(k)*ceffsi*rhof(k)*qli*qrs*lambdas(i,j,k)**(bbs-2.-dds)*gamma(dds+3.)/(aas*gamb1s)
-        gaccgi=pi/4.*ccgz(k)*ceffgi*rhof(k)*qli*qrg*lambdag(i,j,k)**(bbg-2.-ddg)*gamma(ddg+3.)/(aag*gamb1g)
+        gaccrl=pi/4.*ccrz(k)*ceffrl*rhof(k)*qll*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gammaddr3/(aar*gamb1r) ! collection of cloud water by rain etc.
+        gaccsl=pi/4.*ccsz(k)*ceffsl*rhof(k)*qll*qrs*lambdas(i,j,k)**(bbs-2.-dds)*gammadds3/(aas*gamb1s)
+        gaccgl=pi/4.*ccgz(k)*ceffgl*rhof(k)*qll*qrg*lambdag(i,j,k)**(bbg-2.-ddg)*gammaddg3/(aag*gamb1g)
+        gaccri=pi/4.*ccrz(k)*ceffri*rhof(k)*qli*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gammaddr3/(aar*gamb1r)
+        gaccsi=pi/4.*ccsz(k)*ceffsi*rhof(k)*qli*qrs*lambdas(i,j,k)**(bbs-2.-dds)*gammadds3/(aas*gamb1s)
+        gaccgi=pi/4.*ccgz(k)*ceffgi*rhof(k)*qli*qrg*lambdag(i,j,k)**(bbg-2.-ddg)*gammaddg3/(aag*gamb1g)
         accr=(gaccrl+gaccri)*qrr/(qrr+1.e-9)
         accs=(gaccsl+gaccsi)*qrs/(qrs+1.e-9)
         accg=(gaccgl+gaccgi)*qrg/(qrg+1.e-9)

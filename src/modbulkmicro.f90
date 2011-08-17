@@ -56,6 +56,9 @@ module modbulkmicro
 
   implicit none
   save
+  real :: gamma25
+  real :: gamma3
+  real :: gamma35
   contains
 
 !> Initializes and allocates the arrays
@@ -107,7 +110,9 @@ module modbulkmicro
             ,qcmask    (2-ih:i1+ih,2-jh:j1+jh,k1))
 
 !
-
+  gamma25=lacz_gamma(2.5)
+  gamma3=2.
+  gamma35=lacz_gamma(3.5)
 
   end subroutine initbulkmicro
 
@@ -724,14 +729,12 @@ module modbulkmicro
   ! Evaporation of prec. : Seifert (2008)
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma
     use modfields, only : exnf,thl0,qt0,svm,qvsl,tmp0,ql0,esl,qvsl
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
-    real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:), T(:,:,:),&
-                         esat(:,:,:),qsat(:,:,:),tl(:,:,:),b1(:,:,:),qsl(:,:,:),&
-                         f_gamma_2_5(:,:,:),f_gamma_2(:,:,:),f_gamma_1(:,:,:)
+    real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)
     real :: f_mp,f_zh,lambda_mp,lambda_zh
     integer :: numel
 
@@ -759,8 +762,8 @@ module modbulkmicro
     diag_zh=0.
 
 	lambda_zh=2700.
-	f_zh = avf*gamma(3.)/lambda_zh**3. +  &
-	  bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(3.5)/lambda_zh**3.5 * &
+	f_zh = avf*gamma3/lambda_zh**3. +  &
+	  bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma35/lambda_zh**3.5 * &
 	  (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_zh/(   c_tvsb+lambda_zh))**3.5  &
 		 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_zh/(2.*c_tvsb+lambda_zh))**3.5  &
 		 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_zh/(3.*c_tvsb+lambda_zh))**3.5 &
@@ -783,7 +786,7 @@ module modbulkmicro
             Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhoz(i,j,k)/xr(i,j,k)
             lambda_mp=6.**(1./3.)/Dvr(i,j,k)
             f_mp = avf/lambda_mp**2. +  &
-              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma(2.5)/lambda_mp**2.5 * &
+              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma25/lambda_mp**2.5 * &
               (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_mp/(   c_tvsb+lambda_mp))**2.5  &
                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_mp/(2.*c_tvsb+lambda_mp))**2.5  &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_mp/(3.*c_tvsb+lambda_mp))**2.5 &
@@ -830,60 +833,6 @@ module modbulkmicro
 
 
   end subroutine evaporation
-
-  !*********************************************************************
-  !*********************************************************************
-
-  function f_gamma(xx) result(gam)
-
-  !*********************************************************************
-  ! Gamma function
-  !
-  ! http://pagesperso-orange.fr/jean-pierre.moreau/Fortran/gamma_f90.txt
-  ! Reference:
-  ! "Numerical Recipes, by W.H. Press, B.P. Flannery, S.A. Teukolsky
-  !  and T. Vetterling, Cambridge University Press, 1986" [BIBLI 08].
-  ! --------------------------------------------------------------- *
-  ! Returns the value of Gamma(x) for X>0.
-  !
-  ! O. Geoffroy february 2008
-  !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1
-    implicit none
-    real :: xx(2:i1,2:j1,k1),  &
-            x(2:i1,2:j1,k1),  &
-            tmp(2:i1,2:j1,k1),  &
-            ser(2:i1,2:j1,k1),  &
-            gam(2:i1,2:j1,k1)
-
-
-    real cof(6),stp,half,one,fpf
-
-  integer jcnt,i,j,k
-  data cof,stp /76.18009173,-86.50532033,24.01409822,  &
-       -1.231739516,0.120858003e-2,-0.536382e-5,2.50662827465/
-  data half,one,fpf /0.5,1.0,5.5/
-
-  x(2:i1,2:j1,1:k1)=xx(2:i1,2:j1,1:k1)-one
-  tmp(2:i1,2:j1,1:k1)=x(2:i1,2:j1,1:k1)+fpf
-  tmp(2:i1,2:j1,1:k1)=(x(2:i1,2:j1,1:k1)+half)*log(tmp(2:i1,2:j1,1:k1))-tmp(2:i1,2:j1,1:k1)
-  ser(2:i1,2:j1,1:k1)=one
-  do jcnt=1,6
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-       if (qrmask(i,j,k)) then
-          x  (i,j,k)=x(i,j,k)+one
-          ser(i,j,k)=ser(i,j,k)+cof(jcnt)/x(i,j,k)
-       endif
-    enddo
-    enddo
-    enddo
-  end do
-
-  gam(2:i1,2:j1,1:k1) = exp(tmp(2:i1,2:j1,1:k1)+log(stp*ser(2:i1,2:j1,1:k1)))
-
-  end function f_gamma
 
   !*********************************************************************
   !*********************************************************************
