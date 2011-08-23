@@ -217,7 +217,7 @@ module modsimpleice
     do j=2,j1
     do i=2,i1
       qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
-      if (qrtest .lt. qrmin) then ! correction, jerome
+      if (qrtest .lt. qrmin) then ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
         thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
         svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt

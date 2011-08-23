@@ -55,7 +55,6 @@ module modbulkmicro
   use modmicrodata
 
   implicit none
-  save
   real :: gamma25
   real :: gamma3
   real :: gamma35
@@ -333,9 +332,9 @@ module modbulkmicro
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      qrtest=svp(i,j,k,iqr)+svm(i,j,k,iqr)/delt
-      nrtest=svp(i,j,k,inr)+svm(i,j,k,inr)/delt
-      if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, jerome
+      qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
+      nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*delt
+      if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
         thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
         svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
