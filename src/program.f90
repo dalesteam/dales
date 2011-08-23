@@ -210,7 +210,6 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
-    call coldedge
     call nudge
     call dospecs
 !    call tiltedgravity
@@ -238,7 +237,7 @@ program DALES      !Version 4.0.0alpha
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
     !call twostep
-
+    call coldedge
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
