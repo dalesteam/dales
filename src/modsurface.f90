@@ -366,6 +366,7 @@ contains
           z0mav        = 0
           z0hav        = 0
           ps           = 0
+          thls         = 300
 
           do i = 1, xpatches
             do j = 1, ypatches
