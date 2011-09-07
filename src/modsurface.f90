@@ -394,6 +394,8 @@ contains
               z0mav_patch(i,j)     = z0mav_land(landindex)
               z0hav_patch(i,j)     = z0hav_land(landindex)
               ps_patch(i,j)        = ps_land(landindex)
+               
+              wsv_patch(1:nsv,i,j) = wsv_land(1:nsv,landindex)
             
               tsoilav(:)    = tsoilav(:)   +  ( tsoil_patch(:,i,j)    / ( xpatches * ypatches ) ) 
               tsoildeepav   = tsoildeepav  +  ( tsoildeep_patch(i,j)  / ( xpatches * ypatches ) )

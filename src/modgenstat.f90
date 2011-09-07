@@ -514,7 +514,9 @@ contains
 
         svmmn_patch  = 0.
         svpmn_patch  = 0.
+        svpav_patch  = 0.
         svptmn_patch = 0.
+        svptav_patch = 0.
 
         sv2mn_patch  = 0.
 
