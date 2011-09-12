@@ -111,6 +111,7 @@ save
       integer, parameter :: iadv_62     = 62
       integer, parameter :: iadv_52     = 52
       integer, parameter :: iadv_kappa  = 7
+      integer, parameter :: iadv_weno   = 50
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
