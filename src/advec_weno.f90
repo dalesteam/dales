@@ -44,7 +44,7 @@ subroutine advecc_weno(pin,pout)
   integer :: ip3,ip2,ip1,im1,im2,im3
 
   if (leq) then
-    do k=1,kmax
+    do k=4,kmax-2
       kp3=k+3;kp2=k+2;kp1=k+1;km1=k-1;km2=k-2;km3=k-3
       do j=2,j1
         jp3=j+3;jp2=j+2;jp1=j+1;jm1=j-1;jm2=j-2;jm3=j-3
@@ -52,12 +52,12 @@ subroutine advecc_weno(pin,pout)
           ip3=i+3;ip2=i+2;ip1=i+1;im1=i-1;im2=i-2;im3=i-3
 
           pout(i,j,k) = pout(i,j,k) - ( &
-                          (u0(ip1,j,k)*ip_weno(pin(ip3,j,k),pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),u0(ip1,j,k)>0.) -       &
-                           u0(i,j,k)  *ip_weno(pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),pin(im3,j,k),u0(i,j,k)  >0.))*dxi    &
-                         +(v0(i,jp1,k)*ip_weno(pin(i,jp3,k),pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),w0(i,jp1,k)>0.) -       &
-                           v0(i,j,k)  *ip_weno(pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),pin(i,jm3,k),w0(i,j,k)  >0.))*dyi    &
-                         +(w0(i,j,kp1)*ip_weno(pin(i,j,kp3),pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),w0(i,j,kp1)>0.) -       &
-                           w0(i,j,k)  *ip_weno(pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),pin(i,j,km3),w0(i,j,k)  >0.))/dzf(k) &
+                      (u0(ip1,j,k)*ip_weno(pin(ip3,j,k),pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),u0(ip1,j,k)>=0.) -       &
+                       u0(i,j,k)  *ip_weno(pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),pin(im3,j,k),u0(i,j,k)  >=0.))*dxi    &
+                     +(v0(i,jp1,k)*ip_weno(pin(i,jp3,k),pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),w0(i,jp1,k)>=0.) -       &
+                       v0(i,j,k)  *ip_weno(pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),pin(i,jm3,k),w0(i,j,k)  >=0.))*dyi    &
+                     +(w0(i,j,kp1)*ip_weno(pin(i,j,kp3),pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),w0(i,j,kp1)>=0.) -       &
+                       w0(i,j,k)  *ip_weno(pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),pin(i,j,km3),w0(i,j,k)  >=0.))/dzf(k) &
                                       )
         end do
       end do
@@ -85,7 +85,7 @@ function ip_weno(vp2,vp1,v,vm1,vm2,vm3,lpos)
                                            ! Values 1,2 or 3 should work
   real,parameter    :: epsWeno=1e-12       ! Small value set to keep from dividing by zero
 
-  if (lpos) then
+  if (lpos) then !Positive velocity at cell face
     !compute smoothness indicators for each of the stencils
     beta(1) = c1*(vm3-2*vm2+vm1)**2 + c2*(vm3-4*vm2+3*vm1)**2
     beta(2) = c1*(vm2-2*vm1+v  )**2 + c2*(vm2-v)**2
@@ -95,14 +95,25 @@ function ip_weno(vp2,vp1,v,vm1,vm2,vm3,lpos)
     varFace(1) = (2*vm3- 7*vm2+ 11*vm1)/6
     varFace(2) = (- vm2+ 5*vm1+  2*v  )/6
     varFace(3) = (2*vm1+ 5*v  -    vp1)/6
+  else !Negative velocity at cell face
+    !compute smoothness indicators for each of the stencils
+    !the following is found by mirroring the equations for positive velocity
+    beta(1) = c1*(v  -2*vp1+vp2)**2 + c2*(3*v-4*vp1+vp2)**2
+    beta(2) = c1*(vm1-2*v  +vp1)**2 + c2*(vm1-vp1)**2
+    beta(3) = c1*(vm2-2*vm1+v  )**2 + c2*(vm2-4*vm1+3*v)**2
 
-    !compute weights
-    wgt = wgtOpt*(epsWeno+beta)**(-pweno)
-    wgtfac = sum(wgt)**(-1)
-
-    ! compute interpolated value 
-    ip_weno = sum(wgt(:)*varFace(:))*wgtfac
+    !interpolated values of the variable at the cell faces using each of the stencils
+    varFace(1) = (11*v   -7*vp1+ 2*vp2)/6
+    varFace(2) = ( 2*vm1 +5*v  -   vp1)/6
+    varFace(3) = ( - vm2 +5*vm1+ 2*v  )/6
   end if
+
+  !compute weights
+  wgt = wgtOpt*(epsWeno+beta)**(-pweno)
+  wgtfac = sum(wgt)**(-1)
+
+  ! compute interpolated value 
+  ip_weno = sum(wgt(:)*varFace(:))*wgtfac
 
 end function ip_weno
 
