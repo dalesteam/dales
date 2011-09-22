@@ -174,6 +174,7 @@ contains
     allocate(wfls  (k1))
     allocate(ql0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
+
     allocate(thlprof(k1))
     allocate(qtprof(k1))
     allocate(uprof(k1))

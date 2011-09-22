@@ -35,7 +35,14 @@ private
 public :: initboundary, boundary, exitboundary,grwdamp, ksp,tqaver,cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
+  real,allocatable :: thl_nudge (:), &  !<   nudging profiles for the different variables
+                      qt_nudge  (:), &  !    used for igrw_damp=(4)
+                      u_nudge   (:), &
+                      v_nudge   (:)
   real :: rnu0 = 2.75e-3
+  logical :: isInitSponge = .false.   !<   Switch for initialization of nudge profiles in
+                                      !    the sponge layer
+
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -47,6 +54,7 @@ contains
     real    :: zspb, zspt
     integer :: k
     allocate(tsc(k1))
+    allocate(thl_nudge(k1),qt_nudge(k1),u_nudge(k1),v_nudge(k1))
 ! Sponge layer
     if (ksp==-1) then
       ksp  = min(3*kmax/4,kmax - 15)
@@ -221,6 +229,23 @@ contains
       wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
+    end do
+  case(4)
+    ! Option for nudging thl, qt, u and v to their initial profiles
+    if (.not.isInitSponge) then
+      thl_nudge(ksp:kmax) = thl0av(ksp:kmax)
+      qt_nudge (ksp:kmax) = qt0av (ksp:kmax)
+      u_nudge  (ksp:kmax) = u0av  (ksp:kmax)
+      v_nudge  (ksp:kmax) = v0av  (ksp:kmax)
+      isInitSponge = .true.
+    end if
+
+    do k=ksp,kmax
+      up(:,:,k)  = up(:,:,k)  - (u0(:,:,k)-(u_nudge(k)-cu))*tsc(k)
+      vp(:,:,k)  = vp(:,:,k)  - (v0(:,:,k)-(v_nudge(k)-cv))*tsc(k)
+      wp(:,:,k)  = wp(:,:,k)  -  w0(:,:,k)*tsc(k)
+      thlp(:,:,k)= thlp(:,:,k)- (thl0(:,:,k)-thl_nudge(k))*tsc(k)
+      qtp(:,:,k) = qtp(:,:,k) - (qt0(:,:,k) -qt_nudge (k))*tsc(k)
     end do
   case default
     stop "no gravity wave damping option selected"

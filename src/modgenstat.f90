@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 37
+  integer :: nvar = 49
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -133,7 +133,6 @@ save
  real, allocatable :: uwres (:)     ! slab averaged res w-u flux at half levels
  real, allocatable :: vwres (:)     ! slab averaged res w-v flux at half levels
 
-
   real, allocatable :: thvhav(:)
   real, allocatable :: th0av(:)
  real, allocatable :: wtlsub(:)     ! slab averaged sub w-theta_l flux at half levels
@@ -158,6 +157,9 @@ save
 
  real, allocatable :: cszmn(:)    ! Smagorinsky constant
  real, allocatable :: cszav(:)    ! Smagorinsky constant
+
+ real, allocatable :: smxqtmn(:),smyqtmn(:),smzqtmn(:),smxtlmn(:),smytlmn(:),smztlmn(:) !JvdD (smoothness stuff)
+ real, allocatable :: nsmxqtmn(:),nsmyqtmn(:),nsmzqtmn(:),nsmxtlmn(:),nsmytlmn(:),nsmztlmn(:) !JvdD (smoothness stuff)
 contains
 
   subroutine initgenstat
@@ -262,6 +264,8 @@ contains
     allocate(svpav(k1,nsv))
 
     allocate(cszmn(k1), cszav(k1))
+    allocate(smxqtmn(k1),smyqtmn(k1),smzqtmn(k1),smxtlmn(k1),smytlmn(k1),smztlmn(k1)) !JvdD
+    allocate(nsmxqtmn(k1),nsmyqtmn(k1),nsmzqtmn(k1),nsmxtlmn(k1),nsmytlmn(k1),nsmztlmn(k1)) !JvdD
 
       umn      = 0.
       vmn      = 0.
@@ -329,6 +333,20 @@ contains
       cszav = 0.
       cszmn = 0.
 
+      smxqtmn = 0.
+      smyqtmn = 0.
+      smzqtmn = 0.  !JvdD
+      smxtlmn = 0.
+      smytlmn = 0.
+      smztlmn = 0.
+
+      nsmxqtmn = 0.
+      nsmyqtmn = 0.
+      nsmzqtmn = 0.  !JvdD
+      nsmxtlmn = 0.
+      nsmytlmn = 0.
+      nsmztlmn = 0.
+
       if(myid==0)then
         open (ifoutput,file='field.'//cexpnr,status='replace')
         close (ifoutput)
@@ -393,15 +411,27 @@ contains
         call ncinfo(ncname(35,:),'qt2r','Resolved total water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(36,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(37,:),'cs','Smagorinsky constant','-','tt')
+        call ncinfo(ncname(38,:),'smxqt','Smoothness','-','tt')
+        call ncinfo(ncname(39,:),'smyqt','Smoothness','-','tt')
+        call ncinfo(ncname(40,:),'smzqt','Smoothness','-','tt')  !JvdD
+        call ncinfo(ncname(41,:),'smxtl','Smoothness','-','tt')
+        call ncinfo(ncname(42,:),'smytl','Smoothness','-','tt')
+        call ncinfo(ncname(43,:),'smztl','Smoothness','-','tt')
+        call ncinfo(ncname(44,:),'nsmxqt','Smoothness','-','tt')  
+        call ncinfo(ncname(45,:),'nsmyqt','Smoothness','-','tt')
+        call ncinfo(ncname(46,:),'nsmzqt','Smoothness','-','tt')  ! JvdD
+        call ncinfo(ncname(47,:),'nsmxtl','Smoothness','-','tt')
+        call ncinfo(ncname(48,:),'nsmytl','Smoothness','-','tt')
+        call ncinfo(ncname(49,:),'nsmztl','Smoothness','-','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(37+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(37+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(37+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(37+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(37+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(37+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(37+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(49+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(49+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(49+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(49+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(49+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(49+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(49+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -450,11 +480,10 @@ contains
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi
+                          rslabs,cu,cv,iadv_qt,iadv_thl,iadv_kappa,iadv_5th,iadv_hybrid, &
+                          eps1,dxi,dyi,lambda_max
     use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
     implicit none
-
-
 
     real cthl,cqt,den
 
@@ -510,6 +539,9 @@ contains
     real,allocatable, dimension(:,:,:)::  thv0
     real,allocatable, dimension(:)::   thvmav
     real ,allocatable, dimension(:,:,:):: sv0h
+    
+    real, allocatable :: smxqtav(:),smyqtav(:),smzqtav(:),smxtlav(:),smytlav(:),smztlav(:) !JvdD (smoothness stuff)
+    real, allocatable :: nsmxqtav(:),nsmyqtav(:),nsmzqtav(:),nsmxtlav(:),nsmytlav(:),nsmztlav(:) !JvdD (smoothness stuff)
 
     integer i, j, k, n, km
     real    tsurf, qsat, c1, c2
@@ -534,7 +566,6 @@ contains
     allocate( &
         ql2avl   (k1), &
         sv2avl   (k1,nsv))
-
 
     allocate( wqlsubl    (k1))
     allocate( wqlresl    (k1))
@@ -571,8 +602,9 @@ contains
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-
-
+    
+    allocate(smxqtav(k1),smyqtav(k1),smzqtav(k1),smxtlav(k1),smytlav(k1),smztlav(k1)) !JvdD
+    allocate(nsmxqtav(k1),nsmyqtav(k1),nsmzqtav(k1),nsmxtlav(k1),nsmytlav(k1),nsmztlav(k1)) !JvdD
 
   !-----------------------------------------------------------------------
   !     1.    INITIALISE LOCAL CONSTANTS
@@ -641,6 +673,20 @@ contains
 
     cszav = 0.
 
+    smxqtav = 0.
+    smyqtav = 0.
+    smzqtav = 0.
+    smxtlav = 0. !JvdD
+    smytlav = 0.
+    smztlav = 0.
+
+    nsmxqtav = 0.
+    nsmyqtav = 0.
+    nsmzqtav = 0. !JvdD
+    nsmxtlav = 0.
+    nsmytlav = 0.
+    nsmztlav = 0.
+
     do  k=1,k1
       do  j=2,j1
         do  i=2,i1
@@ -673,7 +719,32 @@ contains
     thvmav = thvmav/rslabs
 
     cszav  = csz
-  !
+
+    ! Don't allow smoothness statistics for any schemes but the 5th order or hybrid schemes
+    ! because other schemes might not have enough ghost points.
+    if (iadv_qt == iadv_5th .or. iadv_qt == iadv_hybrid) then
+      call smoothstat(qt0 ,1,smxqtav,nsmxqtav)
+      call smoothstat(qt0 ,2,smyqtav,nsmyqtav)
+      call smoothstat(qt0 ,3,smzqtav,nsmzqtav)
+      smxqtmn = smxqtmn + smxqtav
+      smyqtmn = smyqtmn + smyqtav
+      smzqtmn = smzqtmn + smzqtav !JvdD
+      nsmxqtmn = nsmxqtmn + nsmxqtav
+      nsmyqtmn = nsmyqtmn + nsmyqtav
+      nsmzqtmn = nsmzqtmn + nsmzqtav !JvdD
+    end if
+
+    if (iadv_thl == iadv_5th .or. iadv_thl == iadv_hybrid) then
+      call smoothstat(thl0,1,smxtlav,nsmxtlav)  !JvdD
+      call smoothstat(thl0,2,smytlav,nsmytlav)
+      call smoothstat(thl0,3,smztlav,nsmztlav)
+      smxtlmn = smxtlmn + smxtlav
+      smytlmn = smytlmn + smytlav  !JvdD
+      smztlmn = smztlmn + smztlav
+      nsmxtlmn = nsmxtlmn + nsmxtlav
+      nsmytlmn = nsmytlmn + nsmytlav
+      nsmztlmn = nsmztlmn + nsmztlav
+    end if
 
     do n=1,nsv
       call slabsum(svmav(1,n),1,k1,svm(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -1139,7 +1210,6 @@ contains
         ql2avl   , &
         sv2avl   )
 
-
     deallocate( wqlsubl    )
     deallocate( wqlresl    )
 
@@ -1176,6 +1246,9 @@ contains
     deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
+    deallocate(smxqtav,smyqtav,smzqtav,smxtlav,smytlav,smztlav) !JvdD
+    deallocate(nsmxqtav,nsmyqtav,nsmzqtav,nsmxtlav,nsmytlav,nsmztlav) !JvdD
+
   end subroutine do_genstat
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1210,7 +1283,6 @@ contains
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
       qlhmn  = qlhmn  /nsamples
-
 
       wtlsmn = wtlsmn/nsamples
       wtlrmn = wtlrmn/nsamples
@@ -1264,7 +1336,20 @@ contains
         wsvtmn = wsvtmn/nsamples
 
         cszmn = cszmn / nsamples
+    
+        smxqtmn = smxqtmn/nsamples
+        smyqtmn = smyqtmn/nsamples
+        smzqtmn = smzqtmn/nsamples  !JvdD
+        smxtlmn = smxtlmn/nsamples
+        smytlmn = smytlmn/nsamples
+        smztlmn = smztlmn/nsamples
 
+        nsmxqtmn = nsmxqtmn/nsamples
+        nsmyqtmn = nsmyqtmn/nsamples
+        nsmzqtmn = nsmzqtmn/nsamples  !JvdD
+        nsmxtlmn = nsmxtlmn/nsamples
+        nsmytlmn = nsmytlmn/nsamples
+        nsmztlmn = nsmztlmn/nsamples
 
   !     ------------------------------------------
   !     2.0  Construct other time averaged fields
@@ -1544,14 +1629,27 @@ contains
         vars(:,35)=qt2mn
         vars(:,36)=ql2mn
         vars(:,37)=csz
+
+        vars(:,38)=smxqtmn
+        vars(:,39)=smyqtmn
+        vars(:,40)=smzqtmn
+        vars(:,41)=smxtlmn
+        vars(:,42)=smytlmn
+        vars(:,43)=smztlmn
+        vars(:,44)=nsmxqtmn
+        vars(:,45)=nsmyqtmn
+        vars(:,46)=nsmzqtmn
+        vars(:,47)=nsmxtlmn
+        vars(:,48)=nsmytlmn
+        vars(:,49)=nsmztlmn
         do n=1,nsv
-          vars(:,37+7*(n-1)+1)=svmmn(:,n)
-          vars(:,37+7*(n-1)+2)=svpmn(:,n)
-          vars(:,37+7*(n-1)+3)=svptmn(:,n)
-          vars(:,37+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,37+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,37+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,37+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,49+7*(n-1)+1)=svmmn(:,n)
+          vars(:,49+7*(n-1)+2)=svpmn(:,n)
+          vars(:,49+7*(n-1)+3)=svptmn(:,n)
+          vars(:,49+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,49+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,49+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,49+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
@@ -1621,6 +1719,18 @@ contains
       wsvtmn = 0.
 
       cszmn  = 0.
+      smxqtmn = 0.
+      smyqtmn = 0.
+      smzqtmn = 0. ! JvdD
+      smxtlmn = 0.
+      smytlmn = 0.
+      smztlmn = 0.
+      nsmxqtmn = 0.
+      nsmyqtmn = 0.
+      nsmzqtmn = 0. ! JvdD
+      nsmxtlmn = 0.
+      nsmytlmn = 0.
+      nsmztlmn = 0.
 
       deallocate(tmn, thmn)
 
@@ -1695,7 +1805,43 @@ contains
     deallocate(cszmn)
     deallocate(cszav)
 
+    deallocate(smxqtmn,smyqtmn,smzqtmn,smxtlmn,smytlmn,smztlmn) !JvdD
+    deallocate(nsmxqtmn,nsmyqtmn,nsmzqtmn,nsmxtlmn,nsmytlmn,nsmztlmn)
+
   end subroutine exitgenstat
+
+
+  subroutine smoothstat(pin,dir,smout,nsmout)
+    use modglobal, only : ih,i1,jh,j1,k1,rslabs,lambda_max
+    use advec_hybrid, only : smoothness
+    use modmpi, only : slabsum,MY_REAL,MPI_SUM,comm3d,mpierr
+    implicit none
+    real,intent(in),dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: pin
+    integer,intent(in) :: dir
+    real,intent(out),dimension(k1) :: smout
+    real,intent(out),dimension(k1) :: nsmout
+    !local variables
+    real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: sm3d
+    real,dimension(k1) :: nsmavl
+    integer :: k
+
+    smout(:)=0.;nsmout(:)=0.;sm3d(:,:,:)=0.;nsmavl(:)=0.
+
+    ! use function to calculate smoothness at every gridpoint
+    sm3d = smoothness(pin,dir)
+
+    call slabsum(smout,1,k1,sm3d,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    smout=smout/rslabs
+   
+    ! calculate number of non-smooth gridpoints, using rather arbitrary criterium 
+    do k=1,k1
+      nsmavl(k) = count(sm3d(2:i1,2:j1,k) >= lambda_max)
+    end do
+    
+    call MPI_ALLREDUCE(nsmavl,nsmout,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    nsmout=nsmout/rslabs
+
+  end subroutine smoothstat
 
 
 end module modgenstat

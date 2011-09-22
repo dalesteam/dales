@@ -112,9 +112,14 @@ save
       integer, parameter :: iadv_52     = 52
       integer, parameter :: iadv_kappa  = 7
       integer, parameter :: iadv_weno   = 50
+      integer, parameter :: iadv_hybrid = 55
+
+      real,parameter :: lambda_max=100. !< maximum value for the smoothness. This controls if WENO or 
+                                        ! regular 5th order fluxes are used at a specific point
+                                        ! z_smooth(i,j,k)>=lambda_max(i,j,k) if iadv_hybrid
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
-      logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
+      logical :: lsgbucorr= .false. !<   switch to enable subgrid buoyancy flux
 
 
       ! Global variables (modvar.f90)
@@ -148,7 +153,6 @@ save
       real    :: courant = -1
       real    :: peclet  = 0.15
       integer(kind=longint) :: dt_lim
-
 
       integer :: rk3step = 0
 
@@ -215,6 +219,8 @@ contains
         courant = 1.4
       case(iadv_52)
         courant = 1.4
+      case(iadv_weno)
+        courant = 1.4
       case default
         courant = 1.4
       end select
@@ -227,6 +233,8 @@ contains
       elseif (any(iadv_sv(1:nsv)==iadv_5th) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_5th)) then
         courant = min(courant, 1.4)
       elseif (any(iadv_sv(1:nsv)==iadv_52 ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_52)) then
+        courant = min(courant, 1.4)
+      elseif (any(iadv_sv(1:nsv)==iadv_weno ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_weno)) then
         courant = min(courant, 1.4)
       elseif (any(iadv_sv(1:nsv)==iadv_cd2) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
         courant = min(courant, 1.5)
@@ -259,6 +267,10 @@ contains
       jh = 3
       kh = 1
     elseif (any(advarr==iadv_52).or.any(iadv_sv(1:nsv)==iadv_52)) then
+      ih = 3
+      jh = 3
+      kh = 1
+    elseif (any(advarr==iadv_weno).or.any(iadv_sv(1:nsv)==iadv_weno)) then
       ih = 3
       jh = 3
       kh = 1

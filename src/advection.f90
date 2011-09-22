@@ -28,10 +28,11 @@
 subroutine advection
 
   use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_weno
+                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_weno,iadv_hybrid
   use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid, only : lsmagorinsky
   use advec_weno, only : advecc_weno
+  use advec_hybrid, only : advecc_hybrid
   implicit none
   integer :: n
 
@@ -60,6 +61,10 @@ subroutine advection
       call advecu_5th(u0,up)
       call advecv_5th(v0,vp)
       call advecw_5th(w0,wp)
+    case(iadv_hybrid)
+      call advecu_5th(u0,up)
+      call advecv_5th(v0,vp)
+      call advecw_5th(w0,wp)
     case default
       stop "Unknown advection scheme "
   end select
@@ -79,7 +84,9 @@ subroutine advection
       case(iadv_kappa)
         call advecc_kappa(e120,e12p)
       case(iadv_weno)
-        call advecc_5th(e120,e12p)
+        call advecc_weno(e120,e12p)
+      case(iadv_hybrid)
+        call advecc_hybrid(e120,e12p)
       case default
         stop "Unknown advection scheme "
     end select
@@ -102,6 +109,8 @@ subroutine advection
       call advecc_upw(thl0,thlp)
     case(iadv_weno)
       call advecc_weno(thl0,thlp)
+    case(iadv_hybrid)
+      call advecc_hybrid(thl0,thlp)
     case default
       stop "Unknown advection scheme "
   end select
@@ -123,6 +132,8 @@ subroutine advection
         call advecc_upw(qt0,qtp)
       case(iadv_weno)
         call advecc_weno(qt0,qtp)
+      case(iadv_hybrid)
+        call advecc_hybrid(qt0,qtp)
       case default
         stop "Unknown advection scheme "
     end select
@@ -145,6 +156,8 @@ subroutine advection
       call advecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_weno)
       call advecc_weno(sv0(:,:,:,n),svp(:,:,:,n))
+    case(iadv_hybrid)
+      call advecc_hybrid(sv0(:,:,:,n),svp(:,:,:,n))
     case default
       stop "Unknown advection scheme "
     end select

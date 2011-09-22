@@ -29,7 +29,7 @@ contains
 subroutine advecc_weno(pin,pout)
 
   use modglobal, only : ih,i1,jh,j1,kmax,k1,leq &
-                        ,dxi,dyi,dzf
+                        ,dx,dxi,dy,dyi,dzi,dzf
   use modfields, only : u0,v0,w0
 
   implicit none
@@ -43,26 +43,50 @@ subroutine advecc_weno(pin,pout)
   integer :: jp3,jp2,jp1,jm1,jm2,jm3
   integer :: ip3,ip2,ip1,im1,im2,im3
 
-  if (leq) then
-    do k=4,kmax-2
-      kp3=k+3;kp2=k+2;kp1=k+1;km1=k-1;km2=k-2;km3=k-3
-      do j=2,j1
-        jp3=j+3;jp2=j+2;jp1=j+1;jm1=j-1;jm2=j-2;jm3=j-3
-        do i=2,i1
-          ip3=i+3;ip2=i+2;ip1=i+1;im1=i-1;im2=i-2;im3=i-3
+  do j=2,j1
+    jp3=j+3;jp2=j+2;jp1=j+1;jm1=j-1;jm2=j-2;jm3=j-3
+    do i=2,i1
+      ip3=i+3;ip2=i+2;ip1=i+1;im1=i-1;im2=i-2;im3=i-3
+      do k=1,kmax
+        ! Use 5th order WENO in the horizontal directions
+        pout(i,j,k) = pout(i,j,k) - ( &
+                    (u0(ip1,j,k)*ip_weno(pin(ip3,j,k),pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),u0(ip1,j,k)>=0.) -       &
+                     u0(i,j,k)  *ip_weno(pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),pin(im3,j,k),u0(i,j,k)  >=0.))*dxi    &
+                   +(v0(i,jp1,k)*ip_weno(pin(i,jp3,k),pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),v0(i,jp1,k)>=0.) -       &
+                     v0(i,j,k)  *ip_weno(pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),pin(i,jm3,k),v0(i,j,k)  >=0.))*dyi    &
+                                    )
+        if (k==1) then
+          ! Forward difference at k==1
+          pout(i,j,k) = pout(i,j,k) - ( &
+                          w0(i,j,k+1) * (pin(i,j,k+1) + pin(i,j,k)) &
+                                      )/(2.*dzf(k))
+        elseif (k==2 .or. k==kmax-1 .or. k==kmax) then
+          ! 2nd order difference at k==2 and k==3
+          pout(i,j,k) = pout(i,j,k) - ( &
+                          w0(i,j,k+1) * (pin(i,j,k+1)+pin(i,j,k)) &
+                         -w0(i,j,k)   * (pin(i,j,k-1)+pin(i,j,k)) &
+                                    )/(2.*dzf(k))
+        elseif (k==3) then
+          ! 5th order at top, 2nd order below
+          pout(i,j,k) = pout(i,j,k) - ( &
+                      w0(i,j,k+1)/60.&
+                      *(37.*(pin(i,j,k+1)+pin(i,j,k))-8.*(pin(i,j,k+2)+pin(i,j,k-1))+(pin(i,j,k+3)+pin(i,j,k-2)))&
+                      -sign(1.,w0(i,j,k+1))*w0(i,j,k+1)/60.&
+                      *(10.*(pin(i,j,k+1)-pin(i,j,k))-5.*(pin(i,j,k+2)-pin(i,j,k-1))+(pin(i,j,k+3)-pin(i,j,k-2)))&
+                      -w0(i,j,k)      * (pin(i,j,k-1)+pin(i,j,k))/2. &
+                                      )/dzf(k)
+        else
+          ! 5th order WENO for all layers between k=4 and k=kmax-2
+          kp3=k+3;kp2=k+2;kp1=k+1;km1=k-1;km2=k-2;km3=k-3
 
           pout(i,j,k) = pout(i,j,k) - ( &
-                      (u0(ip1,j,k)*ip_weno(pin(ip3,j,k),pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),u0(ip1,j,k)>=0.) -       &
-                       u0(i,j,k)  *ip_weno(pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),pin(im3,j,k),u0(i,j,k)  >=0.))*dxi    &
-                     +(v0(i,jp1,k)*ip_weno(pin(i,jp3,k),pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),w0(i,jp1,k)>=0.) -       &
-                       v0(i,j,k)  *ip_weno(pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),pin(i,jm3,k),w0(i,j,k)  >=0.))*dyi    &
-                     +(w0(i,j,kp1)*ip_weno(pin(i,j,kp3),pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),w0(i,j,kp1)>=0.) -       &
+                      (w0(i,j,kp1)*ip_weno(pin(i,j,kp3),pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),w0(i,j,kp1)>=0.) -       &
                        w0(i,j,k)  *ip_weno(pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),pin(i,j,km3),w0(i,j,k)  >=0.))/dzf(k) &
                                       )
-        end do
-      end do
-    end do
-  end if
+        end if
+      end do !Loop over k
+    end do !Loop over i
+  end do !Loop over j
 
 end subroutine
 
