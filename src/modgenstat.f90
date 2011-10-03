@@ -481,7 +481,7 @@ contains
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
                           rslabs,cu,cv,iadv_qt,iadv_thl,iadv_kappa,iadv_5th,iadv_hybrid, &
-                          eps1,dxi,dyi,lambda_max
+                          eps1,dxi,dyi,lambda_crit
     use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
@@ -1812,7 +1812,7 @@ contains
 
 
   subroutine smoothstat(pin,dir,smout,nsmout)
-    use modglobal, only : ih,i1,jh,j1,k1,rslabs,lambda_max
+    use modglobal, only : ih,i1,jh,j1,k1,rslabs,lambda_crit
     use advec_hybrid, only : smoothness
     use modmpi, only : slabsum,MY_REAL,MPI_SUM,comm3d,mpierr
     implicit none
@@ -1821,7 +1821,7 @@ contains
     real,intent(out),dimension(k1) :: smout
     real,intent(out),dimension(k1) :: nsmout
     !local variables
-    real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: sm3d
+    real,dimension(2:i1+1,2:j1+1,k1) :: sm3d
     real,dimension(k1) :: nsmavl
     integer :: k
 
@@ -1830,12 +1830,12 @@ contains
     ! use function to calculate smoothness at every gridpoint
     sm3d = smoothness(pin,dir)
 
-    call slabsum(smout,1,k1,sm3d,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(smout,1,k1,sm3d,2,i1+1,2,j1+1,1,k1,2,i1,2,j1,1,k1)
     smout=smout/rslabs
    
     ! calculate number of non-smooth gridpoints, using rather arbitrary criterium 
     do k=1,k1
-      nsmavl(k) = count(sm3d(2:i1,2:j1,k) >= lambda_max)
+      nsmavl(k) = count(sm3d(2:i1,2:j1,k) >= lambda_crit)
     end do
     
     call MPI_ALLREDUCE(nsmavl,nsmout,k1,MY_REAL,MPI_SUM,comm3d,mpierr)

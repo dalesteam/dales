@@ -114,9 +114,12 @@ save
       integer, parameter :: iadv_weno   = 50
       integer, parameter :: iadv_hybrid = 55
 
-      real,parameter :: lambda_max=100. !< maximum value for the smoothness. This controls if WENO or 
-                                        ! regular 5th order fluxes are used at a specific point
-                                        ! z_smooth(i,j,k)>=lambda_max(i,j,k) if iadv_hybrid
+      real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or 
+                               ! regular 5th order fluxes are used at a specific point
+                               ! z_smooth(i,j,k)>=lambda_crit(i,j,k) if iadv_hybrid
+                               !  20. : suggested value in Blossey and Durran (2008) but high degree of horizontal WENO (~20%)
+                               ! 100. : less WENO in horizontal directions (~5%), but not enough at inversion to ensure non-
+                               !        oscillatory behaviour in case of strong inversion gradients (e.g. DYCOMS: dqt=7.5)
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lsgbucorr= .false. !<   switch to enable subgrid buoyancy flux

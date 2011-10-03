@@ -56,7 +56,7 @@ contains
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
+                                  lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -92,7 +92,7 @@ contains
         lcoriol,igrw_damp,geodamptime,lmomsubs, ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, cu, cv, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lqlnr, lambda_crit, cu, cv, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
     
   !read namelists
 
@@ -198,6 +198,7 @@ contains
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(cv         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,comm3d,mpierr)

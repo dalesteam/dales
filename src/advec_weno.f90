@@ -34,8 +34,8 @@ subroutine advecc_weno(pin,pout)
 
   implicit none
 
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in) :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(out):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
+  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
+  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
 
   ! local variables
   integer :: i,j,k
@@ -50,10 +50,10 @@ subroutine advecc_weno(pin,pout)
       do k=1,kmax
         ! Use 5th order WENO in the horizontal directions
         pout(i,j,k) = pout(i,j,k) - ( &
-                    (u0(ip1,j,k)*ip_weno(pin(ip3,j,k),pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),u0(ip1,j,k)>=0.) -       &
-                     u0(i,j,k)  *ip_weno(pin(ip2,j,k),pin(ip1,j,k),pin(i,j,k),pin(im1,j,k),pin(im2,j,k),pin(im3,j,k),u0(i,j,k)  >=0.))*dxi    &
-                   +(v0(i,jp1,k)*ip_weno(pin(i,jp3,k),pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),v0(i,jp1,k)>=0.) -       &
-                     v0(i,j,k)  *ip_weno(pin(i,jp2,k),pin(i,jp1,k),pin(i,j,k),pin(i,jm1,k),pin(i,jm2,k),pin(i,jm3,k),v0(i,j,k)  >=0.))*dyi    &
+                    (u0(ip1,j,k)*ip_weno(pin(im2:ip3,j,k),u0(ip1,j,k)>=0.) -       &
+                     u0(i,j,k)  *ip_weno(pin(im3:ip2,j,k),u0(i,j,k)  >=0.))*dxi    &
+                   +(v0(i,jp1,k)*ip_weno(pin(i,jm2:jp3,k),v0(i,jp1,k)>=0.) -       &
+                     v0(i,j,k)  *ip_weno(pin(i,jm3:jp2,k),v0(i,j,k)  >=0.))*dyi    &
                                     )
         if (k==1) then
           ! Forward difference at k==1
@@ -80,8 +80,8 @@ subroutine advecc_weno(pin,pout)
           kp3=k+3;kp2=k+2;kp1=k+1;km1=k-1;km2=k-2;km3=k-3
 
           pout(i,j,k) = pout(i,j,k) - ( &
-                      (w0(i,j,kp1)*ip_weno(pin(i,j,kp3),pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),w0(i,j,kp1)>=0.) -       &
-                       w0(i,j,k)  *ip_weno(pin(i,j,kp2),pin(i,j,kp1),pin(i,j,k),pin(i,j,km1),pin(i,j,km2),pin(i,j,km3),w0(i,j,k)  >=0.))/dzf(k) &
+                      (w0(i,j,kp1)*ip_weno(pin(i,j,km2:kp3),w0(i,j,kp1)>=0.) -       &
+                       w0(i,j,k)  *ip_weno(pin(i,j,km3:kp2),w0(i,j,k)  >=0.))/dzf(k) &
                                       )
         end if
       end do !Loop over k
@@ -91,12 +91,12 @@ subroutine advecc_weno(pin,pout)
 end subroutine
 
 ! Function that does the interpolation (ip) of the cell centered field values to the appropriate cell edges.
-function ip_weno(vp2,vp1,v,vm1,vm2,vm3,lpos)
+function ip_weno(vin,lpos)
   implicit none
   real              :: ip_weno
   logical,intent(in):: lpos
-  real,intent(in)   :: vp2,vp1,v,vm1,vm2,vm3
-  ! NOTE: vp2 is not used if velocity is in the forward direction (i.e. wh >0)
+  real,intent(in),dimension(-3:2) :: vin
+  ! vin contains the relevant subset of the total field, at full levels: v(i-3):v(i+2)
 
   !local variables
   real,parameter    :: c1=13./12.,c2=1./4. ! Multiplication constants
@@ -111,25 +111,25 @@ function ip_weno(vp2,vp1,v,vm1,vm2,vm3,lpos)
 
   if (lpos) then !Positive velocity at cell face
     !compute smoothness indicators for each of the stencils
-    beta(1) = c1*(vm3-2*vm2+vm1)**2 + c2*(vm3-4*vm2+3*vm1)**2
-    beta(2) = c1*(vm2-2*vm1+v  )**2 + c2*(vm2-v)**2
-    beta(3) = c1*(vm1-2*v+vp1  )**2 + c2*(3*vm1-4*v+vp1)**2
+    beta(1) = c1*(vin(-3)-2*vin(-2)+vin(-1))**2 + c2*(vin(-3)-4*vin(-2)+3*vin(-1))**2
+    beta(2) = c1*(vin(-2)-2*vin(-1)+vin(0) )**2 + c2*(vin(-2)-vin(0))**2
+    beta(3) = c1*(vin(-1)-2*vin(0) +vin(1) )**2 + c2*(3*vin(-1)-4*vin(0)+vin(1))**2
 
     !interpolated values of the variable at the cell faces using each of the stencils
-    varFace(1) = (2*vm3- 7*vm2+ 11*vm1)/6
-    varFace(2) = (- vm2+ 5*vm1+  2*v  )/6
-    varFace(3) = (2*vm1+ 5*v  -    vp1)/6
+    varFace(1) = (2*vin(-3)- 7*vin(-2)+ 11*vin(-1))/6
+    varFace(2) = (- vin(-2)+ 5*vin(-1)+  2*vin(0) )/6
+    varFace(3) = (2*vin(-1)+ 5*vin(0) -    vin(1) )/6
   else !Negative velocity at cell face
     !compute smoothness indicators for each of the stencils
     !the following is found by mirroring the equations for positive velocity
-    beta(1) = c1*(v  -2*vp1+vp2)**2 + c2*(3*v-4*vp1+vp2)**2
-    beta(2) = c1*(vm1-2*v  +vp1)**2 + c2*(vm1-vp1)**2
-    beta(3) = c1*(vm2-2*vm1+v  )**2 + c2*(vm2-4*vm1+3*v)**2
+    beta(1) = c1*(vin(0) -2*vin(1) +vin(2))**2 + c2*(3*vin(0)-4*vin(1)+vin(2))**2
+    beta(2) = c1*(vin(-1)-2*vin(0) +vin(1))**2 + c2*(vin(-1)-vin(1))**2
+    beta(3) = c1*(vin(-2)-2*vin(-1)+vin(0))**2 + c2*(vin(-2)-4*vin(-1)+3*vin(0))**2
 
     !interpolated values of the variable at the cell faces using each of the stencils
-    varFace(1) = (11*v   -7*vp1+ 2*vp2)/6
-    varFace(2) = ( 2*vm1 +5*v  -   vp1)/6
-    varFace(3) = ( - vm2 +5*vm1+ 2*v  )/6
+    varFace(1) = (11*vin(0) -7*vin(1) + 2*vin(2))/6
+    varFace(2) = ( 2*vin(-1)+5*vin(0) -   vin(1))/6
+    varFace(3) = ( - vin(-2)+5*vin(-1)+ 2*vin(0))/6
   end if
 
   !compute weights
