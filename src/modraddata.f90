@@ -95,4 +95,38 @@ contains
                                                          cos(hora))
   end function zenith
 
+!< Calculation of the albedo at sea
+!< From the RRTMG scheme interface by P. Blossey.
+  subroutine par_albedo(coszrs,albdir,albdif)
+  !-----------------------------------------------------------------------
+  ! Computes surface albedos over ocean 
+  ! and the surface (added by Marat Khairoutdinov, remove by Johan)
+  !
+  !  Uses solar zenith angle to compute albedo for direct
+  !  radiation; diffuse radiation values constant; albedo
+  !  independent of spectral interval and other physical
+  !  factors such as ocean surface wind speed.
+  !
+  ! For more details , see Briegleb, Bruce P., 1992: Delta-Eddington
+  ! Approximation for Solar Radiation in the NCAR Community Climate Model,
+  ! Journal of Geophysical Research, Vol 97, D7, pp7603-7612).
+  !-----------------------------------------------------------------------
+   implicit none
+
+   real, intent(in)            :: coszrs     ! Cosine of the solar zenith angle
+   real, intent(out)           :: albdir     ! Srf alb for direct rad 
+   real, intent(out), optional :: albdif     ! Srf alb for diffuse rad
+
+   real :: eps = 1e-5
+
+   if (coszrs <= eps) then
+     albdir = 0.
+   else
+     albdir = ( .026 / (coszrs**1.7 + .065)) + &
+               (.15*(coszrs - 0.10) * (coszrs - 0.50) * (coszrs - 1.00) )
+   endif
+   albdif = 0.06
+
+  end subroutine par_albedo
+
 end module modraddata
