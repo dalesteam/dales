@@ -110,11 +110,12 @@ module modradfull
 contains
     subroutine radfull
   !   use radiation,    only : d4stream
-    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,zf,pref0
+    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,zf,pref0 &
+                            ,rtimee,xday,xlat,xlon,xtime
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
     use modsurfdata,  only : albedoav,albedo,lalbpar,tskin, qskin, thvs, qts, ps
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
-    use modraddata,   only : thlprad, lwd,lwu,swd,swu,mu,par_albedo
+    use modraddata,   only : thlprad,lwd,lwu,swd,swu,mu,par_albedo,zenith
       implicit none
     real :: thlpld,thlplu,thlpsd,thlpsu
     real, dimension(k1)  :: rhof_b, exnf_b
@@ -154,6 +155,9 @@ contains
         end do
       end do
 
+      ! Calculate cosine of the solar zenith angle, which is saved in modraddata
+      ! It is also used in d4stream subroutine below.
+      mu = zenith(xtime*3600 + rtimee,xday,xlat,xlon)
       ! Set albedo, if parameterization is used
       if (lalbpar) then
         call par_albedo(mu,albedoav)
@@ -196,9 +200,8 @@ contains
 
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &
          pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr)
-      use modglobal, only : cexpnr,cp,cpr,pi,pref0,rtimee,xday,xlat,xlon,xtime,rhow
-      use modraddata,only : useMcICA,zenith
-      use modfields,only: SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA
+      use modglobal, only : cexpnr,cp,cpr,pi,pref0,rhow
+      use modraddata,only : useMcICA,mu,swuToA,swdToA,lwuToA,lwdToA
       implicit none
 
       integer, intent (in) :: i1,ih,j1,jh,k1
@@ -234,7 +237,8 @@ contains
       ! determine the solar geometery, as measured by u0, the cosine of the
       ! solar zenith angle
       !
-      u0 = zenith(xtime*3600 + rtimee,xday,xlat,xlon)
+!      u0 = zenith(xtime*3600 + rtimee,xday,xlat,xlon)
+      ! JvdD: mu (see modraddata) is the cosine of the zenith angle. Calculated in radfull already.
 
       !
       ! call the radiation
@@ -263,7 +267,7 @@ contains
                if (k < k1) pp(kk) = 0.5*(pres(k)+pres(k+1)) / 100.
             end do
             pp(nv-k1+2) = pres(k1)/100. - 0.5*(pres(k1-1)-pres(k1)) / 100.
-            call rad( albedo(i,j), u0, SolarConstant, tskin(i,j), ee, pp, pt, ph, po,&
+            call rad( albedo(i,j), mu, SolarConstant, tskin(i,j), ee, pp, pt, ph, po,&
                  fds, fus, fdir, fuir, plwc=plwc, pre=pre, useMcICA=useMcICA)
 
             do k=1,k1
@@ -273,10 +277,11 @@ contains
                fuir3d(i,j,k) = fuir(kk)
                fdir3d(i,j,k) = fdir(kk)
             end do
-            SW_up_TOA(i,j) = fus(1)
-            SW_dn_TOA(i,j) = fds(1)
-            LW_up_TOA(i,j) = fuir(1)
-            LW_dn_TOA(i,j) = fdir(1)
+
+            swuToA(i,j) = fus(1)
+            swdToA(i,j) = fds(1)
+            lwuToA(i,j) = fuir(1)
+            lwdToA(i,j) = fdir(1)
 
          end do
       end do

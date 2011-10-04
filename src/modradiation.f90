@@ -44,16 +44,16 @@ contains
     allocate(swu(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lwd(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lwu(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(swuToA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(swdToA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(lwuToA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(lwdToA(2-ih:i1+ih,2-jh:j1+jh))
     thlprad = 0.
     swd = 0.
     swu = 0.
     lwd = 0.
     lwu = 0.
-    SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
+    swuToA=0.;swdToA=0.;lwuToA=0.;lwdToA=0.
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
       select case (irad)
@@ -154,7 +154,7 @@ contains
   subroutine exitradiation
     implicit none
     deallocate(thlprad,swd,swu,lwd,lwu)
-    deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
+    deallocate(swuToA, swdToA,lwuToA,lwdToA)
   end subroutine exitradiation
 
 
