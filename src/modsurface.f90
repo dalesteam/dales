@@ -41,18 +41,20 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, cp, rlv, zf, nsv, ifnamopt, fname_options
-    use modraddata, only : iradiation,rad_shortw,irad_full
+    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, cp, rlv, zf, nsv, ifnamopt, fname_options, &
+                           xtime,rtimee,xday,xlat,xlon
+    use modraddata, only : iradiation,rad_shortw,irad_full,zenith,par_albedo
     use modfields,  only : thl0, qt0
     use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
-
+    
+    real      ::mu
     integer   ::ierr
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
-      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
+      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, lalbpar, albedoav, Qnetav, cvegav, Wlav, &
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
@@ -90,6 +92,7 @@ contains
     call MPI_BCAST(rsisurf2     , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Cskinav      , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(lambdaskinav , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lalbpar      , 1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(albedoav     , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Qnetav       , 1, MY_REAL, 0, comm3d, mpierr)
 
@@ -150,7 +153,9 @@ contains
       end if
     end if
 
-    if(isurf == 1) then
+    ! Check if albedoav is set. Only necessary if full radiation or the interactive surface scheme is used,
+    ! and if the albedo is not parameterized.
+    if(isurf == 1 .or. iradiation == 1 .or. iradiation == 4 .and. .not. lalbpar) then
       if(albedoav == -1) then
         stop "NAMSURFACE: albedoav is not set"
       end if
@@ -189,11 +194,11 @@ contains
     allocate(qskin(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
-    if(rad_shortw .and. albedoav == -1) then
+    if(rad_shortw .and. albedoav == -1 .and. .not. lalbpar) then
       stop "NAMSURFACE: albedoav is not set"
     end if
     if(iradiation == 1) then
-      if(albedoav == -1) then
+      if(albedoav == -1 .and. .not. lalbpar) then
         stop "NAMSURFACE: albedoav is not set"
       end if
       allocate(swdavn(i2,j2,nradtime))
@@ -206,7 +211,14 @@ contains
       lwuavn =  0.
     end if
 
-    albedo     = albedoav
+    ! Calculate the correct albedo using the cosine of the solar zenith angle,
+    ! in case lalbpar=.true. Else, the albedo set in the namelist is used.
+    if (lalbpar) then
+      mu = zenith(xtime*3600 + rtimee,xday,xlat,xlon)
+      call par_albedo(mu,albedoav)
+    end if
+    albedo(:,:)= albedoav
+
     z0m        = z0mav
     z0h        = z0hav
 

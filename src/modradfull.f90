@@ -112,9 +112,9 @@ contains
   !   use radiation,    only : d4stream
     use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,zf,pref0
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
-    use modsurfdata,  only : albedo, tskin, qskin, thvs, qts, ps
+    use modsurfdata,  only : albedoav,albedo,lalbpar,tskin, qskin, thvs, qts, ps
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
-    use modraddata,   only : thlprad, lwd,lwu,swd,swu
+    use modraddata,   only : thlprad, lwd,lwu,swd,swu,mu,par_albedo
       implicit none
     real :: thlpld,thlplu,thlpsd,thlpsu
     real, dimension(k1)  :: rhof_b, exnf_b
@@ -153,6 +153,12 @@ contains
           tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
         end do
       end do
+
+      ! Set albedo, if parameterization is used
+      if (lalbpar) then
+        call par_albedo(mu,albedoav)
+        albedo(:,:) = albedoav
+      end if
 
       ! tempskin = tskin*exnh(1)
      !CvH end edit

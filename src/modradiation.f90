@@ -273,8 +273,9 @@ subroutine radpar
 
   subroutine sunray(tau,tauc,i,j)
 
-  use modglobal, only :  k1
-  use modsurfdata,  only : albedo
+  use modglobal,   only : k1
+  use modsurfdata, only : albedoav,albedo,lalbpar
+  use modraddata,  only : par_albedo
   implicit none
 
   real, intent(inout), dimension (k1) :: tau
@@ -286,6 +287,12 @@ subroutine radpar
            ,exmu0,expk,exmk,xp23p,xm23p,ap23b
   integer k
   allocate(taude(k1))
+
+  ! update surface albedo in case the parameterization is used.
+  if (lalbpar) then
+    call par_albedo(mu,albedoav)
+    albedo(:,:) = albedoav
+  end if
 
   taucde = 0.         ! tau' cloud
   taupath = 0.

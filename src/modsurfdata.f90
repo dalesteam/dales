@@ -107,6 +107,7 @@ SAVE
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
   real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
+  logical           :: lalbpar  = .false.  !< Swithch to use parametrization for the albedo of a sea surface as a function of solar zenith
   real, allocatable :: albedo     (:,:) !<  Surface albedo [-]
   real              :: albedoav = -1
   real, allocatable :: LAI        (:,:) !<  Leaf area index vegetation [-]
