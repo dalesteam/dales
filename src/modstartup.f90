@@ -508,11 +508,14 @@ contains
 
       call surface
 
-      dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
-      dqt    = (qtprof (kmax)-qtprof (kmax-1)) / dzh(kmax)
-      do n=1,nsv
-        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
-      end do
+      ! Compute gradients that are used to determine thetal and qt at level k1
+!      dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
+!      dqt    = (qtprof (kmax)-qtprof (kmax-1)) / dzh(kmax)
+!      do n=1,nsv
+!        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
+!      end do
+      ! This is now done in modboundary (toph) everytime it is called, so top condition can 
+      ! evolve in time.
 
       call boundary
       call thermodynamics

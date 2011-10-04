@@ -193,7 +193,7 @@ contains
 !! \endlatexonly
  subroutine grwdamp
   use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime
-  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0, ug,vg,thl0av,qt0av,u0av,v0av
+  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,ug,vg,thl0av,qt0av,u0av,v0av
   implicit none
 
   integer k
@@ -258,11 +258,23 @@ contains
   subroutine toph
 
   use modglobal, only : i1,j1,kmax,k1,nsv,dtheta,dqt,dsv,dzh
-  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
+  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
+                       ,thl0av,qt0av,sv0av
   implicit none
-  integer n
+  integer :: n
+  integer,parameter :: kav=5
 
 ! **  Top conditions :
+  ! Calculate new gradient over several of the top levels, to be used
+  ! to extrapolate thl and qt to level k1 JvdD
+  dtheta = sum(thl0av(kmax-kav:kmax-1)-thl0av(kmax-kav+1:kmax))/ &
+             (sum(dzh(kmax-kav:kmax-1))*kav)
+  dqt    = sum(qt0av (kmax-kav:kmax-1)-qt0av (kmax-kav+1:kmax))/ &
+             (sum(dzh(kmax-kav:kmax-1))*kav)
+  do n=1,nsv
+    dsv(n) = sum(sv0av(kmax-kav:kmax-1,n)-sv0av(kmax-kav+1:kmax,n))/ &
+               (sum(dzh(kmax-kav:kmax-1))*kav)
+  enddo
 
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)

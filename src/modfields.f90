@@ -35,7 +35,7 @@ save
   real, allocatable :: wm(:,:,:)        !<   z-component of velocity at time step t-1
   real, allocatable :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
   real, allocatable :: e12m(:,:,:)      !<   turb. kin. energy at time step t-1
-  real, allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
+  real, allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t-1
   real, allocatable :: u0(:,:,:)        !<   x-component of velocity at time step t
   real, allocatable :: v0(:,:,:)        !<   y-component of velocity at time step t
   real, allocatable :: w0(:,:,:)        !<   z-component of velocity at time step t
