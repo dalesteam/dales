@@ -202,6 +202,7 @@ contains
          pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr)
       use modglobal, only : cexpnr,cp,cpr,pi,pref0,rhow
       use modraddata,only : useMcICA,mu,swuToA,swdToA,lwuToA,lwdToA
+      use modmicrodata, only : sig_g
       implicit none
 
       integer, intent (in) :: i1,ih,j1,jh,k1
@@ -214,9 +215,12 @@ contains
 
       integer :: kk
       real    :: prw, p0(k1), exner(k1), pres(k1)
+      real    :: sigfac ! Correction factor used in the calculation of the effective radius (JvdD)
       character (len=19) :: background
 
       if (.not. d4stream_initialized) then
+         sigfac = exp((log(sig_g))**2) ! JvdD
+
          p0(k1) = (pref0*(pi0(k1)/cp)**cpr) / 100.
          p0(k1-1) = (pref0*(pi0(k1-1)/cp)**cpr) / 100.
          background  = 'backrad.inp.'//cexpnr
@@ -262,7 +266,7 @@ contains
                   plwc(kk) = 1000.*dn0(k)*max(0.,rc(i,j,k))
                   prwc(kk) = 0.
                end if
-               pre(kk)  = 1.e6*(plwc(kk)/(1000.*prw*CCN))**(1./3.)   !CCN already in right units
+               pre(kk)  = 1.e6*(plwc(kk)/(1000.*prw*CCN))**(1./3.)*sigfac         !CCN already in right units
                if (plwc(kk)<=0.) pre(kk) = 0.
                if (k < k1) pp(kk) = 0.5*(pres(k)+pres(k+1)) / 100.
             end do
