@@ -31,37 +31,39 @@ module modfielddump
 
 implicit none
 private
-PUBLIC :: initfielddump, fielddump,exitfielddump
+PUBLIC :: initfielddump,fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 6
-  integer :: ncid,nrec = 0
-  character(80) :: fname = 'fielddump.xxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname
-  character(80),dimension(1,4) :: tncname
+  integer           :: ncid,nvar = 11           !< Number of variables (if bulkmicro->nvar+2)
+  character(80)     :: fname = 'fielddump_hhmm.xxx.nc'
+  character(80),allocatable,dimension(:,:) :: ncfieldinfo
+  character(80),dimension(1,4)             :: tncfieldinfo
 
-  real    :: dtav
-  integer(kind=longint) :: idtav,tnext
-  integer :: klow,khigh
-  logical :: lfielddump= .false. !< switch to enable the fielddump (on/off)
-  logical :: ldiracc   = .false. !< switch for doing direct access writing (on/off)
+  logical          :: lfielddump= .false.       !< switch to enable the fielddump (on/off)
+  real             :: beghr(20)=-1., &          !< array of begin and end hours inbetween which
+                      endhr(20)=-1.             !< fields are dumped at 'interval' times
+  real             :: interval=300.             !< time interval between dumps in sec
+  integer          :: kfieldtop=-1              !< top level included in the fielddumps
+  integer          :: iInterval                 !< integer interval time
+  integer          :: tNextDump                 !< time for the next field dump
+  integer          :: nhours                    !< number of beg/end hours
+  integer          :: iNextHr=1                 !< index of begin hour >= current time
 
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer,cmyid
+    use modglobal,    only : cexpnr,ifnamopt,fname_options,dtmax,btime,runtime,timee,tres,dt_lim, &
+                             imax,jmax,kmax,ladaptive
+    use modboundary,  only : ksp
+    use modmicrodata, only : imicro,imicro_bulk
+    use modstat_nc,   only : lnetcdf,open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc
     implicit none
     integer :: ierr
 
-
     namelist/NAMFIELDDUMP/ &
-    dtav,lfielddump,ldiracc,klow,khigh
+    lfielddump,beghr,endhr,interval,kfieldtop
 
-    dtav=dtav_glob
-    klow=1
-    khigh=kmax
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
@@ -73,157 +75,144 @@ contains
       write(6 ,NAMFIELDDUMP)
       close(ifnamopt)
     end if
-    call MPI_BCAST(klow        ,1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(khigh       ,1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(dtav        ,1,MY_REAL   ,0,comm3d,ierr)
-    call MPI_BCAST(lfielddump  ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(ldiracc     ,1,MPI_LOGICAL,0,comm3d,ierr)
-    idtav = dtav/tres
+    call MPI_BCAST(lfielddump  , 1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(beghr       ,20,MY_REAL    ,0,comm3d,ierr)
+    call MPI_BCAST(endhr       ,20,MY_REAL    ,0,comm3d,ierr)
+    call MPI_BCAST(interval    , 1,MY_REAL    ,0,comm3d,ierr)
+    call MPI_BCAST(kfieldtop   , 1,MPI_INTEGER,0,comm3d,ierr)
 
-    tnext      = idtav   +btime
     if(.not.(lfielddump)) return
-    dt_lim = min(dt_lim,tnext)
 
-    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'dtav should be a integer multiple of dtmax'
+    nhours = count(.not. beghr < 0.)
+    if (nhours /= count(.not. endhr < 0.) ) then
+      if (myid == 0) write(*,*) 'begin hours are ',beghr(1:nhours)
+      if (myid == 0) write(*,*) 'end hours are '  ,endhr(1:nhours)
+      stop 'ERROR: # of begin hours /= # of end hours; modfielddump'
     end if
-    if (lnetcdf) then
-      fname(11:13) = cmyid
-      fname(15:17) = cexpnr
-      call ncinfo(tncname(1,:),'time','Time','s','time')
-      call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
-      call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
-      call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
 
-      call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
-      if (nrec==0) then
-        call define_nc( ncid, 1, tncname)
-        call writestat_dims_nc(ncid)
+    if (any(endhr(1:nhours) - beghr(1:nhours) < 0.)) then
+      stop 'ERROR: some end hour(s) smaller than begin hours.'
+    end if
+
+    if (kfieldtop<0 .or. kfieldtop>kmax) then
+      if (myid == 0) then 
+        write(*,*) 'WARNING: no or invalid kfieldtop given.'
+        write(*,*) 'WARNING: kfieldtop set to just below sponge layer: ',ksp-1
       end if
-     call define_nc( ncid, NVar, ncname)
+      kfieldtop = ksp-1
     end if
 
+    ! Write the hours in hundreds of seconds
+    beghr = beghr * 3600/tres
+    endhr = endhr * 3600/tres
+
+    tNextDump = beghr(iNextHr)
+
+    ! Do loop, in case of a restart run. Finds the appropriate next fielddump time
+    do while (tNextDump<timee)
+      iNextHr   = iNextHr + 1
+      tNextDump = beghr(iNextHr)
+      if (iNextHr >= nhours) tNextDump = tres*(btime + runtime) + 1.
+    end do
+
+    iInterval = interval / tres
+    dt_lim = min(dt_lim,tNextDump)
+
+    if (.not. ladaptive .and. abs(interval/dtmax-nint(interval/dtmax))>1e-4) then
+      stop 'interval time should be an integer multiple of dtmax; modfielddump'
+    end if
+
+    if (lnetcdf) then
+
+      fname(16:18) = cexpnr
+
+      if (imicro==imicro_bulk) nvar = nvar + 2
+      allocate(ncfieldinfo(nvar,4))
+
+      call ncinfo(tncfieldinfo(1,:),'time','Time','s','time')
+      call ncinfo(ncfieldinfo( 1,:),'zfull','Height at full levels','m','z')
+      call ncinfo(ncfieldinfo( 2,:),'zhalf','Height at half levels','m','zh')
+      call ncinfo(ncfieldinfo( 3,:),'pfull','Pressure at full levels','Pa','z')
+      call ncinfo(ncfieldinfo( 4,:),'phalf','Pressure at half levels','Pa','zh')
+      call ncinfo(ncfieldinfo( 5,:),'u','West-East velocity','m/s','xhyhz')
+      call ncinfo(ncfieldinfo( 6,:),'v','South-North velocity','m/s','xhyhz')
+      call ncinfo(ncfieldinfo( 7,:),'w','Vertical velocity','m/s','xyzh')
+      call ncinfo(ncfieldinfo( 8,:),'thl','Liquid water potential temperature','K','xyz')
+      call ncinfo(ncfieldinfo( 9,:),'qt','Total water content','g/kg','xyz')
+      call ncinfo(ncfieldinfo(10,:),'ql','Liquid water content','g/kg','xyz')
+      call ncinfo(ncfieldinfo(11,:),'e', 'Subgrid scale turbulent kinetic energy','m^2/s^2','xyz')
+      
+      if (imicro==imicro_bulk) then
+        call ncinfo(ncfieldinfo(12,:),'qr','Rain water content','g/kg','xyz')
+        call ncinfo(ncfieldinfo(13,:),'Nr','Rain droplet number density','cm^-3','xyz')
+      end if
+
+    else
+
+      if (myid == 0) then
+        write(*,*) 'WARNING: lfielddump = .true. while lnetcdf = .false.'
+        write(*,*) 'WARNING: No fielddumps will be made. Setting lfielddump = .false.'
+        lfielddump = .false.
+      end if
+
+    end if ! if lnetcdf
+    
   end subroutine initfielddump
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : um,vm,wm,thlm,qtm,ql0
-    use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
-                          timee,dt_lim,cexpnr,ifoutput,rtimee
-    use modmpi,    only : myid,cmyid
-    use modstat_nc, only : lnetcdf, writestat_nc
+    use modglobal,  only : timee,rtimee,dt_lim,tres,timeleft
+    use modmpi,     only : myid
+    use modstat_nc, only : lnetcdf,ncfielddump
     implicit none
 
-    integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:),vars(:,:,:,:)
-    integer i,j,k
-    integer :: writecounter = 1
-    integer :: reclength
+    integer :: imin,ihour
+!    integer i,j,k
 
+    if(.not.(lfielddump)) return
+    
+    if (timee<tNextDump) then
+      dt_lim = min(dt_lim,tNextDump-timee)
+    else ! if (timee>=tNextDump)
+      ! It's time for a fielddump.
+      ! Make a filename first,...
+      ihour = floor(rtimee/3600)
+      imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
+      write (fname(11:12),'(i2.2)') ihour
+      write (fname(13:14),'(i2.2)') imin
+      if (myid==0) write(*,*) 'fname = ',fname
+      
+      ! ...then call the subroutine that makes the actual file and puts data in.
+      call ncfielddump(fname,nvar,ncfieldinfo,kfieldtop)
 
-    if (.not. lfielddump) return
-    if (rk3step/=3) return
-    if(timee<tnext) then
-      dt_lim = min(dt_lim,tnext-timee)
-      return
+      ! Determine the time for the next fielddump
+      tNextDump = tNextDump + iInterval
+      if (tNextDump > endhr(iNextHr) ) then
+        ! In this case, there is no dump at endhr(iNextHr)
+        iNextHr = iNextHr + 1
+        if (iNextHr <= nhours) then
+          ! Not yet reached the last time interval from namoptions yet
+          tNextDump = beghr(iNextHr)
+        else
+          ! No more times present in beghr array.
+          tNextDump = timeleft
+          lfielddump = .false.
+        end if
+      end if
+      dt_lim = min(dt_lim,tNextDump-timee)
+
     end if
-    tnext = tnext+idtav
-    dt_lim = minval((/dt_lim,tnext-timee/))
-
-    allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vars(imax,jmax,khigh-klow+1,nvar))
-
-    reclength = imax*jmax*(khigh-klow+1)*2
-
-    field = NINT(1.0E3*um,2)
-    if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbuu.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E3*vm,2)
-    if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbvv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E3*wm,2)
-    if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbww.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E5*qtm,2)
-    if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbqt.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E5*ql0,2)
-    if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbql.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-
-    field = NINT(1.0E3*(thlm-300),2)
-    if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
-    if (ldiracc) then
-      open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-      write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-    else
-      open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
-      write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-    end if
-    close (ifoutput)
-    if(lnetcdf) then
-      call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid,nvar,ncname,vars,nrec,imax,jmax,khigh-klow+1)
-    end if
-
-!     if (myid==0) then
-!       open(ifoutput, file='wbthls.'//cexpnr,form='formatted',position='append')
-!       write(ifoutput,'(F12.1 3F12.5)') timee,thls, qts,thvs
-!       close(ifoutput)
-!     end if
-    writecounter=writecounter+1
-
-    deallocate(field,vars)
-
+ 
   end subroutine fielddump
 !> Clean up when leaving the run
   subroutine exitfielddump
     use modstat_nc, only : exitstat_nc,lnetcdf
     implicit none
 
-    if(lfielddump .and. lnetcdf) call exitstat_nc(ncid)
+    if(.not.(lfielddump)) return
+
+    deallocate(ncfieldinfo)
+!    if(lfielddump .and. lnetcdf) call exitstat_nc(ncid)
   end subroutine exitfielddump
 
 end module modfielddump
