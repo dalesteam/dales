@@ -1,3 +1,5 @@
+INCLUDE(CMakeForceCompiler) #Necessary to change between MPI/parallel/profiler compilers, without having to do a make clean
+
 if (NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE RELEASE CACHE STRING
       "Choose the type of build, options are: None Debug Release."
@@ -26,6 +28,20 @@ elseif($ENV{SYST}  STREQUAL "localpc_ifort")
 endif($ENV{SYST} STREQUAL "localpc_gfortran")
 PROJECT(DALES Fortran)
 cmake_minimum_required(VERSION 2.6)
+
+# Set Profiler !JvdD from Mesohh
+set (PROFILER CACHE STRING "Enable a profiler. Options: SCALASCA or MARMOT")
+
+if(DEFINED PROFILER)
+	if(PROFILER STREQUAL "SCALASCA")
+		set(CMAKE_Fortran_COMPILER "/home/vddussen/bin/scalasca")
+	elseif(PROFILER STREQUAL "MARMOT")
+		set(PROFILE_COMPILER "marmotf90")
+	endif(PROFILER STREQUAL "SCALASCA")
+#	CMAKE_FORCE_Fortran_COMPILER(${PROFILE_COMPILER} mpfort
+endif(DEFINED PROFILER)
+
+MESSAGE(STATUS "Compiler " ${CMAKE_Fortran_COMPILER})
 
 set(VERSION_MAJOR "3")
 set(VERSION_MINOR "1")

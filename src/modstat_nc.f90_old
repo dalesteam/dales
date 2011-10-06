@@ -73,10 +73,10 @@ contains
 ! ----------------------------------------------------------------------
 !> Subroutine Open_NC: Opens a NetCDF File and identifies starting record
 !
-  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns)
+  subroutine open_nc (fname, ncid,n1, n2, n3, ns)
     use modglobal, only : author,version,rtimee
     implicit none
-    integer, intent (out) :: ncid,nrec
+    integer, intent (out) :: ncid
     integer, optional, intent (in) :: n1, n2, n3, ns
     character (len=40), intent (in) :: fname
 
@@ -182,7 +182,7 @@ contains
   subroutine define_nc(ncID, nVar, sx)
     implicit none
     integer, intent (in) :: nVar, ncID
-    character (80), intent (in) :: sx(nVar,4)
+    character (*), intent (in) :: sx(nVar,4)
 
     integer, save ::  dim_mttt(4) = 0, dim_tmtt(4) = 0, dim_ttmt(4) = 0, dim_tttt(4) = 0, &
                       dim_tt(2)= 0, dim_mt(2)= 0,dim_t0tt(3)=0,dim_m0tt(3)=0,dim_t0mt(3)=0,dim_tt0t(3)=0, &
@@ -419,208 +419,6 @@ contains
 
   end subroutine writestat_3D_short_nc
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  ! This function puts a field in an already open NetCDF file        !
-  ! JvdD                                                             !
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine ncfielddump(fName,nVar,ncFieldInfo,ktop)
-    use mpi
-    use modglobal   , only : imax,jmax,jtot,kmax,i1,j1,k1,dx,dy,zf,zh
-    use modmpi      , only : comm3d,myid
-    use modfields   , only : u0,v0,w0,thl0,qt0,ql0,e120,presf,presh
-    use modmicrodata, only : qr,Nr
-
-    implicit none
-    character(80), intent(in)                  :: fName       ! File name
-    integer, intent(in)                        :: nVar ,&     ! Number of variables to be written
-                                                  ktop        ! Highest full level included in fields
-    character(80),dimension(nVar,4),intent(in) :: ncFieldInfo ! Contains info about the variables
-
-    ! Internal variables
-    character(37)      :: string
-    integer            :: values(8)
-    integer            :: id_fielddump
-    integer            :: ierr,cmode
-    integer            :: xID,yID,zID,xhID,yhID,zhID,id_fielddump,VarID
-    integer            :: dim_xyz(3),dim_xhyhz(3),dim_xyzh(3),dim_z(1),dim_zh(1)
-    integer            :: ncFormat(nVar),mask_start(3),mask_count(3),map(3)
-    integer            :: n,i
-    integer            :: t1,t2,count_rate,count_max
-
-    ! Write some general data to the NetCDF file
-    call date_and_time(VALUES=values)
-    ! use NetCDF4, but in the classic model way and do not overwrite existing files
-    cmode = OR(NF90_NETCDF4,NF90_CLASSIC_MODEL)    ! Create NetCDF-4 using the classical model.
-                                                   ! ncl doesn't seem to be able to read this (yet)?
-    cmode = OR(cmode,NF90_NOCLOBBER)               ! Do not overwrite existing files (extra check)
-    ! Create the NetCDF file
-    call nchandle_error( nf90_create(fname, cmode, id_fielddump, &
-                                       comm = MPI_COMM_WORLD, info = MPI_INFO_NULL) )
-
-    ! Put some global attributes
-    call nchandle_error( nf90_put_att(id_fielddump, NF90_GLOBAL,'title',fName) )
-    string = 'Created on xx-xx-xxxx at xx:xx:xx.xxx'
-    write(string(12:21),'2(I2.2,"-"),I4') values(3:1:-1)   ! Print time in correct format
-    write(string(26:37),'2(I2.2,":"),I2.2,".",I3.3') values(5:8)
-    call nchandle_error( nf90_put_att(id_fielddump, NF90_GLOBAL,'history',string) )
-
-    ! Define dimensions in the fielddump file
-    call nchandle_error( nf90_def_dim(id_fielddump, 'x' , imax       , xID) )
-    call nchandle_error( nf90_def_dim(id_fielddump, 'xh', i1         , xhID))
-    call nchandle_error( nf90_def_dim(id_fielddump, 'y' , jtot       , yID) ) ! NOTE: jmax->jtot
-    call nchandle_error( nf90_def_dim(id_fielddump, 'yh', jtot+1     , yhID)) ! NOTE: jmax->jtot
-    call nchandle_error( nf90_def_dim(id_fielddump, 'z' , ktop       , zID) )
-    call nchandle_error( nf90_def_dim(id_fielddump, 'zh', ktop+1     , zhID))
-
-    ! Make variables for the dimensions and give them apropriate attributes
-    call nchandle_error( nf90_def_var(id_fielddump,'x',NF90_FLOAT,xID,VarID) )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname','West-east displacement') )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'units','m') )
-
-    call nchandle_error( nf90_def_var(id_fielddump,'xh',NF90_FLOAT,xhID,VarID) )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname','West-east displacement (0,dx,2dx etc)') )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'units','m') )
-
-    call nchandle_error( nf90_def_var(id_fielddump,'y',NF90_FLOAT,yID,VarID) )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname','South-north displacement') )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'units','m') )
-
-    call nchandle_error( nf90_def_var(id_fielddump,'yh',NF90_FLOAT,yhID,VarID) )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname','South-north displacement (0,dy,2dy etc)') )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'units','m') )
-
-    call nchandle_error( nf90_def_var(id_fielddump,'z',NF90_FLOAT,zID,VarID) )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname','Vertical displacement (full levels)') )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'units','m') )
-
-    call nchandle_error( nf90_def_var(id_fielddump,'zh',NF90_FLOAT,zhID,VarID) )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname','Vertical displacement (half levels)') )
-    call nchandle_error( nf90_put_att(id_fielddump,VarID,'units','m') )
-
-    ! Define possible combinations of dimensions.
-    dim_xyz   = (/xID ,yID ,zID /)      ! thermofields (qt,ql,thl etc)
-    dim_xyzh  = (/xID ,yID ,zhId/)      ! w velocity
-    dim_xhyhz = (/xhID,yhID,zID /)      ! u and v velocities
-    dim_z     = (/zId/)                 ! vertical profiles (height, pres)
-    dim_zh    = (/zhID/)                ! vertical profiles at half levels
-
-    ncFormat(:) = NF90_FLOAT
-    ! Define actual variables
-    do n=1,nVar
-      select case(trim(ncFieldInfo(n,4)))
-        case ('xyz')
-          call nchandle_error( nf90_def_var(id_fielddump,ncFieldInfo(n,1),ncFormat(n),dim_xyz  ,VarID) )
-        case ('xyzh')
-          call nchandle_error( nf90_def_var(id_fielddump,ncFieldInfo(n,1),ncFormat(n),dim_xyzh ,VarID) )
-        case ('xhyhz')
-          call nchandle_error( nf90_def_var(id_fielddump,ncFieldInfo(n,1),ncFormat(n),dim_xhyhz,VarID) )
-        case ('z')
-          call nchandle_error( nf90_def_var(id_fielddump,ncFieldInfo(n,1),ncFormat(n),dim_z    ,VarID) )
-        case ('zh')
-          call nchandle_error( nf90_def_var(id_fielddump,ncFieldInfo(n,1),ncFormat(n),dim_zh   ,VarID) )
-        case default
-          write(*,*) 'Error in variable: ',trim(ncFieldInfo(n,1))
-          stop 'ERROR: Bad dimensional information for restart files'
-      end select
-      call nchandle_error( nf90_put_att(id_fielddump,VarID,'longname',ncFieldInfo(n,2)) )
-      call nchandle_error( nf90_put_att(id_fielddump,VarID,'units'   ,ncFieldInfo(n,3)) )
-    end do
-
-    ! Stop definition fase
-    call nchandle_error( nf90_enddef(id_fielddump) )
-
-    ! Variables can now be put inside the defined variables in the NetCDF file
-    ! Starting with the dimensions
-    call nchandle_error( nf90_inq_varid(id_fielddump, 'x', varID)                             )
-    call nchandle_error( nf90_put_var(id_fielddump, varID, (/(dx*(i-0.5),i=1,imax)/)  ,(/1/)) )
-    call nchandle_error( nf90_inq_varid(id_fielddump, 'xh', varID)                            )
-    call nchandle_error( nf90_put_var(id_fielddump, varID, (/(dx*(i-1),i=1,i1)/)      ,(/1/)) )
-    call nchandle_error( nf90_inq_varid(id_fielddump, 'y', varID)                             )
-    call nchandle_error( nf90_put_var(id_fielddump, varID, (/(dy*(i-0.5),i=1,jtot)/)  ,(/1/)) )
-    call nchandle_error( nf90_inq_varid(id_fielddump, 'yh', varID)                            )
-    call nchandle_error( nf90_put_var(id_fielddump, varID, (/(dy*(i-1),i=1,jtot+1)/)  ,(/1/)) )
-    call nchandle_error( nf90_inq_varid(id_fielddump, 'z', varID)                             )
-    call nchandle_error( nf90_put_var(id_fielddump, varID, zf(1:ktop)                 ,(/1/)) )
-    call nchandle_error( nf90_inq_varid(id_fielddump, 'zh', varID)                            )
-    call nchandle_error( nf90_put_var(id_fielddump, varID, zh(1:ktop+1)               ,(/1/)) )
-
-    ! Make masks for the variables
-    mask_start = (/1,myid*jmax+1,1/)
-    mask_count = (/imax,jmax,ktop/)
-
-    CALL SYSTEM_CLOCK(t1, count_rate, count_max)
-
-    ! Put the variables in the file
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(1,1), varID) )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, zf(1:ktop) ) )
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(2,1), varID) )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, zh(1:ktop+1)))
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(3,1), varID) )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, presf(1:ktop)))
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(4,1), varID) )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, presh(1:ktop)))
-
-    ! Collective access causes all reads/writes to happen together which is MUCH faster!
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(5,1), varID)           )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, u0(1:i1,1:j1,1:ktop),       &
-                                          start=mask_start, count=(/i1,j1,ktop/))        )
-    if (myid==0) write(*,*) 'finished writing u'
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(6,1), varID)           )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, v0(1:i1,1:j1,1:ktop),       &
-                                          start=mask_start, count=(/i1,j1,ktop/))        )
-    if (myid==0) write(*,*) 'finished writing v'
-    ! Note that with the combination of mask_start and count in u and v, plane j1 for each
-    ! processor is written twice except for the last processor.
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(7,1), varID)           )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, w0(2:i1,2:j1,1:ktop+1),     &
-                                          start=mask_start, count=(/imax,jmax,ktop+1/))  )
-    if (myid==0) write(*,*) 'finished writing w'
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(8,1), varID)           )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, thl0(2:i1,2:j1,1:ktop),     &
-                                          start=mask_start, count=mask_count)            )
-    if (myid==0) write(*,*) 'finished writing thl'
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(9,1), varID)           )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, qt0(2:i1,2:j1,1:ktop),      &
-                                          start=mask_start, count=mask_count)            )
-    if (myid==0) write(*,*) 'finished writing qt'
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(10,1), varID)          )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, ql0(2:i1,2:j1,1:ktop),      &
-                                          start=mask_start, count=mask_count)            )
-    if (myid==0) write(*,*) 'finished writing ql'
-    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(11,1), varID)          )
-    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-    ! NOTE: e120 is the sqrt of the subgrid tke. Therefore, value is squared.
-    call nchandle_error( nf90_put_var  (id_fielddump, varID, e120(2:i1,2:j1,1:ktop)**2,  &
-                                          start=mask_start, count=mask_count)            )
-    if (myid==0) write(*,*) 'finished writing sgtke'
-    if (nVar > 11) then
-      call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(12,1), varID)          )
-      call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-      call nchandle_error( nf90_put_var  (id_fielddump, varID, qr(2:i1,2:j1,1:ktop),       &
-                                            start=mask_start, count=mask_count)            )
-      if (myid==0) write(*,*) 'finished writing qr'
-
-      call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(13,1), varID)          )
-      call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
-      call nchandle_error( nf90_put_var  (id_fielddump, varID, Nr(2:i1,2:j1,1:ktop),       &
-                                            start=mask_start, count=mask_count)            )
-      if (myid==0) write(*,*) 'finished writing Nr'
-    end if
-    CALL SYSTEM_CLOCK(t2, count_rate, count_max)
-
-    if (myid==0) write(*,*) 'ELAPSED TIME TOT = ',real(t2-t1)/real(count_rate)
-
-    ! Finally, the file must be closed
-    call nchandle_error( nf90_close(id_fielddump) )
-
-  end subroutine ncfielddump
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine ncinfo(out,in1,in2,in3,in4)
 

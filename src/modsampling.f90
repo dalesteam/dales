@@ -75,7 +75,7 @@ contains
     integer :: ierr
 
     namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
+    dtav,timeav,lsampall,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
 
     dtav=dtav_glob;timeav=timeav_glob
 

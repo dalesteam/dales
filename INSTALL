@@ -45,3 +45,22 @@ Dependencies of DALES are
 3) CMake (alternatively, the old makefile icw makedepf90 still works)
 4) Doxygen, DOT and LaTeX for building the documentation
 
+NOTES ON NETCDF LIBRARIES (JvdD)
+================================
+When trying to compile the code using netcdf4 in combination with hdf5 and options for parallel writing, the respective modules with the suffix -mp must be loaded.
+This gives problems when compiling however. Changes have to be made to the CMakeLists.txt files in both the main Git directory and in the /src directory.
+
+If the settings are not correct in these files (e.g. the files do not link to the appropriate netcdf locations) a warning message is shown when using cmake.
+(NOTE that this must be done in a completely empty directory, otherwise nothing seems to change.) Compiling will not be possible then.
+
+At this moment, the new (default) modules don't work. There is a problem with the link for NetCDF-mp/4.1.2 (the lib directory does not exist).
+
+NOTES ON COMPILING WITH SCALASCA (JvdD)
+=======================================
+It is not trivial to use scalasca together with cmake. The code has to be compiled, not only with mpfort ..., but with 'scalasca -instrument' in front of it.
+To achieve this is quite hard.
+Erwin used a workaround, making a bash script that acts like an alias (in /home/vddussen/bin/scalasca). This script is called and the compilation works. An extra if statement 
+is added in the CMakeLists.txt file. One method to set the PROFILER variable to SCALASCA is to run:
+ccmake -i -DCMAKE_BUILD_TYPE="DEBUG" ../Git/
+which opens a separate program in which PROFILER can be set.
+

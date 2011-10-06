@@ -114,7 +114,7 @@ contains
     if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
       z0mav = z0
       z0hav = z0
-      write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
+      if (myid==0) write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
     end if
 
     if(isurf == 1) then
@@ -155,7 +155,7 @@ contains
 
     ! Check if albedoav is set. Only necessary if full radiation or the interactive surface scheme is used,
     ! and if the albedo is not parameterized.
-    if(isurf == 1 .or. iradiation == 1 .or. iradiation == 4 .and. .not. lalbpar) then
+    if((isurf == 1 .or. iradiation == 1 .or. iradiation == 4) .and. (.not. lalbpar)) then
       if(albedoav == -1) then
         stop "NAMSURFACE: albedoav is not set"
       end if

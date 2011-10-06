@@ -97,7 +97,7 @@ contains
 
 !< Calculation of the albedo at sea
 !< From the RRTMG scheme interface by P. Blossey.
-  subroutine par_albedo(coszrs,albdir,albdif)
+  subroutine par_albedo(coszrs,albdir)!,albdif)
   !-----------------------------------------------------------------------
   ! Computes surface albedos over ocean 
   ! and the surface (added by Marat Khairoutdinov, remove by Johan)
@@ -115,7 +115,7 @@ contains
 
    real, intent(in)            :: coszrs     ! Cosine of the solar zenith angle
    real, intent(out)           :: albdir     ! Srf alb for direct rad 
-   real, intent(out), optional :: albdif     ! Srf alb for diffuse rad
+!   real, intent(out), optional :: albdif     ! Srf alb for diffuse rad
 
    real :: eps = 1e-5
 
@@ -125,7 +125,7 @@ contains
      albdir = ( .026 / (coszrs**1.7 + .065)) + &
                (.15*(coszrs - 0.10) * (coszrs - 0.50) * (coszrs - 1.00) )
    endif
-   albdif = 0.06
+!   albdif = 0.06
 
   end subroutine par_albedo
 

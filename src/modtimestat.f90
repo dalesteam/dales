@@ -54,7 +54,7 @@ real                 :: blh_thres = -1                        ! Threshold used i
 integer              :: blh_nsamp = 4        , &              ! Number of samples for fancy BL height calculation
                         ncid                 , &              ! ID of NetCDF file
                         nRec                                  ! Record number
-integer,parameter    :: nVarMax=50                            ! Maximum number of variables
+integer,parameter    :: nVarMax=50                            ! Maximum number of variables (arbitrary, increase if necessary)
 real                 :: vars(nVarMax)                         ! Holds the variables to be written
 ! Initialize output variables
 real                 :: cc                   , &              ! Cloud cover [-]
@@ -580,7 +580,7 @@ contains
       fname(7:9) = cexpnr
       if (myid==0) then
         call open_nc(fname, ncid, nRec)
-        call define_nc(ncid, nVar, ncName)
+        call define_nc(ncid, nVar, ncName(1:nVar,:))
       end if
 
       isInitNCOut = .true.
@@ -588,7 +588,7 @@ contains
     end if
     
     if (myid == 0) then
-      call writestat_nc(ncid,nVar,ncName,vars, nRec,.true.)
+      call writestat_nc(ncid,nVar,ncName,vars(1:nVar), nRec,.true.)
     end if
 
   end subroutine timestatNC
