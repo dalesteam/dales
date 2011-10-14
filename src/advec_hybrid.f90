@@ -243,7 +243,7 @@ function smoothness(pin,dir)
         jp2=j+2;jp1=j+1;jm1=j-1;jm2=j-2;jm3=j-3
         do i=2,i1+1
           ! Calculate the smoothness for each stencil in an upwind configuration
-          if (u0(i,j,k).ge.0.) then
+          if (v0(i,j,k).ge.0.) then
             gam(:) = (pin(i,jm1:jp1,k)-pin(i,jm2:j,k))**2 + &
                      (pin(i,jm2:j,k)-pin(i,jm3:jm1,k))**2
           else

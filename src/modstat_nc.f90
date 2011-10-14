@@ -450,13 +450,14 @@ contains
     ! Write some general data to the NetCDF file
     call date_and_time(VALUES=values)
     ! use NetCDF4, but in the classic model way and do not overwrite existing files
-    cmode = OR(NF90_NETCDF4,NF90_CLASSIC_MODEL)    ! Create NetCDF-4 using the classical model.
-                                                   ! ncl doesn't seem to be able to read this (yet)?
-    cmode = OR(cmode,NF90_NOCLOBBER)               ! Do not overwrite existing files (extra check)
+    cmode = IOR(NF90_NETCDF4,NF90_CLASSIC_MODEL)    ! Create NetCDF-4 using the classical model.
+                                                    ! ncl doesn't seem to be able to read this (yet)?
+    cmode = IOR(cmode,NF90_NOCLOBBER)               ! Do not overwrite existing files (extra check)
+    cmode = IOR(cmode,NF90_MPIIO)                   ! According to examples, this mode is necessary for parallel I/O
+                                                    ! at least for versions > 4.1.2
     ! Create the NetCDF file
     call nchandle_error( nf90_create(fname, cmode, id_fielddump, &
                                        comm = MPI_COMM_WORLD, info = MPI_INFO_NULL) )
-
     ! Put some global attributes
     call nchandle_error( nf90_put_att(id_fielddump, NF90_GLOBAL,'title',fName) )
     string = 'Created on xx-xx-xxxx at xx:xx:xx.xxx'
@@ -465,12 +466,12 @@ contains
     call nchandle_error( nf90_put_att(id_fielddump, NF90_GLOBAL,'history',string) )
 
     ! Define dimensions in the fielddump file
-    call nchandle_error( nf90_def_dim(id_fielddump, 'x' , imax       , xID) )
-    call nchandle_error( nf90_def_dim(id_fielddump, 'xh', i1         , xhID))
-    call nchandle_error( nf90_def_dim(id_fielddump, 'y' , jtot       , yID) ) ! NOTE: jmax->jtot
-    call nchandle_error( nf90_def_dim(id_fielddump, 'yh', jtot+1     , yhID)) ! NOTE: jmax->jtot
-    call nchandle_error( nf90_def_dim(id_fielddump, 'z' , ktop       , zID) )
-    call nchandle_error( nf90_def_dim(id_fielddump, 'zh', ktop+1     , zhID))
+    call nchandle_error( nf90_def_dim(id_fielddump, 'x' , imax  , xID) )
+    call nchandle_error( nf90_def_dim(id_fielddump, 'xh', i1    , xhID))
+    call nchandle_error( nf90_def_dim(id_fielddump, 'y' , jtot  , yID) ) ! NOTE: jmax->jtot
+    call nchandle_error( nf90_def_dim(id_fielddump, 'yh', jtot+1, yhID)) ! NOTE: jmax->jtot
+    call nchandle_error( nf90_def_dim(id_fielddump, 'z' , ktop  , zID) )
+    call nchandle_error( nf90_def_dim(id_fielddump, 'zh', ktop+1, zhID))
 
     ! Make variables for the dimensions and give them apropriate attributes
     call nchandle_error( nf90_def_var(id_fielddump,'x',NF90_FLOAT,xID,VarID) )
@@ -635,12 +636,14 @@ contains
 
   subroutine nchandle_error(status)
     use netcdf
+    use modmpi, only : myid
     implicit none
 
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
       print *, trim(nf90_strerror(status))
+      print *, myid
       stop "Stopped"
     end if
 

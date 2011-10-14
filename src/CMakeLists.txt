@@ -1,5 +1,5 @@
 set(target_name dales3)
 FILE(GLOB sourcefiles "*.f90")
 add_executable(${target_name} ${sourcefiles})
-target_link_libraries(${target_name} ${NETCDF_LIBS} ${HDF5_LIBS})
+target_link_libraries(${target_name} ${NETCDF_LIBS})# ${HDF5_LIBS})
 install(TARGETS dales3 DESTINATION ${CMAKE_BINARY_DIR})

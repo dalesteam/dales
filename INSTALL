@@ -62,5 +62,13 @@ To achieve this is quite hard.
 Erwin used a workaround, making a bash script that acts like an alias (in /home/vddussen/bin/scalasca). This script is called and the compilation works. An extra if statement 
 is added in the CMakeLists.txt file. One method to set the PROFILER variable to SCALASCA is to run:
 ccmake -i -DCMAKE_BUILD_TYPE="DEBUG" ../Git/
-which opens a separate program in which PROFILER can be set.
+which opens a separate program in which PROFILER can be set (follow instructions in the bottom left part of the window, to start inserting, press [enter]).
+It is also possible to directly put in the value for PROFILER:
+
+ccmake -i -D PROFILER=SCALASCE -DCMAKE_BUILD_TYPE="DEBUG" ../Git/
+
+The executable then has to be called using 'scalasca -analyze' in front of it (in the job submit script).
+
+Finally, when the model has finished, the epik.... directory can be analyzed using:
+scalasca -examine epik_...
 

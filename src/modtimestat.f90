@@ -9,7 +9,7 @@
 !!  \author Stephan de Roode,TU Delft
 !!  \author Chiel van Heerwaarden, Wageningen U.R.
 !!  \author Thijs Heus,MPI-M
-!!  \reorder Johan van der Dussen TU Delft
+!!  \rewritten by Johan van der Dussen TU Delft
 !!  \par Revision list
 !  This file is part of DALES.
 !
@@ -56,6 +56,7 @@ integer              :: blh_nsamp = 4        , &              ! Number of sample
                         nRec                                  ! Record number
 integer,parameter    :: nVarMax=50                            ! Maximum number of variables (arbitrary, increase if necessary)
 real                 :: vars(nVarMax)                         ! Holds the variables to be written
+real,parameter       :: missVal=-999.                         ! Missing value (useful in netcdf files)
 ! Initialize output variables
 real                 :: cc                   , &              ! Cloud cover [-]
                         zbaseav              , &              ! Average cloud base height [m]
@@ -209,7 +210,7 @@ contains
 
     ! Set all CPU local values to zero or another appropriate value
     ccl = 0; qlintavl = 0; qlintmaxl = 0.; qlint2l = 0.; qrintavl = 0.; zbaseavl = 0.
-    zbaseminl = 0.; ztopavl = 0.; ztopmaxl = 0.; wmaxl = 0.; qlmaxl = 0.; tkeintl = 0.
+    zbaseminl = zf(kmax); ztopavl = 0.; ztopmaxl = 0.; wmaxl = 0.; qlmaxl = 0.; tkeintl = 0.
 
     ! Start do loop over the horizontal domain i,j:
     do j=2,j1
@@ -302,10 +303,10 @@ contains
       zbaseav = zbaseav/cc
       ztopav  = ztopav /cc
     else
-      zbaseav   = -999.
-      ztopav    = -999.
-      zbasemin  = -999.
-      ztopmax   = -999.
+      zbaseav   = missVal
+      ztopav    = missVal
+      zbasemin  = missVal
+      ztopmax   = missVal
     end if
     
     cc      = cc      / rslabs
@@ -332,18 +333,18 @@ contains
 
     ! Calculation of some variables specific for land-surface scheme
     if (isurf == 1) then
-      call horAverage(Qnet      ,Qnetav    )
-      call horAverage(H         ,Hav       )
-      call horAverage(LE        ,LEav      )
-      call horAverage(G0        ,G0av      )
-      call horAverage(tendskin  ,tendskinav)
-      call horAverage(rs        ,rsav      )
-      call horAverage(ra        ,raav      )
-      call horAverage(tskin     ,tskinav   )
-      call horAverage(cliq      ,cliqav    )
-      call horAverage(wl        ,wlav      )
-      call horAverage(rssoil    ,rssoilav  )
-      call horAverage(rsveg     ,rsvegav   )
+      call horAverage(Qnet     ,Qnetav    )
+      call horAverage(H        ,Hav       )
+      call horAverage(LE       ,LEav      )
+      call horAverage(G0       ,G0av      )
+      call horAverage(tendskin ,tendskinav)
+      call horAverage(rs       ,rsav      )
+      call horAverage(ra       ,raav      )
+      call horAverage(tskin    ,tskinav   )
+      call horAverage(cliq     ,cliqav    )
+      call horAverage(wl       ,wlav      )
+      call horAverage(rssoil   ,rssoilav  )
+      call horAverage(rsveg    ,rsvegav   )
     end if
    
     ! Make sure the variables are in the same order as in ncName!
@@ -440,20 +441,22 @@ contains
     != Calculate the variables that you want to add here, or somewhere in 'calcTimestat' if that is more convenient
     call horAverage( albedo, alb_sfc )
     
+    ! Albedo at the top of the domain
     call horAverage(  swu(1:i1,1:j1,kmax), swuav  )
     call horAverage( -swd(1:i1,1:j1,kmax), swdav  )
     if (swdav > 0.) then
       alb_tod = swuav / swdav
     else
-      alb_tod = -999.
+      alb_tod = missVal
     end if
     
+    ! Albedo at the top of the atmosphere
     call horAverage(  swuToA(1:i1,1:j1), swuav  )
     call horAverage( -swdToA(1:i1,1:j1), swdav  )
     if (swdav > 0.) then
       alb_toa = swuav / swdav
     else
-      alb_toa = -999.
+      alb_toa = missVal
     end if
 
     ! Some microphysics variables
@@ -483,14 +486,14 @@ contains
 
       ! Failsafe divide by zero Nc; -1. is converted to missing values
       if (cld_boxes == 0) then
-        Nc_av  = -999.
+        Nc_av  = missVal
       else
         Nc_av  = Nc_av / cld_boxes
       end if
 
       ! Failsafe divide by zero Nr; -1. is converted to missing values
       if (rain_boxes == 0) then
-        Nr_av  = -999.
+        Nr_av  = missVal
       else
         Nr_av  = Nr_av / rain_boxes
       end if

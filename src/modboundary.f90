@@ -267,13 +267,13 @@ contains
 ! **  Top conditions :
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 JvdD
-  dtheta = sum(thl0av(kmax-kav:kmax-1)-thl0av(kmax-kav+1:kmax))/ &
-             (sum(dzh(kmax-kav:kmax-1))*kav)
-  dqt    = sum(qt0av (kmax-kav:kmax-1)-qt0av (kmax-kav+1:kmax))/ &
-             (sum(dzh(kmax-kav:kmax-1))*kav)
+  dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
+             dzh(kmax-kav+1:kmax))/kav
+  dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
+             dzh(kmax-kav+1:kmax))/kav
   do n=1,nsv
-    dsv(n) = sum(sv0av(kmax-kav:kmax-1,n)-sv0av(kmax-kav+1:kmax,n))/ &
-               (sum(dzh(kmax-kav:kmax-1))*kav)
+    dsv(n) = sum(sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n)/ &
+               dzh(kmax-kav:kmax-1))/kav
   enddo
 
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)

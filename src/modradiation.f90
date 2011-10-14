@@ -234,7 +234,9 @@ subroutine radpar
 
 
     swd = 0.0
-    mu=zenith(xtime*3600 + rtimee,xday,xlat,xlon)
+    ! Set mu constant for the case of Jasper
+!    mu=zenith(xtime*3600 + rtimee,xday,xlat,xlon)
+    mu=1.
     do j=2,j1
     do i=2,i1
 

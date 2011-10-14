@@ -222,7 +222,7 @@ contains
         courant = 1.4
       case(iadv_52)
         courant = 1.4
-      case(iadv_weno)
+      case(iadv_hybrid)
         courant = 1.4
       case default
         courant = 1.4

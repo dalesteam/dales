@@ -90,81 +90,80 @@ else(NETCDF_FORTRAN_LIB)
 endif(NETCDF_FORTRAN_LIB)
 
 ### Find HDF5 directory
-find_path(HDF5_INCLUDE_DIR hdf5.mod HDF5.mod
-  DOC "HDF5 include directory (must contain hdf5.mod)"
-  PATHS
-  /usr/include
-  $ENV{HOME}/include
-  $ENV{SARA_HDF5_INCLUDE}
-PATH_SUFFIXES hdf5)
+#find_path(HDF5_INCLUDE_DIR hdf5.mod HDF5.mod
+#  DOC "HDF5 include directory (must contain hdf5.mod)"
+#  PATHS
+#  /usr/include
+#  $ENV{HOME}/include
+#  $ENV{SARA_HDF5_INCLUDE}
+#PATH_SUFFIXES hdf5)
 
-find_library(HDF5_C_LIB hdf5_hl
-  DOC "HDF5 C library"
-  PATHS
-  /usr/lib
-  /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
-  $ENV{SARA_HDF5_LIB}
-)
+#find_library(HDF5_C_LIB hdf5_hl
+#  DOC "HDF5 C library"
+#  PATHS
+#  /usr/lib
+#  /usr/lib64
+#  $ENV{HOME}/lib
+#  $ENV{HOME}/lib64
+#  $ENV{SARA_HDF5_LIB}
+#)
 
-find_library(HDF5_FORTRAN_LIB hdf5
-  DOC "HDF5 Fortran library"
-  PATHS
-  /usr/lib
-  /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
-  $ENV{SARA_HDF5_LIB}
-)
-find_library(HDF5_Z_LIB z
-  DOC "HDF5 z library"
-  PATHS
-  /usr/lib
-  /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
-  $ENV{SARA_HDF5_LIB}
-)
-find_library(HDF5_GPFS_LIB gpfs
-  DOC "HDF5 gpfs library"
-  PATHS
-  /usr/lib
-  /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
-  $ENV{SARA_HDF5_LIB}
-)
+#find_library(HDF5_FORTRAN_LIB hdf5
+#  DOC "HDF5 Fortran library"
+#  PATHS
+#  /usr/lib
+#  /usr/lib64
+#  $ENV{HOME}/lib
+#  $ENV{HOME}/lib64
+#  $ENV{SARA_HDF5_LIB}
+#)
+#find_library(HDF5_Z_LIB z
+#  DOC "HDF5 z library"
+#  PATHS
+#  /usr/lib
+#  /usr/lib64
+#  $ENV{HOME}/lib
+#  $ENV{HOME}/lib64
+#  $ENV{SARA_HDF5_LIB}
+#)
+#find_library(HDF5_GPFS_LIB gpfs
+#  DOC "HDF5 gpfs library"
+#  PATHS
+#  /usr/lib
+#  /usr/lib64
+#  $ENV{HOME}/lib
+#  $ENV{HOME}/lib64
+#  $ENV{SARA_HDF5_LIB}
+#)
 ### Includes
-if(HDF5_INCLUDE_DIR)
-else(HDF5_INCLUDE_DIR)
-  MESSAGE(STATUS "WARNING: No HDF5 bindings are found.")
-endif(HDF5_INCLUDE_DIR)
-
-if(HDF5_C_LIB)
-  set(HDF5_LIBS ${HDF5_C_LIB})
-else(HDF5_C_LIB)
-  MESSAGE(STATUS "WARNING: No C HDF5 bindings are found.")
-endif(HDF5_C_LIB)
-
-if(HDF5_FORTRAN_LIB)
-  set(HDF5_LIBS ${HDF5_LIBS} ${HDF5_FORTRAN_LIB})
-else(HDF5_FORTRAN_LIB)
-  MESSAGE(STATUS "WARNING: No Fortran HDF5 bindings are found.")
-endif(HDF5_FORTRAN_LIB)
-
-if(HDF5_Z_LIB)
-  set(HDF5_LIBS ${HDF5_LIBS} ${HDF5_Z_LIB})
-else(HDF5_Z_LIB)
-  MESSAGE(STATUS "WARNING: No z HDF5 bindings are found.")
-endif(HDF5_Z_LIB)
-
-if(HDF5_GPFS_LIB)
-  set(HDF5_LIBS ${HDF5_LIBS} ${HDF5_GPFS_LIB})
-else(HDF5_GPFS_LIB)
-  MESSAGE(STATUS "WARNING: No Gpfs HDF5 bindings are found.")
-endif(HDF5_GPFS_LIB)
-
+#if(HDF5_INCLUDE_DIR)
+#else(HDF5_INCLUDE_DIR)
+#  MESSAGE(STATUS "WARNING: No HDF5 bindings are found.")
+#endif(HDF5_INCLUDE_DIR)
+#
+#if(HDF5_C_LIB)
+#  set(HDF5_LIBS ${HDF5_C_LIB})
+#else(HDF5_C_LIB)
+#  MESSAGE(STATUS "WARNING: No C HDF5 bindings are found.")
+#endif(HDF5_C_LIB)
+#
+#if(HDF5_FORTRAN_LIB)
+#  set(HDF5_LIBS ${HDF5_LIBS} ${HDF5_FORTRAN_LIB})
+#else(HDF5_FORTRAN_LIB)
+#  MESSAGE(STATUS "WARNING: No Fortran HDF5 bindings are found.")
+#endif(HDF5_FORTRAN_LIB)
+#
+#if(HDF5_Z_LIB)
+#  set(HDF5_LIBS ${HDF5_LIBS} ${HDF5_Z_LIB})
+#else(HDF5_Z_LIB)
+#  MESSAGE(STATUS "WARNING: No z HDF5 bindings are found.")
+#endif(HDF5_Z_LIB)
+#
+#if(HDF5_GPFS_LIB)
+#  set(HDF5_LIBS ${HDF5_LIBS} ${HDF5_GPFS_LIB})
+#else(HDF5_GPFS_LIB)
+#  MESSAGE(STATUS "WARNING: No Gpfs HDF5 bindings are found.")
+#endif(HDF5_GPFS_LIB)
 
 ###documentation
 INCLUDE(FindDoxygen)
