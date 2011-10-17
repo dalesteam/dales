@@ -196,7 +196,11 @@ contains
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,ug,vg,thl0av,qt0av,u0av,v0av
   implicit none
 
-  integer k
+  real :: u_spng, v_spng
+  integer :: k
+  integer :: kav
+
+  kav = 5
 
   select case(igrw_damp)
   case(0) !do nothing
@@ -223,9 +227,18 @@ contains
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
   case(3)
+    ! 'Houtje-touwtje' method to keep u0 and v0 relatively constant during the 
+    ! ASTEX transition, in which a spurious bump occurs in the lower part of the 
+    ! sponge layer. I am not sure where that bump comes from.
+    ! It is also present when no sponging for u,v and w is used. !JvdD
+    u_spng = sum(u0av(ksp-kav:kmax))/(kmax-ksp+kav+1)
+    v_spng = sum(v0av(ksp-kav:kmax))/(kmax-ksp+kav+1)
     do k=ksp,kmax
-      up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
-      vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
+!      up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
+!      vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
+      ! Damp towards a mean value over many levels. JvdD
+      up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u_spng-cu))*tsc(k)
+      vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v_spng-cv))*tsc(k)
       wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)

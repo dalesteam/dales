@@ -95,6 +95,10 @@ contains
     
     if (iradiation == 0) return
     itimerad = floor(timerad/tres)
+
+    WiP
+    TEST DEZE TNEXT: STRALING WERKT NIET BIJ EEN RESTART 
+
     tnext = itimerad+btime
     dt_lim = min(dt_lim,tnext)
 
