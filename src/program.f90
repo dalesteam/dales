@@ -89,7 +89,7 @@ program DALES      !Version 3.2.0
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
   use modbudget,       only : initbudget, budgetstat, exitbudget
-  !use modheterostats,  only : initheterostats, heterostats, exitheterostats
+  use modheterostats,  only : initheterostats, heterostats, exitheterostats
 
   ! modules below are disabled by default to improve compilation time
   !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
@@ -133,7 +133,7 @@ program DALES      !Version 3.2.0
   call initbudget
   !call initstressbudget
   call initchem
-  !call initheterostats
+  call initheterostats
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -221,7 +221,7 @@ program DALES      !Version 3.2.0
     call budgetstat
     !call stressbudgetstat
 
-    !call heterostats
+    call heterostats
     call writerestartfiles
   end do
 
@@ -246,7 +246,7 @@ program DALES      !Version 3.2.0
   call exitcrosssection
   call exitlsmcrosssection
   call exitfielddump
-  !call exitheterostats
+  call exitheterostats
   call exitmodules
 
 end program DALES
