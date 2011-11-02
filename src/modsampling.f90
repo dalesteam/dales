@@ -43,11 +43,12 @@ save
 !NetCDF variables
   integer,parameter :: nvar = 29
   character(80),allocatable,dimension(:,:,:) :: ncname
+  character(80),dimension(1,4) :: tncname
   real :: dtav, timeav
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   integer :: nsamples,isamp,isamptot
   character(20),dimension(10) :: samplname,longsamplname
-  logical :: lsampall = .false. !< switch for sampling (on/off)
+  logical :: lsampall = .true. !< switch for sampling (on/off)
   logical :: lsampcl  = .false. !< switch for conditional sampling cloud (on/off)
   logical :: lsampco  = .false. !< switch for conditional sampling core (on/off)
   logical :: lsampup  = .false. !< switch for conditional sampling updraft (on/off)
@@ -59,17 +60,18 @@ save
                                        duwdxhavl,dtaudxhavl,dtaudzhavl,thvhavl, &
                                        fcorhavl,nrsamphl
   real,allocatable, dimension(:,:) :: wh_el,sigh_el
-
+  character(80) :: fname = 'sampling.xxx.nc'
+  integer :: ncid,nrec = 0
 
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
-    use modglobal, only : ladaptive, dtmax,rk3step,k1,ifnamopt,fname_options,   &
+    use modglobal, only : ladaptive, dtmax,rk3step,k1,ifnamopt,fname_options,kmax,   &
                            dtav_glob,timeav_glob,dt_lim,btime,tres,cexpnr,ifoutput
-    use modstat_nc, only : lnetcdf,define_nc,ncinfo
-    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
+    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
+    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
     integer :: ierr
@@ -133,7 +135,7 @@ contains
       longsamplname(isamptot) = 'Cloud Updraft '
     end if
 
-    if(isamptot == 0) return
+    if(isamptot < 2) return
      idtav = dtav/tres
     itimeav = timeav/tres
 
@@ -211,6 +213,11 @@ contains
       nsamples = itimeav/idtav
      if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
+        call ncinfo(tncname(1,:),'time','Time','s','time')
+        fname(10:12) = cexpnr
+        call open_nc(fname,ncid,nrec,n3=kmax)
+        call define_nc(ncid,1,tncname)
+        call writestat_dims_nc(ncid)
         do isamp=1,isamptot
           call ncinfo(ncname( 1,:,isamp),'nrsamp'//samplname(isamp),trim(longsamplname(isamp))//' '//'number of points','-','tt')
           call ncinfo(ncname( 2,:,isamp),'w'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean vertical velocity','m/s','mt')
@@ -241,7 +248,7 @@ contains
           call ncinfo(ncname(27,:,isamp),'whend'//samplname(isamp),trim(longsamplname(isamp))//' '//'ws at end of sampling period','m/s','mt')
           call ncinfo(ncname(28,:,isamp),'sighend'//samplname(isamp),trim(longsamplname(isamp))//' '//'sigma at end of period','-','mt')
           call ncinfo(ncname(29,:,isamp),'qrsamp'//samplname(isamp),trim(longsamplname(isamp))//' '//'sampled qr','kg/kg','tt')
-          call define_nc( ncid_prof, NVar, ncname(:,:,isamp))
+          call define_nc( ncid, NVar, ncname(:,:,isamp))
         end do
      end if
 
@@ -654,7 +661,6 @@ contains
     use modfields, only : presf,presh
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
-    use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
     use modsurfdata, only: thvs
 
     implicit none
@@ -761,6 +767,9 @@ contains
 
 
     if (myid==0) then
+      if (lnetcdf) then
+      call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
+      endif
       do isamp = 1,isamptot
 
          wfmn     = 0.
@@ -953,7 +962,7 @@ contains
         else
           vars(:,2:29)=nc_fillvalue
         end if
-        call writestat_nc(ncid_prof,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec_prof,kmax)
+        call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec,kmax)
       end if
 
       end do

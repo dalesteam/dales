@@ -34,6 +34,7 @@ module modsamptend
 !NetCDF variables
   integer, parameter :: nvar = 66
   character(80),allocatable,dimension(:,:,:) :: ncname
+  character(80),dimension(1,4) :: tncname
   real    :: dtav, timeav
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   integer,public,parameter :: tend_tot=1,tend_start=1,tend_adv=2,tend_subg=3,tend_force=4,&
@@ -45,7 +46,8 @@ module modsamptend
   logical :: lsampco  = .false. !< switch for conditional sampling core (on/off)
   logical :: lsampup  = .false. !< switch for conditional sampling updraft (on/off)
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
-  logical :: lsampall = .false. !< switch for sampling all data (on/off)
+  logical :: lsampcldup = .false. !<switch for condtional sampling cloudy updraft (on/off)
+  logical :: lsampall = .true. !< switch for sampling all data (on/off)
   logical :: ldosamptendwrite = .false. !< write tendencies after leibniz terms have been detemined
   logical :: ldosamptendleib = .false. !< determine leibniz terms
   real :: lastrk3coef
@@ -56,20 +58,22 @@ module modsamptend
   real, allocatable :: ust(:,:),vst(:,:),wst(:,:),thlst(:,:),qtst(:,:),qrst(:,:),nrst(:,:)
   logical, allocatable :: tendmask(:,:,:,:)
   integer, allocatable :: nrsamptot(:,:),nrsamp(:,:),nrsamplast(:,:),nrsampnew(:,:)
+  character(80) :: fname = 'samptend.xxx.nc'
+  integer :: ncid,nrec = 0
 
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initsamptend
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid,cmyid
-    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,ladaptive, dt_lim,btime,kmax,tres,ifoutput,cexpnr,j1,jh,i1,ih
+    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,ladaptive, dt_lim,btime,kmax,tres,ifoutput,cexpnr,j1,jh,i1,ih,kmax
     use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc,lnetcdf
-    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
+    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
 
     implicit none
     integer :: ierr,i
 
     namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampall
+    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -90,6 +94,7 @@ subroutine initsamptend
     call MPI_BCAST(lsampup,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampall,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampbuup,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lsampcldup,1,MPI_LOGICAL,0,comm3d,mpierr)
 
     isamptot = 0
     if (lsampall) then
@@ -104,7 +109,7 @@ subroutine initsamptend
     end if
     if (lsampbuup) then
       isamptot = isamptot + 1
-      samplname(isamptot) = 'buupd'
+      samplname(isamptot) = 'buup'
       longsamplname(isamptot) = 'Buoyant Updraft '
     end if
     if (lsampcl) then
@@ -117,8 +122,13 @@ subroutine initsamptend
       samplname(isamptot) = 'cldcr'
       longsamplname(isamptot) = 'Cloud Core '
     end if
+    if (lsampcldup) then
+      isamptot = isamptot + 1
+      samplname(isamptot) = 'cldup'
+      longsamplname(isamptot) = 'Cloud Updraft '
+    end if
 
-    if(isamptot == 0) return
+    if(isamptot < 2) return
     if(.not.(lnetcdf)) return !only in netcdf at the moment
 
     idtav = dtav/tres
@@ -176,83 +186,89 @@ subroutine initsamptend
     nrsamplast=0
     nrsampnew=0
 
-    idtav = dtav/tres
-    itimeav = timeav/tres
-    tnext      = idtav   +btime
-    tnextwrite = itimeav +btime
-    nsamples = itimeav/idtav
-
-    if (myid==0) then
+    if (lnetcdf) then
+      idtav = dtav/tres
+      itimeav = timeav/tres
+      tnext      = idtav   +btime
+      tnextwrite = itimeav +btime
+      nsamples = itimeav/idtav
+      if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
-        do isamp=1,isamptot
-        call ncinfo(ncname( 1,:,isamp),'utendadv','U advective tendency','m/s^2','tt')
-        call ncinfo(ncname( 2,:,isamp),'utenddif','U diffusive tendency','m/s^2','tt')
-        call ncinfo(ncname( 3,:,isamp),'utendfor','U tendency due to other forces','m/s^2','tt')
-        call ncinfo(ncname( 4,:,isamp),'utendcor','U coriolis tendency','m/s^2','tt')
-        call ncinfo(ncname( 5,:,isamp),'utendls','U large scale tendency','m/s^2','tt')
-        call ncinfo(ncname( 6,:,isamp),'utendtop','U top boundary tendency','m/s^2','tt')
-        call ncinfo(ncname( 7,:,isamp),'utendpois','U pressure gradient tendency','m/s^2','tt')
-        call ncinfo(ncname( 8,:,isamp),'utendaddon','U in addons tendency','m/s^2','tt')
-        call ncinfo(ncname( 9,:,isamp),'utendtot','U total tendency','m/s^2','tt')
-        call ncinfo(ncname(10,:,isamp),'utendleib','U total tendency with leibniz terms','m/s^2','tt')
-        call ncinfo(ncname(11,:,isamp),'vtendadv','V advective tendency','m/s^2','tt')
-        call ncinfo(ncname(12,:,isamp),'vtenddif','V diffusive tendency','m/s^2','tt')
-        call ncinfo(ncname(13,:,isamp),'vtendfor','V tendency due to other forces','m/s^2','tt')
-        call ncinfo(ncname(14,:,isamp),'vtendcor','V coriolis tendency','m/s^2','tt')
-        call ncinfo(ncname(15,:,isamp),'vtendls','V large scale tendency','m/s^2','tt')
-        call ncinfo(ncname(16,:,isamp),'vtendtop','V top boundary tendency','m/s^2','tt')
-        call ncinfo(ncname(17,:,isamp),'vtendpois','V pressure gradient tendency','m/s^2','tt')
-        call ncinfo(ncname(18,:,isamp),'vtendaddon','V in addons tendency','m/s^2','tt')
-        call ncinfo(ncname(19,:,isamp),'vtendtot','V total tendency','m/s^2','tt')
-        call ncinfo(ncname(20,:,isamp),'vtendleib','V total tendency with leibniz terms','m/s^2','tt')
-        call ncinfo(ncname(21,:,isamp),'wtendadv','W advective tendency','m/s^2','mt')
-        call ncinfo(ncname(22,:,isamp),'wtenddif','W diffusive tendency','m/s^2','mt')
-        call ncinfo(ncname(23,:,isamp),'wtendfor','W tendency due to other forces','m/s^2','mt')
-        call ncinfo(ncname(24,:,isamp),'wtendcor','W coriolis tendency','m/s^2','mt')
-        call ncinfo(ncname(25,:,isamp),'wtendls','W large scale tendency','m/s^2','mt')
-        call ncinfo(ncname(26,:,isamp),'wtendtop','W top boundary tendency','m/s^2','mt')
-        call ncinfo(ncname(27,:,isamp),'wtendpois','W pressure gradient tendency','m/s^2','mt')
-        call ncinfo(ncname(28,:,isamp),'wtendaddon','W in addons tendency','m/s^2','mt')
-        call ncinfo(ncname(29,:,isamp),'wtendtot','W total tendency','m/s^2','mt')
-        call ncinfo(ncname(30,:,isamp),'wtendleib','W total tendency with leibniz terms','m/s^2','tt')
-        call ncinfo(ncname(31,:,isamp),'tltendadv','theta_l advective tendency','K/s','tt')
-        call ncinfo(ncname(32,:,isamp),'tltenddif','theta_l diffusive tendency','K/s','tt')
-        call ncinfo(ncname(33,:,isamp),'tltendrad','theta_l radiative tendency','K/s','tt')
-        call ncinfo(ncname(34,:,isamp),'tltendmicro','theta_l microphysical tendency','K/s','tt')
-        call ncinfo(ncname(35,:,isamp),'tltendls','theta_l large scale tendency','K/s','tt')
-        call ncinfo(ncname(36,:,isamp),'tltendtop','theta_l  top boundary tendency','K/s','tt')
-        call ncinfo(ncname(37,:,isamp),'tltendaddon','theta_l in addons tendency','K/s','tt')
-        call ncinfo(ncname(38,:,isamp),'tltendtot','theta_l total tendency','K/s','tt')
-        call ncinfo(ncname(39,:,isamp),'tltendleib','theta_l total tendency with leibniz terms','K/s','tt')
-        call ncinfo(ncname(40,:,isamp),'qttendadv','total water content advective tendency','kg/kg/s','tt')
-        call ncinfo(ncname(41,:,isamp),'qttenddif','total water content diffusive tendency','kg/kg/s','tt')
-        call ncinfo(ncname(42,:,isamp),'qttendrad','total water content radiative tendency','kg/kg/s','tt')
-        call ncinfo(ncname(43,:,isamp),'qttendmicro','total water content microphysical tendency','kg/kg/s','tt')
-        call ncinfo(ncname(44,:,isamp),'qttendls','total water content large scale tendency','kg/kg/s','tt')
-        call ncinfo(ncname(45,:,isamp),'qttendtop','total water content  top boundary tendency','kg/kg/s','tt')
-        call ncinfo(ncname(46,:,isamp),'qttendaddon','total water content in addons tendency','kg/kg/s','tt')
-        call ncinfo(ncname(47,:,isamp),'qttendtot','total water content total tendency','kg/kg/s','tt')
-        call ncinfo(ncname(48,:,isamp),'qttendleib','total water content total tendency with leibniz terms','kg/kg/s','tt')
-        call ncinfo(ncname(49,:,isamp),'qrtendadv','total water content advective tendency','kg/kg/s','tt')
-        call ncinfo(ncname(50,:,isamp),'qrtenddif','total water content diffusive tendency','kg/kg/s','tt')
-        call ncinfo(ncname(51,:,isamp),'qrtendrad','total water content radiative tendency','kg/kg/s','tt')
-        call ncinfo(ncname(52,:,isamp),'qrtendmicro','total water content microphysical tendency','kg/kg/s','tt')
-        call ncinfo(ncname(53,:,isamp),'qrtendls','total water content large scale tendency','kg/kg/s','tt')
-        call ncinfo(ncname(54,:,isamp),'qrtendtop','total water content  top boundary tendency','kg/kg/s','tt')
-        call ncinfo(ncname(55,:,isamp),'qrtendaddon','total water content in addons tendency','kg/kg/s','tt')
-        call ncinfo(ncname(56,:,isamp),'qrtendtot','total water content total tendency','kg/kg/s','tt')
-        call ncinfo(ncname(57,:,isamp),'qrtendleib','total water content total tendency with leibniz terms','kg/kg/s','tt')
-        call ncinfo(ncname(58,:,isamp),'nrtendadv','RDNC advective tendency','/kg/s','tt')
-        call ncinfo(ncname(59,:,isamp),'nrtenddif','RDNC diffusive tendency','/kg/s','tt')
-        call ncinfo(ncname(60,:,isamp),'nrtendrad','RDNC radiative tendency','/kg/s','tt')
-        call ncinfo(ncname(61,:,isamp),'nrtendmicro','RDNC microphysical tendency','/kg/s','tt')
-        call ncinfo(ncname(62,:,isamp),'nrtendls','RDNC large scale tendency','/kg/s','tt')
-        call ncinfo(ncname(63,:,isamp),'nrtendtop','RDNC top boundary tendency','/kg/s','tt')
-        call ncinfo(ncname(64,:,isamp),'nrtendaddon','RDNC addons tendency','/kg/s','tt')
-        call ncinfo(ncname(65,:,isamp),'nrtendtot','RDNC total tendency','/kg/s','tt')
-        call ncinfo(ncname(66,:,isamp),'nrtendleib','RDNC total tendency with leibniz terms','/kg/s','tt')
-        call define_nc(ncid_prof,nvar,ncname(:,:,isamp))
-      enddo
+        call ncinfo(tncname(1,:),'time','Time','s','time')
+        fname(10:12) = cexpnr
+        call open_nc(fname,ncid,nrec,n3=kmax)
+        call define_nc( ncid,1,tncname)
+        call writestat_dims_nc(ncid)
+          do isamp=1,isamptot
+          call ncinfo(ncname( 1,:,isamp),'utendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'U advective tendency','m/s^2','tt')
+          call ncinfo(ncname( 2,:,isamp),'utenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'U diffusive tendency','m/s^2','tt')
+          call ncinfo(ncname( 3,:,isamp),'utendfor'//samplname(isamp),trim(longsamplname(isamp))//' '//'U tendency due to other forces','m/s^2','tt')
+          call ncinfo(ncname( 4,:,isamp),'utendcor','U coriolis tendency','m/s^2','tt')
+          call ncinfo(ncname( 5,:,isamp),'utendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'U large scale tendency','m/s^2','tt')
+          call ncinfo(ncname( 6,:,isamp),'utendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'U top boundary tendency','m/s^2','tt')
+          call ncinfo(ncname( 7,:,isamp),'utendpois'//samplname(isamp),trim(longsamplname(isamp))//' '//'U pressure gradient tendency','m/s^2','tt')
+          call ncinfo(ncname( 8,:,isamp),'utendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'U in addons tendency','m/s^2','tt')
+          call ncinfo(ncname( 9,:,isamp),'utendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'U total tendency','m/s^2','tt')
+          call ncinfo(ncname(10,:,isamp),'utendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'U total tendency with leibniz terms','m/s^2','tt')
+          call ncinfo(ncname(11,:,isamp),'vtendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'V advective tendency','m/s^2','tt')
+          call ncinfo(ncname(12,:,isamp),'vtenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'V diffusive tendency','m/s^2','tt')
+          call ncinfo(ncname(13,:,isamp),'vtendfor'//samplname(isamp),trim(longsamplname(isamp))//' '//'V tendency due to other forces','m/s^2','tt')
+          call ncinfo(ncname(14,:,isamp),'vtendcor'//samplname(isamp),trim(longsamplname(isamp))//' '//'V coriolis tendency','m/s^2','tt')
+          call ncinfo(ncname(15,:,isamp),'vtendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'V large scale tendency','m/s^2','tt')
+          call ncinfo(ncname(16,:,isamp),'vtendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'V top boundary tendency','m/s^2','tt')
+          call ncinfo(ncname(17,:,isamp),'vtendpois'//samplname(isamp),trim(longsamplname(isamp))//' '//'V pressure gradient tendency','m/s^2','tt')
+          call ncinfo(ncname(18,:,isamp),'vtendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'V in addons tendency','m/s^2','tt')
+          call ncinfo(ncname(19,:,isamp),'vtendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'V total tendency','m/s^2','tt')
+          call ncinfo(ncname(20,:,isamp),'vtendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'V total tendency with leibniz terms','m/s^2','tt')
+          call ncinfo(ncname(21,:,isamp),'wtendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'W advective tendency','m/s^2','mt')
+          call ncinfo(ncname(22,:,isamp),'wtenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'W diffusive tendency','m/s^2','mt')
+          call ncinfo(ncname(23,:,isamp),'wtendfor'//samplname(isamp),trim(longsamplname(isamp))//' '//'W tendency due to other forces','m/s^2','mt')
+          call ncinfo(ncname(24,:,isamp),'wtendcor'//samplname(isamp),trim(longsamplname(isamp))//' '//'W coriolis tendency','m/s^2','mt')
+          call ncinfo(ncname(25,:,isamp),'wtendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'W large scale tendency','m/s^2','mt')
+          call ncinfo(ncname(26,:,isamp),'wtendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'W top boundary tendency','m/s^2','mt')
+          call ncinfo(ncname(27,:,isamp),'wtendpois'//samplname(isamp),trim(longsamplname(isamp))//' '//'W pressure gradient tendency','m/s^2','mt')
+          call ncinfo(ncname(28,:,isamp),'wtendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'W in addons tendency','m/s^2','mt')
+          call ncinfo(ncname(29,:,isamp),'wtendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'W total tendency','m/s^2','mt')
+          call ncinfo(ncname(30,:,isamp),'wtendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'W total tendency with leibniz terms','m/s^2','tt')
+          call ncinfo(ncname(31,:,isamp),'tltendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l advective tendency','K/s','tt')
+          call ncinfo(ncname(32,:,isamp),'tltenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l diffusive tendency','K/s','tt')
+          call ncinfo(ncname(33,:,isamp),'tltendrad'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l radiative tendency','K/s','tt')
+          call ncinfo(ncname(34,:,isamp),'tltendmicro'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l microphysical tendency','K/s','tt')
+          call ncinfo(ncname(35,:,isamp),'tltendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l large scale tendency','K/s','tt')
+          call ncinfo(ncname(36,:,isamp),'tltendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l  top boundary tendency','K/s','tt')
+          call ncinfo(ncname(37,:,isamp),'tltendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l in addons tendency','K/s','tt')
+          call ncinfo(ncname(38,:,isamp),'tltendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l total tendency','K/s','tt')
+          call ncinfo(ncname(39,:,isamp),'tltendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l total tendency with leibniz terms','K/s','tt')
+          call ncinfo(ncname(40,:,isamp),'qttendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content advective tendency','kg/kg/s','tt')
+          call ncinfo(ncname(41,:,isamp),'qttenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content diffusive tendency','kg/kg/s','tt')
+          call ncinfo(ncname(42,:,isamp),'qttendrad'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content radiative tendency','kg/kg/s','tt')
+          call ncinfo(ncname(43,:,isamp),'qttendmicro'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content microphysical tendency','kg/kg/s','tt')
+          call ncinfo(ncname(44,:,isamp),'qttendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content large scale tendency','kg/kg/s','tt')
+          call ncinfo(ncname(45,:,isamp),'qttendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content  top boundary tendency','kg/kg/s','tt')
+          call ncinfo(ncname(46,:,isamp),'qttendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content in addons tendency','kg/kg/s','tt')
+          call ncinfo(ncname(47,:,isamp),'qttendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content total tendency','kg/kg/s','tt')
+          call ncinfo(ncname(48,:,isamp),'qttendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content total tendency with leibniz terms','kg/kg/s','tt')
+          call ncinfo(ncname(49,:,isamp),'qrtendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content advective tendency','kg/kg/s','tt')
+          call ncinfo(ncname(50,:,isamp),'qrtenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content diffusive tendency','kg/kg/s','tt')
+          call ncinfo(ncname(51,:,isamp),'qrtendrad'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content radiative tendency','kg/kg/s','tt')
+          call ncinfo(ncname(52,:,isamp),'qrtendmicro'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content microphysical tendency','kg/kg/s','tt')
+          call ncinfo(ncname(53,:,isamp),'qrtendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content large scale tendency','kg/kg/s','tt')
+          call ncinfo(ncname(54,:,isamp),'qrtendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content  top boundary tendency','kg/kg/s','tt')
+          call ncinfo(ncname(55,:,isamp),'qrtendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content in addons tendency','kg/kg/s','tt')
+          call ncinfo(ncname(56,:,isamp),'qrtendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content total tendency','kg/kg/s','tt')
+          call ncinfo(ncname(57,:,isamp),'qrtendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water content total tendency with leibniz terms','kg/kg/s','tt')
+          call ncinfo(ncname(58,:,isamp),'nrtendadv'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC advective tendency','/kg/s','tt')
+          call ncinfo(ncname(59,:,isamp),'nrtenddif'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC diffusive tendency','/kg/s','tt')
+          call ncinfo(ncname(60,:,isamp),'nrtendrad'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC radiative tendency','/kg/s','tt')
+          call ncinfo(ncname(61,:,isamp),'nrtendmicro'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC microphysical tendency','/kg/s','tt')
+          call ncinfo(ncname(62,:,isamp),'nrtendls'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC large scale tendency','/kg/s','tt')
+          call ncinfo(ncname(63,:,isamp),'nrtendtop'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC top boundary tendency','/kg/s','tt')
+          call ncinfo(ncname(64,:,isamp),'nrtendaddon'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC addons tendency','/kg/s','tt')
+          call ncinfo(ncname(65,:,isamp),'nrtendtot'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC total tendency','/kg/s','tt')
+          call ncinfo(ncname(66,:,isamp),'nrtendleib'//samplname(isamp),trim(longsamplname(isamp))//' '//'RDNC total tendency with leibniz terms','/kg/s','tt')
+          call define_nc(ncid,nvar,ncname(:,:,isamp))
+        enddo
+      end if
     end if
 
   end subroutine initsamptend
@@ -355,6 +371,16 @@ subroutine initsamptend
           do j=2,j1
           do k=1,kmax
             if (ql0(i,j,k)>epsilon(1.0).and.thv0(i,j,k) > thvav(k)) then
+                tendmask(i,j,k,isamp) = .true.
+            endif
+          enddo
+          enddo
+          enddo
+        case ('cldup')
+          do i=2,i1
+          do j=2,j1
+          do k=1,kmax
+            if (ql0(i,j,k)>epsilon(1.0).and.w0f(i,j,k).gt.0.) then
                 tendmask(i,j,k,isamp) = .true.
             endif
           enddo
@@ -580,7 +606,6 @@ subroutine initsamptend
     use modglobal, only : kmax,k1,rtimee
     use modmpi,    only : mpi_integer,myid,comm3d,mpierr,my_real,mpi_sum
     use modstat_nc, only: lnetcdf,writestat_nc
-    use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
     implicit none
     integer :: field,k
     real, allocatable :: vars(:,:)
@@ -621,6 +646,7 @@ subroutine initsamptend
 
     if(myid == 0) then 
       if (lnetcdf) then
+        call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         do isamp=1,isamptot
           vars=0.
           vars(:, 1) = upmn(:,tend_adv,isamp)
@@ -689,7 +715,7 @@ subroutine initsamptend
           vars(:,64) = nrpmn(:,tend_addon,isamp)
           vars(:,65) = nrpmn(:,tend_tot,isamp)
           vars(:,66) = nrpmn(:,tend_totlb,isamp)
-        call writestat_nc(ncid_prof,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec_prof,kmax)
+        call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec,kmax)
         enddo
       end if
     end if
