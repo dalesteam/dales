@@ -159,84 +159,8 @@ save
  real, allocatable :: cszmn(:)    ! Smagorinsky constant
  real, allocatable :: cszav(:)    ! Smagorinsky constant
 
-!And now for patches
-!     ----  total fields  ---
-
-  real, allocatable  :: umn_patch   (:,:,:)       ,vmn_patch   (:,:,:)       ,wmn_patch   (:,:,:)
-  real, allocatable  :: thlmn_patch (:,:,:)       ,thvmn_patch (:,:,:)
-  real, allocatable  :: qtmn_patch  (:,:,:)       ,qlmn_patch  (:,:,:),  qlhmn_patch(:,:,:),cfracmn_patch(:,:,:)
-
-! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
-  real, allocatable  :: wtlsmn_patch (:,:,:),wtlrmn_patch (:,:,:),wtltmn_patch(:,:,:)
-  real, allocatable  :: wtvsmn_patch (:,:,:),wtvrmn_patch (:,:,:),wtvtmn_patch(:,:,:)
-  real, allocatable  :: wqlsmn_patch (:,:,:),wqlrmn_patch (:,:,:),wqltmn_patch(:,:,:)
-  real, allocatable  :: wqtsmn_patch (:,:,:),wqtrmn_patch (:,:,:),wqttmn_patch(:,:,:)
-  real, allocatable  :: wsvsmn_patch (:,:,:,:),wsvrmn_patch(:,:,:,:),wsvtmn_patch(:,:,:,:)
-  real, allocatable  :: uwtmn_patch  (:,:,:),vwtmn_patch  (:,:,:) !total    uw, vw
-  real, allocatable  :: uwsmn_patch  (:,:,:),vwsmn_patch  (:,:,:) !resolved uw, vw
-  real, allocatable  :: uwrmn_patch  (:,:,:),vwrmn_patch  (:,:,:) !subgrid  uw, vw
-! real, allocatable  ::     --- various moments --- 
-
-  real, allocatable  :: w2mn_patch       (:,:,:), skewmn_patch (:,:,:)
-  real, allocatable  :: w2submn_patch    (:,:,:)
-  real, allocatable  :: u2mn_patch       (:,:,:), v2mn_patch  (:,:,:),     qt2mn_patch(:,:,:)
-  real, allocatable  :: thl2mn_patch     (:,:,:), thv2mn_patch(:,:,:),     th2mn_patch(:,:,:),     ql2mn_patch(:,:,:)
-  real, allocatable  :: svmmn_patch(:,:,:,:),svptmn_patch(:,:,:,:),svplsmn_patch(:,:,:,:),svpmn_patch(:,:,:,:)
-  real, allocatable  :: sv2mn_patch(:,:,:,:)
-
- real, allocatable :: umav_patch (:,:,:)     ! patch averaged um    at full level
- real, allocatable :: vmav_patch (:,:,:)     ! patch averaged vm    at full level
- real, allocatable :: wmav_patch (:,:,:)     ! patch averaged wm    at full level
- real, allocatable :: thlmav_patch (:,:,:)   ! patch averaged thl   at full level
- real, allocatable :: thmav_patch (:,:,:)    ! patch averaged thm   at full level
- real, allocatable :: thvmav_patch (:,:,:)   ! patch averaged thvm  at full level
- real, allocatable :: qtmav_patch (:,:,:)    ! patch averaged qtm   at full level
- real, allocatable :: qlmav_patch (:,:,:)    ! patch averaged qlm   at full level
- real, allocatable :: cfracav_patch (:,:,:)  ! patch averaged cfrac at full level
- real, allocatable :: svmav_patch (:,:,:,:)  ! patch averaged svm   at full level
-  real, allocatable :: svpav_patch(:,:,:,:)  !  patch average total tendency of sv(n)
-  real, allocatable :: svptav_patch(:,:,:,:) !  patch average tendency of sv(n) due to turb.
-
-  real, allocatable :: uptav_patch(:,:,:)    !  patch averaged tendency for u
-  real, allocatable :: vptav_patch(:,:,:)    !  patch averaged tendency for v
-
- real, allocatable :: thptav_patch(:,:,:)    ! patch averaged turbulence tendency of theta
- real, allocatable :: qlptav_patch(:,:,:)    ! patch averaged turbulence tendency of q_liq
- real, allocatable :: uwtot_patch (:,:,:)    ! patch averaged tot w-u flux at half levels
- real, allocatable :: vwtot_patch (:,:,:)    ! patch averaged tot w-v flux at half levels
- real, allocatable :: uwsub_patch (:,:,:)    ! patch averaged sgs w-u flux at half levels
- real, allocatable :: vwsub_patch (:,:,:)    ! patch averaged sgs w-v flux at half levels
- real, allocatable :: uwres_patch (:,:,:)    ! patch averaged res w-u flux at half levels
- real, allocatable :: vwres_patch (:,:,:)    ! patch averaged res w-v flux at half levels
-
-
- real, allocatable :: thvhav_patch(:,:,:)
- real, allocatable :: th0av_patch(:,:,:)
- real, allocatable :: wtlsub_patch(:,:,:)    ! patch averaged sub w-theta_l flux at half levels
- real, allocatable :: wtlres_patch(:,:,:)    ! patch averaged res w-theta_l flux at half levels
- real, allocatable :: wtltot_patch(:,:,:)    ! patch averaged tot w-theta_l flux at half levels
-
- real, allocatable :: wqtsub_patch(:,:,:)    ! patch averaged sub w-qtot    flux at half levels
- real, allocatable :: wqtres_patch(:,:,:)    ! patch averaged res w-qtot    flux at half levels
- real, allocatable :: wqttot_patch(:,:,:)    ! patch averaged tot w-qtot    flux at half levels
-
- real, allocatable :: wqlsub_patch(:,:,:)    ! patch averaged sub w-ql      flux at half levels
- real, allocatable :: wqlres_patch(:,:,:)    ! patch averaged tot w-ql      flux at half levels
- real, allocatable :: wqltot_patch(:,:,:)    ! patch averaged tot w-ql      flux at half levels
-
- real, allocatable :: wtvtot_patch(:,:,:)    ! patch averaged total wthv-flux
- real, allocatable :: wtvres_patch(:,:,:)    ! patch averaged res   wthv-flux
- real, allocatable :: wtvsub_patch(:,:,:)    ! patch averaged sub   wthv-flux
-
- real, allocatable :: wsvsub_patch(:,:,:,:)  ! patch averaged sub w-sv(n)  flux
- real, allocatable :: wsvres_patch(:,:,:,:)  ! patch averaged res w-sv(n)  flux
- real, allocatable :: wsvtot_patch(:,:,:,:)  ! patch averaged tot w-sv(n)  flux
-
- real, allocatable :: cszmn_patch(:,:,:)     ! Smagorinsky constant
- real, allocatable :: cszav_patch(:,:,:)     ! Smagorinsky constant
  real, allocatable :: qlmnlast(:)
  real, allocatable :: wtvtmnlast(:)
-
 
 contains
 
@@ -244,11 +168,11 @@ contains
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax, kmax,k1, nsv,ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
-    use modsurfdata, only: lhetero, xpatches, ypatches,isurf,ksoilmax
+    use modsurfdata, only : isurf,ksoilmax
 
     implicit none
 
-    integer n, ierr, i, j
+    integer n, ierr
     character(40) :: name
     character(3) :: csvname
     namelist/NAMGENSTAT/ &
@@ -412,130 +336,8 @@ contains
       cszav = 0.
       cszmn = 0.
 
-      if(lhetero) then
-        allocate(umn_patch(xpatches,ypatches,k1),vmn_patch(xpatches,ypatches,k1),wmn_patch(xpatches,ypatches,k1))
-        allocate(thlmn_patch(xpatches,ypatches,k1),thvmn_patch(xpatches,ypatches,k1))
-        allocate(qtmn_patch(xpatches,ypatches,k1) ,qlmn_patch (xpatches,ypatches,k1),qlhmn_patch(xpatches,ypatches,k1),cfracmn_patch(xpatches,ypatches,k1))
-        allocate(wtlsmn_patch (xpatches,ypatches,k1),wtlrmn_patch (xpatches,ypatches,k1),wtltmn_patch(xpatches,ypatches,k1))
-        allocate(wtvsmn_patch (xpatches,ypatches,k1),wtvrmn_patch (xpatches,ypatches,k1),wtvtmn_patch(xpatches,ypatches,k1))
-        allocate(wqlsmn_patch (xpatches,ypatches,k1),wqlrmn_patch (xpatches,ypatches,k1),wqltmn_patch(xpatches,ypatches,k1))
-        allocate(wqtsmn_patch (xpatches,ypatches,k1),wqtrmn_patch (xpatches,ypatches,k1),wqttmn_patch(xpatches,ypatches,k1))
-        allocate(wsvsmn_patch (xpatches,ypatches,k1,nsv),wsvrmn_patch(xpatches,ypatches,k1,nsv),wsvtmn_patch(xpatches,ypatches,k1,nsv))
-        allocate(uwtmn_patch  (xpatches,ypatches,k1),vwtmn_patch  (xpatches,ypatches,k1),uwrmn_patch  (xpatches,ypatches,k1))
-        allocate(vwrmn_patch  (xpatches,ypatches,k1),uwsmn_patch  (xpatches,ypatches,k1),vwsmn_patch  (xpatches,ypatches,k1))
-        allocate(w2mn_patch   (xpatches,ypatches,k1),skewmn_patch (xpatches,ypatches,k1))
-        allocate(w2submn_patch(xpatches,ypatches,k1))
-        allocate(u2mn_patch   (xpatches,ypatches,k1),v2mn_patch  (xpatches,ypatches,k1),qt2mn_patch(xpatches,ypatches,k1))
-        allocate(thl2mn_patch (xpatches,ypatches,k1),thv2mn_patch(xpatches,ypatches,k1),th2mn_patch(xpatches,ypatches,k1),ql2mn_patch(xpatches,ypatches,k1))
-        allocate(svmmn_patch(xpatches,ypatches,k1,nsv),svptmn_patch(xpatches,ypatches,k1,nsv))
-        allocate(svplsmn_patch(xpatches,ypatches,k1,nsv),svpmn_patch(xpatches,ypatches,k1,nsv))
-        allocate(sv2mn_patch(xpatches,ypatches,k1,nsv))
-
-        allocate(umav_patch (xpatches,ypatches,k1))
-        allocate(vmav_patch (xpatches,ypatches,k1))
-        allocate(wmav_patch (xpatches,ypatches,k1))
-        allocate(thlmav_patch (xpatches,ypatches,k1))
-        allocate(thmav_patch (xpatches,ypatches,k1))
-        allocate(thvmav_patch (xpatches,ypatches,k1))
-        allocate(qtmav_patch (xpatches,ypatches,k1))
-        allocate(qlmav_patch (xpatches,ypatches,k1))
-        allocate(cfracav_patch(xpatches,ypatches,k1))
-        allocate(svmav_patch (xpatches,ypatches,k1,nsv))
-        allocate(uptav_patch(xpatches,ypatches,k1))
-        allocate(vptav_patch(xpatches,ypatches,k1))
-
-        allocate(thptav_patch(xpatches,ypatches,k1))
-        allocate(qlptav_patch(xpatches,ypatches,k1))
-        allocate(uwtot_patch (xpatches,ypatches,k1))
-        allocate(vwtot_patch (xpatches,ypatches,k1))
-        allocate(uwsub_patch (xpatches,ypatches,k1))
-        allocate(vwsub_patch (xpatches,ypatches,k1))
-        allocate(uwres_patch (xpatches,ypatches,k1))
-        allocate(vwres_patch (xpatches,ypatches,k1))
-        allocate(wtlsub_patch(xpatches,ypatches,k1))
-        allocate(wtlres_patch(xpatches,ypatches,k1))
-        allocate(wtltot_patch(xpatches,ypatches,k1))
-        allocate(wqtsub_patch(xpatches,ypatches,k1))
-        allocate(wqtres_patch(xpatches,ypatches,k1))
-        allocate(wqttot_patch(xpatches,ypatches,k1))
-        allocate(wqlsub_patch(xpatches,ypatches,k1))
-        allocate(wqlres_patch(xpatches,ypatches,k1))
-        allocate(wqltot_patch(xpatches,ypatches,k1))
-        allocate(wtvtot_patch(xpatches,ypatches,k1))
-        allocate(wtvres_patch(xpatches,ypatches,k1))
-        allocate(wtvsub_patch(xpatches,ypatches,k1))
-        allocate(wsvsub_patch(xpatches,ypatches,k1,nsv))
-        allocate(wsvres_patch(xpatches,ypatches,k1,nsv))
-        allocate(wsvtot_patch(xpatches,ypatches,k1,nsv))
-        allocate(thvhav_patch(xpatches,ypatches,k1))
-        allocate(th0av_patch(xpatches,ypatches,k1))
-        allocate(svptav_patch(xpatches,ypatches,k1,nsv))
-        allocate(svpav_patch(xpatches,ypatches,k1,nsv))
-
-        allocate(cszmn_patch(xpatches,ypatches,k1), cszav_patch(xpatches,ypatches,k1))
-
-        umn_patch      = 0.
-        vmn_patch      = 0.
-        wmn_patch      = 0.
-        thlmn_patch    = 0.
-        thvmn_patch    = 0.
-        qtmn_patch     = 0.
-        qlmn_patch     = 0.
-        qlhmn_patch    = 0.
-        cfracmn_patch  = 0.
-
-        wtlsmn_patch =  0.
-        wtlrmn_patch =  0.
-        wtltmn_patch =  0.
-
-        wtvsmn_patch =  0.
-        wtvrmn_patch =  0.
-        wtvtmn_patch =  0.
-
-        wqtsmn_patch =  0.
-        wqtrmn_patch =  0.
-        wqttmn_patch =  0.
-
-        wqlsmn_patch =  0.
-        wqlrmn_patch =  0.
-        wqltmn_patch =  0.
-
-        uwtmn_patch  = 0.
-        vwtmn_patch  = 0.
-        uwrmn_patch  = 0.
-        vwrmn_patch  = 0.
-        uwsmn_patch  = 0.
-        vwsmn_patch  = 0.
-
-        u2mn_patch   = 0.
-        v2mn_patch   = 0.
-        w2mn_patch   = 0.
-        w2submn_patch= 0.
-        skewmn_patch = 0.
-        qt2mn_patch  = 0.
-        thl2mn_patch = 0.
-        thv2mn_patch = 0.
-        th2mn_patch  = 0.
-        ql2mn_patch  = 0.
-
-        svmmn_patch  = 0.
-        svpmn_patch  = 0.
-        svpav_patch  = 0.
-        svptmn_patch = 0.
-        svptav_patch = 0.
-
-        sv2mn_patch  = 0.
-
-        wsvsmn_patch = 0.
-        wsvrmn_patch = 0.
-        wsvtmn_patch = 0.
-
-        cszav_patch  = 0.
-        cszmn_patch  = 0.
-      endif
       qlmnlast = 0.
       wtvtmnlast = 0.
-
 
       if(myid==0)then
         open (ifoutput,file='field.'//cexpnr,status='replace')
@@ -558,54 +360,6 @@ contains
             open (ifoutput,file=name,status='replace')
             close (ifoutput)
         end do
-
-        if (lhetero) then
-          do i=1,xpatches
-            do j=1,ypatches
-              name = 'fieldpatchiiixjjj.'//cexpnr
-              write (name(11:13),'(i3.3)') i
-              write (name(15:17),'(i3.3)') j
-              open (ifoutput,file=name,status='replace')
-              close (ifoutput)
-
-              name = 'flux1patchiiixjjj.'//cexpnr
-              write (name(11:13),'(i3.3)') i
-              write (name(15:17),'(i3.3)') j
-              open (ifoutput,file=name,status='replace')
-              close (ifoutput)
-
-              name = 'flux2patchiiixjjj.'//cexpnr
-              write (name(11:13),'(i3.3)') i
-              write (name(15:17),'(i3.3)') j
-              open (ifoutput,file=name,status='replace')
-              close (ifoutput)
-
-              name = 'momentspatchiiixjjj.'//cexpnr
-              write (name(13:15),'(i3.3)') i
-              write (name(17:19),'(i3.3)') j
-              open (ifoutput,file=name,status='replace')
-              close (ifoutput)
-
-              do n=1,nsv
-                name = 'svnnnflxpatchiiixjjj.'//cexpnr
-                write (name(3:5),'(i3.3)') n
-                write (name(14:16),'(i3.3)') i
-                write (name(18:20),'(i3.3)') j
-                open (ifoutput,file=name,status='replace')
-                close (ifoutput)
-
-                name = 'svnnnfldpatchiiixjjj.'//cexpnr
-                write (name(3:5),'(i3.3)') n
-                write (name(14:16),'(i3.3)') i
-                write (name(18:20),'(i3.3)') j
-                open (ifoutput,file=name,status='replace')
-                close (ifoutput)
-              enddo
-            enddo
-          enddo
-        endif
-
-
       if (lnetcdf) then
         fname(10:12) = cexpnr
         nvar = nvar + 7*nsv
@@ -703,14 +457,13 @@ contains
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
-    use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux, &
-                          lhetero,xpatches,ypatches, thls_patch, qts_patch 
-    use modsurface,only:  patchxnr,patchynr
+    use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi,imax,jmax
+                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
     implicit none
+
 
 
     real cthl,cqt,den
@@ -768,121 +521,13 @@ contains
     real,allocatable, dimension(:)::   thvmav
     real ,allocatable, dimension(:,:,:):: sv0h
 
-    integer i, j, k, n, km, patchx, patchy
+    integer i, j, k, n, km
     real    tsurf, qsat, c1, c2
     real    qs0h, t0h, ekhalf, euhalf, evhalf
     real    wtls, wtlr, wqts, wqtr, wqls, wqlr, wtvs, wtvr
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
-    real    qpresent(imax,jmax,k1)
-
-    real,allocatable, dimension(:,:)  :: qls_patch, tsurf_patch, qsat_patch, c1_patch, c2_patch 
-    real,allocatable, dimension(:,:)  :: den_patch, cthl_patch, cqt_patch 
-    real,allocatable, dimension(:,:,:):: qlhav_patch, u2av_patch, v2av_patch, w2av_patch, w3av_patch, w2subav_patch 
-    real,allocatable, dimension(:,:,:):: qt2av_patch, thl2av_patch, thv2av_patch, th2av_patch, ql2av_patch 
-    real,allocatable, dimension(:,:,:,:):: sv2av_patch 
-    real,allocatable, dimension(:,:)  :: uw_field, vw_field, u_field, v_field, w_field 
-    real,allocatable, dimension(:,:)  :: qt_field, thl_field, thv_field, th_field, ql_field 
-    real,allocatable, dimension(:,:,:):: wsv_field 
-    real,allocatable, dimension(:,:)  :: wqlsub_field, wtlsub_field, wtvsub_field, wqtsub_field, uwsub_field, vwsub_field 
-    real,allocatable, dimension(:,:)  :: wqlres_field, wtlres_field, wtvres_field, wqtres_field, uwres_field, vwres_field 
-    real,allocatable, dimension(:,:)  :: wsvres_field, wsvsub_field
-
-    if (lhetero) then
-      allocate(qls_patch(xpatches,ypatches))  
-      allocate(tsurf_patch(xpatches,ypatches))  
-      allocate(qsat_patch(xpatches,ypatches))  
-      allocate(c1_patch(xpatches,ypatches))  
-      allocate(c2_patch(xpatches,ypatches))  
-      allocate(den_patch(xpatches,ypatches))  
-      allocate(cthl_patch(xpatches,ypatches))  
-      allocate(cqt_patch(xpatches,ypatches))  
-      allocate(qlhav_patch(xpatches,ypatches,k1))  
-      allocate(u2av_patch(xpatches,ypatches,k1))  
-      allocate(v2av_patch(xpatches,ypatches,k1))  
-      allocate(w2av_patch(xpatches,ypatches,k1))  
-      allocate(w3av_patch(xpatches,ypatches,k1))  
-      allocate(w2subav_patch(xpatches,ypatches,k1))  
-      allocate(qt2av_patch(xpatches,ypatches,k1))  
-      allocate(thl2av_patch(xpatches,ypatches,k1))  
-      allocate(thv2av_patch(xpatches,ypatches,k1))  
-      allocate(th2av_patch(xpatches,ypatches,k1))  
-      allocate(ql2av_patch(xpatches,ypatches,k1))  
-      allocate(sv2av_patch(xpatches,ypatches,k1,nsv))  
-      allocate(uw_field(2:i1,2:j1))  
-      allocate(vw_field(2:i1,2:j1))  
-      allocate(u_field(2:i1,2:j1))  
-      allocate(v_field(2:i1,2:j1))  
-      allocate(w_field(2:i1,2:j1))  
-      allocate(qt_field(2:i1,2:j1))  
-      allocate(thl_field(2:i1,2:j1))  
-      allocate(thv_field(2:i1,2:j1))  
-      allocate(th_field(2:i1,2:j1))  
-      allocate(ql_field(2:i1,2:j1))  
-      allocate(wsv_field(2:i1,2:j1,nsv))  
-      allocate(wqlsub_field(2:i1,2:j1))  
-      allocate(wtlsub_field(2:i1,2:j1))  
-      allocate(wtvsub_field(2:i1,2:j1))  
-      allocate(wqtsub_field(2:i1,2:j1))  
-      allocate(uwsub_field(2:i1,2:j1))  
-      allocate(vwsub_field(2:i1,2:j1))  
-      allocate(wqlres_field(2:i1,2:j1))  
-      allocate(wtlres_field(2:i1,2:j1))  
-      allocate(wtvres_field(2:i1,2:j1))  
-      allocate(wqtres_field(2:i1,2:j1))  
-      allocate(uwres_field(2:i1,2:j1))  
-      allocate(vwres_field(2:i1,2:j1))  
-      allocate(wsvres_field(2:i1,2:j1))  
-      allocate(wsvsub_field(2:i1,2:j1))  
-
-      qls_patch     = 0  
-      tsurf_patch   = 0  
-      qsat_patch    = 0  
-      c1_patch      = 0  
-      c2_patch      = 0  
-      den_patch     = 0  
-      cthl_patch    = 0  
-      cqt_patch     = 0  
-      qlhav_patch   = 0  
-      u2av_patch    = 0  
-      v2av_patch    = 0  
-      w2av_patch    = 0  
-      w3av_patch    = 0  
-      w2subav_patch = 0  
-      qt2av_patch   = 0  
-      thl2av_patch  = 0  
-      thv2av_patch  = 0  
-      th2av_patch   = 0  
-      ql2av_patch   = 0  
-      sv2av_patch   = 0  
-      uw_field      = 0  
-      vw_field      = 0  
-      u_field       = 0  
-      v_field       = 0  
-      w_field       = 0  
-      qt_field      = 0  
-      thl_field     = 0  
-      thv_field     = 0  
-      th_field      = 0  
-      ql_field      = 0  
-      wsv_field     = 0  
-      wqlsub_field  = 0  
-      wtlsub_field  = 0  
-      wtvsub_field  = 0  
-      wqtsub_field  = 0  
-      uwsub_field   = 0  
-      vwsub_field   = 0  
-      wqlres_field  = 0  
-      wtlres_field  = 0  
-      wtvres_field  = 0  
-      wqtres_field  = 0  
-      uwres_field   = 0  
-      vwres_field   = 0  
-      wsvres_field  = 0  
-      wsvsub_field  = 0  
-    endif
-
     allocate( &
         qlhavl (k1), & ! slab averaged ql_0 at half level &
         wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
@@ -936,6 +581,7 @@ contains
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+
 
 
   !-----------------------------------------------------------------------
@@ -1019,19 +665,6 @@ contains
     end do
 
     call MPI_ALLREDUCE(cfracavl,cfracav,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    if (lhetero) then
-      qpresent = 0
-      do j=1,jmax
-       do i=1,imax
-        do k=1,k1 
-          if(ql0(i+1,j+1,k)>0) then
-            qpresent(i,j,k) = 1
-          endif
-        enddo
-       enddo
-      enddo
-      cfracav_patch = patchsum(qpresent)
-    endif
 
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -1050,42 +683,12 @@ contains
     thvmav = thvmav/rslabs
 
     cszav  = csz
+  !
 
     do n=1,nsv
       call slabsum(svmav(1,n),1,k1,svm(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     enddo
     svmav = svmav/rslabs
-
-    if (lhetero) then
-      umav_patch   = patchsum(um(2:i1,2:j1,:))
-      vmav_patch   = patchsum(vm(2:i1,2:j1,:))
-      wmav_patch   = patchsum(wm(2:i1,2:j1,:))
-      thlmav_patch = patchsum(thlm(2:i1,2:j1,:))
-      qtmav_patch  = patchsum(qtm(2:i1,2:j1,:))
-      qlmav_patch  = patchsum(ql0(2:i1,2:j1,:)) 
-      thvmav_patch = patchsum(thv0(2:i1,2:j1,:))
-
-      umav_patch   = umav_patch * (xpatches*ypatches/rslabs) + cu
-      vmav_patch   = vmav_patch * (xpatches*ypatches/rslabs) + cv
-      wmav_patch   = wmav_patch * (xpatches*ypatches/rslabs)
-      thlmav_patch = thlmav_patch * (xpatches*ypatches/rslabs)
-      qtmav_patch  = qtmav_patch * (xpatches*ypatches/rslabs)
-      qlmav_patch  = qlmav_patch * (xpatches*ypatches/rslabs)
-      cfracav_patch= cfracav_patch * (xpatches*ypatches/rslabs)
-      do k=1,k1
-        thmav_patch(:,:,k) = thlmav_patch(:,:,k) + (rlv/cp)*qlmav_patch(:,:,k)/exnf(k)
-      enddo
-      thvmav_patch = thvmav_patch * (xpatches*ypatches/rslabs)
-      
-      do k=1,k1
-        cszav_patch(:,:,k)  = csz(k)
-      enddo
-      
-      do n=1,nsv
-        svmav_patch(:,:,:,n) = patchsum(svm(2:i1,2:j1,:,n))
-      enddo
-      svmav_patch  = svmav_patch * (xpatches*ypatches/rslabs)
-    endif 
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
@@ -1106,18 +709,6 @@ contains
     den   = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
     cthl  = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt   = 1./den
-
-    if (lhetero) then
-      qls_patch   = 0.0
-      tsurf_patch = thls_patch*exnh(1)+(rlv/cp)*qls_patch 
-      qsat_patch  = qts_patch - qls_patch != qts_patch
-      c1_patch    = 1.+(rv/rd-1)*qts_patch
-      c2_patch    = (rv/rd-1)
-      !den_patch   = 1. + (rlv**2)*qsat_patch/(rv*cp*(tsurf_patch**2))
-      !cthl_patch  = (exnh(1)*cp/rlv)*((1-den_patch)/den_patch)
-      !cqt_patch   = 1./den_patch 
-    endif
-
     do j=2,j1
     do i=2,i1
       qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
@@ -1125,7 +716,7 @@ contains
 
       wtlsubl(1) = wtlsubl(1) + thlflux(i,j)
       wqtsubl(1) = wqtsubl(1) + qtflux (i,j)
-      wqlsubl(1) = 0 
+      wqlsubl(1) = 0
       wtvsubl(1) = wtvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
 
       !Momentum flux
@@ -1146,6 +737,7 @@ contains
       vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                 vpcv/sqrt(vpcv**2  + &
           ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
+
 
       !Higher order moments
       u2avl    (1) = u2avl    (1) + (um (i,j,1)+cu - umav(1))**2
@@ -1171,75 +763,6 @@ contains
       end do
     end do
     end do
-
-    if (lhetero) then
-      do j=2,j1
-        patchy = patchynr(j)
-      do i=2,i1
-        !Momentum flux
-        if (abs(um(i,j,1)+cu)<eps1) then
-          upcu = sign(eps1,um(i,j,1)+cu)
-        else
-          upcu = um(i,j,1)+cu
-        end if
-        uw_field(i,j) = - ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
-                  upcu/sqrt(upcu**2  + &
-            ((vm(i,j,1)+vm(i-1,j,1)+vm(i,j+1,1)+vm(i-1,j+1,1))/4.+cv)**2)
-
-        if (abs(vm(i,j,1)+cv)<eps1) then
-          vpcv = sign(eps1,vm(i,j,1)+cv)
-        else
-          vpcv = vm(i,j,1)+cv
-        end if
-        vw_field(i,j) = - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
-                  vpcv/sqrt(vpcv**2  + &
-            ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
-
-        !Higher order moments
-        patchx = patchxnr(i)
-        u_field(i,j)   = um(i,j,1)+cu - umav_patch(patchx,patchy,1)
-        v_field(i,j)   = vm(i,j,1)+cv - vmav_patch(patchx,patchy,1)
-        w_field(i,j)   = wm(i,j,1) - wmav_patch(patchx,patchy,1)
-        qt_field(i,j)  = qtm (i,j,1) - qtmav_patch(patchx,patchy,1)
-        thl_field(i,j) = thlm(i,j,1) - thlmav_patch(patchx,patchy,1)
-        thv_field(i,j) = thv0(i,j,1) - thvmav_patch(patchx,patchy,1)
-        th_field(i,j)  = thlm(i,j,1) - thmav_patch(patchx,patchy,1)
-        ql_field(i,j)  = ql0(i,j,1)  - qlmav_patch(patchx,patchy,1)
-        do n=1,nsv
-          wsv_field(i,j,n) = svm(i,j,1,n)-svmav_patch(patchx,patchy,1,n)
-        enddo
-      enddo
-      enddo
-    
-      qlhav_patch(:,:,1)  = patchsum_1level(ql0h(2:i1,2:j1,1))
-      wtlsub_patch(:,:,1) = patchsum_1level(thlflux(2:i1,2:j1))
-      wtlres_patch(:,:,1) = 0.0
-      wqtsub_patch(:,:,1) = patchsum_1level(qtflux(2:i1,2:j1))
-      wqtres_patch(:,:,1) = 0.0
-      wqlsub_patch(:,:,1) = 0.0
-      wqlres_patch(:,:,1) = 0.0
-      wtvsub_patch(:,:,1) = c1_patch*wtlsub_patch(:,:,1)+c2*thls_patch*wqtsub_patch(:,:,1)
-      wtvres_patch(:,:,1) = 0.0
-      uwsub_patch(:,:,1)  = patchsum_1level(uw_field)
-      uwres_patch(:,:,1)  = 0.0
-      vwsub_patch(:,:,1)  = patchsum_1level(vw_field)
-      vwres_patch(:,:,1)  = 0.0
-      u2av_patch(:,:,1)   = patchsum_1level(u_field**2)
-      v2av_patch(:,:,1)   = patchsum_1level(v_field**2)
-      w2av_patch(:,:,1)   = patchsum_1level(w_field**2)
-      w3av_patch(:,:,1)   = patchsum_1level(w_field**3)
-      w2subav_patch(:,:,1)= patchsum_1level(e12m(2:i1,2:j1,1)**2)
-      qt2av_patch(:,:,1)  = patchsum_1level(qt_field**2)
-      thl2av_patch(:,:,1) = patchsum_1level(thl_field**2)
-      thv2av_patch(:,:,1) = patchsum_1level(thv_field**2)
-      th2av_patch(:,:,1)  = patchsum_1level(th_field**2)
-      ql2av_patch(:,:,1)  = patchsum_1level(ql_field**2)
-      wsvres_patch(:,:,1,:) = 0 !nothing resolved at the ground level
-      do n=1,nsv
-        wsvsub_patch(:,:,1,n) = patchsum_1level(svflux(2:i1,2:j1,n))
-        sv2av_patch(:,:,1,n)  = patchsum_1level(wsv_field(:,:,n)**2)
-      enddo
-    endif
 
   !      --------------------------
   !      4.2 higher levels
@@ -1362,127 +885,6 @@ contains
     end do
   !     -------------------
 
-    if (lhetero) then
-      qlhav_patch(:,:,2:kmax)  = patchsum_halflevel(ql0h(2:i1,2:j1,2:kmax))
-
-      do k=2,kmax
-        km = k-1
-        do j=2,j1
-          patchy = patchynr(j)
-        do i=2,i1
-          qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
-          t0h   =  exnh(k)*thl0h(i,j,k) + (rlv/cp)*ql0h(i,j,k)
-          den   = 1. + (rlv**2)*qs0h/(rv*cp*(t0h**2))
-          cthl  = (exnh(k)*cp/rlv)*((1-den)/den)
-          cqt   =  (1./den)
-          if (ql0h(i,j,k)>0) then
-            c1    = (1.-qt0h(i,j,k)+rv/rd*qs0h &
-                    * (1.+rd/rv*rlv/(rd*t0h)))/den
-            c2    =  c1*rlv/(t0h*cp)-1.
-          else
-            c1 = 1. + (rv/rd-1)*qt0h(i,j,k)
-            c2 = (rv/rd-1)
-          end if
-
-          ekhalf  = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-          euhalf  = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                        dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
-                      ( 4.   * dzh(k) )
-          evhalf  = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
-                        dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) ) ) / &
-                      ( 4.   * dzh(k) )
-
-          wtls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
-          wtlr    = w0(i,j,k)*thl0h(i,j,k)
-
-          wqts    = -ekhalf*(qt0(i,j,k)-qt0(i,j,km))/dzh(k)
-          wqtr    = w0(i,j,k)*qt0h(i,j,k)
-
-          wqls    = cthl*wtls+ cqt*wqts
-          wqlr    = w0(i,j,k)*ql0h(i,j,k)
-
-          wtvs    = c1*wtls + c2*thl0h(i,j,k)*wqts
-          wtvr    = w0(i,j,k)*thv0h(i,j,k)
-
-          uwr     = (w0(i,j,k)+w0(i-1,j,k)) &
-                    *((u0(i,j,k-1)+cu)*dzf(k)+(u0(i,j,k)+cu)*dzf(k-1))/(4*dzh(k))
-          vwr     = (w0(i,j,k)+w0(i,j-1,k)) &
-                    *((v0(i,j,k-1)+cv)*dzf(k)+(v0(i,j,k)+cv)*dzf(k-1))/(4*dzh(k))
-          uws     = -euhalf &
-                    *((u0(i,j,k)-u0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i-1,j,k))*dxi)
-          vws     = -evhalf &
-                    *((v0(i,j,k)-v0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i,j-1,k))*dyi)
-
-          if (ql0h(i,j,k)>0) then
-            wqlsub_field(i,j) = wqls
-          else
-            wqlsub_field(i,j) = 0
-          end if
-
-          wqlres_field(i,j) = wqlr
-
-          wtlsub_field(i,j) = wtls
-          wtlres_field(i,j) = wtlr
-
-          wtvsub_field(i,j) = wtvs
-          wtvres_field(i,j) = wtvr
-
-          wqtsub_field(i,j) = wqts
-          wqtres_field(i,j) = wqtr
-
-          uwres_field(i,j)  = uwr
-          vwres_field(i,j)  = vwr
-          uwsub_field(i,j)  = uws
-          vwsub_field(i,j)  = vws
-
-
-          patchx = patchxnr(i)
-          u_field(i,j)   = um(i,j,k)+cu - umav_patch(patchx,patchy,k)
-          v_field(i,j)   = vm(i,j,k)+cv - vmav_patch(patchx,patchy,k)
-          w_field(i,j)   = wm(i,j,k) - wmav_patch(patchx,patchy,k)
-          qt_field(i,j)  = qtm (i,j,k) - qtmav_patch(patchx,patchy,k)
-          thl_field(i,j) = thlm(i,j,k) - thlmav_patch(patchx,patchy,k)
-          thv_field(i,j) = thv0(i,j,k) - thvmav_patch(patchx,patchy,k)
-          th_field(i,j)  = thlm(i,j,k) - thmav_patch(patchx,patchy,k)
-          ql_field(i,j)  = ql0(i,j,k)  - qlmav_patch(patchx,patchy,k)
-          do n=1,nsv
-            wsv_field(i,j,n) = svm(i,j,k,n)-svmav_patch(patchx,patchy,k,n)
-          enddo
-        enddo
-        enddo
-
-
-        wtlsub_patch(:,:,k) = patchsum_1level(wtlsub_field)
-        wtlres_patch(:,:,k) = patchsum_1level(wtlres_field)
-        wqtsub_patch(:,:,k) = patchsum_1level(wqtsub_field)
-        wqtres_patch(:,:,k) = patchsum_1level(wqtres_field)
-        wqlsub_patch(:,:,k) = patchsum_1level(wqlsub_field)
-        wqlres_patch(:,:,k) = patchsum_1level(wqlres_field)
-        wtvsub_patch(:,:,k) = patchsum_1level(wtvsub_field)
-        wtvres_patch(:,:,k) = patchsum_1level(wtvres_field)
-        uwsub_patch(:,:,k)  = patchsum_1level(uwsub_field)
-        uwres_patch(:,:,k)  = patchsum_1level(uwres_field)
-        vwsub_patch(:,:,k)  = patchsum_1level(vwsub_field)
-        vwres_patch(:,:,k)  = patchsum_1level(vwres_field)
-        u2av_patch(:,:,k)   = patchsum_1level(u_field**2)
-        v2av_patch(:,:,k)   = patchsum_1level(v_field**2)
-        w2av_patch(:,:,k)   = patchsum_1level(w_field**2)
-        w3av_patch(:,:,k)   = patchsum_1level(w_field**3)
-        w2subav_patch(:,:,k)= patchsum_1level(e12m(2:i1,2:j1,k)**2)
-        qt2av_patch(:,:,k)  = patchsum_1level(qt_field**2)
-        thl2av_patch(:,:,k) = patchsum_1level(thl_field**2)
-        thv2av_patch(:,:,k) = patchsum_1level(thv_field**2)
-        th2av_patch(:,:,k)  = patchsum_1level(th_field**2)
-        ql2av_patch(:,:,k)  = patchsum_1level(ql_field**2)
-        do n=1,nsv
-          sv2av_patch(:,:,k,n)  = patchsum_1level(wsv_field(:,:,n)**2)
-        enddo
-      
-      enddo
-
-    endif
-
-
     do n=1,nsv
       do k=2,kmax
       do j=2,j1
@@ -1508,34 +910,22 @@ contains
 
       end if
       do  k=2,kmax
-        do  j=2,j1
-        do  i=2,i1
-          wsvresl(k,n) = wsvresl(k,n) + w0(i,j,k)*sv0h(i,j,k)
-          if (lhetero) then
-            wsvres_field(i,j) = w0(i,j,k)*sv0h(i,j,k)
-          endif
-        end do
-        end do
-        if (lhetero) then
-          wsvres_patch(:,:,k,n) = patchsum_1level(wsvres_field)
-        endif
+      do  j=2,j1
+      do  i=2,i1
+        wsvresl(k,n) = wsvresl(k,n) + w0(i,j,k)*sv0h(i,j,k)
+      end do
+      end do
       end do
 
       do k=2,kmax
         km = k-1
-        do j=2,j1
-        do i=2,i1
-          ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-          wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
-                                                          /dzh(k)
-          if (lhetero) then
-            wsvsub_field(i,j) = -ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) / dzh(k)
-          endif
-        end do
-        end do
-        if (lhetero) then
-          wsvsub_patch(:,:,k,n) = patchsum_1level(wsvsub_field)
-        endif
+      do j=2,j1
+      do i=2,i1
+        ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
+        wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
+                                                        /dzh(k)
+      end do
+      end do
       end do
 
     end do
@@ -1681,51 +1071,6 @@ contains
 
         sv2av = sv2av/rslabs
 
-      if (lhetero) then
-        qlhav_patch   = qlhav_patch  * (xpatches*ypatches/rslabs)
-
-        wqlsub_patch  = wqlsub_patch * (xpatches*ypatches/rslabs)
-        wqlres_patch  = wqlres_patch * (xpatches*ypatches/rslabs)
-
-        wtlsub_patch  = wtlsub_patch * (xpatches*ypatches/rslabs)
-        wtlres_patch  = wtlres_patch * (xpatches*ypatches/rslabs)
-
-        wqtsub_patch  = wqtsub_patch * (xpatches*ypatches/rslabs)
-        wqtres_patch  = wqtres_patch * (xpatches*ypatches/rslabs)
-
-        wtvsub_patch  = wtvsub_patch * (xpatches*ypatches/rslabs)
-        wtvres_patch  = wtvres_patch * (xpatches*ypatches/rslabs)
-
-        wqttot_patch  = wqtres_patch + wqtsub_patch
-        wqltot_patch  = wqlres_patch + wqlsub_patch
-        wtltot_patch  = wtlres_patch + wtlsub_patch
-        wtvtot_patch  = wtvres_patch + wtvsub_patch
-
-        wsvsub_patch = wsvsub_patch  * (xpatches*ypatches/rslabs)
-        wsvres_patch = wsvres_patch  * (xpatches*ypatches/rslabs)
-        wsvtot_patch = wsvsub_patch  + wsvres_patch
-
-        uwres_patch  = uwres_patch   * (xpatches*ypatches/rslabs)
-        vwres_patch  = vwres_patch   * (xpatches*ypatches/rslabs)
-        uwsub_patch  = uwsub_patch   * (xpatches*ypatches/rslabs)
-        vwsub_patch  = vwsub_patch   * (xpatches*ypatches/rslabs)
-        uwtot_patch  = uwres_patch   + uwsub_patch
-        vwtot_patch  = vwres_patch   + vwsub_patch
-
-        u2av_patch     = u2av_patch     * (xpatches*ypatches/rslabs)
-        v2av_patch     = v2av_patch     * (xpatches*ypatches/rslabs)
-        w2av_patch     = w2av_patch     * (xpatches*ypatches/rslabs)
-        w3av_patch     = w3av_patch     * (xpatches*ypatches/rslabs)
-        w2subav_patch  = w2subav_patch  * (xpatches*ypatches/rslabs)
-        qt2av_patch    = qt2av_patch    * (xpatches*ypatches/rslabs)
-        thl2av_patch   = thl2av_patch   * (xpatches*ypatches/rslabs)
-        thv2av_patch   = thv2av_patch   * (xpatches*ypatches/rslabs)
-        th2av_patch    = th2av_patch    * (xpatches*ypatches/rslabs)
-        ql2av_patch    = ql2av_patch    * (xpatches*ypatches/rslabs)
-
-        sv2av_patch    = sv2av_patch    * (xpatches*ypatches/rslabs)
-      endif
-
   !********************************************************************
 
   !     4.0   ADD SLAB AVERAGES TO TIME MEAN
@@ -1786,60 +1131,6 @@ contains
       skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
 
       cszmn = cszmn + cszav
-
-    if (lhetero) then
-      umn_patch      = umn_patch    + umav_patch
-      vmn_patch      = vmn_patch    + vmav_patch
-      wmn_patch      = wmn_patch    + wmav_patch
-      thvmn_patch    = thvmn_patch  + thvmav_patch
-      thlmn_patch    = thlmn_patch  + thlmav_patch
-      qtmn_patch     = qtmn_patch   + qtmav_patch
-      qlmn_patch     = qlmn_patch   + qlmav_patch
-      cfracmn_patch  = cfracmn_patch+cfracav_patch
-      qlhmn_patch    = qlhmn_patch  + qlhav_patch
-
-      wtlsmn_patch   = wtlsmn_patch + wtlsub_patch
-      wtlrmn_patch   = wtlrmn_patch + wtlres_patch
-      wtltmn_patch   = wtltmn_patch + wtltot_patch
-      wtvsmn_patch   = wtvsmn_patch + wtvsub_patch
-      wtvrmn_patch   = wtvrmn_patch + wtvres_patch
-      wtvtmn_patch   = wtvtmn_patch + wtvtot_patch
-      wqtsmn_patch   = wqtsmn_patch + wqtsub_patch
-      wqtrmn_patch   = wqtrmn_patch + wqtres_patch
-      wqttmn_patch   = wqttmn_patch + wqttot_patch
-      wqlsmn_patch   = wqlsmn_patch + wqlsub_patch
-      wqlrmn_patch   = wqlrmn_patch + wqlres_patch
-      wqltmn_patch   = wqltmn_patch + wqltot_patch
-      uwtmn_patch    = uwtmn_patch  + uwtot_patch
-      vwtmn_patch    = vwtmn_patch  + vwtot_patch
-      uwrmn_patch    = uwrmn_patch  + uwres_patch
-      vwrmn_patch    = vwrmn_patch  + vwres_patch
-      uwsmn_patch    = uwsmn_patch  + uwsub_patch
-      vwsmn_patch    = vwsmn_patch  + vwsub_patch
-      u2mn_patch     = u2mn_patch   + u2av_patch
-      v2mn_patch     = v2mn_patch   + v2av_patch
-      w2mn_patch     = w2mn_patch   + w2av_patch
-      w2submn_patch  = w2submn_patch+ w2subav_patch
-      qt2mn_patch    = qt2mn_patch  + qt2av_patch
-      thl2mn_patch   = thl2mn_patch + thl2av_patch
-      thv2mn_patch   = thv2mn_patch + thv2av_patch
-      th2mn_patch    = th2mn_patch  + th2av_patch
-      svmmn_patch    = svmmn_patch  + svmav_patch
-      svpmn_patch    = svpmn_patch  + svpav_patch
-      svptmn_patch   = svptmn_patch + svptav_patch
-      sv2mn_patch    = sv2mn_patch  + sv2av_patch
-      wsvsmn_patch   = wsvsmn_patch + wsvsub_patch
-      wsvrmn_patch   = wsvrmn_patch + wsvres_patch
-      wsvtmn_patch   = wsvtmn_patch + wsvtot_patch
-      do k=1,k1
-      do j=1,ypatches
-      do i=1,xpatches
-        skewmn_patch(i,j,k)  = skewmn_patch(i,j,k) + w3av_patch(i,j,k)/max(w2av_patch(i,j,k)**1.5,epsilon(w2av_patch(i,j,k)))
-      enddo
-      enddo
-      enddo
-      cszmn_patch    = cszmn_patch  + cszav_patch
-    endif
       
     deallocate( &
         qlhavl , & ! slab averaged ql_0 at half level &
@@ -1895,55 +1186,6 @@ contains
     deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
-
-
-    if (lhetero) then
-      deallocate(qls_patch)  
-      deallocate(tsurf_patch)  
-      deallocate(qsat_patch)  
-      deallocate(c1_patch)  
-      deallocate(c2_patch)  
-      deallocate(den_patch)  
-      deallocate(cthl_patch)  
-      deallocate(cqt_patch)  
-      deallocate(qlhav_patch)  
-      deallocate(u2av_patch)  
-      deallocate(v2av_patch)  
-      deallocate(w2av_patch)  
-      deallocate(w3av_patch)  
-      deallocate(w2subav_patch)  
-      deallocate(qt2av_patch)  
-      deallocate(thl2av_patch)  
-      deallocate(thv2av_patch)  
-      deallocate(th2av_patch)  
-      deallocate(ql2av_patch)  
-      deallocate(sv2av_patch)  
-      deallocate(uw_field)  
-      deallocate(vw_field)  
-      deallocate(u_field)  
-      deallocate(v_field)  
-      deallocate(w_field)  
-      deallocate(qt_field)  
-      deallocate(thl_field)  
-      deallocate(thv_field)  
-      deallocate(th_field)  
-      deallocate(ql_field)  
-      deallocate(wsv_field)  
-      deallocate(wqlsub_field)  
-      deallocate(wtlsub_field)  
-      deallocate(wtvsub_field)  
-      deallocate(wqtsub_field)  
-      deallocate(uwsub_field)  
-      deallocate(vwsub_field)  
-      deallocate(wqlres_field)  
-      deallocate(wtlres_field)  
-      deallocate(wtvres_field)  
-      deallocate(wqtres_field)  
-      deallocate(uwres_field)  
-      deallocate(vwres_field)  
-      deallocate(wsvres_field)  
-      deallocate(wsvsub_field)  
-    endif
   end subroutine do_genstat
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1953,14 +1195,10 @@ contains
       use modsubgriddata, only : csz
       use modmpi,    only : myid
       use modstat_nc, only: lnetcdf, writestat_nc
-      use modsurfdata, only: lhetero, xpatches, ypatches
       implicit none
 
 
       real,dimension(k1,nvar) :: vars
-      real,allocatable, dimension(:)     :: tmn, thmn
-      real,allocatable, dimension(:,:,:) :: tmn_patch, thmn_patch
-      integer nsecs, nhrs, nminut,i,j,k,n
       real,allocatable, dimension(:) :: tmn, thmn
       integer nsecs, nhrs, nminut,k,n
       real convt, convq
@@ -1972,11 +1210,6 @@ contains
       convt   = 86400.
       convq   = 86400*1000.
       allocate(tmn   (k1), thmn  (k1))
-      if (lhetero) then
-        allocate(tmn_patch(xpatches,ypatches,k1), thmn_patch(xpatches,ypatches,k1))
-        tmn_patch  = 0
-        thmn_patch = 0
-      endif
 
       umn    = umn    /nsamples
       vmn    = vmn    /nsamples
@@ -2041,78 +1274,15 @@ contains
 
         cszmn = cszmn / nsamples
 
-      if (lhetero) then
-        umn_patch      =  umn_patch    /nsamples
-        vmn_patch      =  vmn_patch    /nsamples
-        wmn_patch      =  wmn_patch    /nsamples
-        thvmn_patch    =  thvmn_patch  /nsamples
-        thlmn_patch    =  thlmn_patch  /nsamples
-        qtmn_patch     =  qtmn_patch   /nsamples
-        qlmn_patch     =  qlmn_patch   /nsamples
-        cfracmn_patch  =  cfracmn_patch/nsamples
-        qlhmn_patch    =  qlhmn_patch  /nsamples
 
-        wtlsmn_patch   =  wtlsmn_patch/nsamples
-        wtlrmn_patch   =  wtlrmn_patch/nsamples
-        wtltmn_patch   =  wtltmn_patch/nsamples
-
-        wqtsmn_patch   =  wqtsmn_patch/nsamples
-        wqtrmn_patch   =  wqtrmn_patch/nsamples
-        wqttmn_patch   =  wqttmn_patch/nsamples
-
-        wqlsmn_patch   =  wqlsmn_patch/nsamples
-        wqlrmn_patch   =  wqlrmn_patch/nsamples
-        wqltmn_patch   =  wqltmn_patch/nsamples
-
-        wtvsmn_patch   =  wtvsmn_patch/nsamples
-        wtvrmn_patch   =  wtvrmn_patch/nsamples
-        wtvtmn_patch   =  wtvtmn_patch/nsamples
-
-        uwtmn_patch    =  uwtmn_patch /nsamples
-        vwtmn_patch    =  vwtmn_patch /nsamples
-        uwrmn_patch    =  uwrmn_patch /nsamples
-        vwrmn_patch    =  vwrmn_patch /nsamples
-        uwsmn_patch    =  uwsmn_patch /nsamples
-        vwsmn_patch    =  vwsmn_patch /nsamples
-
-        w2mn_patch     = w2mn_patch   /nsamples
-        skewmn_patch   = skewmn_patch /nsamples
-        w2submn_patch  = w2submn_patch/nsamples
-        qt2mn_patch    = qt2mn_patch  /nsamples
-        v2mn_patch     = v2mn_patch   /nsamples
-        u2mn_patch     = u2mn_patch   /nsamples
-        thl2mn_patch   = thl2mn_patch /nsamples
-        thv2mn_patch   = thv2mn_patch /nsamples
-        th2mn_patch    = th2mn_patch  /nsamples
-        ql2mn_patch    = ql2mn_patch  /nsamples
-
-        svmmn_patch    = svmmn_patch  /nsamples
-        svpmn_patch    = svpmn_patch  /nsamples
-        svptmn_patch   = svptmn_patch /nsamples
-
-        sv2mn_patch    = sv2mn_patch  /nsamples
-
-        wsvsmn_patch   = wsvsmn_patch /nsamples
-        wsvrmn_patch   = wsvrmn_patch /nsamples
-        wsvtmn_patch   = wsvtmn_patch /nsamples
-
-        cszmn_patch    = cszmn_patch  /nsamples
-      endif
-
-!     ------------------------------------------
-!     2.0  Construct other time averaged fields
-!     ------------------------------------------
+  !     ------------------------------------------
+  !     2.0  Construct other time averaged fields
+  !     ------------------------------------------
 
 
       thmn = thlmn + (rlv/cp)*qlmn/exnf
       tmn  = thmn*exnf
 
-      if (lhetero) then
-        do k=1,k1
-          thmn_patch(:,:,k) = thlmn_patch(:,:,k) + (rlv/cp)*qlmn_patch(:,:,k)/exnf(k)
-          tmn_patch(:,:,k)  = thmn_patch(:,:,k)*exnf(k)
-        enddo
-      endif
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -2148,46 +1318,6 @@ contains
       end do
       close (ifoutput)
 
-      if(lhetero) then
-        do j=1,ypatches
-          do i=1,xpatches
-            name = 'fieldpatchiiixjjj.'//cexpnr
-            write (name(11:13),'(i3.3)') i
-            write (name(15:17),'(i3.3)') j
-            open (ifoutput,file=name,position='append')
-            write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
-            '#--------------------------------------------------------'      &
-            ,'#',(timeav),'--- AVERAGING TIMESTEP --- '      &
-            ,nhrs,':',nminut,':',nsecs      &
-            ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-            write (ifoutput,'(A/2A/2A)') &
-                '#--------------------------------------------------------' &
-                ,'#LEV  HGHT    PRES    TEMP       TH_L     THETA      TH_V     ' &
-                ,'  QT_AV      QL_AV      U       V   CLOUD FRACTION  CS          W' &
-                ,'#      (M)    (MB)   (----------- (KELVIN) ---------------)    ' &
-                ,'(----(G/KG)------)  (--- (M/S ---)   (-----------)  (---)      (--(M/S)--)'
-            do k=1,kmax
-              write(ifoutput,'(I3,F8.2,F7.1,5F10.4,F12.5,3F11.4,2F11.5)') &
-                  k, &
-                  zf    (k), &
-                  presf (k)/100., &
-                  tmn_patch    (i,j,k), &
-                  thlmn_patch  (i,j,k), &
-                  thmn_patch   (i,j,k), &
-                  thvmn_patch  (i,j,k), &
-                  qtmn_patch   (i,j,k)*1000., &
-                  qlmn_patch   (i,j,k)*1000., &
-                  umn_patch    (i,j,k), &
-                  vmn_patch    (i,j,k), &
-                  cfracmn_patch(i,j,k), &
-                  cszmn_patch  (i,j,k), &
-                  wmn_patch    (i,j,k)
-            end do
-
-            close (ifoutput)
-          enddo
-        enddo
-      endif
   !     -------------------------
   !     6.5   write the fluxes
   !     -----------------------------------------------------------------------
@@ -2228,52 +1358,6 @@ contains
 
 
       close(ifoutput)
-
-
-      if(lhetero) then
-        do j=1,ypatches
-          do i=1,xpatches
-            name = 'flux1patchiiixjjj.'//cexpnr
-            write (name(11:13),'(i3.3)') i
-            write (name(15:17),'(i3.3)') j
-            open (ifoutput,file=name,position='append')
-
-            write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
-                  '#-------------------------------------------------------------' &
-                ,'---------------------------------)' &
-                  ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
-                  ,nhrs,':',nminut,':',nsecs &
-                  ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-            write (ifoutput,'(2A/A/2A/2A/2A/2A)') &
-                  '#---------------------------------------------------------------' &
-                ,'---------------------------------)' &
-                ,'#                                                               ' &
-                ,'#                  |                                  TURBULENT ' &
-                ,'FLUXES                           |                             ' &
-                ,'#LEV HEIGHT  PRES  |   WTL_SUB     WTL_RES     WTL_TOT         WQ' &
-                ,'T_SUB      WQT_RES     WQT_TOT   ' &
-                ,'#     (M)    (MB) | (----------   (K M/S)   --------------)     ' &
-                ,'(---------- (M/S)   -------------)                             ' &
-                ,'#---------------------------------------------------------------' &
-                ,'---------------------------------)'
-
-            write(ifoutput,'(I3,F8.2,F7.1,6E13.5)') &
-                  (k, &
-                  zh       (k), &
-                  presh     (k)/100., &
-                  wtlsmn_patch   (i,j,k), &
-                  wtlrmn_patch   (i,j,k), &
-                  wtltmn_patch   (i,j,k), &
-                  wqtsmn_patch   (i,j,k), &
-                  wqtrmn_patch   (i,j,k), &
-                  wqttmn_patch   (i,j,k), &
-                   k=1,kmax)
-
-            close (ifoutput)
-          enddo
-        enddo
-      endif
-
 
       open (ifoutput,file='flux2.'//cexpnr,position='append')
 
@@ -2316,56 +1400,6 @@ contains
 
       close(ifoutput)
 
-
-      if(lhetero) then
-        do j=1,ypatches
-          do i=1,xpatches
-            name = 'flux2patchiiixjjj.'//cexpnr
-            write (name(11:13),'(i3.3)') i
-            write (name(15:17),'(i3.3)') j
-            open (ifoutput,file=name,position='append')
-            write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
-                  '#--------------------------------------------------------' &
-                  ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
-                  ,nhrs,':',nminut,':',nsecs &
-                  ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-            write (ifoutput,'(A/A/A/3A/4A/2A)') &
-                  '#(------------------------------------------------------------)' &
-                ,'#                                                             ' &
-                ,'                                      TURBULENT FLUXES        ' &
-                ,'#LEV HEIGHT  PRES  |    UW_TOT      VW_TOT       UW_SGS   ' &
-                ,'   VW_SGS       UW_RES       VW_RES ' &
-                ,'      WTH_TOT       WQ_L       WTHV_SUB     WTHV_RES     WTHV_TOT' &
-                ,'#     (M)    (MB) |   ' &
-                ,'(---------------------------- (M/S)^2  ---------------------------------)' &
-                ,'   (-(K M/S)-)   (-(' &
-                ,'M/S)-)     (----------  (K M/S)  -----------)' &
-                ,'#(------------------------------------------------------------' &
-                ,'-----------------------------------------)'
-
-            write(ifoutput,'(I3,F8.2,F7.1,11E13.5)') &
-                (k, &
-                  zh       (k), &
-                  presh     (k)/100., &
-                  uwtmn_patch    (i,j,k)                                       , &
-                  vwtmn_patch    (i,j,k)                                       , &
-                  uwsmn_patch    (i,j,k)                                       , &
-                  vwsmn_patch    (i,j,k)                                       , &
-                  uwrmn_patch    (i,j,k)                                       , &
-                  vwrmn_patch    (i,j,k)                                       , &
-                  wtltmn_patch   (i,j,k) + wqltmn_patch(i,j,k)*(rlv/cp)/exnh(k), &
-                  wqltmn_patch   (i,j,k)                                       , &
-                  wtvsmn_patch   (i,j,k)                                       , &
-                  wtvrmn_patch   (i,j,k)                                       , &
-                  wtvtmn_patch   (i,j,k)                                       , &
-                  k=1,kmax)
-
-            close (ifoutput)
-          enddo
-        enddo
-      endif
-
-
       open (ifoutput,file='moments.'//cexpnr,position='append')
 
       write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
@@ -2403,53 +1437,6 @@ contains
             k=1,kmax)
 
       close(ifoutput)
-
-
-      if(lhetero) then
-        do j=1,ypatches
-          do i=1,xpatches
-            name = 'momentspatchiiixjjj.'//cexpnr
-            write (name(13:15),'(i3.3)') i
-            write (name(17:19),'(i3.3)') j
-            open (ifoutput,file=name,position='append')
-
-            write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
-              '#--------------------------------------------------------'      &
-              ,'#',(timeav),'--- AVERAGING TIMESTEP --- '      &
-              ,nhrs,':',nminut,':',nsecs      &
-              ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-
-            write (ifoutput,'(3A/3A/3A)') &
-                  '#----------------------------------------------------' &
-                  ,'---------------------------------------------------' &
-                  ,'------------------------------' &
-                  ,'#  LEV   HGHT   PRES     THL**2       THV**2         ' &
-                  ,'TH**2       QT**2       U*U    ' &
-                  ,'  V*V     HGHT     W*W     SKEWW     SFS-TKE' &
-                  ,'#        (M)   (MB)     (--------------(K*K)--------' &
-                  ,'------)     (G/KG)^2     (-(M/S)' &
-                  ,'^2)-)      (M)     (M/S)^2  ()        (M/S)^2'
-
-            write(ifoutput,'(I5,F8.2,F7.1,4E13.5,2F9.4,F8.2,3F9.4)') &
-                  (k, &
-                  zf               (k), &
-                  presf            (k)/100., &
-                  thl2mn_patch (i,j,k), &
-                  thv2mn_patch (i,j,k), &
-                  th2mn_patch  (i,j,k), &
-                  qt2mn_patch  (i,j,k)*1e6, &
-                  u2mn_patch   (i,j,k), &
-                  v2mn_patch   (i,j,k), &
-                  zh               (k), &
-                  w2mn_patch   (i,j,k), &
-                  skewmn_patch (i,j,k), &
-                  w2submn_patch(i,j,k), &
-                  k=1,kmax)
-
-            close (ifoutput)
-          enddo
-        enddo
-      endif
 
 
   !----   Write information about scalar field and its tendencies ------
@@ -2491,49 +1478,6 @@ contains
         close(ifoutput)
 
 
-        if(lhetero) then
-          do j=1,ypatches
-            do i=1,xpatches
-              name = 'svnnnfldpatchiiixjjj.'//cexpnr
-              write (name(3:5),'(i3.3)') n
-              write (name(14:16),'(i3.3)') i
-              write (name(18:20),'(i3.3)') j
-              open (ifoutput,file=name,position='append')
-
-              write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
-                  '#-------------------------------------------------------------' &
-                  ,'---------------------------------)' &
-                  ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
-                  ,nhrs,':',nminut,':',nsecs &
-                  ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-
-              write (ifoutput,'(2A/A/A/A,I1,A,/A/A/2A)') &
-                  '#--------------------------------------------------------- ' &
-                  ,'--------------' &
-                  ,'#               --FIELD &  T E N D E N C I E S  --------    ' &
-                  ,'#                                                           ' &
-                  ,'#                  |        SCALAR(' &
-                  ,n &
-                  ,')                  |' &
-                  ,'# LEV HEIGHT  PRES      SV(1)      TURB    TOTAL  |' &
-                  ,'#      (M)   (MB)  |       -----  (KG/KG/DAY) ----- |' &
-                  ,'#----------------------------------------------------------' &
-                  ,'-------------'
-              write(ifoutput,'(I4,2F8.2,E14.5e3,2F8.2,E14.5E3)') &
-                  (k, &
-                    zf                 (k), &
-                    presf         (k)/100., &
-                    svmmn_patch  (i,j,k,n), &
-                    svptmn_patch (i,j,k,n)*convt, &
-                    svpmn_patch  (i,j,k,n)*convt, &
-                    sv2mn_patch  (i,j,k,n), &
-                    k=1,kmax)
-
-              close (ifoutput)
-            enddo
-          enddo
-        endif
-
 
   !        -----------------------
   !        Write the scalar fluxes
@@ -2567,51 +1511,9 @@ contains
               wsvtmn   (k,n)                            , &
               k=1,kmax)
 
-        close(ifoutput)
-
-
-        if(lhetero) then 
-          do j=1,ypatches
-            do i=1,xpatches
-              name = 'svnnnflxpatchiiixjjj.'//cexpnr
-              write (name(3:5),'(i3.3)') n
-              write (name(14:16),'(i3.3)') i
-              write (name(18:20),'(i3.3)') j
-              open (ifoutput,file=name,position='append')
-
-              write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
-                  '#-------------------------------------------------------------' &
-                  ,'---------------------------------)' &
-                  ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
-                  ,nhrs,':',nminut,':',nsecs &
-                  ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-              write (ifoutput,'(2A/A/A,I1,A,/A/A/2A)') &
-                  '#---------------------------------------------------------------' &
-                  ,'---------------------------------)' &
-                  ,'#                                                               ' &
-                  ,'#                 |         TURBULENT FLUXES (SV=',n,')       |' &
-                  ,'#LEV HEIGHT  PRES       WSV_SUB     WSV_RES     WSV_TOT' &
-                  ,'#     (M)    (MB) | (----------   (KG/KG M/S)   --------------) ' &
-                  ,'#---------------------------------------------------------------' &
-                  ,'---------------------------------)'
-
-              write(ifoutput,'(I3,2F8.2,3E14.5E3)') &
-                  (k, &
-                    zh                   (k), &
-                    presh           (k)/100., &
-                    wsvsmn_patch   (i,j,k,n), &
-                    wsvrmn_patch   (i,j,k,n), &
-                    wsvtmn_patch   (i,j,k,n), &
-                    k=1,kmax)
-
-              close (ifoutput)
-            enddo
-          enddo
-        endif
+         close(ifoutput)
 
       end do
-
-
       if (lnetcdf) then
         vars(:, 1)=rhof
         vars(:, 2)=presh
@@ -2733,74 +1635,12 @@ contains
       cszmn  = 0.
 
       deallocate(tmn, thmn)
-      if (lhetero) then
-        deallocate(tmn_patch, thmn_patch)
-      endif
-
-      if (lhetero) then
-        umn_patch      = 0.
-        vmn_patch      = 0.
-        wmn_patch      = 0.
-        thlmn_patch    = 0.
-        thvmn_patch    = 0.
-        qtmn_patch     = 0.
-        qlmn_patch     = 0.
-        qlhmn_patch    = 0.
-        cfracmn_patch  = 0.
-
-        wtlsmn_patch   = 0.
-        wtlrmn_patch   = 0.
-        wtltmn_patch   = 0.
-
-        wtvsmn_patch   = 0.
-        wtvrmn_patch   = 0.
-        wtvtmn_patch   = 0.
-
-        wqtsmn_patch   = 0.
-        wqtrmn_patch   = 0.
-        wqttmn_patch   = 0.
-
-        wqlsmn_patch   = 0.
-        wqlrmn_patch   = 0.
-        wqltmn_patch   = 0.
-
-        uwtmn_patch    = 0.
-        vwtmn_patch    = 0.
-        uwrmn_patch    = 0.
-        vwrmn_patch    = 0.
-        uwsmn_patch    = 0.
-        vwsmn_patch    = 0.
-
-        u2mn_patch     = 0.
-        v2mn_patch     = 0.
-        w2mn_patch     = 0.
-        w2submn_patch  = 0.
-        skewmn_patch   = 0.
-        qt2mn_patch    = 0.
-        thl2mn_patch   = 0.
-        thv2mn_patch   = 0.
-        th2mn_patch    = 0.
-        ql2mn_patch    = 0.
-
-        svmmn_patch    = 0.
-        svpmn_patch    = 0.
-        svptmn_patch   = 0.
-
-        sv2mn_patch    = 0.
-
-        wsvsmn_patch   = 0.
-        wsvrmn_patch   = 0.
-        wsvtmn_patch   = 0.
-
-        cszmn_patch    = 0.
-      endif
 
 
   end subroutine writestat
   subroutine exitgenstat
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modsurfdata, only: lhetero
     implicit none
 
     if(.not.(lstat)) return
@@ -2867,149 +1707,10 @@ contains
     deallocate(cszmn)
     deallocate(cszav)
 
-<<<<<<< HEAD:src/modgenstat.f90
-    if(lhetero) then
-      deallocate (umn_patch,vmn_patch,wmn_patch)
-      deallocate (thlmn_patch,thvmn_patch)
-      deallocate (qtmn_patch ,qlmn_patch ,qlhmn_patch,cfracmn_patch)
-      deallocate (wtlsmn_patch ,wtlrmn_patch ,wtltmn_patch)
-      deallocate (wtvsmn_patch ,wtvrmn_patch ,wtvtmn_patch)
-      deallocate (wqlsmn_patch ,wqlrmn_patch ,wqltmn_patch)
-      deallocate (wqtsmn_patch ,wqtrmn_patch ,wqttmn_patch)
-      deallocate (wsvsmn_patch ,wsvrmn_patch,wsvtmn_patch)
-      deallocate (uwtmn_patch  ,vwtmn_patch  ,uwrmn_patch  )
-      deallocate (vwrmn_patch  ,uwsmn_patch  ,vwsmn_patch  )
-      deallocate (w2mn_patch   ,skewmn_patch )
-      deallocate (w2submn_patch)
-      deallocate (u2mn_patch   ,v2mn_patch  ,qt2mn_patch)
-      deallocate (thl2mn_patch ,thv2mn_patch,th2mn_patch,ql2mn_patch)
-      deallocate (svmmn_patch,svptmn_patch)
-      deallocate (svplsmn_patch,svpmn_patch)
-      deallocate (sv2mn_patch)
-
-      deallocate (umav_patch )
-      deallocate (vmav_patch )
-      deallocate (wmav_patch )
-      deallocate (thlmav_patch )
-      deallocate (thmav_patch )
-      deallocate (thvmav_patch )
-      deallocate (qtmav_patch )
-      deallocate (qlmav_patch )
-      deallocate (cfracav_patch)
-      deallocate (svmav_patch )
-      deallocate (uptav_patch)
-      deallocate (vptav_patch)
-
-      deallocate (thptav_patch)
-      deallocate (qlptav_patch)
-      deallocate (uwtot_patch )
-      deallocate (vwtot_patch )
-      deallocate (uwsub_patch )
-      deallocate (vwsub_patch )
-      deallocate (uwres_patch )
-      deallocate (vwres_patch )
-      deallocate (wtlsub_patch)
-      deallocate (wtlres_patch)
-      deallocate (wtltot_patch)
-      deallocate (wqtsub_patch)
-      deallocate (wqtres_patch)
-      deallocate (wqttot_patch)
-      deallocate (wqlsub_patch)
-      deallocate (wqlres_patch)
-      deallocate (wqltot_patch)
-      deallocate (wtvtot_patch)
-      deallocate (wtvres_patch)
-      deallocate (wtvsub_patch)
-      deallocate (wsvsub_patch)
-      deallocate (wsvres_patch)
-      deallocate (wsvtot_patch)
-      deallocate (thvhav_patch)
-      deallocate (th0av_patch)
-      deallocate (svptav_patch)
-      deallocate (svpav_patch)
-
-      deallocate (cszmn_patch, cszav_patch)
-    endif
     deallocate(qlmnlast)
     deallocate(wtvtmnlast)
 
   end subroutine exitgenstat
 
-  function patchsum(x)
-    use modglobal,  only : imax,jmax,jtot,k1
-    use modsurfdata,only : xpatches,ypatches
-    use modmpi,     only : myid,mpierr, comm3d,my_real,mpi_sum
-    implicit none
-    real                :: patchsum(xpatches,ypatches,k1),xl(xpatches,ypatches,k1)
-    real, intent(in)    :: x(imax,jmax,k1)
-    integer             :: i,j,jind,itpatch,posperxpatch,jreal
-    
-    patchsum     = 0
-    xl           = 0
-    posperxpatch = imax/xpatches
-    
-    do j=1,jmax
-      jreal = j + (myid * jmax) - 1 !In connection with next line, the -1 makes sure that division there is the same over a patch
-      jind  = 1 + (jreal*ypatches)/jtot
-      do itpatch=1,xpatches
-        do i=1,posperxpatch
-          xl(itpatch,jind,:) = xl(itpatch,jind,:) + x(i+((itpatch-1)*posperxpatch),j,:)
-        enddo
-      enddo
-    enddo
 
-    call MPI_ALLREDUCE(xl,patchsum, xpatches*ypatches*k1,MY_REAL,MPI_SUM, comm3d,mpierr)
-  end function
-
-  function patchsum_1level(x)
-    use modglobal,  only : imax,jmax,jtot
-    use modsurfdata,only : xpatches,ypatches
-    use modmpi,     only : myid,mpierr, comm3d,my_real,mpi_sum
-    implicit none
-    real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
-    real, intent(in)    :: x(imax,jmax)
-    integer             :: i,j,jind,itpatch,posperxpatch,jreal
-    
-    patchsum_1level = 0
-    xl              = 0
-    posperxpatch    = imax/xpatches
-    
-    do j=1,jmax
-      jreal = j + (myid * jmax) - 1 !In connection with next line, the -1 makes sure that division there is the same over a patch
-      jind  = 1 + (jreal*ypatches)/jtot
-      do itpatch=1,xpatches
-        do i=1,posperxpatch
-          xl(itpatch,jind) = xl(itpatch,jind) + x(i+((itpatch-1)*posperxpatch),j)
-        enddo
-      enddo
-    enddo
-
-    call MPI_ALLREDUCE(xl,patchsum_1level, xpatches*ypatches,MY_REAL,MPI_SUM, comm3d,mpierr)
-  end function
-
-  function patchsum_halflevel(x)
-    use modglobal,  only : imax,jmax,jtot,kmax
-    use modsurfdata,only : xpatches,ypatches
-    use modmpi,     only : myid,mpierr, comm3d,my_real,mpi_sum
-    implicit none
-    real                :: patchsum_halflevel(xpatches,ypatches,kmax-1),xl(xpatches,ypatches,kmax-1)
-    real, intent(in)    :: x(imax,jmax,kmax-1)
-    integer             :: i,j,jind,itpatch,posperxpatch,jreal
-    
-    patchsum_halflevel = 0
-    xl                 = 0
-    posperxpatch       = imax/xpatches
-    
-    do j=1,jmax
-      jreal = j + (myid * jmax) - 1 !In connection with next line, the -1 makes sure that division there is the same over a patch
-      jind  = 1 + (jreal*ypatches)/jtot
-      do itpatch=1,xpatches
-        do i=1,posperxpatch
-          xl(itpatch,jind,:) = xl(itpatch,jind,:) + x(i+((itpatch-1)*posperxpatch),j,:)
-        enddo
-      enddo
-    enddo
-
-    call MPI_ALLREDUCE(xl,patchsum_halflevel, xpatches*ypatches*(kmax-1),MY_REAL,MPI_SUM, comm3d,mpierr)
-  end function
 end module modgenstat

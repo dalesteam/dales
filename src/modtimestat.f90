@@ -34,7 +34,6 @@ module modtimestat
 
 
   use modglobal, only : longint
-  use modgenstat,only : patchsum_1level
 
 implicit none
 ! private
@@ -1194,5 +1193,32 @@ contains
       deallocate(we_patch      )
     endif
   end subroutine exittimestat
+
+ function patchsum_1level(x)
+   use modglobal,  only : imax,jmax,jtot
+   use modsurfdata,only : xpatches,ypatches
+   use modmpi,     only : myid,mpierr, comm3d,my_real,mpi_sum
+   implicit none
+   real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
+   real, intent(in)    :: x(imax,jmax)
+   integer             :: i,j,jind,itpatch,posperxpatch,jreal
+   
+   patchsum_1level = 0
+   xl              = 0
+   posperxpatch    = imax/xpatches
+   
+   do j=1,jmax
+     jreal = j + (myid * jmax) - 1 !In connection with next line, the -1 makes sure that division there is the same over a patch
+     jind  = 1 + (jreal*ypatches)/jtot
+     do itpatch=1,xpatches
+       do i=1,posperxpatch
+         xl(itpatch,jind) = xl(itpatch,jind) + x(i+((itpatch-1)*posperxpatch),j)
+       enddo
+     enddo
+   enddo
+
+  call MPI_ALLREDUCE(xl,patchsum_1level, xpatches*ypatches,MY_REAL,MPI_SUM, comm3d,mpierr)
+
+  end function
 
 end module modtimestat
