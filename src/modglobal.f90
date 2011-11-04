@@ -111,16 +111,8 @@ save
       !Base state
       integer :: ibas_prf = 1
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)
-      integer, parameter :: ibas_bou    = 2 !< Old Boussinesq (Base states inconsistent)
-      integer, parameter :: ibas_rho    = 3 !< Density constant
-      integer, parameter :: ibas_vma    = 4 !< Moist adiabat
+      integer, parameter :: ibas_bou    = 2 !< Boussinesq-like
       integer, parameter :: ibas_usr    = 5 !< User specified
-
-      !Thermodynamic variable
-      integer :: ithe_var = 1
-      integer, parameter :: ithe_thli    = 1 !< Theta_li
-      integer, parameter :: ithe_texp    = 2 !< Exponential version
-      integer, parameter :: ithe_lise    = 3 !< LISE
 
       !Advection scheme
       integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
