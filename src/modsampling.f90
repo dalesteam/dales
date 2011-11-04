@@ -876,7 +876,7 @@ contains
         write (ifoutput,'(2A/2A)') &
             '#------------------------------------------------------' &
             ,'------------------------------' &
-            ,'   LEV  HGHT  PRES       AW                WTHL                 WTHE                ' &
+            ,'   LEV  HGHT  PRES       AW                WTHL                 ' &
             ,'WQT                WQL                WTHV                UW                VW'
         do k=1,kmax
           write(ifoutput,'(i5,F8.0,F7.1,8E16.8)') &
