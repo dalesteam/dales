@@ -82,13 +82,7 @@ save
                qrmn    , &
                Dvravl  , &
                Dvrav  , &
-               Dvrmn, &
-               mp_avl  , &
-               mp_av  , &
-               mp_mn,&
-               zh_avl  , &
-               zh_av  , &
-               zh_mn
+               Dvrmn
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -168,13 +162,7 @@ subroutine initbulkmicrostat
        qrmn    (k1)    , &
        Dvravl    (k1)    , &
        Dvrav    (k1)    , &
-       Dvrmn    (k1)    ,&
-       mp_avl    (k1)    , &
-       mp_av    (k1)    , &
-       mp_mn    (k1)    , &
-       zh_avl    (k1)    , &
-       zh_av    (k1)    , &
-       zh_mn    (k1)    )
+       Dvrmn    (k1))
     Npmn    = 0.0
     qlpmn    = 0.0
     qtpmn    = 0.0
@@ -186,8 +174,7 @@ subroutine initbulkmicrostat
     Nrrainmn  = 0.0
     qrmn    = 0.0
     Dvrmn    = 0.0
-    mp_mn=0.
-    zh_mn=0.
+
 
     if (myid == 0) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
@@ -281,8 +268,6 @@ subroutine initbulkmicrostat
     Nrrainav    = 0.0
     qrav      = 0.0
     Dvrav      = 0.0
-    mp_av = 0.0
-    zh_av= 0.0
 
     do k = 1,k1
       cloudcountavl(k)  = count(qc      (2:i1,2:j1,k) > epscloud)
@@ -293,8 +278,6 @@ subroutine initbulkmicrostat
       Nrrainavl    (k)  = sum  (Nr  (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
       qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
-      mp_avl        (k)  = sum  (diag_mp  (2:i1,2:j1,k))
-      zh_avl        (k)  = sum  (diag_zh  (2:i1,2:j1,k))
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -305,8 +288,6 @@ subroutine initbulkmicrostat
     call MPI_ALLREDUCE(Nrrainavl  ,Nrrainav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(precavl  ,precav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qravl  ,qrav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(mp_avl  ,mp_av    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(zh_avl  ,zh_av    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
     cloudcountmn  = cloudcountmn  +  cloudcountav  /rslabs
     raincountmn  = raincountmn  +  raincountav  /rslabs
@@ -316,8 +297,6 @@ subroutine initbulkmicrostat
     Nrrainmn  = Nrrainmn  +  Nrrainav  /rslabs
     precmn    = precmn  +  precav    /rslabs
     qrmn    = qrmn    +  qrav    /rslabs
-    mp_mn    = mp_mn    +  mp_av    /rslabs
-    zh_mn    = zh_mn    +  zh_av    /rslabs
 
   end subroutine dobulkmicrostat
 
@@ -400,8 +379,6 @@ subroutine initbulkmicrostat
                 Nrrainmn        = Nrrainmn      /nsamples
                 precmn          = precmn        /nsamples
                 qrmn            = qrmn          /nsamples
-                mp_mn           = mp_mn         /nsamples
-                zh_mn           = zh_mn         /nsamples
 
     where (raincountmn > 0.)
       Dvrmn        = Dvrmn / raincountmn
@@ -562,8 +539,6 @@ subroutine initbulkmicrostat
         do k=1,k1
         vars(k,23) =sum(qtpmn  (k,2:nrfields))
         enddo
-        vars(:,24) =mp_mn    (:)
-        vars(:,25) =zh_mn    (:)
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
 
@@ -580,8 +555,6 @@ subroutine initbulkmicrostat
     Npmn      = 0.0
     qlpmn      = 0.0
     qtpmn      = 0.0
-    mp_mn      = 0.0
-    zh_mn      = 0.0
 
   end subroutine writebulkmicrostat
 
@@ -620,13 +593,7 @@ subroutine initbulkmicrostat
          qrmn      , &
          Dvravl    , &
          Dvrav    , &
-         Dvrmn    , &
-         mp_avl    , &
-         mp_av      , &
-         mp_mn      , &
-         zh_avl    , &
-         zh_av    , &
-         zh_mn    )
+         Dvrmn)
 
   end subroutine exitbulkmicrostat
 

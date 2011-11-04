@@ -100,9 +100,7 @@ module modbulkmicro
              ,qr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Nr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,wfall_qr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,diag_mp (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,diag_zh (2-ih:i1+ih,2-jh:j1+jh,k1))
+             ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1))
 
     allocate(precep    (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qrmask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -734,7 +732,6 @@ module modbulkmicro
     implicit none
     integer :: i,j,k
     real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)
-    real :: f_mp,f_zh,lambda_mp,lambda_zh
     integer :: numel
 
     allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
@@ -757,17 +754,7 @@ module modbulkmicro
     enddo
     enddo
 
-    diag_mp=0.
-    diag_zh=0.
-
-	lambda_zh=2700.
-	f_zh = avf*gamma3/lambda_zh**3. +  &
-	  bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma35/lambda_zh**3.5 * &
-	  (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_zh/(   c_tvsb+lambda_zh))**3.5  &
-		 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_zh/(2.*c_tvsb+lambda_zh))**3.5  &
-		 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_zh/(3.*c_tvsb+lambda_zh))**3.5 &
-		 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_zh/(4.*c_tvsb+lambda_zh))**3.5  )
-                 
+                
     if (l_sb ) then
        do j=2,j1
        do i=2,i1
@@ -783,15 +770,6 @@ module modbulkmicro
 ! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
             evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhoz(i,j,k)
             Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhoz(i,j,k)/xr(i,j,k)
-            lambda_mp=6.**(1./3.)/Dvr(i,j,k)
-            f_mp = avf/lambda_mp**2. +  &
-              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*gamma25/lambda_mp**2.5 * &
-              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lambda_mp/(   c_tvsb+lambda_mp))**2.5  &
-                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lambda_mp/(2.*c_tvsb+lambda_mp))**2.5  &
-                 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lambda_mp/(3.*c_tvsb+lambda_mp))**2.5 &
-                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lambda_mp/(4.*c_tvsb+lambda_mp))**2.5  )
-            diag_mp(i,j,k)=2*pi*((n0rr**(3./4.)*qr(i,j,k)**(1./4.)*(rhoz(i,j,k)/(pi*rhow))**(1./4.)*lambda_mp))*G(i,j,k)*f_mp*S(i,j,k)/rhoz(i,j,k)
-            diag_zh(i,j,k)=2*pi*((6.*lambda_zh**3.*rhoz(i,j,k)*qr(i,j,k)*lambda_zh**2.)/(pi*rhow*12.))*G(i,j,k)*f_zh*S(i,j,k)/rhoz(i,j,k)
          endif
        enddo
        enddo
