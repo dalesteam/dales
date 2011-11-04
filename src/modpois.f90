@@ -298,8 +298,6 @@ contains
     end do
     end do
 
-    end select
-
   ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     do j=1,jmax
       jv = j + myid*jmax
@@ -425,7 +423,7 @@ contains
 !-----------------------------------------------------------------|
 
     use modfields, only : up, vp, wp, rhobf, prsbh, rhobh
-    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh,imom_eqn,grav,rd,cp
+    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh,grav,rd,cp
     use modmpi,    only : excj
     implicit none
     integer i,j,k
