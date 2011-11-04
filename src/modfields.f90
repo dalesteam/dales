@@ -48,7 +48,7 @@ save
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
   real, allocatable :: wp(:,:,:)        !<   tendency of wm
-  real, allocatable :: wp_store(:,:,:)        !<   tendency of wm, dummy variable for w-budget sampling
+  real, allocatable :: wp_store(:,:,:)  !<   tendency of wm, dummy variable for w-budget sampling
   real, allocatable :: thlp(:,:,:)      !<   tendency of thlm
   real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real, allocatable :: qtp(:,:,:)       !<   tendency of qtm
@@ -133,16 +133,6 @@ save
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
 
-  real, allocatable :: distcld(:,:,:)
-  real, allocatable :: distcr(:,:,:)
-  integer, allocatable :: cloudnr(:,:,:)
-  integer, allocatable :: cloudarea(:,:,:)
-  real, allocatable :: distw(:,:)
-  real, allocatable :: distcon(:,:)
-  real, allocatable :: distdiv(:,:)
-  real, allocatable :: distqr(:,:)
-  real, allocatable :: distbuoy(:,:)
-
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -175,15 +165,6 @@ subroutine initfields
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(cloudarea(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distbuoy(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distw(2-ih:i1+ih,2-jh:j1+jh))
 
     ! Allocation of base state variables
     allocate(rhobf(k1))
@@ -274,7 +255,6 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
-    distcld=0.;distcr=0.;distcon=0.;distdiv=0.;distqr=0.;distbuoy=0.;distw=0.;cloudnr=0;cloudarea=0
 
   end subroutine initfields
 
@@ -292,7 +272,6 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
-    deallocate(distcld,distcr,distcon,distdiv,distqr,distbuoy,distw,cloudnr,cloudarea)
    end subroutine exitfields
 
 end module modfields
