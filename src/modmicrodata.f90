@@ -159,7 +159,6 @@
 
    real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
    real,allocatable,dimension(:,:,:) :: precep
-   real,allocatable,dimension(:,:,:) :: diag_mp,diag_zh !< diagnose what a marshall-palmer/zhang distribution would do
 
   real :: delt
 
