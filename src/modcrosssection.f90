@@ -37,7 +37,6 @@ PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
   integer,parameter :: nvar = 10
-  integer,parameter :: nvarxy = 12
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -54,7 +53,7 @@ save
   character(80) :: fname3 = 'crossyz.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname1
   character(80),dimension(1,4) :: tncname1
-  character(80),dimension(nvarxy,4) :: ncname2
+  character(80),dimension(nvar,4) :: ncname2
   character(80),dimension(1,4) :: tncname2
   character(80),dimension(nvar,4) :: ncname3
   character(80),dimension(1,4) :: tncname3
@@ -62,6 +61,7 @@ save
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
   logical :: lcross = .false. !< switch for doing the crosssection (on/off)
+  logical :: lbinary = .false. !< switch for doing the crosssection (on/off)
   integer :: crossplane = 2 !< Location of the xz crosssection
   integer :: crossortho = 2 !< Location of the yz crosssection
 
@@ -76,7 +76,7 @@ contains
     integer :: ierr,k
 
     namelist/NAMCROSSSECTION/ &
-    lcross, dtav, crossheight, crossplane, crossortho
+    lcross, lbinary, dtav, crossheight, crossplane, crossortho
 
     allocate(ncid2(kmax),nrec2(kmax))
     crossheight(1)=2
@@ -100,6 +100,7 @@ contains
 
     call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(lcross     ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lbinary    ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(crossheight(1:100),100,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(crossplane ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(crossortho ,1,MPI_INTEGER,0,comm3d,mpierr)
@@ -162,14 +163,12 @@ contains
       call ncinfo(ncname2( 8,:),'buoyxy','xy crosssection of the Buoyancy','K','tt0t')
       call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water mixing ratio','kg/kg','tt0t')
       call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
-      call ncinfo(ncname2(11,:),'distcld','liquid water sampling distance','-','tt0t')
-      call ncinfo(ncname2(12,:),'distcore','core sampling distance','-','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
         call writestat_dims_nc(ncid2(cross))
       end if
-      call define_nc( ncid2(cross), NVarxy, ncname2)
+      call define_nc( ncid2(cross), NVar, ncname2)
     end do
     fname3(9:11) = cmyid
     fname3(13:15) = cexpnr
@@ -209,14 +208,10 @@ contains
     end if
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
-!   if(lnetcdf) call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
-!   do cross=1,nxy
-!     if(lnetcdf) call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2,.true.)
-!   end do
-!   if(lnetcdf) call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
-   call wrtvert
-   call wrthorz
-   call wrtorth
+
+    call wrtvert
+    call wrthorz
+    call wrtorth
 
   end subroutine crosssection
 
@@ -247,47 +242,50 @@ contains
     enddo
     enddo
 
-!~     open(ifoutput,file='movv_u.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((um(i,crossplane,k)+cu,i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_v.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((vm(i,crossplane,k)+cv,i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_w.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((wm(i,crossplane,k),i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_thl.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((thlm(i,crossplane,k),i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_thv.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((thv0(i,k),i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_buoy.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((buoy(i,k),i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_qt.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((1.e3*qtm(i,crossplane,k),i=2,i1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movv_ql.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((1.e3*ql0(i,crossplane,k),i=2,i1),k=1,kmax)
-!~     close(ifoutput)
+    if(lbinary) then
+      open(ifoutput,file='movv_u.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((um(i,crossplane,k)+cu,i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_v.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((vm(i,crossplane,k)+cv,i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_w.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((wm(i,crossplane,k),i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_thl.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((thlm(i,crossplane,k),i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_thv.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((thv0(i,k),i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_buoy.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((buoy(i,k),i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_qt.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((1.e3*qtm(i,crossplane,k),i=2,i1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movv_ql.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((1.e3*ql0(i,crossplane,k),i=2,i1),k=1,kmax)
+      close(ifoutput)
 
-!~     do n = 1,nsv
-!~       name = 'movh_tnn.'//cexpnr
-!~       write(name(7:8),'(i2.2)') n
-!~       open(ifoutput,file=name,position='append',action='write')
-!~       write(ifoutput,'(es12.5)') ((svm(i,crossplane,k,n),i=2,i1),k=1,kmax)
-!~       close(ifoutput)
-!~     end do
+      do n = 1,nsv
+        name = 'movh_tnn.'//cexpnr
+        write(name(7:8),'(i2.2)') n
+        open(ifoutput,file=name,position='append',action='write')
+        write(ifoutput,'(es12.5)') ((svm(i,crossplane,k,n),i=2,i1),k=1,kmax)
+        close(ifoutput)
+      end do
+    end if
+
     if (lnetcdf) then
-      allocate(vars(1:imax,1:kmax,10))
+      allocate(vars(1:imax,1:kmax,nvar))
       vars(:,:,1) = um(2:i1,crossplane,1:kmax)+cu
       vars(:,:,2) = vm(2:i1,crossplane,1:kmax)+cv
       vars(:,:,3) = wm(2:i1,crossplane,1:kmax)
@@ -304,7 +302,7 @@ contains
       vars(:,:,10) = 0.
       end if
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
-      call writestat_nc(ncid1,10,ncname1(1:10,:),vars,nrec1,imax,kmax)
+      call writestat_nc(ncid1,nvar,ncname1(1:nvar,:),vars,nrec1,imax,kmax)
       deallocate(vars)
     end if
     deallocate(thv0,buoy)
@@ -314,7 +312,7 @@ contains
 !> Do the xy crosssections and dump them to file
   subroutine wrthorz
     use modglobal, only : imax,jmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,distcld,distcr
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr,inr
@@ -342,52 +340,54 @@ contains
     enddo
     enddo
 
-!~     do  cross=1,nxy
-!~     write(cheight,'(i4.4)') crossheight(cross)
-!~     open(ifoutput,file='movh_u.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((um(i,j,crossheight(cross))+cu,i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_v.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((vm(i,j,crossheight(cross))+cv,i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_w.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((wm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_thl.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((thlm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_thv.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((thv0(i,j,cross),i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_buoy.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((buoy(i,j,cross),i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_qt.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((1.e3*qtm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movh_ql.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((1.e3*ql0(i,j,crossheight(cross)),i=2,i1),j=2,j1)
-!~     close(ifoutput)
+    if(lbinary) then
+      do  cross=1,nxy
+      write(cheight,'(i4.4)') crossheight(cross)
+      open(ifoutput,file='movh_u.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((um(i,j,crossheight(cross))+cu,i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_v.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((vm(i,j,crossheight(cross))+cv,i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_w.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((wm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_thl.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((thlm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_thv.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((thv0(i,j,cross),i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_buoy.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((buoy(i,j,cross),i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_qt.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((1.e3*qtm(i,j,crossheight(cross)),i=2,i1),j=2,j1)
+      close(ifoutput)
+  
+      open(ifoutput,file='movh_ql.'//cheight//'.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((1.e3*ql0(i,j,crossheight(cross)),i=2,i1),j=2,j1)
+      close(ifoutput)
 
-!~     do n = 1,nsv
-!~       name = 'movh_snn.'//trim(cheight)//'.'//cmyid//'.'//cexpnr
-!~       write(name(7:8),'(i2.2)') n
-!~       open(ifoutput,file=name,position='append',action='write')
-!~       write(ifoutput,'(es12.5)') ((svm(i,j,crossheight(cross),n),i=2,i1),j=2,j1)
-!~       close(ifoutput)
-!~     end do
-!~     end do
+      do n = 1,nsv
+        name = 'movh_snn.'//trim(cheight)//'.'//cmyid//'.'//cexpnr
+        write(name(7:8),'(i2.2)') n
+        open(ifoutput,file=name,position='append',action='write')
+        write(ifoutput,'(es12.5)') ((svm(i,j,crossheight(cross),n),i=2,i1),j=2,j1)
+        close(ifoutput)
+      end do
+      end do
+    endif
 
     if (lnetcdf) then
       do cross=1,nxy
-      allocate(vars(1:imax,1:jmax,12))
+      allocate(vars(1:imax,1:jmax,nvar))
       vars=0.
       vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
       vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
@@ -404,10 +404,8 @@ contains
       vars(:,:,9) = 0.
       vars(:,:,10) = 0.
       end if
-      vars(:,:,11) = distcld(2:i1,2:j1,crossheight(cross))
-      vars(:,:,12) = distcr(2:i1,2:j1,crossheight(cross))
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-      call writestat_nc(ncid2(cross),12,ncname2(1:12,:),vars,nrec2(cross),imax,jmax)
+      call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
       end do
     end if
@@ -443,47 +441,51 @@ contains
        buoy(j,k) =thv0(j,k)-thvf(k)
     enddo
     enddo
-!~     open(ifoutput,file='movo_u.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((um(crossortho,j,k)+cu,j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_v.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((vm(crossortho,j,k)+cv,j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_w.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((wm(crossortho,j,k),j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_thl.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((thlm(crossortho,j,k),j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_thv.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((thv0(j,k),j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_buoy.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((buoy(j,k),j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_qt.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((1.e3*qtm(crossortho,j,k),j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     open(ifoutput,file='movo_ql.'//cmyid//'.'//cexpnr,position='append',action='write')
-!~     write(ifoutput,'(es12.5)') ((1.e3*ql0(crossortho,j,k),j=2,j1),k=1,kmax)
-!~     close(ifoutput)
-!~ 
-!~     do n = 1,nsv
-!~       name = 'movh_tnn.'//cmyid//'.'//cexpnr
-!~       write(name(7:8),'(i2.2)') n
-!~       open(ifoutput,file=name,position='append',action='write')
-!~       write(ifoutput,'(es12.5)') ((svm(crossortho,j,k,n),j=2,j1),k=1,kmax)
-!~       close(ifoutput)
-!~     end do
+
+    if(lbinary) then
+      open(ifoutput,file='movo_u.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((um(crossortho,j,k)+cu,j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_v.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((vm(crossortho,j,k)+cv,j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_w.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((wm(crossortho,j,k),j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_thl.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((thlm(crossortho,j,k),j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_thv.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((thv0(j,k),j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_buoy.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((buoy(j,k),j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_qt.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((1.e3*qtm(crossortho,j,k),j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      open(ifoutput,file='movo_ql.'//cmyid//'.'//cexpnr,position='append',action='write')
+      write(ifoutput,'(es12.5)') ((1.e3*ql0(crossortho,j,k),j=2,j1),k=1,kmax)
+      close(ifoutput)
+  
+      do n = 1,nsv
+        name = 'movh_tnn.'//cmyid//'.'//cexpnr
+        write(name(7:8),'(i2.2)') n
+        open(ifoutput,file=name,position='append',action='write')
+        write(ifoutput,'(es12.5)') ((svm(crossortho,j,k,n),j=2,j1),k=1,kmax)
+        close(ifoutput)
+      end do
+    end if
+
     if (lnetcdf) then
-      allocate(vars(1:jmax,1:kmax,10))
+      allocate(vars(1:jmax,1:kmax,nvar))
       vars(:,:,1) = um(crossortho,2:j1,1:kmax)+cu
       vars(:,:,2) = vm(crossortho,2:j1,1:kmax)+cv
       vars(:,:,3) = wm(crossortho,2:j1,1:kmax)
@@ -500,7 +502,7 @@ contains
       vars(:,:,10) = 0.
       end if
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
-      call writestat_nc(ncid3,10,ncname3(1:10,:),vars,nrec3,jmax,kmax)
+      call writestat_nc(ncid3,nvar,ncname3(1:nvar,:),vars,nrec3,jmax,kmax)
       deallocate(vars)
     end if
 
