@@ -103,11 +103,6 @@ save
       real    :: xlat    = 52.              !<    *latitude  in degrees.
       real    :: xlon    = 0.               !<    *longitude in degrees.
 
-      !Momentum equation
-      integer :: imom_eqn = 2
-      integer, parameter :: imom_wo    = 1 !< Wilhelmson-Ogura (Boussinesq is special case)
-      integer, parameter :: imom_lh    = 2 !< Lipps-Hemler
-
       !Base state
       integer :: ibas_prf = 1
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)

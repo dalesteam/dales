@@ -57,7 +57,7 @@ contains
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   lmoist,lcoriol,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  imom_eqn,ibas_prf,ithe_var,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
+                                  ibas_prf,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -93,7 +93,7 @@ contains
         lcoriol,igrw_damp,geodamptime,lmomsubs, ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, cu, cv, imom_eqn, ibas_prf, ithe_var, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lqlnr, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
 !   logical :: ldelta   = .false. ! switch for subgrid
   !read namelists
 
@@ -212,9 +212,7 @@ contains
     call MPI_BCAST(peclet,1,MY_REAL   ,0,comm3d,mpierr)
 
     call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(imom_eqn,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(ithe_var,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,comm3d,mpierr)

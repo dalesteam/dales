@@ -65,7 +65,7 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, drhobdzf, rhobf
-    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt,imom_eqn
+    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
@@ -189,7 +189,7 @@ contains
 !              copy times all included
 
     use modmpi,    only : myid,comm3d,mpierr,nprocs, barrou
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh,imom_eqn
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh
     use modfields, only : rhobf, drhobdzf
     implicit none
 
@@ -278,48 +278,25 @@ contains
 
   ! Generate tridiagonal matrix
 
-    select case (imom_eqn)
-      case(1)
-        do k=1,kmax
-        a(k)=1./(dzf(k)*dzh(k))
-        c(k)=1./(dzf(k)*dzh(k+1))
-        b(k)=-(a(k)+c(k))
-        end do
-      case(2)
-        do k=1,kmax
-        a(k)=rhobf(k)/(dzf(k)*dzh(k))-drhobdzf(k)/(dzh(k)+dzh(k+1))
-        c(k)=rhobf(k)/(dzf(k)*dzh(k+1))+drhobdzf(k)/(dzh(k)+dzh(k+1))
-        b(k)=-(a(k)+c(k))
-        end do
-    end select
+    do k=1,kmax
+      a(k)=rhobf(k)/(dzf(k)*dzh(k))-drhobdzf(k)/(dzh(k)+dzh(k+1))
+      c(k)=rhobf(k)/(dzf(k)*dzh(k+1))+drhobdzf(k)/(dzh(k)+dzh(k+1))
+      b(k)=-(a(k)+c(k))
+    end do
 
     b(1   )=b(1)+a(1)
     a(1   )=0.
     b(kmax)=b(kmax)+c(kmax)
     c(kmax)=0.
 
-  ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
-    select case (imom_eqn)
-    case(1)
-      do k=1,kmax
-        do  j=1,jmax
-        jv = j + myid*jmax
-          do  i=1,imax
-          xyzrt(i,j,k)= (xrt(i)+yrt(jv)) !!! WO -> unchanged
-          end do
-        end do
-      end do
-    case(2)
-      do k=1,kmax
-        do  j=1,jmax
-        jv = j + myid*jmax
-          do  i=1,imax
-          xyzrt(i,j,k)= rhobf(k)*(xrt(i)+yrt(jv)) !!! LH
-          end do
-        end do
-      end do
-    case default
-        stop 'momentum equation not set'
+    do k=1,kmax
+    do j=1,jmax
+    jv = j + myid*jmax
+    do i=1,imax
+      xyzrt(i,j,k)= rhobf(k)*(xrt(i)+yrt(jv)) !!! LH
+    end do
+    end do
+    end do
 
     end select
 
@@ -472,38 +449,11 @@ contains
   ! **  pressure gradients.  ***************************************
   !*****************************************************************
 
-    select case(imom_eqn)
-
-    case(1)
-
     do k=1,kmax
     do j=2,j1
     do i=2,i1
-
-      up(i,j,k) = up(i,j,k)-(1./rhobf(k))*(p(i,j,k)-p(i-1,j,k))/dx
-      vp(i,j,k) = vp(i,j,k)-(1./rhobf(k))*(p(i,j,k)-p(i,j-1,k))/dy
-
-    end do
-    end do
-    end do
-
-    do k=2,kmax
-    do j=2,j1
-    do i=2,i1
-      wp(i,j,k) = wp(i,j,k)-(1./rhobh(k))*(p(i,j,k)-p(i,j,k-1))/dzh(k)
-    end do
-    end do
-    end do
-
-    case(2)
-
-    do k=1,kmax
-    do j=2,j1
-    do i=2,i1
-
       up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
       vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
-
     end do
     end do
     end do
@@ -516,10 +466,6 @@ contains
     end do
     end do
 
-    case default
-        stop 'momentum equation not set'
-
-    end select
     return
   end subroutine tderive
 
