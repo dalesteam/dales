@@ -89,7 +89,7 @@ program DALES      !Version 4.0.0alpha
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
-  use modedgecold,       only : coldedge
+  !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
 !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
@@ -97,7 +97,7 @@ program DALES      !Version 4.0.0alpha
   use modcape,         only : initcape,exitcape,docape
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
-  use modspectra2,     only : dospecs,initspectra2,tanhfilter
+  !use modspectra2,     only : dospecs,initspectra2,tanhfilter
   use modtimestat,     only : inittimestat, timestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
@@ -119,7 +119,7 @@ program DALES      !Version 4.0.0alpha
   !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
 
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
-  use modparticles,    only : initparticles, particles, exitparticles
+  !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   !use modchem,         only : initchem,inputchem,twostep
@@ -151,7 +151,7 @@ program DALES      !Version 4.0.0alpha
   call initsamptend
   call initradstat
   call initlsmstat
-  call initparticles
+  !call initparticles
   call initnudge
   call initbulkmicrostat
   call initsimpleicestat
@@ -162,7 +162,7 @@ program DALES      !Version 4.0.0alpha
 
   !call initchem
   !call initheterostats
-  call initspectra2
+  !call initspectra2
   call initcape
 
 
@@ -211,7 +211,7 @@ program DALES      !Version 4.0.0alpha
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
     call nudge
-    call dospecs
+!    call dospecs
 !    call tiltedgravity
 
     call samptend(tend_addon)
@@ -237,7 +237,7 @@ program DALES      !Version 4.0.0alpha
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
     !call twostep
-    call coldedge
+    !call coldedge
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
@@ -246,12 +246,12 @@ program DALES      !Version 4.0.0alpha
     call sampling
     call crosssection
     call lsmcrosssection
-    call tanhfilter
+    !call tanhfilter
     call docape
     !call projection
     call cloudfield
     call fielddump
-    call particles
+    !call particles
 
     call bulkmicrostat
     call simpleicestat
@@ -273,7 +273,7 @@ program DALES      !Version 4.0.0alpha
   call exitgenstat
   call exitradstat
   call exitlsmstat
-  call exitparticles
+  !call exitparticles
   call exitnudge
   call exitsampling
   call exitsamptend
