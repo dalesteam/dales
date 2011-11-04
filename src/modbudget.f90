@@ -35,10 +35,8 @@ module modbudget
 !NetCDF variables
   integer,parameter :: nvar = 18
   integer :: ncid,nrec = 0
-  character(80) :: fname = 'dummy.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
-  integer :: ncid,nrec = 0
 
   real    :: dtav, timeav
   integer(kind=longint) :: idtav, itimeav,tnext,tnextwrite
@@ -158,7 +156,6 @@ contains
       tnextwrite = itimeav+btime
       nsamples = itimeav/idtav
      if (myid==0) then
-        call ncinfo(tncname(1,:),'time','Time','s','time')
         call ncinfo(ncname( 1,:),'tker','Resolved TKE','m/s^2','tt')
         call ncinfo(ncname( 2,:),'shr','Resolved Shear','m/s^2','tt')
         call ncinfo(ncname( 3,:),'buo','Resolved Buoyancy','m/s^2','tt')
