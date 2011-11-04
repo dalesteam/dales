@@ -37,7 +37,7 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
-  integer,parameter :: nvar = 25
+  integer,parameter :: nvar = 23
   integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
@@ -217,8 +217,6 @@ subroutine initbulkmicrostat
         call ncinfo(ncname(21,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(22,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(23,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(24,:),'diagzh','Diagnosed zh rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(25,:),'diagmp','Diagnosed mp rain water content tendency','kg/kg/s','tt')
         call define_nc( ncid_prof, NVar, ncname)
       end if
 
@@ -255,7 +253,7 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec, diag_mp, diag_zh
+    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec
     implicit none
 
     integer      :: k
@@ -306,7 +304,7 @@ subroutine initbulkmicrostat
     use modmpi,    only  : slabsum
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, rslabs
     use modfields,    only  : qtp
-    use modmicrodata,  only  : qrp, Nrp, diag_zh, diag_mp
+    use modmicrodata,  only  : qrp, Nrp
     implicit none
 
     real, dimension(:), allocatable  :: avfield
