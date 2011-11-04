@@ -32,7 +32,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 25
+  integer,parameter :: nvar = 20
   integer :: ncid4 = 0
   integer :: nrec = 0
   character(80) :: fname = 'cape.xxx.xxx.nc'
@@ -106,12 +106,7 @@ contains
     call ncinfo(ncname( 17,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
     call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
-    call ncinfo(ncname( 20,:),'distw','cold pool w sampling distance','-','tt0t')
-    call ncinfo(ncname( 21,:),'distbuoy','cold pool negative buoyancy distance','-','tt0t')
-    call ncinfo(ncname( 22,:),'distqr','cold pool qr distance','-','tt0t')
-    call ncinfo(ncname( 23,:),'distdiv','cold pool divergence distance','-','tt0t')
-    call ncinfo(ncname( 24,:),'distcon','cold pool convergence distance','-','tt0t')
-    call ncinfo(ncname( 25,:),'surfprec','surface precipitation','-','tt0t')
+    call ncinfo(ncname( 20,:),'surfprec','surface precipitation','-','tt0t')
     call open_nc(fname,  ncid4,nrec,n1=imax,n2=jmax)
     if (nrec==0) then
       call define_nc( ncid4, 1, tncname)
@@ -125,7 +120,7 @@ contains
 !>Run crosssection.
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
-    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf,distw,distbuoy,distqr,distdiv,distcon
+    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
@@ -441,12 +436,7 @@ contains
       vars(:,:,17) = rwp(2:i1,2:j1)
       vars(:,:,18) = twp(2:i1,2:j1)
       vars(:,:,19) = cldtop(2:i1,2:j1)
-      vars(:,:,20)= distw(2:i1,2:j1)
-      vars(:,:,21)= distbuoy(2:i1,2:j1)
-      vars(:,:,22)= distqr(2:i1,2:j1)
-      vars(:,:,23)= distdiv(2:i1,2:j1)
-      vars(:,:,24)= distcon(2:i1,2:j1)
-      vars(:,:,25)= sprec(2:i1,2:j1)
+      vars(:,:,20)= sprec(2:i1,2:j1)
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
       deallocate(vars)
