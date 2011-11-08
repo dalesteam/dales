@@ -56,7 +56,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist, timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv
-    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,tmp0h,thvh,thv0h,qt0av,ql0av,thv0av
+    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thv0av
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     use modmpi, only : slabsum
     implicit none
@@ -455,7 +455,7 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modfields, only : qt0,thl0,exnf,presf,tmp0,ql0
   use modsurfdata, only : thls
   use modmpi, only : myid
   implicit none
@@ -464,6 +464,7 @@ contains
   real :: ilratio, esl1,esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
   integer :: niter,nitert,tlonr,thinr
+  real :: qvsl1,qvsi1
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
@@ -508,11 +509,11 @@ contains
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
-            esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
-            qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
+            qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
+            qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
+            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
       end do
       end do
@@ -527,7 +528,7 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
-  use modfields, only : qt0h,thl0h,exnh,presh,tmp0h,ql0h
+  use modfields, only : qt0h,thl0h,exnh,presh,ql0h
   use modsurfdata, only : thls
   use modmpi, only : myid
   implicit none
@@ -575,7 +576,6 @@ contains
             enddo
             nitert =max(nitert,niter)
             niter = 0
-            tmp0h(i,j,k)= Tnr
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
             tlonr=int((Tnr-150.)*5.)
             thinr=tlonr+1
