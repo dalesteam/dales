@@ -422,7 +422,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-    use modfields, only : up, vp, wp, rhobf, prsbh, rhobh
+    use modfields, only : up, vp, wp, rhobf, rhobh
     use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh,grav,rd,cp
     use modmpi,    only : excj
     implicit none
