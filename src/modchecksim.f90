@@ -113,7 +113,7 @@ contains
     courtot  = 0.0
     do k=1,kmax
       courzl(k)=maxval(abs(w0(2:i1,2:j1,k)))*dtmn/dzh(k)
-      courtotl(k)=maxval(abs(u0(2:i1,2:j1,k)/dx)+abs(v0(2:i1,2:j1,k)/dy)+abs(w0(2:i1,2:j1,k)/dzh(k)))*dtmn
+      courtotl(k)=sqrt(maxval(abs(u0(2:i1,2:j1,k)/dx))**2+maxval(abs(v0(2:i1,2:j1,k)/dy))**2+maxval(abs(w0(2:i1,2:j1,k)/dzh(k)))**2)*dtmn
     end do
     courxl = maxval(abs(u0))*dtmn/dx
     couryl = maxval(abs(v0))*dtmn/dy
@@ -136,6 +136,7 @@ contains
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh,dt,timee
     use modsubgrid,only : ekm
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    use modfields, only : rhobf
     implicit none
 
 
@@ -146,7 +147,7 @@ contains
     peclettotl = 0.
     peclettot  = 0.
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+      peclettotl(k)=maxval(ekm(2:i1,2:j1,k)/rhobf(k))*dtmn/minval((/dzh(k),dx,dy/))**2
     end do
 
     call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
