@@ -111,7 +111,6 @@ program DALES      !Version 4.0.0alpha
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,leibniztend
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
-  use modsimpleicestat,only : initsimpleicestat, simpleicestat,exitsimpleicestat
   use modbudget,       only : initbudget, budgetstat, exitbudget
   use modheterostats,  only : initheterostats, heterostats, exitheterostats
 
@@ -154,7 +153,6 @@ program DALES      !Version 4.0.0alpha
   !call initparticles
   call initnudge
   call initbulkmicrostat
-  call initsimpleicestat
   call initbudget
   !call initstressbudget
   !call initchem
@@ -254,7 +252,6 @@ program DALES      !Version 4.0.0alpha
     !call particles
 
     call bulkmicrostat
-    call simpleicestat
     call budgetstat
     !call stressbudgetstat
     call heterostats
@@ -278,7 +275,6 @@ program DALES      !Version 4.0.0alpha
   call exitsampling
   call exitsamptend
   call exitbulkmicrostat
-  call exitsimpleicestat
   call exitbudget
   !call exitstressbudget
   call exitcrosssection

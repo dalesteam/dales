@@ -42,9 +42,7 @@ module modbulkmicro
 !   water (as such it is a two moment scheme). Cloud droplet number conc. is
 !   fixed in place and time.
 !
-!   rhoz is used to convert mixing ratio (kg/kg) in water content (kg/m^3)
-!   rhoz chosen to be rhof(k) (in modthermodynamics,modstartup), is rhof(1) better?
-!   same rhoz value used for some diagnostics calculation (in modbulkmicrostat, modtimestat)
+!   same rhof value used for some diagnostics calculation (in modbulkmicrostat, modtimestat)
 !
 !   Cond. sampled timeav averaged profiles are weighted with fraction of condition,
 !   similarly as is done in sampling.f90
@@ -67,12 +65,11 @@ module modbulkmicro
     implicit none
 
 
-    allocate(Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+    allocate( Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Nrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qltot    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Nc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,nuc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,thlpmcr  (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -80,8 +77,6 @@ module modbulkmicro
              ,sedc     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sed_qr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sed_Nr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,exnz     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,presz    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Dvc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,xc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Dvr      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -91,7 +86,6 @@ module modbulkmicro
              ,au       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,phi      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,tau      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,rhoz     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,ac       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,br       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -120,10 +114,10 @@ module modbulkmicro
   !*********************************************************************
     implicit none
 
-    deallocate(Nr,Nrp,qltot,qr,qrp,qc,Nc,nuc,thlpmcr,qtpmcr  )
+    deallocate(Nr,Nrp,qltot,qr,qrp,Nc,nuc,thlpmcr,qtpmcr)
 
-    deallocate(sedc,sed_qr,sed_Nr,exnz,presz,Dvc,xc,Dvr,xr,mur,lbdr, &
-               au,phi,tau,rhoz,ac,sc,br,evap,Nevap,qr_spl,Nr_spl,wfall_qr,wfall_Nr)
+    deallocate(sedc,sed_qr,sed_Nr,Dvc,xc,Dvr,xr,mur,lbdr, &
+               au,phi,tau,ac,sc,br,evap,Nevap,qr_spl,Nr_spl,wfall_qr,wfall_Nr)
 
     deallocate(precep)
 
@@ -132,7 +126,7 @@ module modbulkmicro
 !> Calculates the microphysical source term.
   subroutine bulkmicro
     use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,presf, exnf,rhof
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,presf,exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     implicit none
@@ -155,19 +149,10 @@ module modbulkmicro
     Nc     = 0.0
 
     delt = rdt/ (4. - dble(rk3step))
-    do k = 1, k1
-      do i=2,i1 
-      do j=2,j1
-         exnz(i,j,k) = exnf(k)
-         presz(i,j,k) = presf(k)
-         rhoz(i,j,k) = rhof(k)
-      enddo
-      enddo
-    enddo
 
     if ( timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
       write(*,*) 'l_lognormal',l_lognormal
-      write(*,*) 'rhoz(1)', rhoz(2,2,1),' rhoz(10)', rhoz(2,2,10)
+      write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
       write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
       write(*,*) 'nuc = param'
     endif
@@ -217,9 +202,9 @@ module modbulkmicro
     do j=2,j1
     do i=2,i1
     do k=1,k1
-       qc    (i,j,k) = ql0 (i,j,k)
-       qltot (i,j,k) = qc  (i,j,k) + qr (i,j,k)
-       if (qc(i,j,k) > qcmin)  then
+       ql0    (i,j,k) = ql0 (i,j,k)
+       qltot (i,j,k) = ql0  (i,j,k) + qr (i,j,k)
+       if (ql0(i,j,k) > qcmin)  then
           Nc     (i,j,k) = Nc_0
           qcmask (i,j,k) = .true.
        else
@@ -245,7 +230,7 @@ module modbulkmicro
         do i=2,i1
         do k=1,k1
            if (qrmask(i,j,k)) then
-             xr (i,j,k) = rhoz(i,j,k)*qr(i,j,k)/(Nr(i,j,k))
+             xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k))
              xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
            endif
@@ -276,7 +261,7 @@ module modbulkmicro
 !             mur(2:i1,2:j1,1:k1) = 10. * (1+tanh(1200.*(Dvr(2:i1,2:j1,1:k1)-0.0014))) 
 !             Stevens & Seifert (2008) param
 !
-              mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhoz(i,j,k))**0.6)  ! G09b
+              mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
             endif
           enddo
@@ -290,10 +275,8 @@ module modbulkmicro
          do i=2,i1
          do k=1,k1
             if (qrmask(i,j,k).and.Nr(i,j,k).gt.0.) then
-              !if (timee.gt.189000.) write (6,*) 'xxx',i,j,k,rhoz(i,j,k),qr(i,j,k),Nr(i,j,k)
-              xr  (i,j,k) = rhoz(i,j,k)*qr(i,j,k)/(Nr(i,j,k))
+              xr  (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k))
               xr  (i,j,k) = min(xr(i,j,k),xrmaxkk) ! to ensure x_pw is within borders
-              !if (timee.gt.189000.) write (6,*) 'yyy',i,j,k,xr(i,j,k)
               Dvr (i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
             endif
          enddo
@@ -359,6 +342,7 @@ module modbulkmicro
   subroutine autoconversion
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp
     use modmpi,    only : myid
+    use modfields, only : exnf,rhof,ql0
     implicit none
     integer i,j,k
     au = 0.
@@ -376,19 +360,19 @@ module modbulkmicro
       do i=2,i1
       do k=1,k1
          if (qcmask(i,j,k)) then 
-            nuc    (i,j,k) = 1.58*(rhoz(i,j,k)*qc(i,j,k)*1000.) +0.72-1. !G09a
+            nuc    (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
 !           nuc    (i,j,k) = 0. !
-            xc     (i,j,k) = rhoz(i,j,k) * qc(i,j,k) / Nc(i,j,k)
+            xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k)
             au     (i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2.    &
-                    * (qc(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
-            tau    (i,j,k) = 1.0 - qc(i,j,k) / qltot(i,j,k)
+                    * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
+            tau    (i,j,k) = 1.0 - ql0(i,j,k) / qltot(i,j,k)
             phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3
             au     (i,j,k) = au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)
 
             qrp    (i,j,k) = qrp    (i,j,k) + au (i,j,k)
             Nrp    (i,j,k) = Nrp    (i,j,k) + au (i,j,k)/x_s
             qtpmcr (i,j,k) = qtpmcr (i,j,k) - au (i,j,k)
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnz(i,j,k)))*au(i,j,k)
+            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au(i,j,k)
 
          endif
       enddo
@@ -404,12 +388,12 @@ module modbulkmicro
       do k=1,k1
 
          if (qcmask(i,j,k)) then
-            au     (i,j,k) = 1350.0 * qc(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
+            au     (i,j,k) = 1350.0 * ql0(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
 
             qrp    (i,j,k) = qrp    (i,j,k) + au(i,j,k)
-            Nrp    (i,j,k) = Nrp    (i,j,k) + au(i,j,k) * rhoz(i,j,k)/(pirhow*D0_kk**3.)
+            Nrp    (i,j,k) = Nrp    (i,j,k) + au(i,j,k) * rhof(k)/(pirhow*D0_kk**3.)
             qtpmcr (i,j,k) = qtpmcr (i,j,k) - au(i,j,k)
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnz(i,j,k)))*au(i,j,k)
+            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au(i,j,k)
          endif
 
       enddo
@@ -419,8 +403,8 @@ module modbulkmicro
     end if !l_sb
 
 
-    if (any(qc(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
-      write(6,*)'au too large', count(qc(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
+    if (any(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
+      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
     end if
 
   end subroutine autoconversion
@@ -431,7 +415,7 @@ module modbulkmicro
   ! accordingly. Break-up : Seifert (2007)
   !*********************************************************************
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp,dzf
-    use modfields, only : rhof
+    use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
     implicit none
     real , allocatable :: phi_br(:,:,:)
@@ -449,13 +433,13 @@ module modbulkmicro
      do i=2,i1
      do k=1,k1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-           tau    (i,j,k) = 1.0 - qc(i,j,k)/(qltot(i,j,k))
+           tau    (i,j,k) = 1.0 - ql0(i,j,k)/(qltot(i,j,k))
            phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
-           ac     (i,j,k) = k_r *rhoz(i,j,k)*qc(i,j,k) * qr(i,j,k) * phi(i,j,k) * &
-                            (1.225/rhoz(i,j,k))**0.5
+           ac     (i,j,k) = k_r *rhof(k)*ql0(i,j,k) * qr(i,j,k) * phi(i,j,k) * &
+                            (1.225/rhof(k))**0.5
            qrp    (i,j,k) = qrp    (i,j,k) + ac(i,j,k)
            qtpmcr (i,j,k) = qtpmcr (i,j,k) - ac(i,j,k)
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnz(i,j,k)))*ac(i,j,k)
+           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac(i,j,k)
         endif
      enddo
      enddo
@@ -471,8 +455,8 @@ module modbulkmicro
      do i=2,i1
      do k=1,k1
         if (qrmask(i,j,k)) then
-           sc(i,j,k) = k_rr *rhoz(i,j,k)* qr(i,j,k) * Nr(i,j,k)  &
-                       * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhoz(i,j,k))**0.5
+           sc(i,j,k) = k_rr *rhof(k)* qr(i,j,k) * Nr(i,j,k)  &
+                       * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhof(k))**0.5
         endif
         if (Dvr(i,j,k) .gt. 0.30E-3 .and. qrmask(i,j,k)) then
            phi_br(i,j,k) = k_br * (Dvr(i,j,k)-D_eq)
@@ -494,10 +478,10 @@ module modbulkmicro
      do i=2,i1
      do k=1,k1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-           ac     (i,j,k) = 67.0 * ( qc(i,j,k) * qr(i,j,k) )**1.15
+           ac     (i,j,k) = 67.0 * ( ql0(i,j,k) * qr(i,j,k) )**1.15
            qrp    (i,j,k) = qrp     (i,j,k) + ac(i,j,k)
            qtpmcr (i,j,k) = qtpmcr  (i,j,k) - ac(i,j,k)
-           thlpmcr(i,j,k) = thlpmcr (i,j,k) + (rlv/(cp*exnz(i,j,k)))*ac(i,j,k)
+           thlpmcr(i,j,k) = thlpmcr (i,j,k) + (rlv/(cp*exnf(k)))*ac(i,j,k)
         endif
      enddo
      enddo
@@ -506,8 +490,8 @@ module modbulkmicro
     end if !l_sb
 
 
-   if (any(qc(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
-     write(6,*)'ac too large', count(qc(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
+   if (any(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
+     write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
    end if
  
    deallocate (phi_br)
@@ -525,15 +509,15 @@ module modbulkmicro
   subroutine sedimentation_cloud
     use modglobal, only : i1,j1,k1,kmax,eps1,rlv,cp,dzf,pi
     use modmpi,    only : myid
-
+    use modfields, only : rhof,exnf,ql0
     implicit none
     integer :: i,j,k
 
-!    real    :: qc_spl(2-ih:i1+ih,2-jh:j1+jh,k1)       &! work variable
+!    real    :: ql0_spl(2-ih:i1+ih,2-jh:j1+jh,k1)       &! work variable
 !              ,Nc_spl(2-ih:i1+ih,2-jh:j1+jh,k1)
 !    real,save :: dt_spl,wfallmax
 !
-!    qc_spl(2:i1,2:j1,1:k1) = qc(2:i1,2:j1,1:k1)
+!    ql0_spl(2:i1,2:j1,1:k1) = ql0(2:i1,2:j1,1:k1)
 !    Nc_spl(2:i1,2:j1,1:k1)  = Nc(2:i1,2:j1,1:k1)
 !
 !    wfallmax = 9.9
@@ -549,18 +533,21 @@ module modbulkmicro
     do i=2,i1
     do k=1,k1
        if (qcmask(i,j,k)) then
-          sedc(i,j,k) = csed*(Nc(i,j,k))**(-2./3.)*(qc(i,j,k)*rhoz(i,j,k))**(5./3.)
+          sedc(i,j,k) = csed*(Nc(i,j,k))**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
        endif
     enddo
     enddo
     enddo
 
     do k = 1,kmax
-      qtpmcr(2:i1,2:j1,k) = qtpmcr(2:i1,2:j1,k) + (sedc(2:i1,2:j1,k+1)-sedc(2:i1,2:j1,k))/(dzf(k)*rhoz(2:i1,2:j1,k))
-     thlpmcr(2:i1,2:j1,k) = thlpmcr(2:i1,2:j1,k) - (rlv/(cp*exnz(2:i1,2:j1,k))) &
-                                    *(sedc(2:i1,2:j1,k+1)-sedc(2:i1,2:j1,k))/(dzf(k)*rhoz(2:i1,2:j1,k))
+    do i=2,i1
+    do j=2,j1
+      qtpmcr(i,j,k) = qtpmcr(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
+      thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlv/(cp*exnf(k))) &
+                       *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
     enddo
-
+    enddo
+    enddo
   end subroutine sedimentation_cloud
 
 
@@ -608,7 +595,7 @@ module modbulkmicro
        do i=2,i1
        do k=1,k1
         if (qr_spl(i,j,k) > qrmin) then
-          xr_spl (i,j,k) = rhoz(i,j,k)*qr_spl(i,j,k)/(Nr_spl(i,j,k))
+          xr_spl (i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k))
           xr_spl (i,j,k) = min(max(xr_spl(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
           Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
         endif
@@ -629,7 +616,7 @@ module modbulkmicro
 !        actually in this way for every grid box a fall velocity is determined
             pwcont = liq_cont(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)         ! note : kg m-3
             if (pwcont > eps1) then
-              sed_qr(i,j,k) = (qr_spl(i,j,k)*rhoz(i,j,k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+              sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
             end if
           end if ! qr_spl threshold statement
         end do
@@ -648,7 +635,7 @@ module modbulkmicro
           do k=1,k1
             if (qr_spl(i,j,k) > qrmin) then
 !             mur_spl(i,j,k) = 10. * (1+tanh(1200.*(Dvr_spl(i,j,k)-0.0014))) ! SS08
-              mur_spl(i,j,k) = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhoz(i,j,k))**0.6)  ! G09b
+              mur_spl(i,j,k) = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
             endif
           enddo
           enddo
@@ -664,7 +651,7 @@ module modbulkmicro
                                  (mur_spl(i,j,k)+1.))**(1./3.)/Dvr_spl(i,j,k)
               wfall_qr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
               wfall_Nr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
-              sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhoz(i,j,k)
+              sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhof(k)
               sed_Nr  (i,j,k) = wfall_Nr(i,j,k)*Nr_spl(i,j,k)
           endif
         enddo
@@ -681,10 +668,10 @@ module modbulkmicro
       do i=2,i1
       do k=1,k1
         if (qr_spl(i,j,k) > qrmin) then
-           xr_spl(i,j,k) = rhoz(i,j,k)*qr_spl(i,j,k)/(Nr_spl(i,j,k))                         
+           xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k))                         
            xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders 
            Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
-           sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhoz(i,j,k) 
+           sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhof(k) 
            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl(i,j,k)- 0.1) * Nr_spl(i,j,k)
         endif
       enddo
@@ -694,18 +681,29 @@ module modbulkmicro
     end if !l_sb
 !
     do k = 1,kmax
-
-      wvar(2:i1,2:j1,k) = qr_spl(2:i1,2:j1,k) + (sed_qr(2:i1,2:j1,k+1) - sed_qr(2:i1,2:j1,k))*dt_spl/(dzf(k)*rhoz(2:i1,2:j1,k))
+      do j=2,j1
+      do i=2,i1
+        wvar(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+      enddo
+      enddo
       if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
         write(6,*)'sed qr too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
       end if
-
-      Nr_spl(2:i1,2:j1,k) = Nr_spl(2:i1,2:j1,k) + &
-              (sed_Nr(2:i1,2:j1,k+1) - sed_Nr(2:i1,2:j1,k))*dt_spl/dzf(k)
-      qr_spl(2:i1,2:j1,k) = qr_spl(2:i1,2:j1,k) + &
-              (sed_qr(2:i1,2:j1,k+1) - sed_qr(2:i1,2:j1,k))*dt_spl/(dzf(k)*rhoz(2:i1,2:j1,k))
+      do j=2,j1
+      do i=2,i1
+        Nr_spl(i,j,k) = Nr_spl(i,j,k) + &
+                (sed_Nr(i,j,k+1) - sed_Nr(i,j,k))*dt_spl/dzf(k)
+        qr_spl(i,j,k) = qr_spl(i,j,k) + &
+                (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+      enddo
+      enddo
+  
       if ( jn == 1. ) then
-        precep(2:i1,2:j1,k) =  sed_qr(2:i1,2:j1,k)/rhoz(2:i1,2:j1,k)   ! kg kg-1 m s-1
+      do j=2,j1
+      do i=2,i1
+        precep(i,j,k) =  sed_qr(i,j,k)/rhof(k)   ! kg kg-1 m s-1
+      enddo
+      enddo
       endif
 
     end do  ! second k loop
@@ -727,7 +725,7 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,rd,rv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma,tup,tdn,esatltab,ttab
-    use modfields, only : exnf,thl0,qt0,svm,tmp0,ql0,presf
+    use modfields, only : exnf,thl0,qt0,svm,tmp0,ql0,presf,rhof,exnf
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
@@ -776,8 +774,8 @@ module modbulkmicro
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
                  -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
 ! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
-            evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhoz(i,j,k)
-            Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhoz(i,j,k)/xr(i,j,k)
+            evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhof(k)
+            Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhof(k)/xr(i,j,k)
          endif
        enddo
        enddo
@@ -788,8 +786,8 @@ module modbulkmicro
        do i=2,i1
        do k=1,k1
         if (qrmask(i,j,k)) then
-           evap(i,j,k) = c_evapkk*2*pi*Dvr(i,j,k)*G(i,j,k)*S(i,j,k)*Nr(i,j,k)/rhoz(i,j,k)
-           Nevap(i,j,k) = evap(i,j,k)*rhoz(i,j,k)/xr(i,j,k)
+           evap(i,j,k) = c_evapkk*2*pi*Dvr(i,j,k)*G(i,j,k)*S(i,j,k)*Nr(i,j,k)/rhof(k)
+           Nevap(i,j,k) = evap(i,j,k)*rhof(k)/xr(i,j,k)
         endif
        enddo
        enddo

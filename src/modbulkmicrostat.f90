@@ -92,14 +92,14 @@ subroutine initbulkmicrostat
               dtav_glob, timeav_glob, ladaptive, k1,kmax, dtmax,btime,tres
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
-    use modmicrodata,only: imicro, imicro_bulk
+    use modmicrodata,only: imicro, imicro_bulk, imicro_sice
     implicit none
     integer      :: ierr
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
 
-    if (imicro /=imicro_bulk) return
+    if ((imicro /=imicro_bulk) .and. (imicro /= imicro_sice)) return
 
     dtav  = dtav_glob
     timeav  = timeav_glob
@@ -253,7 +253,8 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec
+    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec,imicro, imicro_bulk
+    use modfields,  only  : ql0
     implicit none
 
     integer      :: k
@@ -268,14 +269,16 @@ subroutine initbulkmicrostat
     Dvrav      = 0.0
 
     do k = 1,k1
-      cloudcountavl(k)  = count(qc      (2:i1,2:j1,k) > epscloud)
+      cloudcountavl(k)  = count(ql0      (2:i1,2:j1,k) > epscloud)
       raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr)
       preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec)
       prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k)  , precep(2:i1,2:j1,k) > epsprec)
-      Dvravl       (k)  = sum  (Dvr  (2:i1,2:j1,k)  , qr  (2:i1,2:j1,k) > epsqr)
       Nrrainavl    (k)  = sum  (Nr  (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
       qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
+      if (imicro==imicro_bulk) then
+        Dvravl     (k)  = sum  (Dvr  (2:i1,2:j1,k)  , qr  (2:i1,2:j1,k) > epsqr)
+      end if
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -353,8 +356,7 @@ subroutine initbulkmicrostat
     use modmpi,    only  : myid
     use modglobal,    only  : rtimee, ifoutput, cexpnr, k1,kmax, &
               rlv, zf
-    use modfields,    only  : presf
-    use modmicrodata,  only  : rhoz
+    use modfields,    only  : presf,rhof
     use modstat_nc, only: lnetcdf, writestat_nc
     use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
 
@@ -411,14 +413,14 @@ subroutine initbulkmicrostat
     write(ifoutput,'(I4,F10.2,F8.3,F7.1,8E13.5)') &
       (k          , &
       zf    (k)      , &
-      rhoz    (2,2,k)      , &
+      rhof    (k)      , &
       presf    (k)/100.    , &
       cloudcountmn  (k)      , &
-      prec_prcmn  (k)*rhoz(2,2,k)*rlv  , &
+      prec_prcmn  (k)*rhof(k)*rlv  , &
       preccountmn  (k)      , &
       Nrrainmn  (k)      , &
       raincountmn  (k)      , &
-      precmn    (k)*rhoz(2,2,k)*rlv  , &
+      precmn    (k)*rhof(k)*rlv  , &
       Dvrmn    (k)      , &
       qrmn    (k)      , &
       k=1,kmax)
@@ -509,11 +511,11 @@ subroutine initbulkmicrostat
       close(ifoutput)
       if (lnetcdf) then
         vars(:, 1) = cloudcountmn
-        vars(:, 2) = prec_prcmn  (:)*rhoz(2,2,:)*rlv
+        vars(:, 2) = prec_prcmn  (:)*rhof(:)*rlv
         vars(:, 3) = preccountmn  (:)
         vars(:, 4) = Nrrainmn  (:)
         vars(:, 5) = raincountmn  (:)
-        vars(:, 6) = precmn    (:)*rhoz(2,2,:)*rlv
+        vars(:, 6) = precmn    (:)*rhof(:)*rlv
         vars(:, 7) = Dvrmn    (:)
         vars(:, 8) = qrmn    (:)
         vars(:, 9) =Npmn    (:,iauto)
