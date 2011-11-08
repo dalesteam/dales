@@ -78,10 +78,9 @@ contains
     implicit none
     integer :: ierr
 
-  !declare namelists
-
+    !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile, runtime, dtmax,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author
     namelist/DOMAIN/ &
         imax,jtot,kmax,&
@@ -89,14 +88,13 @@ contains
         xlat,xlon,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
-         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,igrw_damp,geodamptime,lmomsubs, ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
+        lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user
     namelist/DYNAMICS/ &
         llsadv, lqlnr, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
-!   logical :: ldelta   = .false. ! switch for subgrid
-  !read namelists
 
+    !read namelists
     if(myid==0)then
       if (command_argument_count() >=1) then
         call get_command_argument(1,fname_options)
@@ -321,15 +319,14 @@ contains
   subroutine readinitfiles
     use modfields,         only : u0,v0,w0,um,vm,wm,thlm,thl0,thl0h,qtm,qt0,qt0h,&
                                   ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
-                                  rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh,&
-                                  drhobdzf,dalpbdzf,dthvbdzf,dprsbdzf,drhobdzh,dalpbdzh,dthvbdzh,dprsbdzh,&
+                                  rhobf,rhobh,drhobdzf,drhobdzh,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
                                   thlpcar
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
-                                  zf,zh,dzf,dzh,rv,rd,rcp,grav,cp,rlv,pref0,om23_gs,&
+                                  zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,trestart, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
@@ -979,14 +976,13 @@ contains
     ! Calculates the profiles corresponding to the base state
     ! In the currecnt implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
-    use modfields,         only : rhobf,alpbf,thvbf,prsbf,rhobh,alpbh,thvbh,prsbh,&
-                                  drhobdzf,dalpbdzf,dthvbdzf,dprsbdzf,drhobdzh,dalpbdzh,dthvbdzh,dprsbdzh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,rcp,grav,cp,rlv,riv,tup,tdn,ttab,esatltab,esatitab,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
+    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,my_real
     implicit none
 
-    real, dimension(k1) :: exnbf,exnbh ! for calculating moist adiabat
+    real :: thvb,prsb ! for calculating moist adiabat
     real :: qlf, qlh, qvsl1,qvsi1
     integer :: k
     real :: ilratio,esl1,esi1,qsatur,thlguess,thlguessmin,tlo,thi,ttry
@@ -1004,229 +1000,40 @@ contains
       endif
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance
-        thvbh(1)=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
+        thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
         do k=1,k1
-          thvbf(k)=thvbh(1)
-          prsbf(k)=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvbh(1)))**(cp/rd) !As in thermodynamics
-          rhobf(k)=prsbf(k)/(rd*thvbh(1)*((prsbf(k)/pref0)**(rd/cp)))
+          prsb=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvb))**(cp/rd) !As in thermodynamics
+          rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
         enddo
         open (ifoutput,file='baseprof.inp.'//cexpnr)
         write(ifoutput,*) '#LBA';
-        write(ifoutput,*) '#height rhobf thvbf prsbf';
+        write(ifoutput,*) '#height rhobf';
         do k=1,kmax
-          write (ifoutput,'(1f7.1,3e12.4)') &
+          write (ifoutput,'(1f7.1,1e12.4)') &
                 zf (k), &
-                rhobf (k), &
-                thvbf (k), &
-                prsbf (k)
+                rhobf (k)
         enddo
         close(ifoutput)
-      elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3 if thvbh would be used for denominator in buoyancy)
-        thvbh(1)=thls*(1+(rv/rd-1)*qts)
-        rhobh(1)=ps/(rd*thvbh(1)*(ps/pref0)**(rd/cp))
+      elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3 if except for buoyancy term now depending on slab mean state)
+        thvb=thls*(1+(rv/rd-1)*qts)
+        rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
         do k=1,k1
-          thvbf(k)=thvbh(1)
-          prsbf(k)=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvbh(1)))**(cp/rd) !As in thermodynamics
           rhobf(k)=rhobh(1)
         enddo
         open (ifoutput,file='baseprof.inp.'//cexpnr)
         write(ifoutput,*) '#LBA';
-        write(ifoutput,*) '#height rhobf thvbf prsbf';
+        write(ifoutput,*) '#height rhobf';
         do k=1,kmax
-          write (ifoutput,'(1f7.1,3e12.4)') &
+          write (ifoutput,'(1f7.1,1e12.4)') &
                 zf (k), &
-                rhobf (k), &
-                thvbf (k), &
-                prsbf (k)
+                rhobf (k)
         enddo
-        close(ifoutput)
-      elseif(ibas_prf==3) then ! Constant Density, implemented consistent with both hydrostatic balance and eqn. of state, only works for shallow cases (smaller than scale height)
-        thvbh(1)=thls*(1+(rv/rd-1)*qts)
-        rhobh(1)=ps/(rd*thvbh(1)*((ps/pref0)**(rd/cp)))
-        do  k=1,k1
-          rhobf(k)=rhobh(1)
-          prsbf(k)=ps-rhobh(1)*grav*zf(k)
-          thvbf(k)=prsbf(k)/(rhobf(k)*rd*(prsbf(k)/pref0)**(rd/cp))
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#LBA';
-        write(ifoutput,*) '#height rhobf thvbf prsbf';
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,3e12.4)') &
-                zf (k), &
-                rhobf (k), &
-                thvbf (k), &
-                prsbf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==4) then ! Moist Adiabat: q_t and theta_l constant, consistent with thermo
-        ! calculate pressure at first full and half level assuming this is unsaturated
-        ! does not work above tropopause, if temperature drops to low to evaluate tsat
-        thvbh(1)= thls*(1+(rv/rd-1)*qts)
-        prsbh(1)= ps
-        rhobh(1)= ps/(rd*thvbh(1)*((prsbh(1)/pref0)**(rd/cp)))
-        prsbf(1)= (ps**(rd/cp)-grav*(pref0**(rd/cp))*zf(1)/(cp*thvbh(1)))**(cp/rd) ! using hydrostatic balance
-        exnbf(1)= (prsbf(1)/pref0)**(rd/cp)
-        Tnr=exnbf(1)*thls ! First guess for full level
-        Tnr_old=0.
-        nitert = 0
-        do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
-          niter = niter+1
-          Tnr_old=Tnr
-          ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-          tlonr=int((Tnr-150.)*5.)
-          thinr=tlonr+1
-          tlo=ttab(tlonr)
-          thi=ttab(thinr)
-          esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-          esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-          qsatur = ilratio*(rd/rv)*esl1/(prsbf(1)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(prsbf(1)-(1.-rd/rv)*esi1)
-          thlguess = Tnr/exnbf(1)-(rlv/(cp*exnbf(1)))*max(qts-qsatur,0.)
-  
-          ttry=Tnr-0.002
-          ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-          tlonr=int((Tnr-150.)*5.)
-          thinr=tlonr+1
-          tlo=ttab(tlonr)
-          thi=ttab(thinr)
-          esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-          esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-          qsatur = ilratio*(rd/rv)*esl1/(prsbf(1)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(prsbf(1)-(1.-rd/rv)*esi1)
-          thlguessmin = ttry/exnbf(1)-(rlv/(cp*exnbf(1)))*max(qts-qsatur,0.)
-  
-          Tnr = Tnr - (thlguess-thls)/((thlguess-thlguessmin)*500.)
-        enddo
-        nitert =max(nitert,niter)
-        niter = 0
-        ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-        tlonr=int((Tnr-150.)*5.)
-        thinr=tlonr+1
-        tlo=ttab(tlonr)
-        thi=ttab(thinr)
-        esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-        esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-        qvsl1=rd/rv*esl1/(prsbf(1)-(1.-rd/rv)*esl1)
-        qvsi1=rd/rv*esi1/(prsbf(1)-(1.-rd/rv)*esi1)
-        qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-        qlf = max(qts-qsatur,0.)
-        thvbf(1)=(thls+(rlv*qlf)/(cp*exnbf(1)))*(1+(rv/rd-1)*qts-rv/rd*qlf) ! calculate thv, assuming thl conserved
-        rhobf(1)=prsbf(1)/(rd*thvbf(1)*((prsbf(1)/pref0)**(rd/cp))) ! calculate density from equation of state
-
-        do k=2,k1 ! calculate the moist adiabat
-          prsbh(k)=(prsbh(k-1)**(rd/cp)-grav*((pref0**(rd/cp))*dzf(k-1))/(cp*thvbf(k-1)))**(cp/rd)
-          exnbh(k)= (prsbh(k)/pref0)**(rd/cp)
-          Tnr=exnbh(k)*thls
-          Tnr_old=0.
-          do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
-            niter = niter+1
-            Tnr_old=Tnr
-            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qsatur = ilratio*(rd/rv)*esl1/(prsbh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(prsbh(k)-(1.-rd/rv)*esi1)
-            thlguess = Tnr/exnbh(k)-(rlv/(cp*exnbh(k)))*max(qts-qsatur,0.)
-    
-            ttry=Tnr-0.002
-            ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-            esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-            qsatur = ilratio*(rd/rv)*esl1/(prsbh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(prsbh(k)-(1.-rd/rv)*esi1)
-            thlguessmin = ttry/exnbh(k)-(rlv/(cp*exnbh(k)))*max(qts-qsatur,0.)
-    
-            Tnr = Tnr - (thlguess-thls)/((thlguess-thlguessmin)*500.)
-          enddo
-          nitert =max(nitert,niter)
-          niter = 0
-          ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-          tlonr=int((Tnr-150.)*5.)
-          thinr=tlonr+1
-          tlo=ttab(tlonr)
-          thi=ttab(thinr)
-          esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-          esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-          qvsl1=rd/rv*esl1/(prsbh(k)-(1.-rd/rv)*esl1)
-          qvsi1=rd/rv*esi1/(prsbh(k)-(1.-rd/rv)*esi1)
-          qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-          qlh = max(qts-qsatur,0.)
-          thvbh(k)=(thls+(rlv*qlh)/(cp*exnbh(k)))*(1+(rv/rd-1)*qts-rv/rd*qlh) ! calculate thv, assuming thl conserved
-          rhobh(k)=prsbh(k)/(rd*thvbh(k)*((prsbh(k)/pref0)**(rd/cp))) ! calculate density from equation of state
-
-          ! full level
-          prsbf(k)=(prsbf(k-1)**(rd/cp)-grav*((pref0**(rd/cp))*dzh(k))/(cp*thvbh(k)))**(cp/rd)
-          exnbf(k)= (prsbf(k)/pref0)**(rd/cp)
-          Tnr=exnbf(k)*thls ! First guess for full level
-          Tnr_old=0.
-          do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
-            niter = niter+1
-            Tnr_old=Tnr
-            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qsatur = ilratio*(rd/rv)*esl1/(prsbf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(prsbf(k)-(1.-rd/rv)*esi1)
-            thlguess = Tnr/exnbf(k)-(rlv/(cp*exnbf(k)))*max(qts-qsatur,0.)
-    
-            ttry=Tnr-0.002
-            ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
-            tlonr=int((Tnr-150.)*5.)
-            thinr=tlonr+1
-            tlo=ttab(tlonr)
-            thi=ttab(thinr)
-            esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
-            esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-            qsatur = ilratio*(rd/rv)*esl1/(prsbf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(prsbf(k)-(1.-rd/rv)*esi1)
-            thlguessmin = ttry/exnbf(k)-(rlv/(cp*exnbf(k)))*max(qts-qsatur,0.)
-    
-            Tnr = Tnr - (thlguess-thls)/((thlguess-thlguessmin)*500.)
-          enddo
-          nitert =max(nitert,niter)
-          niter = 0
-          ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
-          tlonr=int((Tnr-150.)*5.)
-          thinr=tlonr+1
-          tlo=ttab(tlonr)
-          thi=ttab(thinr)
-          esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
-          esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-          qvsl1=rd/rv*esl1/(prsbf(k)-(1.-rd/rv)*esl1)
-          qvsi1=rd/rv*esi1/(prsbf(k)-(1.-rd/rv)*esi1)
-          qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-          qlf = max(qts-qsatur,0.)
-          thvbf(k)=(thls+(rlv*qlf)/(cp*exnbf(k)))*(1+(rv/rd-1)*qts-rv/rd*qlf) ! calculate thv, assuming thl conserved
-          rhobf(k)=prsbh(k)/(rd*thvbh(k)*((prsbh(k)/pref0)**(rd/cp))) ! calculate density from equation of state
-        end do
-
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#LBA';
-        write(ifoutput,*) '#height rhobf thvbf prsbf';
-        do k=1,kmax
-            write (ifoutput,'(1f7.1,3e12.4)') &
-                  zf (k), &
-                  rhobf (k), &
-                  thvbf (k), &
-                  prsbf (k)
-        end do
         close(ifoutput)
       end if
 
       ! Reset all background profiles
       rhobf=0.
-      thvbf=0.
-      prsbf=0.
       rhobh=0.
-      thvbh=0.
-      prsbh=0.
 
       ! Read background profiles in all cases
       open (ifinput,file='baseprof.inp.'//cexpnr)
@@ -1236,106 +1043,56 @@ contains
       do k=1,kmax
         read (ifinput,*) &
                 height(k), &
-                rhobf (k), &
-                thvbf (k), &
-                prsbf (k)
+                rhobf (k)
       end do
       close(ifinput)
 
-      do k=1,kmax
-      alpbf(k)=1./rhobf(k)
-      end do
-    
+   
       rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
-      thvbf(k1)=thvbf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(thvbf(kmax)-thvbf(kmax-1))
-      prsbf(k1)=prsbf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(prsbf(kmax)-prsbf(kmax-1))
-      alpbf(k1)=1./rhobf(k1)
 
       do k=2,k1
-      thvbh(k) = (thvbf(k)*dzf(k-1)+thvbf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
       rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
-      prsbh(k) = (prsbf(k)*dzf(k-1)+prsbf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
-      alpbh(k) = 1./rhobf(k)
       end do
 
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
-      thvbh(1) = thvbf(1)-(thvbf(2)-thvbf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
-      prsbh(1) = prsbf(1)-(prsbf(2)-prsbf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
-      alpbh(1) = 1./rhobh(1)
 
     ! calculate derivatives
     do  k=1,kmax
       drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
-      dalpbdzf(k) = (alpbh(k+1) - alpbh(k))/dzf(k)
-      dthvbdzf(k) = (thvbh(k+1) - thvbh(k))/dzf(k)
-      dprsbdzf(k) = (prsbh(k+1) - prsbh(k))/dzf(k)
     end do
 
     drhobdzf(k1) = drhobdzf(kmax)
-    dthvbdzf(k1) = dthvbdzf(kmax)
-    dprsbdzf(k1) = dprsbdzf(kmax)
-    dalpbdzf(k1) = -(1/(rhobf(k1)*rhobf(k1)))*drhobdzf(k1)
   
     drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
-    dthvbdzh(1) = 2*(thvbf(1)-thvbh(1))/dzh(1)
-    dprsbdzh(1) = 2*(prsbf(1)-prsbh(1))/dzh(1)
-    dalpbdzh(1) = -(1/(rhobh(1)*rhobh(1)))*drhobdzh(1)
-    dalpbdzf(1) = -(1/(rhobf(1)*rhobf(1)))*drhobdzf(1)
 
     do k=2,k1
       drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
-      dalpbdzh(k) = (alpbf(k)-alpbf(k-1))/dzh(k)
-      dthvbdzh(k) = (thvbf(k)-thvbf(k-1))/dzh(k)
-      dprsbdzh(k) = (prsbf(k)-prsbf(k-1))/dzh(k)
     end do
 
     ! write profiles and derivatives to standard output
-    write (6,*) ' height   rhobf       alpbf       thvbf       prsbf       rhobh       alpbh       thvbh       prsbh'
+    write (6,*) ' height   rhobf       rhobh'
     do k=k1,1,-1
-        write (6,'(1f7.1,8e12.4)') &
+        write (6,'(1f7.1,2e12.4)') &
               height (k), &
               rhobf (k), &
-              alpbf (k), &
-              thvbf (k), &
-              prsbf (k), &
-              rhobh (k), &
-              alpbh (k), &
-              thvbh (k), &
-              prsbh (k)
+              rhobh (k)
     end do
-    write (6,*) ' height   drhobdzf    dalpbdzf    dthvbdzf   dprsbdzf    drhobdzh     dalpbdzh    dthvbdzh   dprsbdzh'
+    write (6,*) ' height   drhobdzf    drhobdzh'
     do k=k1,1,-1
-        write (6,'(1f7.1,8e12.4)') &
+        write (6,'(1f7.1,2e12.4)') &
               height (k), &
               drhobdzf (k), &
-              dalpbdzf (k), &
-              dthvbdzf (k), &
-              dprsbdzf (k), &
-              drhobdzh (k), &
-              dalpbdzh (k), &
-              dthvbdzh (k), &
-              dprsbdzh (k)
+              drhobdzh (k)
     end do
 
     end if ! ENDIF MYID=0
 
     ! MPI broadcast variables
     call MPI_BCAST(rhobf       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(alpbf       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(thvbf       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(prsbf       ,k1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(rhobh       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(alpbh       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(thvbh       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(prsbh       ,k1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(drhobdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dalpbdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dthvbdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dprsbdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(drhobdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dalpbdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dthvbdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dprsbdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
+
   end subroutine baseprofs
 
 end module modstartup
