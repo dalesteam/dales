@@ -133,8 +133,8 @@ module modbulkmicro
     integer :: i,j,k
     real :: qrtest,nrtest
 
-    do i=2,i1
     do j=2,j1
+    do i=2,i1
     do k=1,k1
       !write (6,*) myid,i,j,k,sv0(i,j,k,inr),sv0(i,j,k,iqr)
       Nr  (i,j,k) = sv0(i,j,k,inr)
@@ -539,9 +539,10 @@ module modbulkmicro
     enddo
     enddo
 
-    do k = 1,kmax
-    do i=2,i1
+    do k=1,kmax
     do j=2,j1
+    do i=2,i1
+
       qtpmcr(i,j,k) = qtpmcr(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
       thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlv/(cp*exnf(k))) &
                        *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
