@@ -67,7 +67,7 @@ real                 :: cc                   , &              ! Cloud cover [-]
                         qlintav              , &              ! Average liquid water path [kg/m^2]
                         qlintmax             , &              ! Maximum liquid water path [kg/m^2]
                         wmax                 , &              ! Maximum updraft velocity [m/s]
-                        tkeint               , &              ! Average vertically integrated TKE 
+                        tkeint               , &              ! Average vertically integrated TKE [m^3/s^2]
                         qlmax                , &              ! Maximum liquid water content [kg/kg]
                         ust                  , &              ! Friction velocity [m/s]
                         tst                  , &              ! Turbulent temperature scale [K]
@@ -278,9 +278,9 @@ contains
     ! End do loop over the horizontal domain i,j
     
     ! Perform sums that don't require a do-loop
-    call horAverage( ustar       ,ust)
-    call horAverage(-thlflux/ust ,tst)
-    call horAverage(-qtflux /ust ,qst)
+    call horAverage(ustar       ,ust)
+    call horAverage(thlflux/ust ,tst)
+    call horAverage(qtflux /ust ,qst)
 
     !+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
     ! Communication between CPU to find domain wide value for each variable
@@ -320,8 +320,8 @@ contains
     qlintvar = (qlint2-(qlintav)**2)
     ! Surface fluxes of theta,thetav,qt; depends on the surface scheme used.
     if (isurf < 3) then
-      call horAverage(-thlflux, wts )
-      call horAverage(-qtflux , wqts)
+      call horAverage(thlflux, wts )
+      call horAverage(qtflux , wqts)
     else
       wts  = wtsurf
       wqts = wqsurf
@@ -404,7 +404,7 @@ contains
     use modraddata,  only           : swu,swd,swuToA,swdToA
     use modmicrodata,only           : qc,qr,precep,Nc,Nr,epscloud,epsqr,epsprec, &
                                       imicro, imicro_bulk
-    use modmpi,      only           : MPI_INTEGER,MY_REAL,MPI_SUM,comm3d,mpierr
+    use modmpi,      only           : MPI_INTEGER,MY_REAL,MPI_SUM,comm3d,mpierr,myid
 
     implicit none
     integer, intent(inout)         :: n
@@ -549,7 +549,7 @@ contains
       call ncinfo(ncName(n,:),'lwp_bar','Average liquid-water path','kg/m^2','time');                      n=n+1
       call ncinfo(ncName(n,:),'lwp_max','Maximum liquid-water path','kg/m^2','time');                      n=n+1
       call ncinfo(ncName(n,:),'wmax','Maximum vertical velocity','m/s','time');                            n=n+1
-      call ncinfo(ncName(n,:),'vtke','Vertical integral of total TKE','kg/s','time');                      n=n+1
+      call ncinfo(ncName(n,:),'vtke','Vertical integral of total TKE','m^3/s^2','time');                   n=n+1
       call ncinfo(ncName(n,:),'lmax','Maximum liquid water mixing ratio','kg/kg','time');                  n=n+1
       call ncinfo(ncName(n,:),'ustar','Surface friction velocity','m/s','time');                           n=n+1
       call ncinfo(ncName(n,:),'tstr','Turbulent temperature scale','K','time');                            n=n+1

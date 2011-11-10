@@ -224,6 +224,7 @@ contains
 
     call initboundary
     call initthermodynamics
+    write(*,*) 'before initradiation'
     call initradiation
     call initsurface
     call initsubgrid
@@ -751,6 +752,15 @@ contains
       read(ifinput)  ps,thls,qts,thvs,oblav
       read(ifinput)  dtheta,dqt,timee,dt,tres
     close(ifinput)
+
+    if(myid==0) then
+      write(*,*) ps,thls,qts,thvs,oblav
+      write(*,*) dtheta,dqt,timee,dt,tres
+      write(*,*) "sum u=",sum(u0)/imax/jtot/k1
+      write(*,*) "sum v=",sum(v0)/imax/jtot/k1
+      write(*,*) "sum w=",sum(w0)/imax/jtot/k1
+      write(*,*) "sum qt0=",sum(w0)/imax/jtot/k1
+    end if
 
     if (nsv>0) then
       name(5:5) = 's'

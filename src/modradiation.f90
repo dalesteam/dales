@@ -34,7 +34,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
-    use modglobal,    only : kmax,i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim
+    use modglobal,    only : kmax,i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,timee !JvdD
     use modmpi,       only : myid
     use modsurfdata,  only : albedoav
     implicit none
@@ -95,10 +95,6 @@ contains
     
     if (iradiation == 0) return
     itimerad = floor(timerad/tres)
-
-    WiP
-    TEST DEZE TNEXT: STRALING WERKT NIET BIJ EEN RESTART 
-
     tnext = itimerad+btime
     dt_lim = min(dt_lim,tnext)
 
@@ -124,7 +120,8 @@ contains
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
-    if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
+    if((itimerad==0 .or. timee>=tnext) .and. rk3step==1) then
+!      if (timee>tnext) tnext = timee
       tnext = tnext+itimerad
       thlprad = 0.0
       select case (iradiation)
