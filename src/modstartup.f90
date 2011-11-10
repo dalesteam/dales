@@ -224,7 +224,6 @@ contains
 
     call initboundary
     call initthermodynamics
-    write(*,*) 'before initradiation'
     call initradiation
     call initsurface
     call initsubgrid
@@ -708,8 +707,8 @@ contains
 
   subroutine readrestartfiles
 
-    use modsurfdata, only : ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                           tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime
+    use modsurfdata, only : ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,obl,oblav,&
+                           tsoil,phiw,qskin,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
@@ -747,20 +746,14 @@ contains
       read(ifinput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((dthldz(i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
+      read(ifinput)   ((obl   (i,j  ),i=1,i2      ),j=1,j2      ) !JvdD remove later, old format!
+      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)                !JvdD remove later, old format!
+      read(ifinput)   ((qskin(i,j),i=1,i2),j=1,j2)                !JvdD remove later, old format!
       read(ifinput)  (  presf (    k)                            ,k=1,k1)
       read(ifinput)  (  presh (    k)                            ,k=1,k1)
       read(ifinput)  ps,thls,qts,thvs,oblav
       read(ifinput)  dtheta,dqt,timee,dt,tres
     close(ifinput)
-
-    if(myid==0) then
-      write(*,*) ps,thls,qts,thvs,oblav
-      write(*,*) dtheta,dqt,timee,dt,tres
-      write(*,*) "sum u=",sum(u0)/imax/jtot/k1
-      write(*,*) "sum v=",sum(v0)/imax/jtot/k1
-      write(*,*) "sum w=",sum(w0)/imax/jtot/k1
-      write(*,*) "sum qt0=",sum(w0)/imax/jtot/k1
-    end if
 
     if (nsv>0) then
       name(5:5) = 's'
@@ -779,7 +772,7 @@ contains
       open(unit=ifinput,file=name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
       read(ifinput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-      read(ifinput) ((tskin(i,j),i=1,i2),j=1,j2)
+!      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)
       read(ifinput) ((Wl(i,j),i=1,i2),j=1,j2)
       read(ifinput) ((Qnet(i,j),i=1,i2),j=1,j2)
       if(iradiation == 1 .and. useMcICA) then
