@@ -35,7 +35,7 @@ PUBLIC :: initfielddump,fielddump,exitfielddump
 save
 !NetCDF variables
   integer           :: ncid,nvar = 11           !< Number of variables (if bulkmicro->nvar+2)
-  character(80)     :: fname = 'fielddump_hhmm.xxx.nc'
+  character(80)     :: fname = 'fielddump_hhmmss.xxx.nc'
   character(80),allocatable,dimension(:,:) :: ncfieldinfo
   character(80),dimension(1,4)             :: tncfieldinfo
 
@@ -124,7 +124,7 @@ contains
 
     if (lnetcdf) then
 
-      fname(16:18) = cexpnr
+      fname(18:20) = cexpnr
 
       if (imicro==imicro_bulk) nvar = nvar + 2
       allocate(ncfieldinfo(nvar,4))
@@ -159,14 +159,14 @@ contains
     
   end subroutine initfielddump
 
-!> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
+!> Do fielddump
   subroutine fielddump
     use modglobal,  only : timee,rtimee,dt_lim,tres,timeleft
     use modmpi,     only : myid
     use modstat_nc, only : lnetcdf,ncfielddump
     implicit none
 
-    integer :: imin,ihour
+    integer :: imin,ihour,isec
 !    integer i,j,k
 
     if(.not.(lfielddump)) return
@@ -177,9 +177,11 @@ contains
       ! It's time for a fielddump.
       ! Make a filename first,...
       ihour = floor(rtimee/3600)
-      imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
+      imin  = floor((rtimee-ihour*3600) /60.)
+      isec  = floor((rtimee-ihour*3600-imin*60))
       write (fname(11:12),'(i2.2)') ihour
       write (fname(13:14),'(i2.2)') imin
+      write (fname(15:16),'(i2.2)') isec
       if (myid==0) write(*,*) 'fname = ',fname
       
       ! ...then call the subroutine that makes the actual file and puts data in.

@@ -138,9 +138,9 @@ contains
       t    = 0
       ierr = 0
 !      do while (timeflux(t) < (runtime+btime))
-      do while (timeflux(t) < (tres*real(btime+runtime)))
+      do while (timeflux(t) < (tres*real(btime)+runtime))
         write(*,*) "timeflux = ",timeflux(t)
-        write(*,*) "other time = ", (tres*real(btime+runtime))
+        write(*,*) "other time = ", (tres*real(btime)+runtime)
         t=t+1
         read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
         write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
@@ -149,7 +149,7 @@ contains
         end if
       end do
 !      if(timeflux(1)>(runtime+btime)) then
-      if(timeflux(1)>(tres*real(btime+runtime))) then
+      if(timeflux(1)>(tres*real(btime)+runtime)) then
          write(6,*) 'Time dependent surface variables do not change before end of'
          write(6,*) 'simulation. --> only large scale forcings'
          ltimedepsurf=.false.
@@ -164,7 +164,7 @@ contains
       t = 0
 
 !      do while (timels(t) < (runtime+btime))
-      do while (timels(t) < (tres*real(btime+runtime)))
+      do while (timels(t) < (tres*real(btime)+runtime))
         t = t + 1
         chmess1 = "#"
         ierr = 1 ! not zero
@@ -200,7 +200,7 @@ contains
       end do
 
 !      if ((timels(1) > (runtime+btime)) .or. (timeflux(1) > (runtime+btime))) then
-      if ((timels(1) > (tres*real(btime+runtime))) .or. (timeflux(1) > (tres*real(btime+runtime)))) then
+      if ((timels(1) > (tres*real(btime)+runtime)) .or. (timeflux(1) > (tres*real(btime)+runtime))) then
         write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
         write(6,*) '--> only time dependent surface variables'
         ltimedepz=.false.

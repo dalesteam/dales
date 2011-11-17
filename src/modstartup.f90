@@ -229,10 +229,12 @@ contains
     call initsubgrid
     call initpois
     call initmicrophysics
+    
+    call readinitfiles ! JvdD, must be done before inittimedep, because btime is needed.
+
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues
-    call readinitfiles
 
 
   end subroutine startup

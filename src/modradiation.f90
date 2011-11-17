@@ -115,18 +115,20 @@ contains
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
+    use modmpi,    only : myid
     implicit none
 
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
     if((itimerad==0 .or. timee>=tnext) .and. rk3step==1) then
-!      if (timee>tnext) tnext = timee
+      if (timee>tnext) tnext = timee !JvdD, for restarts
       tnext = tnext+itimerad
       thlprad = 0.0
       select case (iradiation)
           case (irad_none)
           case (irad_full)
+            if (myid==0) write(*,*) "Doing radiation!"
             call radfull
           case (irad_par)
              if(rad_longw.or.rad_shortw) then
