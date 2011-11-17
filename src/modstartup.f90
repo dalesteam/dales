@@ -984,14 +984,21 @@ contains
 
     real :: thvb,prsb ! for calculating moist adiabat
     real :: qlf, qlh, qvsl1,qvsi1
-    integer :: k
+    integer :: i,j,k
     real :: ilratio,esl1,esi1,qsatur,thlguess,thlguessmin,tlo,thi,ttry
     real :: Tnr,Tnr_old
     integer :: niter,nitert,tlonr,thinr,mid
-    real, allocatable :: height(:)
+    real, allocatable :: height(:),pb(:),tb(:)
     character(80) chmess
+    real :: zsurf=0.
+    real :: tsurf
+    real :: psurf=101325.
+    real,dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
+    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/) 
+    real,dimension(4) :: pmat
+    real,dimension(4) :: tmat
 
-    allocate (height(k1))
+    allocate (height(k1),pb(k1),tb(k1))
 
     if(myid==0)then
 
@@ -1006,8 +1013,8 @@ contains
           rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
         enddo
         open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#LBA';
-        write(ifoutput,*) '#height rhobf';
+        write(ifoutput,*) '#baseprofiles'
+        write(ifoutput,*) '#height rhobf'
         do k=1,kmax
           write (ifoutput,'(1f7.1,1e12.4)') &
                 zf (k), &
@@ -1021,8 +1028,100 @@ contains
           rhobf(k)=rhobh(1)
         enddo
         open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#LBA';
-        write(ifoutput,*) '#height rhobf';
+        write(ifoutput,*) '#baseprofiles'
+        write(ifoutput,*) '#height rhobf'
+        do k=1,kmax
+          write (ifoutput,'(1f7.1,1e12.4)') &
+                zf (k), &
+                rhobf (k)
+        enddo
+        close(ifoutput)
+      elseif(ibas_prf==3) then! use standard atmospheric lapse rate with surface temperature offset
+        tsurf=thls*(ps/pref0)**(rd/cp)
+        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
+        ! write(*,*)(*,*) 'make profiles'
+        
+        do j=2,4
+          if(abs(lapserate(i))<1e-10) then
+            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+          else
+            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+          endif
+          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+        enddo
+        
+        do k=1,k1
+          if(zf(k)<zmat(1)) then
+            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+          else
+            j=1
+            do while(zf(k)>zmat(j))
+              j=j+1
+            end do
+            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+            if(abs(lapserate(j))<1e-99) then
+              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+            else
+              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+            endif
+          endif
+          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+        enddo
+        open (ifoutput,file='baseprof.inp.'//cexpnr)
+        write(ifoutput,*) '#baseprofiles'
+        write(ifoutput,*) '#height rhobf'
+        do k=1,kmax
+          write (ifoutput,'(1f7.1,1e12.4)') &
+                zf (k), &
+                rhobf (k)
+        enddo
+        close(ifoutput)
+      elseif(ibas_prf==4) then! use standard atmospheric lapse rate without surface temperature offset
+        tsurf=288.16
+        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
+        ! write(*,*)(*,*) 'make profiles'
+        
+        do j=2,4
+          if(abs(lapserate(i))<1e-10) then
+            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+          else
+            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+          endif
+          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+        enddo
+        
+        do k=1,k1
+          if(zf(k)<zmat(1)) then
+            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+          else
+            j=1
+            do while(zf(k)>zmat(j))
+              j=j+1
+            end do
+            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+            if(abs(lapserate(j))<1e-99) then
+              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+            else
+              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+            endif
+          endif
+          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+        enddo
+        open (ifoutput,file='baseprof.inp.'//cexpnr)
+        write(ifoutput,*) '#baseprofiles'
+        write(ifoutput,*) '#height rhobf'
         do k=1,kmax
           write (ifoutput,'(1f7.1,1e12.4)') &
                 zf (k), &
@@ -1092,6 +1191,8 @@ contains
     call MPI_BCAST(rhobh       ,k1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(drhobdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(drhobdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
+
+    deallocate(pb,tb)
 
   end subroutine baseprofs
 

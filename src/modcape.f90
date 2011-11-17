@@ -38,7 +38,6 @@ save
   character(80) :: fname = 'cape.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
-  integer :: nrec = 0
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
   logical :: lcape = .false. !< switch for doing the crosssection (on/off)
@@ -121,7 +120,6 @@ contains
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
-    use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
     use modmicrodata, only : iqr, precep, imicro

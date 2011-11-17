@@ -42,8 +42,6 @@ save
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
   character(80) :: fname = 'dummy.nc'
-  integer :: ncid,nrec = 0
-
   real          :: dtav, timeav
   integer(kind=longint):: idtav, itimeav, tnext, tnextwrite
   integer          :: nsamples
