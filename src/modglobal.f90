@@ -104,9 +104,11 @@ save
       real    :: xlon    = 0.               !<    *longitude in degrees.
 
       !Base state
-      integer :: ibas_prf = 1
+      integer :: ibas_prf = 3
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)
       integer, parameter :: ibas_bou    = 2 !< Boussinesq-like
+      integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction 
+      integer, parameter :: ibas_st2    = 4 !< Standard atmosphere, surface temperature 15 K
       integer, parameter :: ibas_usr    = 5 !< User specified
 
       !Advection scheme
@@ -291,7 +293,8 @@ contains
 
     do m=1,2000
     ttab(m)=150.+0.2*m
-    esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+    esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
+    tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
 
