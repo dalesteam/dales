@@ -310,8 +310,10 @@ contains
     end if
 
     if (ltimedep .and. lhetero) then
-      if (myid == 0) write(6,*) 'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
-      if (myid == 0) write(0,*) 'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      if (myid == 0) write(6,*)&
+      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      if (myid == 0) write(0,*)&
+      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
     endif
 
   end subroutine checkinitvalues
@@ -325,9 +327,11 @@ contains
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
                                   thlpcar
-    use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
+    use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
+                                  rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,trestart, ladaptive,llsadv,tnextrestart,ibas_prf
+                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
@@ -1021,7 +1025,7 @@ contains
                 rhobf (k)
         enddo
         close(ifoutput)
-      elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3 if except for buoyancy term now depending on slab mean state)
+      elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
         thvb=thls*(1+(rv/rd-1)*qts)
         rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
         do k=1,k1
@@ -1044,7 +1048,7 @@ contains
         ! write(*,*)(*,*) 'make profiles'
         
         do j=2,4
-          if(abs(lapserate(i))<1e-10) then
+          if(abs(lapserate(j))<1e-10) then
             pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
           else
             pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
@@ -1090,7 +1094,7 @@ contains
         ! write(*,*)(*,*) 'make profiles'
         
         do j=2,4
-          if(abs(lapserate(i))<1e-10) then
+          if(abs(lapserate(j))<1e-10) then
             pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
           else
             pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
