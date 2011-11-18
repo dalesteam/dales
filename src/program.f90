@@ -24,34 +24,56 @@
 !! \section Log Change log
 !! \par New Features
 !! \par Main Changes
-!! - Changed Modfields+modglobal+modmicrodata switches
-!! - Startup with new variables
 !! \todo
 
 !! This subversion
+!! Huug:
+!! - Included heterosurf routine
+!! - Statistics for heterosurf routine
+!! Steef:
+!! - Anelastic baseprofile maker
 !! - Anelastic advection
-!! - Anelastic poisson solver
-!! - Anelastic resolved buoyancy (based on theta_l,q_l -> theta_v) and theta_v0
-!! - Simple ice microphysics scheme (Grabowski, with switch for autoconversion formula)
-!! - Icemicrostat
+!! - Anelastic poisson solver changes
+!! - Anelastic diffusion
+!! - Resolved buoyancy (based on theta_l,q_l -> theta_v), using mean theta_v in divisor and subtracting
+!! - Rainwater loading included in buoyancy
+!! - Simple ice microphysics scheme (Grabowski 98, with switches for autoconversion and graupel)
+!! - Integrated microstat for bulk and ice scheme
+!! - Diagnostic temperature field included
+!! - Speeded up gamma functions in bulkmicro and ice-micro
 !! - Reviewed saturation pressure with table lookup formula (Murphy and Koop)
 !! - Analytical function for surface forcing (may be removed later)
 !! - Fixed fielddump range for temperatures
 !! - Fixed statistics for heights above 10000 m
-!! - No advection/diffusion of Nr for ice micro (backwards compatible)
-!! \par todo
-!! - Review Thermodynamic variables, pressure gradient expansion (fromztop, rhof, thetav, etc), buoyancy maybe let fromztop integrate from top of domain
-!! - Review diagnostics (in particular (conditional) budgets of TKE and w, possibly write these from a tendency routine?)
-!! - Document hydrometeor drag
-!! - Revise TKE subgrid scheme and diffusion (see branch, implement after this has been checked for consistency)
-!! - Look at possible TKE term in momentum equation (consistent Lipps-Hemler implementation)
-!! - Check (warm) startup
-!! Further
-!! - Look into influence of advection scheme for deep convection (Walcek scheme??)
-!! - Add 2-moment scheme (Thijs working on this, or use Grabowski/Morrison)
-!! - Parallelization (Merge with dales 3.3)
-!! - Extra cross-section outputs (in particular related to w-budgets and microphysics tendencies)
-!! - CAPE/CAPEcloud and CIN/CINcloud cross-sections, use LNB and points below
+!! - Combined sampling/tendency routine (experimental)
+!! - CAPE/CIN etc routine (experimental)
+!! - CFL criterion based on pythagoran CFL
+!! - Sampling written to separate netcdf files
+!! \par todo (this version)
+!! - Check tqaver (Johan?)
+!! - Input header detection (Steef?)
+!! - Redundant output by all processors (Johan)
+!! - Add moddeprecated (Steef), cleaner namoptions
+!! - Remove dtav and timeav from some of the namoptions (Steef)
+!! - Look into radiative tendencies exner function correction (Steef, Johan)
+!! - Radiation negative qt crash (Johan)
+!! - Integrate WEENO advection (Johan)
+!! - Unified and simpler diagnostics (Johan)
+!! - Fielddump timing (Johan)
+!! - Scalasca CMake and Marmot options (Johan)
+!! - Consistent notation of theta_v in output (Steef)
+!! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
+!! - Separate microphysics from scalars (Steef)
+!! - Check/fix warm startup
+!! - 2D Parallelization
+!! \par todo (future)
+!! Steef:
+!! - Use more complicated theta_l formulation, include latent heat of freezing
+!! - Adjust buoyancy and subgrid accordingly
+!! - Integrate precipitation loading in theta_v
+!! - Look at possible extra term in TKE equation (consistent filtering approach)
+!! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison)
+!! - Look into influence of advection scheme for deep convection
 !!
 !! \section License License
 !!  This file is part of DALES.
