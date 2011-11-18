@@ -78,7 +78,8 @@ contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initbudget
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
-    use modglobal, only : dtmax,idtmax, k1,ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,kmax,tres
+    use modglobal, only : dtmax,idtmax, k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
+    ladaptive,dt_lim,btime,kmax,tres
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 

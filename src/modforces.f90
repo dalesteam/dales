@@ -80,7 +80,8 @@ contains
     do i=2,i1
       up(i,j,k) = up(i,j,k) - dpdxl(k)
       vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2.0*dzh(k))
+      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
+                  grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
     end do
     end do

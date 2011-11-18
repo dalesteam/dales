@@ -194,7 +194,8 @@
      ,bbs=2. &
      ,ccs=4. &
      ,dds=0.25 &
-     ! For graupel (if present, following Tomita 2008 for terminal velocities and using mass-diameter relationship as for rain, but with only 40% of density)
+     ! For graupel (if present, following Tomita 2008 for terminal velocities and using mass-diameter
+     ! relationship as for rain, but with only 40% of density)
      ,aag=2.e2 &
      ,bbg=3.&
      ,ccg=82.5 &

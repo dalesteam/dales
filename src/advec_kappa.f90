@@ -4,13 +4,15 @@
 !! \par Authors
 !! \see Hundsdorfer et al 1995
 !!
-!! For advection of scalars that need to be strictly monotone (for example chemically reacting species) the kappa scheme has been implemented:
+!! For advection of scalars that need to be strictly monotone (for example chemically reacting species) 
+!! the kappa scheme has been implemented:
 !! \latexonly
 !! \begin{eqnarray}
 !!  F_{i-\frac{1}{2}}^{\kappa} &=& \fav{u}_{i-\frac{1}{2}}
 !!  \left[\phi_{i-1}+\frac{1}{2}\kappa_{i-\frac{1}{2}}\left(\phi_{i-1}-\phi_{i-2}\right)\right],
 !! \end{eqnarray}
-!! in case $\fav{u}>0$. $\kappa_{i-\smfrac{1}{2}}$ serves as a switch between higher order advection and first order upwind in case of strong upwind gradients of $\phi$.
+!! in case $\fav{u}>0$. $\kappa_{i-\smfrac{1}{2}}$ serves as a switch between higher order advection and 
+!! first order upwind in case of strong upwind gradients of $\phi$.
 !! \endlatexonly
 !! This makes the scheme monotone, but also rather dissipative.
 !!

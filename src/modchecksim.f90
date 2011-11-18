@@ -113,7 +113,8 @@ contains
     courtot  = 0.0
     do k=1,kmax
       courzl(k)=maxval(abs(w0(2:i1,2:j1,k)))*dtmn/dzh(k)
-      courtotl(k)=sqrt(maxval(abs(u0(2:i1,2:j1,k)/dx))**2+maxval(abs(v0(2:i1,2:j1,k)/dy))**2+maxval(abs(w0(2:i1,2:j1,k)/dzh(k)))**2)*dtmn
+      courtotl(k)=&
+      sqrt(maxval(abs(u0(2:i1,2:j1,k)/dx))**2+maxval(abs(v0(2:i1,2:j1,k)/dy))**2+maxval(abs(w0(2:i1,2:j1,k)/dzh(k)))**2)*dtmn
     end do
     courxl = maxval(abs(u0))*dtmn/dx
     couryl = maxval(abs(v0))*dtmn/dy
@@ -123,7 +124,8 @@ contains
     call MPI_ALLREDUCE(courzl,courz,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
     call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
-      write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',courx,coury,maxval(courz(1:kmax)),maxloc(courz(1:kmax)),maxval(courtot(1:kmax)),maxloc(courtot(1:kmax))
+      write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
+      courx,coury,maxval(courz(1:kmax)),maxloc(courz(1:kmax)),maxval(courtot(1:kmax)),maxloc(courtot(1:kmax))
     end if
 
     deallocate(courzl,courz,courtotl,courtot)

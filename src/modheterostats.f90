@@ -268,7 +268,8 @@ contains
     integer n,i,j,k
     integer status
 
-    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg, thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
+    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg,&
+    thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
     real, dimension(imax,jmax)         :: lwpavg 
     real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
     real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
@@ -729,7 +730,8 @@ contains
           if(k==1) then
             uwcovs(j,k) = uwcovs(j,k) - max(ustar(i,j)**2.0, 1.e-10)
           else
-            uwcovs(j,k) = uwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)+ekm(i+1,j+1,k-1)) * (0.5*(u0(i+1,j+1,k)+u0(i+2,j+1,k)) - 0.5*(u0(i+1,j+1,k-1)+u0(i+2,j+1,k-1))) / dz
+            uwcovs(j,k) = uwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)+ekm(i+1,j+1,k-1)) *&
+                          (0.5*(u0(i+1,j+1,k)+u0(i+2,j+1,k)) - 0.5*(u0(i+1,j+1,k-1)+u0(i+2,j+1,k-1))) / dz
           endif
         end do
       end do
@@ -743,7 +745,8 @@ contains
           if(k==1) then
             vwcovs(j,k) = vwcovs(j,k) - max(ustar(i,j)**2.0, 1.e-10)
           else
-            vwcovs(j,k) = vwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)+ekm(i+1,j+1,k-1)) * (0.5*(v0(i+1,j+1,k)+v0(i+1,j+2,k)) - 0.5*(v0(i+1,j+1,k-1)+v0(i+1,j+2,k-1))) / dz
+            vwcovs(j,k) = vwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)+ekm(i+1,j+1,k-1)) *&
+            (0.5*(v0(i+1,j+1,k)+v0(i+1,j+2,k)) - 0.5*(v0(i+1,j+1,k-1)+v0(i+1,j+2,k-1))) / dz
           endif
         end do
       end do
@@ -879,7 +882,8 @@ contains
             if(k==1) then
               wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n) 
             else
-              wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) * (sv0(i+1,j+1,k,n) - sv0(i+1,j+1,k-1,n)) / dz
+              wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) &
+              * (sv0(i+1,j+1,k,n) - sv0(i+1,j+1,k-1,n)) / dz
             endif
           end do
         end do

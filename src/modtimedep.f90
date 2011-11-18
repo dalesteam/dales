@@ -163,7 +163,8 @@ contains
         t = t + 1
         chmess1 = "#"
         ierr = 1 ! not zero
-        do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read
+        !search for the next line consisting of "# time", from there onwards the profiles will be read
+        do while (.not.(chmess1 == "#" .and. ierr ==0)) 
           read(ifinput,*,iostat=ierr) chmess1,timels(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run'
@@ -263,7 +264,8 @@ contains
   end subroutine timedep
 
   subroutine timedepz
-    use modfields,   only : ug, vg, dqtdtls,dqtdxls,dqtdyls, wfls,whls,thlprof,qtprof,thlpcar,dthldxls,dthldyls,dudxls,dudyls,dvdxls,dvdyls,dpdxl,dpdyl
+    use modfields,   only : ug, vg, dqtdtls,dqtdxls,dqtdyls, wfls,whls,thlprof,qtprof, &
+                            thlpcar,dthldxls,dthldyls,dudxls,dudyls,dvdxls,dvdyls,dpdxl,dpdyl
     use modglobal,   only : rtimee,om23_gs,zf,dzf,dzh,k1,kmax,grav,llsadv
     implicit none
 

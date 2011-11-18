@@ -53,7 +53,8 @@ contains
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
-!! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, calculate the fields at the half levels, and finally calculate the virtual potential temperature.
+!! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, 
+!! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist, timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv
     use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thv0av

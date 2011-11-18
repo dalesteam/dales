@@ -725,7 +725,8 @@ module modbulkmicro
   ! Evaporation of prec. : Seifert (2008)
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,rd,rv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma,tup,tdn,esatltab,ttab
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,rd,rv,cp,at,bt,pi,ep,mygamma251,mygamma21,&
+    lacz_gamma,tup,tdn,esatltab,ttab
     use modfields, only : exnf,thl0,qt0,svm,tmp0,ql0,presf,rhof,exnf
     use modmpi,    only : myid
     implicit none

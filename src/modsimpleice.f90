@@ -178,12 +178,12 @@ module modsimpleice
       do k=1,k1
       do j=2,j1
       do i=2,i1
-        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! cloud water vs cloud ice partitioning
-        rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
-        sgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg)))   ! snow versus graupel partitioning
+        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn))) ! cloud water vs cloud ice partitioning
+        rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning
+        sgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning
         lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
-        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
-        lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! lambda graupel
+        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! snow
+        lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! graupel
       enddo
       enddo
       enddo
@@ -294,7 +294,8 @@ module modsimpleice
     use modfields, only : ql0,exnf,rhof
     use modmpi,    only : myid
     implicit none
-    real :: qll,qli,qrr,qrs,qrg,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
+    real :: qll,qli,qrr,qrs,qrg,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,&
+            gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
     integer:: i,j,k
 
     do k=1,k1
@@ -308,7 +309,8 @@ module modsimpleice
         qrr=qr(i,j,k)*rsgratio(i,j,k)
         qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))
         qrg=qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)
-        gaccrl=pi/4.*ccrz(k)*ceffrl*rhof(k)*qll*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gammaddr3/(aar*gamb1r) ! collection of cloud water by rain etc.
+        ! collection of cloud water by rain etc.
+        gaccrl=pi/4.*ccrz(k)*ceffrl*rhof(k)*qll*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gammaddr3/(aar*gamb1r)
         gaccsl=pi/4.*ccsz(k)*ceffsl*rhof(k)*qll*qrs*lambdas(i,j,k)**(bbs-2.-dds)*gammadds3/(aas*gamb1s)
         gaccgl=pi/4.*ccgz(k)*ceffgl*rhof(k)*qll*qrg*lambdag(i,j,k)**(bbg-2.-ddg)*gammaddg3/(aag*gamb1g)
         gaccri=pi/4.*ccrz(k)*ceffri*rhof(k)*qli*qrr*lambdar(i,j,k)**(bbr-2.-ddr)*gammaddr3/(aar*gamb1r)
@@ -333,7 +335,8 @@ module modsimpleice
     use modfields, only : qt0,ql0,exnf,rhof,tmp0,presf
     use modmpi,    only : myid
     implicit none
-    real :: qrr,qrs,qrg,ssl,ssi,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,rer,res,reg,ventr,vents,ventg,thfun,gevapdepr,gevapdeps,gevapdepg,evapdepr,evapdeps,evapdepg,devap
+    real :: qrr,qrs,qrg,ssl,ssi,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,rer,res,reg,ventr,vents,ventg,&
+            thfun,gevapdepr,gevapdeps,gevapdepg,evapdepr,evapdeps,evapdepg,devap
     integer:: i,j,k,tlonr,thinr
     real ::  esl1,esi1,qvsl1,qvsi1,tlo,thi
 
@@ -361,8 +364,9 @@ module modsimpleice
         evapdepr=(4.*pi/(betar*rhof(k)))*(ssl-1.)*ventr*thfun
         evapdeps=(4.*pi/(betas*rhof(k)))*(ssi-1.)*vents*thfun
         evapdepg=(4.*pi/(betag*rhof(k)))*(ssi-1.)*ventg*thfun
+        ! total growth by deposition and evaporation
         ! limit with qr and ql after accretion and autoconversion
-        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))  ! total growth by deposition and evaporation
+        devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
         qrp(i,j,k) = qrp(i,j,k)+devap
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
@@ -396,7 +400,7 @@ module modsimpleice
         vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
         vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
         vtg=ccgz(k)*(gambd1g/gamb1g)/(lambdag(i,j,k)**ddg)  ! terminal velocity graupel
-        vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))*vts+(1.-rsgratio(i,j,k))*sgratio(i,j,k)*vtg  ! mass-weighted terminal velocity
+        vtf=rsgratio(i,j,k)*vtr+(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))*vts+(1.-rsgratio(i,j,k))*sgratio(i,j,k)*vtg ! weighted
         vtf = amin1(wfallmax,vtf)
         precep(i,j,k) = vtf*qr_spl(i,j,k)
         sed_qr(i,j,k) = precep(i,j,k)*rhobf(k) ! convert to flux

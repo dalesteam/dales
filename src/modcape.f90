@@ -1,5 +1,6 @@
 !> \file modcape.f90
-!!   Dumps cross sections of dcape, CAPEmax, CINlower,CINupper, CINmax, ALE, W2max, QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
+!!   Dumps cross sections of dcape, CAPEmax, CINlower,CINupper, CINmax, ALE, W2max, 
+!!   QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
 !
 !>
 !! Crosssections in the xy-plane
@@ -77,8 +78,6 @@ contains
     if(.not.(lcape)) return
     dt_lim = min(dt_lim,tnext)
 
-    !dcape, CAPEmax, CINreal, CINmax, ALE, W2max, QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
-
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'cape: dtav should be a integer multiple of dtmax'
     end if
@@ -118,7 +117,8 @@ contains
 
 !>Run crosssection.
   subroutine docape
-    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
+    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,&
+    ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wtvtmnlast
@@ -126,7 +126,8 @@ contains
     use modmpi
     implicit none
 
-    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
+    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
+    thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -149,8 +150,10 @@ contains
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))
     allocate(thl200400(2:i1,2:j1),qt200400(2:i1,2:j1))
     allocate(hw2max(2:i1,2:j1),qtcb(2:i1,2:j1),thlcb(2:i1,2:j1),wcb(2:i1,2:j1))
-    allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
-    allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
+    allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),&
+             lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
+    allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),&
+             capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
 
     ! DETERMINE CLOUD BASE, UNFORTUNATELY HAVE TO USE STATS HERE: END UP JUST BELOW
     kcb=1
@@ -158,7 +161,9 @@ contains
     ! find robust minimum of buoyancy flux (determined at half-level!)
     if(any(abs(wtvtmnlast)>1e-10)) then
       do k=kmax-7,2,-1
-        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.(wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.(wtvtmnlast(k)<wtvtmnlast(k+4))) then
+        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.&
+           (wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.&
+           (wtvtmnlast(k)<wtvtmnlast(k+4))) then
           ktest = k
         end if
       end do
@@ -302,7 +307,8 @@ contains
         qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
         qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
         qlma(i,j,k) = max(qt200400(i,j)-qsatur,0.)
-        thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
+        thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))&
+                     *(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv
     enddo
     enddo
     do k=2,k1
@@ -351,7 +357,8 @@ contains
         qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
         qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
         qlma(i,j,k) = max(qt200400(i,j)-qsatur,0.)
-        thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))*(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv, assuming thl conserved
+        thvma(i,j,k)=(thl200400(i,j)+(rlv*qlma(i,j,k))/(cp*exnf(k)))&
+                     *(1+(rv/rd-1)*qt200400(i,j)-rv/rd*qlma(i,j,k)) ! calculate thv
         if(thvma(i,j,k)<thvf(k)-10) then
           matop(i,j)=k
         elseif(k==k1) then
@@ -440,7 +447,8 @@ contains
       deallocate(vars)
     end if
 
-    deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
+    deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,&
+    buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
 
   end subroutine docape
 

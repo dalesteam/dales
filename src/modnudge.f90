@@ -85,7 +85,8 @@ contains
         t = t + 1
         chmess1 = "#"
         ierr = 1 ! not zero
-        do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read
+        !search for the next line consisting of "# time", from there onwards the profiles will be read
+        do while (.not.(chmess1 == "#" .and. ierr ==0))
           read(ifinput,*,iostat=ierr) chmess1,timenudge(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend nudging data for end of run'
