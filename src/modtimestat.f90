@@ -68,8 +68,9 @@ save
   real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
   real, allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
   real,allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field
-  real,allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl, cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl
-  real,allocatable, dimension(:,:) :: tke_tot_patch, wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
+  real,allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
+  real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
+  real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
   real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wts_patch, wqls_patch, wtvs_patch
   !In combination with isurf = 1    
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
@@ -80,7 +81,8 @@ contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
-    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,idtmax,ifoutput,dtav_glob,tres,ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
+    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,idtmax,ifoutput,dtav_glob,tres,&
+                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo
@@ -595,9 +597,11 @@ contains
   !     -------------------------
 
     do  k=1,kmax
-      u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
-      v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
-      w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
+      if (lhetero) then
+        u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
+        v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
+        w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
+      endif
       do  j=2,j1
         if (lhetero) then
           patchy = patchynr(j)
