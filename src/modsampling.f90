@@ -4,8 +4,7 @@
 
 !>
 !!  Calculates statistics under conditional criteria
-!>
-!!  Calculates statistics under conditional criteria, for instance over updrafts or cloudy parts of the domain. Written to $sampname_fld.expnr and to $sampname_flx.expnr.
+!!for instance over updrafts or cloudy parts of the domain. Written to $sampname_fld.expnr and to $sampname_flx.expnr.
 !! If netcdf is true, this module also writes in the profiles.expnr.nc output
 !! Currently implemented criteria for sampling are:
 !! - Updraft (w>0)
@@ -136,7 +135,7 @@ contains
     end if
 
     if(isamptot < 2) return
-     idtav = dtav/tres
+    idtav = dtav/tres
     itimeav = timeav/tres
 
     tnext      = idtav   +btime
@@ -276,7 +275,7 @@ contains
   subroutine sampling
     use modglobal, only : rk3step,timee,dt_lim
     implicit none
-   if (isamptot==0) return
+   if (isamptot<2) return
     if (rk3step/=3) return
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
@@ -610,7 +609,8 @@ contains
         do j=2,j1
         do i=2,i1
          if (maskh(i,j,k)) then
-           thvhavl   (k,isamp) = thvhavl   (k,isamp) + grav*(thv0h(i,j,k) - thvh(k))/thvh(k) - grav*(sv0(i,j,k,iqr)+sv0(i,j,k-1,iqr))/2.
+           thvhavl   (k,isamp) = thvhavl   (k,isamp) + grav*(thv0h(i,j,k) - thvh(k))/thvh(k) &
+           - grav*(sv0(i,j,k,iqr)+sv0(i,j,k-1,iqr))/2.
            dpdzhavl  (k,isamp) = dpdzhavl  (k,isamp) - (p(i,j,k)-p(i,j,k-1))/dzh(k) &
                                                      + beta * thvhav(k)
            dwwdzhavl (k,isamp) = dwwdzhavl (k,isamp) - (1./rhobh(k))*(rhobf(k)*w0f(i,j,k)**2-rhobf(k-1)*w0f(i,j,k-1)**2)/dzh(k)

@@ -37,8 +37,8 @@ module modsamptend
   character(80),dimension(1,4) :: tncname
   real    :: dtav, timeav
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
-  integer,public,parameter :: tend_tot=1,tend_start=1,tend_adv=2,tend_subg=3,tend_force=4,&
-                       tend_rad=5,tend_ls=6,tend_micro=7, tend_topbound=8,tend_pois=9,tend_addon=10, tend_coriolis=11, tend_totlb=12
+  integer,public,parameter :: tend_tot=1,tend_start=1,tend_adv=2,tend_subg=3,tend_force=4,tend_rad=5,&
+                              tend_ls=6,tend_micro=7, tend_topbound=8,tend_pois=9,tend_addon=10, tend_coriolis=11, tend_totlb=12
   integer,parameter :: nrfields = 12
   character(20),dimension(10) :: samplname,longsamplname
   integer :: nsamples,isamp,isamptot
@@ -65,7 +65,8 @@ contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initsamptend
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid,cmyid
-    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,ladaptive, dt_lim,btime,kmax,tres,ifoutput,cexpnr,j1,jh,i1,ih,kmax
+    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,ladaptive,&
+                         dt_lim,btime,kmax,tres,ifoutput,cexpnr,j1,jh,i1,ih,kmax
     use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc,lnetcdf
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
 
@@ -74,6 +75,8 @@ subroutine initsamptend
 
     namelist/NAMSAMPLING/ &
     dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
+
+    dtav=dtav_glob;timeav=timeav_glob
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -128,21 +131,20 @@ subroutine initsamptend
       longsamplname(isamptot) = 'Cloud Updraft '
     end if
 
-    if(isamptot < 2) return
+    if(isamptot < 1) return
     if(.not.(lnetcdf)) return !only in netcdf at the moment
 
     idtav = dtav/tres
     itimeav = timeav/tres
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
-    nsamples = itimeav/idtav
-    dt_lim = min(dt_lim,tnext)
 
+
+    if (abs(timeav/dtav-nint(timeav/dtav))>1e-4) then
+      stop 'timeav must be a integer multiple of dtav'
+    end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'dtav should be a integer multiple of dtmax'
-    end if
-    if (abs(timeav/dtav-nsamples)>1e-4) then
-      stop 'timeav should be a integer multiple of dtav'
     end if
 
     allocate (uptm(k1,nrfields,isamptot),vptm(k1,nrfields,isamptot),wptm(k1,nrfields,isamptot),thlptm(k1,nrfields,isamptot),qtptm(k1,nrfields,isamptot),qrptm(k1,nrfields,isamptot),nrptm(k1,nrfields,isamptot))
@@ -187,10 +189,10 @@ subroutine initsamptend
     nrsampnew=0
 
     if (lnetcdf) then
-      idtav = dtav/tres
-      itimeav = timeav/tres
-      tnext      = idtav   +btime
-      tnextwrite = itimeav +btime
+      idtav = idtav_prof
+      itimeav = itimeav_prof
+      tnext      = idtav+btime
+      tnextwrite = itimeav+btime
       nsamples = itimeav/idtav
       if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
@@ -291,7 +293,7 @@ subroutine initsamptend
     real, allocatable, dimension(:) :: thvav
     integer :: i,j,k
 
-    if(isamptot == 0) return
+    if(isamptot < 1) return
     if(.not.(lnetcdf)) return !only in netcdf at the moment
     if (rk3step/=3) return
     if(timee<tnext) then
@@ -571,15 +573,22 @@ subroutine initsamptend
       do isamp=1,isamptot
       do k=1,kmax
         if((nrsampnew(k,isamp)>0).and.(nrsamplast(k,isamp)>0)) then! only do if sampling can be performed at both points in time
-        upav(k,tend_totlb,isamp) = upav(k,tend_totlb,isamp)+(ust(k,isamp)-sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        vpav(k,tend_totlb,isamp) = vpav(k,tend_totlb,isamp)+(vst(k,isamp)-sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        wpav(k,tend_totlb,isamp) = wpav(k,tend_totlb,isamp)+(wst(k,isamp)-sum(w0f(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        thlpav(k,tend_totlb,isamp) = thlpav(k,tend_totlb,isamp)+(thlst(k,isamp)-sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        qtpav(k,tend_totlb,isamp) = qtpav(k,tend_totlb,isamp)+(qtst(k,isamp)-sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        if(nsv>1) then
-        qrpav(k,tend_totlb,isamp) = qrpav(k,tend_totlb,isamp)+(qrst(k,isamp)-sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        nrpav(k,tend_totlb,isamp) = nrpav(k,tend_totlb,isamp)+(nrst(k,isamp)-sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
-        endif
+          upav(k,tend_totlb,isamp) = upav(k,tend_totlb,isamp)+(ust(k,isamp)-&
+          sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          vpav(k,tend_totlb,isamp) = vpav(k,tend_totlb,isamp)+(vst(k,isamp)-&
+          sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          wpav(k,tend_totlb,isamp) = wpav(k,tend_totlb,isamp)+(wst(k,isamp)-&
+          sum(w0f(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          thlpav(k,tend_totlb,isamp) = thlpav(k,tend_totlb,isamp)+(thlst(k,isamp)-&
+          sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          qtpav(k,tend_totlb,isamp) = qtpav(k,tend_totlb,isamp)+(qtst(k,isamp)-&
+          sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          if(nsv>1) then
+            qrpav(k,tend_totlb,isamp) = qrpav(k,tend_totlb,isamp)+(qrst(k,isamp)-&
+            sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+            nrpav(k,tend_totlb,isamp) = nrpav(k,tend_totlb,isamp)+(nrst(k,isamp)-&
+            sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          endif
         endif
       enddo
       enddo
