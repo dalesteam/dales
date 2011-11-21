@@ -278,9 +278,9 @@ contains
     ! End do loop over the horizontal domain i,j
     
     ! Perform sums that don't require a do-loop
-    call horAverage(ustar       ,ust)
-    call horAverage(thlflux/ust ,tst)
-    call horAverage(qtflux /ust ,qst)
+    call horAverage(ustar  (2:i1,2:j1)     ,ust)
+    call horAverage(thlflux(2:i1,2:j1)/ust ,tst)
+    call horAverage(qtflux (2:i1,2:j1)/ust ,qst)
 
     !+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
     ! Communication between CPU to find domain wide value for each variable
@@ -320,8 +320,8 @@ contains
     qlintvar = (qlint2-(qlintav)**2)
     ! Surface fluxes of theta,thetav,qt; depends on the surface scheme used.
     if (isurf < 3) then
-      call horAverage(thlflux, wts )
-      call horAverage(qtflux , wqts)
+      call horAverage(thlflux(2:i1,2:j1), wts )
+      call horAverage(qtflux (2:i1,2:j1), wqts)
     else
       wts  = wtsurf
       wqts = wqsurf
@@ -333,18 +333,18 @@ contains
 
     ! Calculation of some variables specific for land-surface scheme
     if (isurf == 1) then
-      call horAverage(Qnet     ,Qnetav    )
-      call horAverage(H        ,Hav       )
-      call horAverage(LE       ,LEav      )
-      call horAverage(G0       ,G0av      )
-      call horAverage(tendskin ,tendskinav)
-      call horAverage(rs       ,rsav      )
-      call horAverage(ra       ,raav      )
-      call horAverage(tskin    ,tskinav   )
-      call horAverage(cliq     ,cliqav    )
-      call horAverage(wl       ,wlav      )
-      call horAverage(rssoil   ,rssoilav  )
-      call horAverage(rsveg    ,rsvegav   )
+      call horAverage(Qnet    (2:i1,2:j1),Qnetav    )
+      call horAverage(H       (2:i1,2:j1),Hav       )
+      call horAverage(LE      (2:i1,2:j1),LEav      )
+      call horAverage(G0      (2:i1,2:j1),G0av      )
+      call horAverage(tendskin(2:i1,2:j1),tendskinav)
+      call horAverage(rs      (2:i1,2:j1),rsav      )
+      call horAverage(ra      (2:i1,2:j1),raav      )
+      call horAverage(tskin   (2:i1,2:j1),tskinav   )
+      call horAverage(cliq    (2:i1,2:j1),cliqav    )
+      call horAverage(wl      (2:i1,2:j1),wlav      )
+      call horAverage(rssoil  (2:i1,2:j1),rssoilav  )
+      call horAverage(rsveg   (2:i1,2:j1),rsvegav   )
     end if
    
     ! Make sure the variables are in the same order as in ncName!
@@ -439,11 +439,11 @@ contains
     end if
 
     != Calculate the variables that you want to add here, or somewhere in 'calcTimestat' if that is more convenient
-    call horAverage( albedo, alb_sfc )
+    call horAverage( albedo(2:i1,2:j1), alb_sfc )
     
     ! Albedo at the top of the domain
-    call horAverage(  swu(1:i1,1:j1,kmax), swuav  )
-    call horAverage( -swd(1:i1,1:j1,kmax), swdav  )
+    call horAverage(  swu(2:i1,2:j1,kmax), swuav  )
+    call horAverage( -swd(2:i1,2:j1,kmax), swdav  )
     if (swdav > 0.) then
       alb_tod = swuav / swdav
     else
@@ -451,8 +451,8 @@ contains
     end if
     
     ! Albedo at the top of the atmosphere
-    call horAverage(  swuToA(1:i1,1:j1), swuav  )
-    call horAverage( -swdToA(1:i1,1:j1), swdav  )
+    call horAverage(  swuToA(2:i1,2:j1), swuav  )
+    call horAverage( -swdToA(2:i1,2:j1), swdav  )
     if (swdav > 0.) then
       alb_toa = swuav / swdav
     else
@@ -499,7 +499,7 @@ contains
       end if
 
       ! Calculate surface precipitation and fraction of gridboxes with precipitation
-      call horAverage( precep(:,:,1) , prec_srf      )
+      call horAverage( precep(2:i1,2:j1,1) , prec_srf )
       
       prec_cntl       = count ( precep  (2:i1,2:j1,1) > epsprec )
       call MPI_ALLREDUCE(prec_cntl, prec_fracsrf, 1, MY_REAL , MPI_SUM, comm3d, mpierr)
@@ -865,9 +865,9 @@ contains
     use modmpi,    only : MY_REAL,MPI_SUM,comm3d,mpierr
     implicit none
 
-    real, dimension(i1,j1), intent(in) :: varl
-    real, intent(out)                  :: varav
-    real                               :: varavl
+    real, dimension(2:i1,2:j1), intent(in) :: varl
+    real, intent(out) :: varav
+    real              :: varavl
     varav = 0.; varavl = 0.
 
     varavl = sum(varl(2:i1,2:j1))
