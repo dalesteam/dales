@@ -515,6 +515,9 @@ contains
       svs = svprof(1,:)
      
       call baseprofs ! call baseprofs before thermodynamics
+
+      call boundary
+      call thermodynamics
       call surface
 
       dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
@@ -581,8 +584,6 @@ contains
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
       call baseprofs !call baseprofs
-      call boundary
-      call thermodynamics
 
     end if
 
