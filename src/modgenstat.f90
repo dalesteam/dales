@@ -457,7 +457,7 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
+                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,rhobf
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -811,12 +811,12 @@ contains
     !     calculate resolved and subgrid fluxes at half levels
     !     -----------------------------------------------------------
 
-        ekhalf  = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-        euhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
+        ekhalf  = (ekh(i,j,k)*dzf(km)/rhobf(km)+ekh(i,j,km)*dzf(k)/rhobf(k))/(2*dzh(k))
+        euhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )/rhobf(k)  + &
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) )/rhobf(km) ) / &
                     ( 4.   * dzh(k) )
-        evhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) ) ) / &
+        evhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)/rhobf(k)  )  + &
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) )/rhobf(km) ) / &
                     ( 4.   * dzh(k) )
 
         wtls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
@@ -922,7 +922,7 @@ contains
         km = k-1
       do j=2,j1
       do i=2,i1
-        ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
+        ekhalf      = (ekh(i,j,k)*dzf(km)/rhobf(k)+ekh(i,j,km)*dzf(k)/rhobf(km))/(2*dzh(k))
         wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
                                                         /dzh(k)
       end do

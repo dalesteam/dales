@@ -484,7 +484,7 @@ contains
 !     calculate resolved and subgrid fluxes at half levels
 !     -----------------------------------------------------------
 
-      ekhalf = (ekh(i,j,k) *dzf(km)+ekh(i,j,km)*dzf(k) )/(2*dzh(k) )
+      ekhalf = (ekh(i,j,k) *dzf(km)/rhobf(k)+ekh(i,j,km)*dzf(k)/rhobf(km) )/(2*dzh(k) )
 
       wtlsh   = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
       wtlrh   = w0(i,j,k)*thl0h(i,j,k)
@@ -507,14 +507,14 @@ contains
       wtvth(i,j,k)   = wtvrh + wtvsh
 
       ekav = 0.25 * &
-              ( ekm(i,j,k-1)+ekm(i,j,k)+ekm(i-1,j,k-1)+ekm(i-1,j,k) )
+              ( ekm(i,j,k-1)/rhobf(k-1)+ekm(i,j,k)/rhobf(k)+ekm(i-1,j,k-1)/rhobf(k-1)+ekm(i-1,j,k)/rhobf(k) )
       uwsh(i,j,k)  =  - ekav * &
             ((u0(i,j,k)-u0(i,j,k-1))/dzf(k)+(w0(i,j,k)-w0(i-1,j,k))/dx)
       uwrh(i,j,k) = (w0(i,j,k)+w0(i-1,j,k))*(u0(i,j,k-1)+u0(i,j,k))/4.
       uwth(i,j,k) = uwsh(i,j,k) + uwrh(i,j,k)
 
       ekav = 0.25 * &
-          ( ekm(i,j,k-1)+ekm(i,j,k)+ekm(i,j-1,k-1)+ekm(i,j-1,k) )
+          ( ekm(i,j,k-1)/rhobf(k-1)+ekm(i,j,k)/rhobf(k)+ekm(i,j-1,k-1)/rhobf(k-1)+ekm(i,j-1,k)/rhobf(k) )
       vwsh(i,j,k)  = - ekav * &
           ((v0(i,j,k)-v0(i,j,k-1))/dzf(k)+(w0(i,j,k)-w0(i,j-1,k))/dy)
       vwrh(i,j,k) = (w0(i,j,k)+w0(i,j-1,k))*(v0(i,j,k-1)+v0(i,j,k))/4.
@@ -529,7 +529,7 @@ contains
        i=i2
        do j=2,j1
           ekav = 0.25 * &
-               ( ekm(i,j,k-1)+ekm(i,j,k)+ekm(i-1,j,k-1)+ekm(i-1,j,k) )
+               ( ekm(i,j,k-1)/rhobf(k-1)+ekm(i,j,k)/rhobf(k)+ekm(i-1,j,k-1)/rhobf(k-1)+ekm(i-1,j,k)/rhobf(k) )
           uwsh(i,j,k)  =  - ekav * &
             ((u0(i,j,k)-u0(i,j,k-1))/dzf(k)+(w0(i,j,k)-w0(i-1,j,k))/dx)
           uwrh (i,j,k) = (w0(i,j,k)+w0(i-1,j,k))*(u0(i,j,k-1)+u0(i,j,k))/4.
@@ -537,7 +537,7 @@ contains
        j=j2
        do i=2,i1
           ekav = 0.25 * &
-             ( ekm(i,j,k-1)+ekm(i,j,k)+ekm(i,j-1,k-1)+ekm(i,j-1,k) )
+             ( ekm(i,j,k-1)/rhobf(k-1)+ekm(i,j,k)/rhobf(k)+ekm(i,j-1,k-1)/rhobf(k-1)+ekm(i,j-1,k)/rhobf(k) )
           vwsh (i,j,k) = - ekav * &
              ((v0(i,j,k)-v0(i,j,k-1))/dzf(k)+(w0(i,j,k)-w0(i,j-1,k))/dy)
           vwrh (i,j,k) = (w0(i,j,k)+w0(i,j-1,k))*(v0(i,j,k-1)+v0(i,j,k))/4.
@@ -551,7 +551,7 @@ contains
     do i=2,i1
     do k=2,kmax
       km = k-1
-      wwsf (i,j,km) = -2 * ekm(i,j,km) * &
+      wwsf (i,j,km) = -2 * (ekm(i,j,km)/rhobf(km)) * &
                (w0(i,j,k)-w0(i,j,km)) / dzf(km)
 
     end do

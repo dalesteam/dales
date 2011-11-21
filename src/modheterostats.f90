@@ -260,6 +260,7 @@ contains
     use modmpi,     only : myid
     use modsurfdata
     use modsubgrid, only : ekm, ekh
+    use modfields,  only : rhobf
     use modglobal,  only : iadv_thl, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
                            rd, imax, jmax, i1, j1, k1, ih, jh
 
@@ -730,7 +731,7 @@ contains
           if(k==1) then
             uwcovs(j,k) = uwcovs(j,k) - max(ustar(i,j)**2.0, 1.e-10)
           else
-            uwcovs(j,k) = uwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)+ekm(i+1,j+1,k-1)) *&
+            uwcovs(j,k) = uwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)/rhobf(k)+ekm(i+1,j+1,k-1)/rhobf(k-1)) *&
                           (0.5*(u0(i+1,j+1,k)+u0(i+2,j+1,k)) - 0.5*(u0(i+1,j+1,k-1)+u0(i+2,j+1,k-1))) / dz
           endif
         end do
@@ -745,7 +746,7 @@ contains
           if(k==1) then
             vwcovs(j,k) = vwcovs(j,k) - max(ustar(i,j)**2.0, 1.e-10)
           else
-            vwcovs(j,k) = vwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)+ekm(i+1,j+1,k-1)) *&
+            vwcovs(j,k) = vwcovs(j,k) - 0.5*(ekm(i+1,j+1,k)/rhobf(k)+ekm(i+1,j+1,k-1)/rhobf(k-1)) *&
             (0.5*(v0(i+1,j+1,k)+v0(i+1,j+2,k)) - 0.5*(v0(i+1,j+1,k-1)+v0(i+1,j+2,k-1))) / dz
           endif
         end do
@@ -771,7 +772,7 @@ contains
           if(k==1) then
             wthlcovs(j,k) = wthlcovs(j,k) + thlflux(i+1,j+1)
           else
-            wthlcovs(j,k) = wthlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) * (thl0(i+1,j+1,k) - thl0(i+1,j+1,k-1)) / dz
+            wthlcovs(j,k) = wthlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) * (thl0(i+1,j+1,k) - thl0(i+1,j+1,k-1)) / dz
           endif
         end do
       end do
@@ -805,7 +806,7 @@ contains
           if(k==1) then
             wqtcovs(j,k) = wqtcovs(j,k) + qtflux(i+1,j+1)
           else
-            wqtcovs(j,k) = wqtcovs(j,k) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) * (qt0(i+1,j+1,k) - qt0(i+1,j+1,k-1)) / dz
+            wqtcovs(j,k) = wqtcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) * (qt0(i+1,j+1,k) - qt0(i+1,j+1,k-1)) / dz
           endif
         end do
       end do
@@ -819,7 +820,7 @@ contains
           if(k==1) then
             wqlcovs(j,k) = 0.0 
           else
-            wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) * (ql0(i+1,j+1,k) - ql0(i+1,j+1,k-1)) / dz
+            wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) * (ql0(i+1,j+1,k) - ql0(i+1,j+1,k-1)) / dz
           endif
         end do
       end do
@@ -882,7 +883,7 @@ contains
             if(k==1) then
               wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n) 
             else
-              wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(ekh(i+1,j+1,k)+ekh(i+1,j+1,k-1)) &
+              wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) &
               * (sv0(i+1,j+1,k,n) - sv0(i+1,j+1,k-1,n)) / dz
             endif
           end do
