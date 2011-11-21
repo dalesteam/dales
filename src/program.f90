@@ -31,26 +31,30 @@
 !! - Included heterosurf routine
 !! - Statistics for heterosurf routine
 !! Steef:
+!! - Important note; ekm and ekh now denote rhobf*Kh for computational efficiency
+!!    mosts statistic have been adjusted accordingly, however, budgets still need full update
 !! - Anelastic baseprofile maker
 !! - Anelastic advection
 !! - Anelastic poisson solver changes
 !! - Anelastic diffusion
-!! - Resolved buoyancy (based on theta_l,q_l -> theta_v), using mean theta_v in divisor and subtracting
+!! - Resolved buoyancy (based on theta_l,q_l -> theta_v), using mean theta_v in divisor
+!!    Also subtracting mean state theta_v before Poisson solver
 !! - Rainwater loading included in buoyancy
 !! - Simple ice microphysics scheme (Grabowski 98, with switches for autoconversion and graupel)
 !! - Integrated microstat for bulk and ice scheme
 !! - Diagnostic temperature field included
-!! - Speeded up gamma functions in bulkmicro and ice-micro
-!! - Reviewed saturation pressure with table lookup formula (Murphy and Koop)
-!! - Analytical function for surface forcing (may be removed later)
-!! - Fixed fielddump range for temperatures
+!! - Speeded up gamma functions in bulkmicro and ice-micro using tabulation
+!! - Reviewed saturation pressure with table lookup formula (Murphy and Koop, unified water/ice)
+!! - Analytical functions for surface forcing (may be removed later)
+!! - Larger fielddump range for temperatures
 !! - Fixed statistics for heights above 10000 m
 !! - Combined sampling/tendency routine (experimental)
 !! - CAPE/CIN etc routine (experimental)
-!! - CFL criterion based on pythagoran CFL
+!! - CFL criterion based on pythagorean CFL
 !! - Sampling written to separate netcdf files
 !! \par todo (this version)
-!! - Check tqaver (Johan?)
+!! - Check/fix warm startup (talk to Thijs)
+!! - Check tqaver necessity (Johan coordinates?)
 !! - Input header detection (Steef?)
 !! - Redundant output by all processors (Johan)
 !! - Add moddeprecated (Steef), cleaner namoptions
@@ -64,7 +68,6 @@
 !! - Consistent notation of theta_v in output (Steef)
 !! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
 !! - Separate microphysics from scalars (Steef)
-!! - Check/fix warm startup
 !! - 2D Parallelization
 !! \par todo (future)
 !! Steef:
@@ -72,8 +75,7 @@
 !! - Adjust buoyancy and subgrid accordingly
 !! - Integrate precipitation loading in theta_v
 !! - Look at possible extra term in TKE equation (consistent filtering approach)
-!! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison)
-!! - Look into influence of advection scheme for deep convection
+!! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison?)
 !!
 !! \section License License
 !!  This file is part of DALES.
