@@ -52,6 +52,7 @@
 !! - CAPE/CIN etc routine (experimental)
 !! - CFL criterion based on pythagorean CFL
 !! - Sampling written to separate netcdf files
+!! - Modsampling update (Stephan)
 !! \par todo (this version)
 !! - Check/fix warm startup (talk to Thijs)
 !! - Check tqaver necessity (Johan coordinates?)
