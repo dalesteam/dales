@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump,fielddump,exitfielddump
 save
 !NetCDF variables
-  integer           :: ncid,nvar = 11           !< Number of variables (if bulkmicro->nvar+2)
+  integer           :: ncid,nVar = 12           !< Number of variables (if bulkmicro->nVar+2)
   character(80)     :: fname = 'fielddump_hhmmss.xxx.nc'
   character(80),allocatable,dimension(:,:) :: ncfieldinfo
   character(80),dimension(1,4)             :: tncfieldinfo
@@ -126,8 +126,8 @@ contains
 
       fname(18:20) = cexpnr
 
-      if (imicro==imicro_bulk) nvar = nvar + 2
-      allocate(ncfieldinfo(nvar,4))
+      if (imicro==imicro_bulk) nVar = nVar + 2
+      allocate(ncfieldinfo(nVar,4))
 
       call ncinfo(tncfieldinfo(1,:),'time','Time','s','time')
       call ncinfo(ncfieldinfo( 1,:),'zfull','Height at full levels','m','z')
@@ -141,10 +141,11 @@ contains
       call ncinfo(ncfieldinfo( 9,:),'qt','Total water content','g/kg','xyz')
       call ncinfo(ncfieldinfo(10,:),'ql','Liquid water content','g/kg','xyz')
       call ncinfo(ncfieldinfo(11,:),'e', 'Subgrid scale turbulent kinetic energy','m^2/s^2','xyz')
+      call ncinfo(ncfieldinfo(12,:),'p', 'Pressure fluctuation','Pa','xyz')
       
       if (imicro==imicro_bulk) then
-        call ncinfo(ncfieldinfo(12,:),'qr','Rain water content','g/kg','xyz')
-        call ncinfo(ncfieldinfo(13,:),'Nr','Rain droplet number density','cm^-3','xyz')
+        call ncinfo(ncfieldinfo(13,:),'qr','Rain water content','g/kg','xyz')
+        call ncinfo(ncfieldinfo(14,:),'Nr','Rain droplet number density','cm^-3','xyz')
       end if
 
     else
@@ -167,7 +168,6 @@ contains
     implicit none
 
     integer :: imin,ihour,isec
-!    integer i,j,k
 
     if(.not.(lfielddump)) return
     
@@ -185,7 +185,7 @@ contains
       if (myid==0) write(*,*) 'fname = ',fname
       
       ! ...then call the subroutine that makes the actual file and puts data in.
-      call ncfielddump(fname,nvar,ncfieldinfo,kfieldtop)
+      call ncfielddump(fname,nVar,ncfieldinfo,kfieldtop)
 
       ! Determine the time for the next fielddump
       tNextDump = tNextDump + iInterval

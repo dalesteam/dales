@@ -429,6 +429,7 @@ contains
     use modmpi      , only : comm3d,myid
     use modfields   , only : u0,v0,w0,thl0,qt0,ql0,e120,presf,presh
     use modmicrodata, only : qr,Nr
+    use modpois     , only : p
 
     implicit none
     character(80), intent(in)                  :: fName       ! File name
@@ -600,7 +601,12 @@ contains
     call nchandle_error( nf90_put_var  (id_fielddump, varID, e120(2:i1,2:j1,1:ktop)**2,  &
                                           start=mask_start, count=mask_count)            )
     if (myid==0) write(*,*) 'finished writing sgtke'
-    if (nVar > 11) then
+    call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(12,1), varID)          )
+    call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
+    call nchandle_error( nf90_put_var  (id_fielddump, varID, p(2:i1,2:j1,1:ktop),        &
+                                          start=mask_start, count=mask_count)            )
+    if (myid==0) write(*,*) 'finished writing pres'
+    if (nVar > 12) then
       call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(12,1), varID)          )
       call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
       call nchandle_error( nf90_put_var  (id_fielddump, varID, qr(2:i1,2:j1,1:ktop),       &
