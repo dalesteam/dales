@@ -748,9 +748,9 @@ contains
       read(ifinput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((dthldz(i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((obl   (i,j  ),i=1,i2      ),j=1,j2      ) !JvdD remove later, old format!
-      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)                !JvdD remove later, old format!
-      read(ifinput)   ((qskin(i,j),i=1,i2),j=1,j2)                !JvdD remove later, old format!
+!      read(ifinput)   ((obl   (i,j  ),i=1,i2      ),j=1,j2      ) !JvdD remove later, old format!
+!      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)                !JvdD remove later, old format!
+!      read(ifinput)   ((qskin(i,j),i=1,i2),j=1,j2)                !JvdD remove later, old format!
       read(ifinput)  (  presf (    k)                            ,k=1,k1)
       read(ifinput)  (  presh (    k)                            ,k=1,k1)
       read(ifinput)  ps,thls,qts,thvs,oblav
@@ -774,7 +774,7 @@ contains
       open(unit=ifinput,file=name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
       read(ifinput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-!      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)
+      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)
       read(ifinput) ((Wl(i,j),i=1,i2),j=1,j2)
       read(ifinput) ((Qnet(i,j),i=1,i2),j=1,j2)
       if(iradiation == 1 .and. useMcICA) then

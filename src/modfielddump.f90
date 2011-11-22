@@ -112,7 +112,7 @@ contains
     do while (tNextDump<timee)
       iNextHr   = iNextHr + 1
       tNextDump = beghr(iNextHr)
-      if (iNextHr >= nhours) tNextDump = tres*(btime + runtime) + 1.
+      if (iNextHr >= nhours) tNextDump = tres*(btime + runtime)
     end do
 
     iInterval = interval / tres
