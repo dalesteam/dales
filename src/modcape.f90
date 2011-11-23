@@ -121,7 +121,7 @@ contains
     ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modgenstat, only : qlmnlast,wtvtmnlast
+    use modgenstat, only : qlmnlast,wthvtmnlast
     use modmicrodata, only : iqr, precep, imicro
     use modmpi
     implicit none
@@ -159,11 +159,11 @@ contains
     kcb=1
     ktest=0
     ! find robust minimum of buoyancy flux (determined at half-level!)
-    if(any(abs(wtvtmnlast)>1e-10)) then
+    if(any(abs(wthvtmnlast)>1e-10)) then
       do k=kmax-7,2,-1
-        if ((wtvtmnlast(k)<wtvtmnlast(k-1)).and.(wtvtmnlast(k)<wtvtmnlast(k+1)).and.&
-           (wtvtmnlast(k)<wtvtmnlast(k+2)).and.(wtvtmnlast(k)<wtvtmnlast(k+3)).and.&
-           (wtvtmnlast(k)<wtvtmnlast(k+4))) then
+        if ((wthvtmnlast(k)<wthvtmnlast(k-1)).and.(wthvtmnlast(k)<wthvtmnlast(k+1)).and.&
+           (wthvtmnlast(k)<wthvtmnlast(k+2)).and.(wthvtmnlast(k)<wthvtmnlast(k+3)).and.&
+           (wthvtmnlast(k)<wthvtmnlast(k+4))) then
           ktest = k
         end if
       end do

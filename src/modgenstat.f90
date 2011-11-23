@@ -91,8 +91,8 @@ save
   real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:)
 
 ! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
-  real, allocatable  :: wtlsmn (:),wtlrmn (:),wtltmn(:)
-  real, allocatable  :: wtvsmn (:),wtvrmn (:),wtvtmn(:)
+  real, allocatable  :: wthlsmn (:),wthlrmn (:),wthltmn(:)
+  real, allocatable  :: wthvsmn (:),wthvrmn (:),wthvtmn(:)
   real, allocatable  :: wqlsmn (:),wqlrmn (:),wqltmn(:)
   real, allocatable  :: wqtsmn (:),wqtrmn (:),wqttmn(:)
   real, allocatable  :: wsvsmn (:,:),wsvrmn(:,:),wsvtmn(:,:)
@@ -136,9 +136,9 @@ save
 
   real, allocatable :: thvhav(:)
   real, allocatable :: th0av(:)
- real, allocatable :: wtlsub(:)     ! slab averaged sub w-theta_l flux at half levels
- real, allocatable :: wtlres(:)     ! slab averaged res w-theta_l flux at half levels
- real, allocatable :: wtltot(:)     ! slab averaged tot w-theta_l flux at half levels
+ real, allocatable :: wthlsub(:)     ! slab averaged sub w-theta_l flux at half levels
+ real, allocatable :: wthlres(:)     ! slab averaged res w-theta_l flux at half levels
+ real, allocatable :: wthltot(:)     ! slab averaged tot w-theta_l flux at half levels
 
  real, allocatable :: wqtsub(:)    ! slab averaged sub w-qtot    flux at half levels
  real, allocatable :: wqtres(:)    ! slab averaged res w-qtot    flux at half levels
@@ -148,9 +148,9 @@ save
  real, allocatable :: wqlres(:)    ! slab averaged tot w-ql      flux at half levels
  real, allocatable :: wqltot(:)    ! slab averaged tot w-ql      flux at half levels
 
- real, allocatable :: wtvtot(:)    !  slab averaged total wthv-flux
- real, allocatable :: wtvres(:)    !  slab averaged res   wthv-flux
- real, allocatable :: wtvsub(:)    !  slab averaged sub   wthv-flux
+ real, allocatable :: wthvtot(:)    !  slab averaged total wthv-flux
+ real, allocatable :: wthvres(:)    !  slab averaged res   wthv-flux
+ real, allocatable :: wthvsub(:)    !  slab averaged sub   wthv-flux
 
  real, allocatable :: wsvsub(:,:)! slab averaged sub w-sv(n)  flux
  real, allocatable :: wsvres(:,:)! slab averaged res w-sv(n)  flux
@@ -160,7 +160,7 @@ save
  real, allocatable :: cszav(:)    ! Smagorinsky constant
 
  real, allocatable :: qlmnlast(:)
- real, allocatable :: wtvtmnlast(:)
+ real, allocatable :: wthvtmnlast(:)
 
 contains
 
@@ -212,8 +212,8 @@ contains
     allocate(umn(k1)       ,vmn   (k1))
     allocate(thlmn (k1)       ,thvmn (k1))
     allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1))
-    allocate(wtlsmn (k1),wtlrmn (k1),wtltmn(k1))
-    allocate(wtvsmn (k1),wtvrmn (k1),wtvtmn(k1))
+    allocate(wthlsmn (k1),wthlrmn (k1),wthltmn(k1))
+    allocate(wthvsmn (k1),wthvrmn (k1),wthvtmn(k1))
     allocate(wqlsmn (k1),wqlrmn (k1),wqltmn(k1))
     allocate(wqtsmn (k1),wqtrmn (k1),wqttmn(k1))
     allocate(wsvsmn (k1,nsv),wsvrmn(k1,nsv),wsvtmn(k1,nsv))
@@ -246,18 +246,18 @@ contains
     allocate(vwsub (k1))
     allocate(uwres (k1))
     allocate(vwres (k1))
-    allocate(wtlsub(k1))
-    allocate(wtlres(k1))
-    allocate(wtltot(k1))
+    allocate(wthlsub(k1))
+    allocate(wthlres(k1))
+    allocate(wthltot(k1))
     allocate(wqtsub(k1))
     allocate(wqtres(k1))
     allocate(wqttot(k1))
     allocate(wqlsub(k1))
     allocate(wqlres(k1))
     allocate(wqltot(k1))
-    allocate(wtvtot(k1))
-    allocate(wtvres(k1))
-    allocate(wtvsub(k1))
+    allocate(wthvtot(k1))
+    allocate(wthvres(k1))
+    allocate(wthvsub(k1))
     allocate(wsvsub(k1,nsv))
     allocate(wsvres(k1,nsv))
     allocate(wsvtot(k1,nsv))
@@ -269,7 +269,7 @@ contains
     allocate(cszmn(k1), cszav(k1))
 
     allocate(qlmnlast(k1))
-    allocate(wtvtmnlast(k1))
+    allocate(wthvtmnlast(k1))
 
       umn      = 0.
       vmn      = 0.
@@ -280,13 +280,13 @@ contains
       qlhmn    = 0.
       cfracmn  = 0.
 
-      wtlsmn =  0.
-      wtlrmn =  0.
-      wtltmn =  0.
+      wthlsmn =  0.
+      wthlrmn =  0.
+      wthltmn =  0.
 
-      wtvsmn =  0.
-      wtvrmn =  0.
-      wtvtmn =  0.
+      wthvsmn =  0.
+      wthvrmn =  0.
+      wthvtmn =  0.
 
       wqtsmn =  0.
       wqtrmn =  0.
@@ -338,7 +338,7 @@ contains
       cszmn = 0.
 
       qlmnlast = 0.
-      wtvtmnlast = 0.
+      wthvtmnlast = 0.
 
       if(myid==0)then
         open (ifoutput,file='field.'//cexpnr,status='replace')
@@ -374,12 +374,12 @@ contains
         call ncinfo(ncname( 6,:),'thv','Virtual potential temperature','K','tt')
         call ncinfo(ncname( 7,:),'qt','Total water mixing ratio','kg/kg','tt')
         call ncinfo(ncname( 8,:),'ql','Liquid water mixing ratio','kg/kg','tt')
-        call ncinfo(ncname( 9,:),'wtls','SFS-Theta_l flux','Km/s','mt')
-        call ncinfo(ncname(10,:),'wtlr','Resolved Theta_l flux','Km/s','mt')
-        call ncinfo(ncname(11,:),'wtlt','Total Theta_l flux','Km/s','mt')
-        call ncinfo(ncname(12,:),'wtvs','SFS-buoyancy flux','Km/s','mt')
-        call ncinfo(ncname(13,:),'wtvr','Resolved buoyancy flux','Km/s','mt')
-        call ncinfo(ncname(14,:),'wtvt','Total buoyancy flux','Km/s','mt')
+        call ncinfo(ncname( 9,:),'wthls','SFS-Theta_l flux','Km/s','mt')
+        call ncinfo(ncname(10,:),'wthlr','Resolved Theta_l flux','Km/s','mt')
+        call ncinfo(ncname(11,:),'wthlt','Total Theta_l flux','Km/s','mt')
+        call ncinfo(ncname(12,:),'wthvs','SFS-buoyancy flux','Km/s','mt')
+        call ncinfo(ncname(13,:),'wthvr','Resolved buoyancy flux','Km/s','mt')
+        call ncinfo(ncname(14,:),'wthvt','Total buoyancy flux','Km/s','mt')
         call ncinfo(ncname(15,:),'wqts','SFS-moisture flux','kg/kg m/s','mt')
         call ncinfo(ncname(16,:),'wqtr','Resolved moisture flux','kg/kg m/s','mt')
         call ncinfo(ncname(17,:),'wqtt','Total moisture flux','kg/kg m/s','mt')
@@ -490,14 +490,14 @@ contains
     real,allocatable, dimension(:) :: wqlsubl
     real,allocatable, dimension(:) :: wqlresl
 
-    real,allocatable, dimension(:):: wtlsubl
-    real,allocatable, dimension(:):: wtlresl
+    real,allocatable, dimension(:):: wthlsubl
+    real,allocatable, dimension(:):: wthlresl
 
     real,allocatable, dimension(:):: wqtsubl
     real,allocatable, dimension(:):: wqtresl
 
-    real,allocatable, dimension(:):: wtvsubl
-    real,allocatable, dimension(:) ::wtvresl
+    real,allocatable, dimension(:):: wthvsubl
+    real,allocatable, dimension(:) ::wthvresl
 
     real,allocatable, dimension(:):: cfracavl ! cloudfraction    at full level
 
@@ -525,7 +525,7 @@ contains
     integer i, j, k, n, km
     real    tsurf, qsat, c1, c2
     real    qs0h, t0h, ekhalf, euhalf, evhalf
-    real    wtls, wtlr, wqts, wqtr, wqls, wqlr, wtvs, wtvr
+    real    wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
@@ -550,14 +550,14 @@ contains
     allocate( wqlsubl    (k1))
     allocate( wqlresl    (k1))
 
-    allocate( wtlsubl    (k1))
-    allocate( wtlresl    (k1))
+    allocate( wthlsubl    (k1))
+    allocate( wthlresl    (k1))
 
     allocate( wqtsubl    (k1))
     allocate( wqtresl    (k1))
 
-    allocate( wtvsubl    (k1))
-    allocate( wtvresl    (k1))
+    allocate( wthvsubl    (k1))
+    allocate( wthvresl    (k1))
 
     allocate( cfracavl(k1))  ! slab averaged cloud fraction
 
@@ -603,17 +603,17 @@ contains
     wqlresl     = 0.0
     wqltot      = 0.0
 
-    wtlsubl     = 0.0
-    wtlresl     = 0.0
-    wtltot      = 0.0
+    wthlsubl     = 0.0
+    wthlresl     = 0.0
+    wthltot      = 0.0
 
     wqtsubl     = 0.0
     wqtresl     = 0.0
     wqttot      = 0.0
 
-    wtvsubl     = 0.0
-    wtvresl     = 0.0
-    wtvtot      = 0.0
+    wthvsubl     = 0.0
+    wthvresl     = 0.0
+    wthvtot      = 0.0
 
 
     wsvsubl = 0.
@@ -715,10 +715,10 @@ contains
       qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
   !     thv(1) = thlm(i,j,1) * (1.+(rv/rd-1)*qtm(i,j,1))
 
-      wtlsubl(1) = wtlsubl(1) + thlflux(i,j)
+      wthlsubl(1) = wthlsubl(1) + thlflux(i,j)
       wqtsubl(1) = wqtsubl(1) + qtflux (i,j)
       wqlsubl(1) = 0
-      wtvsubl(1) = wtvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+      wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
 
       !Momentum flux
       if (abs(um(i,j,1)+cu)<eps1) then
@@ -819,17 +819,17 @@ contains
                       dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) )/rhobf(km) ) / &
                     ( 4.   * dzh(k) )
 
-        wtls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
-        wtlr    = w0(i,j,k)*thl0h(i,j,k)
+        wthls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
+        wthlr    = w0(i,j,k)*thl0h(i,j,k)
 
         wqts    = -ekhalf*(qt0(i,j,k)-qt0(i,j,km))/dzh(k)
         wqtr    = w0(i,j,k)*qt0h(i,j,k)
 
-        wqls    = cthl*wtls+ cqt*wqts
+        wqls    = cthl*wthls+ cqt*wqts
         wqlr    = w0(i,j,k)*ql0h(i,j,k)
 
-        wtvs    = c1*wtls + c2*thl0h(i,j,k)*wqts
-        wtvr    = w0(i,j,k)*thv0h(i,j,k)
+        wthvs    = c1*wthls + c2*thl0h(i,j,k)*wqts
+        wthvr    = w0(i,j,k)*thv0h(i,j,k)
 
         uwr     = (w0(i,j,k)+w0(i-1,j,k)) &
                   *((u0(i,j,k-1)+cu)*dzf(k)+(u0(i,j,k)+cu)*dzf(k-1))/(4*dzh(k))
@@ -847,11 +847,11 @@ contains
 
         wqlresl(k) = wqlresl(k) + wqlr
 
-        wtlsubl(k) = wtlsubl(k) + wtls
-        wtlresl(k) = wtlresl(k) + wtlr
+        wthlsubl(k) = wthlsubl(k) + wthls
+        wthlresl(k) = wthlresl(k) + wthlr
 
-        wtvsubl(k) = wtvsubl(k) + wtvs
-        wtvresl(k) = wtvresl(k) + wtvr
+        wthvsubl(k) = wthvsubl(k) + wthvs
+        wthvresl(k) = wthvresl(k) + wthvr
 
         wqtsubl(k) = wqtsubl(k) + wqts
         wqtresl(k) = wqtresl(k) + wqtr
@@ -952,17 +952,17 @@ contains
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(wqlresl, wqlres, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(wtlsubl, wtlsub, k1,    MY_REAL, &
+    call MPI_ALLREDUCE(wthlsubl, wthlsub, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(wtlresl, wtlres, k1,    MY_REAL, &
+    call MPI_ALLREDUCE(wthlresl, wthlres, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(wqtsubl, wqtsub, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(wqtresl, wqtres, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(wtvsubl, wtvsub, k1,    MY_REAL, &
+    call MPI_ALLREDUCE(wthvsubl, wthvsub, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(wtvresl, wtvres, k1,    MY_REAL, &
+    call MPI_ALLREDUCE(wthvresl, wthvres, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(uwsubl, uwsub, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
@@ -1025,19 +1025,19 @@ contains
       wqlsub  = wqlsub /rslabs
       wqlres  = wqlres /rslabs
 
-      wtlsub  = wtlsub /rslabs
-      wtlres  = wtlres /rslabs
+      wthlsub  = wthlsub /rslabs
+      wthlres  = wthlres /rslabs
 
       wqtsub  = wqtsub /rslabs
       wqtres  = wqtres /rslabs
 
-      wtvsub  = wtvsub /rslabs
-      wtvres  = wtvres /rslabs
+      wthvsub  = wthvsub /rslabs
+      wthvres  = wthvres /rslabs
 
       wqttot  = wqtres + wqtsub
       wqltot  = wqlres + wqlsub
-      wtltot  = wtlres + wtlsub
-      wtvtot  = wtvres + wtvsub
+      wthltot  = wthlres + wthlsub
+      wthvtot  = wthvres + wthvsub
 
 
         wsvsub = wsvsub /rslabs
@@ -1085,12 +1085,12 @@ contains
       cfracmn= cfracmn+cfracav
       qlhmn  = qlhmn + qlhav
 
-      wtlsmn = wtlsmn + wtlsub
-      wtlrmn = wtlrmn + wtlres
-      wtltmn = wtltmn + wtltot
-      wtvsmn = wtvsmn + wtvsub
-      wtvrmn = wtvrmn + wtvres
-      wtvtmn = wtvtmn + wtvtot
+      wthlsmn = wthlsmn + wthlsub
+      wthlrmn = wthlrmn + wthlres
+      wthltmn = wthltmn + wthltot
+      wthvsmn = wthvsmn + wthvsub
+      wthvrmn = wthvrmn + wthvres
+      wthvtmn = wthvtmn + wthvtot
       wqtsmn = wqtsmn + wqtsub
       wqtrmn = wqtrmn + wqtres
       wqttmn = wqttmn + wqttot
@@ -1154,14 +1154,14 @@ contains
     deallocate( wqlsubl    )
     deallocate( wqlresl    )
 
-    deallocate( wtlsubl    )
-    deallocate( wtlresl    )
+    deallocate( wthlsubl    )
+    deallocate( wthlresl    )
 
     deallocate( wqtsubl    )
     deallocate( wqtresl    )
 
-    deallocate( wtvsubl    )
-    deallocate( wtvresl    )
+    deallocate( wthvsubl    )
+    deallocate( wthvresl    )
 
     deallocate( cfracavl )
 
@@ -1222,9 +1222,9 @@ contains
       qlhmn  = qlhmn  /nsamples
 
 
-      wtlsmn = wtlsmn/nsamples
-      wtlrmn = wtlrmn/nsamples
-      wtltmn = wtltmn/nsamples
+      wthlsmn = wthlsmn/nsamples
+      wthlrmn = wthlrmn/nsamples
+      wthltmn = wthltmn/nsamples
 
       wqtsmn = wqtsmn/nsamples
       wqtrmn = wqtrmn/nsamples
@@ -1234,9 +1234,9 @@ contains
       wqlrmn = wqlrmn/nsamples
       wqltmn = wqltmn/nsamples
 
-      wtvsmn = wtvsmn/nsamples
-      wtvrmn = wtvrmn/nsamples
-      wtvtmn = wtvtmn/nsamples
+      wthvsmn = wthvsmn/nsamples
+      wthvrmn = wthvrmn/nsamples
+      wthvtmn = wthvtmn/nsamples
 
       uwtmn  = uwtmn /nsamples
       vwtmn  = vwtmn /nsamples
@@ -1337,7 +1337,7 @@ contains
           ,'#                                                               ' &
           ,'#                  |                                  TURBULENT ' &
           ,'FLUXES                           |                             ' &
-          ,'#LEV HEIGHT  PRES  |   WTL_SUB     WTL_RES     WTL_TOT         WQ' &
+          ,'#LEV HEIGHT  PRES  |   WTHL_SUB    WTHL_RES    WTHL_TOT        WQ' &
           ,'T_SUB      WQT_RES     WQT_TOT   ' &
           ,'#     (M)    (MB) | (----------   (K M/S)   --------------)     ' &
           ,'(---------- (M/S)   -------------)                             ' &
@@ -1348,9 +1348,9 @@ contains
             (k, &
             zh       (k), &
             presh     (k)/100., &
-            wtlsmn   (k)                              , &
-            wtlrmn   (k)                              , &
-            wtltmn   (k)                              , &
+            wthlsmn   (k)                              , &
+            wthlrmn   (k)                              , &
+            wthltmn   (k)                              , &
             wqtsmn   (k)                              , &
             wqtrmn   (k)                              , &
             wqttmn   (k),&
@@ -1391,11 +1391,11 @@ contains
             vwsmn    (k)                              , &
             uwrmn    (k)                              , &
             vwrmn    (k)                              , &
-            wtltmn   (k) + wqltmn(k)*(rlv/cp)/exnh(k) , &
+            wthltmn   (k) + wqltmn(k)*(rlv/cp)/exnh(k) , &
             wqltmn   (k)                              , &
-            wtvsmn   (k)                              , &
-            wtvrmn   (k)                              , &
-            wtvtmn   (k)                              , &
+            wthvsmn   (k)                              , &
+            wthvrmn   (k)                              , &
+            wthvtmn   (k)                              , &
             k=1,kmax)
 
 
@@ -1524,12 +1524,12 @@ contains
         vars(:, 6)=thvmn
         vars(:, 7)=qtmn
         vars(:, 8)=qlmn
-        vars(:, 9)=wtlsmn
-        vars(:,10)=wtlrmn
-        vars(:,11)=wtltmn
-        vars(:,12)=wtvsmn
-        vars(:,13)=wtvrmn
-        vars(:,14)=wtvtmn
+        vars(:, 9)=wthlsmn
+        vars(:,10)=wthlrmn
+        vars(:,11)=wthltmn
+        vars(:,12)=wthvsmn
+        vars(:,13)=wthvrmn
+        vars(:,14)=wthvtmn
         vars(:,15)=wqtsmn
         vars(:,16)=wqtrmn
         vars(:,17)=wqttmn
@@ -1570,7 +1570,7 @@ contains
     end if ! end if(myid==0)
 
       qlmnlast=qlmn
-      wtvtmnlast=wtvtmn
+      wthvtmnlast=wthvtmn
 
       umn      = 0.
       vmn      = 0.
@@ -1581,13 +1581,13 @@ contains
       qlhmn    = 0.
       cfracmn  = 0.
 
-      wtlsmn =  0.
-      wtlrmn =  0.
-      wtltmn =  0.
+      wthlsmn =  0.
+      wthlrmn =  0.
+      wthltmn =  0.
 
-      wtvsmn =  0.
-      wtvrmn =  0.
-      wtvtmn =  0.
+      wthvsmn =  0.
+      wthvrmn =  0.
+      wthvtmn =  0.
 
       wqtsmn =  0.
       wqtrmn =  0.
@@ -1651,8 +1651,8 @@ contains
     deallocate(umn       ,vmn   )
     deallocate(thlmn        ,thvmn )
     deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn)
-    deallocate(wtlsmn ,wtlrmn ,wtltmn)
-    deallocate(wtvsmn ,wtvrmn ,wtvtmn)
+    deallocate(wthlsmn ,wthlrmn ,wthltmn)
+    deallocate(wthvsmn ,wthvrmn ,wthvtmn)
     deallocate(wqlsmn ,wqlrmn ,wqltmn)
     deallocate(wqtsmn ,wqtrmn ,wqttmn)
     deallocate(wsvsmn ,wsvrmn,wsvtmn)
@@ -1685,18 +1685,18 @@ contains
     deallocate(vwres )
     deallocate(uwsub )
     deallocate(vwsub )
-    deallocate(wtlsub)
-    deallocate(wtlres)
-    deallocate(wtltot)
+    deallocate(wthlsub)
+    deallocate(wthlres)
+    deallocate(wthltot)
     deallocate(wqtsub)
     deallocate(wqtres)
     deallocate(wqttot)
     deallocate(wqlsub)
     deallocate(wqlres)
     deallocate(wqltot)
-    deallocate(wtvtot)
-    deallocate(wtvres)
-    deallocate(wtvsub)
+    deallocate(wthvtot)
+    deallocate(wthvres)
+    deallocate(wthvsub)
     deallocate(wsvsub)
     deallocate(wsvres)
     deallocate(wsvtot)
@@ -1709,7 +1709,7 @@ contains
     deallocate(cszav)
 
     deallocate(qlmnlast)
-    deallocate(wtvtmnlast)
+    deallocate(wthvtmnlast)
 
   end subroutine exitgenstat
 

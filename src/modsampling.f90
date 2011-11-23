@@ -54,7 +54,7 @@ save
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampcldup = .false. !<switch for condtional sampling cloudy updraft (on/off)
   real, allocatable, dimension(:,:) ::  wfavl,thlfavl,thvfavl,qtfavl,qlfavl,nrsampfl,massflxhavl, &
-                                        wtlthavl,wtvthavl,wqtthavl,wqlthavl,uwthavl,vwthavl,qrfavl
+                                        wthlthavl,wthvthavl,wqtthavl,wqlthavl,uwthavl,vwthavl,qrfavl
   real, allocatable, dimension(:,:) :: wwrhavl,wwsfavl,pfavl,dwdthavl,dwwdzhavl,dpdzhavl, &
                                        duwdxhavl,dtaudxhavl,dtaudzhavl,thvhavl, &
                                        fcorhavl,nrsamphl
@@ -152,7 +152,7 @@ contains
 
     allocate( wfavl     (k1,isamptot),thlfavl  (k1,isamptot),thvfavl   (k1,isamptot), &
               qtfavl    (k1,isamptot),qlfavl   (k1,isamptot),nrsampfl  (k1,isamptot), &
-              wtlthavl  (k1,isamptot),wtvthavl (k1,isamptot),wqtthavl  (k1,isamptot), &
+              wthlthavl  (k1,isamptot),wthvthavl (k1,isamptot),wqtthavl  (k1,isamptot), &
               wqlthavl  (k1,isamptot),uwthavl  (k1,isamptot),vwthavl   (k1,isamptot), &
               qrfavl    (k1,isamptot))
     allocate( nrsamphl  (k1,isamptot),wwrhavl  (k1,isamptot),wwsfavl   (k1,isamptot), &
@@ -174,8 +174,8 @@ contains
     qtfavl      = 0.0
     qlfavl      = 0.0
     massflxhavl = 0.0
-    wtlthavl    = 0.0
-    wtvthavl    = 0.0
+    wthlthavl    = 0.0
+    wthvthavl    = 0.0
     wqtthavl    = 0.0
     wqlthavl    = 0.0
     uwthavl     = 0.0
@@ -234,10 +234,10 @@ contains
           call ncinfo(ncname( 5,:,isamp),'ql'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean liquid water content','kg/kg','tt')
           call ncinfo(ncname( 6,:,isamp),'tv'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean virtual potential temperature','K','tt')
           call ncinfo(ncname( 7,:,isamp),'massflx'//samplname(isamp),trim(longsamplname(isamp))//' '//'mass flux','m^3/s','mt')
-          call ncinfo(ncname( 8,:,isamp),'wtl'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l flux','K m/s','mt')
+          call ncinfo(ncname( 8,:,isamp),'wthl'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l flux','K m/s','mt')
           call ncinfo(ncname( 9,:,isamp),'wqt'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water flux','kg/kg m/s','mt')
           call ncinfo(ncname(10,:,isamp),'wql'//samplname(isamp),trim(longsamplname(isamp))//' '//'liquid water flux','kg/kg m/s','mt')
-          call ncinfo(ncname(11,:,isamp),'wtv'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_v flux','K m/s','mt')
+          call ncinfo(ncname(11,:,isamp),'wthv'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_v flux','K m/s','mt')
           call ncinfo(ncname(12,:,isamp),'uw'//samplname(isamp),trim(longsamplname(isamp))//' '//'uw flux','m^2/s^2','mt')
           call ncinfo(ncname(13,:,isamp),'vw'//samplname(isamp),trim(longsamplname(isamp))//' '//'vw flux','m^2/s^2','mt')
           call ncinfo(ncname(14,:,isamp),'nrsamph'//samplname(isamp),trim(longsamplname(isamp))//' '//'number of points at halflevel','-','mt')
@@ -276,7 +276,7 @@ contains
     if(isamptot < 2) return
 
     deallocate( wfavl   ,thlfavl ,thvfavl ,qtfavl   ,qlfavl   ,nrsampfl  ,massflxhavl, &
-                wtlthavl,wtvthavl,wqtthavl,wqlthavl ,uwthavl  ,vwthavl   ,qrfavl)
+                wthlthavl,wthvthavl,wqtthavl,wqlthavl ,uwthavl  ,vwthavl   ,qrfavl)
     deallocate( nrsamphl,wwrhavl ,wwsfavl , &
                 pfavl   ,dwdthavl,dwwdzhavl,dpdzhavl,duwdxhavl,dtaudxhavl,dtaudzhavl,  &
                 thvhavl ,fcorhavl,wh_el,sigh_el)
@@ -324,7 +324,7 @@ contains
     implicit none
 
     logical, allocatable, dimension(:,:,:) :: maskf
-    real, allocatable, dimension(:,:,:) :: wtlth,wqtth,wqlth,wtvth,uwth,vwth
+    real, allocatable, dimension(:,:,:) :: wthlth,wqtth,wqlth,wthvth,uwth,vwth
     real, allocatable, dimension(:,:,:) :: w0f
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
@@ -339,13 +339,13 @@ contains
 
     integer :: i,j,k,km,kp
     real :: cqt,cthl,den,ekhalf,c2,c1,t0h,qs0h,ekav
-    real :: wtvsh,wtvrh,wtlsh,wtlrh,wqtrh,wqtsh,wqlrh,wqls
+    real :: wthvsh,wthvrh,wthlsh,wthlrh,wqtrh,wqtsh,wqlrh,wqls
     real :: beta
 
     allocate(thvav(k1))
     allocate( maskf(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate( wtlth(2-ih:i1+ih,2-jh:j1+jh,k1),&
-              wtvth(2-ih:i1+ih,2-jh:j1+jh,k1),&
+    allocate( wthlth(2-ih:i1+ih,2-jh:j1+jh,k1),&
+              wthvth(2-ih:i1+ih,2-jh:j1+jh,k1),&
               wqtth(2-ih:i1+ih,2-jh:j1+jh,k1),&
               wqlth(2-ih:i1+ih,2-jh:j1+jh,k1),&
               uwth (2-ih:i1+ih,2-jh:j1+jh,k1),&
@@ -474,8 +474,8 @@ contains
 
 
 !calculate fluxes at half levels
-    wtlth = 0.0
-    wtvth = 0.0
+    wthlth = 0.0
+    wthvth = 0.0
     wqtth = 0.0
     wqlth = 0.0
     uwth  = 0.0
@@ -517,25 +517,25 @@ contains
 
       ekhalf = (ekh(i,j,k) *dzf(km)/rhobf(k)+ekh(i,j,km)*dzf(k)/rhobf(km) )/(2*dzh(k) )
 
-      wtlsh   = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
-      wtlrh   = w0(i,j,k)*thl0h(i,j,k)
-      wtlth (i,j,k)   = wtlsh + wtlrh
+      wthlsh   = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
+      wthlrh   = w0(i,j,k)*thl0h(i,j,k)
+      wthlth (i,j,k)   = wthlsh + wthlrh
 
       wqtsh   = -ekhalf*(qt0(i,j,k)-qt0(i,j,km))/dzh(k)
       wqtrh   = w0(i,j,k)*qt0h(i,j,k)
       wqtth(i,j,k)   = wqtsh + wqtrh
 
       if (ql0h(i,j,k)>0) then
-        wqls   = cthl*wtlsh+ cqt*wqtsh
+        wqls   = cthl*wthlsh+ cqt*wqtsh
       else
         wqls   = 0.
       end if
 
       wqlrh   = w0(i,j,k)*ql0h(i,j,k)
       wqlth(i,j,k)   = wqlrh + wqls
-      wtvsh   = c1*wtlsh + c2*thl0h(i,j,k)*wqtsh
-      wtvrh   = w0(i,j,k)*thv0h(i,j,k)
-      wtvth(i,j,k)   = wtvrh + wtvsh
+      wthvsh   = c1*wthlsh + c2*thl0h(i,j,k)*wqtsh
+      wthvrh   = w0(i,j,k)*thv0h(i,j,k)
+      wthvth(i,j,k)   = wthvrh + wthvsh
 
       ekav = 0.25 * &
               ( ekm(i,j,k-1)/rhobf(k-1)+ekm(i,j,k)/rhobf(k)+ekm(i-1,j,k-1)/rhobf(k-1)+ekm(i-1,j,k)/rhobf(k))
@@ -623,8 +623,8 @@ contains
 
     do k=2,kmax
       massflxhavl(k,isamp) = massflxhavl(k,isamp) + sum(w0   (2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      wtlthavl   (k,isamp) = wtlthavl   (k,isamp) + sum(wtlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      wtvthavl   (k,isamp) = wtvthavl   (k,isamp) + sum(wtvth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
+      wthlthavl   (k,isamp) = wthlthavl   (k,isamp) + sum(wthlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
+      wthvthavl   (k,isamp) = wthvthavl   (k,isamp) + sum(wthvth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
       wqtthavl   (k,isamp) = wqtthavl   (k,isamp) + sum(wqtth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
       wqlthavl   (k,isamp) = wqlthavl   (k,isamp) + sum(wqlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
       uwthavl    (k,isamp) = uwthavl    (k,isamp) + sum(uwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
@@ -710,7 +710,7 @@ contains
        endif
     enddo
 
-    deallocate(maskf,wtlth,wqtth,wqlth,wtvth,uwth,vwth,thvav,w0f,thv0)
+    deallocate(maskf,wthlth,wqtth,wqlth,wthvth,uwth,vwth,thvav,w0f,thv0)
     deallocate(maskh,uwsh,vwsh,uwrh,vwrh)
     deallocate(wwrh,wwsf,thvhav)
 
@@ -734,9 +734,9 @@ contains
     real,dimension(k1,nvar) :: vars
 
     real, allocatable, dimension(:)  :: wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, &
-                                        wtlthmn,wtvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn
+                                        wthlthmn,wthvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn
     real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
-                                        wtlthav,wtvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
+                                        wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
     real, allocatable, dimension(:)  :: nrsamphmn, wwrhmn,wwsfmn,&
                                         pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                                         dtaudxhmn,dtaudzhmn,thvhmn, &
@@ -752,10 +752,10 @@ contains
     integer :: nsecs, nhrs, nminut, k
     integer :: inorm
     allocate( wfmn(k1),thlfmn(k1),thvfmn(k1),qtfmn(k1),qlfmn(k1),nrsampfmn(k1),massflxhmn(k1), &
-              wtlthmn(k1),wtvthmn(k1),wqtthmn(k1),wqlthmn(k1),uwthmn(k1),vwthmn(k1),qrfmn(k1))
+              wthlthmn(k1),wthvthmn(k1),wqtthmn(k1),wqlthmn(k1),uwthmn(k1),vwthmn(k1),qrfmn(k1))
     allocate( wfav(k1,isamptot),thlfav(k1,isamptot),thvfav(k1,isamptot), &
               qtfav(k1,isamptot),qlfav(k1,isamptot),nrsampf(k1,isamptot),massflxhav(k1,isamptot), &
-              wtlthav(k1,isamptot),wtvthav(k1,isamptot),wqtthav(k1,isamptot), &
+              wthlthav(k1,isamptot),wthvthav(k1,isamptot),wqtthav(k1,isamptot), &
               wqlthav(k1,isamptot),uwthav(k1,isamptot),vwthav(k1,isamptot),qrfav(k1,isamptot))
     allocate (nrsamphmn(k1),wwrhmn(k1),wwsfmn(k1))
     allocate( pfmn(k1),dwdthmn(k1),dwwdzhmn(k1),dpdzhmn(k1),duwdxhmn(k1),&
@@ -781,8 +781,8 @@ contains
     call MPI_ALLREDUCE(qtfavl     ,qtfav      ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qlfavl     ,qlfav      ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(massflxhavl,massflxhav ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wtlthavl   ,wtlthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wtvthavl   ,wtvthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wthlthavl   ,wthlthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wthvthavl   ,wthvthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(wqtthavl   ,wqtthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(wqlthavl   ,wqlthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(uwthavl    ,uwthav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -815,8 +815,8 @@ contains
     qtfavl      = 0.0
     qlfavl      = 0.0
     massflxhavl = 0.0
-    wtlthavl    = 0.0
-    wtvthavl    = 0.0
+    wthlthavl    = 0.0
+    wthvthavl    = 0.0
     wqtthavl    = 0.0
     wqlthavl    = 0.0
     uwthavl     = 0.0
@@ -903,8 +903,8 @@ contains
 
           nrsampfmn  (k) = nrsampf   (k,isamp)/inorm
           massflxhmn (k) = massflxhav(k,isamp)/inorm
-          wtlthmn    (k) = wtlthav   (k,isamp)/inorm
-          wtvthmn    (k) = wtvthav   (k,isamp)/inorm
+          wthlthmn    (k) = wthlthav   (k,isamp)/inorm
+          wthvthmn    (k) = wthvthav   (k,isamp)/inorm
           wqtthmn    (k) = wqtthav   (k,isamp)/inorm
           wqlthmn    (k) = wqlthav   (k,isamp)/inorm
           uwthmn     (k) = uwthav    (k,isamp)/inorm
@@ -964,10 +964,10 @@ contains
                 zh         (k), &
                 presh      (k)/100., &
                 massflxhmn (k), &
-                wtlthmn    (k), &
+                wthlthmn    (k), &
                 wqtthmn    (k), &
                 wqlthmn    (k), &
-                wtvthmn    (k), &
+                wthvthmn    (k), &
                 uwthmn     (k), &
                 vwthmn     (k)
         end do
@@ -1024,10 +1024,10 @@ contains
           vars(:, 5)=qlfmn
           vars(:, 6)=thvfmn
           vars(:, 7)=massflxhmn
-          vars(:, 8)=wtlthmn
+          vars(:, 8)=wthlthmn
           vars(:, 9)=wqtthmn
           vars(:,10)=wqlthmn
-          vars(:,11)=wtvthmn
+          vars(:,11)=wthvthmn
           vars(:,12)=uwthmn
           vars(:,13)=vwthmn
           vars(:,14)=nrsamphmn
@@ -1059,9 +1059,9 @@ contains
     end if
 
     deallocate( wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, &
-                wtlthmn,wtvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn)
+                wthlthmn,wthvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn)
     deallocate( wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
-                wtlthav,wtvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav)
+                wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav)
     deallocate (nrsamphmn,wwrhmn,wwsfmn,pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                  dtaudzhmn,dtaudxhmn,thvhmn,fcorhmn)
     deallocate (nrsamph,wwrhav,wwsfav)

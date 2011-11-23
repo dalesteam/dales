@@ -71,7 +71,7 @@ save
   real,allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
   real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
   real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
-  real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wts_patch, wqls_patch, wtvs_patch
+  real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
   !In combination with isurf = 1    
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
@@ -306,9 +306,9 @@ contains
       allocate(ust_patch (xpatches,ypatches))
       allocate(qst_patch (xpatches,ypatches))
       allocate(tst_patch (xpatches,ypatches))
-      allocate(wts_patch (xpatches,ypatches))
+      allocate(wthls_patch (xpatches,ypatches))
       allocate(wqls_patch(xpatches,ypatches))
-      allocate(wtvs_patch(xpatches,ypatches))
+      allocate(wthvs_patch(xpatches,ypatches))
 
       allocate(Qnet_patch    (xpatches,ypatches))
       allocate(H_patch       (xpatches,ypatches))
@@ -354,7 +354,7 @@ contains
     real   :: ccl, wmaxl, qlmaxl
     real   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
     real   :: usttst, ustqst
-    real   :: wts, wqls,wtvs
+    real   :: wts, wqls,wthvs
     real   :: c1,c2 !Used to calculate wthvs
     real,dimension(nvar) :: vars
 
@@ -401,9 +401,9 @@ contains
       ust_patch      = 0
       qst_patch      = 0
       tst_patch      = 0
-      wts_patch      = 0
+      wthls_patch      = 0
       wqls_patch     = 0
-      wtvs_patch     = 0
+      wthvs_patch     = 0
 
       Qnet_patch     = 0
       H_patch        = 0
@@ -676,22 +676,22 @@ contains
     if(isurf >= 3) then
       wts  = wtsurf
       wqls = wqsurf
-      wtvs = c1*wts + c2*thls*wqls
+      wthvs = c1*wts + c2*thls*wqls
     else
       wts  = -usttst
       wqls = -ustqst
-      wtvs = c1*wts + c2*thls*wqls
+      wthvs = c1*wts + c2*thls*wqls
     end if
 
     if (lhetero) then
       if(isurf < 3) then
-        wts_patch  = patchsum_1level(thlflux(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
+        wthls_patch  = patchsum_1level(thlflux(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
         wqls_patch = patchsum_1level( qtflux(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
       else
-        wts_patch  = wt_patch 
+        wthls_patch  = wt_patch 
         wqls_patch = wq_patch
       endif
-      wtvs_patch = (1.+(rv/rd-1)*qts_patch) * wts_patch + c2 * (thls_patch) * wq_patch
+      wthvs_patch = (1.+(rv/rd-1)*qts_patch) * wthls_patch + c2 * (thls_patch) * wq_patch
       obl_patch  = patchsum_1level(obl(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
     endif
 
@@ -784,7 +784,7 @@ contains
           thls    ,&
           z0      ,&
           wts     ,&
-          wtvs    ,&
+          wthvs    ,&
           wqls
       close(ifoutput)
 
@@ -831,7 +831,7 @@ contains
         vars(17) = thls
         vars(18) = z0
         vars(19) = wts
-        vars(20) = wtvs
+        vars(20) = wthvs
         vars(21) = wqls
         if (isurf == 1) then
           vars(22) = Qnetav
@@ -884,8 +884,8 @@ contains
               obl_patch(i,j)   ,&
               thls_patch(i,j)  ,&
               z0mav_patch(i,j) ,&
-              wts_patch(i,j)   ,&
-              wtvs_patch(i,j)  ,&
+              wthls_patch(i,j)   ,&
+              wthvs_patch(i,j)  ,&
               wqls_patch(i,j)
             close(ifoutput)
 
@@ -1173,9 +1173,9 @@ contains
       deallocate(ust_patch )
       deallocate(qst_patch )
       deallocate(tst_patch )
-      deallocate(wts_patch )
+      deallocate(wthls_patch )
       deallocate(wqls_patch)
-      deallocate(wtvs_patch)
+      deallocate(wthvs_patch)
 
       deallocate(Qnet_patch    )
       deallocate(H_patch       )

@@ -213,10 +213,10 @@ contains
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
-        open (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        open (ifoutput,file='wbthl.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
       else
-        open  (ifoutput,file='wbtl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+        open  (ifoutput,file='wbthl.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
         write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
       end if
       close (ifoutput)
@@ -259,10 +259,10 @@ contains
 
     if (lbinary) then
       if (ldiracc) then
-        open (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        open (ifoutput,file='wbthv.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
       else
-        open  (ifoutput,file='wbtv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
+        open  (ifoutput,file='wbthv.'//cmyid//'.'//cexpnr,form='unformatted',position='append')
         write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
       end if
       close (ifoutput)
