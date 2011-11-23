@@ -258,7 +258,7 @@ contains
           call ncinfo(ncname(29,:,isamp),'qrsamp'//samplname(isamp),trim(longsamplname(isamp))//' '//'sampled qr','kg/kg','tt')
           call ncinfo(ncname(30,:,isamp),'wadvhavl'//samplname(isamp),trim(longsamplname(isamp))//' '//'instantaneous d/dz (w_s)^2','m/s^2','mt')
           call ncinfo(ncname(31,:,isamp),'subphavl'//samplname(isamp),trim(longsamplname(isamp))//' '//'subplume term in ww budget','m/s^2','mt')
-          call ncinfo(ncname(32,:,isamp),'nrtsamphav'//samplname(isamp),trim(longsamplname(isamp))//' '//'','sampling fraction for gradients','-','mt')
+          call ncinfo(ncname(32,:,isamp),'nrtsamphav'//samplname(isamp),trim(longsamplname(isamp))//' '//'sampling fraction for gradients','-','mt')
           call define_nc( ncid, NVar, ncname(:,:,isamp))
         end do
      end if
