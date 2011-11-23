@@ -273,15 +273,16 @@ contains
     use modmpi,     only : myid
     implicit none
 
-    if (isamptot>0) then
-       deallocate( wfavl   ,thlfavl ,thvfavl ,qtfavl   ,qlfavl   ,nrsampfl  ,massflxhavl, &
-                   wtlthavl,wtvthavl,wqtthavl,wqlthavl ,uwthavl  ,vwthavl   ,qrfavl)
-       deallocate( nrsamphl,wwrhavl ,wwsfavl , &
-                   pfavl   ,dwdthavl,dwwdzhavl,dpdzhavl,duwdxhavl,dtaudxhavl,dtaudzhavl,  &
-                   thvhavl ,fcorhavl,wh_el,sigh_el)
-       deallocate(wadvhavl,subphavl,nrtsamphav)
-       if (lnetcdf .and. myid==0) deallocate(ncname)
-    end if
+    if(isamptot < 2) return
+
+    deallocate( wfavl   ,thlfavl ,thvfavl ,qtfavl   ,qlfavl   ,nrsampfl  ,massflxhavl, &
+                wtlthavl,wtvthavl,wqtthavl,wqlthavl ,uwthavl  ,vwthavl   ,qrfavl)
+    deallocate( nrsamphl,wwrhavl ,wwsfavl , &
+                pfavl   ,dwdthavl,dwwdzhavl,dpdzhavl,duwdxhavl,dtaudxhavl,dtaudzhavl,  &
+                thvhavl ,fcorhavl,wh_el,sigh_el)
+    deallocate(wadvhavl,subphavl,nrtsamphav)
+    if (lnetcdf .and. myid==0) deallocate(ncname)
+
   end subroutine exitsampling
 
 !> General routine, does the timekeeping
