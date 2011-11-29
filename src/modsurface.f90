@@ -705,8 +705,11 @@ contains
   end subroutine exitsurface
 
   subroutine initlsm
-    use modglobal, only : i2,j2
-    integer :: k
+    use modglobal, only : i2,j2,i1,j1,jmax,imax,jtot
+    use modmpi,    only : myid
+
+    integer :: i, j, k
+    integer :: iindex, jindex, npatch, patchflag
 
     ! 1.1  -   Allocate arrays
     allocate(zsoil(ksoilmax))
@@ -751,10 +754,29 @@ contains
 
     ! 1.4   -   Set evaporation related properties
     ! Set water content of soil - constant in this scheme
-    phiw(:,:,1) = phiwav(1)
-    phiw(:,:,2) = phiwav(2)
-    phiw(:,:,3) = phiwav(3)
-    phiw(:,:,4) = phiwav(4)
+
+    npatch = 2
+
+    do j = 2, j1
+      do i = 2, i1
+        ! Apply zero-indexing
+        iindex = (i-2)
+        jindex = (j-2) + myid*jmax
+        patchflag = (-1)**(iindex/ (imax/npatch)) * (-1)**(jindex / (jtot/npatch))
+        phiw(i,j,1) = phiwav(1) + dble(patchflag) * 0.02
+        phiw(i,j,2) = phiwav(2) + dble(patchflag) * 0.02
+        phiw(i,j,3) = phiwav(3) + dble(patchflag) * 0.02
+        phiw(i,j,4) = phiwav(4) + dble(patchflag) * 0.02
+        !print *, myid, i, j, phiw(i,j,1)
+      end do
+    end do
+
+    !stop
+
+    !phiw(:,:,1) = phiwav(1)
+    !phiw(:,:,2) = phiwav(2)
+    !phiw(:,:,3) = phiwav(3)
+    !phiw(:,:,4) = phiwav(4)
 
     phitot = 0.0
 
