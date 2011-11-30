@@ -468,7 +468,7 @@ contains
   subroutine diffc (putin,putout,flux)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
-    use modfields, only : rhobf
+    use modfields, only : rhobf,rhobh
     implicit none
 
     real, intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -518,7 +518,7 @@ contains
                   + &
                 ( (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
                   *  (putin(i,j,2)-putin(i,j,1)) / dzh(2)**2 &
-                  + rhobf(1)*flux(i,j) *2.                        )/dzf(1) &
+                  + rhobh(1)*flux(i,j) *2.                        )/dzf(1) &
                           )
 
       end do
@@ -591,7 +591,7 @@ contains
   subroutine diffu (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dxi,dx2i,dzf,dy,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0,rhobf
+    use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
 
@@ -691,7 +691,7 @@ contains
                + (1./rhobf(1))* &
               ( emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                         +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
-                -rhobf(1)*fu   ) / dzf(1)
+                -rhobh(1)*fu   ) / dzf(1)
 
       end do
     end do
@@ -702,7 +702,7 @@ contains
   subroutine diffv (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dzf,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0,rhobf
+    use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
 
     implicit none
@@ -799,7 +799,7 @@ contains
                   + (1./rhobf(1))*&
                 ( eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                           +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
-                  -rhobf(1)*fv   ) / dzf(1)
+                  -rhobh(1)*fv   ) / dzf(1)
 
       end do
     end do
