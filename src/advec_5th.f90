@@ -143,12 +143,12 @@ subroutine advecc_5th(putin, putout)
                       +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
-                +( &
+                +(1/rhobf(k))*( &
                       w0(i,j,k+1)/60.&
-                      *(37.*(putin(i,j,k+1)+putin(i,j,k))-8.*(putin(i,j,k+2)+putin(i,j,k-1))+(putin(i,j,k+3)+putin(i,j,k-2)))&
+                      *(37.*(rhoputin(i,j,k+1)+rhoputin(i,j,k))-8.*(rhoputin(i,j,k+2)+rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)+rhoputin(i,j,k-2)))&
                       -sign(1.,w0(i,j,k+1))*w0(i,j,k+1)/60.&
-                      *(10.*(putin(i,j,k+1)-putin(i,j,k))-5.*(putin(i,j,k+2)-putin(i,j,k-1))+(putin(i,j,k+3)-putin(i,j,k-2)))&
-                      -w0(i,j,k)  * (putin(i,j,k-1)+putin(i,j,k))/2. &
+                      *(10.*(rhoputin(i,j,k+1)-rhoputin(i,j,k))-5.*(rhoputin(i,j,k+2)-rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)-rhoputin(i,j,k-2)))&
+                      -w0(i,j,k)  * (rhoputin(i,j,k-1)+rhoputin(i,j,k))/2. &
                   ) / ( dzf(k) ) &
                   )
 
@@ -304,12 +304,12 @@ subroutine advecu_5th(putin,putout)
                     +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
-              +( &
+              +(1/rhobf(k))*( &
                       (w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
-                      *(37.*(putin(i,j,k+1)+putin(i,j,k))-8.*(putin(i,j,k+2)+putin(i,j,k-1))+(putin(i,j,k+3)+putin(i,j,k-2)))&
+                      *(37.*(rhoputin(i,j,k+1)+rhoputin(i,j,k))-8.*(rhoputin(i,j,k+2)+rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)+rhoputin(i,j,k-2)))&
                       -sign(1.,(w0(i,j,k+1)+w0(i-1,j,k+1)))*(w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
-                      *(10.*(putin(i,j,k+1)-putin(i,j,k))-5.*(putin(i,j,k+2)-putin(i,j,k-1))+(putin(i,j,k+3)-putin(i,j,k-2)))&
-                      -(putin(i,j,k)+putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  ))/2. &
+                      *(10.*(rhoputin(i,j,k+1)-rhoputin(i,j,k))-5.*(rhoputin(i,j,k+2)-rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)-rhoputin(i,j,k-2)))&
+                      -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  ))/2. &
                 ) / (2. * dzf(k)) &
                 )
 
@@ -467,12 +467,12 @@ subroutine advecv_5th(putin, putout)
                     +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
-                +( &
+                +(1/rhobf(k))*( &
                       (w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
-                      *(37.*(putin(i,j,k+1)+putin(i,j,k))-8.*(putin(i,j,k+2)+putin(i,j,k-1))+(putin(i,j,k+3)+putin(i,j,k-2)))&
+                      *(37.*(rhoputin(i,j,k+1)+rhoputin(i,j,k))-8.*(rhoputin(i,j,k+2)+rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)+rhoputin(i,j,k-2)))&
                       -sign(1.,(w0(i,j,k+1)+w0(i,j-1,k+1)))*(w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
-                      *(10.*(putin(i,j,k+1)-putin(i,j,k))-5.*(putin(i,j,k+2)-putin(i,j,k-1))+(putin(i,j,k+3)-putin(i,j,k-2)))&
-                      -(w0(i,j,k)  +w0(i,j-1,k))  *(putin(i,j,k-1)+putin(i,j,k))/2. &
+                      *(10.*(rhoputin(i,j,k+1)-rhoputin(i,j,k))-5.*(rhoputin(i,j,k+2)-rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)-rhoputin(i,j,k-2)))&
+                      -(w0(i,j,k)  +w0(i,j-1,k))  *(rhoputin(i,j,k-1)+rhoputin(i,j,k))/2. &
                   ) / (2. * dzf(k)) &
                   )
 
@@ -598,12 +598,12 @@ subroutine advecw_5th(putin, putout)
                       +sign(1.,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
-                + ( &
+                + (1/rhobh(k))*( &
                       (w0(i,j,k)+w0(i,j,k+1))/60.&
-                      *(37.*(putin(i,j,k+1)+putin(i,j,k))-8.*(putin(i,j,k+2)+putin(i,j,k-1))+(putin(i,j,k+3)+putin(i,j,k-2)))&
+                      *(37.*(rhoputin(i,j,k+1)+rhoputin(i,j,k))-8.*(rhoputin(i,j,k+2)+rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)+rhoputin(i,j,k-2)))&
                       -sign(1.,(w0(i,j,k)+w0(i,j,k+1)))*(w0(i,j,k)+w0(i,j,k+1))/60.&
-                      *(10.*(putin(i,j,k+1)-putin(i,j,k))-5.*(putin(i,j,k+2)-putin(i,j,k-1))+(putin(i,j,k+3)-putin(i,j,k-2)))&
-                      -(putin(i,j,k)+putin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1))/2. &
+                      *(10.*(rhoputin(i,j,k+1)-rhoputin(i,j,k))-5.*(rhoputin(i,j,k+2)-rhoputin(i,j,k-1))+(rhoputin(i,j,k+3)-rhoputin(i,j,k-2)))&
+                      -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1))/2. &
                   )/ (2. * dzh(k)) &
                   )
                   
