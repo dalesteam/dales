@@ -37,14 +37,24 @@
 subroutine advecc_52(putin, putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf
-  use modfields, only : u0, v0, w0
-
+  use modfields, only : u0, v0, w0,rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
+
+  !if (leq) then
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=1,kmax
     do j=2,j1
@@ -73,8 +83,8 @@ subroutine advecc_52(putin, putout)
                   +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k))) &
                   )* dyi &
-                +( &
-                w0(i,j,k+1) * (putin(i,j,k+1) + putin(i,j,k)) &
+                +(1./rhobf(k))*( &
+                w0(i,j,k+1) * (rhoputin(i,j,k+1) + rhoputin(i,j,k)) &
                 ) / ( 2. * dzf(k) ) &
                 )
 
@@ -100,9 +110,9 @@ subroutine advecc_52(putin, putout)
                       +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
-                +( &
-                  w0(i,j,k+1) * (putin(i,j,k+1)+putin(i,j,k)) &
-                  -w0(i,j,k)  * (putin(i,j,k-1)+putin(i,j,k)) &
+                +(1./rhobf(k))*( &
+                  w0(i,j,k+1) * (rhoputin(i,j,k+1)+rhoputin(i,j,k)) &
+                  -w0(i,j,k)  * (rhoputin(i,j,k-1)+rhoputin(i,j,k)) &
                   ) / ( 2. * dzf(k) ) &
                   )
         end if
@@ -118,13 +128,24 @@ end subroutine advecc_52
 subroutine advecu_52(putin,putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0,rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
+
+  !if (leq) then
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=1,kmax
     do j=2,j1
@@ -153,8 +174,8 @@ subroutine advecu_52(putin,putout)
                   +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
               )* dyi5 &
-            +( &
-              ( putin(i,j,k+1) + putin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
+            +(1./rhobf(k))*( &
+              ( rhoputin(i,j,k+1) + rhoputin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
               ) / (4.*dzf(k)) &
               )
 
@@ -180,9 +201,9 @@ subroutine advecu_52(putin,putout)
                   +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
               )* dyi5 &
-            +( &
-              (putin(i,j,k)+putin(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
-            -(putin(i,j,k)+putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  )) &
+            +(1./rhobf(k))*( &
+              (rhoputin(i,j,k)+rhoputin(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
+            -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  )) &
               ) / (4. * dzf(k)) &
               )
       end if
@@ -198,13 +219,24 @@ end subroutine advecu_52
 subroutine advecv_52(putin, putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzi5,dziq,leq
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0,rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
+
+  !if (leq) then
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=1,kmax
     do j=2,j1
@@ -233,8 +265,8 @@ subroutine advecv_52(putin, putout)
                   +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
-              +( &
-                (w0(i,j,k+1)+w0(i,j-1,k+1)) *(putin(i,j,k+1)+putin(i,j,k)) &
+              +(1./rhobf(k))*( &
+                (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhoputin(i,j,k+1)+rhoputin(i,j,k)) &
                 ) / (4. * dzf(k)) &
                 )
 
@@ -260,9 +292,9 @@ subroutine advecv_52(putin, putout)
                   +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
-              +( &
-                (w0(i,j,k+1)+w0(i,j-1,k+1))*(putin(i,j,k+1)+putin(i,j,k)) &
-                -(w0(i,j,k) +w0(i,j-1,k))  *(putin(i,j,k-1)+putin(i,j,k)) &
+              +(1./rhobf(k))*( &
+                (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhoputin(i,j,k+1)+rhoputin(i,j,k)) &
+                -(w0(i,j,k) +w0(i,j-1,k))  *(rhoputin(i,j,k-1)+rhoputin(i,j,k)) &
                 ) / (4. * dzf(k)) &
                 )
       end if
@@ -278,13 +310,24 @@ end subroutine advecv_52
 subroutine advecw_52(putin, putout)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzh
-  use modfields, only : u0, v0, w0
+  use modfields, only : u0, v0, w0,rhobh
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
+
+  !if (leq) then
+
+  do k=1,k1
+    do j=2-jh,j1+jh
+      do i=2-ih,i1+ih
+      rhoputin(i,j,k)=rhobh(k)*putin(i,j,k)
+      end do
+    end do
+  end do
 
   do k=2,kmax
     do j=2,j1
@@ -310,9 +353,9 @@ subroutine advecw_52(putin, putout)
                     +sign(1.,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
-              + ( &
-                (putin(i,j,k)+putin(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
-                -(putin(i,j,k)+putin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
+              + (1./rhobh(k))*( &
+                (rhoputin(i,j,k)+rhoputin(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
+                -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
                 )/ (4. * dzh(k)) &
                 )
       end do
