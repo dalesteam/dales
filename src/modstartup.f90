@@ -1021,7 +1021,7 @@ contains
         write(ifoutput,*) '#baseprofiles'
         write(ifoutput,*) '#height rhobf'
         do k=1,kmax
-          write (ifoutput,'(1f7.1,1e12.4)') &
+          write (ifoutput,'(1f7.1,E25.17)') &
                 zf (k), &
                 rhobf (k)
         enddo
@@ -1036,7 +1036,7 @@ contains
         write(ifoutput,*) '#baseprofiles'
         write(ifoutput,*) '#height rhobf'
         do k=1,kmax
-          write (ifoutput,'(1f7.1,1e12.4)') &
+          write (ifoutput,'(1f7.1,E25.17)') &
                 zf (k), &
                 rhobf (k)
         enddo
@@ -1082,7 +1082,7 @@ contains
         write(ifoutput,*) '#baseprofiles'
         write(ifoutput,*) '#height rhobf'
         do k=1,kmax
-          write (ifoutput,'(1f7.1,1e12.4)') &
+          write (ifoutput,'(1f7.1,E25.17)') &
                 zf (k), &
                 rhobf (k)
         enddo
@@ -1128,7 +1128,7 @@ contains
         write(ifoutput,*) '#baseprofiles'
         write(ifoutput,*) '#height rhobf'
         do k=1,kmax
-          write (ifoutput,'(1f7.1,1e12.4)') &
+          write (ifoutput,'(1f7.1,E25.17)') &
                 zf (k), &
                 rhobf (k)
         enddo
@@ -1176,14 +1176,14 @@ contains
     ! write profiles and derivatives to standard output
     write (6,*) ' height   rhobf       rhobh'
     do k=k1,1,-1
-        write (6,'(1f7.1,2e12.4)') &
+        write (6,'(1f7.1,E25.17)') &
               height (k), &
               rhobf (k), &
               rhobh (k)
     end do
     write (6,*) ' height   drhobdzf    drhobdzh'
     do k=k1,1,-1
-        write (6,'(1f7.1,2e12.4)') &
+        write (6,'(1f7.1,E25.17)') &
               height (k), &
               drhobdzf (k), &
               drhobdzh (k)
