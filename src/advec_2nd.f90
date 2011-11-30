@@ -364,9 +364,9 @@ subroutine advecw_2nd(putin,putout)
               -(putin(i,jm,k)+putin(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,km)) &
                 )*dyiq &
               + &
-                ( &
-                (putin(i,j,k)+putin(i,j,kp) )*(w0(i,j,k) + w0(i,j,kp)) &
-              -(putin(i,j,k)+putin(i,j,km) )*(w0(i,j,k) + w0(i,j,km)) &
+                (1./rhobh(k))*( &
+                (rhoputin(i,j,k)+rhoputin(i,j,kp) )*(w0(i,j,k) + w0(i,j,kp)) &
+              -(rhoputin(i,j,k)+rhoputin(i,j,km) )*(w0(i,j,k) + w0(i,j,km)) &
                 )*dziq &
                 )
 
