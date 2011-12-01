@@ -77,6 +77,7 @@
 !! - Integrate precipitation loading in theta_v
 !! - Look at possible extra term in TKE equation (consistent filtering approach)
 !! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison?)
+!! - Note: CFL currently depends on number of processors!!!
 !!
 !! \section License License
 !!  This file is part of DALES.
