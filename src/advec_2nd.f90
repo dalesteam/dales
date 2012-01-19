@@ -84,6 +84,15 @@ subroutine advecc_2nd(putin,putout)
         putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
                 w0(i,j,2) * (rhoputin(i,j,2) + rhoputin(i,j,1) ) &
                 ) * dzi5
+      end do
+    end do
+
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
         do k=2,kmax
         km=k-1
         kp=k+1
@@ -106,7 +115,15 @@ subroutine advecc_2nd(putin,putout)
         putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
                 w0(i,j,2) * (rhoputin(i,j,2)*dzf(1) + rhoputin(i,j,1)*dzf(2) ) / (2.*dzh(2)) &
                 ) / dzf(1)
+      end do
+    end do
 
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
         do k=2,kmax
         km=k-1
         kp=k+1
@@ -178,6 +195,15 @@ subroutine advecu_2nd(putin, putout)
         putout(i,j,1)  = putout(i,j,1)-(1./rhobf(1))*( &
             ( rhoputin(i,j,2) + rhoputin(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
             ) *dziq
+      end do
+    end do
+
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
         do k=2,kmax
         km=k-1
         kp=k+1
@@ -201,6 +227,15 @@ subroutine advecu_2nd(putin, putout)
         putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
               ( rhoputin(i,j,2)*dzf(1) + rhoputin(i,j,1)*dzf(2) ) / dzh(2) &
                 *( w0(i,j,2)+ w0(im,j,2) ))/ (4.*dzf(1))
+      end do
+    end do
+
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
         do k=2,kmax
         km=k-1
         kp=k+1
@@ -277,7 +312,15 @@ subroutine advecv_2nd(putin, putout)
         putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
            (w0(i,j,2)+w0(i,jm,2))*(rhoputin(i,j,2)+rhoputin(i,j,1)) &
             )*dziq
+      end do
+    end do
 
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
         do k=2,kmax
         km=k-1
         kp=k+1
@@ -300,6 +343,15 @@ subroutine advecv_2nd(putin, putout)
           (w0(i,j,2)+w0(i,jm,2)) &
           *(rhoputin(i,j,2)*dzf(1)+rhoputin(i,j,1)*dzf(2) )/ dzh(2) &
           ) / (4. * dzf(1))
+      end do
+    end do
+
+    do j=2,j1
+    jm=j-1
+    jp=j+1
+      do i=2,i1
+      im=i-1
+      ip=i+1
         do k=2,kmax
           km=k-1
           kp=k+1
