@@ -958,12 +958,12 @@ contains
 
     integer status
 
+    if(.not.(lheterostats)) return
+
     deallocate(svavgid)
     deallocate(svvarid)
     deallocate(usvcovid, vsvcovid, wsvcovid)
     deallocate(wsvcovsid)
-
-    if(.not.(lheterostats)) return
 
 !    write(6,*) "HETEROSTATS: Closing: ", myid
 
