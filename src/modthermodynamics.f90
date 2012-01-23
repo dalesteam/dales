@@ -456,7 +456,7 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
-  use modfields, only : qt0,thl0,exnf,presf,tmp0,ql0
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
   use modsurfdata, only : thls
   use modmpi, only : myid
   implicit none
@@ -465,7 +465,6 @@ contains
   real :: ilratio, esl1,esi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
   integer :: niter,nitert,tlonr,thinr
-  real :: qvsl1,qvsi1
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
@@ -511,11 +510,11 @@ contains
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)
-            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-            qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
-            qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
+            qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
+            qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
+            qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
       end do
       end do
