@@ -725,15 +725,14 @@ module modbulkmicro
   ! Evaporation of prec. : Seifert (2008)
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,rd,rv,cp,at,bt,pi,ep,mygamma251,mygamma21,&
-    lacz_gamma,tup,tdn,esatltab,ttab
-    use modfields, only : exnf,thl0,qt0,svm,tmp0,ql0,presf,rhof,exnf
+
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma
+    use modfields, only : exnf,thl0,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
     real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)
-    integer :: numel,tlonr,thinr
-    real ::  esl1,qvsl1,tlo,thi
+    integer :: numel
 
     allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
               ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
@@ -747,15 +746,8 @@ module modbulkmicro
     do i=2,i1
     do k=1,k1
       if (qrmask(i,j,k)) then
-        ilratio = max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))
-        tlonr=int((tmp0(i,j,k)-150.)*5.)
-        thinr=tlonr+1
-        tlo=ttab(tlonr)
-        thi=ttab(thinr)
-        esl1=(thi-tmp0(i,j,k))*5.*esatltab(tlonr)+(tmp0(i,j,k)-tlo)*5.*esatltab(thinr)
-        qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
-        S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl1- 1.)
-        G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl1) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+        S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+        G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
         G   (i,j,k) = 1./G(i,j,k)
       endif
     enddo
@@ -808,11 +800,16 @@ module modbulkmicro
     enddo
     enddo
 
-
-    qrp(2:i1,2:j1,1:k1) = qrp(2:i1,2:j1,1:k1) + evap(2:i1,2:j1,1:k1)
-    Nrp(2:i1,2:j1,1:k1) = Nrp(2:i1,2:j1,1:k1) + Nevap(2:i1,2:j1,1:k1)
-    qtpmcr(2:i1,2:j1,1:k1) = qtpmcr(2:i1,2:j1,1:k1) -evap(2:i1,2:j1,1:k1)
-    thlpmcr(2:i1,2:j1,1:k1) = thlpmcr(2:i1,2:j1,1:k1) + (rlv/cp)*evap(2:i1,2:j1,1:k1)
+    do j=2,j1
+    do i=2,i1
+    do k=1,k1
+    qrp(i,j,k) = qrp(i,j,k) + evap(i,j,k)
+    Nrp(i,j,k) = Nrp(i,j,k) + Nevap(i,j,k)
+    qtpmcr(i,j,k) = qtpmcr(i,j,k) -evap(i,j,k)
+    thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap(i,j,k)
+    enddo
+    enddo
+    enddo
 
     deallocate (F,S,G)
 
