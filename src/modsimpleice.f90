@@ -161,29 +161,12 @@ module modsimpleice
       write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
     end if
 
+
     if(l_warm) then !partitioning and determination of intercept parameter
       do k=1,k1
       do j=2,j1
       do i=2,i1
         ilratio(i,j,k)=1.   ! cloud water vs cloud ice partitioning
-        rsgratio(i,j,k)=1.   ! rain vs snow/graupel partitioning
-        sgratio(i,j,k)=0.   ! snow versus graupel partitioning
-        lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
-        lambdas(i,j,k)=lambdar(i,j,k) ! lambda snow
-        lambdag(i,j,k)=lambdar(i,j,k) ! lambda graupel
-      enddo
-      enddo
-      enddo
-    elseif(l_graupel) then
-      do k=1,k1
-      do j=2,j1
-      do i=2,i1
-        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn))) ! cloud water vs cloud ice partitioning
-        rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning
-        sgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning
-        lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
-        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! snow
-        lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! graupel
       enddo
       enddo
       enddo
@@ -191,12 +174,51 @@ module modsimpleice
       do k=1,k1
       do j=2,j1
       do i=2,i1
-        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))   ! cloud water vs cloud ice partitioning
-        rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
-        sgratio(i,j,k)=0.
-        lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
-        lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
-        lambdag(i,j,k)=lambdas(i,j,k)
+        ilratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+      enddo
+      enddo
+      enddo
+    end if
+
+    if(l_warm) then !partitioning and determination of intercept parameter
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if(qrmask(i,j,k).eqv..true.) then
+          rsgratio(i,j,k)=1.   ! rain vs snow/graupel partitioning
+          sgratio(i,j,k)=0.   ! snow versus graupel partitioning
+          lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+          lambdas(i,j,k)=lambdar(i,j,k) ! lambda snow
+          lambdag(i,j,k)=lambdar(i,j,k) ! lambda graupel
+        end if
+      enddo
+      enddo
+      enddo
+    elseif(l_graupel) then
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if(qrmask(i,j,k).eqv..true.) then
+          rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning
+          sgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning
+          lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+          lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! snow
+          lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! graupel
+        endif
+      enddo
+      enddo
+      enddo
+    else
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+        if(qrmask(i,j,k).eqv..true.) then
+          rsgratio(i,j,k)=amax1(0.,amin1(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
+          sgratio(i,j,k)=0.
+          lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
+          lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
+          lambdag(i,j,k)=lambdas(i,j,k)
+        end if
       enddo
       enddo
       enddo
@@ -301,7 +323,8 @@ module modsimpleice
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      if (qrmask(i,j,k).eqv..true. .and. qcmask(i,j,k).eqv..true.) then ! apply mask
+      if (qrmask(i,j,k).eqv..true.) then
+      if (qcmask(i,j,k).eqv..true.) then ! apply mask
         ! ql partitioning
         qll=ql0(i,j,k)*ilratio(i,j,k)
         qli=ql0(i,j,k)-qll
@@ -324,6 +347,7 @@ module modsimpleice
         qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
         thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*acc
       end if
+      end if
     enddo
     enddo
     enddo
@@ -331,36 +355,27 @@ module modsimpleice
   end subroutine accrete
 
   subroutine evapdep
-    use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi,tup,tdn,esatltab,esatitab,ttab
-    use modfields, only : qt0,ql0,exnf,rhof,tmp0,presf
+    use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
+    use modfields, only : qt0,ql0,exnf,rhof,tmp0,presf,qvsl,qvsi,esl
     use modmpi,    only : myid
     implicit none
+
     real :: qrr,qrs,qrg,ssl,ssi,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,rer,res,reg,ventr,vents,ventg,&
             thfun,gevapdepr,gevapdeps,gevapdepg,evapdepr,evapdeps,evapdepg,devap
-    integer:: i,j,k,tlonr,thinr
-    real ::  esl1,esi1,qvsl1,qvsi1,tlo,thi
+    integer:: i,j,k
 
     do k=1,k1
     do j=2,j1
     do i=2,i1
       if (qrmask(i,j,k).eqv..true.) then
-        ilratio = max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))
-        tlonr=int((tmp0(i,j,k)-150.)*5.)
-        thinr=tlonr+1
-        tlo=ttab(tlonr)
-        thi=ttab(thinr)
-        esl1=(thi-tmp0(i,j,k))*5.*esatltab(tlonr)+(tmp0(i,j,k)-tlo)*5.*esatltab(thinr)
-        esi1=(thi-tmp0(i,j,k))*5.*esatitab(tlonr)+(tmp0(i,j,k)-tlo)*5.*esatitab(thinr)
-        qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
-        qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
         ! saturation ratios
-        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl1
-        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi1
+        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
+        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
         !integration over ventilation factors and diameters, see e.g. seifert 2008
         ventr=.78*n0rr/lambdar(i,j,k)**2 + gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)*lambdar(i,j,k)**(-2.5-0.5*ddr)
         vents=.78*n0rs/lambdas(i,j,k)**2 + gam2ds*.27*n0rs*sqrt(ccsz(k)/2.e-5)*lambdas(i,j,k)**(-2.5-0.5*dds)
         ventg=.78*n0rg/lambdag(i,j,k)**2 + gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)*lambdag(i,j,k)**(-2.5-0.5*ddg)
-        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl1+2.2e2/tmp0(i,j,k))  ! thermodynamic function
+        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e2/tmp0(i,j,k))  ! thermodynamic function
         evapdepr=(4.*pi/(betar*rhof(k)))*(ssl-1.)*ventr*thfun
         evapdeps=(4.*pi/(betas*rhof(k)))*(ssi-1.)*vents*thfun
         evapdepg=(4.*pi/(betag*rhof(k)))*(ssi-1.)*ventg*thfun
@@ -395,7 +410,7 @@ module modsimpleice
     do k=1,k1
     do j=2,j1
     do i=2,i1
-        qr_spl(i,j,k) = qr(i,j,k)
+      qr_spl(i,j,k) = qr(i,j,k)
       if (qrmask(i,j,k).eqv..true.) then
         vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar(i,j,k)**ddr)  ! terminal velocity rain
         vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas(i,j,k)**dds)  ! terminal velocity snow
@@ -427,9 +442,9 @@ module modsimpleice
     
         ! reset fluxes at each step of loop
         sed_qr = 0.
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
+        do k=1,k1
+        do j=2,j1
+        do i=2,i1
           if (qr_spl(i,j,k) > qrmin) then
             ! re-evaluate lambda
             lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
