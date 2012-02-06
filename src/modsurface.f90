@@ -974,7 +974,7 @@ contains
         end do
 
         do k = 1, ksoilmax-1
-          lambdah(i,j,k) = (lambda(i,j,k) * dzsoil(k+1) + lambda(i,j,k+1) * dzsoil(k)) / dzsoilh(k)
+          lambdah(i,j,k) = (lambda(i,j,k) * dzsoil(k+1) + lambda(i,j,k+1) * dzsoil(k)) / (dzsoil(k+1)+dzsoil(k))
         end do
 
         lambdah(i,j,ksoilmax) = lambda(i,j,ksoilmax)
@@ -985,8 +985,8 @@ contains
         end do
 
         do k = 1, ksoilmax-1
-          lambdash(i,j,k) = (lambdas(i,j,k) * dzsoil(k+1) + lambdas(i,j,k+1) * dzsoil(k)) / dzsoilh(k)
-          gammash(i,j,k)  = (gammas(i,j,k)  * dzsoil(k+1) + gammas(i,j,k+1)  * dzsoil(k)) / dzsoilh(k)
+          lambdash(i,j,k) = (lambdas(i,j,k) * dzsoil(k+1) + lambdas(i,j,k+1) * dzsoil(k)) / (dzsoil(k+1)+dzsoil(k))
+          gammash(i,j,k)  = (gammas(i,j,k)  * dzsoil(k+1) + gammas(i,j,k+1)  * dzsoil(k)) / (dzsoil(k+1)+dzsoil(k))
         end do
 
         lambdash(i,j,ksoilmax) = lambdas(i,j,ksoilmax)
