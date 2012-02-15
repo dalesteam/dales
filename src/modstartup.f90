@@ -774,7 +774,7 @@ contains
       open(unit=ifinput,file=name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
       read(ifinput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)
+      read(ifinput)   ((tskin(i,j),i=1,i2),j=1,j2)  ! JvdD comment out when trying to read old runs!
       read(ifinput) ((Wl(i,j),i=1,i2),j=1,j2)
       read(ifinput) ((Qnet(i,j),i=1,i2),j=1,j2)
       if(iradiation == 1 .and. useMcICA) then

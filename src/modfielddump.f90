@@ -106,22 +106,24 @@ contains
     beghr = beghr * 3600/tres
     endhr = endhr * 3600/tres
 
+    ! Set time of next fielddump equal to the first begin hour
     tNextDump = beghr(iNextHr)
 
-    ! Do loop, in case of a restart run. Finds the appropriate next fielddump time
-    do while (tNextDump<timee)
+    ! While loop, in case of a restart run. Finds the appropriate next fielddump time
+    ! Checks if current time is in a given fielddump interval
+    do while (tNextDump<timee .and. endhr(iNextHr)<timee)
       iNextHr   = iNextHr + 1
       tNextDump = beghr(iNextHr)
-      if (iNextHr >= nhours) tNextDump = tres*(btime + runtime)
+      if (iNextHr >= nhours) then
+        if (myid==0) write(*,*) 'WARNING: no valid hours found for fielddumps'
+        lfielddump = .false.
+        return
+      end if
     end do
 
-    iInterval = interval / tres
-    dt_lim = min(dt_lim,tNextDump)
-
-    if (.not. ladaptive .and. abs(interval/dtmax-nint(interval/dtmax))>1e-4) then
-      stop 'interval time should be an integer multiple of dtmax; modfielddump'
-    end if
-
+    ! First make the names for the variables of the netcdf file, such that a file can
+    ! immediately be written in case the it is time for a dump at the beginning of the run
+    ! (for instance a restart run)
     if (lnetcdf) then
 
       fname(18:20) = cexpnr
@@ -138,8 +140,8 @@ contains
       call ncinfo(ncfieldinfo( 6,:),'v','South-North velocity','m/s','xhyhz')
       call ncinfo(ncfieldinfo( 7,:),'w','Vertical velocity','m/s','xyzh')
       call ncinfo(ncfieldinfo( 8,:),'thl','Liquid water potential temperature','K','xyz')
-      call ncinfo(ncfieldinfo( 9,:),'qt','Total water content','g/kg','xyz')
-      call ncinfo(ncfieldinfo(10,:),'ql','Liquid water content','g/kg','xyz')
+      call ncinfo(ncfieldinfo( 9,:),'qt','Total water content','kg/kg','xyz')
+      call ncinfo(ncfieldinfo(10,:),'ql','Liquid water content','kg/kg','xyz')
       call ncinfo(ncfieldinfo(11,:),'e', 'Subgrid scale turbulent kinetic energy','m^2/s^2','xyz')
       call ncinfo(ncfieldinfo(12,:),'p', 'Pressure fluctuation','Pa','xyz')
       
@@ -157,6 +159,24 @@ contains
       end if
 
     end if ! if lnetcdf
+
+    ! Set time interval of writing    
+    iInterval = interval / tres
+
+    ! If tNextDump that has just been set is smaller or equal to the current time
+    ! set equal to current time (in case of a restart run)
+    if (tNextDump <= timee) then
+      call fielddump
+      tNextDump = timee + iInterval
+    end if
+
+    ! Limit timestep to the new tNextdump
+    dt_lim = min(dt_lim,tNextDump-timee)
+
+    if (.not. ladaptive .and. abs(interval/dtmax-nint(interval/dtmax))>1e-4) then
+      stop 'interval time should be an integer multiple of dtmax; modfielddump'
+    end if
+
     
   end subroutine initfielddump
 

@@ -158,6 +158,7 @@
 
    real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
    real,allocatable,dimension(:,:,:) :: precep
+   real,allocatable,dimension(:,:,:) :: sed !< Sedimentation flux of cloud droplets alone
 
   real :: delt
 

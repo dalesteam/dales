@@ -101,6 +101,7 @@ module modbulkmicro
              ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1))
 
     allocate(precep    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(sed       (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qrmask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
             ,qcmask    (2-ih:i1+ih,2-jh:j1+jh,k1))
 
@@ -121,7 +122,7 @@ module modbulkmicro
     deallocate(sedc,sed_qr,sed_Nr,exnz,presz,Dvc,xc,Dvr,xr,mur,lbdr, &
                au,phi,tau,rhoz,ac,sc,br,evap,Nevap,qr_spl,Nr_spl,wfall_qr,wfall_Nr)
 
-    deallocate(precep)
+    deallocate(precep,sed)
 
   end subroutine exitbulkmicro
 
@@ -556,8 +557,9 @@ module modbulkmicro
 
     do k = 1,kmax
       qtpmcr(2:i1,2:j1,k) = qtpmcr(2:i1,2:j1,k) + (sedc(2:i1,2:j1,k+1)-sedc(2:i1,2:j1,k))/(dzf(k)*rhoz(2:i1,2:j1,k))
-     thlpmcr(2:i1,2:j1,k) = thlpmcr(2:i1,2:j1,k) - (rlv/(cp*exnz(2:i1,2:j1,k))) &
+      thlpmcr(2:i1,2:j1,k) = thlpmcr(2:i1,2:j1,k) - (rlv/(cp*exnz(2:i1,2:j1,k))) &
                                     *(sedc(2:i1,2:j1,k+1)-sedc(2:i1,2:j1,k))/(dzf(k)*rhoz(2:i1,2:j1,k))
+      sed(2:i1,2:j1,k) = sedc(2:i1,2:j1,k)/rhoz(2:i1,2:j1,k)   ! kg kg-1 m s-1
     enddo
 
   end subroutine sedimentation_cloud

@@ -607,13 +607,13 @@ contains
                                           start=mask_start, count=mask_count)            )
     if (myid==0) write(*,*) 'finished writing pres'
     if (nVar > 12) then
-      call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(12,1), varID)          )
+      call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(13,1), varID)          )
       call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
       call nchandle_error( nf90_put_var  (id_fielddump, varID, qr(2:i1,2:j1,1:ktop),       &
                                             start=mask_start, count=mask_count)            )
       if (myid==0) write(*,*) 'finished writing qr'
 
-      call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(13,1), varID)          )
+      call nchandle_error( nf90_inq_varid(id_fielddump, ncFieldInfo(14,1), varID)          )
       call nchandle_error( nf90_var_par_access(id_fielddump, varID, NF90_COLLECTIVE)       )
       call nchandle_error( nf90_put_var  (id_fielddump, varID, Nr(2:i1,2:j1,1:ktop),       &
                                             start=mask_start, count=mask_count)            )
