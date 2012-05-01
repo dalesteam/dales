@@ -405,6 +405,8 @@ module modbulkmicro
 
          if (qcmask(i,j,k)) then
             au     (i,j,k) = 1350.0 * qc(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
+!            au     (i,j,k) = 2.*1350.0 * qc(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79) 
+!            ! Changed autoconversion rate by a factor of 2 to check effect on precipitation rate. !JvdD
 
             qrp    (i,j,k) = qrp    (i,j,k) + au(i,j,k)
             Nrp    (i,j,k) = Nrp    (i,j,k) + au(i,j,k) * rhoz(i,j,k)/(pirhow*D0_kk**3.)
