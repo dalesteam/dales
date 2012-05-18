@@ -1176,14 +1176,14 @@ contains
     ! write profiles and derivatives to standard output
     write (6,*) ' height   rhobf       rhobh'
     do k=k1,1,-1
-        write (6,'(1f7.1,E25.17)') &
+        write (6,'(1f7.1,2E25.17)') &
               height (k), &
               rhobf (k), &
               rhobh (k)
     end do
     write (6,*) ' height   drhobdzf    drhobdzh'
     do k=k1,1,-1
-        write (6,'(1f7.1,E25.17)') &
+        write (6,'(1f7.1,2E25.17)') &
               height (k), &
               drhobdzf (k), &
               drhobdzh (k)
