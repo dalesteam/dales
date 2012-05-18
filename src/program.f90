@@ -146,7 +146,7 @@ program DALES      !Version 4.0.0alpha
   !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
-  !use modchem,         only : initchem,inputchem,twostep
+  use modchem,         only : initchem,twostep
 
 
   implicit none
@@ -180,11 +180,9 @@ program DALES      !Version 4.0.0alpha
   call initbulkmicrostat
   call initbudget
   !call initstressbudget
-  !call initchem
+  call initchem
   call initheterostats
 
-  !call initchem
-  !call initheterostats
   !call initspectra2
   call initcape
 
@@ -259,7 +257,7 @@ program DALES      !Version 4.0.0alpha
 !-----------------------------------------------------
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
-    !call twostep
+    call twostep
     !call coldedge
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
