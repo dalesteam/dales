@@ -1008,7 +1008,8 @@ contains
     if(myid==0)then
 
       if((lwarmstart.eqv..true.).and.(ibas_prf /= 5)) then
-        stop 'warm start requires input files'
+        ibas_prf = 5
+        print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
       endif
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance

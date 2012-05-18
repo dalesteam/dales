@@ -108,7 +108,7 @@ save
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)
       integer, parameter :: ibas_bou    = 2 !< Boussinesq-like
       integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction 
-      integer, parameter :: ibas_st2    = 4 !< Standard atmosphere, surface temperature 15 K
+      integer, parameter :: ibas_st2    = 4 !< Standard atmosphere, surface temperature 15 Celsius
       integer, parameter :: ibas_usr    = 5 !< User specified
 
       !Advection scheme
