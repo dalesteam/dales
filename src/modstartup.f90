@@ -988,11 +988,7 @@ contains
     implicit none
 
     real :: thvb,prsb ! for calculating moist adiabat
-    real :: qlf, qlh, qvsl1,qvsi1
-    integer :: i,j,k
-    real :: ilratio,esl1,esi1,qsatur,thlguess,thlguessmin,tlo,thi,ttry
-    real :: Tnr,Tnr_old
-    integer :: niter,nitert,tlonr,thinr,mid
+    integer :: j,k
     real, allocatable :: height(:),pb(:),tb(:)
     character(80) chmess
     real :: zsurf=0.
