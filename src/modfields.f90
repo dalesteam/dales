@@ -67,6 +67,7 @@ save
   ! Cloud edge variables
   real, allocatable :: cloudarea(:,:,:)
   real, allocatable :: cloudnr(:,:,:)
+  real, allocatable :: cloudnrold(:,:,:)
   real, allocatable :: distcld(:,:,:)
   real, allocatable :: distcr(:,:,:)
   real, allocatable :: distqr(:,:)
@@ -163,6 +164,7 @@ subroutine initfields
 
     allocate(cloudarea(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(cloudnrold(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
@@ -246,7 +248,7 @@ subroutine initfields
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
 
-    cloudarea=0.;cloudnr=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
+    cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
   end subroutine initfields
 
@@ -263,7 +265,7 @@ subroutine initfields
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
-    deallocate(cloudarea,cloudnr,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
+    deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
     end subroutine exitfields
 
