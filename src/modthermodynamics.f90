@@ -476,6 +476,7 @@ contains
             ! first guess for temperature
             Tnr=exnf(k)*thl0(i,j,k)
             Tnr_old=0.
+            niter = 0
             do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
                niter = niter+1
                Tnr_old=Tnr
@@ -549,6 +550,7 @@ contains
             ! first guess for temperature
             Tnr=exnh(k)*thl0h(i,j,k)
             Tnr_old=0.
+            niter = 0
             do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
                niter = niter+1
                Tnr_old=Tnr
