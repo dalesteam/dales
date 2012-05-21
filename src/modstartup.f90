@@ -326,7 +326,7 @@ contains
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
-                                  thlpcar
+                                  thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
@@ -345,6 +345,7 @@ contains
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
+    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
     real tv
 
 
@@ -552,6 +553,24 @@ contains
       end do
       end do
 
+      do  j=2,j1
+      do  i=2,i1
+      do  k=2,k1
+        thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                      *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+      end do
+      end do
+      end do
+
+      thvh=0.
+      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+      thvh = thvh/rslabs
+      thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+
+      thvf = 0.0
+      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      thvf = thvf/rslabs
+
       u0av = 0.0
       v0av = 0.0
       thl0av = 0.0
@@ -576,9 +595,9 @@ contains
       ql0av = ql0av /rslabs
       sv0av = sv0av /rslabs
       th0av  = thl0av + (rlv/cp)*ql0av/exnf
+
       do k=1,k1
-        tv      = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-        rhof(k) = presf(k)/(rd*tv)
+        rhof(k) = presf(k)/(rd*thvf(k))
       end do
 
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile

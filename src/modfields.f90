@@ -83,7 +83,6 @@ save
   real, allocatable :: ql0av(:)                      !<   slab averaged q_liq
 
   real, allocatable :: thl0av(:)                     !<   slab averaged th_liq
-  real, allocatable :: thv0av(:)                     !<   slab averaged th_v at full level
   real, allocatable :: u0av(:)                       !<   slab averaged u
   real, allocatable :: v0av(:)                       !<   slab averaged v
   real, allocatable :: ug(:)                       !<   geostrophic u-wind
@@ -171,7 +170,6 @@ subroutine initfields
     allocate(qt0av(k1))
     allocate(ql0av(k1))
     allocate(thl0av(k1))
-    allocate(thv0av(k1))
     allocate(u0av(k1))
     allocate(v0av(k1))
     allocate(ug(k1))
@@ -214,7 +212,7 @@ subroutine initfields
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
     ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
-    qt0av=0.;ql0av=0.;thl0av=0.;thv0av=0.;u0av=0.;v0av=0.;sv0av=0.
+    qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
     ug=0.;vg=0.;dpdxl=0.;dpdyl=0.;wfls=0.;whls=0.;thlpcar = 0.
     dthldxls=0.;dthldyls=0.;dqtdxls=0.;dqtdyls=0.;dudxls=0.;dudyls=0.;dvdxls=0.;dvdyls=0.
@@ -231,7 +229,7 @@ subroutine initfields
     deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,thv0av,u0av,v0av)
+    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,dvdxls,dvdyls,wfls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
