@@ -469,6 +469,7 @@ contains
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
       nitert = 0
+      niter = 0
       do k=1,k1
       do j=2,j1
       do i=2,i1
@@ -543,6 +544,7 @@ contains
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
       nitert = 0
+      niter = 0
       do k=1,k1
       do j=2,j1
       do i=2,i1
@@ -555,6 +557,10 @@ contains
                Tnr_old=Tnr
                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
                tlonr=int((Tnr-150.)*5.)
+               if(tlonr<1 .or.tlonr>11999) then
+                 write(*,*) 'i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)'
+                 write(*,*) i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)
+               endif
                thinr=tlonr+1
                tlo=ttab(tlonr)
                thi=ttab(thinr)
