@@ -229,10 +229,10 @@ contains
         do isamp=1,isamptot
           call ncinfo(ncname( 1,:,isamp),'nrsamp'//samplname(isamp),trim(longsamplname(isamp))//' '//'number of points','-','tt')
           call ncinfo(ncname( 2,:,isamp),'w'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean vertical velocity','m/s','mt')
-          call ncinfo(ncname( 3,:,isamp),'tl'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean liquid water potential temperature','K','tt')
+          call ncinfo(ncname( 3,:,isamp),'thl'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean liquid water potential temperature','K','tt')
           call ncinfo(ncname( 4,:,isamp),'qt'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean total water content','kg/kg','tt')
           call ncinfo(ncname( 5,:,isamp),'ql'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean liquid water content','kg/kg','tt')
-          call ncinfo(ncname( 6,:,isamp),'tv'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean virtual potential temperature','K','tt')
+          call ncinfo(ncname( 6,:,isamp),'thv'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean virtual potential temperature','K','tt')
           call ncinfo(ncname( 7,:,isamp),'massflx'//samplname(isamp),trim(longsamplname(isamp))//' '//'mass flux','m^3/s','mt')
           call ncinfo(ncname( 8,:,isamp),'wthl'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l flux','K m/s','mt')
           call ncinfo(ncname( 9,:,isamp),'wqt'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water flux','kg/kg m/s','mt')
