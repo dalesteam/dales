@@ -555,7 +555,7 @@ contains
 
       do  j=2,j1
       do  i=2,i1
-      do  k=2,k1
+      do  k=1,k1
         thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                       *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
       end do
@@ -565,7 +565,6 @@ contains
       thvh=0.
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
       thvh = thvh/rslabs
-      thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
 
       thvf = 0.0
       call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -595,7 +594,8 @@ contains
       ql0av = ql0av /rslabs
       sv0av = sv0av /rslabs
       th0av  = thl0av + (rlv/cp)*ql0av/exnf
-
+      thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+      
       do k=1,k1
         rhof(k) = presf(k)/(rd*thvf(k))
       end do
@@ -738,7 +738,7 @@ contains
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime
     use modraddata, only: iradiation, useMcICA
-    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
+    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
                           iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv
     use modmpi,     only : cmyid, myid
@@ -769,6 +769,7 @@ contains
       read(ifinput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)   ((ustar (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((thlflux (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
@@ -816,7 +817,7 @@ contains
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                           tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime
     use modraddata, only: iradiation, useMcICA
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
                           ntimee,rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
     use modmpi,    only : cmyid,myid
@@ -855,6 +856,7 @@ contains
       write(ifoutput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)   ((ustar (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((thlflux (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
