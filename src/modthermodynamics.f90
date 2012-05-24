@@ -75,6 +75,8 @@ contains
     if (lmoist) then
       call icethermoh
     end if
+
+   ! recalculate thv and rho on the basis of results
    call calthv
    thvh=0.
    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
@@ -87,6 +89,9 @@ contains
    thvf = 0.0
    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
    thvf = thvf/rslabs
+   do k=1,k1
+     rhof(k) = presf(k)/(rd*thvf(k))
+   end do
 
   end subroutine thermodynamics
 !> Cleans up after the run
@@ -220,12 +225,11 @@ contains
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,rslabs,grav,rlv,cp,rd,rv,pref0
   use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh, rhof
+                        presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
   use modmpi,    only : slabsum
   implicit none
 
-  real     tv
   integer  k, n
 
 
@@ -289,14 +293,14 @@ contains
     exnf(k) = (presf(k)/pref0)**(rd/cp)
     exnh(k) = (presh(k)/pref0)**(rd/cp)
   end do
-  tv      = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  rhof(1) = presf(1)/(rd*tv)
+  thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+  rhof(1) = presf(1)/(rd*thvf(1))
 
 !    3.2 determine rho
 
   do k=2,k1
-    tv      = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-    rhof(k) = presf(k)/(rd*tv)
+    thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+    rhof(k) = presf(k)/(rd*thvf(k))
   end do
 
   return
