@@ -36,6 +36,7 @@ module modthermodynamics
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
+  real, allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
 
 
@@ -43,11 +44,12 @@ contains
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : k1
+    use modglobal, only : ih,i1,jh,j1,k1
 
     implicit none
 
     allocate(th0av(k1))
+    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     th0av = 0.
 
   end subroutine initthermodynamics
@@ -56,15 +58,14 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, 
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist, timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv
-    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thvf
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv
+    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     use modmpi, only : slabsum
     implicit none
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
     integer:: k
     if (timee < 0.01) then
-    call diagfld
+      call diagfld
     end if
     if (lmoist) then
       call icethermo0
@@ -76,28 +77,29 @@ contains
       call icethermoh
     end if
 
-   ! recalculate thv and rho on the basis of results
-   call calthv
-   thvh=0.
-   call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-   thvh = thvh/rslabs
-   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-   do k=1,k1
-     thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
+    ! recalculate thv and rho on the basis of results
+    call calthv
+    thvh=0.
+    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+    thvh = thvh/rslabs
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+    do k=1,k1
+      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
                  *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-   enddo
-   thvf = 0.0
-   call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   thvf = thvf/rslabs
-   do k=1,k1
-     rhof(k) = presf(k)/(rd*thvf(k))
-   end do
+    enddo
+    thvf = 0.0
+    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    thvf = thvf/rslabs
+    do k=1,k1
+      rhof(k) = presf(k)/(rd*thvf(k))
+    end do
 
   end subroutine thermodynamics
 !> Cleans up after the run
   subroutine exitthermodynamics
   implicit none
     deallocate(th0av)
+    deallocate(thv0)
   end subroutine exitthermodynamics
 
 !> Calculate thetav and dthvdz
@@ -230,13 +232,13 @@ contains
   use modmpi,    only : slabsum
   implicit none
 
-  integer  k, n
+  integer :: k,n
 
 
-!!*********************************************************
-!!  1.0   calculate average profiles of u,v,thl,qt and ql *
-!!        assuming hydrostatic equilibrium                *
-!!*********************************************************
+!*********************************************************
+!  1.0   calculate average profiles of u,v,thl,qt and ql *
+!        assuming hydrostatic equilibrium                *
+!*********************************************************
 
 ! initialise local MPI arrays
     u0av = 0.0
@@ -247,37 +249,37 @@ contains
     ql0av  = 0.0
     sv0av = 0.
 
-  !CvH changed momentum array dimensions to same value as scalars!
+!  !CvH changed momentum array dimensions to same value as scalars!
   call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
- call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    u0av  = u0av  /rslabs + cu
-    v0av  = v0av  /rslabs + cv
-    thl0av = thl0av/rslabs
-    qt0av = qt0av /rslabs
-    ql0av = ql0av /rslabs
+   u0av  = u0av  /rslabs + cu
+   v0av  = v0av  /rslabs + cv
+   thl0av = thl0av/rslabs
+   qt0av = qt0av /rslabs
+   ql0av = ql0av /rslabs
    exnf   = 1-grav*zf/(cp*thls)
-    exnh  = 1-grav*zh/(cp*thls)
+   exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
-  do n=1,nsv
-    call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  end do
-  sv0av = sv0av/rslabs
+   do n=1,nsv
+      call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+   end do
+   sv0av = sv0av/rslabs
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
 !***********************************************************
 
 !    2.1 Use first guess of theta, then recalculate theta
-  call fromztop
-  exnf = (presf/pref0)**(rd/cp)
-  th0av = thl0av + (rlv/cp)*ql0av/exnf
+   call fromztop
+   exnf = (presf/pref0)**(rd/cp)
+   th0av = thl0av + (rlv/cp)*ql0av/exnf
 
 !    2.2 Use new updated value of theta for determination of pressure
 
-  call fromztop
+   call fromztop
 
 
 !***********************************************************
@@ -287,23 +289,23 @@ contains
 
 !    3.1 determine exner
 
-  exnh(1) = (ps/pref0)**(rd/cp)
-  exnf(1) = (presf(1)/pref0)**(rd/cp)
-  do k=2,k1
-    exnf(k) = (presf(k)/pref0)**(rd/cp)
-    exnh(k) = (presh(k)/pref0)**(rd/cp)
-  end do
-  thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  rhof(1) = presf(1)/(rd*thvf(1))
+   exnh(1) = (ps/pref0)**(rd/cp)
+   exnf(1) = (presf(1)/pref0)**(rd/cp)
+   do k=2,k1
+     exnf(k) = (presf(k)/pref0)**(rd/cp)
+     exnh(k) = (presh(k)/pref0)**(rd/cp)
+   end do
+   thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+   rhof(1) = presf(1)/(rd*thvf(1))
 
 !    3.2 determine rho
 
-  do k=2,k1
-    thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
-    rhof(k) = presf(k)/(rd*thvf(k))
-  end do
+   do k=2,k1
+     thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
+     rhof(k) = presf(k)/(rd*thvf(k))
+   end do
 
-  return
+   return
   end subroutine diagfld
 
 

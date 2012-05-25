@@ -516,9 +516,9 @@ contains
       svs = svprof(1,:)
      
       call baseprofs ! call baseprofs before thermodynamics
-
       call boundary
       call thermodynamics
+      write(*,*) 'beyond thermo'
       call surface
 
       dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
