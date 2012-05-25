@@ -29,7 +29,6 @@
 module modradfull
 
   use RandomNumbers
-
   implicit none
   private
   public :: radfull,d4stream
@@ -107,6 +106,9 @@ module modradfull
 
   real, allocatable    :: re(:), fl(:), bz(:,:), wz(:,:), gz(:,:)
 
+  real, allocatable ::  rhof_b(:),exnf_b(:)
+  real, allocatable ::  temp_b(:,:,:),qv_b(:,:,:),ql_b(:,:,:),rr_b(:,:,:)
+  real, allocatable ::  tempskin(:,:)
 contains
     subroutine radfull
   !   use radiation,    only : d4stream
@@ -117,12 +119,13 @@ contains
     use modraddata,   only : thlprad, lwd,lwu,swd,swu
       implicit none
     real :: thlpld,thlplu,thlpsd,thlpsu
-    real, dimension(k1)  :: rhof_b, exnf_b
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b,rr_b
-    real, dimension(1:i1+1,1:j1+1) :: tempskin
     integer :: i,j,k
 
     real :: exnersurf
+
+    allocate(rhof_b(k1),exnf_b(k1))
+    allocate(temp_b(2-ih:i1+ih,2-jh:j1+jh,k1),qv_b(2-ih:i1+ih,2-jh:j1+jh,k1),ql_b(2-ih:i1+ih,2-jh:j1+jh,k1),rr_b(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(tempskin(1:i1+1,1:j1+1))
 
 !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax
@@ -137,13 +140,12 @@ contains
           end do
         end do
       end do
-
+      
       !take care of the surface boundary conditions
       !CvH edit, extrapolation creates instability in surface scheme
       exnersurf = (ps/pref0) ** (rd/cp)
       rhof_b(1) = rhof(1) + dzh(1)/dzh(2)*(rhof(1)-rhof(2))
       exnf_b(1) = exnh(1) + dzh(1)/dzh(2)*(rhof(1)-rhof(2))
-
 
       do j=2,j1
         do i=2,i1
@@ -186,6 +188,10 @@ contains
         end do
       end do
 
+    deallocate(rhof_b,exnf_b)
+    deallocate(temp_b,qv_b,ql_b,rr_b)
+    deallocate(tempskin)
+    
     end subroutine radfull
 
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &
@@ -2064,7 +2070,9 @@ contains
   subroutine initvar_cldwtr(cntrs,re,fl,bz,wz,gz)
   real, dimension(:),intent(out) :: cntrs,re,fl
   real, dimension(:,:),intent(out) :: bz,wz,gz
-    cntrs = (/0.3225000E+05, 0.1110000E+05, 0.6475000E+04, 0.4625000E+04, 0.3425000E+04, 0.2675000E+04, 0.2200000E+04, 0.1800000E+04, 0.1550000E+04, 0.1325000E+04, 0.1175000E+04, 0.1040000E+04, 0.8900000E+03, 0.7350000E+03, 0.6050000E+03, 0.4700000E+03, 0.3400000E+03, 0.1400000E+03/)
+    cntrs = (/0.3225000E+05, 0.1110000E+05, 0.6475000E+04, 0.4625000E+04, 0.3425000E+04, 0.2675000E+04, 0.2200000E+04,&
+    0.1800000E+04, 0.1550000E+04, 0.1325000E+04, 0.1175000E+04, 0.1040000E+04, 0.8900000E+03, 0.7350000E+03, 0.6050000E+03,&
+     0.4700000E+03, 0.3400000E+03, 0.1400000E+03/)
     re = (/0.5000000E-01, 0.1400000E+00, 0.2200000E+00, 0.2800000E+00, 0.5000000E+00, 0.4700000E+00, 0.1000000E+01, 0.2500000E+01/)
     fl = (/0.5000000E-01, 0.1400000E+00, 0.2200000E+00, 0.2800000E+00, 0.5000000E+00, 0.4700000E+00, 0.1000000E+01, 0.2500000E+01/)
     bz = reshape((/0.1511000E+02, 0.4025000E+02, 0.5981000E+02, 0.7243000E+02, 0.8369000E+02, 0.7399000E+02, 0.1281700E+03,&
