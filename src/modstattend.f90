@@ -53,7 +53,8 @@ contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initstattend
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
-    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,ladaptive, dt_lim,btime,kmax,tres,ifoutput
+    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
+    ladaptive, dt_lim,btime,kmax,tres,ifoutput
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 

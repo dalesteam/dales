@@ -153,7 +153,8 @@ contains
       if(ypatches .gt. mpatch) then
         stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
-      if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and heterogeneous surface conditions (lhetero) at the same time' 
+      if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
+      'heterogeneous surface conditions (lhetero) at the same time' 
       if (mod(imax,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
 
@@ -265,7 +266,7 @@ contains
                   defined_landtypes = defined_landtypes + 1
                   i = defined_landtypes
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), ps_land(i), &
-                    albedo_land(i), tsoil_land(1:ksoilmax,i), tsoildeep_land(i), phiw_land(1:ksoilmax,i), rootf_land(1:ksoilmax,i), &
+                    albedo_land(i),tsoil_land(1:ksoilmax,i),tsoildeep_land(i),phiw_land(1:ksoilmax,i),rootf_land(1:ksoilmax,i),&
                     Cskin_land(i), lambdaskin_land(i), Qnet_land(i), cveg_land(i), Wl_land(i), rsmin_land(i), LAI_land(i), &
                     gD_land(i), wsv_land(1:nsv,i) 
   
@@ -344,7 +345,8 @@ contains
         if (landtype_0 .eq. -1) then
           stop "NAMSURFACE: no standard land type (0) is defined"
         else
-          print "(a,i2,a,i2)","There are ",defined_landtypes," land types defined in the surface input file. The standard land type is defined by line ",landtype_0
+          print "(a,i2,a,i2)","There are ",defined_landtypes,&
+          " land types defined in the surface input file. The standard land type is defined by line ",landtype_0
         endif
       endif
 
@@ -611,7 +613,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, rslabs, pi, pref0, rd, rv, eps1!, boltz, rhow
+    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rk3step,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -653,9 +655,12 @@ contains
         enddo
       enddo
 
-      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches),Supatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches),Svpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches),Supatch(1:xpatches,1:ypatches),&
+      xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches),Svpatch(1:xpatches,1:ypatches),&
+      xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),&
+      xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
           
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
@@ -683,7 +688,8 @@ contains
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
           Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
-          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
+          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
 
           if(lmostlocal) then
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -869,7 +875,8 @@ contains
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
             else
               if(lhetero) then
-                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j))&
+                + psim(z0m(i,j) / obl(i,j)))
               else
                 ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
               endif
@@ -919,7 +926,8 @@ contains
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
           dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
 
-          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+          Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
+          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
           if(lhetero) then
             tskin(i,j) = wt_patch(patchx,patchy) / (Cs(i,j) * horv) + thl0(i,j,1)
@@ -946,9 +954,12 @@ contains
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then
-        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches),  qts_patch(1:xpatches,1:ypatches),  xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
+        xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches),  qts_patch(1:xpatches,1:ypatches),&
+        xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches),&
+        xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
         thls_patch = thls_patch / SNpatch
         qts_patch  = qts_patch  / SNpatch
         thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
@@ -1026,8 +1037,10 @@ contains
             Npatch(patchx,patchy)     = Npatch(patchx,patchy)     + 1
           enddo
         enddo  
-        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  , xpatches*ypatches,MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches),&
+        xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  ,&
+        xpatches*ypatches,MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
         qts_patch = qts_patch / SNpatch
         thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
       endif
@@ -1051,7 +1064,8 @@ contains
     real                :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
     real                :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
     integer             :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
-    real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches), lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
+    real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches),&
+                           lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
     real                :: loblpatch(xpatches,ypatches) 
 
     if(lmostlocal) then
@@ -1086,11 +1100,15 @@ contains
           do while (.true.)
             iter    = iter + 1
             Lold    = L
-            fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
+            fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) /&
+            (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
             Lstart  = L - 0.001*L
             Lend    = L + 0.001*L
-            fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend) + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
-            L       = L - fx / fxdif
+            fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) /&
+            (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * &
+            (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
+            + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
+            L = L - fx / fxdif
             if(Rib * L < 0. .or. abs(L) == 1e5) then
               if(Rib > 0) L = 0.01
               if(Rib < 0) L = -0.01
@@ -1127,12 +1145,18 @@ contains
         enddo
       enddo
 
-      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches)   ,Supatch(1:xpatches,1:ypatches) ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches)   ,Svpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)   ,SNpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(lthlpatch(1:xpatches,1:ypatches),thlpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(lqpatch(1:xpatches,1:ypatches)  ,qpatch(1:xpatches,1:ypatches)  ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches)   ,Supatch(1:xpatches,1:ypatches) ,xpatches*ypatches,&
+      MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches)   ,Svpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,&
+      MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)   ,SNpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,&
+      MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lthlpatch(1:xpatches,1:ypatches),thlpatch(1:xpatches,1:ypatches),xpatches*ypatches,&
+      MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lqpatch(1:xpatches,1:ypatches)  ,qpatch(1:xpatches,1:ypatches)  ,xpatches*ypatches,&
+      MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,&
+      MY_REAL,MPI_SUM, comm3d,mpierr)
           
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
@@ -1145,7 +1169,8 @@ contains
 
       do patchy = 1, ypatches
         do patchx = 1, xpatches
-          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2.)
+          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) *&
+          (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2.)
           iter = 0
           L = oblpatch(patchx,patchy)
 
@@ -1157,10 +1182,17 @@ contains
           do while (.true.)
             iter    = iter + 1
             Lold    = L
-            fx      = Rib - zf(1) / L * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / L) + psih(z0hav_patch(patchx,patchy) / L)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / L) + psim(z0mav_patch(patchx,patchy) / L)) ** 2.
+            fx      = Rib - zf(1) / L * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / L) +&
+            psih(z0hav_patch(patchx,patchy) / L)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / L) &
+            + psim(z0mav_patch(patchx,patchy) / L)) ** 2.
             Lstart  = L - 0.001*L
             Lend    = L + 0.001*L
-            fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / Lstart) + psih(z0hav_patch(patchx,patchy) / Lstart)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lstart) + psim(z0mav_patch(patchx,patchy) / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / Lend) + psih(z0hav_patch(patchx,patchy) / Lend)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lend) + psim(z0mav_patch(patchx,patchy) / Lend)) ** 2.) ) / (Lstart - Lend)
+            fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / Lstart) +&
+            psih(z0hav_patch(patchx,patchy) / Lstart)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lstart) + &
+            psim(z0mav_patch(patchx,patchy) / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav_patch(patchx,patchy)) &
+            - psih(zf(1) / Lend) + psih(z0hav_patch(patchx,patchy) / Lend)) / &
+            (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lend) + psim(z0mav_patch(patchx,patchy) / Lend)) ** 2.) )&
+            / (Lstart - Lend)
             L       = L - fx / fxdif
             if(Rib * L < 0. .or. abs(L) == 1e5) then
               if(Rib > 0) L = 0.01
@@ -1201,10 +1233,14 @@ contains
     do while (.true.)
       iter    = iter + 1
       Lold    = L
-      fx      = Rib - zf(1) / L * (log(zf(1) / z0hav) - psih(zf(1) / L) + psih(z0hav / L)) / (log(zf(1) / z0mav) - psim(zf(1) / L) + psim(z0mav / L)) ** 2.
+      fx      = Rib - zf(1) / L * (log(zf(1) / z0hav) - psih(zf(1) / L) + psih(z0hav / L)) /&
+      (log(zf(1) / z0mav) - psim(zf(1) / L) + psim(z0mav / L)) ** 2.
       Lstart  = L - 0.001*L
       Lend    = L + 0.001*L
-      fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav) - psih(zf(1) / Lstart) + psih(z0hav / Lstart)) / (log(zf(1) / z0mav) - psim(zf(1) / Lstart) + psim(z0mav / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav) - psih(zf(1) / Lend) + psih(z0hav / Lend)) / (log(zf(1) / z0mav) - psim(zf(1) / Lend) + psim(z0mav / Lend)) ** 2.) ) / (Lstart - Lend)
+      fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav) - psih(zf(1) / Lstart) + psih(z0hav / Lstart)) /&
+      (log(zf(1) / z0mav) - psim(zf(1) / Lstart) + psim(z0mav / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav) &
+      - psih(zf(1) / Lend) + psih(z0hav / Lend)) / (log(zf(1) / z0mav) - psim(zf(1) / Lend) &
+      + psim(z0mav / Lend)) ** 2.) ) / (Lstart - Lend)
       L       = L - fx / fxdif
       if(Rib * L < 0. .or. abs(L) == 1e5) then
         if(Rib > 0) L = 0.01
@@ -1628,7 +1664,8 @@ contains
 
         rk3coef = rdt / (4. - dble(rk3step))
 
-        Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE * (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
+        Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
+        (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
         Bcoef   = 4. * boltz * tsurfm ** 3. + fH + fLE * dqsatdT + lambdaskin(i,j)
 
         if (Cskin(i,j) == 0.) then
@@ -1699,27 +1736,37 @@ contains
         lambdash(i,j,ksoilmax) = lambdas(i,j,ksoilmax)
 
         ! 1.4   -   Solve the diffusion equation for the heat transport
-        tsoil(i,j,1) = tsoilm(i,j,1) + rk3coef / pCs(i,j,1) * ( lambdah(i,j,1) * (tsoil(i,j,2) - tsoil(i,j,1)) / dzsoilh(1) + G0(i,j) ) / dzsoil(1)
+        tsoil(i,j,1) = tsoilm(i,j,1) + rk3coef / pCs(i,j,1) * ( lambdah(i,j,1) &
+        * (tsoil(i,j,2) - tsoil(i,j,1)) / dzsoilh(1) + G0(i,j) ) / dzsoil(1)
         do k = 2, ksoilmax-1
-          tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef / pCs(i,j,k) * ( lambdah(i,j,k) * (tsoil(i,j,k+1) - tsoil(i,j,k)) / dzsoilh(k) - lambdah(i,j,k-1) * (tsoil(i,j,k) - tsoil(i,j,k-1)) / dzsoilh(k-1) ) / dzsoil(k)
+          tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef / pCs(i,j,k) * ( lambdah(i,j,k) * (tsoil(i,j,k+1) - tsoil(i,j,k))&
+          / dzsoilh(k) - lambdah(i,j,k-1) * (tsoil(i,j,k) - tsoil(i,j,k-1)) / dzsoilh(k-1) ) / dzsoil(k)
         end do
-        tsoil(i,j,ksoilmax) = tsoilm(i,j,ksoilmax) + rk3coef / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * (tsoildeep(i,j) - tsoil(i,j,ksoilmax)) / dzsoil(ksoilmax) - lambdah(i,j,ksoilmax-1) * (tsoil(i,j,ksoilmax) - tsoil(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) ) / dzsoil(ksoilmax)
-
+        tsoil(i,j,ksoilmax) = tsoilm(i,j,ksoilmax) + rk3coef / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * &
+        (tsoildeep(i,j) - tsoil(i,j,ksoilmax)) / dzsoil(ksoilmax) - lambdah(i,j,ksoilmax-1) * &
+        (tsoil(i,j,ksoilmax) - tsoil(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) ) / dzsoil(ksoilmax)
         ! 1.5   -   Solve the diffusion equation for the moisture transport
-        phiw(i,j,1) = phiwm(i,j,1) + rk3coef * ( lambdash(i,j,1) * (phiw(i,j,2) - phiw(i,j,1)) / dzsoilh(1) - gammash(i,j,1) - (phifrac(i,j,1) * LEveg + LEsoil) / (rhow*rlv)) / dzsoil(1)
+        phiw(i,j,1) = phiwm(i,j,1) + rk3coef * ( lambdash(i,j,1) * (phiw(i,j,2) - phiw(i,j,1)) / &
+        dzsoilh(1) - gammash(i,j,1) - (phifrac(i,j,1) * LEveg + LEsoil) / (rhow*rlv)) / dzsoil(1)
         do k = 2, ksoilmax-1
-          phiw(i,j,k) = phiwm(i,j,k) + rk3coef * ( lambdash(i,j,k) * (phiw(i,j,k+1) - phiw(i,j,k)) / dzsoilh(k) - gammash(i,j,k) - lambdash(i,j,k-1) * (phiw(i,j,k) - phiw(i,j,k-1)) / dzsoilh(k-1) + gammash(i,j,k-1) - (phifrac(i,j,k) * LEveg) / (rhow*rlv)) / dzsoil(k)
+          phiw(i,j,k) = phiwm(i,j,k) + rk3coef * ( lambdash(i,j,k) * (phiw(i,j,k+1) - phiw(i,j,k)) / &
+          dzsoilh(k) - gammash(i,j,k) - lambdash(i,j,k-1) * (phiw(i,j,k) - phiw(i,j,k-1)) / dzsoilh(k-1) + &
+          gammash(i,j,k-1) - (phifrac(i,j,k) * LEveg) / (rhow*rlv)) / dzsoil(k)
         end do
         ! closed bottom for now
-        phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rk3coef * (- lambdash(i,j,ksoilmax-1) * (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
+        phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rk3coef * (- lambdash(i,j,ksoilmax-1) * &
+        (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) & 
+        - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do
     end do
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
     thls = thls / rslabs
     if (lhetero) then
-      call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
+      xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   ,&
+      xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
       thls_patch = thls_patch / SNpatch
     endif
 

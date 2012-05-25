@@ -117,8 +117,8 @@ contains
 
 !>Run crosssection.
   subroutine docape
-    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,nsv,&
-    ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
+    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,&
+    nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wthvtmnlast
@@ -126,8 +126,10 @@ contains
     use modmpi
     implicit none
 
-    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
-    thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
+    real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
+    cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
+    thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),&
+    cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)

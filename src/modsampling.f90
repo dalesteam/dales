@@ -227,38 +227,70 @@ contains
         call define_nc(ncid,1,tncname)
         call writestat_dims_nc(ncid)
         do isamp=1,isamptot
-          call ncinfo(ncname( 1,:,isamp),'nrsamp'//samplname(isamp),trim(longsamplname(isamp))//' '//'number of points','-','tt')
-          call ncinfo(ncname( 2,:,isamp),'w'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean vertical velocity','m/s','mt')
-          call ncinfo(ncname( 3,:,isamp),'thl'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean liquid water potential temperature','K','tt')
-          call ncinfo(ncname( 4,:,isamp),'qt'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean total water content','kg/kg','tt')
-          call ncinfo(ncname( 5,:,isamp),'ql'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean liquid water content','kg/kg','tt')
-          call ncinfo(ncname( 6,:,isamp),'thv'//samplname(isamp),trim(longsamplname(isamp))//' '//'mean virtual potential temperature','K','tt')
-          call ncinfo(ncname( 7,:,isamp),'massflx'//samplname(isamp),trim(longsamplname(isamp))//' '//'mass flux','m^3/s','mt')
-          call ncinfo(ncname( 8,:,isamp),'wthl'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_l flux','K m/s','mt')
-          call ncinfo(ncname( 9,:,isamp),'wqt'//samplname(isamp),trim(longsamplname(isamp))//' '//'total water flux','kg/kg m/s','mt')
-          call ncinfo(ncname(10,:,isamp),'wql'//samplname(isamp),trim(longsamplname(isamp))//' '//'liquid water flux','kg/kg m/s','mt')
-          call ncinfo(ncname(11,:,isamp),'wthv'//samplname(isamp),trim(longsamplname(isamp))//' '//'theta_v flux','K m/s','mt')
-          call ncinfo(ncname(12,:,isamp),'uw'//samplname(isamp),trim(longsamplname(isamp))//' '//'uw flux','m^2/s^2','mt')
-          call ncinfo(ncname(13,:,isamp),'vw'//samplname(isamp),trim(longsamplname(isamp))//' '//'vw flux','m^2/s^2','mt')
-          call ncinfo(ncname(14,:,isamp),'nrsamph'//samplname(isamp),trim(longsamplname(isamp))//' '//'number of points at halflevel','-','mt')
-          call ncinfo(ncname(15,:,isamp),'pf'//samplname(isamp),trim(longsamplname(isamp))//' '// 'pressure','kg/m/s^2','tt')
-          call ncinfo(ncname(16,:,isamp),'wwrh'//samplname(isamp),trim(longsamplname(isamp))//' '//'ww res flux','m^2/s^2','mt')
-          call ncinfo(ncname(17,:,isamp),'wwsf'//samplname(isamp),trim(longsamplname(isamp))//' '//'ww sub flux','m^2/s^2','mt')
-          call ncinfo(ncname(18,:,isamp),'dwdth'//samplname(isamp),trim(longsamplname(isamp))//' '//'dwdt at sampled point','m/s^2','mt')
-          call ncinfo(ncname(19,:,isamp),'buoyh'//samplname(isamp),trim(longsamplname(isamp))//' '//'buoyancy force','m/s^2','mt')
-          call ncinfo(ncname(20,:,isamp),'dpdzh'//samplname(isamp),trim(longsamplname(isamp))//' '//'vertical pressure force','m/s^2','mt')
-          call ncinfo(ncname(21,:,isamp),'dwwdzh'//samplname(isamp),trim(longsamplname(isamp))//' '//'resolved vertical w advection','m/s^2','mt')
-          call ncinfo(ncname(22,:,isamp),'duwdxh'//samplname(isamp),trim(longsamplname(isamp))//' '//'resolved horizontal w advection','m/s^2','mt')
-          call ncinfo(ncname(23,:,isamp),'dtaudzh'//samplname(isamp),trim(longsamplname(isamp))//' '//'sg vertical w advection','m/s^2','mt')
-          call ncinfo(ncname(24,:,isamp),'dtaudxh'//samplname(isamp),trim(longsamplname(isamp))//' '//'sg horizontal w advection','m/s^2','mt')
-          call ncinfo(ncname(25,:,isamp),'fcorh'//samplname(isamp),trim(longsamplname(isamp))//' '//'coriolis force on w','m/s^2','mt')
-          call ncinfo(ncname(26,:,isamp),'resid'//samplname(isamp),trim(longsamplname(isamp))//' '//'residual term in sampled budget eqn','m/s^2','mt')
-          call ncinfo(ncname(27,:,isamp),'whend'//samplname(isamp),trim(longsamplname(isamp))//' '//'ws at end of sampling period','m/s','mt')
-          call ncinfo(ncname(28,:,isamp),'sighend'//samplname(isamp),trim(longsamplname(isamp))//' '//'sigma at end of period','-','mt')
-          call ncinfo(ncname(29,:,isamp),'qrsamp'//samplname(isamp),trim(longsamplname(isamp))//' '//'sampled qr','kg/kg','tt')
-          call ncinfo(ncname(30,:,isamp),'wadvhavl'//samplname(isamp),trim(longsamplname(isamp))//' '//'instantaneous d/dz (w_s)^2','m/s^2','mt')
-          call ncinfo(ncname(31,:,isamp),'subphavl'//samplname(isamp),trim(longsamplname(isamp))//' '//'subplume term in ww budget','m/s^2','mt')
-          call ncinfo(ncname(32,:,isamp),'nrtsamphav'//samplname(isamp),trim(longsamplname(isamp))//' '//'sampling fraction for gradients','-','mt')
+          call ncinfo(ncname( 1,:,isamp),'nrsamp'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'number of points','-','tt')
+          call ncinfo(ncname( 2,:,isamp),'w'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean vertical velocity','m/s','mt')
+          call ncinfo(ncname( 3,:,isamp),'thl'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean liquid water potential temperature','K','tt')
+          call ncinfo(ncname( 4,:,isamp),'qt'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean total water content','kg/kg','tt')
+          call ncinfo(ncname( 5,:,isamp),'ql'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean liquid water content','kg/kg','tt')
+          call ncinfo(ncname( 6,:,isamp),'thv'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean virtual potential temperature','K','tt')
+          call ncinfo(ncname( 7,:,isamp),'massflx'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mass flux','m^3/s','mt')
+          call ncinfo(ncname( 8,:,isamp),'wthl'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'theta_l flux','K m/s','mt')
+          call ncinfo(ncname( 9,:,isamp),'wqt'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'total water flux','kg/kg m/s','mt')
+          call ncinfo(ncname(10,:,isamp),'wql'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'liquid water flux','kg/kg m/s','mt')
+          call ncinfo(ncname(11,:,isamp),'wthv'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'theta_v flux','K m/s','mt')
+          call ncinfo(ncname(12,:,isamp),'uw'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'uw flux','m^2/s^2','mt')
+          call ncinfo(ncname(13,:,isamp),'vw'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'vw flux','m^2/s^2','mt')
+          call ncinfo(ncname(14,:,isamp),'nrsamph'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'number of points at halflevel','-','mt')
+          call ncinfo(ncname(15,:,isamp),'pf'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '// 'pressure','kg/m/s^2','tt')
+          call ncinfo(ncname(16,:,isamp),'wwrh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'ww res flux','m^2/s^2','mt')
+          call ncinfo(ncname(17,:,isamp),'wwsf'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'ww sub flux','m^2/s^2','mt')
+          call ncinfo(ncname(18,:,isamp),'dwdth'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'dwdt at sampled point','m/s^2','mt')
+          call ncinfo(ncname(19,:,isamp),'buoyh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'buoyancy force','m/s^2','mt')
+          call ncinfo(ncname(20,:,isamp),'dpdzh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'vertical pressure force','m/s^2','mt')
+          call ncinfo(ncname(21,:,isamp),'dwwdzh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'resolved vertical w advection','m/s^2','mt')
+          call ncinfo(ncname(22,:,isamp),'duwdxh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'resolved horizontal w advection','m/s^2','mt')
+          call ncinfo(ncname(23,:,isamp),'dtaudzh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'sg vertical w advection','m/s^2','mt')
+          call ncinfo(ncname(24,:,isamp),'dtaudxh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'sg horizontal w advection','m/s^2','mt')
+          call ncinfo(ncname(25,:,isamp),'fcorh'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'coriolis force on w','m/s^2','mt')
+          call ncinfo(ncname(26,:,isamp),'resid'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'residual term in sampled budget eqn','m/s^2','mt')
+          call ncinfo(ncname(27,:,isamp),'whend'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'ws at end of sampling period','m/s','mt')
+          call ncinfo(ncname(28,:,isamp),'sighend'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'sigma at end of period','-','mt')
+          call ncinfo(ncname(29,:,isamp),'qrsamp'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'sampled qr','kg/kg','tt')
+          call ncinfo(ncname(30,:,isamp),'wadvhavl'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'instantaneous d/dz (w_s)^2','m/s^2','mt')
+          call ncinfo(ncname(31,:,isamp),'subphavl'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'subplume term in ww budget','m/s^2','mt')
+          call ncinfo(ncname(32,:,isamp),'nrtsamphav'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'sampling fraction for gradients','-','mt')
           call define_nc( ncid, NVar, ncname(:,:,isamp))
         end do
      end if

@@ -67,7 +67,8 @@ subroutine tstep_update
         courtotl=0.
         peclettotl=0.
         do k=1,kmax
-          courtotl=max(courtotl,maxval(abs(um(2:i1,2:j1,k)/dx))*rdt,maxval(abs(vm(2:i1,2:j1,k)/dy))*rdt,maxval(abs(wm(2:i1,2:j1,k)/dzh(k)))*rdt)
+          courtotl=max(courtotl,maxval(abs(um(2:i1,2:j1,k)/dx))*rdt,maxval(abs(vm(2:i1,2:j1,k)/dy))*rdt,&
+          maxval(abs(wm(2:i1,2:j1,k)/dzh(k)))*rdt)
           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(courtotl,courtot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
@@ -99,7 +100,8 @@ subroutine tstep_update
         courtotl=0
         peclettotl = 1e-5
         do k=1,kmax
-          courtotl=max(courtotl,sqrt(maxval(abs(um(2:i1,2:j1,k)/dx))**2+maxval(abs(vm(2:i1,2:j1,k)/dy))**2+maxval(abs(wm(2:i1,2:j1,k)/dzh(k)))**2)*rdt)
+          courtotl=max(courtotl,sqrt(maxval(abs(um(2:i1,2:j1,k)/dx))**2+maxval(abs(vm(2:i1,2:j1,k)/dy))**2&
+          +maxval(abs(wm(2:i1,2:j1,k)/dzh(k)))**2)*rdt)
           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(courtotl,courtot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
