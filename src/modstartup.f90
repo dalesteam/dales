@@ -330,6 +330,8 @@ contains
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
+    use modtimestat,       only : zi
+
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
@@ -596,6 +598,13 @@ contains
               thlpcar(k)
       end do
       close(ifinput)
+      
+      do k=1,kmax
+        if(height(k) > zi) then
+           thlpcar(k) = 0.0
+        end if
+      end do	
+
 
       do k=kmax,1,-1
         write (6,'(3f7.1,5e12.4)') &

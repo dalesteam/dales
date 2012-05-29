@@ -92,7 +92,7 @@ program DALES      !Version 3.2.0
   !use modheterostats,  only : initheterostats, heterostats, exitheterostats
 
   ! modules below are disabled by default to improve compilation time
-  !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
+  use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
 
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
@@ -131,7 +131,7 @@ program DALES      !Version 3.2.0
   !call initnudge
   call initbulkmicrostat
   call initbudget
-  !call initstressbudget
+  call initstressbudget
   !call initchem
   !call initheterostats
 
@@ -207,7 +207,7 @@ program DALES      !Version 3.2.0
 
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-    call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+    call genstat  !Genstat must preceed all other statistics that could write in the same netCDF			b file (unless stated otherwise
     call radstat
     call lsmstat
     call sampling
@@ -219,7 +219,7 @@ program DALES      !Version 3.2.0
 
     call bulkmicrostat
     call budgetstat
-    !call stressbudgetstat
+    call stressbudgetstat
 
     !call heterostats
     call writerestartfiles
@@ -242,7 +242,7 @@ program DALES      !Version 3.2.0
   call exitstattend
   call exitbulkmicrostat
   call exitbudget
-  !call exitstressbudget
+  call exitstressbudget
   call exitcrosssection
   call exitlsmcrosssection
   call exitfielddump

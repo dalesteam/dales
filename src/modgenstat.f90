@@ -1360,7 +1360,7 @@ contains
       write (ifoutput,'(A/A/A/3A/4A/2A)') &
             '#(------------------------------------------------------------)' &
           ,'#                                                             ' &
-          ,'                                      TURBULENT FLUXES        ' &
+          ,'#                                     TURBULENT FLUXES        ' &
           ,'#LEV HEIGHT  PRES  |    UW_TOT      VW_TOT       UW_SGS   ' &
           ,'   VW_SGS       UW_RES       VW_RES ' &
           ,'      WTH_TOT       WQ_L       WTHV_SUB     WTHV_RES     WTHV_TOT' &

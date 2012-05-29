@@ -291,11 +291,11 @@ contains
       vars(:,:,6) = qtm(2:i1,crossplane,1:kmax)
       vars(:,:,7) = ql0(2:i1,crossplane,1:kmax)
       vars(:,:,8) = buoy(2:i1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,crossplane,1:kmax,2)
-      else 
-      vars(:,:,9) = 0.
-      end if
+      !if(nsv>1) then
+      vars(:,:,9) = svm(2:i1,crossplane,1:kmax,1)
+      !else 
+      !vars(:,:,9) = 0.
+      !end if
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
       call writestat_nc(ncid1,9,ncname1(1:9,:),vars,nrec1,imax,kmax)
       deallocate(vars)
@@ -388,11 +388,11 @@ contains
       vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
       vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
       vars(:,:,8) = buoy(2:i1,2:j1,cross)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),2)
-      else 
-      vars(:,:,9) = 0.
-      end if
+ !     if(nsv>1) then
+      vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),1)
+ !     else 
+ !     vars(:,:,9) = 0.
+ !     end if
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
       call writestat_nc(ncid2(cross),9,ncname2(1:9,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
@@ -479,11 +479,11 @@ contains
       vars(:,:,6) = qtm(crossortho,2:j1,1:kmax)
       vars(:,:,7) = ql0(crossortho,2:j1,1:kmax)
       vars(:,:,8) = buoy(2:j1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(crossortho,2:j1,1:kmax,2)
-      else 
-      vars(:,:,9) = 0.
-      end if
+!      if(nsv>1) then
+      vars(:,:,9) = svm(crossortho,2:j1,1:kmax,1)
+!      else 
+!      vars(:,:,9) = 0.
+!      end if
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
       call writestat_nc(ncid3,9,ncname3(1:9,:),vars,nrec3,jmax,kmax)
       deallocate(vars)
