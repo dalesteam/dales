@@ -2023,6 +2023,9 @@ contains
              ww(k) = wz(j0,ib)
              gg    = gz(j0,ib)
           end if
+          if(tw(k)<0.0) then
+             tw(k)=0.0
+          endif
           www(k,1) = 3.0 * gg
           do j=2,4
              wght = real(2*j+1)/real(2*j-1)
