@@ -64,7 +64,16 @@ save
   real, allocatable :: drhobdzf(:)       !<   Base state density, derivative at full level
   real, allocatable :: drhobdzh(:)       !<   Base state density, derivative at half level
 
-  ! Diagnostic variables
+  ! Cloud edge variables
+  real, allocatable :: cloudarea(:,:,:)
+  real, allocatable :: cloudnr(:,:,:)
+  real, allocatable :: distcld(:,:,:)
+  real, allocatable :: distcr(:,:,:)
+  real, allocatable :: distqr(:,:)
+  real, allocatable :: distdiv(:,:)
+  real, allocatable :: distcon(:,:)
+  real, allocatable :: distbuoy(:,:)
+  real, allocatable :: distw(:,:)
 
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
   real, allocatable :: tmp0(:,:,:) !<   temperature at full level
@@ -149,6 +158,16 @@ subroutine initfields
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
 
+    allocate(cloudarea(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distbuoy(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distw(2-ih:i1+ih,2-jh:j1+jh))
+
     ! Allocation of base state variables
     allocate(rhobf(k1))
     allocate(rhobh(k1))
@@ -219,6 +238,8 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
 
+    cloudarea=0.;cloudnr=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
+
   end subroutine initfields
 
 !> Deallocate the fields
@@ -234,6 +255,8 @@ subroutine initfields
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
+    deallocate(cloudarea,cloudnr,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
+
    end subroutine exitfields
 
 end module modfields
