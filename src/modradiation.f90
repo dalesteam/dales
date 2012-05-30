@@ -162,7 +162,7 @@ contains
 subroutine radpar
 
   use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,rslabs,xtime,rtimee,xday,xlat,xlon
-  use modfields,    only : ql0, sv0, rhof
+  use modfields,    only : ql0, sv0, rhof,exnf
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
   real, allocatable :: tau(:)
@@ -216,8 +216,8 @@ subroutine radpar
       end do
 
        do k=1,kmax
-         thlpld         = -(lwd(i,j,k+1)-lwd(i,j,k))/(rhof(k)*cp*dzf(k))
-         thlplu         = -(lwu(i,j,k+1)-lwu(i,j,k))/(rhof(k)*cp*dzf(k))
+         thlpld         = -(lwd(i,j,k+1)-lwd(i,j,k))*exnf(k)/(rhof(k)*cp*dzf(k))
+         thlplu         = -(lwu(i,j,k+1)-lwu(i,j,k))*exnf(k)/(rhof(k)*cp*dzf(k))
          thlprad(i,j,k) =   thlprad(i,j,k) + thlpld+thlplu
        end do
 
@@ -251,7 +251,7 @@ subroutine radpar
       end if
 
       do k=1,kmax
-        thlpsw          = (swd(i,j,k+1)-swd(i,j,k))/(rhof(k)*cp*dzf(k))
+        thlpsw          = (swd(i,j,k+1)-swd(i,j,k))*exnf(k)/(rhof(k)*cp*dzf(k))
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
 
       end do
