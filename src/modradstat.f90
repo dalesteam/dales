@@ -46,9 +46,9 @@ save
 !     ------
 
 !   --------------
-  real, allocatable :: tltendav(:)
-  real, allocatable :: tllwtendav(:)
-  real, allocatable :: tlswtendav(:)
+  real, allocatable :: thltendav(:)
+  real, allocatable :: thllwtendav(:)
+  real, allocatable :: thlswtendav(:)
   real, allocatable :: lwuav(:)
   real, allocatable :: lwdav(:)
   real, allocatable :: swdav(:)
@@ -59,9 +59,9 @@ save
   real, allocatable :: swucaav(:)
 
 !
-  real, allocatable :: tltendmn(:)
-  real, allocatable :: tllwtendmn(:)
-  real, allocatable :: tlswtendmn(:)
+  real, allocatable :: thltendmn(:)
+  real, allocatable :: thllwtendmn(:)
+  real, allocatable :: thlswtendmn(:)
   real, allocatable :: lwumn(:)
   real, allocatable :: lwdmn(:)
   real, allocatable :: swdmn(:)
@@ -70,7 +70,7 @@ save
   real, allocatable :: lwdcamn(:)
   real, allocatable :: swdcamn(:)
   real, allocatable :: swucamn(:)
-  real, allocatable :: tlradlsmn(:)
+  real, allocatable :: thlradlsmn(:)
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -132,9 +132,9 @@ contains
     allocate(lwdcaav(k1))
     allocate(swdcaav(k1))
     allocate(swucaav(k1))
-    allocate(tllwtendav(k1))
-    allocate(tltendav(k1))
-    allocate(tlswtendav(k1))
+    allocate(thllwtendav(k1))
+    allocate(thltendav(k1))
+    allocate(thlswtendav(k1))
 
     allocate(lwumn(k1))
     allocate(lwdmn(k1))
@@ -144,10 +144,10 @@ contains
     allocate(lwdcamn(k1))
     allocate(swdcamn(k1))
     allocate(swucamn(k1))
-    allocate(tllwtendmn(k1))
-    allocate(tltendmn(k1))
-    allocate(tlswtendmn(k1))
-    allocate(tlradlsmn(k1))
+    allocate(thllwtendmn(k1))
+    allocate(thltendmn(k1))
+    allocate(thlswtendmn(k1))
+    allocate(thlradlsmn(k1))
 
     lwumn = 0.0
     lwdmn = 0.0
@@ -157,10 +157,10 @@ contains
     lwdcamn = 0.0
     swdcamn = 0.0
     swucamn = 0.0
-    tltendmn = 0.0
-    tllwtendmn = 0.0
-    tlswtendmn = 0.0
-    tlradlsmn  = 0.0
+    thltendmn = 0.0
+    thllwtendmn = 0.0
+    thlswtendmn = 0.0
+    thlradlsmn  = 0.0
 
     if(myid==0)then
       open (ifoutput,file='radstat.'//cexpnr,status='replace')
@@ -174,10 +174,10 @@ contains
       nsamples = itimeav/idtav
 
       if (myid==0) then
-        call ncinfo(ncname( 1,:),'tltend','Total radiative tendency','K/s','tt')
-        call ncinfo(ncname( 2,:),'tllwtend','Long wave radiative tendency','K/s','tt')
-        call ncinfo(ncname( 3,:),'tlswtend','Short wave radiative tendency','K/s','tt')
-        call ncinfo(ncname( 4,:),'tlradls','Large scale radiative tendency','K/s','tt')
+        call ncinfo(ncname( 1,:),'thltend','Total radiative tendency','K/s','tt')
+        call ncinfo(ncname( 2,:),'thllwtend','Long wave radiative tendency','K/s','tt')
+        call ncinfo(ncname( 3,:),'thlswtend','Short wave radiative tendency','K/s','tt')
+        call ncinfo(ncname( 4,:),'thlradls','Large scale radiative tendency','K/s','tt')
         call ncinfo(ncname( 5,:),'lwu','Long wave upward radiative flux','W/m^2','mt')
         call ncinfo(ncname( 6,:),'lwd','Long wave downward radiative flux','W/m^2','mt')
         call ncinfo(ncname( 7,:),'swu','Short wave upward radiative flux','W/m^2','mt')
@@ -221,7 +221,7 @@ contains
 
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,rslabs,cp,dzf,i1,j1,k1,ih,jh
-    use modfields, only : thlpcar,rhof
+    use modfields, only : thlpcar,rhof,exnf
     use modraddata, only : lwd,lwu,swd,swu,thlprad
 
     implicit none
@@ -231,19 +231,19 @@ contains
     lwuav  = 0.
     swdav  = 0.
     swuav  = 0.
-    tltendav = 0.
-    tllwtendav = 0.
-    tlswtendav = 0.
-    tltendav = 0.
+    thltendav = 0.
+    thllwtendav = 0.
+    thlswtendav = 0.
+    thltendav = 0.
 
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(tltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     do k=1,kmax
-      tllwtendav(k) = -(lwdav(k+1)-lwdav(k)+lwuav(k+1)-lwuav(k))/(rhof(k)*cp*dzf(k))
-      tlswtendav(k) = -(swdav(k+1)-swdav(k)+swuav(k+1)-swuav(k))/(rhof(k)*cp*dzf(k))
+      thllwtendav(k) = -(lwdav(k+1)-lwdav(k)+lwuav(k+1)-lwuav(k))*exnf(k)/(rhof(k)*cp*dzf(k))
+      thlswtendav(k) = -(swdav(k+1)-swdav(k)+swuav(k+1)-swuav(k))*exnf(k)/(rhof(k)*cp*dzf(k))
     end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
@@ -252,10 +252,10 @@ contains
     lwdmn = lwdmn + lwdav/rslabs
     swdmn = swdmn + swdav/rslabs
     swumn = swumn + swuav/rslabs
-    tltendmn = tltendmn + tltendav/rslabs
-    tllwtendmn = tllwtendmn + tllwtendav/rslabs
-    tlswtendmn = tlswtendmn + tlswtendav/rslabs
-    tlradlsmn  = tlradlsmn  + thlpcar
+    thltendmn = thltendmn + thltendav/rslabs
+    thllwtendmn = thllwtendmn + thllwtendav/rslabs
+    thlswtendmn = thlswtendmn + thlswtendav/rslabs
+    thlradlsmn  = thlradlsmn  + thlpcar
 
     if (lradclearair) call radclearair
   end subroutine do_radstat
@@ -350,10 +350,10 @@ contains
       lwdcamn   = lwdcamn    /nsamples
       swdcamn   = swdcamn    /nsamples
       swucamn   = swucamn    /nsamples
-      tllwtendmn = tllwtendmn /nsamples
-      tlswtendmn = tlswtendmn /nsamples
-      tlradlsmn  = tlradlsmn  /nsamples
-      tltendmn   = tltendmn   /nsamples
+      thllwtendmn = thllwtendmn /nsamples
+      thlswtendmn = thlswtendmn /nsamples
+      thlradlsmn  = thlradlsmn  /nsamples
+      thltendmn   = thltendmn   /nsamples
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -378,10 +378,10 @@ contains
             lwdmn(k),&
             swumn(k),&
             swdmn(k),&
-            tllwtendmn(k)*3600,&
-            tlswtendmn(k)*3600,&
-            tlradlsmn(k) *3600,&
-            tltendmn(k)  *3600,&
+            thllwtendmn(k)*3600,&
+            thlswtendmn(k)*3600,&
+            thlradlsmn(k) *3600,&
+            thltendmn(k)  *3600,&
             lwucamn(k),&
             lwdcamn(k),&
             swucamn(k),&
@@ -389,10 +389,10 @@ contains
       end do
       close (ifoutput)
       if (lnetcdf) then
-        vars(:, 1) = tltendmn
-        vars(:, 2) = tllwtendmn
-        vars(:, 3) = tlswtendmn
-        vars(:, 4) = tlradlsmn
+        vars(:, 1) = thltendmn
+        vars(:, 2) = thllwtendmn
+        vars(:, 3) = thlswtendmn
+        vars(:, 4) = thlradlsmn
         vars(:, 5) = lwumn
         vars(:, 6) = lwdmn
         vars(:, 7) = swumn
@@ -413,10 +413,10 @@ contains
     lwdcamn = 0.0
     swdcamn = 0.0
     swucamn = 0.0
-    tllwtendmn = 0.0
-    tlswtendmn = 0.0
-    tlradlsmn  = 0.0
-    tltendmn  = 0.0
+    thllwtendmn = 0.0
+    thlswtendmn = 0.0
+    thlradlsmn  = 0.0
+    thltendmn  = 0.0
 
 
   end subroutine writeradstat
@@ -430,9 +430,9 @@ contains
     if(.not.(lstat)) return
 
     deallocate(lwuav,lwdav,swdav,swuav)
-    deallocate(tllwtendav,tlswtendav)
+    deallocate(thllwtendav,thlswtendav)
     deallocate(lwumn,lwdmn,swdmn,swumn)
-    deallocate(tllwtendmn,tlswtendmn,tlradlsmn)
+    deallocate(thllwtendmn,thlswtendmn,thlradlsmn)
 
 
 
