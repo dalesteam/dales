@@ -1164,7 +1164,7 @@ contains
          ! Solver expects cumulative optical depth
          !
          do k = 2, nv
-           tau(k) = tau(k) + tau(k - 1)
+           tau(k) = max(0.0,tau(k)) + max(tau(k - 1),0.0)
          end do
          call qft (.False., ee, 0., 0., bf, tau, w, pf(:, 1), pf(:, 2),      &
               pf(:, 3), pf(:, 4), fu1, fd1)
