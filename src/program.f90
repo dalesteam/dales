@@ -12,11 +12,11 @@
 !! Steef Boing
 !! (TU Delft)
 !! \author
-!! Chiel van Heerwaarden
+!! Huug Ouwersloot
 !! (Wageningen University)
 !! \author
-!! Thijs Heus
-!! (Max Planck Institute Hamburg)
+!! Johan van der Dussen
+!! (TU Delft)
 !! \author
 !! Steef B\"oing
 !! (TU Delft)
@@ -26,52 +26,51 @@
 !! \par Main Changes
 !! \todo
 
+!! Notes
 !! This subversion
 !! Huug:
 !! - Included heterosurf routine
 !! - Statistics for heterosurf routine
 !! Steef:
 !! - Important note; ekm and ekh now denote rhobf*Kh for computational efficiency
-!!    mosts statistic have been adjusted accordingly, however, budgets still need full update
+!!   mosts statistic have been adjusted accordingly, however, budgets still need full update
 !! - Anelastic baseprofile maker
 !! - Anelastic advection
-!! - Anelastic poisson solver changes
+!! - Anelastic poisson solver
 !! - Anelastic diffusion
 !! - Resolved buoyancy (based on theta_l,q_l -> theta_v), using mean theta_v in divisor
-!!    Also subtracting mean state theta_v before Poisson solver
-!! - Rainwater loading included in buoyancy
+!!   Subtracting mean state theta_v before Poisson solver
+!! - Rainwater loading included in buoyancy (modforces)
 !! - Simple ice microphysics scheme (Grabowski 98, with switches for autoconversion and graupel)
-!! - Integrated microstat for bulk and ice scheme
-!! - Diagnostic temperature field included
+!! - Updated microstat for bulk and ice scheme
+!! - Diagnostic temperature and saturation fields included, used to spedd up micro
 !! - Speeded up gamma functions in bulkmicro and ice-micro using tabulation
 !! - Reviewed saturation pressure with table lookup formula (Murphy and Koop, unified water/ice)
-!! - Analytical functions for surface forcing (may be removed later)
+!! - Analytical functions for surface forcing (currently hard-coded)
 !! - Larger fielddump range for temperatures
 !! - Fixed statistics for heights above 10000 m
 !! - Combined sampling/tendency routine (experimental)
 !! - CAPE/CIN etc routine (experimental)
 !! - CFL criterion based on pythagorean CFL
 !! - Sampling written to separate netcdf files
-!! - Modsampling update (Stephan)
+!! - Modsampling update
+!! - Radiation and bulkmicro tendencies exner function correction
+!! - Consistent notation of theta_v in output
 !! \par todo (this version)
-!! - Check/fix warm startup (talk to Thijs)
-!! - Check tqaver necessity (Johan coordinates?)
-!! - Input header detection (Steef?)
-!! - Redundant output by all processors (Johan)
-!! - Add moddeprecated (Steef), cleaner namoptions
-!! - Remove dtav and timeav from some of the namoptions (Steef)
-!! - Look into radiative tendencies exner function correction (Steef, Johan)
 !! - Radiation negative qt crash (Johan)
 !! - Integrate WEENO advection (Johan)
 !! - Unified and simpler diagnostics (Johan)
 !! - Fielddump timing (Johan)
 !! - Scalasca CMake and Marmot options (Johan)
-!! - Consistent notation of theta_v in output (Steef)
 !! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
-!! - Separate microphysics from scalars (Steef)
-!! - 2D Parallelization
 !! \par todo (future)
-!! Steef:
+!! - General code cleanup
+!! - Input header detection (Steef)
+!! - Cleanup namoptions, remove dtav and timeav from some of the namoptions
+!! - Look into redundant output by all processors (Johan)
+!! - Check/fix warm startup for radiation cases (Thijs spent much time on this)
+!! - 2D Parallelization
+!! - Check tqaver necessity (Johan coordinates?)
 !! - Use more complicated theta_l formulation, include latent heat of freezing
 !! - Adjust buoyancy and subgrid accordingly
 !! - Integrate precipitation loading in theta_v
