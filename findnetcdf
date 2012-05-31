@@ -1,0 +1,15 @@
+#!/bin/bash
+#Find NetCDF (ad hoc)
+#Remove usual suspects from Module Path
+path1=`echo ${MODULEPATH%%/x86_64*}`
+path2=${path1%%/sw*}
+#Where is the netcdf-dir?
+#Try finding the netcdf directories that confirm to 2 patterns (ugly)
+path3=`echo $path2/*/netcdf-?.?.?`
+path3b=`echo $path2/*/netcdf/?.?.?`
+#Find where include files are located, don't wine
+path4=`find $path3 -iname "include" 2>/dev/null`
+path4b=`find $path3b -iname "include" 2>/dev/null`
+#Combine the results and pick most recent version of netcdf
+path5=`echo ${path4} ${path4b}|awk '{print $NF}'`
+echo `dirname $path5`

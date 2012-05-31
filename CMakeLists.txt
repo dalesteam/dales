@@ -1,66 +1,76 @@
-if (NOT CMAKE_BUILD_TYPE)
+### Choose CMAKE Type
+if(NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE RELEASE CACHE STRING
       "Choose the type of build, options are: None Debug Release."
       FORCE)
-endif (NOT CMAKE_BUILD_TYPE)
+endif()
 
-if($ENV{SYST} STREQUAL "")
-  set($ENV{SYST} STREQUAL "localpc_gfortran")
-endif($ENV{SYST} STREQUAL "")
-
-if($ENV{SYST} STREQUAL "localpc_gfortran")
+### Set compiler flags
+if("$ENV{SYST}" STREQUAL "HUYGENS")
+  set(CMAKE_Fortran_COMPILER "mpfort")
+  set(CMAKE_Fortran_FLAGS "-qfree=F90 -qrealsize=8  -qwarn64 -qflttrap=en:ov:zero:inv:imp -qflag=w:e" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_RELEASE "-O4 -qnoipa -qstrict=none:exceptions" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "localpc_ifort")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none -I/include -I/usr/include -I/usr/local/include" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
+else()
+  set(CMAKE_Fortran_COMPILER "mpif90")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
-elseif($ENV{SYST}  STREQUAL "HUYGENS")
-  set(CMAKE_Fortran_COMPILER "mpfort")
-  set(CMAKE_Fortran_FLAGS " -qfree=F90 -qrealsize=8  -qwarn64 -qflttrap=en:ov:zero:inv:imp -qflag=w:e -I$ENV{HOME}/include " CACHE STRING "")
-  set(CMAKE_Fortran_FLAGS_RELEASE "-O4 -qnoipa -qstrict=none:exceptions  " CACHE STRING "")
-  set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
-elseif($ENV{SYST}  STREQUAL "localpc_ifort")
-  set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -fpe0 -extend_source -I/sw/sles10-x64/netcdf-3.6.3-intel/include " CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_RELEASE "-O3 -pg" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-O0 -g -ffpe-trap=invalid,zero,overflow -traceback" CACHE STRING "")
-endif($ENV{SYST} STREQUAL "localpc_gfortran")
+endif()
+
+## Project parameters
 PROJECT(DALES Fortran)
 cmake_minimum_required(VERSION 2.6)
-
 set(VERSION_MAJOR "4")
 set(VERSION_MINOR "0")
 set(VERSION_PATCH "1")
-find_path(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
-  DOC "NetCDF include directory (must contain netcdf.mod)"
+
+### If necessary, resort to BASH-methods to find netcdf-directory
+EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
+
+### Find NetCDF files
+FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   PATHS
+  $ENV{SARA_NETCDF_INCLUDE}
+  $ENV{NETCDF_INCLUDE}
+  ${ADDMODULEPATH}/include
   /usr/include
   $ENV{HOME}/include
-  $ENV{SARA_NETCDF_INCLUDE}
-/sw/sles10-x64/netcdf-3.6.3-intel/include
-PATH_SUFFIXES netcdf-3)
-find_library(NETCDF_C_LIB netcdf
-  DOC "NetCDF C library"
-  PATHS
-  /usr/lib
-  /usr/lib64
-  $ENV{HOME}/lib
-  $ENV{HOME}/lib64
-  $ENV{SARA_NETCDF_LIB}
-/sw/sles10-x64/netcdf-3.6.3-intel/lib
+  /usr/lib64/gfortran/modules
+  DOC "NetCDF include directory (must contain netcdf.mod)"
 )
-find_library(NETCDF_FORTRAN_LIB netcdff
-  DOC "NetCDF Fortran library"
+
+FIND_LIBRARY(NETCDF_C_LIB netcdf
   PATHS
+  $ENV{SARA_NETCDF_LIB}
+  $ENV{NETCDF_LIB}
+  ${ADDMODULEPATH}/lib64
   /usr/lib
   /usr/lib64
   $ENV{HOME}/lib
   $ENV{HOME}/lib64
-  $ENV{SARA_NETCDF_LIB}
-/sw/sles10-x64/netcdf-3.6.3-intel/lib
+  DOC "NetCDF C library"
+)
 
+FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
+  PATHS
+  $ENV{SARA_NETCDF_LIB}
+  $ENV{NETCDF_LIB}
+  ${ADDMODULEPATH}/lib64
+  /usr/lib
+  /usr/lib64
+  $ENV{HOME}/lib
+  $ENV{HOME}/lib64
+  DOC "NetCDF Fortran library"
 )
 
 if(NETCDF_INCLUDE_DIR)
+  include_directories(${NETCDF_INCLUDE_DIR})
 else(NETCDF_INCLUDE_DIR)
   MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
 endif(NETCDF_INCLUDE_DIR)
@@ -76,26 +86,28 @@ if(NETCDF_FORTRAN_LIB)
 else(NETCDF_FORTRAN_LIB)
   MESSAGE(STATUS "WARNING: No Fortran NETCDF bindings are found.")
 endif(NETCDF_FORTRAN_LIB)
-###documentation
-INCLUDE(FindDoxygen)
-IF (DOXYGEN)
-    ADD_SUBDIRECTORY(utils/doc)
-ELSE (DOXYGEN)
-    MESSAGE(STATUS "WARNING: Doxygen not found - Reference manual will
-not be created")
-ENDIF (DOXYGEN)
 
-if (NOT CASE)
+### Documentation
+INCLUDE(FindDoxygen)
+if(DOXYGEN)
+    ADD_SUBDIRECTORY(utils/doc)
+else()
+    MESSAGE(STATUS "WARNING: Doxygen not found - Reference manual will not be created")
+endif()
+
+### Set case
+if(NOT CASE)
   set (CASE standard CACHE STRING
       "Set the case."
       FORCE)
-endif ()
+endif()
+
+### Add case specific file 
 FILE(GLOB usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/${CASE}/moduser.f90")
-if (usrfile STREQUAL "")
+if(usrfile STREQUAL "")
   set(usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/standard/moduser.f90")
-endif (usrfile STREQUAL "")
+endif()
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${usrfile} ${CMAKE_CURRENT_SOURCE_DIR}/src/moduser.f90)
 MESSAGE(STATUS "Case " ${CASE} " uses " ${usrfile})
 
-
-ADD_SUBDIRECTORY( src)
+ADD_SUBDIRECTORY(src)
