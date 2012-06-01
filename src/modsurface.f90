@@ -926,16 +926,27 @@ contains
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
           dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
 
-          Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
-          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
+          if(i==2 .and. j==2 .and. myid==0) then
+            write(6,*) 'zf/L,z0m/L,z0h/L,psim(z0m/L),psih(z0m/L),psim(z0h/L),psih(z0h/L)'
+            write(6,*) zf(1) / obl(i,j),z0m(i,j) / obl(i,j),z0h(i,j)/obl(i,j),psim(zf(1) / obl(i,j)),psim(z0m(i,j) / obl(i,j)),psih(zf(1) / obl(i,j)),psih(z0m(i,j) / obl(i,j))
+          endif
+          Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
           if(lhetero) then
-            tskin(i,j) = wt_patch(patchx,patchy) / (Cs(i,j) * horv) + thl0(i,j,1)
-            qskin(i,j) = wq_patch(patchx,patchy) / (Cs(i,j) * horv) + qt0(i,j,1)
+            tskin(i,j) = min(max(wt_patch(patchx,patchy) / (Cs(i,j) * horv),-10.),10.) + thl0(i,j,1)
+            qskin(i,j) = min(max(wq_patch(patchx,patchy) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
           else
-            tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
-            qskin(i,j) = wqsurf / (Cs(i,j) * horv) + qt0(i,j,1)
+            tskin(i,j) =  min(max(wtsurf / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
+            qskin(i,j) =  min(max(wqsurf / (Cs(i,j) * horv),-1e-2),1e-2) + qt0(i,j,1)
           endif
+
+          if(i==2 .and. j==2 .and. myid==0) then
+            write(6,*) 'horv,horvav,ustar(i,j),obl(i,j),phimzf,phihzf'
+            write(6,*) horv,horvav,ustar(i,j),obl(i,j),phimzf,phihzf
+            write(6,*) 'dudz(i,j),dvdz(i,j),dthldz(i,j),dqtdz(i,j),cs(i,j),tskin,thl0(i,j,1)'
+            write(6,*) dudz(i,j),dvdz(i,j),dthldz(i,j),dqtdz(i,j),cs(i,j),tskin(i,j),thl0(i,j,1)
+          endif
+
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
           if (lhetero) then
@@ -1225,10 +1236,20 @@ contains
     iter = 0
     L = oblav
 
+    if(myid==0) then
+      write(*,*) '1: thv,thvs,horv,Rib,L'
+      write(*,*) thv,thvs,horv2,Rib,L
+    endif
+
     if(Rib * L < 0. .or. abs(L) == 1e5) then
       if(Rib > 0) L = 0.01
       if(Rib < 0) L = -0.01
     end if
+
+    if(myid==0) then
+      write(*,*) '2: L'
+      write(*,*) L
+    endif
 
     do while (.true.)
       iter    = iter + 1
@@ -1246,6 +1267,12 @@ contains
         if(Rib > 0) L = 0.01
         if(Rib < 0) L = -0.01
       end if
+
+      if(myid==0) then
+        write(*,*) '2: iter,fx,fxdif,L'
+        write(*,*) iter,fx,fxdif,L
+      endif
+
       if(abs((L - Lold)/L) < 1e-4) exit
       if(iter > 1000) stop 'Obukhov length calculation does not converge!'
     end do
@@ -1689,6 +1716,7 @@ contains
         end if
 
         H(i,j)        = - fH  * ( Tatm - tskin(i,j) * exner )
+        tskin(i,j)    = max(min(tskin(i,j),tskinm(i,j)+10.),tskinm(i,j)-10.)
         tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rk3coef
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
