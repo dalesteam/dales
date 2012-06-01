@@ -43,7 +43,7 @@
 !! - Rainwater loading included in buoyancy (modforces)
 !! - Simple ice microphysics scheme (Grabowski 98, with switches for autoconversion and graupel)
 !! - Updated microstat for bulk and ice scheme
-!! - Diagnostic temperature and saturation fields included, used to spedd up micro
+!! - Diagnostic temperature and saturation fields included, used to speed up micro (adjusted restart files accordingly)
 !! - Speeded up gamma functions in bulkmicro and ice-micro using tabulation
 !! - Reviewed saturation pressure with table lookup formula (Murphy and Koop, unified water/ice)
 !! - Analytical functions for surface forcing (currently hard-coded)
@@ -76,7 +76,6 @@
 !! - Integrate precipitation loading in theta_v
 !! - Look at possible extra term in TKE equation (consistent filtering approach)
 !! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison?)
-!! - Note: CFL currently depends on number of processors!!!
 !!
 !! \section License License
 !!  This file is part of DALES.
