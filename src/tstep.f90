@@ -44,16 +44,19 @@ subroutine tstep_update
 
 
   use modglobal, only : i1,j1,rk3step,timee,rtimee,runtime,btime,dtmax,dt,ntimee,ntrun,courant,peclet,&
-                        kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
+                        kmax,k1,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm,rhobf
   use modsubgrid,only : ekm
   use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
   implicit none
 
+  real, allocatable, dimension (:) :: courtotl,courtot
   integer       :: k
-  real,save     :: courtot=-1,peclettot=-1
-  real          :: courtotl,courold,peclettotl,pecletold
+  real,save     :: courtotmax=-1,peclettot=-1
+  real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
+
+  allocate(courtotl(k1),courtot(k1))
 
   if(lwarmstart) spinup = .false.
   
@@ -62,20 +65,26 @@ subroutine tstep_update
     ! Initialization
     if (spinup) then
       if (ladaptive) then
-        courold = courtot
+        courold = courtotmax
         pecletold = peclettot
-        courtotl=0.
-        peclettotl=0.
+        peclettotl=0.0
         do k=1,kmax
-          courtotl=max(courtotl,maxval(abs(um(2:i1,2:j1,k)/dx))*rdt,maxval(abs(vm(2:i1,2:j1,k)/dy))*rdt,&
-          maxval(abs(wm(2:i1,2:j1,k)/dzh(k)))*rdt)
+          courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
+          wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
+        end do
+        call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+        courtotmax=0.0
+        do k=1,kmax
+          courtotmax=max(courtotmax,courtot(k))
+        enddo
+        courtotmax=sqrt(courtotmax)
+        do k=1,kmax
           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
-        call MPI_ALLREDUCE(courtotl,courtot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
-          dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtot,longint),floor(rdt/tres*peclet/peclettot,longint))
-          if (abs(courtot-courold)/courold<0.1 .and. (abs(peclettot-pecletold)/pecletold<0.1)) then
+          dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+          if (abs(courtotmax-courold)/courold<0.1 .and. (abs(peclettot-pecletold)/pecletold<0.1)) then
             spinup = .false.
           end if
         end if
@@ -97,16 +106,21 @@ subroutine tstep_update
     ! Normal time loop
     else
       if (ladaptive) then
-        courtotl=0
         peclettotl = 1e-5
         do k=1,kmax
-          courtotl=max(courtotl,sqrt(maxval(abs(um(2:i1,2:j1,k)/dx))**2+maxval(abs(vm(2:i1,2:j1,k)/dy))**2&
-          +maxval(abs(wm(2:i1,2:j1,k)/dzh(k)))**2)*rdt)
+          courtotl(k)=maxval((abs(um(2:i1,2:j1,k))*rdt/dx)*(abs(um(2:i1,2:j1,k))*rdt/dx)+(abs(vm(2:i1,2:j1,k))*rdt/dy)*&
+          (abs(vm(2:i1,2:j1,k))*rdt/dy)+abs(wm(2:i1,2:j1,k))*rdt/dzh(k)*abs(wm(2:i1,2:j1,k))*rdt/dzh(k))
+        end do      
+        call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+        courtotmax=0.0
+        do k=1,kmax
+            courtotmax=max(courtotmax,sqrt(courtot(k)))
+        enddo
+        do k=1,kmax
           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
-        call MPI_ALLREDUCE(courtotl,courtot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
-        dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtot,longint),floor(rdt/tres*peclet/peclettot,longint))
+        dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
         rdt = dble(dt)*tres
         timeleft=timeleft-dt
         dt_lim = timeleft
@@ -125,6 +139,8 @@ subroutine tstep_update
       end if
     end if
   end if
+
+  deallocate(courtotl,courtot)
 
 end subroutine tstep_update
 
