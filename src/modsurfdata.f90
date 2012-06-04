@@ -160,6 +160,11 @@ SAVE
   real, allocatable :: dthldz(:,:)      !<  Liquid water potential temperature gradient in surface layer [K/m]
 
   ! Surface properties in case of prescribed conditions (previous isurf 2, 3 and 4)
+  logical           :: lcalcz0 =.false. !<  Switch to use Charnock relation for calculation z0
+!  real              :: z0_old = 1e-4    !<  z0 of the previous time-step. [m]
+  real              :: uStarCharn       !<  The value for ustar, found using the Charnock relation [m/s]
+  real              :: wStar            !<  Convective velocity scale [m/s]
+  real              :: CdCharn          !<  Drag coefficient used in the Charnock relation
   real              :: thls  = -1       !<  Surface liquid water potential temperature [K]
   real              :: qts              !<  Surface specific humidity [kg/kg]
   real              :: thvs             !<  Surface virtual temperature [K]

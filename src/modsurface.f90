@@ -58,7 +58,7 @@ contains
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf
+      lcalcz0,z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf
 
     ! 1    -   Initialize soil
 
@@ -103,6 +103,7 @@ contains
     call MPI_BCAST(LAIav        , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(gDav         , 1, MY_REAL, 0, comm3d, mpierr)
 
+    call MPI_BCAST(lcalcz0    ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(z0         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ustin      ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
@@ -111,12 +112,20 @@ contains
     call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
 
+    ! JvdD; Included a switch that allows for the calculation of z0 using a Charnock relation.
+    ! For now, it can only be used when prescribing SST (isurf=2) and ustar is not (directly) affected.
+    if (isurf==2 .and. lcalcz0) then
+      call getz0
+    end if
+
+    ! If z0 is set, but not z0m or z0h, then set them both to z0
     if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
       z0mav = z0
       z0hav = z0
       if (myid==0) write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
     end if
 
+    ! Checks to see if input for the LSM scheme is complete
     if(isurf == 1) then
       if(tsoilav(1) == -1 .or. tsoilav(2) == -1 .or. tsoilav(3) == -1 .or. tsoilav(4) == -1) then
         stop "NAMSURFACE: tsoil is not set"
@@ -261,6 +270,14 @@ contains
 
     ! CvH start with computation of drag coefficients to allow for implicit solver
     if(isurf <= 2) then
+      
+      ! if lcalcz0 is set, use Charnock to calculate the roughness length and set equal to the others.
+      ! only use when isurf=2, because Charnock relation is only valid over the ocean
+      if (isurf==2 .and. lcalcz0) then
+        call getz0
+        z0m(:,:) = z0
+        z0h(:,:) = z0
+      end if
 
       if(lneutral) then
         obl(:,:) = -1.e10
@@ -275,8 +292,10 @@ contains
         do i = 2, i1
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
-          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
-          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+!          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
+!          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+          Cm(i,j) = CdCharn ! JvdD; test
+          Cs(i,j) = CdCharn ! JvdD; test
 
           if(lmostlocal) then
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -325,6 +344,7 @@ contains
           else
             ustar  (i,j) = sqrt(Cm(i,j)) * horvav
           end if
+          
           
           thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
 
@@ -493,6 +513,91 @@ contains
     return
 
   end subroutine surface
+
+!> Subroutine to get an estimate for z0, using the Charnock relation.
+!> This code is similar to what is used in some single column models.
+!> This relation is valid over sea, where z0 is a function of velocity (height of waves).
+!> JvdD 01-05-2012
+  subroutine getz0
+    use modglobal,    only : zf,grav,fkar,i1,j1,cu,cv
+    use modfields,    only : u0,v0,u0av,v0av,ql0av
+    use modmicrodata, only : nu_a ! Kinematic viscosity of air
+    use modtimestat,  only : horAverage  ! Routine to calculate horizontal average
+    real,parameter :: pCharn=.018 ! Constant of proportionality in Charnock relation (value from Roel Neggers)
+    real  :: UTot                 ! Magnitude of the total velocity
+    real  :: z0_guess             ! Initial guess for z0 (m)
+    real  :: Cdn                  ! Bulk transfer coefficient for neutral conditions
+    integer,dimension(1) :: kZi   ! Index (vertical) of the highest average ql value
+    real  :: ziApprox             ! Rough guess for the inversion height [m]
+    logical :: isInitialized=.false.   ! Check for initialisation
+    real  :: wqtsurf,wthsurf,wthvsurf  ! Surface fluxes of moisture and temperature
+    real  :: UStress               ! Total stress velocity (m^2/s^2)
+!    real  :: Cd                   ! Bulk transfer coefficient (stability corrected)
+!    real  :: uStarCharn           ! Guess for ustar based on the initial guess for z0
+    integer :: i                   ! iteration
+
+    ! Set the initial guess for z0 to a reasonable value    
+    z0_guess = 1e-4
+
+    if (.not. isInitialized) then
+      uStarCharn = .3
+      z0 = z0_guess
+      isInitialized=.true.
+      return
+    end if
+      
+    ! Bulk transfer coefficient under neutral conditions
+    Cdn  = (fkar / log(zf(1)/z0_guess))**2  ! Eq. (7.4.1i) of Stull (1988), using von Karman constant from modglobal
+
+    ! Apply stability correction
+    CdCharn = Cdn
+
+    ! Calculate magnitude of the total velocity at the first gridlevel
+    UTot = sqrt(u0av(1)**2.+v0av(1)**2.)
+
+    ! u_star according to (the squareroot of) Eq. (7.4.1a) of Stull (1988)
+    ! This is basically an initial guess of u*, based on the initial guess of z0 (z0_guess)
+!    uStarCharn = sqrt(CdCharn)*UTot
+    UStress = CdCharn*Utot**2.
+
+    ! Find fluxes of qt and th(l) at the surface (horAverage is subroutine from modtimestat)
+    call horAverage(thlflux(2:i1,2:j1),wthsurf)
+    call horAverage(qtflux (2:i1,2:j1),wqtsurf)
+
+    ! Approximate wthv at the surface assuming dry coefficients (Ad~1.01, Bd~180)
+    wthvsurf = wthsurf + 180*wqtsurf
+
+    ! This correction should only be applied under convective conditions
+    if (wthvsurf > 0.0) then
+      ! Find approximate value for zi, based on the top of the cloud layer
+      kZi = maxloc(ql0av(:))
+      ziApprox = zf(kZi(1))
+      ! Calculate convective velocity scale
+      wstar = grav*ziApprox*wthvsurf/thvs
+      wstar = wstar**(1./3.)
+      ! Write some information to standard out
+!      write(*,*) 'wstar = ',wstar
+!      write(*,*) 'adjust fact. = ',(wstar / UTot)**2.
+      ! and adjust the stress velocity
+      UStress = UStress*( 1 + (wstar / UTot)**2.)
+    end if
+
+    ! u* is the sqrt of the stress velocity
+    uStarCharn = sqrt(UStress)
+
+    ! Now calculate z0 using the Charnock relation. A 'smooth surface' is also accounted for by including a viscous term.
+    z0 = .11*nu_a/uStarCharn + (pCharn/grav)*uStarCharn**2
+
+    ! Perform extra 'iteration' to get new u* value
+    do i=1,1
+      uStarCharn = fkar*Utot/log(zf(1)/z0)
+      z0 = .11*nu_a/uStarCharn + (pCharn/grav)*uStarCharn**2
+    end do
+
+    ! Save this value of z0 in z0_old, so it can serve as initial guess for the next time-step
+!    z0_old = z0
+
+  end subroutine getz0
 
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf

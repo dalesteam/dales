@@ -268,7 +268,7 @@ contains
   subroutine sampling
     use modglobal, only : rk3step,timee,dt_lim
     implicit none
-   if (isamptot==0) return
+   if (isamptot==1) return
     if (rk3step/=3) return
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
