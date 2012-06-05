@@ -233,11 +233,23 @@ contains
   subroutine toph
 
   use modglobal, only : i1,j1,kmax,k1,nsv,dtheta,dqt,dsv,dzh
-  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
+  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
+                       ,thl0av,qt0av,sv0av
   implicit none
-  integer n
+  integer :: n
+  integer,parameter :: kav=5
 
 ! **  Top conditions :
+  ! Calculate new gradient over several of the top levels, to be used
+  ! to extrapolate thl and qt to level k1 !JvdD
+  dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
+             dzh(kmax-kav+1:kmax))/kav
+  dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
+             dzh(kmax-kav+1:kmax))/kav
+  do n=1,nsv
+    dsv(n) = sum(sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n)/ &
+               dzh(kmax-kav:kmax-1))/kav
+  enddo
 
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)

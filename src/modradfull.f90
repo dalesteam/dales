@@ -290,6 +290,7 @@ contains
   !! allows us to recompute the same background matching after a history start
   !!
   subroutine d4stream_setup(filenm,k1,npts,nv1,nv,zp)
+    use modmpi, only : myid
   implicit none
 
     character (len=19), intent (in) :: filenm
@@ -305,7 +306,7 @@ contains
 
     norig = 0
     open ( unit = 08, file = filenm, status = 'old' )
-    print *, 'Reading Background Sounding: ',filenm
+    if (myid==0) print *, 'Reading Background Sounding: ',filenm
     read (08,*) Tsurf, ns
     allocate ( sp(ns), st(ns), sh(ns), so(ns), sl(ns))
     do k=1,ns
@@ -1568,6 +1569,7 @@ contains
   !>
   subroutine init_ckd
     use modglobal, only : cexpnr
+    use modmpi, only : myid
     implicit none
 
     integer :: i, j, k, l, n, ib, ii, mbs, mbir
@@ -1601,7 +1603,7 @@ contains
 
     if (band(mb)%power > 0.) mbs = mbs + 1
     mbir = mb - mbs
-    print 600, trim(gasfile), ngases, mb, mbs, mbir, sum(band%power)
+    if (myid==0) print 600, trim(gasfile), ngases, mb, mbs, mbir, sum(band%power)
 
     do n=1,ngases
        read (66,'(A5,I4)') gas(n)%name,gas(n)%iband
@@ -1629,7 +1631,7 @@ contains
        end do
 
        if (abs(sum(gas(n)%hk) - 1.) <= 1.1 * spacing(1.) ) then
-          print 601, gas(n)%name, gas(n)%iband, gas(n)%noverlap,              &
+          if (myid==0) print 601, gas(n)%name, gas(n)%iband, gas(n)%noverlap,              &
                gas(n)%ng, gas(n)%np, gas(n)%nt
        else
           print *, gas(n)%hk, sum(gas(n)%hk(:))
@@ -1685,13 +1687,14 @@ contains
        end if
     end do
 
-    do ib=1,mb
-       print 602, ib, band(ib)%power, band(ib)%llimit, band(ib)%rlimit,    &
-            band(ib)%ngases, band(ib)%kg
-    end do
-    print 604
-
     ckd_Initialized = .True.
+
+    if (myid==0) then
+      do ib=1,mb
+         print 602, ib, band(ib)%power, band(ib)%llimit, band(ib)%rlimit,    &
+              band(ib)%ngases, band(ib)%kg
+      end do
+      print 604
 
 600 format ('-----------------------------------------------------------', &
          /3x,'Computing with file: ',A20,' containing ',I3,' gases',   &
@@ -1704,6 +1707,7 @@ contains
          /3x,'Band: ',I3,': ',F8.2,' Wm^-2',', between ',F6.0,' and ',F6.0,&
          ' cm^-1',/3x,I3,' gase(s): and ',I3,' g-points')
 604 format ('---------------------------------------- Finished band init ')
+    end if !myid ==0
 
   end subroutine init_ckd
   !

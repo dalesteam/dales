@@ -56,8 +56,7 @@ contains
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  lmoist,lcoriol,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -92,7 +91,7 @@ contains
         lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
 
     !read namelists
     if(myid==0)then
@@ -197,6 +196,7 @@ contains
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(cv         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,comm3d,mpierr)
@@ -520,14 +520,14 @@ contains
       call baseprofs ! call baseprofs before thermodynamics
       call boundary
       call thermodynamics
-      write(*,*) 'beyond thermo'
       call surface
 
-      dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
-      dqt    = (qtprof (kmax)-qtprof (kmax-1)) / dzh(kmax)
-      do n=1,nsv
-        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
-      end do
+       ! Gradients at the top are now calculated in modboundary, every timestep
+!      dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
+!      dqt    = (qtprof (kmax)-qtprof (kmax-1)) / dzh(kmax)
+!      do n=1,nsv
+!        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
+!      end do
 
       call boundary
       call thermodynamics

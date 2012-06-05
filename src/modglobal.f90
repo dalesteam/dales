@@ -120,6 +120,9 @@ save
       integer, parameter :: iadv_62     = 62
       integer, parameter :: iadv_52     = 52
       integer, parameter :: iadv_kappa  = 7
+      integer, parameter :: iadv_hybrid = 55
+
+      real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or 
 
       ! Tabulated saturation relation
       real, dimension(1:2000) :: ttab
@@ -230,6 +233,8 @@ contains
         courant = 1.
       case(iadv_52)
         courant = 1.
+      case(iadv_hybrid)
+        courant = 1.
       case default
         courant = 1.
       end select
@@ -245,7 +250,10 @@ contains
         courant = min(courant, 1.0)
       elseif (any(iadv_sv(1:nsv)==iadv_cd2) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
         courant = min(courant, 1.0)
+      elseif (any(iadv_sv(1:nsv)==iadv_hybrid ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_hybrid)) then
+        courant = min(courant, 1.0)
       end if
+
    end if
 
     ! phsgrid
@@ -274,6 +282,10 @@ contains
       jh = 3
       kh = 1
     elseif (any(advarr==iadv_52).or.any(iadv_sv(1:nsv)==iadv_52)) then
+      ih = 3
+      jh = 3
+      kh = 1
+    elseif (any(advarr==iadv_hybrid).or.any(iadv_sv(1:nsv)==iadv_hybrid)) then
       ih = 3
       jh = 3
       kh = 1
