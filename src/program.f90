@@ -105,7 +105,7 @@ program DALES      !Version 4.0.0alpha
   use modfields,         only : thl0
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
-  use modboundary,       only : boundary, grwdamp,tqaver
+  use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microsources
   use modsurface,        only : surface
@@ -191,7 +191,7 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
   write(*,*)'START myid ', myid
   do while (timeleft>0 .or. rk3step < 3)
-    call tstep_update
+    call tstep_update                           ! Calculate new timestep
     call timedep
     call samptend(tend_start,firstterm=.true.)
 
@@ -240,12 +240,12 @@ program DALES      !Version 4.0.0alpha
 !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
-    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
+!JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
     call poisson
     call samptend(tend_pois,lastterm=.true.)
 
-    call tstep_integrate
+    call tstep_integrate                        ! Apply tendencies to all variables
     call boundary
     !call tiltedboundary
 !-----------------------------------------------------

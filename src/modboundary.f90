@@ -32,7 +32,7 @@ module modboundary
 implicit none
 save
 private
-public :: initboundary, boundary, exitboundary,grwdamp, ksp,tqaver,cyclich
+public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real :: rnu0 = 2.75e-3
@@ -184,11 +184,12 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime
-  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0, ug,vg,thl0av,qt0av,u0av,v0av
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv
+  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg & 
+                        ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
-  integer k
+  integer k,n
 
   select case(igrw_damp)
   case(0) !do nothing
@@ -225,6 +226,16 @@ contains
   case default
     stop "no gravity wave damping option selected"
   end select
+
+  ! Additional to gravity wave damping, set qt, thl and sv0(:) equal to slabaverage
+  ! at level kmax.
+  ! Originally done in subroutine tqaver, now using averages from modthermodynamics
+
+  thl0(2:i1,2:j1,kmax) = thl0av(kmax)
+  qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
+  do n=1,nsv
+    sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+  end do
 
   return
   end subroutine grwdamp
@@ -282,50 +293,52 @@ contains
   return
   end subroutine topm
 
-!>Set thl, qt and sv(n) equal to slab average at level kmax
-  subroutine tqaver
-
-  use modmpi,    only : comm3d,mpierr,my_real, mpi_sum
-  use modglobal, only : i1,j1,kmax,nsv,rslabs
-  use modfields, only : thl0,qt0,sv0
-  implicit none
-
-  real thl0a, qt0a
-  real thl0al, qt0al
-  integer n
-  real,allocatable, dimension(:) :: sv0al, sv0a
-  allocate (sv0al(nsv),sv0a(nsv))
-
-  thl0al=sum(thl0(2:i1,2:j1,kmax))
-  qt0al =sum(qt0(2:i1,2:j1,kmax))
-
-  do n=1,nsv
-    sv0al(n) = sum(sv0(2:i1,2:j1,kmax,n))
-  enddo
-
-  call MPI_ALLREDUCE(thl0al, thl0a, 1,    MY_REAL, &
-                         MPI_SUM, comm3d,mpierr)
-  call MPI_ALLREDUCE(qt0al, qt0a , 1,     MY_REAL, &
-                         MPI_SUM, comm3d,mpierr)
-  if(nsv > 0) then
-    call MPI_ALLREDUCE(sv0al, sv0a , nsv,   MY_REAL, &
-                           MPI_SUM, comm3d,mpierr)
-  end if
-
-
-  thl0a=thl0a/rslabs
-  qt0a =qt0a/rslabs
-  sv0a = sv0a/rslabs
-
-  thl0(2:i1,2:j1,kmax)=thl0a
-  qt0(2:i1,2:j1,kmax) =qt0a
-  do n=1,nsv
-    sv0(2:i1,2:j1,kmax,n) = sv0a(n)
-  enddo
-  deallocate (sv0al,sv0a)
-
-  return
-  end subroutine tqaver
+!!>Set thl, qt and sv(n) equal to slab average at level kmax
+! Functionality added to subroutine 'grwdamp' !JvdD
+!
+!  subroutine tqaver
+!
+!  use modmpi,    only : comm3d,mpierr,my_real, mpi_sum
+!  use modglobal, only : i1,j1,kmax,nsv,rslabs
+!  use modfields, only : thl0,qt0,sv0
+!  implicit none
+!
+!  real thl0a, qt0a
+!  real thl0al, qt0al
+!  integer n
+!  real,allocatable, dimension(:) :: sv0al, sv0a
+!  allocate (sv0al(nsv),sv0a(nsv))
+!
+!  thl0al=sum(thl0(2:i1,2:j1,kmax))
+!  qt0al =sum(qt0(2:i1,2:j1,kmax))
+!
+!  do n=1,nsv
+!    sv0al(n) = sum(sv0(2:i1,2:j1,kmax,n))
+!  enddo
+!
+!  call MPI_ALLREDUCE(thl0al, thl0a, 1,    MY_REAL, &
+!                         MPI_SUM, comm3d,mpierr)
+!  call MPI_ALLREDUCE(qt0al, qt0a , 1,     MY_REAL, &
+!                         MPI_SUM, comm3d,mpierr)
+!  if(nsv > 0) then
+!    call MPI_ALLREDUCE(sv0al, sv0a , nsv,   MY_REAL, &
+!                           MPI_SUM, comm3d,mpierr)
+!  end if
+!
+!
+!  thl0a=thl0a/rslabs
+!  qt0a =qt0a/rslabs
+!  sv0a = sv0a/rslabs
+!
+!  thl0(2:i1,2:j1,kmax)=thl0a
+!  qt0(2:i1,2:j1,kmax) =qt0a
+!  do n=1,nsv
+!    sv0(2:i1,2:j1,kmax,n) = sv0a(n)
+!  enddo
+!  deallocate (sv0al,sv0a)
+!
+!  return
+!  end subroutine tqaver
 
 
 

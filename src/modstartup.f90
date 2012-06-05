@@ -337,7 +337,7 @@ contains
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin 
     use modsurface,        only : surface,qtsurf,dthldz
-    use modboundary,       only : boundary,tqaver
+    use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
