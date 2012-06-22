@@ -292,10 +292,10 @@ contains
         do i = 2, i1
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
-!          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
-!          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
-          Cm(i,j) = CdCharn ! JvdD; test
-          Cs(i,j) = CdCharn ! JvdD; test
+          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
+          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+!          Cm(i,j) = CdCharn ! JvdD; test
+!          Cs(i,j) = CdCharn ! JvdD; test
 
           if(lmostlocal) then
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
