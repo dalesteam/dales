@@ -930,12 +930,13 @@ contains
           (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
           if(lhetero) then
-            tskin(i,j) = wt_patch(patchx,patchy) / (Cs(i,j) * horv) + thl0(i,j,1)
-            qskin(i,j) = wq_patch(patchx,patchy) / (Cs(i,j) * horv) + qt0(i,j,1)
+            tskin(i,j) = min(max(wt_patch(patchx,patchy) / (Cs(i,j) * horv),-10.),10.) + thl0(i,j,1)
+            qskin(i,j) = min(max(wq_patch(patchx,patchy) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
           else
-            tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
-            qskin(i,j) = wqsurf / (Cs(i,j) * horv) + qt0(i,j,1)
+            tskin(i,j) =  min(max(wtsurf / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
+            qskin(i,j) =  min(max(wqsurf / (Cs(i,j) * horv),-1e-2),1e-2) + qt0(i,j,1)
           endif
+
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
           if (lhetero) then
@@ -1689,6 +1690,7 @@ contains
         end if
 
         H(i,j)        = - fH  * ( Tatm - tskin(i,j) * exner )
+        tskin(i,j)    = max(min(tskin(i,j),tskinm(i,j)+10.),tskinm(i,j)-10.)
         tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rk3coef
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
