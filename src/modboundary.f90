@@ -258,7 +258,7 @@ contains
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   do n=1,nsv
-    dsv(n) = sum(sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n)/ &
+    dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
                dzh(kmax-kav:kmax-1))/kav
   enddo
 
