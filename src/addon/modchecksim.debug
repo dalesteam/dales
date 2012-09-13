@@ -101,32 +101,34 @@ contains
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
 
-
-    real          :: courxl,courx,couryl,coury
-    real, allocatable, dimension (:) :: courzl,courz,courtotl,courtot
+    real, allocatable, dimension (:) :: courxl,courx,couryl,coury,courzl,courz,courtotl,courtot
     integer       :: k
 
-    allocate(courzl(k1),courz(k1),courtotl(k1),courtot(k1))
+    allocate(courxl(k1),courx(k1),couryl(k1),coury(k1),courzl(k1),courz(k1),courtotl(k1),courtot(k1))
+    courxl = 0.0
+    courx  = 0.0
+    couryl = 0.0
+    coury  = 0.0
     courzl = 0.0
     courz  = 0.0
-    courtotl = 0.0
     courtot  = 0.0
     do k=1,kmax
+      courxl(k)=maxval(abs(u0(2:i1,2:j1,k)))*dtmn/dx
+      couryl(k)=maxval(abs(v0(2:i1,2:j1,k)))*dtmn/dy
       courzl(k)=maxval(abs(w0(2:i1,2:j1,k)))*dtmn/dzh(k)
-      courtotl(k)=maxval(abs(u0(2:i1,2:j1,k)/dx)+abs(v0(2:i1,2:j1,k)/dy)+abs(w0(2:i1,2:j1,k)/dzh(k)))*dtmn
+      courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
+      w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*dtmn*dtmn
     end do
-    courxl = maxval(abs(u0))*dtmn/dx
-    couryl = maxval(abs(v0))*dtmn/dy
-
-    call MPI_ALLREDUCE(courxl,courx,1,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(couryl,coury,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(courxl,courx,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(couryl,coury,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
     call MPI_ALLREDUCE(courzl,courz,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
     call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
-      write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',courx,coury,maxval(courz(1:kmax)),maxloc(courz(1:kmax)),maxval(courtot(1:kmax)),maxloc(courtot(1:kmax))
+      write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
+      maxval(courx(1:kmax)),maxval(coury(1:kmax)),maxval(courz(1:kmax)),maxloc(courz(1:kmax)),sqrt(maxval(courtot(1:kmax))),maxloc(courtot(1:kmax))
     end if
 
-    deallocate(courzl,courz,courtotl,courtot)
+    deallocate(courxl,courx,couryl,coury,courzl,courz,courtotl,courtot)
 
     return
   end subroutine calccourant
@@ -136,6 +138,7 @@ contains
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh,dt,timee
     use modsubgrid,only : ekm
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    use modfields, only : rhobf
     implicit none
 
 
@@ -146,7 +149,7 @@ contains
     peclettotl = 0.
     peclettot  = 0.
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+      peclettotl(k)=maxval(ekm(2:i1,2:j1,k)/rhobf(k))*dtmn/minval((/dzh(k),dx,dy/))**2
     end do
 
     call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
@@ -365,6 +368,6 @@ contains
 
     return
   end subroutine
-  
+
 end module modchecksim
 

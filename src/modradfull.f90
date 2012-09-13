@@ -934,6 +934,7 @@ contains
   subroutine qft (solar, ee, as, u0, bf, tt, ww, ww1, ww2, ww3, ww4, ffu, ffd)
     use modglobal, only : pi
     logical, intent (in) :: solar
+    logical              :: ldummy ! serves to make radiation scheme work under O4
     real, intent (in)    :: ee, as, u0
     real, dimension (nv), intent (in)   :: tt,ww,ww1,ww2,ww3,ww4
     real, dimension (nv1), intent (in)  :: bf
@@ -960,12 +961,18 @@ contains
        xas = bf(nv1) * ee
        xee = ee
        tkm1 = 0.0
-       do k = 1, nv
-          f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
-          u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ) + epsilon(1.))
-          tkm1 = t(k)
-       end do
-    end if
+        do k = 1, nv
+           f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
+           u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ) + epsilon(1.))
+           tkm1 = t(k)
+            if(abs(u0a(k))<10.e-10) then
+              ldummy=.true.
+            else
+              ldummy=.false.
+            endif
+        end do
+     end if
+
     call qccfe (solar,xas,xee,t,w,w1,w2,w3,u0a,f0a,fk1,fk2,a4,g4,z4 )
 
     tkm1 = 0.
