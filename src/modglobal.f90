@@ -204,6 +204,7 @@ save
       real, allocatable :: delta(:)       !<  (dx*dy*dz)**(1/3)
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
+      logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
       character(80) :: author='', version='DALES 3.2'
 contains
 
