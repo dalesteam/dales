@@ -220,81 +220,71 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,k1,kmax,dzh,nsv
   use modfields, only : up,vp,thlp,qtp,svp,&
-                        whls, u0av,v0av,thl0av,qt0av,sv0av,&
+                        whls, u0av,v0av,thl0,qt0,sv0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls
   implicit none
 
-  integer k,n
-  real subs_thl,subs_qt,subs_u,subs_v,subs_sv
-!   if (ltimedep) then
-! !     call ls
-!   end if
-! NOTE EVERYTHING IS IN ADVECTIVE FORM
+  integer i,j,k,n,kp,km
+  real subs_thl,subs_qt,subs_sv
 
 !     1. DETERMINE LARGE SCALE TENDENCIES
 !        --------------------------------
 
 !     1.1 lowest model level above surface : only downward component
 
-  subs_u   = 0.
-  subs_v   = 0.
   subs_thl = 0.
   subs_qt  = 0.
   subs_sv  = 0.
 
-  k = 1
-  if (whls(k+1).lt.0) then !neglect effect of mean ascending on tendencies at the lowest full level
-  subs_thl     = 0.5*whls(k+1)  *(thl0av(k+1)-thl0av(k))/dzh(k+1)
-  subs_qt      = 0.5*whls(k+1)  *(qt0av (k+1)-qt0av(k) )/dzh(k+1)
-    if(lmomsubs) then
-       subs_u  = 0.5*whls(k+1)  *(u0av  (k+1)-u0av(k)  )/dzh(k+1)
-       subs_v  = 0.5*whls(k+1)  *(v0av  (k+1)-v0av(k)  )/dzh(k+1)
-    endif
-    do n=1,nsv
-      subs_sv =  0.5*whls(k+1)  *(sv0av(k+1,n)-sv0av(k,n)  )/dzh(k+1)
-      svp(2:i1,2:j1,1,n) = svp(2:i1,2:j1,1,n)-subs_sv
-    enddo
-  endif
-
-  thlp(2:i1,2:j1,1) = thlp(2:i1,2:j1,1) -u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
-  qtp(2:i1,2:j1,1)  = qtp (2:i1,2:j1,1) -u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt +dqtdtls(k)
-  up(2:i1,2:j1,1)   = up  (2:i1,2:j1,1) -u0av(k)*dudxls(k)  -v0av(k)*dudyls  (k)-subs_u
-  vp(2:i1,2:j1,1)   = vp  (2:i1,2:j1,1) -u0av(k)*dvdxls(k)  -v0av(k)*dvdyls  (k)-subs_v
+  do j=2,j1
+    do i=2,i1
+      k = 1
+      if (whls(2).lt.0) then !neglect effect of mean ascending on tendencies at the lowest full level
+        subs_thl     = 0.5*whls(2)  *(thl0(i,j,2)-thl0(i,j,1))/dzh(2)
+        subs_qt      = 0.5*whls(2)  *(qt0(i,j,2)-qt0(i,j,1) )/dzh(2)
+        do n=1,nsv
+          subs_sv =  0.5*whls(2)  *(sv0(i,j,2,n)-sv0(i,j,1,n)  )/dzh(2)
+          svp(i,j,1,n) = svp(i,j,1,n)-subs_sv
+        enddo
+      endif
+      thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl
+      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt +dqtdtls(1)
+      up  (i,j,1) = up  (i,j,1)-u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1)
+      vp  (i,j,1) = vp  (i,j,1)-u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1)
+    end do
+  end do
 
 !     1.2 other model levels twostream
 
   do k=2,kmax
-    if (whls(k+1).lt.0) then   !downwind scheme for subsidence
-      subs_thl    = whls(k+1) * (thl0av(k+1) - thl0av(k))/dzh(k+1)
-      subs_qt     = whls(k+1) * (qt0av (k+1) - qt0av (k))/dzh(k+1)
-      do n=1,nsv
-        subs_sv   = whls(k+1)  *(sv0av(k+1,n) - sv0av(k,n))/dzh(k+1)
-        svp(2:i1,2:j1,k,n) = svp(2:i1,2:j1,k,n)-subs_sv
+    kp=k+1
+    km=k-1
+    do j=2,j1
+      do i=2,i1
+        if (whls(kp).lt.0) then   !downwind scheme for subsidence
+          subs_thl    = whls(kp) * (thl0(i,j,kp) - thl0(i,j,k))/dzh(kp)
+          subs_qt     = whls(kp) * (qt0 (i,j,kp) - qt0 (i,j,k))/dzh(kp)
+          do n=1,nsv
+            subs_sv   = whls(kp)  *(sv0(i,j,kp,n) - sv0(i,j,k,n))/dzh(kp)
+            svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
+          enddo
+        else !downwind scheme for mean upward motions
+          subs_thl    = whls(k) * (thl0(i,j,k) - thl0(i,j,km))/dzh(k)
+          subs_qt     = whls(k) * (qt0 (i,j,k) - qt0 (i,j,km))/dzh(k)
+          do n=1,nsv
+            subs_sv   = whls(k) * (sv0(i,j,k,n) - sv0(i,j,km,n))/dzh(k)
+            svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
+          enddo
+        endif
+    
+        thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
+        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
+        up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)
+        vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)
       enddo
-      if(lmomsubs) then
-         subs_u   = whls(k+1) * (u0av  (k+1) - u0av  (k))/dzh(k+1)
-         subs_v   = whls(k+1) * (v0av  (k+1) - v0av  (k))/dzh(k+1)
-      endif
-    else !downwind scheme for mean upward motions
-      subs_thl    = whls(k) * (thl0av(k) - thl0av(k-1))/dzh(k)
-      subs_qt     = whls(k) * (qt0av (k) - qt0av (k-1))/dzh(k)
-      do n=1,nsv
-        subs_sv   = whls(k) * (sv0av(k,n) - sv0av(k-1,n))/dzh(k)
-        svp(2:i1,2:j1,k,n) = svp(2:i1,2:j1,k,n)-subs_sv
-      enddo
-      if(lmomsubs) then
-         subs_u   = whls(k) * (u0av  (k) - u0av  (k-1))/dzh(k)
-         subs_v   = whls(k) * (v0av  (k) - v0av  (k-1))/dzh(k)
-      endif
-    endif
-
-    thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
-    qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
-    up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u
-    vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)-subs_v
-
+    enddo
   enddo
 
   return
