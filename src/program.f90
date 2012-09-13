@@ -56,25 +56,25 @@
 !! - Modsampling update
 !! - Radiation and bulkmicro tendencies exner function correction
 !! - Consistent notation of theta_v in output
-!! \par todo (this version)
-!! - Radiation negative qt crash (Johan)
-!! - Integrate WEENO advection (Johan)
-!! - Unified and simpler diagnostics (Johan)
-!! - Fielddump timing (Johan)
+!! - Radiation negative qt crash
+!! - Integrate WENO advection (Johan)
+!! - Removed tqaver
+!! - Subsidence with local values
+!! - top boundary conditions (thl,qt-gradients) time-dependent
+!! \par todo (this release)
 !! - Scalasca CMake and Marmot options (Johan)
 !! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
 !! \par todo (future)
 !! - General code cleanup
+!! - Unified and simpler diagnostics 
+!! - Fielddump timing (Johan)
 !! - Input header detection (Steef)
 !! - Cleanup namoptions, remove dtav and timeav from some of the namoptions
-!! - Look into redundant output by all processors (Johan)
-!! - Check/fix warm startup for radiation cases (Thijs spent much time on this)
+!! - Check warm startup for interactive radiation cases
 !! - 2D Parallelization
-!! - Check tqaver necessity (Johan coordinates?)
 !! - Use more complicated theta_l formulation, include latent heat of freezing
 !! - Adjust buoyancy and subgrid accordingly
 !! - Integrate precipitation loading in theta_v
-!! - Look at possible extra term in TKE equation (consistent filtering approach)
 !! - Add 2-moment scheme? (Thijs working on complicated scheme, use Grabowski/Morrison?)
 !!
 !! \section License License
