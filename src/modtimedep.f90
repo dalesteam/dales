@@ -311,8 +311,8 @@ contains
 
       dudxls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
       dudyls  (1) =  0.0
-      dvdxls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
-      dvdyls  (1) =  0.0
+      dvdyls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
+      dvdxls  (1) =  0.0
       dthldxls(1) = om23_gs*thlprof(1)/grav &
                         * (vg(2)-vg(1))/dzh(2)
       dthldyls(1) = -om23_gs*thlprof(1)/grav &
@@ -321,8 +321,8 @@ contains
       do k=2,kmax-1
         dudxls(k) = -0.5 *( whls(k+1)-whls(k) )/ dzf(k)
         dudyls(k) =  0.0
-        dvdxls(k) = -0.5 *( whls(k+1)-whls(k) )/ dzf(k)
-        dvdyls(k) =  0.0
+        dvdyls(k) = -0.5 *( whls(k+1)-whls(k) )/ dzf(k)
+        dvdxls(k) =  0.0
         dthldxls(k) = om23_gs*thlprof(k)/grav &
                         * (vg(k+1)-vg(k-1))/(zf(k+1)-zf(k-1))
         dthldyls(k) = -om23_gs*thlprof(k)/grav &
@@ -331,8 +331,8 @@ contains
 
       dudxls  (kmax) = -0.5 *( whls(k1)-whls(kmax) )/ dzf(k)
       dudyls  (kmax) =  0.0
-      dvdxls  (kmax) = -0.5 *( whls(k1)-whls(kmax) )/ dzf(k)
-      dvdyls  (kmax) =  0.0
+      dvdyls  (kmax) = -0.5 *( whls(k1)-whls(kmax) )/ dzf(k)
+      dvdxls  (kmax) =  0.0
       dthldxls(kmax) =  0.0
       dthldyls(kmax) =  0.0
 
