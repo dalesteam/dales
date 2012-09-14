@@ -209,7 +209,7 @@ contains
 
   ! re-distributed p1:
 
-    allocate(xyzrt(0:i1,0:jtot+1,0:k1),xrt(0:i1),yrt(0:jtot+1))
+    allocate(xyzrt(0:i1,0:j1,0:k1),xrt(0:i1),yrt(0:jtot+1))
     allocate(a(0:kmax+1),b(0:kmax+1),c(0:kmax+1))
     allocate(FFTI(imax),FFTJ(jtot),winew(2*imax+15),wjnew(2*jtot+15))
 
