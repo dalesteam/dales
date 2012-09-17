@@ -215,7 +215,7 @@ contains
     use modsurfdata,only : thvs, ustar
     use modsubgriddata, only : ekm
     use modpois,    only : p
-    use modfields,  only : u0,v0,w0,thl0h,thv0h,u0av,v0av
+    use modfields,  only : u0,v0,w0,thl0h,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
     use modmpi,     only : nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
 
@@ -278,11 +278,11 @@ contains
        buoz(k) = 0.0
        do j=2,j1
           do i=2,i1
-             buoz(k) = buoz(k) + w0(i,j,k)*thv0h(i,j,k)
+             buoz(k) = buoz(k) + w0(i,j,k)*(thv0h(i,j,k)-thvh(k))
              !buoyancy in x-dir calculated in modtilt.
           end do
        end do
-       buoz(k) = grav/thvs * buoz(k)/rslabs
+       buoz(k) = rhobh(k)*grav/thvh(k) * buoz(k)/rslabs
        buoavl(k) = buoz(k)
     end do
     !No buoyancy at the surface
@@ -301,8 +301,8 @@ contains
        vwrs = 0.0
        do j=2,j1
        do i=2,i1
-          uwrs = uwrs+(w0(i,j,k)+w0(i-1,j,k))*(u0(i,j,k-1)+u0(i,j,k))/4.
-          vwrs = vwrs+(w0(i,j,k)+w0(i,j-1,k))*(v0(i,j,k-1)+v0(i,j,k))/4.
+          uwrs = uwrs+rhobh(k)*(w0(i,j,k)+w0(i-1,j,k))*(u0(i,j,k-1)+u0(i,j,k))/4.
+          vwrs = vwrs+rhobh(k)*(w0(i,j,k)+w0(i,j-1,k))*(v0(i,j,k-1)+v0(i,j,k))/4.
        end do
        end do
        uwrs = uwrs/rslabs
@@ -325,12 +325,12 @@ contains
     weresl(k) = 0.0
     do j=2,j1
     do i=2,i1
-      egp = 0.5*( (0.5*(u0(i,j,k)+u0(i+1,j,k))-(u0av(k)-cu))**2 &
+      egp = 0.5*rhobf(k)*( (0.5*(u0(i,j,k)+u0(i+1,j,k))-(u0av(k)-cu))**2 &
                  +(0.5*(v0(i,j,k)+v0(i,j+1,k))-(v0av(k)-cv))**2 &
                  +(0.5*(w0(i,j,k)+w0(i,j,k+1))             )**2 )
 
       tkeavl(k) = tkeavl(k) + egp
-      weresl(k) = weresl(k) + egp * 0.5*(w0(i,j,k)+w0(i,j,k+1))
+      weresl(k) = weresl(k) + egp*0.5*(w0(i,j,k)+w0(i,j,k+1))
     end do
     end do
     tkeavl(k)   = tkeavl(k)/rslabs
@@ -363,7 +363,7 @@ contains
      do j=2,j1
      do i=2,i1
         ph = (p(i,j,k)*dzf(k-1)+p(i,j,k-1)*dzf(k))/(2*dzh(k))
-        ptrspavl(k) = ptrspavl(k) + w0(i,j,k)*ph
+        ptrspavl(k) = ptrspavl(k) + rhobh(k)*w0(i,j,k)*ph
      end do
      end do
      ptrspavl(k) = ptrspavl(k)/rslabs
@@ -405,7 +405,7 @@ contains
       emmo = 0.25 * ( &
                  ekm(i,j,k)+ekm(i,jm,k)+ekm(i-1,jm,k)+ekm(i-1,j,k) )
 
-      tau1j(i,j,k) = ( &
+      tau1j(i,j,k) = &
                ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
                 -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
                + &
@@ -417,8 +417,7 @@ contains
                ( emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                          +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
                 -emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
-                         +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) / dzf(k) &
-               )
+                         +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) / dzf(k) 
 
       tau1ml(k) = tau1ml(k) + tau1j(i,j,k)
 
@@ -452,7 +451,7 @@ contains
         ekm(i,j,k)+ekm(i,jm,k)+ekm(i+1,jm,k)+ekm(i+1,j,k)  )
 
 
-      tau2j(i,j,k) = ( &
+      tau2j(i,j,k) = &
                ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                          +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
                 -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
@@ -464,8 +463,7 @@ contains
                ( eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                          +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
                 -eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
-                         +(w0(i,j,k)-w0(i,jm,k))    *dyi)  ) / dzf(k) &
-               )
+                         +(w0(i,j,k)-w0(i,jm,k))    *dyi)  ) / dzf(k) 
 
       tau2ml(k) = tau2ml(k) + tau2j(i,j,k)
     enddo
@@ -499,7 +497,7 @@ contains
         ( 4.   * dzh(k) )
 
 
-      tau3j(i,j,k) = ( &
+      tau3j(i,j,k) = &
                  ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
                   -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
@@ -512,8 +510,7 @@ contains
                  + &
                   (ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
                   -ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
-                                                       / dzh(k) &
-                 )
+                                                       / dzh(k) 
 
       tau3ml(k) = tau3ml(k) + tau3j(i,j,k)
 
@@ -565,7 +562,7 @@ contains
              + &
              ( emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                        +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
-             - fu   ) / dzf(1)
+             - rhobh(1)*fu   ) / dzf(1)
 
 
     tau1ml(1) = tau1ml(1) + tau1j(i,j,1)
@@ -594,7 +591,7 @@ contains
             + &
             ( eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                       +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
-           - fv   ) / dzf(1)
+           - rhobh(1)*fv   ) / dzf(1)
 
 
     tau2ml(1) = tau2ml(1) + tau2j(i,j,1)
@@ -674,7 +671,7 @@ end subroutine do_genbudget
   subroutine do_gensbbudget
     use modglobal,  only : i1,j1,ih,jh,k1,kmax,rslabs
     use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
-    use modfields,  only : e120
+    use modfields,  only : e120,rhobf
     use modmpi,     only : slabsum,nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
     !----------------------------
     ! 1.1 Declare allocatable
@@ -702,7 +699,7 @@ end subroutine do_genbudget
     do k=1,k1
        do j=2,j1
        do i=2,i1
-          sbtkeavl(k) = sbtkeavl(k) + e120(i,j,k)*e120(i,j,k)
+          sbtkeavl(k) = sbtkeavl(k) + rhobf(k)*e120(i,j,k)*e120(i,j,k)
           khkmavl(k)  = khkmavl(k)  + ekh(i,j,k)/ekm(i,j,k)
        enddo
        enddo
@@ -734,10 +731,10 @@ end subroutine do_genbudget
     !----------------------------
 
   do k=1,k1
-     sbshrmn(k)   = sbshrmn(k)   + sbshrav(k)
-     sbbuomn(k)   = sbbuomn(k)   + sbbuoav(k)
-     sbdissmn(k)  = sbdissmn(k)  + sbdissav(k)
-     sbtkemn(k)   = sbtkemn(k)   + sbtkeav(k)
+     sbshrmn(k)   = sbshrmn(k)   + rhobf(k)*sbshrav(k)
+     sbbuomn(k)   = sbbuomn(k)   + rhobf(k)*sbbuoav(k)
+     sbdissmn(k)  = sbdissmn(k)  + rhobf(k)*sbdissav(k)
+     sbtkemn(k)   = sbtkemn(k)   + rhobf(k)*sbtkeav(k)
      ekmmn(k)     = ekmmn(k)     + ekmav(k)
      khkmmn(k)    = khkmmn(k)    + khkmav(k)
   enddo
