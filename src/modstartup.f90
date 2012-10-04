@@ -682,47 +682,15 @@ contains
   !******include rho if rho = rho(z) /= 1.0 ***********
 
     if (llsadv) then
-
-      !Remove the line below if you still want to use llsadv. However, it is strongly advised not to do that.
-      if (myid==0) stop 'llsadv should not be used anymore. If you still want to use this option, be aware that large scale gradients are calculated in a non physical way and that lmomsubs MUST be set to true to retain conservation of mass'
-
-      dudxls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
-      dudyls  (1) =  0.0
-      dvdyls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
-      dvdxls  (1) =  0.0
-      dthldxls(1) = om23_gs*thlprof(1)/grav &
-                        * (vg(2)-vg(1))/dzh(2)
-      dthldyls(1) = -om23_gs*thlprof(1)/grav &
-                        * (ug(2)-ug(1))/dzh(2)
-
-      do k=2,kmax-1
-        dudxls(k) = -0.5 *( whls(k+1)-whls(k) )/ dzf(k)
-        dudyls(k) =  0.0
-        dvdyls(k) = -0.5 *( whls(k+1)-whls(k) )/ dzf(k)
-        dvdxls(k) =  0.0
-        dthldxls(k) = om23_gs*thlprof(k)/grav &
-                        * (vg(k+1)-vg(k-1))/(zf(k+1)-zf(k-1))
-        dthldyls(k) = -om23_gs*thlprof(k)/grav &
-                        * (ug(k+1)-ug(k-1))/(zf(k+1)-zf(k-1))
-      end do
-
-      dudxls  (kmax) = -0.5 *( whls(k1)-whls(kmax) )/ dzf(k)
-      dudyls  (kmax) =  0.0
-      dvdyls  (kmax) = -0.5 *( whls(k1)-whls(kmax) )/ dzf(k)
-      dvdxls  (kmax) =  0.0
-      dthldxls(kmax) =  0.0
-      dthldyls(kmax) =  0.0
-
-    else
-
-      dudxls   = 0.0
-      dudyls   = 0.0
-      dvdxls   = 0.0
-      dvdyls   = 0.0
-      dthldxls = 0.0
-      dthldyls = 0.0
-
+      if (myid==0) stop 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)'
     end if
+    dudxls   = 0.0
+    dudyls   = 0.0
+    dvdxls   = 0.0
+    dvdyls   = 0.0
+    dthldxls = 0.0
+    dthldyls = 0.0
+
     idtmax = floor(dtmax/tres)
     btime   = timee
     timeleft=ceiling(runtime/tres)
