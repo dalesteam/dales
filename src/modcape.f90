@@ -186,6 +186,7 @@ contains
     lwp=0.
     twp=0.
     rwp=0.
+    sprec=0.
     cldtop=0.
     hw2max=0.
     buoymax=0.
