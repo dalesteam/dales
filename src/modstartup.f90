@@ -683,6 +683,9 @@ contains
 
     if (llsadv) then
 
+      !Remove the line below if you still want to use llsadv. However, it is strongly advised not to do that.
+      if (myid==0) stop 'llsadv should not be used anymore. If you still want to use this option, be aware that large scale gradients are calculated in a non physical way and that lmomsubs MUST be set to true to retain conservation of mass'
+
       dudxls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
       dudyls  (1) =  0.0
       dvdyls  (1) = -0.5 *( whls(2)-whls(1) )/ dzf(k)
