@@ -108,8 +108,8 @@ subroutine tstep_update
       if (ladaptive) then
         peclettotl = 1e-5
         do k=1,kmax
-          courtotl(k)=maxval((abs(um(2:i1,2:j1,k))*rdt/dx)*(abs(um(2:i1,2:j1,k))*rdt/dx)+(abs(vm(2:i1,2:j1,k))*rdt/dy)*&
-          (abs(vm(2:i1,2:j1,k))*rdt/dy)+abs(wm(2:i1,2:j1,k))*rdt/dzh(k)*abs(wm(2:i1,2:j1,k))*rdt/dzh(k))
+          courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
+          (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
         end do      
         call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
