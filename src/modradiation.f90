@@ -216,8 +216,8 @@ subroutine radpar
       end do
 
        do k=1,kmax
-         thlpld         = -(lwd(i,j,k+1)-lwd(i,j,k))*exnf(k)/(rhof(k)*cp*dzf(k))
-         thlplu         = -(lwu(i,j,k+1)-lwu(i,j,k))*exnf(k)/(rhof(k)*cp*dzf(k))
+         thlpld         = -(lwd(i,j,k+1)-lwd(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
+         thlplu         = -(lwu(i,j,k+1)-lwu(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
          thlprad(i,j,k) =   thlprad(i,j,k) + thlpld+thlplu
        end do
 
@@ -251,7 +251,7 @@ subroutine radpar
       end if
 
       do k=1,kmax
-        thlpsw          = (swd(i,j,k+1)-swd(i,j,k))*exnf(k)/(rhof(k)*cp*dzf(k))
+        thlpsw          = (swd(i,j,k+1)-swd(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
 
       end do
