@@ -183,7 +183,7 @@ contains
             thlpsd          = -(swd(i,j,k+1)-swd(i,j,k))
             thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
 
-            thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)*exnf(k)/(rhof(k)*cp*dzf(k))
+            thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
           end do
         end do
       end do
