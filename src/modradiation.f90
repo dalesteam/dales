@@ -251,7 +251,7 @@ subroutine radpar
       end if
 
       do k=1,kmax
-        thlpsw          = (swd(i,j,k+1)-swd(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
+        thlpsw          = ((swd(i,j,k+1)-swu(i,j,k+1))-(swd(i,j,k)-swu(i,j,k)))/(rhof(k)*cp*exnf(k)*dzf(k))
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
 
       end do
@@ -283,7 +283,7 @@ subroutine radpar
   real gcde,tauc,taucde &
            ,taupath,t1,t2,t3,c1,c2 &
            ,omega,omegade,ff,x1,x2,x3,rk,mu2,rp,alpha,beta,rtt &
-           ,exmu0,expk,exmk,xp23p,xm23p,ap23b
+           ,exmu0,expk,exmk,xp23p,xm23p,ap23b,Irr0,Irr1
   integer k
   allocate(taude(k1))
 
@@ -339,10 +339,16 @@ subroutine radpar
 
   do k = k1,1,-1
       taupath = taupath + taude(k)
-      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &
-                 -c2*exp(rk*taupath)) &
-                 -beta*exp(-taupath/mu)) &
-                 +mu*sw0*exp(-taupath/mu)
+
+      Irr0    = sw0*(    c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+      Irr1    = sw0*(rp*(c1*exp(-rk*taupath) - c2*exp(rk*taupath))- beta *exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+!      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &
+!                 -c2*exp(rk*taupath)) &
+!                 -beta*exp(-taupath/mu)) &
+!                 +mu*sw0*exp(-taupath/mu)
+      swd(i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu) ! difuse down + direct down
+      swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian) 
+
   end do
 
   deallocate(taude)
