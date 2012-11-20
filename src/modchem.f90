@@ -1576,7 +1576,8 @@ implicit none
 !        write(ifoutput,'(i3,x,19e11.4)') pl,(writearray(pl,i),i=1,tnor+2)
 !      enddo
       do pl=1,kmax
-        write(ifoutput,'(i3,1x,19e11.4)') pl,(writearrayg(pl,i)/nprocs,i=1,tnor+2)
+        write(formatstring,'(a,i3,a)') '(i3,1x,',tnor+2,'e11.4)'
+        write(ifoutput,formatstring) pl,(writearrayg(pl,i)/nprocs,i=1,tnor+2)
       enddo
 
       close(ifoutput)
