@@ -363,7 +363,7 @@ contains
       if (myid==0) then
         open (ifinput,file='prof.inp.'//cexpnr)
         read (ifinput,'(a80)') chmess
-        write(*,     '(a80)') chmess
+        write(*,'(a80)') chmess
         read (ifinput,'(a80)') chmess
 
         do k=1,kmax

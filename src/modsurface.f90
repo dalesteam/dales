@@ -843,7 +843,10 @@ contains
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
 !if (i==2 .and. j==2) print *,swdav,swuav,lwdav,lwuav,Qnet(2,2)
           else
-            Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
+!	    write(6,*) "CvHrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2)
+!            Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)) !original
+            Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))  !EWB
+
           end if
         else
           Qnet(i,j) = Qnetav

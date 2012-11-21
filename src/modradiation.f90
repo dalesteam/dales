@@ -234,24 +234,26 @@ subroutine radpar
 
 
     swd = 0.0
-    mu=zenith(xtime + rtimee/3600,xday,xlat,xlon)
+    mu=zenith(xtime*3600 + rtimee,xday,xlat,xlon)
     do j=2,j1
     do i=2,i1
 
       if (mu > 0.035) then  !factor 0.035 needed for security
         tauc = 0.           ! tau cloud
         do k = 1,kmax
-          tau(k) = 0.      ! tau laagje dz
-          if (ql0(i,j,k) > 1e-5) then
-            tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
+          tau(k) = 0.      ! tau dz
+!          if (ql0(i,j,k) > 1e-5) then
+ !           tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
+            tau(k)=1.5*(rhof(k)/2000.)*(dzf(k)/100e-9)*Sv0(i,j,k,1)*1e-9 ! 2000 refers to the BC density (rhoBC = 2g/cm3#) - Sv0 must be given in PPBv
             tauc=tauc+tau(k)
-          end if
+!          end if
         end do
         call sunray(tau,tauc,i,j)
       end if
 
       do k=1,kmax
-        thlpsw          = (swd(i,j,k+1)-swd(i,j,k))/(rhof(k)*cp*dzf(k))
+!        thlpsw         = (swd(i,j,k+1)-swd(i,j,k))/(rhof(k)*cp*dzf(k)) ! original
+        thlpsw          = ( (swd(i,j,k+1) - swu(i,j,k+1)) - (swd(i,j,k) - swu(i,j,k)) ) / (rhof(k)*cp*dzf(k)) ! net irradiance
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
 
       end do
@@ -273,8 +275,9 @@ subroutine radpar
 
   subroutine sunray(tau,tauc,i,j)
 
-  use modglobal, only :  k1
-  use modsurfdata,  only : albedo
+  use modglobal, only :  k1,xtime,boltz
+  use modsurfdata,  only : albedo, tskin
+  use modfields,   only : thl0
   implicit none
 
   real, intent(inout), dimension (k1) :: tau
@@ -283,35 +286,38 @@ subroutine radpar
   real gcde,tauc,taucde &
            ,taupath,t1,t2,t3,c1,c2 &
            ,omega,omegade,ff,x1,x2,x3,rk,mu2,rp,alpha,beta,rtt &
-           ,exmu0,expk,exmk,xp23p,xm23p,ap23b
+           ,exmu0,expk,exmk,xp23p,xm23p,ap23b,I1,I0
   integer k
   allocate(taude(k1))
 
   taucde = 0.         ! tau' cloud
   taupath = 0.
   do k=1,k1
-     taude(k) =0.     ! tau' laagje dz
+     taude(k) =0.     ! tau' dz
   end do
 
 ! omega=0.9989-4.e-3*exp(-0.15*tauc)  !   fouquart and bonnel (1980)
-  omega=1.-1.e-3*(0.9+2.75*(mu+1.)*exp(-0.09*tauc)) !fouquart
+  omega=1.-1.e-3*(0.9+2.75*(mu+1.)*exp(-0.09*tauc)) !fouquart	
 
 ! the equations for the delta-eddington approximation are equal to those
 ! for the eddington approximation with transformed parameters g, omega
 ! and tau (joseph, wiscomb and weinman, 1976, j.a.s.).
 ! parameternames: x -> xde (delta-eddington)
 
+  omega = 0.89 ! aerosol typical values
+
+
   ff=gc*gc
   gcde=gc/(1.+gc)
   taucde=(1.0-omega*ff)*tauc
 
   do k =1,k1
-    taude(k)=(1.e0-omega*ff)*tau(k)
+    taude(k)=(1.e0-omega*ff)*tau(k) ! original
   end do
 
   omegade=(1.0-ff)*omega/(1.e0-omega*ff)
 
-! the solution of the eddington equations are given by shettle and weinman
+! the  solution of the eddington equations are given by shettle and weinman
 ! (1970, j.a.s.).
 
   x1=1.0-omegade*gcde
@@ -337,14 +343,25 @@ subroutine radpar
   c2=(xp23p*t3*exmu0-t1*ap23b*exmk)/(xp23p*t2*expk-xm23p*t1*exmk)
   c1=(ap23b-c2*xm23p)/xp23p
 
+
+  
+  
   do k = k1,1,-1
       taupath = taupath + taude(k)
-      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &
-                 -c2*exp(rk*taupath)) &
-                 -beta*exp(-taupath/mu)) &
-                 +mu*sw0*exp(-taupath/mu)
-  end do
 
+  	I0 = sw0*(c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu))   ! Shettle & Weinmann JAS 1976 
+	I1 = sw0*(rp*(c1*exp(-rk*taupath)-c2*exp(rk*taupath)) - beta*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+
+!      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &   ! original
+!                 -c2*exp(rk*taupath)) &
+!                 -beta*exp(-taupath/mu)) &
+!                 +mu*sw0*exp(-taupath/mu)
+
+       swd(i,j,k) = ((I0 + (2./3.)*I1) + mu*sw0*exp(-taupath/mu)) ! difuse down + direct down
+       swu(i,j,k) = (I0 - (2./3.)*I1) !diffuse up (lambertian)
+       lwd(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.
+       lwu(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.
+  end do
   deallocate(taude)
 
   return
@@ -379,7 +396,8 @@ subroutine radpar
     real           :: Tr, sinlea
     real,parameter :: S0 = 1376.
 
-    sinlea = zenith(xtime + rtimee / 3600., xday, xlat, xlon)
+  
+    sinlea = zenith(xtime*3600 + rtimee, xday, xlat, xlon)
 
     Tr  = (0.6 + 0.2 * sinlea)
 
