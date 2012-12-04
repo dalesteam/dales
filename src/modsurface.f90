@@ -121,7 +121,7 @@ contains
     ! If z0 is set, but not z0m or z0h, then set them both to z0
     if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
       z0mav = z0
-      z0hav = z0
+      z0hav = z0/10.
       if (myid==0) write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
     end if
 
@@ -276,7 +276,7 @@ contains
       if (isurf==2 .and. lcalcz0) then
         call getz0
         z0m(:,:) = z0
-        z0h(:,:) = z0
+        z0h(:,:) = z0/10.
       end if
 
       if(lneutral) then
@@ -589,10 +589,10 @@ contains
     z0 = .11*nu_a/uStarCharn + (pCharn/grav)*uStarCharn**2
 
     ! Perform extra 'iteration' to get new u* value
-    do i=1,1
-      uStarCharn = fkar*Utot/log(zf(1)/z0)
-      z0 = .11*nu_a/uStarCharn + (pCharn/grav)*uStarCharn**2
-    end do
+!    do i=1,1
+!      uStarCharn = fkar*Utot/log(zf(1)/z0)
+!      z0 = .11*nu_a/uStarCharn + (pCharn/grav)*uStarCharn**2
+!    end do
 
     ! Save this value of z0 in z0_old, so it can serve as initial guess for the next time-step
 !    z0_old = z0
