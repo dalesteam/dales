@@ -610,7 +610,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, rslabs, pi, pref0, rd, rv, eps1!, boltz, rhow
+    use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, rslabs, pi, pref0, rd, rv, eps1, rtimee!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -883,22 +883,34 @@ contains
 
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
           if(lhetero) then
-            thlflux(i,j) = wt_patch(patchx,patchynr(j)) 
-            qtflux (i,j) = wq_patch(patchx,patchynr(j))
+            thlflux(i,j) = wt_patch(patchx,patchy) 
+            qtflux (i,j) = wq_patch(patchx,patchy)
           else
             thlflux(i,j) = wtsurf
             qtflux (i,j) = wqsurf
           endif
 
+          thlflux(i,j)   = thlflux(i,j) * sin(pi*(rtimee-8100)/28800)
+          if(rtimee .le.  8100) thlflux(i,j) = 0
+          if(rtimee .ge. 36900) thlflux(i,j) = 0
+
+          qtflux(i,j)    = qtflux(i,j) * sin(pi*(rtimee-3600)/37800)
+          if(rtimee .le.  3600) qtflux(i,j)  = 0
+          if(rtimee .ge. 41400) qtflux(i,j)  = 0
+
           if(lhetero) then
             do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j)) 
+              svflux(i,j,n) = wsv_patch(n,patchx,patchy) 
             enddo
           else
             do n=1,nsv
               svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
+
+!          svflux(i,j,ISO%loc+choffset) = svflux(i,j,ISO%loc+choffset) * exp(-0.5*(( ((rtimee+18000)-42705)/7999 )**2))!HGO
+          svflux(i,j,10) = svflux(i,j,10) * exp(-0.5*(( ((rtimee+18000)-42705)/7999 )**2))!HGO
+
 
           if (obl(i,j) < 0.) then
             phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
