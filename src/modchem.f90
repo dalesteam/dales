@@ -335,6 +335,7 @@ SUBROUTINE initchem
 
   if(myid==0)then
     open (ifoutput,file='cloudstat.'//cexpnr,status='replace')
+    write(ifoutput,'(A)') "#  time   UTC #zbase #cloud zbaseavg max_ztop cld_hght max_hght qlintmax qlintavg allqlmax allqlavg"
     close (ifoutput)
     open (ifoutput,file='keffs.'//cexpnr,status='replace')
     close (ifoutput)
@@ -1874,22 +1875,23 @@ subroutine ratech
     end select
   enddo
 
+  zbasesum = 0.
+  zbasecount = 0.
+  clddepth = 0.
+  ztopmax = 0.
+  cloudheightmax = 0.0
+  cloudheightsum = 0.0
+  cloudcount = 0.0
+  qlintsum = 0.0
+  qlintmax = 0.0
+  qlintallsum = 0.0
+  qlintallmax = 0.0
+
   if( sum(ql0) == 0.0 .or. (lcloudKconst  .eqv. .true.)) then  ! maybe < 0.01
     !there is no liquid water in the domain so no clouds
     !or we like constamnt value's for K so we are finished here
   else
     !we have to look for the individual clouds
-
-    zbasesum = 0.
-    zbasecount = 0.
-    clddepth = 0.
-    ztopmax = 0.
-    cloudheightmax = 0.0
-    cloudheightsum = 0.0
-    cloudcount = 0.0
-    qlintsum = 0.0
-    qlintallsum = 0.0
-    qlintallmax = 0.0
 
     !for clouds the the max solar zenith angle is cutoff at 60 degrees
     coszenmax = min(60*pi/180,coszen)
