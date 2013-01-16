@@ -126,6 +126,7 @@ contains
     call MPI_BCAST(dtav       ,1,MY_REAL,     0,comm3d,mpierr)
     call MPI_BCAST(lheterostats    ,1,MPI_LOGICAL, 0,comm3d,mpierr)
     call MPI_BCAST(ncklimit   ,1,MPI_INTEGER, 0,comm3d,mpierr)
+    call MPI_BCAST(lcloudcore ,1,MPI_LOGICAL, 0,comm3d,mpierr)
 
     if(.not.(lheterostats)) return
     idtav = dtav/tres
@@ -1125,6 +1126,39 @@ contains
 
 
   subroutine do_heterostatscc
+
+    use typeSizes
+    use netcdf
+    use modfields
+    use modmpi,     only : myid,slabsum
+    use modsurfdata
+    use modsubgrid, only : ekm, ekh
+    use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
+                           rd, imax, jmax, i1, j1, k1, ih, jh, rslabs
+
+    implicit none
+
+    integer n,i,j,k
+    integer status
+
+    real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg, thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
+    real, dimension(imax,jmax)         :: lwpavg 
+    real, dimension(jmax)              :: ccavg
+    real, dimension(jmax,ncklimit)     :: vertccavg,vertcchavg
+    real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
+    real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
+    real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
+    real, dimension(jmax,ncklimit,nsv) :: svavg, svhavg, svvar,  wsvcov, wsvcovs
+    real, dimension(jmax,ncklimit)     :: Nccf, Ncch
+    logical, dimension(imax,jmax,ncklimit) :: maskf, maskh
+
+    real  vonw(2-ih:i1+ih,2-jh:j1+jh,k1),putout(2-ih:i1+ih,2-jh:j1+jh,k1),uonw(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real  sv0h(2-ih:i1+ih,2-jh:j1+jh,k1,nsv),thv0(2-ih:i1+ih,2-jh:j1+jh,k1)
+
+    real  qs0h, t0h, den, c1, c2
+
+    real, dimension(k1)                :: thvav
+    real, dimension(k1)                :: thvhav
 
   end subroutine do_heterostatscc
 
