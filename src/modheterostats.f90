@@ -37,18 +37,25 @@ save
   !VARIABLES FOR STATISTICS
   !id of netcdf file
   integer :: ncid
+  integer :: ncidcc
 
   !id of dimensions
   integer :: xid, yid, zid, tid             
+  integer :: xidcc, yidcc, zidcc, tidcc             
 
   !id of variables (means)
   integer :: uavgid, vavgid, wavgid, thlavgid, thvavgid, qtavgid, qlavgid, eavgid
+  integer :: uavgidcc, vavgidcc, wavgidcc, thlavgidcc, thvavgidcc, qtavgidcc, qlavgidcc, eavgidcc
   integer, allocatable :: svavgid(:)
-  integer :: lwpid
+  integer, allocatable :: svavgidcc(:)
+  integer :: lwpid, coverid, vertcoverid, vertcoverhid
+  integer :: lwpidcc, coveridcc, vertcoveridcc, vertcoverhidcc
 
   !id of variables (variances)
   integer :: uvarid, vvarid, wvarid, thlvarid, thvvarid, qtvarid, qlvarid
   integer, allocatable :: svvarid(:)
+  integer :: uvaridcc, vvaridcc, wvaridcc, thlvaridcc, thvvaridcc, qtvaridcc, qlvaridcc
+  integer, allocatable :: svvaridcc(:)
 
   !id of variables (covariances)
   integer :: uvcovid, uwcovid, vwcovid
@@ -64,6 +71,20 @@ save
   integer :: thlqcovid
   integer, allocatable :: usvcovid(:), vsvcovid(:), wsvcovid(:)
   integer, allocatable :: wsvcovsid(:)
+
+  integer :: uvcovidcc, uwcovidcc, vwcovidcc
+  integer :: uwcovsidcc, vwcovsidcc
+  integer :: uthlcovidcc, vthlcovidcc, wthlcovidcc
+  integer :: wthlcovsidcc
+  integer :: uthvcovidcc, vthvcovidcc, wthvcovidcc
+  integer :: wthvcovsidcc
+  integer :: uqtcovidcc, vqtcovidcc, wqtcovidcc
+  integer :: wqtcovsidcc
+  integer :: uqlcovidcc, vqlcovidcc, wqlcovidcc
+  integer :: wqlcovsidcc
+  integer :: thlqcovidcc
+  integer, allocatable :: usvcovidcc(:), vsvcovidcc(:), wsvcovidcc(:)
+  integer, allocatable :: wsvcovsidcc(:)
 
   !Only used in chemistry cases: integer :: OHISOcovid, O3NOcovid
 
@@ -165,6 +186,12 @@ contains
 
     status = nf90_def_var(ncid, "lwp", nf90_float, (/xid,yid, tid/), lwpid)
     if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "cc", nf90_float, (/yid, tid/), coverid)
+    if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "ccvert", nf90_float, (/yid,zid, tid/), vertcoverid)
+    if (status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_def_var(ncid, "ccverth", nf90_float, (/yid,zid, tid/), vertcoverhid)
+    if (status /= nf90_noerr) call nchandle_error(status)
 
     !variances
     status = nf90_def_var(ncid, "uvar", nf90_float, (/yid, zid, tid/), uvarid)
@@ -229,6 +256,131 @@ contains
     !turn off define mode
     status = nf90_enddef(ncid)
     if (status /= nf90_noerr) call nchandle_error(status)
+
+    if (lcloudcore) then
+      
+      allocate(svavgidcc(nsv))
+      allocate(svvaridcc(nsv))
+      allocate(usvcovidcc(nsv), vsvcovidcc(nsv), wsvcovidcc(nsv))
+      allocate(wsvcovsidcc(nsv))
+      
+      ncfile = 'cloudcstats123.nc'
+      write(ncfile(12:14),'(i3.3)') myid
+
+      !create file
+      status = nf90_create(ncfile, nf90_clobber, ncidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+
+      !create dimensions
+      status = nf90_def_dim(ncidcc, "x", imax, xidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_dim(ncidcc, "y", jmax, yidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_dim(ncidcc, "z", ncklimit, zidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_dim(ncidcc, "t", nf90_unlimited, tidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+
+      !create variables
+      !means
+      status = nf90_def_var(ncidcc, "uavg", nf90_float, (/yidcc, zidcc, tidcc/), uavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "vavg", nf90_float, (/yidcc, zidcc, tidcc/), vavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wavg", nf90_float, (/yidcc, zidcc, tidcc/), wavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "thlavg", nf90_float, (/yidcc, zidcc, tidcc/), thlavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "thvavg", nf90_float, (/yidcc, zidcc, tidcc/), thvavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "qtavg", nf90_float, (/yidcc, zidcc, tidcc/), qtavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "qlavg", nf90_float, (/yidcc, zidcc, tidcc/), qlavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "eavg", nf90_float, (/yidcc, zidcc, tidcc/), eavgidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      do n=1,nsv
+        filename = "svnnnavg"
+        write (filename(3:5),'(i3.3)') n
+        status = nf90_def_var(ncidcc, filename, nf90_float, (/yidcc, zidcc, tidcc/), svavgidcc(n))
+        if (status /= nf90_noerr) call nchandle_error(status)
+      enddo
+
+      status = nf90_def_var(ncidcc, "lwp", nf90_float, (/xidcc,yidcc, tidcc/), lwpidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "cc", nf90_float, (/yidcc, tidcc/), coveridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "ccvert", nf90_float, (/yidcc,zidcc, tidcc/), vertcoveridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "ccverth", nf90_float, (/yidcc,zidcc, tidcc/), vertcoverhidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+
+      !variances
+      status = nf90_def_var(ncidcc, "uvar", nf90_float, (/yidcc, zidcc, tidcc/), uvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "vvar", nf90_float, (/yidcc, zidcc, tidcc/), vvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wvar", nf90_float, (/yidcc, zidcc, tidcc/), wvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "thlvar", nf90_float, (/yidcc, zidcc, tidcc/), thlvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "thvvar", nf90_float, (/yidcc, zidcc, tidcc/), thvvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "qtvar", nf90_float, (/yidcc, zidcc, tidcc/), qtvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "qlvar", nf90_float, (/yidcc, zidcc, tidcc/), qlvaridcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      do n=1,nsv
+        filename = "svnnnvar"
+        write (filename(3:5),'(i3.3)') n
+        status = nf90_def_var(ncidcc, filename, nf90_float, (/yidcc, zidcc, tidcc/), svvaridcc(n))
+        if (status /= nf90_noerr) call nchandle_error(status)
+      enddo
+
+      !covariances
+      status = nf90_def_var(ncidcc, "uwcov", nf90_float, (/yidcc, zidcc, tidcc/), uwcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "uwcovs", nf90_float, (/yidcc, zidcc, tidcc/), uwcovsidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "vwcov", nf90_float, (/yidcc, zidcc, tidcc/), vwcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "vwcovs", nf90_float, (/yidcc, zidcc, tidcc/), vwcovsidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wthlcov", nf90_float, (/yidcc, zidcc, tidcc/), wthlcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wthlcovs", nf90_float, (/yidcc, zidcc, tidcc/), wthlcovsidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wthvcov", nf90_float, (/yidcc, zidcc, tidcc/), wthvcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wthvcovs", nf90_float, (/yidcc, zidcc, tidcc/), wthvcovsidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wqtcov", nf90_float, (/yidcc, zidcc, tidcc/), wqtcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wqlcov", nf90_float, (/yidcc, zidcc, tidcc/), wqlcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wqtcovs", nf90_float, (/yidcc, zidcc, tidcc/), wqtcovsidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "wqlcovs", nf90_float, (/yidcc, zidcc, tidcc/), wqlcovsidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      status = nf90_def_var(ncidcc, "thlqcov", nf90_float, (/yidcc, zidcc, tidcc/), thlqcovidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      do n=1,nsv
+        filename = "wsvnnncov"
+        write (filename(4:6),'(i3.3)') n
+        status = nf90_def_var(ncidcc, filename, nf90_float, (/yidcc, zidcc, tidcc/), wsvcovidcc(n))
+        if (status /= nf90_noerr) call nchandle_error(status)
+        filename = "wsvnnncovs"
+        write (filename(4:6),'(i3.3)') n
+        status = nf90_def_var(ncidcc, filename, nf90_float, (/yidcc, zidcc, tidcc/), wsvcovsidcc(n))
+        if (status /= nf90_noerr) call nchandle_error(status)
+      enddo
+
+      !turn off define mode
+      status = nf90_enddef(ncidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      
+    endif
+
   end subroutine initheterostats
 
 
