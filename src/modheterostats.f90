@@ -400,6 +400,7 @@ contains
     dt_lim = min(dt_lim,tnext-timee)
 
     call do_heterostats
+    if (lcloudcore) call do_heterostatscc
     nccall = nccall + 1
 
   end subroutine heterostats
@@ -413,7 +414,7 @@ contains
     use modmpi,     only : myid
     use modsurfdata
     use modsubgrid, only : ekm, ekh
-    use modglobal,  only : iadv_thl, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
+    use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
                            rd, imax, jmax, i1, j1, k1, ih, jh
 
     implicit none
@@ -423,6 +424,8 @@ contains
 
     real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg, thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
     real, dimension(imax,jmax)         :: lwpavg 
+    real, dimension(jmax)              :: ccavg
+    real, dimension(jmax,ncklimit)     :: vertccavg,vertcchavg
     real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
     real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
     real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
@@ -450,6 +453,9 @@ contains
     uonwavg(:,:)  = 0.0
 
     lwpavg(:,:)   = 0.0
+    ccavg(:)      = 0.0
+    vertccavg(:,:)= 0.0
+    vertcchavg(:,:)=0.0
 
     uvar(:,:)     = 0.0
     vvar(:,:)     = 0.0
@@ -499,7 +505,7 @@ contains
     end do
 
     do n=1,nsv
-      if (iadv_thl==iadv_kappa) then
+      if (iadv_sv(n)==iadv_kappa) then
          call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h(:,:,:,n))
       else
         do  k=2,k1
@@ -730,7 +736,7 @@ contains
       if(status /= nf90_noerr) call nchandle_error(status)
     enddo
 
-    !calculate liquid water path and store it
+    !calculate liquid water path and cloud covers and store them
     do j = 1,jmax
       do i = 1,imax
         do k = 1,kmax
@@ -739,7 +745,23 @@ contains
       end do
     end do
 
+    do j = 1,jmax
+      do i = 1,imax
+        if(any(ql0(i+1,j+1,1:kmax) > epsilon(1.0))) ccavg(j) = ccavg(j) + 1.0/imax
+        do k = 1,ncklimit
+          if(ql0( i+1,j+1,k) > epsilon(1.0)) vertccavg( j,k) = vertccavg( j,k) + 1.0/imax
+          if(ql0h(i+1,j+1,k) > epsilon(1.0)) vertcchavg(j,k) = vertcchavg(j,k) + 1.0/imax
+        end do
+      end do
+    end do
+
     status = nf90_put_var(ncid, lwpid, lwpavg, (/1,1,nccall/), (/imax, jmax, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, coverid, ccavg, (/1,1,nccall/), (/jmax, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, vertcoverid, vertccavg, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+    if(status /= nf90_noerr) call nchandle_error(status)
+    status = nf90_put_var(ncid, vertcoverhid,vertcchavg,(/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
 
     !calculate variances and store them
@@ -1100,6 +1122,12 @@ contains
     enddo
 
   end subroutine do_heterostats
+
+
+  subroutine do_heterostatscc
+
+  end subroutine do_heterostatscc
+
 
   subroutine exitheterostats
 
