@@ -31,6 +31,7 @@ save
   real                 :: dtav
   integer(kind=longint):: idtav,tnext
   logical              :: lheterostats  = .false.
+  logical              :: lcloudcore    = .false.
   integer              :: ncklimit 
 
   !VARIABLES FOR STATISTICS
@@ -90,7 +91,7 @@ contains
     character(20)       :: filename
 
     namelist/NAMHETEROSTATS/ &
-    dtav,lheterostats,ncklimit
+    dtav,lheterostats,ncklimit,lcloudcore
 
     ncklimit = kmax
     dtav = dtav_glob
