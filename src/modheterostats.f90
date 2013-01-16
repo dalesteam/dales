@@ -1213,7 +1213,6 @@ contains
 
     !calculate averages and store them
 
-    if(myid==0) print *,"HGO DEBUG 2b" !HGO debug
     !Prepare data
     do k = 2,k1
       do j = 2,j1
@@ -1268,7 +1267,6 @@ contains
         maskh(i,j,:) = (ql0h(i+1,j+1,1:ncklimit)>epsilon(1.0).and.thv0h(i+1,j+1,1:ncklimit) > thvhav(1:ncklimit))
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2c" !HGO debug
 
     !calculate liquid water path and cloud covers and store them
     do j = 1,jmax
@@ -1300,7 +1298,6 @@ contains
     status = nf90_put_var(ncidcc, vertcoverhidcc,vertcchavg,(/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
 
-    if(myid==0) print *,"HGO DEBUG 2d" !HGO debug
     !LOOPS ARE NOT PUT IN FUNCTION BECAUSE OF ARRAY DEFINITIONS WHICH DIFFER AMONG VARIABLES!
     do k = 1,ncklimit
       do j = 1,jmax
@@ -1469,7 +1466,6 @@ contains
       end do
     enddo
 
-    if(myid==0) print *,"HGO DEBUG 2e" !HGO debug
 
     do k = 1,ncklimit
       do j = 1,jmax
@@ -1513,7 +1509,6 @@ contains
         endif
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2f" !HGO debug
 
     status = nf90_put_var(ncidcc, uavgidcc, uavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
@@ -1535,7 +1530,6 @@ contains
       status = nf90_put_var(ncidcc, svavgidcc(n), svavg(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
       if(status /= nf90_noerr) call nchandle_error(status)
     enddo
-    if(myid==0) print *,"HGO DEBUG 2g" !HGO debug
 
     !calculate variances and store them
     do k = 1,ncklimit
@@ -1617,7 +1611,6 @@ contains
         end do
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2h" !HGO debug
 
     do k = 1,ncklimit
       do j = 1,jmax
@@ -1645,7 +1638,6 @@ contains
         endif
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2i" !HGO debug
 
     status = nf90_put_var(ncidcc, uvaridcc, uvar, (/1,1,nccall/), (/jmax, ncklimit , 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
@@ -1665,7 +1657,6 @@ contains
       status = nf90_put_var(ncidcc, svvaridcc(n), svvar(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
       if(status /= nf90_noerr) call nchandle_error(status)
     enddo
-    if(myid==0) print *,"HGO DEBUG 2j" !HGO debug
 
     !calculate covariances and store them
     do k = 2,ncklimit
@@ -1800,7 +1791,6 @@ contains
         end do
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2k" !HGO debug
 
     do k = 1,ncklimit
       do j = 2,(jmax+1)
@@ -1831,7 +1821,6 @@ contains
         end do
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2l" !HGO debug
 
     do n=1,nsv
       do k = 2,ncklimit
@@ -1869,7 +1858,6 @@ contains
         end do
       end do
     end do
-    if(myid==0) print *,"HGO DEBUG 2m" !HGO debug
 
     do k = 1,ncklimit
       do j = 1,jmax
@@ -1912,7 +1900,6 @@ contains
       end do
     end do
 
-    if(myid==0) print *,"HGO DEBUG 2n" !HGO debug
     status = nf90_put_var(ncidcc, uwcovidcc, uwcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncidcc, uwcovsidcc, uwcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
@@ -1939,14 +1926,12 @@ contains
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncidcc, thlqcovidcc, thlqcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
-    if(myid==0) print *,"HGO DEBUG 2o" !HGO debug
     do n=1,nsv
       status = nf90_put_var(ncidcc, wsvcovidcc(n), wsvcov(:,:,n), (/1,1,nccall/), (/jmax, ncklimit, 1/))
       if(status /= nf90_noerr) call nchandle_error(status)
       status = nf90_put_var(ncidcc, wsvcovsidcc(n), wsvcovs(:,:,n), (/1,1,nccall/), (/jmax, ncklimit, 1/))
       if(status /= nf90_noerr) call nchandle_error(status)
     enddo
-    if(myid==0) print *,"HGO DEBUG 2p" !HGO debug
 
   end subroutine do_heterostatscc
 
