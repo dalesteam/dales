@@ -1123,6 +1123,17 @@ contains
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call nchandle_error(status)
 
+    if (lcloudcore) then
+      
+      deallocate(svavgidcc)
+      deallocate(svvaridcc)
+      deallocate(usvcovidcc, vsvcovidcc, wsvcovidcc)
+      deallocate(wsvcovsidcc)
+      
+      status = nf90_close(ncidcc)
+      if (status /= nf90_noerr) call nchandle_error(status)
+      
+    endif
   end subroutine exitheterostats
 
   subroutine nchandle_error(status)
