@@ -245,7 +245,7 @@ subroutine radpar
 !          if (ql0(i,j,k) > 1e-5) then
  !           tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
             tau(k)=1.5*(rhof(k)/2000.)*(dzf(k)/100e-9)*Sv0(i,j,k,1)*1e-9 ! 2000 refers to the BC density (rhoBC = 2g/cm3#) - Sv0 must be given in PPBv
-            tauc=tauc+tau(k)
+	    tauc=tauc+tau(k)
 !          end if
         end do
         call sunray(tau,tauc,i,j)
@@ -286,7 +286,7 @@ subroutine radpar
   real gcde,tauc,taucde &
            ,taupath,t1,t2,t3,c1,c2 &
            ,omega,omegade,ff,x1,x2,x3,rk,mu2,rp,alpha,beta,rtt &
-           ,exmu0,expk,exmk,xp23p,xm23p,ap23b,I1,I0
+           ,exmu0,expk,exmk,xp23p,xm23p,ap23b,I1,I0,sw1
   integer k
   allocate(taude(k1))
 
@@ -345,19 +345,20 @@ subroutine radpar
 
 
   
-  
+  sw1 = sw0*(0.6 + 0.2 * mu)
+
   do k = k1,1,-1
       taupath = taupath + taude(k)
 
-  	I0 = sw0*(c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu))   ! Shettle & Weinmann JAS 1976 
-	I1 = sw0*(rp*(c1*exp(-rk*taupath)-c2*exp(rk*taupath)) - beta*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+  	I0 = sw1*(c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu))   ! Shettle & Weinmann JAS 1976 
+	I1 = sw1*(rp*(c1*exp(-rk*taupath)-c2*exp(rk*taupath)) - beta*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
 
 !      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &   ! original
 !                 -c2*exp(rk*taupath)) &
 !                 -beta*exp(-taupath/mu)) &
 !                 +mu*sw0*exp(-taupath/mu)
 
-       swd(i,j,k) = ((I0 + (2./3.)*I1) + mu*sw0*exp(-taupath/mu)) ! difuse down + direct down
+       swd(i,j,k) = ((I0 + (2./3.)*I1) + mu*sw1*exp(-taupath/mu)) ! difuse down + direct down
        swu(i,j,k) = (I0 - (2./3.)*I1) !diffuse up (lambertian)
        lwd(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.
        lwu(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.

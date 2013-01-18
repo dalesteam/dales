@@ -39,7 +39,7 @@ public :: inittimedep, timedep,ltimedep,exittimedep
 save
 ! switches for timedependent surface fluxes and large scale forcings
   logical       :: ltimedep     = .false. !< Overall switch, input in namoptions
-  logical       :: ltimedepz    = .true.  !< Switch for large scale forcings
+  logical       :: ltimedepz    = .false.  !< Switch for large scale forcings
   logical       :: ltimedepsurf = .true.  !< Switch for surface fluxes
 
   integer, parameter    :: kflux = 100
