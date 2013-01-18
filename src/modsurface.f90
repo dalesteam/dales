@@ -228,7 +228,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, rslabs, pi, pref0, rd, rv, eps1!, boltz, rhow
+    use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, xtime, rtimee, rslabs, pi, pref0, rd, rv, eps1!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs
     use moduser,    only : surf_user
@@ -427,6 +427,10 @@ contains
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
           thlflux(i,j) = wtsurf
           qtflux (i,j) = wqsurf
+! EWB thlflux varies during the day.
+	  thlflux(i,j)  = wtsurf * sin(pi*(3600*(xtime+1)+rtimee-15515)/52970)
+	  if(3600*(xtime+1)+rtimee .le.  15515) thlflux(i,j) = 0
+	  if(3600*(xtime+1)+rtimee .ge. 68400) thlflux(i,j) = 0
 
           do n=1,nsv
             svflux(i,j,n) = wsvsurf(n)
@@ -452,7 +456,11 @@ contains
 
           Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
 
-          tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
+
+
+!          tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
+!EWB - We have thlflux varying during the day while wtsurf is constant.
+          tskin(i,j) = thlflux(i,j) / (Cs(i,j) * horv) + thl0(i,j,1)
           qskin(i,j) = wqsurf / (Cs(i,j) * horv) + qt0(i,j,1)
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
