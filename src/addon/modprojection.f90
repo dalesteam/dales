@@ -59,7 +59,7 @@ contains
 
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer
-    use modglobal,only :ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,dt_lim,tres,btime
+    use modglobal,only :ifnamopt,fname_options,dtmax,rkStep,rkMaxStep, dtav_glob,ladaptive,j1,kmax,dt_lim,tres,btime
     implicit none
 
     integer :: ierr
@@ -101,12 +101,12 @@ contains
   end subroutine initprojection
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine projection
-    use modglobal, only : rk3step,timee,dt_lim
+    use modglobal, only : rkStep,rkMaxStep,timee,dt_lim
     implicit none
 
 
     if (.not. lproject) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return

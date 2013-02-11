@@ -63,7 +63,7 @@ contains
   subroutine initsampling
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
-    use modglobal, only : ladaptive, dtmax,rk3step,k1,ifnamopt,fname_options,kmax,   &
+    use modglobal, only : ladaptive, dtmax,rkStep,rkMaxStep,k1,ifnamopt,fname_options,kmax,   &
                            dtav_glob,timeav_glob,dt_lim,btime,tres,cexpnr,ifoutput
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
@@ -314,10 +314,10 @@ contains
 
 !> General routine, does the timekeeping
   subroutine sampling
-    use modglobal, only : rk3step,timee,dt_lim
+    use modglobal, only : rkStep,rkMaxStep,timee,dt_lim
     implicit none
    if (isamptot<2) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return

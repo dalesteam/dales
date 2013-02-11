@@ -66,7 +66,7 @@ contains
 
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,dt_lim,tres,btime,cexpnr,zf
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rkStep,rkMaxStep, dtav_glob,ladaptive,j1,kmax,dt_lim,tres,btime,cexpnr,zf
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo, writestat_dims_nc
     implicit none
 
@@ -128,12 +128,12 @@ contains
   end subroutine initprojection
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine projection
-    use modglobal, only : rk3step,timee,dt_lim
+    use modglobal, only : rkStep,rkMaxStep,timee,dt_lim
     implicit none
 
 
     if (.not. lproject) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return
@@ -146,7 +146,7 @@ contains
   end subroutine projection
   subroutine wrthorz
     use modglobal, only : i1,j1,imax,jmax,kmax,nsv,cexpnr,ifoutput,rtimee ,dzf
-    use modfields, only : thlm,qtm,svm,thv0h,ql0,thl0av,qt0av,rhof
+    use modfields, only : thl0,qt0,thv0h,ql0,rhof
     use modmpi,    only : cmyid
     use modstat_nc,  only : lnetcdf, writestat_nc
    implicit none
@@ -185,12 +185,12 @@ contains
       allocate(vars(1:imax,1:jmax,nvar))
       do j = 2,j1
         do i = 2,i1
-          vars(i-1,j-1,1) = sum(thlm (i,j,1:ksplit)*rhof(1:ksplit)*dzf(1:ksplit))
-          vars(i-1,j-1,2) = sum(thlm (i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
+          vars(i-1,j-1,1) = sum(thl0 (i,j,1:ksplit)*rhof(1:ksplit)*dzf(1:ksplit))
+          vars(i-1,j-1,2) = sum(thl0 (i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
           vars(i-1,j-1,3) = sum(thv0h(i,j,1:ksplit)*rhof(1:ksplit)*dzf(1:ksplit))
           vars(i-1,j-1,4) = sum(thv0h(i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
-          vars(i-1,j-1,5) = sum(qtm  (i,j,1:ksplit)*rhof(1:ksplit)*dzf(1:ksplit))
-          vars(i-1,j-1,6) = sum(qtm  (i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
+          vars(i-1,j-1,5) = sum(qt0  (i,j,1:ksplit)*rhof(1:ksplit)*dzf(1:ksplit))
+          vars(i-1,j-1,6) = sum(qt0  (i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
           vars(i-1,j-1,7) = sum(ql0  (i,j,1:ksplit)*rhof(1:ksplit)*dzf(1:ksplit))
           vars(i-1,j-1,8) = sum(ql0  (i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
         end do

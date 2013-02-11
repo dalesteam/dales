@@ -81,7 +81,7 @@ contains
   end subroutine initcloudfield
 !>Run cloudfield. Dump the coordinates to file
    subroutine cloudfield
-    use modglobal, only : imax,i1,jmax,j1,kmax, rk3step,dt_lim,timee,rtimee, cexpnr,ifoutput
+    use modglobal, only : imax,i1,jmax,j1,kmax, rkStep,rkMaxStep,dt_lim,timee,rtimee, cexpnr,ifoutput
     use modfields, only : w0,ql0
     use modmpi,    only : cmyid
     implicit none
@@ -92,7 +92,7 @@ contains
     integer i,j,k,n,cldpoints
 
     if (.not. lcloudfield) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return

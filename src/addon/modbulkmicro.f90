@@ -60,7 +60,7 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
-    use modglobal, only : ih,i1,jh,j1,k1,dzf,rk3step
+    use modglobal, only : ih,i1,jh,j1,k1,dzf,rkStep
     use modmpi,    only : myid
     implicit none
 
@@ -127,7 +127,7 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
-    use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp
+    use modglobal, only : ih,jh,i1,j1,k1,rdt,rkStep,rkMaxStep,timee,kmax,rlv,cp
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,presf, exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
@@ -149,7 +149,7 @@ module modbulkmicro
     qtpmcr  = 0.0
     Nc     = 0.0
 
-    delt = rdt/ (4. - dble(rk3step))
+    delt = rdt/ (4. - dble(rkStep))
     do k = 1, k1
       do i=2,i1 
       do j=2,j1
@@ -160,7 +160,7 @@ module modbulkmicro
       enddo
     enddo
 
-    if ( timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
+    if ( timee .eq. 0. .and. rkStep .eq. 1 .and. myid .eq. 0) then
       write(*,*) 'l_lognormal',l_lognormal
       write(*,*) 'rhoz(1)', rhoz(2,2,1),' rhoz(10)', rhoz(2,2,10)
       write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst

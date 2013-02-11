@@ -162,13 +162,17 @@ save
       integer(kind=longint) :: timeleft
       
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
+      integer :: iTimeInt    = 1          !<    selects the time integration scheme
+                                          !     1 - Wicker and Skamarock RK3 scheme (2nd order accurate, 3N storage)
+                                          !     2 - Williamson (1980) RK3 scheme (3rd order accurate, 2N storage)
 
       real    :: courant = -1
       real    :: peclet  = 0.15
       integer(kind=longint) :: dt_lim
 
-
-      integer :: rk3step = 0
+      ! Runge Kutta time stepping variables
+      integer :: rkStep = 0               ! Current Runge Kutta (subtime) step
+      integer :: rkMaxStep = 0            ! Final Runge Kutta step
 
       integer :: iexpnr = 0     !<     * number of the experiment
 
@@ -234,7 +238,7 @@ contains
       case(iadv_52)
         courant = 1.
       case(iadv_hybrid)
-        courant = 1.
+        courant = 1.5
       case default
         courant = 1.
       end select

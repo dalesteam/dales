@@ -136,7 +136,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine nudge
-    use modglobal, only : rtimee,i1,j1,k1,rk3step,kmax,rdt
+    use modglobal, only : rtimee,i1,j1,k1,rkStep,rkMaxStep,kmax,rdt
     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
     use modmpi,    only : myid
     implicit none
@@ -145,7 +145,7 @@ contains
     real :: dtm,dtp,currtnudge
 
     if (.not.(lnudge)) return
-!     if (rk3step/=3) return
+!     if (rkStep/=rkMaxStep) return
     if (rtimee==0) return
 
     t=1

@@ -190,14 +190,14 @@ subroutine initstattend
 !> Performs the statistics, keeps track of what the tendencies were last time, and what they are this time.
   subroutine stattend(tendterm,lastterm)
     use modmpi,    only : myid,slabsum
-    use modglobal, only : ih,jh,i1,j1,kmax,k1,rk3step,timee,dt_lim,rslabs,btime
+    use modglobal, only : ih,jh,i1,j1,kmax,k1,rkStep,rkMaxStep,timee,dt_lim,rslabs,btime
     use modfields, only : up,vp,wp,thlp,qtp
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
     logical, intent(in), optional :: lastterm !< true if this is the last term of the equations; the write routine is entered.
     real, dimension(:),allocatable :: avfield
     if (.not.(ltend)) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     if(timee<tnext) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return

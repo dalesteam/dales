@@ -225,10 +225,10 @@ subroutine initsimpleicestat
 !> General routine, does the timekeeping
   subroutine simpleicestat
     use modmpi,    only  : myid
-    use modglobal,    only  : rk3step, timee, dt_lim
+    use modglobal,    only  : rkStep,rkMaxStep, timee, dt_lim
     implicit none
     if (.not. lmicrostat)  return
-    if (rk3step /= 3)  return
+    if (rkStep /= 3)  return
     if (timee == 0)    return
     if (timee < tnext .and. timee < tnextwrite) then
       dt_lim  = minval((/dt_lim, tnext - timee, tnextwrite - timee/))
@@ -300,7 +300,7 @@ subroutine initsimpleicestat
 !> Performs the calculations for the tendencies etc.
   subroutine simpleicetend
     use modmpi,    only  : slabsum
-    use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, rslabs
+    use modglobal,    only  : rkStep,rkMaxStep, timee, dt_lim, k1, ih, i1, jh, j1, rslabs
     use modfields,    only  : qtp
     use modmicrodata,  only  : qrp, Nrp
     implicit none
@@ -309,7 +309,7 @@ subroutine initsimpleicestat
     integer        :: ifield = 0
 
     if (.not. lmicrostat)  return
-    if (rk3step /= 3)  return
+    if (rkStep /= 3)  return
     if (timee == 0)    return
     if (timee < tnext .and. timee < tnextwrite) then
       dt_lim  = minval((/dt_lim, tnext - timee, tnextwrite - timee/))

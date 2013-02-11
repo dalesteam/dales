@@ -257,7 +257,7 @@ contains
 !*****************************************************************************
 
   subroutine particles
-    use modglobal, only :dx,dy,dzf,k1,rk3step,rtimee,j2,i2
+    use modglobal, only :dx,dy,dzf,k1,rkStep,rkMaxStep,rtimee,j2,i2
     implicit none
     type (particle_record), pointer:: particle
 
@@ -279,7 +279,7 @@ contains
           particle%wres = velocity_wres(particle%x,particle%y,particle%z) / dzf(floor(particle%z))
 
           if (lpartsgs) then
-            if (rk3step==1) then
+            if (rkStep==1) then
               particle%usgs_prev = particle%usgs
               particle%vsgs_prev = particle%vsgs
               particle%wsgs_prev = particle%wsgs
@@ -296,7 +296,7 @@ contains
     particle => particle%next
     end do
 !****Statistics******
-    if (rk3step==3) then
+    if (rkStep==3) then
       call statistics
       call writeparticles
     end if
@@ -328,12 +328,12 @@ contains
 !*****************************************************************************
 
   subroutine rk3(particle)
-    use modglobal, only : rk3step,rdt,j1,dzf
+    use modglobal, only : rkStep,rkMaxStep,rdt,j1,dzf
     implicit none
     real :: rk3coef
 
     TYPE (particle_record), POINTER:: particle
-    rk3coef = rdt / (4. - dble(rk3step))
+    rk3coef = rdt / (4. - dble(rkStep))
     particle%x =  particle%x_prev + (particle%ures +particle%usgs) * rk3coef
     particle%y =  particle%y_prev + (particle%vres +particle%vsgs) * rk3coef
     particle%z =  particle%z_prev + (particle%wres +particle%wsgs) * rk3coef
@@ -342,7 +342,7 @@ contains
       particle%z = floor(particle%z) + (particle%z -floor(particle%z))*dzf(floor(particle%z_prev))/dzf(floor(particle%z))
     end if
 
-    if (rk3step==3) then
+    if (rkStep==3) then
       particle%x_prev = particle%x
       particle%y_prev = particle%y
       particle%z_prev = particle%z

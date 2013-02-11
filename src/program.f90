@@ -101,7 +101,8 @@ program DALES      !Version 4.0.0alpha
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
   use modmpi,            only : myid, initmpi
-  use modglobal,         only : rk3step,timee,btime,runtime,timeleft
+  use modtstep,          only : tstep_update,tstep_integrate
+  use modglobal,         only : rkStep,rkMaxStep,timee,btime,runtime,timeleft
   use modfields,         only : thl0
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
@@ -190,7 +191,7 @@ program DALES      !Version 4.0.0alpha
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
   write(*,*)'START myid ', myid
-  do while (timeleft>0 .or. rk3step < 3)
+  do while (timeleft>0 .or. rkStep < rkMaxStep)
     call tstep_update                           ! Calculate new timestep
     call timedep
     call samptend(tend_start,firstterm=.true.)
@@ -279,6 +280,7 @@ program DALES      !Version 4.0.0alpha
     call heterostats
 
     call writerestartfiles
+
   end do
 
 !-------------------------------------------------------

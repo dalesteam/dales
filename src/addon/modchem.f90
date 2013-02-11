@@ -1077,14 +1077,14 @@ end subroutine read_chem
 
 
 SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
-use modglobal, only : rk3step,timee
+use modglobal, only : rkStep,rkMaxStep,timee
 use modfields, only: svm
 use modmpi, only: myid
 implicit none
 
   if (.not. (lchem)) return
 
-  if (rk3step/=3) return
+  if (rkStep/=rkMaxStep) return
   if(timee==0) return
 
   !!!! We only use the chemistry scalars in svm,

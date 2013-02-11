@@ -233,11 +233,11 @@ contains
 
   subroutine heterostats
 
-    use modglobal, only : rk3step,ntimee,dt_lim,timee
+    use modglobal, only : rkStep,rkMaxStep,ntimee,dt_lim,timee
     implicit none
 
     if (.not. lheterostats) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     if (timee==0) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)

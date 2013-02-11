@@ -72,12 +72,12 @@ contains
   end subroutine initchecksim
 !>Run checksim. Timekeeping, and output
   subroutine checksim
-    use modglobal, only : timee,rtimee, rk3step, dt_lim,rdt
+    use modglobal, only : timee,rtimee, rkStep,rkMaxStep, dt_lim,rdt
     use modmpi,    only : myid
     implicit none
     character(20) :: timeday
     if (timee ==0) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
     dtmn = dtmn +rdt; ndt =ndt+1.
     if(timee<tnext) return
     tnext = tnext+itcheck

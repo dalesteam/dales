@@ -110,14 +110,14 @@ save
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
 
- real, allocatable :: umav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: vmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: thmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+! real, allocatable :: umav (:)     ! slab averaged ql_0    at full level
+! real, allocatable :: vmav (:)     ! slab averaged ql_0    at full level
+! real, allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
+! real, allocatable :: thmav (:)     ! slab averaged ql_0    at full level
+! real, allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
+! real, allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
+! real, allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
@@ -227,14 +227,14 @@ contains
     allocate(svmmn(k1,nsv),svptmn(k1,nsv),svplsmn(k1,nsv),svpmn(k1,nsv))
     allocate(sv2mn(k1,nsv))
 
-    allocate(umav (k1))
-    allocate(vmav (k1))
-    allocate(thlmav (k1))
-    allocate(thmav (k1))
-    allocate(qtmav (k1))
-    allocate(qlmav (k1))
+!    allocate(umav (k1))
+!    allocate(vmav (k1))
+!    allocate(thlmav (k1))
+!    allocate(thmav (k1))
+!    allocate(qtmav (k1))
+!    allocate(qlmav (k1))
     allocate(cfracav(k1))
-    allocate(svmav (k1,nsv))
+!    allocate(svmav (k1,nsv))
     allocate(uptav(k1))
     allocate(vptav(k1))
 
@@ -434,10 +434,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine genstat
 
-    use modglobal, only : rk3step,timee,dt_lim
+    use modglobal, only : rkStep,rkMaxStep,timee,dt_lim
     implicit none
     if (.not. lstat) return
-    if (rk3step/=3) return
+    if (rkStep/=rkMaxStep) return
 
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
@@ -456,8 +456,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine do_genstat
 
-    use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,rhobf
+    use modfields, only : u0,v0,w0,thl0,qt0,qt0h,ql0,ql0h,thl0h,thv0h,sv0,e120,&
+                          u0av,v0av,thl0av,qt0av,ql0av,sv0av,exnf,exnh,rhobf
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -641,14 +641,14 @@ contains
 
     sv2av   = 0.0
 
-    umav = 0.0
-    vmav = 0.0
-    thlmav = 0.0
-    thmav  = 0.0
-    qtmav  = 0.0
-    qlmav  = 0.0
+!    umav = 0.0
+!    vmav = 0.0
+!    thlmav = 0.0
+!    thmav  = 0.0
+!    qtmav  = 0.0
+!    qlmav  = 0.0
     cfracav= 0.0
-    svmav = 0.
+!    svmav = 0.
 
     cszav = 0.
 
@@ -667,29 +667,31 @@ contains
 
     call MPI_ALLREDUCE(cfracavl,cfracav,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
-    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+! The averaged fields from modthermodynamics can be used in my opinion
+
+!    call slabsum(umav  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!    call slabsum(vmav  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!    call slabsum(thlmav,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!    call slabsum(qtmav ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
-    umav  = umav  /rslabs + cu
-    vmav  = vmav  /rslabs + cv
-    thlmav = thlmav/rslabs
-    qtmav = qtmav /rslabs
-    qlmav = qlmav /rslabs
+!    umav  = umav  /rslabs + cu
+!    vmav  = vmav  /rslabs + cv
+!    thlmav = thlmav/rslabs
+!    qtmav = qtmav /rslabs
+!    qlmav = qlmav /rslabs
     cfracav = cfracav / rslabs
-    thmav  = thlmav + (rlv/cp)*qlmav/exnf
+!    thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/rslabs
 
     cszav  = csz
   !
 
-    do n=1,nsv
-      call slabsum(svmav(1,n),1,k1,svm(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    enddo
-    svmav = svmav/rslabs
+!    do n=1,nsv
+!      call slabsum(svmav(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!    enddo
+!    svmav = svmav/rslabs
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
@@ -721,36 +723,36 @@ contains
       wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
 
       !Momentum flux
-      if (abs(um(i,j,1)+cu)<eps1) then
-        upcu = sign(eps1,um(i,j,1)+cu)
+      if (abs(u0(i,j,1)+cu)<eps1) then
+        upcu = sign(eps1,u0(i,j,1)+cu)
       else
-        upcu = um(i,j,1)+cu
+        upcu = u0(i,j,1)+cu
       end if
       uwsubl(1) = uwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
                 upcu/sqrt(upcu**2  + &
-          ((vm(i,j,1)+vm(i-1,j,1)+vm(i,j+1,1)+vm(i-1,j+1,1))/4.+cv)**2)
+          ((v0(i,j,1)+v0(i-1,j,1)+v0(i,j+1,1)+v0(i-1,j+1,1))/4.+cv)**2)
 
-      if (abs(vm(i,j,1)+cv)<eps1) then
-        vpcv = sign(eps1,vm(i,j,1)+cv)
+      if (abs(v0(i,j,1)+cv)<eps1) then
+        vpcv = sign(eps1,v0(i,j,1)+cv)
       else
-        vpcv = vm(i,j,1)+cv
+        vpcv = v0(i,j,1)+cv
       end if
       vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                 vpcv/sqrt(vpcv**2  + &
-          ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
+          ((u0(i,j,1)+u0(i+1,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1))/4.+cu)**2)
 
 
       !Higher order moments
-      u2avl    (1) = u2avl    (1) + (um (i,j,1)+cu - umav(1))**2
-      v2avl    (1) = v2avl    (1) + (vm (i,j,1)+cv - vmav(1))**2
-      w2avl    (1) = w2avl    (1) + (wm  (i,j,1)**2)
-      w3avl    (1) = w3avl    (1) + (wm  (i,j,1)**3)
-      w2subavl (1) = w2subavl (1) + (e12m(i,j,1)**2)
-      qt2avl   (1) = qt2avl   (1) + (qtm (i,j,1) - qtmav (1))**2
-      thl2avl  (1) = thl2avl  (1) + (thlm(i,j,1) - thlmav(1))**2
+      u2avl    (1) = u2avl    (1) + (u0 (i,j,1)+cu - u0av(1))**2
+      v2avl    (1) = v2avl    (1) + (v0 (i,j,1)+cv - v0av(1))**2
+      w2avl    (1) = w2avl    (1) + (w0  (i,j,1)**2)
+      w3avl    (1) = w3avl    (1) + (w0  (i,j,1)**3)
+      w2subavl (1) = w2subavl (1) + (e120(i,j,1)**2)
+      qt2avl   (1) = qt2avl   (1) + (qt0 (i,j,1) - qt0av (1))**2
+      thl2avl  (1) = thl2avl  (1) + (thl0(i,j,1) - thl0av(1))**2
       thv2avl  (1) = thv2avl  (1) + (thv0(i,j,1) - thvmav(1))**2
-      th2avl   (1) = th2avl   (1) + (thlm(i,j,1) - thmav (1))**2
-      ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
+      th2avl   (1) = th2avl   (1) + (thl0(i,j,1) - th0av (1))**2
+      ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - ql0av (1))**2
 !       qs2avl   (1) = qs2avl   (1) + qs0**2
 !       qsavl    (1) = qsavl    (1) + qs0
 !       rhavl    (1) = rhavl    (1) + qtm (i,j,1)/qs0
@@ -760,7 +762,7 @@ contains
 
       do n=1,nsv
         wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
-        sv2avl(1,n)  = sv2avl(1,n) + (svm(i,j,1,n)-svmav(1,n))**2
+        sv2avl(1,n)  = sv2avl(1,n) + (sv0(i,j,1,n)-sv0av(1,n))**2
       end do
     end do
     end do
@@ -864,16 +866,16 @@ contains
     !     calculate various moments
     !     -----------------------------------------------------------
 
-        u2avl    (k) = u2avl    (k) + (um (i,j,k)+cu - umav(k))**2
-        v2avl    (k) = v2avl    (k) + (vm (i,j,k)+cv - vmav(k))**2
-        w2avl    (k) = w2avl    (k) + (wm  (i,j,k)**2)
-        w3avl    (k) = w3avl    (k) + (wm  (i,j,k)**3)
-        w2subavl (k) = w2subavl (k) + (e12m(i,j,k)**2)
-        qt2avl   (k) = qt2avl   (k) + (qtm (i,j,k) - qtmav (k))**2
-        thl2avl  (k) = thl2avl  (k) + (thlm(i,j,k) - thlmav(k))**2
+        u2avl    (k) = u2avl    (k) + (u0 (i,j,k)+cu - u0av(k))**2
+        v2avl    (k) = v2avl    (k) + (v0 (i,j,k)+cv - v0av(k))**2
+        w2avl    (k) = w2avl    (k) + (w0  (i,j,k)**2)
+        w3avl    (k) = w3avl    (k) + (w0  (i,j,k)**3)
+        w2subavl (k) = w2subavl (k) + (e120(i,j,k)**2)
+        qt2avl   (k) = qt2avl   (k) + (qt0 (i,j,k) - qt0av (k))**2
+        thl2avl  (k) = thl2avl  (k) + (thl0(i,j,k) - thl0av(k))**2
         thv2avl  (k) = thv2avl  (k) + (thv0(i,j,k) - thvmav(k))**2
-        th2avl   (k) = th2avl   (k) + (thlm(i,j,k) - thmav (k))**2 !thlm, no thm !?!
-        ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
+        th2avl   (k) = th2avl   (k) + (thl0(i,j,k) - th0av (k))**2 !thlm, no thm !?!
+        ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - ql0av (k))**2
 !         qs2avl   (k) = qs2avl   (k) + qs0**2
 !         qsavl    (k) = qsavl    (k) + qs0
 !         rhavl    (k) = rhavl    (k) + qtm (i,j,k)/qs0
@@ -890,7 +892,7 @@ contains
       do k=2,kmax
       do j=2,j1
       do i=2,i1
-        sv2avl(k,n)  = sv2avl(k,n) + (svm(i,j,k,n)-svmav(k,n))**2
+        sv2avl(k,n)  = sv2avl(k,n) + (sv0(i,j,k,n)-sv0av(k,n))**2
       end do
       end do
       end do
@@ -1076,12 +1078,12 @@ contains
 
   !     4.0   ADD SLAB AVERAGES TO TIME MEAN
   !           ------------------------------
-      umn    = umn   + umav
-      vmn    = vmn   + vmav
+      umn    = umn   + u0av
+      vmn    = vmn   + v0av
       thvmn  = thvmn + thvmav
-      thlmn  = thlmn + thlmav
-      qtmn   = qtmn  + qtmav
-      qlmn   = qlmn  + qlmav
+      thlmn  = thlmn + thl0av
+      qtmn   = qtmn  + qt0av
+      qlmn   = qlmn  + ql0av
       cfracmn= cfracmn+cfracav
       qlhmn  = qlhmn + qlhav
 
@@ -1119,7 +1121,7 @@ contains
 !       r2mn     = r2mn     + r2av
 !       r3mn     = r3mn     + r3av
 
-        svmmn   = svmmn  + svmav
+        svmmn   = svmmn  + sv0av
         svpmn   = svpmn  + svpav
 !         svplsmn = svplsmn+ svplsav
         svptmn  = svptmn + svptav
@@ -1666,14 +1668,14 @@ contains
     deallocate(svmmn,svptmn,svplsmn,svpmn)
     deallocate(sv2mn)
 
-    deallocate(umav )
-    deallocate(vmav )
-    deallocate(thlmav )
-    deallocate(thmav )
-    deallocate(qtmav )
-    deallocate(qlmav )
+!    deallocate(umav )
+!    deallocate(vmav )
+!    deallocate(thlmav )
+!    deallocate(thmav )
+!    deallocate(qtmav )
+!    deallocate(qlmav )
     deallocate(cfracav )
-    deallocate(svmav )
+!    deallocate(svmav )
     deallocate(uptav)
     deallocate(vptav)
 
