@@ -295,7 +295,7 @@ contains
     call MPI_ALLREDUCE(ztopmaxl , ztopmax , 1, MY_REAL, MPI_MAX, comm3d,mpierr)
     call MPI_ALLREDUCE(wmaxl    , wmax    , 1, MY_REAL, MPI_MAX, comm3d,mpierr)
     call MPI_ALLREDUCE(qlmaxl   , qlmax   , 1, MY_REAL, MPI_MAX, comm3d,mpierr)
-    call MPI_ALLREDUCE(tkeintl  , tkeint  , 1, MY_REAL, MPI_MAX, comm3d,mpierr)
+    call MPI_ALLREDUCE(tkeintl  , tkeint  , 1, MY_REAL, MPI_SUM, comm3d,mpierr)
     !+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=+=
 
     ! Normalize fields if necessary
