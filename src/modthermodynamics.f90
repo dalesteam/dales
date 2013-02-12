@@ -91,7 +91,7 @@ contains
     call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     thvf = thvf/rslabs
     do k=1,k1
-      rhof(k) = presf(k)/(rd*thvf(k))
+      rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
 
   end subroutine thermodynamics
