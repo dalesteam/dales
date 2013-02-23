@@ -817,7 +817,12 @@ contains
 
     do j = 1,jmax
       do i = 1,imax
-        if(any(ql0(i+1,j+1,1:kmax) > epsilon(1.0))) ccavg(j) = ccavg(j) + 1.0/imax
+        do k=1,kmax
+          if (ql0(i+1,j+1,k) > epsilon(1.0)) then
+            ccavg(j) = ccavg(j) + 1.0/imax
+            exit !The loop for k
+          endif
+        end do
         do k = 1,ncklimit
           if(ql0( i+1,j+1,k) > epsilon(1.0)) vertccavg( j,k) = vertccavg( j,k) + 1.0/imax
           if(ql0h(i+1,j+1,k) > epsilon(1.0)) vertcchavg(j,k) = vertcchavg(j,k) + 1.0/imax
@@ -827,7 +832,7 @@ contains
 
     status = nf90_put_var(ncid, lwpid, lwpavg, (/1,1,nccall/), (/imax, jmax, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, coverid, ccavg, (/1,1,nccall/), (/jmax, 1/))
+    status = nf90_put_var(ncid, coverid, ccavg, (/1,nccall/), (/jmax, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncid, vertcoverid, vertccavg, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
@@ -1407,7 +1412,7 @@ contains
 
     status = nf90_put_var(ncidcc, lwpidcc, lwpavg, (/1,1,nccall/), (/imax, jmax, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncidcc, coveridcc, ccavg, (/1,1,nccall/), (/jmax, 1/))
+    status = nf90_put_var(ncidcc, coveridcc, ccavg, (/1,nccall/), (/jmax, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
     status = nf90_put_var(ncidcc, vertcoveridcc, vertccavg, (/1,1,nccall/), (/jmax, ncklimit, 1/))
     if(status /= nf90_noerr) call nchandle_error(status)
