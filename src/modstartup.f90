@@ -330,7 +330,7 @@ contains
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero 
+                                  thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz
     use modboundary,       only : boundary,tqaver
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
@@ -492,6 +492,8 @@ contains
       case(3,4)
         thls = thlprof(1)
         qts  = qtprof(1)
+        tskin= thls
+        qskin= qts
       case(10)
         call initsurf_user
       end select
@@ -712,7 +714,8 @@ contains
   subroutine readrestartfiles
 
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                           tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime
+                           tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
@@ -754,6 +757,16 @@ contains
       read(ifinput)  (  presh (    k)                            ,k=1,k1)
       read(ifinput)  ps,thls,qts,thvs,oblav
       read(ifinput)  dtheta,dqt,timee,dt,tres
+      read(ifinput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
+      read(ifinput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
+      read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+      if(lhetero) then
+        read(ifinput)   ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
+        read(ifinput)   ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
+        read(ifinput)   ((qts_patch (i,j),i=1,xpatches),j=1,ypatches)
+        read(ifinput)   ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
+        read(ifinput)   ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
+      endif
     close(ifinput)
 
     if (nsv>0) then
@@ -790,7 +803,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writerestartfiles
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                          tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime
+                          tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
@@ -840,6 +854,16 @@ contains
       write(ifoutput)  (  presh (    k)                            ,k=1,k1)
       write(ifoutput)  ps,thls,qts,thvs,oblav
       write(ifoutput)  dtheta,dqt,timee,  dt,tres
+      write(ifoutput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
+      write(ifoutput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
+      write(ifoutput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+      if(lhetero) then
+        write(ifoutput)  ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
+        write(ifoutput)  ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
+        write(ifoutput)  ((qts_patch (i,j),i=1,xpatches),j=1,ypatches)
+        write(ifoutput)  ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
+        write(ifoutput)  ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
+      endif
 
       close (ifoutput)
       linkname = name

@@ -1081,7 +1081,7 @@ contains
           if(lhetero) then
             patchx = patchxnr(i)
             patchy = patchynr(j)
-            Rib    = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvs_patch(patchx,patchy)) / horv2
+            Rib    = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvsl) / horv2
           else
             Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
           endif
