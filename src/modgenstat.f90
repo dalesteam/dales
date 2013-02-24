@@ -1692,9 +1692,9 @@ contains
         wtltot_patch  = wtlres_patch + wtlsub_patch
         wtvtot_patch  = wtvres_patch + wtvsub_patch
 
-        wsvsub_patch = wsvsub_patch  * (xpatches*ypatches/rslabs)
-        wsvres_patch = wsvres_patch  * (xpatches*ypatches/rslabs)
-        wsvtot_patch = wsvsub_patch  + wsvres_patch
+        wsvsub_patch(:,:,1:kmax,:) = wsvsub_patch(:,:,1:kmax,:)  * (1.0*xpatches*ypatches/rslabs)
+        wsvres_patch(:,:,1:kmax,:) = wsvres_patch(:,:,1:kmax,:)  * (1.0*xpatches*ypatches/rslabs)
+        wsvtot_patch(:,:,1:kmax,:) = wsvsub_patch(:,:,1:kmax,:)  + wsvres_patch(:,:,1:kmax,:)
 
         uwres_patch  = uwres_patch   * (xpatches*ypatches/rslabs)
         vwres_patch  = vwres_patch   * (xpatches*ypatches/rslabs)
@@ -1819,9 +1819,9 @@ contains
       svpmn_patch    = svpmn_patch  + svpav_patch
       svptmn_patch   = svptmn_patch + svptav_patch
       sv2mn_patch    = sv2mn_patch  + sv2av_patch
-      wsvsmn_patch   = wsvsmn_patch + wsvsub_patch
-      wsvrmn_patch   = wsvrmn_patch + wsvres_patch
-      wsvtmn_patch   = wsvtmn_patch + wsvtot_patch
+      wsvsmn_patch(:,:,1:kmax,:)   = wsvsmn_patch(:,:,1:kmax,:) + wsvsub_patch(:,:,1:kmax,:)
+      wsvrmn_patch(:,:,1:kmax,:)   = wsvrmn_patch(:,:,1:kmax,:) + wsvres_patch(:,:,1:kmax,:)
+      wsvtmn_patch(:,:,1:kmax,:)   = wsvtmn_patch(:,:,1:kmax,:) + wsvtot_patch(:,:,1:kmax,:)
       do k=1,k1
       do j=1,ypatches
       do i=1,xpatches
