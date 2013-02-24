@@ -1948,7 +1948,7 @@ contains
     do k = 1,ncklimit
       do j = 2,(jmax+1)
         do i = 2,(imax+1)
-         if(maskh(i,j,k)) then
+         if(maskh(i-1,j-1,k)) then
           if(k==1) then
             c1  = 1.+(rv/rd-1)*qts
             c2  = (rv/rd-1)
