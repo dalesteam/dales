@@ -144,8 +144,7 @@ end subroutine tstep_update
 !! \see Wicker and Skamarock, 2002
 subroutine tstep_integrate
 
-
-  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist
+  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,xtime,rtimee
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
@@ -180,12 +179,32 @@ subroutine tstep_integrate
     end do
   end do
 
-  up=0.
-  vp=0.
-  wp=0.
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! EWB: CABAUW aerosol evolution 8th May
+	if((xtime+rtimee/3600.)>=6 .and. (xtime+rtimee/3600.)<8 .or. (xtime+rtimee/3600.)>=14 .and. (xtime+rtimee/3600.)<16 .or. (xtime+rtimee/3600.)>=18 .and. (xtime+rtimee/3600.)<20) then
+          sv0(:,:,1:132,:) =  (0.185+0.062*cos(1.65*(3.1415/180.)*((xtime+rtimee/3600.)+20.*3600.)*360./24.))/133.
+ 	  sv0(:,:,132:kmax,:) = 0.0 
+	elseif((xtime+rtimee/3600.)>=8 .and. (xtime+rtimee/3600.)<12) then
+          sv0(:,:,1:110,:) =  (0.185+0.062*cos(1.65*(3.1415/180.)*((xtime+rtimee/3600.)+20.*3600.)*360./24.))/133.
+ 	  sv0(:,:,110:kmax,:) = 0.0 
+	elseif((xtime+rtimee/3600.)>=12 .and. (xtime+rtimee/3600.)<14) then
+          sv0(:,:,1:120,:) =  (0.185+0.062*cos(1.65*(3.1415/180.)*((xtime+rtimee/3600.)+20.*3600.)*360./24.))/133.
+ 	  sv0(:,:,120:kmax,:) = 0.0 
+	elseif((xtime+rtimee/3600.)>=16 .and. (xtime+rtimee/3600.)<18 .or. (xtime+rtimee/3600.)>=20) then
+          sv0(:,:,1:139,:) =  (0.185+0.062*cos(1.65*(3.1415/180.)*((xtime+rtimee/3600.)+20.*3600.)*360./24.))/133.
+ 	  sv0(:,:,139:kmax,:) = 0.0 
+	else
+          sv0(:,:,1:106,:) =  (0.185+0.062*cos(1.65*(3.1415/180.)*((xtime+rtimee/3600.)+20.*3600.)*360./24.))/133.
+ 	  sv0(:,:,106:kmax,:) = 0.0 
+	endif
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  up=0.  
+  vp=0.  
+  wp=0.  
   thlp=0.
-  qtp=0.
-  svp=0.
+  qtp=0. 
+  svp=0. 
   e12p=0.
 
   if(rk3step == 3) then
