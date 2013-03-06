@@ -41,6 +41,8 @@ contains
 
     allocate(thlprad(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(swd(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(swdir(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(swdif(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(swu(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lwd(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lwu(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -50,6 +52,8 @@ contains
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     thlprad = 0.
     swd = 0.
+    swdir = 0.
+    swdif = 0.	
     swu = 0.
     lwd = 0.
     lwu = 0.
@@ -153,7 +157,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
     implicit none
-    deallocate(thlprad,swd,swu,lwd,lwu)
+    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu)
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
   end subroutine exitradiation
 
@@ -239,12 +243,13 @@ subroutine radpar
     do i=2,i1
 
       if (mu > 0.035) then  !factor 0.035 needed for security
-        tauc = 0.           ! tau cloud
+        tauc = 0.           ! tau collumn 
         do k = 1,kmax
           tau(k) = 0.      ! tau dz
 !          if (ql0(i,j,k) > 1e-5) then
  !           tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
-            tau(k)=1.5*(rhof(k)/2000.)*(dzf(k)/100e-9)*Sv0(i,j,k,1)*1e-9 ! 2000 refers to the BC density (rhoBC = 2g/cm3#) - Sv0 must be given in PPBv
+!            tau(k)=1.5*(rhof(k)/2000.)*(dzf(k)/100e-9)*Sv0(i,j,k,1)*1e-9 ! 2000 refers to the BC density (rhoBC = 2g/cm3#) - Sv0 must be given in PPBv
+	     tau(k) = sv0(i,j,k,1)
 	    tauc=tauc+tau(k)
 !          end if
         end do
@@ -255,9 +260,8 @@ subroutine radpar
 !        thlpsw         = (swd(i,j,k+1)-swd(i,j,k))/(rhof(k)*cp*dzf(k)) ! original
         thlpsw          = ( (swd(i,j,k+1) - swu(i,j,k+1)) - (swd(i,j,k) - swu(i,j,k)) ) / (rhof(k)*cp*dzf(k)) ! net irradiance
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
-
       end do
-
+!      write(*,*) 'EWB: ',swd(16,16,2), swu(16,16,2)), swd(16,16,1), swu(16,16,1), thlprad(16,16,1)
     end do
     end do
 
@@ -275,7 +279,7 @@ subroutine radpar
 
   subroutine sunray(tau,tauc,i,j)
 
-  use modglobal, only :  k1,xtime,boltz
+  use modglobal, only :  k1,xtime,boltz,rtimee,xlat
   use modsurfdata,  only : albedo, tskin
   use modfields,   only : thl0
   implicit none
@@ -286,7 +290,7 @@ subroutine radpar
   real gcde,tauc,taucde &
            ,taupath,t1,t2,t3,c1,c2 &
            ,omega,omegade,ff,x1,x2,x3,rk,mu2,rp,alpha,beta,rtt &
-           ,exmu0,expk,exmk,xp23p,xm23p,ap23b,I1,I0,sw1
+           ,exmu0,expk,exmk,xp23p,xm23p,ap23b,I1,I0,sw1,gaero
   integer k
   allocate(taude(k1))
 
@@ -297,24 +301,39 @@ subroutine radpar
   end do
 
 ! omega=0.9989-4.e-3*exp(-0.15*tauc)  !   fouquart and bonnel (1980)
-  omega=1.-1.e-3*(0.9+2.75*(mu+1.)*exp(-0.09*tauc)) !fouquart	
+!  omega=1.-1.e-3*(0.9+2.75*(mu+1.)*exp(-0.09*tauc)) !fouquart	! DALES original
+
+! CABAUW case: 8May2008
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  gaero = 0.6450+0.025*cos(1.5*(3.1415/180.)*((xtime+rtimee/3600.)+50.*3600.)*360./24.)
+
+  if((xtime+rtimee/3600.) < 13.62) then
+	omega = 0.925+0.055*cos(2.1*(3.1415/180.)*((xtime+rtimee/3600.)+30.*3600.)*360./24.)
+  else
+	omega = 0.975-0.06*(1-exp(15.-1.1*(xtime+rtimee/3600.)))
+  endif 
+
+!	omega = 0.94
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 ! the equations for the delta-eddington approximation are equal to those
 ! for the eddington approximation with transformed parameters g, omega
 ! and tau (joseph, wiscomb and weinman, 1976, j.a.s.).
-! parameternames: x -> xde (delta-eddington)
+! parameter names: x -> xde (delta-eddington)
 
-  omega = 0.89 ! aerosol typical values
+!  ff=gc*gc !original
+!  gcde=gc/(1.+gc) !original
+  ff=gaero*gaero
+  gcde = gaero/(1.+gaero)
 
-
-  ff=gc*gc
-  gcde=gc/(1.+gc)
   taucde=(1.0-omega*ff)*tauc
 
   do k =1,k1
-    taude(k)=(1.e0-omega*ff)*tau(k) ! original
+    taude(k)=(1.e0-omega*ff)*tau(k)
   end do
-
+  
   omegade=(1.0-ff)*omega/(1.e0-omega*ff)
 
 ! the  solution of the eddington equations are given by shettle and weinman
@@ -343,25 +362,30 @@ subroutine radpar
   c2=(xp23p*t3*exmu0-t1*ap23b*exmk)/(xp23p*t2*expk-xm23p*t1*exmk)
   c1=(ap23b-c2*xm23p)/xp23p
 
+!  sw1 = sw0*(0.6 + 0.2 * mu) ! EWB: sw1 takes into account absorption/back-scattering of SW radiation in the free-troposphere.
+!  sw1 = sw0*(0.64 + 0.2 * mu) 
 
-  
-  sw1 = sw0*(0.6 + 0.2 * mu)
+  if((xtime+rtimee/3600.)< 12.0) then
+	taupath = 0.08 ! Rayleigh sccatering
+  else
+	taupath = 0.07
+  endif	
+
+sw1 = sw0*sin(xlat*3.1415/180.)
 
   do k = k1,1,-1
-      taupath = taupath + taude(k)
+        taupath = taupath + taude(k)
 
-  	I0 = sw1*(c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu))   ! Shettle & Weinmann JAS 1976 
-	I1 = sw1*(rp*(c1*exp(-rk*taupath)-c2*exp(rk*taupath)) - beta*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+       I0 = sw1*(c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu))   ! Shettle & Weinmann JAS 1976 
+       I1 = sw1*(rp*(c1*exp(-rk*taupath)-c2*exp(rk*taupath)) - beta*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
 
-!      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &   ! original
-!                 -c2*exp(rk*taupath)) &
-!                 -beta*exp(-taupath/mu)) &
-!                 +mu*sw0*exp(-taupath/mu)
+       swd(i,j,k) = ((I0 + (2./3.)*I1) + mu*sw1*exp(-taupath/mu)) ! difuse down + direct down 
+       swdir(i,j,k) = mu*sw1*exp(-taupath/mu)                     ! direct down 
+       swdif(i,j,k) = (I0 + (2./3.)*I1)                           ! difuse down
+       swu(i,j,k) = (I0 - (2./3.)*I1)                             ! diffuse up (lambertian)
+       lwd(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.               ! simple LW radiation scheme (only surface)
+       lwu(i,j,1) = 1.0 * boltz * tskin(i,j) ** 4.                ! simple LW radiation scheme (only surface)
 
-       swd(i,j,k) = ((I0 + (2./3.)*I1) + mu*sw1*exp(-taupath/mu)) ! difuse down + direct down
-       swu(i,j,k) = (I0 - (2./3.)*I1) !diffuse up (lambertian)
-       lwd(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.
-       lwu(i,j,1) = 0.8 * boltz * thl0(i,j,1) ** 4.
   end do
   deallocate(taude)
 
@@ -370,7 +394,7 @@ subroutine radpar
 
 
 !***********************************************************************
-!***  In this subroutine the a precribed radiative tendency     ********
+!***  In this subroutine a precribed radiative tendency         ********
 !***  is taken into account.                                    ********
 !***********************************************************************
 
