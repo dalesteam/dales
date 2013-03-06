@@ -60,7 +60,7 @@ contains
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
 !     ch   = 2. * alpha_kolm / beta_kolm
-    ch   = prandtl
+    ch   = 1.0/Prandtl
     ch2  = ch-ch1
 
     ceps = 2. * pi / cf * (1.5*alpha_kolm)**(-1.5)
@@ -279,7 +279,7 @@ contains
           end if
 
           ekm(i,j,k)  = mlen ** 2. * sqrt(2. * strain2)
-          ekh(i,j,k)  = ekm(i,j,k) / prandtl
+          ekh(i,j,k)  = ekm(i,j,k) / Prandtl
         end do
       end do
     end do

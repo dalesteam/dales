@@ -37,7 +37,7 @@ save
   logical :: lsmagorinsky = .false. !<  switch for smagorinsky subgrid scheme
   real :: cf      = 2.5  !< filter constant
   real :: Rigc    = 0.25 !< critical Richardson number
-  real :: Prandtl = 3
+  real :: Prandtl = (1.0/3.0)
   real :: cm      = 0.12
   real :: cn      = 0.76
   real :: ch1     = 1.
