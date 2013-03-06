@@ -28,7 +28,8 @@
 !! \todo documentation
 !! \todo implement water reservoir at land surface for dew and interception water
 !! \todo add moisture transport between soil layers
-!!  \deprecated Modsurface replaces the old modsurf.f90
+!! \deprecated Modsurface replaces the old modsurf.f90
+!! \todo: implement fRs[t] based on the tiles.
 !
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
@@ -519,6 +520,10 @@ contains
       end if
       if(rsminav == -1) then
         stop "NAMSURFACE: rsminav is not set"
+      end if
+      if(rssoilminav == -1) then
+        print *,"WARNING: RSSOILMINAV is undefined... RSMINAV will be used as a proxy"
+        rssoilminav = rsminav
       end if
       if(LAIav == -1) then
         stop "NAMSURFACE: LAIav is not set"
@@ -1433,12 +1438,12 @@ contains
       enddo
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k) * dzsoil(k)
       end do
       phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
       end do
 
     else
@@ -1450,12 +1455,12 @@ contains
       phiw(:,:,4) = phiwav(4)
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k) * dzsoil(k)
       end do
       phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
       end do
 
       ! Set root fraction per layer for short grass
@@ -1475,7 +1480,7 @@ contains
       Cskin      = Cskinav
       lambdaskin = lambdaskinav
       rsmin      = rsminav
-      rssoilmin  = rsminav
+      rssoilmin  = rssoilminav
       LAI        = LAIav
       gD         = gDav
       cveg       = cvegav
@@ -1514,13 +1519,13 @@ contains
       do i = 2,i1
         phitot(i,j) = 0.0
         do k = 1, ksoilmax
-          phitot(i,j) = phitot(i,j) + phiw(i,j,k) * dzsoil(k)
+          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k)
         end do
 
         phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
 
         do k = 1, ksoilmax
-          phifrac(i,j,k) = phiw(i,j,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
+          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
         end do
       end do
     end do
@@ -1601,7 +1606,7 @@ contains
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
         f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
 
-        rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3 * f4
+        rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
 
@@ -1667,6 +1672,8 @@ contains
 
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
+!\todo  Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
+!       (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)- fRs[t]*(1.0 - albedoav(i,j))*swdown
         Bcoef   = 4. * boltz * tsurfm ** 3. + fH + fLE * dqsatdT + lambdaskin(i,j)
 
         if (Cskin(i,j) == 0.) then
@@ -1695,9 +1702,9 @@ contains
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
         if(qsat - qt0(i,j,1) < 0.) then
-          Wl(i,j)       =  Wlm(i,j) + rk3coef * ((-1.) * (LEliq + LEsoil + LEveg) / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - rk3coef * ((LEliq + LEsoil + LEveg) / (rhow * rlv))
         else
-          Wl(i,j)       =  Wlm(i,j) + rk3coef * ((-1.) * LEliq / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - rk3coef * (LEliq / (rhow * rlv))
         end if
 
         thlsl = thlsl + tskin(i,j)
