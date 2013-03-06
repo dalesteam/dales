@@ -28,7 +28,8 @@
 !! \todo documentation
 !! \todo implement water reservoir at land surface for dew and interception water
 !! \todo add moisture transport between soil layers
-!!  \deprecated Modsurface replaces the old modsurf.f90
+!! \deprecated Modsurface replaces the old modsurf.f90
+!! \todo: implement fRs[t] based on the tiles.
 
 module modsurface
   use modsurfdata
@@ -427,10 +428,11 @@ contains
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
           thlflux(i,j) = wtsurf
           qtflux (i,j) = wqsurf
+
 ! EWB thlflux varies during the day.
-	  thlflux(i,j)  = wtsurf * sin(pi*(3600*(xtime+1)+rtimee-15515)/52970)
-	  if(3600*(xtime+1)+rtimee .le.  15515) thlflux(i,j) = 0
-	  if(3600*(xtime+1)+rtimee .ge. 68400) thlflux(i,j) = 0
+!	  thlflux(i,j)  = wtsurf * sin(pi*(3600*(xtime+1)+rtimee-15515)/52970)
+!	  if(3600*(xtime+1)+rtimee .le.  15515) thlflux(i,j) = 0
+!	  if(3600*(xtime+1)+rtimee .ge. 68400) thlflux(i,j) = 0
 
           do n=1,nsv
             svflux(i,j,n) = wsvsurf(n)
@@ -456,10 +458,7 @@ contains
 
           Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
 
-
-
-!          tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1)
-!EWB - We have thlflux varying during the day while wtsurf is constant.
+!          tskin(i,j) = wtsurf / (Cs(i,j) * horv) + thl0(i,j,1) ! EWB: if flux varies during the day
           tskin(i,j) = thlflux(i,j) / (Cs(i,j) * horv) + thl0(i,j,1)
           qskin(i,j) = wqsurf / (Cs(i,j) * horv) + qt0(i,j,1)
           thlsl      = thlsl + tskin(i,j)
@@ -729,14 +728,15 @@ contains
 
     phitot = 0.0
 
+! rootfav added 
     do k = 1, ksoilmax
-      phitot(:,:) = phitot(:,:) + phiw(:,:,k) * dzsoil(k)
+      phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k) * dzsoil(k)
     end do
 
     phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
     do k = 1, ksoilmax
-      phifrac(:,:,k) = phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+      phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
     end do
 
     ! Set root fraction per layer for short grass
@@ -781,7 +781,7 @@ contains
     Cskin      = Cskinav
     lambdaskin = lambdaskinav
     rsmin      = rsminav
-    rssoilmin  = rsminav
+    rssoilmin  = rssoilminav !EWB: calling rssoilminav instead of only rsminav
     LAI        = LAIav
     gD         = gDav
 
@@ -803,7 +803,7 @@ contains
     integer  :: i, j, k
     real     :: rk3coef,thlsl
 
-    real     :: swdav, swuav, lwdav, lwuav
+    real     :: swdav, swuav, lwdav, lwuav,swdown
     real     :: exner, exnera, tsurfm, Tatm, e,esat, qsat, desatdT, dqsatdT, Acoef, Bcoef
     real     :: fH, fLE, fLEveg, fLEsoil, fLEliq, LEveg, LEsoil, LEliq
     real     :: Wlmx
@@ -812,14 +812,14 @@ contains
     do j = 2,j1
       do i = 2,i1
         phitot(i,j) = 0.0
+! EWB: rootfav(1)   = 0.35; rootfav(2)   = 0.38; rootfav(3)   = 0.23; rootfav(4)   = 0.04. Those values already account for the dzsoil multiplication, therefore rootfav(1:4) = 1.
         do k = 1, ksoilmax
-          phitot(i,j) = phitot(i,j) + phiw(i,j,k) * dzsoil(k)
+          phitot(i,j) = phitot(i,j) + rootfav(k)*max(phiw(i,j,k),phiwp) * dzsoil(k) ! EWB: phitot follows the ECMWF code
+!          phitot(i,j) = phitot(i,j) + rootfav(k)*phiw(i,j,k) * dzsoil(k)
         end do
-
-        phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
-
+         phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
         do k = 1, ksoilmax
-          phifrac(i,j,k) = phiw(i,j,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
+          phifrac(i,j,k) = rootfav(k)*phiw(i,j,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
         end do
       end do
     end do
@@ -849,12 +849,17 @@ contains
             lwuav = sum(lwuavn(i,j,:)) / nradtime
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
-!if (i==2 .and. j==2) print *,swdav,swuav,lwdav,lwuav,Qnet(2,2)
-          else
-!	    write(6,*) "CvHrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2)
-!            Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)) !original
-            Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))  !EWB
+	    swdown = -swdav	
+          elseif(iradiation == 2 .or. iradiation == 10) then ! EWB: Delta-eddington approach (2)  .or. rad_user (10)
+	    swdav = -sum(swd(i,j,:)) / nradtime
+	    Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
+!	    write(*,*) "EWBrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2)
 
+          else ! simple radiation scheme
+
+!	    write(6,*) "CvHrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2) 
+	    Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)) ! Simple surface radiation scheme
+	    swdown = -swd(i,j,1)	
           end if
         else
           Qnet(i,j) = Qnetav
@@ -868,7 +873,8 @@ contains
         end if
 
         ! Soil moisture availability
-        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
+! Surface resistance for bare soil uses f2 calculated on the basis of the soil moisture phi(0)
+        f2  = (phifc - phiwp) / (phiwav(1) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils
@@ -884,7 +890,8 @@ contains
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
         f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
 
-        rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3 * f4
+! EWB: The response to temperature (f4) is removed since this is not found in the ECMWF implementation
+        rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
 
@@ -892,6 +899,7 @@ contains
         f2  = max(f2, 1.)
         f2  = min(1.e8, f2)
         rssoil(i,j) = rssoilmin(i,j) * f2
+
         ! 1.1   -   Calculate the heat transport properties of the soil
         ! CvH I put it in the init function, as we don't have prognostic soil moisture at this stage
 
@@ -925,6 +933,8 @@ contains
         Wl(i,j)   = min(Wl(i,j), Wlmx)
         cliq(i,j) = Wl(i,j) / Wlmx
 
+        rk3coef = rdt / (4. - dble(rk3step))
+
         fLEveg  = (1. - cliq(i,j)) * cveg(i,j) * rhof(1) * rlv / (ra(i,j) + rsveg(i,j))
         fLEsoil = (1. - cveg(i,j))             * rhof(1) * rlv / (ra(i,j) + rssoil(i,j))
         fLEliq  = cliq(i,j) * cveg(i,j)        * rhof(1) * rlv /  ra(i,j)
@@ -934,9 +944,9 @@ contains
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
 
-        rk3coef = rdt / (4. - dble(rk3step))
-
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. / rk3coef + fH * Tatm + fLE * (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
+!\todo  Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. / rk3coef + fH * Tatm + fLE * (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1) - fRs[t]*(1.0 - albedoav(i,j))*swdown
+
         Bcoef   = 4. * boltz * tsurfm ** 3. / rk3coef + fH + fLE * dqsatdT + lambdaskin(i,j)
 
         if (Cskin(i,j) == 0.) then
@@ -953,20 +963,21 @@ contains
         LEsoil        = - fLEsoil * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
         LEliq         = - fLEliq  * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
 
-        if(LE(i,j) == 0.) then
-          rs(i,j)     = 1.e8
-        else
-          rs(i,j)     = - rhof(1) * rlv * (qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat)) / LE(i,j) - ra(i,j)
-        end if
-
         H(i,j)        = - fH  * ( Tatm - tskin(i,j) * exner )
+
         tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rk3coef
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
         if(qsat - qt0(i,j,1) < 0.) then
-          Wl(i,j)       =  Wlm(i,j) + rk3coef * ((-1.) * (LEliq + LEsoil + LEveg) / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - rk3coef * ( (LEliq + LEsoil + LEveg) / (rhow * rlv))
         else
-          Wl(i,j)       =  Wlm(i,j) + rk3coef * ((-1.) * LEliq / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - rk3coef * (LEliq / (rhow * rlv))
+        end if
+
+        if(LE(i,j) == 0.) then
+          rs(i,j)     = 1.e8
+        else
+          rs(i,j)     = - rhof(1) * rlv * (qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat)) / LE(i,j) - ra(i,j)
         end if
 
         thlsl = thlsl + tskin(i,j)
@@ -982,6 +993,9 @@ contains
           pCs(i,j,k)    = (1. - phi) * pCm + phiw(i,j,k) * pCw
           Ke            = log10(phiw(i,j,k) / phi) + 1.
           lambda(i,j,k) = Ke * (lambdasat - lambdadry) + lambdadry
+
+          gammas(i,j,k)  = gammasat * (phiw(i,j,k) / phi) ** (2. * bc + 3.)
+          lambdas(i,j,k) = bc * gammasat * (-1.) * psisat / phi * (phiw(i,j,k) / phi) ** (bc + 2.)
         end do
 
         do k = 1, ksoilmax-1
@@ -989,11 +1003,6 @@ contains
         end do
 
         lambdah(i,j,ksoilmax) = lambda(i,j,ksoilmax)
-
-        do k = 1, ksoilmax
-          gammas(i,j,k)  = gammasat * (phiw(i,j,k) / phi) ** (2. * bc + 3.)
-          lambdas(i,j,k) = bc * gammasat * (-1.) * psisat / phi * (phiw(i,j,k) / phi) ** (bc + 2.)
-        end do
 
         do k = 1, ksoilmax-1
           lambdash(i,j,k) = (lambdas(i,j,k) * dzsoil(k+1) + lambdas(i,j,k+1) * dzsoil(k)) / dzsoilh(k)
