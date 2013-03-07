@@ -311,10 +311,8 @@ subroutine radpar
 	omega = 0.925+0.055*cos(2.1*(3.1415/180.)*((xtime+rtimee/3600.)+30.*3600.)*360./24.)
   else
 	omega = 0.975-0.06*(1-exp(15.-1.1*(xtime+rtimee/3600.)))
+	omega = 0.97
   endif 
-
-!	omega = 0.94
-
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -366,7 +364,7 @@ subroutine radpar
 !  sw1 = sw0*(0.64 + 0.2 * mu) 
 
   if((xtime+rtimee/3600.)< 12.0) then
-	taupath = 0.08 ! Rayleigh sccatering
+	taupath = 0.09 ! Rayleigh sccatering
   else
 	taupath = 0.07
   endif	
