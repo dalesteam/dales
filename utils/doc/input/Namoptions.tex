@@ -83,7 +83,7 @@
 
 \pagenumbering{arabic}
 \setcounter{page}{1}
-This document gives an overview of all namelist options in version 3.2 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. \\
+This document gives an overview of all namelist options in version 4 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. \\
 Much information in this document originates from \citet{Heus2009}. All information from that document is checked and corrected where necessary. The options are also updated to match the current version. 
 
 \chapter{Namoptions overview}\label{chapter:namoptions}
@@ -311,7 +311,7 @@ All options that can be set for the LES experiments will be discussed in the fol
   cf		& 2.5		& $x \in \mathbb{R}, \quad x>0$	& Filter constant					& -\\
   cn		& 0.76		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter				& -\\
   Rigc		& 0.25		& $x \in \mathbb{R}, \quad x>0$	& Critical Richardson number				& -\\
-  Prandtl	& 3			& $x \in \mathbb{R}, \quad x>0$	& Prandtl number					& -\\
+  Prandtl	& $\frac{1}{3}$	& $x \in \mathbb{R}, \quad x>0$	& Prandtl number					& -\\
   lsmagorinsky & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for smagorinsky subgrid scheme & -\\
   cs	& -1	& $x \in \mathbb{R}, \quad x>0$ & Smagorinsky constant	& -\\
   nmason	& 2	& $x \in \mathbb{R}, \quad x>0$ & Exponent in Mason correction function & -\\

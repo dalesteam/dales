@@ -599,7 +599,7 @@ contains
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
       
       do k=1,k1
-        rhof(k) = presf(k)/(rd*thvf(k))
+        rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
       end do
 
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
