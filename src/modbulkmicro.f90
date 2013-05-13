@@ -230,7 +230,7 @@ module modbulkmicro
         do i=2,i1
         do k=1,k1
            if (qrmask(i,j,k)) then
-             xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k))
+             xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
              xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
            endif
@@ -275,7 +275,7 @@ module modbulkmicro
          do i=2,i1
          do k=1,k1
             if (qrmask(i,j,k).and.Nr(i,j,k).gt.0.) then
-              xr  (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k))
+              xr  (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
               xr  (i,j,k) = min(xr(i,j,k),xrmaxkk) ! to ensure x_pw is within borders
               Dvr (i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
             endif
@@ -362,7 +362,7 @@ module modbulkmicro
          if (qcmask(i,j,k)) then 
             nuc    (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
 !           nuc    (i,j,k) = 0. !
-            xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k)
+            xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k) ! No eps0 necessary
             au     (i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2.    &
                     * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
             tau    (i,j,k) = 1.0 - ql0(i,j,k) / qltot(i,j,k)
@@ -596,7 +596,7 @@ module modbulkmicro
        do i=2,i1
        do k=1,k1
         if (qr_spl(i,j,k) > qrmin) then
-          xr_spl (i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k))
+          xr_spl (i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
           xr_spl (i,j,k) = min(max(xr_spl(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
           Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
         endif
@@ -669,7 +669,7 @@ module modbulkmicro
       do i=2,i1
       do k=1,k1
         if (qr_spl(i,j,k) > qrmin) then
-           xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k))                         
+           xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
            xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders 
            Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
            sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhof(k) 
