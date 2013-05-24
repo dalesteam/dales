@@ -164,7 +164,7 @@ contains
         T1gm       =  286.0 !<  Reference temperature to calculate the mesophyll conductance
         T2gm       =  309.0 !<  Reference temperature to calculate the mesophyll conductance
         f0         =   0.85 !<  Maximum value Cfrac
-        ad         =  0.015 !<  Regression coefficient to calculate Cfrac
+        ad         =   0.15 !<  Regression coefficient to calculate Cfrac
         Ammax298   =    1.7 !<  CO2 maximal primary productivity
         Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
         T1Am       =    286 !<  Reference temperature to calculate maximal primary productivity
