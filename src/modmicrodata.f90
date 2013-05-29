@@ -53,8 +53,7 @@
                      ,qcmin = 1.0e-7     & !<  Cloud mixing ratio treshold for calculations
                      ,qrmin = 1.0e-13    & !<  Rain  mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD
-                     ,pluseps = 1e-25   &
-                     ,mineps = -1e-50   &
+                     ,eps0 = 1e-20      & !< parameter used to avoid division by zero floating point exceptions
                      ,epscloud= 0.01e-3 &
                      ,epsprec = 3.65e-5 & !<  RICO threshold
                      ,epsqr = 1.0e-8     &
