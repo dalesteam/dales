@@ -1454,7 +1454,7 @@ contains
             ,nhrs,':',nminut,':',nsecs &
             ,'   HRS:MIN:SEC AFTER INITIALIZATION '
 
-        write (ifoutput,'(2A/A/A/A,I1,A,/A/A/2A)') &
+        write (ifoutput,'(2A/A/A/A,I2.2,A,/A/A/2A)') &
             '#--------------------------------------------------------- ' &
             ,'--------------' &
             ,'#               --FIELD &  T E N D E N C I E S  --------    ' &
@@ -1493,7 +1493,7 @@ contains
             ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
             ,nhrs,':',nminut,':',nsecs &
             ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-        write (ifoutput,'(2A/A/A,I1,A,/A/A/2A)') &
+        write (ifoutput,'(2A/A/A,I2.2,A,/A/A/2A)') &
             '#---------------------------------------------------------------' &
             ,'---------------------------------)' &
             ,'#                                                               ' &
