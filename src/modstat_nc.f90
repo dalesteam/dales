@@ -440,7 +440,6 @@ contains
     ! Internal variables
     character(37)      :: string
     integer            :: values(8)
-    integer            :: id_fielddump
     integer            :: ierr,cmode
     integer            :: xID,yID,zID,xhID,yhID,zhID,id_fielddump,VarID
     integer            :: dim_xyz(3),dim_xhyhz(3),dim_xyzh(3),dim_z(1),dim_zh(1)
@@ -462,8 +461,10 @@ contains
     ! Put some global attributes
     call nchandle_error( nf90_put_att(id_fielddump, NF90_GLOBAL,'title',fName) )
     string = 'Created on xx-xx-xxxx at xx:xx:xx.xxx'
-    write(string(12:21),'2(I2.2,"-"),I4') values(3:1:-1)   ! Print time in correct format
-    write(string(26:37),'2(I2.2,":"),I2.2,".",I3.3') values(5:8)
+    !write(string(12:21),'2(I2.2,"-"),I4') values(3:1:-1)   ! Print time in correct format
+    write(string(12:21),'(I2.2,"-",I2.2,"-",I4)') values(3:1:-1)   ! Print time in correct format
+   ! write(string(26:37),'2(I2.2,":"),I2.2,".",I3.3') values(5:8)
+    write(string(26:37),'(I2.2,":",I2.2,":",I2.2,".",I3.3)') values(5:8)
     call nchandle_error( nf90_put_att(id_fielddump, NF90_GLOBAL,'history',string) )
 
     ! Define dimensions in the fielddump file

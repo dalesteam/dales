@@ -20,6 +20,11 @@ elseif($ENV{SYST}  STREQUAL "HUYGENS")
   set(CMAKE_Fortran_FLAGS " -qfree=F90 -qrealsize=8  -qwarn64 -qflttrap=en:ov:zero:inv:imp -qflag=w:e -I$ENV{HOME}/include " CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O4 -qnoipa -qstrict=none:exceptions  " CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
+elseif($ENV{SYST}  STREQUAL "CARTESIUS")
+  set(CMAKE_Fortran_COMPILER "mpiifort")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -fpe0 -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_RELEASE "-O3 " CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
 elseif($ENV{SYST}  STREQUAL "localpc_ifort")
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-r8 -ftz -fpe0 -extend_source" CACHE STRING "")
@@ -52,7 +57,7 @@ find_path(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   PATHS
   /usr/include
   $ENV{HOME}/include
-  $ENV{SARA_NETCDF_INCLUDE}
+  $ENV{SURFSARA_NETCDF_INCLUDE}
 PATH_SUFFIXES netcdf-3)
 find_library(NETCDF_C_LIB netcdf
   DOC "NetCDF C library"
@@ -61,7 +66,7 @@ find_library(NETCDF_C_LIB netcdf
   /usr/lib64
   $ENV{HOME}/lib
   $ENV{HOME}/lib64
-  $ENV{SARA_NETCDF_LIB}
+  $ENV{SURFSARA_NETCDF_LIB}
 )
 find_library(NETCDF_FORTRAN_LIB netcdff
   DOC "NetCDF Fortran library"
@@ -70,7 +75,7 @@ find_library(NETCDF_FORTRAN_LIB netcdff
   /usr/lib64
   $ENV{HOME}/lib
   $ENV{HOME}/lib64
-  $ENV{SARA_NETCDF_LIB}
+  $ENV{SURFSARA_NETCDF_LIB}
 )
 
 if(NETCDF_INCLUDE_DIR)
