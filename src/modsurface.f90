@@ -1629,7 +1629,7 @@ contains
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
           else
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
-            swdav     = - sum(swd(i,j,:)) / nradtime
+            swdav     = swd(i,j,1)
           end if
         else
           if(lhetero) then
