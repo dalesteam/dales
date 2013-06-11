@@ -78,9 +78,9 @@ SAVE
   integer           :: nradtime  = 60
 
   ! Soil related constants [adapted from ECMWF]
-  real, parameter   :: phi       = 0.472  !<  volumetric soil porosity [-]
-  real, parameter   :: phifc     = 0.323  !<  volumetric moisture at field capacity [-]
-  real, parameter   :: phiwp     = 0.171  !<  volumetric moisture at wilting point [-]
+  real, parameter   :: phi       = 0.600  !<  volumetric soil porosity [-]
+  real, parameter   :: phifc     = 0.491  !<  volumetric moisture at field capacity [-]
+  real, parameter   :: phiwp     = 0.314  !<  volumetric moisture at wilting point [-]
 
   real, parameter   :: pCm       = 2.19e6 !<  Volumetric soil heat capacity [J/m3/K]
   real, parameter   :: pCw       = 4.2e6  !<  Volumetric water heat capacity [J/m3/K]
