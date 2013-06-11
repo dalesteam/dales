@@ -11,6 +11,11 @@ if("$ENV{SYST}" STREQUAL "HUYGENS")
   set(CMAKE_Fortran_FLAGS "-qfree=F90 -qrealsize=8  -qwarn64 -qflttrap=en:ov:zero:inv:imp -qflag=w:e" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O4 -qnoipa -qstrict=none:exceptions" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "CARTESIUS")
+  set(CMAKE_Fortran_COMPILER "mpiifort")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "localpc_ifort")
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
@@ -37,6 +42,7 @@ EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPAT
 FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   PATHS
   $ENV{SARA_NETCDF_INCLUDE}
+  $ENV{SURFSARA_NETCDF_INCLUDE}
   $ENV{NETCDF_INCLUDE}
   ${ADDMODULEPATH}/include
   /usr/include
@@ -48,6 +54,7 @@ FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
 FIND_LIBRARY(NETCDF_C_LIB netcdf
   PATHS
   $ENV{SARA_NETCDF_LIB}
+  $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64
@@ -61,6 +68,7 @@ FIND_LIBRARY(NETCDF_C_LIB netcdf
 FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   PATHS
   $ENV{SARA_NETCDF_LIB}
+  $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64

@@ -967,13 +967,8 @@ contains
           Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
           (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
-          if(lhetero) then
-            tskin(i,j) = min(max(wt_patch(patchx,patchy) / (Cs(i,j) * horv),-10.),10.) + thl0(i,j,1)
-            qskin(i,j) = min(max(wq_patch(patchx,patchy) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
-          else
-            tskin(i,j) =  min(max(wtsurf / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
-            qskin(i,j) =  min(max(wqsurf / (Cs(i,j) * horv),-1e-2),1e-2) + qt0(i,j,1)
-          endif
+          tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
+          qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
 
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
@@ -1634,6 +1629,7 @@ contains
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
           else
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
+            swdav     = - sum(swd(i,j,:)) / nradtime
           end if
         else
           if(lhetero) then
@@ -1651,8 +1647,8 @@ contains
           f1  = 1.
         end if
 
-        ! Soil moisture availability
-        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
+        ! Soil moisture availability                 !Now also following ECMWF
+        f2  = (phifc - phiwp) / (phiw(i,j,1) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils

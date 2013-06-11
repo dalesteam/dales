@@ -260,7 +260,6 @@ contains
     use modmpi,     only : myid
     use modsurfdata
     use modsubgrid, only : ekm, ekh
-    use modfields,  only : rhobf
     use modglobal,  only : iadv_thl, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
                            rd, imax, jmax, i1, j1, k1, ih, jh
 
