@@ -125,6 +125,9 @@ SAVE
   logical           :: lrsAgs     = .false.!<  Switch to apply AGS to calculate resistances
   logical           :: lCO2Ags    = .false.!<  Switch to calculate CO2 fluxes with AGS
   integer           :: planttype  = 3      !<  Integer to switch between (C)3 and (C)4 plants
+  real              :: wco2av     = 0.0
+  real              :: Anav       = 0.0
+  real              :: Respav     = 0.0
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90

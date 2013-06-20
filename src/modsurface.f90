@@ -1573,6 +1573,10 @@ contains
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
 
+    real     :: local_wco2av
+    real     :: local_Anav  
+    real     :: local_Respav
+
     patchx = 0
     patchy = 0
 
@@ -1597,6 +1601,13 @@ contains
       lthls_patch = 0.0
       Npatch      = 0
     endif
+
+    wco2av       = 0.0
+    Anav         = 0.0
+    Respav       = 0.0
+    local_wco2av = 0.0
+    local_Anav   = 0.0
+    local_Respav = 0.0
 
     do j = 2, j1
       do i = 2, i1
@@ -1771,6 +1782,11 @@ contains
           wco2     = (An + Resp) * (MW_Air/MW_CO2) * (1.0/rhof(1)) ! In ppm m/s
 
           CO2flux(i,j) = wco2 * 1000.0 ! In ppb m/s
+
+
+          local_wco2av = local_wco2av + wco2
+          local_Anav   = local_Anav   + An
+          local_Respav = local_Respav + Resp
         endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
@@ -1933,6 +1949,15 @@ contains
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do
     end do
+
+    call MPI_ALLREDUCE(local_wco2av, wco2av, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_Respav, Respav, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+
+    Anav   = Anav/rslabs
+    wco2av = wco2av/rslabs
+    Respav = Respav/rslabs
+    
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
     thls = thls / rslabs
