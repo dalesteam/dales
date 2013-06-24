@@ -155,7 +155,7 @@ SAVE
   real              :: Cw         = 1.6e-3 !<  Constant water stress correction
   real              :: wsmax      =   0.55 !<  Upper reference value soil water
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
-  real              :: R10        =   0.23 !<  Respiration at 10 oC
+  real              :: R10        =   0.13 !<  Respiration at 10 oC
   real              :: Eact0      = 53.3e3 !<  Activation energy
 
   ! Surface energy balance
