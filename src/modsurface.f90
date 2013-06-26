@@ -647,6 +647,11 @@ contains
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
 
+    if (lrsAgs) then
+      allocate(AnField  (2:i1,2:j1))
+      allocate(RespField(2:i1,2:j1))
+      allocate(wco2Field(2:i1,2:j1))
+    endif
     return
   end subroutine initsurface
 
@@ -1612,6 +1617,11 @@ contains
     local_Anav   = 0.0
     local_Respav = 0.0
 
+    if (lrsAgs) then
+      AnField    = 0.0
+      RespField  = 0.0
+      wco2Field  = 0.0
+    endif
     do j = 2, j1
       do i = 2, i1
         if(lhetero) then
@@ -1790,6 +1800,10 @@ contains
           local_wco2av = local_wco2av + wco2
           local_Anav   = local_Anav   + An
           local_Respav = local_Respav + Resp
+
+          AnField(  i,j) = An
+          RespField(i,j) = Resp
+          wco2Field(i,j) = wco2
         endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method

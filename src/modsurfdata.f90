@@ -128,6 +128,9 @@ SAVE
   real              :: wco2av     = 0.0
   real              :: Anav       = 0.0
   real              :: Respav     = 0.0
+  real, allocatable :: wco2Field    (:,:)
+  real, allocatable :: AnField      (:,:)
+  real, allocatable :: RespField    (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
