@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 3
+  integer,parameter :: nvar = 13
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxx.xxx.nc'
@@ -53,7 +53,7 @@ contains
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
-    use modsurfdata, only : lrsAgs
+    use modsurfdata, only : lrsAgs, ksoilmax
    implicit none
 
     integer :: ierr,k
@@ -86,12 +86,23 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'AGScross: dtav should be a integer multiple of dtmax'
     end if
+    if (ksoilmax /= 4) stop 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well'
     fnameAGS(10:12) = cmyid
     fnameAGS(14:16) = cexpnr
-    call ncinfo(tncnameAGS(1,:),'time','Time','s','time')
-    call ncinfo(ncnameAGS( 1,:),'An  ', 'xy AGScross of An  ','mg/m2/s','tt0t')
-    call ncinfo(ncnameAGS( 2,:),'Resp', 'xy AGScross of Resp','mg/m2/s','tt0t')
-    call ncinfo(ncnameAGS( 3,:),'wco2', 'xy AGScross of wco2','ppm m/s','tt0t')
+    call ncinfo(tncnameAGS(1,:),'time  ','Time','s','time')
+    call ncinfo(ncnameAGS( 1,:),'An    ', 'xy AGScross of An          ','mg/m2/s','tt0t')
+    call ncinfo(ncnameAGS( 2,:),'Resp  ', 'xy AGScross of Resp        ','mg/m2/s','tt0t')
+    call ncinfo(ncnameAGS( 3,:),'wco2  ', 'xy AGScross of wco2        ','ppm m/s','tt0t')
+    call ncinfo(ncnameAGS( 4,:),'rs    ', 'xy AGScross of diagnosed rs','s/m    ','tt0t')
+    call ncinfo(ncnameAGS( 5,:),'ra    ', 'xy AGScross of ra          ','s/m    ','tt0t')
+    call ncinfo(ncnameAGS( 6,:),'rsCO2 ', 'xy AGScross of rsCO2       ','s/m    ','tt0t')
+    call ncinfo(ncnameAGS( 7,:),'rsveg ', 'xy AGScross of rsveg=rsAgs ','s/m    ','tt0t')
+    call ncinfo(ncnameAGS( 8,:),'rssoil', 'xy AGScross of rssoil      ','s/m    ','tt0t')
+    call ncinfo(ncnameAGS( 9,:),'fstr  ', 'xy AGScross of stress fnct.','-      ','tt0t')
+    call ncinfo(ncnameAGS(10,:),'phiw1 ', 'xy AGScross of phiw top    ','-      ','tt0t')
+    call ncinfo(ncnameAGS(11,:),'phiw2 ', 'xy AGScross of phiw level 2','-      ','tt0t')
+    call ncinfo(ncnameAGS(12,:),'phiw3 ', 'xy AGScross of phiw level 3','-      ','tt0t')
+    call ncinfo(ncnameAGS(13,:),'phiw4 ', 'xy AGScross of phiw level 4','-      ','tt0t')
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
@@ -125,7 +136,7 @@ contains
   subroutine AGShorz
     use modglobal, only : imax,jmax,i1,j1,rtimee
     use modstat_nc, only : writestat_nc
-    use modsurfdata, only : AnField, RespField, wco2Field
+    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil
     implicit none
 
 
@@ -136,9 +147,19 @@ contains
 
       allocate(vars(1:imax,1:jmax,nvar))
       vars=0.
-      vars(:,:,1) = AnField(2:i1,2:j1)
-      vars(:,:,2) = RespField(2:i1,2:j1)
-      vars(:,:,3) = wco2Field(2:i1,2:j1)
+      vars(:,:, 1) = AnField   (2:i1,2:j1)
+      vars(:,:, 2) = RespField (2:i1,2:j1)
+      vars(:,:, 3) = wco2Field (2:i1,2:j1)
+      vars(:,:, 4) = rs        (2:i1,2:j1)
+      vars(:,:, 5) = ra        (2:i1,2:j1)
+      vars(:,:, 6) = rsco2Field(2:i1,2:j1)
+      vars(:,:, 7) = rsveg     (2:i1,2:j1)    
+      vars(:,:, 8) = rssoil    (2:i1,2:j1)
+      vars(:,:, 9) = fstrField (2:i1,2:j1)
+      vars(:,:,10) = phiw      (2:i1,2:j1,1)
+      vars(:,:,11) = phiw      (2:i1,2:j1,2)
+      vars(:,:,12) = phiw      (2:i1,2:j1,3)
+      vars(:,:,13) = phiw      (2:i1,2:j1,4)
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
       deallocate(vars)
