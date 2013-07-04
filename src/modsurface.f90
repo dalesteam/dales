@@ -90,7 +90,9 @@ contains
       ! Heterogeneous variables
       lhetero, xpatches, ypatches, land_use, loldtable, &
       ! AGS variables
-      lrsAgs, lCO2Ags,planttype
+      lrsAgs, lCO2Ags,planttype, &
+      ! Delay plant response in Ags
+      lrelaxgc, kgc
 
     ! 1    -   Initialize soil
 
@@ -150,6 +152,9 @@ contains
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
@@ -653,6 +658,7 @@ contains
       allocate(wco2Field (2:i1,2:j1))
       allocate(rsco2Field(2:i1,2:j1))
       allocate(fstrField (2:i1,2:j1))
+      allocate(gc_old    (2:i1,2:j1))
     endif
     return
   end subroutine initsurface
@@ -1626,6 +1632,9 @@ contains
       rsco2Field = 0.0
       fstrField  = 0.0
     endif
+    
+    rk3coef = rdt / (4. - dble(rk3step))
+
     do j = 2, j1
       do i = 2, i1
         if(lhetero) then
@@ -1780,7 +1789,20 @@ contains
           AGSa1    = 1.0 / (1 - f0)
           Dstar    = D0 / (AGSa1 * (f0 - fmin))
 
-          gcco2    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+          if (lrelaxgc) then
+            if (gc_old_set) then
+              gc_inf      = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+              if (rk3step ==3) then
+                gc_old(i,j) = gcco2
+              endif
+            else
+              gcco2       = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gc_old(i,j) = gcco2
+            endif
+          else
+            gcco2  = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+          endif
 
           ! Calculate surface resistances for moisture and carbon dioxide
           rsAgs    = 1.0 / (1.6 * gcco2)
@@ -1871,8 +1893,6 @@ contains
 
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
-
-        rk3coef = rdt / (4. - dble(rk3step))
 
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
@@ -1972,6 +1992,12 @@ contains
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do
     end do
+
+    if (lrelaxgc .and. (.not. gc_old_set) ) then
+      if (rk3step == 3) then
+        gc_old_set = .true.
+      endif
+    endif
 
     call MPI_ALLREDUCE(local_wco2av, wco2av, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
