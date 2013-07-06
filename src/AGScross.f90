@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 13
+  integer,parameter :: nvar = 16
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxx.xxx.nc'
@@ -103,6 +103,9 @@ contains
     call ncinfo(ncnameAGS(11,:),'phiw2 ', 'xy AGScross of phiw level 2','-      ','tt0t')
     call ncinfo(ncnameAGS(12,:),'phiw3 ', 'xy AGScross of phiw level 3','-      ','tt0t')
     call ncinfo(ncnameAGS(13,:),'phiw4 ', 'xy AGScross of phiw level 4','-      ','tt0t')
+    call ncinfo(ncnameAGS(14,:),'CO2   ', 'xy AGScross of CO2 (grid 1)','ppm    ','tt0t')
+    call ncinfo(ncnameAGS(15,:),'tskin ', 'xy AGScross of curr. tskin ','K      ','tt0t')
+    call ncinfo(ncnameAGS(16,:),'tskinm', 'xy AGScross of prev. tskin ','K      ','tt0t')
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
@@ -136,7 +139,8 @@ contains
   subroutine AGShorz
     use modglobal, only : imax,jmax,i1,j1,rtimee
     use modstat_nc, only : writestat_nc
-    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil
+    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, indCO2, tskin, tskinm
+    use modfields, only   : svm
     implicit none
 
 
@@ -160,6 +164,9 @@ contains
       vars(:,:,11) = phiw      (2:i1,2:j1,2)
       vars(:,:,12) = phiw      (2:i1,2:j1,3)
       vars(:,:,13) = phiw      (2:i1,2:j1,4)
+      vars(:,:,14) = svm       (2:i1,2:j1,1,indCO2) / 1000.0
+      vars(:,:,15) = tskin     (2:i1,2:j1)
+      vars(:,:,16) = tskinm    (2:i1,2:j1)
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
       deallocate(vars)
