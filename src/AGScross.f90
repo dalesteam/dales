@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 16
+  integer,parameter :: nvar = 20
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxx.xxx.nc'
@@ -106,6 +106,10 @@ contains
     call ncinfo(ncnameAGS(14,:),'CO2   ', 'xy AGScross of CO2 (grid 1)','ppm    ','tt0t')
     call ncinfo(ncnameAGS(15,:),'tskin ', 'xy AGScross of curr. tskin ','K      ','tt0t')
     call ncinfo(ncnameAGS(16,:),'tskinm', 'xy AGScross of prev. tskin ','K      ','tt0t')
+    call ncinfo(ncnameAGS(17,:),'tsoil1', 'xy AGScross of tsoil top   ','K      ','tt0t')
+    call ncinfo(ncnameAGS(18,:),'tsoil2', 'xy AGScross of tsoil lvl 2 ','K      ','tt0t')
+    call ncinfo(ncnameAGS(19,:),'tsoil3', 'xy AGScross of tsoil lvl 3 ','K      ','tt0t')
+    call ncinfo(ncnameAGS(20,:),'tsoil4', 'xy AGScross of tsoil lvl 4 ','K      ','tt0t')
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
@@ -139,7 +143,7 @@ contains
   subroutine AGShorz
     use modglobal, only : imax,jmax,i1,j1,rtimee
     use modstat_nc, only : writestat_nc
-    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, indCO2, tskin, tskinm
+    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, indCO2, tskin, tskinm, tsoil
     use modfields, only   : svm
     implicit none
 
@@ -167,6 +171,10 @@ contains
       vars(:,:,14) = svm       (2:i1,2:j1,1,indCO2) / 1000.0
       vars(:,:,15) = tskin     (2:i1,2:j1)
       vars(:,:,16) = tskinm    (2:i1,2:j1)
+      vars(:,:,17) = tsoil     (2:i1,2:j1,1)
+      vars(:,:,18) = tsoil     (2:i1,2:j1,2)
+      vars(:,:,19) = tsoil     (2:i1,2:j1,3)
+      vars(:,:,20) = tsoil     (2:i1,2:j1,4)
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
       deallocate(vars)
