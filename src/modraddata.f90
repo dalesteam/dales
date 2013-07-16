@@ -47,6 +47,8 @@ SAVE
   logical :: rad_smoke   = .false.  !< longwave divergence for smoke cloud
   logical :: useMcICA    = .true.   !< Use the Monte Carlo Independent Column Approach
 
+  logical :: lcloudshading = .false.!< Let clouds shade the surface for rad_lsm
+
   real              :: timerad = 0 !<  timescale of the radiation scheme
   integer(kind=longint)           :: itimerad = 0 !<  timescale of the radiation scheme
   integer (kind=longint)          :: tnext   = 0 !<  time of the first upcoming call of the radiation scheme
