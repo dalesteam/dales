@@ -34,6 +34,7 @@
 module modsampling
 
 use modglobal, only : longint
+use modsampdata
 
 implicit none
 private
@@ -43,16 +44,9 @@ save
   integer,parameter :: nvar = 32
   character(80),allocatable,dimension(:,:,:) :: ncname
   character(80),dimension(1,4) :: tncname
-  real :: dtav, timeav
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   integer :: nsamples,isamp,isamptot
   character(20),dimension(10) :: samplname,longsamplname
-  logical :: lsampall = .true. !< switch for sampling (on/off)
-  logical :: lsampcl  = .false. !< switch for conditional sampling cloud (on/off)
-  logical :: lsampco  = .false. !< switch for conditional sampling core (on/off)
-  logical :: lsampup  = .false. !< switch for conditional sampling updraft (on/off)
-  logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
-  logical :: lsampcldup = .false. !<switch for condtional sampling cloudy updraft (on/off)
   real, allocatable, dimension(:,:) ::  wfavl,thlfavl,thvfavl,qtfavl,qlfavl,nrsampfl,massflxhavl, &
                                         wthlthavl,wthvthavl,wqtthavl,wqlthavl,uwthavl,vwthavl,qrfavl
   real, allocatable, dimension(:,:) :: wwrhavl,wwsfavl,pfavl,dwdthavl,dwwdzhavl,dpdzhavl, &
@@ -78,7 +72,7 @@ contains
     integer :: ierr
 
     namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
+    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend
 
     dtav=dtav_glob;timeav=timeav_glob
 
@@ -97,12 +91,13 @@ contains
 
     call MPI_BCAST(timeav    ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dtav      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
+!    call MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampcl   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampco   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampup   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampbuup ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampcldup,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lsamptend, 1,MPI_LOGICAL,0,comm3d,mpierr)
 
     isamptot = 0
     if (lsampall) then

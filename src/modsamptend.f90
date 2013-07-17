@@ -27,6 +27,7 @@
 !
 module modsamptend
   use modglobal, only : longint
+  use modsampdata
   implicit none
   private
   public :: initsamptend, samptend, exitsamptend, leibniztend
@@ -35,19 +36,12 @@ module modsamptend
   integer, parameter :: nvar = 66
   character(80),allocatable,dimension(:,:,:) :: ncname
   character(80),dimension(1,4) :: tncname
-  real    :: dtav, timeav
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   integer,public,parameter :: tend_tot=1,tend_start=1,tend_adv=2,tend_subg=3,tend_force=4,tend_rad=5,&
                               tend_ls=6,tend_micro=7, tend_topbound=8,tend_pois=9,tend_addon=10, tend_coriolis=11, tend_totlb=12
   integer,parameter :: nrfields = 12
   character(20),dimension(10) :: samplname,longsamplname
   integer :: nsamples,isamp,isamptot
-  logical :: lsampcl  = .false. !< switch for conditional sampling cloud (on/off)
-  logical :: lsampco  = .false. !< switch for conditional sampling core (on/off)
-  logical :: lsampup  = .false. !< switch for conditional sampling updraft (on/off)
-  logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
-  logical :: lsampcldup = .false. !<switch for condtional sampling cloudy updraft (on/off)
-  logical :: lsampall = .true. !< switch for sampling all data (on/off)
   logical :: ldosamptendwrite = .false. !< write tendencies after leibniz terms have been detemined
   logical :: ldosamptendleib = .false. !< determine leibniz terms
   real :: lastrk3coef
@@ -73,31 +67,7 @@ subroutine initsamptend
     implicit none
     integer :: ierr,i
 
-    namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup
-
-    dtav=dtav_glob;timeav=timeav_glob
-
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMSAMPLING,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSAMPLING'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSAMPLING'
-      endif
-      write(6 ,NAMSAMPLING)
-      close(ifnamopt)
-    end if
-
-    call MPI_BCAST(dtav,1,MY_REAL,0,comm3d,mpierr)
-    call MPI_BCAST(timeav,1,MY_REAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampcl,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampco,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampup,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampall,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampbuup,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampcldup,1,MPI_LOGICAL,0,comm3d,mpierr)
+    if (.not. lsamptend) return
 
     isamptot = 0
     if (lsampall) then
@@ -362,6 +332,7 @@ subroutine initsamptend
     real, allocatable, dimension(:) :: thvav
     integer :: i,j,k
 
+    if (.not. lsamptend) return
     if(isamptot < 1) return
     if(.not.(lnetcdf)) return !only in netcdf at the moment
     if (rk3step/=3) return
@@ -565,6 +536,7 @@ subroutine initsamptend
     real, allocatable, dimension(:) :: thvav
     integer :: i,j,k
 
+      if (.not. lsamptend) return
       if(.not.(ldosamptendleib)) return
       ldosamptendleib=.false.
       tendmask=.false.
@@ -687,6 +659,9 @@ subroutine initsamptend
     implicit none
     integer :: field,k
     real, allocatable :: vars(:,:)
+
+    if (.not. lsamptend) return
+
     allocate(vars(1:k1,nvar))
     upmn = 0.
     vpmn = 0.
@@ -806,6 +781,7 @@ subroutine initsamptend
     use modstat_nc, only: lnetcdf
   implicit none
 
+    if (.not. lsamptend) return
     if(isamptot == 0) return
     if(.not.(lnetcdf)) return
     deallocate (uptm,vptm,wptm,thlptm,qtptm,qrptm,nrptm)
