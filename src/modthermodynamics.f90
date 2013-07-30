@@ -58,7 +58,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, 
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,rslabs,cp,rlv,lnoclouds
     use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     use modmpi, only : slabsum
@@ -67,13 +67,13 @@ contains
     if (timee < 0.01) then
       call diagfld
     end if
-    if (lmoist) then
+    if (lmoist .and. (.not. lnoclouds)) then
       call icethermo0
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
-    if (lmoist) then
+    if (lmoist .and. (.not. lnoclouds)) then
       call icethermoh
     end if
 
