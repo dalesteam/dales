@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 20
+  integer,parameter :: nvar = 24
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxx.xxx.nc'
@@ -110,6 +110,10 @@ contains
     call ncinfo(ncnameAGS(18,:),'tsoil2', 'xy AGScross of tsoil lvl 2 ','K      ','tt0t')
     call ncinfo(ncnameAGS(19,:),'tsoil3', 'xy AGScross of tsoil lvl 3 ','K      ','tt0t')
     call ncinfo(ncnameAGS(20,:),'tsoil4', 'xy AGScross of tsoil lvl 4 ','K      ','tt0t')
+    call ncinfo(ncnameAGS(21,:),'wtheta', 'xy AGScross of kin. heat fl','K m/s  ','tt0t')
+    call ncinfo(ncnameAGS(22,:),'wq    ', 'xy AGScross of kin. wat. fl','- m/s  ','tt0t')
+    call ncinfo(ncnameAGS(23,:),'lwp   ', 'xy AGScross of liq. wat. p.','kg/m2  ','tt0t')
+    call ncinfo(ncnameAGS(24,:),'tau   ', 'xy AGScross of opt. thickn.','-      ','tt0t')
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
@@ -141,10 +145,11 @@ contains
 
 !> Do the xy AGScrosss and dump them to file
   subroutine AGShorz
-    use modglobal, only : imax,jmax,i1,j1,rtimee
+    use modglobal, only : imax,jmax,i1,j1,rtimee,dzf
     use modstat_nc, only : writestat_nc
-    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, indCO2, tskin, tskinm, tsoil
-    use modfields, only   : svm
+    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
+                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField
+    use modfields, only   : svm, rhof, ql0
     implicit none
 
 
@@ -152,6 +157,13 @@ contains
     integer i,j,n
     character(40) :: name
     real, allocatable :: vars(:,:,:)
+    real :: lwp(2:i1,2:j1)
+
+    do i = 2,i1
+      do j = 2,j1
+        lwp(i,j) = sum(ql0(i,j,1:kmax)*rhof(1:kmax)*dzf(1:kmax))
+      enddo
+    enddo
 
       allocate(vars(1:imax,1:jmax,nvar))
       vars=0.
@@ -175,6 +187,10 @@ contains
       vars(:,:,18) = tsoil     (2:i1,2:j1,2)
       vars(:,:,19) = tsoil     (2:i1,2:j1,3)
       vars(:,:,20) = tsoil     (2:i1,2:j1,4)
+      vars(:,:,21) = thlflux   (2:i1,2:j1)
+      vars(:,:,22) = qtflux    (2:i1,2:j1)
+      vars(:,:,23) = lwp       (2:i1,2:j1)
+      vars(:,:,24) = tauField  (2:i1,2:j1)
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
       deallocate(vars)

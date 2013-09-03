@@ -659,6 +659,7 @@ contains
       allocate(rsco2Field(2:i1,2:j1))
       allocate(fstrField (2:i1,2:j1))
       allocate(gc_old    (2:i1,2:j1))
+      allocate(tauField  (2:i1,2:j1))
     endif
     return
   end subroutine initsurface
