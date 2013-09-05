@@ -1089,8 +1089,13 @@ SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
 use modglobal, only : rk3step,timee
 use modfields, only: svm
 use modmpi, only: myid
+use modsurfdata, only: lrsAgs
 implicit none
 
+  if ((.not. lchem) .and. lrsAgs) then
+    nr_raddep = 0
+    CALL ratech
+  endif
   if (.not. (lchem)) return
 
   if (rk3step/=3) return
