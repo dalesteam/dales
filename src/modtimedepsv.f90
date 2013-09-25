@@ -96,7 +96,7 @@ contains
       write(outputfmt(8:10),'(I3)') nsv
       t    = 0
       ierr = 0
-      do while (timesvsurf(t)< tres*real(runtime+btime))
+      do while (timesvsurf(t)< tres*real(btime)+runtime)
         t=t+1
         read(ifinput,*, iostat = ierr) timesvsurf(t), (svst(t,n),n=1,nsv)
         write(*,'(f7.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
@@ -104,7 +104,7 @@ contains
             stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
         end if
       end do
-      if(timesvsurf(1)>tres*real(runtime+btime)) then
+      if(timesvsurf(1)>tres*real(btime)+runtime) then
          write(6,*) 'Time dependent surface variables do not change before end of'
          write(6,*) 'simulation. --> only large scale changes in scalars'
          ltimedepsvsurf=.false.
@@ -116,7 +116,7 @@ contains
 !     ---load large scale forcings----
       t = 0
 
-      do while (timesvz(t) < tres*(runtime+btime))
+      do while (timesvz(t) < tres*(btime)+runtime)
         t = t + 1
         chmess1 = "#"
         ierr = 1 ! not zero
@@ -136,7 +136,7 @@ contains
         end do
       end do
 
-      if ((timesvz(1) > tres*real(runtime+btime)) .or. (timesvsurf(1) > tres*real(runtime+btime))) then
+      if ((timesvz(1) > tres*real(btime)+runtime) .or. (timesvsurf(1) > tres*real(btime)+runtime)) then
         write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
         write(6,*) '--> only time dependent surface variables (scalars)'
         ltimedepsvz=.false.
