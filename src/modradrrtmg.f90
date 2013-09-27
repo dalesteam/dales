@@ -757,13 +757,14 @@ contains
       call shr_orb_decl( dayForSW )                      ! Saves some orbital values to modraddata
       !if (myid==0) write(*,*) 'eccf = ',eccf 
       solarZenithAngleCos(:) =  &
-           zenith(xtime + rtimee/3600, xday, xlat, xlon) ! Used function in modraddata
+           zenith(xtime*3600. + rtimee, xday, xlat, xlon) ! Used function in modraddata
 !      solarZenithAngleCos(:) =  0.707106781               ! cos 45gr
 !      solarZenithAngleCos(:) = 0.087155742747658           ! cos 85gr
        !solarZenithAngleCos(:) = 0.615661475  !cos 52 gr
        !solarZenithAngleCos(:) = 0.356   !cos 69.144 gr
       !solarZenithAngleCos(:) = 1.
        ! solarZenithAngleCos(:) = mu0_cgils
+      write(*,*) 'solarZenithAngleCos',solarZenithAngleCos
       
     end if
 
