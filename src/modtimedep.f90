@@ -68,7 +68,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
     use modmpi,    only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal, only :ifnamopt,fname_options,dtmax, btime,cexpnr,k1,kmax,ifinput,runtime
+    use modglobal, only :ifnamopt,fname_options,dtmax, btime,cexpnr,k1,kmax,ifinput,runtime,tres
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls
     use modtimedepsv, only : inittimedepsv
     implicit none
