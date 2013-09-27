@@ -260,17 +260,17 @@ contains
     if (lradclearair) call radclearair
   end subroutine do_radstat
 
-      subroutine radclearair
+  subroutine radclearair
     use modradfull,    only : d4stream
     use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,rlv,rd,zf,pref0,rslabs
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0
     use modsurfdata,  only : albedo, tskin, qskin, thvs, qts, ps
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
-    use modraddata,   only : thlprad
+    use modraddata,   only : thlprad,iradiation,swdca,swuca,lwdca,lwuca
     use modmpi,    only :  slabsum
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b,swdca,swuca,lwdca,lwuca
+    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b,qv_b,ql_b
     integer :: i,j,k
 
     real :: exnersurf
@@ -279,7 +279,8 @@ contains
     swdcaav  = 0.
     swucaav  = 0.
 
-!take care of UCLALES z-shift for thermo variables.
+    if (iradiation==1) then
+    !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax
         rhof_b(k+1)     = rhof(k)
         exnf_b(k+1)     = exnf(k)
@@ -310,7 +311,9 @@ contains
       end do
 
       call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
-
+!    elseif (iradiation==4) then
+      
+    end if
 
     call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwucaav ,1,k1,lwuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -323,7 +326,7 @@ contains
     lwdcamn = lwdcamn + lwdcaav/rslabs
     swdcamn = swdcamn + swdcaav/rslabs
     swucamn = swucamn + swucaav/rslabs
-    end subroutine radclearair
+  end subroutine radclearair
 
 !> Write the statistics to file
   subroutine writeradstat
