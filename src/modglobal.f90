@@ -57,6 +57,12 @@ save
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
 
+      !< Parameter kinds, for rrtmg radiation scheme
+      integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
+      integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
+      integer,parameter  :: SHR_KIND_R4 = selected_real_kind( 6) ! 4 byte real
+      integer,parameter  :: SHR_KIND_IN = kind(1)   ! native integer
+
       !<  Global constants modconst.f90
       !< File numbers
 
@@ -174,8 +180,6 @@ save
 
       character(3) cexpnr
 
-
-
       ! modphsgrd.f90
 
       real :: dx              !<  grid spacing in x-direction
@@ -205,7 +209,7 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-      character(80) :: author='', version='DALES 3.2'
+      character(80) :: author='', version='DALES 4.0'
 contains
 
 !> Initialize global settings.
@@ -349,14 +353,12 @@ contains
     allocate(dsv(nsv))
     write(cexpnr,'(i3.3)') iexpnr
 
-
     ! Create the physical grid variables
     allocate(dzf(k1))
     allocate(dzh(k1))
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1))
-
 
     rslabs = real(imax*jtot)
 
@@ -382,7 +384,6 @@ contains
     end if ! end if myid==0
 
   ! MPI broadcast kmax elements from zf
-
     call MPI_BCAST(zf,kmax,MY_REAL   ,0,comm3d,mpierr)
 
     zh(1) = 0.0
@@ -390,7 +391,6 @@ contains
       zh(k+1) = zh(k) + 2.0*(zf(k)-zh(k))
     end do
     zf(k1)  = zf(kmax)+ 2.0*(zh(k1)-zf(kmax))
-
 
     do  k=1,kmax
       dzf(k) = zh(k+1) - zh(k)
@@ -418,8 +418,6 @@ contains
         leq = .false.
       end if
     end do
-
-  ! MPI
 
     if(myid==0)then
       if (.not.leq) then
