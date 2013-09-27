@@ -99,7 +99,7 @@ contains
       do while (timesvsurf(t)< tres*real(btime)+runtime)
         t=t+1
         read(ifinput,*, iostat = ierr) timesvsurf(t), (svst(t,n),n=1,nsv)
-        write(*,'(f7.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
+        write(*,'(f9.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
         if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
         end if
