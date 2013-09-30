@@ -764,7 +764,6 @@ contains
        !solarZenithAngleCos(:) = 0.356   !cos 69.144 gr
       !solarZenithAngleCos(:) = 1.
        ! solarZenithAngleCos(:) = mu0_cgils
-      write(*,*) 'solarZenithAngleCos',solarZenithAngleCos
       
     end if
 
