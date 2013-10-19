@@ -660,6 +660,7 @@ contains
       allocate(fstrField (2:i1,2:j1))
       allocate(gc_old    (2:i1,2:j1))
       allocate(tauField  (2:i1,2:j1))
+      allocate(ciField   (2:i1,2:j1))
     endif
     return
   end subroutine initsurface
@@ -1632,6 +1633,7 @@ contains
       wco2Field  = 0.0
       rsco2Field = 0.0
       fstrField  = 0.0
+      ciField    = 0.0
     endif
     
     rk3coef = rdt / (4. - dble(rk3step))
@@ -1834,6 +1836,7 @@ contains
           wco2Field (i,j) = wco2
           rsco2Field(i,j) = rsCO2
           fstrField (i,j) = fstr
+          ciField   (i,j) = ci
         endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
