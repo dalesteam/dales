@@ -139,6 +139,7 @@ SAVE
   real, allocatable :: RespField    (:,:)
   real, allocatable :: fstrField    (:,:)
   real, allocatable :: tauField     (:,:)
+  real, allocatable :: ciField      (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90

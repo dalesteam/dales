@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 24
+  integer,parameter :: nvar = 29
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxx.xxx.nc'
@@ -114,6 +114,11 @@ contains
     call ncinfo(ncnameAGS(22,:),'wq    ', 'xy AGScross of kin. wat. fl','- m/s  ','tt0t')
     call ncinfo(ncnameAGS(23,:),'lwp   ', 'xy AGScross of liq. wat. p.','kg/m2  ','tt0t')
     call ncinfo(ncnameAGS(24,:),'tau   ', 'xy AGScross of opt. thickn.','-      ','tt0t')
+    call ncinfo(ncnameAGS(25,:),'swd   ', 'xy AGScross of SW down rad.','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(26,:),'swu   ', 'xy AGScross of SW up rad.  ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(27,:),'lwd   ', 'xy AGScross of LW down rad.','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(28,:),'lwu   ', 'xy AGScross of LW up rad.  ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(29,:),'ci    ', 'xy AGScross of int CO2 conc','mg/m3  ','tt0t')
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
@@ -148,8 +153,9 @@ contains
     use modglobal, only : imax,jmax,i1,j1,rtimee,dzf
     use modstat_nc, only : writestat_nc
     use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
-                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField
+                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField
     use modfields, only   : svm, rhof, ql0
+    use modraddata,only   : swd, swu, lwd, lwu
     implicit none
 
 
@@ -191,6 +197,11 @@ contains
       vars(:,:,22) = qtflux    (2:i1,2:j1)
       vars(:,:,23) = lwp       (2:i1,2:j1)
       vars(:,:,24) = tauField  (2:i1,2:j1)
+      vars(:,:,25) = swd       (2:i1,2:j1,1)
+      vars(:,:,26) = swu       (2:i1,2:j1,1)
+      vars(:,:,27) = lwd       (2:i1,2:j1,1)
+      vars(:,:,28) = lwu       (2:i1,2:j1,1)
+      vars(:,:,29) = ciField   (2:i1,2:j1)
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
       deallocate(vars)
