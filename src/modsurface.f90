@@ -1795,7 +1795,8 @@ contains
 
           Rdark    = (1.0/9) * Am
 
-          PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
+          !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
+          PAR      = 0.50 * max(0.1,-swdav * cveg(i,j)) !Increase PAR to 50 SW
 
           ! Calculate the light use efficiency
           alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
