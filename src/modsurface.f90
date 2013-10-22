@@ -92,7 +92,7 @@ contains
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
-      lrelaxgc, kgc
+      lrelaxgc, kgc, lrelaxci
 
     ! 1    -   Initialize soil
 
@@ -153,6 +153,7 @@ contains
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
 
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
@@ -659,6 +660,7 @@ contains
       allocate(rsco2Field(2:i1,2:j1))
       allocate(fstrField (2:i1,2:j1))
       allocate(gc_old    (2:i1,2:j1))
+      allocate(ci_old    (2:i1,2:j1))
       allocate(tauField  (2:i1,2:j1))
       allocate(ciField   (2:i1,2:j1))
     endif
@@ -1763,7 +1765,21 @@ contains
 
           cfrac    = f0 * (1.0 - Ds/D0) + fmin * (Ds/D0)
           co2abs   = CO2ags * (MW_CO2/MW_Air) * rhof(1)
-          ci       = cfrac * (co2abs - CO2comp) + CO2comp
+
+          if (lrelaxci) then
+            if (ci_old_set) then
+              ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
+              ci            = ci_old(i,j) + min(kgc*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
+              if (rk3step  == 3) then
+                ci_old(i,j) = ci
+              endif
+            else
+              ci            = cfrac * (co2abs - CO2comp) + CO2comp
+              ci_old(i,j)   = ci
+            endif
+          else
+            ci              = cfrac * (co2abs - CO2comp) + CO2comp
+          endif
 
           ! Calculate maximal gross primary production in high light conditions (Ag)
           Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2Am))) )
@@ -2001,6 +2017,12 @@ contains
     if (lrelaxgc .and. (.not. gc_old_set) ) then
       if (rk3step == 3) then
         gc_old_set = .true.
+      endif
+    endif
+
+    if (lrelaxci .and. (.not. ci_old_set) ) then
+      if (rk3step == 3) then
+        ci_old_set = .true.
       endif
     endif
 

@@ -130,6 +130,10 @@ SAVE
   real, allocatable :: gc_old       (:,:)  !<  Old value for gc                    
   real              :: gc_inf              !<  Attractor for stomatal response rate
   logical           :: gc_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once
+  logical           :: lrelaxci   = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
+  real, allocatable :: ci_old       (:,:)  !<  Old value for ci
+  real              :: ci_inf              !<  Attractor for ci
+  logical           :: ci_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
   real              :: wco2av     = 0.0
   real              :: Anav       = 0.0
   real              :: Respav     = 0.0
