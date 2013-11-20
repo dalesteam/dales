@@ -38,7 +38,7 @@ implicit none
 contains
   subroutine initmicrophysics
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_integer,mpi_real,mpi_logical
-    use modglobal,only :ifnamopt,fname_options
+    use modglobal,only :ifnamopt,fname_options,iTimeInt,iTimeWicker
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     implicit none
@@ -71,6 +71,12 @@ contains
     call MPI_BCAST(Nc_0  ,   1, MPI_LOGICAL ,0,comm3d,ierr)
     call MPI_BCAST(sig_g,    1, MPI_INTEGER ,0,comm3d,ierr)
     call MPI_BCAST(sig_gr,   1, MPI_REAL    ,0,comm3d,ierr)
+
+    if (imicro/=0 .and. iTimeInt/=iTimeWicker) then
+      print *,"NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
+      print *,"NAMMICRO: Use iTimeInt=1 for imicro/=0"
+      stop "NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
+    end if   
 
     select case (imicro)
     case(imicro_none)

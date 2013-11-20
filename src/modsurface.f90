@@ -69,7 +69,7 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr, iTimeInt, iTimeWicker
     use modraddata, only : iradiation,rad_shortw,irad_full
     use modfields,  only : thl0, qt0
     use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
@@ -491,6 +491,11 @@ contains
 
 
     if(isurf == 1) then
+      if (iTimeInt/=iTimeWicker) then
+        print *,"NAMSURFACE: You are trying to use a time integration scheme that has not been implemented in the land-surface model."
+        print *,"NAMSURFACE: Use iTimeInt=1 for isurf=1."
+        stop "NAMSURFACE: You are trying to use a time integration scheme that has not been implemented in the land-surface model."
+      end if
       if(tsoilav(1) == -1 .or. tsoilav(2) == -1 .or. tsoilav(3) == -1 .or. tsoilav(4) == -1) then
         stop "NAMSURFACE: tsoil is not set"
       end if
@@ -618,7 +623,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rkStep,rkMaxStep,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
+    use modglobal,  only : i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rkStep,rkMaxStep,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -1488,8 +1493,7 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rkStep
-    use modtstep,  only : rkCoef
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rslabs,rkStep,subDt
     use modfields, only : ql0,qt0,thl0,rhof,presf
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
@@ -1676,7 +1680,7 @@ contains
         if (Cskin(i,j) == 0.) then
           tskin(i,j) = Acoef * Bcoef ** (-1.) / exner
         else
-          tskin(i,j) = (1. + rkCoef(rkStep)*rdt / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + rkCoef(rkStep)*rdt / Cskin(i,j) * Acoef) / exner
+          tskin(i,j) = (1. + subDt / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + subDt / Cskin(i,j) * Acoef) / exner
         end if
 
         Qnet(i,j)     = Qnet(i,j) - (boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 3. * (tskin(i,j) * exner - tsurfm))
@@ -1695,13 +1699,13 @@ contains
 
         H(i,j)        = - fH  * ( Tatm - tskin(i,j) * exner )
         tskin(i,j)    = max(min(tskin(i,j),tskinm(i,j)+10.),tskinm(i,j)-10.)
-        tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rkCoef(rkStep)/rdt
+        tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / subDt
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
         if(qsat - qt0(i,j,1) < 0.) then
-          Wl(i,j)       =  Wlm(i,j) - rkCoef(rkStep)*rdt * ((LEliq + LEsoil + LEveg) / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - subDt * ((LEliq + LEsoil + LEveg) / (rhow * rlv))
         else
-          Wl(i,j)       =  Wlm(i,j) - rkCoef(rkStep)*rdt * (LEliq / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - subDt * (LEliq / (rhow * rlv))
         end if
 
         thlsl = thlsl + tskin(i,j)
@@ -1742,25 +1746,25 @@ contains
         lambdash(i,j,ksoilmax) = lambdas(i,j,ksoilmax)
 
         ! 1.4   -   Solve the diffusion equation for the heat transport
-        tsoil(i,j,1) = tsoilm(i,j,1) + rkCoef(rkStep)*rdt / pCs(i,j,1) * ( lambdah(i,j,1) &
+        tsoil(i,j,1) = tsoilm(i,j,1) + subDt / pCs(i,j,1) * ( lambdah(i,j,1) &
         * (tsoil(i,j,2) - tsoil(i,j,1)) / dzsoilh(1) + G0(i,j) ) / dzsoil(1)
         do k = 2, ksoilmax-1
-          tsoil(i,j,k) = tsoilm(i,j,k) + rkCoef(rkStep)*rdt / pCs(i,j,k) * ( lambdah(i,j,k) * (tsoil(i,j,k+1) - tsoil(i,j,k))&
+          tsoil(i,j,k) = tsoilm(i,j,k) + subDt / pCs(i,j,k) * ( lambdah(i,j,k) * (tsoil(i,j,k+1) - tsoil(i,j,k))&
           / dzsoilh(k) - lambdah(i,j,k-1) * (tsoil(i,j,k) - tsoil(i,j,k-1)) / dzsoilh(k-1) ) / dzsoil(k)
         end do
-        tsoil(i,j,ksoilmax) = tsoilm(i,j,ksoilmax) + rkCoef(rkStep)*rdt / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * &
+        tsoil(i,j,ksoilmax) = tsoilm(i,j,ksoilmax) + subDt / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * &
         (tsoildeep(i,j) - tsoil(i,j,ksoilmax)) / dzsoil(ksoilmax) - lambdah(i,j,ksoilmax-1) * &
         (tsoil(i,j,ksoilmax) - tsoil(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) ) / dzsoil(ksoilmax)
         ! 1.5   -   Solve the diffusion equation for the moisture transport
-        phiw(i,j,1) = phiwm(i,j,1) + rkCoef(rkStep)*rdt * ( lambdash(i,j,1) * (phiw(i,j,2) - phiw(i,j,1)) / &
+        phiw(i,j,1) = phiwm(i,j,1) + subDt * ( lambdash(i,j,1) * (phiw(i,j,2) - phiw(i,j,1)) / &
         dzsoilh(1) - gammash(i,j,1) - (phifrac(i,j,1) * LEveg + LEsoil) / (rhow*rlv)) / dzsoil(1)
         do k = 2, ksoilmax-1
-          phiw(i,j,k) = phiwm(i,j,k) + rkCoef(rkStep)*rdt * ( lambdash(i,j,k) * (phiw(i,j,k+1) - phiw(i,j,k)) / &
+          phiw(i,j,k) = phiwm(i,j,k) + subDt * ( lambdash(i,j,k) * (phiw(i,j,k+1) - phiw(i,j,k)) / &
           dzsoilh(k) - gammash(i,j,k) - lambdash(i,j,k-1) * (phiw(i,j,k) - phiw(i,j,k-1)) / dzsoilh(k-1) + &
           gammash(i,j,k-1) - (phifrac(i,j,k) * LEveg) / (rhow*rlv)) / dzsoil(k)
         end do
         ! closed bottom for now
-        phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rkCoef(rkStep)*rdt * (- lambdash(i,j,ksoilmax-1) * &
+        phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + subDt * (- lambdash(i,j,ksoilmax-1) * &
         (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) & 
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do
