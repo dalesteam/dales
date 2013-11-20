@@ -457,9 +457,9 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h,ql0,ql0h,thl0h,thv0h,sv0,e120,&
-                          u0av,v0av,thl0av,qt0av,ql0av,sv0av,exnf,exnh,rhobf
+                          u0av,v0av,thl0av,qt0av,ql0av,sv0av,exnf,exnh,rhobf,ekm,ekh
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
-    use modsubgriddata,only : ekm, ekh, csz
+    use modsubgriddata,only : csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
                           rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum

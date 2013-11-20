@@ -213,9 +213,8 @@ contains
                           rslabs,cu,cv,iadv_thl,grav, &
                           dxi,dyi,dx2i,dy2i
     use modsurfdata,only : thvs, ustar
-    use modsubgriddata, only : ekm
     use modpois,    only : p
-    use modfields,  only : u0,v0,w0,thl0h,thv0h,u0av,v0av,rhobf,rhobh,thvh
+    use modfields,  only : u0,v0,w0,thl0h,thv0h,u0av,v0av,rhobf,rhobh,thvh,ekm
 !cstep    use modtilt,    only : adjustbudget,ltilted
     use modmpi,     only : nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
 
@@ -670,8 +669,8 @@ end subroutine do_genbudget
 !> Performs the SFS - budget calculations
   subroutine do_gensbbudget
     use modglobal,  only : i1,j1,ih,jh,k1,kmax,rslabs
-    use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
-    use modfields,  only : e120,rhobf
+    use modsubgriddata, only : sbdiss,sbshr,sbbuo
+    use modfields,  only : e120,rhobf,ekm,ekh
     use modmpi,     only : slabsum,nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
     !----------------------------
     ! 1.1 Declare allocatable
