@@ -49,6 +49,8 @@ save
   real :: alpha_kolm  = 1.5     !< factor in Kolmogorov expression for spectral energy
   real :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
 
+  real, allocatable :: ekm(:,:,:)   !< k-coefficient for momentum
+  real, allocatable :: ekh(:,:,:)   !< k-coefficient for heat and q_tot
   real, allocatable :: sbdiss(:,:,:)!< dissiation
   real, allocatable :: sbshr(:,:,:) !< shear production
   real, allocatable :: sbbuo(:,:,:) !< buoyancy production / destruction
