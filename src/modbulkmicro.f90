@@ -349,8 +349,7 @@ module modbulkmicro
       do k=1,k1
 
          if (qcmask(i,j,k)) then
-            au             = 1350.0 * ql0(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
-
+            au             = 1350.0 * ql0(i,j,k)**(2.47) * (Nc(i,j,k)/1.e6)**(-1.79)
             qrp    (i,j,k) = qrp    (i,j,k) + au       
             Nrp    (i,j,k) = Nrp    (i,j,k) + au        * rhof(k)/(pirhow*D0_kk**3.)
             !qtpmcr (i,j,k) = qtpmcr (i,j,k) - au(i,j,k)
