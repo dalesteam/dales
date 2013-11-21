@@ -72,12 +72,12 @@ contains
   end subroutine initchecksim
 !>Run checksim. Timekeeping, and output
   subroutine checksim
-    use modglobal, only : timee,rtimee, rkStep,rkMaxStep, dt_lim,rdt
+    use modglobal, only : timee,rtimee, rk3step, dt_lim,rdt
     use modmpi,    only : myid
     implicit none
     character(20) :: timeday
     if (timee ==0) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     dtmn = dtmn +rdt; ndt =ndt+1.
     if(timee<tnext) return
     tnext = tnext+itcheck
@@ -165,7 +165,7 @@ contains
   subroutine chkdiv
 
     use modglobal, only : i1,j1,kmax,dx,dy,dzf
-    use modfields, only : u0,v0,w0
+    use modfields, only : um,vm,wm
     use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,my_real,mpierr
     implicit none
 
@@ -184,9 +184,9 @@ contains
     do j=2,j1
     do i=2,i1
       div = &
-                (u0(i+1,j,k) - u0(i,j,k) )/dx + &
-                (v0(i,j+1,k) - v0(i,j,k) )/dy + &
-                (w0(i,j,k+1) - w0(i,j,k) )/dzf(k)
+                (um(i+1,j,k) - um(i,j,k) )/dx + &
+                (vm(i,j+1,k) - vm(i,j,k) )/dy + &
+                (wm(i,j,k+1) - wm(i,j,k) )/dzf(k)
       divmaxl = max(divmaxl,abs(div))
       divtotl = divtotl + div*dx*dy*dzf(k)
     end do

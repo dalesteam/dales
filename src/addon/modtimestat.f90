@@ -218,7 +218,7 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,&
-                          rslabs,timee,rtimee,dt_lim,rkStep,rkMaxStep,cexpnr,ifoutput
+                          rslabs,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
 !
     use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
@@ -242,7 +242,7 @@ contains
     integer:: i, j, k
 
     if (.not.(ltimestat)) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return

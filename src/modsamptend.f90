@@ -319,7 +319,7 @@ subroutine initsamptend
     use modmpi,    only : myid,slabsum
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,rslabs,&
-                          grav,om22,cu,timee,rkStep,rkMaxStep,dt_lim,rslabs,btime,nsv,rdt
+                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
@@ -335,7 +335,7 @@ subroutine initsamptend
     if (.not. lsamptend) return
     if(isamptot < 1) return
     if(.not.(lnetcdf)) return !only in netcdf at the moment
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     if(timee<tnext) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
@@ -455,7 +455,7 @@ subroutine initsamptend
       end do
 
       ldosamptendleib=.true.
-      lastrk3coef = rdt / (4. - dble(rkStep))
+      lastrk3coef = rdt / (4. - dble(rk3step))
 
     ENDIF
     ENDIF
@@ -527,7 +527,7 @@ subroutine initsamptend
     use modmpi,    only : myid,slabsum
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,rslabs,&
-                          grav,om22,cu,timee,rkStep,rkMaxStep,dt_lim,rslabs,btime,nsv,rdt
+                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     implicit none

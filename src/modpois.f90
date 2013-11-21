@@ -64,24 +64,26 @@ contains
   ! Adapted fillps for RK3 time loop
 
 
-    use modtstep,  only : rkCoef
-    use modfields, only : up, vp, wp, u0, v0, w0, rhobf,rhobh
-    use modglobal, only : rkStep,i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
+    use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
+    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
+    real rk3coef
 
     allocate(pup(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
 
+    rk3coef = rdt / (4. - dble(rk3step))
+
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          pup(i,j,k) = up(i,j,k) + u0(i,j,k) / rkCoef(rkStep)/rdt
-          pvp(i,j,k) = vp(i,j,k) + v0(i,j,k) / rkCoef(rkStep)/rdt
-          pwp(i,j,k) = wp(i,j,k) + w0(i,j,k) / rkCoef(rkStep)/rdt
+          pup(i,j,k) = up(i,j,k) + um(i,j,k) / rk3coef
+          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) / rk3coef
+          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) / rk3coef
         end do
       end do
     end do

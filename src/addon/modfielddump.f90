@@ -111,7 +111,7 @@ contains
   subroutine fielddump
     use modfields, only : um,vm,wm,thlm,qtm,ql0
     use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rkStep,rkMaxStep,&
+    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -124,7 +124,7 @@ contains
 
 
     if (.not. lfielddump) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return

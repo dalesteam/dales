@@ -113,9 +113,9 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh
+    use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh
     use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rkStep,rkMaxStep,&
+    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -129,7 +129,7 @@ contains
 
 
     if (.not. lfielddump) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
 
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
@@ -144,7 +144,7 @@ contains
 
     reclength = imax*jmax*(khigh-klow+1)*2
 
-    field = NINT(1.0E3*u0,2)
+    field = NINT(1.0E3*um,2)
     if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -157,7 +157,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*v0,2)
+    field = NINT(1.0E3*vm,2)
     if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -170,7 +170,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*w0,2)
+    field = NINT(1.0E3*wm,2)
     if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -183,7 +183,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*qt0,2)
+    field = NINT(1.0E5*qtm,2)
     if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -209,7 +209,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E2*(thl0-300),2)
+    field = NINT(1.0E2*(thlm-300),2)
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -226,7 +226,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E5*sv0(i,j,k,iqr),2)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iqr),2)
       enddo
       enddo
       enddo

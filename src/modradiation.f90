@@ -111,16 +111,16 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
-    use modglobal, only : timee, dt_lim,rkStep,rkMaxStep,i1,j1,kmax
+    use modglobal, only : timee, dt_lim,rk3step,i1,j1,kmax
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
     implicit none
 
-    if(timee<tnext .and. rkStep==3) then
+    if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
-    if((itimerad==0 .or. timee==tnext) .and. rkStep==1) then
+    if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
       thlprad = 0.0
       select case (iradiation)

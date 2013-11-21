@@ -60,7 +60,7 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
-    use modglobal, only : ih,i1,jh,j1,k1,dzf,rkStep
+    use modglobal, only : ih,i1,jh,j1,k1,dzf,rk3step
     use modmpi,    only : myid
     implicit none
 
@@ -125,9 +125,8 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
-    use modglobal, only : ih,jh,i1,j1,k1,rdt,rkStep,rkMaxStep,timee,kmax,rlv,cp
-    use modtstep,  only : rkCoef
-    use modfields, only : sv0,svp,qtp,thlp,qt0,ql0,presf,exnf,rhof
+    use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,presf,exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     implicit none
@@ -149,9 +148,9 @@ module modbulkmicro
     qtpmcr  = 0.0
     Nc     = 0.0
 
-    !delt = rdt/ (4. - dble(rkStep))
+    delt = rdt/ (4. - dble(rk3step))
 
-    if ( timee .eq. 0. .and. rkStep .eq. 1 .and. myid .eq. 0) then
+    if ( timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
       write(*,*) 'l_lognormal',l_lognormal
       write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
       write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
@@ -314,13 +313,13 @@ module modbulkmicro
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      qrtest=sv0(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*rkCoef(rkStep)*rdt
-      nrtest=sv0(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*rkCoef(rkStep)*rdt
+      qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
+      nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*delt
       if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + sv0(i,j,k,iqr)/rkCoef(rkStep)/rdt + svp(i,j,k,iqr) + qrp(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(sv0(i,j,k,iqr)/rkCoef(rkStep)/rdt + svp(i,j,k,iqr) + qrp(i,j,k))
-        svp(i,j,k,iqr) = - sv0(i,j,k,iqr)/rkCoef(rkStep)/rdt
-        svp(i,j,k,inr) = - sv0(i,j,k,inr)/rkCoef(rkStep)/rdt
+        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
+        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
+        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
+        svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
       else
       svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
       svp(i,j,k,inr) =svp(i,j,k,inr)+nrp(i,j,k)
@@ -341,8 +340,7 @@ module modbulkmicro
   !!   by chosing mu=1/3 one would get a gamma distribution in drop diameter
   !!   -> faster rain formation. (Seifert)
   subroutine autoconversion
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp,rkStep,rdt
-    use modtstep,  only : rkCoef
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
     implicit none
@@ -405,8 +403,8 @@ module modbulkmicro
     end if !l_sb
 
 
-    if (any(ql0(2:i1,2:j1,1:kmax)/rkCoef(rkStep)/rdt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
-      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/rkCoef(rkStep)/rdt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
+    if (any(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
+      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
     end if
 
   end subroutine autoconversion
@@ -416,8 +414,7 @@ module modbulkmicro
   ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
   ! accordingly. Break-up : Seifert (2007)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp,dzf,rkStep,rdt
-    use modtstep,  only : rkCoef
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp,dzf
     use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
     implicit none
@@ -493,8 +490,8 @@ module modbulkmicro
     end if !l_sb
 
 
-   if (any(ql0(2:i1,2:j1,1:kmax)/rkCoef(rkStep)/rdt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
-     write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/rkCoef(rkStep)/rdt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
+   if (any(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
+     write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
    end if
  
    deallocate (phi_br)
@@ -563,8 +560,7 @@ module modbulkmicro
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
   subroutine sedimentation_rain
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf,pi,rkStep,rdt
-    use modtstep,  only : rkCoef
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf,pi
     use modfields, only : rhof
     use modmpi,    only : myid,mpi_max,mpi_integer,mpierr,comm3d
     implicit none
@@ -586,8 +582,8 @@ module modbulkmicro
     Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
 
     wfallmax = 9.9
-    n_spl = ceiling(wfallmax*rkCoef(rkStep)*rdt/(minval(dzf)))
-    dt_spl = rkCoef(rkStep)*rdt/real(n_spl)
+    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
+    dt_spl = delt/real(n_spl)
 
     do jn = 1 , n_spl ! time splitting loop
 
@@ -715,8 +711,8 @@ module modbulkmicro
 !
     enddo ! time splitting loop
 
-    Nrp(2:i1,2:j1,1:k1)= Nrp(2:i1,2:j1,1:k1) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/rkCoef(rkStep)/rdt
-    qrp(2:i1,2:j1,1:k1)= qrp(2:i1,2:j1,1:k1) + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/rkCoef(rkStep)/rdt
+    Nrp(2:i1,2:j1,1:k1)= Nrp(2:i1,2:j1,1:k1) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/delt
+    qrp(2:i1,2:j1,1:k1)= qrp(2:i1,2:j1,1:k1) + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/delt
 
     deallocate (wvar, xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr) 
   end subroutine sedimentation_rain
@@ -730,9 +726,8 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma,rkStep,rdt
-    use modtstep,  only : rkCoef
-    use modfields, only : exnf,thl0,qt0,sv0,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma
+    use modfields, only : exnf,thl0,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
     use modmpi,    only : myid
     implicit none
     integer :: i,j,k
@@ -797,9 +792,9 @@ module modbulkmicro
     do j=2,j1
     do i=2,i1
     do k=1,k1  
-       if (evap(i,j,k) < -sv0(i,j,k,iqr)/rkCoef(rkStep)/rdt .and. qrmask(i,j,k)) then
-          Nevap(i,j,k) = - sv0(i,j,k,inr)/rkCoef(rkStep)/rdt
-          evap (i,j,k) = - sv0(i,j,k,iqr)/rkCoef(rkStep)/rdt
+       if (evap(i,j,k) < -svm(i,j,k,iqr)/delt .and. qrmask(i,j,k)) then
+          Nevap(i,j,k) = - svm(i,j,k,inr)/delt
+          evap (i,j,k) = - svm(i,j,k,iqr)/delt
        endif
     enddo
     enddo

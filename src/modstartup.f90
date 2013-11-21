@@ -56,8 +56,7 @@ contains
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,iTimeInt,author
-    use modtstep,          only : inittstep
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -81,7 +80,7 @@ contains
     !declare namelists
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
-        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,iTimeInt,author
+        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author
     namelist/DOMAIN/ &
         imax,jtot,kmax,&
         xsize,ysize,&
@@ -207,7 +206,6 @@ contains
     call MPI_BCAST(randqt     ,1,MY_REAL   ,0,comm3d,mpierr)
 
     call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(iTimeInt   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(courant,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(peclet,1,MY_REAL   ,0,comm3d,mpierr)
 
@@ -221,7 +219,6 @@ contains
 
     ! Allocate and initialize core modules
     call initglobal
-    call inittstep
     call initfields
 
     call initboundary
@@ -235,6 +232,7 @@ contains
 
     call checkinitvalues
     call readinitfiles
+
 
   end subroutine startup
 
@@ -321,9 +319,8 @@ contains
   end subroutine checkinitvalues
 
   subroutine readinitfiles
-    use modfields,         only : u0,v0,w0,thl0,thl0h,qt0,qt0h,&
-                                  um,vm,wm,qtm,thlm,svm,e12m,&
-                                  ql0,ql0h,thv0h,sv0,e120,&
+    use modfields,         only : u0,v0,w0,um,vm,wm,thlm,thl0,thl0h,qtm,qt0,qt0h,&
+                                  ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
                                   rhobf,rhobh,drhobdzf,drhobdzh,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
@@ -334,7 +331,7 @@ contains
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart,iTimeInt, ladaptive,llsadv,tnextrestart,ibas_prf
+                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
@@ -420,23 +417,31 @@ contains
       do j=1,j2
       do i=1,i2
         thl0(i,j,k) = thlprof(k)
+        thlm(i,j,k) = thlprof(k)
         qt0 (i,j,k) = qtprof (k)
+        qtm (i,j,k) = qtprof (k)
         u0  (i,j,k) = uprof  (k) - cu
+        um  (i,j,k) = uprof  (k) - cu
         v0  (i,j,k) = vprof  (k) - cv
+        vm  (i,j,k) = vprof  (k) - cv
         w0  (i,j,k) = 0.0
+        wm  (i,j,k) = 0.0
         e120(i,j,k) = e12prof(k)
+        e12m(i,j,k) = e12prof(k)
+        ekm (i,j,k) = 0.0
         ekh (i,j,k) = 0.0
       end do
       end do
       end do
-
     !---------------------------------------------------------------
     !  1.2 randomnize fields
     !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
       do k = 1,krand
+        call randomnize(qtm ,k,randqt ,irandom,ih,jh)
         call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
+        call randomnize(thlm,k,randthl,irandom,ih,jh)
         call randomnize(thl0,k,randthl,irandom,ih,jh)
       end do
 
@@ -470,24 +475,11 @@ contains
           do i=1,i2
             do n=1,nsv
               sv0(i,j,k,n) = svprof(k,n)
+              svm(i,j,k,n) = svprof(k,n)
             end do
           end do
         end do
       end do
-      
-      ! Initialize m fields (indentical to what happens at a restart)
-      ! Previously, the qtm and thlm fields were separately randomnized and therefore not
-      ! identical to the qt0 and thl0 fields
-      if (iTimeInt==1) then
-        thlm(:,:,:) = thl0(:,:,:)
-        qtm(:,:,:)  = qt0(:,:,:)
-        svm(:,:,:,:)= sv0(:,:,:,:)
-        e12m(:,:,:) = e120(:,:,:)
-        ekm(:,:,:)  = ekh(:,:,:)
-        um(:,:,:)   = u0(:,:,:)
-        vm(:,:,:)   = v0(:,:,:)
-        wm(:,:,:)   = w0(:,:,:)
-      end if
 
 !-----------------------------------------------------------------
 !    2.2 Initialize surface layer and base profiles
@@ -543,15 +535,13 @@ contains
     else !if lwarmstart
 
       call readrestartfiles
-      if (iTimeInt==1) then
-        um   = u0
-        vm   = v0
-        wm   = w0
-        thlm = thl0
-        qtm  = qt0
-        svm  = sv0
-        e12m = e120
-      end if
+      um   = u0
+      vm   = v0
+      wm   = w0
+      thlm = thl0
+      qtm  = qt0
+      svm  = sv0
+      e12m = e120
       call calc_halflev
       exnf = (presf/pref0)**(rd/cp)
       exnh = (presh/pref0)**(rd/cp)
@@ -724,7 +714,7 @@ contains
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                          iexpnr,ntimee,tres,rkStep,rkMaxStep,ifinput,nsv,runtime,dt,rdt,cu,cv
+                          iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv
     use modmpi,     only : cmyid, myid
     use modsubgriddata, only : ekm
 
@@ -817,7 +807,7 @@ contains
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
-                          ntimee,rtimee,rkStep,rkMaxStep,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
+                          ntimee,rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm
 
@@ -828,7 +818,7 @@ contains
     character(20) name,linkname
 
     if (timee == 0) return
-    if (rkStep /=3) return
+    if (rk3step /=3) return
     name = 'exit_now.'//cexpnr
     inquire(file=trim(name), EXIST=lexitnow)
 

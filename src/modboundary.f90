@@ -93,24 +93,33 @@ contains
  subroutine cyclich
 
   use modglobal, only : i1,i2,ih,j1,jh,k1,nsv
-  use modfields, only : thl0,qt0,sv0
+  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
   use modmpi,    only : excjs
   integer n,m
 
   do m = 1,ih
     thl0(2-m,:,:)   = thl0(i2-m,:,:)
     thl0(i1+m,:,:)  = thl0(1+m,:,:)
+    thlm(2-m,:,:)   = thlm(i2-m,:,:)
+    thlm(i1+m,:,:)  = thlm(1+m,:,:)
     qt0(2-m,:,:)    = qt0(i2-m,:,:)
     qt0(i1+m,:,:)   = qt0(1+m,:,:)
+    qtm(2-m,:,:)    = qtm(i2-m,:,:)
+    qtm(i1+m,:,:)   = qtm(1+m,:,:)
     sv0(2-m,:,:,:)  = sv0(i2-m,:,:,:)
     sv0(i1+m,:,:,:) = sv0(1+m,:,:,:)
+    svm(2-m,:,:,:)  = svm(i2-m,:,:,:)
+    svm(i1+m,:,:,:) = svm(1+m,:,:,:)
   end do
 
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
+    call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
   enddo
 
   return
@@ -120,7 +129,7 @@ contains
  subroutine cyclicm
 
   use modglobal, only : i1,i2,ih,j1,jh,k1
-  use modfields, only : u0,v0,w0,e120
+  use modfields, only : u0,um,v0,vm,w0,wm,e120,e12m
   use modmpi,    only : excjs
 
   integer m
@@ -133,16 +142,28 @@ contains
     v0(i1+m,:,:)   = v0(1+m,:,:)
     w0(2-m,:,:)    = w0(i2-m,:,:)
     w0(i1+m,:,:)   = w0(1+m,:,:)
+    um(2-m,:,:)    = um(i2-m,:,:)
+    um(i1+m,:,:)   = um(1+m,:,:)
+    vm(2-m,:,:)    = vm(i2-m,:,:)
+    vm(i1+m,:,:)   = vm(1+m,:,:)
+    wm(2-m,:,:)    = wm(i2-m,:,:)
+    wm(i1+m,:,:)   = wm(1+m,:,:)
 
     e120(2-m,:,:)  = e120(i2-m,:,:)
     e120(i1+m,:,:)  = e120(1+m,:,:)
+    e12m(2-m,:,:)  = e12m(i2-m,:,:)
+    e12m(i1+m,:,:)  = e12m(1+m,:,:)
 
   end do
 
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( um  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( vm  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( wm  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( e12m  , 2,i1,2,j1,1,k1,ih,jh)
 
   return
   end subroutine cyclicm
@@ -223,7 +244,8 @@ contains
   subroutine toph
 
   use modglobal, only : i1,j1,kmax,k1,nsv,dtheta,dqt,dsv,dzh
-  use modfields, only : thl0,qt0,sv0,thl0av,qt0av,sv0av
+  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
+                       ,thl0av,qt0av,sv0av
   implicit none
   integer :: n
   integer,parameter :: kav=5
@@ -243,8 +265,11 @@ contains
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
 
+  thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
+  qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
   do n=1,nsv
     sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
+    svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
   enddo
 
   return
@@ -253,12 +278,17 @@ contains
   subroutine topm
 
     use modglobal, only : i1,j1,kmax,k1,e12min
-    use modfields, only : u0,v0,w0,e120
+    use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
+
+    um(:,:,k1)   = um(:,:,kmax)
+    vm(:,:,k1)   = vm(:,:,kmax)
+    wm(:,:,k1)   = 0.0
+    e12m(:,:,k1) = e12min
 
   return
   end subroutine topm

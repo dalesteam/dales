@@ -1077,20 +1077,20 @@ end subroutine read_chem
 
 
 SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
-use modglobal, only : rkStep,rkMaxStep,timee
-use modfields, only: sv0
+use modglobal, only : rk3step,timee
+use modfields, only: svm
 use modmpi, only: myid
 implicit none
 
   if (.not. (lchem)) return
 
-  if (rkStep/=rkMaxStep) return
+  if (rk3step/=3) return
   if(timee==0) return
 
-  !!!! We only use the chemistry scalars in svm, ! NOTE: I changed this to sv0 !JvdD
+  !!!! We only use the chemistry scalars in svm,
   !!!! in twostep2 we use them as y(:,:,:,1:nchsp)
   !!!! they may be starting at XX but we acces them with index 1 to nchsp
-  call twostep2(sv0(:,:,:,firstchem:lastchem))
+  call twostep2(svm(:,:,:,firstchem:lastchem))
   if (timee >= tnextwrite ) then
     tnextwrite = tnextwrite + itimeav
   endif
@@ -1648,7 +1648,7 @@ end subroutine FIT
 
 subroutine calc_K(k)
 use modglobal, only :rlv, cp, i1,j1, imax,jmax,timee
-use modfields, only :thl0,exnf,qt0,ql0,presf,sv0
+use modfields, only :thl0,exnf,qt0,ql0,presf,svm
 use modmpi, only : myid
 implicit none
 
@@ -1715,7 +1715,7 @@ implicit none
         !first CBL
         rk1(:,:) = RC(i)%A * exp(RC(i)%B / T_abs(:,:)) * convppb(:,:)
         rk2(:,:) = RC(i)%C * exp(RC(i)%D / T_abs(:,:)) * convppb(:,:)**2 * 1e9
-        rk(:,:) =  RC(i)%E * exp(RC(i)%F / T_abs(:,:)) * sv0(2:i1,2:j1,k,(H2O%loc+choffset)) * convppb(:,:)
+        rk(:,:) =  RC(i)%E * exp(RC(i)%F / T_abs(:,:)) * svm(2:i1,2:j1,k,(H2O%loc+choffset)) * convppb(:,:)
         keffT(:,:,RC(i)%Kindex) = (rk1(:,:) + rk2(:,:)) * (1. + rk(:,:))
       case(7) ! same as 3 but third order so conv_ppb to the power 2
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* (convppb(:,:)**2)
@@ -2130,7 +2130,7 @@ end function getth
 
 subroutine chemmovie(ybegin)
 use modglobal, only : i1,j1,ih,jh,i2, j2, k1,kmax,nsv, timee, iexpnr
-use modfields, only: sv0,qt0,ql0
+use modfields, only: svm,qt0,ql0
 use modmpi, only: myid
 implicit none
 
@@ -2148,7 +2148,7 @@ implicit none
   do n=1,nchsp
     write(filenaam,'(a,a)')trim(PL_scheme(n)%name),id
     open(fileout,file=filenaam,form='unformatted',position='append',action='write')
-    dummy(:,:,:)=sv0(2:i1,2:j1,1:kmax,n)
+    dummy(:,:,:)=svm(2:i1,2:j1,1:kmax,n)
      write(fileout) (((dummy(i,j,k),i=2,i1),j=2,j1),k=1,kmax)
     close(fileout)
   enddo
@@ -2156,7 +2156,7 @@ implicit none
   do n=1,nchsp
     write(filenaam,'(a,a,a)')'PL_',trim(PL_scheme(n)%name),id
     open(fileout,file=filenaam,form='unformatted',position='append',action='write')
-    dummy(:,:,:) = sv0(2:i1,2:j1,1:kmax,n) - ybegin(2:i1,2:j1,1:kmax,n)
+    dummy(:,:,:) = svm(2:i1,2:j1,1:kmax,n) - ybegin(2:i1,2:j1,1:kmax,n)
      write(fileout) (((dummy(i,j,k),i=2,i1),j=2,j1),k=1,kmax)
     close(fileout)
   enddo

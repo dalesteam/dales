@@ -172,11 +172,11 @@ contains
 
   subroutine netcdfmovie
 
-    use modglobal, only : rkStep,rkMaxStep,timee,dt_lim
+    use modglobal, only : rk3step,timee,dt_lim
     implicit none
 
     if (.not. lnetcdfmovie) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     if (timee==0) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)

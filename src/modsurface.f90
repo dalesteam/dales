@@ -618,7 +618,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rkStep,rkMaxStep,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
+    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rk3step,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -1488,8 +1488,7 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rkStep
-    use modtstep,  only : rkCoef
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rk3step
     use modfields, only : ql0,qt0,thl0,rhof,presf
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
@@ -1497,7 +1496,7 @@ contains
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k
     integer  :: patchx, patchy
-    real     :: thlsl
+    real     :: rk3coef,thlsl
 
     real     :: swdav, swuav, lwdav, lwuav
     real     :: exner, exnera, tsurfm, Tatm, e,esat, qsat, desatdT, dqsatdT, Acoef, Bcoef
@@ -1542,7 +1541,7 @@ contains
         ! 1.2   -   Calculate the skin temperature as the top boundary conditions for heat transport
         if(iradiation > 0) then
           if(iradiation == 1 .and. useMcICA) then
-            if(rkStep == 1) then
+            if(rk3step == 1) then
               swdavn(i,j,2:nradtime) = swdavn(i,j,1:nradtime-1)
               swuavn(i,j,2:nradtime) = swuavn(i,j,1:nradtime-1)
               lwdavn(i,j,2:nradtime) = lwdavn(i,j,1:nradtime-1)
@@ -1615,7 +1614,7 @@ contains
         ! CvH I put it in the init function, as we don't have prognostic soil moisture at this stage
 
         ! CvH solve the surface temperature implicitly including variations in LWout
-        if(rkStep == 1) then
+        if(rk3step == 1) then
           tskinm(i,j) = tskin(i,j)
           Wlm(i,j)    = Wl(i,j)
         end if
@@ -1665,7 +1664,7 @@ contains
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
 
-        !rk3coef = rdt / (4. - dble(rkStep)) ! Removed JvdD
+        rk3coef = rdt / (4. - dble(rk3step))
 
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
@@ -1676,7 +1675,7 @@ contains
         if (Cskin(i,j) == 0.) then
           tskin(i,j) = Acoef * Bcoef ** (-1.) / exner
         else
-          tskin(i,j) = (1. + rkCoef(rkStep)*rdt / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + rkCoef(rkStep)*rdt / Cskin(i,j) * Acoef) / exner
+          tskin(i,j) = (1. + rk3coef / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + rk3coef / Cskin(i,j) * Acoef) / exner
         end if
 
         Qnet(i,j)     = Qnet(i,j) - (boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 3. * (tskin(i,j) * exner - tsurfm))
@@ -1695,13 +1694,13 @@ contains
 
         H(i,j)        = - fH  * ( Tatm - tskin(i,j) * exner )
         tskin(i,j)    = max(min(tskin(i,j),tskinm(i,j)+10.),tskinm(i,j)-10.)
-        tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rkCoef(rkStep)/rdt
+        tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rk3coef
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
         if(qsat - qt0(i,j,1) < 0.) then
-          Wl(i,j)       =  Wlm(i,j) - rkCoef(rkStep)*rdt * ((LEliq + LEsoil + LEveg) / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - rk3coef * ((LEliq + LEsoil + LEveg) / (rhow * rlv))
         else
-          Wl(i,j)       =  Wlm(i,j) - rkCoef(rkStep)*rdt * (LEliq / (rhow * rlv))
+          Wl(i,j)       =  Wlm(i,j) - rk3coef * (LEliq / (rhow * rlv))
         end if
 
         thlsl = thlsl + tskin(i,j)
@@ -1711,7 +1710,7 @@ contains
         endif
 
         ! Solve the soil
-        if(rkStep == 1) then
+        if(rk3step == 1) then
           tsoilm(i,j,:) = tsoil(i,j,:)
           phiwm(i,j,:)  = phiw(i,j,:)
         end if
@@ -1742,25 +1741,25 @@ contains
         lambdash(i,j,ksoilmax) = lambdas(i,j,ksoilmax)
 
         ! 1.4   -   Solve the diffusion equation for the heat transport
-        tsoil(i,j,1) = tsoilm(i,j,1) + rkCoef(rkStep)*rdt / pCs(i,j,1) * ( lambdah(i,j,1) &
+        tsoil(i,j,1) = tsoilm(i,j,1) + rk3coef / pCs(i,j,1) * ( lambdah(i,j,1) &
         * (tsoil(i,j,2) - tsoil(i,j,1)) / dzsoilh(1) + G0(i,j) ) / dzsoil(1)
         do k = 2, ksoilmax-1
-          tsoil(i,j,k) = tsoilm(i,j,k) + rkCoef(rkStep)*rdt / pCs(i,j,k) * ( lambdah(i,j,k) * (tsoil(i,j,k+1) - tsoil(i,j,k))&
+          tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef / pCs(i,j,k) * ( lambdah(i,j,k) * (tsoil(i,j,k+1) - tsoil(i,j,k))&
           / dzsoilh(k) - lambdah(i,j,k-1) * (tsoil(i,j,k) - tsoil(i,j,k-1)) / dzsoilh(k-1) ) / dzsoil(k)
         end do
-        tsoil(i,j,ksoilmax) = tsoilm(i,j,ksoilmax) + rkCoef(rkStep)*rdt / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * &
+        tsoil(i,j,ksoilmax) = tsoilm(i,j,ksoilmax) + rk3coef / pCs(i,j,ksoilmax) * ( lambda(i,j,ksoilmax) * &
         (tsoildeep(i,j) - tsoil(i,j,ksoilmax)) / dzsoil(ksoilmax) - lambdah(i,j,ksoilmax-1) * &
         (tsoil(i,j,ksoilmax) - tsoil(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) ) / dzsoil(ksoilmax)
         ! 1.5   -   Solve the diffusion equation for the moisture transport
-        phiw(i,j,1) = phiwm(i,j,1) + rkCoef(rkStep)*rdt * ( lambdash(i,j,1) * (phiw(i,j,2) - phiw(i,j,1)) / &
+        phiw(i,j,1) = phiwm(i,j,1) + rk3coef * ( lambdash(i,j,1) * (phiw(i,j,2) - phiw(i,j,1)) / &
         dzsoilh(1) - gammash(i,j,1) - (phifrac(i,j,1) * LEveg + LEsoil) / (rhow*rlv)) / dzsoil(1)
         do k = 2, ksoilmax-1
-          phiw(i,j,k) = phiwm(i,j,k) + rkCoef(rkStep)*rdt * ( lambdash(i,j,k) * (phiw(i,j,k+1) - phiw(i,j,k)) / &
+          phiw(i,j,k) = phiwm(i,j,k) + rk3coef * ( lambdash(i,j,k) * (phiw(i,j,k+1) - phiw(i,j,k)) / &
           dzsoilh(k) - gammash(i,j,k) - lambdash(i,j,k-1) * (phiw(i,j,k) - phiw(i,j,k-1)) / dzsoilh(k-1) + &
           gammash(i,j,k-1) - (phifrac(i,j,k) * LEveg) / (rhow*rlv)) / dzsoil(k)
         end do
         ! closed bottom for now
-        phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rkCoef(rkStep)*rdt * (- lambdash(i,j,ksoilmax-1) * &
+        phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rk3coef * (- lambdash(i,j,ksoilmax-1) * &
         (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) & 
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do

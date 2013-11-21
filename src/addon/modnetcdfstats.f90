@@ -196,12 +196,12 @@ contains
 
   subroutine netcdfstats
 
-    use modglobal, only : rkStep,rkMaxStep,ntimee
+    use modglobal, only : rk3step,ntimee
     implicit none
 
     if (.not. lnetcdf) return
-    if (rkStep/=rkMaxStep) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
+    if (rk3step/=3) return
     if (timee==0) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)

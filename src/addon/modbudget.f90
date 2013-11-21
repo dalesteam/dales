@@ -186,11 +186,11 @@ contains
 !> General routine, does the timekeeping
   subroutine budgetstat
 
-    use modglobal, only : rkStep,rkMaxStep,timee, dt_lim
+    use modglobal, only : rk3step,timee, dt_lim
     implicit none
 
     if (.not. lbudget) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return

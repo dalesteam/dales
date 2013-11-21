@@ -337,9 +337,9 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,&
-                          rslabs,timee,rtimee,dt_lim,rkStep,rkMaxStep,cexpnr,ifoutput
+                          rslabs,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
 !
-    use modfields,  only : e120,ql0,u0av,v0av,rhof,u0,v0,w0
+    use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -367,7 +367,7 @@ contains
     integer:: patchx, patchy
 
     if (.not.(ltimestat)) return
-    if (rkStep/=rkMaxStep) return
+    if (rk3step/=3) return
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)
       return
@@ -527,11 +527,11 @@ contains
   
         do  k=1,kmax
           if (ql0(i,j,k) > 0) ztop = zf(k)
-          wmaxl = max(w0(i,j,k),wmaxl)
+          wmaxl = max(wm(i,j,k),wmaxl)
           qlmaxl = max(ql0(i,j,k),qlmaxl)
           if (lhetero) then
             if (ql0(i,j,k) > 0) ztop_field(i,j) = zf(k)
-            wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),w0 (i,j,k))
+            wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),wm (i,j,k))
             qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
           endif
         end do
@@ -612,17 +612,17 @@ contains
         endif
 
         tke_totl = tke_totl + 0.5*( &
-                            (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av(k))**2 &
-                            +(0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av(k))**2 &
-                            +(0.5*(w0(i,j,k)+w0(i,j,k+1))           )**2 &
-                                  ) + e120(i,j,k)**2
+                            (0.5*(um(i,j,k)+um(i+1,j,k))+cu-u0av(k))**2 &
+                            +(0.5*(vm(i,j,k)+vm(i,j+1,k))+cv-v0av(k))**2 &
+                            +(0.5*(wm(i,j,k)+wm(i,j,k+1))           )**2 &
+                                  ) + e12m(i,j,k)**2
 
         if (lhetero) then
           tke_tot_field(i,j) = tke_tot_field(i,j) + 0.5*( &
-                                   (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
-                                   (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
-                                   (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
-                                       ) + e120(i,j,k)**2
+                                   (0.5*(um(i,j,k)+um(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
+                                   (0.5*(vm(i,j,k)+vm(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
+                                   (0.5*(wm(i,j,k)+wm(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
+                                       ) + e12m(i,j,k)**2
         endif
       end do
       end do
