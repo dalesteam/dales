@@ -107,7 +107,8 @@
 !  is value for ~ 15C How sensitive is G for this Aug 2006, ~5% -> Dv changed to 15 C value?
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]
 !          ,pirhow = (pi*rhow)/6. & !< used in conversion of mass to diameter
-                     ,pirhow = 3.14159*rhow/6.        &
+         ,pirhow = 3.14159*rhow/6.        &
+         ,wMaxkk = 0.006*1.0E6*(xrmaxkk/pirhow)**(1./3.)- 0.2 & ! Maximum velocity of rain drops in KK00 scheme (~5.8 m/s)
          ,Rv = 461.5       & !<  specific gas constant for water vapor
          ,avf = 0.78       & !<  constants in vent. factor fv   (fv = 1. --> av=1,
          ,bvf = 0.308      & !<                                             bv=0 )
@@ -119,8 +120,8 @@
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-  real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets mixing ratio [kg_w/kg_a]
-                                       ,Nc  & !<  cloud droplets number conc.  [#/m^3]
+  !real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets mixing ratio [kg_w/kg_a]
+  real,allocatable, dimension(:,:,:) :: Nc  & !<  cloud droplets number conc.  [#/m^3]
                                        ,nuc & !<  width parameter of cloud DSD
                                        ,rhoz  !< slab averaged density in 3 dimensions
 
@@ -157,7 +158,7 @@
             k_br = 1000       !<
 
    real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
-   real,allocatable,dimension(:,:,:) :: precep
+   real,allocatable,dimension(:,:,:) :: precep,sed
 
   real :: delt
 
