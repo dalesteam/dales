@@ -64,8 +64,9 @@ contains
   ! Adapted fillps for RK3 time loop
 
 
-    use modfields, only : up,vp,wp,u0,v0,w0,um,vm,wm,rhobf,rhobh
-    use modglobal, only : iTimeInt,iTimeWicker,iTimeTVD,iTimeLowStor,i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,subDt
+    use modtstep,  only : rkCoef
+    use modfields, only : up, vp, wp, u0, v0, w0, rhobf,rhobh
+    use modglobal, only : rkStep,i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
@@ -75,27 +76,30 @@ contains
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    pup=0.; pvp=0.; pwp=0.
+    do k=1,kmax
+      do j=2,j1
+        do i=2,i1
+          pup(i,j,k) = up(i,j,k) + u0(i,j,k) / rkCoef(rkStep)/rdt
+          pvp(i,j,k) = vp(i,j,k) + v0(i,j,k) / rkCoef(rkStep)/rdt
+          pwp(i,j,k) = wp(i,j,k) + w0(i,j,k) / rkCoef(rkStep)/rdt
+        end do
+      end do
+    end do
 
-    if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
-      pup(2:i1,2:j1,1:kmax) = up(2:i1,2:j1,1:kmax) + um(2:i1,2:j1,1:kmax)/subDt
-      pvp(2:i1,2:j1,1:kmax) = vp(2:i1,2:j1,1:kmax) + vm(2:i1,2:j1,1:kmax)/subDt
-      pwp(2:i1,2:j1,1:kmax) = wp(2:i1,2:j1,1:kmax) + wm(2:i1,2:j1,1:kmax)/subDt
-    elseif (iTimeInt==iTimeLowStor) then
-      pup(2:i1,2:j1,1:kmax) = up(2:i1,2:j1,1:kmax) + u0(2:i1,2:j1,1:kmax)/subDt
-      pvp(2:i1,2:j1,1:kmax) = vp(2:i1,2:j1,1:kmax) + v0(2:i1,2:j1,1:kmax)/subDt
-      pwp(2:i1,2:j1,1:kmax) = wp(2:i1,2:j1,1:kmax) + w0(2:i1,2:j1,1:kmax)/subDt
-    end if
 
   !****************************************************************
+
   !     Fill the right hand for the poisson solver.
   !     The values for up(i2,j,k) and vp(i,j2,k) are still
   !     unknown and have to be set cyclic.
   !     Also we take wp(i,j,1) and wp(i,j,k1) equal to zero.
+
   !     NOTE:
+
   !     The poisson-solver only accepts values for i from 2 to i1,
   !     for j from 1 to jmax and for k from 1 to kmax.
   !     The right-hand p is therefore filled in this partical way.
+
   !**************************************************************
 
     do j=2,j1

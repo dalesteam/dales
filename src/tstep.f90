@@ -11,10 +11,7 @@
 !!
 !!  \author Chiel van Heerwaarden, Wageningen University
 !!  \author Thijs Heus,MPI-M
-!!  \author Johan van der Dussen
 !! \see Wicker and Skamarock 2002
-!! \see Williamson 1980
-!! \see Gottlieb and Shu 1998
 !!  \par Revision list
 !  This file is part of DALES.
 !
@@ -45,140 +42,151 @@
 !! \endlatexonly
 
 module modtstep
-use modglobal, only : rkStep,rkMaxStep,iTimeInt,iTimeWicker,iTimeLowStor,iTimeTVD
 
 implicit none
 save
 
-real,allocatable,dimension(:) :: rka,rkb,rkc ! Runge Kutta weighting coefficients (e.g. Eq. 9 Carpenter and Kennedy, 1994)
+real,allocatable,dimension(:) :: rkCoef  ! Runge Kutta time integration coefficients (Wicker and Skamarock)
+real,allocatable,dimension(:) :: rka,rkb ! Runge Kutta weighing coefficients (e.g. Eq. 9 Carpenter and Kennedy, 1994)
 
 contains
 
-  ! This subroutine initializes the coefficients that are used for the
-  ! Runge-Kutta time integration schemes.
   subroutine inittstep
+    use modglobal, only : iTimeInt,rkStep,rkMaxStep
     use modmpi,    only : mpierr,myid
     
-    select case (iTimeInt)
-      case(iTimeWicker) ! Wicker and Skamarock RK3 scheme
-        rkMaxStep = 3
-        allocate(rka(rkMaxStep),rkb(rkMaxStep),rkc(rkMaxStep))
-        rka(:) = 0.
-        rkb    = (/ 1./3.,1./2.,1. /)
-        rkc    = (/ 1./3.,1./2.,1. /)
+    if (iTimeInt==1) then ! Wicker and Skamarock RK3 scheme
+      rkMaxStep = 3
+      allocate(rkCoef(rkMaxStep))
+      rkCoef = (/ 1./3.,1./2.,1. /)
 
-      case(iTimeLowStor) ! Williamson Low Storage RK3 scheme
-        rkMaxStep = 3
-        allocate(rka(rkMaxStep),rkb(rkMaxStep),rkc(rkMaxStep))
-        rka = (/-5./9.,-153./128., 0.     /)
-        rkb = (/ 1./3.,15./16.   , 8./15. /)
-        rkc = (/ 1./3., 3./4.    , 1.     /)
-        
-      case(iTimeTVD) ! Third order total variation diminishing Runge-Kutta scheme
-        rkMaxStep = 3
-        allocate(rka(rkMaxStep),rkb(rkMaxStep),rkc(rkMaxStep))
-        rka = (/ 1.   , 1./4.,   0.  /)
-        rkb = (/ 1.   , 1./4., 2./3. /)
-        rkc = (/ 1./4., 1./2., 1.    /)
-        
-      case default
-        if(myid==0)then
-          write(6,*)'ERROR: Nonvalid timeintegration scheme selection'
-        end if
-        call MPI_FINALIZE(mpierr)
-        stop
-    end select
-
-    ! Set the rkStep to the appropriate value (see tstep_update)
-    rkStep = rkMaxStep
+    elseif (iTimeInt==2) then ! Williamson Low Storage RK3 scheme
+      rkMaxStep = 3
+      allocate(rka(rkMaxStep),rkb(rkMaxStep))
+      rka = (/ 0.   ,-5./9. ,-153./128. /)
+      rkb = (/ 1./3.,15./16.,8./15.     /)
+      ! The following lines are necessary for now, because other modules still use the old Runge Kutta method
+      allocate(rkCoef(rkMaxStep))
+ !     rkCoef = (/ 1./3.,1./2.,1. /)
+      rkCoef = (/ 1./3.,15./16.,8./15.     /)
+      
+    else
+      if(myid==0)then
+        write(6,*)'ERROR: Nonvalid timeintegration scheme selection'
+      end if
+      call MPI_FINALIZE(mpierr)
+      stop
+    end if 
 
   end subroutine inittstep
 
 
   subroutine tstep_update
-    use modglobal, only : timee,rtimee,runtime,btime,dtmax,dt,ntimee,ntrun,courant,peclet,&
-                          dt_lim,ladaptive,timeleft,idtmax,rdt,subDt,tres,longint,lwarmstart
+  
+  
+    use modglobal, only : i1,j1,rkStep,rkMaxStep,timee,rtimee,runtime,btime,dtmax,dt,ntimee,ntrun,courant,peclet,&
+                          kmax,k1,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
+    use modfields, only : u0,v0,w0,rhobf
+    use modsubgrid,only : ekm
+    use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
   
-    real          :: courantold=-1.,pecletold=-1., &
-                     courantmax,pecletmax
-    logical,save  :: spinup=.true.
-    integer       :: k
+    real, allocatable, dimension (:) :: courtotl,courtot
   
-    if (lwarmstart) spinup = .false.
-
-    ! Determine the new timestep at the end of the previous full RK time step
-    if (rkStep==rkMaxStep) then
+    integer       :: k
+    real,save     :: courtotmax=-1,peclettot=-1
+    real          :: courold,peclettotl,pecletold
+    logical,save  :: spinup=.true.
+  
+    allocate(courtotl(k1),courtot(k1))
+  
+    if(lwarmstart) spinup = .false.
+  
+    rkStep = mod(rkStep,rkMaxStep)+1
+    
+    if(rkStep == 1) then
+      ! Initialization
       if (spinup) then
-      !== Initialization =========
         if (ladaptive) then
-          courantmax= getCourant()
-          pecletmax = getPeclet()
-          
-          if (pecletold>0) then
-            dt = min( timee,  &
-                      dt_lim, &
-                      idtmax, &
-                      floor(rdt/tres*courant/courantmax,longint), &
-                      floor(rdt/tres*peclet /pecletmax ,longint)  )
-            if (abs(courantmax-courantold)/courantold<0.1 .and. (abs(pecletmax-pecletold)/pecletold<0.1)) then
+          courold = courtotmax
+          pecletold = peclettot
+          peclettotl=0.0
+          do k=1,kmax
+            courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
+            w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
+          end do
+          call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+          courtotmax=0.0
+          do k=1,kmax
+            courtotmax=max(courtotmax,courtot(k))
+          enddo
+          courtotmax=sqrt(courtotmax)
+          do k=1,kmax
+            peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          end do
+          call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+          if ( pecletold>0) then
+            dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+            if (abs(courtotmax-courold)/courold<0.1 .and. (abs(peclettot-pecletold)/pecletold<0.1)) then
               spinup = .false.
             end if
           end if
-          ! Store the previous Courant and Peclet numbers
-          courantold = courantmax
-          pecletold  = pecletmax
-          ! Set all relevant time variables
-          rdt     = dble(dt)*tres
-          dt_lim  = timeleft
+          rdt = dble(dt)*tres
+          dt_lim = timeleft
           timee   = timee  + dt
           rtimee  = dble(timee)*tres
-          timeleft= timeleft-dt
+          timeleft=timeleft-dt
           ntimee  = ntimee + 1
           ntrun   = ntrun  + 1
-        else ! ladaptive=.false.
-          dt = 2*dt
+        else
+          dt = 2 * dt
           if (dt >= idtmax) then
             dt = idtmax
             spinup = .false.
           end if
           rdt = dble(dt)*tres
         end if
-      !== Normal time loop
+      ! Normal time loop
       else
         if (ladaptive) then
-          courantMax = getCourant()
-          pecletMax  = getPeclet()
-          ! Determine the maximum stable time step (in millisec, type longint)
-          dt      = min( timee,  &
-                         dt_lim, &
-                         idtmax, &
-                         floor(rdt/tres*courant/courantmax,longint), &
-                         floor(rdt/tres*peclet /pecletmax ,longint)  )
-          rdt     = dble(dt)*tres ! Timestep in seconds
-          timeleft= timeleft-dt
-          dt_lim  = timeleft
+          peclettotl = 1e-5
+          do k=1,kmax
+            courtotl(k)=maxval((u0(2:i1,2:j1,k)*rdt/dx)*(u0(2:i1,2:j1,k)*rdt/dx)+(v0(2:i1,2:j1,k)*rdt/dy)*&
+            (v0(2:i1,2:j1,k)*rdt/dy)+(w0(2:i1,2:j1,k)*rdt/dzh(k))*(w0(2:i1,2:j1,k)*rdt/dzh(k)))
+          end do      
+          call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+          courtotmax=0.0
+          do k=1,kmax
+              courtotmax=max(courtotmax,sqrt(courtot(k)))
+          enddo
+          do k=1,kmax
+            peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          end do
+          call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+          dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+          rdt = dble(dt)*tres
+          timeleft=timeleft-dt
+          dt_lim = timeleft
           timee   = timee  + dt
           rtimee  = dble(timee)*tres
           ntimee  = ntimee + 1
           ntrun   = ntrun  + 1
-        else ! ladaptive = .false.
-          dt      = idtmax
-          rdt     = dtmax
+        else
+          dt = idtmax
+          rdt = dtmax
           ntimee  = ntimee + 1
           ntrun   = ntrun  + 1
           timee   = timee  + dt !ntimee*dtmax
           rtimee  = dble(timee)*tres
           timeleft=timeleft-dt
-        end if ! ladaptive
-      end if ! spinup
-    end if ! rkStep==rkMaxStep
-
-    ! Update the index of the RK substep and the magnitude of the subtimestep
-    rkStep = mod(rkStep,rkMaxStep)+1
-    subDt = rkb(rkStep)*rdt
+        end if
+      end if
+    end if
+  
+    deallocate(courtotl,courtot)
   
   end subroutine tstep_update
+  
   
   !> Time integration is done by a third order Runge-Kutta scheme.
   !!
@@ -196,110 +204,98 @@ contains
   !! \see Wicker and Skamarock, 2002
   subroutine tstep_integrate
   
-    use modglobal, only : i1,j1,kmax,nsv,rdt,subDt,e12min,ih,jh,rslabs,kcb
-    use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
+    use modglobal, only : i1,j1,kmax,nsv,rdt,rkStep,rkMaxStep,e12min,lmoist,k1,ih,jh,rslabs,kcb,iTimeInt
+    use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                           thl0,thlm,thlp,qt0,qtm,qtp,&
                           e120,e12m,e12p,sv0,svm,svp
     implicit none
- 
-    select case (iTimeInt)
- 
-      case(iTimeWicker,iTimeTVD)
-        u0  (2:i1,2:j1,1:kmax) = um  (2:i1,2:j1,1:kmax) + subDt*up  (2:i1,2:j1,1:kmax)
-        v0  (2:i1,2:j1,1:kmax) = vm  (2:i1,2:j1,1:kmax) + subDt*vp  (2:i1,2:j1,1:kmax)
-        w0  (2:i1,2:j1,1:kmax) = wm  (2:i1,2:j1,1:kmax) + subDt*wp  (2:i1,2:j1,1:kmax)
-        thl0(2:i1,2:j1,1:kmax) = thlm(2:i1,2:j1,1:kmax) + subDt*thlp(2:i1,2:j1,1:kmax)
-        qt0 (2:i1,2:j1,1:kmax) = qtm (2:i1,2:j1,1:kmax) + subDt*qtp (2:i1,2:j1,1:kmax)
-        e120(2:i1,2:j1,1:kmax) = e12m(2:i1,2:j1,1:kmax) + subDt*e12p(2:i1,2:j1,1:kmax)
-        if (nsv>0) sv0(2:i1,2:j1,1:kmax,1:nsv) = svm(2:i1,2:j1,1:kmax,1:nsv) + subDt*svp(2:i1,2:j1,1:kmax,1:nsv)
+  
+    integer i,j,k,n
     
-        if (rkStep == rkMaxStep) then
-          um = u0
-          vm = v0
-          wm = w0
-          thlm = thl0
-          qtm  = qt0
-          e12m = e120
-          svm = sv0
-        end if
-  
-      case (iTimeLowStor)
-        u0  (2:i1,2:j1,1:kmax) = u0  (2:i1,2:j1,1:kmax) + subDt*up  (2:i1,2:j1,1:kmax)
-        v0  (2:i1,2:j1,1:kmax) = v0  (2:i1,2:j1,1:kmax) + subDt*vp  (2:i1,2:j1,1:kmax)
-        w0  (2:i1,2:j1,1:kmax) = w0  (2:i1,2:j1,1:kmax) + subDt*wp  (2:i1,2:j1,1:kmax)
-        thl0(2:i1,2:j1,1:kmax) = thl0(2:i1,2:j1,1:kmax) + subDt*thlp(2:i1,2:j1,1:kmax)
-        qt0 (2:i1,2:j1,1:kmax) = qt0 (2:i1,2:j1,1:kmax) + subDt*qtp (2:i1,2:j1,1:kmax)
-        e120(2:i1,2:j1,1:kmax) = e120(2:i1,2:j1,1:kmax) + subDt*e12p(2:i1,2:j1,1:kmax)
-        if (nsv>0) sv0(2:i1,2:j1,1:kmax,1:nsv) = sv0(2:i1,2:j1,1:kmax,1:nsv) + subDt*svp(2:i1,2:j1,1:kmax,1:nsv)
-  
-      case default
-    end select
 
-    ! Set a lower limit value for e120 (not sure why this is required...)
-    where (e120 < e12min)
-      e120 = e12min
-    end where
+  
+    if (iTimeInt==1) then    ! the Wicker and Skamarock RK3 scheme
+     
+      do k=1,kmax
+        do j=2,j1
+          do i=2,i1
+    
+            u0(i,j,k)   = um(i,j,k)   + rkCoef(rkStep) * rdt * up(i,j,k)
+            v0(i,j,k)   = vm(i,j,k)   + rkCoef(rkStep) * rdt * vp(i,j,k)
+            w0(i,j,k)   = wm(i,j,k)   + rkCoef(rkStep) * rdt * wp(i,j,k)
+            thl0(i,j,k) = thlm(i,j,k) + rkCoef(rkStep) * rdt * thlp(i,j,k)
+            qt0(i,j,k)  = qtm(i,j,k)  + rkCoef(rkStep) * rdt * qtp(i,j,k)
+            e120(i,j,k) = e12m(i,j,k) + rkCoef(rkStep) * rdt * e12p(i,j,k)
+    
+            e120(i,j,k) = max(e12min,e120(i,j,k))
+            e12m(i,j,k) = max(e12min,e12m(i,j,k))
+    
+            do n=1,nsv
+              sv0(i,j,k,n) = svm(i,j,k,n) + rkCoef(rkStep) * rdt * svp(i,j,k,n)
+            end do
+    
+          end do
+        end do
+      end do
+    
+      if(rkStep == rkMaxStep) then
+        um = u0
+        vm = v0
+        wm = w0
+        thlm = thl0
+        qtm  = qt0
+        e12m = e120
+        svm = sv0
+      end if
 
-    ! Set the appropriate offsets for the tendencies (for Wicker and Skamarock, rka(:)=0 )
-    up   = rka(rkStep)*up
-    vp   = rka(rkStep)*vp
-    wp   = rka(rkStep)*wp
-    thlp = rka(rkStep)*thlp
-    qtp  = rka(rkStep)*qtp
-    e12p = rka(rkStep)*e12p
-    if (nsv>0) svp = rka(rkStep)*svp
+      ! Store the vertical velocity tendency for later use in the sampling module
+      wp_store = wp
+      ! Reset all tendency variables
+      up=0.
+      vp=0.
+      wp=0.
+      thlp=0.
+      qtp=0.
+      svp=0.
+      e12p=0.
+
+    elseif (iTimeInt==2) then ! The RK3 scheme proposed by Williamson (1980)
+     
+      do k=1,kmax
+        do j=2,j1
+          do i=2,i1
+
+            u0(i,j,k)   = u0(i,j,k)   + rkb(rkStep)*rdt*up(i,j,k)
+            v0(i,j,k)   = v0(i,j,k)   + rkb(rkStep)*rdt*vp(i,j,k)
+            w0(i,j,k)   = w0(i,j,k)   + rkb(rkStep)*rdt*wp(i,j,k)
+            thl0(i,j,k) = thl0(i,j,k) + rkb(rkStep)*rdt*thlp(i,j,k)
+            qt0(i,j,k)  = qt0(i,j,k)  + rkb(rkStep)*rdt*qtp(i,j,k)
+            e120(i,j,k) = e120(i,j,k) + rkb(rkStep)*rdt*e12p(i,j,k)
+
+            e120(i,j,k) = max(e12min,e120(i,j,k))
+
+            do n=1,nsv
+              sv0(i,j,k,n) = sv0(i,j,k,n) + rkb(rkStep)*rdt*svp(i,j,k,n)
+            end do
+
+          end do
+        end do
+      end do
+
+      if (rkStep==rkMaxStep) then
+        wp_store = wp
+      end if
+      ! Set the appropriate offsets for the tendencies
+      up  = rka(rkStep)*rdt*up
+      vp  = rka(rkStep)*rdt*vp
+      wp  = rka(rkStep)*rdt*wp
+      thlp= rka(rkStep)*rdt*thlp
+      qtp = rka(rkStep)*rdt*qtp
+      e12p= rka(rkStep)*rdt*e12p
+      svp = rka(rkStep)*rdt*svp
+
+    end if
      
   end subroutine tstep_integrate
-
-  !======== Determine the maximum Courant number
-  real function getCourant()
-    use modfields, only : u0,v0,w0
-    use modglobal, only : i1,j1,kmax,dx,dy,dzh,rdt
-    use modmpi,    only : my_real,mpi_max,comm3d,mpierr
-    implicit none
-    real    :: courantl
-    integer :: k
-
-    ! Determine the maximum Courant number
-    courantl = 0.
-    do k=1,kmax
-      courantl = max( courantl, &
-                      maxval( u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx) + &
-                              v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy) + &
-                              w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)) )*rdt*rdt )
-    end do
-    courantl = sqrt(courantl)
-    call MPI_ALLREDUCE(courantl,getCourant,1,MY_REAL,MPI_MAX,comm3d,mpierr)
-
-  end function getCourant
-
-  !======== Determine the maximum Peclet number
-  real function getPeclet()
-    use modfields, only : ekm,ekh,rhobf
-    use modglobal, only : i1,j1,kmax,dx,dx2i,dy,dy2i,dzh,rdt
-    use modmpi,    only : my_real,mpi_max,comm3d,mpierr
-    implicit none
-    integer :: k
-    real    :: pecletl
-
-    pecletl = 1.e-5
-    ! The original version of the Peclet number:
-    do k=1,kmax
-      pecletl = max( pecletl, &
-                     maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt / minval((/dzh(k),dx,dy/))**2 )
-    end do
-    ! New version of the Peclet number. Note that now this version uses ekh,
-    ! which is approximately ekm*3. The Peclet number should therefore be 3
-    ! times as large.
-    !do k=1,kmax
-    !  pecletl = max( pecletl, &
-    !                 maxval(ekh(2:i1,2:j1,k)/rhobf(k)*rdt*dx2i), &
-    !                 maxval(ekh(2:i1,2:j1,k)/rhobf(k)*rdt*dy2i), &
-    !                 maxval(ekh(2:i1,2:j1,k)/rhobf(k)*rdt/(dzh(k)*dzh(k))))
-    !end do
-
-    call MPI_ALLREDUCE(pecletl,getPeclet,1,MY_REAL,MPI_MAX,comm3d,mpierr)
-
-  end function getPeclet
 
 end module modtstep

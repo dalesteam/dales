@@ -39,10 +39,6 @@ save
   real, allocatable :: e120(:,:,:)      !<   turb. kin. energy at time step t
   real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
 
-  ! Subgrid variables, moved from subgriddata !JvdD
-  real, allocatable :: ekm(:,:,:)       !< k-coefficient for momentum
-  real, allocatable :: ekh(:,:,:)       !< k-coefficient for heat and q_tot
-
   ! Prognostic fields at previous timestep
   !  Only used for the Wicker and Skamarock RK3 scheme
   !  Unnecessary when using the Williamson low storage RK3 scheme
@@ -52,9 +48,8 @@ save
   real, allocatable :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
   real, allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
   real, allocatable :: e12m(:,:,:)      !<   turb. kin. energy at time step t-1
-  real, allocatable :: svm(:,:,:,:)     !<  scalar sv(n) at time step t-1
+  real, allocatable :: svm(:,:,:,:)   !<  scalar sv(n) at time step t-1
 
-  ! Tendencies
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
   real, allocatable :: wp(:,:,:)        !<   tendency of wm
@@ -142,7 +137,7 @@ contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
 
-    use modglobal, only : i1,i2,ih,j1,j2,jh,kmax,k1,nsv,iTimeInt,iTimeWicker,iTimeTVD
+    use modglobal, only : i1,ih,j1,jh,kmax,k1,nsv,iTimeInt
     ! Allocation of prognostic variables
     implicit none
 
@@ -155,11 +150,8 @@ subroutine initfields
     allocate(e120(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0(2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(ekm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(ekh(2-ih:i1+ih,2-jh:j1+jh,k1))
-
-    ! Only allocate these fields when required JvdD
-    if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
+    ! Only allocate these fields if the Wicker and Skamarock scheme is used JvdD
+    if (iTimeInt==1) then
       allocate(um(2-ih:i1+ih,2-jh:j1+jh,k1))
       allocate(vm(2-ih:i1+ih,2-jh:j1+jh,k1))
       allocate(wm(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -255,8 +247,6 @@ subroutine initfields
     e120=0.;e12p=0.
     sv0=0.;svp=0.
 
-    ekm=0.;ekh=0.
-
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
     ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
@@ -274,11 +264,12 @@ subroutine initfields
 
 !> Deallocate the fields
   subroutine exitfields
-  use modglobal, only : iTimeInt,iTimeWicker,iTimeTVD
+  use modglobal, only : iTimeInt
   implicit none
-    if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) deallocate(um,vm,wm,thlm,e12m,qtm,svm)
+    if (iTimeInt==1) then
+      deallocate(um,vm,wm,thlm,e12m,qtm,svm)
+    end if 
     deallocate(u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
-    deallocate(ekm,ekh)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
     deallocate(sv0,svp)
     deallocate(rhobf,rhobh)

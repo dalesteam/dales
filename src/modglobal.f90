@@ -154,7 +154,6 @@ save
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real :: rdt                !<     * time integration interval
-      real :: subDt              !<     * interval of time integration substep (for instance in Runge-Kutta schemes)
       integer(kind=longint) :: timee             !<     * elapsed time since the "cold" start
       real :: rtimee             !<     * elapsed time since the "cold" start
       integer(kind=longint) :: btime             !<     * time of (re)start
@@ -162,15 +161,13 @@ save
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
       
-      logical :: ladaptive   = .false.        !<    * adaptive timestepping on or off
-      integer,parameter :: iTimeWicker=1 , &  !     1 - Wicker and Skamarock RK3 scheme (2nd order accurate, 3N storage)
-                           iTimeLowStor=2, &  !     2 - Williamson (1980) RK3 scheme (3rd order accurate, 2N storage)
-                           iTimeTVD=3         !     3 - Total variation diminishing RK3 scheme (3rd order accurate, 3N storage)
-                                              !         (Gottlieb and Shu 1998)
-      integer :: iTimeInt = iTimeWicker       !<    selects the time integration scheme
-                                          
+      logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
+      integer :: iTimeInt    = 1          !<    selects the time integration scheme
+                                          !     1 - Wicker and Skamarock RK3 scheme (2nd order accurate, 3N storage)
+                                          !     2 - Williamson (1980) RK3 scheme (3rd order accurate, 2N storage)
+
       real    :: courant = -1
-      real    :: peclet  = 0.5
+      real    :: peclet  = 0.15
       integer(kind=longint) :: dt_lim
 
       ! Runge Kutta time stepping variables
@@ -180,6 +177,8 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
+
+
 
       ! modphsgrd.f90
 
@@ -210,7 +209,7 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-      character(80) :: author='', version='DALES 4.0'
+      character(80) :: author='', version='DALES 3.2'
 contains
 
 !> Initialize global settings.
@@ -354,12 +353,14 @@ contains
     allocate(dsv(nsv))
     write(cexpnr,'(i3.3)') iexpnr
 
+
     ! Create the physical grid variables
     allocate(dzf(k1))
     allocate(dzh(k1))
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1))
+
 
     rslabs = real(imax*jtot)
 
@@ -385,6 +386,7 @@ contains
     end if ! end if myid==0
 
   ! MPI broadcast kmax elements from zf
+
     call MPI_BCAST(zf,kmax,MY_REAL   ,0,comm3d,mpierr)
 
     zh(1) = 0.0
@@ -392,6 +394,7 @@ contains
       zh(k+1) = zh(k) + 2.0*(zf(k)-zh(k))
     end do
     zf(k1)  = zf(kmax)+ 2.0*(zh(k1)-zf(kmax))
+
 
     do  k=1,kmax
       dzf(k) = zh(k+1) - zh(k)
@@ -419,6 +422,8 @@ contains
         leq = .false.
       end if
     end do
+
+  ! MPI
 
     if(myid==0)then
       if (.not.leq) then

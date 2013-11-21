@@ -64,7 +64,7 @@ contains
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
     use modglobal, only : ladaptive, dtmax,rkStep,rkMaxStep,k1,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,timeav_glob,dt_lim,btime,tres,cexpnr,ifoutput,iTimeInt,iTimeWicker
+                           dtav_glob,timeav_glob,dt_lim,btime,tres,cexpnr,ifoutput
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
@@ -143,12 +143,6 @@ contains
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'dtav should be a integer multiple of dtmax'
-    end if
-
-    if (lsamptend .and. iTimeInt/=iTimeWicker) then
-      print *, "Calculation of tendencies not yet supported for other time integration methods."
-      print *, "Use the default iTimeInt=1"
-      stop "NAMSAMPLING: Calculation of tendencies not yet supported for other time integration methods."
     end if
 
     allocate( wfavl     (k1,isamptot),thlfavl  (k1,isamptot),thvfavl   (k1,isamptot), &

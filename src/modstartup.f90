@@ -334,7 +334,7 @@ contains
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart,iTimeInt,iTimeWicker,iTimeTVD,ladaptive,llsadv,tnextrestart,ibas_prf
+                                  trestart,iTimeInt, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
@@ -478,7 +478,7 @@ contains
       ! Initialize m fields (indentical to what happens at a restart)
       ! Previously, the qtm and thlm fields were separately randomnized and therefore not
       ! identical to the qt0 and thl0 fields
-      if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
+      if (iTimeInt==1) then
         thlm(:,:,:) = thl0(:,:,:)
         qtm(:,:,:)  = qt0(:,:,:)
         svm(:,:,:,:)= sv0(:,:,:,:)
@@ -543,7 +543,7 @@ contains
     else !if lwarmstart
 
       call readrestartfiles
-      if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
+      if (iTimeInt==1) then
         um   = u0
         vm   = v0
         wm   = w0
