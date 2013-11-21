@@ -746,9 +746,14 @@ module modbulkmicro
     do i=2,i1
     do k=1,k1
       if (qrmask(i,j,k)) then
-        S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-        G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-        G   (i,j,k) = 1./G(i,j,k)
+        S(i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+        ! Tomita (2008) Appendix eq. 57 -> Pruppacher and Klett (1978)
+        !G(i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+        !G(i,j,k) = 1./G(i,j,k)
+        ! This version is from the Seifert (2008) paper. Note the missing '-1.'
+        ! compared to the previous version.
+        G(i,j,k) = Rv*tmp0(i,j,k)/(Dv*esl(i,j,k)) + rlv**2/(Kt*Rv*tmp0(i,j,k)**2)
+        G(i,j,k) = 1./G(i,j,k)
       endif
     enddo
     enddo
