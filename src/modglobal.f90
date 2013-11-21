@@ -170,7 +170,7 @@ save
       integer :: iTimeInt = iTimeWicker       !<    selects the time integration scheme
                                           
       real    :: courant = -1
-      real    :: peclet  = 0.15
+      real    :: peclet  = 0.5
       integer(kind=longint) :: dt_lim
 
       ! Runge Kutta time stepping variables

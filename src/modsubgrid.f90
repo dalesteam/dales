@@ -49,16 +49,16 @@ contains
 
     call subgridnamelist
 
-    ! Moved these fields to modfields.f90
-    !allocate(ekm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    !allocate(ekh(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(ekm(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(ekh(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(zlt(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(sbdiss(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(csz(k1))
 
-    zlt=0.; sbdiss=0.; sbshr=0.; sbbuo=0.; csz=0.
+    ! Initialize variables to avoid problems when not using subgrid scheme JvdD
+    ekm=0.; ekh=0.; zlt=0.; sbdiss=0.; sbshr=0.; sbbuo=0.; csz=0.
 
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
@@ -160,7 +160,7 @@ contains
 
   subroutine exitsubgrid
     implicit none
-    deallocate(zlt,sbdiss,sbbuo,sbshr,csz)
+    deallocate(ekm,ekh,zlt,sbdiss,sbbuo,sbshr,csz)
   end subroutine exitsubgrid
 
    subroutine closure
@@ -198,8 +198,8 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
-                         dxi,dyi,dzf,dzh,rslabs
-  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf,ekm,ekh
+                         dxi,dyi,dzf,dzh,rkStep,rkMaxStep,rslabs
+  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf
   use modsurfdata, only : dudz,dvdz,thvs,z0m
   use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum
   implicit none
@@ -363,7 +363,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav
-  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf,ekm,ekh
+  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf
   use modsurfdata,  only : dudz,dvdz
   implicit none
 
@@ -471,7 +471,7 @@ contains
   subroutine diffc (putin,putout,flux)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
-    use modfields, only : rhobf,rhobh,ekm,ekh
+    use modfields, only : rhobf,rhobh
     implicit none
 
     real, intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -534,7 +534,7 @@ contains
   subroutine diffe(putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
-    use modfields, only : e120,rhobf,ekm
+    use modfields, only : e120,rhobf
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -594,7 +594,7 @@ contains
   subroutine diffu (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dxi,dx2i,dzf,dy,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0,rhobf,rhobh,ekm
+    use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
 
@@ -705,7 +705,7 @@ contains
   subroutine diffv (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dzf,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0,rhobf,rhobh,ekm
+    use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
 
     implicit none
@@ -814,7 +814,7 @@ contains
   subroutine diffw(putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dy,dyi,dy2i,dzf,dzh
-    use modfields, only : u0,v0,w0,rhobh,ekm
+    use modfields, only : u0,v0,w0,rhobh
     implicit none
 
   !*****************************************************************

@@ -323,7 +323,7 @@ contains
   subroutine readinitfiles
     use modfields,         only : u0,v0,w0,thl0,thl0h,qt0,qt0h,&
                                   um,vm,wm,qtm,thlm,svm,e12m,&
-                                  ql0,ql0h,thv0h,sv0,e120,ekm,ekh,&
+                                  ql0,ql0h,thv0h,sv0,e120,&
                                   rhobf,rhobh,drhobdzf,drhobdzh,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
@@ -335,6 +335,7 @@ contains
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
                                   trestart,iTimeInt,iTimeWicker,iTimeTVD,ladaptive,llsadv,tnextrestart,ibas_prf
+    use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin 
@@ -721,10 +722,11 @@ contains
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                            obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
-    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi,ekm
+    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
                           iexpnr,ntimee,tres,rkStep,rkMaxStep,ifinput,nsv,runtime,dt,rdt,cu,cv
     use modmpi,     only : cmyid, myid
+    use modsubgriddata, only : ekm
 
 
     character(50) :: name
@@ -813,10 +815,11 @@ contains
                           tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi,ekm
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
                           ntimee,rtimee,rkStep,rkMaxStep,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
     use modmpi,    only : cmyid,myid
+    use modsubgriddata, only : ekm
 
     implicit none
     logical :: lexitnow = .false.

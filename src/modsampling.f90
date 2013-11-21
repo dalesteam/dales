@@ -348,7 +348,8 @@ contains
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,rslabs, &
                           grav,om22,cu,timee,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
-                          wp,sv0,wp_store,ekh,ekm
+                          wp,sv0,wp_store
+    use modsubgriddata,only : ekh,ekm
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum,myid
     use modpois,   only : p
     use modsurfdata,only: thvs
