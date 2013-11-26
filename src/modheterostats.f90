@@ -845,7 +845,7 @@ contains
             c1  = 1.+(rv/rd-1)*qts
             c2  = (rv/rd-1)
  
-            wthvcovs(j-1,k) = c1 * wthlcovs(j-1,k) + c2 * thls * wqtcovs(j-1,k)
+            wthvcovs(j-1,k) = wthvcovs(j-1,k) + c1 * thlflux(i,j) + c2 * thls * qtflux(i,j)
 
           else
             qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
@@ -859,7 +859,11 @@ contains
               c2 = (rv/rd-1)
             end if
 
-            wthvcovs(j-1,k) = c1 * wthlcovs(j-1,k) + c2 * thl0h(i,j,k) * wqtcovs(j-1,k)
+            wthvcovs(j-1,k) = wthvcovs(j-1,k) - &
+                              c1 * 0.5*(ekh(i,j,k)/rhobf(k)+ekh(i,j,k-1)/rhobf(k-1)) * &
+                                 (thl0(i,j,k) - thl0(i,j,k-1)) / dz - &
+                              c2 * thl0h(i,j,k) * 0.5*(ekh(i,j,k)/rhobf(k)+ekh(i,j,k-1)/rhobf(k-1)) * &
+                                 (qt0(i,j,k) - qt0(i,j,k-1)) / dz
 
           endif
         end do
