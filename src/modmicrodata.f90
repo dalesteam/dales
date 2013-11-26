@@ -39,6 +39,13 @@
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
              l_rain      = .true. , & !<  rain formation / evolution flag              (in namelist NAMMICROPHYSICS)
              l_mur_cst   = .false. ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
+ 
+  ! New switch that selects the bulkmicro scheme as the adapted micro scheme
+  ! of Kogan 2013 was included
+  integer, parameter :: ibulk_sb01 = 1, &  !< Selects the Seifert and Beheng (2001) scheme 
+                        ibulk_kk00 = 2, &  !< Selects the Khairoutdinov and Kogan scheme (mainly for stratocumulus)
+                        ibulk_k13  = 3     !< Selects the Kogan (2013) scheme, which is similar to kk00 for stratocumulus, but supposedly also suitable for cumulus
+  integer            :: ibulk=0
 
   real    :: mur_cst     = 5        & !<  mur value if l_mur_cst=T                     (in namelist NAMMICROPHYSICS)
                  ,Nc_0 = 70e6       & !<  initial cloud droplet number
@@ -49,7 +56,8 @@
 
   integer :: inr = 1, iqr=2
 
-  real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
+  real, parameter ::  D0_kk = 50e-6      & !<  diameter sep. cloud and prec. in KK00 scheme
+                     ,D0_k13 = 80e-6     & !<  diameter sep. cloud and prec. in K13 scheme
                      ,qcmin = 1.0e-7     & !<  Cloud mixing ratio treshold for calculations
                      ,qrmin = 1.0e-13    & !<  Rain  mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD
@@ -101,8 +109,10 @@
          ,kappa_r = 60.7 & !<  see eq. 11 SB2006
          ,k_rr = 7.12    & !<  idem dito
 
-         ,Kt    = 2.5e-2  & !<  conductivity of heat [J/(sKm)]
-         ,Dv    = 2.4e-5   & !<  diffusivity of water vapor [m2/s]
+         !,Kt    = 2.5e-2  & !<  conductivity of heat [J/(sKm)]; Original DALES 4 value
+         !,Dv    = 2.4e-5   & !<  diffusivity of water vapor [m2/s]; Original DALES 4 value
+         ,Kt    = 1.4e-2  & !<  conductivity of heat [J/(sKm)];     Pruppacher and Klett value (>10 um drops)
+         ,Dv    = 3.0e-5   & !<  diffusivity of water vapor [m2/s]; Pruppacher and Klett value (>10 um drops)
 !  NB (see table 7.1 in Rogers: given Kt is for ~15 C while Dv is for > 30 C  2.4e-5
 !  is value for ~ 15C How sensitive is G for this Aug 2006, ~5% -> Dv changed to 15 C value?
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]

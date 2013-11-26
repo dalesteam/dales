@@ -45,6 +45,7 @@ contains
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
+    ibulk, & ! JvdD
     Nc_0, sig_g, sig_gr                                ! SdeR
 
     if(myid==0)then
@@ -61,6 +62,7 @@ contains
 
     call MPI_BCAST(imicro,   1, MPI_INTEGER ,0,comm3d,ierr)
     call MPI_BCAST(l_sb,     1, MPI_LOGICAL ,0,comm3d,ierr)
+    call MPI_BCAST(ibulk,    1, MPI_INTEGER ,0,comm3d,ierr)
     call MPI_BCAST(l_rain,   1, MPI_LOGICAL ,0,comm3d,ierr)
     call MPI_BCAST(l_sedc,   1, MPI_LOGICAL ,0,comm3d,ierr)
     call MPI_BCAST(l_mur_cst,1, MPI_LOGICAL ,0,comm3d,ierr)
@@ -90,7 +92,6 @@ contains
     case(imicro_user)
     end select
   end subroutine initmicrophysics
-
 
   subroutine microphysics
 !     module currently obsolete
