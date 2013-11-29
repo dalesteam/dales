@@ -860,9 +860,9 @@ contains
             end if
 
             wthvcovs(j-1,k) = wthvcovs(j-1,k) - &
-                              c1 * 0.5*(ekh(i,j,k)/rhobf(k)+ekh(i,j,k-1)/rhobf(k-1)) * &
+                              c1 * 0.5*(ekh(i,j,k)/rhobf(k-1)+ekh(i,j,k-1)/rhobf(k)) * &
                                  (thl0(i,j,k) - thl0(i,j,k-1)) / dz - &
-                              c2 * thl0h(i,j,k) * 0.5*(ekh(i,j,k)/rhobf(k)+ekh(i,j,k-1)/rhobf(k-1)) * &
+                              c2 * thl0h(i,j,k) * 0.5*(ekh(i,j,k)/rhobf(k-1)+ekh(i,j,k-1)/rhobf(k)) * &
                                  (qt0(i,j,k) - qt0(i,j,k-1)) / dz
 
           endif
