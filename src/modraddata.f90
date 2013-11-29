@@ -59,6 +59,8 @@ SAVE
   integer :: isvsmoke = 1     !< number of passive scalar to be used for optical depth calculation
   integer :: iradiation = irad_none !< Selection parameter for type of radiation scheme
   integer :: irad    = -1  !< Deprecated selection parameter for the type of radiation scheme
+  logical :: lCnstZenith = .false. !< Switch to disable the diurnal cycle and use diurnally averaged SW radiation (e.g. CGILS)
+  real :: cnstZenith=-1.      !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
 
   real mu                    !< cosine of the solar zenith angle
@@ -82,17 +84,22 @@ contains
     real, intent(in) :: time, xday, xlat, xlon
     real :: phi,el,obliq,xlam,declin,hora
     real :: day,daytime
-    day    = xday + floor(time/86400.)
-    daytime= mod(time,86400.)
 
-    phi    = xlat * pi/180.
-    el     = xlon * pi/180.
-    obliq  = 23.45 * pi/180.
-    xlam   = 4.88 + 0.0172 * day
-    declin = asin(sin(obliq)*sin(xlam))
-    hora   = el-pi + 2.*pi*(daytime/86400.)
-    zenith = max(0.,sin(declin)*sin(phi)+cos(declin)*cos(phi)* &
+    if (.not.lCnstZenith) then
+      day    = xday + floor(time/86400.)
+      daytime= mod(time,86400.)
+  
+      phi    = xlat * pi/180.
+      el     = xlon * pi/180.
+      obliq  = 23.45 * pi/180.
+      xlam   = 4.88 + 0.0172 * day
+      declin = asin(sin(obliq)*sin(xlam))
+      hora   = el-pi + 2.*pi*(daytime/86400.)
+      zenith = max(0.,sin(declin)*sin(phi)+cos(declin)*cos(phi)* &
                                                          cos(hora))
+    else
+      zenith = cos(cnstZenith*pi/180.)
+    end if
   end function zenith
 
 end module modraddata

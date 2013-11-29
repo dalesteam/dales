@@ -117,7 +117,7 @@ contains
     use modradfull,only : radfull
     implicit none
 
-    if(timee<tnext .and. rkStep==3) then
+    if(timee<tnext .and. rkStep==rkMaxStep) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
     if((itimerad==0 .or. timee==tnext) .and. rkStep==1) then
