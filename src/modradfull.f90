@@ -49,7 +49,7 @@ module modradfull
 
   integer :: nv,nv1,mb
   real :: totalpower
-  real,parameter :: SolarConstant      = 1.365d+3  !< The Solar radiation constant
+!  real,parameter :: SolarConstant      = 1.365d+3  !< The Solar radiation constant
 
   real, parameter :: u(4) = (/-0.7886752,-0.2113247,0.2113247,0.7886752/)
   real, parameter :: p0d(4)= (/ 1., 1., 1., 1./)
@@ -197,7 +197,7 @@ contains
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &
          pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr)
       use modglobal, only : cexpnr,cp,cpr,pi,pref0,rtimee,xday,xlat,xlon,xtime,rhow
-      use modraddata,only : useMcICA,zenith
+      use modraddata,only : useMcICA,zenith,sw0
       use modfields,only: SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA
       implicit none
 
@@ -263,7 +263,7 @@ contains
                if (k < k1) pp(kk) = 0.5*(pres(k)+pres(k+1)) / 100.
             end do
             pp(nv-k1+2) = pres(k1)/100. - 0.5*(pres(k1-1)-pres(k1)) / 100.
-            call rad( albedo(i,j), u0, SolarConstant, tskin(i,j), ee, pp, pt, ph, po,&
+            call rad( albedo(i,j), u0, sw0, tskin(i,j), ee, pp, pt, ph, po,&
                  fds, fus, fdir, fuir, plwc=plwc, pre=pre, useMcICA=useMcICA)
 
             do k=1,k1
