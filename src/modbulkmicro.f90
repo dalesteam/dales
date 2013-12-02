@@ -103,10 +103,12 @@ module modbulkmicro
     end if
 
     select case (ibulk)
-      case (ibulk_sb01,ibulk_k13)
+      case (ibulk_sb01)
         wMax = 9.9 ! Please check this value, it was set for SB01 in the original code!
       case (ibulk_kk00)
         wMax = wMaxkk ! Approx. 5.8 m/s, corresponding to xrmaxkk in modmicrodata
+      case (ibulk_k13)
+        wMax = 7.     ! Based on Kogan (2013) Fig. 4
       case default
         print *,"MODBULKMICRO: No valid bulkmicrophysics scheme selected! (ibulk)"
         stop "MODBULKMICRO: No valid bulkmicrophysics scheme selected! (ibulk)"
@@ -509,14 +511,13 @@ module modbulkmicro
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
     real    :: pwcont
-    real, allocatable :: wvar(:,:,:), xr_spl(:,:,:),Dvr_spl(:,:,:),&
+    real, allocatable :: xr_spl(:,:,:),Dvr_spl(:,:,:),&
                         mur_spl(:,:,:),lbdr_spl(:,:,:),Dgr(:,:,:)
     real,save :: dt_spl
     real,parameter :: Cstab=0.7 ! Presumably stable CFL number
     real :: vqr,vNr ! Fall velocities of qr and Nr respectively
 
-    allocate( wvar(2-ih:i1+ih,2-jh:j1+jh,k1)       &!<  work variable
-              ,xr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)     &!<  for time splitting
+    allocate( xr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)      &!<  for time splitting
               ,Dvr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    &!<     -
               ,mur_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    &!<     -
               ,lbdr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)   &!<     -
@@ -557,8 +558,8 @@ module modbulkmicro
             do i = 2,i1
               if (qr_spl(i,j,k) > qrmin) then
                 Dgr(i,j,k) = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl(i,j,k) ! correction for width of DSD
-                sed_qr(i,j,k) = 1.*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)
-                sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k) ,log(sig_gr)**2,D_s,0)
+                sed_qr(i,j,k) = -1.*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)
+                sed_Nr(i,j,k) = -1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k) ,log(sig_gr)**2,D_s,0)
     !        correction for the fact that pwcont .ne. qr_spl
     !        actually in this way for every grid box a fall velocity is determined
                 pwcont = liq_cont(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)         ! note : kg m-3
@@ -593,10 +594,10 @@ module modbulkmicro
               if (qr_spl(i,j,k) > qrmin) then
                   lbdr_spl(i,j,k) = ((mur_spl(i,j,k)+3.)*(mur_spl(i,j,k)+2.)* &
                                      (mur_spl(i,j,k)+1.))**(1./3.)/Dvr_spl(i,j,k)
-                  vqr             = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
-                  vNr             = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
-                  sed_qr  (i,j,k) = vqr*qr_spl(i,j,k)*rhof(k)
-                  sed_Nr  (i,j,k) = vNr*Nr_spl(i,j,k)
+                  vqr          = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
+                  vNr          = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
+                  sed_qr  (i,j,k) = -vqr*qr_spl(i,j,k)*rhof(k)
+                  sed_Nr  (i,j,k) = -vNr*Nr_spl(i,j,k)
               endif
             enddo
             enddo
@@ -611,16 +612,16 @@ module modbulkmicro
               xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
               xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders 
               Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
-              vqr           = 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2  ! Original fall speed DALES
-              vqr           = min(max(vqr,1e-3),wMax)          ! Limiter on fall speed based on figure 6 in KK00 article
+              vqr        = 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2  ! Original fall speed DALES
+              vqr        = min(max(vqr,1e-3),wMax)          ! Limiter on fall speed based on figure 6 in KK00 article
               ! In this setting, this limiter seems to be extremely important;
               ! simulations crash without it!
               ! Sensitivity to value of lower limit seems to be negligible (range 1-1e-3)
-              sed_qr(i,j,k) = vqr*qr_spl(i,j,k)*rhof(k)
-              vNr           = 0.0035*1.0E6*Dvr_spl(i,j,k)- 0.1 ! Original fall speed DALES
-              vNr           = min(max(vNr,1e-3),wMax)          ! Limiter from UCLA microphys
-              sed_Nr(i,j,k) = vNr*Nr_spl(i,j,k)*rhof(k)
-            endif
+              vNr        = 0.0035*1.0E6*Dvr_spl(i,j,k)- 0.1 ! Original fall speed DALES
+              vNr        = min(max(vNr,1e-3),wMax)          ! Limiter from UCLA microphys
+              sed_Nr(i,j,k) = -vNr*Nr_spl(i,j,k)*rhof(k)
+              sed_qr(i,j,k) = -vqr*qr_spl(i,j,k)*rhof(k)
+            end if
           end do; end do; end do
 
         case (ibulk_k13)
@@ -631,33 +632,33 @@ module modbulkmicro
               Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
               Dvr_spl(i,j,k) = max(0.,min(Dvr_spl(i,j,k),0.3e-3)) ! Limit Dvr to 0-3mm. Not sure what it is based on.
               ! NOTE: the article uses the mean volume radius in um, hence the
-              ! factor .5e6. Velocities are in cm/s, hence the factor 100.
+              ! factor .5e6. Velocities are in cm/s, hence the factor 1/100.
               vqr = 2.4  *(.5e6*Dvr_spl(i,j,k)) - 62.
               vqr = vqr/100.
-              sed_qr(i,j,k) = vqr*qr_spl(i,j,k)*rhof(k)
+              vqr        = min(max(vqr,1e-3),wMax)          ! Limiter on fall speed based on figure 6 in KK00 article
+              ! These velocities are defined <0 downwards!!
 
               vNr = 0.385*(.5e6*Dvr_spl(i,j,k)) + 5.76
               vNr = vNr/100.
-              sed_Nr(i,j,k) = vNr*Nr_spl(i,j,k)*rhof(k)
+              vNr = min(max(vNr,1e-3),wMax)
+            
+              sed_Nr(i,j,k) = -vNr*Nr_spl(i,j,k)*rhof(k)
+              sed_qr(i,j,k) = -vqr*qr_spl(i,j,k)*rhof(k)
             end if
-          end do; end do; end do
+          end do;end do; end do
           
       end select
 
       ! Determine the new Nr and qr within after a split time-step
-      do k=1,kmax
-        do j=2,j1; do i=2,i1
-          Nr_spl(i,j,k) = Nr_spl(i,j,k) + &
-                  (sed_Nr(i,j,k+1) - sed_Nr(i,j,k))*dt_spl/dzf(k)
-          qr_spl(i,j,k) = qr_spl(i,j,k) + &
-                  (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-        end do; end do
-    
-        do j=2,j1; do i=2,i1
-          precep(i,j,k) =  precep(i,j,k) + sed_qr(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-        end do; end do
-  
-      end do  ! second k loop
+      
+      do k=1,kmax; do j=2,j1; do i=2,i1
+        Nr_spl(i,j,k) = Nr_spl(i,j,k) - &
+                (sed_Nr(i,j,k+1) - sed_Nr(i,j,k))*dt_spl/dzf(k)
+        qr_spl(i,j,k) = qr_spl(i,j,k) - &
+                (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+
+        precep(i,j,k) =  precep(i,j,k) - sed_qr(i,j,k)/rhof(k)   ! kg kg-1 m s-1
+      end do; end do; end do
 
     ! end of time splitting loop
     end do 
@@ -669,7 +670,7 @@ module modbulkmicro
     Nrp(2:i1,2:j1,1:k1)= Nrp(2:i1,2:j1,1:k1) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/rdt
     qrp(2:i1,2:j1,1:k1)= qrp(2:i1,2:j1,1:k1) + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/rdt
 
-    deallocate (wvar, xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr) 
+    deallocate (xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr) 
   end subroutine sedimentation_rain
 
   !*********************************************************************
