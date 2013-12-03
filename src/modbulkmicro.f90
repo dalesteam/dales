@@ -122,7 +122,7 @@ module modbulkmicro
 
     deallocate(Nr,Nrp,qr,qrp,Nc)
 
-    deallocate(sedc,xc,Dvr,xr,mur,lbdr,tau,evap,Nevap)
+    deallocate(sedc,Dvr,xr,mur,lbdr,tau,evap,Nevap)
     deallocate(sed_qr,sed_Nr,qr_spl,Nr_spl)
 
     deallocate(precep)
@@ -141,11 +141,14 @@ module modbulkmicro
     real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: qrtest,nrtest
 
     ! Initialize variables
-    Nrp=0.; qrp=0.
+    Nrp=0.; qrp=0.; qr=0.; Nr=0.; qrtest=0.; nrtest=0.
+    Nc=0.; qrmask=.false.; qcmask=.false.
 
     ! Set the temporary number concentrations and rain water specific humidities
-    Nr = sv0(:,:,:,inr)
-    qr = sv0(:,:,:,iqr)
+    do k=1,k1; do j=2,j1; do i=2,i1
+      Nr(i,j,k) = sv0(i,j,k,inr)
+      qr(i,j,k) = sv0(i,j,k,iqr)
+    end do; end do; end do
 
     if (l_rain) then
       if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
@@ -156,21 +159,17 @@ module modbulkmicro
       end if
     end if   ! l_rain
 
-    ! determine the rain mask
-    where (qr > qrmin .and. Nr > 0.) 
-      qrmask=.true.
-    elsewhere
-      qrmask=.false.
-    end where
-
-    ! initialize cloud droplet number Nc and determine the mask
-    where (ql0 > qcmin)
-      Nc = Nc_0
-      qcmask = .true.
-    elsewhere
-      Nc = 0.
-      qcmask = .false.
-    end where
+    do k=1,k1; do j=2,j1; do i=2,i1
+      ! determine the rain mask
+      if (qr(i,j,k) > qrmin .and. Nr(i,j,k)>0.) then
+        qrmask(i,j,k) = .true.
+      end if
+      ! initialize cloud droplet number Nc and determine the mask
+      if (ql0(i,j,k) > qcmin) then
+        qcmask(i,j,k) = .true.
+        Nc(i,j,k) = Nc_0
+      end if
+    end do; end do; end do
 
     ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
     if (l_rain) then
@@ -183,36 +182,26 @@ module modbulkmicro
       select case (ibulk)
         case (ibulk_sb01)
         !=== Seifert and Beheng (2001)
-        do j=2,j1
-        do i=2,i1
-        do k=1,k1
-           if (qrmask(i,j,k)) then
-             xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k) 
-             xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
-             Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-           endif
-        enddo
-        enddo
-        enddo
-
+        
+        do k=1,k1; do j=2,j1; do i=2,i1
+          if (qrmask(i,j,k)) then
+            xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k) 
+            xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
+            Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+          endif
+        end do; end do; end do
 
         if (l_mur_cst) then
         ! mur = cst
-          do j=2,j1
-          do i=2,i1
-          do k=1,k1
+          do k=1,k1; do j=2,j1; do i=2,i1
             if (qrmask(i,j,k)) then
-               mur(i,j,k) = mur_cst
-               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
+              mur(i,j,k) = mur_cst
+              lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
             endif
-          end do
-          end do
-          end do
+          end do; end do; end do
         else
         ! mur = f(Dv)
-          do j=2,j1
-          do i=2,i1
-          do k=1,k1
+          do k=1,k1; do j=2,j1; do i=2,i1
             if (qrmask(i,j,k)) then
 !
 !             mur(2:i1,2:j1,1:k1) = 10. * (1+tanh(1200.*(Dvr(2:i1,2:j1,1:k1)-0.0014))) 
@@ -221,9 +210,7 @@ module modbulkmicro
               mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
             endif
-          enddo
-          enddo
-          enddo
+          end do; end do; end do
 
         endif
 
@@ -328,7 +315,7 @@ module modbulkmicro
     use modfields, only : exnf,rhof,ql0
     implicit none
     integer i,j,k
-    real :: xc,nuc,au,phi
+    real :: xc,nuc,au,phi,k_au
 
     au=0.
 

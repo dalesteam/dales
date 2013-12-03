@@ -279,9 +279,9 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
-    use modmpi,        only  : my_real, mpi_sum, comm3d, mpierr
+    use modmpi,        only  : my_real, mpi_sum, comm3d, mpierr,myid
     use modglobal,     only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : qr, precep, sedc, Dvr, Nr, Nc, epscloud, epsqr, epsprec
+    use modmicrodata,  only  : qr,precep,sedc,Dvr,Nr,Nc,epscloud,epsqr,epsprec,qrmin,qcmin
     use modfields,     only  : ql0
     implicit none
 
@@ -300,17 +300,17 @@ subroutine initbulkmicrostat
     qrav         = 0.0
 
     do k = 1,k1
-      cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)    ! Number of cloudy gridboxes
-      raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr   )    ! Number of rainy gridboxes
-      preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec )    ! Number of precipitating gridboxes > epsprec
-      prec_fracavl (k)  = count(precep  (2:i1,2:j1,k) > 1e-8    )    ! Number of gridboxes with precip > 1e-8
-      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep(2:i1,2:j1,k) > epsprec ) ! Sum of precip fluxes for boxes with precip > eps 
-      Dvravl       (k)  = sum  (Dvr     (2:i1,2:j1,k) , qr    (2:i1,2:j1,k) > epsqr   ) ! Sum of prec water mean diam for boxes with qr > eps
-      Nrcloudavl   (k)  = sum  (Nc      (2:i1,2:j1,k) , ql0   (2:i1,2:j1,k) > epscloud) ! Sum of cloud drop number dens for boxes with ql0 > eps
-      Nrrainavl    (k)  = sum  (Nr      (2:i1,2:j1,k) , qr    (2:i1,2:j1,k) > epsqr   ) ! Sum of rain drop number dens for boxes with qr > eps
-      precavl      (k)  = sum  (precep  (2:i1,2:j1,k))               ! Total sum of precipitation fluxes
-      sedavl       (k)  = sum  (sedc    (2:i1,2:j1,k))               ! Total sum of cloud water sedimentation fluxes
-      qravl        (k)  = sum  (qr      (2:i1,2:j1,k))               ! Total sum of rain water content
+      cloudcountavl(k)  = count(ql0   (2:i1,2:j1,k) > qcmin   )    ! Number of cloudy gridboxes
+      raincountavl (k)  = count(qr    (2:i1,2:j1,k) > qrmin   )    ! Number of rainy gridboxes
+      preccountavl (k)  = count(precep(2:i1,2:j1,k) > epsprec )    ! Number of precipitating gridboxes > epsprec
+      prec_fracavl (k)  = count(precep(2:i1,2:j1,k) > 1e-8    )    ! Number of gridboxes with precip > 1e-8
+      prec_prcavl  (k)  = sum  (precep(2:i1,2:j1,k), precep(2:i1,2:j1,k) > epsprec ) ! Sum of precip fluxes for boxes with precip > eps 
+      Dvravl       (k)  = sum  (Dvr   (2:i1,2:j1,k), qr    (2:i1,2:j1,k) > epsqr   ) ! Sum of prec water mean diam for boxes with qr > eps
+      Nrcloudavl   (k)  = sum  (Nc    (2:i1,2:j1,k), ql0   (2:i1,2:j1,k) > qcmin ) ! Sum of cloud drop number dens for boxes with ql0 > qcmin (used in bulk micro)
+      Nrrainavl    (k)  = sum  (Nr    (2:i1,2:j1,k), qr    (2:i1,2:j1,k) > qrmin ) ! Sum of rain drop number dens for boxes with qr > qrmin (used in bulk micro)
+      precavl      (k)  = sum  (precep(2:i1,2:j1,k))               ! Total sum of precipitation fluxes
+      sedavl       (k)  = sum  (sedc  (2:i1,2:j1,k))               ! Total sum of cloud water sedimentation fluxes
+      qravl        (k)  = sum  (qr    (2:i1,2:j1,k))               ! Total sum of rain water content
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -328,6 +328,7 @@ subroutine initbulkmicrostat
     cloudcountmn = cloudcountmn +  cloudcountav /rslabs   ! fraction of cloudy gridcells
     raincountmn  = raincountmn  +  raincountav  /rslabs   ! fraction of rainy gridcells 
     preccountmn  = preccountmn  +  preccountav  /rslabs   ! fraction of precipitating gridcells
+
     ! Average prec_prc, Nrcloud and Nrrain over precip/cloudy/rainy gridcells only !
     do k=1,k1
       if (cloudcountav(k) > 0) then

@@ -130,49 +130,39 @@
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-  !real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets mixing ratio [kg_w/kg_a]
-  real,allocatable, dimension(:,:,:) :: Nc  & !<  cloud droplets number conc.  [#/m^3]
-                                       ,nuc & !<  width parameter of cloud DSD
-                                       ,rhoz  !< slab averaged density in 3 dimensions
+  real,allocatable, dimension(:,:,:) :: Nc   !<  cloud droplets number conc.  [#/m^3]
 
   real,allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
                              !< prec. liq. water and conc. for sedim. time splitting
-  real,allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
-                                        sed_qr, & !<  sedimentation rain drops mix. ratio
-                                        sed_Nr    !<  sedimentation rain drop number conc.
-  real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
-    ,k_au                     !<  coeff. for autoconversion rate
+  real,allocatable, dimension(:,:,:) :: sed_qr, & !<  sedimentation rain drops mix. ratio
+                                        sed_Nr, & !<  sedimentation rain drop number conc.
+                                        sedc
   real,allocatable, dimension(:,:,:) ::  &
-    exnz               &      !<  3D exner function
-    ,presz             &      !<  3D pressure
-    ,Dvc               &      !<  cloud water mean diameter
-    ,xc                &      !<  mean mass of cloud water droplets
-    ,Dvr               &      !<  prec water mean diameter
+     Dvr               &      !<  prec water mean diameter
     ,xr                &      !<  mean mass of prec. water drops
     ,mur               &      !<  mu parameter in rain gamma distribution
     ,lbdr              &      !<  slope parameter (lambda) in rain gamma distribution
-    ,au                &      !<  autoconversion rate
-    ,phi               &      !<  correction function (see SB2001)
+!    ,au                &      !<  autoconversion rate
+!    ,phi               &      !<  correction function (see SB2001)
     ,tau               &      !<  internal time scale
-    ,ac                &      !<  accretion rate
-    ,sc                &      !<  self collection rate
-    ,br                &      !<  break-up rate
+!    ,ac                &      !<  accretion rate
+!    ,sc                &      !<  self collection rate
+!    ,br                &      !<  break-up rate
     ,evap              &      !<  mass tendency due to rain evap/cond
-    ,Nevap             &      !<  concentration tendency due to rain evap/cond
-    ,wfall_qr          &      !<  fall velocity for qr
-    ,wfall_Nr                 !<  fall velocity for Nr
+    ,Nevap                   !<  concentration tendency due to rain evap/cond
 
   real :: csed                      !<  parameter in cloud water grav. settling formula
 
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
 
-   real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
+   real,allocatable,dimension(:,:,:) :: Nr,Nrp,qr,qrp
    real,allocatable,dimension(:,:,:) :: precep,sed
+   real,allocatable,dimension(:,:,:) :: thlpmcr,qtpmcr
 
   real :: delt
 
-  logical ,allocatable,dimension(:,:,:):: qcmask,qrmask
+  logical,allocatable,dimension(:,:,:) :: qcmask,qrmask
 
 ! Parameters for simple ice microphysics (Grabowski, JAS, 1998)
 ! With extension to graupel class if l_graupel=.true.
