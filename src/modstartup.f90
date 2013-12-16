@@ -837,7 +837,7 @@ contains
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd  h  m   .'
+      name = 'initd   h  m   .'
       write (name(6:8)  ,'(i3.3)') ihour
       write (name(10:11),'(i2.2)') imin
       name(13:15)= cmyid
