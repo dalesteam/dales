@@ -50,7 +50,7 @@ contains
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    th0av = 0.
+    th0av=0.; thv0=0.
 
   end subroutine initthermodynamics
 
@@ -241,32 +241,32 @@ contains
 !*********************************************************
 
 ! initialise local MPI arrays
-    u0av = 0.0
-    v0av = 0.0
-    thl0av = 0.0
+!    u0av = 0.0
+!    v0av = 0.0
+!    thl0av = 0.0
     th0av  = 0.0
-    qt0av  = 0.0
+!    qt0av  = 0.0
     ql0av  = 0.0
-    sv0av = 0.
+!    sv0av = 0.
 
 !  !CvH changed momentum array dimensions to same value as scalars!
-  call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!  call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!  call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!  call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   u0av  = u0av  /rslabs + cu
-   v0av  = v0av  /rslabs + cv
-   thl0av = thl0av/rslabs
-   qt0av = qt0av /rslabs
+!   u0av  = u0av  /rslabs + cu
+!   v0av  = v0av  /rslabs + cv
+!   thl0av = thl0av/rslabs
+!   qt0av = qt0av /rslabs
    ql0av = ql0av /rslabs
    exnf   = 1-grav*zf/(cp*thls)
    exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
-   do n=1,nsv
-      call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   end do
-   sv0av = sv0av/rslabs
+!   do n=1,nsv
+!      call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!   end do
+!   sv0av = sv0av/rslabs
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
@@ -667,6 +667,32 @@ contains
       endif
 
   end subroutine icethermoh
+
+!> Calculates the average profiles of prognostic variables, that are used throughout the code
+!! called from modboundary
+  subroutine avgProfs
+    use modglobal, only : i1,ih,j1,jh,k1,nsv,rslabs,cu,cv
+    use modfields, only : u0,v0,thl0,qt0,sv0,u0av,v0av,thl0av,qt0av,sv0av
+    use modmpi,    only : slabsum
+
+    implicit none
+    integer :: n
+
+    u0av=0.; v0av=0.; thl0av=0.; qt0av=0.; sv0av=0.
+    call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    do n=1,nsv
+       call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    end do
+    u0av   = u0av  /rslabs + cu
+    v0av   = v0av  /rslabs + cv
+    thl0av = thl0av/rslabs
+    qt0av  = qt0av /rslabs
+    sv0av  = sv0av /rslabs
+
+  end subroutine avgProfs
 
 !> Calculates the scalars at half levels.
 !! If the kappa advection scheme is active, interpolation needs to be done consistently.
