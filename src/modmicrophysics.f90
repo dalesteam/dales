@@ -74,11 +74,11 @@ contains
     call MPI_BCAST(sig_g,    1, MY_REAL     ,0,comm3d,ierr)
     call MPI_BCAST(sig_gr,   1, MY_REAL     ,0,comm3d,ierr)
 
-    if (imicro/=0 .and. iTimeInt/=iTimeWicker) then
-      print *,"NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
-      print *,"NAMMICRO: Use iTimeInt=1 for imicro/=0"
-      stop "NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
-    end if   
+!    if (imicro/=0 .and. iTimeInt/=iTimeWicker) then
+!      print *,"NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
+!      print *,"NAMMICRO: Use iTimeInt=1 for imicro/=0"
+!      stop "NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
+!    end if   
 
     select case (imicro)
     case(imicro_none)

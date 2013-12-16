@@ -272,9 +272,9 @@ module modbulkmicro
         qrtest = svm(:,:,:,iqr)+(svp(:,:,:,iqr)+qrp)*rdt*rkb(rkStep)
         Nrtest = svm(:,:,:,iNr)+(svp(:,:,:,iNr)+Nrp)*rdt*rkb(rkStep)
         where ( qrtest<qrmin               .or. &
-                Nrtest<0.)!                  .or. &
-!               (Nrtest==0..and.qrtest/=0.) .or. &
-!               (qrtest==0..and.Nrtest/=0.))
+                Nrtest<0.                  .or. &
+               (Nrtest==0..and.qrtest/=0.) .or. &
+               (qrtest==0..and.Nrtest/=0.))
           qrp = -svp(:,:,:,iqr)-svm(:,:,:,iqr)/(rdt*rkb(rkStep))
           Nrp = -svp(:,:,:,iNr)-svm(:,:,:,iNr)/(rdt*rkb(rkStep))
         end where
@@ -283,9 +283,9 @@ module modbulkmicro
         Nrtest = sv0(:,:,:,iNr)+(svp(:,:,:,iNr)+Nrp)*rdt*rkb(rkStep)
 
         where ( qrtest<qrmin               .or. &
-                Nrtest<0.)!                  .or. &
-!               (Nrtest==0..and.qrtest/=0.) .or. &
-!               (qrtest==0..and.Nrtest/=0.))
+                Nrtest<0.                  .or. &
+               (Nrtest==0..and.qrtest/=0.) .or. &
+               (qrtest==0..and.Nrtest/=0.))
           qrp = -svp(:,:,:,iqr)-sv0(:,:,:,iqr)/(rdt*rkb(rkStep))
           Nrp = -svp(:,:,:,iNr)-sv0(:,:,:,iNr)/(rdt*rkb(rkStep))
         end where
@@ -511,7 +511,7 @@ module modbulkmicro
               ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1))        !<  lognormal geometric diameter
 
     qr_spl(2:i1,2:j1,1:k1) = qr(2:i1,2:j1,1:k1)
-    Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
+    Nr_spl(2:i1,2:j1,1:k1) = Nr(2:i1,2:j1,1:k1)
 
     !n_spl = ceiling(wfallmax*subDt/(minval(dzf)))
     n_spl = ceiling(wMax*rdt/(Cstab*minval(dzf))) ! JvdD changed the Runge-Kutta subtimestep to the full timestep
@@ -531,8 +531,8 @@ module modbulkmicro
           !=== SB sedimentation
 
           do k=1,k1; do j=2,j1; do i=2,i1
-            if (qr_spl(i,j,k) > qrmin) then
-              xr_spl (i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
+            if (qr_spl(i,j,k)>qrmin .and. Nr_spl(i,j,k)>0.) then
+              xr_spl (i,j,k) = rhof(k)*qr_spl(i,j,k)/Nr_spl(i,j,k)
               xr_spl (i,j,k) = min(max(xr_spl(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
               Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
             endif
@@ -543,7 +543,7 @@ module modbulkmicro
             do k = 1,kmax
             do j = 2,j1
             do i = 2,i1
-              if (qr_spl(i,j,k) > qrmin) then
+              if (qr_spl(i,j,k)>qrmin .and. Nr_spl(i,j,k)>0.) then
                 Dgr(i,j,k) = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl(i,j,k) ! correction for width of DSD
                 sed_qr(i,j,k) = -1.*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)
                 sed_Nr(i,j,k) = -1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k) ,log(sig_gr)**2,D_s,0)
@@ -565,7 +565,7 @@ module modbulkmicro
               do j=2,j1
               do i=2,i1
               do k=1,k1
-                if (qr_spl(i,j,k) > qrmin) then
+                if (qr_spl(i,j,k)>qrmin .and. Nr_spl(i,j,k)>0.) then
     !             mur_spl(i,j,k) = 10. * (1+tanh(1200.*(Dvr_spl(i,j,k)-0.0014))) ! SS08
                   mur_spl(i,j,k) = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
                 endif
@@ -578,11 +578,11 @@ module modbulkmicro
             do j=2,j1
             do i=2,i1
             do k=1,k1
-              if (qr_spl(i,j,k) > qrmin) then
+              if (qr_spl(i,j,k)>qrmin .and. Nr_spl(i,j,k)>0.) then
                   lbdr_spl(i,j,k) = ((mur_spl(i,j,k)+3.)*(mur_spl(i,j,k)+2.)* &
                                      (mur_spl(i,j,k)+1.))**(1./3.)/Dvr_spl(i,j,k)
-                  vqr          = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
-                  vNr          = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
+                  vqr          = min(wMax,max(1.e-3,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.)))))
+                  vNr          = min(wMax,max(1.e-3,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.)))))
                   sed_qr  (i,j,k) = -vqr*qr_spl(i,j,k)*rhof(k)
                   sed_Nr  (i,j,k) = -vNr*Nr_spl(i,j,k)
               endif
@@ -595,7 +595,7 @@ module modbulkmicro
         case (ibulk_kk00)
           !=== KK00 sedimentation
           do k=1,k1; do j=2,j1; do i=2,i1
-            if (qr_spl(i,j,k) > qrmin) then
+            if (qr_spl(i,j,k)>qrmin .and. Nr_spl(i,j,k)>0.) then
               xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
               xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders 
               Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
@@ -614,8 +614,8 @@ module modbulkmicro
         case (ibulk_k13)
           !=== Kogan (2013) sedimentation
           do k=1,k1; do j=2,j1; do i=2,i1
-            if (qr_spl(i,j,k) > qrmin) then
-              xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
+            if (qr_spl(i,j,k)>qrmin .and. Nr_spl(i,j,k)>0.) then
+              xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/Nr_spl(i,j,k)
               Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
               Dvr_spl(i,j,k) = max(0.,min(Dvr_spl(i,j,k),0.3e-3)) ! Limit Dvr to 0-3mm. Not sure what it is based on.
               ! NOTE: the article uses the mean volume radius in um, hence the
