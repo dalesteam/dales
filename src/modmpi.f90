@@ -37,6 +37,8 @@ save
   integer comm3d
   integer nbrnorth
   integer nbrsouth
+  integer nbreast
+  integer nbrwest
   integer myid
   integer nprocs
   integer mpierr
@@ -49,14 +51,14 @@ save
 contains
   subroutine initmpi
     implicit none
-    integer dims(1)
-    logical periods(1)
-    integer periods2(1)
+    integer dims(2)
+    logical periods(2)
 
     call MPI_INIT(mpierr)
     MY_REAL = MPI_DOUBLE_PRECISION
     call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
     call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr )
+
 ! Specify the # procs in each direction.
 ! specifying a 0 means that MPI will try to find a useful # procs in
 ! the corresponding  direction,
@@ -67,31 +69,21 @@ contains
 ! present on all processors in the grid
 
     dims(1) = 0
-
+    dims(2) = 0
 
 ! directions 1 and 2 are chosen periodic
 
-
     periods(1) = .true.
-! Soares 20080115
-    periods2(1) = 1
+    periods(2) = .true.
 
 ! find suitable # procs in each direction
 
-    call MPI_DIMS_CREATE( nprocs, 1, dims, mpierr )
+    call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
 
 ! create the Cartesian communicator, denoted by the integer comm3d
 
-    ! BUG - Thijs, Harm
-    !call MPI_CART_CREATE(MPI_COMM_WORLD, 1, dims, periods,.false., &
-    !                    comm3d, ierr )
-
-    call MPI_CART_CREATE(MPI_COMM_WORLD, 1, dims, periods,.true., &
+    call MPI_CART_CREATE(MPI_COMM_WORLD, 2, dims, periods, .true., &
                         comm3d, mpierr )
-
-! Soares 20080115
-!     call MPI_CART_CREATE(MPI_COMM_WORLD, 1, dims, periods2,1, &
-!                         comm3d, mpierr )
 
 ! Get my processor number in this communicator
 
@@ -100,11 +92,10 @@ contains
 
 ! when applying boundary conditions, we need to know which processors
 ! are neighbours in all 3 directions
-
-
 ! these are determined with the aid of the MPI routine MPI_CART_SHIFT,
 
-    call MPI_CART_SHIFT( comm3d, 0,  1, nbrsouth, nbrnorth,   mpierr )
+    call MPI_CART_SHIFT( comm3d, 0,  1, nbrwest,  nbreast ,   mpierr )
+    call MPI_CART_SHIFT( comm3d, 1,  1, nbrsouth, nbrnorth,   mpierr )
 
 ! determine some useful MPI datatypes for sending/receiving data
 
@@ -147,61 +138,94 @@ contains
   integer sx, ex, sy, ey, sz, ez
   real a(sx:ex, sy:ey, sz:ez)
   integer iiget, status(MPI_STATUS_SIZE)
-  integer ii, i, k
-  real,allocatable, dimension(:) :: buffj1,buffj2,buffj3,buffj4
-  iiget = (ex - sx + 1)*(ez - sz + 1)
+  integer ii, i, j, k
+  integer nssize, ewsize
+  real,allocatable, dimension(:) :: nssend, nsrecv
+  real,allocatable, dimension(:) :: ewsend, ewrecv
+  nssize = (ex - sx + 1)*(ez - sz + 1)
+  ewsize = (ey - sy + 1)*(ez - sz + 1)
 
-  allocate( buffj1(iiget),&
-            buffj2(iiget),&
-            buffj3(iiget),&
-            buffj4(iiget))
+  allocate( nssend(nssize),&
+            nsrecv(nssize),&
+            ewsend(ewsize),&
+            ewrecv(ewsize)
 
-
-
-  if(nbrnorth/=MPI_PROC_NULL)then
+!   communicate north/south
+  
+  if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
+    ii = 0
     do k=sz,ez
     do i=sx,ex
-      ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
-      buffj1(ii) = a(i,ey-1,k)
+      ii = ii + 1
+      nssend(ii) = a(i,ey-1,k)
     enddo
     enddo
-  endif
-  call MPI_SENDRECV(  buffj1,  ii    , MY_REAL, nbrnorth, 4, &
-                      buffj2,  iiget , MY_REAL, nbrsouth, 4, &
-                      comm3d,  status, mpierr )
-  if(nbrsouth/=MPI_PROC_NULL)then
-    do k=sz,ez
-    do i=sx,ex
-      ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
-      a(i,sy,k) = buffj2(ii)
-    enddo
-    enddo
-  endif
 
-!   call barrou()
+    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrnorth, 4, &
+                        nsrecv,  iiget , MY_REAL, nbrsouth, 4, &
+                        comm3d,  status, mpierr )
 
-  if(nbrsouth/=MPI_PROC_NULL)then
+    ii = 0
     do k=sz,ez
     do i=sx,ex
-      ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
-      buffj3(ii) = a(i,sy+1,k)
+      ii = ii + 1
+      a(i,sy,k) = nsrecv(ii)
+
+      nssend(ii) = a(i,sy+1,k)
     enddo
     enddo
-  endif
-  call MPI_SENDRECV(  buffj3,  ii    , MY_REAL, nbrsouth, 5, &
-                      buffj4,  iiget , MY_REAL, nbrnorth, 5, &
-                      comm3d,  status, mpierr )
-  if(nbrnorth/=MPI_PROC_NULL)then
+
+    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrsouth, 5, &
+                        nsrecv,  iiget , MY_REAL, nbrnorth, 5, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
     do k=sz,ez
     do i=sx,ex
-      ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
-      a(i,ey,k) = buffj4(ii)
+      ii = ii + 1
+      a(i,ey,k) = nsrecv(ii)
     enddo
     enddo
   endif
 
-!   call barrou()
-  deallocate (buffj1,buffj2,buffj3,buffj4)
+!   communicate east/west
+
+  if(nbreast/=MPI_PROC_NULL .AND. nbrwest/=MPI_PROC_NULL)then
+    ii = 0
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      ewsend(ii) = a(ex-1,i,k)
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbreast, 6, &
+                        ewrecv,  iiget , MY_REAL, nbrwest, 6, &
+                        comm3d,  status, mpierr )
+    ii = 0
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      a(sx,i,k) = ewrecv(ii)
+
+      ewsend(ii) = a(sx+1,i,k)
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbrwest, 7, &
+                        ewrecv,  iiget , MY_REAL, nbreast, 7, &
+                        comm3d,  status, mpierr )
+    ii = 0
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      a(ex,i,k) = ewrecv(ii)
+    enddo
+    enddo
+  endif
+
+
+  deallocate (nssend,nsrecv,ewsend,ewrecv)
 
   return
   end subroutine excj
