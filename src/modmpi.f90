@@ -148,7 +148,7 @@ contains
   allocate( nssend(nssize),&
             nsrecv(nssize),&
             ewsend(ewsize),&
-            ewrecv(ewsize)
+            ewrecv(ewsize))
 
 !   communicate north/south
   
