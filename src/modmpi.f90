@@ -35,8 +35,8 @@ use mpi
 implicit none
 save
   integer comm3d
-  integer nbrtop
-  integer nbrbottom
+  integer nbrnorth
+  integer nbrsouth
   integer myid
   integer nprocs
   integer mpierr
@@ -104,7 +104,7 @@ contains
 
 ! these are determined with the aid of the MPI routine MPI_CART_SHIFT,
 
-    call MPI_CART_SHIFT( comm3d, 0,  1, nbrbottom, nbrtop,   mpierr )
+    call MPI_CART_SHIFT( comm3d, 0,  1, nbrsouth, nbrnorth,   mpierr )
 
 ! determine some useful MPI datatypes for sending/receiving data
 
@@ -158,7 +158,7 @@ contains
 
 
 
-  if(nbrtop/=MPI_PROC_NULL)then
+  if(nbrnorth/=MPI_PROC_NULL)then
     do k=sz,ez
     do i=sx,ex
       ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
@@ -166,10 +166,10 @@ contains
     enddo
     enddo
   endif
-  call MPI_SENDRECV(  buffj1,  ii    , MY_REAL, nbrtop, 4, &
-                      buffj2,  iiget , MY_REAL, nbrbottom,  4,      &
-                      comm3d, status, mpierr )
-  if(nbrbottom/=MPI_PROC_NULL)then
+  call MPI_SENDRECV(  buffj1,  ii    , MY_REAL, nbrnorth, 4, &
+                      buffj2,  iiget , MY_REAL, nbrsouth, 4, &
+                      comm3d,  status, mpierr )
+  if(nbrsouth/=MPI_PROC_NULL)then
     do k=sz,ez
     do i=sx,ex
       ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
@@ -180,7 +180,7 @@ contains
 
 !   call barrou()
 
-  if(nbrbottom/=MPI_PROC_NULL)then
+  if(nbrsouth/=MPI_PROC_NULL)then
     do k=sz,ez
     do i=sx,ex
       ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
@@ -188,10 +188,10 @@ contains
     enddo
     enddo
   endif
-  call MPI_SENDRECV(  buffj3,  ii    , MY_REAL, nbrbottom,  5, &
-                          buffj4,  iiget , MY_REAL, nbrtop, 5, &
-                          comm3d, status, mpierr )
-  if(nbrtop/=MPI_PROC_NULL)then
+  call MPI_SENDRECV(  buffj3,  ii    , MY_REAL, nbrsouth, 5, &
+                      buffj4,  iiget , MY_REAL, nbrnorth, 5, &
+                      comm3d,  status, mpierr )
+  if(nbrnorth/=MPI_PROC_NULL)then
     do k=sz,ez
     do i=sx,ex
       ii = i - sx + 1 + (k - sz )*(ex - sx + 1)
@@ -221,7 +221,7 @@ contains
             buffj4(iiget))
 
 
-  if(nbrtop/=MPI_PROC_NULL)then
+  if(nbrnorth/=MPI_PROC_NULL)then
     ii = 0
     do j=1,jh
     do k=sz,ez
@@ -233,10 +233,10 @@ contains
     enddo
   endif
 
-  call MPI_SENDRECV(  buffj1,  ii    , MY_REAL, nbrtop, 4, &
-                           buffj2,  iiget , MY_REAL, nbrbottom,  4, &
-                           comm3d, status, mpierr )
-  if(nbrbottom/=MPI_PROC_NULL)then
+  call MPI_SENDRECV(  buffj1,  ii    , MY_REAL, nbrnorth, 4, &
+                      buffj2,  iiget , MY_REAL, nbrsouth, 4, &
+                      comm3d,  status, mpierr )
+  if(nbrsouth/=MPI_PROC_NULL)then
     ii = 0
     do j=1,jh
     do k=sz,ez
@@ -250,7 +250,7 @@ contains
 
 !   call barrou()
 
-  if(nbrbottom/=MPI_PROC_NULL)then
+  if(nbrsouth/=MPI_PROC_NULL)then
     ii = 0
     do j=1,jh
     do k=sz,ez
@@ -261,10 +261,10 @@ contains
     enddo
     enddo
   endif
-  call MPI_SENDRECV(  buffj3,  ii    , MY_REAL, nbrbottom,  5, &
-                          buffj4,  iiget , MY_REAL, nbrtop, 5, &
-                          comm3d, status, mpierr )
-  if(nbrtop/=MPI_PROC_NULL)then
+  call MPI_SENDRECV(  buffj3,  ii    , MY_REAL, nbrsouth, 5, &
+                      buffj4,  iiget , MY_REAL, nbrnorth, 5, &
+                      comm3d,  status, mpierr )
+  if(nbrnorth/=MPI_PROC_NULL)then
     ii = 0
     do j=1,jh
     do k=sz,ez

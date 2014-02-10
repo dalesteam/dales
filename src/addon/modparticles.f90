@@ -1215,7 +1215,7 @@ contains
   subroutine partcommunicate
 
     use modglobal, only : jmax,j2
-    use modmpi,    only : comm3d,mpi_integer,mpi_status_size,mpierr,my_real,nbrtop,nbrbottom
+    use modmpi,    only : comm3d,mpi_integer,mpi_status_size,mpierr,my_real,nbrnorth,nbrsouth
     implicit none
 
     integer:: ii, n
@@ -1235,12 +1235,12 @@ contains
       particle => particle%next
     end do
 
-    call MPI_SENDRECV(nrtonorth,1,MPI_INTEGER,nbrtop,4, &
-                      nrfrsouth,1,MPI_INTEGER,nbrbottom,4, &
+    call MPI_SENDRECV(nrtonorth,1,MPI_INTEGER,nbrnorth,4, &
+                      nrfrsouth,1,MPI_INTEGER,nbrsouth,4, &
                       comm3d, status, mpierr)
 
-    call MPI_SENDRECV(nrtosouth,1,MPI_INTEGER,nbrbottom,5, &
-                      nrfrnorth,1,MPI_INTEGER,nbrtop,5, &
+    call MPI_SENDRECV(nrtosouth,1,MPI_INTEGER,nbrsouth,5, &
+                      nrfrnorth,1,MPI_INTEGER,nbrnorth,5, &
                       comm3d, status, mpierr)
 
     if( nrtonorth > 0 ) allocate(buffsend(nrpartvar*nrtonorth))
@@ -1264,8 +1264,8 @@ contains
       end do
     end if
 
-    call MPI_SENDRECV(buffsend,nrpartvar*nrtonorth,MY_REAL,nbrtop,6, &
-                      buffrecv,nrpartvar*nrfrsouth,MY_REAL,nbrbottom,6, &
+    call MPI_SENDRECV(buffsend,nrpartvar*nrtonorth,MY_REAL,nbrnorth,6, &
+                      buffrecv,nrpartvar*nrfrsouth,MY_REAL,nbrsouth,6, &
                       comm3d, status, mpierr)
 
     ii = 0
@@ -1303,8 +1303,8 @@ contains
 
     end if
 
-    call MPI_SENDRECV(buffsend,nrpartvar*nrtosouth,MY_REAL,nbrbottom,7, &
-                      buffrecv,nrpartvar*nrfrnorth,MY_REAL,nbrtop,7, &
+    call MPI_SENDRECV(buffsend,nrpartvar*nrtosouth,MY_REAL,nbrsouth,7, &
+                      buffrecv,nrpartvar*nrfrnorth,MY_REAL,nbrnorth,7, &
                       comm3d, status, mpierr)
     ii = 0
     do n = 1,nrfrnorth
