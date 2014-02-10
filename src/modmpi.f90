@@ -236,72 +236,102 @@ contains
   real a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
   integer status(MPI_STATUS_SIZE), iiget
   integer ii, i, j, k
-  real,allocatable, dimension(:) :: buffj1,buffj2,buffj3,buffj4
-  iiget = jh*(ex - sx + 1 + 2*ih)*(ez - sz + 1)
+  integer nssize, ewsize
+  real,allocatable, dimension(:) :: nssend,nsrecv
+  real,allocatable, dimension(:) :: ewsend,ewrecv
+  nssize = jh*(ex - sx + 1 + 2*ih)*(ez - sz + 1)
+  ewsize = ih*(ey - sy + 1 + 2*jh)*(ez - sz + 1)
 
-  allocate( buffj1(iiget),&
-            buffj2(iiget),&
-            buffj3(iiget),&
-            buffj4(iiget))
+  allocate( nssend(nssize),&
+            nsrecv(nssize),&
+            ewsend(ewsize),&
+            ewrecv(ewsize))
 
-
-  if(nbrnorth/=MPI_PROC_NULL)then
+!   Communicate north/south
+  if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
     ii = 0
     do j=1,jh
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      buffj1(ii) = a(i,ey-j+1,k)
+      nssend(ii) = a(i,ey-j+1,k)
     enddo
     enddo
     enddo
-  endif
 
-  call MPI_SENDRECV(  buffj1,  ii    , MY_REAL, nbrnorth, 4, &
-                      buffj2,  iiget , MY_REAL, nbrsouth, 4, &
-                      comm3d,  status, mpierr )
-  if(nbrsouth/=MPI_PROC_NULL)then
+    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrnorth, 4, &
+                        nsrecv,  iiget , MY_REAL, nbrsouth, 4, &
+                        comm3d,  status, mpierr )
     ii = 0
     do j=1,jh
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      a(i,sy-j,k) = buffj2(ii)
-    enddo
-    enddo
-    enddo
-  endif
+      a(i,sy-j,k) = nsrecv(ii)
 
-!   call barrou()
+      nssend(ii) = a(i,sy+j-1,k)
+    enddo
+    enddo
+    enddo
 
-  if(nbrsouth/=MPI_PROC_NULL)then
+    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrsouth, 5, &
+                        nsrecv,  iiget , MY_REAL, nbrnorth, 5, &
+                        comm3d,  status, mpierr )
+
     ii = 0
     do j=1,jh
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      buffj3(ii) = a(i,sy+j-1,k)
-    enddo
-    enddo
-    enddo
-  endif
-  call MPI_SENDRECV(  buffj3,  ii    , MY_REAL, nbrsouth, 5, &
-                      buffj4,  iiget , MY_REAL, nbrnorth, 5, &
-                      comm3d,  status, mpierr )
-  if(nbrnorth/=MPI_PROC_NULL)then
-    ii = 0
-    do j=1,jh
-    do k=sz,ez
-    do i=sx-ih,ex+ih
-      ii = ii + 1
-      a(i,ey+j,k) = buffj4(ii)
+      a(i,ey+j,k) = nsrecv(ii)
     enddo
     enddo
     enddo
   endif
 
-!   call barrou()
-  deallocate (buffj1,buffj2,buffj3,buffj4)
+!   Communicate east/west
+  if(nbreast/=MPI_PROC_NULL .AND. nbrwest/=MPI_PROC_NULL)then
+    ii = 0
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      nssend(ii) = a(ex-i+1,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbreast, 6, &
+                        ewrecv,  iiget , MY_REAL, nbrwest, 6, &
+                        comm3d,  status, mpierr )
+    ii = 0
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      a(sx-i,j,k) = nsrecv(ii)
+
+      nssend(ii) = a(sx+i-1,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbrwest, 7, &
+                        ewrecv,  iiget , MY_REAL, nbreast, 7, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do i=1,jh
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      a(ey+i,j,k) = nsrecv(ii)
+    enddo
+    enddo
+    enddo
+  endif
+
+  deallocate (nssend,nsrecv,ewsend,ewrecv)
 
   return
   end subroutine excjs
