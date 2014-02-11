@@ -275,7 +275,7 @@ contains
 
   !======== Determine the maximum Peclet number
   real function getPeclet()
-    use modfields, only : ekm,ekh,rhobf
+    use modfields, only : ekm,ekh
     use modglobal, only : i1,j1,kmax,dx,dx2i,dy,dy2i,dzh,rdt
     use modmpi,    only : my_real,mpi_max,comm3d,mpierr
     implicit none
@@ -286,7 +286,7 @@ contains
     ! The original version of the Peclet number:
     do k=1,kmax
       pecletl = max( pecletl, &
-                     maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt / minval((/dzh(k),dx,dy/))**2 )
+                     maxval(ekm(2:i1,2:j1,k))*rdt / minval((/dzh(k),dx,dy/))**2)
     end do
     ! New version of the Peclet number. Note that now this version uses ekh,
     ! which is approximately ekm*3. The Peclet number should therefore be 3
