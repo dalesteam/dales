@@ -1113,7 +1113,7 @@ contains
       thl2mn   = thl2mn   + thl2av
       thv2mn   = thv2mn   + thv2av
       th2mn    = th2mn    + th2av
-!       ql2mn    = ql2mn    + ql2av
+       ql2mn    = ql2mn    + ql2av
 !       qs2mn    = qs2mn    + qs2av
 !       qsmn     = qsmn     + qsav
 !       rhmn     = rhmn     + rhav
