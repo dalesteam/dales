@@ -32,7 +32,7 @@
 !! - Included heterosurf routine
 !! - Statistics for heterosurf routine
 !! Steef:
-!! - Important note; ekm and ekh now denote rhobf*Kh for computational efficiency
+!! - Important note; adapted by Huug: ekm and ekh is again set to just Kh for right calculation of subgrid fluxes
 !!   mosts statistic have been adjusted accordingly, however, budgets still need full update
 !! - Anelastic baseprofile maker
 !! - Anelastic advection

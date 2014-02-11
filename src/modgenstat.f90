@@ -811,12 +811,12 @@ contains
     !     calculate resolved and subgrid fluxes at half levels
     !     -----------------------------------------------------------
 
-        ekhalf  = (ekh(i,j,k)*dzf(km)/rhobf(km)+ekh(i,j,km)*dzf(k)/rhobf(k))/(2*dzh(k))
-        euhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )/rhobf(k)  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) )/rhobf(km) ) / &
+        ekhalf  = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
+        euhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
                     ( 4.   * dzh(k) )
-        evhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)/rhobf(k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) )/rhobf(km) ) / &
+        evhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) ) ) / &
                     ( 4.   * dzh(k) )
 
         wthls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
@@ -922,7 +922,7 @@ contains
         km = k-1
       do j=2,j1
       do i=2,i1
-        ekhalf      = (ekh(i,j,k)*dzf(km)/rhobf(k)+ekh(i,j,km)*dzf(k)/rhobf(km))/(2*dzh(k))
+        ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
         wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
                                                         /dzh(k)
       end do
