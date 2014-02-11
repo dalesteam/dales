@@ -1140,7 +1140,7 @@ SUBROUTINE twostep2(y)
 !c
 use modglobal, only : ih,i1,jh,j1,i2,j2,k1,kmax,nsv,xtime,rtimee,rdt,timee,timeav_glob,xday,xlat,xlon,zf,dzf,ifoutput,cexpnr,dz,rslabs
 use modfields, only : qt0
-use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,mpi_real,myid,cmyid,nprocs
+use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,myid,cmyid,nprocs
 use modtimestat, only: we, zi, ziold, calcblheight
 
 implicit none

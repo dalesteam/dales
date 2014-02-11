@@ -64,7 +64,7 @@ contains
   ! Adapted fillps for RK3 time loop
 
 
-    use modfields, only : up, vp, wp, um, vm, wm, drhobdzf, rhobf
+    use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
     use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
     use modmpi,    only : excjs
     implicit none
@@ -125,8 +125,8 @@ contains
       do j=2,j1
         do i=2,i1
           p(i,j,k)  =  rhobf(k)*(( pup(i+1,j,k)-pup(i,j,k) ) / dx &
-                          +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy &
-                          +( pwp(i,j,k+1)-pwp(i,j,k) ) / dzf(k)) + drhobdzf(k)*(pwp(i,j,k+1)+pwp(i,j,k))/2
+                          +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy ) &
+                          +( pwp(i,j,k+1)*rhobh(k+1)-pwp(i,j,k)*rhobh(k)) / dzf(k) 
         end do
       end do
     end do
@@ -190,7 +190,7 @@ contains
 
     use modmpi,    only : myid,comm3d,mpierr,nprocs, barrou
     use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh
-    use modfields, only : rhobf, drhobdzf
+    use modfields, only : rhobf, rhobh
     implicit none
 
     real, intent (inout) :: p1(0:i1,0:j1,0:k1)
@@ -279,8 +279,9 @@ contains
   ! Generate tridiagonal matrix
 
     do k=1,kmax
-      a(k)=rhobf(k)/(dzf(k)*dzh(k))-drhobdzf(k)/(dzh(k)+dzh(k+1))
-      c(k)=rhobf(k)/(dzf(k)*dzh(k+1))+drhobdzf(k)/(dzh(k)+dzh(k+1))
+      ! SB fixed the coefficients
+      a(k)=rhobh(k)/(dzf(k)*dzh(k))
+      c(k)=rhobh(k+1)/(dzf(k)*dzh(k+1))
       b(k)=-(a(k)+c(k))
     end do
 
