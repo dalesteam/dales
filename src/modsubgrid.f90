@@ -57,6 +57,9 @@ contains
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(csz(k1))
 
+    ! Initialize variables to avoid problems when not using subgrid scheme JvdD
+    ekm=0.; ekh=0.; zlt=0.; sbdiss=0.; sbshr=0.; sbbuo=0.; csz=0.
+
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
 !     ch   = 2. * alpha_kolm / beta_kolm

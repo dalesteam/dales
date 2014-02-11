@@ -771,7 +771,7 @@ contains
           if(k==1) then
             wthlcovs(j,k) = wthlcovs(j,k) + thlflux(i+1,j+1)
           else
-            wthlcovs(j,k) = wthlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) &
+            wthlcovs(j,k) = wthlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k-1)+ekh(i+1,j+1,k-1)/rhobf(k)) &
             * (thl0(i+1,j+1,k) - thl0(i+1,j+1,k-1)) / dz
           endif
         end do
@@ -806,7 +806,7 @@ contains
           if(k==1) then
             wqtcovs(j,k) = wqtcovs(j,k) + qtflux(i+1,j+1)
           else
-            wqtcovs(j,k) = wqtcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) * &
+            wqtcovs(j,k) = wqtcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k-1)+ekh(i+1,j+1,k-1)/rhobf(k)) * &
             (qt0(i+1,j+1,k) - qt0(i+1,j+1,k-1)) / dz
           endif
         end do
@@ -821,7 +821,7 @@ contains
           if(k==1) then
             wqlcovs(j,k) = 0.0 
           else
-            wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) * &
+            wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(ekh(i+1,j+1,k)/rhobf(k-1)+ekh(i+1,j+1,k-1)/rhobf(k)) * &
             (ql0(i+1,j+1,k) - ql0(i+1,j+1,k-1)) / dz
           endif
         end do
@@ -845,7 +845,7 @@ contains
             c1  = 1.+(rv/rd-1)*qts
             c2  = (rv/rd-1)
  
-            wthvcovs(j-1,k) = c1 * wthlcovs(j-1,k) + c2 * thls * wqtcovs(j-1,k)
+            wthvcovs(j-1,k) = wthvcovs(j-1,k) + c1 * thlflux(i,j) + c2 * thls * qtflux(i,j)
 
           else
             qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
@@ -859,7 +859,11 @@ contains
               c2 = (rv/rd-1)
             end if
 
-            wthvcovs(j-1,k) = c1 * wthlcovs(j-1,k) + c2 * thl0h(i,j,k) * wqtcovs(j-1,k)
+            wthvcovs(j-1,k) = wthvcovs(j-1,k) - &
+                              c1 * 0.5*(ekh(i,j,k)/rhobf(k-1)+ekh(i,j,k-1)/rhobf(k)) * &
+                                 (thl0(i,j,k) - thl0(i,j,k-1)) / dz - &
+                              c2 * thl0h(i,j,k) * 0.5*(ekh(i,j,k)/rhobf(k-1)+ekh(i,j,k-1)/rhobf(k)) * &
+                                 (qt0(i,j,k) - qt0(i,j,k-1)) / dz
 
           endif
         end do
@@ -885,7 +889,7 @@ contains
             if(k==1) then
               wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n) 
             else
-              wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(ekh(i+1,j+1,k)/rhobf(k)+ekh(i+1,j+1,k-1)/rhobf(k-1)) &
+              wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(ekh(i+1,j+1,k)/rhobf(k-1)+ekh(i+1,j+1,k-1)/rhobf(k)) &
               * (sv0(i+1,j+1,k,n) - sv0(i+1,j+1,k-1,n)) / dz
             endif
           end do

@@ -436,7 +436,7 @@ subroutine advecw_2nd(putin,putout)
         im=i-1
         ip=i+1
 
-          putout(i,j,k)  = - (1./rhobh(k))*( &
+          putout(i,j,k)  = putout(i,j,k) - (1./rhobh(k))*( &
                 ( &
                 ( rhoputin(ip,j,k) + rhoputin(i,j,k) ) &
               *( dzf(km)*u0(ip,j,k) + dzf(k)*u0(ip,j,km) ) &
