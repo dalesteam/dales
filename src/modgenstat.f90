@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 37
+  integer :: nvar = 39
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -367,52 +367,54 @@ contains
         allocate(ncname(nvar,4))
         call ncinfo(tncname(1,:),'time','Time','s','time')
         call ncinfo(ncname( 1,:),'dn0','Base-state density','kg/m^3','tt')
-        call ncinfo(ncname( 2,:),'presh','Pressure at cell center','Pa','tt')
-        call ncinfo(ncname( 3,:),'u','West-East velocity','m/s','tt')
-        call ncinfo(ncname( 4,:),'v','South-North velocity','m/s','tt')
-        call ncinfo(ncname( 5,:),'thl','Liquid water potential temperature','K','tt')
-        call ncinfo(ncname( 6,:),'thv','Virtual potential temperature','K','tt')
-        call ncinfo(ncname( 7,:),'qt','Total water mixing ratio','kg/kg','tt')
-        call ncinfo(ncname( 8,:),'ql','Liquid water mixing ratio','kg/kg','tt')
-        call ncinfo(ncname( 9,:),'wthls','SFS-Theta_l flux','Km/s','mt')
-        call ncinfo(ncname(10,:),'wthlr','Resolved Theta_l flux','Km/s','mt')
-        call ncinfo(ncname(11,:),'wthlt','Total Theta_l flux','Km/s','mt')
-        call ncinfo(ncname(12,:),'wthvs','SFS-buoyancy flux','Km/s','mt')
-        call ncinfo(ncname(13,:),'wthvr','Resolved buoyancy flux','Km/s','mt')
-        call ncinfo(ncname(14,:),'wthvt','Total buoyancy flux','Km/s','mt')
-        call ncinfo(ncname(15,:),'wqts','SFS-moisture flux','kg/kg m/s','mt')
-        call ncinfo(ncname(16,:),'wqtr','Resolved moisture flux','kg/kg m/s','mt')
-        call ncinfo(ncname(17,:),'wqtt','Total moisture flux','kg/kg m/s','mt')
-        call ncinfo(ncname(18,:),'wqls','SFS-liquid water flux','kg/kg m/s','mt')
-        call ncinfo(ncname(19,:),'wqlr','Resolved liquid water flux','kg/kg m/s','mt')
-        call ncinfo(ncname(20,:),'wqlt','Total liquid water flux','kg/kg m/s','mt')
-        call ncinfo(ncname(21,:),'uws','SFS-momentum flux (uw)','m^2/s^2','mt')
-        call ncinfo(ncname(22,:),'uwr','Resolved momentum flux (uw)','m^2/s^2','mt')
-        call ncinfo(ncname(23,:),'uwt','Total momentum flux (vw)','m^2/s^2','mt')
-        call ncinfo(ncname(24,:),'vws','SFS-momentum flux (vw)','m^2/s^2','mt')
-        call ncinfo(ncname(25,:),'vwr','Resolved momentum flux (vw)','m^2/s^2','mt')
-        call ncinfo(ncname(26,:),'vwt','Total momentum flux (vw)','m^2/s^2','mt')
-        call ncinfo(ncname(27,:),'w2s','SFS-TKE','m^2/s^2','mt')
-        call ncinfo(ncname(28,:),'w2r','Resolved vertical velocity variance','m^2/s^2','mt')
-        !call ncinfo(ncname(29,:),'w2t','Total vertical velocity variance','m^2/s^2','mt')
-        call ncinfo(ncname(29,:),'skew','vertical velocity skewness','-','mt')
-        call ncinfo(ncname(30,:),'u2r','Resolved horizontal velocity variance (u)','m^2/s^2','tt')
-        call ncinfo(ncname(31,:),'v2r','Resolved horizontal velocity variance (v)','m^2/s^2','tt')
-        call ncinfo(ncname(32,:),'thl2r','Resolved theta_l variance','K^2','tt')
-        call ncinfo(ncname(33,:),'thv2r','Resolved buoyancy variance','K^2','tt')
-        call ncinfo(ncname(34,:),'th2r','Resolved theta variance','K^2','tt')
-        call ncinfo(ncname(35,:),'qt2r','Resolved total water variance','(kg/kg)^2','tt')
-        call ncinfo(ncname(36,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
-        call ncinfo(ncname(37,:),'cs','Smagorinsky constant','-','tt')
+        call ncinfo(ncname( 2,:),'rhobf','Full level density','kg/m^3','tt')
+        call ncinfo(ncname( 3,:),'rhobh','Half level density','kg/m^3','mt')
+        call ncinfo(ncname( 4,:),'presh','Pressure at cell center','Pa','tt')
+        call ncinfo(ncname( 5,:),'u','West-East velocity','m/s','tt')
+        call ncinfo(ncname( 6,:),'v','South-North velocity','m/s','tt')
+        call ncinfo(ncname( 7,:),'thl','Liquid water potential temperature','K','tt')
+        call ncinfo(ncname( 8,:),'thv','Virtual potential temperature','K','tt')
+        call ncinfo(ncname( 9,:),'qt','Total water mixing ratio','kg/kg','tt')
+        call ncinfo(ncname(10,:),'ql','Liquid water mixing ratio','kg/kg','tt')
+        call ncinfo(ncname(11,:),'wthls','SFS-Theta_l flux','Km/s','mt')
+        call ncinfo(ncname(12,:),'wthlr','Resolved Theta_l flux','Km/s','mt')
+        call ncinfo(ncname(13,:),'wthlt','Total Theta_l flux','Km/s','mt')
+        call ncinfo(ncname(14,:),'wthvs','SFS-buoyancy flux','Km/s','mt')
+        call ncinfo(ncname(15,:),'wthvr','Resolved buoyancy flux','Km/s','mt')
+        call ncinfo(ncname(16,:),'wthvt','Total buoyancy flux','Km/s','mt')
+        call ncinfo(ncname(17,:),'wqts','SFS-moisture flux','kg/kg m/s','mt')
+        call ncinfo(ncname(18,:),'wqtr','Resolved moisture flux','kg/kg m/s','mt')
+        call ncinfo(ncname(19,:),'wqtt','Total moisture flux','kg/kg m/s','mt')
+        call ncinfo(ncname(20,:),'wqls','SFS-liquid water flux','kg/kg m/s','mt')
+        call ncinfo(ncname(21,:),'wqlr','Resolved liquid water flux','kg/kg m/s','mt')
+        call ncinfo(ncname(22,:),'wqlt','Total liquid water flux','kg/kg m/s','mt')
+        call ncinfo(ncname(23,:),'uws','SFS-momentum flux (uw)','m^2/s^2','mt')
+        call ncinfo(ncname(24,:),'uwr','Resolved momentum flux (uw)','m^2/s^2','mt')
+        call ncinfo(ncname(25,:),'uwt','Total momentum flux (vw)','m^2/s^2','mt')
+        call ncinfo(ncname(26,:),'vws','SFS-momentum flux (vw)','m^2/s^2','mt')
+        call ncinfo(ncname(27,:),'vwr','Resolved momentum flux (vw)','m^2/s^2','mt')
+        call ncinfo(ncname(28,:),'vwt','Total momentum flux (vw)','m^2/s^2','mt')
+        call ncinfo(ncname(29,:),'w2s','SFS-TKE','m^2/s^2','mt')
+        call ncinfo(ncname(30,:),'w2r','Resolved vertical velocity variance','m^2/s^2','mt')
+        !call ncinfo(ncname(31,:),'w2t','Total vertical velocity variance','m^2/s^2','mt')
+        call ncinfo(ncname(31,:),'skew','vertical velocity skewness','-','mt')
+        call ncinfo(ncname(32,:),'u2r','Resolved horizontal velocity variance (u)','m^2/s^2','tt')
+        call ncinfo(ncname(33,:),'v2r','Resolved horizontal velocity variance (v)','m^2/s^2','tt')
+        call ncinfo(ncname(34,:),'thl2r','Resolved theta_l variance','K^2','tt')
+        call ncinfo(ncname(35,:),'thv2r','Resolved buoyancy variance','K^2','tt')
+        call ncinfo(ncname(36,:),'th2r','Resolved theta variance','K^2','tt')
+        call ncinfo(ncname(37,:),'qt2r','Resolved total water variance','(kg/kg)^2','tt')
+        call ncinfo(ncname(38,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
+        call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(37+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(37+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(37+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(37+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(37+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(37+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(37+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(39+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(39+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(39+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(39+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(39+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(39+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -1194,7 +1196,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writestat
       use modglobal, only : kmax,k1,nsv, zh,zf,rtimee,rlv,cp,cexpnr,ifoutput
-      use modfields, only : presf,presh,exnf,exnh,rhof
+      use modfields, only : presf,presh,exnf,exnh,rhof,rhobf,rhobh
       use modsubgriddata, only : csz
       use modmpi,    only : myid
       use modstat_nc, only: lnetcdf, writestat_nc
@@ -1519,51 +1521,53 @@ contains
       end do
       if (lnetcdf) then
         vars(:, 1)=rhof
-        vars(:, 2)=presh
-        vars(:, 3)=umn
-        vars(:, 4)=vmn
-        vars(:, 5)=thlmn
-        vars(:, 6)=thvmn
-        vars(:, 7)=qtmn
-        vars(:, 8)=qlmn
-        vars(:, 9)=wthlsmn
-        vars(:,10)=wthlrmn
-        vars(:,11)=wthltmn
-        vars(:,12)=wthvsmn
-        vars(:,13)=wthvrmn
-        vars(:,14)=wthvtmn
-        vars(:,15)=wqtsmn
-        vars(:,16)=wqtrmn
-        vars(:,17)=wqttmn
-        vars(:,18)=wqlsmn
-        vars(:,19)=wqlrmn
-        vars(:,20)=wqltmn
-        vars(:,21)=uwsmn
-        vars(:,22)=uwrmn
-        vars(:,23)=uwtmn
-        vars(:,24)=vwsmn
-        vars(:,25)=vwrmn
-        vars(:,26)=vwtmn
-        vars(:,27)=w2submn
-        vars(:,28)=w2mn
-        !vars(:,29)=w2submn+w2mn
-        vars(:,29)=skewmn
-        vars(:,30)=u2mn
-        vars(:,31)=v2mn
-        vars(:,32)=thl2mn
-        vars(:,33)=thv2mn
-        vars(:,34)=th2mn
-        vars(:,35)=qt2mn
-        vars(:,36)=ql2mn
-        vars(:,37)=csz
+        vars(:, 2)=rhobf
+        vars(:, 3)=rhobh
+        vars(:, 4)=presh
+        vars(:, 5)=umn
+        vars(:, 6)=vmn
+        vars(:, 7)=thlmn
+        vars(:, 8)=thvmn
+        vars(:, 9)=qtmn
+        vars(:,10)=qlmn
+        vars(:,11)=wthlsmn
+        vars(:,12)=wthlrmn
+        vars(:,13)=wthltmn
+        vars(:,14)=wthvsmn
+        vars(:,15)=wthvrmn
+        vars(:,16)=wthvtmn
+        vars(:,17)=wqtsmn
+        vars(:,18)=wqtrmn
+        vars(:,19)=wqttmn
+        vars(:,20)=wqlsmn
+        vars(:,21)=wqlrmn
+        vars(:,22)=wqltmn
+        vars(:,23)=uwsmn
+        vars(:,24)=uwrmn
+        vars(:,25)=uwtmn
+        vars(:,26)=vwsmn
+        vars(:,27)=vwrmn
+        vars(:,28)=vwtmn
+        vars(:,29)=w2submn
+        vars(:,30)=w2mn
+        !vars(:,31)=w2submn+w2mn
+        vars(:,31)=skewmn
+        vars(:,32)=u2mn
+        vars(:,33)=v2mn
+        vars(:,34)=thl2mn
+        vars(:,35)=thv2mn
+        vars(:,36)=th2mn
+        vars(:,37)=qt2mn
+        vars(:,38)=ql2mn
+        vars(:,39)=csz
         do n=1,nsv
-          vars(:,37+7*(n-1)+1)=svmmn(:,n)
-          vars(:,37+7*(n-1)+2)=svpmn(:,n)
-          vars(:,37+7*(n-1)+3)=svptmn(:,n)
-          vars(:,37+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,37+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,37+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,37+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,39+7*(n-1)+1)=svmmn(:,n)
+          vars(:,39+7*(n-1)+2)=svpmn(:,n)
+          vars(:,39+7*(n-1)+3)=svptmn(:,n)
+          vars(:,39+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,39+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,39+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,39+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
