@@ -359,9 +359,9 @@ contains
     allocate(delta(k1))
 
 
-    rslabs = real(imax*jtot)
+    rslabs = real(itot*jtot)
 
-    dx = xsize / float(imax)
+    dx = xsize / float(itot)
     dy = ysize / float(jtot)
 
     ! MPI
