@@ -189,7 +189,7 @@ contains
 !              copy times all included
 
     use modmpi,    only : myid,comm3d,mpierr,nprocs, barrou
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,imax,jtot,pi,dxi,dyi,dzi,dzf,dzh
     use modfields, only : rhobf, rhobh
     implicit none
 
@@ -205,7 +205,7 @@ contains
 
   ! re-distributed p:
 
-    allocate(p2(isen,jtot,kmax))
+    allocate(p2(imax,jtot,kmax))
 
   ! re-distributed p1:
 
@@ -236,7 +236,7 @@ contains
   !FFT  ---> J direction
 
     fac = 1./sqrt(jtot*1.)
-    do i=1,isen
+    do i=1,imax
       do k=1,kmax
           do j=1,jtot
             FFTJ(j) =p2(i,j,k)
@@ -362,7 +362,7 @@ contains
   ! BACKWARD FFT ---> J direction
 
     fac = 1./sqrt(jtot*1.)
-    do i=1,isen
+    do i=1,imax
       do k=1,kmax
         do j=1,jtot
   ! ATT, ADAPTED!!!
@@ -477,7 +477,7 @@ contains
 !       ptrans(1:imax    etc
 
 
-  use modglobal, only : imax,isen,jmax,jsen,jtot,kmax
+  use modglobal, only : imax,imax,jmax,jmax,jtot,kmax
   use modmpi,    only : comm3d,mpierr,my_real,nprocs, barrou
 
   implicit none
@@ -485,7 +485,7 @@ contains
 
   integer  iaction
   real     p(0:imax+1,0:jmax+1,0:kmax+1)
-  real     ptrans(1:isen,1:jtot,1:kmax)
+  real     ptrans(1:imax,1:jtot,1:kmax)
 
 
 ! help arrays for sending and receiving
@@ -503,8 +503,8 @@ contains
   if(iaction==0)then
     ii = 0
     do proc=0,nprocs-1
-      ibegin =  (proc)*isen+1
-      iend   =  (proc+1)*isen
+      ibegin =  (proc)*imax+1
+      iend   =  (proc+1)*imax
       do i=ibegin,iend
       do j=1,jmax
       do k=1,kmax
@@ -517,15 +517,15 @@ contains
 
     ii = 0
 !     call barrou()
-    call MPI_ALLTOALL(bufin,   (isen*jsen*kmax),MY_REAL, &
-                          bufout,(isen*jsen*kmax),MY_REAL, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*kmax),MY_REAL, &
+                          bufout,(imax*jmax*kmax),MY_REAL, &
                           comm3d,mpierr)
 !     call barrou()
     ii = 0
     do proc = 0,nprocs-1
-      jbegin =  proc   *jsen + 1
-      jend   = (proc+1)*jsen
-      do i=1,isen
+      jbegin =  proc   *jmax + 1
+      jend   = (proc+1)*jmax
+      do i=1,imax
       do j=jbegin,jend
       do k=1,kmax
         ii = ii + 1
@@ -539,9 +539,9 @@ contains
   elseif(iaction==1)then
     ii = 0
     do  proc = 0,nprocs-1
-      jbegin =  proc   *jsen + 1
-      jend   = (proc+1)*jsen
-      do i=1,isen
+      jbegin =  proc   *jmax + 1
+      jend   = (proc+1)*jmax
+      do i=1,imax
       do j=jbegin,jend
       do k=1,kmax
         ii = ii + 1
@@ -552,15 +552,15 @@ contains
     enddo
 
 !     call barrou()
-    call MPI_ALLTOALL(bufin,   (isen*jsen*kmax),MY_REAL, &
-                          bufout,(isen*jsen*kmax),MY_REAL, &
-                          comm3d,mpierr)
+    call MPI_ALLTOALL(bufin,   (imax*jmax*kmax),MY_REAL, &
+                      bufout,  (imax*jmax*kmax),MY_REAL, &
+                      comm3d,mpierr)
 !     call barrou()
 
     ii = 0
     do proc=0,nprocs-1
-      ibegin =    (proc)*isen+1
-      iend   =  (proc+1)*isen
+      ibegin =    (proc)*imax+1
+      iend   =  (proc+1)*imax
       do i=ibegin,iend
       do j=1,jmax
       do k=1,kmax

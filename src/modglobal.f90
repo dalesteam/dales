@@ -32,8 +32,6 @@ save
       integer :: imax
       integer :: jmax
       integer :: kmax = 96
-      integer :: isen
-      integer :: jsen
       integer ::  i1
       integer ::  j1
       integer ::  k1
@@ -260,8 +258,6 @@ contains
     ! phsgrid
     imax = itot/nprocx 
     jmax = jtot/nprocy
-    isen = imax/nprocs
-    jsen = jmax
     i1=imax+1
     j1=jmax+1
     k1=kmax+1
