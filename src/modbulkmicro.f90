@@ -64,13 +64,13 @@ module modbulkmicro
     use modmpi,    only : myid
     implicit none
 
-    allocate( Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Nrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+!    allocate( Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+    allocate( Nrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             !,qr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Nc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sedc     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Dvr      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+!             ,Dvr      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,xr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,mur      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,lbdr     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -120,9 +120,8 @@ module modbulkmicro
   subroutine exitbulkmicro
     implicit none
 
-    deallocate(Nr,Nrp,qr,qrp,Nc)
-
-    deallocate(sedc,Dvr,xr,mur,lbdr,tau,evap,Nevap)
+    deallocate(Nrp,qrp,Nc)
+    deallocate(sedc,xc,xr,mur,lbdr,tau,evap,Nevap)
     deallocate(sed_qr,sed_Nr,qr_spl,Nr_spl)
 
     deallocate(precep)

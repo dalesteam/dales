@@ -279,10 +279,10 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
-    use modmpi,        only  : my_real, mpi_sum, comm3d, mpierr,myid
+    use modmpi,        only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,     only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : qr,precep,sedc,Dvr,Nr,Nc,epscloud,epsqr,epsprec,qrmin,qcmin
-    use modfields,     only  : ql0
+    use modmicrodata,  only  : precep, sedc, Dvr, Nr, Nc, epscloud, epsqr, epsprec,iqr,iNr,Nc_0
+    use modfields,     only  : ql0,sv0
     implicit none
 
     integer      :: k
@@ -300,17 +300,18 @@ subroutine initbulkmicrostat
     qrav         = 0.0
 
     do k = 1,k1
-      cloudcountavl(k)  = count(ql0   (2:i1,2:j1,k) > qcmin   )    ! Number of cloudy gridboxes
-      raincountavl (k)  = count(qr    (2:i1,2:j1,k) > qrmin   )    ! Number of rainy gridboxes
-      preccountavl (k)  = count(precep(2:i1,2:j1,k) > epsprec )    ! Number of precipitating gridboxes > epsprec
-      prec_fracavl (k)  = count(precep(2:i1,2:j1,k) > 1e-8    )    ! Number of gridboxes with precip > 1e-8
-      prec_prcavl  (k)  = sum  (precep(2:i1,2:j1,k), precep(2:i1,2:j1,k) > epsprec ) ! Sum of precip fluxes for boxes with precip > eps 
-      Dvravl       (k)  = sum  (Dvr   (2:i1,2:j1,k), qr    (2:i1,2:j1,k) > epsqr   ) ! Sum of prec water mean diam for boxes with qr > eps
-      Nrcloudavl   (k)  = sum  (Nc    (2:i1,2:j1,k), ql0   (2:i1,2:j1,k) > qcmin ) ! Sum of cloud drop number dens for boxes with ql0 > qcmin (used in bulk micro)
-      Nrrainavl    (k)  = sum  (Nr    (2:i1,2:j1,k), qr    (2:i1,2:j1,k) > qrmin ) ! Sum of rain drop number dens for boxes with qr > qrmin (used in bulk micro)
-      precavl      (k)  = sum  (precep(2:i1,2:j1,k))               ! Total sum of precipitation fluxes
-      sedavl       (k)  = sum  (sedc  (2:i1,2:j1,k))               ! Total sum of cloud water sedimentation fluxes
-      qravl        (k)  = sum  (qr    (2:i1,2:j1,k))               ! Total sum of rain water content
+      cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)    ! Number of cloudy gridboxes
+      raincountavl (k)  = count(sv0 (2:i1,2:j1,k,iqr) > epsqr   )    ! Number of rainy gridboxes
+      preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec )    ! Number of precipitating gridboxes > epsprec
+      prec_fracavl (k)  = count(precep  (2:i1,2:j1,k) > 1e-8    )    ! Number of gridboxes with precip > 1e-8
+      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep (2:i1,2:j1,k) > epsprec ) ! Sum of precip fluxes for boxes with precip > eps 
+      Dvravl       (k)  = sum  (Dvr     (2:i1,2:j1,k) , sv0(2:i1,2:j1,k,iqr) > epsqr   ) ! Sum of prec water mean diam for boxes with qr > eps
+      !Nrcloudavl   (k)  = sum  (Nc      (2:i1,2:j1,k) , ql0    (2:i1,2:j1,k) > epscloud) ! Sum of cloud drop number dens for boxes with ql0 > eps
+      Nrcloudavl   (k)  = cloudcountavl(k)*Nc_0 ! Sum of cloud drop number dens for boxes with ql0 > eps
+      Nrrainavl    (k)  = sum  (sv0 (2:i1,2:j1,k,iNr) , sv0(2:i1,2:j1,k,iqr) > epsqr   ) ! Sum of rain drop number dens for boxes with qr > eps
+      precavl      (k)  = sum  (precep  (2:i1,2:j1,k))               ! Total sum of precipitation fluxes
+      sedavl       (k)  = sum  (sedc    (2:i1,2:j1,k))               ! Total sum of cloud water sedimentation fluxes
+      qravl        (k)  = sum  (sv0 (2:i1,2:j1,k,iqr))               ! Total sum of rain water content
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -328,7 +329,6 @@ subroutine initbulkmicrostat
     cloudcountmn = cloudcountmn +  cloudcountav /rslabs   ! fraction of cloudy gridcells
     raincountmn  = raincountmn  +  raincountav  /rslabs   ! fraction of rainy gridcells 
     preccountmn  = preccountmn  +  preccountav  /rslabs   ! fraction of precipitating gridcells
-
     ! Average prec_prc, Nrcloud and Nrrain over precip/cloudy/rainy gridcells only !
     do k=1,k1
       if (cloudcountav(k) > 0) then
@@ -347,7 +347,7 @@ subroutine initbulkmicrostat
       end if
     end do
     precmn       = precmn       +  precav   /rslabs
-    sedmn        = sedmn        +  sedav   /rslabs
+    sedmn        = sedmn        +  sedav    /rslabs
     qrmn         = qrmn         +  qrav     /rslabs
 
   end subroutine dobulkmicrostat
@@ -406,10 +406,11 @@ subroutine initbulkmicrostat
   subroutine writebulkmicrostat
     use modmpi,    only  : myid
     use modglobal,    only  : rtimee, ifoutput, cexpnr, k1,kmax, &
-              rlv, zf
+              rlv, zf,rslabs
     use modfields,    only  : presf,rhof
     use modstat_nc, only: lnetcdf, writestat_nc
     use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
+    use modmicrodata, only : qrsrc,qrsed,qrevap,tint
 
     implicit none
     real,dimension(k1,nvar) :: vars
@@ -465,7 +466,7 @@ subroutine initbulkmicrostat
       ,'    ------      ---------     -------     --------    ---------'   &
       ,'#-----------------------------------------------------------------'   &
       ,'---------------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F8.3,F7.1,8E13.5)') &
+    write(ifoutput,'(I4,F8.2,F8.3,F7.1,8E13.5)') &
       (k          , &
       zf    (k)      , &
       rhof    (k)      , &
@@ -497,7 +498,7 @@ subroutine initbulkmicrostat
       ,'     EVAP         TOT '             &
       ,'#      (M)   (MB)  |  ---------   (#/M3/S)      ----------'     &
       ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
+    write(ifoutput,'(I4,F8.2,F7.1,5E13.5)') &
       (k          , &
       zf    (k)      , &
       presf    (k)/100.    , &
@@ -525,7 +526,7 @@ subroutine initbulkmicrostat
       ,'     EVAP         TOT '             &
       ,'#      (M)   (MB)  |  ---------   (KG/KG/S)      ----------'     &
       ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
+    write(ifoutput,'(I4,F8.2,F7.1,5E13.5)') &
       (k          , &
       zf    (k)      , &
       presf    (k)/100.    , &
@@ -553,7 +554,7 @@ subroutine initbulkmicrostat
       ,'     EVAP         TOT '             &
       ,'#      (M)   (MB)  |  ---------   (KG/KG/S)      ----------'     &
       ,'#-----------------------------------------------------------'
-    write(ifoutput,'(I4,F10.2,F7.1,5E13.5)') &
+    write(ifoutput,'(I4,F8.2,F7.1,5E13.5)') &
       (k          , &
       zf    (k)      , &
       presf    (k)/100.    , &
@@ -584,11 +585,16 @@ subroutine initbulkmicrostat
         vars(:,14) =Npmn     (:,ised)
         vars(:,15) =Npmn     (:,ievap)
         vars(:,16) =sum(Npmn (:,2:nrfields),2)
-        vars(:,17) =qlpmn    (:,iauto)
-        vars(:,18) =qlpmn    (:,iaccr)
-        vars(:,19) =qlpmn    (:,ised)
-        vars(:,20) =qlpmn    (:,ievap)
-        vars(:,21) =sum(qlpmn(:,2:nrfields),2)
+        !vars(:,17) =qlpmn    (:,iauto)
+        !vars(:,18) =qlpmn    (:,iaccr)
+        !vars(:,19) =qlpmn    (:,ised)
+        !vars(:,20) =qlpmn    (:,ievap)
+        !vars(:,21) =sum(qlpmn(:,2:nrfields),2)
+        vars(:,17) =qrsrc    (:)/(rslabs*tint)
+        vars(:,18) =0.
+        vars(:,19) =qrsed    (:)/(rslabs*tint)
+        vars(:,20) =qrevap   (:)/(rslabs*tint)
+        vars(:,21) =(qrsrc+qrsed+qrevap)/(rslabs*tint)
         vars(:,22) =qtpmn    (:,iauto)
         vars(:,23) =qtpmn    (:,iaccr)
         vars(:,24) =qtpmn    (:,ised)
@@ -599,6 +605,11 @@ subroutine initbulkmicrostat
       end if
 
     end if
+
+    qrsrc = 0.
+    qrsed = 0.
+    qrevap = 0.
+    tint = 0.
 
     cloudcountmn = 0.0
     raincountmn  = 0.0

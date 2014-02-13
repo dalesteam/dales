@@ -32,7 +32,7 @@ module modthermodynamics
 
   implicit none
 !   private
-  public :: thermodynamics,calc_halflev
+  public :: thermodynamics,calc_halflev,icethermo0,avgProfs,diagfld
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)

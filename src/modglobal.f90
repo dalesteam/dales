@@ -124,6 +124,12 @@ save
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or 
 
+      ! sedimentation scheme selection
+      integer,parameter :: sedimPCM=1          ! Piecewise continuous method
+      integer,parameter :: sedimPLM=2          ! Piecewise linear method
+      integer,parameter :: sedimPPM=3          ! Piecewise polynomial method
+      integer           :: sedimMethod=sedimPLM
+
       ! Tabulated saturation relation
       real, dimension(1:2000) :: ttab
       real, dimension(1:2000) :: esatltab

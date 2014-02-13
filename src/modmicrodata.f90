@@ -58,8 +58,9 @@
 
   real, parameter ::  D0_kk = 50e-6      & !<  diameter sep. cloud and prec. in KK00 scheme
                      ,D0_k13 = 80e-6     & !<  diameter sep. cloud and prec. in K13 scheme
-                     ,qcmin = 1.0e-7     & !<  Cloud mixing ratio treshold for calculations
-                     ,qrmin = 1.0e-13    & !<  Rain  mixing ratio treshold for calculations
+                     ,qcmin = 1.0e-5     & !<  Cloud mixing ratio treshold for calculations
+                     ,qlKess = 1.e-3     & !<  Liquid water threshold for the Kessler type autoconversion rate based on the documentation of SAM (used in KK00 scheme)
+                     ,qrmin = 1.0e-8    & !<  Rain  mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD
                      ,eps0 = 1e-20      & !< parameter used to avoid division by zero floating point exceptions
                      ,epscloud= 0.01e-3 &
@@ -84,6 +85,8 @@
                ,Dvcmax = 79.2e-6    & !<  max mean diam. of cw
                ,Dvrmin = Dvcmax     & !<  min mean diam. of pw
                ,Dvrmax = 3000.0e-6  & !<  max mean diam. of pw
+               ,Dvrmaxkk = 400.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
+                                       !<  higher values soon cause problems in combination with the limiter of Nr
 ! NB in table1 in SB2006 komen weer andere getallen voor
 ! NB x_s is 'scheidingsdrop massa' en die mag dus best groter zijn dan bovengrens
 ! xcmax omdat die voor mean droplet mass staat!<  -> in gedachten houden
@@ -118,51 +121,62 @@
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]
 !          ,pirhow = (pi*rhow)/6. & !< used in conversion of mass to diameter
          ,pirhow = 3.14159*rhow/6.        &
-         ,wMaxkk = 0.006*1.0E6*(xrmaxkk/pirhow)**(1./3.)- 0.2 & ! Maximum velocity of rain drops in KK00 scheme (~5.8 m/s)
+!         ,xrmaxkk = Dvrmax**3*pirhow     & !<  max mean mass of pw in KK00 scheme
+         ,wMaxkk = 6000.*Dvrmax- 0.2 & ! Maximum velocity of rain drops in KK00 scheme
          ,Rv = 461.5       & !<  specific gas constant for water vapor
          ,avf = 0.78       & !<  constants in vent. factor fv   (fv = 1. --> av=1,
          ,bvf = 0.308      & !<                                             bv=0 )
          ,nu_a = 1.41e-5   & !<  kin. viscosity of air [m2s-1]
          ,c_Nevap = 0.7    & !<  coeff for evap
-         ,c_evapkk = 0.87  & !<  coeff for evap in KK00 scheme
+         ,c_evapkk = 0.86  & !<  coeff for evap in KK00 scheme
          ,Sc_num = 0.71    &    !<  Schmidt number
          ,a_tvsb = 9.65    & !<  coeff in terminal velocity param
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-  real,allocatable, dimension(:,:,:) :: Nc   !<  cloud droplets number conc.  [#/m^3]
+  !real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets mixing ratio [kg_w/kg_a]
+  real,allocatable, dimension(:,:,:) :: Nc  & !<  cloud droplets number conc.  [#/m^3]
+                                       ,nuc & !<  width parameter of cloud DSD
+                                       ,rhoz  !< slab averaged density in 3 dimensions
 
   real,allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
                              !< prec. liq. water and conc. for sedim. time splitting
-  real,allocatable, dimension(:,:,:) :: sed_qr, & !<  sedimentation rain drops mix. ratio
-                                        sed_Nr, & !<  sedimentation rain drop number conc.
-                                        sedc
+  real,allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
+                                        sed_qr, & !<  sedimentation rain drops mix. ratio
+                                        sed_Nr    !<  sedimentation rain drop number conc.
+  real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
+    ,k_au                     !<  coeff. for autoconversion rate
   real,allocatable, dimension(:,:,:) ::  &
-     Dvr               &      !<  prec water mean diameter
+    exnz               &      !<  3D exner function
+    ,presz             &      !<  3D pressure
+    ,Dvc               &      !<  cloud water mean diameter
+    ,xc                &      !<  mean mass of cloud water droplets
+    ,Dvr               &      !<  prec water mean diameter
     ,xr                &      !<  mean mass of prec. water drops
     ,mur               &      !<  mu parameter in rain gamma distribution
     ,lbdr              &      !<  slope parameter (lambda) in rain gamma distribution
-!    ,au                &      !<  autoconversion rate
-!    ,phi               &      !<  correction function (see SB2001)
+    ,au                &      !<  autoconversion rate
+    ,phi               &      !<  correction function (see SB2001)
     ,tau               &      !<  internal time scale
-!    ,ac                &      !<  accretion rate
-!    ,sc                &      !<  self collection rate
-!    ,br                &      !<  break-up rate
+    ,ac                &      !<  accretion rate
+    ,sc                &      !<  self collection rate
+    ,br                &      !<  break-up rate
     ,evap              &      !<  mass tendency due to rain evap/cond
-    ,Nevap                   !<  concentration tendency due to rain evap/cond
+    ,Nevap             &      !<  concentration tendency due to rain evap/cond
+    ,wfall_qr          &      !<  fall velocity for qr
+    ,wfall_Nr                 !<  fall velocity for Nr
 
   real :: csed                      !<  parameter in cloud water grav. settling formula
 
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
 
-   real,allocatable,dimension(:,:,:) :: Nr,Nrp,qr,qrp
+   real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
    real,allocatable,dimension(:,:,:) :: precep,sed
-   real,allocatable,dimension(:,:,:) :: thlpmcr,qtpmcr
 
   real :: delt
 
-  logical,allocatable,dimension(:,:,:) :: qcmask,qrmask
+  logical ,allocatable,dimension(:,:,:):: qcmask,qrmask
 
 ! Parameters for simple ice microphysics (Grabowski, JAS, 1998)
 ! With extension to graupel class if l_graupel=.true.
@@ -235,5 +249,10 @@
    real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
    real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
+
+   ! Statistics variables
+   real,allocatable,dimension(:) :: qrsrc,qrevap,qrsed
+   real :: psAccum=0.,psAccumLast=0.
+   real :: tint
 
   end module modmicrodata

@@ -72,6 +72,7 @@ contains
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
+    use modtest,           only : inittest
     use modsubgrid,        only : initsubgrid
     use modsubgriddata,    only : ldelta, cf,cn,Rigc,Prandtl,lmason,lsmagorinsky
     use modmpi,            only : comm3d,myid, mpi_integer,mpi_logical,my_real,mpierr, mpi_character
@@ -234,6 +235,7 @@ contains
     call initsubgrid
     call initpois
     call initmicrophysics
+    call inittest
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues
@@ -951,6 +953,7 @@ contains
     use modmpi,            only : exitmpi
     use modboundary,       only : exitboundary
     use modmicrophysics,   only : exitmicrophysics
+    use modtest,           only : exittest
     use modpois,           only : exitpois
     use modtimedep,        only : exittimedep
     use modradiation,      only : exitradiation
@@ -965,6 +968,7 @@ contains
     call exitradiation
     call exitpois
     call exitmicrophysics
+    call exittest
     call exitboundary
     call exitfields
     call exitglobal
