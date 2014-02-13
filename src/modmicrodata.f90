@@ -60,7 +60,7 @@
                      ,D0_k13 = 80e-6     & !<  diameter sep. cloud and prec. in K13 scheme
                      ,qcmin = 1.0e-5     & !<  Cloud mixing ratio treshold for calculations
                      ,qlKess = 1.e-3     & !<  Liquid water threshold for the Kessler type autoconversion rate based on the documentation of SAM (used in KK00 scheme)
-                     ,qrmin = 1.0e-8    & !<  Rain  mixing ratio treshold for calculations
+                     ,qrmin = 1.0e-10   & !<  Rain  mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD
                      ,eps0 = 1e-20      & !< parameter used to avoid division by zero floating point exceptions
                      ,epscloud= 0.01e-3 &
@@ -85,7 +85,7 @@
                ,Dvcmax = 79.2e-6    & !<  max mean diam. of cw
                ,Dvrmin = Dvcmax     & !<  min mean diam. of pw
                ,Dvrmax = 3000.0e-6  & !<  max mean diam. of pw
-               ,Dvrmaxkk = 400.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
+               ,Dvrmaxkk = 2000.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
                                        !<  higher values soon cause problems in combination with the limiter of Nr
 ! NB in table1 in SB2006 komen weer andere getallen voor
 ! NB x_s is 'scheidingsdrop massa' en die mag dus best groter zijn dan bovengrens
