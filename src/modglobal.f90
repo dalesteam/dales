@@ -27,12 +27,13 @@ implicit none
 save
 
       ! Simulation dimensions (parconst.f90)
-      integer :: imax = 64
+      integer :: itot = 64
       integer :: jtot = 64
+      integer :: imax
       integer :: jmax
-      integer :: jsen
       integer :: kmax = 96
       integer :: isen
+      integer :: jsen
       integer ::  i1
       integer ::  j1
       integer ::  k1
@@ -212,7 +213,7 @@ contains
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
-    use modmpi, only : nprocs, myid,comm3d, my_real, mpierr
+    use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
     implicit none
 
     integer :: advarr(4)
@@ -257,8 +258,8 @@ contains
    end if
 
     ! phsgrid
-
-    jmax = jtot/nprocs
+    imax = itot/nprocx 
+    jmax = jtot/nprocy
     isen = imax/nprocs
     jsen = jmax
     i1=imax+1

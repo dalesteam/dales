@@ -54,7 +54,7 @@ contains
 
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,itrestart,&
-                                  nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
+                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
     use modforces,         only : lforce_user
@@ -82,7 +82,7 @@ contains
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author
     namelist/DOMAIN/ &
-        imax,jtot,kmax,&
+        itot,jtot,kmax,&
         xsize,ysize,&
         xlat,xlon,xday,xtime,ksp
     namelist/PHYSICS/ &
@@ -150,7 +150,7 @@ contains
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,comm3d,mpierr)
 
-    call MPI_BCAST(imax       ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(itot       ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(xsize      ,1,MY_REAL   ,0,comm3d,mpierr)
@@ -255,26 +255,26 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps,lhetero
-    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
-    use modmpi,    only : myid, nprocs,mpierr
+    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
+    use modmpi,    only : myid,nprocx,nprocy,mpierr
     use modtimedep, only : ltimedep
 
 
-      if(mod(jtot,nprocs) /= 0) then
+      if(mod(jtot,nprocy) /= 0) then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocs must divide jtot!!! '
-          write(6,*)'nprocs and jtot are: ',nprocs, jtot
+          write(6,*)'nprocy must divide jtot!!! '
+          write(6,*)'nprocy and jtot are: ',nprocy, jtot
         end if
         call MPI_FINALIZE(mpierr)
         stop
       end if
 
-      if(mod(imax,nprocs)/=0)then
+      if(mod(jtot,nprocx)/=0)then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocs must divide imax!!! '
-          write(6,*)'nprocs and imax are: ',nprocs,imax
+          write(6,*)'nprocx must divide imax!!! '
+          write(6,*)'nprocx and imax are: ',nprocx,imax
         end if
         call MPI_FINALIZE(mpierr)
         stop

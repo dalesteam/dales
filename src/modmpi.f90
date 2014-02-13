@@ -41,6 +41,8 @@ save
   integer nbrwest
   integer myid
   integer nprocs
+  integer nprocx
+  integer nprocy
   integer mpierr
   integer my_real
   real    CPU_program    !end time
@@ -52,6 +54,7 @@ contains
   subroutine initmpi
     implicit none
     integer dims(2)
+    integer coords(2)
     logical periods(2)
 
     call MPI_INIT(mpierr)
@@ -89,6 +92,12 @@ contains
 
     call MPI_COMM_RANK( comm3d, myid, mpierr )
 
+! Get the split of nprocs in nprocx and nprocy
+
+    call MPI_CART_GET( comm3d, 2, dims, periods, coords, mpierr )
+
+    nprocx = dims(0)
+    nprocy = dims(1)
 
 ! when applying boundary conditions, we need to know which processors
 ! are neighbours in all 3 directions
@@ -106,6 +115,8 @@ contains
     end if
 
     write(*,*)'nprocs = ', nprocs
+    write(*,*)'myid = ', myid, coords(1), coords(2)
+
   end subroutine initmpi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
