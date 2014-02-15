@@ -85,7 +85,7 @@
                ,Dvcmax = 79.2e-6    & !<  max mean diam. of cw
                ,Dvrmin = Dvcmax     & !<  min mean diam. of pw
                ,Dvrmax = 3000.0e-6  & !<  max mean diam. of pw
-               ,Dvrmaxkk = 2000.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
+               ,Dvrmaxkk = 400.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
                                        !<  higher values soon cause problems in combination with the limiter of Nr
 ! NB in table1 in SB2006 komen weer andere getallen voor
 ! NB x_s is 'scheidingsdrop massa' en die mag dus best groter zijn dan bovengrens
@@ -112,10 +112,10 @@
          ,kappa_r = 60.7 & !<  see eq. 11 SB2006
          ,k_rr = 7.12    & !<  idem dito
 
-         !,Kt    = 2.5e-2  & !<  conductivity of heat [J/(sKm)]; Original DALES 4 value
-         !,Dv    = 2.4e-5   & !<  diffusivity of water vapor [m2/s]; Original DALES 4 value
-         ,Kt    = 1.4e-2  & !<  conductivity of heat [J/(sKm)];     Pruppacher and Klett value (>10 um drops)
-         ,Dv    = 3.0e-5   & !<  diffusivity of water vapor [m2/s]; Pruppacher and Klett value (>10 um drops)
+         ,Kt    = 2.5e-2  & !<  conductivity of heat [J/(sKm)]; Original DALES 4 value
+         ,Dv    = 2.4e-5   & !<  diffusivity of water vapor [m2/s]; Original DALES 4 value
+         !,Kt    = 1.4e-2  & !<  conductivity of heat [J/(sKm)];     Pruppacher and Klett value (>10 um drops)
+         !,Dv    = 3.0e-5   & !<  diffusivity of water vapor [m2/s]; Pruppacher and Klett value (>10 um drops)
 !  NB (see table 7.1 in Rogers: given Kt is for ~15 C while Dv is for > 30 C  2.4e-5
 !  is value for ~ 15C How sensitive is G for this Aug 2006, ~5% -> Dv changed to 15 C value?
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]

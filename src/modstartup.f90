@@ -886,7 +886,7 @@ contains
       call system("ln -sf "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m   .'
+        name  = 'inits   h  m   .'
         write (name(6:8)  ,'(i3.3)') ihour
         write (name(10:11),'(i2.2)') imin
         name(13:15) = cmyid
@@ -905,7 +905,7 @@ contains
       end if
 
       if (isurf == 1) then
-        name  = 'initl  h  m   .'
+        name  = 'initl   h  m   .'
         write (name(6:8)  ,'(i3.3)') ihour
         write (name(10:11),'(i2.2)') imin
         name(13:15) = cmyid

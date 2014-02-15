@@ -145,30 +145,30 @@ module modtest
   
             ! Calculate terminal velocities based on the description by KK00
             ! Note: value limited by the maximum drop diameter Dvrmax
-            wqr(k) = max(0.1  ,6000.*Dvrr - 0.2) ! 1.e-3 should be 0.1 m/s (=6000*D0_kk-0.2)
-            wNr(k) = max(0.075,3500.*Dvrr - 0.1) ! 1.e-3 should be 0.075 m/s (=3500*D0_kk-0.1)
+            wqr(k) = max(0.0,6000.*Dvrr - 0.2) ! 1.e-3 should be 0.1 m/s (=6000*D0_kk-0.2)
+            wNr(k) = max(0.0,3500.*Dvrr - 0.1) ! 1.e-3 should be 0.075 m/s (=3500*D0_kk-0.1)
           end do
 
           ! qr and Nr after sedimentation (qr_sedim and Nr_sedim) are determined
           ! in a separate subroutine
           call advec_rain_sl(wqr,sv0(i,j,:,iqr)*rhof,qr_sedim(:))
-          call advec_rain_sl(wNr,sv0(i,j,:,iNr),Nr_sedim(:))
+          call advec_rain_sl(wNr,sv0(i,j,:,iNr)*rhof,Nr_sedim(:))
 
+          ! Statistics for the output
           qrsed(:) = qrsed(:) + (sv0(i,j,:,iqr)-qr_sedim/rhof(:))
-
           do k=kmax,1,-1
             precep(i,j,k) = precep(i,j,k+1) - (sv0(i,j,k,iqr)*rhof(k)-qr_sedim(k))*dzf(k)/rdt
           end do
 
           sv0(i,j,:,iqr) = qr_sedim(:)/rhof(:)
-          sv0(i,j,:,iNr) = Nr_sedim(:)
+          sv0(i,j,:,iNr) = Nr_sedim(:)/rhof(:)
 
           ! Make sure that the droplet concentration is zero when there is no
           ! rain water.
-          where (sv0(i,j,:,iqr)<=0. .or. sv0(i,j,:,iNr)<=0.)
-            sv0(i,j,:,iqr) = 0.
-            sv0(i,j,:,iNr) = 0.
-          end where
+!          where (sv0(i,j,:,iqr)<=0. .or. sv0(i,j,:,iNr)<=0.)
+!            sv0(i,j,:,iqr) = 0.
+!            sv0(i,j,:,iNr) = 0.
+!          end where
 
         end do; end do
 
@@ -193,24 +193,32 @@ module modtest
     if (rkStep/=rkMaxStep) return
     if (.not. l_rain) return
 
-    qr(:,:,:) = sv0(:,:,:,iqr)
-    Nr(:,:,:) = sv0(:,:,:,iNr)
+!    qr(:,:,:) = sv0(:,:,:,iqr)
+!    Nr(:,:,:) = sv0(:,:,:,iNr)
 
-!    if (any(qr<0.)) write(*,*) 'Negative qr!!'
-    where (qr<0.) qr=0. ! Remove any negative qr that is probably the result of advection
+!    if (any(sv0(i,j,k,iqr)<0.)) then
+    write(*,*) 'sum neg. sv0 = ',-sum(sv0(:,:,:,iqr),sv0(:,:,:,iqr)<0)
+    write(*,*) 'sum qr = ',sum(sv0(:,:,:,iqr))
+    if (-sum(sv0(:,:,:,iqr),sv0(:,:,:,iqr)<0)>sum(sv0(:,:,:,iqr))*1e-4) write(*,*) "WARNING: Too much qr thrown away."
+    where (sv0(:,:,:,iqr)<0.) sv0(:,:,:,iqr)=0. ! Remove any negative qr that is probably the result of advection
+ !   end if
     
     tint = tint+rdt
     do k=1,kmax
       do j=2,j1
         do i=2,i1
+!          if (sv0(i,j,k,iqr)<0.) then
+!            qt0(i,j,k) = qt0(i,j,k) - sv0(i,j,k,iqr)
+!            sv0(i,j,k,:) = 0.
+!          end if
           ! Find out if there is cloud or precipitation
-          if ((ql0(i,j,k)+qr(i,j,k)) > 0.) then
+          if ((ql0(i,j,k)+sv0(i,j,k,iqr)) > 0.) then
             if (ql0(i,j,k) > 0.) then
               ! Do autoconversion and accretion
               qcc = ql0(i,j,k)
               ! Autoconversion and accretion as in Khairoutdinov and Kogan (2000)
               auto = 1350.*qcc**1.47 * (Nc_0/1.e6)**(-1.79)
-              accr =   67.*qcc**0.15 * qr(i,j,k)**1.15
+              accr =   67.*qcc**0.15 * sv0(i,j,k,iqr)**1.15
   
               ! Method implemented by Marat Khairoutdinov in SAM
               qcc  = qcc/(1.+rdt*(auto+accr))
@@ -228,10 +236,10 @@ module modtest
               ! Store the tendency for the statistics
               qrsrc(k) = qrsrc(k) + dq
               
-            elseif (qr(i,j,k)>qrmin .and. ql0(i,j,k)==0.) then
-!              xrr  = rhof(k)*qr(i,j,k)/Nr(i,j,k) ! average mass of a droplet
+            elseif (sv0(i,j,k,iqr)>qrmin .and. ql0(i,j,k)==0.) then
+!              xrr  = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+1e-20) ! average mass of a droplet
 !              xrr  = min(xrr,xrmaxkk) ! to ensure x_pw is within borders
-!              Dvrr = min((xrr/pirhow)**(1./3.),Dvrmax)
+!              Dvrr = min((xrr/pirhow)**(1./3.),Dvrmaxkk)
 
               S = min(0.,qt0(i,j,k)/qvsl(i,j,k)- 1.)
               G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
@@ -240,10 +248,10 @@ module modtest
               ! This term differs by a factor rho_w from the equation used here! This is corrected later
 !              dq = c_evapkk*2*pi*Dvrr*G*S*Nr(i,j,k)/rhof(k) * rdt
               dq = 3.*c_evapkk*G*(4.*pi*rhow/(3.*rhof(k)))**(2./3.) * &
-                      (qr(i,j,k)*Nr(i,j,k)**2)**(1./3.)*S*rdt
+                      (sv0(i,j,k,iqr)*sv0(i,j,k,iNr)**2)**(1./3.)*S*rdt
 
               ! Limit the tendency
-              dq = max(-.5*qr(i,j,k),dq) ! Note: dq.le.0
+              dq = max(-.5*sv0(i,j,k,iqr),dq) ! Note: dq.le.0
               
               ! Apply the tendencies
               sv0(i,j,k,iNr) = sv0(i,j,k,iNr) + dq/sv0(i,j,k,iqr)*sv0(i,j,k,iNr)
@@ -266,16 +274,16 @@ module modtest
             end if
           end if
 
-          if (sv0(i,j,k,iqr)<=0. .or. sv0(i,j,k,iNr)<=0.) then
+          if (sv0(i,j,k,iqr)<0. .or. sv0(i,j,k,iNr)<0.) then
             sv0(i,j,k,:) = 0. ! Remove negative concentrations
           end if
-          if (sv0(i,j,k,iNr)>0.) then
+!          if (sv0(i,j,k,iNr)>0.) then
             ! Set a minimum to the number of rain drops
             ! If you don't, qr will somehow accumulate in the subcloud layer.
 !            sv0(i,j,k,iNr) = max(10.,sv0(i,j,k,iNr)) ! Without this limiter, qr starts to accumulate in the subcloud layer
                                                     ! SAM also has this limiter but uses max(qr*coef,Nr) where coef is unknown
             sv0(i,j,k,iNr) = max(sv0(i,j,k,iqr)*rhof(k)/(pirhow*Dvrmaxkk**3),sv0(i,j,k,iNr))
-          end if
+!          end if
         end do
       end do
     end do
