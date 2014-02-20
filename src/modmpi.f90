@@ -99,8 +99,8 @@ contains
     call MPI_CART_SHIFT( comm3d, 1,  1, nbrsouth, nbrnorth,   mpierr )
 
 ! Setup the row- and column- communicators
-    call MPI_Cart_sub( comm3d, (/.TRUE.,.FALSE./), commrow, ierr )
-    call MPI_Cart_sub( comm3d, (/.FALSE.,.TRUE./), commcol, ierr )
+    call MPI_Cart_sub( comm3d, (/.TRUE.,.FALSE./), commrow, mpierr )
+    call MPI_Cart_sub( comm3d, (/.FALSE.,.TRUE./), commcol, mpierr )
 
 ! Get the processors number in these communicators
     call MPI_COMM_RANK( commrow, myidx, mpierr )
