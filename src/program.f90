@@ -109,7 +109,7 @@ program DALES      !Version 4.0.0alpha
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics,icethermo0,avgProfs,diagfld
   use modmicrophysics,   only : microsources
-  use modtest,           only : inittest,micro_kk00,cloud_sedimentation,rain_sedimentation_sl,exittest
+  use modbulkmicro,      only : bulkmicro
   use modsurface,        only : surface
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
@@ -226,7 +226,7 @@ program DALES      !Version 4.0.0alpha
 
     call lstend !large scale forcings
     call samptend(tend_ls)
-!    call microsources !Drizzle etc.
+    call microsources !Drizzle etc. (not bulkmicro schemes)
     call samptend(tend_micro)
 
 !------------------------------------------------------
@@ -255,30 +255,16 @@ program DALES      !Version 4.0.0alpha
 !-----------------------------------------------------
     call thermodynamics
 
-    ! ============================================== !
-    ! Do microphysics after the timestep integration
-    ! ============================================== !
-    if (rkStep==rkMaxStep) then
-      call cloud_sedimentation
-      ! Determine the new ql values and the slabaverages
-      call icethermo0
-      call diagfld
-      
-      ! Now do the remaining microphysics
-      call micro_kk00
-      ! No additional thermo is required to do rain sedimentation, as ql is not
-      ! used
-      call rain_sedimentation_sl
+!-----------------------------------------------------
+!   3.7  DO MICRO AFTER RK LOOP
+!------------------------------------------------------
+    call bulkmicro
 
-      ! Do thermo again to account for additional changes by micro
-      call avgProfs
-      call thermodynamics
-    end if
     !  ========================================== !
 
     call leibniztend
 !-----------------------------------------------------
-!   3.7  WRITE RESTARTFILES AND DO STATISTICS
+!   3.8  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
     call twostep
     !call coldedge

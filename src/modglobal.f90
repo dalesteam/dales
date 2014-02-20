@@ -128,7 +128,7 @@ save
       integer,parameter :: sedimPCM=1          ! Piecewise continuous method
       integer,parameter :: sedimPLM=2          ! Piecewise linear method
       integer,parameter :: sedimPPM=3          ! Piecewise polynomial method
-      integer           :: sedimMethod=sedimPLM
+      integer           :: sedimMethod=sedimPCM
 
       ! Tabulated saturation relation
       real, dimension(1:2000) :: ttab

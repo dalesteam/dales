@@ -115,8 +115,8 @@ contains
     sv0(i1+m,:,:,:) = sv0(1+m,:,:,:)
   end do
 
-  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( thl0, 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( qt0 , 2,i1,2,j1,1,k1,ih,jh)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)

@@ -87,6 +87,8 @@
                ,Dvrmax = 3000.0e-6  & !<  max mean diam. of pw
                ,Dvrmaxkk = 400.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
                                        !<  higher values soon cause problems in combination with the limiter of Nr
+               ,Dvrmaxk13 = 600.0e-6  & !<  max mean diam. of pw KK00 scheme, based on implementation in SAM
+                                       !<  higher values soon cause problems in combination with the limiter of Nr
 ! NB in table1 in SB2006 komen weer andere getallen voor
 ! NB x_s is 'scheidingsdrop massa' en die mag dus best groter zijn dan bovengrens
 ! xcmax omdat die voor mean droplet mass staat!<  -> in gedachten houden
@@ -139,6 +141,7 @@
                                        ,nuc & !<  width parameter of cloud DSD
                                        ,rhoz  !< slab averaged density in 3 dimensions
 
+  real,allocatable, dimension(:)     :: qr_sedim,Nr_sedim,wqr,wNr ! Semi-Lagrangian rain drop sedimentation
   real,allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
                              !< prec. liq. water and conc. for sedim. time splitting
   real,allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio

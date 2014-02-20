@@ -39,7 +39,6 @@ contains
   subroutine initmicrophysics
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_integer,mpi_logical
     use modglobal,only :ifnamopt,fname_options,iTimeInt,iTimeWicker
-    use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     implicit none
     integer :: ierr
@@ -74,17 +73,9 @@ contains
     call MPI_BCAST(sig_g,    1, MY_REAL     ,0,comm3d,ierr)
     call MPI_BCAST(sig_gr,   1, MY_REAL     ,0,comm3d,ierr)
 
-!    if (imicro/=0 .and. iTimeInt/=iTimeWicker) then
-!      print *,"NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
-!      print *,"NAMMICRO: Use iTimeInt=1 for imicro/=0"
-!      stop "NAMMICRO: You are trying to use a time integration scheme that is not compatible with modmicrophysics."
-!    end if   
-
     select case (imicro)
     case(imicro_none)
     case(imicro_drizzle)
-    case(imicro_bulk)
-      call initbulkmicro
     case(imicro_bin)
 !       call initbinmicro
     case(imicro_sice)
@@ -95,14 +86,11 @@ contains
 
   subroutine microphysics
 !     module currently obsolete
-!     use modbulkmicro, only : bulkmicro
 !     use modbinmicro,  only : binmicro
     implicit none
     select case (imicro)
     case(imicro_none)
     case(imicro_drizzle)
-    case(imicro_bulk)
-!       call bulkmicro
     case(imicro_bin)
 !       call binmicro
     case(imicro_user)
@@ -111,7 +99,6 @@ contains
 
   subroutine microsources
    use moduser,      only : micro_user
-   use modbulkmicro, only : bulkmicro
    use modsimpleice, only : simpleice
 !     use modbinmicro,  only : binmicrosources
     implicit none
@@ -120,8 +107,6 @@ contains
     case(imicro_none)
     case(imicro_drizzle)
       call drizzle
-    case(imicro_bulk)
-      call bulkmicro
     case(imicro_bin)
 !       call binmicrosources
     case(imicro_sice)
@@ -133,7 +118,6 @@ contains
   end subroutine microsources
 
   subroutine exitmicrophysics
-    use modbulkmicro, only : exitbulkmicro
     use modsimpleice, only : exitsimpleice
  !     use modbinmicro,  only : exitbinmicro
     implicit none
@@ -141,8 +125,6 @@ contains
      select case (imicro)
      case(imicro_none)
      case(imicro_drizzle)
-     case(imicro_bulk)
-!       call exitbulkmicro
      case(imicro_bin)
 !       call exitbinmicro
      case(imicro_user)
