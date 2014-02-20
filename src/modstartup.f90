@@ -270,11 +270,11 @@ contains
         stop
       end if
 
-      if(mod(jtot,nprocx)/=0)then
+      if(mod(itot,nprocx)/=0)then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocx must divide imax!!! '
-          write(6,*)'nprocx and imax are: ',nprocx,imax
+          write(6,*)'nprocx must divide itot!!! '
+          write(6,*)'nprocx and itot are: ',nprocx,itot
         end if
         call MPI_FINALIZE(mpierr)
         stop
@@ -963,38 +963,36 @@ contains
  end subroutine exitmodules
 !----------------------------------------------------------------
   subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
+    ! Adds (pseudo) random noise with given amplitude to the field at level k
+    ! Use our own pseudo random function so results are reproducibly the same,
+    ! independent of parallization.
 
-    use modmpi,    only :  myid,nprocs
-    use modglobal, only : i1,imax,jmax,j1,k1
+    use modmpi,    only : myidx, myidy
+    use modglobal, only : itot,jtot,i1,j1,k1
     integer (KIND=selected_int_kind(6)):: imm, ia, ic,ir
     integer ihl, jhl
     integer i,j,klev
+    integer is,ie,js,je
     integer m,mfac
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
 
-    if (myid>0) then
-      mfac = myid * jmax * imax
-      do m =1,mfac
-        ir=mod((ir)*ia+ic,imm)
+    is = (myidx - 1) * imax + 1
+    ie = is + imax
 
-      end do
-    end if
-    do j=2,j1
-    do i=2,i1
-      ir=mod((ir)*ia+ic,imm)
-      ran=real(ir)/real(imm)
-      field(i,j,klev) = field(i,j,klev) + (ran-0.5)*2.0*ampl
-    end do
-    end do
+    js = (myidy - 1) * jmax + 1
+    je = js + jmax
 
-    if (nprocs-1-myid > 0) then
-      mfac = (nprocs-1-myid) * imax * jmax
-      do m=1,mfac
+    do j=2,jtot+1
+    do i=2,itot+1
         ir=mod((ir)*ia+ic,imm)
-      end do
-    end if
+        if i > is .and. i <= ie .and. &
+           j > js .and. j <= je then
+            field(i-is+1,j-js+1,klev) = field(i-is+1,j-js+1,klev) + (ran-0.5)*2.0*ampl
+        endif
+    enddo
+    enddo
 
     return
   end subroutine randomnize

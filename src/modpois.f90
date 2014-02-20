@@ -477,7 +477,7 @@ contains
 !       ptrans(1:imax    etc
 
 
-  use modglobal, only : imax,imax,jmax,jmax,jtot,kmax
+  use modglobal, only : imax,jmax,itot,jtot,kmax
   use modmpi,    only : comm3d,mpierr,my_real,nprocs, barrou
 
   implicit none
@@ -518,8 +518,8 @@ contains
     ii = 0
 !     call barrou()
     call MPI_ALLTOALL(bufin,   (imax*jmax*kmax),MY_REAL, &
-                          bufout,(imax*jmax*kmax),MY_REAL, &
-                          comm3d,mpierr)
+                      bufout,  (imax*jmax*kmax),MY_REAL, &
+                      comm3d,mpierr)
 !     call barrou()
     ii = 0
     do proc = 0,nprocs-1

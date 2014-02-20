@@ -34,12 +34,13 @@ module modmpi
 use mpi
 implicit none
 save
-  integer comm3d
+  integer comm3d, commrow, commcol
   integer nbrnorth
   integer nbrsouth
   integer nbreast
   integer nbrwest
   integer myid
+  integer myidx, myidy
   integer nprocs
   integer nprocx
   integer nprocy
@@ -66,11 +67,6 @@ contains
 ! specifying a 0 means that MPI will try to find a useful # procs in
 ! the corresponding  direction,
 
-! specifying 1 means only 1 processor in this direction, meaning that
-! we have in fact a grid of (at most) 2 dimensions left. This is used
-! when we want the array index range in 1 particular direction to be
-! present on all processors in the grid
-
     dims(1) = 0
     dims(2) = 0
 
@@ -83,6 +79,9 @@ contains
 
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
 
+    nprocx = dims(0)
+    nprocy = dims(1)
+
 ! create the Cartesian communicator, denoted by the integer comm3d
 
     call MPI_CART_CREATE(MPI_COMM_WORLD, 2, dims, periods, .true., &
@@ -92,19 +91,20 @@ contains
 
     call MPI_COMM_RANK( comm3d, myid, mpierr )
 
-! Get the split of nprocs in nprocx and nprocy
-
-    call MPI_CART_GET( comm3d, 2, dims, periods, coords, mpierr )
-
-    nprocx = dims(0)
-    nprocy = dims(1)
-
 ! when applying boundary conditions, we need to know which processors
 ! are neighbours in all 3 directions
 ! these are determined with the aid of the MPI routine MPI_CART_SHIFT,
 
     call MPI_CART_SHIFT( comm3d, 0,  1, nbrwest,  nbreast ,   mpierr )
     call MPI_CART_SHIFT( comm3d, 1,  1, nbrsouth, nbrnorth,   mpierr )
+
+! Setup the row- and column- communicators
+    call MPI_Cart_sub( comm3d, (/.TRUE.,.FALSE./), commrow, ierr )
+    call MPI_Cart_sub( comm3d, (/.FALSE.,.TRUE./), commcol, ierr )
+
+! Get the processors number in these communicators
+    call MPI_COMM_RANK( commrow, myidx, mpierr )
+    call MPI_COMM_RANK( commcol, myidy, mpierr )
 
 ! determine some useful MPI datatypes for sending/receiving data
 
