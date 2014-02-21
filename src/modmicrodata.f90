@@ -78,7 +78,7 @@
 !                     ,Dvrmax = 1000.0e-6    & !<  max mean diam. of pw
 !  values given by SB2001
               ,xcmin = 4.2e-15     & !< \param xcmin  min mean mass of cw (D = 2.0e-6m)
-              ,xcmax = 2.6e-10     & !<  max mean mass of cw (D = 80e-6m)
+              ,xcmax = 2.6e-10     & !<  max mean mass of cw (D = 80e-6m) (see SB01 art)
               ,xrmin = xcmax       & !<  min mean mass of pw
 !               ,xrmax = 6.0e-07      & !<  max mean mass of pw
                ,Dvcmin = 2.0e-6     & !<  min mean diam. of cw
@@ -150,24 +150,24 @@
   real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
     ,k_au                     !<  coeff. for autoconversion rate
   real,allocatable, dimension(:,:,:) ::  &
-    exnz               &      !<  3D exner function
-    ,presz             &      !<  3D pressure
-    ,Dvc               &      !<  cloud water mean diameter
-    ,xc                &      !<  mean mass of cloud water droplets
-    ,Dvr               &      !<  prec water mean diameter
-    ,xr                &      !<  mean mass of prec. water drops
-    ,mur               &      !<  mu parameter in rain gamma distribution
-    ,lbdr              &      !<  slope parameter (lambda) in rain gamma distribution
-    ,au                &      !<  autoconversion rate
-    ,phi               &      !<  correction function (see SB2001)
-    ,tau               &      !<  internal time scale
-    ,ac                &      !<  accretion rate
-    ,sc                &      !<  self collection rate
-    ,br                &      !<  break-up rate
-    ,evap              &      !<  mass tendency due to rain evap/cond
-    ,Nevap             &      !<  concentration tendency due to rain evap/cond
-    ,wfall_qr          &      !<  fall velocity for qr
-    ,wfall_Nr                 !<  fall velocity for Nr
+!    exnz               &      !<  3D exner function
+!    ,presz             &      !<  3D pressure
+    Dvc               &      !<  cloud water mean diameter
+!    ,xc                &      !<  mean mass of cloud water droplets
+    ,Dvr                      !<  prec water mean diameter
+!    ,xr                &      !<  mean mass of prec. water drops
+!    ,mur               &      !<  mu parameter in rain gamma distribution
+!    ,lbdr              &      !<  slope parameter (lambda) in rain gamma distribution
+!    ,au                &      !<  autoconversion rate
+!    ,phi               &      !<  correction function (see SB2001)
+!    ,tau               &      !<  internal time scale
+!    ,ac                &      !<  accretion rate
+!    ,sc                &      !<  self collection rate
+!    ,br                &      !<  break-up rate
+!    ,evap              &      !<  mass tendency due to rain evap/cond
+!    ,Nevap             &      !<  concentration tendency due to rain evap/cond
+!    ,wfall_qr          &      !<  fall velocity for qr
+!    ,wfall_Nr                 !<  fall velocity for Nr
 
   real :: csed                      !<  parameter in cloud water grav. settling formula
 

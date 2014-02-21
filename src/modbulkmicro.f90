@@ -37,6 +37,9 @@
 module modbulkmicro
   use modmicrodata
   implicit none
+  real :: gamma25
+  real :: gamma3
+  real :: gamma35
 
   contains
 
@@ -48,35 +51,45 @@ module modbulkmicro
 
     if (imicro==0) then
       l_rain=.false.
-      l_sedc=.false.
-      return
-    end if
-
-    if (ibulk==0) then ! ibulk has not been set
-      print *, "MODBULKMICRO: The use of l_sb is deprecated. Instead use ibulk={1,2,3} to select bulk micro model"
-      if (l_sb) then
-        print *, "MODBULKMICRO: set ibulk=1 (Seifert and Beheng 2001)"
-        ibulk = ibulk_sb01
-      else ! l_sb = .false.
-        print *, "MODBULKMICRO: set ibulk=3 (Kogan 2013)"
-        ibulk = ibulk_k13
+    elseif (imicro==2) then
+      if (ibulk==0) then ! ibulk has not been set
+        print *, "MODBULKMICRO: The use of l_sb is deprecated. Instead use ibulk={1,2,3} to select bulk micro model"
+        if (l_sb) then
+          print *, "MODBULKMICRO: set ibulk=1 (Seifert and Beheng 2001)"
+          ibulk = ibulk_sb01
+        else ! l_sb = .false.
+          print *, "MODBULKMICRO: set ibulk=3 (Kogan 2013)"
+          ibulk = ibulk_k13
+        end if
+      elseif (ibulk<0 .or. ibulk>3 .or. ibulk==ibulk_sb01) then
+        print *, "MODBULKMICRO: invalid bulk microphysics scheme selected."
+        print *, "MODBULKMICRO: use ibulk\in{1,2,3}."
       end if
-    elseif (ibulk<0 .or. ibulk>3 .or. ibulk==ibulk_sb01) then
-      print *, "MODBULKMICRO: invalid bulk microphysics scheme selected."
-      print *, "MODBULKMICRO: use ibulk\in{1,2,3}."
     end if
 
-    allocate(Dvr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sedc(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(precep(2-ih:i1+ih,2-jh:j1+jh,k1))
-    Dvr=0.; sedc=0.; precep=0.
+    if (l_sedc) then
+      allocate(sedc(2-ih:i1+ih,2-jh:j1+jh,k1))
+      sedc=0. 
+    end if
 
-    allocate(qr_sedim(k1),Nr_sedim(k1))
-    allocate(wqr(k1),wNr(k1))
-    wqr=0.; wNr=0.
+    if (l_rain) then
+      allocate( Dvr   (2-ih:i1+ih,2-jh:j1+jh,k1), &
+                precep(2-ih:i1+ih,2-jh:j1+jh,k1))
+      allocate( qr_sedim(k1), &
+                Nr_sedim(k1), &
+                wqr(k1)     , &
+                wNr(k1)     )
+      allocate( qrevap(k1), &
+                qrsed(k1) , &
+                qrsrc(k1) )
+      Dvr=0.; precep=0.
+      wqr=0.; wNr=0.
+      qrevap=0.; qrsed=0.; qrsrc=0.
+    end if
 
-    allocate(qrevap(k1), qrsed(k1), qrsrc(k1))
-    qrevap=0.; qrsed=0.; qrsrc=0.
+    gamma25=lacz_gamma(2.5)
+    gamma3=2.
+    gamma35=lacz_gamma(3.5)
    
   end subroutine initbulkmicro
 
@@ -98,7 +111,7 @@ module modbulkmicro
     implicit none
     ! Microphysics is no longer part inside the RK loop, but only performed at
     ! the end of a full timestep, after updating the profiles.
-    if (.not. imicro==imicro_bulk .or. rkStep /= rkMaxStep) return
+    if (rkStep /= rkMaxStep) return
     
     ! Do cloud droplet sedimentation
     if (l_sedc) call cloud_sedimentation
@@ -118,6 +131,7 @@ module modbulkmicro
         case (ibulk_kk00)! Khairoutdinov and Kogan (2000) microphysics
           call micro_kk00
         case (ibulk_sb01)! Seifert and Beheng (2001) microphysics
+          call micro_sb01
         case (ibulk_k13) ! Kogan (2013) microphysics
           call micro_k13
       end select
@@ -125,10 +139,10 @@ module modbulkmicro
       ! sv0 fields are updated inside the respective microphysics subroutines, so
       ! no thermo is required before doing rain droplet sedimentation
       call rain_sedimentation_sl
-
-      call boundary       ! Apply new boundary conditions and determine averaged profiles
-      call thermodynamics ! Do thermo again to account for additional changes by micro
     end if
+
+    call boundary       ! Apply new boundary conditions and determine averaged profiles
+    call thermodynamics ! Do thermo again to account for additional changes by micro
     
     ! Depending on the time integration method, the previous fields have
     ! to be set equal to the new fields.
@@ -174,7 +188,7 @@ module modbulkmicro
     implicit none
 !    real, dimension(1:k1)           :: qr_sedim,Nr_sedim  ! Variables after sedimentation
 !    real, dimension(1:k1)           :: wqr,wNr            ! Sedimentation velocities
-    real    :: dummy,xrr,Dvrr
+    real    :: dummy,xr,Dvrr,lbdr,mur
     integer :: i,j,k,kk
 
     Dvr(:,:,:)=0.
@@ -185,20 +199,37 @@ module modbulkmicro
       !=========== Seifert and Beheng (2001) sedimentation velocities ====================!
       !===================================================================================!
         if (l_lognormal) then
+          print *,'ERROR: set l_lognormal to false.' 
           stop 'STOP: Rain sedimentation for this set of parameters not implemented.'
-        else
+        else ! l_lognormal=.false.
           do j=2,j1; do i=2,i1
             wqr(:)=0.; wNr(:)=0.
             do k=1,kmax
-              if (sv0(i,j,k,iqr) > qrmin) then
-                wqr(k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
-                wNr(k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
-              endif
+              xr = rhof(k)*sv0(i,j,k,iqr)/(sv0(i,j,k,iNr)+1e-8)
+              xr = max(xrmin,min(xrmax,xr))
+              Dvrr = (xr/pirhow)**(1./3.) ! Mean volume diameter
+              if (l_mur_cst) then
+                mur = mur_cst
+              else
+                mur = min(30.,-1. + 0.008/(sv0(i,j,k,iqr)*rhof(k))**0.6)  ! G09b
+              end if
+              lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvrr
+
+              wqr(k) = max(0.,a_tvsb-(b_tvsb*(1.+c_tvsb/lbdr))**(-(mur+4.)))
+              wNr(k) = max(0.,a_tvsb-(b_tvsb*(1.+c_tvsb/lbdr))**(-(mur+1.)))
             end do
             ! qr and Nr after sedimentation (qr_sedim and Nr_sedim) are determined
             ! in a separate subroutine
             call advec_rain_sl(wqr,sv0(i,j,:,iqr)*rhof,qr_sedim(:))
             call advec_rain_sl(wNr,sv0(i,j,:,iNr)*rhof,Nr_sedim(:))
+
+            ! Statistics for the output
+            qrsed(:) = qrsed(:) + (sv0(i,j,:,iqr)-qr_sedim/rhof(:))
+            ! NOTE: Statistics assume downward flux of precipitation > 0., hence the '+' sign
+            do k=kmax,1,-1
+              precep(i,j,k) = precep(i,j,k+1) + (sv0(i,j,k,iqr)*rhof(k)-qr_sedim(k))*dzf(k)/rdt
+            end do
+
             sv0(i,j,:,iqr) = qr_sedim(:)/rhof(:)
             sv0(i,j,:,iNr) = Nr_sedim(:)/rhof(:)
           end do; end do
@@ -216,16 +247,16 @@ module modbulkmicro
 
           ! First, the terminal velocity is calculated.
           do k=1,kmax
-            xrr  = rhof(k)*sv0(i,j,k,iqr)/(sv0(i,j,k,iNr)+1e-8) ! average mass of a droplet
+            xr  = rhof(k)*sv0(i,j,k,iqr)/(sv0(i,j,k,iNr)+1e-8) ! average mass of a droplet
   
             ! Calculate terminal velocities based on the description by KK00
             ! Note: value limited by the maximum drop diameter Dvrmax
             if (ibulk==ibulk_kk00) then
-              Dvrr   = min((xrr/pirhow)**(1./3.),Dvrmaxkk) ! Ensure that the droplets don't become too large, max 3mm arbitrarily chosen
+              Dvrr   = min((xr/pirhow)**(1./3.),Dvrmaxkk) ! Ensure that the droplets don't become too large, max 3mm arbitrarily chosen
               wqr(k) = max(0.1  ,6000.*Dvrr - 0.2) ! minimum of 0.1 m/s (=6000*D0_kk-0.2)
               wNr(k) = max(0.075,3500.*Dvrr - 0.1) ! minimum of 0.075 m/s (=3500*D0_kk-0.1)
             else
-              Dvrr   = min((xrr/pirhow)**(1./3.),Dvrmaxk13) ! Ensure that the droplets don't become too large, max 3mm arbitrarily chosen
+              Dvrr   = min((xr/pirhow)**(1./3.),Dvrmaxk13) ! Ensure that the droplets don't become too large, max 3mm arbitrarily chosen
               wqr(k) = max(0.34,12000.*Dvrr - 0.62  )
               wNr(k) = max(0.2 , 1925.*Dvrr + 0.0576)
             end if
@@ -251,6 +282,116 @@ module modbulkmicro
     end select ! bulkmicroscheme
 
   end subroutine rain_sedimentation_sl
+
+  subroutine micro_sb01
+    use modglobal, only : i1,j1,kmax,k1,rdt,rlv,cp,pi,rdt, &
+                          mygamma251,mygamma21
+    use modfields, only : sv0,ql0,thl0,qt0,qvsl,tmp0,esl,rhof,exnf
+    implicit none
+    real :: auto,accr,k_auto,xc,xr,Dvrr,lbdr,mur,tau,phi,nuc,dq,F,S,G
+    integer :: numel
+    integer :: i,j,k
+
+    where (sv0(:,:,:,iqr)<0.) sv0(:,:,:,iqr)=0. ! Remove any negative qr that is probably the result of advection
+    tint = tint + rdt
+    do k=1,kmax
+      do j=2,j1
+        do i=2,i1
+          if ((ql0(i,j,k)+sv0(i,j,k,iqr)) > 0.) then
+            ! ==========================================================================
+            ! ============== Autoconversion and accretion ==============================
+            ! ==========================================================================
+            if (ql0(i,j,k)>0.) then
+              !== Autoconversion
+              k_au = k_c/(20.*x_s)
+              nuc  = 1.58*(rhof(k)*ql0(i,j,k)*1000.)+0.72-1. !G09a
+              xc   = rhof(k)*ql0(i,j,k)/Nc_0  ! Average cloud droplet mass
+              auto = k_au*(nuc+2.)*(nuc+4.)/(nuc+1.)**2    &
+                      *(ql0(i,j,k)*xc)**2 * 1.225 ! *rho**2/rho/rho (= 1)
+
+              tau  = 1.0 - ql0(i,j,k)/(ql0(i,j,k)+sv0(i,j,k,iqr))
+              phi  = k_1*tau**k_2 *(1.-tau**k_2)**3
+              auto = auto*(1. + phi/(1. -tau)**2)
+
+              !== Accretion
+              phi  = (tau/(tau + k_l))**4
+              accr = k_r*rhof(k)*ql0(i,j,k)*sv0(i,j,k,iqr)*phi* &
+                               (1.225/rhof(k))**0.5
+
+              ! Limit the tendency so no negative concentrations are produced
+              dq = min( ql0(i,j,k), rdt*(auto+accr) )
+
+              ! Apply the tendencies
+              sv0(i,j,k,iqr) = sv0(i,j,k,iqr) + dq
+              sv0(i,j,k,iNr) = sv0(i,j,k,iNr) + max(0.,dq-rdt*accr)/x_s
+              qt0(i,j,k)     = qt0(i,j,k) - dq
+              thl0(i,j,k)    = thl0(i,j,k) + (rlv/(cp*exnf(k)))*dq
+
+              ! Store the tendency for the statistics
+              qrsrc(k) = qrsrc(k) + dq
+            elseif (sv0(i,j,k,iqr)>qrmin) then
+            ! ==========================================================================
+            ! ============== Selfcollection and breakup ================================
+            ! ==========================================================================
+
+              if (ql0(i,j,k)==0.) then
+            ! ==========================================================================
+            ! ============== Evaporation of prec. : Seifert (2008) =====================
+            ! ==========================================================================
+                xr = rhof(k)*sv0(i,j,k,iqr)/sv0(i,j,k,iNr)
+                xr = max(xrmin,min(xrmax,xr))
+                Dvrr = (xr/pirhow)**(1./3.) ! Mean volume diameter
+                if (l_mur_cst) then
+                  mur = mur_cst
+                else
+                  mur = min(30.,-1. + 0.008/(sv0(i,j,k,iqr)*rhof(k))**0.6)  ! G09b
+                end if
+                lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvrr
+
+                numel=nint(mur*100.)
+                F = avf * mygamma21(numel)*Dvrr +  &
+                   bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvrr**(3./2.)* &
+                   (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr/(   c_tvsb+lbdr))**(mur+2.5)   &
+                      -(1./8.)  *(b_tvsb/a_tvsb)**2 *(lbdr/(2.*c_tvsb+lbdr))**(mur+2.5)   &
+                      -(1./16.) *(b_tvsb/a_tvsb)**3 *(lbdr/(3.*c_tvsb+lbdr))**(mur+2.5)   &
+                      -(5./128.)*(b_tvsb/a_tvsb)**4 *(lbdr/(4.*c_tvsb+lbdr))**(mur+2.5)   )
+                ! Supersaturation (<0)
+                S = min(0.,qt0(i,j,k)/qvsl(i,j,k)- 1.)
+                G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+                G = G**(-1)/rhow ! NOTE: [G]=kg/m-1 s-1
+
+                ! This equation is similar to Eq. (21) of Seifert (2008) but not identical. Where does it come from?
+                dq = 2*pi*rhow/rhof(k)*sv0(i,j,k,iNr)*G*F*S 
+                ! Limit the tendency
+                dq = max(-.5*sv0(i,j,k,iqr),rdt*dq) ! Note: dq.le.0
+
+                ! Apply the tendencies
+                sv0(i,j,k,iNr) = sv0(i,j,k,iNr) + dq*c_Nevap*rhof(k)/xr
+                sv0(i,j,k,iqr) = sv0(i,j,k,iqr) + dq
+                qt0(i,j,k)     = qt0(i,j,k) - dq
+                thl0(i,j,k)    = thl0(i,j,k) + (rlv/(cp*exnf(k)))*dq
+                ! Store the tendency for the statistics
+                qrevap(k) = qrevap(k) + dq
+              end if
+            ! ==========================================================================
+            ! ==================== Remove tiny amount of qr ============================
+            ! ==========================================================================
+            else
+              ! Evaporate the small amount of precip water immediately
+              qt0(i,j,k) = qt0(i,j,k) + sv0(i,j,k,iqr)
+              thl0(i,j,k) = thl0(i,j,k) - (rlv/(cp*exnf(k)))*sv0(i,j,k,iqr)
+
+              ! Store the tendency for the statistics
+              qrevap(k) = qrevap(k) - sv0(i,j,k,iqr)
+
+              sv0(i,j,k,iqr) = 0.
+              sv0(i,j,k,iNr) = 0.
+            end if
+          end if
+        end do
+      end do
+    end do
+  end subroutine micro_sb01
 
   subroutine micro_kk00
     use modglobal, only : i1,j1,kmax,k1,rdt,Rv,Rd,rlv,cp,pi,rkStep,rkMaxStep
