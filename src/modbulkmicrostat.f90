@@ -34,7 +34,7 @@ module modbulkmicrostat
 
 implicit none
 private
-PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
+PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat,bulkmicrotend,lmicrostat
 save
 !NetCDF variables
   integer,parameter :: nvar = 27
@@ -100,17 +100,18 @@ contains
 subroutine initbulkmicrostat
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
-              dtav_glob, timeav_glob, ladaptive, k1,kmax, dtmax,btime,tres
+              dtav_glob, timeav_glob, ladaptive, k1,kmax, dtmax,btime,tres,&
+                           i1,j1,k1,ih,jh
     use modstat_nc, only : lnetcdf, open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
-    use modmicrodata,only: imicro, imicro_bulk
+    use modmicrodata,only: imicro, imicro_bulk,Dvr,precep,qrevap,qrsed,qrsrc,l_rain
     implicit none
     integer      :: ierr
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
 
-    if (imicro /=imicro_bulk) return
+    !if (imicro /=imicro_bulk) return
 
     dtav  = dtav_glob
     timeav  = timeav_glob
@@ -135,6 +136,16 @@ subroutine initbulkmicrostat
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
     nsamples = itimeav/idtav
+
+    if (l_rain .or. lmicrostat) then
+      allocate( Dvr   (2-ih:i1+ih,2-jh:j1+jh,k1), &
+                precep(2-ih:i1+ih,2-jh:j1+jh,k1))
+      allocate( qrevap(k1), &
+                qrsed(k1) , &
+                qrsrc(k1) )
+      Dvr=0.; precep=0.
+      qrevap=0.; qrsed=0.; qrsrc=0.
+    end if
     
     if (.not. lmicrostat) return
     if (abs(timeav/dtav - nsamples) > 1e-4) then

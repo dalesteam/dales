@@ -47,6 +47,7 @@ module modbulkmicro
   ! Called from program
   subroutine initbulkmicro
     use modglobal, only : k1,ih,i1,jh,j1
+    use modbulkmicrostat, only : lmicrostat
     implicit none
 
     if (imicro==0) then
@@ -72,19 +73,12 @@ module modbulkmicro
       sedc=0. 
     end if
 
-    if (l_rain) then
-      allocate( Dvr   (2-ih:i1+ih,2-jh:j1+jh,k1), &
-                precep(2-ih:i1+ih,2-jh:j1+jh,k1))
+    if (l_rain .or. lmicrostat) then
       allocate( qr_sedim(k1), &
                 Nr_sedim(k1), &
                 wqr(k1)     , &
                 wNr(k1)     )
-      allocate( qrevap(k1), &
-                qrsed(k1) , &
-                qrsrc(k1) )
-      Dvr=0.; precep=0.
       wqr=0.; wNr=0.
-      qrevap=0.; qrsed=0.; qrsrc=0.
     end if
 
     gamma25=lacz_gamma(2.5)
@@ -163,15 +157,15 @@ module modbulkmicro
     sedc = 0.
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2)
 
-    do k=1,kmax
+    do k=kmax,1,-1
       do j=2,j1
         do i=2,i1
           if (ql0(i,j,k)>0.) then
             sedc(i,j,k) = csed*(Nc_0)**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
 
-            qt0(i,j,k)  = qt0(i,j,k)  + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))*rdt
-            thl0(i,j,k) = thl0(i,j,k) - (rlv/(cp*exnf(k))) &
-                            *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))*rdt
+            qt0(i,j,k)  = qt0(i,j,k)  + rdt*(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
+            thl0(i,j,k) = thl0(i,j,k) - rdt*(rlv/(cp*exnf(k))) &
+                            *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
           endif
         end do
       end do
@@ -501,7 +495,7 @@ module modbulkmicro
     implicit none
 
     integer :: i,j,k
-    real :: qcc,dq,auto,accr,S,G,rvr,rgeo
+    real :: qcc,dq,auto,accr,S,G,rvr,rgeo,scol
 
     where (sv0(:,:,:,iqr)<0.) sv0(:,:,:,iqr)=0. ! Remove any negative qr that is probably the result of advection
     
@@ -531,38 +525,40 @@ module modbulkmicro
               ! Store the tendency for the statistics
               qrsrc(k) = qrsrc(k) + dq
               
+            elseif (sv0(i,j,k,iqr)>qrmin) then
+            ! ==========================================================================
+            ! ==================== Self-collection =====================================
+            ! ==========================================================================
+              scol = 205.*sv0(i,j,k,iqr)**(1.55)*max(0.,sv0(i,j,k,iNr))**0.60
+              ! limit self collection, as it should never result in Nr=0.
+            !  scol = max(.5*sv0(i,j,k,iNr), rdt*scol)
+
             ! ==========================================================================
             ! ==================== Evaporation =========================================
             ! ==========================================================================
-            elseif (sv0(i,j,k,iqr)>qrmin .and. ql0(i,j,k)==0.) then
-              ! Mean volume radius
-!              rvr = min(max((4.*pi*rhow/3./rhof(k))**(-1./3.)* &
-!                     sv0(i,j,k,iqr)** (1./3.)* &
-!                     max(sv0(i,j,k,iNr),1.e-3)**(-1./3.),D0_k13/2.),Dvrmaxk13/2.)
-              rvr = min(Dvrmaxk13/2., &
-                     max(D0_k13/2., &
-                      (3.*rhof(k)*sv0(i,j,k,iqr)/(4.*pi*rhow*max(sv0(i,j,k,iNr),1e-3)))**(1./3.)))
-              ! Mean geometric radius
-              rgeo = .45*rvr + 23.e-6
+              dq=0.
+              if (ql0(i,j,k)==0.) then
+                ! Mean volume radius
+                rvr = min(Dvrmaxk13/2., &
+                       max(D0_k13/2., &
+                        (3.*rhof(k)*sv0(i,j,k,iqr)/(4.*pi*rhow*max(sv0(i,j,k,iNr),1e-3)))**(1./3.)))
+                ! Mean geometric radius
+                rgeo = .45*rvr + 23.e-6
 
-              ! Supersaturation (<0)
-              S = min(0.,qt0(i,j,k)/qvsl(i,j,k)- 1.)
-!              evapr1=3.*0.86/(((rlv/(tmp0(i,j,k)*Rv)-1)*(rlv/(Kt*tmp0(i,j,k)))+Rv*tmp0(i,j,k)/(Dv*esl(i,j,k)))*rhow*(3./(4.*3.1415*1000.))**(2./3.))
-              G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-              G = G**(-1)/rhow ! NOTE: [G]=kg/m-1 s-1, KK00 assumes units of m^2/s
-              ! G is the same as coefficient A3 (Eq. 13-32) in Pruppacher and Klett (1978) and is given by the denominator in Eq. (13-28)
-              ! This term differs by a factor rho_w from the equation used here! This is corrected later
-!              dq = c_evapkk*2*pi*Dvrr*G*S*Nr(i,j,k)/rhof(k) * rdt
-              dq = 4*pi*rgeo*rhow/rhof(k)*G*S*sv0(i,j,k,iNr)
-!              dq = 3.*Cr*G*(4.*pi*rhow/(3.*rhof(k)))**(2./3.)* &
-!                      (sv0(i,j,k,iqr)*sv0(i,j,k,iNr)**2)**(1./3.)*S*rdt
-              !dq = rdt * evapr1*sv0(i,j,k,iqr)**(1./3.)*max(sv0(i,j,k,iNr),1.e-3)**(2./3.)*S
+                ! Supersaturation (<0)
+                S = min(0.,qt0(i,j,k)/qvsl(i,j,k)- 1.)
+                G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+                G = G**(-1)/rhow ! NOTE: [G]=kg/m-1 s-1, KK00 assumes units of m^2/s
+                ! G is the same as coefficient A3 (Eq. 13-32) in Pruppacher and Klett (1978) and is given by the denominator in Eq. (13-28)
+                ! This term differs by a factor rho_w from the equation used here! This is corrected later
+                dq = 4*pi*rgeo*rhow/rhof(k)*G*S*sv0(i,j,k,iNr)
 
-              ! Limit the tendency
-              dq = max(-.5*sv0(i,j,k,iqr), rdt*dq) ! Note: dq.le.0
-              
+                ! Limit the tendency
+                dq = max(-.5*sv0(i,j,k,iqr), rdt*dq) ! Note: dq.le.0
+              end if ! ql0==0.
+
               ! Apply the tendencies
-              sv0(i,j,k,iNr) = sv0(i,j,k,iNr) + dq/sv0(i,j,k,iqr)*sv0(i,j,k,iNr)
+              sv0(i,j,k,iNr) = sv0(i,j,k,iNr) - scol + dq/sv0(i,j,k,iqr)*sv0(i,j,k,iNr)
               sv0(i,j,k,iqr) = sv0(i,j,k,iqr) + dq
               qt0(i,j,k)     = qt0(i,j,k) - dq
               thl0(i,j,k)    = thl0(i,j,k) + (rlv/(cp*exnf(k)))*dq
