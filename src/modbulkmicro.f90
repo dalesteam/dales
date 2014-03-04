@@ -215,7 +215,7 @@ module modbulkmicro
             ! qr and Nr after sedimentation (qr_sedim and Nr_sedim) are determined
             ! in a separate subroutine
             call advec_rain_sl(wqr,sv0(i,j,:,iqr)*rhof,qr_sedim(:))
-            call advec_rain_sl(wNr,sv0(i,j,:,iNr)*rhof,Nr_sedim(:))
+            call advec_rain_sl(wNr,sv0(i,j,:,iNr)     ,Nr_sedim(:))
 
             ! Statistics for the output
             qrsed(:) = qrsed(:) + (sv0(i,j,:,iqr)-qr_sedim/rhof(:))
@@ -225,7 +225,7 @@ module modbulkmicro
             end do
 
             sv0(i,j,:,iqr) = qr_sedim(:)/rhof(:)
-            sv0(i,j,:,iNr) = Nr_sedim(:)/rhof(:)
+            sv0(i,j,:,iNr) = Nr_sedim(:)
           end do; end do
 
         endif !l_lognormal
@@ -260,7 +260,7 @@ module modbulkmicro
           ! qr and Nr after sedimentation (qr_sedim and Nr_sedim) are determined
           ! in a separate subroutine
           call advec_rain_sl(wqr,sv0(i,j,:,iqr)*rhof,qr_sedim(:))
-          call advec_rain_sl(wNr,sv0(i,j,:,iNr)*rhof,Nr_sedim(:))
+          call advec_rain_sl(wNr,sv0(i,j,:,iNr)     ,Nr_sedim(:))
 
           ! Statistics for the output
           qrsed(:) = qrsed(:) + (sv0(i,j,:,iqr)-qr_sedim/rhof(:))
@@ -270,7 +270,7 @@ module modbulkmicro
           end do
 
           sv0(i,j,:,iqr) = qr_sedim(:)/rhof(:)
-          sv0(i,j,:,iNr) = Nr_sedim(:)/rhof(:)
+          sv0(i,j,:,iNr) = Nr_sedim(:)
         end do; end do
    
     end select ! bulkmicroscheme
