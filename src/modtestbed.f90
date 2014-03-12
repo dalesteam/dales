@@ -524,7 +524,7 @@ contains
             tb_qt     (i,k)   = dumqt     (ik,i) + fac * ( dumqt     (ik-1,i)    - dumqt     (ik,i)    )
             tb_u      (i,k)   = dumu      (ik,i) + fac * ( dumu      (ik-1,i)    - dumu      (ik,i)    )
             tb_v      (i,k)   = dumv      (ik,i) + fac * ( dumv      (ik-1,i)    - dumv      (ik,i)    )
-            !tb_w      (i,k)   = dumw      (ik,i) + fac * ( dumw      (ik-1,i)    - dumw      (ik,i)    )
+            tb_w      (i,k)   = dumw      (ik,i) + fac * ( dumw      (ik-1,i)    - dumw      (ik,i)    )
             tb_ug     (i,k)   = dumug     (ik,i) + fac * ( dumug     (ik-1,i)    - dumug     (ik,i)    )
             tb_vg     (i,k)   = dumvg     (ik,i) + fac * ( dumvg     (ik-1,i)    - dumvg     (ik,i)    )
             tb_uadv   (i,k)   = dumuadv   (ik,i) + fac * ( dumuadv   (ik-1,i)    - dumuadv   (ik,i)    )
