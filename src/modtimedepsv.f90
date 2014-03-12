@@ -35,9 +35,10 @@ module modtimedepsv
 
 implicit none
 private
-public :: inittimedepsv, timedepsv,exittimedepsv
+public :: inittimedepsv, timedepsv,ltimedepsv,exittimedepsv
 save
 ! switches for timedependent surface fluxes and large scale forcings
+  logical       :: ltimedepsv     = .false. !< Overall switch, input in namoptions
   logical       :: ltimedepsvz    = .false. !< Switch for large scale forcings
   logical       :: ltimedepsvsurf = .true.  !< Switch for surface fluxes
 
@@ -64,7 +65,8 @@ contains
     integer :: k,t,n, ierr
     real :: dummyr
     real, allocatable, dimension (:) :: height
-    if (nsv==0) return
+
+    if (nsv==0 .or. .not.ltimedepsv ) return
 
     allocate(height(k1))
     allocate(timesvsurf (0:kflux))
@@ -165,7 +167,7 @@ contains
     use modglobal, only : nsv
     implicit none
 
-    if(nsv==0) return
+    if(nsv==0 .or. .not.ltimedepsv) return
     call timedepsvz
     call timedepsvsurf
 
@@ -209,7 +211,7 @@ contains
   subroutine exittimedepsv
     use modglobal, only : nsv
     implicit none
-    if (nsv==0) return
+    if (nsv==0 .or. .not.ltimedepsv) return
     deallocate(timesvz,svzt,timesvsurf)
   end subroutine exittimedepsv
 

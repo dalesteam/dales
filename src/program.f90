@@ -145,7 +145,8 @@ program DALES      !Version 4.0.0alpha
 
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
-  use modnudge,        only : initnudge, nudge, exitnudge
+  !use modnudge,        only : initnudge, nudge, exitnudge
+  use modtestbed,        only : inittestbed, testbednudge, exittestbed
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
 
@@ -177,7 +178,7 @@ program DALES      !Version 4.0.0alpha
   call initradstat
   call initlsmstat
   !call initparticles
-  call initnudge
+  !call initnudge
   call initbulkmicrostat
   call initbudget
   !call initstressbudget
@@ -232,8 +233,8 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
-    call nudge
-!    call dospecs
+    !call nudge
+    call testbednudge
 !    call tiltedgravity
 
     call samptend(tend_addon)
@@ -304,7 +305,8 @@ program DALES      !Version 4.0.0alpha
   call exitradstat
   call exitlsmstat
   !call exitparticles
-  call exitnudge
+  !call exitnudge
+  call exittestbed
   call exitsampling
   call exitsamptend
   call exitbulkmicrostat

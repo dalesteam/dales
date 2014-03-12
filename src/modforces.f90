@@ -60,8 +60,9 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,dzf,grav
+  use modglobal, only : i1,j1,kmax,dzh,dzf,grav,lpressgrad
   use modfields, only : u0,v0,w0,sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
+  use modsurfdata,only : thvs
   use moduser,   only : force_user
   use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
   implicit none
@@ -78,9 +79,12 @@ contains
       jp=j+1
       jm=j-1
     do i=2,i1
-      up(i,j,k) = up(i,j,k) - dpdxl(k)
+    
+    if (lpressgrad) then
+      up(i,j,k) = up(i,j,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
       vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
+    end if
+    wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
     end do
@@ -110,9 +114,10 @@ contains
     jm = j-1
   do i=2,i1
 
-    up(i,j,1) = up(i,j,1) - dpdxl(1)
-
-    vp(i,j,1) = vp(i,j,1) - dpdyl(1)
+    if (lpressgrad) then
+      up(i,j,1) = up(i,j,1) - dpdxl(1)
+      vp(i,j,1) = vp(i,j,1) - dpdyl(1)
+    end if
 
     wp(i,j,1) = 0.0
 
