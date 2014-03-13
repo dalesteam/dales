@@ -534,7 +534,7 @@ contains
   subroutine diffe(putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
-    use modfields, only : e120,rhobf
+    use modfields, only : e120,rhobf,rhobh
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -814,7 +814,7 @@ contains
   subroutine diffw(putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dy,dyi,dy2i,dzf,dzh
-    use modfields, only : u0,v0,w0,rhobh
+    use modfields, only : u0,v0,w0,rhobh,rhobf
     implicit none
 
   !*****************************************************************
