@@ -338,7 +338,7 @@ contains
       omega_gs = 7.292e-5
     else
       omega = 0.
-      omega_gs = 7.292e-5
+      omega_gs = 0.
     end if
     om22   = 2.*omega*colat
     om23   = 2.*omega*silat
