@@ -102,6 +102,7 @@ save
       real    :: om23_gs                       !<    *2.*omega_earth*sin(lat)
       real    :: xlat    = 52.              !<    *latitude  in degrees.
       real    :: xlon    = 0.               !<    *longitude in degrees.
+      logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
 
       !Base state
       integer :: ibas_prf = 3

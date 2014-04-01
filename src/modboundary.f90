@@ -277,18 +277,20 @@ contains
 !> Sets top boundary conditions for momentum
   subroutine topm
 
-    use modglobal, only : i1,j1,kmax,k1,e12min
+    use modglobal, only : i1,j1,kmax,k1,e12min,lrigidlid
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
+    if (lrigidlid) e120(:,:,k1) = e120(:,:,kmax)
 
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)
     wm(:,:,k1)   = 0.0
     e12m(:,:,k1) = e12min
+    if (lrigidlid) e12m(:,:,k1) = e12m(:,:,kmax)
 
   return
   end subroutine topm
