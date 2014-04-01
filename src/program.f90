@@ -146,6 +146,7 @@ program DALES      !Version 4.0.0alpha
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
+  use modcanopy,       only : initcanopy, canopy, exitcanopy
 
 
   implicit none
@@ -181,6 +182,7 @@ program DALES      !Version 4.0.0alpha
   !call initstressbudget
   call initchem
   call initheterostats
+  call initcanopy
 
   !call initspectra2
   call initcape
@@ -212,6 +214,7 @@ program DALES      !Version 4.0.0alpha
     call advection
     call samptend(tend_adv)
     call subgrid
+    call canopy
     call samptend(tend_subg)
 
 !-----------------------------------------------------
@@ -304,6 +307,7 @@ program DALES      !Version 4.0.0alpha
   call exitcape
   call exitfielddump
   call exitheterostats
+  call exitcanopy
   call exitmodules
 
 end program DALES
