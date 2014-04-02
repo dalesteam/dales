@@ -3,25 +3,35 @@ module modcanopy
   save
 
   ! Namoptions
-  logical :: lcanopy = .false.       !< Switch to enable canopy representation
-  integer :: ncanopy = 10            !< Amount of layers to represent the canopy
-  real    :: cd      = 0.15          !< Drag coefficient in the canopy
+  logical :: lcanopy   = .false.     !< Switch to enable canopy representation
+  integer :: ncanopy   = 10          !< Amount of layers to represent the canopy
+  real    :: cd        = 0.15        !< Drag coefficient in the canopy
+  real    :: lai       = 2           !< Leaf Area Index of the canopy
+  logical :: lpaddistr = .false.     !< Switch to customize the general plant area density distribution (at half levels)
+  integer :: npaddistr = 11          !< (if lpaddistr): number of half levels for prescribed general plant area density distribution
 
   ! Fields
+  real, allocatable :: padfactor(:)  !< prescribed weighing factor for plant area density
+  real, allocatable :: ppad(:)       !< resulting prescribed plant area density
+  real, allocatable :: zpad(:)       !< heights of prescribed plant area density
+  real, allocatable :: padtemp(:)    !< temporary plant area density used for calculations
   real, allocatable :: padf(:)       !< plant area density field full level
   real, allocatable :: padh(:)       !< plant area density field full level
+
+  real              :: f_lai_h       !< average plant area density [m2/m2 / m]
 
 contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal, only : kmax,k1, ifnamopt, fname_options, ifoutput, cexpnr
+    use modglobal, only : kmax,k1, ifnamopt, fname_options, ifinput, ifoutput, cexpnr, zh, dzh
 
     implicit none
 
-    integer ierr
+    integer ierr, k, kp
+    character(80) readstring
   
-    namelist/NAMCANOPY/ lcanopy
+    namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai, lpaddistr, npaddistr
   
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -41,22 +51,95 @@ contains
     call MPI_BCAST(lcanopy   , 1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(ncanopy   , 1, mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(cd        , 1, my_real     , 0, comm3d, mpierr)
-  
-    allocate(padf(ncanopy))
-    allocate(padh(ncanopy+1))
+    call MPI_BCAST(lai       , 1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lpaddistr , 1, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(npaddistr , 1, mpi_integer , 0, comm3d, mpierr)
 
-    padf=!!1.0
-    padh=!!1.0
+    if (.not. (lcanopy)) return
+    
+    if (.not. lpaddistr) npaddistr = 11
+
+    allocate(padfactor (npaddistr))
+    allocate(ppad      (npaddistr))
+    allocate(zpad      (npaddistr))
+    allocate(padtemp   (npaddistr))
+    allocate(padf      (ncanopy  ))
+    allocate(padh      (ncanopy+1))
+
+    ! Determination of padfactor: relative weighing of plant area distribution inside canopy; equidistant from surface to canopy top
+    if (lpaddistr) then  !< Profile prescribed by user in the file paddistr.inp.<expnr>
+      if (myid==0) then
+        open (ifinput,file='paddistr.inp.'//cexpnr)
+
+        do k=1,npaddistr
+          read (ifinput,'(a80)') readstring
+
+          do while (readstring(1:1)=='#')     ! Skip the lines that are commented (like headers)
+            read (ifinput,'(a80)') readstring
+          end do
+
+          read(readstring,*) padfactor(k)
+        end do
+
+        close(ifinput)
+
+        !And now, weigh it such that the array of averages of 2 adjacent padfactor values is on average 1 (just in case the user's array does not fulfill that criterion)
+        padfactor = padfactor * (npaddistr-1) * 2 / sum(padfactor(1:(npaddistr-1))+padfactor(2:npaddistr)) 
+
+        write(*,*) 'Prescribed weighing for plant area density from surface to canopy top (equidistant); normalized if necessary'
+        do k=1,npaddistr
+          write (*,*) padfactor(k)
+        end do
+      endif
+
+      call MPI_BCAST(padfactor, npaddistr, my_real , 0, comm3d, mpierr)
+
+    else                 !< Standard profile fron Ned Patton
+      padfactor = (/ 0.4666666666666667, &
+                     0.5307086614173228, &
+                     0.6792650918635170, &
+                     0.9548556430446193, &
+                     1.3154855643044620, &
+                     1.5490813648293960, &
+                     1.5916010498687660, &
+                     1.5275590551181100, &
+                     1.2944881889763780, &
+                     0.3236220472440945, &
+                     0.0000000000000000  /)
+    endif
+
+    f_lai_h = lai / zh(1+ncanopy) ! LAI of canopy divided by height of the top of the canopy
+
+    ppad    = f_lai_h * padfactor ! prescribed PAD-values
+    do k=1,npaddistr
+      zpad(k) = zh(1+ncanopy) * real(k-1)/real(npaddistr-1)
+    end do
+
+    !interpolate the PAD values to the LES grid
+    call spline(zpad,ppad,npaddistr,padtemp)
+    do k=1,(1+ncanopy)
+      call splint(zpad,ppad,padtemp,npaddistr,zh(k),padh(k))
+    end do
+
+    ! Interpolate plant area density to u:level
+    do k=1,ncanopy
+      kp      = k+1
+      padf(k) = ( dzh(kp) * padh(k) + dzh(k) * padh(kp) ) / ( dzh(k) + dzh(kp) )
+    end do
 
     return
   end subroutine initcanopy
   
   subroutine canopy
     use modfields, only : up,vp,wp,e12p,thlp,qtp,sv0,svp
-     use modglobal, only : nsv
+    use modglobal, only : nsv
+
+    implicit none
 
     integer n
   
+    if (.not. (lcanopy)) return
+
 !!  Momentum affected by trees
     call canopyu(up)
     call canopyv(vp)
@@ -75,8 +158,15 @@ contains
   
   subroutine exitcanopy
     implicit none
-    deallocate(padf)
-    deallocate(padh)
+
+    if (.not. (lcanopy)) return
+
+    deallocate(padfactor)
+    deallocate(ppad     )
+    deallocate(zpad     )
+    deallocate(padtemp  )
+    deallocate(padf     )
+    deallocate(padh     )
     return
   end subroutine exitcanopy
   
@@ -182,55 +272,68 @@ contains
                 ((dzf(km)*(vcor(2:i1,2:j1,k)+vcor(2:i1,3:j2,k))+dzf(k)*(vcor(2:i1,2:j1,km)+vcor(2:i1,3:j2,km)))/(4*dzh(k)))**2 &
                 )
       
-      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - 2 * e120(2:i1,2:j1,k) * ftau
+      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - 2.0 * e120(2:i1,2:j1,k) * ftau
     end do
 
     return
   end subroutine canopye
   
 ! ======================================================================
-! subroutine from Ned Patton
+! subroutine from Ned Patton ~ adapted where obvious
 ! ======================================================================
-      subroutine spline(x,y,n,yp1,ypn,y2)
-      integer n, nmax
-      real yp1, ypn, x(n), y(n), y2(n)
-      parameter (nmax=500000)
+      subroutine spline(x,y,n,y2)
+      implicit none
+
+      integer n
+      real :: yp1 = 2.0e30, ypn = 2.0e30  !< Values needed for the fit
+      real x(n), y(n), y2(n)
       integer i, k
-      real p, qn, sig, un, u(nmax)
+      real p, qn, sig, un
+      real, allocatable :: u(:)
+
+      allocate(u(max(n-1,1)))
+
       if(yp1 > .99e30) then
-         y2(1) = 0.0
-         u(1)  = 0.0
+        y2(1) = 0.0
+        u(1)  = 0.0
       else
-         y2(1) = -0.5
-         u(1) = (3./(x(2) - x(1)))*((y(2) - y(1))/(x(2) - x(1)) - yp1)
+        y2(1) = -0.5
+        u(1)  = (3./(x(2) - x(1)))*((y(2) - y(1))/(x(2) - x(1)) - yp1)
       endif
-      do i=2,n-1
-         sig = (x(i) - x(i-1))/(x(i+1) - x(i-1))
-         p = sig*y2(i-1) + 2.0
-         y2(i) = (sig - 1.0)/p
-         u(i) = (6.0*((y(i+1) - y(i))/(x(i+1) - x(i)) - (y(i) - y(i-1)) &
-              /(x(i) - x(i-1)))/(x(i+1) - x(i-1)) - sig*u(i-1))/p
-      enddo
       if(ypn > .99e+30) then
-         qn = 0.0
-         un = 0.0
+        qn = 0.0
+        un = 0.0
       else
-         qn = 0.5
-         un = (3.0/(x(n) - x(n-1)))* (ypn - (y(n) - y(n-1))/(x(n) - x(n-1)))
+        qn = 0.5
+        un = (3.0/(x(n) - x(n-1)))* (ypn - (y(n) - y(n-1))/(x(n) - x(n-1)))
       endif
-      y2(n) = (un - qn*u(n-1))/(qn*y2(n-1) + 1.0)
-      do k=n-1,1,-1
-         y2(k) = y2(k)*y2(k+1) + u(k)
+
+      do i=2,n-1
+        sig   = (x(i) - x(i-1))/(x(i+1) - x(i-1))
+        p     = sig*y2(i-1) + 2.0
+        y2(i) = (sig - 1.0)/p
+        u(i)  = (6.0*((y(i+1) - y(i))/(x(i+1) - x(i)) - (y(i) - y(i-1)) &
+              / (x(i) - x(i-1)))/(x(i+1) - x(i-1)) - sig*u(i-1))/p
       enddo
+
+      y2(n) = (un - qn*u(n-1))/(qn*y2(n-1) + 1.0)
+
+      do k=n-1,1,-1
+        y2(k) = y2(k)*y2(k+1) + u(k)
+      enddo
+
+      deallocate(u)
 
       return
       end subroutine spline
 
 ! ======================================================================
-! subroutine from Ned Patton
+! subroutine from Ned Patton ~ adapted where obvious
 ! ======================================================================
 
       subroutine splint(xa,ya,y2a,n,x,y)
+      implicit none
+
       integer n
       real x,y, xa(n), y2a(n), ya(n)
       integer k,khi,klo
@@ -238,14 +341,14 @@ contains
       klo = 1
       khi = n
     1 continue
-        if(khi - klo > 1) then
-           k = (khi + klo)/2
-           if(xa(k) > x) then
-              khi = k
-           else
-              klo = k
-           endif
-           go to 1
+      if(khi - klo > 1) then
+         k = (khi + klo)/2
+         if(xa(k) > x) then
+           khi = k
+         else
+           klo = k
+         endif
+         go to 1
       endif
       h = xa(khi) - xa(klo)
       a = (xa(khi) - x)/h
