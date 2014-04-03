@@ -3,35 +3,58 @@ module modcanopy
   save
 
   ! Namoptions
-  logical :: lcanopy   = .false.     !< Switch to enable canopy representation
-  integer :: ncanopy   = 10          !< Amount of layers to represent the canopy
-  real    :: cd        = 0.15        !< Drag coefficient in the canopy
-  real    :: lai       = 2           !< Leaf Area Index of the canopy
-  logical :: lpaddistr = .false.     !< Switch to customize the general plant area density distribution (at half levels)
-  integer :: npaddistr = 11          !< (if lpaddistr): number of half levels for prescribed general plant area density distribution
+  logical :: lcanopy   = .false.       !< Switch to enable canopy representation
+  integer :: ncanopy   = 10            !< Amount of layers to represent the canopy
+  real    :: cd        = 0.15          !< Drag coefficient in the canopy
+  real    :: lai       = 2             !< Leaf Area Index of the canopy
+  logical :: lpaddistr = .false.       !< Switch to customize the general plant area density distribution (at half levels)
+  integer :: npaddistr = 11            !< (if lpaddistr): number of half levels for prescribed general plant area density distribution
+
+  logical :: wth_total = .false.       !< Switch: prescribed SH flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
+  logical :: wqt_total = .false.       !< Switch: prescribed LE flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
+  logical, allocatable :: wsv_total(:) !< Switch: prescribed sv flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
+
+  real    :: wth_can  = 0.0            !< prescribed SH canopy flux
+  real    :: wqt_can  = 0.0            !< prescribed LE canopy flux
+  real, allocatable :: wsv_can(:)      !< prescribed scalar canopy flux
+
+  real    :: wth_alph = 5.0            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
+  real    :: wqt_alph = 5.0            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
+  real, allocatable :: wsv_alph(:)     !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
 
   ! Fields
-  real, allocatable :: padfactor(:)  !< prescribed weighing factor for plant area density
-  real, allocatable :: ppad(:)       !< resulting prescribed plant area density
-  real, allocatable :: zpad(:)       !< heights of prescribed plant area density
-  real, allocatable :: padtemp(:)    !< temporary plant area density used for calculations
-  real, allocatable :: padf(:)       !< plant area density field full level
-  real, allocatable :: padh(:)       !< plant area density field full level
+  real, allocatable :: padfactor(:)    !< prescribed weighing factor for plant area density
+  real, allocatable :: ppad(:)         !< resulting prescribed plant area density
+  real, allocatable :: zpad(:)         !< heights of prescribed plant area density
+  real, allocatable :: padtemp(:)      !< temporary plant area density used for calculations
+  real, allocatable :: padf(:)         !< plant area density field full level
+  real, allocatable :: padh(:)         !< plant area density field full level
+  real, allocatable :: pai(:)          !< plant area index of the column starting in this grid cell up to the canopy top
 
-  real              :: f_lai_h       !< average plant area density [m2/m2 / m]
+  real              :: f_lai_h         !< average plant area density [m2/m2 / m]
 
 contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal, only : kmax,k1, ifnamopt, fname_options, ifinput, ifoutput, cexpnr, zh, dzh
+    use modglobal, only : kmax,k1, ifnamopt, fname_options, ifinput, ifoutput, cexpnr, zh, dzh, dzf, nsv
 
     implicit none
 
     integer ierr, k, kp
     character(80) readstring
+
+    namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai, lpaddistr, npaddistr, &
+                        wth_total, wqt_total, wsv_total, wth_can, wqt_can, wsv_can, &
+                        wth_alph, wqt_alph, wsv_alph
   
-    namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai, lpaddistr, npaddistr
+    allocate(wsv_total (nsv))
+    allocate(wsv_can   (nsv))
+    allocate(wsv_alph  (nsv))
+
+    wsv_total = .false.
+    wsv_can   = 0.0 
+    wsv_alph  = 5.0
   
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -48,12 +71,21 @@ contains
     endif
   
   
-    call MPI_BCAST(lcanopy   , 1, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(ncanopy   , 1, mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(cd        , 1, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(lai       , 1, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(lpaddistr , 1, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(npaddistr , 1, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(lcanopy   ,   1, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(ncanopy   ,   1, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(cd        ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lai       ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lpaddistr ,   1, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(npaddistr ,   1, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(wth_total ,   1, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wqt_total ,   1, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_total , nsv, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wth_can   ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wqt_can   ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_can   , nsv, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wth_alph  ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wqt_alph  ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_alph  , nsv, my_real     , 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
     
@@ -65,6 +97,7 @@ contains
     allocate(padtemp   (npaddistr))
     allocate(padf      (ncanopy  ))
     allocate(padh      (ncanopy+1))
+    allocate(pai       (ncanopy+1))
 
     ! Determination of padfactor: relative weighing of plant area distribution inside canopy; equidistant from surface to canopy top
     if (lpaddistr) then  !< Profile prescribed by user in the file paddistr.inp.<expnr>
@@ -121,18 +154,25 @@ contains
       call splint(zpad,ppad,padtemp,npaddistr,zh(k),padh(k))
     end do
 
-    ! Interpolate plant area density to u:level
+    ! Interpolate plant area (index) density to full levels
     do k=1,ncanopy
       kp      = k+1
       padf(k) = ( dzh(kp) * padh(k) + dzh(k) * padh(kp) ) / ( dzh(k) + dzh(kp) )
+    end do
+
+    ! Vertically integrate the plant area density to arrive at plant area index 
+    pai = 0.0
+    do k=ncanopy,1,-1
+      pai(k) = pai(k+1) + dzf(k) * padf(k)
     end do
 
     return
   end subroutine initcanopy
   
   subroutine canopy
-    use modfields, only : up,vp,wp,e12p,thlp,qtp,sv0,svp
-    use modglobal, only : nsv
+    use modfields,   only : up,vp,wp,e12p,thlp,qtp,sv0,svp
+    use modsurfdata, only : thlflux, qtflux, svflux
+    use modglobal,   only : nsv
 
     implicit none
 
@@ -146,18 +186,34 @@ contains
     call canopyw(wp)
 !!  TKE affected by trees
     call canopye(e12p)
-!!  Emissions of heat, moisture and scalars by trees
-!    call canopyc(thl0,thlp,thlflux)
-!    call canopyc(qt0 ,qtp ,qtflux )
-!    do n=1,nsv
-!      call canopyc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
-!    end do
-  
+!!  Emissions of heat, moisture and scalars by trees (effect on center of the grid)
+    if (wth_total) then
+      call canopyc(thlp,wth_can,    thlflux,wth_alph,pai)
+    else
+      call canopyc(thlp,wth_can,0.0*thlflux,wth_alph,pai)
+    endif
+    if (wqt_total) then
+      call canopyc( qtp,wqt_can,    qtflux,wqt_alph,pai)
+    else
+      call canopyc( qtp,wqt_can,0.0*qtflux,wqt_alph,pai)
+    endif
+    do n=1,nsv
+      if (wsv_total(n)) then
+        call canopyc(svp(:,:,:,n),wsv_can(n),    svflux(:,:,n),wsv_alph(n),pai)
+      else
+        call canopyc(svp(:,:,:,n),wsv_can(n),0.0*svflux(:,:,n),wsv_alph(n),pai)
+      endif
+    end do
+
     return
   end subroutine canopy
   
   subroutine exitcanopy
     implicit none
+
+    deallocate(wsv_total)
+    deallocate(wsv_can  )
+    deallocate(wsv_alph )
 
     if (.not. (lcanopy)) return
 
@@ -167,12 +223,13 @@ contains
     deallocate(padtemp  )
     deallocate(padf     )
     deallocate(padh     )
+    deallocate(pai      )
     return
   end subroutine exitcanopy
   
   subroutine canopyu (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
-    use modfields, only  : u0, v0, w0, rhobf, rhobh
+    use modfields, only  : u0, v0, w0
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -199,7 +256,7 @@ contains
     
   subroutine canopyv (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
-    use modfields, only  : u0, v0, w0, rhobf, rhobh
+    use modfields, only  : u0, v0, w0
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -226,7 +283,7 @@ contains
     
   subroutine canopyw (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
-    use modfields, only  : u0, v0, w0, rhobf, rhobh
+    use modfields, only  : u0, v0, w0
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -253,7 +310,7 @@ contains
   
   subroutine canopye (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
-    use modfields, only  : u0, v0, w0, rhobf, rhobh, e120
+    use modfields, only  : u0, v0, w0, e120
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -277,7 +334,36 @@ contains
 
     return
   end subroutine canopye
-  
+ 
+  subroutine canopyc (putout, flux_top, flux_surf, alpha, pai)
+    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, dzf, imax, jmax
+    use modfields, only  : rhobh, rhobf
+    implicit none
+
+    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real, intent(in   ) :: flux_top
+    real, intent(in   ) :: flux_surf(i2,j2)
+    real, intent(in   ) :: alpha
+    real, intent(in   ) :: pai(ncanopy+1)
+    real                :: flux_net (i2,j2)
+    integer             :: k
+    real                :: integratedcontribution(imax,jmax,ncanopy+1), tendency(imax,jmax,ncanopy)
+    
+    flux_net                        = flux_top * rhobh(ncanopy+1) - flux_surf * rhobh(1)
+    integratedcontribution(:,:,1)   = 0.0
+
+    do k=2,(ncanopy+1)
+      integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * exp(- alpha * pai(k))
+    end do
+    do k=1,ncanopy
+      tendency(:,:,k) = ( integratedcontribution(:,:,(k+1)) - integratedcontribution(:,:,k) ) / ( rhobf(k) * dzf(k) )
+    end do
+
+    putout(2:i1,2:j1,1:ncanopy) = putout(2:i1,2:j1,1:ncanopy) + tendency
+
+    return
+  end subroutine canopyc
+
 ! ======================================================================
 ! subroutine from Ned Patton ~ adapted where obvious
 ! ======================================================================
