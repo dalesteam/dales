@@ -1,3 +1,22 @@
+!> \file modcanopy.f90
+!!  Canopy parameterization
+!  This file is part of DALES.
+!
+! DALES is free software; you can redistribute it and/or modify
+! it under the terms of the GNU General Public License as published by
+! the Free Software Foundation; either version 3 of the License, or
+! (at your option) any later version.
+!
+! DALES is distributed in the hope that it will be useful,
+! but WITHOUT ANY WARRANTY; without even the implied warranty of
+! MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+! GNU General Public License for more details.
+!
+! You should have received a copy of the GNU General Public License
+! along with this program.  If not, see <http://www.gnu.org/licenses/>.
+!
+!  Copyright 1993-2014 Delft University of Technology, Wageningen University, Utrecht University, KNMI, MPIC
+!
 module modcanopy
   implicit none
   save
@@ -6,7 +25,7 @@ module modcanopy
   logical :: lcanopy   = .false.       !< Switch to enable canopy representation
   integer :: ncanopy   = 10            !< Amount of layers to represent the canopy
   real    :: cd        = 0.15          !< Drag coefficient in the canopy
-  real    :: lai       = 2             !< Leaf Area Index of the canopy
+  real    :: lai       = 2             !< Leaf Area Index (or actually plant area index) of the canopy
   logical :: lpaddistr = .false.       !< Switch to customize the general plant area density distribution (at half levels)
   integer :: npaddistr = 11            !< (if lpaddistr): number of half levels for prescribed general plant area density distribution
 
