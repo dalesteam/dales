@@ -348,7 +348,7 @@ contains
                 ((dzf(km)*(vcor(2:i1,2:j1,k)+vcor(2:i1,3:j2,k))+dzf(k)*(vcor(2:i1,2:j1,km)+vcor(2:i1,3:j2,km)))/(4*dzh(k)))**2 &
                 )
       
-      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - 2.0 * e120(2:i1,2:j1,k) * ftau
+      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - e120(2:i1,2:j1,k) * ftau
     end do
 
     return
