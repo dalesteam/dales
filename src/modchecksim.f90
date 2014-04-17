@@ -149,7 +149,7 @@ contains
     peclettotl = 0.
     peclettot  = 0.
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k)/rhobf(k))*dtmn/minval((/dzh(k),dx,dy/))**2
+      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
     end do
 
     call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)

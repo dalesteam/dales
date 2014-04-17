@@ -414,9 +414,9 @@ contains
                 -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
                          +(v0(i,j,k)-v0(i-1,j,k))  *dxi) ) * dyi &
                + &
-               ( emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
+               ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                          +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
-                -emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
+                - rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
                          +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) / dzf(k) 
 
       tau1ml(k) = tau1ml(k) + tau1j(i,j,k)
@@ -460,9 +460,9 @@ contains
                ( ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
                 -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
                + &
-               ( eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
+               ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                          +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
-                -eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
+                - rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
                          +(w0(i,j,k)-w0(i,jm,k))    *dyi)  ) / dzf(k) 
 
       tau2ml(k) = tau2ml(k) + tau2j(i,j,k)
@@ -508,8 +508,8 @@ contains
                   -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
                            +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))*dyi &
                  + &
-                  (ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
-                  -ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
+                  ( rhobf(k)/rhobh(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
+                  - rhobf(km)/rhobh(k) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
                                                        / dzh(k) 
 
       tau3ml(k) = tau3ml(k) + tau3j(i,j,k)
@@ -560,9 +560,9 @@ contains
              - emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) * dyi &
              + &
-             ( emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
+             ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                        +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
-             - rhobh(1)*fu   ) / dzf(1)
+             - rhobh(1)/rhobf(1)*fu   ) / dzf(1)
 
 
     tau1ml(1) = tau1ml(1) + tau1j(i,j,1)
@@ -589,9 +589,9 @@ contains
             ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
              -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
             + &
-            ( eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
+            ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                       +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
-           - rhobh(1)*fv   ) / dzf(1)
+           - rhobh(1)/rhobf(1)*fv   ) / dzf(1)
 
 
     tau2ml(1) = tau2ml(1) + tau2j(i,j,1)

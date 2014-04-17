@@ -34,7 +34,7 @@ save
   real, allocatable :: vm(:,:,:)        !<   y-component of velocity at time step t-1
   real, allocatable :: wm(:,:,:)        !<   z-component of velocity at time step t-1
   real, allocatable :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
-  real, allocatable :: e12m(:,:,:)      !<   turb. kin. energy at time step t-1
+  real, allocatable :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
   real, allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
   real, allocatable :: u0(:,:,:)        !<   x-component of velocity at time step t
   real, allocatable :: v0(:,:,:)        !<   y-component of velocity at time step t
@@ -42,7 +42,7 @@ save
   real, allocatable :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
   real, allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
-  real, allocatable :: e120(:,:,:)      !<   turb. kin. energy at time step t
+  real, allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
   real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
@@ -119,7 +119,7 @@ save
   real, allocatable :: qtprof(:)                     !<   initial qt-profile
   real, allocatable :: uprof(:)                      !<   initial u-profile
   real, allocatable :: vprof(:)                      !<   initial v-profile
-  real, allocatable :: e12prof(:)                    !<   initial subgrid TKE profile
+  real, allocatable :: e12prof(:)                    !<   initial subgrid sqrt(TKE) profile
   real, allocatable :: sv0av(:,:)                  !<   slab average of sv(n)
   real, allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
 
