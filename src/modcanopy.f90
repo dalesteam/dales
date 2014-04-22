@@ -191,11 +191,14 @@ contains
   subroutine canopy
     use modfields,   only : up,vp,wp,e12p,thlp,qtp,sv0,svp
     use modsurfdata, only : thlflux, qtflux, svflux
-    use modglobal,   only : nsv
+    use modglobal,   only : nsv,i2,j2
 
     implicit none
 
     integer n
+    real :: zeroar(i2,j2)
+    
+    zeroar = 0.0
   
     if (.not. (lcanopy)) return
 
@@ -207,20 +210,20 @@ contains
     call canopye(e12p)
 !!  Emissions of heat, moisture and scalars by trees (effect on center of the grid)
     if (wth_total) then
-      call canopyc(thlp,wth_can,    thlflux,wth_alph,pai)
+      call canopyc(thlp,wth_can,thlflux,wth_alph,pai)
     else
-      call canopyc(thlp,wth_can,0.0*thlflux,wth_alph,pai)
+      call canopyc(thlp,wth_can, zeroar,wth_alph,pai)
     endif
     if (wqt_total) then
-      call canopyc( qtp,wqt_can,    qtflux,wqt_alph,pai)
+      call canopyc( qtp,wqt_can,qtflux,wqt_alph,pai)
     else
-      call canopyc( qtp,wqt_can,0.0*qtflux,wqt_alph,pai)
+      call canopyc( qtp,wqt_can,zeroar,wqt_alph,pai)
     endif
     do n=1,nsv
       if (wsv_total(n)) then
-        call canopyc(svp(:,:,:,n),wsv_can(n),    svflux(:,:,n),wsv_alph(n),pai)
+        call canopyc(svp(:,:,:,n),wsv_can(n),svflux(:,:,n),wsv_alph(n),pai)
       else
-        call canopyc(svp(:,:,:,n),wsv_can(n),0.0*svflux(:,:,n),wsv_alph(n),pai)
+        call canopyc(svp(:,:,:,n),wsv_can(n),       zeroar,wsv_alph(n),pai)
       endif
     end do
 
