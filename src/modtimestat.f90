@@ -526,6 +526,7 @@ contains
         ztop  = 0.0
   
         do  k=1,kmax
+    if (myid==-1) write (*,*) 'TIMESTAT DEBUG: place C4B1: k = (',k,')' !HGO
           if (ql0(i,j,k) > 0) ztop = zf(k)
           wmaxl = max(wm(i,j,k),wmaxl)
           qlmaxl = max(ql0(i,j,k),qlmaxl)
