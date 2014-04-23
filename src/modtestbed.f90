@@ -663,7 +663,7 @@ contains
     implicit none
 
     integer k,t
-    real :: dtm,dtp,currtnudge
+    real :: dtm,dtp,currtnudge, qttnudge,qtthres
 
     if (.not.(ltestbed .and. ltb_nudge)) return
 
@@ -680,6 +680,7 @@ contains
     dtm = ( rtimee-tb_time(t) ) / ( tb_time(t+1)-tb_time(t) )
     dtp = ( tb_time(t+1)-rtimee)/ ( tb_time(t+1)-tb_time(t) )
 
+    qtthres = 1e-6
     do k=1,kmax
 
       currtnudge = max(rdt,tnudge(k,t)*dtp+tnudge(k,t+1)*dtm)
@@ -696,9 +697,15 @@ contains
       if (ltb_thl) thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - &
           ( thl0av(k) - (tb_thl(t,k)*dtp + tb_thl(t+1,k)*dtm) ) / currtnudge
 
-      if (ltb_qt)  qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)   - &
-          ( qt0av(k)  - (tb_qt(t,k) *dtp + tb_qt(t+1,k) *dtm) ) / currtnudge
-
+      if (ltb_qt)  then
+        if (qt0av(k)< qtthres) then
+          qttnudge = rdt
+        else
+          qttnudge = currtnudge
+        end if
+          qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)   - &
+            ( qt0av(k)  - (tb_qt(t,k) *dtp + tb_qt(t+1,k) *dtm) ) / qttnudge
+      end if
     end do
 
     !write(6,*) 'testbednudge:', rtimee, t, tb_time(t), tb_time(t+1), currtnudge, dtm, dtp, qt0av (1),tb_qt (t,1),tb_qt (t+1,1)
