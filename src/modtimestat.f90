@@ -775,7 +775,7 @@ contains
 
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,position='append')
-      write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
+      write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
           rtimee   ,&
           ust     ,&
           tst     ,&
@@ -876,7 +876,7 @@ contains
             write (name(12:14),'(i3.3)') i
             write (name(16:18),'(i3.3)') j
             open (ifoutput,file=name,position='append')
-            write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
+            write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
               rtimee      ,&
               ust_patch(i,j)   ,&
               tst_patch(i,j)   ,&
