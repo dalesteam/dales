@@ -31,15 +31,15 @@ module modcanopy
 
   logical :: wth_total = .false.       !< Switch: prescribed SH flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
   logical :: wqt_total = .false.       !< Switch: prescribed LE flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
-  logical, allocatable :: wsv_total(:) !< Switch: prescribed sv flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
+  logical :: wsv_total(100) = .false.  !< Switch: prescribed sv flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
 
   real    :: wth_can  = 0.0            !< prescribed SH canopy flux
   real    :: wqt_can  = 0.0            !< prescribed LE canopy flux
-  real, allocatable :: wsv_can(:)      !< prescribed scalar canopy flux
+  real    :: wsv_can(100) = 0.0        !< prescribed scalar canopy flux
 
   real    :: wth_alph = 5.0            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
   real    :: wqt_alph = 5.0            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
-  real, allocatable :: wsv_alph(:)     !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
+  real    :: wsv_alph(100) = 5.0       !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
 
   ! Fields
   real, allocatable :: padfactor(:)    !< prescribed weighing factor for plant area density
@@ -67,14 +67,6 @@ contains
                         wth_total, wqt_total, wsv_total, wth_can, wqt_can, wsv_can, &
                         wth_alph, wqt_alph, wsv_alph
   
-    allocate(wsv_total (nsv))
-    allocate(wsv_can   (nsv))
-    allocate(wsv_alph  (nsv))
-
-    wsv_total = .false.
-    wsv_can   = 0.0 
-    wsv_alph  = 5.0
-  
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCANOPY,iostat=ierr)
@@ -98,13 +90,13 @@ contains
     call MPI_BCAST(npaddistr ,   1, mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(wth_total ,   1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(wqt_total ,   1, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(wsv_total , nsv, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_total , 100, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(wth_can   ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(wqt_can   ,   1, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wsv_can   , nsv, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_can   , 100, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(wth_alph  ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(wqt_alph  ,   1, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wsv_alph  , nsv, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_alph  , 100, my_real     , 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
     
@@ -232,10 +224,6 @@ contains
   
   subroutine exitcanopy
     implicit none
-
-    deallocate(wsv_total)
-    deallocate(wsv_can  )
-    deallocate(wsv_alph )
 
     if (.not. (lcanopy)) return
 
