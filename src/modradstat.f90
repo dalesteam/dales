@@ -220,7 +220,7 @@ contains
   subroutine do_radstat
 
     use modmpi,    only :  slabsum
-    use modglobal, only : kmax,rslabs,cp,dzf,i1,j1,k1,ih,jh
+    use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
     use modraddata, only : lwd,lwu,swd,swu,thlprad
 
@@ -248,13 +248,13 @@ contains
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 
-    lwumn = lwumn + lwuav/rslabs
-    lwdmn = lwdmn + lwdav/rslabs
-    swdmn = swdmn + swdav/rslabs
-    swumn = swumn + swuav/rslabs
-    thltendmn = thltendmn + thltendav/rslabs
-    thllwtendmn = thllwtendmn + thllwtendav/rslabs
-    thlswtendmn = thlswtendmn + thlswtendav/rslabs
+    lwumn = lwumn + lwuav/ijtot
+    lwdmn = lwdmn + lwdav/ijtot
+    swdmn = swdmn + swdav/ijtot
+    swumn = swumn + swuav/ijtot
+    thltendmn = thltendmn + thltendav/ijtot
+    thllwtendmn = thllwtendmn + thllwtendav/ijtot
+    thlswtendmn = thlswtendmn + thlswtendav/ijtot
     thlradlsmn  = thlradlsmn  + thlpcar
 
     if (lradclearair) call radclearair
@@ -262,7 +262,7 @@ contains
 
       subroutine radclearair
     use modradfull,    only : d4stream
-    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,rlv,rd,zf,pref0,rslabs
+    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,rlv,rd,zf,pref0,ijtot
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0
     use modsurfdata,  only : albedo, tskin, qskin, thvs, qts, ps
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
@@ -319,10 +319,10 @@ contains
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 
-    lwucamn = lwucamn + lwucaav/rslabs
-    lwdcamn = lwdcamn + lwdcaav/rslabs
-    swdcamn = swdcamn + swdcaav/rslabs
-    swucamn = swucamn + swucaav/rslabs
+    lwucamn = lwucamn + lwucaav/ijtot
+    lwdcamn = lwdcamn + lwdcaav/ijtot
+    swdcamn = swdcamn + swdcaav/ijtot
+    swucamn = swucamn + swucaav/ijtot
     end subroutine radclearair
 
 !> Write the statistics to file

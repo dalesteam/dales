@@ -193,7 +193,7 @@ save
       real :: dy2i            !<  (1/dy)**2
 
 
-      real :: rslabs
+      real :: ijtot
       real, allocatable :: dzf(:)         !<  thickness of full level
       real, allocatable :: dzh(:)         !<  thickness of half level
       real, allocatable :: zh(:)          !<  height of half level [m]
@@ -355,7 +355,7 @@ contains
     allocate(delta(k1))
 
 
-    rslabs = real(itot*jtot)
+    ijtot = real(itot*jtot)
 
     dx = xsize / float(itot)
     dy = ysize / float(jtot)

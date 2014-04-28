@@ -617,7 +617,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,rslabs,rd,rv!, boltz, rhow
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -803,8 +803,8 @@ contains
         call MPI_ALLREDUCE(wtsurfl, wtsurf, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
         call MPI_ALLREDUCE(wqsurfl, wqsurf, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-        wtsurf = wtsurf / rslabs
-        wqsurf = wqsurf / rslabs
+        wtsurf = wtsurf / ijtot
+        wqsurf = wqsurf / ijtot
 
         do j = 2, j1
           do i = 2, i1
@@ -949,8 +949,8 @@ contains
       call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
 
-      thls = thls / rslabs
-      qts  = qts  / rslabs
+      thls = thls / ijtot
+      qts  = qts  / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then
@@ -986,7 +986,7 @@ contains
 
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf
-    use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
+    use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,ijtot,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
     use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
@@ -1016,7 +1016,7 @@ contains
 
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, &
                          MPI_SUM, comm3d,mpierr)
-      qts  = qts / rslabs
+      qts  = qts / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then 
@@ -1504,7 +1504,7 @@ write(*,*)'XX: ',Lold,L, (L-Lold)/L
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rk3step
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step
     use modfields, only : ql0,qt0,thl0,rhof,presf
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
@@ -1782,7 +1782,7 @@ write(*,*)'XX: ',Lold,L, (L-Lold)/L
     end do
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
-    thls = thls / rslabs
+    thls = thls / ijtot
     if (lhetero) then
       call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
       xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)

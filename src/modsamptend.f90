@@ -318,8 +318,8 @@ subroutine initsamptend
   subroutine samptend(tendterm,firstterm,lastterm)
     use modmpi,    only : myid,slabsum
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
-                          cp,rv,rlv,rd,rslabs,&
-                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime,nsv,rdt
+                          cp,rv,rlv,rd,&
+                          grav,om22,cu,timee,rk3step,dt_lim,ijtot,btime,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
@@ -374,7 +374,7 @@ subroutine initsamptend
   
       thvav = 0.0
       call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvav = thvav/rslabs
+      thvav = thvav/ijtot
 
       do isamp=1,isamptot
         select case (samplname(isamp))
@@ -526,8 +526,8 @@ subroutine initsamptend
   subroutine leibniztend
     use modmpi,    only : myid,slabsum
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
-                          cp,rv,rlv,rd,rslabs,&
-                          grav,om22,cu,timee,rk3step,dt_lim,rslabs,btime,nsv,rdt
+                          cp,rv,rlv,rd,&
+                          grav,om22,cu,timee,rk3step,dt_lim,ijtot,btime,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     implicit none
@@ -556,7 +556,7 @@ subroutine initsamptend
   
       thvav = 0.0
       call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvav = thvav/rslabs
+      thvav = thvav/ijtot
 
       do isamp=1,isamptot
         select case (samplname(isamp))

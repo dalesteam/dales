@@ -250,7 +250,7 @@ subroutine initbulkmicrostat
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
-    use modglobal,    only  : i1, j1, k1, rslabs
+    use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec,imicro, imicro_bulk
     use modfields,  only  : ql0
     implicit none
@@ -288,14 +288,14 @@ subroutine initbulkmicrostat
     call MPI_ALLREDUCE(precavl  ,precav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qravl  ,qrav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
-    cloudcountmn  = cloudcountmn  +  cloudcountav  /rslabs
-    raincountmn  = raincountmn  +  raincountav  /rslabs
-    preccountmn  = preccountmn  +  preccountav  /rslabs
-    prec_prcmn  = prec_prcmn  +  prec_prcav  /rslabs
-    Dvrmn    = Dvrmn    +  Dvrav    /rslabs
-    Nrrainmn  = Nrrainmn  +  Nrrainav  /rslabs
-    precmn    = precmn  +  precav    /rslabs
-    qrmn    = qrmn    +  qrav    /rslabs
+    cloudcountmn  = cloudcountmn  +  cloudcountav  /ijtot
+    raincountmn  = raincountmn  +  raincountav  /ijtot
+    preccountmn  = preccountmn  +  preccountav  /ijtot
+    prec_prcmn  = prec_prcmn  +  prec_prcav  /ijtot
+    Dvrmn    = Dvrmn    +  Dvrav    /ijtot
+    Nrrainmn  = Nrrainmn  +  Nrrainav  /ijtot
+    precmn    = precmn  +  precav    /ijtot
+    qrmn    = qrmn    +  qrav    /ijtot
 
   end subroutine dobulkmicrostat
 
@@ -303,7 +303,7 @@ subroutine initbulkmicrostat
 !> Performs the calculations for the tendencies etc.
   subroutine bulkmicrotend
     use modmpi,    only  : slabsum
-    use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, rslabs
+    use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot
     use modfields,    only  : qtp
     use modmicrodata,  only  : qrp, Nrp
     implicit none
@@ -337,9 +337,9 @@ subroutine initbulkmicrostat
     qtpav(:,ifield) = avfield - sum(qtpav  (:,1:ifield-1),2)
 
     if (ifield == nrfields) then
-      Npmn    = Npmn  + Npav  /nsamples/rslabs
-      qlpmn    = qlpmn  + qlpav /nsamples/rslabs
-      qtpmn    = qtpmn  + qtpav /nsamples/rslabs
+      Npmn    = Npmn  + Npav  /nsamples/ijtot
+      qlpmn    = qlpmn  + qlpav /nsamples/ijtot
+      qtpmn    = qtpmn  + qtpav /nsamples/ijtot
       Npav    = 0.0
       qlpav    = 0.0
       qtpav    = 0.0

@@ -198,7 +198,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
-                         dxi,dyi,dzf,dzh,rk3step,rslabs
+                         dxi,dyi,dzf,dzh,rk3step
   use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf
   use modsurfdata, only : dudz,dvdz,thvs,z0m
   use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum

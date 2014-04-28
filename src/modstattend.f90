@@ -190,7 +190,7 @@ subroutine initstattend
 !> Performs the statistics, keeps track of what the tendencies were last time, and what they are this time.
   subroutine stattend(tendterm,lastterm)
     use modmpi,    only : myid,slabsum
-    use modglobal, only : ih,jh,i1,j1,kmax,k1,rk3step,timee,dt_lim,rslabs,btime
+    use modglobal, only : ih,jh,i1,j1,kmax,k1,rk3step,timee,dt_lim,ijtot,btime
     use modfields, only : up,vp,wp,thlp,qtp
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
@@ -232,11 +232,11 @@ subroutine initstattend
     if (present(lastterm)) then
     if (lastterm) then
       tnext = tnext+idtav
-      upmn  = upmn  + upav /nsamples/rslabs
-      vpmn  = vpmn  + vpav /nsamples/rslabs
-      wpmn  = wpmn  + wpav /nsamples/rslabs
-      qtpmn  = qtpmn  + qtpav /nsamples/rslabs
-      thlpmn  = thlpmn  + thlpav /nsamples/rslabs
+      upmn  = upmn  + upav /nsamples/ijtot
+      vpmn  = vpmn  + vpav /nsamples/ijtot
+      wpmn  = wpmn  + wpav /nsamples/ijtot
+      qtpmn  = qtpmn  + qtpav /nsamples/ijtot
+      thlpmn  = thlpmn  + thlpav /nsamples/ijtot
       upav  = 0.0
       vpav  = 0.0
       wpav  = 0.0

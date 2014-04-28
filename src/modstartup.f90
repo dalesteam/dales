@@ -338,7 +338,7 @@ contains
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  ijtot,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
@@ -574,11 +574,11 @@ contains
 
       thvh=0.
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-      thvh = thvh/rslabs
+      thvh = thvh/ijtot
 
       thvf = 0.0
       call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvf = thvf/rslabs
+      thvf = thvf/ijtot
 
       u0av = 0.0
       v0av = 0.0
@@ -597,12 +597,12 @@ contains
         call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       end do
 
-      u0av  = u0av  /rslabs + cu
-      v0av  = v0av  /rslabs + cv
-      thl0av = thl0av/rslabs
-      qt0av = qt0av /rslabs
-      ql0av = ql0av /rslabs
-      sv0av = sv0av /rslabs
+      u0av  = u0av  /ijtot + cu
+      v0av  = v0av  /ijtot + cv
+      thl0av = thl0av/ijtot
+      qt0av = qt0av /ijtot
+      ql0av = ql0av /ijtot
+      sv0av = sv0av /ijtot
       th0av  = thl0av + (rlv/cp)*ql0av/exnf
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
       

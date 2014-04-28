@@ -846,7 +846,7 @@ contains
 !calculation of several 3D fields necesarry for sgs model
 !fce
 
-  use modglobal, only : i1,j1,kmax,k1,rslabs
+  use modglobal, only : i1,j1,kmax,k1,ijtot
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : comm3d,my_real,mpi_sum,mpierr
   implicit none
@@ -889,12 +889,12 @@ contains
   call MPI_ALLREDUCE(tkesgsmslabl,tkesgsmslab,k1,MY_REAL,MPI_SUM, comm3d,mpierr)
 
 
-  umslab=umslab/rslabs
-  vmslab=vmslab/rslabs
-  um2slab=um2slab/rslabs-umslab**2
-  vm2slab=vm2slab/rslabs-vmslab**2
-  wm2slab=wm2slab/rslabs
-  tkesgsmslab=tkesgsmslab/rslabs
+  umslab=umslab/ijtot
+  vmslab=vmslab/ijtot
+  um2slab=um2slab/ijtot-umslab**2
+  vm2slab=vm2slab/ijtot-vmslab**2
+  wm2slab=wm2slab/ijtot
+  tkesgsmslab=tkesgsmslab/ijtot
 
   do k=1,kmax
     tkeresmslab(k)=0.5*(um2slab(k)+vm2slab(k)+0.5*(wm2slab(k)+wm2slab(k+1)))
