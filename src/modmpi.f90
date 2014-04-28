@@ -55,7 +55,6 @@ contains
   subroutine initmpi
     implicit none
     integer dims(2)
-    integer coords(2)
     logical periods(2)
 
     call MPI_INIT(mpierr)
@@ -79,8 +78,8 @@ contains
 
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
 
-    nprocx = dims(0)
-    nprocy = dims(1)
+    nprocx = dims(1)
+    nprocy = dims(2)
 
 ! create the Cartesian communicator, denoted by the integer comm3d
 
@@ -112,10 +111,10 @@ contains
 
     if(myid==0)then
       CPU_program0 = MPI_Wtime()
+      write(*,*) 'MPI Communicators comm3d, commrow, commcol: ', comm3d, commrow, commcol
     end if
 
-    write(*,*)'nprocs = ', nprocs
-    write(*,*)'myid = ', myid, coords(1), coords(2)
+    write(*,*)'myid, myidx, myidy, n, e, s, w = ', myid, myidx, myidy, nbrnorth, nbreast, nbrsouth, nbrwest
 
   end subroutine initmpi
 
@@ -148,8 +147,8 @@ contains
 
   integer sx, ex, sy, ey, sz, ez
   real a(sx:ex, sy:ey, sz:ez)
-  integer iiget, status(MPI_STATUS_SIZE)
-  integer ii, i, j, k
+  integer status(MPI_STATUS_SIZE)
+  integer ii, i, k
   integer nssize, ewsize
   real,allocatable, dimension(:) :: nssend, nsrecv
   real,allocatable, dimension(:) :: ewsend, ewrecv
@@ -162,7 +161,9 @@ contains
             ewrecv(ewsize))
 
 !   communicate north/south
-  
+ 
+  write(*,*)'XX excj: ', myid, nssize, ewsize
+ 
   if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
     ii = 0
     do k=sz,ez
@@ -173,7 +174,7 @@ contains
     enddo
 
     call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrnorth, 4, &
-                        nsrecv,  iiget , MY_REAL, nbrsouth, 4, &
+                        nsrecv,  nssize, MY_REAL, nbrsouth, 4, &
                         comm3d,  status, mpierr )
 
     ii = 0
@@ -187,7 +188,7 @@ contains
     enddo
 
     call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrsouth, 5, &
-                        nsrecv,  iiget , MY_REAL, nbrnorth, 5, &
+                        nsrecv,  nssize, MY_REAL, nbrnorth, 5, &
                         comm3d,  status, mpierr )
 
     ii = 0
@@ -211,8 +212,9 @@ contains
     enddo
 
     call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbreast, 6, &
-                        ewrecv,  iiget , MY_REAL, nbrwest, 6, &
+                        ewrecv,  ewsize, MY_REAL, nbrwest, 6, &
                         comm3d,  status, mpierr )
+
     ii = 0
     do k=sz,ez
     do i=sy,ey
@@ -224,8 +226,9 @@ contains
     enddo
 
     call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbrwest, 7, &
-                        ewrecv,  iiget , MY_REAL, nbreast, 7, &
+                        ewrecv,  ewsize, MY_REAL, nbreast, 7, &
                         comm3d,  status, mpierr )
+
     ii = 0
     do k=sz,ez
     do i=sy,ey
@@ -245,7 +248,7 @@ contains
     implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
-  integer status(MPI_STATUS_SIZE), iiget
+  integer status(MPI_STATUS_SIZE)
   integer ii, i, j, k
   integer nssize, ewsize
   real,allocatable, dimension(:) :: nssend,nsrecv
@@ -257,6 +260,8 @@ contains
             nsrecv(nssize),&
             ewsend(ewsize),&
             ewrecv(ewsize))
+
+  write(*,*)'XX excjs: ', myid, nssize, ewsize
 
 !   Communicate north/south
   if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
@@ -271,8 +276,9 @@ contains
     enddo
 
     call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrnorth, 4, &
-                        nsrecv,  iiget , MY_REAL, nbrsouth, 4, &
+                        nsrecv,  nssize , MY_REAL, nbrsouth, 4, &
                         comm3d,  status, mpierr )
+
     ii = 0
     do j=1,jh
     do k=sz,ez
@@ -286,7 +292,7 @@ contains
     enddo
 
     call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrsouth, 5, &
-                        nsrecv,  iiget , MY_REAL, nbrnorth, 5, &
+                        nsrecv,  nssize, MY_REAL, nbrnorth, 5, &
                         comm3d,  status, mpierr )
 
     ii = 0
@@ -313,8 +319,9 @@ contains
     enddo
 
     call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbreast, 6, &
-                        ewrecv,  iiget , MY_REAL, nbrwest, 6, &
+                        ewrecv,  ewsize, MY_REAL, nbrwest, 6, &
                         comm3d,  status, mpierr )
+
     ii = 0
     do i=1,ih
     do k=sz,ez
@@ -328,7 +335,7 @@ contains
     enddo
 
     call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbrwest, 7, &
-                        ewrecv,  iiget , MY_REAL, nbreast, 7, &
+                        ewrecv,  ewsize, MY_REAL, nbreast, 7, &
                         comm3d,  status, mpierr )
 
     ii = 0

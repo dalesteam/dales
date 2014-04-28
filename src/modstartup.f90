@@ -255,7 +255,7 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps,lhetero
-    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
+    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
     use modmpi,    only : myid,nprocx,nprocy,mpierr
     use modtimedep, only : ltimedep
 
@@ -268,6 +268,10 @@ contains
         end if
         call MPI_FINALIZE(mpierr)
         stop
+      else
+        if(myid==0)then
+          write(6,*)'jmax = jtot / nprocy = ', jmax
+        endif
       end if
 
       if(mod(itot,nprocx)/=0)then
@@ -278,6 +282,10 @@ contains
         end if
         call MPI_FINALIZE(mpierr)
         stop
+      else
+        if(myid==0)then
+          write(6,*)'imax = itot / nprocx = ', imax
+        endif
       end if
 
   !Check Namroptions
@@ -968,7 +976,7 @@ contains
     ! independent of parallization.
 
     use modmpi,    only : myidx, myidy
-    use modglobal, only : itot,jtot,i1,j1,k1
+    use modglobal, only : itot,jtot,imax,jmax,i1,j1,k1
     integer (KIND=selected_int_kind(6)):: imm, ia, ic,ir
     integer ihl, jhl
     integer i,j,klev
@@ -978,18 +986,18 @@ contains
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
 
-    is = (myidx - 1) * imax + 1
-    ie = is + imax
+    is = myidx * imax + 1
+    ie = is + imax - 1
 
-    js = (myidy - 1) * jmax + 1
-    je = js + jmax
+    js = myidy * jmax + 1
+    je = js + jmax - 1
 
-    do j=2,jtot+1
-    do i=2,itot+1
+    do j=1,jtot
+    do i=1,itot
         ir=mod((ir)*ia+ic,imm)
-        if i > is .and. i <= ie .and. &
-           j > js .and. j <= je then
-            field(i-is+1,j-js+1,klev) = field(i-is+1,j-js+1,klev) + (ran-0.5)*2.0*ampl
+        if (i >= is .and. i <= ie .and. &
+            j >= js .and. j <= je) then
+            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
         endif
     enddo
     enddo
