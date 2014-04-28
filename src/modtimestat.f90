@@ -81,7 +81,7 @@ contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
-    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,idtmax,ifoutput,dtav_glob,tres,&
+    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
@@ -930,11 +930,10 @@ contains
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
     use modsurfdata,only : svs, lhetero, xpatches, ypatches
     use modsurface, only : patchxnr,patchynr
-    use modmpi,     only : mpierr, comm3d,mpi_sum,my_real,myid,mpi_integer
+    use modmpi,     only : mpierr, comm3d,mpi_sum,my_real
     implicit none
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
-    integer :: patchx, patchy
     real, allocatable,dimension(:,:,:) :: blh_fld,  sv0h, blh_fld2
     real, allocatable, dimension(:) :: profile, gradient, dgrad
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -1199,25 +1198,25 @@ contains
   end subroutine exittimestat
 
  function patchsum_1level(x)
-   use modglobal,  only : imax,jmax,jtot
+   use modglobal,  only : imax,jmax
+   use modsurface, only : patchxnr, patchynr
    use modsurfdata,only : xpatches,ypatches
-   use modmpi,     only : myid,mpierr, comm3d,my_real,mpi_sum
+   use modmpi,     only : mpierr,comm3d,my_real,mpi_sum
    implicit none
    real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
    real, intent(in)    :: x(imax,jmax)
-   integer             :: i,j,jind,itpatch,posperxpatch,jreal
+   integer             :: i,j,iind,jind
    
    patchsum_1level = 0
    xl              = 0
-   posperxpatch    = imax/xpatches
    
    do j=1,jmax
-     jreal = j + (myid * jmax) - 1 !In connection with next line, the -1 makes sure that division there is the same over a patch
-     jind  = 1 + (jreal*ypatches)/jtot
-     do itpatch=1,xpatches
-       do i=1,posperxpatch
-         xl(itpatch,jind) = xl(itpatch,jind) + x(i+((itpatch-1)*posperxpatch),j)
-       enddo
+     jind  = patchynr(j)
+
+     do i=1,imax
+       iind  = patchxnr(i)
+
+       xl(iind,jind) = xl(iind,jind) + x(i,j)
      enddo
    enddo
 
