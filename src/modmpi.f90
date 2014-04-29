@@ -162,8 +162,6 @@ contains
 
 !   communicate north/south
  
-  write(*,*)'XX excj: ', myid, nssize, ewsize
- 
   if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
     ii = 0
     do k=sz,ez
@@ -260,8 +258,6 @@ contains
             nsrecv(nssize),&
             ewsend(ewsize),&
             ewrecv(ewsize))
-
-  write(*,*)'XX excjs: ', myid, nssize, ewsize
 
 !   Communicate north/south
   if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
