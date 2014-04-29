@@ -242,7 +242,7 @@ contains
     do k=1,kmax
     do j=2,j1
       jv = j + myidy*jmax - 1
-      do i=2,j2
+      do i=2,j1
         iv = i + myidx*imax - 1
         xyzrt(i,j,k)= rhobf(k)*(xrt(iv)+yrt(jv)) !!! LH
       end do
