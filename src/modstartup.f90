@@ -995,6 +995,7 @@ contains
     do j=1,jtot
     do i=1,itot
         ir=mod((ir)*ia+ic,imm)
+        ran=real(ir)/real(imm)
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
             field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
