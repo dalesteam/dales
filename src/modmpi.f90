@@ -52,6 +52,7 @@ save
    character(3) :: cmyid
 
 contains
+
   subroutine initmpi
     implicit none
     integer dims(2)
@@ -118,6 +119,7 @@ contains
 
   end subroutine initmpi
 
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine exitmpi
@@ -149,16 +151,15 @@ contains
   real a(sx:ex, sy:ey, sz:ez)
   integer status(MPI_STATUS_SIZE)
   integer ii, i, k
-  integer nssize, ewsize
-  real,allocatable, dimension(:) :: nssend, nsrecv
-  real,allocatable, dimension(:) :: ewsend, ewrecv
+  integer nssize, ewsize, bsize
+  real,allocatable, dimension(:) :: sendb, recvb
+
+!   Calculate buffer size
   nssize = (ex - sx + 1)*(ez - sz + 1)
   ewsize = (ey - sy + 1)*(ez - sz + 1)
+  bsize = max( nssize, ewsize )
 
-  allocate( nssend(nssize),&
-            nsrecv(nssize),&
-            ewsend(ewsize),&
-            ewrecv(ewsize))
+  allocate( sendb(bsize), recvb(bsize) )
 
 !   communicate north/south
  
@@ -167,33 +168,41 @@ contains
     do k=sz,ez
     do i=sx,ex
       ii = ii + 1
-      nssend(ii) = a(i,ey-1,k)
+      sendb(ii) = a(i,ey-1,k)
     enddo
     enddo
 
-    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrnorth, 4, &
-                        nsrecv,  nssize, MY_REAL, nbrsouth, 4, &
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrnorth, 4, &
+                        recvb,  nssize, MY_REAL, nbrsouth, 4, &
                         comm3d,  status, mpierr )
 
     ii = 0
     do k=sz,ez
     do i=sx,ex
       ii = ii + 1
-      a(i,sy,k) = nsrecv(ii)
+      a(i,sy,k) = recvb(ii)
 
-      nssend(ii) = a(i,sy+1,k)
+      sendb(ii) = a(i,sy+1,k)
     enddo
     enddo
 
-    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrsouth, 5, &
-                        nsrecv,  nssize, MY_REAL, nbrnorth, 5, &
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrsouth, 5, &
+                        recvb,  nssize, MY_REAL, nbrnorth, 5, &
                         comm3d,  status, mpierr )
 
     ii = 0
     do k=sz,ez
     do i=sx,ex
       ii = ii + 1
-      a(i,ey,k) = nsrecv(ii)
+      a(i,ey,k) = recvb(ii)
+    enddo
+    enddo
+  else
+    do k=sz,ez
+    do i=sx,ex
+      ii = ii + 1
+      a(i,sy,k) = a(i,ey-1,k)
+      a(i,ey,k) = a(i,sy+1,k)
     enddo
     enddo
   endif
@@ -205,39 +214,47 @@ contains
     do k=sz,ez
     do i=sy,ey
       ii = ii + 1
-      ewsend(ii) = a(ex-1,i,k)
+      sendb(ii) = a(ex-1,i,k)
     enddo
     enddo
 
-    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbreast, 6, &
-                        ewrecv,  ewsize, MY_REAL, nbrwest, 6, &
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbreast, 6, &
+                        recvb,  ewsize, MY_REAL, nbrwest, 6, &
                         comm3d,  status, mpierr )
 
     ii = 0
     do k=sz,ez
     do i=sy,ey
       ii = ii + 1
-      a(sx,i,k) = ewrecv(ii)
+      a(sx,i,k) = recvb(ii)
 
-      ewsend(ii) = a(sx+1,i,k)
+      sendb(ii) = a(sx+1,i,k)
     enddo
     enddo
 
-    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbrwest, 7, &
-                        ewrecv,  ewsize, MY_REAL, nbreast, 7, &
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbrwest, 7, &
+                        recvb,  ewsize, MY_REAL, nbreast, 7, &
                         comm3d,  status, mpierr )
 
     ii = 0
     do k=sz,ez
     do i=sy,ey
       ii = ii + 1
-      a(ex,i,k) = ewrecv(ii)
+      a(ex,i,k) = recvb(ii)
+    enddo
+    enddo
+  else
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      a(sx,i,k) = a(ex-1,i,k)
+      a(ex,i,k) = a(sx+1,i,k)
     enddo
     enddo
   endif
 
 
-  deallocate (nssend,nsrecv,ewsend,ewrecv)
+  deallocate (sendb,recvb)
 
   return
   end subroutine excj
@@ -248,16 +265,15 @@ contains
   real a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
   integer status(MPI_STATUS_SIZE)
   integer ii, i, j, k
-  integer nssize, ewsize
-  real,allocatable, dimension(:) :: nssend,nsrecv
-  real,allocatable, dimension(:) :: ewsend,ewrecv
+  integer nssize, ewsize, bsize
+  real,allocatable, dimension(:) :: sendb,recvb
+
+!   Calculate buffer size
   nssize = jh*(ex - sx + 1 + 2*ih)*(ez - sz + 1)
   ewsize = ih*(ey - sy + 1 + 2*jh)*(ez - sz + 1)
+  bsize = max( nssize, ewsize )
 
-  allocate( nssend(nssize),&
-            nsrecv(nssize),&
-            ewsend(ewsize),&
-            ewrecv(ewsize))
+  allocate( sendb(bsize),recvb(bsize) )
 
 !   Communicate north/south
   if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
@@ -266,13 +282,13 @@ contains
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      nssend(ii) = a(i,ey-j+1,k)
+      sendb(ii) = a(i,ey-j+1,k)
     enddo
     enddo
     enddo
 
-    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrnorth, 4, &
-                        nsrecv,  nssize , MY_REAL, nbrsouth, 4, &
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrnorth, 4, &
+                        recvb,  nssize, MY_REAL, nbrsouth, 4, &
                         comm3d,  status, mpierr )
 
     ii = 0
@@ -280,15 +296,15 @@ contains
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      a(i,sy-j,k) = nsrecv(ii)
+      a(i,sy-j,k) = recvb(ii)
 
-      nssend(ii) = a(i,sy+j-1,k)
+      sendb(ii) = a(i,sy+j-1,k)
     enddo
     enddo
     enddo
 
-    call MPI_SENDRECV(  nssend,  nssize, MY_REAL, nbrsouth, 5, &
-                        nsrecv,  nssize, MY_REAL, nbrnorth, 5, &
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrsouth, 5, &
+                        recvb,  nssize, MY_REAL, nbrnorth, 5, &
                         comm3d,  status, mpierr )
 
     ii = 0
@@ -296,7 +312,17 @@ contains
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      a(i,ey+j,k) = nsrecv(ii)
+      a(i,ey+j,k) = recvb(ii)
+    enddo
+    enddo
+    enddo
+  else
+! Single processor, make sure the field is periodic
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      a(i,sy-j,k) = a(i,ey-j+1,k)
+      a(i,ey+j,k) = a(i,sy+j-1,k)
     enddo
     enddo
     enddo
@@ -309,13 +335,13 @@ contains
     do k=sz,ez
     do j=sy-jh,ey+jh
       ii = ii + 1
-      nssend(ii) = a(ex-i+1,j,k)
+      sendb(ii) = a(ex-i+1,j,k)
     enddo
     enddo
     enddo
 
-    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbreast, 6, &
-                        ewrecv,  ewsize, MY_REAL, nbrwest, 6, &
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbreast, 6, &
+                        recvb,  ewsize, MY_REAL, nbrwest, 6, &
                         comm3d,  status, mpierr )
 
     ii = 0
@@ -323,29 +349,39 @@ contains
     do k=sz,ez
     do j=sy-jh,ey+jh
       ii = ii + 1
-      a(sx-i,j,k) = nsrecv(ii)
+      a(sx-i,j,k) = recvb(ii)
 
-      nssend(ii) = a(sx+i-1,j,k)
+      sendb(ii) = a(sx+i-1,j,k)
     enddo
     enddo
     enddo
 
-    call MPI_SENDRECV(  ewsend,  ewsize, MY_REAL, nbrwest, 7, &
-                        ewrecv,  ewsize, MY_REAL, nbreast, 7, &
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbrwest, 7, &
+                        recvb,  ewsize, MY_REAL, nbreast, 7, &
                         comm3d,  status, mpierr )
 
     ii = 0
-    do i=1,jh
+    do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
       ii = ii + 1
-      a(ey+i,j,k) = nsrecv(ii)
+      a(ex+i,j,k) = recvb(ii)
+    enddo
+    enddo
+    enddo
+  else
+! Single processor, make sure the field is periodic
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      a(sx-i,j,k) = a(ex-i+1,j,k)
+      a(ex+i,j,k) = a(sx+i-1,j,k)
     enddo
     enddo
     enddo
   endif
 
-  deallocate (nssend,nsrecv,ewsend,ewrecv)
+  deallocate (sendb,recvb)
 
   return
   end subroutine excjs
