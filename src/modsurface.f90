@@ -1247,7 +1247,6 @@ contains
         if(Rib < 0) L = -0.01
       end if
       if(abs((L - Lold)/L) < 1e-4) exit
-write(*,*)'XX: ',Lold,L, (L-Lold)/L
       if(iter > 1000) stop 'Obukhov length calculation does not converge!'
     end do
 
