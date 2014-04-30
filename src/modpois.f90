@@ -39,7 +39,7 @@ save
 
 contains
   subroutine initpois
-    use modglobal, only : i1,j1,kmax,ih,jh,itot,jtot,dxi,dyi,pi
+    use modglobal, only : i1,j1,kmax,itot,jtot,dxi,dyi,pi
     use modfft2d,  only : fft2dinit
 
     implicit none
@@ -47,10 +47,10 @@ contains
     integer :: i,j
     real    :: fac
 
-    allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(p(2-1:i1+1,2-1:j1+1,kmax))
 
   ! Generate Eigenvalues  (xrt and yrt )
-    allocate(xrt(jtot),yrt(jtot))
+    allocate(xrt(itot),yrt(jtot))
 
   !  I --> direction
 
@@ -78,6 +78,7 @@ contains
 
   subroutine poisson
     implicit none
+
     call fillps
     call solmpj
     call tderive
@@ -102,16 +103,16 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step, i1,j1,kmax,k1,ih,jh, dx,dy,dzf,rdt
-    use modmpi,    only : excjs
+    use modglobal, only : rk3step, i1,j1,kmax,k1, dx,dy,dzf,rdt
+    use modmpi,    only : excj
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
     real rk3coef
 
-    allocate(pup(2-ih:i1+ih,2-jh:j1+jh,1:k1))
-    allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,1:k1))
-    allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,1:k1))
+    allocate(pup(2-1:i1+1,2-1:j1+1,k1))
+    allocate(pvp(2-1:i1+1,2-1:j1+1,k1))
+    allocate(pwp(2-1:i1+1,2-1:j1+1,k1))
 
     rk3coef = rdt / (4. - dble(rk3step))
 
@@ -129,7 +130,7 @@ contains
   !****************************************************************
 
   !     Fill the right hand for the poisson solver.
-  !     Call excjs to set the values in the halo zone.
+  !     Call excj to set the values in the halo zone.
   !     Also we take wp(i,j,1) and wp(i,j,k1) equal to zero.
 
   !**************************************************************
@@ -141,9 +142,9 @@ contains
       end do
     end do
 
-    call excjs( pup          , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( pvp          , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( pwp          , 2,i1,2,j1,1,k1,ih,jh)
+    call excj( pup, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+    call excj( pvp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+    call excj( pwp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
 
     do k=1,kmax
       do j=2,j1
@@ -214,8 +215,7 @@ contains
 
     use modfft2d,  only : fft2df, fft2db
     use modmpi,    only : myidx,myidy
-    use modglobal, only : imax,jmax,kmax,dzf,dzh, &
-                          i1,j1,i2,j2,ih,jh
+    use modglobal, only : imax,jmax,kmax,dzf,dzh,i1,j1
     use modfields, only : rhobf, rhobh
     implicit none
 
@@ -228,11 +228,11 @@ contains
     integer i, j, k
 
     allocate(a(kmax),b(kmax),c(kmax))
-    allocate(    d(2-ih:i1+ih,2-jh:j1+jh,kmax))
-    allocate(xyzrt(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(    d(2-1:i1+1,2-1:j1+1,kmax))
+    allocate(xyzrt(2-1:i1+1,2-1:j1+1,kmax))
 
   ! Forward FFT
-    call fft2df(p,ih,jh)
+    call fft2df(p,1,1)
 
   ! Combine I and J directions
   ! Note that:
@@ -242,7 +242,7 @@ contains
     do k=1,kmax
     do j=2,j1
       jv = j + myidy*jmax - 1
-      do i=2,j1
+      do i=2,i1
         iv = i + myidx*imax - 1
         xyzrt(i,j,k)= rhobf(k)*(xrt(iv)+yrt(jv)) !!! LH
       end do
@@ -286,7 +286,7 @@ contains
     ak =a(kmax)
     bk =b(kmax)
     do j=2,j1
-      do i=2,i2
+      do i=2,i1
         bbk = bk +xyzrt(i,j,kmax)
         z        = bbk-ak*d(i,j,kmax-1)
         if(z/=0.) then
@@ -299,7 +299,7 @@ contains
 
     do k=kmax-1,1,-1
       do j=2,j1
-        do i=2,i2
+        do i=2,i1
           p(i,j,k) = p(i,j,k)-d(i,j,k)*p(i,j,k+1)
         end do
       end do
@@ -337,14 +337,14 @@ contains
 !-----------------------------------------------------------------|
 
     use modfields, only : up, vp, wp
-    use modglobal, only : i1,j1,kmax,ih,jh,dx,dy,dzh
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh
     use modmpi,    only : excj
     implicit none
     integer i,j,k
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
-    call excj( p, 2-ih, i1+ih, 2-jh, j1+jh, 1, kmax)
+  call excj( p, 2-1, i1+1, 2-1, j1+1, 1, kmax )
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
