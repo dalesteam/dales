@@ -73,7 +73,7 @@ use moddebug
           courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
           wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
         end do
-        call MPI_ALLREDUCE(courtotl,courtot,k,MY_REAL,MPI_MAX,comm3d,mpierr)
+        call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
         do k=1,kmax
           courtotmax=max(courtotmax,courtot(k))
