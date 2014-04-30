@@ -240,7 +240,7 @@ contains
     do i=2,i1
     do j=2,j1
       ii = ii + 1
-      if( k .le. kmax ) then
+      if( k <= kmax ) then
          bufin(ii) = p(i,j,k)
       endif
     enddo
@@ -285,8 +285,8 @@ contains
     ii = 0
     do n=0,nprocy-1
     do k=1,nkony
-    do j=n*jmax + 1, (n+1)*jmax
     do i=1,imax
+    do j=n*jmax + 1, (n+1)*jmax
       ii = ii + 1
       bufin(ii) = ptrans(j,i,k) 
     enddo
@@ -301,10 +301,10 @@ contains
     ii = 0
     do n=0,nprocy-1
     do k=n*nkony + 1, (n+1)*nkony
-    do j=2,j1
     do i=2,i1
+    do j=2,j1
       ii = ii + 1
-      if( k .le. kmax ) then
+      if( k <= kmax ) then
          p(i,j,k) = bufout(ii)
       endif
     enddo
@@ -317,17 +317,17 @@ contains
 
   subroutine fft2df(p,ih,jh)
 
-    use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1
-    use modmpi, only    : myidx
+    use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1
+    use modmpi, only    : myidx,myidy
 
     integer, intent(in) :: ih,jh
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: i,j,k, ke
 
-    ke = min(kmax - myidx * nkonx, nkonx)
-
 ! fft over i
+
+    ke = min(kmax - myidx * nkonx, nkonx)
 
     call transpose_a(p, worka, ih, jh)
     do k=1,ke
@@ -339,42 +339,45 @@ contains
 
 ! fft over j
 
+    ke = min(kmax - myidy * nkony, nkony)
+
     call transpose_b(p, workb, ih, jh)
-    do i=1,imax
     do k=1,ke
+    do i=1,imax
       call rfftf(jtot,workb(1,i,k),wjnew)
     enddo
     enddo
     call transpose_binv(p, workb, ih, jh)            
 
-    p(:,:,:) = p(:,:,:) / sqrt(itot*jtot*1.0)
+    p(:,:,:) = p(:,:,:) / sqrt(ijtot)
   end subroutine
 
 
   subroutine fft2db(p,ih,jh)
 
-    use modglobal, only : imax, jmax, kmax, itot, jtot, i1, j1
-    use modmpi, only    : myidx
+    use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1
+    use modmpi, only    : myidx,myidy
 
     integer, intent(in) :: ih,jh
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: i,j,k, ke
 
-    ke = min(kmax - myidx * nkonx, nkonx)
-
 ! inverse fft over j
 
+    ke = min(kmax - myidy * nkony, nkony)
+
     call transpose_b(p, workb, ih, jh)
-    do i=1,imax
     do k=1,ke
+    do i=1,imax
       call rfftb(jtot,workb(1,i,k),wjnew)
     enddo
     enddo
     call transpose_binv(p, workb, ih, jh)
 
-
 ! inverse fft over i
+
+    ke = min(kmax - myidx * nkonx, nkonx)
 
     call transpose_a(p, worka, ih, jh)
     do k=1,ke
@@ -384,7 +387,7 @@ contains
     enddo
     call transpose_ainv(p, worka, ih, jh)
 
-    p(:,:,:) = p(:,:,:) / sqrt(itot*jtot*1.0)
+    p(:,:,:) = p(:,:,:) / sqrt(ijtot)
   end subroutine
 
 end module modfft2d
