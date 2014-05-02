@@ -34,41 +34,51 @@ module modmpi
 use mpi
 implicit none
 save
-  integer comm3d, commrow, commcol
-  integer nbrnorth
-  integer nbrsouth
-  integer nbreast
-  integer nbrwest
-  integer myid
-  integer myidx, myidy
-  integer nprocs
-  integer nprocx
-  integer nprocy
-  integer mpierr
-  integer my_real
-  real    CPU_program    !end time
-  real    CPU_program0   !start time
+  integer  :: comm3d, commrow, commcol
+  integer  :: nbrnorth
+  integer  :: nbrsouth
+  integer  :: nbreast
+  integer  :: nbrwest
+  integer  :: myid
+  integer  :: myidx, myidy
+  integer  :: nprocs
+  integer  :: nprocx = 1
+  integer  :: nprocy = 0
+  integer  :: mpierr
+  integer  :: my_real = MPI_DOUBLE_PRECISION
 
-   character(3) :: cmyid
+  real     :: CPU_program    !end time
+  real     :: CPU_program0   !start time
+
+  character(3) :: cmyid
 
 contains
+
+! This routine does the setup of the MPI mesh
+! NPROCS
+!        is the number of processors, this is set at run time, ie. mpirun -np 10
+! NPROCX, NPROCY
+!        are the number of processors in the x and y-direction. This set in the MPIOPT namelist.
+!        A value of 0 lets MPI try to determine a suitable value
+!        The old 'slab' parallelisation is equal to nprocx=1 and nprocy=0
+!
+! When using a large number of processors it is recommended to set NPROCX=NPROCY=0
+! Otherwise NPROCX=1 and NPROCY=0 is probably faster (default)
+!
 
   subroutine initmpi
     implicit none
     integer dims(2)
     logical periods(2)
 
-    call MPI_INIT(mpierr)
-    MY_REAL = MPI_DOUBLE_PRECISION
-    call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
-    call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr )
+    integer ierr
 
 ! Specify the # procs in each direction.
 ! specifying a 0 means that MPI will try to find a useful # procs in
-! the corresponding  direction,
+! the corresponding direction
 
-    dims(1) = 0
-    dims(2) = 0
+    dims(1) = nprocx
+    dims(2) = nprocy
 
 ! directions 1 and 2 are chosen periodic
 
@@ -77,6 +87,7 @@ contains
 
 ! find suitable # procs in each direction
 
+    call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr)
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
 
     nprocx = dims(1)
@@ -85,7 +96,7 @@ contains
 ! create the Cartesian communicator, denoted by the integer comm3d
 
     call MPI_CART_CREATE(MPI_COMM_WORLD, 2, dims, periods, .true., &
-                        comm3d, mpierr )
+                         comm3d, mpierr )
 
 ! Get my processor number in this communicator
 
@@ -102,20 +113,18 @@ contains
     call MPI_Cart_sub( comm3d, (/.TRUE.,.FALSE./), commrow, mpierr )
     call MPI_Cart_sub( comm3d, (/.FALSE.,.TRUE./), commcol, mpierr )
 
-! Get the processors number in these communicators
+! Get the processors ranks in these communicators
     call MPI_COMM_RANK( commrow, myidx, mpierr )
     call MPI_COMM_RANK( commcol, myidy, mpierr )
-
-! determine some useful MPI datatypes for sending/receiving data
-
-     write(cmyid,'(i3.3)') myid
 
     if(myid==0)then
       CPU_program0 = MPI_Wtime()
       write(*,*) 'MPI Communicators comm3d, commrow, commcol: ', comm3d, commrow, commcol
+      write(*,*) 'MPI mesh nprocx, nprocy: ', nprocx, nprocy
     end if
 
     write(*,*)'myid, myidx, myidy, n, e, s, w = ', myid, myidx, myidy, nbrnorth, nbreast, nbrsouth, nbrwest
+    write(cmyid,'(i3.3)') myid
 
   end subroutine initmpi
 
@@ -405,7 +414,7 @@ contains
     enddo
 
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MY_REAL, &
-                          MPI_SUM, comm3d,mpierr)
+                       MPI_SUM, comm3d,mpierr)
 
     aver = aver + avers
 
