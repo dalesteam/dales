@@ -371,6 +371,7 @@ contains
        pt(1:norig) = st(1:norig)
        ph(1:norig) = sh(1:norig)
        po(1:norig) = so(1:norig)
+       plwc(1:norig) = sl(1:norig)
 
        do k=norig+1,npts
           pp(k) = (ptop + pp(k-1))*0.5
@@ -378,6 +379,7 @@ contains
           pt(k) =  intrpl(sp(index),st(index),sp(index+1),st(index+1),pp(k))
           ph(k) =  intrpl(sp(index),sh(index),sp(index+1),sh(index+1),pp(k))
           po(k) =  intrpl(sp(index),so(index),sp(index+1),so(index+1),pp(k))
+          plwc(k) =  intrpl(sp(index),sl(index),sp(index+1),sl(index+1),pp(k))
        end do
        !
        ! set the ozone constant below the reference profile
