@@ -233,41 +233,41 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt,VarID)
   !2D Fields
         case ('t0tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tt,VarID, deflate_level = 2)
         case ('t0mt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0mt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0mt,VarID, deflate_level = 2)
         case ('m0tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_m0tt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_m0tt,VarID, deflate_level = 2)
         case ('tt0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tt0t,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tt0t,VarID, deflate_level = 2)
         case ('tm0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tm0t,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tm0t,VarID, deflate_level = 2)
         case ('mt0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt0t,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt0t,VarID, deflate_level = 2)
         case ('0ttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttt,VarID, deflate_level = 2)
         case ('0tmt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0tmt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0tmt,VarID, deflate_level = 2)
         case ('0mtt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0mtt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0mtt,VarID, deflate_level = 2)
   !3D Fields
         case ('tttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttt,VarID, deflate_level = 2)
         case ('mttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mttt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mttt,VarID, deflate_level = 2)
         case ('tmtt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tmtt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tmtt,VarID, deflate_level = 2)
         case ('ttmt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_ttmt,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_ttmt,VarID, deflate_level = 2)
 !Soil fields
         case ('tts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tts ,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tts ,VarID, deflate_level = 2)
         case ('t0tts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tts,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tts,VarID, deflate_level = 2)
         case ('0ttts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID, deflate_level = 2)
         case ('tttts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID, deflate_level = 2)
         case default
         print *, 'ABORTING: Bad dimensional information ',sx(n,:)
         stop
@@ -361,7 +361,7 @@ contains
        iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
        iret = nf90_put_var(ncid, VarID, vars(n), start=(/nrec/))
     end do
-    iret = nf90_sync(ncid)
+    !iret = nf90_sync(ncid)
 
   end subroutine writestat_time_nc
 
@@ -377,7 +377,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
     end do
-    iret = nf90_sync(ncid)
+    !iret = nf90_sync(ncid)
 
   end subroutine writestat_1D_nc
 
@@ -393,7 +393,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
     end do
-    iret = nf90_sync(ncid)
+    !iret = nf90_sync(ncid)
 
   end subroutine writestat_2D_nc
   subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
@@ -408,7 +408,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-    iret = nf90_sync(ncid)
+    !iret = nf90_sync(ncid)
 
   end subroutine writestat_3D_nc
   subroutine writestat_3D_short_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
@@ -423,7 +423,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-    iret = nf90_sync(ncid)
+    !iret = nf90_sync(ncid)
 
   end subroutine writestat_3D_short_nc
 
