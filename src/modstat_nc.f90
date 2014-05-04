@@ -73,11 +73,11 @@ contains
 ! ----------------------------------------------------------------------
 !> Subroutine Open_NC: Opens a NetCDF File and identifies starting record
 !
-  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns)
+  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns, ncoarse)
     use modglobal, only : author,version,rtimee
     implicit none
     integer, intent (out) :: ncid,nrec
-    integer, optional, intent (in) :: n1, n2, n3, ns
+    integer, optional, intent (in) :: n1, n2, n3, ns, ncoarse
     character (len=40), intent (in) :: fname
 
     character (len=12):: date='',time=''
@@ -302,26 +302,34 @@ contains
    status = nf90_close(ncid)
    if (status /= nf90_noerr) call nchandle_error(status)
  end subroutine exitstat_nc
-  subroutine writestat_dims_nc(ncid)
+  subroutine writestat_dims_nc(ncid, ncoarse)
     use modglobal, only : dx,dy,zf,zh,jmax
     use modsurfdata, only : zsoilc,isurf
     use modmpi, only : myid
     implicit none
     integer, intent(in) :: ncid
-    integer             :: i=0,iret,length,varid
+    integer, optional, intent(in) :: ncoarse
+    integer             :: i=0,iret,length,varid, nc
+    
+    if (present(ncoarse)) then
+      nc = ncoarse
+    else
+      nc = 1
+    end if
+    
     iret = nf90_inq_varid(ncid, 'xt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+i),i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i),i=0,length-1)/),(/1/))
     iret = nf90_inq_varid(ncid, 'xm', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*i,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i,i=0,length-1)/),(/1/))
 
     iret = nf90_inq_varid(ncid, 'yt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+i)+myid*jmax*dy,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myid*jmax*dy,i=0,length-1)/),(/1/))
     iret = nf90_inq_varid(ncid, 'ym', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*i+myid*jmax*dy,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myid*jmax*dy,i=0,length-1)/),(/1/))
 
     iret = nf90_inq_varid(ncid, 'zt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)
