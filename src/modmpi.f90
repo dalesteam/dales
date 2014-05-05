@@ -63,15 +63,16 @@ contains
 !        The old 'slab' parallelisation is equal to nprocx=1 and nprocy=0
 !
 ! When using a large number of processors it is recommended to set NPROCX=NPROCY=0
-! Otherwise NPROCX=1 and NPROCY=0 is probably faster (default)
+! Otherwise, set NPROCX=1 and NPROCY=0 is probably faster (default)
+!
+! NOTE: the code is not symmetrical in NPROCX and NPROCY and NPROCX=0 NPROCY=1 will be
+!       slower than the default.
 !
 
   subroutine initmpi
     implicit none
     integer dims(2)
     logical periods(2)
-
-    integer ierr
 
 ! Specify the # procs in each direction.
 ! specifying a 0 means that MPI will try to find a useful # procs in
@@ -172,7 +173,7 @@ contains
 
 !   communicate north/south
  
-  if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
+  if(nprocy .gt. 1)then
     ii = 0
     do k=sz,ez
     do i=sx,ex
@@ -218,7 +219,7 @@ contains
 
 !   communicate east/west
 
-  if(nbreast/=MPI_PROC_NULL .AND. nbrwest/=MPI_PROC_NULL)then
+  if(nprocx .gt. 1)then
     ii = 0
     do k=sz,ez
     do i=sy,ey
@@ -269,7 +270,7 @@ contains
   end subroutine excj
 
   subroutine excjs( a, sx, ex, sy, ey, sz,ez,ih,jh)
-    implicit none
+  implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
   integer status(MPI_STATUS_SIZE)
@@ -285,7 +286,7 @@ contains
   allocate( sendb(bsize),recvb(bsize) )
 
 !   Communicate north/south
-  if(nbrnorth/=MPI_PROC_NULL .AND. nbrsouth/=MPI_PROC_NULL)then
+  if(nprocy .gt. 1)then
     ii = 0
     do j=1,jh
     do k=sz,ez
@@ -338,7 +339,7 @@ contains
   endif
 
 !   Communicate east/west
-  if(nbreast/=MPI_PROC_NULL .AND. nbrwest/=MPI_PROC_NULL)then
+  if(nprocx .gt. 1)then
     ii = 0
     do i=1,ih
     do k=sz,ez
