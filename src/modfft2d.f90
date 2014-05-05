@@ -318,7 +318,7 @@ contains
   subroutine fft2df(p,ih,jh)
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1
-    use modmpi, only    : myidx,myidy
+    use modmpi, only    : myidx,myidy,nprocx
 
     integer, intent(in) :: ih,jh
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
@@ -329,13 +329,21 @@ contains
 
     ke = min(kmax - myidx * nkonx, nkonx)
 
-    call transpose_a(p, worka, ih, jh)
-    do k=1,ke
-    do j=1,jmax
-      call rfftf(itot,worka(1,j,k),winew)
-    enddo
-    enddo
-    call transpose_ainv(p, worka, ih, jh)
+    if(nprocx .gt. 1) then
+      call transpose_a(p, worka, ih, jh)
+      do k=1,ke
+      do j=1,jmax
+        call rfftf(itot,worka(1,j,k),winew)
+      enddo
+      enddo
+      call transpose_ainv(p, worka, ih, jh)
+    else
+      do k=1,kmax
+      do j=2,j1
+        call rfftf(itot,p(2,j,k),winew)
+      enddo
+      enddo
+    endif
 
 ! fft over j
 
@@ -347,7 +355,7 @@ contains
       call rfftf(jtot,workb(1,i,k),wjnew)
     enddo
     enddo
-    call transpose_binv(p, workb, ih, jh)            
+    call transpose_binv(p, workb, ih, jh)
 
     p(:,:,:) = p(:,:,:) / sqrt(ijtot)
   end subroutine
@@ -356,7 +364,7 @@ contains
   subroutine fft2db(p,ih,jh)
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1
-    use modmpi, only    : myidx,myidy
+    use modmpi, only    : myidx,myidy,nprocx
 
     integer, intent(in) :: ih,jh
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
@@ -379,13 +387,21 @@ contains
 
     ke = min(kmax - myidx * nkonx, nkonx)
 
-    call transpose_a(p, worka, ih, jh)
-    do k=1,ke
-    do j=1,jmax
-      call rfftb(itot,worka(1,j,k),winew)
-    enddo
-    enddo
-    call transpose_ainv(p, worka, ih, jh)
+    if(nprocx .gt. 1) then
+      call transpose_a(p, worka, ih, jh)
+      do k=1,ke
+      do j=1,jmax
+        call rfftb(itot,worka(1,j,k),winew)
+      enddo
+      enddo
+      call transpose_ainv(p, worka, ih, jh)
+    else
+      do k=1,kmax
+      do j=2,j1
+        call rfftb(itot,p(2,j,k),winew)
+      enddo
+      enddo
+    endif
 
     p(:,:,:) = p(:,:,:) / sqrt(ijtot)
   end subroutine
