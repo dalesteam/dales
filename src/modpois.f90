@@ -35,22 +35,24 @@ public :: initpois,poisson,exitpois,p
 save
 
   real,allocatable :: p(:,:,:)                            ! pressure fluctuations
-  real,allocatable :: xrt(:),yrt(:)                       ! constant factors in equation
+  real,allocatable :: xyrt(:,:)                           ! constant factors in poisson equation
 
 contains
   subroutine initpois
-    use modglobal, only : i1,j1,kmax,itot,jtot,dxi,dyi,pi
+    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi
     use modfft2d,  only : fft2dinit
+    use modmpi, only    : myidx, myidy
 
     implicit none
 
-    integer :: i,j
+    integer :: i,j,iv,jv
     real    :: fac
+    real    :: xrt(itot), yrt(jtot)
 
-    allocate(p(2-1:i1+1,2-1:j1+1,kmax))
+    allocate(   p(2-1:i1+1,2-1:j1+1,kmax))
+    allocate(xyrt(2-1:i1+1,2-1:j1+1)     )
 
-  ! Generate Eigenvalues  (xrt and yrt )
-    allocate(xrt(itot),yrt(jtot))
+  ! Generate Eigenvalues xrt and yrt
 
   !  I --> direction
 
@@ -72,6 +74,19 @@ contains
     yrt(1    ) = 0.
     yrt(jtot ) = -4.*dyi*dyi
 
+  ! Combine I and J directions
+  ! Note that:
+  ! 1. MPI starts counting at 0 so it should be myidy * jmax
+  ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
+
+    do j=2,j1
+      jv = j + myidy*jmax - 1
+      do i=2,i1
+        iv = i + myidx*imax - 1
+        xyrt(i,j)=(xrt(iv)+yrt(jv)) !!! LH
+      end do
+    end do
+
     call fft2dinit()
 
   end subroutine initpois
@@ -89,7 +104,7 @@ contains
     use modfft2d,  only : fft2dexit
     implicit none
 
-    deallocate(p,xrt,yrt)
+    deallocate(p,xyrt)
 
     call fft2dexit()
 
@@ -214,40 +229,18 @@ contains
 !              copy times all included
 
     use modfft2d,  only : fft2df, fft2db
-    use modmpi,    only : myidx,myidy
-    use modglobal, only : imax,jmax,kmax,dzf,dzh,i1,j1
+    use modglobal, only : kmax,dzf,dzh,i1,j1
     use modfields, only : rhobf, rhobh
     implicit none
 
-    real, allocatable, dimension(:)     :: a,b,c
-    real, allocatable, dimension(:,:,:) :: d
-    real, allocatable, dimension(:,:,:) :: xyzrt
+    real :: a(kmax),b(kmax),c(kmax)
+    real :: d(2-1:i1+1,2-1:j1+1,kmax)
 
     real    z,ak,bk,bbk
-    integer jv, iv
     integer i, j, k
-
-    allocate(a(kmax),b(kmax),c(kmax))
-    allocate(    d(2-1:i1+1,2-1:j1+1,kmax))
-    allocate(xyzrt(2-1:i1+1,2-1:j1+1,kmax))
 
   ! Forward FFT
     call fft2df(p,1,1)
-
-  ! Combine I and J directions
-  ! Note that:
-  ! 1. MPI starts counting at 0 so it should be myidy * jmax
-  ! 2. real data, ie. no halo, starts at index 2 in the array xyzrt(2,2,:) <-> xrt(1), yrt(1)
-
-    do k=1,kmax
-    do j=2,j1
-      jv = j + myidy*jmax - 1
-      do i=2,i1
-        iv = i + myidx*imax - 1
-        xyzrt(i,j,k)= rhobf(k)*(xrt(iv)+yrt(jv)) !!! LH
-      end do
-    end do
-    end do
 
   ! Generate tridiagonal matrix
 
@@ -266,7 +259,7 @@ contains
     ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     do j=2,j1
       do i=2,i1
-        z        = 1./(b(1)+xyzrt(i,j,1))
+        z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
         d(i,j,1) = c(1)*z
         p(i,j,1) = p(i,j,1)*z
       end do
@@ -275,7 +268,7 @@ contains
     do k=2,kmax-1
       do  j=2,j1
         do  i=2,i1
-          bbk      = b(k)+xyzrt(i,j,k)
+          bbk      = b(k)+rhobf(k)*xyrt(i,j)
           z        = 1./(bbk-a(k)*d(i,j,k-1))
           d(i,j,k) = c(k)*z
           p(i,j,k) = (p(i,j,k)-a(k)*p(i,j,k-1))*z
@@ -287,7 +280,7 @@ contains
     bk =b(kmax)
     do j=2,j1
       do i=2,i1
-        bbk = bk +xyzrt(i,j,kmax)
+        bbk = bk + rhobf(kmax)*xyrt(i,j) 
         z        = bbk-ak*d(i,j,kmax-1)
         if(z/=0.) then
           p(i,j,kmax) = (p(i,j,kmax)-ak*p(i,j,kmax-1))/z
@@ -307,8 +300,6 @@ contains
 
     ! Backward FFT
     call fft2db(p,1,1)
-
-    deallocate(a,b,c,d,xyzrt)
 
     return
   end subroutine solmpj
