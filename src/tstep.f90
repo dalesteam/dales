@@ -44,7 +44,7 @@ subroutine tstep_update
 
 
   use modglobal, only : i1,j1,rk3step,timee,rtimee,runtime,btime,dtmax,dt,ntimee,ntrun,courant,peclet,&
-                        kmax,k1,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
+                        kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm,rhobf
   use modsubgrid,only : ekm
   use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
@@ -57,7 +57,7 @@ use moddebug
   real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
 
-  allocate(courtotl(k1),courtot(k1))
+  allocate(courtotl(kmax),courtot(kmax))
 
   if(lwarmstart) spinup = .false.
   
@@ -112,7 +112,7 @@ use moddebug
           courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
           (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
         end do      
-        call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+        call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
         do k=1,kmax
             courtotmax=max(courtotmax,sqrt(courtot(k)))
@@ -163,7 +163,7 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,k1,ih,jh,kcb
+  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,ih,jh,kcb
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
