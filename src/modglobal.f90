@@ -27,12 +27,11 @@ implicit none
 save
 
       ! Simulation dimensions (parconst.f90)
-      integer :: imax = 64
+      integer :: itot = 64
       integer :: jtot = 64
+      integer :: imax
       integer :: jmax
-      integer :: jsen
       integer :: kmax = 96
-      integer :: isen
       integer ::  i1
       integer ::  j1
       integer ::  k1
@@ -196,7 +195,7 @@ save
       real :: dy2i            !<  (1/dy)**2
 
 
-      real :: rslabs
+      real :: ijtot
       real, allocatable :: dzf(:)         !<  thickness of full level
       real, allocatable :: dzh(:)         !<  thickness of half level
       real, allocatable :: zh(:)          !<  height of half level [m]
@@ -214,7 +213,7 @@ contains
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
-    use modmpi, only : nprocs, myid,comm3d, my_real, mpierr
+    use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
     implicit none
 
     integer :: advarr(4)
@@ -259,10 +258,8 @@ contains
    end if
 
     ! phsgrid
-
-    jmax = jtot/nprocs
-    isen = imax/nprocs
-    jsen = jmax
+    imax = itot/nprocx 
+    jmax = jtot/nprocy
     i1=imax+1
     j1=jmax+1
     k1=kmax+1
@@ -360,9 +357,9 @@ contains
     allocate(delta(k1))
 
 
-    rslabs = real(imax*jtot)
+    ijtot = real(itot*jtot)
 
-    dx = xsize / float(imax)
+    dx = xsize / float(itot)
     dy = ysize / float(jtot)
 
     ! MPI

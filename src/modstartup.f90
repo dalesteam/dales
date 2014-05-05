@@ -55,7 +55,7 @@ contains
 
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,itrestart,&
-                                  nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
+                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author, lrigidlid, unudge
     use modforces,         only : lforce_user
@@ -73,7 +73,8 @@ contains
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
     use modsubgriddata,    only : ldelta, cf,cn,Rigc,Prandtl,lmason,lsmagorinsky
-    use modmpi,            only : comm3d,myid, mpi_integer,mpi_logical,my_real,mpierr, mpi_character
+    use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
+    use modmpi,            only : initmpi,my_real,myid,nprocx,nprocy,mpierr
 
     implicit none
     integer :: ierr
@@ -82,9 +83,10 @@ contains
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
-        krandumin, krandumax, randu
+        krandumin, krandumax, randu,&
+        nprocx,nprocy
     namelist/DOMAIN/ &
-        imax,jtot,kmax,&
+        itot,jtot,kmax,&
         xsize,ysize,&
         xlat,xlon,xday,xtime,ksp
     namelist/PHYSICS/ &
@@ -94,6 +96,10 @@ contains
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lrigidlid, unudge
     namelist/DYNAMICS/ &
         llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+
+    ! get myid
+    call MPI_INIT(mpierr)
+    call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
 
     !read namelists
     if(myid==0)then
@@ -141,88 +147,93 @@ contains
     end if
     
   !broadcast namelists
-    call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,comm3d,mpierr)
-    call MPI_BCAST(author     ,80,MPI_CHARACTER,0,comm3d,mpierr)
-    call MPI_BCAST(runtime    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(trestart   ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(author     ,80,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(runtime    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nprocy     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(imax       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(xsize      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ysize      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xlat       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xlon       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xday       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xtime      ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(itot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xsize      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ysize      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xlat       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xlon       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xday       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xtime      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(z0         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,comm3d,mpierr)
-    !call MPI_BCAST(lneutraldrag ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(geodamptime,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(unudge     ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(z0         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    !call MPI_BCAST(lneutraldrag ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ps         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(thls       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(geodamptime,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(irad       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(timerad    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(iradiation ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(rad_ls     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rad_longw  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rad_shortw ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rka        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(sw0        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(gc         ,1,MY_REAL   ,0,comm3d,mpierr)
-    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(reff       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(irad       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(timerad    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iradiation ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_ls     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_longw  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_shortw ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rka        ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(sw0        ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(gc         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(reff       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cu         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cv         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(krand      ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(krandumax  ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(randthl    ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(randqt     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(randu      ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(cv         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krand      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krandumax  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randthl    ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randqt     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randu      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(courant,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(peclet,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(courant,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(peclet,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+
+    ! Initialize MPI
+    call initmpi
 
     ! Allocate and initialize core modules
     call initglobal
@@ -262,29 +273,37 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps,lhetero
-    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
-    use modmpi,    only : myid, nprocs,mpierr
+    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
+    use modmpi,    only : myid,nprocx,nprocy,mpierr
     use modtimedep, only : ltimedep
 
 
-      if(mod(jtot,nprocs) /= 0) then
+      if(mod(jtot,nprocy) /= 0) then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocs must divide jtot!!! '
-          write(6,*)'nprocs and jtot are: ',nprocs, jtot
+          write(6,*)'nprocy must divide jtot!!! '
+          write(6,*)'nprocy and jtot are: ',nprocy, jtot
         end if
         call MPI_FINALIZE(mpierr)
         stop
+      else
+        if(myid==0)then
+          write(6,*)'jmax = jtot / nprocy = ', jmax
+        endif
       end if
 
-      if(mod(imax,nprocs)/=0)then
+      if(mod(itot,nprocx)/=0)then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocs must divide imax!!! '
-          write(6,*)'nprocs and imax are: ',nprocs,imax
+          write(6,*)'nprocx must divide itot!!! '
+          write(6,*)'nprocx and itot are: ',nprocx,itot
         end if
         call MPI_FINALIZE(mpierr)
         stop
+      else
+        if(myid==0)then
+          write(6,*)'imax = itot / nprocx = ', imax
+        endif
       end if
 
   !Check Namroptions
@@ -337,7 +356,7 @@ contains
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  ijtot,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,ibas_prf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
@@ -582,11 +601,11 @@ contains
 
       thvh=0.
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-      thvh = thvh/rslabs
+      thvh = thvh/ijtot
 
       thvf = 0.0
       call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvf = thvf/rslabs
+      thvf = thvf/ijtot
 
       u0av = 0.0
       v0av = 0.0
@@ -605,12 +624,12 @@ contains
         call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       end do
 
-      u0av  = u0av  /rslabs + cu
-      v0av  = v0av  /rslabs + cv
-      thl0av = thl0av/rslabs
-      qt0av = qt0av /rslabs
-      ql0av = ql0av /rslabs
-      sv0av = sv0av /rslabs
+      u0av  = u0av  /ijtot + cu
+      v0av  = v0av  /ijtot + cv
+      thl0av = thl0av/ijtot
+      qt0av = qt0av /ijtot
+      ql0av = ql0av /ijtot
+      sv0av = sv0av /ijtot
       th0av  = thl0av + (rlv/cp)*ql0av/exnf
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
       
@@ -979,38 +998,37 @@ contains
  end subroutine exitmodules
 !----------------------------------------------------------------
   subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
+    ! Adds (pseudo) random noise with given amplitude to the field at level k
+    ! Use our own pseudo random function so results are reproducibly the same,
+    ! independent of parallization.
 
-    use modmpi,    only :  myid,nprocs
-    use modglobal, only : i1,imax,jmax,j1,k1
+    use modmpi,    only : myidx, myidy
+    use modglobal, only : itot,jtot,imax,jmax,i1,j1,k1
     integer (KIND=selected_int_kind(6)):: imm, ia, ic,ir
     integer ihl, jhl
     integer i,j,klev
+    integer is,ie,js,je
     integer m,mfac
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
 
-    if (myid>0) then
-      mfac = myid * jmax * imax
-      do m =1,mfac
-        ir=mod((ir)*ia+ic,imm)
+    is = myidx * imax + 1
+    ie = is + imax - 1
 
-      end do
-    end if
-    do j=2,j1
-    do i=2,i1
-      ir=mod((ir)*ia+ic,imm)
-      ran=real(ir)/real(imm)
-      field(i,j,klev) = field(i,j,klev) + (ran-0.5)*2.0*ampl
-    end do
-    end do
+    js = myidy * jmax + 1
+    je = js + jmax - 1
 
-    if (nprocs-1-myid > 0) then
-      mfac = (nprocs-1-myid) * imax * jmax
-      do m=1,mfac
+    do j=1,jtot
+    do i=1,itot
         ir=mod((ir)*ia+ic,imm)
-      end do
-    end if
+        ran=real(ir)/real(imm)
+        if (i >= is .and. i <= ie .and. &
+            j >= js .and. j <= je) then
+            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+        endif
+    enddo
+    enddo
 
     return
   end subroutine randomnize

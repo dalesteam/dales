@@ -210,7 +210,7 @@ contains
 !> Performs the resolved budget calculations
   subroutine do_genbudget
     use modglobal,  only : i1,j1,k1,kmax,dzf,dzh, &
-                          rslabs,cu,cv,iadv_thl,grav, &
+                          ijtot,cu,cv,iadv_thl,grav, &
                           dxi,dyi,dx2i,dy2i
     use modsurfdata,only : thvs, ustar
     use modsubgriddata, only : ekm
@@ -282,7 +282,7 @@ contains
              !buoyancy in x-dir calculated in modtilt.
           end do
        end do
-       buoz(k) = rhobh(k)*grav/thvh(k) * buoz(k)/rslabs
+       buoz(k) = rhobh(k)*grav/thvh(k) * buoz(k)/ijtot
        buoavl(k) = buoz(k)
     end do
     !No buoyancy at the surface
@@ -305,8 +305,8 @@ contains
           vwrs = vwrs+rhobh(k)*(w0(i,j,k)+w0(i,j-1,k))*(v0(i,j,k-1)+v0(i,j,k))/4.
        end do
        end do
-       uwrs = uwrs/rslabs
-       vwrs = vwrs/rslabs
+       uwrs = uwrs/ijtot
+       vwrs = vwrs/ijtot
        shravl(k) = -uwrs*(u0av(k)-u0av(k-1))/dzh(k) &
                    -vwrs*(v0av(k)-v0av(k-1))/dzh(k)
     end do
@@ -333,8 +333,8 @@ contains
       weresl(k) = weresl(k) + egp*0.5*(w0(i,j,k)+w0(i,j,k+1))
     end do
     end do
-    tkeavl(k)   = tkeavl(k)/rslabs
-    weresl(k) = weresl(k)/rslabs
+    tkeavl(k)   = tkeavl(k)/ijtot
+    weresl(k) = weresl(k)/ijtot
   end do
 
   call MPI_ALLREDUCE(tkeavl, tkeav, k1,    MY_REAL, &
@@ -366,7 +366,7 @@ contains
         ptrspavl(k) = ptrspavl(k) + rhobh(k)*w0(i,j,k)*ph
      end do
      end do
-     ptrspavl(k) = ptrspavl(k)/rslabs
+     ptrspavl(k) = ptrspavl(k)/ijtot
   enddo
 
   ptrspavl(1)  = 0.
@@ -423,7 +423,7 @@ contains
 
     enddo
     enddo
-    tau1ml(k) = tau1ml(k)/rslabs
+    tau1ml(k) = tau1ml(k)/ijtot
   enddo
 
   do k=2,kmax
@@ -468,7 +468,7 @@ contains
       tau2ml(k) = tau2ml(k) + tau2j(i,j,k)
     enddo
     enddo
-    tau2ml(k) = tau2ml(k)/rslabs
+    tau2ml(k) = tau2ml(k)/ijtot
   enddo
 
   do k=2,kmax
@@ -516,7 +516,7 @@ contains
 
     enddo
     enddo
-    tau3ml(k) = tau3ml(k)/rslabs
+    tau3ml(k) = tau3ml(k)/ijtot
   enddo
 
 
@@ -601,8 +601,8 @@ contains
   end do
   end do
 
-  tau1ml(1) = tau1ml(1)/rslabs
-  tau2ml(1) = tau2ml(1)/rslabs
+  tau1ml(1) = tau1ml(1)/ijtot
+  tau2ml(1) = tau2ml(1)/ijtot
 
   call MPI_ALLREDUCE(tau1ml, tau1m, k1,    MY_REAL, &
          MPI_SUM, comm3d,mpierr)
@@ -625,9 +625,9 @@ contains
                     (w0(i,j,k)        ) * (tau3j(i,j,k)-tau3m(k))
     end do
     end do
-    subxl(k) = subxl(k)/rslabs
-    subyl(k) = subyl(k)/rslabs
-    subzl(k) = subzl(k)/rslabs
+    subxl(k) = subxl(k)/ijtot
+    subyl(k) = subyl(k)/ijtot
+    subzl(k) = subzl(k)/ijtot
   end do
   call MPI_ALLREDUCE(subxl, subx, k1,    MY_REAL, &
          MPI_SUM, comm3d,mpierr)
@@ -669,7 +669,7 @@ end subroutine do_genbudget
 
 !> Performs the SFS - budget calculations
   subroutine do_gensbbudget
-    use modglobal,  only : i1,j1,ih,jh,k1,kmax,rslabs
+    use modglobal,  only : i1,j1,ih,jh,k1,kmax,ijtot
     use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
     use modfields,  only : e120,rhobf
     use modmpi,     only : slabsum,nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
@@ -714,12 +714,12 @@ end subroutine do_genbudget
     call slabsum(ekmav   ,1,k1,ekm   ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call MPI_ALLREDUCE(khkmavl, khkmav, k1, MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(sbtkeavl,sbtkeav,k1, MY_REAL, MPI_SUM, comm3d,mpierr)
-    sbshrav  = sbshrav  / rslabs
-    sbbuoav  = sbbuoav / rslabs
-    sbdissav = sbdissav/ rslabs
-    sbtkeav  = sbtkeav  / rslabs
-    ekmav    = ekmav    / rslabs
-    khkmav   = khkmav   / rslabs
+    sbshrav  = sbshrav  / ijtot
+    sbbuoav  = sbbuoav / ijtot
+    sbdissav = sbdissav/ ijtot
+    sbtkeav  = sbtkeav  / ijtot
+    ekmav    = ekmav    / ijtot
+    khkmav   = khkmav   / ijtot
     !storage: tke at beginning of averaging period
     if (.not.(lsbtkeb)) then
        sbtkeb = sbtkeav

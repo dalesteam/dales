@@ -339,7 +339,7 @@ contains
 !> Performs the actual sampling
   subroutine dosampling
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
-                          dx,dy,dzh,dzf,cp,rv,rlv,rd,rslabs, &
+                          dx,dy,dzh,dzf,cp,rv,rlv,rd,ijtot, &
                           grav,om22,cu,timee,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           wp,sv0,wp_store
@@ -415,11 +415,11 @@ contains
 
     thvav = 0.0
     call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    thvav = thvav/rslabs
+    thvav = thvav/ijtot
 
     thvhav = 0.0
     call slabsum(thvhav,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    thvhav = thvhav/rslabs
+    thvhav = thvhav/ijtot
 
 
     select case (samplname(isamp))
@@ -716,7 +716,7 @@ contains
 
     do k=1,kmax
         if (nrsamph0 (k).gt.0) then
-            sigh0   (k) = nrsamph0 (k) / rslabs
+            sigh0   (k) = nrsamph0 (k) / ijtot
             whav0   (k) = whav0  (k) / nrsamph0 (k)
             wwthav0 (k) = wwthav0(k) / nrsamph0 (k)
             wwshav0 (k) = wwthav0(k) - whav0(k)**2
@@ -751,7 +751,7 @@ contains
 !> Write the statistics to file
   subroutine writesampling
 
-    use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,rslabs,grav
+    use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,ijtot,grav
     use modfields, only : presf,presh
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
@@ -799,7 +799,7 @@ contains
     nhrs    = int(nsecs/3600)
     nminut  = int(nsecs/60)-nhrs*60
     nsecs   = mod(nsecs,60)
-    inorm   = nint(rslabs*timeav/dtav)
+    inorm   = nint(ijtot*timeav/dtav)
 
     call MPI_ALLREDUCE(nrsampfl   ,nrsampf    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(wfavl      ,wfav       ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -910,7 +910,7 @@ contains
 
           if (sigh_e(k,isamp).gt.0) then
             wh_e  (k,isamp) = wh_e  (k,isamp) / sigh_e(k,isamp)
-            sigh_e(k,isamp) = sigh_e(k,isamp) / rslabs
+            sigh_e(k,isamp) = sigh_e(k,isamp) / ijtot
           endif
 
           if (nrsamph(k,isamp).gt.0) then

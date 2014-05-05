@@ -304,7 +304,7 @@ contains
 !  subroutine tqaver
 !
 !  use modmpi,    only : comm3d,mpierr,my_real, mpi_sum
-!  use modglobal, only : i1,j1,kmax,nsv,rslabs
+!  use modglobal, only : i1,j1,kmax,nsv,ijtot
 !  use modfields, only : thl0,qt0,sv0
 !  implicit none
 !
@@ -331,9 +331,9 @@ contains
 !  end if
 !
 !
-!  thl0a=thl0a/rslabs
-!  qt0a =qt0a/rslabs
-!  sv0a = sv0a/rslabs
+!  thl0a=thl0a/ijtot
+!  qt0a =qt0a/ijtot
+!  sv0a = sv0a/ijtot
 !
 !  thl0(2:i1,2:j1,kmax)=thl0a
 !  qt0(2:i1,2:j1,kmax) =qt0a

@@ -176,7 +176,7 @@ contains
   subroutine do_lsmstat
 
     use modmpi,    only :  slabsum
-    use modglobal, only : rslabs,dzf,i1,j1,i2,j2
+    use modglobal, only : ijtot,dzf,i1,j1,i2,j2
     use modsurfdata, only : ksoilmax,tsoil,phiw,lambda,lambdas,gammas
 
     implicit none
@@ -194,11 +194,11 @@ contains
     call slabsum(gammasav ,1,ksoilmax,gammas ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
  !    ADD SLAB AVERAGES TO TIME MEAN
 
-    phiwmn = phiwmn + phiwav/rslabs
-    tsoilmn = tsoilmn + tsoilav/rslabs
-    lambdamn = lambdamn + lambdaav/rslabs
-    lambdasmn = lambdasmn + lambdasav/rslabs
-    gammasmn = gammasmn + gammasav/rslabs
+    phiwmn = phiwmn + phiwav/ijtot
+    tsoilmn = tsoilmn + tsoilav/ijtot
+    lambdamn = lambdamn + lambdaav/ijtot
+    lambdasmn = lambdasmn + lambdasav/ijtot
+    gammasmn = gammasmn + gammasav/ijtot
 
   end subroutine do_lsmstat
 

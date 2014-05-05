@@ -161,7 +161,7 @@ contains
 !> calculates tendency due to parameterized radiation
 subroutine radpar
 
-  use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,rslabs,xtime,rtimee,xday,xlat,xlon
+  use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
   use modfields,    only : ql0, sv0, rhof,exnf
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)

@@ -69,10 +69,9 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw,irad_full
-    use modfields,  only : thl0, qt0
-    use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+    use modglobal,  only : i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modraddata, only : iradiation,rad_shortw
+    use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
 
@@ -156,7 +155,7 @@ contains
       endif
       if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
       'heterogeneous surface conditions (lhetero) at the same time' 
-      if (mod(imax,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
+      if (mod(itot,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
 
       allocate(z0mav_patch(xpatches,ypatches))
@@ -618,9 +617,9 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rk3step,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
-    use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv!, boltz, rhow
+    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
 
@@ -804,8 +803,8 @@ contains
         call MPI_ALLREDUCE(wtsurfl, wtsurf, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
         call MPI_ALLREDUCE(wqsurfl, wqsurf, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-        wtsurf = wtsurf / rslabs
-        wqsurf = wqsurf / rslabs
+        wtsurf = wtsurf / ijtot
+        wqsurf = wqsurf / ijtot
 
         do j = 2, j1
           do i = 2, i1
@@ -950,8 +949,8 @@ contains
       call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
 
-      thls = thls / rslabs
-      qts  = qts  / rslabs
+      thls = thls / ijtot
+      qts  = qts  / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then
@@ -987,10 +986,10 @@ contains
 
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf
-    use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
+    use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,ijtot,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
-    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,myid,mpi_integer
+    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
 
     implicit none
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
@@ -1017,7 +1016,7 @@ contains
 
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, &
                          MPI_SUM, comm3d,mpierr)
-      qts  = qts / rslabs
+      qts  = qts / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then 
@@ -1053,9 +1052,9 @@ contains
 
 !> Calculates the Obuhkov length iteratively.
   subroutine getobl
-    use modglobal, only : zf, rv, rd, grav, rslabs, i1, j1, i2, j2, timee, cu, cv
+    use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
-    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj,mpi_integer
+    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,excj,mpi_integer
     implicit none
 
     integer             :: i,j,iter,patchx,patchy
@@ -1305,32 +1304,48 @@ contains
   end function psih
 
   function patchxnr(xpos)
-    use modglobal,  only : imax
+    use modmpi,     only : myidx
+    use modglobal,  only : imax,itot
     implicit none
-    integer             :: patchxnr
-    integer             :: positionx
     integer, intent(in) :: xpos
 
-    positionx = xpos - 2                                   !First grid point lies at i = 2. This lines makes sure that position = 0 for first grid point 
-    if (positionx .lt. 0)    positionx = positionx + imax  !To account for border grid points
-    if (positionx .ge. imax) positionx = positionx - imax  !To account for border grid points
-    patchxnr  = 1 + (positionx*xpatches)/imax              !Converts position to patch number
+    integer             :: patchxnr
+    integer             :: positionx
+    
+    ! Converting the j position to the real j position by taking the processor number into account
+    ! First grid point lies at j = 2. Make position = 0 for first grid point
+
+    positionx = xpos + (myidx * imax) - 2
+
+    ! Account for border grid points
+    if (positionx .lt. 0)    positionx = positionx + itot
+    if (positionx .ge. itot) positionx = positionx - itot 
+
+    ! Convert position to patch number
+    patchxnr  = 1 + (positionx*xpatches)/itot 
+
     return
   end function
 
   function patchynr(ypos)
-    use modmpi,     only : myid
+    use modmpi,     only : myidy
     use modglobal,  only : jmax,jtot
     implicit none
-    integer             :: patchynr
-    integer             :: yposreal, positiony
     integer, intent(in) :: ypos
+    integer             :: patchynr
+    integer             :: positiony
     
-    yposreal  = ypos + (myid * jmax)                       !Converting the j position to the real j position by taking the processor number into account
-    positiony = yposreal - 2                               !First grid point lies at j = 2. This lines makes sure that position = 0 for first grid point
-    if (positiony .lt. 0)    positiony = positiony + jtot  !To account for border grid points
-    if (positiony .ge. jtot) positiony = positiony - jtot  !To account for border grid points
-    patchynr  = 1 + (positiony*ypatches)/jtot              !Converts position to patch number
+    ! Converting the j position to the real j position by taking the processor number into account
+    ! First grid point lies at j = 2. Make position = 0 for first gridpoint
+    positiony = ypos + (myidy * jmax) - 2
+
+    ! Account for border grid points
+    if (positiony .lt. 0)    positiony = positiony + jtot
+    if (positiony .ge. jtot) positiony = positiony - jtot
+
+    ! Convert position to patch number
+    patchynr  = 1 + (positiony*ypatches)/jtot
+
     return
   end function
   
@@ -1488,7 +1503,7 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rk3step
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step
     use modfields, only : ql0,qt0,thl0,rhof,presf
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
@@ -1766,7 +1781,7 @@ contains
     end do
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
-    thls = thls / rslabs
+    thls = thls / ijtot
     if (lhetero) then
       call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
       xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)

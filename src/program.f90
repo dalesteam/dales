@@ -100,7 +100,6 @@ program DALES      !Version 4.0.0alpha
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modmpi,            only : myid, initmpi
   use modglobal,         only : rk3step,timee,btime,runtime,timeleft
   use modfields,         only : thl0
   use modstartup,        only : startup, writerestartfiles,exitmodules
@@ -154,8 +153,8 @@ program DALES      !Version 4.0.0alpha
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
-  call initmpi
 
+  ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call startup
 
 !---------------------------------------------------------
@@ -191,7 +190,6 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
-  write(*,*)'START myid ', myid
   do while (timeleft>0 .or. rk3step < 3)
     call tstep_update                           ! Calculate new timestep
     call timedep
