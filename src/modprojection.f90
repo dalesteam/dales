@@ -52,7 +52,7 @@ save
   integer,parameter :: nvar = 8
   integer :: ncid = 0
   integer :: nrec = 0
-  character(80) :: fname = 'proj.xxx.xxx.nc'
+  character(80) :: fname = 'proj.xxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
 
@@ -106,8 +106,8 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'projection: dtav should be a integer multiple of dtmax'
     end if
-    fname(6:8) = cmyid
-    fname(10:12) = cexpnr
+    fname(6:9) = cmyid
+    fname(11:13) = cexpnr
     call ncinfo(tncname(1,:),'time','Time','s','time')
     call ncinfo(ncname( 1,:),'thlxylow','Subcloud Integrated liquid water potential temperature path','K/m','tt0t')
     call ncinfo(ncname( 2,:),'thlxyhigh','Cloudlayer Integrated liquid water potential temperature path','K/m','tt0t')

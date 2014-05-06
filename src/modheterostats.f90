@@ -119,8 +119,8 @@ contains
     allocate(usvcovid(nsv), vsvcovid(nsv), wsvcovid(nsv))
     allocate(wsvcovsid(nsv))
 
-    ncfile = 'heterostats123.nc'
-    write(ncfile(12:14),'(i3.3)') myid
+    ncfile = 'heterostats1234.nc'
+    write(ncfile(12:15),'(i4.4)') myid
 !    write(6,*) "HETEROSTATS: Creating: ", ncfile
 
     !create file

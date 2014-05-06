@@ -2138,13 +2138,13 @@ implicit none
   real ,dimension(2-ih:i1+ih,2-jh:j1+jh,k1,nchsp)::ybegin
   integer fileout,i,j,k,n
 
-  character (len=20) ::filenaam
-  character (len=8)  ::id
+  character (len=21) ::filenaam
+  character (len=9)  ::id
 
   allocate(dummy(2:i1,2:j1,kmax))
 
   fileout=20
-  write(id,'(a,i3.3,a,i3.3)')'.',myid,'.',iexpnr
+  write(id,'(a,i4.4,a,i3.3)')'.',myid,'.',iexpnr
   do n=1,nchsp
     write(filenaam,'(a,a)')trim(PL_scheme(n)%name),id
     open(fileout,file=filenaam,form='unformatted',position='append',action='write')
