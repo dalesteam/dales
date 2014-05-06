@@ -50,7 +50,7 @@ save
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
 
-  character(3) :: cmyid
+  character(4) :: cmyid
 
 contains
 
@@ -125,7 +125,7 @@ contains
     end if
 
     write(*,*)'myid, myidx, myidy, n, e, s, w = ', myid, myidx, myidy, nbrnorth, nbreast, nbrsouth, nbrwest
-    write(cmyid,'(i3.3)') myid
+    write(cmyid,'(i4.4)') myid
 
   end subroutine initmpi
 

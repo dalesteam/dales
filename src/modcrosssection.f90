@@ -48,9 +48,9 @@ save
   integer :: cross
   integer :: nrc
   character(4) :: cheight
-  character(80) :: fname1 = 'crossxz.xxx.xxx.nc'
-  character(80) :: fname2 = 'crossxy.xxxx.xxx.xxx.nc'
-  character(80) :: fname3 = 'crossyz.xxx.xxx.nc'
+  character(80) :: fname1 = 'crossxz.xxxx.xxx.nc'
+  character(80) :: fname2 = 'crossxy.xxxx.xxxx.xxx.nc'
+  character(80) :: fname3 = 'crossyz.xxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname1
   character(80),dimension(1,4) :: tncname1
   character(80),dimension(nvar,4) :: ncname2
@@ -127,8 +127,8 @@ contains
     end if
     if (lnetcdf) then
     if (myid==0) then
-      fname1(9:11) = cmyid
-      fname1(13:15) = cexpnr
+      fname1(9:12) = cmyid
+      fname1(14:16) = cexpnr
       call ncinfo(tncname1(1,:),'time','Time','s','time')
       call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
       call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
@@ -151,8 +151,8 @@ contains
     do cross=1,nxy
       write(cheight,'(i4.4)') crossheight(cross)
       fname2(9:12) = cheight
-      fname2(14:16) = cmyid
-      fname2(18:20) = cexpnr
+      fname2(14:17) = cmyid
+      fname2(19:21) = cexpnr
       call ncinfo(tncname2(1,:),'time','Time','s','time')
       call ncinfo(ncname2( 1,:),'uxy','xy crosssections of the West-East velocity','m/s','mt0t')
       call ncinfo(ncname2( 2,:),'vxy','xy crosssections of the South-North velocity','m/s','tm0t')
@@ -172,8 +172,8 @@ contains
       end if
       call define_nc( ncid2(cross), NVar, ncname2)
     end do
-    fname3(9:11) = cmyid
-    fname3(13:15) = cexpnr
+    fname3(9:12) = cmyid
+    fname3(14:16) = cexpnr
     call ncinfo(tncname3(1,:),'time','Time','s','time')
     call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
     call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
