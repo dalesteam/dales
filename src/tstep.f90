@@ -48,7 +48,6 @@ subroutine tstep_update
   use modfields, only : um,vm,wm,rhobf
   use modsubgrid,only : ekm
   use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
-use moddebug
   implicit none
 
   real, allocatable, dimension (:) :: courtotl,courtot
