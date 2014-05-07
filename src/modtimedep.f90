@@ -74,7 +74,7 @@ contains
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls,Qnetav
     use modtimedepsv, only : inittimedepsv
 
-    use modtestbed,        only : ltestbed,ntnudge,ntmax,&
+    use modtestbed,        only : ltestbed,ntnudge,&
                                   tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts,&
                                   tb_w,tb_ug,tb_vg,&
                                   tb_uadv,tb_vadv,tb_qtadv,tb_thladv,tb_Qnet
@@ -90,8 +90,8 @@ contains
     if (.not. ltimedep) return
 
     if (ltestbed) then
-      kflux = ntmax
-      kls   = ntmax
+      kflux = ntnudge
+      kls   = ntnudge
     else
       kflux = 100
       kls   = 100
