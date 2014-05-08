@@ -29,6 +29,7 @@
 module modradfull
 
   use RandomNumbers
+  use modglobal, only : pi
   implicit none
   private
   public :: radfull,d4stream
@@ -543,7 +544,7 @@ contains
        q2 =   w2w * ( 1.5 * fw - 0.5 )
        q3 = - w3w * ( 2.5 * fw - 1.5 ) * u0
        do i = 1, 4
-          c(i,5) = (w0w + q1*p1d(i) + q2*p2d(i) + q3*p3d(i))/(u(i) + epsilon(u(i)))
+          c(i,5) = (w0w + q1*p1d(i) + q2*p2d(i) + q3*p3d(i))/(u(i)+epsilon(u0))
        end do
     else
        do i = 1, 4
@@ -554,8 +555,8 @@ contains
     fq = 0.5 * w0w
     do i = 3, 4
        do j = 1, 4
-          c(i,j) = fq + w1w*p11d(i,j) + w2w*p22d(i,j) + w3w*p33d(i,j)
-          if ( i .eq. j ) then
+          c(i,j) = fq + w1w*p11d(i,j) + w2w*p22d(i,j) + w3w*p33d(i,j) 
+          if ( i .eq. j ) then 
              c(i,j) = ( c(i,j) - 1.0 ) / u(i)
           else
              c(i,j) = c(i,j) / u(i)
@@ -616,10 +617,10 @@ contains
     fw = u0 * u0
     x = 1.0 / ( fw * fw+epsilon(u0) ) - b1 / (fw+epsilon(u0)) - c1
     fw = 0.5 * f0 / x
-    z(1) = fw * z(1)
-    z(2) = fw * z(2)
-    z(3) = fw * z(3)
-    z(4) = fw * z(4)
+    z(1) = fw * z(1) 
+    z(2) = fw * z(2) 
+    z(3) = fw * z(3) 
+    z(4) = fw * z(4) 
     z1(1) = 0.5 * ( z(1) + z(3) )
     z1(2) = 0.5 * ( z(2) + z(4) )
     z1(3) = 0.5 * ( z(2) - z(4) )
@@ -629,14 +630,14 @@ contains
     x = b(1,1) * b(4,1) - b(3,1) * b(2,1)
     fw1 = fk1 / x
     fw2 = fk2 / x
-    y = fw2 * ( b2 * b(2,1) - b(4,1) )
+    y = fw2 * ( b2 * b(2,1) - b(4,1) ) 
     zx = fw1 * ( a2 * b(2,1) - b(4,1) )
     a1(1,1) = 0.5 * ( 1 - y )
     a1(1,2) = 0.5 * ( 1 - zx )
     a1(1,3) = 0.5 * ( 1 + zx )
     a1(1,4) = 0.5 * ( 1 + y )
-    y = fw2 * ( b(3,1) - b2 * b(1,1) )
-    zx = fw1 * ( b(3,1) - a2 * b(1,1) )
+    y = fw2 * ( b(3,1) - b2 * b(1,1) ) 
+    zx = fw1 * ( b(3,1) - a2 * b(1,1) ) 
     a1(2,1) = 0.5 * ( b2 - y )
     a1(2,2) = 0.5 * ( a2 - zx )
     a1(2,3) = 0.5 * ( a2 + zx )
@@ -673,8 +674,10 @@ contains
 
   end subroutine coefft
 
-  !> In the limits of no scattering ( Fu, 1991 ), fk1 = 1.0 / u(3) and
-  !> fk2 = 1.0 / u(4).
+  ! **********************************************************************
+  ! In the limits of no scattering ( Fu, 1991 ), fk1 = 1.0 / u(3) and
+  ! fk2 = 1.0 / u(4).
+  ! **********************************************************************
   subroutine coefft0( solar,t0,t1,u0,f0,aa,zz,a1,z1,fk1,fk2)
 
     logical, intent (in) :: solar
@@ -696,7 +699,7 @@ contains
        else
           jj = 5 - i
           z1(i) = fw / ( 1.0 + u(jj) / (u0+epsilon(u0)) )
-          zz(i,1) = z1(i)
+          zz(i,1) = z1(i) 
           zz(i,2) = z1(i) * y
        endif
        do j = 1, 4
@@ -724,14 +727,14 @@ contains
 
   end subroutine coefft0
 
-  !> **********************************************************************
-  !> In the solar band  asbs is the surface albedo, while in the infrared
-  !> band asbs is  blackbody intensity emitted at the surface temperature
-  !> times surface emissivity.  In this subroutine, the delta-four-stream
-  !> is applied to nonhomogeneous atmospheres. See comments in subroutine
-  !> 'qcfel' for array AB(13,4*n).
-  !> **********************************************************************
-  subroutine qccfe (solar,asbs,ee,t,w,w1,w2,w3,u0,f0,fk1,fk2,a4,g4,z4 )
+  ! **********************************************************************
+  ! In the solar band  asbs is the surface albedo, while in the infrared
+  ! band asbs is  blackbody intensity emitted at the surface temperature
+  ! times surface emissivity.  In this subroutine, the delta-four-stream
+  ! is applied to nonhomogeneous atmospheres. See comments in subroutine
+  ! 'qcfel' for array AB(13,4*n).
+  ! **********************************************************************
+  subroutine qccfe (solar,asbs,ee,t,w,w1,w2,w3,u0,f0,fk1,fk2,a4,g4,z4 )  
 
     logical, intent (in)              :: solar
     real, intent (in)                 :: asbs, ee
@@ -739,7 +742,7 @@ contains
     real, dimension (nv), intent (out):: fk1, fk2
     real, intent(out)                 :: a4(4,4,nv), g4(4,nv), z4(4,nv)
 
-    integer :: i, j, k, m18, m28, n4, kf, j1, j2, j3, i1
+    integer :: i, j, k, m18, m28, n4, kf, j1, j2, j3, i1 
     integer :: i2, i3, i8, m2, m1
     real    :: fu(4,4), wu(4), ab(13,4*nv), bx(4*nv), xx(4*nv)
     real    :: aa(4,4,2), zz(4,2), a1(4,4), z1(4), fw1, fw2, wn, v1, v2, v3
@@ -824,7 +827,7 @@ contains
     if ( solar ) then
        v1 = 0.2113247 * asbs
        v2 = 0.7886753 * asbs
-       v3 = asbs * u0(1) * f0(1) * exp ( - t(nv) / (u0(1)+epsilon(u0(1)) ))
+       v3 = asbs * u0(1) * f0(1) * exp ( - t(nv) / (u0(1)+epsilon(u0)) )
     else
        v1 = 0.2113247 * ( 1.0 - ee )
        v2 = 0.7886753 * ( 1.0 - ee )
@@ -856,34 +859,34 @@ contains
 
   end subroutine qccfe
 
-  !> **********************************************************************
-  !> 1. `qcfel' is the abbreviation of ` qiu constants for each layer'.
-  !> 2. The inhomogeneous atmosphere is divided into n adjacent homogeneous
-  !>    layers where the  single scattering properties are constant in each
-  !>    layer and allowed to vary from one to another. Delta-four-stream is
-  !>    employed for each homogeneous layer. The boundary conditions at the
-  !>    top and bottom of the atmosphere,  together with  continuity condi-
-  !>    tions  at  layer interfaces lead to a system of algebraic equations
-  !>    from which 4*n unknown constants in the problom can be solved.
-  !> 3. This subroutine is used for solving the 4*n unknowns of A *X = B by
-  !>    considering the fact that the coefficient matrix is a sparse matrix
-  !>    with the precise pattern in this special problom.
-  !> 4. The method is not different in principle from the general scheme of
-  !>    Gaussian elimination with backsubstitution, but carefully optimized
-  !>    so as to minimize arithmetic operations.  Partial  pivoting is used
-  !>    to quarantee  method's numerical stability,  which will  not change
-  !>    the basic pattern of sparsity of the matrix.
-  !> 5. Scaling special problems so as to make  its nonzero matrix elements
-  !>    have comparable magnitudes, which will ameliorate the stability.
-  !> 6. a, b and x present A, B and X in A*X=B, respectively. and n4=4*n.
-  !> 7. AB(13,4*n) is the matrix A in band storage, in rows 3 to 13; rows 1
-  !>    and 2 and other unset elements should be set to zero on entry.
-  !> 8. The jth column of A is stored in the jth column of the array AB  as
-  !>    follows:
-  !>            AB(8+i-j,j) = A(i,j) for max(1,j-5) <= i <= min(4*n,j+5).
-  !>    Reversedly, we have
-  !>            A(ii+jj-8,jj) = AB(ii,jj).
-  !> **********************************************************************
+  ! **********************************************************************
+  ! 1. `qcfel' is the abbreviation of ` qiu constants for each layer'.
+  ! 2. The inhomogeneous atmosphere is divided into n adjacent homogeneous
+  !    layers where the  single scattering properties are constant in each
+  !    layer and allowed to vary from one to another. Delta-four-stream is
+  !    employed for each homogeneous layer. The boundary conditions at the
+  !    top and bottom of the atmosphere,  together with  continuity condi-
+  !    tions  at  layer interfaces lead to a system of algebraic equations
+  !    from which 4*n unknown constants in the problom can be solved.
+  ! 3. This subroutine is used for solving the 4*n unknowns of A *X = B by
+  !    considering the fact that the coefficient matrix is a sparse matrix
+  !    with the precise pattern in this special problom.
+  ! 4. The method is not different in principle from the general scheme of
+  !    Gaussian elimination with backsubstitution, but carefully optimized
+  !    so as to minimize arithmetic operations.  Partial  pivoting is used
+  !    to quarantee  method's numerical stability,  which will  not change
+  !    the basic pattern of sparsity of the matrix.
+  ! 5. Scaling special problems so as to make  its nonzero matrix elements
+  !    have comparable magnitudes, which will ameliorate the stability.
+  ! 6. a, b and x present A, B and X in A*X=B, respectively. and n4=4*n.
+  ! 7. AB(13,4*n) is the matrix A in band storage, in rows 3 to 13; rows 1
+  !    and 2 and other unset elements should be set to zero on entry.
+  ! 8. The jth column of A is stored in the jth column of the array AB  as
+  !    follows:
+  !            AB(8+i-j,j) = A(i,j) for max(1,j-5) <= i <= min(4*n,j+5).
+  !    Reversedly, we have
+  !            A(ii+jj-8,jj) = AB(ii,jj).
+  ! **********************************************************************
   subroutine qcfel(ab, b, x)
 
     real, intent (inout)  :: ab(13,4*nv),b(4*nv)
@@ -893,7 +896,6 @@ contains
     integer :: k44, n44, m18, m28, m38, m48, m1f, im1, i0m1, i0, i0f, ifq
     real    :: xx, yy, t, p
 
-    i0=0
     n4 = 4*nv
     do  k = 1, nv - 1
        k44 = 4 * k - 4
@@ -1026,12 +1028,12 @@ contains
 
   end subroutine qcfel
 
-  !> **********************************************************************
-  !> In this subroutine, we incorporate a delta-function adjustment to
-  !> account for the  forward  diffraction  peak in the context of the
-  !> four-stream approximation ( Liou, Fu and Ackerman, 1988 ). w1(n),
-  !> w2(n), w3(n), w(n), and t(n) are the adjusted parameters.
-  !> **********************************************************************
+  ! **********************************************************************
+  ! In this subroutine, we incorporate a delta-function adjustment to
+  ! account for the  forward  diffraction  peak in the context of the 
+  ! four-stream approximation ( Liou, Fu and Ackerman, 1988 ). w1(n),
+  ! w2(n), w3(n), w(n), and t(n) are the adjusted parameters.
+  ! **********************************************************************
   subroutine adjust (tt,ww,ww1,ww2,ww3,ww4,t,w,w1,w2,w3)
 
     real, dimension (nv), intent (in) :: tt,ww,ww1,ww2,ww3,ww4
@@ -1043,7 +1045,7 @@ contains
     tt0 = 0.0
     do  k = 1, nv
        f = ww4(k) / 9.0
-       fw = 1.0 - f * ww(k)
+       fw = 1.0 - f * ww(k) 
        w1(k) = ( ww1(k) - 3.0 * f ) / ( 1.0 - f )
        w2(k) = ( ww2(k) - 5.0 * f ) / ( 1.0 - f )
        w3(k) = ( ww3(k) - 7.0 * f ) / ( 1.0 - f )
@@ -1057,13 +1059,12 @@ contains
     end do
 
   end subroutine adjust
-  !> --------------------------------------------------------------------------
-  !> Subroutine qft: Delta 4-stream solver for fluxes
-  !>
+  ! --------------------------------------------------------------------------
+  ! Subroutine qft: Delta 4-stream solver for fluxes
+  !
   subroutine qft (solar, ee, as, u0, bf, tt, ww, ww1, ww2, ww3, ww4, ffu, ffd)
-    use modglobal, only : pi
+
     logical, intent (in) :: solar
-    logical              :: ldummy ! serves to make radiation scheme work under O4
     real, intent (in)    :: ee, as, u0
     real, dimension (nv), intent (in)   :: tt,ww,ww1,ww2,ww3,ww4
     real, dimension (nv1), intent (in)  :: bf
@@ -1090,19 +1091,14 @@ contains
        xas = bf(nv1) * ee
        xee = ee
        tkm1 = 0.0
-        do k = 1, nv
-           f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
-           u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ) + epsilon(1.))
-           tkm1 = t(k)
-            if(abs(u0a(k))<10.e-10) then
-              ldummy=.true.
-            else
-              ldummy=.false.
-            endif
-        end do
-     end if
-
-    call qccfe (solar,xas,xee,t,w,w1,w2,w3,u0a,f0a,fk1,fk2,a4,g4,z4 )
+       do k = 1, nv
+          f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
+          u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ))
+          u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
+          tkm1 = t(k)
+       end do
+    end if
+    call qccfe (solar,xas,xee,t,w,w1,w2,w3,u0a,f0a,fk1,fk2,a4,g4,z4 )  
 
     tkm1 = 0.
     do k = 1, nv1
