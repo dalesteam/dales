@@ -420,12 +420,10 @@ contains
     real    :: pa, pb, ptop, ptest, test, dp1, dp2, dp3, dtm, dtp
 
     norig = 0
-    if (.not. allocated(sp)) then
-      allocate ( sp(nknudge), st(nknudge), sh(nknudge), so(nknudge), sl(nknudge))
-    else
+    allocate ( sp(nknudge), st(nknudge), sh(nknudge), so(nknudge), sl(nknudge))
+    if (allocated(pp)) then
       deallocate (pp,fds,fus,fdir,fuir)
       deallocate (pt,ph,po,pre,pde,plwc,prwc)
-
     end if
     call testbed_getinttime(t, dtm, dtp)
     sp = tbrad_p (t,:) * dtp + tbrad_p (t+1,:) * dtm /100.  !convert to hPa
