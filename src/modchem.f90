@@ -2131,20 +2131,20 @@ end function getth
 subroutine chemmovie(ybegin)
 use modglobal, only : i1,j1,ih,jh,i2, j2, k1,kmax,nsv, timee, iexpnr
 use modfields, only: svm,qt0,ql0
-use modmpi, only: myid
+use modmpi, only: myidx, myidy
 implicit none
 
   real*4, allocatable ::dummy(:,:,:)
   real ,dimension(2-ih:i1+ih,2-jh:j1+jh,k1,nchsp)::ybegin
   integer fileout,i,j,k,n
 
-  character (len=21) ::filenaam
-  character (len=9)  ::id
+  character (len=30) ::filenaam
+  character (len=13) ::id
 
   allocate(dummy(2:i1,2:j1,kmax))
 
   fileout=20
-  write(id,'(a,i4.4,a,i3.3)')'.',myid,'.',iexpnr
+  write(id,'(2a,i3.3,a,i3.3,a,i3.3)')'.','x', myidx, 'y', myidy,'.',iexpnr
   do n=1,nchsp
     write(filenaam,'(a,a)')trim(PL_scheme(n)%name),id
     open(fileout,file=filenaam,form='unformatted',position='append',action='write')
