@@ -36,7 +36,7 @@ save
 !NetCDF variables
   integer,parameter :: nvar = 8
   integer :: ncid,nrec = 0
-  character(80) :: fname = 'fielddump.xxxx.xxx.nc'
+  character(80) :: fname = 'fielddump.xxxxyxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
 
@@ -90,8 +90,8 @@ contains
       stop 'dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-      fname(11:14) = cmyid
-      fname(16:18) = cexpnr
+      fname(11:18) = cmyid
+      fname(20:22) = cexpnr
       call ncinfo(tncname(1,:),'time','Time','s','time')
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
