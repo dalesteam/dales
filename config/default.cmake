@@ -1,5 +1,5 @@
 # ARCH Linux
-set(CMAKE_Fortran_COMPILER "gfortran")
+set(CMAKE_Fortran_COMPILER "/usr/bin/gfortran")
 set(Fortran_COMPILER_WRAPPER mpif90)
 
 set(USER_Fortran_FLAGS "-fbacktrace -finit-real=nan -fdefault-real-8  -fno-f2c -ffree-line-length-none")
