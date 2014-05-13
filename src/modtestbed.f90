@@ -34,23 +34,25 @@ use netcdf
 
 implicit none
 PRIVATE
-PUBLIC :: inittestbed, testbednudge, exittestbed, ltestbed, ntnudge, ntmax, &
+PUBLIC :: inittestbed, testbednudge, exittestbed, ltestbed,testbed_getinttime, ntnudge, nknudge, &
           tb_time,tb_ps,tb_qts,tb_thls,tb_wqs,tb_wts, tb_z0h, tb_z0m, tb_alb, tb_Qnet, &
           tb_u,tb_v,tb_w,tb_thl,tb_qt,tb_ug,tb_vg, &
           tb_dqtdxls,tb_dqtdyls, &
           tb_qtadv,tb_thladv,tb_uadv,tb_vadv, &
-          tb_tsoilav,tb_phiwav
+          tb_tsoilav,tb_phiwav, &
+          tbrad_p, tbrad_ql, tbrad_qv, tbrad_t, tbrad_o3
 SAVE
   real, dimension(:,:), allocatable :: tnudge,tb_u,tb_v,tb_w,tb_thl,tb_qt,tb_ug,tb_vg, &
                                        tb_dqtdxls,tb_dqtdyls, &
                                        tb_qtadv,tb_thladv,tb_uadv,tb_vadv, &
-                                       tb_tsoilav,tb_phiwav
+                                       tb_tsoilav,tb_phiwav, &
+                                       tbrad_p, tbrad_t, tbrad_qv, tbrad_ql, tbrad_o3
   real, dimension(:)  , allocatable :: tb_time, tb_ps, tb_qts, tb_thls, tb_wqs, tb_wts, tb_z0h, tb_z0m, tb_alb, tb_Qnet
   real :: tb_taunudge = 10800.
   logical :: ltestbed = .false., &
              ltb_nudge = .false., &
              ltb_u,ltb_v,ltb_w,ltb_thl,ltb_qt
-  integer :: nknudge,ntnudge,ntmax
+  integer :: nknudge,ntnudge
 
 contains
   subroutine inittestbed
@@ -62,7 +64,7 @@ contains
 
     implicit none
 
-    real, dimension(:,:), allocatable :: dumomega,dumqv,dumql,dumqi,dumt,dumpf,&
+    real, dimension(:,:), allocatable :: dumomega,dumqv,dumql,dumqi,dumt,dumpf, dumo3,&
                                          dumheight,dumqt,dumthl,dumu,dumv,dumw, &
                                          dumug,dumvg,dumqtadv,dumthladv,dumuadv,dumvadv, &
                                          dumqadv,dumladv,dumiadv,dumtadv, &
@@ -98,40 +100,80 @@ contains
 
     end if
  
-    call MPI_BCAST(ltestbed    , 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(ltestbed     , 1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(ltb_nudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
+    
+    if (.not. ltestbed) return
+
+
+    if(myid==0) then
+        !--- open nc file ---
+        STATUS = NF90_OPEN('scm_in.nc', nf90_nowrite, NCID)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
           
+          
+        !--- get time & height dimensions ---
+        status = nf90_inq_dimid(ncid, "time", timID)
+        if (status /= nf90_noerr) call handle_err(status)
+        status = nf90_inquire_dimension(NCID, timID, len=ntnudge, name=RecordDimName)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+
+!        write(6,'(a15,i10," ",a10)') 'scm_in time:',ntnudge,RecordDimName
+
+        status = nf90_inq_dimid(ncid, "nlev", timID)
+        if (status /= nf90_noerr) call handle_err(status)
+        status = nf90_inquire_dimension(NCID, timID, len=nknudge, name=RecordDimName)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+
+        status = nf90_inq_dimid(ncid, "nlevp1", timID)
+        if (status /= nf90_noerr) call handle_err(status)
+        status = nf90_inquire_dimension(NCID, timID, len=nknudgep1, name=RecordDimName)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+
+        status = nf90_inq_dimid(ncid, "nlevs", timID)
+        if (status /= nf90_noerr) call handle_err(status)
+        status = nf90_inquire_dimension(NCID, timID, len=nknudges, name=RecordDimName)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+    end if
+
+    call MPI_BCAST(ntnudge    , 1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(nknudge    , 1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(nknudgep1  , 1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(nknudges   , 1,MPI_INTEGER,0,comm3d,mpierr)
 
     !--- allocate space for input variables & reset---
-
-    ntmax = 100     !Time-dimension of testbed nudging arrays.
-
-    allocate(    tnudge    (ntmax,k1), &
-                 tb_u      (ntmax,k1), &
-                 tb_v      (ntmax,k1), &
-                 tb_w      (ntmax,k1), &
-                 tb_thl    (ntmax,k1), &
-                 tb_qt     (ntmax,k1), &
-                 tb_ug     (ntmax,k1), &
-                 tb_vg     (ntmax,k1), &
-                 tb_dqtdxls(ntmax,k1), &
-                 tb_dqtdyls(ntmax,k1), &
-                 tb_qtadv  (ntmax,k1), &
-                 tb_thladv (ntmax,k1), &
-                 tb_uadv   (ntmax,k1), &
-                 tb_vadv   (ntmax,k1), &
-                 tb_time   (ntmax), &
-                 tb_ps     (ntmax), &
-                 tb_qts    (ntmax), &
-                 tb_thls   (ntmax), &
-                 tb_wts    (ntmax), &
-                 tb_wqs    (ntmax), &
-                 tb_z0m    (ntmax), &
-                 tb_z0h    (ntmax), &
-                 tb_alb    (ntmax), &
-                 tb_Qnet   (ntmax), &
-                 tb_tsoilav(ntmax,ksoilmax), &
-                 tb_phiwav (ntmax,ksoilmax)    )
+    allocate(    tnudge    (ntnudge,k1), &
+                 tb_u      (ntnudge,k1), &
+                 tb_v      (ntnudge,k1), &
+                 tb_w      (ntnudge,k1), &
+                 tb_thl    (ntnudge,k1), &
+                 tb_qt     (ntnudge,k1), &
+                 tb_ug     (ntnudge,k1), &
+                 tb_vg     (ntnudge,k1), &
+                 tb_dqtdxls(ntnudge,k1), &
+                 tb_dqtdyls(ntnudge,k1), &
+                 tb_qtadv  (ntnudge,k1), &
+                 tb_thladv (ntnudge,k1), &
+                 tb_uadv   (ntnudge,k1), &
+                 tb_vadv   (ntnudge,k1), &
+                 tb_time   (ntnudge), &
+                 tb_ps     (ntnudge), &
+                 tb_qts    (ntnudge), &
+                 tb_thls   (ntnudge), &
+                 tb_wts    (ntnudge), &
+                 tb_wqs    (ntnudge), &
+                 tb_z0m    (ntnudge), &
+                 tb_z0h    (ntnudge), &
+                 tb_alb    (ntnudge), &
+                 tb_Qnet   (ntnudge), &
+                 tb_tsoilav(ntnudge,ksoilmax), &
+                 tb_phiwav (ntnudge,ksoilmax), &
+                 tbrad_p    (ntnudge, nknudge), &
+                 tbrad_t    (ntnudge, nknudge), &
+                 tbrad_qv   (ntnudge, nknudge), &
+                 tbrad_ql   (ntnudge, nknudge), &
+                 tbrad_o3   (ntnudge, nknudge), &
+                 )
 
      tnudge = tb_taunudge     !nudging timescale
 
@@ -164,39 +206,7 @@ contains
         tb_phiwav=0
 
     
-    if (.not. ltestbed) return
-
     if(myid==0) then
-
-        !--- open nc file ---
-        STATUS = NF90_OPEN('scm_in.nc', nf90_nowrite, NCID)
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-          
-          
-        !--- get time & height dimensions ---
-        status = nf90_inq_dimid(ncid, "time", timID)
-        if (status /= nf90_noerr) call handle_err(status)
-        status = nf90_inquire_dimension(NCID, timID, len=ntnudge, name=RecordDimName)
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-
-!        write(6,'(a15,i10," ",a10)') 'scm_in time:',ntnudge,RecordDimName
-
-        status = nf90_inq_dimid(ncid, "nlev", timID)
-        if (status /= nf90_noerr) call handle_err(status)
-        status = nf90_inquire_dimension(NCID, timID, len=nknudge, name=RecordDimName)
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-
-        status = nf90_inq_dimid(ncid, "nlevp1", timID)
-        if (status /= nf90_noerr) call handle_err(status)
-        status = nf90_inquire_dimension(NCID, timID, len=nknudgep1, name=RecordDimName)
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-
-        status = nf90_inq_dimid(ncid, "nlevs", timID)
-        if (status /= nf90_noerr) call handle_err(status)
-        status = nf90_inquire_dimension(NCID, timID, len=nknudges, name=RecordDimName)
-        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-
-!        write(6,'(a15,2i10," ",a10)') 'scm_in height:',nknudge, nknudgep1, nknudges, RecordDimName
 
         allocate(dumomega (nknudge,ntnudge), &
                  dumheight(nknudge,ntnudge), &
@@ -204,6 +214,7 @@ contains
                  dumqv    (nknudge,ntnudge), &
                  dumql    (nknudge,ntnudge), &
                  dumqi    (nknudge,ntnudge), &
+                 dumo3    (nknudge,ntnudge), &
                  dumt     (nknudge,ntnudge), &
                  dumqt    (nknudge,ntnudge), &
                  dumthl   (nknudge,ntnudge), &
@@ -225,7 +236,8 @@ contains
                  dumheights (nknudges), & 
                  dumtsoilav (nknudges,ntnudge), & 
                  dumphiwav  (nknudges,ntnudge), & 
-                 dumswi     (nknudges,ntnudge)    )
+                 dumswi     (nknudges,ntnudge), &
+                 )
 
 
         !--- timeseries ---
@@ -343,7 +355,7 @@ contains
         do k=1,nknudge
           dumqt(k,i) = dumqv(k,i) + dumql(k,i) + dumqi(k,i)
         enddo
-        enddo
+        enddo       
           
         !  thl
         STATUS = NF90_INQ_VARID(NCID, 't', VARID)
@@ -362,6 +374,12 @@ contains
           dumthl(k,i) = dumt(k,i) * iexner - (rlv * dumql(k,i)) / cp
         enddo
         enddo
+
+        !  Ozone
+        STATUS = NF90_INQ_VARID(NCID, 'o3', VARID)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+        STATUS = NF90_GET_VAR (NCID, VARID, dumo3, start=start2, count=count2)
+        if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
 
         !  w
         STATUS = NF90_INQ_VARID(NCID, 'omega', VARID)
@@ -551,6 +569,13 @@ contains
           !tb_tsoilav(i,:) = dumtsoilav(:,i)
 
           !tb_phiwav (i,:) = phiwp + dumswi(:,i) * (phifc - phiwp )     !scale soil moisture using field capacity and wilting point
+          do k = 1, nknudge
+            tbrad_p(i,k)  = dumpf(k,i)
+            tbrad_t(i,k)  = dumt(k,i)
+            tbrad_qv(i,k) = dumqv(k,i)
+            tbrad_ql(i,k) = dumql(k,i) + dumqi(k,i) 
+            tbrad_o3(i,k) = dumo3(k,i)
+          end do
 
         enddo
 
@@ -562,6 +587,7 @@ contains
         deallocate(dumqi)
         deallocate(dumt)
         deallocate(dumpf)
+        deallocate(dumo3)
 
         deallocate(dumheight)
         deallocate(dumqt)
@@ -615,35 +641,41 @@ contains
 
     call MPI_BCAST(ntnudge    , 1,MPI_INTEGER,0,comm3d,mpierr)
 
-    call MPI_BCAST(tb_time    ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_ps      ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_qts     ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_thls    ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_wts     ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_wqs     ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_z0h     ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_z0m     ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_Qnet    ,ntmax   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_time    ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_ps      ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_qts     ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_thls    ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_wts     ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_wqs     ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_z0h     ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_z0m     ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_Qnet    ,ntnudge   ,MY_REAL    ,0,comm3d,mpierr)
 
-    call MPI_BCAST(tnudge     ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_u       ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_v       ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_w       ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_thl     ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_qt      ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_ug      ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_vg      ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_uadv    ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_vadv    ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_qtadv   ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_thladv  ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_uadv    ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_vadv    ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_dqtdxls ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_dqtdyls ,ntmax*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tnudge     ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_u       ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_v       ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_w       ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_thl     ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_qt      ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_ug      ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_vg      ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_uadv    ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_vadv    ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_qtadv   ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_thladv  ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_uadv    ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_vadv    ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_dqtdxls ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_dqtdyls ,ntnudge*k1,MY_REAL    ,0,comm3d,mpierr)
 
-    call MPI_BCAST(tb_tsoilav ,ntmax*ksoilmax,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tb_phiwav  ,ntmax*ksoilmax,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_tsoilav ,ntnudge*ksoilmax,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tb_phiwav  ,ntnudge*ksoilmax,MY_REAL    ,0,comm3d,mpierr)
+
+    call MPI_BCAST(tbrad_p      ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tbrad_qv     ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tbrad_ql     ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tbrad_t      ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tbrad_o3     ,ntnudge*nknudge,MY_REAL    ,0,comm3d,mpierr)
 
     ltb_u   = any(abs(tb_u)>1e-8)
     ltb_v   = any(abs(tb_v)>1e-8)
@@ -715,6 +747,30 @@ contains
     !write(6,*) 'testbednudge:', rtimee, t, tb_time(t), tb_time(t+1), currtnudge, dtm, dtp, thl0av(kmax),tb_thl(t,kmax),tb_thl(t+1,kmax)
 
   end subroutine testbednudge
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  subroutine testbed_getinttime(t, dtm, dtp)
+     use modglobal, only : rtimee
+!     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
+!     use modmpi,    only : myid
+    implicit none
+    integer, intent(out) :: t
+    real, intent(out)    :: dtm, dtp
+
+
+    t=1
+    do while(rtimee>tb_time(t))
+      t=t+1
+    end do
+    if (rtimee/=tb_time(1)) then
+      t=t-1
+    end if
+
+    dtm = ( rtimee-tb_time(t) ) / ( tb_time(t+1)-tb_time(t) )
+    dtp = ( tb_time(t+1)-rtimee)/ ( tb_time(t+1)-tb_time(t) )
+
+
+  end subroutine testbed_getinttime
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

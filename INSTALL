@@ -1,4 +1,4 @@
-DALES version 3.2
+DALES version 4
 ===================
 Packages are available at www.gitorious.org/dales
 If git is installed, the best way to obtain DALES is with:
@@ -11,10 +11,11 @@ Then follow the following instructions:
 1) cd dales 
 2) mkdir build 
 3) cd build 
-4) cmake ..
+4.1) export FC="gfortran"
+4.2) cmake ..
 5) make install
 
-This should provide the dales3 binary in the build dir. New builds can be
+This should provide the dales4 binary in the build dir. New builds can be
 made by 'make install' in the build directory. The documentation is build by typing
 
 make docs
