@@ -327,16 +327,16 @@ contains
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
-    integer             :: k, km
+    integer             :: k, kp
 
     ucor = u0 + cu
     vcor = v0 + cv
 
-    do k=2,(ncanopy+1)
-      km   = k-1
-      ftau = cd * padh(k) * sqrt(w0(2:i1,2:j1,k)**2 +  &
-                ((dzf(km)*(ucor(2:i1,2:j1,k)+ucor(3:i2,2:j1,k))+dzf(k)*(ucor(2:i1,2:j1,km)+ucor(3:i2,2:j1,km)))/(4*dzh(k)))**2 + &
-                ((dzf(km)*(vcor(2:i1,2:j1,k)+vcor(2:i1,3:j2,k))+dzf(k)*(vcor(2:i1,2:j1,km)+vcor(2:i1,3:j2,km)))/(4*dzh(k)))**2 &
+    do k=1,ncanopy
+      kp   = k+1
+      ftau = cd * padf(k) * ((ucor(3:i2,2:j1,k)+ucor(2:i1,2:j1,k))/2)**2 + &
+                            ((vcor(2:i1,3:j2,k)+vcor(2:i1,2:j1,k))/2)**2 + &
+                ((dzh(kp)*w0(2:i1,2:j1,k)+dzh(k)*w0(2:i1,2:j1,kp))/(dzh(k)+dzh(kp)))**2 &
                 )
       
       putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - e120(2:i1,2:j1,k) * ftau
