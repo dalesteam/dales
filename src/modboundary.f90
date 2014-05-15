@@ -97,21 +97,6 @@ contains
   use modmpi,    only : excjs
   integer n,m
 
-  do m = 1,ih
-    thl0(2-m,:,:)   = thl0(i2-m,:,:)
-    thl0(i1+m,:,:)  = thl0(1+m,:,:)
-    thlm(2-m,:,:)   = thlm(i2-m,:,:)
-    thlm(i1+m,:,:)  = thlm(1+m,:,:)
-    qt0(2-m,:,:)    = qt0(i2-m,:,:)
-    qt0(i1+m,:,:)   = qt0(1+m,:,:)
-    qtm(2-m,:,:)    = qtm(i2-m,:,:)
-    qtm(i1+m,:,:)   = qtm(1+m,:,:)
-    sv0(2-m,:,:,:)  = sv0(i2-m,:,:,:)
-    sv0(i1+m,:,:,:) = sv0(1+m,:,:,:)
-    svm(2-m,:,:,:)  = svm(i2-m,:,:,:)
-    svm(i1+m,:,:,:) = svm(1+m,:,:,:)
-  end do
-
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
@@ -133,28 +118,6 @@ contains
   use modmpi,    only : excjs
 
   integer m
-
-  do m = 1,ih
-
-    u0(2-m,:,:)    = u0(i2-m,:,:)
-    u0(i1+m,:,:)   = u0(1+m,:,:)
-    v0(2-m,:,:)    = v0(i2-m,:,:)
-    v0(i1+m,:,:)   = v0(1+m,:,:)
-    w0(2-m,:,:)    = w0(i2-m,:,:)
-    w0(i1+m,:,:)   = w0(1+m,:,:)
-    um(2-m,:,:)    = um(i2-m,:,:)
-    um(i1+m,:,:)   = um(1+m,:,:)
-    vm(2-m,:,:)    = vm(i2-m,:,:)
-    vm(i1+m,:,:)   = vm(1+m,:,:)
-    wm(2-m,:,:)    = wm(i2-m,:,:)
-    wm(i1+m,:,:)   = wm(1+m,:,:)
-
-    e120(2-m,:,:)  = e120(i2-m,:,:)
-    e120(i1+m,:,:)  = e120(1+m,:,:)
-    e12m(2-m,:,:)  = e12m(i2-m,:,:)
-    e12m(i1+m,:,:)  = e12m(1+m,:,:)
-
-  end do
 
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
