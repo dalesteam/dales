@@ -973,11 +973,6 @@ contains
     end if
 
     ! Transfer ustar to neighbouring cells
-    do j=1,j2
-      ustar(1,j)=ustar(i1,j)
-      ustar(i2,j)=ustar(2,j)
-    end do
-
     call excj( ustar  , 1, i2, 1, j2, 1,1)
 
     return

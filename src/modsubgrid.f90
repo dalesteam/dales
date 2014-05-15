@@ -321,11 +321,6 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
 
-  ekm(1, :,:) = ekm(i1,:,:)
-  ekm(i2,:,:) = ekm(2, :,:)
-  ekh(1, :,:) = ekh(i1,:,:)
-  ekh(i2,:,:) = ekh(2, :,:)
-
   call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
 
