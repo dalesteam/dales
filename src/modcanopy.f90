@@ -334,8 +334,8 @@ contains
 
     do k=1,ncanopy
       kp   = k+1
-      ftau = cd * padf(k) * (((ucor(3:i2,2:j1,k)+ucor(2:i1,2:j1,k))/2)**2 + &
-                             ((vcor(2:i1,3:j2,k)+vcor(2:i1,2:j1,k))/2)**2 + &
+      ftau = cd * padf(k) * sqrt(((ucor(3:i2,2:j1,k)+ucor(2:i1,2:j1,k))/2)**2 + &
+                                 ((vcor(2:i1,3:j2,k)+vcor(2:i1,2:j1,k))/2)**2 + &
                 ((dzh(kp)*w0(2:i1,2:j1,k)+dzh(k)*w0(2:i1,2:j1,kp))/(dzh(k)+dzh(kp)))**2 &
                 )
       
