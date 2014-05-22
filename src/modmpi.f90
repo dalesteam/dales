@@ -424,5 +424,44 @@ contains
     return
   end subroutine slabsum
 
+  ! Gather a variable l(imax,jmax) along a row (ie. constant myidy)
+  ! into              g(itot,jmax) at the processor with myix=0
+
+  subroutine gatherrow(l,g,imax,jmax,itot)
+    implicit none
+
+    integer, intent(in) :: itot,imax,jmax
+    real, intent(in)    :: l(imax,jmax)
+    real, intent(out)   :: g(itot,jmax)
+
+    integer  :: n,i,j, ii
+    real     :: sbuffer(imax * jmax)
+    real     :: rbuffer(itot * jmax)
+   
+    ii = 0 
+    do j=1,jmax
+    do i=1,imax
+       ii = ii + 1
+       sbuffer(ii) = l(i,j)
+    enddo
+    enddo
+
+    call MPI_GATHER(sbuffer,jmax*imax,MY_REAL, &
+                    rbuffer,jmax*imax,MY_REAL, &
+                    0, commrow,mpierr)
+
+    if(myidx == 0) THEN
+      ii = 0
+      do n=0,nprocx-1
+      do j=1,jmax
+      do i=1 + n*imax,(n+1)*imax
+          ii = ii + 1
+          g(i,j) = rbuffer(ii)
+      enddo
+      enddo
+      enddo
+    endif
+
+  end subroutine gatherrow
 
 end module

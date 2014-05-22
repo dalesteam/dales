@@ -130,7 +130,7 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
 
     !create dimensions
-    status = nf90_def_dim(ncid, "x", imax, xid)
+    status = nf90_def_dim(ncid, "x", itot, xid)
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_dim(ncid, "y", jmax, yid)
     if (status /= nf90_noerr) call nchandle_error(status)
@@ -259,7 +259,7 @@ contains
     use typeSizes
     use netcdf
     use modfields
-    use modmpi,     only : myidx,commrow,mpierr,MY_REAL,MPI_SUM
+    use modmpi,     only : myidx,commrow,mpierr,gatherrow,MY_REAL,MPI_SUM
     use modsurfdata
     use modsubgrid, only : ekm, ekh
     use modglobal,  only : iadv_thl, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
@@ -282,7 +282,7 @@ contains
     real  sv0h(2-ih:i1+ih,2-jh:j1+jh,k1,nsv),thv0(2-ih:i1+ih,2-jh:j1+jh,k1)
 
     real  buffer(jmax,ncklimit)
-    real  bufferij(imax,jmax)
+    real  bufferij(itot,jmax)
 
     real  qs0h, t0h, den, c1, c2
 
@@ -331,6 +331,9 @@ contains
     svvar(:,:,:)  = 0.0
     wsvcov(:,:,:) = 0.0
     wsvcovs(:,:,:)= 0.0
+
+    buffer(:,:)   = 0.0
+    bufferij(:,:) = 0.0
 
     !calculate averages and store them
 
@@ -568,56 +571,56 @@ contains
     ! TODO: 1. create fast path: the mpi calls are slow and are not needed for nprocx = 1
     !       2. this function could be cleaned up a lot
 
-    call MPI_REDUCE(uavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(uavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, uavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     uavg = buffer
 
-    call MPI_REDUCE(vavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(vavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, vavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     vavg = buffer
 
-    call MPI_REDUCE(wavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(wavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, wavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     wavg = buffer
 
-    call MPI_REDUCE(thlavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(thlavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, thlavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     thlavg = buffer
 
-    call MPI_REDUCE(thvavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(thvavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, thvavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     thvavg = buffer
 
-    call MPI_REDUCE(qtavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(qtavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, qtavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     qtavg = buffer
 
-    call MPI_REDUCE(qlavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(qlavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, qlavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
     endif
     qlavg = buffer
 
-    call MPI_REDUCE(eavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call MPI_ALLREDUCE(eavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
     if(myidx == 0) then
         status = nf90_put_var(ncid, eavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
         if(status /= nf90_noerr) call nchandle_error(status)
@@ -625,12 +628,35 @@ contains
     eavg = buffer
 
     do n=1,nsv
-      call MPI_REDUCE(svavg(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+      call MPI_ALLREDUCE(svavg(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
       if(myidx == 0) then
          status = nf90_put_var(ncid, svavgid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
          if(status /= nf90_noerr) call nchandle_error(status)
       endif
       svavg(:,:,n) = buffer
+    enddo
+
+    call MPI_ALLREDUCE(thlhavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    thlhavg = buffer
+
+    call MPI_ALLREDUCE(thvhavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    thvhavg = buffer
+
+    call MPI_ALLREDUCE(qthavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    qthavg = buffer
+
+    call MPI_ALLREDUCE(qlhavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    qlhavg = buffer
+
+    call MPI_ALLREDUCE(vonwavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    vonwavg = buffer
+
+    call MPI_ALLREDUCE(uonwavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    uonwavg = buffer
+
+    do n = 1,nsv
+      call MPI_ALLREDUCE(svhavg(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+      svhavg(:,:,n) = buffer
     enddo
 
     !calculate liquid water path and store it
@@ -642,12 +668,11 @@ contains
       end do
     end do
 
-    call MPI_REDUCE(lwpavg,bufferij,imax*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    call gatherrow(lwpavg,bufferij,imax,jmax,itot)
     if(myidx == 0) then
-       status = nf90_put_var(ncid, lwpid, bufferij, (/1,1,nccall/), (/imax, jmax, 1/))
+       status = nf90_put_var(ncid, lwpid, bufferij, (/1,1,nccall/), (/itot, jmax, 1/))
        if(status /= nf90_noerr) call nchandle_error(status)
     endif
-    lwpavg = bufferij
 
     !calculate variances and store them
     do k = 1,ncklimit
