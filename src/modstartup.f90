@@ -746,7 +746,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(12:14)=cmyid
+    name(12:19)=cmyid
     write(6,*) 'loading ',name
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
@@ -834,7 +834,7 @@ contains
     logical :: lexitnow = .false.
     integer imin,ihour
     integer i,j,k,n
-    character(20) name,linkname
+    character(50) name,linkname
 
     if (timee == 0) return
     if (rk3step /=3) return
@@ -846,11 +846,11 @@ contains
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd  h  m   .'
+      name = 'initd  h  m        .'
       write (name(6:7)  ,'(i2.2)') ihour
       write (name(9:10) ,'(i2.2)') imin
-      name(12:14)= cmyid
-      name(16:18)= cexpnr
+      name(12:19)= cmyid
+      name(21:23)= cexpnr
       open  (ifoutput,file=name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -896,8 +896,8 @@ contains
         name  = 'inits  h  m   .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
-        name(12:14) = cmyid
-        name(16:18) = cexpnr
+        name(12:19) = cmyid
+        name(21:23) = cexpnr
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -915,8 +915,8 @@ contains
         name  = 'initl  h  m   .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
-        name(12:14) = cmyid
-        name(16:18) = cexpnr
+        name(12:19) = cmyid
+        name(21:23) = cexpnr
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)

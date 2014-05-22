@@ -565,7 +565,7 @@ contains
     uonwavg = uonwavg / itot
     svhavg  = svhavg / itot
 
-    ! Reduce all the averages to the first processor in the row, mydix=0
+    ! Communicate all the averages to the processors in the row
     ! copy the results back from the mpi buffer because they are needed
     ! to calculate the variances
     ! TODO: 1. create fast path: the mpi calls are slow and are not needed for nprocx = 1

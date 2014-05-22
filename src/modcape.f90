@@ -36,7 +36,7 @@ save
   integer,parameter :: nvar = 20
   integer :: ncid4 = 0
   integer :: nrec = 0
-  character(80) :: fname = 'cape.xxx.xxx.nc'
+  character(80) :: fname = 'cape.xxxxyxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
   real    :: dtav
@@ -82,8 +82,8 @@ contains
       stop 'cape: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-    fname(6:8) = cmyid
-    fname(10:12) = cexpnr
+    fname(6:13) = cmyid
+    fname(15:17) = cexpnr
     call ncinfo(tncname(1,:),'time','Time','s','time')
     call ncinfo(ncname( 1,:),'dcape','xy crosssections of actual dcape','J/m^2','tt0t')
     call ncinfo(ncname( 2,:),'dscape','xy crosssections of actual dscape','J/m^2','tt0t')

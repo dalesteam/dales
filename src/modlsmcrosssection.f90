@@ -49,9 +49,9 @@ save
 !   integer :: cross
 !   integer :: nrc
   character(4) :: cheight
-  character(80) :: fname1 = 'lsmcrossxz.xxx.xxx.nc'
-  character(80) :: fname2 = 'lsmcrossxy.xxxx.xxx.xxx.nc'
-  character(80) :: fname3 = 'surfcross.xxx.xxx.nc'
+  character(80) :: fname1 = 'lsmcrossxz.xxxxyxxx.xxx.nc'
+  character(80) :: fname2 = 'lsmcrossxy.xxxx.xxxxyxxx.xxx.nc'
+  character(80) :: fname3 = 'surfcross.xxxxyxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname1
   character(80),dimension(1,4) :: tncname1
   character(80),dimension(nvar,4) :: ncname2
@@ -114,8 +114,8 @@ contains
     end if
     if (lnetcdf) then
       if (myid==0) then
-        fname1(12:14) = cmyid
-        fname1(16:18) = cexpnr
+        fname1(12:19) = cmyid
+        fname1(21:23) = cexpnr
         call ncinfo(tncname1(1,:),'time','Time','s','time')
         call ncinfo(ncname1( 1,:),'tsoil', 'xz crosssection of the Soil temperature','K','t0tts')
         call ncinfo(ncname1( 2,:),'phiw', 'xz crosssection of the Soil moisture','m3/m3','t0tts')
@@ -128,8 +128,8 @@ contains
       end if
         write(cheight,'(i4.4)') crossheight
         fname2(12:15) = cheight
-        fname2(17:19) = cmyid
-        fname2(21:23) = cexpnr
+        fname2(17:24) = cmyid
+        fname2(26:28) = cexpnr
         call ncinfo(tncname2(1,:),'time','Time','s','time')
         call ncinfo(ncname2( 1,:),'tsoil', 'xy crosssection of the Soil temperature','K','tt0t')
         call ncinfo(ncname2( 2,:),'phiw', 'xy crosssection of the Soil moisture','m3/m3','tt0t')
@@ -141,8 +141,8 @@ contains
         end if
 ! 
 ! !Surface values
-        fname3(11:13) = cmyid
-        fname3(15:17) = cexpnr
+        fname3(11:18) = cmyid
+        fname3(20:22) = cexpnr
         call ncinfo(tncname3(1,:),'time','Time','s','time')
         call ncinfo(ncname3( 1,:),'Qnet','Net radiation','W/m^2','tt0t')
         call ncinfo(ncname3( 2,:),'H','Sensible heat flux','W/m^2','tt0t')
