@@ -265,12 +265,15 @@ contains
     enddo
     !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
 
+    nitert=0
+
     k=1
     do j=2,j1
     do i=2,i1
     ! full level
         Tnr=exnf(k)*thl200400(i,j) ! First guess for full level, use no ql from below
         Tnr_old=0.
+        niter = 0
           do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
             niter = niter+1
             Tnr_old=Tnr
@@ -321,6 +324,7 @@ contains
       if(matop(i,j)==0) then
         Tnr=exnf(k)*thl200400(i,j)+(rlv/cp)*qlma(i,j,k-1) ! Guess for full level
         Tnr_old=0.
+        niter=0
           do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at level
             niter = niter+1
             Tnr_old=Tnr
