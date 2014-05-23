@@ -196,7 +196,7 @@ contains
     end subroutine radfull
 
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &
-         pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr)
+         pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr, lclear)
       use modglobal, only : cexpnr,cp,cpr,pi,pref0,rtimee,xday,xlat,xlon,xtime,rhow
       use modraddata,only : useMcICA,zenith,sw0
       use modfields,only: SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA
@@ -210,7 +210,7 @@ contains
       real, optional, dimension (2-ih:i1+ih,2-jh:j1+jh,k1), intent (in) :: rr
       real, dimension (2-ih:i1+ih,2-jh:j1+jh,k1), intent (out) :: fus3D,fds3D,fuir3D,fdir3D
       real, dimension (1:i1+1,1:j1+1), intent (in) :: tskin, albedo
-
+      logical, optional, intent(in) :: lclear
       integer :: kk
       real    :: prw, p0(k1), exner(k1), pres(k1)
       character (len=19) :: background
@@ -254,6 +254,12 @@ contains
       ! call the radiation
       !
       prw = (4./3.)*pi*rhow
+      if (present(lclear)) then
+        if (lclear) then
+          plwc = 0.
+          pre  = 0.
+        end if
+      end if
       do j=2,j1
          do i=2,i1
             do k=1,k1
