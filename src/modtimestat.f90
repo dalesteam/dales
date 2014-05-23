@@ -437,7 +437,9 @@ contains
     zbaseminl = zf(kmax)
 
     store_zi = .true.
+
     call calcblheight
+
     store_zi = .false.
 
   !     --------------------------------------------------------------
@@ -523,19 +525,21 @@ contains
         if (lhetero) then
           patchx = patchxnr(i)
         endif
-        ztop  = 0.0
-  
-        do  k=1,kmax
-    if (myid==-1) write (*,*) 'TIMESTAT DEBUG: place C4B1: k = (',k,')' !HGO
-          if (ql0(i,j,k) > 0) ztop = zf(k)
-          wmaxl = max(wm(i,j,k),wmaxl)
-          qlmaxl = max(ql0(i,j,k),qlmaxl)
-          if (lhetero) then
+         ztop  = 0.0
+   
+         do  k=1,kmax
+           if (ql0(i,j,k) > 0) ztop = zf(k)
+           wmaxl = max(wm(i,j,k),wmaxl)
+           qlmaxl = max(ql0(i,j,k),qlmaxl)
+         end do
+
+         if (lhetero) then
+         do  k=1,kmax
             if (ql0(i,j,k) > 0) ztop_field(i,j) = zf(k)
             wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),wm (i,j,k))
             qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
-          endif
-        end do
+         enddo
+         endif
   
         ztopavl = ztopavl + ztop
         if (ztop > ztopmaxl) ztopmaxl = ztop

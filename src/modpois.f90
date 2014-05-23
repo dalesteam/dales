@@ -39,7 +39,7 @@ save
 
 contains
   subroutine initpois
-    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi
+    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh
     use modfft2d,  only : fft2dinit
     use modmpi, only    : myidx, myidy
 
@@ -49,8 +49,8 @@ contains
     real    :: fac
     real    :: xrt(itot), yrt(jtot)
 
-    allocate(   p(2-1:i1+1,2-1:j1+1,kmax))
-    allocate(xyrt(2-1:i1+1,2-1:j1+1)     )
+    allocate(   p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh)     )
 
   ! Generate Eigenvalues xrt and yrt
 
@@ -229,18 +229,20 @@ contains
 !              copy times all included
 
     use modfft2d,  only : fft2df, fft2db
-    use modglobal, only : kmax,dzf,dzh,i1,j1
+    use modglobal, only : kmax,dzf,dzh,i1,j1,ih,jh
     use modfields, only : rhobf, rhobh
     implicit none
 
     real :: a(kmax),b(kmax),c(kmax)
-    real :: d(2-1:i1+1,2-1:j1+1,kmax)
+
+  ! allocate d in the same shape as p and xyrt
+    real :: d(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     real    z,ak,bk,bbk
     integer i, j, k
 
   ! Forward FFT
-    call fft2df(p,1,1)
+    call fft2df(p,ih,jh)
 
   ! Generate tridiagonal matrix
 
@@ -299,7 +301,7 @@ contains
     end do
 
     ! Backward FFT
-    call fft2db(p,1,1)
+    call fft2db(p,ih,jh)
 
     return
   end subroutine solmpj
@@ -328,14 +330,14 @@ contains
 !-----------------------------------------------------------------|
 
     use modfields, only : up, vp, wp
-    use modglobal, only : i1,j1,kmax,dx,dy,dzh
-    use modmpi,    only : excj
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh,ih,jh
+    use modmpi,    only : excjs
     implicit none
     integer i,j,k
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
-  call excj( p, 2-1, i1+1, 2-1, j1+1, 1, kmax )
+  call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
