@@ -79,7 +79,7 @@ subroutine tstep_update
         enddo
         courtotmax=sqrt(courtotmax)
         do k=1,kmax
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
@@ -117,7 +117,7 @@ subroutine tstep_update
             courtotmax=max(courtotmax,sqrt(courtot(k)))
         enddo
         do k=1,kmax
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
