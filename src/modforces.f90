@@ -63,13 +63,15 @@ contains
   use modglobal, only : i1,j1,kmax,dzh,dzf,grav,lpressgrad
   use modfields, only : u0,v0,w0,sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use modsurfdata,only : thvs
-  use moduser,   only : force_user
+  use moduser,   only : force_user, force_testbed
+  use modtestbed, only : ltestbed
   use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
   implicit none
 
   integer i, j, k, jm, jp, km, kp
 
   if (lforce_user) call force_user
+  if (ltestbed)    call force_testbed
 
   if((imicro==imicro_sice).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
     do k=2,kmax
@@ -228,7 +230,7 @@ contains
   use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
-                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls
+                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls
   implicit none
 
   integer i,j,k,n,kp,km
@@ -261,7 +263,7 @@ contains
         enddo
       endif
       thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl
-      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt +dqtdtls(1)
+      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt
       up  (i,j,1) = up  (i,j,1) -u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1)-subs_u
       vp  (i,j,1) = vp  (i,j,1) -u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1)-subs_v
     end do
@@ -299,9 +301,10 @@ contains
         endif
     
         thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
-        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
+        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt
         up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u
         vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)-subs_v
+
       enddo
     enddo
   enddo

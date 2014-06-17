@@ -60,7 +60,10 @@ save
   real, allocatable     :: dqtdxlst(:,:)
   real, allocatable     :: dqtdylst(:,:)
   real, allocatable     :: dqtdtlst(:,:)
+  real, allocatable     :: dthldtlst(:,:)
   real, allocatable     :: thlpcart(:,:)
+  real, allocatable     :: dudtlst (:,:)
+  real, allocatable     :: dvdtlst (:,:)
   real, allocatable     :: thlproft(:,:)
   real, allocatable     :: qtproft (:,:)
 
@@ -111,10 +114,17 @@ contains
     allocate(ugt      (k1,kls))
     allocate(vgt      (k1,kls))
     allocate(wflst    (k1,kls))
+
     allocate(dqtdxlst (k1,kls))
     allocate(dqtdylst (k1,kls))
+
     allocate(dqtdtlst (k1,kls))
+    allocate(dthldtlst(k1,kls))
+    allocate(dudtlst  (k1,kls))
+    allocate(dvdtlst  (k1,kls))
+
     allocate(thlpcart (k1,kls))
+
     allocate(thlproft (k1,kls))
     allocate(qtproft  (k1,kls))
 
@@ -131,10 +141,17 @@ contains
     ugt      = 0
     vgt      = 0
     wflst    = 0
+
     dqtdxlst = 0
     dqtdylst = 0
+
     dqtdtlst = 0
+    dthldtlst= 0
+    dudtlst  = 0
+    dvdtlst  = 0
+
     thlpcart = 0
+
     thlproft = 0
     qtproft  = 0
 
@@ -161,13 +178,15 @@ contains
 
         height  (:) = zf
         do t=1,kls
-          ugt     (:,t) = tb_ug    (t,:)
-          vgt     (:,t) = tb_vg    (t,:)
-          wflst   (:,t) = tb_w     (t,:)
-          dqtdxlst(:,t) = 0.
-          dqtdylst(:,t) = 0.
-          dqtdtlst(:,t) = tb_qtadv (t,:)
-          thlpcart(:,t) = tb_thladv(t,:)
+          ugt      (:,t) = tb_ug    (t,:)
+          vgt      (:,t) = tb_vg    (t,:)
+          wflst    (:,t) = tb_w     (t,:)
+          dqtdxlst (:,t) = 0.
+          dqtdylst (:,t) = 0.
+          dqtdtlst (:,t) = tb_qtadv (t,:)
+          dthldtlst(:,t) = tb_thladv(t,:)
+          dudtlst  (:,t) = tb_uadv  (t,:)
+          dvdtlst  (:,t) = tb_vadv  (t,:)
         end do
 
       else
@@ -180,14 +199,14 @@ contains
         read(ifinput,'(a80)') chmess
         write(6,*) chmess
 
-      timeflux = 0
-      timels   = 0
+        timeflux = 0
+        timels   = 0
 
 
         !--- load fluxes---
         t    = 0
         ierr = 0
-      do while (timeflux(t) < (tres*real(btime)+runtime))
+        do while (timeflux(t) < (tres*real(btime)+runtime))
           t=t+1
           read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t),Qnetavt(t)
           write(*,'(i8,7e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t),Qnetavt(t)
@@ -195,11 +214,11 @@ contains
             stop 'STOP: No time dependend data for end of run (surface fluxes)'
           end if
         end do
-      if(timeflux(1)>(tres*real(btime)+runtime)) then
+        if(timeflux(1)>(tres*real(btime)+runtime)) then
          write(6,*) 'Time dependent surface variables do not change before end of'
          write(6,*) 'simulation. --> only large scale forcings'
          ltimedepsurf=.false.
-      endif
+        endif
         ! flush to the end of fluxlist
         do while (ierr ==0)
           read (ifinput,*,iostat=ierr) dummyr
@@ -280,6 +299,9 @@ contains
     call MPI_BCAST(dqtdxlst,kmax*kls,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(dqtdylst,kmax*kls,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(dqtdtlst,kmax*kls,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(dthldtlst,kmax*kls,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(dudtlst,kmax*kls,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(dvdtlst,kmax*kls,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(thlpcart,kmax*kls,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(thlproft,kmax*kls,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(qtproft ,kmax*kls,MY_REAL,0,comm3d,mpierr)
@@ -327,8 +349,12 @@ contains
   end subroutine timedep
 
   subroutine timedepz
-    use modfields,   only : ug, vg, dqtdtls,dqtdxls,dqtdyls, wfls,whls,thlprof,qtprof, &
-                            thlpcar,dthldxls,dthldyls,dudxls,dudyls,dvdxls,dvdyls,dpdxl,dpdyl
+    use modfields,   only : ug, vg, wfls,whls,thlprof,qtprof, &
+                            dqtdtls,dqtdxls,dqtdyls, &
+                            dthldtls,dthldxls,dthldyls,thlpcar, &
+                            dudtls,dudxls,dudyls, &
+                            dvdtls,dvdxls,dvdyls, &
+                            dpdxl,dpdyl
     use modglobal,   only : rtimee,om23_gs,zf,dzf,dzh,k1,kmax,grav,llsadv
     implicit none
 
@@ -347,13 +373,16 @@ contains
     end if
 
     fac = ( rtimee-timels(t) ) / ( timels(t+1)-timels(t) )
-    ug      = ugt     (:,t) + fac * ( ugt     (:,t+1) - ugt     (:,t) )
-    vg      = vgt     (:,t) + fac * ( vgt     (:,t+1) - vgt     (:,t) )
-    wfls    = wflst   (:,t) + fac * ( wflst   (:,t+1) - wflst   (:,t) )
-    dqtdxls = dqtdxlst(:,t) + fac * ( dqtdxlst(:,t+1) - dqtdxlst(:,t) )
-    dqtdyls = dqtdylst(:,t) + fac * ( dqtdylst(:,t+1) - dqtdylst(:,t) )
-    dqtdtls = dqtdtlst(:,t) + fac * ( dqtdtlst(:,t+1) - dqtdtlst(:,t) )
-    thlpcar = thlpcart(:,t) + fac * ( thlpcart(:,t+1) - thlpcart(:,t) )
+    ug       = ugt      (:,t) + fac * ( ugt      (:,t+1) - ugt      (:,t) )
+    vg       = vgt      (:,t) + fac * ( vgt      (:,t+1) - vgt      (:,t) )
+    wfls     = wflst    (:,t) + fac * ( wflst    (:,t+1) - wflst    (:,t) )
+    dqtdxls  = dqtdxlst (:,t) + fac * ( dqtdxlst (:,t+1) - dqtdxlst (:,t) )
+    dqtdyls  = dqtdylst (:,t) + fac * ( dqtdylst (:,t+1) - dqtdylst (:,t) )
+    dqtdtls  = dqtdtlst (:,t) + fac * ( dqtdtlst (:,t+1) - dqtdtlst (:,t) )
+    dthldtls = dthldtlst(:,t) + fac * ( dthldtlst(:,t+1) - dthldtlst(:,t) )
+    dudtls   = dudtlst  (:,t) + fac * ( dudtlst  (:,t+1) - dudtlst  (:,t) )
+    dvdtls   = dvdtlst  (:,t) + fac * ( dvdtlst  (:,t+1) - dvdtlst  (:,t) )
+    thlpcar  = thlpcart (:,t) + fac * ( thlpcart (:,t+1) - thlpcart (:,t) )
 
 
     do k=1,kmax
@@ -467,7 +496,7 @@ contains
     use modtimedepsv, only : exittimedepsv
     implicit none
     if (.not. ltimedep) return
-    deallocate(timels,ugt,vgt,wflst,dqtdxlst,dqtdylst,dqtdtlst,thlpcart)
+    deallocate(timels,ugt,vgt,wflst,dqtdxlst,dqtdylst,dqtdtlst,dthldtlst,dudtlst,dvdtlst,thlpcart)
     deallocate(timeflux, wtsurft,wqsurft,thlst,qtst,pst,Qnetavt)
     call exittimedepsv
 
