@@ -1,0 +1,50 @@
+#!/bin/bash
+
+function gatherfieldvar {
+if [ -z "$3" ]; then
+ return
+else
+  echo $@
+fi
+fstem=$1
+nn=$2
+var=$3
+  if [ -s fielddump.$var.$fstem.nc ]; then
+    echo " File fielddump.$var.$fstem.nc exists already, skipping this variable"
+  else
+    echo " Do cdo gather for var=$var in file=$fstem"
+    for n in $(seq 0 $nn); do
+       nstring=$(printf %03d $n)
+       cdo selname,$var fielddump.${nstring}.$fstem.nc selname.$nstring.$var.nc
+    done
+    cdo gather selname.???.$var.nc fielddump.$var.$fstem.nc
+    rm selname.???.$var.nc
+  fi
+
+}
+export -f gatherfieldvar
+nproc=$1
+fstem=$2
+# priorityvars="lwp core cldbase cldtop rwp rwpbase rwptop trcpath trcbase trctop"
+blacklist="u0 v0 dn0"
+
+dir=$(pwd)
+nn=$( ls -l fielddump.???.${fstem}.nc | wc -l )
+
+echo " cdo_gather_cross for $fstem dataset"
+echo " Looking for files in dir=$dir"
+echo " Found nn=$nn files from nx=$nx ny=$ny proc"
+
+nn=$(( $nn - 1 ))
+varnames=$(cdo showname fielddump.000.${fstem}.nc )
+for var in $priorityvars; do
+  if [[ $varnames == *\ $var\ * || $varnames == $var\ * ]]; then
+    varnames="$var ${varnames//$var /}"
+  elif [[ $varnames == *\ $var ]]; then
+    varnames="$var ${varnames// $var/}"
+  fi
+done
+echo $varnames
+echo -e "$varnames" | xargs -n1 -P$nproc -I{} -d\  bash -c "gatherfieldvar $fstem $nn {}"
+
+
