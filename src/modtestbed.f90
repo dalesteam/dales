@@ -61,6 +61,7 @@ contains
     use modglobal,only :ifnamopt,fname_options,runtime,btime,cexpnr,ifinput,k1,kmax,tres,&
                         grav,rd,cp,pref0,rlv,zf,dzf,dzh
     use modsurfdata,only : ksoilmax, phifc, phiwp, dzsoil
+    use modforces, only : lforce_user
 
     implicit none
 
@@ -104,7 +105,8 @@ contains
     call MPI_BCAST(ltb_nudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
     
     if (.not. ltestbed) return
-
+    
+    lforce_user = .true.
 
     if(myid==0) then
         !--- open nc file ---

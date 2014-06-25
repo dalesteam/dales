@@ -59,6 +59,20 @@ endif()
 
 
 set(INCLUDE_DIRS ${NETCDF_INCLUDE_DIR})
+### Set case
+if(NOT CASE)
+  set (CASE standard CACHE STRING
+      "Set the case."
+      FORCE)
+endif()
+ 
+### Add case specific file 
+FILE(GLOB usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/${CASE}/moduser.f90")
+if(usrfile STREQUAL "")
+  set(usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/standard/moduser.f90")
+endif()
+execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${usrfile} ${CMAKE_CURRENT_SOURCE_DIR}/src/moduser.f90)
+MESSAGE(STATUS "Case " ${CASE} " uses " ${usrfile})
 
 add_subdirectory(src)
 

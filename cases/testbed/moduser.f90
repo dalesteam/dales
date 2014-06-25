@@ -28,17 +28,33 @@ subroutine initsurf_user
 end subroutine initsurf_user
 
 subroutine force_user
-  implicit none
-end subroutine force_user
-
-subroutine force_testbed
   use modglobal, only : i1,j1,k1,kmax
-  use modfields, only : thlp,qtp,up,vp, &
+  use modfields, only : qt0,thlp,qtp,up,vp, &
                         dqtdtls,dthldtls,dudtls,dvdtls   
   implicit none
 
   integer i,j,k
+  !real dqt    (i1,j1,k1)
+  !real idqtmax(i1,j1)
 
+
+  !dqt    (:,:,:) = 0.
+  !idqtmax(:,:)   = 0
+
+
+  !--- search for level with greatest qt jump ---
+  !do k=1,k1-1
+  !  dqt(:,:,k) = qt0 (:,:,k) - qt0 (:,:,k+1)
+  !enddo
+  !idqtmax = maxloc( dqt, 3)   !find the index with the maximum jump
+
+  !do k=1,kmax
+  !  print *, "   qt-profile (2,2): ", k, qt0(2,2,k), dqt(2,2,k)
+  !end do
+  !print *, "         maxloc (2,2):", idqtmax(2,2)
+
+
+  !--- add LS tendencies to budget ---
   do k=1,kmax
     do j=2,j1
       do i=2,i1
@@ -53,7 +69,7 @@ subroutine force_testbed
   enddo
 
   return
-end subroutine force_testbed
+end subroutine force_user
 
 subroutine rad_user
   implicit none
