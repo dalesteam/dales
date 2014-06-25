@@ -1,0 +1,52 @@
+#!/bin/bash
+
+function gatherfieldvar {
+if [ -z "$3" ]; then
+ return
+else
+  echo $@
+fi
+fstem=$1
+nn=$2
+level=$3
+var=$4
+  if [ -s crossxy.${level}.$var.$fstem.nc ]; then
+    echo " File crossxy.${level}.$var.$fstem.nc exists already, skipping this variable"
+  else
+    echo " Do cdo gather for var=$var in file=$fstem"
+    for n in $(seq 0 $nn); do
+       nstring=$(printf %03d $n)
+       cdo selname,$var crossxy.${level}.${nstring}.$fstem.nc selname.${level}.$nstring.$var.nc
+    done
+    cdo gather selname.${level}.???.$var.nc crossxy.${level}.$var.$fstem.nc
+    rm selname.${level}.???.$var.nc
+  fi
+
+}
+export -f gatherfieldvar
+nproc=$1
+fstem=$2
+level=$3
+# priorityvars="lwp core cldbase cldtop rwp rwpbase rwptop trcpath trcbase trctop"
+blacklist="u0 v0 dn0"
+
+dir=$(pwd)
+nn=$( ls -l crossxy.${level}.???.${fstem}.nc | wc -l )
+
+echo " cdo_gather_cross for $fstem dataset"
+echo " Looking for files in dir=$dir"
+echo " Found nn=$nn files from nx=$nx ny=$ny proc"
+
+nn=$(( $nn - 1 ))
+varnames=$(cdo showname crossxy.${level}.000.${fstem}.nc )
+for var in $priorityvars; do
+  if [[ $varnames == *\ $var\ * || $varnames == $var\ * ]]; then
+    varnames="$var ${varnames//$var /}"
+  elif [[ $varnames == *\ $var ]]; then
+    varnames="$var ${varnames// $var/}"
+  fi
+done
+echo $varnames
+echo -e "$varnames" | xargs -n1 -P$nproc -I{} -d\  bash -c "gatherfieldvar $fstem $nn $level {}"
+
+

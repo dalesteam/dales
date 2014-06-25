@@ -172,7 +172,7 @@ contains
                  tbrad_t    (ntnudge, nknudge), &
                  tbrad_qv   (ntnudge, nknudge), &
                  tbrad_ql   (ntnudge, nknudge), &
-                 tbrad_o3   (ntnudge, nknudge), &
+                 tbrad_o3   (ntnudge, nknudge) &
                  )
 
      tnudge = tb_taunudge     !nudging timescale
@@ -236,7 +236,7 @@ contains
                  dumheights (nknudges), & 
                  dumtsoilav (nknudges,ntnudge), & 
                  dumphiwav  (nknudges,ntnudge), & 
-                 dumswi     (nknudges,ntnudge), &
+                 dumswi     (nknudges,ntnudge) &
                  )
 
 

@@ -1,0 +1,16 @@
+# Thunder
+set(CMAKE_Fortran_COMPILER "ifort")
+set(Fortran_COMPILER_WRAPPER mpif90)
+
+set(USER_Fortran_FLAGS "-traceback -r8 -ftz -extend_source")
+set(USER_Fortran_FLAGS_RELEASE "-O3 -no-prec-div -fp-model source")
+set(USER_Fortran_FLAGS_DEBUG "-fpe0 -O0 -g -check all -check nopointers -check noarg_temp_created")
+set(NETCDF_INCLUDE_DIR "/usr/local/netcdf/v4.3.2/include")
+set(NETCDF_LIB_1       "/usr/local/netcdf/v4.3.2/lib/libnetcdff.a")
+set(NETCDF_LIB_2       "/usr/local/netcdf/v4.3.2/lib/libnetcdf.a")
+set(HDF5_LIB_1         "/usr/local/hdf5/v1.8.13_serial/lib/libhdf5_hl.a")
+set(HDF5_LIB_2         "/usr/local/hdf5/v1.8.13_serial/lib/libhdf5.a")
+set(SZIP_LIB           "/usr/local/szip/lib/libsz.a")
+set(ZLIB_LIB           "/usr/local/zlib/lib/libz.a")
+set(CURL_LIB           "/usr/local/curl/lib/libcurl.a")
+set(LIBS ${NETCDF_LIB_1} ${NETCDF_LIB_2} ${HDF5_LIB_1} ${HDF5_LIB_2} ${SZIP_LIB} m ${ZLIB_LIB} curl)
