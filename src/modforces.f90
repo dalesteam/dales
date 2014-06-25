@@ -228,7 +228,8 @@ contains
   use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
-                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls
+                        dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
+                        dqtdtls, dthldtls, dudtls, dvdtls
   implicit none
 
   integer i,j,k,n,kp,km
@@ -260,10 +261,10 @@ contains
           svp(i,j,1,n) = svp(i,j,1,n)-subs_sv
         enddo
       endif
-      thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl
-      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt
-      up  (i,j,1) = up  (i,j,1) -u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1)-subs_u
-      vp  (i,j,1) = vp  (i,j,1) -u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1)-subs_v
+      thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl + dthldtls(1)
+      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt  + dqtdtls(1)
+      up  (i,j,1) = up  (i,j,1) -u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1)-subs_u   + dudtls(1)
+      vp  (i,j,1) = vp  (i,j,1) -u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1)-subs_v   + dvdtls(1)
     end do
   end do
 
@@ -298,10 +299,10 @@ contains
           enddo
         endif
     
-        thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
-        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt
-        up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u
-        vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)-subs_v
+        thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl + dthldtls(k)
+        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt  + dqtdtls(k)
+        up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u   + dudtls(k)
+        vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)-subs_v   + dvdtls(k)
 
       enddo
     enddo
