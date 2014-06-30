@@ -168,7 +168,6 @@ contains
        end if
     end if
     nrec = ncall
-    iret = nf90_sync(ncid)
 
     iret= nf90_enddef(ncID)
 
@@ -353,7 +352,6 @@ contains
        iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
        iret = nf90_put_var(ncid, VarID, vars(n), start=(/nrec/))
     end do
-    iret = nf90_sync(ncid)
 
   end subroutine writestat_time_nc
 
@@ -369,7 +367,6 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
     end do
-    iret = nf90_sync(ncid)
 
   end subroutine writestat_1D_nc
 
@@ -385,7 +382,6 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
     end do
-    iret = nf90_sync(ncid)
 
   end subroutine writestat_2D_nc
   subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
@@ -400,7 +396,6 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-    iret = nf90_sync(ncid)
 
   end subroutine writestat_3D_nc
   subroutine writestat_3D_short_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
@@ -415,7 +410,6 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-    iret = nf90_sync(ncid)
 
   end subroutine writestat_3D_short_nc
 
