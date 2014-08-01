@@ -354,12 +354,22 @@ contains
                             dthldtls,dthldxls,dthldyls,thlpcar, &
                             dudtls,dudxls,dudyls, &
                             dvdtls,dvdxls,dvdyls, &
-                            dpdxl,dpdyl
-    use modglobal,   only : rtimee,om23_gs,zf,dzf,dzh,k1,kmax,grav,llsadv
+                            dpdxl,dpdyl, &
+                            u0,v0,w0,u0av,v0av,e120,rhobf
+    use modglobal,   only : rtimee,om23_gs,zf,dzf,dzh,i1,j1,k1, &
+                            kmax,grav,llsadv,rslabs,cu,cv
+    use modtestbed,  only : ltestbed
+    use modmpi,      only : myid,comm3d,my_real, mpi_sum,mpierr
+
     implicit none
 
-    integer t,k
-    real fac
+    integer t,i,j,k,itketop
+    real fac,egp,dqtdtlsav,dthldtlsav,dudtlsav,dvdtlsav
+    real tke0(k1)
+
+    real,allocatable,dimension(:) :: tke0l
+
+    allocate(tke0l  (k1))
 
     if(.not.(ltimedepz)) return
 
@@ -383,6 +393,62 @@ contains
     dudtls   = dudtlst  (:,t) + fac * ( dudtlst  (:,t+1) - dudtlst  (:,t) )
     dvdtls   = dvdtlst  (:,t) + fac * ( dvdtlst  (:,t+1) - dvdtlst  (:,t) )
     thlpcar  = thlpcart (:,t) + fac * ( thlpcart (:,t+1) - thlpcart (:,t) )
+
+!    if (ltestbed) then
+!
+!      !--- average LS forcings over CBL ---
+!      !    calculation of slab-averaged TKE, see modbudget.f90, look for "tkeav" and "sbtkeav"
+!
+!      !do k=1,kmax   
+!      !  tke0(k) = sum( 0.5*( 0.5*(w0(:,:,k)+w0(:,:,k+1)) )**2 + e120(:,:,k)**2 ) / rslabs
+!      !end do
+!
+!      tke0=0.;tke0l=0.
+!  
+!      do k=1,kmax
+!        tke0l(k) = 0.0
+!        do j=2,j1
+!        do i=2,i1
+!          egp = 0.5*rhobf(k)*( (0.5*(u0(i,j,k)+u0(i+1,j,k))-(u0av(k)-cu))**2 &
+!                 +(0.5*(v0(i,j,k)+v0(i,j+1,k))-(v0av(k)-cv))**2 &
+!                 +(0.5*(w0(i,j,k)+w0(i,j,k+1))             )**2 ) &
+!                 + rhobf(k)*e120(i,j,k)*e120(i,j,k)
+!
+!          tke0l(k) = tke0l(k) + egp
+!        end do
+!        end do
+!      end do
+!
+!      call MPI_ALLREDUCE(tke0l, tke0, k1,    MY_REAL, &
+!             MPI_SUM, comm3d,mpierr)
+!
+!      tke0 = tke0 / rslabs
+!
+!      if (tke0(1).ge.0.1) then
+!
+!        itketop = -1
+!        do k=1,kmax
+!          !print *, "   modtimedep: tke-profile: ", k, tke0(k), itketop
+!          if (tke0(k).lt.0.1 .and. itketop.eq.-1 ) then
+!            itketop = k
+!            print *, "   ",myid," modtimedep: tke0<0 at k=", k, tke0(k)
+!          endif
+!        end do
+!
+!        dqtdtlsav  = sum( dqtdtls (1:itketop) ) / itketop
+!        dthldtlsav = sum( dthldtls(1:itketop) ) / itketop
+!        dudtlsav   = sum( dudtls  (1:itketop) ) / itketop
+!        dvdtlsav   = sum( dvdtls  (1:itketop) ) / itketop
+!
+!        dqtdtls (1:itketop) = dqtdtlsav
+!        dthldtls(1:itketop) = dthldtlsav
+!        dudtls  (1:itketop) = dudtlsav
+!        dvdtls  (1:itketop) = dvdtlsav
+!
+!      endif
+!
+!
+!    endif
 
 
     do k=1,kmax
@@ -439,6 +505,7 @@ contains
 
     end if
 
+    deallocate(tke0l)
 
     return
   end subroutine timedepz

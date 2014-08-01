@@ -21,7 +21,7 @@
 !
 !
 module moduser
-
+  
 contains
 subroutine initsurf_user
   implicit none
