@@ -104,6 +104,8 @@ save
       logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
       real    :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
 
+      logical :: lneutralflow = .false. !< switch to enable simulations without moisture and temperature
+
       !Base state
       integer :: ibas_prf = 3
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)

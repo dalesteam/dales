@@ -138,7 +138,7 @@ contains
  ! Diffusion subroutines
 ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,nsv, lmoist
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,nsv, lmoist, lneutralflow
     use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
     use modsurfdata,only : ustar,thlflux,qtflux,svflux
     use modmicrodata, only : imicro, imicro_sice, iqr
@@ -150,8 +150,10 @@ contains
     call diffv(vp)
     call diffw(wp)
     if (.not. lsmagorinsky) call diffe(e12p)
-    call diffc(thl0,thlp,thlflux)
-    if (lmoist) call diffc( qt0, qtp, qtflux)
+    if (.not. lneutralflow) then
+      call diffc(thl0,thlp,thlflux)
+      if (lmoist) call diffc( qt0, qtp, qtflux)
+    endif
     do n=1,nsv
       call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
     end do
@@ -198,7 +200,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
-                         dxi,dyi,dzf,dzh,rk3step
+                         dxi,dyi,dzf,dzh,rk3step,lneutralflow
   use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf
   use modsurfdata, only : dudz,dvdz,thvs,z0m
   use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum
@@ -292,7 +294,7 @@ contains
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          if (ldelta .or. (dthvdz(i,j,k)<=0)) then
+          if (lneutralflow .or. (ldelta .or. (dthvdz(i,j,k)<=0))) then
             zlt(i,j,k) = delta(k)
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
@@ -357,7 +359,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav
+  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav,lneutralflow
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf
   use modsurfdata,  only : dudz,dvdz
   implicit none
@@ -410,7 +412,11 @@ contains
 
 
     sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
-    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
+    if (.not. lneutralflow) then
+      sbbuo(i,j,k)= -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
+    else
+      sbbuo(i,j,k)= 0.0
+    endif
     sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
   end do
   end do
@@ -452,7 +458,11 @@ contains
 ! **  Include shear and buoyancy production terms and dissipation **
 
     sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
-    sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+    if (.not. lneutralflow) then
+      sbbuo(i,j,1)= -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+    else
+      sbbuo(i,j,1)= 0.0
+    endif
     sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)/delta(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
   end do
   end do

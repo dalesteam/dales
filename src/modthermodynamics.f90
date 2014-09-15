@@ -58,7 +58,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, 
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lneutralflow
     use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
     use modmpi, only : slabsum
@@ -67,15 +67,19 @@ contains
     if (timee < 0.01) then
       call diagfld
     end if
+    if (.not. lneutralflow) then
     if (lmoist) then
       call icethermo0
     end if
+    endif
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
+    if (.not. lneutralflow) then
     if (lmoist) then
       call icethermoh
     end if
+    endif
 
     ! recalculate thv and rho on the basis of results
     call calthv
@@ -104,7 +108,7 @@ contains
 
 !> Calculate thetav and dthvdz
   subroutine calthv
-    use modglobal, only : lmoist,i1,j1,k1,kmax,zf,zh,dzh,rlv,rd,rv,cp,eps1
+    use modglobal, only : lmoist,i1,j1,k1,kmax,zf,zh,dzh,rlv,rd,rv,cp,eps1,lneutralflow
     use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,sv0,exnf,exnh,thv0h,dthvdz,tmp0
     use modsurfdata,only : dthldz,dqtdz
     use modmpi, only: myid
@@ -205,16 +209,19 @@ contains
       end do
     end if
 
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          if(abs(dthvdz(i,j,k)) < eps1) then
-            dthvdz(i,j,k) = sign(eps1, dthvdz(i,j,k))
-          end if
+    if (lneutralflow) then
+      dthvdz = 0.0
+    else
+      do k=1,kmax
+        do j=2,j1
+          do i=2,i1
+            if(abs(dthvdz(i,j,k)) < eps1) then
+              dthvdz(i,j,k) = sign(eps1, dthvdz(i,j,k))
+            end if
+          end do
         end do
       end do
-    end do
-
+    endif
 
 
   end subroutine calthv

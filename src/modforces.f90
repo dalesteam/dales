@@ -60,7 +60,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,dzf,grav
+  use modglobal, only : i1,j1,kmax,dzh,dzf,grav,lneutralflow
   use modfields, only : u0,v0,w0,sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
   use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
@@ -80,8 +80,10 @@ contains
     do i=2,i1
       up(i,j,k) = up(i,j,k) - dpdxl(k)
       vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
+      if (.not. lneutralflow) then
+        wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2.0*dzh(k))
+      endif
     end do
     end do
     end do
@@ -95,7 +97,9 @@ contains
     do i=2,i1
       up(i,j,k) = up(i,j,k) - dpdxl(k)
       vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
+      if (.not. lneutralflow) then
+        wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
+      endif
     end do
     end do
     end do
@@ -220,7 +224,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs,lneutralflow
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls
@@ -255,8 +259,10 @@ contains
           svp(i,j,1,n) = svp(i,j,1,n)-subs_sv
         enddo
       endif
-      thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl
-      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt +dqtdtls(1)
+      if (.not. lneutralflow) then
+        thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl
+        qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt +dqtdtls(1)
+      endif
       up  (i,j,1) = up  (i,j,1) -u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1)-subs_u
       vp  (i,j,1) = vp  (i,j,1) -u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1)-subs_v
     end do
@@ -293,8 +299,10 @@ contains
           enddo
         endif
     
-        thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
-        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
+        if (.not. lneutralflow) then
+          thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
+          qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
+        endif
         up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u
         vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)-subs_v
       enddo
