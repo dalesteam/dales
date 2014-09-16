@@ -439,7 +439,6 @@ contains
     store_zi = .true.
 
     call calcblheight
-
     store_zi = .false.
 
   !     --------------------------------------------------------------

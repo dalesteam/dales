@@ -335,7 +335,7 @@ contains
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero,qskin 
+                                  thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
@@ -497,8 +497,8 @@ contains
       case(3,4)
         thls = thlprof(1)
         qts  = qtprof(1)
-        tskin  = thls
-        qskin  = qts
+        tskin= thls
+        qskin= qts
       case(10)
         call initsurf_user
       end select

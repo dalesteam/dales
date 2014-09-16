@@ -173,7 +173,7 @@ contains
 
     implicit none
 
-    integer n, ierr
+    integer n, ierr, i, j
     character(40) :: name
     character(3) :: csvname
     namelist/NAMGENSTAT/ &
@@ -468,7 +468,6 @@ contains
     implicit none
 
 
-
     real cthl,cqt,den
 
     real,allocatable, dimension(:) :: &
@@ -586,7 +585,6 @@ contains
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
 
 
-
   !-----------------------------------------------------------------------
   !     1.    INITIALISE LOCAL CONSTANTS
   !     --    --------------------------
@@ -686,7 +684,6 @@ contains
     thvmav = thvmav/rslabs
 
     cszav  = csz
-  !
 
     do n=1,nsv
       call slabsum(svmav(1,n),1,k1,svm(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -740,7 +737,6 @@ contains
       vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                 vpcv/sqrt(vpcv**2  + &
           ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
-
 
       !Higher order moments
       u2avl    (1) = u2avl    (1) + (um (i,j,1)+cu - umav(1))**2
@@ -922,13 +918,13 @@ contains
 
       do k=2,kmax
         km = k-1
-      do j=2,j1
-      do i=2,i1
-        ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-        wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
-                                                        /dzh(k)
-      end do
-      end do
+        do j=2,j1
+        do i=2,i1
+          ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
+          wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
+                                                          /dzh(k)
+        end do
+        end do
       end do
 
     end do
@@ -1278,9 +1274,9 @@ contains
         cszmn = cszmn / nsamples
 
 
-  !     ------------------------------------------
-  !     2.0  Construct other time averaged fields
-  !     ------------------------------------------
+!     ------------------------------------------
+!     2.0  Construct other time averaged fields
+!     ------------------------------------------
 
 
       thmn = thlmn + (rlv/cp)*qlmn/exnf
@@ -1514,7 +1510,7 @@ contains
               wsvtmn   (k,n)                            , &
               k=1,kmax)
 
-         close(ifoutput)
+        close(ifoutput)
 
       end do
       if (lnetcdf) then
@@ -1716,6 +1712,5 @@ contains
     deallocate(wthvtmnlast)
 
   end subroutine exitgenstat
-
 
 end module modgenstat

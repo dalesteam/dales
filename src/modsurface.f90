@@ -267,7 +267,7 @@ contains
                   defined_landtypes = defined_landtypes + 1
                   i = defined_landtypes
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), ps_land(i), &
-                    albedo_land(i),tsoil_land(1:ksoilmax,i),tsoildeep_land(i),phiw_land(1:ksoilmax,i),rootf_land(1:ksoilmax,i),&
+                    albedo_land(i), tsoil_land(1:ksoilmax,i), tsoildeep_land(i), phiw_land(1:ksoilmax,i), rootf_land(1:ksoilmax,i), &
                     Cskin_land(i), lambdaskin_land(i), Qnet_land(i), cveg_land(i), Wl_land(i), rsmin_land(i), LAI_land(i), &
                     gD_land(i), wsv_land(1:nsv,i) 
   
@@ -618,7 +618,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rk3step,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
+    use modglobal,  only : rdt, i1, i2, j1, j2, ih, jh, cp, rlv, fkar, zf, cu, cv, nsv, rk3step, timee, rslabs, pi, pref0, rd, rv, eps1, rtimee!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -660,12 +660,9 @@ contains
         enddo
       enddo
 
-      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches),Supatch(1:xpatches,1:ypatches),&
-      xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches),Svpatch(1:xpatches,1:ypatches),&
-      xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),&
-      xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches),Supatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches),Svpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
           
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
@@ -880,8 +877,7 @@ contains
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
             else
               if(lhetero) then
-                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j))&
-                + psim(z0m(i,j) / obl(i,j)))
+                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
               else
                 ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
               endif
@@ -896,22 +892,34 @@ contains
 
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
           if(lhetero) then
-            thlflux(i,j) = wt_patch(patchx,patchynr(j)) 
-            qtflux (i,j) = wq_patch(patchx,patchynr(j))
+            thlflux(i,j) = wt_patch(patchx,patchy) 
+            qtflux (i,j) = wq_patch(patchx,patchy)
           else
             thlflux(i,j) = wtsurf
             qtflux (i,j) = wqsurf
           endif
 
+          thlflux(i,j)   = thlflux(i,j) * sin(pi*(rtimee-8100)/28800)
+          if(rtimee .le.  8100) thlflux(i,j) = 0
+          if(rtimee .ge. 36900) thlflux(i,j) = 0
+
+          qtflux(i,j)    = qtflux(i,j) * sin(pi*(rtimee-3600)/37800)
+          if(rtimee .le.  3600) qtflux(i,j)  = 0
+          if(rtimee .ge. 41400) qtflux(i,j)  = 0
+
           if(lhetero) then
             do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j)) 
+              svflux(i,j,n) = wsv_patch(n,patchx,patchy) 
             enddo
           else
             do n=1,nsv
               svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
+
+!          svflux(i,j,ISO%loc+choffset) = svflux(i,j,ISO%loc+choffset) * exp(-0.5*(( ((rtimee+18000)-42705)/7999 )**2))!HGO
+          svflux(i,j,10) = svflux(i,j,10) * exp(-0.5*(( ((rtimee+18000)-42705)/7999 )**2))!HGO
+
 
           if (obl(i,j) < 0.) then
             phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
@@ -934,9 +942,13 @@ contains
           Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
           (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
-          tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
-          qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
-
+          if(lhetero) then
+            tskin(i,j) = min(max(wt_patch(patchx,patchy) / (Cs(i,j) * horv),-10.0),10.0) + thl0(i,j,1)
+            qskin(i,j) = min(max(wq_patch(patchx,patchy) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
+          else
+            tskin(i,j) = min(max(wtsurf / (Cs(i,j) * horv),-10.0),10.0) + thl0(i,j,1)
+            qskin(i,j) = min(max(wqsurf / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
+          endif
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
           if (lhetero) then
@@ -955,20 +967,14 @@ contains
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then
-        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
-        xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches),  qts_patch(1:xpatches,1:ypatches),&
-        xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches),&
-        xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches),  qts_patch(1:xpatches,1:ypatches),  xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches)   , xpatches*ypatches, MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
         thls_patch = thls_patch / SNpatch
         qts_patch  = qts_patch  / SNpatch
         thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
       endif
 
-    !if (lhetero) then
-    !  thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
-    !endif
       !call qtsurf
 
     end if
@@ -1038,10 +1044,8 @@ contains
             Npatch(patchx,patchy)     = Npatch(patchx,patchy)     + 1
           enddo
         enddo  
-        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches),&
-        xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  ,&
-        xpatches*ypatches,MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches), xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  , xpatches*ypatches,MPI_INTEGER ,MPI_SUM, comm3d,mpierr)
         qts_patch = qts_patch / SNpatch
         thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
       endif
@@ -1065,8 +1069,7 @@ contains
     real                :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
     real                :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
     integer             :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
-    real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches),&
-                           lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
+    real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches), lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
     real                :: loblpatch(xpatches,ypatches) 
 
     if(lmostlocal) then
@@ -1146,18 +1149,12 @@ contains
         enddo
       enddo
 
-      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches)   ,Supatch(1:xpatches,1:ypatches) ,xpatches*ypatches,&
-      MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches)   ,Svpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,&
-      MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)   ,SNpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,&
-      MPI_INTEGER,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(lthlpatch(1:xpatches,1:ypatches),thlpatch(1:xpatches,1:ypatches),xpatches*ypatches,&
-      MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(lqpatch(1:xpatches,1:ypatches)  ,qpatch(1:xpatches,1:ypatches)  ,xpatches*ypatches,&
-      MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,&
-      MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches)   ,Supatch(1:xpatches,1:ypatches) ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches)   ,Svpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)   ,SNpatch(1:xpatches,1:ypatches) ,xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lthlpatch(1:xpatches,1:ypatches),thlpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(lqpatch(1:xpatches,1:ypatches)  ,qpatch(1:xpatches,1:ypatches)  ,xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
           
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
@@ -1170,8 +1167,7 @@ contains
 
       do patchy = 1, ypatches
         do patchx = 1, xpatches
-          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) *&
-          (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2.)
+          Rib   = grav / thvs_patch(patchx,patchy) * zf(1) * (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2.)
           iter = 0
           L = oblpatch(patchx,patchy)
 
