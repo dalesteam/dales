@@ -322,8 +322,8 @@ contains
     implicit none
 
     logical, allocatable, dimension(:,:,:)   :: mask
-    real,    allocatable, dimension(:,:,:)   :: uloc, vloc, utot, windfield
-    real,    allocatable, dimension(:)       :: windfav
+    real,    allocatable, dimension(:,:,:)   :: uloc, vloc, utot, windfield, uwhole
+    real,    allocatable, dimension(:)       :: windfav, uwholeav
     real,    allocatable, dimension(:,:,:)   :: uvar, vvar, wvar, utotvar
     real,    allocatable, dimension(:,:,:)   :: thloc, qtloc, thvar, qtvar
     real,    allocatable, dimension(:,:,:,:) :: svloc, svvar
@@ -341,7 +341,9 @@ contains
     allocate(vloc     (2:i1,2:j1,klow:khigh    ))
     allocate(utot     (2:i1,2:j1,klow:khigh    ))
     allocate(windfield(2:i1,2:j1,klow:khigh    ))
+    allocate(uwhole   (2:i1,2:j1,klow:khigh    ))
     allocate(windfav  (          klow:khigh    ))
+    allocate(uwholeav (          klow:khigh    ))
     allocate(uvar     (2:i1,2:j1,klow:khigh    ))
     allocate(vvar     (2:i1,2:j1,klow:khigh    ))
     allocate(wvar     (2:i1,2:j1,klow:khigh    ))
@@ -376,7 +378,9 @@ contains
     vloc      = 0.0
     utot      = 0.0
     windfield = 0.0
+    uwhole    = 0.0
     windfav   = 0.0
+    uwholeav  = 0.0
     uvar      = 0.0
     vvar      = 0.0
     wvar      = 0.0
@@ -489,6 +493,16 @@ contains
         end do
     end select
 
+    if (hole .gt. 0.0) then
+      do k=klow,khigh
+        uwhole(:,:,k) = w0(2:i1,2:j1,k)*(windfield(2:i1,2:j1,k) - windfav(k))
+      end do
+      call slabsum(uwholeav,klow,khigh,uwhole,2,i1,2,j1,klow,khigh,2,i1,2,j1,klow,khigh)
+      do k=klow,khigh
+        mask(:,:,k)   = mask(:,:,k) .and. ( abs(uwhole(:,:,k)).gt.(hole*abs(uwholeav(k))) )
+      end do
+    endif
+
 
     do k=klow,khigh
       nrsampl  (k,  isamp) = nrsampl  (k,  isamp) + count(mask    ( :  , :  ,k  ))
@@ -523,18 +537,18 @@ contains
       thlqtcovl(k,  isamp) = thlqtcovl(k,  isamp) + sum  (thlqtcov( :  , :  ,k  ),mask(:,:,k))
     end do ! klow - khigh
 
-    deallocate(mask                         )
-    deallocate(uloc, vloc, utot, windfield  )
-    deallocate(windfav                      )
-    deallocate(uvar, vvar, wvar, utotvar    )
-    deallocate(thloc, qtloc, thvar, qtvar   )
-    deallocate(svloc, svvar                 )
-    deallocate(wures, wvres, wthlres, wqtres)
-    deallocate(wusub, wvsub, wthlsub, wqtsub)
-    deallocate(ugrad, vgrad, thgrad, qtgrad )
-    deallocate(wsvres, wsvsub, svgrad       )
-    deallocate(thlqtcov                     )
-    deallocate(ekhhalf,ekmhalf              )
+    deallocate(mask                               )
+    deallocate(uloc, vloc, utot, windfield,uwhole )
+    deallocate(windfav, uwholeav                  )
+    deallocate(uvar, vvar, wvar, utotvar          )
+    deallocate(thloc, qtloc, thvar, qtvar         )
+    deallocate(svloc, svvar                       )
+    deallocate(wures, wvres, wthlres, wqtres      )
+    deallocate(wusub, wvsub, wthlsub, wqtsub      )
+    deallocate(ugrad, vgrad, thgrad, qtgrad       )
+    deallocate(wsvres, wsvsub, svgrad             )
+    deallocate(thlqtcov                           )
+    deallocate(ekhhalf,ekmhalf                    )
 
   end subroutine doquadrant
 !> Write the statistics to file
