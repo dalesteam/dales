@@ -498,6 +498,7 @@ contains
         uwhole(:,:,k) = w0(2:i1,2:j1,k)*(windfield(2:i1,2:j1,k) - windfav(k))
       end do
       call slabsum(uwholeav,klow,khigh,uwhole,2,i1,2,j1,klow,khigh,2,i1,2,j1,klow,khigh)
+      uwholeav        = uwholeav / rslabs
       do k=klow,khigh
         mask(:,:,k)   = mask(:,:,k) .and. ( abs(uwhole(:,:,k)).gt.(hole*abs(uwholeav(k))) )
       end do
