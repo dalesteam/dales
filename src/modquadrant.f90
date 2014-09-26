@@ -315,7 +315,7 @@ contains
   end subroutine quadrant
 !> Performs the actual quadrant
   subroutine doquadrant
-    use modglobal,      only : imax,jmax,i1,j1,i2,j2,dzh,dzf,nsv,rslabs,cu,cv,dx,dy
+    use modglobal,      only : imax,jmax,i1,j1,i2,j2,dzh,dzf,nsv,ijtot,cu,cv,dx,dy
     use modfields,      only : u0,v0,w0,thl0,qt0,sv0
     use modsubgriddata, only : ekh,ekm
     use modmpi,         only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
@@ -468,7 +468,7 @@ contains
     end select
 
     call slabsum(windfav,klow,khigh,windfield,2,i1,2,j1,klow,khigh,2,i1,2,j1,klow,khigh)
-    windfav   = windfav / rslabs
+    windfav   = windfav / ijtot
 
 !!  Quadrant 1: u' > 0, w' > 0
 !!  Quadrant 2: u' < 0, w' > 0
@@ -498,7 +498,7 @@ contains
         uwhole(:,:,k) = w0(2:i1,2:j1,k)*(windfield(2:i1,2:j1,k) - windfav(k))
       end do
       call slabsum(uwholeav,klow,khigh,uwhole,2,i1,2,j1,klow,khigh,2,i1,2,j1,klow,khigh)
-      uwholeav        = uwholeav / rslabs
+      uwholeav        = uwholeav / ijtot
       do k=klow,khigh
         mask(:,:,k)   = mask(:,:,k) .and. ( abs(uwhole(:,:,k)).gt.(hole*abs(uwholeav(k))) )
       end do
@@ -555,7 +555,7 @@ contains
 !> Write the statistics to file
   subroutine writequadrant
 
-    use modglobal, only : rtimee,zh,cexpnr,ifoutput,rslabs,nsv
+    use modglobal, only : rtimee,zh,cexpnr,ifoutput,ijtot,nsv
     use modfields, only : presh
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
@@ -606,7 +606,7 @@ contains
     nhrs    = int(nsecs/3600)
     nminut  = int(nsecs/60)-nhrs*60
     nsecs   = mod(nsecs,60)
-    inorm   = nint(rslabs*timeav/dtav)
+    inorm   = nint(ijtot*timeav/dtav)
 
     call MPI_ALLREDUCE(nrsampl  ,nrsamp  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(uavl     ,uavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
