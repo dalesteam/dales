@@ -386,8 +386,13 @@ contains
     end if
 
     iret = nf90_inq_varid(ncid, 'zq', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)
-    if (length .ne. (1+k2-k1)) stop "Problem in writestat_dims_q_nc: not matching lengths"
+    if (iret==0) iret=nf90_inquire_dimension(ncid,zqID, len=length)
+    if (length .ne. (1+k2-k1)) then
+      print *,"k1     = ",k1
+      print *,"k2     = ",k2
+      print *,"length = ",length
+      stop "Problem in writestat_dims_q_nc: not matching lengths"
+    endif
     if (iret==0) iret = nf90_put_var(ncid, varID, zh(k1:k2),(/1/))
 
   end subroutine writestat_dims_q_nc
