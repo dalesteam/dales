@@ -52,6 +52,8 @@ save
   real, allocatable :: lwuav(:)
   real, allocatable :: lwdav(:)
   real, allocatable :: swdav(:)
+  real, allocatable :: swdirav(:)
+  real, allocatable :: swdifav(:)
   real, allocatable :: swuav(:)
   real, allocatable :: lwucaav(:)
   real, allocatable :: lwdcaav(:)
@@ -65,6 +67,8 @@ save
   real, allocatable :: lwumn(:)
   real, allocatable :: lwdmn(:)
   real, allocatable :: swdmn(:)
+  real, allocatable :: swdirmn(:)
+  real, allocatable :: swdifmn(:)
   real, allocatable :: swumn(:)
   real, allocatable :: lwucamn(:)
   real, allocatable :: lwdcamn(:)
@@ -127,6 +131,8 @@ contains
     allocate(lwuav(k1))
     allocate(lwdav(k1))
     allocate(swdav(k1))
+    allocate(swdirav(k1))
+    allocate(swdifav(k1))
     allocate(swuav(k1))
     allocate(lwucaav(k1))
     allocate(lwdcaav(k1))
@@ -139,6 +145,8 @@ contains
     allocate(lwumn(k1))
     allocate(lwdmn(k1))
     allocate(swdmn(k1))
+    allocate(swdirmn(k1))
+    allocate(swdifmn(k1))
     allocate(swumn(k1))
     allocate(lwucamn(k1))
     allocate(lwdcamn(k1))
@@ -152,6 +160,8 @@ contains
     lwumn = 0.0
     lwdmn = 0.0
     swdmn = 0.0
+    swdirmn = 0.0
+    swdifmn = 0.0
     swumn = 0.0
     lwucamn = 0.0
     lwdcamn = 0.0
@@ -222,7 +232,7 @@ contains
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,rslabs,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
-    use modraddata, only : lwd,lwu,swd,swu,thlprad
+    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad
 
     implicit none
     integer :: k
@@ -230,6 +240,8 @@ contains
     lwdav  = 0.
     lwuav  = 0.
     swdav  = 0.
+    swdirav = 0.
+    swdifav = 0.	
     swuav  = 0.
     thltendav = 0.
     thllwtendav = 0.
@@ -239,11 +251,13 @@ contains
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(swdirav ,1,k1,swdir ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     do k=1,kmax
-      thllwtendav(k) = -(lwdav(k+1)-lwdav(k)+lwuav(k+1)-lwuav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
-      thlswtendav(k) = -(swdav(k+1)-swdav(k)+swuav(k+1)-swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
+      thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
+      thlswtendav(k) = ((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
     end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
@@ -251,6 +265,8 @@ contains
     lwumn = lwumn + lwuav/rslabs
     lwdmn = lwdmn + lwdav/rslabs
     swdmn = swdmn + swdav/rslabs
+    swdirmn = swdirmn + swdirav/rslabs
+    swdifmn = swdifmn + swdifav/rslabs    	
     swumn = swumn + swuav/rslabs
     thltendmn = thltendmn + thltendav/rslabs
     thllwtendmn = thllwtendmn + thllwtendav/rslabs
@@ -331,7 +347,7 @@ contains
       use modglobal, only : cexpnr,ifoutput,kmax,k1,zf,zh,rtimee
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
-
+      use modraddata, only : iradiation
       implicit none
       real,dimension(k1,nvar) :: vars
       integer nsecs, nhrs, nminut,k
@@ -345,6 +361,8 @@ contains
       lwumn   = lwumn    /nsamples
       lwdmn   = lwdmn    /nsamples
       swdmn   = swdmn    /nsamples
+      swdirmn   = swdirmn    /nsamples
+      swdifmn   = swdifmn    /nsamples
       swumn   = swumn    /nsamples
       lwucamn   = lwucamn    /nsamples
       lwdcamn   = lwdcamn    /nsamples
@@ -388,6 +406,34 @@ contains
             swdcamn(k)
       end do
       close (ifoutput)
+
+     if(iradiation == 2) then
+      open (ifoutput,file='radsplitstat.'//cexpnr,position='append')
+      write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
+      '#--------------------------------------------------------'      &
+      ,'#',(timeav),'--- AVERAGING TIMESTEP --- '      &
+      ,nhrs,':',nminut,':',nsecs      &
+      ,'   HRS:MIN:SEC AFTER INITIALIZATION '
+      write (ifoutput,'(A/2A/2A)') &
+          '#--------------------------------------------------------------------------' &
+          ,'#LEV  HGHT        LW_UP       LW_DN         SW_UP      SW_DIR_DN    ' &
+          ,'SW_DIF_DN     SW_DN      TL_SW_TEND' &
+          ,'#  (M)           (W/M^2)     (W/M^2)       (W/M^2)      (W/M^2)     ' &
+          ,'(W/M^2)      (W/M^2)       (K/DAY)'
+      do k=1,kmax
+        write(ifoutput,'(I4,F10.2,7E13.4)') &
+            k,zh(k),&
+            lwumn(k),&
+            lwdmn(k),&
+            swumn(k),&
+            swdirmn(k),&
+            swdifmn(k),&
+            swdmn(k),&
+            thlswtendmn(k)*3600*24
+      end do
+      close (ifoutput)
+      endif
+
       if (lnetcdf) then
         vars(:, 1) = thltendmn
         vars(:, 2) = thllwtendmn
@@ -408,6 +454,8 @@ contains
     lwumn = 0.0
     lwdmn = 0.0
     swdmn = 0.0
+    swdirmn = 0.0
+    swdifmn = 0.0
     swumn = 0.0
     lwucamn = 0.0
     lwdcamn = 0.0
@@ -417,7 +465,6 @@ contains
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
     thltendmn  = 0.0
-
 
   end subroutine writeradstat
 
@@ -429,9 +476,9 @@ contains
 
     if(.not.(lstat)) return
 
-    deallocate(lwuav,lwdav,swdav,swuav)
+    deallocate(lwuav,lwdav,swdav,swdirav,swdifav,swuav)
     deallocate(thllwtendav,thlswtendav)
-    deallocate(lwumn,lwdmn,swdmn,swumn)
+    deallocate(lwumn,lwdmn,swdmn,swdirmn,swdifmn,swumn)
     deallocate(thllwtendmn,thlswtendmn,thlradlsmn)
 
 
