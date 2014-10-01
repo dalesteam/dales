@@ -67,6 +67,8 @@ SAVE
 
   real, allocatable :: thlprad(:,:,:)!<   the radiative tendencies
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
+  real, allocatable :: swdir(:,:,:)    !<   Direct shortwave downward radiative flux
+  real, allocatable :: swdif(:,:,:)    !<   Difuse shortwave downward radiative flux
   real, allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
   real, allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
   real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
