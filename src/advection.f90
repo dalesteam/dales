@@ -28,7 +28,7 @@
 subroutine advection
 
   use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid
+                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,lneutralflow
   use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid, only : lsmagorinsky
   use advec_hybrid, only : advecc_hybrid
@@ -85,48 +85,50 @@ subroutine advection
     end select
   end if
 
-  select case(iadv_thl)
-    case(iadv_cd2)
-      call advecc_2nd(thl0,thlp)
-    case(iadv_5th)
-      call advecc_5th(thl0,thlp)
-    case(iadv_52)
-      call advecc_52(thl0,thlp)
-    case(iadv_cd6)
-      call advecc_6th(thl0,thlp)
-    case(iadv_62)
-      call advecc_62(thl0,thlp)
-    case(iadv_kappa)
-      call advecc_kappa(thl0,thlp)
-    case(iadv_upw)
-      call advecc_upw(thl0,thlp)
-    case(iadv_hybrid)
-      call advecc_hybrid(thl0,thlp)
-    case default
-      stop "Unknown advection scheme "
-  end select
-  if (lmoist) then
-    select case(iadv_qt)
+  if (.not. lneutralflow) then
+    select case(iadv_thl)
       case(iadv_cd2)
-        call advecc_2nd(qt0,qtp)
+        call advecc_2nd(thl0,thlp)
       case(iadv_5th)
-        call advecc_5th(qt0,qtp)
+        call advecc_5th(thl0,thlp)
       case(iadv_52)
-        call advecc_52(qt0,qtp)
+        call advecc_52(thl0,thlp)
       case(iadv_cd6)
-        call advecc_6th(qt0,qtp)
+        call advecc_6th(thl0,thlp)
       case(iadv_62)
-        call advecc_62(qt0,qtp)
+        call advecc_62(thl0,thlp)
       case(iadv_kappa)
-        call advecc_kappa(qt0,qtp)
+        call advecc_kappa(thl0,thlp)
       case(iadv_upw)
-        call advecc_upw(qt0,qtp)
+        call advecc_upw(thl0,thlp)
       case(iadv_hybrid)
-        call advecc_hybrid(qt0,qtp)
+        call advecc_hybrid(thl0,thlp)
       case default
         stop "Unknown advection scheme "
     end select
-  end if
+    if (lmoist) then
+      select case(iadv_qt)
+        case(iadv_cd2)
+          call advecc_2nd(qt0,qtp)
+        case(iadv_5th)
+          call advecc_5th(qt0,qtp)
+        case(iadv_52)
+          call advecc_52(qt0,qtp)
+        case(iadv_cd6)
+          call advecc_6th(qt0,qtp)
+        case(iadv_62)
+          call advecc_62(qt0,qtp)
+        case(iadv_kappa)
+          call advecc_kappa(qt0,qtp)
+        case(iadv_upw)
+          call advecc_upw(qt0,qtp)
+        case(iadv_hybrid)
+          call advecc_hybrid(qt0,qtp)
+        case default
+          stop "Unknown advection scheme "
+      end select
+    end if
+  endif
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)

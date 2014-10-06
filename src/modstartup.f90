@@ -57,7 +57,7 @@ contains
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author, lrigidlid, unudge
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author, lrigidlid, unudge, lneutralflow
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -93,7 +93,7 @@ contains
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lrigidlid, unudge
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lrigidlid, unudge, lneutralflow
     namelist/DYNAMICS/ &
         llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
 
@@ -188,6 +188,7 @@ contains
     call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lneutralflow,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(irad       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timerad    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -357,7 +358,7 @@ contains
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf
+                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf,lneutralflow
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
@@ -462,14 +463,15 @@ contains
     !---------------------------------------------------------------
     !  1.2 randomnize fields
     !---------------------------------------------------------------
-
-      krand  = min(krand,kmax)
-      do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
-        call randomnize(thlm,k,randthl,irandom,ih,jh)
-        call randomnize(thl0,k,randthl,irandom,ih,jh)
-      end do
+      if (.not. lneutralflow) then
+        krand  = min(krand,kmax)
+        do k = 1,krand
+          call randomnize(qtm ,k,randqt ,irandom,ih,jh)
+          call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
+          call randomnize(thlm,k,randthl,irandom,ih,jh)
+          call randomnize(thl0,k,randthl,irandom,ih,jh)
+        end do
+      endif
 
       do k=krandumin,krandumax
         call randomnize(um  ,k,randu  ,irandom,ih,jh)
@@ -542,9 +544,15 @@ contains
       obl   = -0.1
       oblav = -0.1
 
-      call qtsurf
+      if (.not. lneutralflow) then
+        call qtsurf
+        dthldz = (thlprof(1) - thls)/zf(1)
+      else
+        obl    = 0.0
+        oblav  = 0.0
+        dthldz = 0.0
+      endif
       
-      dthldz = (thlprof(1) - thls)/zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
       if(lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
 

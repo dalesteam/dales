@@ -617,7 +617,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv!, boltz, rhow
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,lneutralflow!, boltz, rhow
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -674,12 +674,17 @@ contains
     ! CvH start with computation of drag coefficients to allow for implicit solver
     if(isurf <= 2) then
 
-      if(lneutral) then
-        obl(:,:) = -1.e10
-        oblav    = -1.e10
+      if (.not. lneutralflow) then
+        if(lneutral) then
+          obl(:,:) = -1.e10
+          oblav    = -1.e10
+        else
+          call getobl
+        end if
       else
-        call getobl
-      end if
+        obl(:,:) = 0.0
+        oblav    = 0.0
+      endif
 
       call MPI_BCAST(oblav ,1,MY_REAL ,0,comm3d,mpierr)
 
@@ -691,9 +696,14 @@ contains
           endif
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
-          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
-          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
-          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+          if (.not. lneutralflow) then
+            Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
+            Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
+                      (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+          else
+            Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j))) ** 2.
+            Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) * log(zf(1) / z0h(i,j)))
+          endif
 
           if(lmostlocal) then
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -715,24 +725,26 @@ contains
       end do
     end if
 
-    ! Solve the surface energy balance and the heat and moisture transport in the soil
-    if(isurf == 1) then
-      call do_lsm
+    if (.not. lneutralflow) then
+      ! Solve the surface energy balance and the heat and moisture transport in the soil
+      if(isurf == 1) then
+        call do_lsm
 
-    elseif(isurf == 2) then
-      do j = 2, j1
-        do i = 2, i1
-          if(lhetero) then
-            tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
-          else
-            tskin(i,j) = thls
-          endif
+      elseif(isurf == 2) then
+        do j = 2, j1
+          do i = 2, i1
+            if(lhetero) then
+              tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
+            else
+              tskin(i,j) = thls
+            endif
+          end do
         end do
-      end do
 
-      call qtsurf
+        call qtsurf
 
-    end if
+      end if
+    endif
 
     ! 2     -   Calculate the surface fluxes
     if(isurf <= 2) then
@@ -760,8 +772,10 @@ contains
             endif
           end if
           
-          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
-          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+          if (.not. lneutralflow) then
+            thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
+            qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+          endif
           
           if(lhetero) then
             do n=1,nsv
@@ -788,8 +802,13 @@ contains
 
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+          if (.not. lneutralflow) then
+            dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
+            dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+          else
+            dthldz(i,j) = 0.0
+            dqtdz (i,j) = 0.0
+          endif
         end do
       end do
 
@@ -809,8 +828,10 @@ contains
         do j = 2, j1
           do i = 2, i1
 
-            thlflux(i,j) = wtsurf 
-            qtflux (i,j) = wqsurf 
+            if (.not. lneutralflow) then
+              thlflux(i,j) = wtsurf 
+              qtflux (i,j) = wqsurf 
+            endif
 
             do n=1,nsv
               svflux(i,j,n) = wsvsurf(n)
@@ -836,8 +857,13 @@ contains
 
             dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
             dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-            dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-            dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+            if (.not. lneutralflow) then
+              dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
+              dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+            else
+              dthldz(i,j) = 0.0
+              dqtdz (i,j) = 0.0
+            endif
           end do
         end do
 
@@ -845,12 +871,17 @@ contains
 
     else
 
-      if(lneutral) then
-        obl(:,:) = -1.e10
-        oblav    = -1.e10
+      if (.not. lneutralflow) then
+        if(lneutral) then
+          obl(:,:) = -1.e10
+          oblav    = -1.e10
+        else
+          call getobl
+        end if
       else
-        call getobl
-      end if
+        obl(:,:) = 0.0
+        oblav    = 0.0
+      endif
 
       thlsl = 0.
       qtsl  = 0.
@@ -876,13 +907,25 @@ contains
           horvav = max(horvav, 0.1)
           if( isurf == 4) then
             if(lmostlocal) then
-              ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+              if (.not. lneutralflow) then
+                ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+              else
+                ustar (i,j) = fkar * horv  / log(zf(1) / z0m(i,j))
+              endif
             else
               if(lhetero) then
-                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j))&
-                + psim(z0m(i,j) / obl(i,j)))
+                if (.not. lneutralflow) then
+                  ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j))&
+                  + psim(z0m(i,j) / obl(i,j)))
+                else
+                  ustar (i,j) = fkar * horvpatch(patchx,patchy) / log(zf(1) / z0m(i,j)) 
+                endif
               else
-                ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+                if (.not. lneutralflow) then
+                  ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
+                else
+                  ustar (i,j) = fkar * horvav / log(zf(1) / z0m(i,j))
+                endif
               endif
             end if
           else
@@ -894,12 +937,14 @@ contains
           end if
 
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
-          if(lhetero) then
-            thlflux(i,j) = wt_patch(patchx,patchynr(j)) 
-            qtflux (i,j) = wq_patch(patchx,patchynr(j))
-          else
-            thlflux(i,j) = wtsurf
-            qtflux (i,j) = wqsurf
+          if (.not. lneutralflow) then
+            if(lhetero) then
+              thlflux(i,j) = wt_patch(patchx,patchynr(j)) 
+              qtflux (i,j) = wq_patch(patchx,patchynr(j))
+            else
+              thlflux(i,j) = wtsurf
+              qtflux (i,j) = wqsurf
+            endif
           endif
 
           if(lhetero) then
@@ -927,14 +972,25 @@ contains
 
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+          if (.not. lneutralflow) then
+            dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
+            dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+          else
+            dthldz(i,j) = 0.0
+            dqtdz (i,j) = 0.0
+          endif
 
-          Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
-          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
+          if (.not. lneutralflow) then
+            Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
+            (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
-          tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
-          qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
+            tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
+            qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
+          else
+            Cs(i,j)    = fkar ** 2. / ( log(zf(1) / z0m(i,j)) * log(zf(1) / z0h(i,j)) )
+            tskin(i,j) = thl0(i,j,1)
+            qskin(i,j) = qt0( i,j,1)
+          endif
 
           thlsl      = thlsl + tskin(i,j)
           qtsl       = qtsl  + qskin(i,j)
