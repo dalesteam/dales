@@ -111,7 +111,7 @@ program DALES      !Version 4.0.0alpha
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
-  use modpois,           only : poisson
+!  use modpois,           only : poisson
   !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
@@ -245,7 +245,7 @@ program DALES      !Version 4.0.0alpha
     call grwdamp !damping at top of the model
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
-    call poisson
+!    call poisson
     call samptend(tend_pois,lastterm=.true.)
 
     call tstep_integrate                        ! Apply tendencies to all variables
