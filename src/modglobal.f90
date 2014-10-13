@@ -64,7 +64,7 @@ save
       integer, parameter :: ifnamopt   = 3
 
       real,parameter :: pi       = 3.141592653589793116
-      real,parameter :: grav     = 9.81             !<    *gravity acceleration.
+      real,parameter :: grav     = 0.0 !9.81             !<    *gravity acceleration.
       real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
