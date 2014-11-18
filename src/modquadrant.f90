@@ -838,9 +838,9 @@ contains
           do n=1,nsv
             where (nrsamp(:,isamp) .gt. 0)
               vars(:,      13+n) = svavgnorm (:,n,isamp)
-              vars(:,  nsv+13+n) = svavgnorm (:,n,isamp)
-              vars(:,2*nsv+21+n) = svavgnorm (:,n,isamp)
-              vars(:,3*nsv+21+n) = svavgnorm (:,n,isamp)
+              vars(:,  nsv+13+n) = svvarnorm (:,n,isamp)
+              vars(:,2*nsv+21+n) = wsvresnorm(:,n,isamp)
+              vars(:,3*nsv+21+n) = wsvsubnorm(:,n,isamp)
             end where
           end do ! nsv
 
