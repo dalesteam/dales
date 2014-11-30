@@ -8,8 +8,8 @@ set(USER_Fortran_FLAGS_DEBUG "-W -Wall -Wuninitialized -fcheck=all -fbacktrace -
 
 set(NETCDF_INCLUDE_DIR "/usr/include")
 set(NETCDF_LIB_1       "/usr/lib64/libnetcdff.a")
-set(NETCDF_LIB_2       "/usr/lib64/libnetcdf.a")
-set(HDF5_LIB_1         "/usr/lib64/libhdf5_hl.a")
-set(HDF5_LIB_2         "/usr/lib64/libhdf5.a")
+set(NETCDF_LIB_2       "/usr/lib64/libnetcdf.so")
+set(HDF5_LIB_1         "/usr/lib64/libhdf5_hl.so")
+set(HDF5_LIB_2         "/usr/lib64/libhdf5.so")
 set(SZIP_LIB           "")
 set(LIBS ${NETCDF_LIB_1} ${NETCDF_LIB_2} ${HDF5_LIB_1} ${HDF5_LIB_2} ${SZIP_LIB} m z curl)

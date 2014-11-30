@@ -27,17 +27,17 @@
 !
 module modfielddump
 
-  use modglobal, only : longint
+  use modglobal, only : longint, nsv
 
 implicit none
 private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 8
+  integer :: nvar = 7
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname
+  character(80),dimension(:,:), allocatable :: ncname
   character(80),dimension(1,4) :: tncname
 
   real    :: dtav
@@ -54,7 +54,8 @@ contains
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
-    integer :: ierr
+    integer :: ierr, n
+    character(3) :: csvname
 
 
     namelist/NAMFIELDDUMP/ &
@@ -93,9 +94,12 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'dtav should be a integer multiple of dtmax'
     end if
+
+    nvar = nvar + nsv
     if (lnetcdf) then
       fname(11:13) = cmyid
       fname(15:17) = cexpnr
+      allocate(ncname(nvar,4))
       call ncinfo(tncname(1,:),'time','Time','s','time')
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
@@ -103,8 +107,12 @@ contains
       call ncinfo(ncname( 4,:),'qt','Total water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 5,:),'ql','Liquid water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-      call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
+!       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
+      do n=1,nsv
+        write (csvname(1:3),'(i3.3)') n
+        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tttt')
+      end do
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
@@ -238,8 +246,6 @@ contains
     else
       field = 0.
     endif
-
-    if (lnetcdf) vars(:,:,:,7) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbqr.'//cmyid//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -261,9 +267,9 @@ contains
     enddo
     
     if (lnetcdf) then 
-      vars(:,:,:,8) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      vars(:,:,:,7) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
       do k=klow,khigh
-        vars(:,:,k,8) = vars(:,:,k,8) - thvh(k)
+        vars(:,:,k,7) = vars(:,:,k,7) - thvh(k)
       end do
     end if
     do i=2-ih,i1+ih, ncoarse
@@ -284,6 +290,8 @@ contains
       end if
       close (ifoutput)
     endif
+
+    if (lnetcdf) vars(:,:,:,8:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
