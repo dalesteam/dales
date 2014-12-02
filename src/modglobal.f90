@@ -103,6 +103,9 @@ save
       real    :: xlon    = 0.               !<    *longitude in degrees.
       logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
       real    :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
+      real    :: presgradx = 0                 ! <   *pressure gradient in x direction (divided by rho) (m/s2)
+      real    :: presgrady = 0                 ! <   *pressure gradient in y direction (divided by rho) (m/s2)
+
 
       !Base state
       integer :: ibas_prf = 3
