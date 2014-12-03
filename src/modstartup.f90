@@ -361,7 +361,8 @@ contains
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf
+                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf,&
+                                  presgradx, presgrady, lcoriol
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
@@ -702,10 +703,15 @@ contains
 
 !******include rho if rho = rho(z) /= 1.0 ***********
 
-    do k=1,kmax
-      dpdxl(k) =  om23_gs*vg(k)
-      dpdyl(k) = -om23_gs*ug(k)
-    end do
+    if (lcoriol) then
+       do k=1,kmax
+         dpdxl(k) =  om23_gs*vg(k)
+         dpdyl(k) = -om23_gs*ug(k)
+       end do
+    else
+         dpdxl(k) = presgradx
+         dpdyl(k) = presgrady
+    endif
 
   !-----------------------------------------------------------------
   !    2.5 make large-scale horizontal gradients
