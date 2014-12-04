@@ -91,7 +91,7 @@ contains
 
     call MPI_BCAST(timeav    ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dtav      ,1,MY_REAL   ,0,comm3d,mpierr)
-!    call MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampcl   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampco   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lsampup   ,1,MPI_LOGICAL,0,comm3d,mpierr)
