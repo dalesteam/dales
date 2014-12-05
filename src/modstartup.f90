@@ -709,8 +709,8 @@ contains
          dpdyl(k) = -om23_gs*ug(k)
        end do
     else
-         dpdxl(k) = presgradx
-         dpdyl(k) = presgrady
+         dpdxl = presgradx
+         dpdyl = presgrady
     endif
 
   !-----------------------------------------------------------------
