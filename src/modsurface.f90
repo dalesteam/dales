@@ -663,6 +663,9 @@ contains
       allocate(ci_old    (2:i1,2:j1))
       allocate(tauField  (2:i1,2:j1))
       allocate(ciField   (2:i1,2:j1))
+      allocate(PARField  (2:i1,2:j1))
+      allocate(PARdirField  (2:i1,2:j1))
+      allocate(PARdifField  (2:i1,2:j1))
     endif
     return
   end subroutine initsurface
@@ -1571,7 +1574,7 @@ contains
   
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rk3step,nsv
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
-    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
+    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,swdir,swdif
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
@@ -1585,7 +1588,7 @@ contains
     real     :: Wlmx
 
     real     :: CO2ags, CO2comp, gm, fmin0, fmin, esatsurf, Ds, D0, cfrac, co2abs, ci !Variables for AGS
-    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, AGSa1, Dstar, gcco2 !Variables for AGS
+    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, AGSa1, Dstar, gcco2, PARdir, PARdif !Variables for AGS
     real     :: rsAgs, rsCO2, fw, Resp, wco2 !Variables for AGS
     real     :: MW_Air = 28.97
     real     :: MW_CO2 = 44
@@ -1636,6 +1639,10 @@ contains
       rsco2Field = 0.0
       fstrField  = 0.0
       ciField    = 0.0
+      PARField   = 0.0
+      PARdirField= 0.0
+      PARdifField= 0.0
+
     endif
     
     rk3coef = rdt / (4. - dble(rk3step))
@@ -1800,6 +1807,8 @@ contains
 
           !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
           PAR      = 0.50 * max(0.1,-swdav * cveg(i,j)) !Increase PAR to 50 SW
+          PARdir   = 0.50 * max(0.1,swdir(i,j,1) * cveg(i,j))
+          PARdif   = 0.50 * max(0.1,swdif(i,j,1) * cveg(i,j))
 
           ! Calculate the light use efficiency
           alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
@@ -1851,12 +1860,16 @@ contains
           local_Anav   = local_Anav   + An
           local_Respav = local_Respav + Resp
 
-          AnField   (i,j) = An
-          RespField (i,j) = Resp
-          wco2Field (i,j) = wco2
-          rsco2Field(i,j) = rsCO2
-          fstrField (i,j) = fstr
-          ciField   (i,j) = ci
+          AnField    (i,j) = An
+          RespField  (i,j) = Resp
+          wco2Field  (i,j) = wco2
+          rsco2Field (i,j) = rsCO2
+          fstrField  (i,j) = fstr
+          ciField    (i,j) = ci
+          PARField   (i,j) = PAR
+          PARdirField(i,j) = PARdir
+          PARdifField(i,j) = PARdif
+
         endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method

@@ -144,6 +144,9 @@ SAVE
   real, allocatable :: fstrField    (:,:)
   real, allocatable :: tauField     (:,:)
   real, allocatable :: ciField      (:,:)
+  real, allocatable :: PARField     (:,:)
+  real, allocatable :: PARdirField  (:,:)
+  real, allocatable :: PARdifField  (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
