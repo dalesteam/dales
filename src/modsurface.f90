@@ -1560,7 +1560,10 @@ contains
             lwuav = sum(lwuavn(i,j,:)) / nradtime
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
-          else
+          elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
+            swdav = -sum(swd(i,j,:)) / nradtime
+            Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
+          else ! simple radiation scheme
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
             swdav     = swd(i,j,1)
           end if
