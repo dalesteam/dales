@@ -596,7 +596,7 @@ contains
   !     -------------------------
 
     do  k=1,kmax
-      if(lhetero) then
+      if (lhetero) then
         u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
         v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
         w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
