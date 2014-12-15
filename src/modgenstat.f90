@@ -450,7 +450,7 @@ contains
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi
+                          rslabs,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
@@ -886,7 +886,7 @@ contains
     end do
 
     do n=1,nsv
-      if (iadv_thl==iadv_kappa) then
+      if (iadv_sv(n)==iadv_kappa) then
          call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
       else
         do  j=2,j1
