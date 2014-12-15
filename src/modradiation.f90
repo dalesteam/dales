@@ -44,15 +44,21 @@ contains
     allocate(swu(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lwd(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(lwu(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(swdir(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(swdif(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     thlprad = 0.
+
     swd = 0.
     swu = 0.
     lwd = 0.
     lwu = 0.
+    swdir = 0.
+    swdif = 0.         
+
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
@@ -153,7 +159,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
     implicit none
-    deallocate(thlprad,swd,swu,lwd,lwu)
+    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu)
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
   end subroutine exitradiation
 
@@ -273,8 +279,9 @@ subroutine radpar
 
   subroutine sunray(tau,tauc,i,j)
 
-  use modglobal, only :  k1
-  use modsurfdata,  only : albedo
+  use modglobal, only :  k1,boltz
+  use modsurfdata,  only : albedo,tskin
+  use modfields,   only : thl0
   implicit none
 
   real, intent(inout), dimension (k1) :: tau
@@ -348,7 +355,10 @@ subroutine radpar
 !                 +mu*sw0*exp(-taupath/mu)
       swd(i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu) ! difuse down + direct down
       swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian) 
-
+      swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
+      swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
+      lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.
+      lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
   end do
 
   deallocate(taude)
