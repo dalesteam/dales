@@ -262,7 +262,7 @@ contains
     use modmpi,     only : myidx,commrow,mpierr,gatherrow,MY_REAL,MPI_SUM
     use modsurfdata
     use modsubgrid, only : ekm, ekh
-    use modglobal,  only : iadv_thl, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
+    use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
                            rd, imax, jmax, i1, j1, k1, ih, jh, itot, jtot
 
     implicit none
@@ -355,7 +355,7 @@ contains
     end do
 
     do n=1,nsv
-      if (iadv_thl==iadv_kappa) then
+      if (iadv_sv(n)==iadv_kappa) then
          call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h(:,:,:,n))
       else
         do  k=2,k1
