@@ -177,6 +177,16 @@ SAVE
   real              :: R10        =   0.13 !<  Respiration at 10 oC
   real              :: Eact0      = 53.3e3 !<  Activation energy
 
+  !Variables for diffuse/direct PAR treatment in AGS
+  logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)
+  integer,parameter         :: nr_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
+  real, dimension(nr_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
+  real, dimension(nr_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
+  real, dimension(nr_gauss) :: LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
+  real                      :: sigma      =                      0.2 !<  Scattering coefficient
+  real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
+
+
   ! Surface energy balance
   real, allocatable :: Qnet     (:,:)   !<  Net radiation [W/m2]
   real              :: Qnetav   = -1
