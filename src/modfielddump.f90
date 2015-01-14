@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 8
+  integer,parameter :: nvar = 9
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -101,6 +101,7 @@ contains
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
+      call ncinfo(ncname( 9,:),'e12','sqrt(SGS TKE)','m/s','tttt')
       call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
@@ -113,7 +114,7 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh
+    use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh, e12m
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
@@ -267,6 +268,9 @@ contains
       end if
       close (ifoutput)
     endif
+
+    field = NINT(1.0E4*e12m,2)
+    if (lnetcdf) vars(:,:,:,9) = field(2:i1,2:j1,klow:khigh)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
