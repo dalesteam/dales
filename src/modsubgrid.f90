@@ -107,7 +107,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason
+        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -130,6 +130,8 @@ contains
     call MPI_BCAST(cn         ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(Rigc       ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
+
 
   end subroutine subgridnamelist
 
@@ -362,13 +364,16 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav
+  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav, cu, cv
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf
-  use modsurfdata,  only : dudz,dvdz
+  use modsurfdata,  only : dudz,dvdz,ustar,thlflux
+  use modsubgriddata, only: sgs_surface_fix
+
   implicit none
 
-  real    tdef2
+  real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz
   integer i,j,k,jm,jp,km,kp
+
 
   do k=2,kmax
   do j=2,j1
@@ -441,8 +446,19 @@ contains
           + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
           + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
 
-    tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
-                          dudz(i,j)   )**2
+    if (sgs_surface_fix) then
+          ! Use known surface flux and exchange coefficient to derive consistent
+          ! gradient (such that
+          ! correct flux will occur in shear production term)
+          uwflux = -ustar(i,j)*ustar(i,j)* &
+              (u0(i,j,1)+cu)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
+          local_dudz = -uwflux / ekm(i,j,1)
+          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
+               local_dudz )**2
+    else
+          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
+                                  dudz(i,j)   )**2
+    endif
 
     tdef2 = tdef2 +   0.25 *( &
           ((u0(i,jp,1)-u0(i,j,1))*dyi+(v0(i,jp,1)-v0(i-1,jp,1))*dxi)**2 &
@@ -451,13 +467,30 @@ contains
          +((u0(i+1,jp,1)-u0(i+1,j,1))*dyi+ &
                                  (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
 
-    tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
-                          dvdz(i,j)   )**2
+    if (sgs_surface_fix) then
+          ! replace the dvdz by surface flux -vw / ekm
+          vwflux = -ustar(i,j)*ustar(i,j)* &
+              (v0(i,j,1)+cv)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
+          local_dvdz = -vwflux / ekm(i,j,1)
+          tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
+                        local_dvdz  )**2
+    else
+         tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
+                                dvdz(i,j)   )**2
+    endif
 
 ! **  Include shear and buoyancy production terms and dissipation **
 
     sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
-    sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+    if (sgs_surface_fix) then
+          ! replace the -ekh *  dthvdz by the surface flux of thv
+          ! (but we only have the thlflux , which seems at the surface to be
+          ! equivalent
+          local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
+          sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
+    else
+          sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+    endif
     sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)/delta(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
   end do
   end do
