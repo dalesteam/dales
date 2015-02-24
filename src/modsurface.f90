@@ -1590,8 +1590,8 @@ contains
           f1  = 1.
         end if
 
-        ! Soil moisture availability                 !Now also following ECMWF
-        f2  = (phifc - phiwp) / (phiw(i,j,1) - phiwp)
+        ! Soil moisture availability
+        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils
