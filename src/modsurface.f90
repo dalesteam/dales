@@ -874,7 +874,7 @@ contains
 
         ! Soil moisture availability
 ! Surface resistance for bare soil uses f2 calculated on the basis of the soil moisture phi(0)
-        f2  = (phifc - phiwp) / (phiwav(1) - phiwp)
+        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils
