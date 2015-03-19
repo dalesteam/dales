@@ -39,28 +39,28 @@ contains
     use modsurfdata,  only : albedoav
     implicit none
 
-	
-	integer :: ierr
-	
-	namelist/NAMDE/ &
-          SSA,iDE,laero
+    
+    integer :: ierr
+    
+    namelist/NAMDE/ &
+      SSA,iDE,laero
 
-  if(myid==0)then
-        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-        read (ifnamopt,NAMDE,iostat=ierr)
-        if (ierr > 0) then 
-          print *, 'Problem in namoptions NAMDE'
-          print *, 'iostat error: ', ierr
-          stop 'ERROR: Problem in namoptions NAMDE'
-        endif
-        write(6 ,NAMDE)
-        close(ifnamopt)
-  end if
-  call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
-  call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
-  call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
-	
-	
+    if(myid==0)then
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,NAMDE,iostat=ierr)
+      if (ierr > 0) then 
+        print *, 'Problem in namoptions NAMDE'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMDE'
+      endif
+      write(6 ,NAMDE)
+      close(ifnamopt)
+    end if
+    call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
+    call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
+
+
     allocate(thlprad(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(swd(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(swu(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -82,7 +82,7 @@ contains
     swdif = 0.         
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
-	
+
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
       select case (irad)
@@ -199,7 +199,7 @@ subroutine radpar
 
   real thlpld,thlplu,thlpsw
   real tauc
-  integer :: i=0, j=0, k, flag=0
+  integer :: i=0, j=0, k
 
   real :: rho_l= 1000.  !liquid water density (kg/m3)
 
@@ -271,12 +271,12 @@ subroutine radpar
         tauc = 0.           ! tau cloud
         do k = 1,kmax
           tau(k) = 0.      ! tau laagje dz
-	  if(laero) then ! there are aerosols
-	    tau(k) = sv0(i,j,k,iDE)		
-	  else  ! there are clouds
-            tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
+          if(laero) then ! there are aerosols
+            tau(k) = sv0(i,j,k,iDE)
+          else  ! there are clouds
+            if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
           end if  
-	  tauc=tauc+tau(k)
+          tauc=tauc+tau(k)
         end do
         call sunray(tau,tauc,i,j)
       end if
