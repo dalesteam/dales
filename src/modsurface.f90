@@ -1443,12 +1443,11 @@ contains
       enddo
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k)
       end do
-      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) / phitot(:,:)
       end do
 
     else
@@ -1460,12 +1459,11 @@ contains
       phiw(:,:,4) = phiwav(4)
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k)
       end do
-      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) / phitot(:,:)
       end do
 
       ! Set root fraction per layer for short grass
@@ -1524,13 +1522,11 @@ contains
       do i = 2,i1
         phitot(i,j) = 0.0
         do k = 1, ksoilmax
-          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k)
+          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp)
         end do
 
-        phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
-
         do k = 1, ksoilmax
-          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
+          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) / phitot(i,j)
         end do
       end do
     end do
