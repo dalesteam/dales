@@ -730,13 +730,11 @@ contains
 
 ! rootfav added 
     do k = 1, ksoilmax
-      phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k) * dzsoil(k)
+      phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k)
     end do
 
-    phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
-
     do k = 1, ksoilmax
-      phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+      phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) / phitot(:,:)
     end do
 
     ! Set root fraction per layer for short grass
@@ -814,12 +812,11 @@ contains
         phitot(i,j) = 0.0
 ! EWB: rootfav(1)   = 0.35; rootfav(2)   = 0.38; rootfav(3)   = 0.23; rootfav(4)   = 0.04. Those values already account for the dzsoil multiplication, therefore rootfav(1:4) = 1.
         do k = 1, ksoilmax
-          phitot(i,j) = phitot(i,j) + rootfav(k)*max(phiw(i,j,k),phiwp) * dzsoil(k) ! EWB: phitot follows the ECMWF code
+          phitot(i,j) = phitot(i,j) + rootfav(k)*max(phiw(i,j,k),phiwp) ! EWB: phitot follows the ECMWF code
 !          phitot(i,j) = phitot(i,j) + rootfav(k)*phiw(i,j,k) * dzsoil(k)
         end do
-         phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
         do k = 1, ksoilmax
-          phifrac(i,j,k) = rootfav(k)*phiw(i,j,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
+          phifrac(i,j,k) = rootfav(k)*max(phiw(i,j,k),phiwp) / phitot(i,j)
         end do
       end do
     end do
