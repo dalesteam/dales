@@ -31,6 +31,8 @@
 !! \deprecated Modsurface replaces the old modsurf.f90
 !! \todo: implement fRs[t] based on the tiles.
 !
+!  Note that rootf should add up to 1 over all layers
+!
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
 !EXAMPLE of the old surface.inp.xxx for isurf = 3,4 (use switch loldtable for compatibility):
