@@ -37,9 +37,9 @@ module modcanopy
   real    :: wqt_can  = 0.0            !< prescribed LE canopy flux
   real    :: wsv_can(100) = 0.0        !< prescribed scalar canopy flux
 
-  real    :: wth_alph = 0.6            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
-  real    :: wqt_alph = 0.6            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
-  real    :: wsv_alph(100) = 0.6       !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
+  real    :: wth_alph = 5.0            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
+  real    :: wqt_alph = 5.0            !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
+  real    :: wsv_alph(100) = 5.0       !< Decay constant for flux as function of the vertically integrated PAI (from canopy top)
 
   ! Fields
   real, allocatable :: padfactor(:)    !< prescribed weighing factor for plant area density
