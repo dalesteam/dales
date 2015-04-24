@@ -498,6 +498,11 @@ end subroutine
                endif
            enddo
         enddo
+        do j=1,j2
+            do i=1,i2
+               write(*,*) 'DEBUG ', myid, i,j, map_c(i,j)
+            enddo
+        enddo
     endif
     return
   end subroutine initcanopy
@@ -601,13 +606,11 @@ end subroutine
          kp   = k+1
          ftau = 0
          do n=1,ncanopies 
-            where (map_c == n) 
+            where (map_c(2:i1,2:j1) == canopytype(n)) 
                 ftau = cd_c(n) * padf_c(k,n) * sqrt(ucor(2:i1,2:j1,k)**2 +  &
                 ((vcor(1:imax,2:j1,k)+vcor(2:i1,2:j1,k)+vcor(1:imax,3:j2,k)+vcor(2:i1,3:j2,k))/4)**2 + &
                 ((dzh(kp)*(w0(1:imax,2:j1,k)+w0(2:i1,2:j1,k))+dzh(k)*(w0(1:imax,2:j1,kp)+w0(2:i1,2:j1,kp)))/(2*(dzh(k)+dzh(kp))))**2 &
                 )
-            elsewhere
-                ftau = ftau
             end where
          enddo
          putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * ucor(2:i1,2:j1,k)
@@ -646,13 +649,11 @@ end subroutine
          kp   = k+1
          ftau = 0
          do n=1,ncanopies 
-            where (map_c == n) 
+            where (map_c(2:i1,2:j1) == canopytype(n)) 
                   ftau = cd_c(n) * padf_c(k,n) * sqrt(vcor(2:i1,2:j1,k)**2 +  &
                   ((ucor(3:i2,2:j1,k)+ucor(2:i1,2:j1,k)+ucor(3:i2,1:jmax,k)+ucor(2:i1,1:jmax,k))/4)**2 + &
                   ((dzh(kp)*(w0(2:i1,1:jmax,k)+w0(2:i1,2:j1,k))+dzh(k)*(w0(2:i1,1:jmax,kp)+w0(2:i1,2:j1,kp)))/(2*(dzh(k)+dzh(kp))))**2 &
                   )
-            elsewhere
-                ftau = ftau
             end where
          enddo
          putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * vcor(2:i1,2:j1,k)
@@ -690,13 +691,11 @@ end subroutine
          km   = k-1
          ftau = 0
          do n=1,ncanopies 
-            where (map_c == n) 
+            where (map_c(2:i1,2:j1) == canopytype(n)) 
                ftau = cd_c(n) * padh_c(k,n) * sqrt(w0(2:i1,2:j1,k)**2 +  &
                   ((dzf(km)*(ucor(2:i1,2:j1,k)+ucor(3:i2,2:j1,k))+dzf(k)*(ucor(2:i1,2:j1,km)+ucor(3:i2,2:j1,km)))/(4*dzh(k)))**2 + &
                   ((dzf(km)*(vcor(2:i1,2:j1,k)+vcor(2:i1,3:j2,k))+dzf(k)*(vcor(2:i1,2:j1,km)+vcor(2:i1,3:j2,km)))/(4*dzh(k)))**2 &
                   )
-            elsewhere
-                ftau = ftau
             end where
          enddo
          putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * w0(2:i1,2:j1,k)
@@ -734,13 +733,11 @@ end subroutine
          kp   = k+1
          ftau = 0
          do n=1,ncanopies 
-            where (map_c == n) 
+            where (map_c(2:i1,2:j1) == canopytype(n)) 
                ftau = cd_c(n) * padf_c(k,n) * sqrt(((ucor(3:i2,2:j1,k)+ucor(2:i1,2:j1,k))/2)**2 + &
                                                    ((vcor(2:i1,3:j2,k)+vcor(2:i1,2:j1,k))/2)**2 + &
                   ((dzh(kp)*w0(2:i1,2:j1,k)+dzh(k)*w0(2:i1,2:j1,kp))/(dzh(k)+dzh(kp)))**2 &
                   )
-            elsewhere
-                ftau = ftau
             end where
          enddo
          putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - e120(2:i1,2:j1,k) * ftau
@@ -781,7 +778,7 @@ end subroutine
       integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * exp(- alpha * pai(k))
     end do
     do k=1,ncanopy_c(ican)
-      where (map_c == ican)
+      where (map_c(2:i1,2:j1) == ican)
           tendency(:,:,k) = ( integratedcontribution(:,:,(k+1)) - integratedcontribution(:,:,k) ) / ( rhobf(k) * dzf(k) )
       elsewhere
           tendency(:,:,k) = 0
