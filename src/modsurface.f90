@@ -1514,12 +1514,11 @@ contains
       enddo
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k)
       end do
-      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) / phitot(:,:)
       end do
 
     else
@@ -1531,12 +1530,11 @@ contains
       phiw(:,:,4) = phiwav(4)
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k)
       end do
-      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) / phitot(:,:)
       end do
 
       ! Set root fraction per layer for short grass
@@ -1605,13 +1603,11 @@ contains
       do i = 2,i1
         phitot(i,j) = 0.0
         do k = 1, ksoilmax
-          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k)
+          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp)
         end do
 
-        phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
-
         do k = 1, ksoilmax
-          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
+          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) / phitot(i,j)
         end do
       end do
     end do
@@ -1788,7 +1784,7 @@ contains
           Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2Am))) )
 
           ! Calculate the effect of soil moisture stress on gross assimilation rate
-          betaw    = max(1.0e-3,min(1.0,(phiw(i,j,1)-phiwp)/(phifc-phiwp)))
+          betaw    = max(1.0e-3,min(1.0,(phitot(i,j)-phiwp)/(phifc-phiwp)))
 
           ! Calculate stress function
           fstr     = betaw
@@ -1837,7 +1833,7 @@ contains
           An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
 
           ! CO2 soil respiraion surface flux
-          fw       = Cw * wsmax / (phiw(i,j,1) + wsmin)
+          fw       = Cw * wsmax / (phitot(i,j) + wsmin)
 
 !          Resp     = R10 * (1 - fw)*(1+ustar(i,j)) * exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( thl0(i,j,1) )))
           Resp     = R10 * (1 - fw)* exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( tsoil(i,j,1) )))
