@@ -437,7 +437,9 @@ contains
     zbaseminl = zf(kmax)
 
     store_zi = .true.
+
     call calcblheight
+
     store_zi = .false.
 
   !     --------------------------------------------------------------
@@ -523,18 +525,21 @@ contains
         if (lhetero) then
           patchx = patchxnr(i)
         endif
-        ztop  = 0.0
-  
-        do  k=1,kmax
-          if (ql0(i,j,k) > 0) ztop = zf(k)
-          wmaxl = max(wm(i,j,k),wmaxl)
-          qlmaxl = max(ql0(i,j,k),qlmaxl)
-          if (lhetero) then
+         ztop  = 0.0
+   
+         do  k=1,kmax
+           if (ql0(i,j,k) > 0) ztop = zf(k)
+           wmaxl = max(wm(i,j,k),wmaxl)
+           qlmaxl = max(ql0(i,j,k),qlmaxl)
+         end do
+
+         if (lhetero) then
+         do  k=1,kmax
             if (ql0(i,j,k) > 0) ztop_field(i,j) = zf(k)
             wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),wm (i,j,k))
             qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
-          endif
-        end do
+         enddo
+         endif
   
         ztopavl = ztopavl + ztop
         if (ztop > ztopmaxl) ztopmaxl = ztop
@@ -775,7 +780,7 @@ contains
 
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,position='append')
-      write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
+      write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
           rtimee   ,&
           ust     ,&
           tst     ,&
@@ -879,7 +884,7 @@ contains
             write (name(12:14),'(i3.3)') i
             write (name(16:18),'(i3.3)') j
             open (ifoutput,file=name,position='append')
-            write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
+            write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
               rtimee      ,&
               ust_patch(i,j)   ,&
               tst_patch(i,j)   ,&

@@ -1676,7 +1676,10 @@ contains
             lwuav = sum(lwuavn(i,j,:)) / nradtime
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
-          else
+          elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
+            swdav      = -swd(i,j,1)
+            Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
+          else ! simple radiation scheme
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
             swdav     = swd(i,j,1)
           end if
@@ -1696,8 +1699,8 @@ contains
           f1  = 1.
         end if
 
-        ! Soil moisture availability                 !Now also following ECMWF
-        f2  = (phifc - phiwp) / (phiw(i,j,1) - phiwp)
+        ! Soil moisture availability
+        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils
