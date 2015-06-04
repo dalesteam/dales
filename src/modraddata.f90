@@ -55,16 +55,22 @@ SAVE
   real :: rka        = 130.   !< extinction coefficient in radpar scheme
   real :: dlwtop     = 74.    !< longwave radiative flux divergence at top of domain
   real :: dlwbot     = 0.     !< longwave radiative flux divergence near the surface
-  real :: sw0        = 1100.0 !< direct component at top of the cloud (W/m^2), diffuse not possible
+  real :: sw0        = 1100.0 !< direct component at top of the cloud (W/m^2)
+
   real :: gc         = 0.85   !< asymmetry factor of droplet scattering angle distribution
+  real :: SSA 	     = 0.999  !< typical single scattering albedo for clouds
+  integer :: iDE     = 1 !< scalar field to be used as extinction
+  logical :: laero   = .false. !< .true. for aeosols .false. for clouds 
+
   real :: reff       = 1.e-5  !< cloud droplet effective radius (m)
   integer :: isvsmoke = 1     !< number of passive scalar to be used for optical depth calculation
   integer :: iradiation = irad_none !< Selection parameter for type of radiation scheme
   integer :: irad    = -1  !< Deprecated selection parameter for the type of radiation scheme
-
+  	
 
   real mu                    !< cosine of the solar zenith angle
 
+  
   real, allocatable :: thlprad(:,:,:)!<   the radiative tendencies
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
   real, allocatable :: swdir(:,:,:)    !<   Direct shortwave downward radiative flux
@@ -74,6 +80,7 @@ SAVE
   real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
 
+  
 contains
 !< Calculation of the cosine of the zenith angle
 !< \param time UTC Time of the simulation

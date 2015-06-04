@@ -34,10 +34,32 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
-    use modglobal,    only : kmax,i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim
-    use modmpi,       only : myid
+    use modglobal,    only : kmax,i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
+    use modmpi,       only : myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modsurfdata,  only : albedoav
     implicit none
+
+    
+    integer :: ierr
+    
+    namelist/NAMDE/ &
+      SSA,iDE,laero
+
+    if(myid==0)then
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,NAMDE,iostat=ierr)
+      if (ierr > 0) then 
+        print *, 'Problem in namoptions NAMDE'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMDE'
+      endif
+      write(6 ,NAMDE)
+      close(ifnamopt)
+    end if
+    call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
+    call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
+
 
     allocate(thlprad(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(swd(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -60,6 +82,7 @@ contains
     swdif = 0.         
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
+
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
       select case (irad)
@@ -248,10 +271,12 @@ subroutine radpar
         tauc = 0.           ! tau cloud
         do k = 1,kmax
           tau(k) = 0.      ! tau laagje dz
-          if (ql0(i,j,k) > 1e-5) then
-            tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
-            tauc=tauc+tau(k)
-          end if
+          if(laero) then ! there are aerosols
+            tau(k) = sv0(i,j,k,iDE)
+          else  ! there are clouds
+            if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
+          end if  
+          tauc=tauc+tau(k)
         end do
         call sunray(tau,tauc,i,j)
       end if
@@ -282,6 +307,7 @@ subroutine radpar
   use modglobal, only :  k1,boltz
   use modsurfdata,  only : albedo,tskin
   use modfields,   only : thl0
+
   implicit none
 
   real, intent(inout), dimension (k1) :: tau
@@ -296,12 +322,18 @@ subroutine radpar
 
   taucde = 0.         ! tau' cloud
   taupath = 0.
+
   do k=1,k1
      taude(k) =0.     ! tau' laagje dz
   end do
 
-! omega=0.9989-4.e-3*exp(-0.15*tauc)  !   fouquart and bonnel (1980)
-  omega=1.-1.e-3*(0.9+2.75*(mu+1.)*exp(-0.09*tauc)) !fouquart
+  if(laero) then
+    omega= SSA
+    gc= 0.64 ! typical for aerosols
+  else
+    omega=1.-1.e-3*(0.9+2.75*(mu+1.)*exp(-0.09*tauc)) !fouquart (for clouds)
+  endif
+
 
 ! the equations for the delta-eddington approximation are equal to those
 ! for the eddington approximation with transformed parameters g, omega
@@ -346,13 +378,10 @@ subroutine radpar
 
   do k = k1,1,-1
       taupath = taupath + taude(k)
-
+    
       Irr0    = sw0*(    c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
       Irr1    = sw0*(rp*(c1*exp(-rk*taupath) - c2*exp(rk*taupath))- beta *exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
-!      swd(i,j,k)=sw0*(4./3.)*(rp*(c1*exp(-rk*taupath) &
-!                 -c2*exp(rk*taupath)) &
-!                 -beta*exp(-taupath/mu)) &
-!                 +mu*sw0*exp(-taupath/mu)
+
       swd(i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu) ! difuse down + direct down
       swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian) 
       swdir(i,j,k) = mu*sw0*exp(-taupath/mu)

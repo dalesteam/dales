@@ -1130,6 +1130,33 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
 \end{supertabular}
 \end{center}
 
+\subsection{Namelist NAMDE}\label{par:namde}
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  iDE	& 1	& $x \in \mathbb{N^*}, \quad 1 \le x \le \text{nsv}$	& Scalar field used as extinction profile & -\\
+  laero   & .false.		& $x\in\{\text{.false.},\text{.true.}\}$	& Switch aerosol/clouds	& -\\
+  SSA   & 0.999		& $x \in \mathbb{N}, \quad 0 \le x \le 0.999$	& Single scattering albedo of the aerosol particles & -\\
+\end{supertabular}
+\end{center}
+
 \bibliographystyle{plainnat}
 \bibliography{literaturenam}
 
