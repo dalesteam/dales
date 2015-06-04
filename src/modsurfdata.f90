@@ -77,11 +77,12 @@ SAVE
 
   integer           :: nradtime  = 60
 
-  ! Soil related constants [adapted from ECMWF]
-  real, parameter   :: phi       = 0.600  !<  volumetric soil porosity [-]
-  real, parameter   :: phifc     = 0.491  !<  volumetric moisture at field capacity [-]
-  real, parameter   :: phiwp     = 0.314  !<  volumetric moisture at wilting point [-]
+  ! Soil related properties [case specific]
+  real              :: phi       = 0.472  !<  volumetric soil porosity [-]
+  real              :: phifc     = 0.323  !<  volumetric moisture at field capacity [-]
+  real              :: phiwp     = 0.171  !<  volumetric moisture at wilting point [-]
 
+  ! Soil related constants [adapted from ECMWF]
   real, parameter   :: pCm       = 2.19e6 !<  Volumetric soil heat capacity [J/m3/K]
   real, parameter   :: pCw       = 4.2e6  !<  Volumetric water heat capacity [J/m3/K]
 
@@ -171,7 +172,7 @@ SAVE
   real              :: Cw         = 1.6e-3 !<  Constant water stress correction
   real              :: wsmax      =   0.55 !<  Upper reference value soil water
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
-  real              :: R10        =   0.13 !<  Respiration at 10 oC
+  real              :: R10        =   0.23 !<  Respiration at 10oC (Jacobs 2007)
   real              :: Eact0      = 53.3e3 !<  Activation energy
 
   ! Surface energy balance

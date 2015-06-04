@@ -92,7 +92,10 @@ contains
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
-      lrelaxgc, kgc, lrelaxci
+      lrelaxgc, kgc, lrelaxci, &
+      ! Soil properties
+      phi, phifc, phiwp, R10
+
 
     ! 1    -   Initialize soil
 
@@ -155,6 +158,10 @@ contains
     call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phi                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phifc                      ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
 
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
