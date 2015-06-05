@@ -128,6 +128,7 @@ SAVE
   integer           :: planttype  = 3      !<  Integer to switch between (C)3 and (C)4 plants
   logical           :: lrelaxgc   = .false.!<  Switch to delay plant response. Timescale is equal to 1/kgc 
   real              :: kgc        = 0.00113!<  Standard stomatal response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  real              :: kci        = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
   real, allocatable :: gc_old       (:,:)  !<  Old value for gc                    
   real              :: gc_inf              !<  Attractor for stomatal response rate
   logical           :: gc_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once
