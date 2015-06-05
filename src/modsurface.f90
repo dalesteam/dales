@@ -94,7 +94,7 @@ contains
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
-      lrelaxgc, kgc, lrelaxci, &
+      lrelaxgc, kgc, lrelaxci, kci, &
       ! Soil properties
       phi, phifc, phiwp, R10
 
@@ -160,6 +160,7 @@ contains
     call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(kci                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phi                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phifc                      ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
@@ -1777,7 +1778,7 @@ contains
           if (lrelaxci) then
             if (ci_old_set) then
               ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
-              ci            = ci_old(i,j) + min(kgc*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
+              ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
               if (rk3step  == 3) then
                 ci_old(i,j) = ci
               endif
