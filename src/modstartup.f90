@@ -226,10 +226,10 @@ contains
     call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
 
+    call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+
     ! Initialize MPI
     call initmpi
-
-    call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,comm3d,mpierr)
 
     ! Allocate and initialize core modules
     call initglobal

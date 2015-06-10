@@ -71,7 +71,7 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
     use modraddata, only : iradiation,rad_shortw
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
@@ -2050,9 +2050,9 @@ contains
     call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_Respav, Respav, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
 
-    Anav   = Anav/rslabs
-    wco2av = wco2av/rslabs
-    Respav = Respav/rslabs
+    Anav   = Anav/ijtot
+    wco2av = wco2av/ijtot
+    Respav = Respav/ijtot
     
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
