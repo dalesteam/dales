@@ -131,6 +131,7 @@ save
       real, dimension(-100:4000) :: mygamma21
                                              
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
+      logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
 
 

@@ -306,7 +306,7 @@ subroutine radpar
 
   use modglobal, only :  k1,boltz
   use modsurfdata,  only : albedo,tskin
-  use modfields,   only : thl0,ql0, sv0
+  use modfields,   only : thl0
 
   implicit none
 
@@ -417,12 +417,14 @@ subroutine radpar
 
   subroutine radlsm
     use modsurfdata, only : albedo, tskin
-    use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz
-    use modfields,   only : thl0
+    use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz, dzf
+    use modfields,   only : thl0, ql0, rhof
     implicit none
     integer        :: i,j
-    real           :: Tr, sinlea
+    real           :: Tr, sinlea, qlint, tau
     real,parameter :: S0 = 1376.
+    real           :: rhow  = 1000.  ! density of water
+    real           :: tauc  = 5.     ! Optically thin clouds (critical value)
 
     sinlea = zenith(xtime*3600 + rtimee, xday, xlat, xlon)
 
@@ -430,7 +432,13 @@ subroutine radpar
 
     do j=2,j1
       do i=2,i1
-        swd(i,j,1) = - S0 * Tr * sinlea
+        qlint = sum(ql0(i,j,:) * rhof(:) * dzf(:))
+        tau   = (3./2.)*(qlint/(rhow*reff))
+        if(lcloudshading .and. (tau >= tauc)) then ! 'dense' cloud and cloud shading is active
+          swd(i,j,1) = - S0 * Tr * sinlea * (5. - exp(-tau))/(4.+ 3.*tau*0.14)
+        else
+          swd(i,j,1) = - S0 * Tr * sinlea
+        endif
         swu(i,j,1) = - albedo(i,j) * swd(i,j,1)
         lwd(i,j,1) = - 0.8 * boltz * thl0(i,j,1) ** 4.
         lwu(i,j,1) = boltz * tskin(i,j) ** 4.

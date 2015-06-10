@@ -89,7 +89,14 @@ contains
       ! Prescribed values for isurf 2, 3, 4
       z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf,lidealised, &
       ! Heterogeneous variables
-      lhetero, xpatches, ypatches, land_use, loldtable
+      lhetero, xpatches, ypatches, land_use, loldtable, &
+      ! AGS variables
+      lrsAgs, lCO2Ags,planttype, &
+      ! Delay plant response in Ags
+      lrelaxgc, kgc, lrelaxci, kci, &
+      ! Soil properties
+      phi, phifc, phiwp, R10
+
 
     ! 1    -   Initialize soil
 
@@ -144,11 +151,52 @@ contains
 
     call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrsAgs                     ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lCO2Ags                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(kci                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phi                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phifc                      ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
+    if(lCO2Ags .and. (.not. lrsAgs)) then
+      if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
+      if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
+      lCO2Ags = .false.
+    endif
+
+    if(lrsAgs) then
+      if(planttype==4) then !C4 plants, so standard settings for C3 plants are replaced
+        CO2comp298 =    4.3 !<  CO2 compensation concentration
+        Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
+        gm298      =   17.5 !<  Mesophyll conductance at 298 K
+        Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
+        T1gm       =  286.0 !<  Reference temperature to calculate the mesophyll conductance
+        T2gm       =  309.0 !<  Reference temperature to calculate the mesophyll conductance
+        f0         =   0.85 !<  Maximum value Cfrac
+        ad         =   0.15 !<  Regression coefficient to calculate Cfrac
+        Ammax298   =    1.7 !<  CO2 maximal primary productivity
+        Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
+        T1Am       =    286 !<  Reference temperature to calculate maximal primary productivity
+        T2Am       =    311 !<  Reference temperature to calculate maximal primary productivity
+        alpha0     =  0.014 !<  Initial low light conditions
+      else
+        if(planttype/=3) then
+          if(myid==0) print *,"WARNING::: planttype should be either 3 or 4, corresponding to C3 or C4 plants. It now defaulted to 3."
+        endif
+      endif
+    endif
+
     if(lhetero) then
+
       if(xpatches .gt. mpatch) then
         stop "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
@@ -614,6 +662,17 @@ contains
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
 
+    if (lrsAgs) then
+      allocate(AnField   (2:i1,2:j1))
+      allocate(RespField (2:i1,2:j1))
+      allocate(wco2Field (2:i1,2:j1))
+      allocate(rsco2Field(2:i1,2:j1))
+      allocate(fstrField (2:i1,2:j1))
+      allocate(gc_old    (2:i1,2:j1))
+      allocate(ci_old    (2:i1,2:j1))
+      allocate(tauField  (2:i1,2:j1))
+      allocate(ciField   (2:i1,2:j1))
+    endif
     return
   end subroutine initsurface
 
@@ -774,6 +833,8 @@ contains
               svflux(i,j,n) = wsvsurf(n) 
             enddo
           endif
+
+          if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
 
           if (obl(i,j) < 0.) then
             phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
@@ -1300,6 +1361,33 @@ contains
     return
   end function psih
 
+  function E1(x)
+  implicit none
+    real             :: E1
+    real, intent(in) :: x
+    real             :: E1sum!, factorial
+    integer          :: k,t
+  
+    E1sum = 0.0
+    do k=1,99
+      E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
+    end do
+    E1 = -0.57721566490153286060 - log(x) - E1sum
+
+    return
+  end function E1
+
+  function factorial(k)
+  implicit none
+    real                :: factorial
+    integer, intent(in) :: k
+    integer             :: n
+    factorial = 1.0
+    do n = 2, k
+      factorial = factorial * n
+    enddo
+  end function factorial
+
   function patchxnr(xpos)
     use modmpi,     only : myidx
     use modglobal,  only : imax,itot
@@ -1405,6 +1493,7 @@ contains
     allocate(LE(i2,j2))
     allocate(H(i2,j2))
     allocate(G0(i2,j2))
+    allocate(CO2flux(i2,j2))
 
     allocate(rsveg(i2,j2))
     allocate(rsmin(i2,j2))
@@ -1498,10 +1587,10 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step
-    use modfields, only : ql0,qt0,thl0,rhof,presf
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv
+    use modfields, only : ql0,qt0,thl0,rhof,presf,svm
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
-    use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
+    use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k
@@ -1513,8 +1602,18 @@ contains
     real     :: fH, fLE, fLEveg, fLEsoil, fLEliq, LEveg, LEsoil, LEliq
     real     :: Wlmx
 
+    real     :: CO2ags, CO2comp, gm, fmin0, fmin, esatsurf, Ds, D0, cfrac, co2abs, ci !Variables for AGS
+    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, AGSa1, Dstar, gcco2 !Variables for AGS
+    real     :: rsAgs, rsCO2, fw, Resp, wco2 !Variables for AGS
+    real     :: MW_Air = 28.97
+    real     :: MW_CO2 = 44
+
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
+
+    real     :: local_wco2av
+    real     :: local_Anav  
+    real     :: local_Respav
 
     patchx = 0
     patchy = 0
@@ -1538,6 +1637,24 @@ contains
       lthls_patch = 0.0
       Npatch      = 0
     endif
+
+    wco2av       = 0.0
+    Anav         = 0.0
+    Respav       = 0.0
+    local_wco2av = 0.0
+    local_Anav   = 0.0
+    local_Respav = 0.0
+
+    if (lrsAgs) then
+      AnField    = 0.0
+      RespField  = 0.0
+      wco2Field  = 0.0
+      rsco2Field = 0.0
+      fstrField  = 0.0
+      ciField    = 0.0
+    endif
+    
+    rk3coef = rdt / (4. - dble(rk3step))
 
     do j = 2, j1
       do i = 2, i1
@@ -1569,7 +1686,7 @@ contains
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
           elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
-            swdav = -swd(i,j,1)
+            swdav      = -swd(i,j,1)
             Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
           else ! simple radiation scheme
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
@@ -1614,6 +1731,149 @@ contains
         f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
 
         rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
+
+        ! 2.1a  - Recalculate vegetation resistance using AGS
+
+        if (lrsAgs) then
+          if (.not. linags) then !initialize AGS
+            if(nsv .le. 0) then
+              if (myid == 0) then
+                print *, 'Problem in namoptions NAMSURFACE'
+                print *, 'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
+                stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+              endif
+            endif
+            if(lCHon) then !Chemistry is on
+              if (CO2loc .lt. 1) then !No CO2 in chemistry
+                if (myid == 0) then
+                  print *, 'WARNING ::: There is no CO2 defined in the chemistry scheme'
+                  print *, 'WARNING ::: Scalar 1 might be considered to be CO2 '
+                  stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+                endif
+                indCO2 = 1
+              else  !CO2 present in chemistry
+                indCO2 = CO2loc
+              endif !Is CO2 present?
+            else !Chemistry is not on
+              if (myid == 0) then
+                print *, 'WARNING ::: There is no CO2 defined due to the absence of a chemistry scheme'
+                print *, 'WARNING ::: Scalar 1 is considered to be CO2 '
+              endif
+              indCO2 = 1
+            endif !Is chemistry on?
+            linags = .true.
+          endif !linags
+
+          CO2ags  = svm(i,j,1,indCO2)/1000.0  !From ppb (usual DALES standard) to ppm
+
+          ! Calculate surface resistances using the plant physiological (A-gs) model
+          ! Calculate the CO2 compensation concentration
+          CO2comp = rhof(1) * CO2comp298 * Q10CO2 ** (0.1 * ( thl0(i,j,1) - 298.0 ) )
+
+          ! Calculate the mesophyll conductance
+          gm       = gm298 * Q10gm ** (0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1. + exp(0.3 * ( T1gm - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2gm))))
+          gm       = gm / 1000   ! conversion from mm s-1 to m s-1
+
+          ! calculate CO2 concentration inside the leaf (ci)
+          fmin0    = gmin/nuco2q - (1.0/9.0) * gm
+          fmin     = (-fmin0 + ( fmin0 ** 2.0 + 4 * gmin/nuco2q * gm ) ** (0.5)) / (2. * gm)
+
+          esatsurf = 0.611e3 * exp(17.2694 * (tskin(i,j) - 273.16) / (tskin(i,j) - 35.86))
+          Ds       = (esatsurf - e) / 1000.0 ! In kPa 
+          D0       = (f0 - fmin) / ad
+
+          cfrac    = f0 * (1.0 - Ds/D0) + fmin * (Ds/D0)
+          co2abs   = CO2ags * (MW_CO2/MW_Air) * rhof(1)
+
+          if (lrelaxci) then
+            if (ci_old_set) then
+              ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
+              ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
+              if (rk3step  == 3) then
+                ci_old(i,j) = ci
+              endif
+            else
+              ci            = cfrac * (co2abs - CO2comp) + CO2comp
+              ci_old(i,j)   = ci
+            endif
+          else
+            ci              = cfrac * (co2abs - CO2comp) + CO2comp
+          endif
+
+          ! Calculate maximal gross primary production in high light conditions (Ag)
+          Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2Am))) )
+
+          ! Calculate the effect of soil moisture stress on gross assimilation rate
+          betaw    = max(1.0e-3,min(1.0,(phitot(i,j)-phiwp)/(phifc-phiwp)))
+
+          ! Calculate stress function
+          fstr     = betaw
+
+          ! Calculate gross assimilation rate (Am)
+          Am       = Ammax * (1 - exp( -(gm * (ci - CO2comp) / Ammax) ) )
+
+          Rdark    = (1.0/9) * Am
+
+          !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
+          PAR      = 0.50 * max(0.1,-swdav) !Increase PAR to 50 SW
+
+          ! Calculate the light use efficiency
+          alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
+
+          ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
+          tempy    = alphac * Kx * PAR / (Am + Rdark)
+          An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
+
+          ! Calculate upscaling from leaf to canopy: CO2 conductance at canopy level
+          AGSa1    = 1.0 / (1 - f0)
+          Dstar    = D0 / (AGSa1 * (f0 - fmin))
+
+          if (lrelaxgc) then
+            if (gc_old_set) then
+              gc_inf      = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+              if (rk3step ==3) then
+                gc_old(i,j) = gcco2
+              endif
+            else
+              gcco2       = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gc_old(i,j) = gcco2
+            endif
+          else
+            gcco2  = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+          endif
+
+          ! Calculate surface resistances for moisture and carbon dioxide
+          rsAgs    = 1.0 / (1.6 * gcco2)
+          rsCO2    = 1.0 / gcco2
+
+          rsveg(i,j) = rsAgs
+
+          ! Calculate net flux of CO2 into the plant (An)
+          An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
+
+          ! CO2 soil respiraion surface flux
+          fw       = Cw * wsmax / (phitot(i,j) + wsmin)
+
+!          Resp     = R10 * (1 - fw)*(1+ustar(i,j)) * exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( thl0(i,j,1) )))
+          Resp     = R10 * (1 - fw)* exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( tsoil(i,j,1) )))
+
+          wco2     = (An + Resp) * (MW_Air/MW_CO2) * (1.0/rhof(1)) ! In ppm m/s
+
+          CO2flux(i,j) = wco2 * 1000.0 ! In ppb m/s
+
+
+          local_wco2av = local_wco2av + wco2
+          local_Anav   = local_Anav   + An
+          local_Respav = local_Respav + Resp
+
+          AnField   (i,j) = An
+          RespField (i,j) = Resp
+          wco2Field (i,j) = wco2
+          rsco2Field(i,j) = rsCO2
+          fstrField (i,j) = fstr
+          ciField   (i,j) = ci
+        endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
 
@@ -1674,8 +1934,6 @@ contains
 
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
-
-        rk3coef = rdt / (4. - dble(rk3step))
 
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
@@ -1775,6 +2033,27 @@ contains
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do
     end do
+
+    if (lrelaxgc .and. (.not. gc_old_set) ) then
+      if (rk3step == 3) then
+        gc_old_set = .true.
+      endif
+    endif
+
+    if (lrelaxci .and. (.not. ci_old_set) ) then
+      if (rk3step == 3) then
+        ci_old_set = .true.
+      endif
+    endif
+
+    call MPI_ALLREDUCE(local_wco2av, wco2av, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_Respav, Respav, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+
+    Anav   = Anav/rslabs
+    wco2av = wco2av/rslabs
+    Respav = Respav/rslabs
+    
 
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
     thls = thls / ijtot

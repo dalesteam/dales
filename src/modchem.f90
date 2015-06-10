@@ -124,7 +124,7 @@ module modchem
 implicit none
 
 private
-PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset
+PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2
 save
 
   ! namoptions
@@ -239,8 +239,9 @@ save
 contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
-  use modglobal, only : imax,jmax,i1,i2,ih, j1,j2,jh, k1, kmax, nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
-  use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
+  use modglobal,   only : imax,jmax,i1,i2,ih, j1,j2,jh, k1, kmax, nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
+  use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
+  use modsurfdata, only : lCHon
   implicit none
 
   integer i, ierr
@@ -294,6 +295,7 @@ SUBROUTINE initchem
   call MPI_BCAST(itermin   ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(dtchmovie ,1,MY_REAL     , 0,comm3d, mpierr)
 
+  lCHon = lchem
   if (.not. (lchem)) return
   itimeav = floor(timeav_glob/tres)
   tnextwrite = itimeav+btime
@@ -993,8 +995,9 @@ end subroutine inputchem
 !-----------------------------------------------------------------------------------------
 
 SUBROUTINE read_chem(chem_name)
-  use modglobal, only : nsv
-  use modmpi,    only : myid
+  use modglobal,   only : nsv
+  use modmpi,      only : myid
+  use modsurfdata, only : CO2loc
 
   implicit none
 
@@ -1022,6 +1025,8 @@ SUBROUTINE read_chem(chem_name)
   H2SO4%name  = 'H2SO4'
   ISO%name    = 'ISO'
 
+  CO2%loc     = -1
+
   !chem species and atol and rtol
   read(10,'(a)',err=100)scalarline
 
@@ -1048,6 +1053,10 @@ SUBROUTINE read_chem(chem_name)
     if (INERT%name == chem_name(i)) then ; INERT%loc  = i;  cycle; endif
     if (PRODUC%name== chem_name(i)) then ; PRODUC%loc  = i;  cycle; endif
   enddo
+
+  CO2loc = CO2%loc
+  if (CO2%loc .gt. 0) CO2loc = CO2loc + choffset
+
 ! the above loc gives the location of a chemical component relative to the first chemical position
 ! in SV0. The loc of the first chemical is always 1.  If you need the absolute
 ! position in SV0 you have to add CHOFFSET to the above loc position
@@ -1080,8 +1089,13 @@ SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
 use modglobal, only : rk3step,timee
 use modfields, only: svm
 use modmpi, only: myid
+use modsurfdata, only: lrsAgs
 implicit none
 
+  if ((.not. lchem) .and. lrsAgs) then
+    nr_raddep = 0
+    CALL ratech
+  endif
   if (.not. (lchem)) return
 
   if (rk3step/=3) return
@@ -1778,6 +1792,7 @@ subroutine ratech
                         zf,dzf, iexpnr,ijtot,ifoutput,cexpnr
   use modfields, only : sv0, qt0, ql0 ,rhof
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_integer, mpi_sum
+  use modsurfdata,only: taufield, lrsAgs
   implicit none
 
   real  sza
@@ -1896,6 +1911,10 @@ subroutine ratech
     !for clouds the the max solar zenith angle is cutoff at 60 degrees
     coszenmax = min(60*pi/180,coszen)
 
+    if (lrsAgs) then
+      tauField   = 0.0
+    endif
+
     do j=2,j1
       do i=2,i1
         kefftemp = 1.0
@@ -1918,6 +1937,11 @@ subroutine ratech
 
             !- Calculating transmission coefficient, cloud optical depth
             tau2 = (3./2.)*(qlint/(rhow*re))
+
+            if (lrsAgs) then
+              tauField(i,j) = tau2
+            endif
+
             if (tau2 >= tauc ) then  ! 'dense' cloud
               ! smooting of cloud base and top
               zbase = zf(k) - (ql0(i,j,k)/(ql0(i,j,k) + ql0(i,j,k+1))) * dzf(k)  !!!!! of dzf(k+-?) with non equidistant grid
