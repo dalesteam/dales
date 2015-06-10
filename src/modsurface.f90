@@ -31,6 +31,8 @@
 !! \deprecated Modsurface replaces the old modsurf.f90
 !! \todo: implement fRs[t] based on the tiles.
 !
+!  Note that rootf should add up to 1 over all layers
+!
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
 !EXAMPLE of the old surface.inp.xxx for isurf = 3,4 (use switch loldtable for compatibility):
@@ -1566,7 +1568,10 @@ contains
             lwuav = sum(lwuavn(i,j,:)) / nradtime
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
-          else
+          elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
+            swdav = -swd(i,j,1)
+            Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
+          else ! simple radiation scheme
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
             swdav     = swd(i,j,1)
           end if
