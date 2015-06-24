@@ -119,7 +119,7 @@ contains
 
   subroutine exitmicrophysics
     use modsimpleice, only : exitsimpleice
- !     use modbinmicro,  only : exitbinmicro
+     use modbulkmicro,  only : exitbulkmicro
     implicit none
 
      select case (imicro)

@@ -55,7 +55,7 @@ contains
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,iTimeInt,author
     use modtstep,          only : inittstep
     use modforces,         only : lforce_user
@@ -97,7 +97,7 @@ contains
         lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lCnstZenith,cnstZenith,lforce_user
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv,llstend, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
 
     !read namelists
 
@@ -207,6 +207,7 @@ contains
     call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,comm3d,mpierr)
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(llstend    ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,comm3d,mpierr)

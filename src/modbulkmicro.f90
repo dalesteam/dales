@@ -91,8 +91,8 @@ module modbulkmicro
   ! Called from program
   subroutine exitbulkmicro
     implicit none
-    deallocate(Dvr)
-    deallocate(qrevap, qrsed, qrsrc)
+!     deallocate(Dvr)
+!     deallocate(qrevap, qrsed, qrsrc)
   end subroutine exitbulkmicro
 
   ! Call the separate subroutines for cloud droplet sedimentation, rain

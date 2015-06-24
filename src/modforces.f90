@@ -225,7 +225,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs,llstend
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
@@ -307,6 +307,13 @@ contains
       enddo
     enddo
   enddo
+
+  if (llstend) then
+    thlp(i,j,k) = thlp(i,j,k) + dthldtls(k)
+    qtp (i,j,k) = qtp (i,j,k) + dqtdtls(k)
+    up  (i,j,k) = up  (i,j,k) + dudtls(k)
+    vp  (i,j,k) = vp  (i,j,k) + dvdtls(k)
+  end if
 
   return
   end subroutine lstend

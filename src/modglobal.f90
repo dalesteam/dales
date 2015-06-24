@@ -56,6 +56,7 @@ save
       character(50) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
+      logical :: llstend  = .true. !<  switch for large scale forcings
 
       !<  Global constants modconst.f90
       !< File numbers
