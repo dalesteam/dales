@@ -57,7 +57,7 @@ module modcanopy
   ! For heterogeneous runs: canopy properties per patch
   integer, parameter:: max_canopy = 10             !< Number of canopy types that can be defined
   integer           :: ncanopies                   !< Number of canopy definitions (<= max_canopy)
-  integer, parameter:: max_npad   = 20             !< Number of levels for which PAD can be prescribed (later rescaled to actual number of levels of canopy)
+  integer, parameter:: max_npad   = 50             !< Number of levels for which PAD can be prescribed (later rescaled to actual number of levels of canopy)
   integer           :: npaddistr_c(max_canopy)=0   !< (if lpaddistr_c): number of half levels for prescribed general plant area density distribution
   integer, parameter:: max_ncan   = 100            !< Number of levels for which PAD can be prescribed in model levels
   integer           :: act_max_ncan                !< actual maximum level of the canopy (should be <= max_ncan)
@@ -498,11 +498,6 @@ end subroutine
                endif
            enddo
         enddo
-        do j=1,j2
-            do i=1,i2
-               write(*,*) 'DEBUG ', myid, i,j, map_c(i,j)
-            enddo
-        enddo
     endif
     return
   end subroutine initcanopy
@@ -530,8 +525,8 @@ end subroutine
 !!  Emissions of heat, moisture and scalars by trees (effect on center of the grid)
  
     if (lhetcanopy) then
-      !do i=1,ncanopies
-      do i=1,0
+      do i=1,ncanopies
+      !do i=1,0
           if (wth_total_c(i)) then
             call canopyc_het(thlp,wth_can_c(i),thlflux,wth_alph_c(i),pai_c(:,i),i)
           else
