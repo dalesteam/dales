@@ -175,9 +175,8 @@ SUBROUTINE read_paddistr(maxnpad, padfact, npad, padname)
 
     close(ifinput)
 
-
     !And now, weigh it such that the array of averages of 2 adjacent padfactor values is on average 1 (just in case the user's array does not fulfill that criterion)
-    padfact = padfact * (npad - 1) * 2 / sum(padfact(1:(npad-1))+padfactor(2:npad)) 
+    padfact = padfact * (npad - 1) * 2 / sum(padfact(1:(npad-1))+padfact(2:npad))
 
     ! write(*,*) 'Prescribed weighing for plant area density from surface to canopy top (equidistant); normalized if necessary'
     ! do k=1,npad
@@ -316,6 +315,7 @@ end subroutine
     call MPI_BCAST(ncanopies ,   1         , mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(defined_cantypes ,   1         , mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(ncanopy_c ,   max_canopy, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(canopytype ,   max_canopy         , mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(cd_c      ,   max_canopy, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(lai_c     ,   max_canopy, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(lpaddistr_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
@@ -549,7 +549,6 @@ end subroutine
  
     if (lhetcanopy) then
       do i=1,ncanopies
-      !do i=1,0
           if (wth_total_c(i)) then
             call canopyc_het(thlp,wth_can_c(i),thlflux,wth_alph_c(i),pai_c(:,i),i)
           else
@@ -796,14 +795,14 @@ end subroutine
       integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * exp(- alpha * pai(k))
     end do
     do k=1,ncanopy_c(ican)
-      where (map_c(2:i1,2:j1) == ican)
+      where (map_c(2:i1,2:j1) == canopytype(ican))
           tendency(:,:,k) = ( integratedcontribution(:,:,(k+1)) - integratedcontribution(:,:,k) ) / ( rhobf(k) * dzf(k) )
       elsewhere
           tendency(:,:,k) = 0
       end where
     end do
 
-    putout(2:i1,2:j1,1:ncanopy) = putout(2:i1,2:j1,1:ncanopy) + tendency
+    putout(2:i1,2:j1,1:ncanopy_c(ican)) = putout(2:i1,2:j1,1:ncanopy_c(ican)) + tendency(:,:,1:ncanopy_c(ican))
 
     return
   end subroutine canopyc_het
