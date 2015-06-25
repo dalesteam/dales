@@ -148,7 +148,7 @@ SUBROUTINE read_paddistr(maxnpad, padfact, npad, padname)
     use modglobal, only : ifinput, cexpnr
     character(80) readstring
     integer       k, maxnpad, npad, ierr
-    real          padfact(npad)
+    real          padfact(maxnpad)
     character*(*)      padname
 
     open (ifinput,file=padname//'.inp.'//cexpnr)
@@ -258,16 +258,16 @@ end subroutine
     endif
 
     ! If heterogeneous canopy, read file that describes land types
-    if (lhetcanopy) then
+    if ((myid == 0) .and. lhetcanopy) then
         open (ifinput,file='canopy.inp.'//cexpnr)
         ierr = 0
         do while (ierr == 0)
           read(ifinput, '(A)', iostat=ierr) readbuffer
           if (ierr == 0) then                               !So no end of file is encountered
             if (readbuffer(1:1)=='#') then
-              if (myid == 0)   print *,trim(readbuffer)
+              print *,trim(readbuffer)
             else
-              if (myid == 0)   print *,trim(readbuffer)
+              print *,trim(readbuffer)
               defined_cantypes = defined_cantypes + 1
               i = defined_cantypes
 
@@ -278,20 +278,20 @@ end subroutine
                    wth_total_c(i), wqt_total_c(i), wsv_total_c(1:nsv,i)
 
               if (cd_c(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: A CD value in the canopy input file is negative"
+                stop "NAMCANOPY: A CD value in the canopy input file is negative"
               endif
               if (lai_c(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: A LAI value in the canopy input file is negative"
+                stop "NAMCANOPY: A LAI value in the canopy input file is negative"
               endif
               if (wth_alph_c(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: The wth extinction factor is negative"
+                stop "NAMCANOPY: The wth extinction factor is negative"
               endif
               if (wqt_alph_c(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: The wqt extinction factor is negative"
+                stop "NAMCANOPY: The wqt extinction factor is negative"
               endif
               do k = 1,nsv
                 if (wsv_alph_c(k,i) .lt. 0) then
-                  if (myid == 0) stop "NAMCANOPY: The wsc extinction factor is negative for a scalar"
+                  stop "NAMCANOPY: The wsc extinction factor is negative for a scalar"
                 endif
               enddo
 
@@ -299,23 +299,22 @@ end subroutine
               do j = 1, (i-1)
                 if (canopytype(i) .eq. canopytype(j)) stop "NAMCANOPY: Two canopy types have the same type number"
               enddo
-
             endif
           endif
         enddo
         close(ifinput)
-        if (myid == 0) then
-          if (canopytype_0 .eq. -1) then
-            stop "NAMCANOPY: no standard canopy type (0) is defined"
-          else
-             print "(a,i2,a,i2)","There are ",defined_cantypes,&
-             " canopy types defined in the canopy input file. The standard land type is defined by line ",canopytype_0
-          endif
+        if (canopytype_0 .eq. -1) then
+          stop "NAMCANOPY: no standard canopy type (0) is defined"
+        else
+           print "(a,i2,a,i2)","There are ",defined_cantypes,&
+           " canopy types defined in the canopy input file. The standard land type is defined by line ",canopytype_0
         endif
         act_max_ncan = maxval(ncanopy_c)
         ncanopies = defined_cantypes ! ncanopies is a global variable
     endif
 
+    call MPI_BCAST(ncanopies ,   1         , mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(defined_cantypes ,   1         , mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(ncanopy_c ,   max_canopy, mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(cd_c      ,   max_canopy, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(lai_c     ,   max_canopy, my_real     , 0, comm3d, mpierr)
@@ -338,6 +337,7 @@ end subroutine
           if ((myid==0) .and. lpaddistr_c(i)) then
              call read_paddistr(max_npad, padfactor_c(:,i), npaddistr_c(i), trim(canopyname(i)))
           else
+             npaddistr_c(i) = 11
              padfactor_c(i,1:11) = (/ 0.4666666666666667, &
                        0.5307086614173228, &
                        0.6792650918635170, &
@@ -352,7 +352,7 @@ end subroutine
           endif
       enddo
       call MPI_BCAST(padfactor_c, max_npad*max_canopy, my_real , 0, comm3d, mpierr)
-
+      call MPI_BCAST(npaddistr_c, max_canopy, mpi_integer , 0, comm3d, mpierr)
     else
       if (lpaddistr) then  !< Profile prescribed by user in the file paddistr.inp.<expnr>
         if (myid==0) then
@@ -438,16 +438,16 @@ end subroutine
 
 
     ! If heterogeneous, now read the patch definitions
-    if (lhetcanopy) then
+    if ((myid == 0) .and. lhetcanopy) then
         open (ifinput,file='canopypatch.inp.'//cexpnr)
         ierr = 0
         do while (ierr == 0)
           read(ifinput, '(A)', iostat=ierr) readbuffer
           if (ierr == 0) then                               !So no end of file is encountered
             if (readbuffer(1:1)=='#') then
-              if (myid == 0)   print *,trim(readbuffer)
+              print *,trim(readbuffer)
             else
-              if (myid == 0)   print *,trim(readbuffer)
+              print *,trim(readbuffer)
               defined_canpatches = defined_canpatches + 1
               i = defined_canpatches
 
@@ -460,45 +460,53 @@ end subroutine
                   if (patchtype(i) == canopytype(j)) found_type = .true.
               enddo
               if (.not. found_type) then
-                if (myid == 0) stop "NAMCANOPY: unkown canopy type in patch definition"
+                stop "NAMCANOPY: unkown canopy type in patch definition"
               endif
 
               if (minx_p(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: A minx for patch is negative"
+                stop "NAMCANOPY: A minx for patch is negative"
               endif
               if (maxx_p(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: A maxx for patch is negative"
+                stop "NAMCANOPY: A maxx for patch is negative"
               endif
               if (miny_p(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: A miny for patch is negative"
+                stop "NAMCANOPY: A miny for patch is negative"
               endif
               if (maxy_p(i) .lt. 0) then
-                if (myid == 0) stop "NAMCANOPY: A maxy for patch is negative"
+                stop "NAMCANOPY: A maxy for patch is negative"
               endif
               if (minx_p(i) .gt. 1) then
-                if (myid == 0) stop "NAMCANOPY: A minx for patch is > 1 "
+                stop "NAMCANOPY: A minx for patch is > 1 "
               endif
               if (maxx_p(i) .gt. 1) then
-                if (myid == 0) stop "NAMCANOPY: A maxx for patch is > 1 "
+                stop "NAMCANOPY: A maxx for patch is > 1 "
               endif
               if (miny_p(i) .gt. 1) then
-                if (myid == 0) stop "NAMCANOPY: A miny for patch is > 1 "
+                stop "NAMCANOPY: A miny for patch is > 1 "
               endif
               if (maxy_p(i) .gt. 1) then
-                if (myid == 0) stop "NAMCANOPY: A maxy for patch is > 1 "
+                stop "NAMCANOPY: A maxy for patch is > 1 "
               endif
               if (minx_p(i) > maxx_p(i)) then
-                if (myid == 0) stop "NAMCANOPY: A minx > maxx for patch"
+                stop "NAMCANOPY: A minx > maxx for patch"
               endif
               if (miny_p(i) > maxy_p(i)) then
-                if (myid == 0) stop "NAMCANOPY: A miny > maxy for patch"
+                stop "NAMCANOPY: A miny > maxy for patch"
               endif
 
             endif
           endif
         enddo
         close(ifinput)
+    endif
+    call MPI_BCAST(defined_canpatches, 1, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(patchtype, mpatch_c , mpi_integer, 0, comm3d, mpierr)
+    call MPI_BCAST(minx_p, mpatch_c, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(maxx_p, mpatch_c, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(miny_p, mpatch_c, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(maxy_p, mpatch_c, my_real, 0, comm3d, mpierr)
 
+    if (lhetcanopy) then
         ! Now fill map with canopy types
         ! First the standard canopy type
         map_c = canopytype(canopytype_0)

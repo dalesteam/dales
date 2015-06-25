@@ -1109,11 +1109,11 @@ contains
               if(Rib < 0) L = -0.01
             end if
             if(abs((L - Lold)/L) < 1e-4) exit
-            ! if(iter > 1000) stop 'Obukhov length calculation does not converge!'
-            if(iter > 1000) then
-                write(*,*)  'Obukhov length calculation does not converge, setting to neutral value!'
-                L = 1e6
-            endif
+            if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+            ! if(iter > 1000) then
+             !    write(*,*)  'Obukhov length calculation does not converge, setting to neutral value!'
+              !   L = 1e6
+            ! endif
           end do
 
           if (abs(L)>1e6) L = sign(1.0e6,L)
@@ -1246,11 +1246,11 @@ contains
         if(Rib < 0) L = -0.01
       end if
       if(abs((L - Lold)/L) < 1e-4) exit
-      ! if(iter > 1000) stop 'Obukhov length calculation does not converge!'
-      if(iter > 1000) then
-                write(*,*)  'Obukhov length calculation does not converge, setting to neutral value!'
-                L = 1e6
-      endif
+      if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+      ! if(iter > 1000) then
+       !          write(*,*)  'Obukhov length calculation does not converge, setting to neutral value!'
+        !         L = 1e6
+     !  endif
     end do
 
     if (abs(L)>1e6) L = sign(1.0e6,L)
