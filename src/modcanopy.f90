@@ -316,11 +316,26 @@ end subroutine
         ncanopies = defined_cantypes ! ncanopies is a global variable
     endif
 
+    call MPI_BCAST(ncanopy_c ,   max_canopy, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(cd_c      ,   max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lai_c     ,   max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lpaddistr_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(npaddistr_c ,   max_canopy, mpi_integer , 0, comm3d, mpierr)
+    call MPI_BCAST(wth_total_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wqt_total_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_total_c , 100*max_canopy, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(wth_can_c   ,   max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wqt_can_c   ,   max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_can_c   , 100*max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wth_alph_c  ,   max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wqt_alph_c  ,   max_canopy, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(wsv_alph_c  , 100*max_canopy, my_real     , 0, comm3d, mpierr)
+
 
     ! Determination of padfactor: relative weighing of plant area distribution inside canopy; equidistant from surface to canopy top
     if (lhetcanopy) then
       do i = 1,defined_cantypes
-          if (lpaddistr_c(i)) then
+          if ((myid==0) .and. lpaddistr_c(i)) then
              call read_paddistr(max_npad, padfactor_c(:,i), npaddistr_c(i), trim(canopyname(i)))
           else
              padfactor_c(i,1:11) = (/ 0.4666666666666667, &
