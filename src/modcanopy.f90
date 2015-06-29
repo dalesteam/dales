@@ -438,7 +438,8 @@ end subroutine
 
 
     ! If heterogeneous, now read the patch definitions
-    if ((myid == 0) .and. lhetcanopy) then
+    if (lhetcanopy) then
+      if (myid == 0) then
         open (ifinput,file='canopypatch.inp.'//cexpnr)
         ierr = 0
         do while (ierr == 0)
@@ -498,13 +499,14 @@ end subroutine
           endif
         enddo
         close(ifinput)
+      endif
+      call MPI_BCAST(defined_canpatches, 1, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(patchtype, mpatch_c , mpi_integer, 0, comm3d, mpierr)
+      call MPI_BCAST(minx_p, mpatch_c, my_real, 0, comm3d, mpierr)
+      call MPI_BCAST(maxx_p, mpatch_c, my_real, 0, comm3d, mpierr)
+      call MPI_BCAST(miny_p, mpatch_c, my_real, 0, comm3d, mpierr)
+      call MPI_BCAST(maxy_p, mpatch_c, my_real, 0, comm3d, mpierr)
     endif
-    call MPI_BCAST(defined_canpatches, 1, mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(patchtype, mpatch_c , mpi_integer, 0, comm3d, mpierr)
-    call MPI_BCAST(minx_p, mpatch_c, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(maxx_p, mpatch_c, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(miny_p, mpatch_c, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(maxy_p, mpatch_c, my_real, 0, comm3d, mpierr)
 
     if (lhetcanopy) then
         ! Now fill map with canopy types
