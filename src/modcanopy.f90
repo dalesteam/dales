@@ -186,12 +186,11 @@ end subroutine
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal, only : kmax,k1, ifnamopt, fname_options, ifinput, ifoutput, cexpnr, zh, dzh, dzf, nsv, i2, j2
+    use modglobal, only : kmax,ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf, nsv, i2, j2
 
     implicit none
 
     integer       ::  ierr, i,j,k, kp, defined_cantypes = 0, canopytype_0 = -1, defined_canpatches = 0
-    character(len=80)   :: readstring
     character(len=1500) :: readbuffer
     logical       ::       found_type
 
@@ -257,7 +256,8 @@ end subroutine
     endif
 
     ! If heterogeneous canopy, read file that describes land types
-    if ((myid == 0) .and. lhetcanopy) then
+    if (lhetcanopy) then
+      if (myid == 0) then 
         open (ifinput,file='canopy.inp.'//cexpnr)
         ierr = 0
         do while (ierr == 0)
@@ -310,31 +310,33 @@ end subroutine
         endif
         act_max_ncan = maxval(ncanopy_c)
         ncanopies = defined_cantypes ! ncanopies is a global variable
+      endif
+      call MPI_BCAST(ncanopies   ,              1, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(defined_cantypes ,         1, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(ncanopy_c   ,     max_canopy, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(canopytype  ,     max_canopy, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(cd_c        ,     max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(lai_c       ,     max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(lpaddistr_c ,     max_canopy, mpi_logical , 0, comm3d, mpierr)
+      call MPI_BCAST(npaddistr_c ,     max_canopy, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(wth_total_c ,     max_canopy, mpi_logical , 0, comm3d, mpierr)
+      call MPI_BCAST(wqt_total_c ,     max_canopy, mpi_logical , 0, comm3d, mpierr)
+      call MPI_BCAST(wsv_total_c , 100*max_canopy, mpi_logical , 0, comm3d, mpierr)
+      call MPI_BCAST(wth_can_c   ,     max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(wqt_can_c   ,     max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(wsv_can_c   , 100*max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(wth_alph_c  ,     max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(wqt_alph_c  ,     max_canopy, my_real     , 0, comm3d, mpierr)
+      call MPI_BCAST(wsv_alph_c  , 100*max_canopy, my_real     , 0, comm3d, mpierr)
     endif
 
-    call MPI_BCAST(ncanopies ,   1         , mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(defined_cantypes ,   1         , mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(ncanopy_c ,   max_canopy, mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(canopytype ,   max_canopy         , mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(cd_c      ,   max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(lai_c     ,   max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(lpaddistr_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(npaddistr_c ,   max_canopy, mpi_integer , 0, comm3d, mpierr)
-    call MPI_BCAST(wth_total_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(wqt_total_c ,   max_canopy, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(wsv_total_c , 100*max_canopy, mpi_logical , 0, comm3d, mpierr)
-    call MPI_BCAST(wth_can_c   ,   max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wqt_can_c   ,   max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wsv_can_c   , 100*max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wth_alph_c  ,   max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wqt_alph_c  ,   max_canopy, my_real     , 0, comm3d, mpierr)
-    call MPI_BCAST(wsv_alph_c  , 100*max_canopy, my_real     , 0, comm3d, mpierr)
 
 
     ! Determination of padfactor: relative weighing of plant area distribution inside canopy; equidistant from surface to canopy top
     if (lhetcanopy) then
-      do i = 1,defined_cantypes
-          if ((myid==0) .and. lpaddistr_c(i)) then
+      if (myid == 0) then 
+        do i = 1,defined_cantypes
+          if (lpaddistr_c(i)) then
              call read_paddistr(max_npad, padfactor_c(:,i), npaddistr_c(i), trim(canopyname(i)))
           else
              npaddistr_c(i) = 11
@@ -350,9 +352,10 @@ end subroutine
                        0.3236220472440945, &
                        0.0000000000000000  /)
           endif
-      enddo
-      call MPI_BCAST(padfactor_c, max_npad*max_canopy, my_real , 0, comm3d, mpierr)
-      call MPI_BCAST(npaddistr_c, max_canopy, mpi_integer , 0, comm3d, mpierr)
+        enddo
+      endif
+      call MPI_BCAST(padfactor_c, max_npad*max_canopy, my_real    , 0, comm3d, mpierr)
+      call MPI_BCAST(npaddistr_c,          max_canopy, mpi_integer, 0, comm3d, mpierr)
     else
       if (lpaddistr) then  !< Profile prescribed by user in the file paddistr.inp.<expnr>
         if (myid==0) then
@@ -500,12 +503,12 @@ end subroutine
         enddo
         close(ifinput)
       endif
-      call MPI_BCAST(defined_canpatches, 1, mpi_integer , 0, comm3d, mpierr)
-      call MPI_BCAST(patchtype, mpatch_c , mpi_integer, 0, comm3d, mpierr)
-      call MPI_BCAST(minx_p, mpatch_c, my_real, 0, comm3d, mpierr)
-      call MPI_BCAST(maxx_p, mpatch_c, my_real, 0, comm3d, mpierr)
-      call MPI_BCAST(miny_p, mpatch_c, my_real, 0, comm3d, mpierr)
-      call MPI_BCAST(maxy_p, mpatch_c, my_real, 0, comm3d, mpierr)
+      call MPI_BCAST(defined_canpatches, 1, mpi_integer, 0, comm3d, mpierr)
+      call MPI_BCAST(patchtype,   mpatch_c, mpi_integer, 0, comm3d, mpierr)
+      call MPI_BCAST(minx_p,      mpatch_c, my_real,     0, comm3d, mpierr)
+      call MPI_BCAST(maxx_p,      mpatch_c, my_real,     0, comm3d, mpierr)
+      call MPI_BCAST(miny_p,      mpatch_c, my_real,     0, comm3d, mpierr)
+      call MPI_BCAST(maxy_p,      mpatch_c, my_real,     0, comm3d, mpierr)
     endif
 
     if (lhetcanopy) then
@@ -528,7 +531,7 @@ end subroutine
   end subroutine initcanopy
   
   subroutine canopy
-    use modfields,   only : up,vp,wp,e12p,thlp,qtp,sv0,svp
+    use modfields,   only : up,vp,wp,e12p,thlp,qtp,svp
     use modsurfdata, only : thlflux, qtflux, svflux
     use modglobal,   only : nsv,i2,j2
 
@@ -607,7 +610,7 @@ end subroutine
   end subroutine exitcanopy
   
   subroutine canopyu (putout)
-    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
+    use modglobal, only  : i1, ih, j1, j2, jh, k1, cu, cv, dzh, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
@@ -615,7 +618,7 @@ end subroutine
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
-    integer             :: k, kp, i, j, n
+    integer             :: k, kp, n
 
     ucor = u0 + cu
     vcor = v0 + cv
@@ -650,7 +653,7 @@ end subroutine
   end subroutine canopyu
     
   subroutine canopyv (putout)
-    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
+    use modglobal, only  : i1, i2, ih, j1, jh, k1, cu, cv, dzh, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
@@ -658,7 +661,7 @@ end subroutine
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
-    integer             :: k, kp, i, j, n
+    integer             :: k, kp, n
 
     ucor = u0 + cu
     vcor = v0 + cv
@@ -700,7 +703,7 @@ end subroutine
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
-    integer             :: k, km, i, j, n
+    integer             :: k, km, n
 
     ucor = u0 + cu
     vcor = v0 + cv
@@ -734,7 +737,7 @@ end subroutine
   end subroutine canopyw
   
   subroutine canopye (putout)
-    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
+    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, imax, jmax
     use modfields, only  : u0, v0, w0, e120
     implicit none
 
@@ -742,7 +745,7 @@ end subroutine
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
-    integer             :: k, kp, i, j, n
+    integer             :: k, kp,  n
 
     ucor = u0 + cu
     vcor = v0 + cv
