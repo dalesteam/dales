@@ -312,6 +312,7 @@ end subroutine
         ncanopies = defined_cantypes ! ncanopies is a global variable
       endif
       call MPI_BCAST(ncanopies   ,              1, mpi_integer , 0, comm3d, mpierr)
+      call MPI_BCAST(act_max_ncan ,              1, mpi_integer , 0, comm3d, mpierr)
       call MPI_BCAST(defined_cantypes ,         1, mpi_integer , 0, comm3d, mpierr)
       call MPI_BCAST(ncanopy_c   ,     max_canopy, mpi_integer , 0, comm3d, mpierr)
       call MPI_BCAST(canopytype  ,     max_canopy, mpi_integer , 0, comm3d, mpierr)
@@ -780,6 +781,7 @@ end subroutine
   subroutine canopyc_het (putout, flux_top, flux_surf, alpha, pai, ican)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, dzf, imax, jmax
     use modfields, only  : rhobh, rhobf
+    use modmpi, only     : myid, myidx, myidy
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -799,6 +801,8 @@ end subroutine
     do k=2,(ncanopy_c(ican)+1)
       integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * exp(- alpha * pai(k))
     end do
+    write(*,*) 'DEBUG ', myid, myidx, myidy, map_c
+    write(*,*) 'DEBUG2 ', myid, myidx, myidy, ican, ncanopy_c(ican), canopytype(ican)
     do k=1,ncanopy_c(ican)
       where (map_c(2:i1,2:j1) == canopytype(ican))
           tendency(:,:,k) = ( integratedcontribution(:,:,(k+1)) - integratedcontribution(:,:,k) ) / ( rhobf(k) * dzf(k) )
@@ -806,6 +810,7 @@ end subroutine
           tendency(:,:,k) = 0
       end where
     end do
+    write(*,*) 'DEBUG3 ', myid, myidx, myidy, tendency(:,:,4)
 
     putout(2:i1,2:j1,1:ncanopy_c(ican)) = putout(2:i1,2:j1,1:ncanopy_c(ican)) + tendency(:,:,1:ncanopy_c(ican))
 
