@@ -81,7 +81,7 @@ contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
-    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,idtmax,ifoutput,dtav_glob,tres,&
+    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
@@ -935,11 +935,10 @@ contains
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
     use modsurfdata,only : svs, lhetero, xpatches, ypatches
     use modsurface, only : patchxnr,patchynr
-    use modmpi,     only : mpierr, comm3d,mpi_sum,my_real,myid,mpi_integer
+    use modmpi,     only : mpierr, comm3d,mpi_sum,my_real
     implicit none
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
-    integer :: patchx, patchy
     real, allocatable,dimension(:,:,:) :: blh_fld,  sv0h, blh_fld2
     real, allocatable, dimension(:) :: profile, gradient, dgrad
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))

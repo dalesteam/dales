@@ -204,7 +204,6 @@ save
   integer, allocatable :: raddep_RCindex(:) !(nr_raddep)
   real, allocatable :: keff(:,:,:,:)    ! (i,j2,raddep_nr,kmax)
   real, allocatable :: keffT(:,:,:)    !(i2,j2,kefft_nr)
-  real, allocatable :: keffT3D(:,:,:,:)  !(i2,j2,raddep_nr,kmax)
   real, allocatable :: atol(:),rtol(:)  ! nchsp
   real, allocatable :: rk1(:,:),rk2(:,:),rk(:,:),kreact(:,:)
   real, allocatable :: T_abs(:,:),convppb(:,:)
@@ -220,7 +219,7 @@ save
     integer   loc
   end type location
 
- type (location) :: INERT, PRODUC , O3, O1D, NO2, NO, NO3, N2O5, HNO3, RH, R, ISO, RO2, H2O2, HO2, HO, CO, CO2, H2O, NH3, H2SO4, CH2O, CH3O2, MVK
+ type (location) :: INERT, PRODUC , O3, NO2, NO, NO3, N2O5, HNO3, RH, R, ISO, H2O2, HO2, HO, CO, CO2, H2O, NH3, H2SO4
 
 
   real, allocatable :: kefftemp(:,:)  !(1:kmax,1:nr_raddep)
@@ -239,7 +238,7 @@ save
 contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
-  use modglobal, only : imax,jmax,i1,i2,ih, j1,j2,jh, k1, kmax, nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
+  use modglobal, only : i1,j1, nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
   use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
   implicit none
 
@@ -360,7 +359,7 @@ subroutine inputchem
 !c  the scheme to solve the chemical production and loss terms
 !c
 !c***********************************************************************
- use modglobal, only : imax,jmax,i1,i2,ih, j1,j2,jh, k1,kmax, nsv,cexpnr, ifoutput
+ use modglobal, only : i1,j1,k1,kmax,cexpnr, ifoutput
  use modmpi,    only : myid
  implicit none
 
@@ -993,7 +992,6 @@ end subroutine inputchem
 !-----------------------------------------------------------------------------------------
 
 SUBROUTINE read_chem(chem_name)
-  use modglobal, only : nsv
   use modmpi,    only : myid
 
   implicit none
@@ -1079,7 +1077,6 @@ end subroutine read_chem
 SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
 use modglobal, only : rk3step,timee
 use modfields, only: svm
-use modmpi, only: myid
 implicit none
 
   if (.not. (lchem)) return
@@ -1124,9 +1121,9 @@ SUBROUTINE twostep2(y)
 !c                                                                 |
 !c-----------------------------------------------------------------|
 !c
-use modglobal, only : ih,i1,jh,j1,i2,j2,k1,kmax,nsv,xtime,rtimee,rdt,timee,timeav_glob,xday,xlat,xlon,zf,dzf,ifoutput,cexpnr,dz,rslabs
+use modglobal, only : ih,i1,jh,j1,k1,kmax,rtimee,rdt,timee,timeav_glob,ifoutput,cexpnr,dz,rslabs
 use modfields, only : qt0
-use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,myid,cmyid,nprocs
+use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,myid,nprocs
 use modtimestat, only: we, zi, ziold, calcblheight
 
 implicit none
@@ -1648,8 +1645,7 @@ end subroutine FIT
 
 subroutine calc_K(k)
 use modglobal, only :rlv, cp, i1,j1, imax,jmax,timee
-use modfields, only :thl0,exnf,qt0,ql0,presf,svm
-use modmpi, only : myid
+use modfields, only :thl0,exnf,ql0,presf,svm
 implicit none
 
   integer k
@@ -1774,10 +1770,10 @@ subroutine ratech
 !-----------------------------------------------------------------
 !
 
-  use modglobal, only : i1,i2,ih, j1,j2,jh, k1,kmax,pi,xtime,timee,rtimee,tres,xday,xlat,xlon, &
-                        zf,dzf, iexpnr,rslabs,ifoutput,cexpnr
-  use modfields, only : sv0, qt0, ql0 ,rhof
-  use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_integer, mpi_sum
+  use modglobal, only : i1,j1,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
+                        zf,dzf,rslabs,ifoutput,cexpnr
+  use modfields, only : qt0, ql0 ,rhof
+  use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum
   implicit none
 
   real  sza
@@ -2009,8 +2005,6 @@ subroutine ratech
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 subroutine ITER(gdt,k)
-use modglobal, only : i2, j2,nsv,timee
-use modmpi, only : myid
 implicit none
 
   real    gdt
@@ -2129,7 +2123,7 @@ implicit none
 end function getth
 
 subroutine chemmovie(ybegin)
-use modglobal, only : i1,j1,ih,jh,i2, j2, k1,kmax,nsv, timee, iexpnr
+use modglobal, only : i1,j1,ih,jh,k1,kmax,iexpnr
 use modfields, only: svm,qt0,ql0
 use modmpi, only: myid
 implicit none
@@ -2197,7 +2191,7 @@ end subroutine chemmovie
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 subroutine write_chem_scheme(chem_name)
-use modglobal, only: nsv,ifoutput,cexpnr
+use modglobal, only: ifoutput,cexpnr
 use modmpi,    only: myid
 implicit none
 

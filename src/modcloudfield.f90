@@ -44,7 +44,7 @@ contains
   subroutine initcloudfield
 
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,dtmax,dtav_glob,dt_lim,btime,ladaptive,tres
+    use modglobal,only :ifnamopt,fname_options,dtmax,dtav_glob,btime,ladaptive,tres
     implicit none
     integer :: ierr
     namelist/NAMCLOUDFIELD/ &

@@ -71,10 +71,9 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw,irad_full
-    use modfields,  only : thl0, qt0
-    use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+    use modglobal,  only : i2, j2, imax, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modraddata, only : iradiation,rad_shortw
+    use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
 
@@ -620,9 +619,9 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rk3step,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
-    use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,rslabs,rd,rv
+    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
 
@@ -992,7 +991,7 @@ contains
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
-    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,myid,mpi_integer
+    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
 
     implicit none
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
@@ -1055,9 +1054,9 @@ contains
 
 !> Calculates the Obuhkov length iteratively.
   subroutine getobl
-    use modglobal, only : zf, rv, rd, grav, rslabs, i1, j1, i2, j2, timee, cu, cv
+    use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
-    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj,mpi_integer
+    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,excj,mpi_integer
     implicit none
 
     integer             :: i,j,iter,patchx,patchy
