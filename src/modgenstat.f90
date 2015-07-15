@@ -366,9 +366,9 @@ contains
         nvar = nvar + 7*nsv
         allocate(ncname(nvar,4))
         call ncinfo(tncname(1,:),'time','Time','s','time')
-        call ncinfo(ncname( 1,:),'dn0','Base-state density','kg/m^3','tt')
-        call ncinfo(ncname( 2,:),'rhobf','Full level density','kg/m^3','tt')
-        call ncinfo(ncname( 3,:),'rhobh','Half level density','kg/m^3','mt')
+        call ncinfo(ncname( 1,:),'rhof','Full level slab averaged density','kg/m^3','tt')
+        call ncinfo(ncname( 2,:),'rhobf','Full level base-state density','kg/m^3','tt')
+        call ncinfo(ncname( 3,:),'rhobh','Half level base-state density','kg/m^3','mt')
         call ncinfo(ncname( 4,:),'presh','Pressure at cell center','Pa','tt')
         call ncinfo(ncname( 5,:),'u','West-East velocity','m/s','tt')
         call ncinfo(ncname( 6,:),'v','South-North velocity','m/s','tt')
