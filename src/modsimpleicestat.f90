@@ -38,10 +38,8 @@ PUBLIC  :: initsimpleicestat, simpleicestat, exitsimpleicestat, simpleicetend
 save
 !NetCDF variables
   integer,parameter :: nvar = 23
-  integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
-  character(80) :: fname = 'dummy.nc'
   real          :: dtav, timeav
   integer(kind=longint):: idtav, itimeav, tnext, tnextwrite
   integer          :: nsamples
@@ -87,7 +85,7 @@ contains
 subroutine initsimpleicestat
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
-              dtav_glob, timeav_glob, ladaptive, k1,kmax, dtmax,btime,tres
+              dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres
     use modstat_nc, only : lnetcdf, open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata,only: imicro, imicro_sice
@@ -224,7 +222,6 @@ subroutine initsimpleicestat
 !------------------------------------------------------------------------------!
 !> General routine, does the timekeeping
   subroutine simpleicestat
-    use modmpi,    only  : myid
     use modglobal,    only  : rk3step, timee, dt_lim
     implicit none
     if (.not. lmicrostat)  return
