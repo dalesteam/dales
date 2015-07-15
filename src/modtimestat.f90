@@ -247,7 +247,7 @@ contains
         call ncinfo(ncname( 9,:),'lwp_max','Maximum Liquid-water path','kg/m^2','time')
         call ncinfo(ncname(10,:),'wmax','Maximum vertical velocity','m/s','time')
         call ncinfo(ncname(11,:),'vtke','Vertical integral of total TKE','kg/s','time')
-        call ncinfo(ncname(12,:),'lmax','Maximum liquid water mixing ratio','kg/kg','time')
+        call ncinfo(ncname(12,:),'lmax','Maximum liquid water specific humidity','kg/kg','time')
         call ncinfo(ncname(13,:),'ustar','Surface friction velocity','m/s','time')
         call ncinfo(ncname(14,:),'tstr','Turbulent temperature scale','K','time')
         call ncinfo(ncname(15,:),'qtstr','Turbulent humidity scale','K','time')
