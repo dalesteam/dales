@@ -1,0 +1,14 @@
+language: cpp
+os:
+  - linux
+compiler:
+  - gcc
+
+install:
+  - sudo apt-get install --no-install-recommends gfortran libnetcdf-dev cmake mpich libmpich-dev
+
+script:
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_Fortran_COMPILER=mpif90.mpich ..
+  - make
