@@ -38,8 +38,9 @@ implicit none
 save
 
   integer (KIND=selected_int_kind(6)) :: irandom= 0     !    * number to seed the randomnizer with
-  integer :: krand = huge(0)
+  integer :: krand = huge(0), krandumin=1,krandumax=0
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
+  real :: randu = 0.5
 
 contains
   subroutine startup
@@ -56,7 +57,7 @@ contains
                                   lwarmstart,startfile,trestart,itrestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -82,6 +83,7 @@ contains
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
+        krandumin, krandumax, randu,&
         nprocx,nprocy
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
@@ -91,7 +93,7 @@ contains
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user, lcloudshading
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
         llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
 
@@ -184,6 +186,8 @@ contains
     call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(irad       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timerad    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -211,8 +215,11 @@ contains
     call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(krand      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krandumax  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(randthl    ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(randqt     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randu      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(courant,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -465,6 +472,15 @@ contains
         call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
         call randomnize(thlm,k,randthl,irandom,ih,jh)
         call randomnize(thl0,k,randthl,irandom,ih,jh)
+      end do
+
+      do k=krandumin,krandumax
+        call randomnize(um  ,k,randu  ,irandom,ih,jh)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh)
       end do
 
       svprof = 0.

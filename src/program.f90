@@ -126,6 +126,7 @@ program DALES      !Version 4.0.0alpha
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
+  use modquadrant,     only : initquadrant, quadrant,exitquadrant
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection  
   use modAGScross,     only : initAGScross, AGScross,exitAGScross  
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
@@ -146,6 +147,7 @@ program DALES      !Version 4.0.0alpha
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
+  use modcanopy,       only : initcanopy, canopy, exitcanopy
 
 
   implicit none
@@ -166,6 +168,7 @@ program DALES      !Version 4.0.0alpha
   call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
   !call inittilt
   call initsampling
+  call initquadrant
   call initcrosssection
   call initAGScross
   call initlsmcrosssection
@@ -182,6 +185,7 @@ program DALES      !Version 4.0.0alpha
   !call initstressbudget
   call initchem
   call initheterostats
+  call initcanopy
 
   !call initspectra2
   call initcape
@@ -212,6 +216,7 @@ program DALES      !Version 4.0.0alpha
     call advection
     call samptend(tend_adv)
     call subgrid
+    call canopy
     call samptend(tend_subg)
 
 !-----------------------------------------------------
@@ -264,6 +269,7 @@ program DALES      !Version 4.0.0alpha
     call radstat
     call lsmstat
     call sampling
+    call quadrant
     call crosssection
     call AGScross
     call lsmcrosssection
@@ -296,6 +302,7 @@ program DALES      !Version 4.0.0alpha
   !call exitparticles
   call exitnudge
   call exitsampling
+  call exitquadrant
   call exitsamptend
   call exitbulkmicrostat
   call exitbudget
@@ -306,6 +313,7 @@ program DALES      !Version 4.0.0alpha
   call exitcape
   call exitfielddump
   call exitheterostats
+  call exitcanopy
   call exitmodules
 
 end program DALES

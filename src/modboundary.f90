@@ -147,7 +147,7 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg & 
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
@@ -186,6 +186,9 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+  case(-1)
+    up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
+    vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
   case default
     stop "no gravity wave damping option selected"
   end select
@@ -240,18 +243,20 @@ contains
 !> Sets top boundary conditions for momentum
   subroutine topm
 
-    use modglobal, only : i1,j1,kmax,k1,e12min
+    use modglobal, only : i1,j1,kmax,k1,e12min,lrigidlid
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
+    if (lrigidlid) e120(:,:,k1) = e120(:,:,kmax)
 
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)
     wm(:,:,k1)   = 0.0
     e12m(:,:,k1) = e12min
+    if (lrigidlid) e12m(:,:,k1) = e12m(:,:,kmax)
 
   return
   end subroutine topm

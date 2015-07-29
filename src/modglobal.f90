@@ -101,6 +101,8 @@ save
       real    :: om23_gs                       !<    *2.*omega_earth*sin(lat)
       real    :: xlat    = 52.              !<    *latitude  in degrees.
       real    :: xlon    = 0.               !<    *longitude in degrees.
+      logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
+      real    :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
 
       !Base state
       integer :: ibas_prf = 3
