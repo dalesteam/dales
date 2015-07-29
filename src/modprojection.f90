@@ -66,7 +66,7 @@ contains
 
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,dt_lim,tres,btime,cexpnr,zf
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo, writestat_dims_nc
     implicit none
 
@@ -145,9 +145,8 @@ contains
 
   end subroutine projection
   subroutine wrthorz
-    use modglobal, only : i1,j1,imax,jmax,kmax,nsv,cexpnr,ifoutput,rtimee ,dzf
-    use modfields, only : thlm,qtm,svm,thv0h,ql0,thl0av,qt0av,rhof
-    use modmpi,    only : cmyid
+    use modglobal, only : i1,j1,imax,jmax,kmax,rtimee,dzf
+    use modfields, only : thlm,qtm,thv0h,ql0,rhof
     use modstat_nc,  only : lnetcdf, writestat_nc
    implicit none
 

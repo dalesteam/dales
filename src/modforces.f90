@@ -61,7 +61,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal, only : i1,j1,kmax,dzh,dzf,grav
-  use modfields, only : u0,v0,w0,sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
+  use modfields, only : sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
   use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
   implicit none
@@ -220,7 +220,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls

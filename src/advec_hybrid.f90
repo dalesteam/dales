@@ -31,7 +31,7 @@ contains
 subroutine advecc_hybrid(pin,pout)
   use modglobal, only : ih,i1,jh,j1,kmax,k1 &
                        ,dxi,dyi,dzf,lambda_crit
-  use modfields, only : u0,v0,w0,rhobf,rhobh
+  use modfields, only : u0,v0,w0,rhobf
   implicit none
 
   ! input and output variables
@@ -209,7 +209,7 @@ function smoothness(pin,dir)
   real,dimension(2:i1+1,2:j1+1,k1) :: smoothness
   real,dimension(3) :: gam=0.
   real    :: eps_hybrid,phi_tilde
-  integer :: i,j,k,n
+  integer :: i,j,k
   integer :: ip2,ip1,im1,im2,im3
   integer :: jp2,jp1,jm1,jm2,jm3
   integer :: kp2,kp1,km1,km2,km3

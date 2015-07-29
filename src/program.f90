@@ -101,8 +101,7 @@ program DALES      !Version 4.0.0alpha
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
   use modmpi,            only : myid, initmpi
-  use modglobal,         only : rk3step,timee,btime,runtime,timeleft
-  use modfields,         only : thl0
+  use modglobal,         only : rk3step,timeleft
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver

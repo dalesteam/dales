@@ -132,8 +132,7 @@
   real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
     ,k_au                     !<  coeff. for autoconversion rate
   real,allocatable, dimension(:,:,:) ::  &
-    exnz               &      !<  3D exner function
-    ,presz             &      !<  3D pressure
+    presz              &      !<  3D pressure
     ,Dvc               &      !<  cloud water mean diameter
     ,xc                &      !<  mean mass of cloud water droplets
     ,Dvr               &      !<  prec water mean diameter

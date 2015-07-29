@@ -136,8 +136,8 @@
 
 subroutine  halflev_kappa(putin,putout)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax
-    use modfields, only : u0, v0, w0, rhobf, rhobh
+  use modglobal, only : i1,ih,j1,jh,k1
+    use modfields, only : w0, rhobf, rhobh
     implicit none
     real,external :: rlim
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin

@@ -45,7 +45,7 @@ contains
 
 
   subroutine initstat_nc
-    use modglobal, only : kmax,ifnamopt,fname_options,iexpnr
+    use modglobal, only : ifnamopt,fname_options
     use modmpi,    only : mpierr,mpi_logical,comm3d,myid
     implicit none
 

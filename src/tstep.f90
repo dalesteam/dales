@@ -43,11 +43,11 @@
 subroutine tstep_update
 
 
-  use modglobal, only : i1,j1,rk3step,timee,rtimee,runtime,btime,dtmax,dt,ntimee,ntrun,courant,peclet,&
+  use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntimee,ntrun,courant,peclet,&
                         kmax,k1,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
-  use modfields, only : um,vm,wm,rhobf
+  use modfields, only : um,vm,wm
   use modsubgrid,only : ekm
-  use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+  use modmpi,    only : comm3d,mpierr,mpi_max,my_real
   implicit none
 
   real, allocatable, dimension (:) :: courtotl,courtot
@@ -162,7 +162,7 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min,lmoist,k1,ih,jh,rslabs,kcb
+  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp

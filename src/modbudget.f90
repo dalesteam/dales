@@ -34,9 +34,7 @@ module modbudget
   save
 !NetCDF variables
   integer,parameter :: nvar = 18
-  integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
-  character(80),dimension(1,4) :: tncname
 
   real    :: dtav, timeav
   integer(kind=longint) :: idtav, itimeav,tnext,tnextwrite
@@ -78,8 +76,8 @@ contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initbudget
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
-    use modglobal, only : dtmax,idtmax, k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
-    ladaptive,dt_lim,btime,kmax,tres
+    use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
+    ladaptive,dt_lim,btime,tres
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
@@ -210,14 +208,14 @@ contains
 !> Performs the resolved budget calculations
   subroutine do_genbudget
     use modglobal,  only : i1,j1,k1,kmax,dzf,dzh, &
-                          rslabs,cu,cv,iadv_thl,grav, &
+                          rslabs,cu,cv,grav, &
                           dxi,dyi,dx2i,dy2i
-    use modsurfdata,only : thvs, ustar
+    use modsurfdata,only : ustar
     use modsubgriddata, only : ekm
     use modpois,    only : p
-    use modfields,  only : u0,v0,w0,thl0h,thv0h,u0av,v0av,rhobf,rhobh,thvh
+    use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
-    use modmpi,     only : nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
+    use modmpi,     only : comm3d,my_real, mpi_sum,mpierr
 
     implicit none
     integer :: i,j,k,km,kp,jm,jp
@@ -669,10 +667,10 @@ end subroutine do_genbudget
 
 !> Performs the SFS - budget calculations
   subroutine do_gensbbudget
-    use modglobal,  only : i1,j1,ih,jh,k1,kmax,rslabs
+    use modglobal,  only : i1,j1,ih,jh,k1,rslabs
     use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
     use modfields,  only : e120,rhobf
-    use modmpi,     only : slabsum,nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
+    use modmpi,     only : slabsum,comm3d,my_real, mpi_sum,mpierr
     !----------------------------
     ! 1.1 Declare allocatable
     !----------------------------
