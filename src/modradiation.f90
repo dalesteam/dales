@@ -34,9 +34,8 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
-    use modglobal,    only : kmax,i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
-    use modmpi,       only : myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modsurfdata,  only : albedoav
+    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
+    use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
 
     
@@ -140,7 +139,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
-    use modglobal, only : timee, dt_lim,rk3step,i1,j1,kmax
+    use modglobal, only : timee, dt_lim,rk3step
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
@@ -190,7 +189,7 @@ contains
 !> calculates tendency due to parameterized radiation
 subroutine radpar
 
-  use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,rslabs,xtime,rtimee,xday,xlat,xlon
+  use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
   use modfields,    only : ql0, sv0, rhof,exnf
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
@@ -306,7 +305,7 @@ subroutine radpar
 
   use modglobal, only :  k1,boltz
   use modsurfdata,  only : albedo,tskin
-  use modfields,   only : thl0,ql0, sv0
+  use modfields,   only : thl0
 
   implicit none
 

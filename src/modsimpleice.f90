@@ -48,11 +48,8 @@ module modsimpleice
 !> Initializes and allocates the arrays
   subroutine initsimpleice
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
-    use modfields, only : rhobf
-    use modmpi,    only : myid
 
     implicit none
-    real:: k
 
     allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
@@ -102,10 +99,9 @@ module modsimpleice
 
 !> Calculates the microphysical source term.
   subroutine simpleice
-    use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp,tup,tdn
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf
+    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn
+    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,tmp0,rhobf
     use modsimpleicestat, only : simpleicetend
-    use modmpi,    only : myid
     implicit none
     integer:: i,j,k 
     real:: qrsmall, qrsum,qrtest
@@ -259,9 +255,8 @@ module modsimpleice
   end subroutine simpleice
 
   subroutine autoconvert
-    use modglobal, only : ih,jh,i1,j1,k1,rlv,cp,tmelt
+    use modglobal, only : i1,j1,k1,rlv,cp,tmelt
     use modfields, only : ql0,exnf,rhof,tmp0
-    use modmpi,    only : myid
     implicit none
     real :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
     integer:: i,j,k
@@ -312,11 +307,10 @@ module modsimpleice
   end subroutine autoconvert
 
   subroutine accrete
-    use modglobal, only : ih,jh,i1,j1,k1,rlv,cp,pi
+    use modglobal, only : i1,j1,k1,rlv,cp,pi
     use modfields, only : ql0,exnf,rhof
-    use modmpi,    only : myid
     implicit none
-    real :: qll,qli,qrr,qrs,qrg,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,&
+    real :: qll,qli,qrr,qrs,qrg,&
             gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
     integer:: i,j,k
 
@@ -355,13 +349,12 @@ module modsimpleice
   end subroutine accrete
 
   subroutine evapdep
-    use modglobal, only : ih,jh,i1,j1,k1,rlv,riv,cp,rv,rd,tmelt,es0,pi
-    use modfields, only : qt0,ql0,exnf,rhof,tmp0,presf,qvsl,qvsi,esl
-    use modmpi,    only : myid
+    use modglobal, only : i1,j1,k1,rlv,cp,pi
+    use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
     implicit none
 
-    real :: qrr,qrs,qrg,ssl,ssi,conr,cons,cong,massr,masss,massg,diamr,diams,diamg,rer,res,reg,ventr,vents,ventg,&
-            thfun,gevapdepr,gevapdeps,gevapdepg,evapdepr,evapdeps,evapdepg,devap
+    real :: ssl,ssi,ventr,vents,ventg,&
+            thfun,evapdepr,evapdeps,evapdepg,devap
     integer:: i,j,k
 
     do k=1,k1
@@ -393,9 +386,8 @@ module modsimpleice
   end subroutine evapdep
 
   subroutine precipitate
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,dzf,pi,dzh
+    use modglobal, only : i1,j1,k1,kmax,dzf,dzh
     use modfields, only : rhof,rhobf
-    use modmpi,    only : myid
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop

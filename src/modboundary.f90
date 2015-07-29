@@ -243,7 +243,7 @@ contains
 !> Sets top boundary conditions for scalars
   subroutine toph
 
-  use modglobal, only : i1,j1,kmax,k1,nsv,dtheta,dqt,dsv,dzh
+  use modglobal, only : kmax,k1,nsv,dtheta,dqt,dsv,dzh
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
                        ,thl0av,qt0av,sv0av
   implicit none
@@ -277,7 +277,7 @@ contains
 !> Sets top boundary conditions for momentum
   subroutine topm
 
-    use modglobal, only : i1,j1,kmax,k1,e12min
+    use modglobal, only : kmax,k1,e12min
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
     u0(:,:,k1)   = u0(:,:,kmax)

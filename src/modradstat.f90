@@ -80,7 +80,7 @@ contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initradstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
-    use modglobal, only : dtmax, k1,kmax, ifnamopt,fname_options, ifoutput,&
+    use modglobal, only : dtmax, k1, ifnamopt,fname_options, ifoutput,&
                           cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
@@ -278,11 +278,10 @@ contains
 
       subroutine radclearair
     use modradfull,    only : d4stream
-    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,rlv,rd,zf,pref0,rslabs
-    use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0
-    use modsurfdata,  only : albedo, tskin, qskin, thvs, qts, ps
-    use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
-    use modraddata,   only : thlprad
+    use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,rlv,rd,pref0,rslabs
+    use modfields,    only : rhof, exnf, thl0,qt0,ql0
+    use modsurfdata,  only : albedo, tskin, qskin, thvs, ps
+    use modmicrodata, only : Nc_0
     use modmpi,    only :  slabsum
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b

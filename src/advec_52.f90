@@ -218,7 +218,7 @@ end subroutine advecu_52
 !> Advection at the v point.
 subroutine advecv_52(putin, putout)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzi5,dziq,leq
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0,rhobf
   implicit none
 

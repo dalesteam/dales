@@ -55,7 +55,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedepsv
     use modmpi,   only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal,only :ifnamopt,fname_options, btime,cexpnr,kmax,k1,ifinput,runtime,tres,nsv
+    use modglobal,only :btime,cexpnr,kmax,k1,ifinput,runtime,tres,nsv
     implicit none
 
     character (80):: chmess

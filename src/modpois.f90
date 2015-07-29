@@ -65,7 +65,7 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,dzh,rdt
+    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,rdt
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
@@ -189,7 +189,7 @@ contains
 !              copy times all included
 
     use modmpi,    only : myid,comm3d,mpierr,nprocs, barrou
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzi,dzf,dzh
+    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzf,dzh
     use modfields, only : rhobf, rhobh
     implicit none
 
@@ -423,8 +423,8 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-    use modfields, only : up, vp, wp, rhobf, rhobh
-    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh,grav,rd,cp
+    use modfields, only : up, vp, wp
+    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh
     use modmpi,    only : excj
     implicit none
     integer i,j,k

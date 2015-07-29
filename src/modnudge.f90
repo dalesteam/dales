@@ -137,9 +137,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine nudge
-    use modglobal, only : rtimee,i1,j1,k1,rk3step,kmax,rdt
+    use modglobal, only : rtimee,i1,j1,kmax,rdt
     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
-    use modmpi,    only : myid
     implicit none
 
     integer k,t

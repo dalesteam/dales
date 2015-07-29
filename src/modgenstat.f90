@@ -166,8 +166,8 @@ contains
 
   subroutine initgenstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
-    use modglobal, only : dtmax, kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
-    cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
+    use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
+    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
 
@@ -366,9 +366,9 @@ contains
         nvar = nvar + 7*nsv
         allocate(ncname(nvar,4))
         call ncinfo(tncname(1,:),'time','Time','s','time')
-        call ncinfo(ncname( 1,:),'dn0','Base-state density','kg/m^3','tt')
-        call ncinfo(ncname( 2,:),'rhobf','Full level density','kg/m^3','tt')
-        call ncinfo(ncname( 3,:),'rhobh','Half level density','kg/m^3','mt')
+        call ncinfo(ncname( 1,:),'rhof','Full level slab averaged density','kg/m^3','tt')
+        call ncinfo(ncname( 2,:),'rhobf','Full level base-state density','kg/m^3','tt')
+        call ncinfo(ncname( 3,:),'rhobh','Half level base-state density','kg/m^3','mt')
         call ncinfo(ncname( 4,:),'presh','Pressure at cell center','Pa','tt')
         call ncinfo(ncname( 5,:),'u','West-East velocity','m/s','tt')
         call ncinfo(ncname( 6,:),'v','South-North velocity','m/s','tt')
@@ -459,12 +459,12 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,rhobf
+                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
                           rslabs,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
-    use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
+    use modmpi,    only : comm3d,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
 
