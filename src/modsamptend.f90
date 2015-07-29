@@ -316,7 +316,7 @@ subroutine initsamptend
 !> Performs the statistics, keeps track of what the tendencies were last time, and what they are this time.
   subroutine samptend(tendterm,firstterm,lastterm)
     use modmpi,    only : slabsum
-    use modglobal, only : i1,kmax,k1,ih,jh,&
+    use modglobal, only : i1,j1,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,&
                           timee,rk3step,dt_lim,ijtot,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
@@ -524,7 +524,7 @@ subroutine initsamptend
 
   subroutine leibniztend
     use modmpi,    only : slabsum
-    use modglobal, only : i1,kmax,k1,ih,jh,&
+    use modglobal, only : i1,j1,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,&
                           ijtot,nsv
     use modfields, only : w0,thl0,ql0,exnf,qt0,u0,v0,sv0
