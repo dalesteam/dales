@@ -53,10 +53,10 @@ contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initstattend
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
-    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
-    ladaptive, dt_lim,btime,kmax,tres,ifoutput
+    use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
+    ladaptive, dt_lim,btime,tres,ifoutput
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
-    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
+    use modgenstat, only : ncid_prof=>ncid
 
     implicit none
     integer :: ierr
@@ -189,8 +189,8 @@ subroutine initstattend
 
 !> Performs the statistics, keeps track of what the tendencies were last time, and what they are this time.
   subroutine stattend(tendterm,lastterm)
-    use modmpi,    only : myid,slabsum
-    use modglobal, only : ih,jh,i1,j1,kmax,k1,rk3step,timee,dt_lim,ijtot,btime
+    use modmpi,    only : slabsum
+    use modglobal, only : ih,jh,i1,j1,k1,rk3step,timee,dt_lim,ijtot
     use modfields, only : up,vp,wp,thlp,qtp
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down

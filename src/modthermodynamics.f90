@@ -59,8 +59,7 @@ contains
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
-    use modfields, only : thl0,thl0h,qt0,qt0h,tmp0,ql0,ql0h,presf,presh,exnf,exnh,thvh,thv0h,qt0av,ql0av,thvf,rhof
-    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_sice
+    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmpi, only : slabsum
     implicit none
     integer:: k
@@ -104,10 +103,9 @@ contains
 
 !> Calculate thetav and dthvdz
   subroutine calthv
-    use modglobal, only : lmoist,i1,j1,k1,kmax,zf,zh,dzh,rlv,rd,rv,cp,eps1
-    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,sv0,exnf,exnh,thv0h,dthvdz,tmp0
+    use modglobal, only : lmoist,i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
+    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
     use modsurfdata,only : dthldz,dqtdz
-    use modmpi, only: myid
     implicit none
 
     integer i, j, k
@@ -226,7 +224,7 @@ contains
   subroutine diagfld
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0
-  use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
+  use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
   use modmpi,    only : slabsum
@@ -322,8 +320,8 @@ contains
 !! \author Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine fromztop
 
-  use modglobal, only : k1,dzf,dzh,rv,rd,cp,tmelt,zf,grav,pref0
-  use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf,rhobf,rhobh
+  use modglobal, only : k1,dzf,dzh,rv,rd,cp,zf,grav,pref0
+  use modfields, only : qt0av,ql0av,presf,presh,thvh,thvf
   use modsurfdata,only : ps
   implicit none
 
@@ -398,7 +396,6 @@ contains
 
 
   use modglobal, only : ih,jh,i1,j1,k1,es0,at,bt,rd,rv,rlv,cp,tmelt
-  use modsurfdata, only : thls
   implicit none
 
   integer i, j, k
@@ -461,10 +458,8 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
-  use modsurfdata, only : thls
-  use modmpi, only : myid
   implicit none
 
   integer i, j, k
@@ -570,10 +565,8 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : ih,jh,i1,j1,k1,es0,rd,rv,rlv,riv,tup,tdn,cp,tmelt,at,bt,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
-  use modsurfdata, only : thls
-  use modmpi, only : myid
   implicit none
 
   integer i, j, k

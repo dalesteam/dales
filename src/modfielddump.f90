@@ -50,7 +50,7 @@ save
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,myidx,myidy
+    use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
@@ -115,7 +115,7 @@ contains
   subroutine fielddump
     use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh
     use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
+    use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc

@@ -68,7 +68,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
     use modmpi,    only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal, only :ifnamopt,fname_options,dtmax, btime,cexpnr,k1,kmax,ifinput,runtime,tres
+    use modglobal, only :btime,cexpnr,k1,kmax,ifinput,runtime,tres
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls
     use modtimedepsv, only : inittimedepsv
     implicit none
@@ -264,9 +264,9 @@ contains
   end subroutine timedep
 
   subroutine timedepz
-    use modfields,   only : ug, vg, dqtdtls,dqtdxls,dqtdyls, wfls,whls,thlprof,qtprof, &
+    use modfields,   only : ug, vg, dqtdtls,dqtdxls,dqtdyls, wfls,whls, &
                             thlpcar,dthldxls,dthldyls,dudxls,dudyls,dvdxls,dvdyls,dpdxl,dpdyl
-    use modglobal,   only : rtimee,om23_gs,zf,dzf,dzh,k1,kmax,grav,llsadv
+    use modglobal,   only : rtimee,om23_gs,dzf,dzh,k1,kmax,llsadv
     use modmpi,      only : myid
     implicit none
 

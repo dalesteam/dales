@@ -678,7 +678,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv!, boltz, rhow
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user

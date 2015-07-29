@@ -69,7 +69,7 @@ contains
 !> Initializing lsmcrosssection. Read out the namelist, initializing the variables
   subroutine initlsmcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,i1,dt_lim,cexpnr,tres,btime
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
 
@@ -168,7 +168,7 @@ contains
   end subroutine initlsmcrosssection
 !>Run lsmcrosssection. Mainly timekeeping
   subroutine lsmcrosssection
-    use modglobal, only : rk3step,timee,rtimee,dt_lim
+    use modglobal, only : rk3step,timee,dt_lim
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -190,7 +190,7 @@ contains
 
 !> Do the xz lsmcrosssections and dump them to file
   subroutine wrtvert
-  use modglobal, only : imax,i1,j1,cexpnr,ifoutput,rtimee
+  use modglobal, only : imax,i1,cexpnr,ifoutput,rtimee
   use modsurfdata, only : tsoil, phiw
   use modmpi,    only : myid
   use modstat_nc, only : lnetcdf, writestat_nc
@@ -224,7 +224,6 @@ contains
   subroutine wrthorz
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
     use modsurfdata, only : tsoil,phiw
-    use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -262,7 +261,6 @@ contains
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
     use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl
-    use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 

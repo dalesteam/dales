@@ -50,15 +50,15 @@ save
   integer, allocatable :: svvarid(:)
 
   !id of variables (covariances)
-  integer :: uvcovid, uwcovid, vwcovid
+  integer :: uwcovid, vwcovid
   integer :: uwcovsid, vwcovsid
-  integer :: uthlcovid, vthlcovid, wthlcovid
+  integer :: wthlcovid
   integer :: wthlcovsid
-  integer :: uthvcovid, vthvcovid, wthvcovid
+  integer :: wthvcovid
   integer :: wthvcovsid
-  integer :: uqtcovid, vqtcovid, wqtcovid
+  integer :: wqtcovid
   integer :: wqtcovsid
-  integer :: uqlcovid, vqlcovid, wqlcovid
+  integer :: wqlcovid
   integer :: wqlcovsid
   integer :: thlqcovid
   integer, allocatable :: usvcovid(:), vsvcovid(:), wsvcovid(:)
@@ -235,7 +235,7 @@ contains
 
   subroutine heterostats
 
-    use modglobal, only : rk3step,ntimee,dt_lim,timee
+    use modglobal, only : rk3step,dt_lim,timee
     implicit none
 
     if (.not. lheterostats) return
@@ -262,8 +262,8 @@ contains
     use modmpi,     only : myidx,commrow,mpierr,gatherrow,MY_REAL,MPI_SUM
     use modsurfdata
     use modsubgrid, only : ekm, ekh
-    use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, dz, rlv, cp, rv, &
-                           rd, imax, jmax, i1, j1, k1, ih, jh, itot, jtot
+    use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, rlv, cp, rv, &
+                           rd, imax, jmax, i1, j1, k1, ih, jh, itot
 
     implicit none
 
@@ -278,7 +278,7 @@ contains
     real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
     real, dimension(jmax,ncklimit,nsv) :: svavg, svhavg, svvar,  wsvcov, wsvcovs
 
-    real  vonw(2-ih:i1+ih,2-jh:j1+jh,k1),putout(2-ih:i1+ih,2-jh:j1+jh,k1),uonw(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real  vonw(2-ih:i1+ih,2-jh:j1+jh,k1),uonw(2-ih:i1+ih,2-jh:j1+jh,k1)
     real  sv0h(2-ih:i1+ih,2-jh:j1+jh,k1,nsv),thv0(2-ih:i1+ih,2-jh:j1+jh,k1)
 
     real  buffer(jmax,ncklimit)

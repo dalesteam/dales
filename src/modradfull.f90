@@ -37,7 +37,7 @@ module modradfull
        plwc(:), piwc(:), prwc(:), pgwc(:), fds(:), fus(:), fdir(:), fuir(:)
 
   integer :: i,j,k, npts
-  real    :: ee, u0, day, time, alat, zz
+  real    :: ee, u0
 
 
  !
@@ -52,7 +52,6 @@ module modradfull
   real,parameter :: SolarConstant      = 1.365d+3  !< The Solar radiation constant
 
   real, parameter :: u(4) = (/-0.7886752,-0.2113247,0.2113247,0.7886752/)
-  real, parameter :: p0d(4)= (/ 1., 1., 1., 1./)
   real, parameter :: p1d(4)= (/-0.788675, -.211325,  .211325, .788675/)
   real, parameter :: p2d(4)= (/ 0.433013, -.433013, -.433013, .433013/)
   real, parameter :: p3d(4)= (/-.0433940,  .293394, -.293394, .043394/)
@@ -112,9 +111,9 @@ module modradfull
 contains
     subroutine radfull
   !   use radiation,    only : d4stream
-    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,zf,pref0
+    use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,pref0
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
-    use modsurfdata,  only : albedo, tskin, qskin, thvs, qts, ps
+    use modsurfdata,  only : albedo, ps
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
     use modraddata,   only : thlprad, lwd,lwu,swd,swu
       implicit none
@@ -1388,7 +1387,6 @@ contains
     !>
   subroutine combineOpticalProperties(tau,      ssa,      pF, &
                                       tauToAdd, ssaToAdd, pFtoAdd)
-    use modglobal, only : eps1
     real, dimension(:),    intent(inout) :: tau, ssa
     real, dimension(:, :), intent(inout) :: pF   ! Phs function (level, moment)
     real, dimension(:),    intent(in)    :: tautoAdd

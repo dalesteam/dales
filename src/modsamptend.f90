@@ -58,14 +58,13 @@ module modsamptend
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initsamptend
-    use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid,cmyid
-    use modglobal,only : cexpnr,dtmax,imax,jmax,kmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,ladaptive,&
-                         dt_lim,btime,kmax,tres,ifoutput,cexpnr,j1,jh,i1,ih,kmax
+    use modmpi,   only : myid
+    use modglobal,only : cexpnr,dtmax,kmax,k1,ladaptive,&
+                         btime,kmax,tres,cexpnr,j1,jh,i1,ih,kmax
     use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc,lnetcdf
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
 
     implicit none
-    integer :: ierr,i
 
     if (.not. lsamptend) return
 
@@ -316,10 +315,10 @@ subroutine initsamptend
 
 !> Performs the statistics, keeps track of what the tendencies were last time, and what they are this time.
   subroutine samptend(tendterm,firstterm,lastterm)
-    use modmpi,    only : myid,slabsum
-    use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
+    use modmpi,    only : slabsum
+    use modglobal, only : i1,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,&
-                          grav,om22,cu,timee,rk3step,dt_lim,ijtot,btime,nsv,rdt
+                          timee,rk3step,dt_lim,ijtot,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
@@ -524,14 +523,14 @@ subroutine initsamptend
   end subroutine samptend
 
   subroutine leibniztend
-    use modmpi,    only : myid,slabsum
-    use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
+    use modmpi,    only : slabsum
+    use modglobal, only : i1,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,&
-                          grav,om22,cu,timee,rk3step,dt_lim,ijtot,btime,nsv,rdt
-    use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
+                          ijtot,nsv
+    use modfields, only : w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     implicit none
-    real, allocatable, dimension(:,:,:) :: w0f,wpf
+    real, allocatable, dimension(:,:,:) :: w0f
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
     integer :: i,j,k

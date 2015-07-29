@@ -46,7 +46,6 @@ save
   integer :: crossheight(100)
   integer :: nxy = 0
   integer :: cross
-  integer :: nrc
   character(4) :: cheight
   character(80) :: fname1 = 'crossxz.xxxxyxxx.xxx.nc'
   character(80) :: fname2 = 'crossxy.xxxx.xxxxyxxx.xxx.nc'
@@ -69,7 +68,7 @@ contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
 
@@ -198,7 +197,7 @@ contains
   end subroutine initcrosssection
 !>Run crosssection. Mainly timekeeping
   subroutine crosssection
-    use modglobal, only : rk3step,timee,rtimee,dt_lim
+    use modglobal, only : rk3step,timee,dt_lim
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -221,7 +220,7 @@ contains
 
 !> Do the xz crosssections and dump them to file
   subroutine wrtvert
-  use modglobal, only : imax,i1,j1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+  use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
   use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
   use modmpi,    only : myid
   use modstat_nc, only : lnetcdf, writestat_nc
@@ -420,7 +419,7 @@ contains
   end subroutine wrthorz
 
   subroutine wrtorth
-    use modglobal, only : imax,jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+    use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc

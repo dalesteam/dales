@@ -176,7 +176,7 @@ contains
   subroutine do_lsmstat
 
     use modmpi,    only :  slabsum
-    use modglobal, only : ijtot,dzf,i1,j1,i2,j2
+    use modglobal, only : ijtot,i1,j1,i2,j2
     use modsurfdata, only : ksoilmax,tsoil,phiw,lambda,lambdas,gammas
 
     implicit none
@@ -206,7 +206,7 @@ contains
 !> Write the statistics to file
   subroutine writelsmstat
       use modmpi,    only : myid
-      use modglobal, only : cexpnr,ifoutput,zf,zh,rtimee
+      use modglobal, only : cexpnr,ifoutput,rtimee
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
       use modsurfdata,only : ksoilmax,zsoilc

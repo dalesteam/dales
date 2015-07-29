@@ -72,7 +72,7 @@ contains
   end subroutine initchecksim
 !>Run checksim. Timekeeping, and output
   subroutine checksim
-    use modglobal, only : timee,rtimee, rk3step, dt_lim,rdt
+    use modglobal, only : timee,rtimee, rk3step, rdt
     use modmpi,    only : myid
     implicit none
     character(20) :: timeday
@@ -96,7 +96,7 @@ contains
   end subroutine checksim
 !>      Calculates the courant number as in max(w)*deltat/deltaz
   subroutine calccourant
-    use modglobal, only : i1,j1,kmax,dx,dy,dzh,dt,timee
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh
     use modfields, only : u0,v0,w0
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
@@ -135,10 +135,9 @@ contains
 !> Calculates the cell peclet number as max(ekm) *deltat/deltax**2
   subroutine calcpeclet
 
-    use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh,dt,timee
+    use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
     use modsubgrid,only : ekm
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
-    use modfields, only : rhobf
     implicit none
 
 
