@@ -374,8 +374,8 @@ contains
         call ncinfo(ncname( 6,:),'v','South-North velocity','m/s','tt')
         call ncinfo(ncname( 7,:),'thl','Liquid water potential temperature','K','tt')
         call ncinfo(ncname( 8,:),'thv','Virtual potential temperature','K','tt')
-        call ncinfo(ncname( 9,:),'qt','Total water mixing ratio','kg/kg','tt')
-        call ncinfo(ncname(10,:),'ql','Liquid water mixing ratio','kg/kg','tt')
+        call ncinfo(ncname( 9,:),'qt','Total water specific humidity','kg/kg','tt')
+        call ncinfo(ncname(10,:),'ql','Liquid water specific humidity','kg/kg','tt')
         call ncinfo(ncname(11,:),'wthls','SFS-Theta_l flux','Km/s','mt')
         call ncinfo(ncname(12,:),'wthlr','Resolved Theta_l flux','Km/s','mt')
         call ncinfo(ncname(13,:),'wthlt','Total Theta_l flux','Km/s','mt')
@@ -408,7 +408,7 @@ contains
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
           call ncinfo(ncname(39+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
           call ncinfo(ncname(39+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
           call ncinfo(ncname(39+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
