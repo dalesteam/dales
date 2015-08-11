@@ -39,21 +39,42 @@ contains
     use modsurfdata,  only : albedoav
     implicit none
 
-    allocate(thlprad(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(swd(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(swu(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(lwd(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(lwu(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+    allocate(swdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+    allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+    allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+    allocate(LW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+    allocate(LW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+
+    allocate(SW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
+
     thlprad = 0.
     swd = 0.
     swu = 0.
     lwd = 0.
     lwu = 0.
+
+    swdca = 0.
+    swuca = 0.
+    lwdca = 0.
+    lwuca = 0.
+
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
+    SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
+
+
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
       select case (irad)
@@ -115,6 +136,7 @@ contains
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
+    use modradrrtmg, only : radrrtmg
     implicit none
 
     if(timee<tnext .and. rk3step==3) then
@@ -133,6 +155,8 @@ contains
             endif
           case (irad_lsm)
             call radlsm
+          case (irad_rrtmg)
+            call radrrtmg
           case (irad_user)
 ! EWB: the if statement should came first because moduser uses a radpar variable
             if(rad_longw.or.rad_shortw) then
@@ -153,8 +177,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
     implicit none
-    deallocate(thlprad,swd,swu,lwd,lwu)
-    deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
+    deallocate(thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca)
+    deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
+               SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
+
   end subroutine exitradiation
 
 
