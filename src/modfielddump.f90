@@ -96,10 +96,10 @@ contains
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
       call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water mixing ratio','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-      call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 7,:),'qr','Rain water specific humidity','1e-5kg/kg','tttt')
       call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
       call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
