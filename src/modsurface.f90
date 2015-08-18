@@ -31,6 +31,8 @@
 !! \deprecated Modsurface replaces the old modsurf.f90
 !! \todo: implement fRs[t] based on the tiles.
 !
+!  Note that rootf should add up to 1 over all layers
+!
 !Able to handle heterogeneous surfaces using the switch lhetero
 !In case of heterogeneity an input file is needed
 !EXAMPLE of the old surface.inp.xxx for isurf = 3,4 (use switch loldtable for compatibility):
@@ -69,10 +71,9 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw,irad_full
-    use modfields,  only : thl0, qt0
-    use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+    use modglobal,  only : i2, j2, imax, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modraddata, only : iradiation,rad_shortw
+    use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
 
@@ -618,9 +619,9 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : rdt,i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rk3step,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
-    use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,rslabs,rd,rv
+    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
 
@@ -990,7 +991,7 @@ contains
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
-    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,myid,mpi_integer
+    use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
 
     implicit none
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
@@ -1053,9 +1054,9 @@ contains
 
 !> Calculates the Obuhkov length iteratively.
   subroutine getobl
-    use modglobal, only : zf, rv, rd, grav, rslabs, i1, j1, i2, j2, timee, cu, cv
+    use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
-    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj,mpi_integer
+    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,excj,mpi_integer
     implicit none
 
     integer             :: i,j,iter,patchx,patchy
@@ -1433,12 +1434,11 @@ contains
       enddo
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootf(:,:,k)*phiw(:,:,k)
       end do
-      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootf(:,:,k)*phiw(:,:,k) / phitot(:,:)
       end do
 
     else
@@ -1450,12 +1450,11 @@ contains
       phiw(:,:,4) = phiwav(4)
 
       do k = 1, ksoilmax
-        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k) * dzsoil(k)
+        phitot(:,:) = phitot(:,:) + rootfav(k)*phiw(:,:,k)
       end do
-      phitot(:,:) = phitot(:,:) / zsoil(ksoilmax)
 
       do k = 1, ksoilmax
-        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) * dzsoil(k) / zsoil(ksoilmax) / phitot(:,:)
+        phifrac(:,:,k) = rootfav(k)*phiw(:,:,k) / phitot(:,:)
       end do
 
       ! Set root fraction per layer for short grass
@@ -1514,13 +1513,11 @@ contains
       do i = 2,i1
         phitot(i,j) = 0.0
         do k = 1, ksoilmax
-          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k)
+          phitot(i,j) = phitot(i,j) + rootf(i,j,k) * max(phiw(i,j,k),phiwp)
         end do
 
-        phitot(i,j) = phitot(i,j) / zsoil(ksoilmax)
-
         do k = 1, ksoilmax
-          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) * dzsoil(k) / zsoil(ksoilmax) / phitot(i,j)
+          phifrac(i,j,k) = rootf(i,j,k) * max(phiw(i,j,k),phiwp) / phitot(i,j)
         end do
       end do
     end do
@@ -1560,7 +1557,10 @@ contains
             lwuav = sum(lwuavn(i,j,:)) / nradtime
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
-          else
+          elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
+            swdav = -swd(i,j,1)
+            Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
+          else ! simple radiation scheme
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
             swdav     = swd(i,j,1)
           end if
@@ -1580,8 +1580,8 @@ contains
           f1  = 1.
         end if
 
-        ! Soil moisture availability                 !Now also following ECMWF
-        f2  = (phifc - phiwp) / (phiw(i,j,1) - phiwp)
+        ! Soil moisture availability
+        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils

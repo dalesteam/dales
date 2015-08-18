@@ -50,7 +50,7 @@ save
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
+    use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
@@ -96,10 +96,10 @@ contains
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
       call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water mixing ratio','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-      call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 7,:),'qr','Rain water specific humidity','1e-5kg/kg','tttt')
       call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
       call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
@@ -115,7 +115,7 @@ contains
   subroutine fielddump
     use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh
     use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
+    use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyid
     use modstat_nc, only : lnetcdf, writestat_nc

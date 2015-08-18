@@ -47,12 +47,12 @@ contains
 
 !> Initializing cape crossections. Read out the namelist, initializing the variables
   subroutine initcape
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
+    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,writestat_dims_nc
    implicit none
 
-    integer :: ierr,k
+    integer :: ierr
 
     namelist/NAMCAPE/ &
     lcape, dtav
@@ -117,7 +117,7 @@ contains
 
 !>Run crosssection.
   subroutine docape
-    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rk3step,timee,rtimee,dt_lim,grav,eps1,&
+    use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,rk3step,timee,rtimee,dt_lim,grav,eps1,&
     nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
     use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -136,7 +136,6 @@ contains
 
     ! LOCAL VARIABLES
     integer :: i,j,k,ktest,tlonr,thinr,niter,nitert,kdmax,kdmaxl
-    character(40) :: name
     real :: Tnr,Tnr_old,ilratio,tlo,thi,esl1,esi1,qsatur,thlguess,thlguessmin,ttry,qvsl1,qvsi1
 
     if (.not. lcape) return
@@ -265,12 +264,15 @@ contains
     enddo
     !calculate moist adiabat from surface, rather than cloud base: let pressure adjust to slab mean
 
+    nitert=0
+
     k=1
     do j=2,j1
     do i=2,i1
     ! full level
         Tnr=exnf(k)*thl200400(i,j) ! First guess for full level, use no ql from below
         Tnr_old=0.
+        niter = 0
           do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at first level
             niter = niter+1
             Tnr_old=Tnr
@@ -321,6 +323,7 @@ contains
       if(matop(i,j)==0) then
         Tnr=exnf(k)*thl200400(i,j)+(rlv/cp)*qlma(i,j,k-1) ! Guess for full level
         Tnr_old=0.
+        niter=0
           do while (abs(Tnr-Tnr_old) > 0.002) ! Find T at level
             niter = niter+1
             Tnr_old=Tnr
@@ -458,7 +461,6 @@ contains
 !> Clean up when leaving the run
   subroutine exitcape
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modmpi, only : myid
     implicit none
 
     if(lcape .and. lnetcdf) then

@@ -166,8 +166,8 @@ contains
 
   subroutine initgenstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
-    use modglobal, only : dtmax, kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
-    cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
+    use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
+    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
 
@@ -366,16 +366,16 @@ contains
         nvar = nvar + 7*nsv
         allocate(ncname(nvar,4))
         call ncinfo(tncname(1,:),'time','Time','s','time')
-        call ncinfo(ncname( 1,:),'dn0','Base-state density','kg/m^3','tt')
-        call ncinfo(ncname( 2,:),'rhobf','Full level density','kg/m^3','tt')
-        call ncinfo(ncname( 3,:),'rhobh','Half level density','kg/m^3','mt')
+        call ncinfo(ncname( 1,:),'rhof','Full level slab averaged density','kg/m^3','tt')
+        call ncinfo(ncname( 2,:),'rhobf','Full level base-state density','kg/m^3','tt')
+        call ncinfo(ncname( 3,:),'rhobh','Half level base-state density','kg/m^3','mt')
         call ncinfo(ncname( 4,:),'presh','Pressure at cell center','Pa','tt')
         call ncinfo(ncname( 5,:),'u','West-East velocity','m/s','tt')
         call ncinfo(ncname( 6,:),'v','South-North velocity','m/s','tt')
         call ncinfo(ncname( 7,:),'thl','Liquid water potential temperature','K','tt')
         call ncinfo(ncname( 8,:),'thv','Virtual potential temperature','K','tt')
-        call ncinfo(ncname( 9,:),'qt','Total water mixing ratio','kg/kg','tt')
-        call ncinfo(ncname(10,:),'ql','Liquid water mixing ratio','kg/kg','tt')
+        call ncinfo(ncname( 9,:),'qt','Total water specific humidity','kg/kg','tt')
+        call ncinfo(ncname(10,:),'ql','Liquid water specific humidity','kg/kg','tt')
         call ncinfo(ncname(11,:),'wthls','SFS-Theta_l flux','Km/s','mt')
         call ncinfo(ncname(12,:),'wthlr','Resolved Theta_l flux','Km/s','mt')
         call ncinfo(ncname(13,:),'wthlt','Total Theta_l flux','Km/s','mt')
@@ -408,7 +408,7 @@ contains
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
           call ncinfo(ncname(39+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
           call ncinfo(ncname(39+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
           call ncinfo(ncname(39+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
@@ -459,12 +459,12 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,rhobf
+                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi
-    use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
+                          rslabs,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
+    use modmpi,    only : comm3d,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
 
@@ -899,7 +899,7 @@ contains
     end do
 
     do n=1,nsv
-      if (iadv_thl==iadv_kappa) then
+      if (iadv_sv(n)==iadv_kappa) then
          call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
       else
         do  k=2,k1

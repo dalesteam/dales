@@ -38,10 +38,8 @@ PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
   integer,parameter :: nvar = 23
-  integer :: ncid,nrec = 0
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
-  character(80) :: fname = 'dummy.nc'
   real          :: dtav, timeav
   integer(kind=longint):: idtav, itimeav, tnext, tnextwrite
   integer          :: nsamples
@@ -87,7 +85,7 @@ contains
 subroutine initbulkmicrostat
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
-              dtav_glob, timeav_glob, ladaptive, k1,kmax, dtmax,btime,tres
+              dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata,only: imicro, imicro_bulk, imicro_sice
@@ -225,7 +223,6 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 !> General routine, does the timekeeping
   subroutine bulkmicrostat
-    use modmpi,    only  : myid
     use modglobal,    only  : rk3step, timee, dt_lim
     implicit none
     if (.not. lmicrostat)  return
@@ -251,7 +248,7 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : qc, qr, precep, Dvr, Nr, epscloud, epsqr, epsprec,imicro, imicro_bulk
+    use modmicrodata,  only  : qr, precep, Dvr, Nr, epscloud, epsqr, epsprec,imicro, imicro_bulk
     use modfields,  only  : ql0
     implicit none
 

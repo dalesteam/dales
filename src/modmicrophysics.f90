@@ -37,7 +37,7 @@ implicit none
 
 contains
   subroutine initmicrophysics
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_integer,mpi_logical
+    use modmpi,   only :myid,my_real,comm3d,mpi_integer,mpi_logical
     use modglobal,only :ifnamopt,fname_options
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice

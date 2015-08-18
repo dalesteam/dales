@@ -54,8 +54,13 @@ SAVE
   real :: rka        = 130.   !< extinction coefficient in radpar scheme
   real :: dlwtop     = 74.    !< longwave radiative flux divergence at top of domain
   real :: dlwbot     = 0.     !< longwave radiative flux divergence near the surface
-  real :: sw0        = 1100.0 !< direct component at top of the cloud (W/m^2), diffuse not possible
+  real :: sw0        = 1100.0 !< direct component at top of the cloud (W/m^2)
+
   real :: gc         = 0.85   !< asymmetry factor of droplet scattering angle distribution
+  real :: SSA        = 0.999  !< typical single scattering albedo for clouds
+  integer :: iDE     = 1 !< scalar field to be used as extinction
+  logical :: laero   = .false. !< .true. for aeosols .false. for clouds 
+
   real :: reff       = 1.e-5  !< cloud droplet effective radius (m)
   integer :: isvsmoke = 1     !< number of passive scalar to be used for optical depth calculation
   integer :: iradiation = irad_none !< Selection parameter for type of radiation scheme
@@ -155,8 +160,11 @@ SAVE
                                    o3snd   ! ozon sounding read in from SoundingFileName (if usero3=true)
   real mu                    !< cosine of the solar zenith angle
 
+  
   real, allocatable :: thlprad(:,:,:)!<   the radiative tendencies
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
+  real, allocatable :: swdir(:,:,:)    !<   Direct shortwave downward radiative flux
+  real, allocatable :: swdif(:,:,:)    !<   Difuse shortwave downward radiative flux
   real, allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
   real, allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
   real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
@@ -171,6 +179,7 @@ SAVE
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
   real, allocatable :: SW_up_ca_TOA(:,:), SW_dn_ca_TOA(:,:), LW_up_ca_TOA(:,:), LW_dn_ca_TOA(:,:)
 
+  
 contains
 !< Calculation of the cosine of the zenith angle
 !< \param time UTC Time of the simulation

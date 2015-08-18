@@ -53,7 +53,7 @@ contains
       !-----------------------------------------------------------------|
 
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
-                                  lwarmstart,startfile,trestart,itrestart,&
+                                  lwarmstart,startfile,trestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
@@ -65,13 +65,12 @@ contains
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-                                  timerad,itimerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke
+                                  timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke
     use modtimedep,        only : inittimedep,ltimedep
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use modsubgriddata,    only : ldelta, cf,cn,Rigc,Prandtl,lmason,lsmagorinsky
     use modmpi,            only : comm3d,myid, mpi_integer,mpi_logical,my_real,mpierr, mpi_character
 
     implicit none
@@ -254,7 +253,7 @@ contains
   !                                                                 |
   !-----------------------------------------------------------------|
 
-    use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps,lhetero
+    use modsurfdata,only : wtsurf,wqsurf,ustin,thls,isurf,ps,lhetero
     use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
     use modmpi,    only : myid, nprocs,mpierr
     use modtimedep, only : ltimedep
@@ -321,7 +320,6 @@ contains
   subroutine readinitfiles
     use modfields,         only : u0,v0,w0,um,vm,wm,thlm,thl0,thl0h,qtm,qt0,qt0h,&
                                   ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
-                                  rhobf,rhobh,drhobdzf,drhobdzh,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
@@ -329,12 +327,12 @@ contains
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
-                                  zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,ibas_prf
+                                  zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
+                                  rslabs,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  trestart, ladaptive,llsadv,tnextrestart
     use modsubgrid,        only : ekm,ekh
-    use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
-                                  thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
+    use modsurfdata,       only : wsvsurf, &
+                                  thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin 
     use modsurface,        only : surface,qtsurf,dthldz
     use modboundary,       only : boundary
@@ -346,8 +344,6 @@ contains
 
     real, allocatable :: height(:), th0av(:)
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
-    real tv
-
 
     character(80) chmess
 
@@ -708,14 +704,14 @@ contains
 
   subroutine readrestartfiles
 
-    use modsurfdata, only : ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
+    use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                            obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                          iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv
-    use modmpi,     only : cmyid, myid
+                           tres,ifinput,nsv,dt
+    use modmpi,     only : cmyid
     use modsubgriddata, only : ekm
 
 
@@ -801,13 +797,13 @@ contains
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writerestartfiles
-    use modsurfdata,only: ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
+    use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                           tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
-                          ntimee,rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
+                          rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm
 
@@ -1015,7 +1011,6 @@ contains
     character(80) chmess
     real :: zsurf=0.
     real :: tsurf
-    real :: psurf=101325.
     real,dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
     real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/) 
     real,dimension(4) :: pmat

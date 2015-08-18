@@ -63,8 +63,8 @@ contains
   subroutine initsampling
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
-    use modglobal, only : ladaptive, dtmax,rk3step,k1,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,timeav_glob,dt_lim,btime,tres,cexpnr,ifoutput
+    use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
+                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
@@ -340,13 +340,12 @@ contains
   subroutine dosampling
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,rslabs, &
-                          grav,om22,cu,timee,nsv,zh
+                          grav,om22,cu,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
-                          wp,sv0,wp_store
+                          sv0,wp_store
     use modsubgriddata,only : ekh,ekm
-    use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum,myid
+    use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
     use modpois,   only : p
-    use modsurfdata,only: thvs
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
     implicit none
 
@@ -367,7 +366,6 @@ contains
     integer :: i,j,k,km,kp
     real :: cqt,cthl,den,ekhalf,c2,c1,t0h,qs0h,ekav
     real :: wthvsh,wthvrh,wthlsh,wthlrh,wqtrh,wqtsh,wqlrh,wqls
-    real :: beta
 
     allocate(thvav(k1))
     allocate( maskf(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -751,11 +749,10 @@ contains
 !> Write the statistics to file
   subroutine writesampling
 
-    use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,rslabs,grav
+    use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,rslabs
     use modfields, only : presf,presh
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
-    use modsurfdata, only: thvs
 
     implicit none
     real,dimension(k1,nvar) :: vars

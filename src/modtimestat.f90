@@ -81,7 +81,7 @@ contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
-    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,idtmax,ifoutput,dtav_glob,tres,&
+    use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
@@ -247,7 +247,7 @@ contains
         call ncinfo(ncname( 9,:),'lwp_max','Maximum Liquid-water path','kg/m^2','time')
         call ncinfo(ncname(10,:),'wmax','Maximum vertical velocity','m/s','time')
         call ncinfo(ncname(11,:),'vtke','Vertical integral of total TKE','kg/s','time')
-        call ncinfo(ncname(12,:),'lmax','Maximum liquid water mixing ratio','kg/kg','time')
+        call ncinfo(ncname(12,:),'lmax','Maximum liquid water specific humidity','kg/kg','time')
         call ncinfo(ncname(13,:),'ustar','Surface friction velocity','m/s','time')
         call ncinfo(ncname(14,:),'tstr','Turbulent temperature scale','K','time')
         call ncinfo(ncname(15,:),'qtstr','Turbulent humidity scale','K','time')
@@ -437,7 +437,9 @@ contains
     zbaseminl = zf(kmax)
 
     store_zi = .true.
+
     call calcblheight
+
     store_zi = .false.
 
   !     --------------------------------------------------------------
@@ -523,18 +525,21 @@ contains
         if (lhetero) then
           patchx = patchxnr(i)
         endif
-        ztop  = 0.0
-  
-        do  k=1,kmax
-          if (ql0(i,j,k) > 0) ztop = zf(k)
-          wmaxl = max(wm(i,j,k),wmaxl)
-          qlmaxl = max(ql0(i,j,k),qlmaxl)
-          if (lhetero) then
+         ztop  = 0.0
+   
+         do  k=1,kmax
+           if (ql0(i,j,k) > 0) ztop = zf(k)
+           wmaxl = max(wm(i,j,k),wmaxl)
+           qlmaxl = max(ql0(i,j,k),qlmaxl)
+         end do
+
+         if (lhetero) then
+         do  k=1,kmax
             if (ql0(i,j,k) > 0) ztop_field(i,j) = zf(k)
             wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),wm (i,j,k))
             qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
-          endif
-        end do
+         enddo
+         endif
   
         ztopavl = ztopavl + ztop
         if (ztop > ztopmaxl) ztopmaxl = ztop
@@ -775,7 +780,7 @@ contains
 
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,position='append')
-      write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
+      write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
           rtimee   ,&
           ust     ,&
           tst     ,&
@@ -876,7 +881,7 @@ contains
             write (name(12:14),'(i3.3)') i
             write (name(16:18),'(i3.3)') j
             open (ifoutput,file=name,position='append')
-            write( ifoutput,'(f10.2,3e11.3,2f11.3,4e11.3)') &
+            write( ifoutput,'(f10.2,4e11.3,f11.3,4e11.3)') &
               rtimee      ,&
               ust_patch(i,j)   ,&
               tst_patch(i,j)   ,&
@@ -930,11 +935,10 @@ contains
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
     use modsurfdata,only : svs, lhetero, xpatches, ypatches
     use modsurface, only : patchxnr,patchynr
-    use modmpi,     only : mpierr, comm3d,mpi_sum,my_real,myid,mpi_integer
+    use modmpi,     only : mpierr, comm3d,mpi_sum,my_real
     implicit none
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
-    integer :: patchx, patchy
     real, allocatable,dimension(:,:,:) :: blh_fld,  sv0h, blh_fld2
     real, allocatable, dimension(:) :: profile, gradient, dgrad
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))

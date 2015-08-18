@@ -60,8 +60,7 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
-    use modglobal, only : ih,i1,jh,j1,k1,dzf,rk3step
-    use modmpi,    only : myid
+    use modglobal, only : ih,i1,jh,j1,k1
     implicit none
 
 
@@ -125,8 +124,8 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
-    use modglobal, only : ih,jh,i1,j1,k1,rdt,rk3step,timee,kmax,rlv,cp
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,presf,exnf,rhof
+    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp
+    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     implicit none
@@ -340,7 +339,7 @@ module modbulkmicro
   !!   by chosing mu=1/3 one would get a gamma distribution in drop diameter
   !!   -> faster rain formation. (Seifert)
   subroutine autoconversion
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp
+    use modglobal, only : i1,j1,k1,kmax,rlv,cp
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
     implicit none
@@ -414,7 +413,7 @@ module modbulkmicro
   ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
   ! accordingly. Break-up : Seifert (2007)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,rlv,cp,dzf
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
     use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
     implicit none
@@ -507,8 +506,7 @@ module modbulkmicro
 !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
 !! flux is calc. anal.
   subroutine sedimentation_cloud
-    use modglobal, only : i1,j1,k1,kmax,eps1,rlv,cp,dzf,pi
-    use modmpi,    only : myid
+    use modglobal, only : i1,j1,k1,kmax,rlv,cp,dzf,pi
     use modfields, only : rhof,exnf,ql0
     implicit none
     integer :: i,j,k
@@ -560,9 +558,9 @@ module modbulkmicro
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
   subroutine sedimentation_rain
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf,pi
+    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf
     use modfields, only : rhof
-    use modmpi,    only : myid,mpi_max,mpi_integer,mpierr,comm3d
+    use modmpi,    only : myid
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
@@ -726,9 +724,8 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,es0,rd,rv,tmelt,rlv,cp,at,bt,pi,ep,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,thl0,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
-    use modmpi,    only : myid
+    use modglobal, only : ih,i1,jh,j1,k1,rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
     implicit none
     integer :: i,j,k
     real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)

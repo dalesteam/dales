@@ -46,7 +46,6 @@ save
   integer :: crossheight(100)
   integer :: nxy = 0
   integer :: cross
-  integer :: nrc
   character(4) :: cheight
   character(80) :: fname1 = 'crossxz.xxx.xxx.nc'
   character(80) :: fname2 = 'crossxy.xxxx.xxx.xxx.nc'
@@ -69,7 +68,7 @@ contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
 
@@ -135,10 +134,10 @@ contains
       call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
       call ncinfo(ncname1( 4,:),'thlxz','xz crosssection of the Liquid water potential temperature','K','t0tt')
       call ncinfo(ncname1( 5,:),'thvxz','xz crosssection of the Virtual potential temperature','K','t0tt')
-      call ncinfo(ncname1( 6,:),'qtxz','xz crosssection of the Total water mixing ratio','kg/kg','t0tt')
-      call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water mixing ratio','kg/kg','t0tt')
+      call ncinfo(ncname1( 6,:),'qtxz','xz crosssection of the Total water specific humidity','kg/kg','t0tt')
+      call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water specific humidity','kg/kg','t0tt')
       call ncinfo(ncname1( 8,:),'buoyxz','xz crosssection of the Buoyancy','K','t0tt')
-      call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water mixing ratio','kg/kg','t0tt')
+      call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
       call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
       call ncinfo(ncname1( 11,:),'cloudnrxz','xz crosssection of the cloud number','-','t0tt')
       call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
@@ -159,10 +158,10 @@ contains
       call ncinfo(ncname2( 3,:),'wxy','xy crosssections of the Vertical velocity','m/s','tt0t')
       call ncinfo(ncname2( 4,:),'thlxy','xy crosssections of the Liquid water potential temperature','K','tt0t')
       call ncinfo(ncname2( 5,:),'thvxy','xy crosssections of the Virtual potential temperature','K','tt0t')
-      call ncinfo(ncname2( 6,:),'qtxy','xy crosssections of the Total water mixing ratio','kg/kg','tt0t')
-      call ncinfo(ncname2( 7,:),'qlxy','xy crosssections of the Liquid water mixing ratio','kg/kg','tt0t')
+      call ncinfo(ncname2( 6,:),'qtxy','xy crosssections of the Total water specific humidity','kg/kg','tt0t')
+      call ncinfo(ncname2( 7,:),'qlxy','xy crosssections of the Liquid water specific humidity','kg/kg','tt0t')
       call ncinfo(ncname2( 8,:),'buoyxy','xy crosssection of the Buoyancy','K','tt0t')
-      call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water mixing ratio','kg/kg','tt0t')
+      call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
       call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
       call ncinfo(ncname2(11,:),'cloudnrxy','xy crosssection of the cloud number','-','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
@@ -180,10 +179,10 @@ contains
     call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
     call ncinfo(ncname3( 4,:),'thlyz','yz crosssection of the Liquid water potential temperature','K','0ttt')
     call ncinfo(ncname3( 5,:),'thvyz','yz crosssection of the Virtual potential temperature','K','0ttt')
-    call ncinfo(ncname3( 6,:),'qtyz','yz crosssection of the Total water mixing ratio','kg/kg','0ttt')
-    call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water mixing ratio','kg/kg','0ttt')
+    call ncinfo(ncname3( 6,:),'qtyz','yz crosssection of the Total water specific humidity','kg/kg','0ttt')
+    call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water specific humidity','kg/kg','0ttt')
     call ncinfo(ncname3( 8,:),'buoyyz','yz crosssection of the Buoyancy','K','0ttt')
-    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water mixing ratio','kg/kg','0ttt')
+    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
     call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
     call ncinfo(ncname3(11,:),'cloudnryz','yz crosssection of the cloud number','-','0ttt')
     call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
@@ -198,7 +197,7 @@ contains
   end subroutine initcrosssection
 !>Run crosssection. Mainly timekeeping
   subroutine crosssection
-    use modglobal, only : rk3step,timee,rtimee,dt_lim
+    use modglobal, only : rk3step,timee,dt_lim
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -221,7 +220,7 @@ contains
 
 !> Do the xz crosssections and dump them to file
   subroutine wrtvert
-  use modglobal, only : imax,i1,j1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+  use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
   use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
   use modmpi,    only : myid
   use modstat_nc, only : lnetcdf, writestat_nc
@@ -420,7 +419,7 @@ contains
   end subroutine wrthorz
 
   subroutine wrtorth
-    use modglobal, only : imax,jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+    use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc

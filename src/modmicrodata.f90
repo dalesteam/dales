@@ -50,8 +50,8 @@
   integer :: inr = 1, iqr=2
 
   real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
-                     ,qcmin = 1.0e-7     & !<  Cloud mixing ratio treshold for calculations
-                     ,qrmin = 1.0e-13    & !<  Rain  mixing ratio treshold for calculations
+                     ,qcmin = 1.0e-7     & !<  Cloud specific mixing ratio treshold for calculations
+                     ,qrmin = 1.0e-13    & !<  Rain  specific mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD
                      ,eps0 = 1e-20      & !< parameter used to avoid division by zero floating point exceptions
                      ,epscloud= 0.01e-3 &
@@ -119,7 +119,7 @@
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-  real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets mixing ratio [kg_w/kg_a]
+  real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets specific mixing ratio [kg_w/kg_a]
                                        ,Nc  & !<  cloud droplets number conc.  [#/m^3]
                                        ,nuc & !<  width parameter of cloud DSD
                                        ,rhoz  !< slab averaged density in 3 dimensions
@@ -132,8 +132,7 @@
   real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
     ,k_au                     !<  coeff. for autoconversion rate
   real,allocatable, dimension(:,:,:) ::  &
-    exnz               &      !<  3D exner function
-    ,presz             &      !<  3D pressure
+    presz              &      !<  3D pressure
     ,Dvc               &      !<  cloud water mean diameter
     ,xc                &      !<  mean mass of cloud water droplets
     ,Dvr               &      !<  prec water mean diameter
