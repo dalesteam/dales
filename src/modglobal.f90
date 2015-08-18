@@ -57,6 +57,12 @@ save
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
 
+      !< Parameter kinds, for rrtmg radiation scheme
+      integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
+      integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
+      integer,parameter  :: SHR_KIND_R4 = selected_real_kind( 6) ! 4 byte real
+      integer,parameter  :: SHR_KIND_IN = kind(1)   ! native integer
+
       !<  Global constants modconst.f90
       !< File numbers
 
@@ -205,7 +211,7 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-      character(80) :: author='', version='DALES 3.2'
+      character(80) :: author='', version='DALES 4.0'
 contains
 
 !> Initialize global settings.
