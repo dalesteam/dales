@@ -72,19 +72,19 @@ SAVE
   real :: cnstZenith=-1.      !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
   ! Options in NAMRADIATION that apply to the rrtmg script
-  integer           :: ioverlap = 2        ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
-  integer,parameter :: inflglw = 2         ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer,parameter :: iceflglw = 3        ! 0,1,2,3: ice influence calculations
-  integer,parameter :: liqflglw = 1        ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
-  integer,parameter :: inflgsw = 2         ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer,parameter :: iceflgsw = 3        ! 0,1,2,3: ice influence calculations
-  integer,parameter :: liqflgsw = 1        ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer :: ioverlap = 2                  ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
+  integer :: inflglw = 2                   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer :: iceflglw = 3                  ! 0,1,2,3: ice influence calculations
+  integer :: liqflglw = 1                  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer :: inflgsw = 2                   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer :: iceflgsw = 3                  ! 0,1,2,3: ice influence calculations
+  integer :: liqflgsw = 1                  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
   logical :: ocean  = .true.               ! if true, run is over ocean.
   logical :: usero3 = .true.               ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
   real    :: co2factor = 1.                ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
   logical :: doperpetual = .false.         ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
-  logical :: doseasons = .false.            ! if false, the same day will be repeated, otherwise, next day is taken
-  integer(SHR_KIND_IN) :: iyear = 1992                  ! The year of the simulation
+  logical :: doseasons = .false.           ! if false, the same day will be repeated, otherwise, next day is taken
+  integer(SHR_KIND_IN) :: iyear = 1992     ! The year of the simulation
 
   ! Logicals and variables that are used in the modradrrtmg module
   logical :: isInitializedRrtmg = .false.  ! used as a initialization check

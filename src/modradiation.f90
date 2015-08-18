@@ -37,12 +37,16 @@ contains
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
-
     
     integer :: ierr
     
     namelist/NAMDE/ &
       SSA,iDE,laero
+
+    namelist/NAMRADIATION/ &
+      lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
+      inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
+      ocean, usero3, co2factor, doperpetual, doseasons, iyear
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -53,12 +57,40 @@ contains
         stop 'ERROR: Problem in namoptions NAMDE'
       endif
       write(6 ,NAMDE)
+
+      rewind(ifnamopt)
+
+      read (ifnamopt,NAMRADIATION,iostat=ierr)
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMRADIATION'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMRADIATION'
+      end if
+      write(6 ,NAMRADIATION)
+
       close(ifnamopt)
     end if
+
     call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
     call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
 
+    call MPI_BCAST(lCnstZenith,1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(cnstZenith, 1,my_real,    0,comm3d,ierr)
+    call MPI_BCAST(lCnstAlbedo,1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(ioverlap,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(inflglw,    1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(iceflglw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(liqflglw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(inflgsw,    1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(iceflgsw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(liqflgsw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(ocean,      1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(usero3,     1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(co2factor,  1,my_real,    0,comm3d,ierr)
+    call MPI_BCAST(doperpetual,1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(doseasons,  1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
