@@ -38,7 +38,7 @@ SAVE
   real, dimension(:,:), allocatable :: tnudge,unudge,vnudge,wnudge,thlnudge,qtnudge
   real, dimension(:)  , allocatable :: timenudge
   real :: tnudgefac = 1.
-  logical :: lnudge,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
+  logical :: lnudge = .false.,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
   integer :: ntnudge = 100
 
 contains
