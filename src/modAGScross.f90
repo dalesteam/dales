@@ -181,7 +181,7 @@ contains
       vars(:,:, 4) = rs        (2:i1,2:j1)
       vars(:,:, 5) = ra        (2:i1,2:j1)
       vars(:,:, 6) = rsco2Field(2:i1,2:j1)
-      vars(:,:, 7) = rsveg     (2:i1,2:j1)    
+      vars(:,:, 7) = rsveg     (2:i1,2:j1)
       vars(:,:, 8) = rssoil    (2:i1,2:j1)
       vars(:,:, 9) = fstrField (2:i1,2:j1)
       vars(:,:,10) = phiw      (2:i1,2:j1,1)
