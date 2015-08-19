@@ -49,7 +49,7 @@ save
   real :: alpha_kolm  = 1.5     !< factor in Kolmogorov expression for spectral energy
   real :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
 ! Arnold Moene added 14-1-2015
-  logical :: sgs_surface_fix = .true.  !< which fix to apply to coupling of SGSTKE to surface
+  logical :: sgs_surface_fix = .false.  !< which fix to apply to coupling of SGSTKE to surface
 
 
   real, allocatable :: ekm(:,:,:)   !< k-coefficient for momentum
