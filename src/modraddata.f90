@@ -79,8 +79,8 @@ SAVE
   integer :: inflgsw = 2                   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
   integer :: iceflgsw = 3                  ! 0,1,2,3: ice influence calculations
   integer :: liqflgsw = 1                  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
-  logical :: ocean  = .true.               ! if true, run is over ocean.
-  logical :: usero3 = .true.               ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
+  logical :: ocean  = .false.              ! if true, run is over ocean.
+  logical :: usero3 = .false.              ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
   real    :: co2factor = 1.                ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
   logical :: doperpetual = .false.         ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
   logical :: doseasons = .false.           ! if false, the same day will be repeated, otherwise, next day is taken
