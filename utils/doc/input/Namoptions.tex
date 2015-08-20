@@ -17,6 +17,7 @@
 \usepackage{placeins}		% Package zorgt voor floatbarier voor elke section + zelf gedefinieerd
 \usepackage{mdwlist}		% Kan dingen met lijsten. Geeft ook de optie itemize* (geen witregels tussen items)
 \usepackage{multirow}		% Combine multiple rows within a tabular
+%\usepackage{array}
 
 
 \topmargin= -5 mm
@@ -83,8 +84,7 @@
 
 \pagenumbering{arabic}
 \setcounter{page}{1}
-This document gives an overview of all namelist options in version 4 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. \\
-Much information in this document originates from \citet{Heus2009}. All information from that document is checked and corrected where necessary. The options are also updated to match the current version. 
+This document gives an overview of all namelist options in version 4.1 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. 
 
 \chapter{Namoptions overview}\label{chapter:namoptions}
 
@@ -114,8 +114,8 @@ All options that can be set for the LES experiments will be discussed in the fol
         &&&&\\\hline
   }
 \begin{supertabular}{|l|p{1.6cm}|p{5cm}|p{6.3cm}|l|}
-  imax		& 64		& $x \in \mathbb{N}^*$	& Number of horizontal grid points in x-direction	& -\\
-  jtot		& 64		& $x = n \cdot N_{\text{processors}}, \quad n \in \mathbb{N}^*$	& Number of horizontal grid points in y-direction	& -\\
+  itot		& 64		& $x = n \cdot \hyperlink{nprocx}{\text{nprocx}}, \quad n \in \mathbb{N}^*$	& Number of horizontal grid points in x-direction	& -\\
+  jtot		& 64		& $x = n \cdot \hyperlink{nprocy}{\text{nprocy}}, \quad n \in \mathbb{N}^*$	& Number of horizontal grid points in y-direction	& -\\
   kmax		& 96		& $x \in \mathbb{N}^*$		& Number of vertical grid points		& -\\
   xsize		& -1		& $x \in \mathbb{N}^*$		& Horizontal size of the simulated domain	& m\\
   ysize		& -1		& $x \in \mathbb{N}^*$		& Horizontal size of the simulated domain	& m\\
@@ -123,7 +123,7 @@ All options that can be set for the LES experiments will be discussed in the fol
   xlon		& 0		& $x \in \mathbb{R}, \quad 0 \leq x \leq 360$			& Longitude					& $\,^{\circ}$\\
   xday		& 1		& $x \in \mathbb{R}, \quad 1 \leq x \leq 365$	& Number of the day				& -\\
   xtime		& 0		& $x \in \mathbb{R}, \quad 0 \leq x < 24$	& UTC time of the day				& h\\
-  ksp		& \scriptsize min($\frac{3}{4}$kmax, kmax - 15)	& $x \in \mathbb{N}, \quad 0 \leq x \leq (\text{kmax} - 15)$	& Lower height of sponge layer			& -\\
+  ksp		& \scriptsize min($\frac{3}{4}$kmax, kmax - 15)	& $x \in \mathbb{N}^*$	& Lower height of sponge layer			& -\\
 \end{supertabular}
 \end{center}
 
@@ -154,8 +154,9 @@ All options that can be set for the LES experiments will be discussed in the fol
   llsadv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for large scale forcings			& -\\
 	 &&&&\\
   lqlnr		& .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for Newton-Raphson approximation of the liquid water content	& -\\
+  lnoclouds	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to disable $\theta_l$ calculations	& -\\
   \qquad	&		&				&							&\\
-  \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}iadv\_mom\\iadv\_tke\\iadv\_thl\\iadv\_qt\\iadv\_sv(1:nsv) \end{tabular}$\left. \begin{tabular}{l} \\ \\ \\ \\ \\ \end{tabular} \right\}$} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}5\\-1\\-1\\-1\\-1
+  \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}\hypertarget{iadvmom}{iadv\_mom}\\\hypertarget{iadvtke}{iadv\_tke}\\\hypertarget{iadvthl}{iadv\_thl}\\\hypertarget{iadvqt}{iadv\_qt}\\\hypertarget{iadvsv}{iadv\_sv(1:nsv)} \end{tabular}$\left. \begin{tabular}{l} \\ \\ \\ \\ \\ \end{tabular} \right\}$} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}5\\-1\\-1\\-1\\-1
 \end{tabular}} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}p{4cm}}$x \in \{1,$ $2,$ $5,$ $52,$ $55,$ $6,$ $62,$ $7\}$\end{tabular}}	& Advection scheme for momentum, TKE, $\theta_l$, $q_t$ and scalars: & \multirow{10}{*}{-}\\
   	&		&				& 1 = 1$^{\text{st}}$ order upwind					&\\
   	&		&				& 2 = 2$^{\text{nd}}$ order central difference			&\\
@@ -175,7 +176,7 @@ ibas\_prf & 3 & $x \in \{1,2,3,4,5\}$ &
 5 = User defined (using the file baseprof.inp.\#\#\#) \\\end{tabular}
  & - \\
  	 &&&&\\
-lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This controls if WENO for the hybrid advection scheme & ? \\
+lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This controls if WENO for the hybrid advection scheme & - \\
 \end{supertabular}
 \end{center}
 
@@ -215,22 +216,33 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   ltimedep	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes and large scale forcings	& -\\
   lcoriol	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for coriolis force			& -\\
     &&&&\\
-  igrw\_damp & 2         & $x \in \{0,1,2,3\}$	&	\begin{tabular}{@{\hspace{0cm}}p{6cm}}Flag for gravity wave damping\\0 = no damping \\1 = fast damping of wind to average wind \& slow damping of average to geowind \\2 = fast damping of wind to geowind  \\3 = fast damping of wind to average wind \\\end{tabular} & -\\
+  \hypertarget{igrw}{igrw\_damp} & 2         & $x \in \{-1,0,1,2,3\}$	&	\begin{tabular}{@{\hspace{0cm}}p{6cm}}Flag for gravity wave damping\\0 = no damping \\1 = fast damping of wind to average wind \& slow damping of average to geowind \\2 = fast damping of wind to geowind  \\3 = fast damping of wind to average wind \\ -1 = nudging grid averaged wind to wind field provided by lscale.inp\\\end{tabular} & -\\
     &&&&\\
   geodamptime & 7200	& $x \in \mathbb{R}, \quad x>0$	& Time scale for nudging to geowind in sponge layer & s\\
   lmomsubs	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply subsidence on momentum & -\\
   lmoist	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for calculation of moisture fields	& -\\
 %  lneutraldrag	& 	& 	& Obsolete 		& \\
-  chi\_half		& 	& 	& Obsolete		& \\
+  chi\_half		& 0.5	& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Wet, dry or intermediate (default) mixing over the cloud edge	& - \\
   timerad	& 0		& $x \in \mathbb{R}, \quad x>0$	& Value for sampling interval of radiation scheme	& s\\  
   \qquad	&		&				&						& \\
-  \multirow{7}{*}[-14pt]{iradiation} & \multirow{7}{*}[-14pt]{0} & \multirow{7}{*}[-14pt]{$x \in \{0, 1, 2, 3, 10\}$}	& Flag for radiation calculations & \multirow{7}{*}[-14pt]{-}\\
-  & & & 0 = No radiation &\\
-  & & & 1 = Full radiation (not implemented yet)		&\\
-  & & & 2 = Parametrized radiation				&\\
-  & & & 3 = Simple surface radiation for land surface model&\\
-  & & & 10 = User defined radiation (use \texttt{rad\_user.f90})&\\
-  & & & &\\
+%  \multirow{8}{*}[-14pt]{iradiation} & \multirow{8}{*}[-14pt]{0} & \multirow{8}{*}[-14pt]{$x \in \{0, 1, 2, 3, 4, 10\}$}	& Flag for radiation calculations & \multirow{8}{*}[-14pt]{-}\\
+%  & & & 0 = No radiation &\\
+%  & & & 1 = Full radiation		&\\
+%  & & & 2 = Parametrized radiation				&\\
+%  & & & 3 = Simple surface radiation for land surface model&\\
+%  & & & 4 = Simple surface radiation for land surface model&\\
+%  & & & 10 = User defined radiation (use \texttt{rad\_user.f90})&\\
+%  & & & &\\
+  \hypertarget{iradiation}{iradiation}	& 0	& $x \in \{0, 1, 2, 3, 4, 10\}$	&  
+  \begin{tabular}{@{\hspace{0cm}}p{6cm}}
+  Flag for radiation calculations \\
+  0 = No radiation \\
+  1 = Full radiation		\\
+  2 = Parametrized radiation				\\
+  3 = Simple surface radiation for land surface model\\
+  4 = Radiation using the rapid radiative transfer model\\
+  10 = User defined radiation (use \texttt{rad\_user.f90})\\
+  \end{tabular} & - \\
   useMcICA	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for the Monte Carlo Independent Column Approach & -\\
   rad\_ls	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for prescribed radiative forcing		& -\\
   rad\_longw	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for parametrized longwave radiative forcing	& -\\
@@ -250,11 +262,14 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   dlwbot	& 0		& $x \in \mathbb{R}, \quad x \ge 0$		& Longwave radiative flux jump at cloud bottom	& W m$^{-2}$\\
   dlwtop	& 74		& $x \in \mathbb{R}, \quad x \ge 0$	& Longwave radiative flux jump at cloud top	& W m$^{-2}$\\
   sw0		& 1100		& $x \in \mathbb{R}, \quad x \ge 0$	& Direct solar radiative component cloud top (assumes zero diffusive contribution)	& W m$^{-2}$\\
-  gc		& 0.85		& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Asymmetry factor of droplet scattering angle distribution & -\\
+  gc		& 0.85		& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Asymmetry factor of droplet scattering angle distribution; overwritten to 0.64 if \hyperlink{laero}{laero} = .true. & -\\
 %  sfc\_albedo	& 	& 	& Obsolete & \\
   reff		& 1e-5		& $x \in \mathbb{R}, \quad x>0$	& Cloud drop effective radius					& m\\
-  isvsmoke	& 1		& $x \in \mathbb{N}, \quad 0 \leq x \leq \text{nsv}$	& Number of passive scalar fields to be used for optical depth calculation (not used when $rad\_smoke = .false.$)	& -\\
+  isvsmoke	& 1		& $x \in \mathbb{N}^*, x \leq \text{nsv}$	& Scalar field to be used for optical depth calculation (when rad\_smoke = .true.)	& -\\
   lforce\_user	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch for user-defined forcing. Can only be used for certain cases (using the file moduser.f90) & -\\
+  lcloudshading	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch to let clouds shade the surface for rad\_lsm & -\\
+  lrigidlid	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch to enable simulations with a rigid lid & -\\
+  unudge	& 1		& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Nudging factor if \hyperlink{igrw}{igrw\_damp} is -1 & -\\
 \end{supertabular}
 \end{center}
 
@@ -280,8 +295,8 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
         &&&&\\\hline
   }
 \begin{supertabular}{|l|p{1.6cm}|p{4.4cm}|p{6cm}|l|}
-  iexpnr	& 000		& $x \in \mathbb{R}, \quad x \geq 0$		& Experiment number; every output filename ends with [.iexpnr]	& -\\
-  dtmax		& 20		& $x \in \mathbb{R}, \quad x>0$		& Maximum timestep that is used by the model	& s\\
+  iexpnr	& 0		& $x \in \mathbb{N}, \quad 0 \leq  x < 1000$		& Experiment number; every output filename ends with [.iexpnr]	& -\\
+  \hypertarget{dtmax}{dtmax}	& 20		& $x \in \mathbb{R}, \quad x>0$		& Maximum timestep that is used by the model	& s\\
   runtime	& 300		& $x \in \mathbb{R}, \quad x>0$		& Total simulation (or: run) time		& s\\
   lwarmstart& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Flag for a ``cold'' or a  ``warm'' start	& -\\
   startfile	& -		& $x = \text{initd\#\#h\#\#mxxx.\#\#\#}$	& Basis for the name of the restartfiles	& -\\
@@ -290,18 +305,24 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   timeav\_glob	& 3600		& $x = n \cdot \text{dtav\_glob}, \quad n \in \mathbb{N}^*$	& Global value for writing interval of statistical routines	& s\\
   irandom	& 0		& $x \in \mathbb{Z}$			& Number to feed randomnizer with		& -\\
   krand		& kmax		& $x \in \mathbb{N}, \quad 1 \leq x \leq \text{kmax}$		& Top vertical full level of randomnization 	& -\\
-  randqt	& 1e-5		& $x \in \mathbb{R}, \quad x>0$		& Amplitude of randomnization of qt		& kg kg$^{-1}$\\
-  randthl	& 0.1		& $x \in \mathbb{R}, \quad x>0$		& Amplitude of randomnization of thl		& K\\
+  randqt	& 1e-5		& $x \in \mathbb{R}, \quad x\geq 0$		& Amplitude of randomnization of qt		& kg kg$^{-1}$\\
+  randthl	& 0.1		& $x \in \mathbb{R}, \quad x \geq 0$		& Amplitude of randomnization of thl		& K\\
   nsv		& 0		& $x \in \mathbb{N}, \quad 0 \leq x \leq 100$	& Number of additional passive scalars		& -\\
   ladaptive	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& If .true., this allows the model to vary time step, depending on numerical stability criteria				& -\\
-  courant	& 1.4	& $x \in \mathbb{R}, \quad x>0$		& Courant number				& -\\
+  courant	& 0.7 or 1$^*$	& $x \in \mathbb{R}, \quad x>0$		& Courant number				& -\\
   peclet	& 0.15 & $x \in \mathbb{R}, \quad x>0$		& Peclet number					& -\\	
-  author	& $""$	& $x = "...."$	& Name of the author & -\\
+  author	& $``''$	& $x = ``....''$	& Name of the author & -\\
+  krandumin	& 1		& $x \in \mathbb{N}^*, x \leq \text{kmax}$	& Bottom vertical full level of wind randomnization 	& -\\
+  krandumax	& 0		& $x \in \mathbb{N},  x \leq \text{kmax}$	& Top vertical full level of wind randomnization 	& -\\
+  randu		& 0.5		& $x \in \mathbb{R}, \quad x \geq 0$		& Amplitude of randomnization of wind speed 	& m s$^{-1}$\\
+  \hypertarget{nprocx}{nprocx}	& 1	& $x = N_{\text{processors}} / n, \quad n,x \in \mathbb{N}^*$	& Number of processors in $x$ direction; if set to 0, MPI will determine suitable value	& - \\
+  \hypertarget{nprocy}{nprocy}	& 0	& $x = N_{\text{processors}} / \text{nprocx}$	& Number of processors in $y$ direction; if set to 0, MPI will determine suitable value	& - \\
 \end{supertabular}
+$^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any value of\hyperlink{iadvtke}{\text{iadv\_tke}}, \hyperlink{iadvthl}{\text{iadv\_thl}}, \hyperlink{iadvqt}{\text{iadv\_qt}} or \hyperlink{iadvsv}{\text{iadv\_sv}} $\in \lbrace6, 62, 7\rbrace$, courant = 0.7 as standard. Otherwise default value is 1.
 \end{center}
 
-\newpage
-\subsection{Namelist SUBGRID}\label{par:subgrid}
+%\newpage
+\subsection{Namelist NAMSUBGRID}\label{par:subgrid}
 
 \begin{center}
 	  \tablefirsthead{
@@ -332,11 +353,39 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   lsmagorinsky & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for smagorinsky subgrid scheme & -\\
   cs	& -1	& $x \in \mathbb{R}, \quad x>0$ & Smagorinsky constant	& -\\
   nmason	& 2	& $x \in \mathbb{R}, \quad x>0$ & Exponent in Mason correction function & -\\
+  sgs\_surface\_fix & .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
 \end{supertabular}
 \end{center}
 
 \newpage
 \section{Extra modules}\label{par:extramod}
+
+\subsection{Namelist NAMAGScross}\label{par:agscross}
+
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  lAGScross	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to enable A-g$\rm_s$ specific output; requires \hyperlink{lrsags}{lrsags} = .true.	& -\\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+\end{supertabular}
+\end{center}
 
 \subsection{Namelist NAMBUDGET}\label{par:budget}
 
@@ -394,6 +443,49 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
+\subsection{Namelist NAMCANOPY}\label{par:canopy}
+
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{1.5cm}|p{3.5cm}|p{6cm}|l|}
+%  lbudget	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for turbulent TKE budget calculation	& -\\
+%  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+%  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+  lcanopy	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to represent canopy drag	& -\\
+  ncanopy	& 10		& $x \in \mathbb{N}^*, x \leq \text{kmax}$		& Amount of layers that contain canopy	& -\\
+  cd		& 0.15		& $x \in \mathbb{R}, \quad x > 0$				& Drag coefficient	& -\\
+  lai		& 2			& $x \in \mathbb{R}, \quad x\geq 0$				& One-sided plant area index of the canopy	& -\\
+  lpaddistr	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to make use of customized plant area density (prescribed at half levels in paddistr.inp)	& -\\
+  npaddistr & 11		& $x \in \mathbb{N}, \quad x \geq 2$			& Amount of half levels prescribed in paddistr.inp	& -\\
+  wth\_can	& 0			& $x \in \mathbb{R}$							& Prescribed SH canopy flux (at top) & K m s$^{-1}$ \\
+  wqt\_can	& 0			& $x \in \mathbb{R}$							& Prescribed LE canopy flux (at top) & kg kg$^{-1}$ m s$^{-1}$ \\
+  wsv\_can(1:100)	& 0			& $x \in \mathbb{R}$					& Prescribed scalar flux (at top) & ppb m s$^{-1}$ \\
+  wth\_total & .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& If true, wth\_can is including the surface flux	& -\\
+  wqt\_total & .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& If true, wqt\_can is including the surface flux	& -\\
+  wsv\_total(1:100) & .false.	& $x\in\{\text{.false.},\text{.true.}\}$& If true, wth\_sv is including the surface flux	& -\\
+  wth\_alph	& 0			& $x \in \mathbb{R}$							& Decay constant for SH with integrated PAD & - \\
+  wqt\_alph	& 0			& $x \in \mathbb{R}$							& Decay constant for LE with integrated PAD & - \\
+  wsv\_alph(1:100)	& 0			& $x \in \mathbb{R}$					& Decay constant for scalar fluxes with integrated PAD & - \\
+\end{supertabular}
+\end{center}
+
 \subsection{Namelist NAMCAPE}\label{par:cape}
 
 \begin{center}
@@ -421,6 +513,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMCHECKSIM}\label{par:checksim}
 
 \begin{center}
@@ -445,11 +538,11 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
         \hline
   }
 \begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
-  tcheck	& 0	& $x \in \mathbb{R}, \quad x>0$	& Time interval between checks of velocity divergence and Courant numbers	& s\\
+  tcheck	& 0	& $x \in \mathbb{R}, \quad x\geq 0$	& Time interval between checks of velocity divergence and Courant numbers	& s\\
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMCHEM}\label{par:chem}
 
 \begin{center}
@@ -489,6 +582,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMCLOUDFIELD}\label{par:cloudfield}
 
 \begin{center}
@@ -517,7 +611,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMCROSSSECTION}\label{par:crosssection}
 
 \begin{center}
@@ -545,10 +639,42 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
   crossheight(1:100)& 1: $x=2$ & $x \in \mathbb{N}, \quad 1 \leq x \leq \text{kmax}$	& Heights of the horizontal crosssection		& -\\
   crossplane	& 2		& $x \in \mathbb{N}, \quad 1 \leq x \leq {\text{jtot}}/{N_\text{processors}}$	& Location of the vertical (xz) plane on every processor& -\\
-  crossortho	& 2	& $x \in \mathbb{N}, \quad 1 \leq x \leq \text{imax}$	& Location of the vertical (yz) plane & - \\
+  crossortho	& 2	& $x \in \mathbb{N}, \quad 1 \leq x \leq \text{itot}$	& Location of the vertical (yz) plane & - \\
 \end{supertabular}
 \end{center}
 
+\subsection{Namelist NAMDE}\label{par:deltaeddington}
+
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+%  lbudget	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for turbulent TKE budget calculation	& -\\
+%  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+%  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+  SSA		& 0.999	& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Representative single scattering albedo & - \\
+  \hypertarget{laero}{laero}	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to use aerosols instead of clouds for Delta-Eddington calculations	& -\\
+  iDE		& 1		& $x \in \mathbb{N}^*, x \leq \text{nsv}$	& Scalar field used as aerosols if laero set to .true. & - \\
+\end{supertabular}
+\end{center}
+
+\newpage
 \subsection{Namelist NAMFIELDDUMP}\label{par:fielddump}
 
 \begin{center}
@@ -607,7 +733,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMHETEROSTATS}\label{par:namheterostats}
 \begin{center}
 	  \tablefirsthead{
@@ -635,7 +761,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
-
+\newpage
 \subsection{Namelist NAMLSMCROSSSECTION}\label{par:lsmcrosssection}
 \begin{center}
 	  \tablefirsthead{
@@ -658,11 +784,9 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   }
 \begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
   lcross	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to activate dumping of projections in the land surface layer & -\\
-  lbinary	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to dump crosssections in binary files	& -\\  
   dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
   crossheight	& 2	& $x \in \mathbb{N}^*, \quad x \le 4$	& Height of the xy-projection & -\\
-  crossplane	& 2	& $x \in \mathbb{N}^*, \quad x \le \frac{\text{jtot}}{N_{\text{processors}}}$	& Position of the xz-plane on every processor & -\\
-  crossortho & 2	& $x \in \mathbb{N}, \quad 1 \leq x \leq \text{imax}$	& Location of the vertical (yz) plane & - \\
+  crossplane	& 2	& $x \in \mathbb{N}^*, \quad x \le \frac{\text{jtot}}{\hyperlink{nprocy}{\text{nprocy}}}$	& Position of the xz-plane on every processor & -\\
 \end{supertabular}
 \end{center}
 
@@ -686,14 +810,14 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   \tablelasttail{
         &&&&\\\hline
   }
-\begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
   lstat		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for calculating land surface statistics	& -\\
   dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
   timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMMICROPHYSICS}\label{par:microphysics}
 
 \begin{center}
@@ -716,11 +840,12 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
         &&&&\\\hline
   }
 \begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
-\multirow{7}{*}[-14pt]{imicro}	& \multirow{7}{*}[-14pt]{0}	& \multirow{7}{*}[-14pt]{$x \in \{0,1,2,3,10\}$}	& Flag for the microphysical scheme:			& \multirow{7}{*}[-14pt]{-}\\
+\multirow{8}{*}[-14pt]{imicro}	& \multirow{8}{*}[-14pt]{0}	& \multirow{8}{*}[-14pt]{$x \in \{0,1,2,3,5,10\}$}	& Flag for the microphysical scheme:			& \multirow{8}{*}[-14pt]{-}\\
   & & & 0 = No microphysics (all-or-nothing scheme)&\\
   & & & 1 = Drizzle microphysics&\\
   & & & 2 = Bulk microphysics&\\
   & & & 3 = Bin microphysics (inactive)&\\
+  & & & 5 = Simple ice microphysics&\\
   & & & 10 = User defined microphysics. Can only be used for certain cases (using the file moduser.f90)&\\
   &&&&\\
   l\_sb		& .true.		& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for KK00 \citep{Khairoutdinov2000} or SB \citep{Seifert2001,Seifert2006} scheme resp.			& -\\
@@ -737,7 +862,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMNETCDFSTATS}\label{par:netcdf}
 \begin{center}
 	  \tablefirsthead{
@@ -787,12 +912,12 @@ lnetcdf	& .true. & $x\in\{\text{.false.},\text{.true.}\}$	& Switch to write NetC
         &&&&\\\hline
   }
 \begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6.5cm}|l|}
-lnudge	& -		& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to activate/deactivate nudging	& -\\
+lnudge	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to activate/deactivate nudging	& -\\
 tnudgefac & 1	& $x \in \mathbb{R}, \quad x>0$	&	Nudgefactor & -\\
 \end{supertabular}
 \end{center}
 
-%\newpage $\,$\\
+\newpage 
 \subsection{Namelist NAMPARTICLES}\label{par:particles}
 \begin{center}
 	  \tablefirsthead{
@@ -830,7 +955,7 @@ tnudgefac & 1	& $x \in \mathbb{R}, \quad x>0$	&	Nudgefactor & -\\
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMprojection}\label{par:projection}
 Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modprojection is not advised.
 \begin{center}
@@ -860,7 +985,117 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
 \end{supertabular}
 \end{center}
 
+\subsection{Namelist NAMquadrant}\label{par:quadrant}
+
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+%  lbudget	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for turbulent TKE budget calculation	& -\\
+%  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+%  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+  lquadrant	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$					& Switch to enable quadrant-hole analysis	& - \\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+  timeav	& dtav		& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$		& Time interval for writing statistics		& s\\
+  hole		& 0			& $x \in \mathbb{R},\quad x \geq 0$							& Hole size of Q-H analysis	& - \\
+  &&&&\\
+ \multirow{4}{*}[-14pt]{iwind}	& \multirow{4}{*}[-14pt]{1}	& \multirow{4}{*}[-14pt]{$x \in \lbrace 1, 2, 3 \rbrace$}	& Flag for which wind speed determines quadrant:	& \multirow{4}{*}[-14pt]{-} \\
+ & & & 1: $u$ &\\
+ & & & 2: $v$ &\\
+ & & & 3: $\sqrt{u^2+v^2}$ &\\ 
+ &&&& \\
+  klow		& 2			& $x \in \mathbb{N}, \quad 2 \le x \le \text{khigh}$			& Lowest (half) level evaluated in Q-H analysis	& - \\
+  khigh		& kmax		& $x \in \mathbb{N}, \quad x \le \text{kmax}$	& Highest (half) level evaluated in Q-H analysis	& - \\
+\end{supertabular}
+\end{center}
+
+
 %\newpage
+\subsection{Namelist NAMRADIATION}\label{par:radiation}
+This namelist is only used if the Rapid Radiative Transfer Model for GCMs (RRTMG) is applied, i.e.  \hyperlink{iradiation}{iradiation} = 4.
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+%  lbudget	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for turbulent TKE budget calculation	& -\\
+%  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+%  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+   lCnstZenith	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fixed solar zenith angle	& -\\
+   cnstZenith	&	0	& $x \in \mathbb{R}, \quad \vert x\vert \leq 90 $	& Solar zenith angle if lCnstZenith = .true.	& $^{\circ}$\\
+   lCnstAlbedo	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply the constant \hyperlink{albedo}{albedoav} as albedo instead of the parameterization in RRTMG	& -\\
+  &&&&\\
+  ioverlap	& 2	& $x \in \lbrace 0, 1, 2, 3 \rbrace$	& \parbox{6cm}{Flag for cloud overlap method: \\ 
+0: Clear only\\
+1: Random \\
+2: Maximum/random \\
+3: Maximum
+  }& - \\
+  &&&&\\
+  inflglw	& 2	& $x \in \lbrace 0, 1, 2 \rbrace$	& \parbox{6cm}{Flag for RRTMG input: \\ 
+0: Cloud fraction \& optical depth\\
+1: Cloud fraction \& liquid water path \\
+2: Cloud fraction \& liquid water path \& ice fraction }& - \\
+  &&&&\\
+  iceflglw	& 3	& $x \in \lbrace 0, 1, 2, 3 \rbrace$	& \parbox{6cm}{Flag for ice particle specification: \\ 
+Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
+  &&&&\\
+  liqflglw	& 1	& $x \in \lbrace 0, 1 \rbrace$	& \parbox{6cm}{Flag for effect of liquid water: \\ 
+0: optical depth computed as in CCM3\\
+1: optical depth due to water clouds computed using water droplet effective radius input}& - \\
+  &&&&\\
+  inflgsw	& 2	& $x \in \lbrace 0, 1, 2 \rbrace$	& \parbox{6cm}{Flag for RRTMG input: \\ 
+0: Cloud fraction \& optical depth\\
+1: Cloud fraction \& liquid water path \\
+2: Cloud fraction \& liquid water path \& ice fraction }& - \\
+  &&&&\\
+  iceflgsw	& 3	& $x \in \lbrace 1, 2, 3 \rbrace$	& \parbox{6cm}{Flag for ice particle specification: \\ 
+Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
+  &&&&\\
+  liqflgsw	& 1	& $x \in \lbrace 0, 1 \rbrace$	& \parbox{6cm}{Flag for effect of liquid water: \\ 
+0: optical depth computed as in CCM3\\
+1: optical depth due to water clouds computed using water droplet effective radius input}& - \\
+ &&&&\\
+ ocean		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to calculate radiation over ocean	& -\\
+ usero3		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to take O$_3$ profile from backrad.inp instead of standard profile	& -\\
+ co2factor	& 1			& $x \in \mathbb{R},\quad x \geq 0$			& Multiplication factor for reading CO$_2$ input by RRTMG	& - \\
+ doperpetual	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to not use a diurnal cycle	& -\\
+ doseasons	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to account for changes in Earth's position from day to day	& -\\
+ iyear	& 1992			& $x\in\mathbb{Z}$	& Year of the simulation & -\\
+\end{supertabular}
+\end{center}
+
 \subsection{Namelist NAMRADSTAT}\label{par:radstat}
 \begin{center}
 	  \tablefirsthead{
@@ -976,6 +1211,7 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMSTRESS}\label{par:stress}
 \begin{center}
 	  \tablefirsthead{
@@ -1003,7 +1239,7 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMSURFACE}\label{par:surface}
 \begin{center}
 	  \tablefirsthead{
@@ -1043,8 +1279,8 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
   phiwav	& -	& $x \in \mathbb{R}[4], \quad 0 \leq x[i] \leq 0.472$	& Soil moisture (if isurf = 1 and preferably below 0.323)	& m$^{3}$ m$^{-3}$\\
   rootfav	& -	& $x \in \mathbb{R}[4], \quad 0 \leq x[i] \leq 1, \quad \sum_i x[i] =1$	& Root fraction	(if isurf = 1) & -	\\
   Cskinav	& -1	& $x \in \mathbb{R}, \quad x \ge 0$	& Heat capacity skin layer (if isurf = 1)	& J K$^{-1}$ m$^{-2}$\\
-  lambdaskinav	& -	& $x \in \mathbb{R}, \quad x \ge 0$	& Heat conductivity skin layer (if isurf = 1)	& J s$^{-1}$ K$^{-1}$ m$^{-2}$\\
-  albedoav	& -1	& $x \in \mathbb{R}, \quad 0 \le x \le 1$ & Albedo (if isurf = 1)	& -\\
+  lambdaskinav	&-1	& $x \in \mathbb{R}, \quad x \ge 0$	& Heat conductivity skin layer (if isurf = 1)	& J s$^{-1}$ K$^{-1}$ m$^{-2}$\\
+  \hypertarget{albedo}{albedoav}	& -1	& $x \in \mathbb{R}, \quad 0 \le x \le 1$ & Albedo (if isurf = 1)	& -\\
   Qnetav	& -1	& $x \in \mathbb{R}$	& Net radiation (if iradiation $\ne$ 1 and isurf = 1)	& J s$^{-1}$ m$^{-2}$\\
   cvegav	& -1	& $x \in \mathbb{R}, \quad x \ge 0$	& Vegetation cover & -\\
   Wlav		& -1	& $x \in \mathbb{R}, \quad x \ge 0$	& Initial water cover on vegetation	& m\\
@@ -1058,7 +1294,20 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
   ypatches & 1 & $x \in \mathbb{N}, \quad 1 \leq x \leq 16$ & Amount of patches in the y-direction & - \\
   land\_use(1:16,1:16) & 0 & $x \in \mathbb{N}, \quad 1 \leq x \leq 10$ & Indicator for the land type & - \\
   loldtable & .false. & $x\in\{\text{.false.},\text{.true.}\}$  & Switch to use surface.inp.xxx instead of updated surface.$<$name$>$.inp.xxx & - \\ 
+  \hypertarget{lrsags}{lrsags}	& .false. & $x\in\{\text{.false.},\text{.true.}\}$  & Switch to use A-g$_{\rm s}$ for resistance calculations (if isurf = 1) & - \\ 
+  lCO2Ags	& .false. & $x\in\{\text{.false.},\text{.true.}\}$  & Switch to calculate CO$_2$ fluxes with A-g$_{\rm s}$  (if lrsAgs = .true.) & - \\ 
+  planttype & 3	& $x \in \{3, 4\}$	& Switch between (C)3 and (C)4 plants for A-g$_{\rm s}$ & - \\
+  lrelaxgc	& .false. & $x\in\{\text{.false.},\text{.true.}\}$  & Switch to nudge towards calculated conductivity instead of instantaneous adaptation & - \\ 
+  kgc		& 0.00113 & $x \in \mathbb{R}, \quad 0 < x \le \hyperlink{dtmax}{\text{dtmax}}^{-1}$	& Response rate for stomatal conductivity	& s$^{-1}$\\
+  lrelaxci	& .false. & $x\in\{\text{.false.},\text{.true.}\}$  & Switch to nudge towards calculated internal CO$_2$ concentration instead of instantaneous adaptation & - \\ 
+  kci		& 0.00113 & $x \in \mathbb{R}, \quad 0 < x \le \hyperlink{dtmax}{\text{dtmax}}^{-1}$	& Response rate for internal CO$_2$ concentration	& s$^{-1}$\\
+  phi		& 0.472	& $x \in \mathbb{R}, \quad x > 0$	& volumetric soil porosity & - \\
+  phifc		& 0.323	& $x \in \mathbb{R}, \quad x > 0$	& volumetric moisture at field capacity & - \\
+  phiwp		& 0.171	& $x \in \mathbb{R}, \quad x > 0$	& volumetric moisture at wilting point & - \\
+  R10		& 0.23	& $x \in \mathbb{R}, \quad x > 0$	& Respiration at 10 $^{\circ}$C & mg m$^{-2}$ s$^{-1}$ \\
 \end{supertabular}
+
+
 \end{center}
 
 %\newpage
@@ -1115,45 +1364,18 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
   ltimestat	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for calculation of time series		& -\\
   dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
   & & & &\\
-  \multirow{4}{*}{iblh\_var}	& \multirow{4}{*}{iblh\_thv}	& \multirow{4}{*}{$x\in\{-1,-2,-3\}$}	& Flag for the variable used to calculate boundary layer height			& \multirow{4}{*}{-}\\
-  & & & $-1$ = virtual pot. temp. $\theta_v$	&\\
-  & & & $-2$ = liquid water pot. temp. $\theta_l$ &\\
-  & & & $-3$ = total humidity $q_t$		&\\
+  iblh\_var & -1	& $x\in\{-1,-2,-3\}$	& \parbox{6cm}{Flag for the variable used to calculate boundary-layer height: \\
+  $-1$ = virtual pot. temp. $\theta_v$	\\
+  $-2$ = liquid water pot. temp. $\theta_l$ \\
+  $-3$ = total humidity $q_t$		} 	& - \\
   & & & &\\
-  \multirow{4}{*}{iblh\_meth}	& \multirow{4}{*}{iblh\_grad}	& \multirow{4}{*}{$x\in\{1,2,3\}$}	& Flag for the method used to calculate boundary layer height	& \multirow{4}{*}{-}\\
-  & & & 1 = use flux of selected variable			&\\
-  & & & 2 = use gradient of selected variable		&\\
-  & & & 3 = use a threshold (auto or user specified)	&\\
+  iblh\_meth & 2	& $x\in\{1,2,3\}$	& \parbox{6cm}{Flag for the method used to calculate boundary-layer height: \\
+  $1$ = use flux of selected variable\\
+  $2$ = use gradient of selected variable\\
+  $3$ = use a threshold (auto or user specified)} 	& - \\
   & & & &\\
   blh\_thres	& $-1$	& $x \in \mathbb{R}, \quad x \ge 0$	& Threshold for the selected variable, used only for iblh\_thres method	& K or kg kg$^{-1}$\\
   blh\_nsamp	& 4		& $x \in \mathbb{N}^*, \quad x \le \text{kmax}$	& Number of levels to integrate over	& -\\
-\end{supertabular}
-\end{center}
-
-\subsection{Namelist NAMDE}\label{par:namde}
-\begin{center}
-	  \tablefirsthead{
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tablehead{
-        \multicolumn{5}{l}{\small \it Continued from previous page}\\
-        \multicolumn{5}{c}{}\\
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tabletail{
-        &&&&\\\hline
-        \multicolumn{5}{c}{}\\
-        \multicolumn{5}{r}{\small \it Continued on next page}\\
-  }
-  \tablelasttail{
-        &&&&\\\hline
-  }
-\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
-  iDE	& 1	& $x \in \mathbb{N^*}, \quad 1 \le x \le \text{nsv}$	& Scalar field used as extinction profile & -\\
-  laero   & .false.		& $x\in\{\text{.false.},\text{.true.}\}$	& Switch aerosol/clouds	& -\\
-  SSA   & 0.999		& $x \in \mathbb{N}, \quad 0 \le x \le 0.999$	& Single scattering albedo of the aerosol particles & -\\
 \end{supertabular}
 \end{center}
 
