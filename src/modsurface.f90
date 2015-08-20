@@ -87,7 +87,7 @@ contains
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf,lidealised, &
+      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
       ! Heterogeneous variables
       lhetero, xpatches, ypatches, land_use, loldtable, &
       ! AGS variables
@@ -132,7 +132,6 @@ contains
     call MPI_BCAST(lambdaskinav , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(albedoav     , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Qnetav       , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lidealised   , 1, MY_REAL, 0, comm3d, mpierr)
 
     call MPI_BCAST(rsminav      , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(rssoilminav  , 1, MY_REAL, 0, comm3d, mpierr)
