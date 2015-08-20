@@ -118,7 +118,7 @@ SAVE
   real, allocatable :: Cskin      (:,:) !<  Heat capacity skin layer [J]
   real              :: Cskinav  = -1
   real, allocatable :: lambdaskin (:,:) !<  Heat conductivity skin layer [W/m/K]
-  real              :: lambdaskinav
+  real              :: lambdaskinav = -1
   real              :: ps       = -1    !<  Surface pressure [Pa]
 
   ! AGS options (require interactive landsurface: isurf=2)
