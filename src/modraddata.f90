@@ -42,53 +42,53 @@ SAVE
   integer, parameter :: irad_rrtmg = 4   !< 4=radiation using the rapid radiative transfer model
   integer, parameter :: irad_user  = 10  !< 10=user specified radiation
 
-  logical :: rad_ls      = .true.   !< prescribed radiative forcing
-  logical :: rad_longw   = .true.   !< parameterized longwave radiative forcing
-  logical :: rad_shortw  = .true.   !< parameterized shortwave radiative forcing
-  logical :: rad_smoke   = .false.  !< longwave divergence for smoke cloud
-  logical :: useMcICA    = .true.   !< Use the Monte Carlo Independent Column Approach
+  logical :: rad_ls      = .true.        !< prescribed radiative forcing
+  logical :: rad_longw   = .true.        !< parameterized longwave radiative forcing
+  logical :: rad_shortw  = .true.        !< parameterized shortwave radiative forcing
+  logical :: rad_smoke   = .false.       !< longwave divergence for smoke cloud
+  logical :: useMcICA    = .true.        !< Use the Monte Carlo Independent Column Approach
 
-  logical :: lcloudshading = .false.!< Let clouds shade the surface for rad_lsm
+  logical :: lcloudshading = .false.     !< Let clouds shade the surface for rad_lsm
 
-  real              :: timerad = 0 !<  timescale of the radiation scheme
-  integer(kind=longint)           :: itimerad = 0 !<  timescale of the radiation scheme
-  integer (kind=longint)          :: tnext   = 0 !<  time of the first upcoming call of the radiation scheme
-  real :: rka        = 130.   !< extinction coefficient in radpar scheme
-  real :: dlwtop     = 74.    !< longwave radiative flux divergence at top of domain
-  real :: dlwbot     = 0.     !< longwave radiative flux divergence near the surface
-  real :: sw0        = 1100.0 !< direct component at top of the cloud (W/m^2)
+  real              :: timerad = 0       !<  timescale of the radiation scheme
+  integer(kind=longint)  :: itimerad = 0 !<  timescale of the radiation scheme
+  integer (kind=longint) :: tnext   = 0  !<  time of the first upcoming call of the radiation scheme
+  real :: rka        = 130.              !< extinction coefficient in radpar scheme
+  real :: dlwtop     = 74.               !< longwave radiative flux divergence at top of domain
+  real :: dlwbot     = 0.                !< longwave radiative flux divergence near the surface
+  real :: sw0        = 1100.0            !< direct component at top of the cloud (W/m^2)
 
-  real :: gc         = 0.85   !< asymmetry factor of droplet scattering angle distribution
-  real :: SSA        = 0.999  !< typical single scattering albedo for clouds
-  integer :: iDE     = 1 !< scalar field to be used as extinction
-  logical :: laero   = .false. !< .true. for aeosols .false. for clouds 
+  real :: gc         = 0.85              !< asymmetry factor of droplet scattering angle distribution
+  real :: SSA        = 0.999             !< typical single scattering albedo for clouds
+  integer :: iDE     = 1                 !< scalar field to be used as extinction
+  logical :: laero   = .false.           !< .true. for aeosols .false. for clouds 
 
-  real :: reff       = 1.e-5  !< cloud droplet effective radius (m)
-  integer :: isvsmoke = 1     !< number of passive scalar to be used for optical depth calculation
-  integer :: iradiation = irad_none !< Selection parameter for type of radiation scheme
-  integer :: irad    = -1  !< Deprecated selection parameter for the type of radiation scheme
-  logical :: lCnstZenith = .false. !< Switch to disable the diurnal cycle and use diurnally averaged SW radiation (e.g. CGILS)
-  logical :: lCnstAlbedo = .false. !< Switch to disable the surface albedo parameterization in RRTMG
-  real :: cnstZenith=-1.      !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
+  real :: reff       = 1.e-5             !< cloud droplet effective radius (m)
+  integer :: isvsmoke = 1                !< number of passive scalar to be used for optical depth calculation
+  integer :: iradiation = irad_none      !< Selection parameter for type of radiation scheme
+  integer :: irad    = -1                !< Deprecated selection parameter for the type of radiation scheme
+  logical :: lCnstZenith = .false.       !< Switch to disable the diurnal cycle and use diurnally averaged SW radiation (e.g. CGILS)
+  logical :: lCnstAlbedo = .false.       !< Switch to disable the surface albedo parameterization in RRTMG
+  real :: cnstZenith=0.                  !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
   ! Options in NAMRADIATION that apply to the rrtmg script
-  integer :: ioverlap = 2                  ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
-  integer :: inflglw = 2                   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer :: iceflglw = 3                  ! 0,1,2,3: ice influence calculations
-  integer :: liqflglw = 1                  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
-  integer :: inflgsw = 2                   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer :: iceflgsw = 3                  ! 0,1,2,3: ice influence calculations
-  integer :: liqflgsw = 1                  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
-  logical :: ocean  = .false.              ! if true, run is over ocean.
-  logical :: usero3 = .false.              ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
-  real    :: co2factor = 1.                ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
-  logical :: doperpetual = .false.         ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
-  logical :: doseasons = .false.           ! if false, the same day will be repeated, otherwise, next day is taken
-  integer(SHR_KIND_IN) :: iyear = 1992     ! The year of the simulation
+  integer :: ioverlap = 2                ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
+  integer :: inflglw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer :: iceflglw = 3                ! 0,1,2,3: ice influence calculations
+  integer :: liqflglw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer :: inflgsw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer :: iceflgsw = 3                ! 0,1,2,3: ice influence calculations
+  integer :: liqflgsw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  logical :: ocean  = .false.            ! if true, run is over ocean.
+  logical :: usero3 = .false.            ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
+  real    :: co2factor = 1.              ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
+  logical :: doperpetual = .false.       ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
+  logical :: doseasons = .false.         ! if false, the same day will be repeated, otherwise, next day is taken
+  integer(SHR_KIND_IN) :: iyear = 1992   ! The year of the simulation
 
   ! Logicals and variables that are used in the modradrrtmg module
-  logical :: isInitializedRrtmg = .false.  ! used as a initialization check
-  logical :: isReadSounding = .false.      ! used as a check for reading the sounding file
+  logical :: isInitializedRrtmg = .false.           ! used as a initialization check
+  logical :: isReadSounding = .false.               ! used as a check for reading the sounding file
   logical :: isAllocated_RadInputsOutputs = .false. ! used as a check for allocating radiation variables
   logical :: isAllocated_TraceGases = .false.       ! check for allocating tracegas variables
   logical :: isReadTraceProfiles =.false.           ! check for reading trace gas profiles for netcdf file
@@ -161,23 +161,21 @@ SAVE
                                    qsnd, & ! water vapor sounding read in from SoundingFileName, kg/kg
                                    o3snd   ! ozon sounding read in from SoundingFileName (if usero3=true)
 
-  real mu                    !< cosine of the solar zenith angle
+  real mu                            !< cosine of the solar zenith angle
 
   real, allocatable :: thlprad(:,:,:)!<   the radiative tendencies
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
-  real, allocatable :: swdir(:,:,:)    !<   Direct shortwave downward radiative flux
-  real, allocatable :: swdif(:,:,:)    !<   Difuse shortwave downward radiative flux
+  real, allocatable :: swdir(:,:,:)  !<   Direct shortwave downward radiative flux
+  real, allocatable :: swdif(:,:,:)  !<   Difuse shortwave downward radiative flux
   real, allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
   real, allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
   real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
 !
-  real, allocatable :: swdca(:,:,:)    !<  clear air shortwave downward radiative flux
-  real, allocatable :: swuca(:,:,:)    !<  clear air shortwave upward radiative flux
-  real, allocatable :: lwdca(:,:,:)    !<  clear air longwave downward radiative flux
-  real, allocatable :: lwuca(:,:,:)    !<  clear air longwave upward radiative flux
+  real, allocatable :: swdca(:,:,:)  !<  clear air shortwave downward radiative flux
+  real, allocatable :: swuca(:,:,:)  !<  clear air shortwave upward radiative flux
+  real, allocatable :: lwdca(:,:,:)  !<  clear air longwave downward radiative flux
+  real, allocatable :: lwuca(:,:,:)  !<  clear air longwave upward radiative flux
  
-!
-  !CvH albedo real, allocatable :: albedo(:,:)   !<   Albedo
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
   real, allocatable :: SW_up_ca_TOA(:,:), SW_dn_ca_TOA(:,:), LW_up_ca_TOA(:,:), LW_dn_ca_TOA(:,:)
 
