@@ -83,7 +83,7 @@ SAVE
   logical :: usero3 = .false.            ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
   real    :: co2factor = 1.              ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
   logical :: doperpetual = .false.       ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
-  logical :: doseasons = .false.         ! if false, the same day will be repeated, otherwise, next day is taken
+  logical :: doseasons = .true.          ! if false, the same day will be repeated, otherwise, next day is taken
   integer(SHR_KIND_IN) :: iyear = 1992   ! The year of the simulation
 
   ! Logicals and variables that are used in the modradrrtmg module
