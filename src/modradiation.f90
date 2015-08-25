@@ -103,15 +103,18 @@ contains
     allocate(lwdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
 
+    allocate(swdir     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swdif     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
     allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
     allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
     allocate(LW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
     allocate(LW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
 
-    allocate(SW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(SW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
 
     thlprad = 0.
 
