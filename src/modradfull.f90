@@ -112,20 +112,20 @@ module modradfull
 contains
     subroutine radfull
   !   use radiation,    only : d4stream
-    use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,zf,pref0
-    use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
-    use modsurfdata,  only : albedo, tskin, qskin, thvs, qts, ps
-    use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
-    use modraddata,   only : thlprad, lwd,lwu,swd,swu
-      implicit none
-    real :: thlpld,thlplu,thlpsd,thlpsu
-    integer :: i,j,k
-
-    real :: exnersurf
-
-    allocate(rhof_b(k1),exnf_b(k1))
-    allocate(temp_b(2-ih:i1+ih,2-jh:j1+jh,k1),qv_b(2-ih:i1+ih,2-jh:j1+jh,k1),ql_b(2-ih:i1+ih,2-jh:j1+jh,k1),rr_b(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(tempskin(1:i1+1,1:j1+1))
+      use modglobal,    only : imax,i1,ih,jmax,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,zf,pref0
+      use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0,tskin,qskin 
+      use modsurfdata,  only : albedo, thvs, qts, ps
+      use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
+      use modraddata,   only : thlprad, lwd,lwu,swd,swu
+        implicit none
+      real :: thlpld,thlplu,thlpsd,thlpsu
+      integer :: i,j,k
+  
+      real :: exnersurf
+  
+      allocate(rhof_b(k1),exnf_b(k1))
+      allocate(temp_b(2-ih:i1+ih,2-jh:j1+jh,k1),qv_b(2-ih:i1+ih,2-jh:j1+jh,k1),ql_b(2-ih:i1+ih,2-jh:j1+jh,k1),rr_b(2-ih:i1+ih,2-jh:j1+jh,k1))
+      allocate(tempskin(1:i1+1,1:j1+1))
 
 !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax
@@ -165,8 +165,7 @@ contains
       else
         call d4stream(i1,ih,j1,jh,k1,tempskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swd,swu,lwd,lwu)
       end if
-
-!Downward radiation fluxes are pointing downward in UCLALES, pointing upward in DALES
+      !Downward radiation fluxes are pointing downward in UCLALES, pointing upward in DALES
       lwd = -lwd
       swd = -swd
 
@@ -188,17 +187,17 @@ contains
         end do
       end do
 
-    deallocate(rhof_b,exnf_b)
-    deallocate(temp_b,qv_b,ql_b,rr_b)
-    deallocate(tempskin)
+      deallocate(rhof_b,exnf_b)
+      deallocate(temp_b,qv_b,ql_b,rr_b)
+      deallocate(tempskin)
     
     end subroutine radfull
 
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &
-         pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr)
+         pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr,lclear)
       use modglobal, only : cexpnr,cp,cpr,pi,pref0,rtimee,xday,xlat,xlon,xtime,rhow
-      use modraddata,only : useMcICA,zenith,sw0
-      use modfields,only: SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA
+      use modraddata,only : useMcICA,zenith,sw0,SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA, &
+                            SW_up_ca_TOA, SW_dn_ca_TOA, LW_up_ca_TOA, LW_dn_ca_TOA
       implicit none
 
       integer, intent (in) :: i1,ih,j1,jh,k1
@@ -206,10 +205,12 @@ contains
       real, dimension (k1), intent (in)                 :: dn0, pi0
       real, dimension (2-ih:i1+ih,2-jh:j1+jh,k1), intent (in)  :: tk, rv, rc
       real, optional, dimension (2-ih:i1+ih,2-jh:j1+jh,k1), intent (in) :: rr
+      logical, optional, intent(in) :: lclear
       real, dimension (2-ih:i1+ih,2-jh:j1+jh,k1), intent (out) :: fus3D,fds3D,fuir3D,fdir3D
       real, dimension (1:i1+1,1:j1+1), intent (in) :: tskin, albedo
 
       integer :: kk
+      logical :: doclear
       real    :: prw, p0(k1), exner(k1), pres(k1)
       character (len=19) :: background
 
@@ -225,6 +226,11 @@ contains
          if (allocated(prwc)) prwc(:) = 0.
          if (allocated(plwc)) plwc(:) = 0.
          if (allocated(pgwc)) pgwc(:) = 0.
+      end if
+      if (present(lclear)) then
+        doclear=lclear
+      else
+        doclear=.false.
       end if
       !
       ! initialize surface albedo, emissivity and skin temperature.
@@ -273,10 +279,17 @@ contains
                fuir3d(i,j,k) = fuir(kk)
                fdir3d(i,j,k) = fdir(kk)
             end do
-            SW_up_TOA(i,j) = fus(1)
-            SW_dn_TOA(i,j) = fds(1)
-            LW_up_TOA(i,j) = fuir(1)
-            LW_dn_TOA(i,j) = fdir(1)
+            if (doclear) then
+              SW_up_ca_TOA(i,j) =  fus(1)
+              SW_dn_ca_TOA(i,j) = -fds(1)
+              LW_up_ca_TOA(i,j) =  fuir(1)
+              LW_dn_ca_TOA(i,j) = -fdir(1)
+            else
+              SW_up_TOA(i,j) =  fus(1)
+              SW_dn_TOA(i,j) = -fds(1)
+              LW_up_TOA(i,j) =  fuir(1)
+              LW_dn_TOA(i,j) = -fdir(1)
+            end if
 
          end do
       end do

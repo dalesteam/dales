@@ -37,9 +37,39 @@ module modforces
 implicit none
 save
 private
-public :: forces, coriolis, lstend,lforce_user
+public :: initforces,forces, coriolis, lstend,lforce_user
 logical :: lforce_user = .false.
 contains
+  ! Initforces contains the initialization that was first done at the end of modstartup
+  subroutine initforces
+    use modfields, only : dpdxl,dpdyl,wfls,whls,ug,vg
+    use modglobal, only : om23_gs,kmax,k1,dzf,dzh
+    implicit none
+
+    integer :: k
+
+  !******include rho if rho = rho(z) /= 1.0 ***********
+
+    do k=1,kmax
+      dpdxl(k) =  om23_gs*vg(k)
+      dpdyl(k) = -om23_gs*ug(k)
+    end do
+
+  !-----------------------------------------------------------------
+  !    2.5 make large-scale horizontal gradients
+  !-----------------------------------------------------------------
+
+    whls(1)  = 0.0
+    do k=2,kmax
+      whls(k) = ( wfls(k)*dzf(k-1) +  wfls(k-1)*dzf(k) )/(2*dzh(k))
+    end do
+    whls(k1) = (wfls(kmax)+0.5*dzf(kmax)*(wfls(kmax)-wfls(kmax-1)) &
+                                                  /dzh(kmax))
+
+  !******include rho if rho = rho(z) /= 1.0 ***********
+
+  end subroutine initforces
+
   subroutine forces
 
 !-----------------------------------------------------------------|
@@ -220,86 +250,44 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,k1,kmax,dzh,nsv,lmomsubs
+  use modglobal, only : i1,j1,k1,kmax,dzh,nsv
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls
+  use modmpi, only    : myid
   implicit none
 
-  integer i,j,k,n,kp,km
-  real subs_thl,subs_qt,subs_sv,subs_u,subs_v
+  integer :: i,j,k,n,kp,km
+  real    :: subs_thl,subs_qt,subs_sv
 
-!     1. DETERMINE LARGE SCALE TENDENCIES
-!        --------------------------------
+  subs_thl=0.; subs_qt=0.; subs_sv  = 0.
 
-!     1.1 lowest model level above surface : only downward component
-
-  subs_thl = 0.
-  subs_qt  = 0.
-  subs_sv  = 0.
-  subs_u   = 0.
-  subs_v   = 0.
-
-  do j=2,j1
-    do i=2,i1
-      k = 1
-      if (whls(2).lt.0) then !neglect effect of mean ascending on tendencies at the lowest full level
-        subs_thl     = 0.5*whls(2)  *(thl0(i,j,2)-thl0(i,j,1))/dzh(2)
-        subs_qt      = 0.5*whls(2)  *(qt0(i,j,2)-qt0(i,j,1) )/dzh(2)
-        if (lmomsubs) then
-          subs_u     = 0.5*whls(2)  *(u0(i,j,2)-u0(i,j,1))/dzh(2)
-          subs_v     = 0.5*whls(2)  *(v0(i,j,2)-v0(i,j,1))/dzh(2)
-        endif
+  ! Determine the subsidence tendency using a first order upwind scheme
+  do j=2,j1; do i=2,i1
+    do k=2,kmax
+      kp=k+1; km=k-1
+      if (whls(kp).lt.0) then   !downwind scheme for subsidence
+        subs_thl    = whls(kp) * (thl0(i,j,kp) - thl0(i,j,k))/dzh(kp)
+        subs_qt     = whls(kp) * (qt0 (i,j,kp) - qt0 (i,j,k))/dzh(kp)
         do n=1,nsv
-          subs_sv =  0.5*whls(2)  *(sv0(i,j,2,n)-sv0(i,j,1,n)  )/dzh(2)
-          svp(i,j,1,n) = svp(i,j,1,n)-subs_sv
+          subs_sv   = whls(kp)  *(sv0(i,j,kp,n) - sv0(i,j,k,n))/dzh(kp)
+          svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
+        enddo
+      else !downwind scheme for mean upward motions
+        subs_thl    = whls(k) * (thl0(i,j,k) - thl0(i,j,km))/dzh(k)
+        subs_qt     = whls(k) * (qt0 (i,j,k) - qt0 (i,j,km))/dzh(k)
+        do n=1,nsv
+          subs_sv   = whls(k) * (sv0(i,j,k,n) - sv0(i,j,km,n))/dzh(k)
+          svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
         enddo
       endif
-      thlp(i,j,1) = thlp(i,j,1) -u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1)-subs_thl
-      qtp(i,j,1)  = qtp (i,j,1) -u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1)-subs_qt +dqtdtls(1)
-      up  (i,j,1) = up  (i,j,1) -u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1)-subs_u
-      vp  (i,j,1) = vp  (i,j,1) -u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1)-subs_v
+
+      thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
+      qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
+      up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)
+      vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)
     end do
-  end do
-
-!     1.2 other model levels twostream
-
-  do k=2,kmax
-    kp=k+1
-    km=k-1
-    do j=2,j1
-      do i=2,i1
-        if (whls(kp).lt.0) then   !downwind scheme for subsidence
-          subs_thl    = whls(kp) * (thl0(i,j,kp) - thl0(i,j,k))/dzh(kp)
-          subs_qt     = whls(kp) * (qt0 (i,j,kp) - qt0 (i,j,k))/dzh(kp)
-          if (lmomsubs) then
-            subs_u    = whls(kp) * (u0(i,j,kp) - u0(i,j,k))/dzh(kp)
-            subs_v    = whls(kp) * (v0(i,j,kp) - v0(i,j,k))/dzh(kp)
-          endif
-          do n=1,nsv
-            subs_sv   = whls(kp)  *(sv0(i,j,kp,n) - sv0(i,j,k,n))/dzh(kp)
-            svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
-          enddo
-        else !downwind scheme for mean upward motions
-          subs_thl    = whls(k) * (thl0(i,j,k) - thl0(i,j,km))/dzh(k)
-          subs_qt     = whls(k) * (qt0 (i,j,k) - qt0 (i,j,km))/dzh(k)
-          if (lmomsubs) then
-            subs_u    = whls(k) * (u0(i,j,k) - u0(i,j,km))/dzh(k)
-            subs_v    = whls(k) * (v0(i,j,k) - v0(i,j,km))/dzh(k)
-          endif
-          do n=1,nsv
-            subs_sv   = whls(k) * (sv0(i,j,k,n) - sv0(i,j,km,n))/dzh(k)
-            svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
-          enddo
-        endif
-    
-        thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
-        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
-        up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u
-        vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k)-subs_v
-      enddo
-    enddo
-  enddo
+  end do; end do
 
   return
   end subroutine lstend

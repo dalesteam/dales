@@ -212,9 +212,9 @@ contains
     use modglobal,  only : i1,j1,k1,kmax,dzf,dzh, &
                           rslabs,cu,cv,iadv_thl,grav, &
                           dxi,dyi,dx2i,dy2i
-    use modsurfdata,only : thvs, ustar
+    use modsurfdata,only : thvs
     use modpois,    only : p
-    use modfields,  only : u0,v0,w0,thl0h,thv0h,u0av,v0av,rhobf,rhobh,thvh,ekm
+    use modfields,  only : u0,v0,w0,ekm,thl0h,thv0h,u0av,v0av,rhobf,rhobh,thvh,ustar
 !cstep    use modtilt,    only : adjustbudget,ltilted
     use modmpi,     only : nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr
 

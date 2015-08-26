@@ -73,6 +73,29 @@ save
   real, allocatable :: drhobdzf(:)       !<   Base state density, derivative at full level
   real, allocatable :: drhobdzh(:)       !<   Base state density, derivative at half level
 
+  real, allocatable :: rhodzi(:)      !<   Inverse of rhobf*dzf
+
+  ! Surface gradient of thl and qt
+  ! Moved these from surfdata because they are also used in thermodynamics and are therefore not optional
+  real, allocatable :: dthldz(:,:)
+  real, allocatable :: dqtdz(:,:)
+
+  ! Following fields are included in restarts. It is more clear to add them to
+  ! modfields to avoid unallocated arrays when doing a restart.
+  real, allocatable, dimension(:,:) :: tskin,   &
+                                       qskin,   &
+                                       obl,     &
+                                       ustar,   &
+                                       thlflux, &
+                                       qtflux
+  real, allocatable                 :: svflux(:,:,:)
+  ! Patch variables that are also in the restart files
+  real, allocatable, dimension(:,:) :: ps_patch,   &
+                                       thls_patch, &
+                                       qts_patch,  &
+                                       thvs_patch, &
+                                       oblpatch
+
   ! Cloud edge variables
   real, allocatable :: cloudarea(:,:,:)
   real, allocatable :: cloudnr(:,:,:)
@@ -133,17 +156,20 @@ save
   real, allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
 
   real, allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
-  real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:)
   real, allocatable :: qvsl(:,:,:)
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
+
+  ! Store (smooth or not) in a 1d array
+  real, allocatable :: smoothx(:),smoothy(:),smoothz(:) !< Smoothnesses are all based on qt!!
 
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
 
     use modglobal, only : i1,i2,ih,j1,j2,jh,kmax,k1,nsv,iTimeInt,iTimeWicker,iTimeTVD
-    ! Allocation of prognostic variables
+    use modsurfdata, only : lhetero,xpatches,ypatches
+    ! Allocation of prognostic variable
     implicit none
 
     allocate(u0(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -180,6 +206,23 @@ subroutine initfields
     allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
 
+    allocate(dqtdz (i2,j2))
+    allocate(dthldz(i2,j2))
+    allocate(tskin(i2,j2),   &
+             qskin(i2,j2),   &
+             obl(i2,j2),     &
+             ustar(i2,j2),   &
+             thlflux(i2,j2), &
+             qtflux(i2,j2)   )
+    allocate(svflux(i2,j2,nsv))
+    if (lhetero) then
+      allocate(ps_patch  (xpatches,ypatches), &
+               thls_patch(xpatches,ypatches), &
+               qts_patch (xpatches,ypatches), &
+               thvs_patch(xpatches,ypatches), &
+               oblpatch  (xpatches,ypatches)  )
+    end if
+
     allocate(cloudarea(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(cloudnrold(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -196,6 +239,7 @@ subroutine initfields
     allocate(rhobh(k1))
     allocate(drhobdzf(k1))
     allocate(drhobdzh(k1))
+    allocate(rhodzi(k1))
 
     ! Allocation of diagnostic variables
     allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -238,14 +282,12 @@ subroutine initfields
     allocate(sv0av(k1,nsv))
     allocate(svprof(k1,nsv))
     allocate(thlpcar(k1))
-    allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
+
+    allocate(smoothx(k1),smoothy(k1),smoothz(k1))
 
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
              ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
     u0=0.;up=0.
     v0=0.;vp=0.
@@ -257,16 +299,21 @@ subroutine initfields
 
     ekm=0.;ekh=0.
 
-    rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
+    rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.; rhodzi=0.
     ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
     ug=0.;vg=0.;dpdxl=0.;dpdyl=0.;wfls=0.;whls=0.;thlpcar = 0.
     dthldxls=0.;dthldyls=0.;dqtdxls=0.;dqtdyls=0.;dudxls=0.;dudyls=0.;dvdxls=0.;dvdyls=0.
-    dthvdz=0.
-    SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
+    dthvdz=0.;dthldz=0.;dqtdz=0.
+    tskin=0.;qskin=0.;obl=0.;ustar=0.;thlflux=0.;qtflux=0.;svflux=0.
+    if (lhetero) then
+      ps_patch=-1.;thls_patch=-1.;qts_patch=-1.;thvs_patch=-1.;oblpatch=-.1
+    end if
     qvsl=0.;qvsi=0.;esl=0.
+
+    smoothx=0.; smoothy=0.; smoothz=0.
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
@@ -275,21 +322,27 @@ subroutine initfields
 !> Deallocate the fields
   subroutine exitfields
   use modglobal, only : iTimeInt,iTimeWicker,iTimeTVD
+  use modsurfdata, only : lhetero,xpatches,ypatches
   implicit none
     if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) deallocate(um,vm,wm,thlm,e12m,qtm,svm)
+    if (lhetero) deallocate(ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch)
     deallocate(u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(ekm,ekh)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
     deallocate(sv0,svp)
+    deallocate(dthldz,dqtdz)
+    deallocate(tskin,qskin,obl,ustar,thlflux,qtflux)
+    deallocate(svflux)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
+    deallocate(rhodzi)
     deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,dvdxls,dvdyls,wfls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
-    deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
+    deallocate(smoothx,smoothy,smoothz)
     end subroutine exitfields
 
 end module modfields

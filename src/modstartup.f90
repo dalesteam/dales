@@ -33,8 +33,8 @@ module modstartup
 
 
 implicit none
-! private
-! public :: startup, writerestartfiles,trestart
+ private
+ public :: readnamoptions,checksettings,readinitfiles
 save
 
   integer (KIND=selected_int_kind(6)) :: irandom= 0     !    * number to seed the randomnizer with
@@ -42,7 +42,7 @@ save
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
 
 contains
-  subroutine startup
+  subroutine readnamoptions
 
       !-----------------------------------------------------------------|
       !                                                                 |
@@ -53,27 +53,25 @@ contains
       !-----------------------------------------------------------------|
 
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
-                                  lwarmstart,startfile,trestart,itrestart,&
+                                  lwarmstart,startfile,lncstartfile,trestart,lncrestart,itrestart,&
                                   nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,iTimeInt,author
-    use modtstep,          only : inittstep
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,&
+                                  courant,peclet,ladaptive,iTimeInt,author
     use modforces,         only : lforce_user
-    use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
-    use modsurface,        only : initsurface
-    use modfields,         only : initfields
-    use modpois,           only : initpois
-    use modradiation,      only : initradiation
+    use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf,ksoilmax,mpatch, &
+                                  tsoilav,tsoildeepav,phiwav,rootfav, &
+                                  lmostlocal,lsmoothflux,lneutral,z0mav,z0hav, &
+                                  rsisurf2,Cskinav,lambdaskinav,albedoav,Qnetav,cvegav,Wlav,&
+                                  rsminav,rssoilminav,LAIav,gDav,lidealised, &
+                                  lhetero,xpatches,ypatches,land_use,loldtable
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,itimerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,&
-                                  lCnstZenith,cnstZenith
-    use modtimedep,        only : inittimedep,ltimedep
-    use modboundary,       only : initboundary,ksp
-    use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
-    use modmicrophysics,   only : initmicrophysics
-    use modbulkmicro,      only : initbulkmicro
-    use modsubgrid,        only : initsubgrid
+                                  lCnstZenith,cnstZenith,usero3,co2factor,ocean,lCnstAlbedo
+    use modtimedep,        only : ltimedep
+    use modboundary,       only : ksp
+    use modthermodynamics, only : lqlnr, chi_half
     use modsubgriddata,    only : ldelta, cf,cn,Rigc,Prandtl,lmason,lsmagorinsky
     use modmpi,            only : comm3d,myid, mpi_integer,mpi_logical,my_real,mpierr, mpi_character
 
@@ -82,19 +80,27 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
-        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,iTimeInt,author
+        iexpnr,lwarmstart,startfile,lncstartfile,runtime,dtmax,dtav_glob,timeav_glob,&
+        trestart,lncrestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,iTimeInt,author
     namelist/DOMAIN/ &
-        imax,jtot,kmax,&
-        xsize,ysize,&
-        xlat,xlon,xday,xtime,ksp
+        imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lCnstZenith,cnstZenith,lforce_user
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lCnstZenith,cnstZenith,lCnstAlbedo,usero3,co2factor,ocean,lforce_user
     namelist/DYNAMICS/ &
         llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+    namelist/NAMSURFACE/ & !< Soil related variables
+      isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
+      ! Land surface related variables
+      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
+      ! Jarvis-Steward related variables
+      rsminav, rssoilminav, LAIav, gDav, &
+      ! Prescribed values for isurf 2, 3, 4
+      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf,lidealised, &
+      ! Heterogeneous variables
+      lhetero, xpatches, ypatches, land_use, loldtable
 
     !read namelists
     if(myid==0)then
@@ -139,15 +145,27 @@ contains
       endif
       write(6 ,DYNAMICS)
       close(ifnamopt)
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,NAMSURFACE,iostat=ierr)
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMSURFACE'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMSURFACE'
+      endif
+      write(6 ,NAMSURFACE)
+      close(ifnamopt)
     end if
+
     
   !broadcast namelists
     call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,comm3d,mpierr)
+    call MPI_BCAST(lncstartfile,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(author     ,80,MPI_CHARACTER,0,comm3d,mpierr)
     call MPI_BCAST(runtime    ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(lncrestart ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,comm3d,mpierr)
@@ -189,13 +207,16 @@ contains
     call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lCnstZenith,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lCnstAlbedo,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(usero3     ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(co2factor  ,1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(ocean      ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(rka        ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(sw0        ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(cnstZenith ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(gc         ,1,MY_REAL   ,0,comm3d,mpierr)
-    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(reff       ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,comm3d,mpierr)
 
@@ -222,29 +243,51 @@ contains
     call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,comm3d,mpierr)
+    ! NAMSURFACE
+    call MPI_BCAST(isurf        , 1       , MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(tsoilav      , ksoilmax, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(tsoildeepav  , 1       , MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(phiwav       , ksoilmax, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(rootfav      , ksoilmax, MY_REAL, 0, comm3d, mpierr)
 
-    ! Allocate and initialize core modules
-    call initglobal
-    call inittstep
-    call initfields
+    call MPI_BCAST(lmostlocal   , 1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lsmoothflux  , 1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lneutral     , 1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(z0mav        , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(z0hav        , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(rsisurf2     , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(Cskinav      , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lambdaskinav , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(albedoav     , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(Qnetav       , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lidealised   , 1, MY_REAL, 0, comm3d, mpierr)
 
-    call initboundary
-    call initthermodynamics
-    call initradiation
-    call initsurface
-    call initsubgrid
-    call initpois
-    call initmicrophysics
-    call initbulkmicro
-    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
+    call MPI_BCAST(rsminav      , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(rssoilminav  , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(cvegav       , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(Wlav         , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(LAIav        , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(gDav         , 1, MY_REAL, 0, comm3d, mpierr)
 
-    call checkinitvalues
-    call readinitfiles
+    call MPI_BCAST(z0         ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
 
-  end subroutine startup
+    call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
 
-  subroutine checkinitvalues
+  end subroutine readnamoptions 
+
+
+  subroutine checksettings
   !-----------------------------------------------------------------|
   !                                                                 |
   !      Thijs Heus   TU Delft  9/2/2006                            |
@@ -256,16 +299,14 @@ contains
   !                                                                 |
   !     interface.                                                  |
   !     ----------                                                  |
-  !                                                                 |
-  !     *checkinitvalues* is called from *program*.                 |
+  !     called from program.f90                                     |
   !                                                                 |
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps,lhetero
-    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
+    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1,llsadv
     use modmpi,    only : myid, nprocs,mpierr
     use modtimedep, only : ltimedep
-
 
       if(mod(jtot,nprocs) /= 0) then
         if(myid==0)then
@@ -288,7 +329,6 @@ contains
       end if
 
   !Check Namroptions
-
 
     if (runtime < 0)stop 'runtime out of range/not set'
     if (dtmax < 0)  stop 'dtmax out of range/not set '
@@ -323,658 +363,225 @@ contains
       'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
     endif
 
-  end subroutine checkinitvalues
+    if (llsadv) then
+      if (myid==0) stop 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass).'
+    end if
+
+  end subroutine checksettings
 
   subroutine readinitfiles
-    use modfields,         only : u0,v0,w0,thl0,thl0h,qt0,qt0h,&
+    use modfields,         only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,sv0,e120,ekm,ekh,&
                                   um,vm,wm,qtm,thlm,svm,e12m,&
-                                  ql0,ql0h,thv0h,sv0,e120,ekm,ekh,&
                                   rhobf,rhobh,drhobdzf,drhobdzh,&
-                                  dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
-                                  dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
-                                  wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
+                                  dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,thlpcar,thvh,thvf,&
+                                  wfls,whls,ug,vg,uprof,vprof,thlprof,qtprof,e12prof,svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
-                                  thlpcar,thvh,thvf
-    use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
-                                  rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
+                                  dthldz,thvs_patch
+    use modglobal,         only : i1,ih,j1,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
+                                  rtimee,timee,ntimee,ntrun,btime,dt_lim,subDt,nsv,&
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart,iTimeInt,iTimeWicker,iTimeTVD,ladaptive,llsadv,tnextrestart,ibas_prf
-    use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
-                                  thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero,qskin 
-    use modsurface,        only : surface,qtsurf,dthldz
+                                  rslabs,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  trestart,iTimeInt,iTimeWicker,iTimeTVD,ladaptive,tnextrestart,ibas_prf
+    use modsurfdata,       only : isurf,thls,tskinm,tsoilm,tsoil,phiwm,phiw,&
+                                  Wlm,Wl,qts,oblav,thvs,svs,lhetero
     use modboundary,       only : boundary
-    use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
-    use modthermodynamics, only : thermodynamics,calc_halflev
+    use modmpi,            only : slabsum,myid,my_real
+    use modthermodynamics, only : avgProfs,thermodynamics
+    use modwarmstart,      only : readBinRestart
+    use modtstep,          only : rkb
     use moduser,           only : initsurf_user
+    use modsurface,        only : qtsurf,surface
 
     integer i,j,k,n
 
-    real, allocatable :: height(:), th0av(:)
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
-    real tv
-
-
-    character(80) chmess
-
-    allocate (height(k1))
-    allocate (th0av(k1))
-
-
-
+    ! Read profiles from ASCII input files
+    call readInputProfs
+     
     if (.not. lwarmstart) then
 
-    !********************************************************************
-
-    !    1.0 prepare initial fields from files 'prog.inp' and 'scalar.inp'
-    !    ----------------------------------------------------------------
-
-    !--------------------------------------------------------------------
-    !    1.1 read fields
-    !-----------------------------------------------------------------
-
+      ! Set initial times
       rdt = dtmax / 100.
       dt  = floor(rdt/tres)
       timee = 0
-      if (myid==0) then
-        open (ifinput,file='prof.inp.'//cexpnr)
-        read (ifinput,'(a80)') chmess
-        write(*,     '(a80)') chmess
-        read (ifinput,'(a80)') chmess
 
-        do k=1,kmax
-          read (ifinput,*) &
-                height (k), &
-                thlprof(k), &
-                qtprof (k), &
-                uprof  (k), &
-                vprof  (k), &
-                e12prof(k)
-        end do
+      ! Fill up the 3d fields with the input profiles 
+      do j=2,j1; do i=2,i1
+          thl0(i,j,1:kmax) = thlprof(1:kmax)
+          qt0 (i,j,1:kmax) = qtprof (1:kmax)
+          u0  (i,j,1:kmax) = uprof  (1:kmax) - cu
+          v0  (i,j,1:kmax) = vprof  (1:kmax) - cv
+          w0  (i,j,1:kmax) = 0.0
+          e120(i,j,1:kmax) = e12prof(1:kmax)
+          ekh (i,j,1:kmax) = 0.0
+      end do; end do
 
-        close(ifinput)
-        write(*,*) 'height    thl      qt         u      v     e12'
-        do k=kmax,1,-1
-          write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
-                height (k), &
-                thlprof(k), &
-                qtprof (k), &
-                uprof  (k), &
-                vprof  (k), &
-                e12prof(k)
-
-        end do
-
-        if (minval(e12prof(1:kmax)) < e12min) then
-          write(*,*)  'e12 value is zero (or less) in prof.inp'
-          do k=1,kmax
-            e12prof(k) = max(e12prof(k),e12min)
-          end do
-        end if
-
-      end if ! end if myid==0
-    ! MPI broadcast numbers reading
-      call MPI_BCAST(thlprof,kmax,MY_REAL   ,0,comm3d,mpierr)
-      call MPI_BCAST(qtprof ,kmax,MY_REAL   ,0,comm3d,mpierr)
-      call MPI_BCAST(uprof  ,kmax,MY_REAL   ,0,comm3d,mpierr)
-      call MPI_BCAST(vprof  ,kmax,MY_REAL   ,0,comm3d,mpierr)
-      call MPI_BCAST(e12prof,kmax,MY_REAL   ,0,comm3d,mpierr)
-      do k=1,kmax
-      do j=1,j2
-      do i=1,i2
-        thl0(i,j,k) = thlprof(k)
-        qt0 (i,j,k) = qtprof (k)
-        u0  (i,j,k) = uprof  (k) - cu
-        v0  (i,j,k) = vprof  (k) - cv
-        w0  (i,j,k) = 0.0
-        e120(i,j,k) = e12prof(k)
-        ekh (i,j,k) = 0.0
-      end do
-      end do
-      end do
+      if (nsv>0) then
+        do j=2,j1; do i=2,i1
+          sv0(i,j,1:kmax,1:nsv) = svprof(1:kmax,1:nsv)
+        end do; end do
+      end if
 
     !---------------------------------------------------------------
     !  1.2 randomnize fields
     !---------------------------------------------------------------
-
       krand  = min(krand,kmax)
       do k = 1,krand
         call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
         call randomnize(thl0,k,randthl,irandom,ih,jh)
       end do
-
-      svprof = 0.
-      if(myid==0)then
-        if (nsv>0) then
-          open (ifinput,file='scalar.inp.'//cexpnr)
-          read (ifinput,'(a80)') chmess
-          read (ifinput,'(a80)') chmess
-          do k=1,kmax
-            read (ifinput,*) &
-                  height (k), &
-                  (svprof (k,n),n=1,nsv)
-          end do
-          open (ifinput,file='scalar.inp.'//cexpnr)
-          write (6,*) 'height   sv(1) --------- sv(nsv) '
-          do k=kmax,1,-1
-            write (6,*) &
-                  height (k), &
-                (svprof (k,n),n=1,nsv)
-          end do
-
-        end if
-      end if ! end if myid==0
-
-      call MPI_BCAST(wsvsurf,nsv   ,MY_REAL   ,0,comm3d,mpierr)
-
-      call MPI_BCAST(svprof ,k1*nsv,MY_REAL   ,0,comm3d,mpierr)
-      do k=1,kmax
-        do j=1,j2
-          do i=1,i2
-            do n=1,nsv
-              sv0(i,j,k,n) = svprof(k,n)
-            end do
-          end do
-        end do
-      end do
-      
-      ! Initialize m fields (indentical to what happens at a restart)
-      ! Previously, the qtm and thlm fields were separately randomnized and therefore not
-      ! identical to the qt0 and thl0 fields
-      if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
-        thlm(:,:,:) = thl0(:,:,:)
-        qtm(:,:,:)  = qt0(:,:,:)
-        svm(:,:,:,:)= sv0(:,:,:,:)
-        e12m(:,:,:) = e120(:,:,:)
-        ekm(:,:,:)  = ekh(:,:,:)
-        um(:,:,:)   = u0(:,:,:)
-        vm(:,:,:)   = v0(:,:,:)
-        wm(:,:,:)   = w0(:,:,:)
-      end if
-
-!-----------------------------------------------------------------
-!    2.2 Initialize surface layer and base profiles
-!-----------------------------------------------------------------
-
-      select case(isurf)
-      case(1)
-        tskin  = thls
-        tskinm = tskin
-        tsoilm = tsoil
-        phiwm  = phiw
-        Wlm    = Wl
-      case(2)
-        tskin  = thls
-      case(3,4)
-        thls = thlprof(1)
-        qts  = qtprof(1)
-        tskin  = thls
-        qskin  = qts
-      case(10)
-        call initsurf_user
-      end select
-
-      ! Set initial Obukhov length to -0.1 for iteration
-      obl   = -0.1
-      oblav = -0.1
-
-      call qtsurf
-      
-      dthldz = (thlprof(1) - thls)/zf(1)
-      thvs = thls * (1. + (rv/rd - 1.) * qts)
-      if(lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
-
-      u0av(1)   = uprof(1)
-      thl0av(1) = thlprof(1)
-      svs = svprof(1,:)
-     
-      call baseprofs ! call baseprofs before thermodynamics
+      ! apply cyclic and top boundary conditions
       call boundary
-      call thermodynamics
-      call surface
+      ! After setting the top boundary condition, the averaged profiles have to be calculated again,
+      ! otherwise thl0av(k1)==0, which makes thermodynamics crash
+      ekm  = ekh
 
-       ! Gradients at the top are now calculated in modboundary, every timestep
-!      dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
-!      dqt    = (qtprof (kmax)-qtprof (kmax-1)) / dzh(kmax)
-!      do n=1,nsv
-!        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
-!      end do
-
-      call boundary
-      call thermodynamics
-
+      ! I moved the calculation of the profile averages to before modboundary.
+      ! This is because that is more consistent with the determination of the top boundary condition
+      ! However, during startup, this causes the k1 levels to be zero, which wreaks havoc in modthermodynamics
     else !if lwarmstart
 
-      call readrestartfiles
-      if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
-        um   = u0
-        vm   = v0
-        wm   = w0
-        thlm = thl0
-        qtm  = qt0
-        svm  = sv0
-        e12m = e120
-      end if
-      call calc_halflev
-      exnf = (presf/pref0)**(rd/cp)
-      exnh = (presh/pref0)**(rd/cp)
+      call readBinRestart
 
-      do  j=2,j1
-      do  i=2,i1
-      do  k=2,k1
-        thv0h(i,j,k) = (thl0h(i,j,k)+rlv*ql0h(i,j,k)/(cp*exnh(k))) &
-                      *(1+(rv/rd-1)*qt0h(i,j,k)-rv/rd*ql0h(i,j,k))
-      end do
-      end do
-      end do
-
-      do  j=2,j1
-      do  i=2,i1
-      do  k=1,k1
-        thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                      *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
-      end do
-      end do
-      end do
-
-      thvh=0.
-      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-      thvh = thvh/rslabs
-
-      thvf = 0.0
-      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvf = thvf/rslabs
-
-      u0av = 0.0
-      v0av = 0.0
-      thl0av = 0.0
-      th0av  = 0.0
-      qt0av  = 0.0
-      ql0av  = 0.0
-      sv0av = 0.
-
-      call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      do n=1,nsv
-        call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      end do
-
-      u0av  = u0av  /rslabs + cu
-      v0av  = v0av  /rslabs + cv
-      thl0av = thl0av/rslabs
-      qt0av = qt0av /rslabs
-      ql0av = ql0av /rslabs
-      sv0av = sv0av /rslabs
-      th0av  = thl0av + (rlv/cp)*ql0av/exnf
-      thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-      
-      do k=1,k1
-        rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
-      end do
-
-      ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
-      call baseprofs !call baseprofs
-
     end if
 
-!-----------------------------------------------------------------
-!    2.1 read and initialise fields
-!-----------------------------------------------------------------
-
-
-    if(myid==0)then
-      open (ifinput,file='lscale.inp.'//cexpnr)
-      read (ifinput,'(a80)') chmess
-      read (ifinput,'(a80)') chmess
-      write(6,*) ' height u_geo   v_geo    subs     ' &
-                    ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
-      do  k=1,kmax
-        read (ifinput,*) &
-              height (k), &
-              ug     (k), &
-              vg     (k), &
-              wfls   (k), &
-              dqtdxls(k), &
-              dqtdyls(k), &
-              dqtdtls(k), &
-              thlpcar(k)
-      end do
-      close(ifinput)
-
-      do k=kmax,1,-1
-        write (6,'(3f7.1,5e12.4)') &
-              height (k), &
-              ug     (k), &
-              vg     (k), &
-              wfls   (k), &
-              dqtdxls(k), &
-              dqtdyls(k), &
-              dqtdtls(k), &
-              thlpcar(k)
-      end do
-
-
-    end if ! end myid==0
-
-! MPI broadcast variables read in
-
-    call MPI_BCAST(ug       ,kmax,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(vg       ,kmax,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wfls     ,kmax,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dqtdxls  ,kmax,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dqtdyls  ,kmax,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dqtdtls  ,kmax,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(thlpcar  ,kmax,MY_REAL   ,0,comm3d,mpierr)
-
-!-----------------------------------------------------------------
-!    2.3 make large-scale horizontal pressure gradient
-!-----------------------------------------------------------------
-
-!******include rho if rho = rho(z) /= 1.0 ***********
-
-    do k=1,kmax
-      dpdxl(k) =  om23_gs*vg(k)
-      dpdyl(k) = -om23_gs*ug(k)
-    end do
-
-  !-----------------------------------------------------------------
-  !    2.5 make large-scale horizontal gradients
-  !-----------------------------------------------------------------
-
-    whls(1)  = 0.0
-    do k=2,kmax
-      whls(k) = ( wfls(k)*dzf(k-1) +  wfls(k-1)*dzf(k) )/(2*dzh(k))
-    end do
-    whls(k1) = (wfls(kmax)+0.5*dzf(kmax)*(wfls(kmax)-wfls(kmax-1)) &
-                                                  /dzh(kmax))
-
-  !******include rho if rho = rho(z) /= 1.0 ***********
-
-    if (llsadv) then
-      if (myid==0) stop 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)'
+    ! Initialize m fields (indentical to what happens at a restart)
+    ! Previously, the qtm and thlm fields were separately randomnized and therefore
+    ! not identical to the qt0 and thl0 fields
+    ! The m fields are not allocated for iTimeInt==2
+    if (iTimeInt==iTimeWicker .or. iTimeInt==iTimeTVD) then
+      thlm = thl0
+      qtm  = qt0
+      svm  = sv0
+      e12m = e120
+      um   = u0
+      vm   = v0
+      wm   = w0
     end if
-    dudxls   = 0.0
-    dudyls   = 0.0
-    dvdxls   = 0.0
-    dvdyls   = 0.0
-    dthldxls = 0.0
-    dthldyls = 0.0
 
+    ! Calculate the horizontal averages (used in a.o. modthermodynamics)
+    call avgProfs 
+    ! Make the vertical profile of rho
+    call baseprofs
+
+    ! Set the timing variables
     idtmax = floor(dtmax/tres)
     btime   = timee
     timeleft=ceiling(runtime/tres)
     dt_lim = timeleft
     rdt = real(dt)*tres
+    subDt = rkb(1)*rdt
     ntrun   = 0
     rtimee  = real(timee)*tres
     ntimee  = nint(timee/dtmax)
     itrestart = floor(trestart/tres)
     tnextrestart = btime + itrestart
-    deallocate (height,th0av)
-
 
   end subroutine readinitfiles
 
-  subroutine readrestartfiles
-
-    use modsurfdata, only : ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                           tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation, useMcICA
-    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi,ekm
-    use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                          iexpnr,ntimee,tres,rkStep,rkMaxStep,ifinput,nsv,runtime,dt,rdt,cu,cv
-    use modmpi,     only : cmyid, myid
-
-
-    character(50) :: name
-    integer i,j,k,n
-    !********************************************************************
-
-  !    1.0 Read initfiles
-  !-----------------------------------------------------------------
-    name = startfile
-    name(5:5) = 'd'
-    name(13:15)=cmyid
-    write(6,*) 'loading ',name
-    open(unit=ifinput,file=name,form='unformatted', status='old')
-
-      read(ifinput)  (((u0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-!       u0 = u0-cu
-      read(ifinput)  (((v0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-!       v0 = v0-cv
-      read(ifinput)  (((w0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((thl0  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((qt0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ql0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ql0h  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((qvsi   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)   ((ustar (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((thlflux (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((dthldz(i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)  (  presf (    k)                            ,k=1,k1)
-      read(ifinput)  (  presh (    k)                            ,k=1,k1)
-      read(ifinput)  ps,thls,qts,thvs,oblav
-      read(ifinput)  dtheta,dqt,timee,dt,tres
-      read(ifinput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
-      if(lhetero) then
-        read(ifinput)   ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((qts_patch (i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
-        read(ifinput)   ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
-      endif
-    close(ifinput)
-
-    if (nsv>0) then
-      name(5:5) = 's'
-      write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
-      read(ifinput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
-      read(ifinput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
-      read(ifinput) (dsv(n),n=1,nsv)
-      read(ifinput)  timee
-      close(ifinput)
-    end if
-
-    if (isurf == 1) then
-      name(5:5) = 'l'
-      write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
-      read(ifinput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-      read(ifinput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-      read(ifinput) ((tskin(i,j),i=1,i2),j=1,j2)
-      read(ifinput) ((Wl(i,j),i=1,i2),j=1,j2)
-      read(ifinput) ((Qnet(i,j),i=1,i2),j=1,j2)
-      if(iradiation == 1 .and. useMcICA) then
-        read(ifinput) (((swdavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-        read(ifinput) (((swuavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-        read(ifinput) (((lwdavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-        read(ifinput) (((lwuavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-      end if
-      read(ifinput)  timee
-      close(ifinput)
-    end if
-
-  end subroutine readrestartfiles
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine writerestartfiles
-    use modsurfdata,only: ustar,thlflux,qtflux,svflux,dudz,dvdz,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                          tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation, useMcICA
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi,ekm
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
-                          ntimee,rtimee,rkStep,rkMaxStep,ifoutput,nsv,timeleft,dtheta,dqt,dt,cu,cv
-    use modmpi,    only : cmyid,myid
-
+  !=====================================================================!
+  ! This routine reads the basic input profiles from the ASCII files:   !
+  ! prof.inp., lscale.inp. and scalar.inp (in case nsv>0).              !
+  ! JvdD
+  !=====================================================================!
+  subroutine readInputProfs
+    use modglobal, only : ifinput,cexpnr,e12min,kmax,k1,nsv
+    use modmpi,    only : myid,my_real,comm3d,mpierr
+    use modfields, only : thlprof,qtprof,uprof,vprof,e12prof,svprof,&
+                          ug,vg,wfls,dqtdxls,dqtdyls,dqtdtls,thlpcar
     implicit none
-    logical :: lexitnow = .false.
-    integer imin,ihour
-    integer i,j,k,n
-    character(20) name,linkname
+    character(80) :: chmess
+    real          :: height(k1)
+    integer       :: k,n
 
-    if (timee == 0) return
-    if (rkStep /=3) return
-    name = 'exit_now.'//cexpnr
-    inquire(file=trim(name), EXIST=lexitnow)
+    if (myid==0) then
+      !==== Read prof.inp. ======!
+      open (ifinput,file='prof.inp.'//cexpnr)
+      read (ifinput,'(a80)') chmess
+      write(   *   ,'(a80)') chmess
+      read (ifinput,'(a80)') chmess
 
-    if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    if (timee>=tnextrestart .or. lexitnow) then
-      tnextrestart = tnextrestart+itrestart
-      ihour = floor(rtimee/3600)
-      imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd   h  m   .'
-      write (name(6:8)  ,'(i3.3)') ihour
-      write (name(10:11),'(i2.2)') imin
-      name(13:15)= cmyid
-      name(17:19)= cexpnr
-      open  (ifoutput,file=name,form='unformatted',status='replace')
+      ! First read the input profiles...
+      do k=1,kmax
+        read (ifinput,*) &
+          height(k), thlprof(k), qtprof(k), uprof(k), vprof(k), e12prof(k)
+      end do
+      close(ifinput)
+      ! ... then write them as a check to the output file
+      write(*,*) 'height    thl      qt         u      v     e12'
+      do k=kmax,1,-1
+        write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
+          height(k), thlprof(k), qtprof(k), uprof(k), vprof(k), e12prof(k)
+      end do
 
-      write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((v0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((w0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((thl0  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((qt0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((ql0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((ql0h  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)  (((qvsi   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      write(ifoutput)   ((ustar (i,j  ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((thlflux (i,j  ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((dthldz(i,j  ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)  (  presf (    k)                            ,k=1,k1)
-      write(ifoutput)  (  presh (    k)                            ,k=1,k1)
-      write(ifoutput)  ps,thls,qts,thvs,oblav
-      write(ifoutput)  dtheta,dqt,timee,  dt,tres
-      write(ifoutput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
-      if(lhetero) then
-        write(ifoutput)  ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((qts_patch (i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
-        write(ifoutput)  ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
-      endif
+      !==== Read lscale.inp. ======!
+      open (ifinput,file='lscale.inp.'//cexpnr)
+      read (ifinput,'(a80)') chmess ! Header lines
+      read (ifinput,'(a80)') chmess ! 
 
-      close (ifoutput)
-      linkname = name
-      linkname(6:11) = "latest"
-      call system("ln -sf "//name //" "//linkname)
+      ! First read the input profiles...
+      do  k=1,kmax
+        read (ifinput,*) &
+          height(k),ug(k),vg(k),wfls(k),dqtdxls(k),dqtdyls(k),dqtdtls(k),thlpcar(k)
+      end do
+      close(ifinput)
+      ! ... then write them as a check to the output file
+      write(6,*) ' height u_geo   v_geo    subs     ' &
+                    ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
+      do k=kmax,1,-1
+        write (6,'(3f7.1,5e12.4)') &
+          height(k),ug(k),vg(k),wfls(k),dqtdxls(k),dqtdyls(k),dqtdtls(k),thlpcar(k)
+      end do
 
+      !==== Read scalar.inp. ======!
       if (nsv>0) then
-        name  = 'inits   h  m   .'
-        write (name(6:8)  ,'(i3.3)') ihour
-        write (name(10:11),'(i2.2)') imin
-        name(13:15) = cmyid
-        name(17:19) = cexpnr
-        open  (ifoutput,file=name,form='unformatted')
-        write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
-        write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
-        write(ifoutput) (dsv(n),n=1,nsv)
-        write(ifoutput)  timee
-
-        close (ifoutput)
-        linkname = name
-        linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
-
+        open (ifinput,file='scalar.inp.'//cexpnr)
+        read (ifinput,'(a80)') chmess ! Header lines
+        read (ifinput,'(a80)') chmess !
+        ! First read the input profiles...
+        do k=1,kmax
+          read (ifinput,*) &
+            height(k), (svprof(k,n),n=1,nsv)
+        end do
+        ! ... then write them as a check to the output file
+        open (ifinput,file='scalar.inp.'//cexpnr)
+        write (6,*) 'height   sv(1) --------- sv(nsv) '
+        do k=kmax,1,-1
+          write (6,*) &
+            height(k), (svprof(k,n),n=1,nsv)
+        end do
       end if
 
-      if (isurf == 1) then
-        name  = 'initl   h  m   .'
-        write (name(6:8)  ,'(i3.3)') ihour
-        write (name(10:11),'(i2.2)') imin
-        name(13:15) = cmyid
-        name(17:19) = cexpnr
-        open  (ifoutput,file=name,form='unformatted')
-        write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-        write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
-        write(ifoutput) ((tskin(i,j),i=1,i2),j=1,j2)
-        write(ifoutput) ((Wl(i,j),i=1,i2),j=1,j2)
-        write(ifoutput) ((Qnet(i,j),i=1,i2),j=1,j2)
-        if(iradiation == 1 .and. useMcICA) then
-          write(ifoutput) (((swdavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-          write(ifoutput) (((swuavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-          write(ifoutput) (((lwdavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-          write(ifoutput) (((lwuavn(i,j,n),i=1,i2),j=1,j2),n=1,nradtime)
-        end if
-        write(ifoutput)  timee
-
-        close (ifoutput)
-        linkname = name
-        linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+      ! Check for unphysical input
+      if (minval(e12prof(1:kmax)) < e12min) then
+        write(*,*)  'e12 value is zero (or less) in prof.inp'
+        write(*,*)  'Replaced by e12min.'
+        do k=1,kmax
+          e12prof(k) = max(e12prof(k),e12min)
+        end do
       end if
-      if (lexitnow) then
-        timeleft = 0  !jump out of the time loop
-      end if
-      if (lexitnow .and. myid == 0 ) then
-        open(1, file=trim(name), status='old')
-        close(1,status='delete')
-        write(*,*) 'Stopped at t=',rtimee
-      end if
+    end if ! end if myid==0
 
-      if (myid==0) then
-        write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
-      end if
+    ! Broadcast the profiles to all processors
+    !  prof.inp.
+    call MPI_BCAST(thlprof,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(qtprof ,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(uprof  ,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(vprof  ,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(e12prof,kmax  ,MY_REAL,0,comm3d,mpierr)
+    !  lscale.inp.
+    call MPI_BCAST(ug     ,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(vg     ,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(wfls   ,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(dqtdxls,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(dqtdyls,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(dqtdtls,kmax  ,MY_REAL,0,comm3d,mpierr)
+    call MPI_BCAST(thlpcar,kmax  ,MY_REAL,0,comm3d,mpierr)
+    !  scalar.inp
+    call MPI_BCAST(svprof ,k1*nsv,MY_REAL,0,comm3d,mpierr)
 
-    end if
+  end subroutine readInputProfs
 
-
-  end subroutine writerestartfiles
-
-  subroutine exitmodules
-    use modfields,         only : exitfields
-    use modglobal,         only : exitglobal
-    use modmpi,            only : exitmpi
-    use modboundary,       only : exitboundary
-    use modmicrophysics,   only : exitmicrophysics
-    use modbulkmicro,      only : exitbulkmicro
-    use modpois,           only : exitpois
-    use modtimedep,        only : exittimedep
-    use modradiation,      only : exitradiation
-    use modsubgrid,        only : exitsubgrid
-    use modsurface,        only : exitsurface
-    use modthermodynamics, only : exitthermodynamics
-
-    call exittimedep
-    call exitthermodynamics
-    call exitsurface
-    call exitsubgrid
-    call exitradiation
-    call exitpois
-    call exitmicrophysics
-    call exitbulkmicro
-    call exitboundary
-    call exitfields
-    call exitglobal
-    call exitmpi
-
- end subroutine exitmodules
 !----------------------------------------------------------------
   subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
 
@@ -1017,15 +624,15 @@ contains
     ! Calculates the profiles corresponding to the base state
     ! In the currecnt implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
-    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh
-    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
-    use modsurfdata,       only : thls,ps,qts
+    use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh,rhodzi,thlprof,qtprof
+    use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput
+    use modsurfdata,       only : ps
     use modmpi,            only : myid,comm3d,mpierr,my_real
     implicit none
 
     real :: thvb,prsb ! for calculating moist adiabat
     integer :: j,k
-    real, allocatable :: height(:),pb(:),tb(:)
+    real :: pb(k1),tb(k1)
     character(80) chmess
     real :: zsurf=0.
     real :: tsurf
@@ -1035,202 +642,149 @@ contains
     real,dimension(4) :: pmat
     real,dimension(4) :: tmat
 
-    allocate (height(k1),pb(k1),tb(k1))
+    ! For a warmstart, do not calculate a base profile as it is included in the restart file already. You do however need the halflevels and the gradients
+    if (lwarmstart) ibas_prf=5
 
-    if(myid==0)then
+    ! NOTE: I replaced all references to thls and qts by thlprof(1) and qtprof(1)
+    ! First the density profile was (slightly) dependent on the choice of the surface scheme
+    ! Differences should be small.
 
-      if((lwarmstart.eqv..true.).and.(ibas_prf /= 5)) then
-        ibas_prf = 5
-        print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
-      endif
-
-      if(ibas_prf==1) then !thv constant and hydrostatic balance
-        thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
-        do k=1,k1
-          prsb=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvb))**(cp/rd) !As in thermodynamics
-          rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==2) then ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
-        thvb=thls*(1+(rv/rd-1)*qts)
-        rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
-        do k=1,k1
-          rhobf(k)=rhobh(1)
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==3) then! use standard atmospheric lapse rate with surface temperature offset
-        tsurf=thls*(ps/pref0)**(rd/cp)
-        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
-        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
-        ! write(*,*)(*,*) 'make profiles'
-        
-        do j=2,4
-          if(abs(lapserate(j))<1e-10) then
-            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
-          else
-            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
-          endif
-          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
-        enddo
-        
-        do k=1,k1
-          if(zf(k)<zmat(1)) then
-            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
-            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
-          else
-            j=1
-            do while(zf(k)>zmat(j))
-              j=j+1
-            end do
-            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
-            if(abs(lapserate(j))<1e-99) then
-              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
-            else
-              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
-            endif
-          endif
-          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      elseif(ibas_prf==4) then! use standard atmospheric lapse rate without surface temperature offset
-        tsurf=288.16
-        pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-          log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
-        tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
-        ! write(*,*)(*,*) 'make profiles'
-        
-        do j=2,4
-          if(abs(lapserate(j))<1e-10) then
-            pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
-          else
-            pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-              log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
-          endif
-          tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
-        enddo
-        
-        do k=1,k1
-          if(zf(k)<zmat(1)) then
-            pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
-              log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
-            tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
-          else
-            j=1
-            do while(zf(k)>zmat(j))
-              j=j+1
-            end do
-            tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
-            if(abs(lapserate(j))<1e-99) then
-              pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
-            else
-              pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
-                log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
-            endif
-          endif
-          rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
-        enddo
-        open (ifoutput,file='baseprof.inp.'//cexpnr)
-        write(ifoutput,*) '#baseprofiles'
-        write(ifoutput,*) '#height rhobf'
-        do k=1,kmax
-          write (ifoutput,'(1f7.1,E25.17)') &
-                zf (k), &
-                rhobf (k)
-        enddo
-        close(ifoutput)
-      end if
-
-      ! Reset all background profiles
-      rhobf=0.
-      rhobh=0.
-
-      ! Read background profiles in all cases
-      open (ifinput,file='baseprof.inp.'//cexpnr)
-      read (ifinput,'(a80)') chmess
-      read (ifinput,'(a80)') chmess
+    ! theta_v constant and hydrostatic balance
+    if(ibas_prf==1) then
+      thvb=thlprof(1)*(1+(rv/rd-1)*qtprof(1)) ! using thlprof(1), q_l assumed to be 0 during first time step
+      do k=1,k1
+        prsb=(ps**(rd/cp)-(grav*zf(k)*pref0**(rd/cp))/(cp*thvb))**(cp/rd) !As in thermodynamics
+        rhobf(k)=prsb/(rd*thvb*((prsb/pref0)**(rd/cp)))
+      enddo
+    ! Quasi-Boussinesq (Similar to Dales 3, except for buoyancy term now depending on slab mean state)
+    elseif(ibas_prf==2) then
+      thvb=thlprof(1)*(1+(rv/rd-1)*qtprof(1))
+      rhobh(1)=ps/(rd*thvb*(ps/pref0)**(rd/cp))
+      do k=1,k1
+        rhobf(k)=rhobh(1)
+      enddo
+    ! Use standard atmospheric lapse rate with surface temperature offset
+    elseif(ibas_prf==3) then
+      tsurf=thlprof(1)*(ps/pref0)**(rd/cp)
+      pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+        log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+      tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
       
-      do k=1,kmax
-        read (ifinput,*) &
-                height(k), &
-                rhobf (k)
-      end do
-      close(ifinput)
+      do j=2,4
+        if(abs(lapserate(j))<1e-10) then
+          pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+        else
+          pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+            log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+        endif
+        tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+      enddo
+      
+      do k=1,k1
+        if(zf(k)<zmat(1)) then
+          pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+            log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+          tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+        else
+          j=1
+          do while(zf(k)>zmat(j))
+            j=j+1
+          end do
+          tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+          if(abs(lapserate(j))<1e-99) then
+            pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+          else
+            pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+              log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+          endif
+        endif
+        rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+      enddo
+    ! Use standard atmospheric lapse rate without surface temperature offset
+    elseif(ibas_prf==4) then
+      tsurf=288.16
+      pmat(1)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+        log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
+      tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
+      
+      do j=2,4
+        if(abs(lapserate(j))<1e-10) then
+          pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
+        else
+          pmat(j)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+            log(tmat(j-1)+zmat(j)*lapserate(j))*grav)/(lapserate(j)*rd))
+        endif
+        tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
+      enddo
+      
+      do k=1,k1
+        if(zf(k)<zmat(1)) then
+          pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
+            log(tsurf+zf(k)*lapserate(1))*grav)/(lapserate(1)*rd))
+          tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
+        else
+          j=1
+          do while(zf(k)>zmat(j))
+            j=j+1
+          end do
+          tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
+          if(abs(lapserate(j))<1e-99) then
+            pb(k)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zf(k)*grav)/(tmat(j-1)*rd))
+          else
+            pb(k)=exp((log(pmat(j-1))*lapserate(j)*rd+log(tmat(j-1)+zmat(j-1)*lapserate(j))*grav-&
+              log(tmat(j-1)+zf(k)*lapserate(j))*grav)/(lapserate(j)*rd))
+          endif
+        endif
+        rhobf(k)=pb(k)/(rd*tb(k)) ! dry estimate
+      enddo
+    end if
 
-   
-      rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
+    ! Extrapolate the density profile to the top level
+    rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
 
-      do k=2,k1
+    ! Interpolate to find half level densities
+    do k=2,k1
       rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
-      end do
-
-      rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
+    end do
+    rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
 
     ! calculate derivatives
     do  k=1,kmax
       drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
     end do
-
     drhobdzf(k1) = drhobdzf(kmax)
   
     drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
-
     do k=2,k1
       drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
     end do
 
     ! write profiles and derivatives to standard output
-    write (6,*) ' height   rhobf       rhobh'
-    do k=k1,1,-1
-        write (6,'(1f7.1,2E25.17)') &
-              height (k), &
-              rhobf (k), &
-              rhobh (k)
-    end do
-    write (6,*) ' height   drhobdzf    drhobdzh'
-    do k=k1,1,-1
-        write (6,'(1f7.1,2E25.17)') &
-              height (k), &
-              drhobdzf (k), &
-              drhobdzh (k)
-    end do
+    if (myid==0) then
+      write (6,*) ' height   rhobf       rhobh'
+      do k=k1,1,-1
+          write (6,'(1f7.1,2E25.17)') &
+                zf (k), &
+                rhobf (k), &
+                rhobh (k)
+      end do
+      write (6,*) ' height   drhobdzf    drhobdzh'
+      do k=k1,1,-1
+          write (6,'(1f7.1,2E25.17)') &
+                zf (k), &
+                drhobdzf (k), &
+                drhobdzh (k)
+      end do
+    end if
 
-    end if ! ENDIF MYID=0
+    ! Useful for advection
+    rhodzi = 1./(rhobf*dzf)
 
     ! MPI broadcast variables
-    call MPI_BCAST(rhobf       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(rhobh       ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(drhobdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(drhobdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
-
-    deallocate(pb,tb)
+    !call MPI_BCAST(rhobf       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    !call MPI_BCAST(rhobh       ,k1,MY_REAL   ,0,comm3d,mpierr)
+    !call MPI_BCAST(drhobdzf    ,k1,MY_REAL   ,0,comm3d,mpierr)
+    !call MPI_BCAST(drhobdzh    ,k1,MY_REAL   ,0,comm3d,mpierr)
 
   end subroutine baseprofs
 

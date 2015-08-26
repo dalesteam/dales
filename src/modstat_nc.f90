@@ -182,7 +182,7 @@ contains
   subroutine define_nc(ncID, nVar, sx)
     implicit none
     integer, intent (in) :: nVar, ncID
-    character (*), intent (in) :: sx(nVar,4)
+    character (80), intent (in) :: sx(nVar,4)
 
     integer, save ::  dim_mttt(4) = 0, dim_tmtt(4) = 0, dim_ttmt(4) = 0, dim_tttt(4) = 0, &
                       dim_tt(2)= 0, dim_mt(2)= 0,dim_t0tt(3)=0,dim_m0tt(3)=0,dim_t0mt(3)=0,dim_tt0t(3)=0, &
@@ -342,7 +342,7 @@ contains
     integer, intent(in)                      :: ncid,nvar
     integer, intent(inout)                   :: nrec
     real,dimension(nvar),intent(in)          :: vars
-    character(*), dimension(:,:),intent(in)  :: ncname
+    character(80), dimension(nvar,4),intent(in) :: ncname
     logical, intent(in)                      :: lraise
 
     integer :: iret,n,varid
@@ -365,6 +365,7 @@ contains
     character(*), dimension(:,:),intent(in)  :: ncname
 
     integer :: iret,n,varid
+
     do n=1,nvar
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
@@ -381,6 +382,7 @@ contains
     character(*), dimension(:,:),intent(in)  :: ncname
 
     integer :: iret,n,varid
+
     do n=1,nvar
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))

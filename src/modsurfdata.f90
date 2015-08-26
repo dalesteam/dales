@@ -100,13 +100,13 @@ SAVE
   real              :: z0mav    = -1
   real, allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
   real              :: z0hav    = -1
-  real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
+!  real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
   real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
   real              :: Wlav     = -1                                  
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
-  real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
+!  real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
   real, allocatable :: albedo     (:,:) !<  Surface albedo [-]
   real              :: albedoav = -1
   real, allocatable :: LAI        (:,:) !<  Leaf area index vegetation [-]
@@ -119,6 +119,7 @@ SAVE
   real, allocatable :: lambdaskin (:,:) !<  Heat conductivity skin layer [W/m/K]
   real              :: lambdaskinav
   real              :: ps       = -1    !<  Surface pressure [Pa]
+!  real              :: ct_cgils = -1    !<  CGILS surface drag coefficient
 
   ! Surface energy balance
   real, allocatable :: Qnet     (:,:)   !<  Net radiation [W/m2]
@@ -144,20 +145,21 @@ SAVE
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
   logical           :: lidealised = .false. !< Use analytical expressions for surface fluxes
-  real, allocatable :: obl   (:,:)      !<  Obukhov length [m]
+!  real, allocatable :: obl   (:,:)      !<  Obukhov length [m]
   real              :: oblav            !<  Spatially averaged obukhov length [m]
   real, allocatable :: Cm    (:,:)      !<  Drag coefficient for momentum [-]
   real, allocatable :: Cs    (:,:)      !<  Drag coefficient for scalars [-]
-  real, allocatable :: ustar (:,:)      !<  Friction velocity [m/s]
-  real, allocatable :: thlflux (:,:)    !<  Kinematic temperature flux [K m/s]
-  real, allocatable :: qtflux  (:,:)    !<  Kinematic specific humidity flux [kg/kg m/s]
-  real, allocatable :: svflux  (:,:,:)  !<  Kinematic scalar flux [- m/s]
+!  real, allocatable :: ustar (:,:)      !<  Friction velocity [m/s]
+!  real, allocatable :: thlflux (:,:)    !<  Kinematic temperature flux [K m/s]
+!  real, allocatable :: qtflux  (:,:)    !<  Kinematic specific humidity flux [kg/kg m/s]
+!  real, allocatable :: svflux  (:,:,:)  !<  Kinematic scalar flux [- m/s]
 
   ! Surface gradients of prognostic variables
   real, allocatable :: dudz  (:,:)      !<  U-wind gradient in surface layer [1/s]
   real, allocatable :: dvdz  (:,:)      !<  V-wind gradient in surface layer [1/s]
-  real, allocatable :: dqtdz (:,:)      !<  Specific humidity gradient in surface layer [kg/kg/m]
-  real, allocatable :: dthldz(:,:)      !<  Liquid water potential temperature gradient in surface layer [K/m]
+  ! Moved to modfields
+!  real, allocatable :: dqtdz (:,:)      !<  Specific humidity gradient in surface layer [kg/kg/m]
+!  real, allocatable :: dthldz(:,:)      !<  Liquid water potential temperature gradient in surface layer [K/m]
 
   ! Surface properties in case of prescribed conditions (previous isurf 2, 3 and 4)
   real              :: thls  = -1       !<  Surface liquid water potential temperature [K]
@@ -187,11 +189,11 @@ SAVE
   real, allocatable :: z0mav_patch(:,:)                 !< Rougness length per patch
   real, allocatable :: z0hav_patch(:,:)                 !< Rougness length per patch
   real              :: thls_land(max_lands)        = -1 !< Surface liquid water potential temperature [K]
-  real, allocatable :: thls_patch(:,:)                  !< Surface liquid water potential temperature [K]
-  real, allocatable :: qts_patch(:,:)                   !< Surface liquid water potential temperature [K]
-  real, allocatable :: thvs_patch(:,:)                  !< Surface virtual potential temperature [K]
+!  real, allocatable :: thls_patch(:,:)                  !< Surface liquid water potential temperature [K]
+!  real, allocatable :: qts_patch(:,:)                   !< Surface liquid water potential temperature [K]
+!  real, allocatable :: thvs_patch(:,:)                  !< Surface virtual potential temperature [K]
   real              :: ps_land(max_lands)          = -1 !< Surface pressure [Pa]
-  real, allocatable :: ps_patch(:,:)                    !< Surface pressure [Pa]
+!  real, allocatable :: ps_patch(:,:)                    !< Surface pressure [Pa]
   real              :: ustin_land(max_lands)       = -1 !< Prescribed friction velocity [m/s]
   real, allocatable :: ustin_patch(:,:)                 !< Prescribed friction velocity [m/s]
   real              :: wt_land(max_lands)          = -1 !< Prescribed kinematic temperature flux [K m/s]
@@ -228,6 +230,6 @@ SAVE
   real              :: rsmin_land(max_lands)       = -1 !< Minimum vegetation resistance [s/m]
   real              :: LAI_land(max_lands)         = -1 !< Leaf area index vegetation [-]
   real              :: gD_land(max_lands)          = -1 !< Response factor vegetation to vapor pressure deficit [-]
-  real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
+!  real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
 
 end module modsurfdata

@@ -49,9 +49,9 @@ end subroutine initsurf_user
 
 subroutine surf_user
  use modglobal,  only : zf,i1,j1,i2,j2,grav,nsv,fkar,cv,cu
- use modsurfdata,only : ustar,dudz,dvdz,dqtdz,dthldz,&
-                          svs,z0,qts,thls,thvs,thlflux,qtflux,svflux
-  use modfields, only : u0,v0,thl0,qt0,sv0,u0av,v0av,qt0av,thl0av
+ use modsurfdata,only : svs,z0,qts,thls,thvs,dudz,dvdz
+  use modfields, only : u0,v0,thl0,qt0,sv0,u0av,v0av,qt0av,thl0av, &
+                        ustar,dqtdz,dthldz,thlflux,qtflux,svflux
   use modmpi,    only :  excj
   implicit none
   integer i, j, n

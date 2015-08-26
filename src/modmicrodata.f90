@@ -78,7 +78,7 @@
 !                     ,Dvrmax = 1000.0e-6    & !<  max mean diam. of pw
 !  values given by SB2001
               ,xcmin = 4.2e-15     & !< \param xcmin  min mean mass of cw (D = 2.0e-6m)
-              ,xcmax = 2.6e-10     & !<  max mean mass of cw (D = 80e-6m) (see SB01 art)
+              ,xcmax = 2.6e-10     & !<  max mean mass of cw (D = 80e-6m)
               ,xrmin = xcmax       & !<  min mean mass of pw
 !               ,xrmax = 6.0e-07      & !<  max mean mass of pw
                ,Dvcmin = 2.0e-6     & !<  min mean diam. of cw
@@ -123,7 +123,6 @@
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]
 !          ,pirhow = (pi*rhow)/6. & !< used in conversion of mass to diameter
          ,pirhow = 3.14159*rhow/6.        &
-!         ,xrmaxkk = Dvrmax**3*pirhow     & !<  max mean mass of pw in KK00 scheme
          ,wMaxkk = 6000.*Dvrmax- 0.2 & ! Maximum velocity of rain drops in KK00 scheme
          ,Rv = 461.5       & !<  specific gas constant for water vapor
          ,avf = 0.78       & !<  constants in vent. factor fv   (fv = 1. --> av=1,

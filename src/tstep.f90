@@ -100,7 +100,7 @@ contains
                           dt_lim,ladaptive,timeleft,idtmax,rdt,subDt,tres,longint,lwarmstart
     implicit none
   
-    real          :: courantold=-1.,pecletold=-1., &
+    real,save     :: courantold=-1.,pecletold=-1., &
                      courantmax,pecletmax
     logical,save  :: spinup=.true.
     integer       :: k
@@ -196,42 +196,61 @@ contains
   !! \see Wicker and Skamarock, 2002
   subroutine tstep_integrate
   
-    use modglobal, only : i1,j1,kmax,nsv,rdt,subDt,e12min,ih,jh,rslabs,kcb
+    use modglobal, only : imax,i1,j1,kmax,nsv,rdt,subDt,e12min,ih,jh,rslabs,kcb
     use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                           thl0,thlm,thlp,qt0,qtm,qtp,&
                           e120,e12m,e12p,sv0,svm,svp
     implicit none
+    integer :: n,k,j,i
  
     select case (iTimeInt)
  
+      !======================== Regular storage RK3 schemes ==================================
       case(iTimeWicker,iTimeTVD)
-        u0  (2:i1,2:j1,1:kmax) = um  (2:i1,2:j1,1:kmax) + subDt*up  (2:i1,2:j1,1:kmax)
-        v0  (2:i1,2:j1,1:kmax) = vm  (2:i1,2:j1,1:kmax) + subDt*vp  (2:i1,2:j1,1:kmax)
-        w0  (2:i1,2:j1,1:kmax) = wm  (2:i1,2:j1,1:kmax) + subDt*wp  (2:i1,2:j1,1:kmax)
-        thl0(2:i1,2:j1,1:kmax) = thlm(2:i1,2:j1,1:kmax) + subDt*thlp(2:i1,2:j1,1:kmax)
-        qt0 (2:i1,2:j1,1:kmax) = qtm (2:i1,2:j1,1:kmax) + subDt*qtp (2:i1,2:j1,1:kmax)
-        e120(2:i1,2:j1,1:kmax) = e12m(2:i1,2:j1,1:kmax) + subDt*e12p(2:i1,2:j1,1:kmax)
-        if (nsv>0) sv0(2:i1,2:j1,1:kmax,1:nsv) = svm(2:i1,2:j1,1:kmax,1:nsv) + subDt*svp(2:i1,2:j1,1:kmax,1:nsv)
+        ! Use a function for adding the 3d fields. This is more efficient.
+        call add3d(u0  (2:i1,2:j1,1:kmax),um  (2:i1,2:j1,1:kmax),up  (2:i1,2:j1,1:kmax),subDt)
+        call add3d(v0  (2:i1,2:j1,1:kmax),vm  (2:i1,2:j1,1:kmax),vp  (2:i1,2:j1,1:kmax),subDt)
+        call add3d(w0  (2:i1,2:j1,1:kmax),wm  (2:i1,2:j1,1:kmax),wp  (2:i1,2:j1,1:kmax),subDt)
+        call add3d(thl0(2:i1,2:j1,1:kmax),thlm(2:i1,2:j1,1:kmax),thlp(2:i1,2:j1,1:kmax),subDt)
+        call add3d(qt0 (2:i1,2:j1,1:kmax),qtm (2:i1,2:j1,1:kmax),qtp (2:i1,2:j1,1:kmax),subDt)
+        call add3d(e120(2:i1,2:j1,1:kmax),e12m(2:i1,2:j1,1:kmax),e12p(2:i1,2:j1,1:kmax),subDt)
+        if (nsv>0) then
+          do n=1,nsv
+            call add3d(sv0(2:i1,2:j1,1:kmax,n),svm(2:i1,2:j1,1:kmax,n),svp(2:i1,2:j1,1:kmax,n),subDt)
+          end do
+        end if
     
+        !== Store the old fields at the end of the timestep
         if (rkStep == rkMaxStep) then
-          um = u0
-          vm = v0
-          wm = w0
-          thlm = thl0
-          qtm  = qt0
-          e12m = e120
-          svm = sv0
+          call copy3d(um  (2:i1,2:j1,1:kmax),u0  (2:i1,2:j1,1:kmax))
+          call copy3d(vm  (2:i1,2:j1,1:kmax),v0  (2:i1,2:j1,1:kmax))
+          call copy3d(wm  (2:i1,2:j1,1:kmax),w0  (2:i1,2:j1,1:kmax))
+          call copy3d(thlm(2:i1,2:j1,1:kmax),thl0(2:i1,2:j1,1:kmax))
+          call copy3d(qtm (2:i1,2:j1,1:kmax),qt0 (2:i1,2:j1,1:kmax))
+          call copy3d(e12m(2:i1,2:j1,1:kmax),e120(2:i1,2:j1,1:kmax))
+          if (nsv>0) then
+            do n=1,nsv
+              call copy3d(svm(2:i1,2:j1,1:kmax,n),sv0(2:i1,2:j1,1:kmax,n))
+            end do
+          end if
         end if
   
+      !======================== Low Storage RK3 scheme =======================================
       case (iTimeLowStor)
-        u0  (2:i1,2:j1,1:kmax) = u0  (2:i1,2:j1,1:kmax) + subDt*up  (2:i1,2:j1,1:kmax)
-        v0  (2:i1,2:j1,1:kmax) = v0  (2:i1,2:j1,1:kmax) + subDt*vp  (2:i1,2:j1,1:kmax)
-        w0  (2:i1,2:j1,1:kmax) = w0  (2:i1,2:j1,1:kmax) + subDt*wp  (2:i1,2:j1,1:kmax)
-        thl0(2:i1,2:j1,1:kmax) = thl0(2:i1,2:j1,1:kmax) + subDt*thlp(2:i1,2:j1,1:kmax)
-        qt0 (2:i1,2:j1,1:kmax) = qt0 (2:i1,2:j1,1:kmax) + subDt*qtp (2:i1,2:j1,1:kmax)
-        e120(2:i1,2:j1,1:kmax) = e120(2:i1,2:j1,1:kmax) + subDt*e12p(2:i1,2:j1,1:kmax)
-        if (nsv>0) sv0(2:i1,2:j1,1:kmax,1:nsv) = sv0(2:i1,2:j1,1:kmax,1:nsv) + subDt*svp(2:i1,2:j1,1:kmax,1:nsv)
+        ! Use a function for adding the 3d fields. This is more efficient.
+        call add3d(u0  (2:i1,2:j1,1:kmax),u0  (2:i1,2:j1,1:kmax),up  (2:i1,2:j1,1:kmax),subDt)
+        call add3d(v0  (2:i1,2:j1,1:kmax),v0  (2:i1,2:j1,1:kmax),vp  (2:i1,2:j1,1:kmax),subDt)
+        call add3d(w0  (2:i1,2:j1,1:kmax),w0  (2:i1,2:j1,1:kmax),wp  (2:i1,2:j1,1:kmax),subDt)
+        call add3d(thl0(2:i1,2:j1,1:kmax),thl0(2:i1,2:j1,1:kmax),thlp(2:i1,2:j1,1:kmax),subDt)
+        call add3d(qt0 (2:i1,2:j1,1:kmax),qt0 (2:i1,2:j1,1:kmax),qtp (2:i1,2:j1,1:kmax),subDt)
+        call add3d(e120(2:i1,2:j1,1:kmax),e120(2:i1,2:j1,1:kmax),e12p(2:i1,2:j1,1:kmax),subDt)
+        if (nsv>0) then
+          do n=1,nsv
+            call add3d(sv0(2:i1,2:j1,1:kmax,n),sv0(2:i1,2:j1,1:kmax,n),svp(2:i1,2:j1,1:kmax,n),subDt)
+          end do
+        end if
   
+      !=======================================================================================
       case default
     end select
 
@@ -241,15 +260,60 @@ contains
     end where
 
     ! Set the appropriate offsets for the tendencies (for Wicker and Skamarock, rka(:)=0 )
-    up   = rka(rkStep)*up
-    vp   = rka(rkStep)*vp
-    wp   = rka(rkStep)*wp
-    thlp = rka(rkStep)*thlp
-    qtp  = rka(rkStep)*qtp
-    e12p = rka(rkStep)*e12p
-    if (nsv>0) svp = rka(rkStep)*svp
+    call copy3d_cnst(up  (2:i1,2:j1,1:kmax),up  (2:i1,2:j1,1:kmax),rka(rkStep))
+    call copy3d_cnst(vp  (2:i1,2:j1,1:kmax),vp  (2:i1,2:j1,1:kmax),rka(rkStep))
+    call copy3d_cnst(wp  (2:i1,2:j1,1:kmax),wp  (2:i1,2:j1,1:kmax),rka(rkStep))
+    call copy3d_cnst(thlp(2:i1,2:j1,1:kmax),thlp(2:i1,2:j1,1:kmax),rka(rkStep))
+    call copy3d_cnst(qtp (2:i1,2:j1,1:kmax),qtp (2:i1,2:j1,1:kmax),rka(rkStep))
+    call copy3d_cnst(e12p(2:i1,2:j1,1:kmax),e12p(2:i1,2:j1,1:kmax),rka(rkStep))
+    if (nsv>0) then
+      do n=1,nsv
+        call copy3d_cnst(svp(2:i1,2:j1,1:kmax,n),svp(2:i1,2:j1,1:kmax,n),rka(rkStep))
+      end do
+    end if
      
   end subroutine tstep_integrate
+
+  subroutine add3d(vNew,vOld,vTend,dt)
+    implicit none
+    real, intent(in) :: vOld(:,:,:),vTend(:,:,:)
+    real, intent(in) :: dt
+    real, intent(out) :: vNew(:,:,:)
+    integer :: iY,nY,iZ,nZ
+
+    nZ = size(vOld,3)
+    nY = size(vOld,2)
+    do iZ=1,nZ
+      do iY=1,nY
+        vNew(:,iY,iZ) = vOld(:,iY,iZ) + dt*vTend(:,iY,iZ)
+      end do
+    end do
+  end subroutine add3d
+
+  subroutine copy3d(vOld,vNew)
+    implicit none
+    real, intent(out) :: vOld(:,:,:)
+    real, intent(in)  :: vNew(:,:,:)
+    integer :: iZ,nZ
+
+    nZ = size(vOld,3)
+    do iZ=1,nZ
+      vOld(:,:,iZ) = vNew(:,:,iZ)
+    end do
+  end subroutine copy3d
+
+  subroutine copy3d_cnst(vOld,vNew,cnst)
+    implicit none
+    real, intent(out) :: vOld(:,:,:)
+    real, intent(in)  :: vNew(:,:,:)
+    real, intent(in)  :: cnst
+    integer :: iZ,nZ
+
+    nZ = size(vOld,3)
+    do iZ=1,nZ
+      vOld(:,:,iZ) = cnst*vNew(:,:,iZ)
+    end do
+  end subroutine copy3d_cnst
 
   !======== Determine the maximum Courant number
   real function getCourant()
@@ -261,7 +325,7 @@ contains
     integer :: k
 
     ! Determine the maximum Courant number
-    courantl = 0.
+    courantl = 1.e-5
     do k=1,kmax
       courantl = max( courantl, &
                       maxval( u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx) + &
@@ -275,8 +339,8 @@ contains
 
   !======== Determine the maximum Peclet number
   real function getPeclet()
-    use modfields, only : ekm,ekh
-    use modglobal, only : i1,j1,kmax,dx,dx2i,dy,dy2i,dzh,rdt
+    use modfields, only : ekh,rhobf
+    use modglobal, only : i1,j1,kmax,dx2i,dy2i,dzh,rdt
     use modmpi,    only : my_real,mpi_max,comm3d,mpierr
     implicit none
     integer :: k
@@ -284,20 +348,19 @@ contains
 
     pecletl = 1.e-5
     ! The original version of the Peclet number:
-    do k=1,kmax
-      pecletl = max( pecletl, &
-                     maxval(ekm(2:i1,2:j1,k))*rdt / minval((/dzh(k),dx,dy/))**2)
-    end do
+    !do k=1,kmax
+    !  pecletl = max( pecletl, &
+    !                 maxval(ekm(2:i1,2:j1,k)/rhobf(k))*rdt / minval((/dzh(k),dx,dy/))**2 )
+    !end do
     ! New version of the Peclet number. Note that now this version uses ekh,
     ! which is approximately ekm*3. The Peclet number should therefore be 3
     ! times as large.
-    !do k=1,kmax
-    !  pecletl = max( pecletl, &
-    !                 maxval(ekh(2:i1,2:j1,k)/rhobf(k)*rdt*dx2i), &
-    !                 maxval(ekh(2:i1,2:j1,k)/rhobf(k)*rdt*dy2i), &
-    !                 maxval(ekh(2:i1,2:j1,k)/rhobf(k)*rdt/(dzh(k)*dzh(k))))
-    !end do
-
+    do k=1,kmax
+      pecletl = max( pecletl, &
+                     maxval(ekh(2:i1,2:j1,k)*rdt*dx2i), &
+                     maxval(ekh(2:i1,2:j1,k)*rdt*dy2i), &
+                     maxval(ekh(2:i1,2:j1,k)*rdt/(dzh(k)*dzh(k))))
+    end do
     call MPI_ALLREDUCE(pecletl,getPeclet,1,MY_REAL,MPI_MAX,comm3d,mpierr)
 
   end function getPeclet

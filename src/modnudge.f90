@@ -40,6 +40,8 @@ SAVE
   real :: tnudgefac = 1.
   logical :: lnudge,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
   integer :: ntnudge = 100
+  logical :: lmoistfloor=.false.
+  real :: qfloor=1000.,tfloor=3600.
 
 contains
   subroutine initnudge
@@ -51,7 +53,7 @@ contains
     real,allocatable,dimension(:) :: height
     character(1) :: chmess1
     namelist /NAMNUDGE/ &
-       lnudge,tnudgefac
+       lnudge,tnudgefac,lmoistfloor,qfloor,tfloor
     allocate(tnudge(k1,ntnudge),unudge(k1,ntnudge),vnudge(k1,ntnudge),wnudge(k1,ntnudge),thlnudge(k1,ntnudge),qtnudge(k1,ntnudge))
     allocate(timenudge(0:ntnudge), height(k1))
     tnudge = 0
@@ -74,7 +76,10 @@ contains
       write(6 ,NAMNUDGE)
       close(ifnamopt)
     end if
-    call MPI_BCAST(lnudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lnudge     , 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lmoistfloor, 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(qfloor     , 1,MY_REAL    ,0,comm3d,mpierr)
+    call MPI_BCAST(tfloor     , 1,MY_REAL    ,0,comm3d,mpierr)
 
     if (.not. lnudge) return
     if(myid==0) then
@@ -145,6 +150,9 @@ contains
     integer k,t
     real :: dtm,dtp,currtnudge
 
+    ! Apply a moistfloor when required.
+    call moistfloor
+
     if (.not.(lnudge)) return
 !     if (rkStep/=rkMaxStep) return
     if (rtimee==0) return
@@ -173,7 +181,26 @@ contains
       if(lqtnudge ) qtp (2:i1,2:j1,k)=qtp (2:i1,2:j1,k)-&
           (qt0av (k)-(qtnudge (k,t)*dtp+qtnudge (k,t+1)*dtm))/currtnudge
     end do
+
   end subroutine nudge
+
+  ! Moistfloor for the S12 case 
+  subroutine moistfloor
+    use modglobal, only : i1,j1,k1,zf,rtimee
+    use modfields, only : qt0,qtp
+    implicit none
+    integer :: i,j,k
+    if (.not. lmoistfloor) return
+    if (rtimee==0) return
+
+    do k=1,k1
+      if (zf(k)<1300.) then
+        do j=2,j1; do i=2,i1
+          qtp(i,j,k) = qtp(i,j,k) + max(0.,qfloor-qt0(i,j,k))/tfloor
+        end do; end do
+      end if
+    end do
+  end subroutine moistfloor
 
   subroutine exitnudge
   deallocate(timenudge)

@@ -260,8 +260,9 @@ contains
   !> Do the xy lsmcrosssections and dump them to file
   subroutine wrtsurf
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
-    use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
+    use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tendskin, &
                            cliq,rsveg,rssoil,Wl
+    use modfields, only : tskin
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none

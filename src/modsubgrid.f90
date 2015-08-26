@@ -139,8 +139,8 @@ contains
 ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,nsv, lmoist
-    use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
-    use modsurfdata,only : ustar,thlflux,qtflux,svflux
+    use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp,&
+                          ustar,thlflux,qtflux,svflux
     use modmicrodata, only : imicro, imicro_sice, iqr
     implicit none
     integer n
@@ -594,8 +594,7 @@ contains
   subroutine diffu (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dxi,dx2i,dzf,dy,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0,rhobf,rhobh,ekm
-    use modsurfdata,only : ustar
+    use modfields, only : u0,v0,w0,rhobf,rhobh,ekm,ustar
     implicit none
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
@@ -705,8 +704,7 @@ contains
   subroutine diffv (putout)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dzf,dyi,dy2i,dzh, cu,cv
-    use modfields, only : u0,v0,w0,rhobf,rhobh,ekm
-    use modsurfdata,only : ustar
+    use modfields, only : u0,v0,w0,rhobf,rhobh,ekm,ustar
 
     implicit none
 

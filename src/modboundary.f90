@@ -39,9 +39,11 @@ public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
                       qt_nudge  (:), &  !    used for igrw_damp=(4)
                       u_nudge   (:), &
                       v_nudge   (:)
-  real :: rnu0 = 2.75e-3
+  real :: rnu0 = 1./3600.
   logical :: isInitSponge = .false.   !<   Switch for initialization of nudge profiles in
                                       !    the sponge layer
+  logical :: isInitExtra  = .false.
+
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -65,8 +67,9 @@ contains
     tsc(1:ksp-1) = 0.0
     do k=ksp,kmax
       tsc(k) = rnu0*sin(0.5*pi*(zf(k)-zspb)/(zspt-zspb))**2
+!      tsc(k)  = 0.5*rnu0*(1-cos(pi*(zf(k)-zspb)/(zspt-zspb))) ! CGILS nudging toward initial conditions
     end do
-   tsc(k1)=tsc(kmax)
+    tsc(k1)=tsc(kmax)
   end subroutine initboundary
 
 !>
@@ -91,6 +94,7 @@ contains
     call cyclich
     call topm
     call toph
+    call avgProfs ! Calculates domain averaged vertical profiles of prognostic variables
   end subroutine boundary
 !> Cleans up after the run
   subroutine exitboundary
@@ -115,8 +119,8 @@ contains
     sv0(i1+m,:,:,:) = sv0(1+m,:,:,:)
   end do
 
-  call excjs( thl0, 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qt0 , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
@@ -144,14 +148,14 @@ contains
     w0(i1+m,:,:)   = w0(1+m,:,:)
 
     e120(2-m,:,:)  = e120(i2-m,:,:)
-    e120(i1+m,:,:)  = e120(1+m,:,:)
+    e120(i1+m,:,:) = e120(1+m,:,:)
 
   end do
 
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( e120, 2,i1,2,j1,1,k1,ih,jh)
 
   return
   end subroutine cyclicm
@@ -232,6 +236,7 @@ contains
     stop "no gravity wave damping option selected"
   end select
 
+  
   ! Additional to gravity wave damping, set qt, thl and sv0(:) equal to slabaverage
   ! at level kmax.
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
@@ -254,27 +259,42 @@ contains
     use modglobal, only : i1,j1,kmax,k1,nsv,dtheta,dqt,dsv,dzh
     use modfields, only : thl0,qt0,sv0,thl0av,qt0av,sv0av
     implicit none
-    integer :: n
+    integer :: n,i,j
     integer,parameter :: kav=5
 
-    ! **  Top conditions :
-    ! Calculate new gradient over several of the top levels, to be used
-    ! to extrapolate thl and qt to level k1 !JvdD
-    dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
-               dzh(kmax-kav+1:kmax))/kav
-    dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
-               dzh(kmax-kav+1:kmax))/kav
-    do n=1,nsv
-      dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
-                 dzh(kmax-kav:kmax-1))/kav
-    enddo
+    if (.not. isInitExtra) then
+      ! **  Top conditions :
+      ! Calculate new gradient over several of the top levels, to be used
+      ! to extrapolate thl and qt to level k1 !JvdD
+      !dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
+      !           dzh(kmax-kav+1:kmax))/kav
+      !dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
+      !           dzh(kmax-kav+1:kmax))/kav
+      dtheta = (thl0av(kmax)-thl0av(kmax-1))/dzh(kmax)
+      dqt    = (qt0av (kmax)-qt0av (kmax-1))/dzh(kmax)
+      do n=1,nsv
+        !dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
+        !           dzh(kmax-kav:kmax-1))/kav
+        dsv(n) = (sv0av(kmax,n)-sv0av(kmax-1,n))/ &
+                   dzh(kmax)
+      enddo
+      isInitExtra = .true.
+    end if
 
-    thl0(2:i1,2:j1,k1) = thl0(2:i1,2:j1,kmax) + dtheta*dzh(k1)
-    qt0 (2:i1,2:j1,k1) = qt0 (2:i1,2:j1,kmax) + dqt*dzh(k1)
-
-    do n=1,nsv
-      sv0(2:i1,2:j1,k1,n) = sv0(2:i1,2:j1,kmax,n) + dsv(n)*dzh(k1)
-    enddo
+!    thl0(2:i1,2:j1,k1) = thl0(2:i1,2:j1,kmax) + dtheta*dzh(k1)
+!    qt0(2:i1,2:j1,k1)  = qt0 (2:i1,2:j1,kmax) + dqt*dzh(k1)
+!    do n=1,nsv
+!      sv0(2:i1,2:j1,k1,n) = sv0(2:i1,2:j1,kmax,n) + dsv(n)*dzh(k1)
+!    enddo
+!    do i=2,i1
+!      do j=2,j1
+        thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
+        qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
+        do n=1,nsv
+          sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
+        enddo
+!      end do
+!    end do
 
     return
   end subroutine toph

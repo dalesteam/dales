@@ -51,11 +51,19 @@ save
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
+      logical :: lncrestart = .false. !< Switch for writing netcdf restarts
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
-      character(50) :: startfile    !<    * name of the restart file
+      character(50) :: startfile    !<    * name of the restart file, e.g. 'initd01h000m000.004'
+      logical :: lncstartfile = .false.!<   flag for netcdf restarts
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
+
+      !< Parameter kinds, for rrtmg radiation scheme
+      integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
+      integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
+      integer,parameter  :: SHR_KIND_R4 = selected_real_kind( 6) ! 4 byte real
+      integer,parameter  :: SHR_KIND_IN = kind(1)   ! native integer
 
       !<  Global constants modconst.f90
       !< File numbers
@@ -90,7 +98,6 @@ save
       real,parameter :: e12min   = 5.e-5            !<    *minimum value for TKE.
       real,parameter :: fkar     = 0.4              !<    *Von Karman constant
       real,parameter :: eps1     = 1.e-10           !<    *very small number*
-      real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
@@ -123,12 +130,19 @@ save
       integer, parameter :: iadv_hybrid = 55
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or 
+      ! phi is the characteristic scale of variation in the scalar field
+      real,parameter :: phi_e=0.1     ! subfilter tke
+      real,parameter :: phi_thl=1.    ! theta_l
+      real,parameter :: phi_qt=1.e-3  ! q_t
+      real,allocatable,dimension(:) :: phi_sv
+      real,parameter :: phi_qr=1.e-6  ! q_r (if imicro=imicro_bulk sv0(:,:,:,iqr)
+      real,parameter :: phi_Nr=1000.  ! N_r (if imicro=imicro_bulk)
 
       ! sedimentation scheme selection
       integer,parameter :: sedimPCM=1          ! Piecewise continuous method
       integer,parameter :: sedimPLM=2          ! Piecewise linear method
       integer,parameter :: sedimPPM=3          ! Piecewise polynomial method
-      integer           :: sedimMethod=sedimPCM
+      integer           :: sedimMethod=sedimPLM
 
       ! Tabulated saturation relation
       real, dimension(1:2000) :: ttab
@@ -173,10 +187,10 @@ save
                            iTimeLowStor=2, &  !     2 - Williamson (1980) RK3 scheme (3rd order accurate, 2N storage)
                            iTimeTVD=3         !     3 - Total variation diminishing RK3 scheme (3rd order accurate, 3N storage)
                                               !         (Gottlieb and Shu 1998)
-      integer :: iTimeInt = iTimeWicker       !<    selects the time integration scheme
+      integer :: iTimeInt = iTimeLowStor      !<    selects the time integration scheme
                                           
       real    :: courant = -1
-      real    :: peclet  = 0.15
+      real    :: peclet  = 0.5
       integer(kind=longint) :: dt_lim
 
       ! Runge Kutta time stepping variables
@@ -308,6 +322,13 @@ contains
       ih = 1
       jh = 1
       kh = 1
+    end if
+
+    ! Set the characteristic scale for the hybrid advection scheme if necessary
+    ! for the scalar fields
+    if (any(iadv_sv(1:nsv)==iadv_hybrid)) then
+      allocate(phi_sv(nsv))
+      phi_sv(:)=1.e-8 ! Set a relatively low value, which is probably reasonable for trace gas concentrations
     end if
 
     ncosv = max(2*nsv-3,0)

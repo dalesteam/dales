@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 39
+  integer :: nvar = 42
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -106,6 +106,7 @@ save
   real, allocatable  :: w2submn    (:)
   real, allocatable  :: u2mn       (:), v2mn  (:),     qt2mn(:)
   real, allocatable  :: thl2mn     (:), thv2mn(:),     th2mn(:),     ql2mn(:)
+  real, allocatable  :: smxmn (:),smymn(:),smzmn(:)
 !   real, allocatable  :: qs2mn      (:), qsmn  (:)
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
@@ -223,6 +224,7 @@ contains
     allocate(w2submn    (k1))
     allocate(u2mn       (k1), v2mn  (k1),     qt2mn(k1))
     allocate(thl2mn     (k1), thv2mn(k1),     th2mn(k1),     ql2mn(k1))
+    allocate(smxmn(k1),smymn(k1),smzmn(k1))
 !     allocate(qs2mn      (k1), qsmn  (k1))
     allocate(svmmn(k1,nsv),svptmn(k1,nsv),svplsmn(k1,nsv),svpmn(k1,nsv))
     allocate(sv2mn(k1,nsv))
@@ -321,6 +323,10 @@ contains
 !       r2mn     = 0.
 !       r3mn     = 0.
 
+      smxmn   = 0.
+      smymn   = 0.
+      smzmn   = 0.
+
       svmmn   = 0.
       svpmn   = 0.
       svpav   = 0.
@@ -369,7 +375,7 @@ contains
         call ncinfo(ncname( 1,:),'dn0','Base-state density','kg/m^3','tt')
         call ncinfo(ncname( 2,:),'rhobf','Full level density','kg/m^3','tt')
         call ncinfo(ncname( 3,:),'rhobh','Half level density','kg/m^3','mt')
-        call ncinfo(ncname( 4,:),'presh','Pressure at cell center','Pa','tt')
+        call ncinfo(ncname( 4,:),'presf','Pressure at cell center','Pa','tt')
         call ncinfo(ncname( 5,:),'u','West-East velocity','m/s','tt')
         call ncinfo(ncname( 6,:),'v','South-North velocity','m/s','tt')
         call ncinfo(ncname( 7,:),'thl','Liquid water potential temperature','K','tt')
@@ -396,7 +402,7 @@ contains
         call ncinfo(ncname(28,:),'vwt','Total momentum flux (vw)','m^2/s^2','mt')
         call ncinfo(ncname(29,:),'w2s','SFS-TKE','m^2/s^2','mt')
         call ncinfo(ncname(30,:),'w2r','Resolved vertical velocity variance','m^2/s^2','mt')
-        !call ncinfo(ncname(31,:),'w2t','Total vertical velocity variance','m^2/s^2','mt')
+        !call ncinfo(ncname(29,:),'w2t','Total vertical velocity variance','m^2/s^2','mt')
         call ncinfo(ncname(31,:),'skew','vertical velocity skewness','-','mt')
         call ncinfo(ncname(32,:),'u2r','Resolved horizontal velocity variance (u)','m^2/s^2','tt')
         call ncinfo(ncname(33,:),'v2r','Resolved horizontal velocity variance (v)','m^2/s^2','tt')
@@ -406,15 +412,18 @@ contains
         call ncinfo(ncname(37,:),'qt2r','Resolved total water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(38,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
+        call ncinfo(ncname(40,:),'smoothx','Fraction of smooth patches in qt in x-direction','-','tt')
+        call ncinfo(ncname(41,:),'smoothy','Fraction of smooth patches in qt in y-direction','-','tt')
+        call ncinfo(ncname(42,:),'smoothz','Fraction of smooth patches in qt in z-direction','-','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(39+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(39+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(39+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(39+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(39+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(39+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(42+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(42+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(42+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(42+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -458,12 +467,13 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine do_genstat
 
-    use modfields, only : u0,v0,w0,thl0,qt0,qt0h,ql0,ql0h,thl0h,thv0h,sv0,e120,&
-                          u0av,v0av,thl0av,qt0av,ql0av,sv0av,exnf,exnh,rhobf,ekm,ekh
-    use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
+    use modfields, only : u0,v0,w0,thl0,qt0,qt0h,ql0,ql0h,thl0h,thv0h,sv0,e120,ekm,ekh,&
+                          u0av,v0av,thl0av,qt0av,ql0av,sv0av,exnf,exnh,rhobf, &
+                          ustar,thlflux,qtflux,svflux,smoothx,smoothy,smoothz
+    use modsurfdata,only: thls,qts,svs
     use modsubgriddata,only : csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi
+                          rslabs,cu,cv,iadv_thl,iadv_kappa,eps1,dxi,dyi,imax,jtot
     use modmpi,    only : nprocs,comm3d,nprocs,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
@@ -520,6 +530,7 @@ contains
               thv2av  , &
               th2av   , &
               ql2av
+    real,allocatable, dimension(:) :: smxav,smyav,smzav
     real,allocatable, dimension(:,:,:)::  thv0
     real,allocatable, dimension(:)::   thvmav
     real ,allocatable, dimension(:,:,:):: sv0h
@@ -581,6 +592,7 @@ contains
               th2av   (k1), &
               ql2av   (k1), &
               sv2av   (k1,nsv))
+    allocate(smxav(k1),smyav(k1),smzav(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -641,6 +653,10 @@ contains
     ql2avl    = 0.0
     thvmav    = 0.0
 
+    smxav   = 0.0
+    smyav   = 0.0
+    smzav   = 0.0
+    
     sv2av   = 0.0
 
 !    umav = 0.0
@@ -996,6 +1012,13 @@ contains
                       MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(ql2avl, ql2av, k1,    MY_REAL, &
                       MPI_SUM, comm3d,mpierr)
+    ! sum the smoothnesses over all processors
+    call MPI_ALLREDUCE(smoothx, smxav, k1,    MY_REAL, &
+                      MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(smoothy, smyav, k1,    MY_REAL, &
+                      MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(smoothz, smzav, k1,    MY_REAL, &
+                      MPI_SUM, comm3d,mpierr)
 !     call MPI_ALLREDUCE(qs2avl, qs2av, k1,    MY_REAL, &
 !                       MPI_SUM, comm3d,mpierr)
 !     call MPI_ALLREDUCE(qsavl, qsav, k1,    MY_REAL, &
@@ -1065,6 +1088,9 @@ contains
       thv2av   = thv2av   /rslabs
       th2av    = th2av    /rslabs
       ql2av    = ql2av    /rslabs
+      smxav    = smxav    /(imax+1)/(jtot+1)
+      smyav    = smyav    /(imax+1)/(jtot+1)
+      smzav    = smzav    /(imax+1)/(jtot+1)
 !       qs2av    = qs2av    /rslabs
 !       qsav     = qsav     /rslabs
 !       qs2av    = qs2av    - qsav**2
@@ -1115,7 +1141,10 @@ contains
       thl2mn   = thl2mn   + thl2av
       thv2mn   = thv2mn   + thv2av
       th2mn    = th2mn    + th2av
-       ql2mn    = ql2mn    + ql2av
+      ql2mn    = ql2mn    + ql2av
+      smxmn    = smxmn    + smxav/(3*dtav)
+      smymn    = smymn    + smyav/(3*dtav)
+      smzmn    = smzmn    + smzav/(3*dtav)
 !       qs2mn    = qs2mn    + qs2av
 !       qsmn     = qsmn     + qsav
 !       rhmn     = rhmn     + rhav
@@ -1136,6 +1165,12 @@ contains
       skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
 
       cszmn = cszmn + cszav
+
+    ! Reset smoothness statistics output
+    smoothx = 0.
+    smoothy = 0.
+    smoothz = 0.
+
       
     deallocate( &
         qlhavl , & ! slab averaged ql_0 at half level &
@@ -1188,6 +1223,7 @@ contains
               th2av   , &
               ql2av   , &
               sv2av   )
+    deallocate(smxav,smyav,smzav)
     deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
@@ -1262,6 +1298,9 @@ contains
       thv2mn   = thv2mn /nsamples
       th2mn    = th2mn  /nsamples
       ql2mn    = ql2mn  /nsamples
+      smxmn    = smxmn  /nsamples
+      smymn    = smymn  /nsamples
+      smzmn    = smzmn  /nsamples
 !       qs2mn    = qs2mn  /nsamples
 !       qsmn     = qsmn   /nsamples
 
@@ -1523,7 +1562,7 @@ contains
         vars(:, 1)=rhof
         vars(:, 2)=rhobf
         vars(:, 3)=rhobh
-        vars(:, 4)=presh
+        vars(:, 4)=presf
         vars(:, 5)=umn
         vars(:, 6)=vmn
         vars(:, 7)=thlmn
@@ -1550,7 +1589,7 @@ contains
         vars(:,28)=vwtmn
         vars(:,29)=w2submn
         vars(:,30)=w2mn
-        !vars(:,31)=w2submn+w2mn
+        !vars(:,29)=w2submn+w2mn
         vars(:,31)=skewmn
         vars(:,32)=u2mn
         vars(:,33)=v2mn
@@ -1560,14 +1599,17 @@ contains
         vars(:,37)=qt2mn
         vars(:,38)=ql2mn
         vars(:,39)=csz
+        vars(:,40)=smxmn
+        vars(:,41)=smymn
+        vars(:,42)=smzmn
         do n=1,nsv
-          vars(:,39+7*(n-1)+1)=svmmn(:,n)
-          vars(:,39+7*(n-1)+2)=svpmn(:,n)
-          vars(:,39+7*(n-1)+3)=svptmn(:,n)
-          vars(:,39+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,39+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,39+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,39+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,42+7*(n-1)+1)=svmmn(:,n)
+          vars(:,42+7*(n-1)+2)=svpmn(:,n)
+          vars(:,42+7*(n-1)+3)=svptmn(:,n)
+          vars(:,42+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,42+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,42+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,42+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
@@ -1627,6 +1669,9 @@ contains
 !       rmn      = 0.
 !       r2mn     = 0.
 !       r3mn     = 0.
+      smxmn    = 0.
+      smymn    = 0.
+      smzmn    = 0.
 
       svmmn   = 0.
       svpmn   = 0.
@@ -1668,6 +1713,7 @@ contains
     deallocate(w2submn    )
     deallocate(u2mn       , v2mn  ,     qt2mn)
     deallocate(thl2mn     , thv2mn,     th2mn,     ql2mn)
+    deallocate(smxmn,smymn,smzmn)
 !     deallocate(qs2mn      , qsmn  )
     deallocate(svmmn,svptmn,svplsmn,svpmn)
     deallocate(sv2mn)

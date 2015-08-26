@@ -69,84 +69,21 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, zf, nsv, ifnamopt, fname_options, ifinput, cexpnr, iTimeInt, iTimeWicker
+    use modglobal,  only : jmax, i1, i2, j1, j2, ih, jh, imax, jtot, cp, rlv, rd, rv, zf, nsv, &
+                           ifnamopt, fname_options, ifinput, cexpnr, lwarmstart
     use modraddata, only : iradiation,rad_shortw,irad_full
-    use modfields,  only : thl0, qt0
+    use modfields,  only : thl0,qt0,u0av,thl0av,uprof,svprof,qtprof,thlprof,dthldz,&
+                           tskin,qskin,obl,ps_patch,thls_patch,thvs_patch
     use modmpi,     only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+    use moduser,    only : initsurf_user
 
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
- character(len=1500) :: readbuffer
-    namelist/NAMSURFACE/ & !< Soil related variables
-      isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
-      ! Land surface related variables
-      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
-      ! Jarvis-Steward related variables
-      rsminav, rssoilminav, LAIav, gDav, &
-      ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf,lidealised, &
-      ! Heterogeneous variables
-      lhetero, xpatches, ypatches, land_use, loldtable
+    character(len=1500) :: readbuffer
 
-    ! 1    -   Initialize soil
-
-    !if (isurf == 1) then
-
-    ! 1.0  -   Read LSM-specific namelist
-
-    if(myid==0)then
-      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMSURFACE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSURFACE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSURFACE'
-      endif
-      write(6 ,NAMSURFACE)
-      close(ifnamopt)
-    end if
-
-    call MPI_BCAST(isurf        , 1       , MPI_INTEGER, 0, comm3d, mpierr)
-    call MPI_BCAST(tsoilav      , ksoilmax, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(tsoildeepav  , 1       , MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(phiwav       , ksoilmax, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(rootfav      , ksoilmax, MY_REAL, 0, comm3d, mpierr)
-
-    call MPI_BCAST(lmostlocal   , 1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lsmoothflux  , 1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lneutral     , 1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(z0mav        , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(z0hav        , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(rsisurf2     , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(Cskinav      , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lambdaskinav , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(albedoav     , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(Qnetav       , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lidealised   , 1, MY_REAL, 0, comm3d, mpierr)
-
-    call MPI_BCAST(rsminav      , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(rssoilminav  , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(cvegav       , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(Wlav         , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(LAIav        , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(gDav         , 1, MY_REAL, 0, comm3d, mpierr)
-
-    call MPI_BCAST(z0         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
-
-    call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
-    call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
-    call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
-
+    ! Check namelist options
     if(lhetero) then
       if(xpatches .gt. mpatch) then
         stop "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)"
@@ -161,10 +98,6 @@ contains
 
       allocate(z0mav_patch(xpatches,ypatches))
       allocate(z0hav_patch(xpatches,ypatches))
-      allocate(thls_patch(xpatches,ypatches))
-      allocate(qts_patch(xpatches,ypatches))
-      allocate(thvs_patch(xpatches,ypatches))
-      allocate(ps_patch(xpatches,ypatches))
       allocate(ustin_patch(xpatches,ypatches))
       allocate(wt_patch(xpatches,ypatches))
       allocate(wq_patch(xpatches,ypatches))
@@ -185,14 +118,8 @@ contains
       allocate(LAI_patch(xpatches,ypatches))
       allocate(gD_patch(xpatches,ypatches))
 
-      allocate(oblpatch(xpatches,ypatches))
-
       z0mav_patch = -1
       z0hav_patch = -1
-      thls_patch  = -1
-      qts_patch   = -1
-      thvs_patch  = -1
-      ps_patch    = -1
       ustin_patch = -1
       wt_patch    = -1
       wq_patch    = -1
@@ -212,8 +139,6 @@ contains
       rsmin_patch      = -1
       LAI_patch        = -1
       gD_patch         = -1
-
-      oblpatch         = -0.1
 
       defined_landtypes = 0
       if(loldtable) then !Old input-file for heterogeneous surfaces: only valid w/o sw-radiation (due to albedo) and isurf = 3,4
@@ -471,7 +396,7 @@ contains
             enddo
           enddo
       end select
-    else
+    else  ! lhetero=.false.
       if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
         z0mav = z0
         z0hav = z0
@@ -487,15 +412,10 @@ contains
         end if
       end if
 
-    endif
+    endif ! lhetero
 
 
     if(isurf == 1) then
-      if (iTimeInt/=iTimeWicker) then
-        print *,"NAMSURFACE: You are trying to use a time integration scheme that has not been implemented in the land-surface model."
-        print *,"NAMSURFACE: Use iTimeInt=1 for isurf=1."
-        stop "NAMSURFACE: You are trying to use a time integration scheme that has not been implemented in the land-surface model."
-      end if
       if(tsoilav(1) == -1 .or. tsoilav(2) == -1 .or. tsoilav(3) == -1 .or. tsoilav(4) == -1) then
         stop "NAMSURFACE: tsoil is not set"
       end if
@@ -561,9 +481,6 @@ contains
     allocate(albedo(i2,j2))
     allocate(z0m(i2,j2))
     allocate(z0h(i2,j2))
-    allocate(obl(i2,j2))
-    allocate(tskin(i2,j2))
-    allocate(qskin(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
 
@@ -606,17 +523,62 @@ contains
     endif
 
     ! 3. Initialize surface layer
-    allocate(ustar   (i2,j2))
+!    allocate(ustar   (i2,j2))!
 
     allocate(dudz    (i2,j2))
     allocate(dvdz    (i2,j2))
 
-    allocate(thlflux (i2,j2))
-    allocate(qtflux  (i2,j2))
-    allocate(dqtdz   (i2,j2))
-    allocate(dthldz  (i2,j2))
-    allocate(svflux  (i2,j2,nsv))
+!    allocate(thlflux (i2,j2))!
+!    allocate(qtflux  (i2,j2))!
+    !allocate(dqtdz   (i2,j2))
+    !allocate(dthldz  (i2,j2))
+!    allocate(svflux  (i2,j2,nsv))!
     allocate(svs(nsv))
+
+    !-----------------------------------------------------------------
+    ! The following lines come from modstartup, but I think they belong here as they are purely concerned with the surface.
+    ! I think this will make the starup sequence more transparent  !JvdD
+    !-----------------------------------------------------------------
+    
+    if (.not. lwarmstart) then
+      select case(isurf)
+      case(1)
+        tskin  = thls
+        tskinm = tskin
+        tsoilm = tsoil
+        phiwm  = phiw
+        Wlm    = Wl
+      case(2)
+        tskin  = thls
+      case(3,4)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
+        tskin  = thls
+        qskin  = qts
+      case(10)
+        call initsurf_user
+      end select
+  
+      ! Set initial Obukhov length to -0.1 for iteration
+      obl   = -0.1
+      oblav = -0.1
+  
+      call qtsurf
+  
+      dthldz = (thlprof(1) - thls)/zf(1)
+      thvs = thls * (1. + (rv/rd - 1.) * qts)
+      if(lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
+  
+      u0av(1)   = uprof(1)
+      thl0av(1) = thlprof(1)
+      svs = svprof(1,:) ! What is svs used for??
+  
+      call surface
+
+    end if !.not. lwarmstart
+
+    !-----------------------------------------------------------------
+    ! End of modstartup settings
 
     return
   end subroutine initsurface
@@ -624,7 +586,9 @@ contains
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
     use modglobal,  only : i1,i2,j1,j2,ih,jh,cp,rlv,fkar,zf,cu,cv,nsv,rkStep,rkMaxStep,timee,rslabs,pi,pref0,rd,rv,eps1!, boltz, rhow
-    use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av
+    use modfields,  only : thl0, qt0, u0, v0, rhof, ql0, exnf, presf, u0av, v0av, &
+                           dqtdz,dthldz,ustar,thlflux,qtflux,svflux,obl,ustar,    &
+                           tskin,qskin,thls_patch,qts_patch,thvs_patch,ps_patch
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, myid, excj, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
@@ -993,7 +957,8 @@ contains
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
-    use modfields,   only : qt0
+    use modfields,   only : qt0,tskin,qskin,obl, &
+                            qts_patch,ps_patch,thvs_patch,thls_patch,oblpatch
     !use modsurfdata, only : rs, ra
     use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,myid,mpi_integer
 
@@ -1059,7 +1024,8 @@ contains
 !> Calculates the Obuhkov length iteratively.
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, rslabs, i1, j1, i2, j2, timee, cu, cv
-    use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
+    use modfields, only : thl0av,qt0av,u0,v0,thl0,qt0,u0av,v0av,tskin,qskin,obl,&
+                          thls_patch,oblpatch,thvs_patch,ps_patch
     use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,myid,excj,mpi_integer
     implicit none
 
@@ -1493,8 +1459,8 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rslabs,rkStep,subDt
-    use modfields, only : ql0,qt0,thl0,rhof,presf
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rslabs,subDt,rkStep
+    use modfields, only : ql0,qt0,thl0,rhof,presf,tskin,thls_patch,ps_patch
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
 
@@ -1585,8 +1551,8 @@ contains
           f1  = 1.
         end if
 
-        ! Soil moisture availability
-        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
+        ! Soil moisture availability                 !Now also following ECMWF
+        f2  = (phifc - phiwp) / (phiw(i,j,1) - phiwp)
         ! Prevent f2 becoming less than 1
         f2  = max(f2, 1.)
         ! Put upper boundary on f2 for cases with very dry soils

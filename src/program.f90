@@ -96,25 +96,25 @@
 !! Utrecht University, KNMI
 !!
 program DALES      !Version 4.0.0alpha
-
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modmpi,            only : myid, initmpi
-  use modtstep,          only : tstep_update,tstep_integrate
-  use modglobal,         only : rkStep,rkMaxStep,timee,btime,runtime,timeleft
-  use modfields,         only : thl0
-  use modstartup,        only : startup, writerestartfiles,exitmodules
-  use modtimedep,        only : timedep
-  use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
-  use modthermodynamics, only : thermodynamics,icethermo0,avgProfs,diagfld
-  use modmicrophysics,   only : microsources
-  use modbulkmicro,      only : bulkmicro
-  use modsurface,        only : surface
-  use modsubgrid,        only : subgrid
-  use modforces,         only : forces, coriolis, lstend
-  use modradiation,      only : radiation
-  use modpois,           only : poisson
+  use modmpi,            only : myid, initmpi,exitmpi
+  use modtstep,          only : inittstep,tstep_update,tstep_integrate
+  use modglobal,         only : initglobal,rkStep,rkMaxStep,timee,btime,runtime,timeleft,lNcRestart,exitglobal
+  use modfields,         only : initfields,thl0,exitfields
+  use modstartup,        only : readnamoptions,checksettings,readinitfiles
+  use modwarmstart,      only : initWarmStart,writeBinRestart,writeNcRestart
+  use modtimedep,        only : inittimedep,timedep,exittimedep
+  use modboundary,       only : initboundary,boundary,grwdamp,exitboundary
+  use modthermodynamics, only : initthermodynamics,thermodynamics,exitthermodynamics
+  use modmicrophysics,   only : initmicrophysics,microsources,exitmicrophysics
+  use modbulkmicro,      only : initbulkmicro,bulkmicro,exitbulkmicro
+  use modsurface,        only : initsurface,surface,exitsurface
+  use modsubgrid,        only : initsubgrid,subgrid,exitsubgrid
+  use modforces,         only : initforces,forces,coriolis,lstend
+  use modradiation,      only : initradiation,radiation,exitradiation
+  use modpois,           only : initpois,poisson,exitpois
   !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
@@ -137,6 +137,7 @@ program DALES      !Version 4.0.0alpha
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,leibniztend
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
+  use modsimpleicestat,only : initsimpleicestat,simpleicestat,exitsimpleicestat
   use modbudget,       only : initbudget, budgetstat, exitbudget
   use modheterostats,  only : initheterostats, heterostats, exitheterostats
 
@@ -147,7 +148,7 @@ program DALES      !Version 4.0.0alpha
   !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
-  use modchem,         only : initchem,twostep
+!  use modchem,         only : initchem,twostep
 
 
   implicit none
@@ -157,36 +158,60 @@ program DALES      !Version 4.0.0alpha
 !----------------------------------------------------------------
   call initmpi
 
-  call startup
+  call readnamoptions
+
+  ! Allocate and initialize core modules
+  call initglobal
+  call inittstep
+  call initfields
+  call initboundary
+  
+  call readinitfiles
+  call checksettings ! Checks if all namoptions make sense
+  
+  call initradiation ! NOTE: initradiation has to be called before initsurface (swu, lwu etc fields are used)
+  call initsurface   ! NOTE: initsurface has to be called before initthermodynamics (dqtdz, dthldz are used)
+  call initthermodynamics
+  call initsubgrid
+  call initpois
+  call initmicrophysics
+  call initbulkmicro
+  call initforces
+  call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
 !---------------------------------------------------------
 !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
 !---------------------------------------------------------
   call initchecksim
   call initstat_nc   ! Should be called before stat-routines that might do netCDF
-  call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-  call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+  call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise)
+  call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise)
   !call inittilt
   call initsampling
   call initcrosssection
   call initlsmcrosssection
   !call initprojection
   call initcloudfield
-  call initfielddump
   call initsamptend
   call initradstat
   call initlsmstat
   !call initparticles
   call initnudge
   call initbulkmicrostat
+  call initsimpleicestat
   call initbudget
   !call initstressbudget
-  call initchem
+!  call initchem
   call initheterostats
+  call initWarmStart
+  call initfielddump
 
   !call initspectra2
   call initcape
 
+  ! Moved here from modstartup, hopefully avoiding some difficulties
+!  call boundary
+  call thermodynamics
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -226,7 +251,7 @@ program DALES      !Version 4.0.0alpha
 
     call lstend !large scale forcings
     call samptend(tend_ls)
-    call microsources !Drizzle etc. (not bulkmicro schemes)
+    call microsources !Drizzle etc.
     call samptend(tend_micro)
 
 !------------------------------------------------------
@@ -242,35 +267,42 @@ program DALES      !Version 4.0.0alpha
 !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
-!JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
     call poisson
     call samptend(tend_pois,lastterm=.true.)
 
     call tstep_integrate                        ! Apply tendencies to all variables
-    call boundary
     !call tiltedboundary
-!-----------------------------------------------------
-!   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
-!-----------------------------------------------------
-    call thermodynamics
 
 !-----------------------------------------------------
-!   3.7  DO MICRO AFTER RK LOOP
+!   3.6  DO MICRO AFTER RK LOOP
 !------------------------------------------------------
     call bulkmicro
+
+!-----------------------------------------------------
+!   3.7   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
+!-----------------------------------------------------
+    call boundary                               ! Also calculates the horizontally averaged profiles 
+    ! Write the restart files before doing thermo.
+    if (lncrestart) then
+      call writeNcRestart
+    else
+      call writeBinRestart
+    end if
+
+    call thermodynamics
 
     !  ========================================== !
 
     call leibniztend
 !-----------------------------------------------------
-!   3.8  WRITE RESTARTFILES AND DO STATISTICS
+!   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
-    call twostep
+!    call twostep
     !call coldedge
     call checksim
-    call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-    call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+    call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file
+    call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file
     call radstat
     call lsmstat
     call sampling
@@ -284,11 +316,12 @@ program DALES      !Version 4.0.0alpha
     !call particles
 
     call bulkmicrostat
+    call simpleicestat
     call budgetstat
     !call stressbudgetstat
     call heterostats
 
-    call writerestartfiles
+!    call writerestartfiles
 
   end do
 
@@ -308,6 +341,7 @@ program DALES      !Version 4.0.0alpha
   call exitsampling
   call exitsamptend
   call exitbulkmicrostat
+  call exitsimpleicestat
   call exitbudget
   !call exitstressbudget
   call exitcrosssection
@@ -315,6 +349,19 @@ program DALES      !Version 4.0.0alpha
   call exitcape
   call exitfielddump
   call exitheterostats
-  call exitmodules
+
+!  call exitmodules ! Deleted exitmodules from modstartup: startup->exit ??
+  call exittimedep
+  call exitthermodynamics
+  call exitsurface
+  call exitsubgrid
+  call exitradiation
+  call exitpois
+  call exitmicrophysics
+  call exitbulkmicro
+  call exitboundary
+  call exitfields
+  call exitglobal
+  call exitmpi
 
 end program DALES

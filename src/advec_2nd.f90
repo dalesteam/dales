@@ -98,7 +98,7 @@ subroutine advecc_2nd(putin,putout)
         kp=k+1
           putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
                 w0(i,j,kp) * (rhoputin(i,j,kp)+rhoputin(i,j,k)) &
-                -w0(i,j,k)   * (rhoputin(i,j,km)+rhoputin(i,j,k)) &
+                -w0(i,j,k) * (rhoputin(i,j,km)+rhoputin(i,j,k)) &
                 )*dzi5
         end do
       end do

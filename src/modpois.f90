@@ -69,7 +69,7 @@ contains
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
-    integer i,j,k
+    integer i, j, k
 
     allocate(pup(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -115,6 +115,11 @@ contains
     call excjs( pvp          , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( pwp          , 2,i1,2,j1,1,k1,ih,jh)
 
+
+    ! In this loop, the divergence is calculated of Delta U
+    ! This divergence is the quantity that should become zero
+    ! The poisson solver calculates the pressure perturbation Delta P, such that:
+    ! dU = dU - dp/dx makes the U field divergence free.
     do k=1,kmax
       do j=2,j1
         do i=2,i1

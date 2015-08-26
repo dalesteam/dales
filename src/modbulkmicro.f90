@@ -48,11 +48,12 @@ module modbulkmicro
   subroutine initbulkmicro
     use modglobal, only : k1,ih,i1,jh,j1
     use modbulkmicrostat, only : lmicrostat
+    use modglobal, only : iadv_sv,phi_sv,phi_qr,phi_Nr  
     implicit none
 
-    if (imicro==0) then
+    if (imicro==imicro_none) then
       l_rain=.false.
-    elseif (imicro==2) then
+    elseif (imicro==imicro_bulk) then
       if (ibulk==0) then ! ibulk has not been set
         print *, "MODBULKMICRO: The use of l_sb is deprecated. Instead use ibulk={1,2,3} to select bulk micro model"
         if (l_sb) then
@@ -74,11 +75,15 @@ module modbulkmicro
     end if
 
     if (l_rain .or. lmicrostat) then
+      ! Allocate some required variables
       allocate( qr_sedim(k1), &
                 Nr_sedim(k1), &
                 wqr(k1)     , &
                 wNr(k1)     )
       wqr=0.; wNr=0.
+      ! Set the characteristic values of the scalar field variations if required
+      if (iadv_sv(iqr)==55) phi_sv(iqr)=phi_qr
+      if (iadv_sv(iNr)==55) phi_sv(iNr)=phi_Nr
     end if
 
     gamma25=lacz_gamma(2.5)
@@ -90,9 +95,12 @@ module modbulkmicro
   ! Deallocate module variables at program end
   ! Called from program
   subroutine exitbulkmicro
+    use modbulkmicrostat, only : lmicrostat
     implicit none
-    deallocate(Dvr)
-    deallocate(qrevap, qrsed, qrsrc)
+    if (l_rain .or. lmicrostat) then
+      deallocate(qr_sedim,Nr_sedim)
+      deallocate(wqr,wNr)
+    end if
   end subroutine exitbulkmicro
 
   ! Call the separate subroutines for cloud droplet sedimentation, rain
@@ -106,18 +114,23 @@ module modbulkmicro
     ! Microphysics is no longer part inside the RK loop, but only performed at
     ! the end of a full timestep, after updating the profiles.
     if (rkStep /= rkMaxStep) return
+
+    if (l_sedc .or. l_rain) then
+      ! Update the termodynamics, because the timestep has been updated but
+      ! modthermodynamics has not been run yet.
+      call icethermo0
+    end if
     
     ! Do cloud droplet sedimentation
     if (l_sedc) call cloud_sedimentation
 
     if (l_rain) then
-      if (l_sedc) then
+      !if (l_sedc) then
         ! ql0 (and rhof, exnf, tmp0 etc.) should be updated to account for
         ! changes due to cloud droplet sedimentation
         ! Only icethermo0 should be fine, half levels are not used and pressure
         ! (diagfld) change is probably extremely small
-        call icethermo0
-      end if
+      !end if
 
       ! Do conversion to rain water (autoconversion, accretion, evaporation,
       ! self-collection)
@@ -135,8 +148,8 @@ module modbulkmicro
       call rain_sedimentation_sl
     end if
 
-    call boundary       ! Apply new boundary conditions and determine averaged profiles
-    call thermodynamics ! Do thermo again to account for additional changes by micro
+!    call boundary       ! Apply new boundary conditions and determine averaged profiles
+!    call thermodynamics ! Do thermo again to account for additional changes by micro
     
     ! Depending on the time integration method, the previous fields have
     ! to be set equal to the new fields.
@@ -166,6 +179,9 @@ module modbulkmicro
             qt0(i,j,k)  = qt0(i,j,k)  + rdt*(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
             thl0(i,j,k) = thl0(i,j,k) - rdt*(rlv/(cp*exnf(k))) &
                             *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
+            ! Treat ql0 as a prognostic variable for the moment. This way, it is
+            ! not required to perform thermodynamics agian.
+            ql0(i,j,k)  = ql0(i,j,k) + rdt*(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
           endif
         end do
       end do

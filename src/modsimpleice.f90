@@ -265,6 +265,7 @@ module modsimpleice
     implicit none
     real :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
     integer:: i,j,k
+    real,parameter :: timekessl=2.e-3
 
     if(l_berry.eqv..true.) then ! Berry/Hsie autoconversion
     do k=1,k1
@@ -293,12 +294,16 @@ module modsimpleice
       do j=2,j1
       do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
-          ! ql partitioning 
-          qll=ql0(i,j,k)*ilratio(i,j,k)
-          qli=ql0(i,j,k)-qll
-          autl=max(0.,timekessl*(qll-qll0))
-          tc=tmp0(i,j,k)-tmelt
-          auti=max(0.,betakessi*exp(0.025*tc)*(qli-qli0))
+          ! Jerome's ECMWF autoconversion adjustment
+          auti = 0.
+          autl  = timekessl*ql0(i,j,k)*(1.-exp(-ql0(i,j,k)*ql0(i,j,k)/(qll0*qll0) ))
+          ! Original (Steef's) version
+!          ! ql partitioning 
+!          qll=ql0(i,j,k)*ilratio(i,j,k)
+!          qli=ql0(i,j,k)-qll
+!          autl=max(0.,timekessl*(qll-qll0))
+!          tc=tmp0(i,j,k)-tmelt
+!          auti=max(0.,betakessi*exp(0.025*tc)*(qli-qli0))
           aut = min(autl + auti,ql0(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
           qtpmcr(i,j,k) = qtpmcr(i,j,k)-aut

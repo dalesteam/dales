@@ -44,7 +44,6 @@ module modsamptend
   integer :: nsamples,isamp,isamptot
   logical :: ldosamptendwrite = .false. !< write tendencies after leibniz terms have been detemined
   logical :: ldosamptendleib = .false. !< determine leibniz terms
-  real :: lastrk3coef
 
   real, allocatable :: uptm(:,:,:),vptm(:,:,:),wptm(:,:,:),thlptm(:,:,:),qtptm(:,:,:),qrptm(:,:,:),nrptm(:,:,:)
   real, allocatable :: upav(:,:,:),vpav(:,:,:),wpav(:,:,:),thlpav(:,:,:),qtpav(:,:,:),qrpav(:,:,:),nrpav(:,:,:)
@@ -182,7 +181,8 @@ subroutine initsamptend
           trim(longsamplname(isamp))//' '//'U diffusive tendency','m/s^2','tt')
           call ncinfo(ncname( 3,:,isamp),'utendfor'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'U tendency due to other forces','m/s^2','tt')
-          call ncinfo(ncname( 4,:,isamp),'utendcor','U coriolis tendency','m/s^2','tt')
+          call ncinfo(ncname( 4,:,isamp),'utendcor'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'U coriolis tendency','m/s^2','tt')
           call ncinfo(ncname( 5,:,isamp),'utendls'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'U large scale tendency','m/s^2','tt')
           call ncinfo(ncname( 6,:,isamp),'utendtop'//samplname(isamp),&
@@ -455,7 +455,7 @@ subroutine initsamptend
       end do
 
       ldosamptendleib=.true.
-      lastrk3coef = rdt / (4. - dble(rkStep))
+!      lastrk3coef = rdt / (4. - dble(rkStep))
 
     ENDIF
     ENDIF
@@ -527,7 +527,7 @@ subroutine initsamptend
     use modmpi,    only : myid,slabsum
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,rslabs,&
-                          grav,om22,cu,timee,rkStep,rkMaxStep,dt_lim,rslabs,btime,nsv,rdt
+                          grav,om22,cu,timee,rkStep,rkMaxStep,dt_lim,rslabs,btime,nsv,rdt,subDt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     implicit none
@@ -615,20 +615,20 @@ subroutine initsamptend
       do k=1,kmax
         if((nrsampnew(k,isamp)>0).and.(nrsamplast(k,isamp)>0)) then! only do if sampling can be performed at both points in time
           upav(k,tend_totlb,isamp) = upav(k,tend_totlb,isamp)+(ust(k,isamp)-&
-          sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
           vpav(k,tend_totlb,isamp) = vpav(k,tend_totlb,isamp)+(vst(k,isamp)-&
-          sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
           wpav(k,tend_totlb,isamp) = wpav(k,tend_totlb,isamp)+(wst(k,isamp)-&
-          sum(w0f(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          sum(w0f(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
           thlpav(k,tend_totlb,isamp) = thlpav(k,tend_totlb,isamp)+(thlst(k,isamp)-&
-          sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
           qtpav(k,tend_totlb,isamp) = qtpav(k,tend_totlb,isamp)+(qtst(k,isamp)-&
-          sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+          sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
           if(nsv>1) then
             qrpav(k,tend_totlb,isamp) = qrpav(k,tend_totlb,isamp)+(qrst(k,isamp)-&
-            sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+            sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
             nrpav(k,tend_totlb,isamp) = nrpav(k,tend_totlb,isamp)+(nrst(k,isamp)-&
-            sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+            sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/subDt
           endif
         endif
       enddo

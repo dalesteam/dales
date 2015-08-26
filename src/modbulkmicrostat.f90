@@ -37,7 +37,7 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat,bulkmicrotend,lmicrostat
 save
 !NetCDF variables
-  integer,parameter :: nvar = 27
+  integer,parameter :: nvar = 26
   integer :: ncid,nrec = 0
   character(80) :: fname = 'bulkmicrostat.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -88,9 +88,6 @@ save
                qravl  , &
                qrav    , &
                qrmn    , &
-               qrrainavl  , &
-               qrrainav    , &
-               qrrainmn    , &
                Dvravl  , &
                Dvrav  , &
                Dvrmn
@@ -191,9 +188,6 @@ subroutine initbulkmicrostat
        qravl    (k1)    , &
        qrav    (k1)    , &
        qrmn    (k1)    , &
-       qrrainavl    (k1)    , &
-       qrrainav    (k1)    , &
-       qrrainmn    (k1)    , &
        Dvravl    (k1)    , &
        Dvrav    (k1)    , &
        Dvrmn    (k1)    )
@@ -210,7 +204,6 @@ subroutine initbulkmicrostat
     Nrrainmn  = 0.0
     Nrcloudmn  = 0.0
     qrmn    = 0.0
-    qrrainmn    = 0.0
     Dvrmn    = 0.0
 
     if (myid == 0) then
@@ -243,23 +236,22 @@ subroutine initbulkmicrostat
         call ncinfo(ncname( 9,:),'dvrmn','Average precip. drop diameter (rainy cells only)','m','tt')
         call ncinfo(ncname(10,:),'nrcloud','Cloud droplet number density (cloudy cells only)','m^-3','mt')
         call ncinfo(ncname(11,:),'nrrain','Rain droplet number density (rainy cells only)','m^-3','mt')
-        call ncinfo(ncname(12,:),'qrrain','Rain water specific humidity (rainy cells only)','kg/kg','mt')
 
-        call ncinfo(ncname(13,:),'npauto','Autoconversion rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(14,:),'npaccr','Accretion rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(15,:),'npsed','Sedimentation rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(16,:),'npevap','Evaporation rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(17,:),'nptot','Total rain drop tendency','#/m3/s','tt')
-        call ncinfo(ncname(18,:),'qrpauto','Autoconversion rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(19,:),'qrpaccr','Accretion rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(20,:),'qrpsed','Sedimentation rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(21,:),'qrpevap','Evaporation rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(22,:),'qrptot','Total rain water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(23,:),'qtpauto','Autoconversion total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(24,:),'qtpaccr','Accretion total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(25,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(26,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
-        call ncinfo(ncname(27,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(12,:),'npauto','Autoconversion rain drop tendency','#/m3/s','tt')
+        call ncinfo(ncname(13,:),'npaccr','Accretion rain drop tendency','#/m3/s','tt')
+        call ncinfo(ncname(14,:),'npsed','Sedimentation rain drop tendency','#/m3/s','tt')
+        call ncinfo(ncname(15,:),'npevap','Evaporation rain drop tendency','#/m3/s','tt')
+        call ncinfo(ncname(16,:),'nptot','Total rain drop tendency','#/m3/s','tt')
+        call ncinfo(ncname(17,:),'qrpauto','Autoconversion rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(18,:),'qrpaccr','Accretion rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(19,:),'qrpsed','Sedimentation rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(20,:),'qrpevap','Evaporation rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(21,:),'qrptot','Total rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(22,:),'qtpauto','Autoconversion total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(23,:),'qtpaccr','Accretion total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(24,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(25,:),'qtpevap','Evaporation total water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(26,:),'qtptot','Total total water content tendency','kg/kg/s','tt')
 !        call open_nc(fname,ncid,n3=kmax)
 !        call define_nc( ncid, 1, tncname)
 !        call writestat_dims_nc(ncid)
@@ -300,7 +292,7 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modmpi,        only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,     only  : i1, j1, k1, rslabs
-    use modmicrodata,  only  : precep, sedc, Dvr, Nr, Nc, epscloud, epsqr, epsprec,iqr,iNr,Nc_0
+    use modmicrodata,  only  : precep,sedc,l_sedc,Dvr,epscloud,epsqr,epsprec,iqr,iNr,Nc_0
     use modfields,     only  : ql0,sv0
     implicit none
 
@@ -317,25 +309,21 @@ subroutine initbulkmicrostat
     precav       = 0.0
     sedav        = 0.0
     qrav         = 0.0
-    qrrainav     = 0.0
 
     do k = 1,k1
       cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)    ! Number of cloudy gridboxes
-      !raincountavl (k)  = count(sv0 (2:i1,2:j1,k,iqr) > epsqr   )    ! Number of rainy gridboxes
-      raincountavl (k)  = count(sv0 (2:i1,2:j1,k,iqr) > 0.      )    ! Number of rainy gridboxes
+      raincountavl (k)  = count(sv0 (2:i1,2:j1,k,iqr) > epsqr   )    ! Number of rainy gridboxes
       preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec )    ! Number of precipitating gridboxes > epsprec
       prec_fracavl (k)  = count(precep  (2:i1,2:j1,k) > 1e-8    )    ! Number of gridboxes with precip > 1e-8
-      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep (2:i1,2:j1,k) > epsprec ) ! Sum of precip fluxes for boxes with precip > eps 
-      !Dvravl       (k)  = sum  (Dvr     (2:i1,2:j1,k) , sv0(2:i1,2:j1,k,iqr) > epsqr   ) ! Sum of prec water mean diam for boxes with qr > eps
-      Dvravl       (k)  = sum  (Dvr     (2:i1,2:j1,k) , sv0(2:i1,2:j1,k,iqr) > 0.   ) ! Sum of prec water mean diam for boxes with qr > eps
-      !Nrcloudavl   (k)  = sum  (Nc      (2:i1,2:j1,k) , ql0    (2:i1,2:j1,k) > epscloud) ! Sum of cloud drop number dens for boxes with ql0 > eps
+      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep(2:i1,2:j1,k) > epsprec ) ! Sum of precip fluxes for boxes with precip > eps 
+      Dvravl       (k)  = sum  (Dvr     (2:i1,2:j1,k) , sv0(2:i1,2:j1,k,iqr) > epsqr   ) ! Sum of prec water mean diam for boxes with qr > eps
       Nrcloudavl   (k)  = cloudcountavl(k)*Nc_0 ! Sum of cloud drop number dens for boxes with ql0 > eps
-      !Nrrainavl    (k)  = sum  (sv0 (2:i1,2:j1,k,iNr) , sv0(2:i1,2:j1,k,iqr) > epsqr   ) ! Sum of rain drop number dens for boxes with qr > eps
-      Nrrainavl    (k)  = sum  (sv0 (2:i1,2:j1,k,iNr) , sv0(2:i1,2:j1,k,iqr) > 0.   ) ! Sum of rain drop number dens for boxes with qr > eps
+      Nrrainavl    (k)  = sum  (sv0 (2:i1,2:j1,k,iNr) , sv0(2:i1,2:j1,k,iqr) > epsqr) ! Sum of rain drop number dens for boxes with qr > eps
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))               ! Total sum of precipitation fluxes
-      sedavl       (k)  = sum  (sedc    (2:i1,2:j1,k))               ! Total sum of cloud water sedimentation fluxes
+      if (l_sedc) then
+        sedavl       (k)  = sum  (sedc    (2:i1,2:j1,k))               ! Total sum of cloud water sedimentation fluxes
+      end if
       qravl        (k)  = sum  (sv0 (2:i1,2:j1,k,iqr))               ! Total sum of rain water content
-      qrrainavl    (k)  = sum  (sv0 (2:i1,2:j1,k,iqr), sv0(2:i1,2:j1,k,iqr) > 0.)     ! Total sum of rain water content
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -349,7 +337,6 @@ subroutine initbulkmicrostat
     call MPI_ALLREDUCE(precavl      ,precav       ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(sedavl       ,sedav        ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(qravl        ,qrav         ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qrrainavl    ,qrrainav     ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
     cloudcountmn = cloudcountmn +  cloudcountav /rslabs   ! fraction of cloudy gridcells
     raincountmn  = raincountmn  +  raincountav  /rslabs   ! fraction of rainy gridcells 
@@ -361,7 +348,6 @@ subroutine initbulkmicrostat
       end if
       if (raincountav(k) > 0) then
         Nrrainmn(k)   = Nrrainmn(k) + Nrrainav(k) / raincountav(k)
-        qrrainmn(k)   = qrrainmn(k) + qrrainav(k) / raincountav(k)
         Dvrmn(k)      = Dvrmn(k)    + Dvrav(k)    / raincountav(k)
       end if
       if (preccountav(k) > 0) then
@@ -460,7 +446,6 @@ subroutine initbulkmicrostat
     precmn          = precmn        /nsamples
     sedmn           = sedmn         /nsamples
     qrmn            = qrmn          /nsamples
-    qrrainmn        = qrrainmn      /nsamples
 
 !!! Already done !!!
 !    where (raincountmn > 0.)
@@ -606,28 +591,22 @@ subroutine initbulkmicrostat
         vars(:, 9) = Dvrmn
         vars(:,10) = Nrcloudmn
         vars(:,11) = Nrrainmn
-        vars(:,12) = qrrainmn
 
-        vars(:,13) =Npmn     (:,iauto)
-        vars(:,14) =Npmn     (:,iaccr)
-        vars(:,15) =Npmn     (:,ised)
-        vars(:,16) =Npmn     (:,ievap)
-        vars(:,17) =sum(Npmn (:,2:nrfields),2)
-        !vars(:,17) =qlpmn    (:,iauto)
-        !vars(:,18) =qlpmn    (:,iaccr)
-        !vars(:,19) =qlpmn    (:,ised)
-        !vars(:,20) =qlpmn    (:,ievap)
-        !vars(:,21) =sum(qlpmn(:,2:nrfields),2)
-        vars(:,18) =qrsrc    (:)/(rslabs*tint)
-        vars(:,19) =0.
-        vars(:,20) =qrsed    (:)/(rslabs*tint)
-        vars(:,21) =qrevap   (:)/(rslabs*tint)
-        vars(:,22) =(qrsrc+qrsed+qrevap)/(rslabs*tint)
-        vars(:,23) =qtpmn    (:,iauto)
-        vars(:,24) =qtpmn    (:,iaccr)
-        vars(:,25) =qtpmn    (:,ised)
-        vars(:,26) =qtpmn    (:,ievap)
-        vars(:,27) = sum     (qtpmn(:,2:nrfields),2)
+        vars(:,12) =Npmn     (:,iauto)
+        vars(:,13) =Npmn     (:,iaccr)
+        vars(:,14) =Npmn     (:,ised)
+        vars(:,15) =Npmn     (:,ievap)
+        vars(:,16) =sum(Npmn (:,2:nrfields),2)
+        vars(:,17) =qrsrc    (:)/(rslabs*tint)
+        vars(:,18) =0.
+        vars(:,19) =qrsed    (:)/(rslabs*tint)
+        vars(:,20) =qrevap   (:)/(rslabs*tint)
+        vars(:,21) =(qrsrc+qrsed+qrevap)/(rslabs*tint)
+        vars(:,22) =-qrsrc    (:)/(rslabs*tint)
+        vars(:,23) =0.
+        vars(:,24) =-qrsed    (:)/(rslabs*tint)
+        vars(:,25) =-qrevap   (:)/(rslabs*tint)
+        vars(:,26) =-(qrsrc+qrsed+qrevap)/(rslabs*tint)
 
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
@@ -650,7 +629,6 @@ subroutine initbulkmicrostat
     precmn       = 0.0
     sedmn        = 0.0
     qrmn         = 0.0
-    qrrainmn         = 0.0
     Npmn         = 0.0
     qlpmn        = 0.0
     qtpmn        = 0.0
@@ -660,9 +638,12 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 
   subroutine exitbulkmicrostat
+    use modmicrodata, only : Dvr,precep,qrevap,qrsed,qrsrc
     implicit none
     if (.not. lmicrostat)  return
 
+    deallocate( Dvr,precep)
+    deallocate( qrevap, qrsed, qrsrc )
     deallocate(Npav      , &
          Npmn      , &
          qlpav    , &
@@ -699,9 +680,6 @@ subroutine initbulkmicrostat
          qravl    , &
          qrav      , &
          qrmn      , &
-         qrrainavl    , &
-         qrrainav      , &
-         qrrainmn      , &
          Dvravl    , &
          Dvrav    , &
          Dvrmn    )
