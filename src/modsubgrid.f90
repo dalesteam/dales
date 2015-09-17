@@ -448,6 +448,11 @@ contains
           uwflux = -ustar(i,j)*ustar(i,j)* &
               (u0(i,j,1)+cu)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
           local_dudz = -uwflux / ekm(i,j,1)
+          ! For convective cases, in the early stage of the simulation the local_dudz is
+          ! in some cases extremely large, leading eventually in crashes in the thermodynamics
+          if (abs(local_dudz) > abs(dudz(i,j))) then
+             local_dudz = dudz(i,j)
+          endif
           tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
                local_dudz )**2
     else
@@ -467,6 +472,11 @@ contains
           vwflux = -ustar(i,j)*ustar(i,j)* &
               (v0(i,j,1)+cv)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
           local_dvdz = -vwflux / ekm(i,j,1)
+          ! For convective cases, in the early stage of the simulation the local_dvdz is
+          ! in some cases extremely large, leading eventually in crashes in the thermodynamics
+          if (abs(local_dvdz) > abs(dvdz(i,j))) then
+             local_dvdz = dvdz(i,j)
+          endif
           tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
                         local_dvdz  )**2
     else
@@ -482,6 +492,11 @@ contains
           ! (but we only have the thlflux , which seems at the surface to be
           ! equivalent
           local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
+          ! For convective cases, in the early stage of the simulation the local_dthvdz is
+          ! in some cases extremely large, leading eventually in crashes in the thermodynamics
+          if (abs(local_dthvdz) > abs(dthvdz(i,j,1))) then
+              local_dthvdz = dthvdz(i,j,1)
+          endif
           sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
     else
           sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
