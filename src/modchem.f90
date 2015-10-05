@@ -295,6 +295,7 @@ SUBROUTINE initchem
   call MPI_BCAST(dtchmovie ,1,MY_REAL     , 0,comm3d, mpierr)
 
   lCHon = lchem
+
   if (.not. (lchem)) return
   itimeav = floor(timeav_glob/tres)
   tnextwrite = itimeav+btime
@@ -1084,13 +1085,14 @@ end subroutine read_chem
 
 
 SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
-use modglobal, only : rk3step,timee
+use modglobal, only : rk3step,timee,i1,j1,kmax
 use modfields, only: svm
 use modsurfdata, only: lrsAgs
 implicit none
 
   if ((.not. lchem) .and. lrsAgs) then
     nr_raddep = 0
+    if (.not. allocated(keff)) allocate (keff(2:i1,2:j1,0,kmax))
     CALL ratech
   endif
   if (.not. (lchem)) return
