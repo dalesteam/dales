@@ -705,7 +705,7 @@ contains
       c1  = 1.+(rv/rd-1)*qts
       c2  = (rv/rd-1)
     else
-      c1    = (1.-qts+rv/rd*qsat*(1.+rd/(rv*tsurf))) &
+      c1    = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) &
                 /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
       c2    = c1*rlv/(tsurf*cp)-1.
     end if
