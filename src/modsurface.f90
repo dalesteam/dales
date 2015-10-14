@@ -95,7 +95,7 @@ contains
       ! Delay plant response in Ags
       lrelaxgc, kgc, lrelaxci, kci, &
       ! Soil properties
-      phi, phifc, phiwp, R10 &
+      phi, phifc, phiwp, R10, &
       !Split AGS calculations over different parts of the leaf
       lsplitleaf
 
