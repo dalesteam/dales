@@ -1615,6 +1615,8 @@ contains
     real     :: local_Anav  
     real     :: local_Respav
 
+    real     :: minsinbeta = 1.e-10
+
     patchx = 0
     patchy = 0
 
@@ -1833,7 +1835,7 @@ contains
           Dstar    = D0 / (AGSa1 * (f0 - fmin))
 
           if(lsplitleaf) then
-            sinbeta  = zenith(xtime*3600 + rtimee,xday,xlat,xlon)
+            sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
             kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black leaves
             kdf      = kdfbl * sqrt(1.0-sigma)
             kdr      = kdrbl * sqrt(1.0-sigma)
