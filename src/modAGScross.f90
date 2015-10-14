@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 31
+  integer,parameter :: nvar = 34
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxxxyxxx.xxx.nc'
@@ -121,6 +121,10 @@ contains
     call ncinfo(ncnameAGS(29,:),'ci    ', 'xy AGScross of int CO2 conc','mg/m3  ','tt0t')
     call ncinfo(ncnameAGS(30,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(31,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(32,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(33,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(34,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
@@ -155,7 +159,7 @@ contains
     use modglobal, only : imax,jmax,i1,j1,rtimee,dzf
     use modstat_nc, only : writestat_nc
     use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
-                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField
+                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, PARField, PARdirField,PARdifField
     use modfields, only   : svm, rhof, ql0
     use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif
     implicit none
@@ -206,6 +210,10 @@ contains
       vars(:,:,29) = ciField   (2:i1,2:j1)
       vars(:,:,30) = swdir     (2:i1,2:j1,1)
       vars(:,:,31) = swdif     (2:i1,2:j1,1)
+      vars(:,:,32) = PARField   (2:i1,2:j1)
+      vars(:,:,33) = PARdirField(2:i1,2:j1)
+      vars(:,:,34) = PARdifField(2:i1,2:j1)
+
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
       deallocate(vars)

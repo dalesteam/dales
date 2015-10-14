@@ -72,7 +72,7 @@ contains
   subroutine initsurface
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
@@ -95,8 +95,9 @@ contains
       ! Delay plant response in Ags
       lrelaxgc, kgc, lrelaxci, kci, &
       ! Soil properties
-      phi, phifc, phiwp, R10
-
+      phi, phifc, phiwp, R10 &
+      !Split AGS calculations over different parts of the leaf
+      lsplitleaf
 
     ! 1    -   Initialize soil
 
@@ -164,12 +165,18 @@ contains
     call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
 
+    call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
       lCO2Ags = .false.
+    endif
+
+    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user))))) then
+      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse light calculations from modradiation! Make sure you enable rad_shortw"
     endif
 
     if(lrsAgs) then
@@ -671,6 +678,9 @@ contains
       allocate(ci_old    (2:i1,2:j1))
       allocate(tauField  (2:i1,2:j1))
       allocate(ciField   (2:i1,2:j1))
+      allocate(PARField  (2:i1,2:j1))
+      allocate(PARdirField  (2:i1,2:j1))
+      allocate(PARdifField  (2:i1,2:j1))
     endif
     return
   end subroutine initsurface
@@ -1586,13 +1596,13 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
   
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
-    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
+    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,swdir,swdif,zenith
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
-    integer  :: i, j, k
+    integer  :: i, j, k, itg
     integer  :: patchx, patchy
     real     :: rk3coef,thlsl
 
@@ -1602,10 +1612,17 @@ contains
     real     :: Wlmx
 
     real     :: CO2ags, CO2comp, gm, fmin0, fmin, esatsurf, Ds, D0, cfrac, co2abs, ci !Variables for AGS
-    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, AGSa1, Dstar, gcco2 !Variables for AGS
+    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, Ag, AGSa1, Dstar, gcco2, PARdir, PARdif !Variables for AGS
     real     :: rsAgs, rsCO2, fw, Resp, wco2 !Variables for AGS
     real     :: MW_Air = 28.97
     real     :: MW_CO2 = 44
+
+    real     :: sinbeta, kdrbl, kdf, kdr, ref, ref_dir
+    real     :: iLAI, fSL
+    real     :: PARdfU, PARdfD, PARdfT, PARdrU, PARdrD, PARdrT, dirPAR, difPAR
+    real     :: HdfT, HdrT, dirH, Hshad, Hsun(nr_gauss), Fshad, Fsun, gshad, gsun
+    real     :: Hleaf(nr_gauss+1), Fleaf(nr_gauss+1), gleaf(nr_gauss+1), Agl(nr_gauss+1)
+    real     :: Fnet(nr_gauss), gnet(nr_gauss)
 
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
@@ -1613,6 +1630,8 @@ contains
     real     :: local_wco2av
     real     :: local_Anav  
     real     :: local_Respav
+
+    real     :: minsinbeta = 1.e-10
 
     patchx = 0
     patchy = 0
@@ -1651,6 +1670,10 @@ contains
       rsco2Field = 0.0
       fstrField  = 0.0
       ciField    = 0.0
+      PARField   = 0.0
+      PARdirField= 0.0
+      PARdifField= 0.0
+
     endif
     
     rk3coef = rdt / (4. - dble(rk3step))
@@ -1814,32 +1837,84 @@ contains
           Rdark    = (1.0/9) * Am
 
           !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
-          PAR      = 0.50 * max(0.1,-swdav) !Increase PAR to 50 SW
+          PAR      = 0.50 * max(0.1,-swdav * cveg(i,j)) !Increase PAR to 50 SW
+          PARdir   = 0.50 * max(0.1,swdir(i,j,1) * cveg(i,j))
+          PARdif   = 0.50 * max(0.1,swdif(i,j,1) * cveg(i,j))
 
           ! Calculate the light use efficiency
           alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
-
-          ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-          tempy    = alphac * Kx * PAR / (Am + Rdark)
-          An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
 
           ! Calculate upscaling from leaf to canopy: CO2 conductance at canopy level
           AGSa1    = 1.0 / (1 - f0)
           Dstar    = D0 / (AGSa1 * (f0 - fmin))
 
+          if(lsplitleaf) then
+            sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
+            kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black leaves
+            kdf      = kdfbl * sqrt(1.0-sigma)
+            kdr      = kdrbl * sqrt(1.0-sigma)
+            ref      = (1.0 - sqrt(1.0-sigma)) / (1.0 + sqrt(1.0-sigma)) ! Reflection coefficient
+            ref_dir  = 2 * ref / (1.0 + 1.6 * sinbeta)
+
+            do itg = 1, nr_gauss ! loop over the different LAI locations
+              iLAI   = LAI(i,j) * LAI_g(itg)   ! Integrated LAI between here and canopy top; Gaussian distributed
+              fSL    = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
+
+              PARdfD = PARdif * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at canopy top
+              PARdrD = PARdir * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at canopy top
+              PARdfU = PARdif * (1.0-ref)     * exp(-kdf * LAI(i,j)) * albedo(i,j) * (1.0-ref) * exp(-kdf * (LAI(i,j)-iLAI)) ! Total upward (reflected) PAR that originates as diffuse radiation at canopy top
+              PARdrU = PARdir * (1.0-ref_dir) * exp(-kdr * LAI(i,j)) * albedo(i,j) * (1.0-ref) * exp(-kdf * (LAI(i,j)-iLAI)) ! Total upward (reflected) PAR that originates as direct radiation at canopy top
+              PARdfT = PARdfD + PARdfU                                   ! Total PAR due to diffuse radiation at canopy top
+              PARdrT = PARdrD + PARdrU                                   ! Total PAR due to direct radiation at canopy top
+
+              dirPAR = (1.0-sigma) * PARdir * fSL                        ! Purely direct PAR (can only be downward)
+              difPAR = PARdfT + PARdrT - dirPAR                          ! Total diffuse radiation
+              
+              HdfT   = kdf * PARdfD + kdf * PARdfU
+              HdrT   = kdr * PARdrD + kdf * PARdrU
+              dirH   = kdrbl * dirPAR
+              Hshad  = HdfT + HdrT - dirH
+
+              Hsun   = Hshad + angle_g * (1.0-sigma) * kdrbl * PARdir / sum(angle_g * weight_g)
+
+              Hleaf(1)              = Hshad
+              Hleaf(2:(nr_gauss+1)) = Hsun
+
+              Agl    = fstr * (Am + Rdark) * (1 - exp(-alphac*Hleaf/(Am + Rdark)))
+              gleaf  = gmin/nuco2q +  Agl/(co2abs-ci)
+              !Fleaf  = -(co2abs - ci) / (ra(i,j) + 1.0 / gleaf)
+              Fleaf  = Agl - Rdark
+
+              Fshad  = Fleaf(1)
+              Fsun   = sum(weight_g * Fleaf(2:(nr_gauss+1)))
+              gshad  = gleaf(1)
+              gsun   = sum(weight_g * gleaf(2:(nr_gauss+1)))
+
+              Fnet(itg) = Fsun * fSL + Fshad * (1 - fSL)
+              gnet(itg) = gsun * fSL + gshad * (1 - fSL)
+
+            end do !itg
+
+            An       = LAI(i,j) * sum(weight_g * Fnet)
+            gcco2    = LAI(i,j) * sum(weight_g * gnet)
+
+          else !lsplitleaf
+            ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
+            tempy    = alphac * Kx * PAR / (Am + Rdark)
+            Ag       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
+            gcco2    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * Ag / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+          endif !lsplitleaf
+
           if (lrelaxgc) then
             if (gc_old_set) then
-              gc_inf      = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gc_inf      = gcco2
               gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
               if (rk3step ==3) then
                 gc_old(i,j) = gcco2
               endif
             else
-              gcco2       = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
               gc_old(i,j) = gcco2
             endif
-          else
-            gcco2  = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
           endif
 
           ! Calculate surface resistances for moisture and carbon dioxide
@@ -1866,12 +1941,16 @@ contains
           local_Anav   = local_Anav   + An
           local_Respav = local_Respav + Resp
 
-          AnField   (i,j) = An
-          RespField (i,j) = Resp
-          wco2Field (i,j) = wco2
-          rsco2Field(i,j) = rsCO2
-          fstrField (i,j) = fstr
-          ciField   (i,j) = ci
+          AnField    (i,j) = An
+          RespField  (i,j) = Resp
+          wco2Field  (i,j) = wco2
+          rsco2Field (i,j) = rsCO2
+          fstrField  (i,j) = fstr
+          ciField    (i,j) = ci
+          PARField   (i,j) = PAR
+          PARdirField(i,j) = PARdir
+          PARdifField(i,j) = PARdif
+
         endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
