@@ -100,9 +100,9 @@ program DALES      !Version 4.0.0alpha
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modmpi,            only : myid, initmpi
+  use modmpi,            only : myid, initmpi, mpi_get_time
   use modtstep,          only : tstep_update,tstep_integrate
-  use modglobal,         only : rkStep,rkMaxStep,timee,btime,runtime,timeleft
+  use modglobal,         only : rkStep,rkMaxStep,timee,btime,runtime,timeleft,wctime
   use modfields,         only : thl0
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
@@ -150,8 +150,8 @@ program DALES      !Version 4.0.0alpha
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
 
-
   implicit none
+  real :: t0,t2
 
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
@@ -193,6 +193,8 @@ program DALES      !Version 4.0.0alpha
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
   write(*,*)'START myid ', myid
+  call mpi_get_time(t0)
+
   do while (timeleft>0 .or. rkStep < rkMaxStep)
     call tstep_update                           ! Calculate new timestep
     call timedep
@@ -288,7 +290,10 @@ program DALES      !Version 4.0.0alpha
     call budgetstat
     !call stressbudgetstat
     call heterostats
-
+    call mpi_get_time(t2)
+    if (t2-t0>=wctime) then
+      timeleft=0
+    end if
     call writerestartfiles
 
   end do

@@ -170,7 +170,7 @@ save
       integer :: ntimee         !<     * number of timesteps since the cold start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-      
+      real :: wctime
       logical :: ladaptive   = .false.        !<    * adaptive timestepping on or off
       integer,parameter :: iTimeWicker=1 , &  !     1 - Wicker and Skamarock RK3 scheme (2nd order accurate, 3N storage)
                            iTimeLowStor=2, &  !     2 - Williamson (1980) RK3 scheme (3rd order accurate, 2N storage)
