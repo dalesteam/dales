@@ -376,7 +376,7 @@ subroutine radpar
   integer k
   allocate(taude(k1))
 
-  if((.not. lcloudshading) .and. (.not. laero)) 
+  if((.not. lcloudshading) .and. (.not. laero)) then !transparent clouds
     tau = 0.0
     tauc= 0.0
   endif
