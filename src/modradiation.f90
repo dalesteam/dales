@@ -376,6 +376,11 @@ subroutine radpar
   integer k
   allocate(taude(k1))
 
+  if((.not. lcloudshading) .and. (.not. laero)) 
+    tau = 0.0
+    tauc= 0.0
+  endif
+  
   taucde = 0.         ! tau' cloud
   taupath = 0.
 
@@ -432,7 +437,6 @@ subroutine radpar
   c2=(xp23p*t3*exmu0-t1*ap23b*exmk)/(xp23p*t2*expk-xm23p*t1*exmk)
   c1=(ap23b-c2*xm23p)/xp23p
 
-  if((.not. lcloudshading) .and. (.not. laero)) taude = 0.0
 
   do k = k1,1,-1
       taupath = taupath + taude(k)
