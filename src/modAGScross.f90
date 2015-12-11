@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 34
+  integer,parameter :: nvar = 35
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   character(80) :: fnameAGS = 'crossAGS.xxxxyxxx.xxx.nc'
@@ -124,6 +124,7 @@ contains
     call ncinfo(ncnameAGS(32,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(33,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(34,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(35,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s?  ','tt0t')
 
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
@@ -158,7 +159,7 @@ contains
   subroutine AGShorz
     use modglobal, only : imax,jmax,i1,j1,rtimee,dzf
     use modstat_nc, only : writestat_nc
-    use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
+    use modsurfdata, only : AnField, gcco2Field, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
                             indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, PARField, PARdirField,PARdifField
     use modfields, only   : svm, rhof, ql0
     use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif
@@ -213,6 +214,7 @@ contains
       vars(:,:,32) = PARField   (2:i1,2:j1)
       vars(:,:,33) = PARdirField(2:i1,2:j1)
       vars(:,:,34) = PARdifField(2:i1,2:j1)
+      vars(:,:,35) = gcco2Field (2:i1,2:j1)
 
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)

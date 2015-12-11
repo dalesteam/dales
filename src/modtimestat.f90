@@ -178,11 +178,11 @@ contains
         write(ifoutput,'(3a)') &
                '#     time      Qnet        H          LE         G0  ', &
                '   tendskin     rs         ra        tskin        cliq  ', &
-               '    Wl          rssoil     rsveg       Resp       wco2         An'
+               '    Wl          rssoil     rsveg       Resp       wco2         An     gc_CO2'
         write(ifoutput,'(3a)') &
                '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
                '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
-               '   [m]          [s/m]      [s/m]'
+               '   [m]          [s/m]      [s/m]    [mm/s?]'
         close(ifoutput)
       end if
 
@@ -343,7 +343,7 @@ contains
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav
+                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav,gcco2av, Respav
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
@@ -796,7 +796,7 @@ contains
       if (isurf == 1) then
         !tmlsm
         open (ifoutput,file='tmlsm.'//cexpnr,position='append')
-        write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3)') &
+        write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3,e13.3)') &
             rtimee       ,&
             Qnetav      ,&
             Hav         ,&
@@ -812,7 +812,8 @@ contains
             rsvegav     ,&
             Respav      ,&
             wco2av      ,&
-            Anav      
+            Anav        ,&
+            gcco2av      
         close(ifoutput)
       end if
       if (lnetcdf) then

@@ -670,6 +670,7 @@ contains
 
     if (lrsAgs) then
       allocate(AnField   (2:i1,2:j1))
+      allocate(gcco2Field(2:i1,2:j1))
       allocate(RespField (2:i1,2:j1))
       allocate(wco2Field (2:i1,2:j1))
       allocate(rsco2Field(2:i1,2:j1))
@@ -1629,6 +1630,7 @@ contains
 
     real     :: local_wco2av
     real     :: local_Anav  
+    real     :: local_gcco2av  
     real     :: local_Respav
 
     real     :: minsinbeta = 1.e-10
@@ -1658,13 +1660,16 @@ contains
 
     wco2av       = 0.0
     Anav         = 0.0
+    gcco2av      = 0.0
     Respav       = 0.0
     local_wco2av = 0.0
     local_Anav   = 0.0
+    local_gcco2av= 0.0
     local_Respav = 0.0
 
     if (lrsAgs) then
       AnField    = 0.0
+      gcco2Field = 0.0
       RespField  = 0.0
       wco2Field  = 0.0
       rsco2Field = 0.0
@@ -1939,9 +1944,11 @@ contains
 
           local_wco2av = local_wco2av + wco2
           local_Anav   = local_Anav   + An
+          local_gcco2av= local_gcco2av   + gcco2
           local_Respav = local_Respav + Resp
 
           AnField    (i,j) = An
+          gcco2Field (i,j) = gcco2
           RespField  (i,j) = Resp
           wco2Field  (i,j) = wco2
           rsco2Field (i,j) = rsCO2
@@ -2126,9 +2133,11 @@ contains
 
     call MPI_ALLREDUCE(local_wco2av, wco2av, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_gcco2av  , gcco2av  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_Respav, Respav, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
 
     Anav   = Anav/ijtot
+    gcco2av= gcco2av/ijtot
     wco2av = wco2av/ijtot
     Respav = Respav/ijtot
     

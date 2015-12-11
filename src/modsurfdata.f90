@@ -138,9 +138,11 @@ SAVE
   logical           :: ci_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
   real              :: wco2av     = 0.0
   real              :: Anav       = 0.0
+  real              :: gcco2av    = 0.0
   real              :: Respav     = 0.0
   real, allocatable :: wco2Field    (:,:)
   real, allocatable :: AnField      (:,:)
+  real, allocatable :: gcco2Field   (:,:)
   real, allocatable :: rsco2Field   (:,:)
   real, allocatable :: RespField    (:,:)
   real, allocatable :: fstrField    (:,:)
