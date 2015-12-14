@@ -71,7 +71,7 @@ contains
                            dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
-    use modsurfadta, only: isurf
+    use modsurfdata, only: isurf
     implicit none
 
     integer :: ierr
@@ -235,6 +235,7 @@ contains
         if (isurf == 1) then
           open (ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,status='replace')
           close (ifoutput)
+        end if
       enddo
     endif
 
@@ -394,7 +395,8 @@ contains
     real, allocatable, dimension(:) :: thvhav
 
     logical, allocatable, dimension(:,:) :: maskAGS
-    
+    integer :: nrsampAGS
+
     real, allocatable, dimension(:) :: whav0l,wwthav0l    ! needed for instantaneous mean values
     real, allocatable, dimension(:) :: whav0 ,wwthav0  ,wwshav0 ,sigh0
     integer, allocatable, dimension (:) :: nrsamph0l, nrsamph0
@@ -764,7 +766,7 @@ contains
           cliqavl    (isamp) = cliqavl    (isamp)+sum  (cliq       (2:i1,2:j1),maskAGS(2:i1,2:j1))
           wlavl      (isamp) = wlavl      (isamp)+sum  (wl         (2:i1,2:j1),maskAGS(2:i1,2:j1))
           rssoilavl  (isamp) = rssoilavl  (isamp)+sum  (rssoil     (2:i1,2:j1),maskAGS(2:i1,2:j1))
-          rsvegavl   (isamp) = rsvegavl   (isamp)+sum  (rsvegField (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          rsvegavl   (isamp) = rsvegavl   (isamp)+sum  (rsveg      (2:i1,2:j1),maskAGS(2:i1,2:j1))
           Respavl    (isamp) = Respavl    (isamp)+sum  (RespField  (2:i1,2:j1),maskAGS(2:i1,2:j1))
           wco2avl    (isamp) = wco2avl    (isamp)+sum  (wco2Field  (2:i1,2:j1),maskAGS(2:i1,2:j1))
           Anavl      (isamp) = Anavl      (isamp)+sum  (AnField    (2:i1,2:j1),maskAGS(2:i1,2:j1))
