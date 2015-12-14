@@ -52,6 +52,10 @@ save
   real, allocatable, dimension(:,:) :: wwrhavl,wwsfavl,pfavl,dwdthavl,dwwdzhavl,dpdzhavl, &
                                        duwdxhavl,dtaudxhavl,dtaudzhavl,thvhavl, &
                                        fcorhavl,nrsamphl
+ !tmlsm conditional variables---Xabi
+ real, allocatable, dimension(:) :: Qnetavl,Havl,LEavl,G0avl,tendskinavl,rsavl, &
+                                    raavl,tskinavl,cliqavl,wlavl,rssoilavl,rsvegavl,Respavl, &
+                                    wco2avl,Anavl,gcco2avl
   real,allocatable, dimension(:,:) :: wh_el,sigh_el
   real,allocatable, dimension(:,:) :: wadvhavl,subphavl
   integer,allocatable, dimension(:,:) :: nrtsamphav
@@ -67,6 +71,7 @@ contains
                            dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
+    use modsurfadta, only: isurf
     implicit none
 
     integer :: ierr
@@ -154,6 +159,10 @@ contains
               pfavl     (k1,isamptot),dwdthavl (k1,isamptot),dwwdzhavl (k1,isamptot), &
               dpdzhavl  (k1,isamptot),duwdxhavl(k1,isamptot),dtaudxhavl(k1,isamptot), &
               dtaudzhavl(k1,isamptot),thvhavl  (k1,isamptot),fcorhavl  (k1,isamptot))
+    allocate(Qnetavl    (isamptot),Havl   (isamptot),LEavl    (isamptot),G0avl   (isamptot), &
+             tendskinavl(isamptot),rsavl  (isamptot),raavl    (isamptot),tskinavl(isamptot), &
+             cliqavl    (isamptot),wlavl  (isamptot),rssoilavl(isamptot),rsvegavl(isamptot), &
+             Respavl    (isamptot),wco2avl(isamptot),Anavl    (isamptot),gcco2avl(isamptot))  
 
     allocate (wh_el     (k1,isamptot),sigh_el  (k1,isamptot),massflxhavl(k1,isamptot))
 
@@ -189,6 +198,24 @@ contains
     dtaudzhavl  = 0.0
     thvhavl     = 0.0
     fcorhavl    = 0.0
+!ags-tmlsm variables
+    
+    Qnetavl     = 0.0
+    Havl        = 0.0
+    LEavl       = 0.0
+    G0avl       = 0.0
+    tendskinavl = 0.0
+    rsavl       = 0.0
+    raavl       = 0.0
+    tskinavl    = 0.0
+    cliqavl     = 0.0
+    wlavl       = 0.0
+    rssoilavl   = 0.0
+    rsvegavl    = 0.0
+    Respavl     = 0.0
+    wco2avl     = 0.0
+    Anavl       = 0.0
+    gcco2avl    = 0.0
 
     wh_el       = 0.0
     sigh_el     = 0.0
@@ -205,6 +232,9 @@ contains
         close (ifoutput)
         open (ifoutput,file=trim(samplname(isamp))//'flx.'//cexpnr,status='replace')
         close (ifoutput)
+        if (isurf == 1) then
+          open (ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,status='replace')
+          close (ifoutput)
       enddo
     endif
 
@@ -307,6 +337,8 @@ contains
     deallocate( nrsamphl,wwrhavl ,wwsfavl , &
                 pfavl   ,dwdthavl,dwwdzhavl,dpdzhavl,duwdxhavl,dtaudxhavl,dtaudzhavl,  &
                 thvhavl ,fcorhavl,wh_el,sigh_el)
+    deallocate(Qnetavl    ,Havl   ,LEavl    ,G0avl   , tendskinavl,rsavl  ,raavl    ,tskinavl, &
+               cliqavl    ,wlavl  ,rssoilavl,rsvegavl, Respavl    ,wco2avl,Anavl    ,gcco2avl)  
     deallocate(wadvhavl,subphavl,nrtsamphav)
     if (lnetcdf .and. myid==0) deallocate(ncname)
 
@@ -343,6 +375,8 @@ contains
                           grav,om22,cu,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp_store
+    use modsurfdata, only:Qnet,H,LE,G0,tendskin,rs,ra,tskin,cliq,wl,rssoil,rsveg, &
+                          AnField,RespField,gcco2Field,wco2Field
     use modsubgriddata,only : ekh,ekm
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
     use modpois,   only : p
@@ -359,6 +393,8 @@ contains
     real, allocatable, dimension(:,:,:) :: uwsh,vwsh,uwrh,vwrh,wwrh,wwsf
     real, allocatable, dimension(:) :: thvhav
 
+    logical, allocatable, dimension(:,:) :: maskAGS
+    
     real, allocatable, dimension(:) :: whav0l,wwthav0l    ! needed for instantaneous mean values
     real, allocatable, dimension(:) :: whav0 ,wwthav0  ,wwshav0 ,sigh0
     integer, allocatable, dimension (:) :: nrsamph0l, nrsamph0
@@ -386,6 +422,7 @@ contains
              wwsf  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvhav(k1))
 
+    allocate(maskAGS (2-ih:i1+ih,2-jh:j1+jh))   
     allocate(nrsamph0l(k1), &
              whav0l   (k1), &
              wwthav0l (k1))
@@ -408,9 +445,9 @@ contains
       w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
     end do
 
-    maskf = .false.
-    maskh= .false.
-
+    maskf   = .false.
+    maskh   = .false.
+    maskAGS = .false.
     thvav = 0.0
     call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     thvav = thvav/ijtot
@@ -615,7 +652,7 @@ contains
     end do
 
 
-!add fields and fluxes to mean
+!add fields, fluxes and surface values to mean
 !     1)       fields on full levels
     do k=1,kmax
       nrsampfl(k,isamp) = nrsampfl(k,isamp)+count(maskf(2:i1,2:j1,k))
@@ -708,6 +745,34 @@ contains
       end if
     enddo
 
+!3)AGS-tmlsm values
+      do j=2,j1
+        do i=2,i1
+          do k=2,kmax
+          if ((maskh(i,j,k)) .or. (maskf(i,j,k))) then
+            maskAGS(i,j)=.true.
+          end do
+          nrsampAGS  (isamp) = nrsampAGS  (isamp)+count(maskAGS    (2:i1,2:j1))
+          Qnetavl    (isamp) = Qnetavl    (isamp)+sum  (Qnet       (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          Havl       (isamp) = Havl       (isamp)+sum  (H          (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          LEavl      (isamp) = LEavl      (isamp)+sum  (LE         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          G0avl      (isamp) = G0avl      (isamp)+sum  (G0         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          tendskinavl(isamp) = tendskinavl(isamp)+sum  (tendskin   (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          rsavl      (isamp) = rsavl      (isamp)+sum  (rs         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          raavl      (isamp) = raavl      (isamp)+sum  (ra         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          tskinavl   (isamp) = tskinavl   (isamp)+sum  (tskin      (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          cliqavl    (isamp) = cliqavl    (isamp)+sum  (cliq       (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          wlavl      (isamp) = wlavl      (isamp)+sum  (wl         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          rssoilavl  (isamp) = rssoilavl  (isamp)+sum  (rssoil     (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          rsvegavl   (isamp) = rsvegavl   (isamp)+sum  (rsvegField (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          Respavl    (isamp) = Respavl    (isamp)+sum  (RespField  (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          wco2avl    (isamp) = wco2avl    (isamp)+sum  (wco2Field  (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          Anavl      (isamp) = Anavl      (isamp)+sum  (AnField    (2:i1,2:j1),maskAGS(2:i1,2:j1))
+          gcco2avl   (isamp) = gcco2avl   (isamp)+sum  (gcco2Field (2:i1,2:j1),maskAGS(2:i1,2:j1))
+        end do
+      end do
+
+
     call MPI_ALLREDUCE(nrsamph0l   ,nrsamph0 ,k1,MPI_INTEGER,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(whav0l      ,whav0    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(wwthav0l    ,wwthav0  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -738,6 +803,7 @@ contains
     deallocate(maskf,wthlth,wqtth,wqlth,wthvth,uwth,vwth,thvav,w0f,thv0)
     deallocate(maskh,uwsh,vwsh,uwrh,vwrh)
     deallocate(wwrh,wwsf,thvhav)
+    deallocate(maskAGS)
 
     deallocate(whav0,  whav0l)
     deallocate(wwthav0,wwthav0l)
@@ -761,6 +827,13 @@ contains
                                         wthlthmn,wthvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn
     real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
                                         wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
+    !variables for AGS-tmlsm
+    real,                            :: Qnetmn,Hmn,LEmn,G0mn,tendskinmn,rsmn,ramn, &
+                                        tskinmn,cliqmn,wlmn,rssoilmn,rsvegmn,Respmn,wco2mn,&
+                                        Anmn,gcco2mn
+    real, allocatable, dimension(:)  :: Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav, &
+                                        tskinav,cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,&
+                                        Anav,gcco2av
     real, allocatable, dimension(:)  :: nrsamphmn, wwrhmn,wwsfmn,&
                                         pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                                         dtaudxhmn,dtaudzhmn,thvhmn, &
@@ -781,6 +854,10 @@ contains
               qtfav(k1,isamptot),qlfav(k1,isamptot),nrsampf(k1,isamptot),massflxhav(k1,isamptot), &
               wthlthav(k1,isamptot),wthvthav(k1,isamptot),wqtthav(k1,isamptot), &
               wqlthav(k1,isamptot),uwthav(k1,isamptot),vwthav(k1,isamptot),qrfav(k1,isamptot))
+    allocate( Qnetav  (isamptot),Hav    (isamptot),LEav   (isamptot),G0av  (isamptot),tendskinav(isamptot), &
+              rsav    (isamptot),raav   (isamptot),tskinav(isamptot),cliqav(isamptot),wlav      (isamptot), & 
+              rssoilav(isamptot),rsvegav(isamptot),Respav (isamptot),wco2av(isamptot),Anav    (isamptot), &
+              gcco2av (isamptot))
     allocate (nrsamphmn(k1),wwrhmn(k1),wwsfmn(k1))
     allocate( pfmn(k1),dwdthmn(k1),dwwdzhmn(k1),dpdzhmn(k1),duwdxhmn(k1),&
               dtaudxhmn(k1),dtaudzhmn(k1),thvhmn(k1),fcorhmn(k1))
@@ -825,6 +902,25 @@ contains
     call MPI_ALLREDUCE(dtaudzhavl ,dtaudzhav  ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(thvhavl    ,thvhav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(fcorhavl   ,fcorhav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    
+    call MPI_ALLREDUCE(nrsampAGS   ,nrsampAGS  ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(Qnetavl     ,Qnetav     ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(Havl        ,Hav        ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(LEavl       ,LEav       ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(G0avl       ,G0av       ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(tendskinavl ,tendskinav ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(rsavl       ,rsav       ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(raavl       ,raav       ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(tskinavl    ,tskinav    ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(cliqavl     ,cliqav     ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wlavl       ,wlav       ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(rssoilavl   ,rssoilav   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(rsvegavl    ,rsvegav    ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(Respavl     ,Respaav    ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wco2avl     ,wco2av     ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(Anavl       ,Anav       ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(gcco2avl    ,gcco2av    ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+
 
     call MPI_ALLREDUCE(wh_el      ,wh_e       ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
     call MPI_ALLREDUCE(sigh_el    ,sigh_e     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -859,6 +955,26 @@ contains
     dtaudzhavl  = 0.0
     thvhavl     = 0.0
     fcorhavl    = 0.0
+
+!ags-tmlsm variables
+    
+    nrsampAGS   =0.0
+    Qnetavl     = 0.0
+    Havl        = 0.0
+    LEavl       = 0.0
+    G0avl       = 0.0
+    tendskinavl = 0.0
+    rsavl       = 0.0
+    raavl       = 0.0
+    tskinavl    = 0.0
+    cliqavl     = 0.0
+    wlavl       = 0.0
+    rssoilavl   = 0.0
+    rsvegavl    = 0.0
+    Respavl     = 0.0
+    wco2avl     = 0.0
+    Anavl       = 0.0
+    gcco2avl    = 0.0
 
     wh_el       = 0.
     sigh_el     = 0.
@@ -937,6 +1053,27 @@ contains
 
 
         enddo
+
+        if (nrsampAGS(isamp).gt.0) then
+          Qnetmn     = Qnetav    (isamp)/nrsampAGS(isamp)
+          Hmn        = Hav       (isamp)/nrsampAGS(isamp)
+          LEmn       =  LEav     (isamp)/nrsampAGS(isamp)
+          G0mn       = G0av      (isamp)/nrsampAGS(isamp)
+          tendskinmn = tendskinav(isamp)/nrsampAGS(isamp)
+          rsmn       = rsav      (isamp)/nrsampAGS(isamp)
+          ramn       = raav      (isamp)/nrsampAGS(isamp)
+          tskinmn    = tskinav   (isamp)/nrsampAGS(isamp)
+          cliqmn     = cliqav    (isamp)/nrsampAGS(isamp)
+          wlmn       = wlav      (isamp)/nrsampAGS(isamp)
+          rssoilmn   = rssoilav  (isamp)/nrsampAGS(isamp)
+          rsvegmn    = rsvegav   (isamp)/nrsampAGS(isamp)
+          Respmn     =  Respav   (isamp)/nrsampAGS(isamp)
+          wco2mn     = wco2av    (isamp)/nrsampAGS(isamp)
+          Anmn       = Anav      (isamp)/nrsampAGS(isamp)
+          gcco2mn    = gcco2av   (isamp)/nrsampAGS(isamp)
+        endif
+
+
 
 !write files
         open (ifoutput,file=trim(samplname(isamp))//'fld.'//cexpnr,position='append')
@@ -1034,6 +1171,32 @@ contains
               nrtsamphav (k,isamp)
         enddo
         close(ifoutput)
+       
+        if (isurf == 1) then    !tmlsm
+          open (ifoutput,file=trim(samplname(isamp))'tmlsm.'//cexpnr,position='append')
+          write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3,e13.3)') &
+          rtimee      ,&
+          Qnetav      ,&
+          Hav         ,&
+          LEav        ,&
+          G0av        ,&
+          tendskinav  ,&
+          rsav        ,&
+          raav        ,&
+          tskinav     ,&
+          cliqav      ,&
+          wlav        ,&
+          rssoilav    ,&
+          rsvegav     ,&
+          Respav      ,&
+          wco2av      ,&
+          Anav        ,&
+          gcco2av
+         close(ifoutput)
+       end if
+                       
+
+
 
         if (isamp.eq.isamptot) then
           nrtsamphav = 0
@@ -1087,7 +1250,10 @@ contains
     deallocate( wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
                 wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav)
     deallocate (nrsamphmn,wwrhmn,wwsfmn,pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
-                 dtaudzhmn,dtaudxhmn,thvhmn,fcorhmn)
+                dtaudzhmn,dtaudxhmn,thvhmn,fcorhmn)
+    deallocate( Qnetav,Hav    ,LEav   ,G0av  ,tendskinav, &
+                rsav    ,raav   ,tskinav,cliqav,wlav      , & 
+                rssoilav,rsvegav,Respav ,wco2av,Anav ,gcco2av )
     deallocate (nrsamph,wwrhav,wwsfav)
     deallocate( pfav,dwdthav,dwwdzhav,dpdzhav,duwdxhav,dtaudxhav,dtaudzhav,thvhav,fcorhav)
     deallocate (wh_e,sigh_e)
