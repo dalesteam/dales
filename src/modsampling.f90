@@ -832,14 +832,12 @@ contains
     real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
                                         wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
     !variables for AGS-tmlsm
-    real                             :: Qnetmn,Hmn,LEmn,G0mn,tendskinmn,rsmn,ramn, &
+    real                             :: nrsampAGSmn,Qnetmn,Hmn,LEmn,G0mn,tendskinmn,rsmn,ramn, &
                                         tskinmn,cliqmn,wlmn,rssoilmn,rsvegmn,Respmn,wco2mn,&
                                         Anmn,gcco2mn
-    real, allocatable, dimension(:)  :: Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav, &
+    real, allocatable, dimension(:)  :: nrsampAGS,Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav, &
                                         tskinav,cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,&
                                         Anav,gcco2av
-    real                             :: nrsampAGSmn
-    real                        (:)  :: nrsampAGS
     real, allocatable, dimension(:)  :: nrsamphmn, wwrhmn,wwsfmn,&
                                         pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                                         dtaudxhmn,dtaudzhmn,thvhmn, &
@@ -863,7 +861,7 @@ contains
     allocate( Qnetav  (isamptot),Hav    (isamptot),LEav   (isamptot),G0av  (isamptot),tendskinav(isamptot), &
               rsav    (isamptot),raav   (isamptot),tskinav(isamptot),cliqav(isamptot),wlav      (isamptot), & 
               rssoilav(isamptot),rsvegav(isamptot),Respav (isamptot),wco2av(isamptot),Anav    (isamptot), &
-              gcco2av (isamptot)i)
+              gcco2av (isamptot))
     allocate( nrsampAGS(isamptot))
     allocate (nrsamphmn(k1),wwrhmn(k1),wwsfmn(k1))
     allocate( pfmn(k1),dwdthmn(k1),dwwdzhmn(k1),dpdzhmn(k1),duwdxhmn(k1),&
