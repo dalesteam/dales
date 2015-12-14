@@ -252,15 +252,18 @@ subroutine radpar
   real, allocatable :: lwpt(:),lwpb(:)
   real, allocatable :: tau(:)
   real, allocatable :: absorber(:,:,:)  !  liquid water content or smoke
-
   real thlpld,thlplu,thlpsw
   real tauc
   integer :: i=0, j=0, k
 
   real :: rho_l= 1000.  !liquid water density (kg/m3)
 
+  SAVE
+  real, allocatable :: cctau(:,:)       !  to store the cumulative tau over the whole column for conditional sampling
+  
   allocate(lwpt(k1),lwpb(k1))
   allocate(tau(k1))
+  allocate(cctau(2-ih:i1+ih,2-jh:j1+jh))
   allocate(absorber(2-ih:i1+ih,2-jh:j1+jh,k1))
   absorber = 0.0
   tau  = 0.0
@@ -334,6 +337,8 @@ subroutine radpar
           end if  
           tauc=tauc+tau(k)
         end do
+        cctau(i,j)=tauc
+
         call sunray(tau,tauc,i,j)
       end if
 
@@ -348,7 +353,7 @@ subroutine radpar
 
   endif  !end shortwave loop
 
-  deallocate(lwpt,lwpb,tau,absorber)
+  deallocate(lwpt,lwpb,tau,absorber,cctau)
 
 
 
