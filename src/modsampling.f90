@@ -828,7 +828,7 @@ contains
     real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
                                         wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
     !variables for AGS-tmlsm
-    real,                            :: Qnetmn,Hmn,LEmn,G0mn,tendskinmn,rsmn,ramn, &
+    real                             :: Qnetmn,Hmn,LEmn,G0mn,tendskinmn,rsmn,ramn, &
                                         tskinmn,cliqmn,wlmn,rssoilmn,rsvegmn,Respmn,wco2mn,&
                                         Anmn,gcco2mn
     real, allocatable, dimension(:)  :: Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav, &
@@ -1173,7 +1173,7 @@ contains
         close(ifoutput)
        
         if (isurf == 1) then    !tmlsm
-          open (ifoutput,file=trim(samplname(isamp))'tmlsm.'//cexpnr,position='append')
+          open (ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
           write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3,e13.3)') &
           rtimee      ,&
           Qnetav      ,&
