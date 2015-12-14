@@ -1177,33 +1177,48 @@ contains
               nrtsamphav (k,isamp)
         enddo
         close(ifoutput)
+        if(myid==0) then
+          if (isurf == 1) then    !tmlsm
+            open (ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
+            write(ifoutput,'(//3A,/A,F5.0,A)') &
+                '#-----------------------------',trim(samplname(isamp)),' -------------------------------'      &
+                ,'#',timeav,'--- AVERAGING TIMESTEP (s) --- '     
+
+            write(ifoutput,'(3a)') &
+                '#     time      Qnet        H          LE        G0', &
+                '   tendskin     rs         ra          tskin     cliq  ', &
+                '    Wl          rssoil     rsveg       Resp      wco2         An     gc_CO2'
+            write(ifoutput,'(3a)') &
+                '#      [s]     [W/m2]     [W/m2]     [W/m2]    [W/m2]   ', &
+                '    [W/m2]      [s/m]      [s/m]      [K]         [-]   ', &
+               '     [m]         [s/m]      [s/m]                                   [mm/s?]'
+          end if      
+        end if
        
-        if (isurf == 1) then    !tmlsm
-          open (ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
-          write(ifoutput,'(f10.2,F9.4,9f11.3,e13.3, 5f11.3,e13.3)') &
-          rtimee      ,&
-          nrsampAGSmn ,&
-          Qnetmn      ,&
-          Hmn         ,&
-          LEmn        ,&
-          G0mn        ,&
-          tendskinmn  ,&
-          rsmn        ,&
-          ramn        ,&
-          tskinmn     ,&
-          cliqmn      ,&
-          wlmn        ,&
-          rssoilmn    ,&
-          rsvegmn     ,&
-          Respmn      ,&
-          wco2mn      ,&
-          Anmn        ,&
+       if (isurf == 1) then    !tmlsm
+         open (ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
+         write(ifoutput,'(f10.1, F9.4,9f11.3,e13.3, 5f11.3,e13.3)') &
+          rtimee      , &
+          nrsampAGSmn , &
+          Qnetmn      , &
+          Hmn         , &
+          LEmn        , &
+          G0mn        , &
+          tendskinmn  , &
+          rsmn        , &
+          ramn        , &
+          tskinmn     , &
+          cliqmn      , &
+          wlmn        , & 
+          rssoilmn    , &  
+          rsvegmn     , &
+          Respmn      , &
+          wco2mn      , &
+          Anmn        , &
           gcco2mn
          close(ifoutput)
        end if
                        
-
-
 
         if (isamp.eq.isamptot) then
           nrtsamphav = 0
