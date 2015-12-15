@@ -296,11 +296,11 @@ contains
              ,'#',timeav,'--- AVERAGING TIMESTEP (s) --- '     
 
           write(ifoutput,'(3a)') &
-             '#     time       Qnet        H          LE        G0     ', &
+             '#     time       nr_samples Qnet        H          LE        G0     ', &
              '   tendskin      rs         ra          tskin     cliq   ', &
              '    Wl           rssoil     rsveg       Resp      wco2         An     gc_CO2'
           write(ifoutput,'(3a)') &
-             '#      [s]      [W/m2]     [W/m2]     [W/m2]    [W/m2]   ', &
+             '#      [s]        []           [W/m2]     [W/m2]     [W/m2]    [W/m2]   ', &
              '    [W/m2]       [s/m]      [s/m]      [K]         [-]   ', &
              '     [m]          [s/m]      [s/m]                                   [mm/s?]'
           close (ifoutput)
@@ -479,12 +479,11 @@ contains
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp_store
     use modsurfdata, only:Qnet,H,LE,G0,tendskin,rs,ra,tskin,cliq,wl,rssoil,rsveg, &
-                          AnField,RespField,gcco2Field,wco2Field
+                          AnField,RespField,gcco2Field,wco2Field,cctau
     use modsubgriddata,only : ekh,ekm
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
     use modpois,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
-    use modradiation,only: cctau
     implicit none
 
     logical, allocatable, dimension(:,:,:) :: maskf
@@ -555,6 +554,7 @@ contains
     maskh   = .false.
     maskAGSd = .false.
     maskAGSs = .false.
+    maskAGS  = .false.
     thvav = 0.0
     call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     thvav = thvav/ijtot
@@ -604,11 +604,13 @@ contains
              maskh(i,j,k) = .true.
          endif
       enddo
-       if (cctau(i,j)>20.) then
-         maskAGSd= .true.
-       else
-         maskAGSs= .true.
-       end if
+       if (cctau(i,j)>0.0) then
+           if (cctau(i,j)>20.0) then
+              maskAGSd(i,j)= .true.
+           else 
+              maskAGSs(i,j)= .true.
+           end if 
+         end if  
       enddo
       enddo
 
@@ -623,11 +625,13 @@ contains
              maskh(i,j,k) = .true.
          endif
       enddo
-       if (cctau(i,j)>20.) then
-         maskAGSd= .true.
-       else
-         maskAGSs= .true.
-       end if
+       if (cctau(i,j)>0.0) then
+           if (cctau(i,j)>20.0) then
+              maskAGSd(i,j)= .true.
+           else 
+              maskAGSs(i,j)= .true.
+           end if 
+         end if  
       enddo
       enddo
 
@@ -642,11 +646,13 @@ contains
              maskh(i,j,k) = .true.
          endif
       enddo
-       if (cctau(i,j)>20.) then
-         maskAGSd= .true.
-       else
-         maskAGSs= .true.
-       end if
+         if (cctau(i,j)>0.0) then
+            if (cctau(i,j)>20.0) then
+               maskAGSd(i,j)= .true.
+            else 
+               maskAGSs(i,j)= .true.
+            end if 
+         end if  
       enddo
       enddo
 
@@ -898,7 +904,7 @@ contains
 !3.1)AGS-tmlsm values for deep and shallow regimes
       do j=2,j1
         do i=2,i1
-          nrsampAGSsl        = nrsampAGSsl (isamp)+count(maskAGSs    (2:i1,2:j1))
+          nrsampAGSsl         = nrsampAGSsl (isamp)+count(maskAGSs   (2:i1,2:j1))
           Qnetsavl    (isamp) = Qnetsavl    (isamp)+sum  (Qnet       (2:i1,2:j1),maskAGSs(2:i1,2:j1))
           Hsavl       (isamp) = Hsavl       (isamp)+sum  (H          (2:i1,2:j1),maskAGSs(2:i1,2:j1))
           LEsavl      (isamp) = LEsavl      (isamp)+sum  (LE         (2:i1,2:j1),maskAGSs(2:i1,2:j1))
@@ -920,7 +926,7 @@ contains
       
       do j=2,j1
         do i=2,i1
-          nrsampAGSdl        = nrsampAGSdl (isamp)+count(maskAGSd    (2:i1,2:j1))
+          nrsampAGSdl         = nrsampAGSdl (isamp)+count(maskAGSd   (2:i1,2:j1))
           Qnetdavl    (isamp) = Qnetdavl    (isamp)+sum  (Qnet       (2:i1,2:j1),maskAGSd(2:i1,2:j1))
           Hdavl       (isamp) = Hdavl       (isamp)+sum  (H          (2:i1,2:j1),maskAGSd(2:i1,2:j1))
           LEdavl      (isamp) = LEdavl      (isamp)+sum  (LE         (2:i1,2:j1),maskAGSd(2:i1,2:j1))

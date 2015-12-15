@@ -36,6 +36,7 @@ contains
   subroutine initradiation
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
+    use modsurfdata,  only : cctau
     implicit none
     
     integer :: ierr
@@ -115,6 +116,8 @@ contains
     allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
     allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
     allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    
+    allocate(cctau(2-ih:i1+ih,2-jh:j1+jh)  )
 
     thlprad = 0.
 
@@ -248,6 +251,7 @@ subroutine radpar
 
   use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
   use modfields,    only : ql0, sv0, rhof,exnf
+  use modsurfdata,  only : cctau
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
   real, allocatable :: tau(:)
@@ -258,13 +262,10 @@ subroutine radpar
 
   real :: rho_l= 1000.  !liquid water density (kg/m3)
 
-  SAVE
-  real, allocatable :: cctau(:,:)       !  to store the cumulative tau over the whole column for conditional sampling
-  
   allocate(lwpt(k1),lwpb(k1))
   allocate(tau(k1))
-  allocate(cctau(2-ih:i1+ih,2-jh:j1+jh))
   allocate(absorber(2-ih:i1+ih,2-jh:j1+jh,k1))
+  cctau  = 0.0
   absorber = 0.0
   tau  = 0.0
   lwpt = 0.0
@@ -353,7 +354,7 @@ subroutine radpar
 
   endif  !end shortwave loop
 
-  deallocate(lwpt,lwpb,tau,absorber,cctau)
+  deallocate(lwpt,lwpb,tau,absorber)
 
 
 

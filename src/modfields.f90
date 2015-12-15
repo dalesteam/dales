@@ -75,7 +75,7 @@ save
   real, allocatable :: distcon(:,:)
   real, allocatable :: distbuoy(:,:)
   real, allocatable :: distw(:,:)
-
+  
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
   real, allocatable :: tmp0(:,:,:) !<   temperature at full level
   real, allocatable :: thv0h(:,:,:)!<   theta_v at half level
