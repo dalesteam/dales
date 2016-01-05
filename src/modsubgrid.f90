@@ -27,9 +27,24 @@
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
+! This routine contains the Sullivan subgrid model coded by Victor Vertregt (September 2015)
+! dalesinclsullivanorgineel.tar -> Gabls1_Sullivan_orgclosure as described in
+! Sullivan et al., 1994, A subgrid-scale model for large-eddy simulation of planetary boundary-layer flows. BLM.
+! Victor has tested various variants of the Sullivan model which are stored at 
+! /nfs/livedata/victor/Les/Les_versions/Dales4/Sullivan
+!
+! modifications in: 
+! modfields
+! modgenstat
+! modsubgriddata
+! modsubgrid
+! modfields
+! 
 
 module modsubgrid
 use modsubgriddata
+use modtimestat, only: calcblheight !Victor: om te bepalen wanneer het sullivan model uit kan
+
 implicit none
 save
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
@@ -56,8 +71,61 @@ contains
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(csz(k1))
 
+ ! Victor: De rate of strain tensor definieren (symmetrisch dus 6 elementen)
+    allocate(suu(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(suv(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(suw(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(svv(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(svw(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(sww(2-ih:i1+ih,2-jh:j1+jh,k1))
+    
+ 
+  
+  allocate(suum(k1))
+  allocate(suvm(k1))
+  allocate(suwm(k1))
+  allocate(svvm(k1))
+  allocate(svwm(k1))
+  allocate(swwm(k1))
+  
+  
+  
+  allocate(svaruul(2-ih:i1+ih,2-jh:j1+jh,k1))
+  allocate(svarvvl(2-ih:i1+ih,2-jh:j1+jh,k1))
+  allocate(svarwwl(2-ih:i1+ih,2-jh:j1+jh,k1))
+  allocate(svaruvl(2-ih:i1+ih,2-jh:j1+jh,k1))
+  allocate(svaruwl(2-ih:i1+ih,2-jh:j1+jh,k1))
+  allocate(svarvwl(2-ih:i1+ih,2-jh:j1+jh,k1))
+  
+  
+  allocate(svaruu(k1))
+  allocate(svarvv(k1))
+  allocate(svarww(k1))
+  allocate(svaruv(k1))
+  allocate(svaruw(k1))
+  allocate(svarvw(k1))
+  
+  allocate(sacc(k1))
+  allocate(sslab(k1))
+  allocate(gamma(k1))
+  allocate(sdemean(2-ih:i1+ih,2-jh:j1+jh,k1))
+  
+  allocate(ekm2(k1))
+  allocate(uwr(2-ih:i1+ih,2-jh:j1+jh))
+  allocate(vwr(2-ih:i1+ih,2-jh:j1+jh))
+
+
     ! Initialize variables to avoid problems when not using subgrid scheme JvdD
     ekm=0.; ekh=0.; zlt=0.; sbdiss=0.; sbshr=0.; sbbuo=0.; csz=0.
+
+    ! Victor: doe hetzelfde met rate of strain tensor
+    suu=0.; suv=0.; suw=0.; svv=0.; svw=0.; sww=0.;
+   
+    suum=0.; suvm=0.; suwm=0.; svvm=0.; svwm=0.; swwm=0.;
+ 
+    svaruu=0.; svaruv=0.; svaruw=0.; svarvw=0.; svarvv=0.; svarww=0.;
+     svaruul=0.; svaruvl=0.; svaruwl=0.; svarvvl=0.; svarvwl=0.; svarwwl=0.;
+     sdemean=0.; 
 
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
@@ -145,7 +213,10 @@ contains
     implicit none
     integer n
 
+    call calcblheight !Victor: om te bepalen wanneer het Sullivan model uit kan
+
     call closure
+    call closure2 !Victor
     call diffu(up)
     call diffv(vp)
     call diffw(wp)
@@ -338,6 +409,8 @@ contains
 
   return
   end subroutine closure
+
+
   subroutine sources
 
 
@@ -362,142 +435,221 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav, cu, cv
-  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
-  use modsurfdata,  only : dudz,dvdz,ustar,thlflux
-  use modsubgriddata, only: sgs_surface_fix
+
+  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav, imax, jtot, rslabs, k1
+  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf
+  use modsurfdata,  only : dudz,dvdz
+  use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum, slabsum
+  use modsubgriddata, only: zisullivan
 
   implicit none
 
-  real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz
-  integer i,j,k,jm,jp,km,kp
+  real    tdef2, zinv
+  integer i,j,k,jm,jp,km,kp, ip, im 
+  
+  !real, allocatable :: thetawflux(:)
+  !real, allocatable :: thetawfluxl(:)
+  
+  !allocate (thetawflux(k1),thetawfluxl(k1))
+ ! thetawflux=0.;thetawfluxl=0.;
+  
+  ! Onderstaande loop voor het inplementeren van het Sullivanmodel: strainij moet uitgerekend worden, en slabgemiddeld nemen met MPI_Reduce
+  
+  !---------------------------------------------------------------------------------------------------------------------------------------------------
+  
+  !Victor: bij zowel de smagorinsky, als het orginele model, en ook de subroutine sources is de rate of strain tensor Sij nodig, deze wordt daarom hieronder uitgerekend en kan daarna gebruikt worden door vervolgende modules.
+  
+  
 
+  do k=1,kmax 
+  
+    do i=2,i1
+      do j=2,j1
+   
+          kp=k+1
+          km=k-1
+          jp=j+1
+          jm=j-1
+          ip=i+1
+          im=i-1
+       
+          suu(i,j,k) = (u0(ip,j,k)-u0(i,j,k)) * dxi
+          svv(i,j,k) = (v0(i,jp,k)-v0(i,j,k)) * dyi
+          sww(i,j,k) = (w0(i,j,kp)-w0(i,j,k)) / dzf(k)
+          
+          suv(i,j,k) = 0.125 * &
+                       (((u0(i,jp,k)-u0(i,j,k)) * dyi + (v0(i,jp,k)-v0(im,jp,k)) * dxi ) + & 
+                        ((u0(i,j,k)-u0(i,jm,k)) * dyi + (v0(i,j,k)-v0(im,j,k)) *dxi ) + &
+                        ((u0(ip,j,k)-u0(ip,jm,k)) * dyi + (v0(ip,j,k)-v0(i,j,k)) *dxi ) + &
+                        ((u0(ip,jp,k)-u0(ip,j,k)) *dyi + (v0(ip,jp,k)-v0(i,jp,k)) *dxi ) )
 
-  do k=2,kmax
-  do j=2,j1
-  do i=2,i1
-    kp=k+1
-    km=k-1
-    jp=j+1
-    jm=j-1
+          if (k == 1) then 
+          
+          suw(i,j,k) = 0.25 * ( ( w0(i+1,j,kp)-w0(i-1,j,kp) )*dxi + dudz(i,j)) 
+          
+          svw(i,j,k) = 0.25 * ( (w0(i,jp,kp)-w0(i,jm,kp))*dyi + dvdz(i,j)) 
+    
+         else
+          
+          suw(i,j,k) = 0.125 * &
+                       (((w0(i,j,kp)-w0(i-1,j,kp)) * dxi +  (u0(i,j,kp)-u0(i,j,k)) / dzh(kp) )  + &
+                        ((w0(i,j,k)-w0(i-1,j,k)) *dxi + (u0(i,j,k)-u0(i,j,km)) / dzh(k) ) + &
+                        ((w0(i+1,j,k)-w0(i,j,k)) *dxi + (u0(i+1,j,k)-u0(i+1,j,km)) / dzh(k) ) + &
+                        ((w0(i+1,j,kp)-w0(i,j,kp))  *dxi + (u0(i+1,j,kp)-u0(i+1,j,k)) / dzh(kp) ) )
 
-    tdef2 = 2. * ( &
-             ((u0(i+1,j,k)-u0(i,j,k))   /dx         )**2    + &
-             ((v0(i,jp,k)-v0(i,j,k))    /dy         )**2    + &
-             ((w0(i,j,kp)-w0(i,j,k))    /dzf(k)     )**2    )
+          svw(i,j,k) = 0.125 * &
+                       (((v0(i,j,kp)-v0(i,j,k)) / dzh(kp) + (w0(i,j,kp)-w0(i,jm,kp)) * dyi ) + &
+                        ((v0(i,j,k)-v0(i,j,km)) / dzh(k) + (w0(i,j,k)-w0(i,jm,k)) * dyi ) + &
+                        ((v0(i,jp,k)-v0(i,jp,km)) / dzh(k) + (w0(i,jp,k)-w0(i,j,k)) * dyi ) + &
+                        ((v0(i,jp,kp)-v0(i,jp,k)) / dzh(kp) + (w0(i,jp,kp)-w0(i,j,kp)) * dyi ) )
+          
+          end if
+          
+     
+          
+          
+      end do
+    end do
+    end do 
+    
+    call slabsum(suum ,1,kmax,suu  ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+    call slabsum(suvm ,1,kmax,suv  ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+    call slabsum(suwm ,1,kmax,suw  ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+    call slabsum(svvm ,1,kmax,svv  ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+    call slabsum(svwm ,1,kmax,svw  ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+    call slabsum(swwm ,1,kmax,sww  ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+    
 
-    tdef2 = tdef2 + 0.25 * ( &
-              ((w0(i,j,kp)-w0(i-1,j,kp))  / dx     + &
-               (u0(i,j,kp)-u0(i,j,k))     / dzh(kp)  )**2    + &
-              ((w0(i,j,k)-w0(i-1,j,k))    / dx     + &
-               (u0(i,j,k)-u0(i,j,km))     / dzh(k)   )**2    + &
-              ((w0(i+1,j,k)-w0(i,j,k))    / dx     + &
-               (u0(i+1,j,k)-u0(i+1,j,km)) / dzh(k)   )**2    + &
-              ((w0(i+1,j,kp)-w0(i,j,kp))  / dx     + &
-               (u0(i+1,j,kp)-u0(i+1,j,k)) / dzh(kp)  )**2    )
+    
+    suum=suum/rslabs ! Victor: is dit inderdaad de totale domeingrootte?
+    suvm=suvm/rslabs
+    suwm=suwm/rslabs
+    svvm=svvm/rslabs
+    svwm=svwm/rslabs
+    swwm=swwm/rslabs
+    
 
-    tdef2 = tdef2 + 0.25 * ( &
-              ((u0(i,jp,k)-u0(i,j,k))     / dy     + &
-               (v0(i,jp,k)-v0(i-1,jp,k))  / dx        )**2    + &
-              ((u0(i,j,k)-u0(i,jm,k))     / dy     + &
-               (v0(i,j,k)-v0(i-1,j,k))    / dx        )**2    + &
-              ((u0(i+1,j,k)-u0(i+1,jm,k)) / dy     + &
-               (v0(i+1,j,k)-v0(i,j,k))    / dx        )**2    + &
-              ((u0(i+1,jp,k)-u0(i+1,j,k)) / dy     + &
-               (v0(i+1,jp,k)-v0(i,jp,k))  / dx        )**2    )
+    
+   
 
-    tdef2 = tdef2 + 0.25 * ( &
-              ((v0(i,j,kp)-v0(i,j,k))     / dzh(kp) + &
-               (w0(i,j,kp)-w0(i,jm,kp))   / dy        )**2    + &
-              ((v0(i,j,k)-v0(i,j,km))     / dzh(k)+ &
-               (w0(i,j,k)-w0(i,jm,k))     / dy        )**2    + &
-              ((v0(i,jp,k)-v0(i,jp,km))   / dzh(k)+ &
-               (w0(i,jp,k)-w0(i,j,k))     / dy        )**2    + &
-              ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp) + &
-               (w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2    )
-
-
-    sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
-    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
-    sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
-  end do
-  end do
-  end do
-!     ----------------------------------------------end i,j,k-loop
-
-!     --------------------------------------------
-!     special treatment for lowest full level: k=1
-!     --------------------------------------------
-
-
-  do j=2,j1
-    jp=j+1
-    jm=j-1
-  do i=2,i1
-
-
-
-! **  Calculate "shear" production term: tdef2  ****************
-
-    tdef2 =  2. * ( &
-            ((u0(i+1,j,1)-u0(i,j,1))*dxi)**2 &
-          + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
-          + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
-
-    if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive consistent
-          ! gradient (such that
-          ! correct flux will occur in shear production term)
-          uwflux = -ustar(i,j)*ustar(i,j)* &
-              (u0(i,j,1)+cu)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
-          local_dudz = -uwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
-               local_dudz )**2
+    
+    !http://en.wikipedia.org/wiki/Algorithms_for_calculating_variance gebruiken! Hieronder "lompe" methode, daarna een sneller algoritme inbouwen
+    
+    do k=1,kmax
+      do i=2,i1
+      do j=2,j1
+      
+      svaruul(i,j,k)=(suu(i,j,k)-suum(k))**2
+      svaruvl(i,j,k)=(suv(i,j,k)-suvm(k))**2
+      svaruwl(i,j,k)=(suw(i,j,k)-suwm(k))**2
+      svarvvl(i,j,k)=(svv(i,j,k)-svvm(k))**2
+      svarvwl(i,j,k)=(svw(i,j,k)-svwm(k))**2
+      svarwwl(i,j,k)=(sww(i,j,k)-swwm(k))**2
+      
+      end do
+      end do
+      end do
+      
+      call slabsum(svaruu ,1,kmax,svaruul ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      call slabsum(svaruv ,1,kmax,svaruvl ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      call slabsum(svaruw ,1,kmax,svaruwl ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      call slabsum(svarvv ,1,kmax,svarvvl ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      call slabsum(svarvw ,1,kmax,svarvwl ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      call slabsum(svarww ,1,kmax,svarwwl ,2,i1,2,j1,1,kmax,2,i1,2,j1,1,kmax)
+      
+      !call MPI_ALLREDUCE(svar11l(k),svar11(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      !call MPI_ALLREDUCE(svar12l(k),svar12(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      !call MPI_ALLREDUCE(svar13l(k),svar13(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      !call MPI_ALLREDUCE(svar22l(k),svar22(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      !call MPI_ALLREDUCE(svar23l(k),svar23(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      !call MPI_ALLREDUCE(svar33l(k),svar33(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      
+      svaruu=svaruu/(rslabs)
+      svaruv=svaruv/(rslabs)
+      svaruw=svaruw/(rslabs)
+      svarvv=svarvv/(rslabs)
+      svarvw=svarvw/(rslabs)
+      svarww=svarww/(rslabs)
+      
+      do k=1,kmax
+      sacc(k)=sqrt(2*svaruu(k)+2*svarvv(k)+2*svarww(k)+4*svaruv(k)+4*svaruw(k)+4*svarvw(k))
+             
+    
+              
+    sslab(k)=sqrt(2*(suum(k))**2+2*(svvm(k))**2+2*(swwm(k))**2+ & 
+               4*(suvm(k))**2+4*(suwm(k))**2+4*(svwm(k))**2)
+      
+    if ((sacc(k)+sslab(k)).gt.0) then
+        gamma(k)=sacc(k)/(sacc(k)+sslab(k)) 
     else
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
-                                  dudz(i,j)   )**2
-    endif
+        gamma(k)=0
+    end if
+    
+    if (gamma(k).lt.0.01) then
+       gamma(k)=0.01
+    end if
+ 
+ !Victor: meer boundary layer implementation
+ 
+! do i=2,i1
+ ! do j=2,j1
+ ! thetawfluxl(k)=thetawfluxl(k)+ekh(i,j,k)*dthvdz(i,j,k)  
+ ! end do
+! end do
+ 
+!call MPI_ALLREDUCE(thetawflux(k),thetawfluxl(k),1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
-    tdef2 = tdef2 +   0.25 *( &
-          ((u0(i,jp,1)-u0(i,j,1))*dyi+(v0(i,jp,1)-v0(i-1,jp,1))*dxi)**2 &
-         +((u0(i,j,1)-u0(i,jm,1))*dyi+(v0(i,j,1)-v0(i-1,j,1))*dxi)**2 &
-         +((u0(i+1,j,1)-u0(i+1,jm,1))*dyi+(v0(i+1,j,1)-v0(i,j,1))*dxi)**2 &
-         +((u0(i+1,jp,1)-u0(i+1,j,1))*dyi+ &
-                                 (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
-
-    if (sgs_surface_fix) then
-          ! replace the dvdz by surface flux -vw / ekm
-          vwflux = -ustar(i,j)*ustar(i,j)* &
-              (v0(i,j,1)+cv)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
-          local_dvdz = -vwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
-                        local_dvdz  )**2
-    else
-         tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
-                                dvdz(i,j)   )**2
-    endif
-
-! **  Include shear and buoyancy production terms and dissipation **
-
-    sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
-    if (sgs_surface_fix) then
-          ! replace the -ekh *  dthvdz by the surface flux of thv
-          ! (but we only have the thlflux , which seems at the surface to be
-          ! equivalent
-          local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
-          sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
-    else
-          sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
-    endif
-    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)/delta(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
+!thetawflux(k) = thetawflux(k)/rslabs
+ 
+ 
+ !Victor: Boundary layer implementation
+    if ((zf(k).gt.(zisullivan/2))) then !.OR.(thetawflux(k)< 0.01*thetawflux(1)) !Victor: ook het onderste level helemaal Sullivan vrij houden? .OR.(k==1)
+       zinv=zf(k)
+       gamma(k)=1
+       suum(k)=0
+       suvm(k)=0
+       suwm(k)=0
+       svvm(k)=0
+       svwm(k)=0
+       swwm(k)=0
+   end if
+   
+   
+  
+ 
+      
+    do i=2,i1
+      do j=2,j1
+      
+      
+      
+      sdemean(i,j,k)=(suu(i,j,k)-suum(k))**2+(svv(i,j,k)-svvm(k))**2+(sww(i,j,k)-swwm(k))**2 + &
+              2*(suv(i,j,k)-suvm(k))**2+2*(suw(i,j,k)-suwm(k))**2+2*(svw(i,j,k)-svwm(k))**2
+      
+      
+      sbshr(i,j,k)  = (ekm(i,j,k)/rhobf(k))*gamma(k)*sdemean(i,j,k)/ ( 2*e120(i,j,k))
+      sbbuo(i,j,k)  = -(ekh(i,j,k)/rhobf(k))*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
+      sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
+      
+      
+      
+      
+      end do
+    end do
+    
+    
   end do
-  end do
-
+  
+   
+  
   e12p(2:i1,2:j1,1:kmax) = e12p(2:i1,2:j1,1:kmax)+ &
             sbshr(2:i1,2:j1,1:kmax)+sbbuo(2:i1,2:j1,1:kmax)+sbdiss(2:i1,2:j1,1:kmax)
-
+  
+    
+  !deallocate (thetawflux,thetawfluxl)
   return
   end subroutine sources
+
 
   subroutine diffc (putin,putout,flux)
 
@@ -622,9 +774,16 @@ contains
   end subroutine diffe
 
 
+  
+  !-----------------------------------------------------------------------------------------
+  ! Victor: hier verder met het Sullivan model bouwen. Grote uitdaging: ekm2 --> zie closure2
+  
+  
+  
+
   subroutine diffu (putout)
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dy,dyi,dzh, cu,cv
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dxi,dx2i,dzf,dy,dyi,dy2i,dzh, cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
@@ -633,6 +792,7 @@ contains
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
+    real                :: gammam, suwmm, ekm2m, gammap, suwmp, ekm2p !Victor: geinterpoleerde versies van de orginiele variabele
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -658,22 +818,35 @@ contains
 
           emmo = 0.25 * ( &
                   ekm(i,j,k)+ekm(i,jm,k)+ekm(i-1,jm,k)+ekm(i-1,j,k)  )
+                  
+         gammam = 0.5 * (dzf(k-1)*gamma(k) + dzf(k)*gamma(k-1) )/dzh(k)
+         
+         suwmm = 0.5 * (dzf(k-1)*suwm(k) + dzf(k)*suwm(k-1) )/dzh(k)
+         
+         ekm2m = 0.5 * ( dzf(k-1)*ekm2(k) + dzf(k)*ekm2(k-1) )/dzh(k)
+         
+         gammap = 0.5 * (dzf(k)*gamma(k+1) + dzf(k+1)*gamma(k) )/dzh(k+1)
+         
+         suwmp = 0.5 * (dzf(k+1)*suwm(k) + dzf(k)*suwm(k+1) )/dzh(k+1)
+         
+         ekm2p = 0.5 * ( dzf(k+1)*ekm2(k) + dzf(k)*ekm2(k+1) )/dzh(k+1)
 
+         !Victor: pas op met ekm2: gedefinieerd in hetzelfde vlak als w!!!!!!
 
           putout(i,j,k) = putout(i,j,k) &
-                  + &
-                  ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
-                    -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
-                  + &
-                  ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
-                            +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
-                    -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
-                            +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) / dy &
-                  + &
-                  ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
-                            +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
-                    - rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
-                            +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) /dzf(k)
+                  + (1./rhobf(k)) * &
+                  ( ekm(i,j,k) *gamma(k) * (u0(i+1,j,k)-u0(i,j,k)  ) + ekm2p*suum(k) &
+                    -ekm(i-1,j,k)*gamma(k)* (u0(i,j,k)-u0(i-1,j,k)) - ekm2p*suum(k ) ) * 2. * dx2i &   ! victor: omdat suum en ekm2 gelijk zijn in het vlak, verandert er hier niets!
+                  + (1./rhobf(k)) * &
+                  ( empo * gamma(k)* ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
+                            +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) +ekm2p*suvm(k) &
+                    -emmo * gamma(k) * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
+                            +(v0(i,j,k)-v0(i-1,j,k))  *dxi)  -ekm2p*suvm(k)  ) / dy &
+                  + (1./rhobf(k)) * &
+                  ( emop * gammap * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
+                            +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) + ekm2(kp)*suwmp &
+                    -emom * gammam* ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
+                            +(w0(i,j,k)-w0(i-1,j,k))  *dxi) -ekm2(k)*suwmm  ) /dzf(k)
 
         end do
       end do
@@ -698,6 +871,12 @@ contains
         emop = ( dzf(2) * ( ekm(i,j,1) + ekm(i-1,j,1) )  + &
                     dzf(1) * ( ekm(i,j,2) + ekm(i-1,j,2) ) ) / &
                   ( 4.   * dzh(2) )
+                  
+         suwmp = 0.5 * (dzf(2)*suwm(1) + dzf(1)*suwm(2) )/dzh(2)
+         
+         ekm2p = 0.5 * ( dzf(2)*ekm2(1) + dzf(1)*ekm2(2) )/dzh(2)
+         
+         gammap=0.5 *(dzf(2)*gamma(1) + dzf(1)*gamma(2) )/dzh(2)
 
 
         ucu   = 0.5*(u0(i,j,1)+u0(i+1,j,1))+cu
@@ -714,18 +893,18 @@ contains
                 ((v0(i,j,1)+v0(i-1,j,1)+v0(i,jp,1)+v0(i-1,jp,1))/4.+cv)**2)
 
         putout(i,j,1) = putout(i,j,1) &
-                + &
-              ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
-              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i &
-                + &
-              ( empo * ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
-                        +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
-              -emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
-                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) / dy &
-               + &
-              ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
-                        +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
-                -rhobh(1)/rhobf(1)*fu   ) / dzf(1)
+                + (1./rhobf(1))*&
+              ( ekm(i,j,1) *gamma(1) * (u0(i+1,j,1)-u0(i,j,1))&
+              -ekm(i-1,j,k)*gamma(1)* (u0(i,j,1)-u0(i-1,j,1))  ) * 2. * dx2i &
+                + (1./rhobf(1)) * &
+              ( empo * gamma(1)* ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
+                        +(v0(i,jp,1)-v0(i-1,jp,1))*dxi)  &
+              -emmo  *gamma(1)*( (u0(i,j,1)-u0(i,jm,1))   *dyi &
+                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)  ) / dy &
+               + (1./rhobf(1))* &
+              ( emop * gammap* ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
+                        +(w0(i,j,2)-w0(i-1,j,2))  *dxi) + ekm2(2)*suwmp & !Victor: ook hier weer een wijziging!!
+                -rhobh(1)*fu  ) / dzf(1)  !Victor:  Zitten op deze plekken de grote fout!?!?!
 
       end do
     end do
@@ -735,16 +914,19 @@ contains
 
   subroutine diffv (putout)
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dzf,dyi,dy2i,dzh, cu,cv
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dzf,dyi,dy2i,dzh, cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
 
     implicit none
+    
+    ! Hier even alleen de vw component inbouwen: rest wordt toch nul!
 
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
+    real                :: gammam, svwmm, ekm2m, gammap, svwmp, ekm2p !Victor: geinterpoleerde versies van de orginiele variabele
 
     do k=2,kmax
       kp=k+1
@@ -769,22 +951,35 @@ contains
 
           epmo = 0.25  * ( &
                 ekm(i,j,k)+ekm(i,jm,k)+ekm(i+1,jm,k)+ekm(i+1,j,k)  )
+                
+         gammam = 0.5 * (dzf(k-1)*gamma(k) + dzf(k)*gamma(k-1) )/dzh(k)
+         
+         svwmm = 0.5 * (dzf(k-1)*svwm(k) + dzf(k)*svwm(k-1) )/dzh(k)
+         
+         ekm2m = 0.5 * ( dzf(k-1)*ekm2(k) + dzf(k)*ekm2(k-1) )/dzh(k)
+         
+         gammap = 0.5 * (dzf(k)*gamma(k+1) + dzf(k+1)*gamma(k) )/dzh(k+1)
+         
+         svwmp = 0.5 * (dzf(k+1)*svwm(k) + dzf(k)*svwm(k+1) )/dzh(k+1)
+         
+         ekm2p = 0.5 * ( dzf(k+1)*ekm2(k) + dzf(k)*ekm2(k+1) )/dzh(k+1)
 
+         ! Hier alleen de vw contributie aangepast, want voor de rest valt de - K_M*<Sij> bijdrage toch weg
 
         putout(i,j,k) = putout(i,j,k) &
-                + &
-              ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
+                + (1./rhobf(k))* &
+              ( epmo *gamma(k)* ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                         +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
-                -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
+                -emmo *gamma(k)* ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) / dx &
-                + &
-              (ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
-              -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
-                + &
-              ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
-                        +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
-                - rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
-                        +(w0(i,j,k)-w0(i,jm,k))    *dyi)   ) / dzf(k)
+                + (1./rhobf(k))* &
+              (ekm(i,j,k) *gamma(k)* (v0(i,jp,k)-v0(i,j,k)) &
+              -ekm(i,jm,k)*gamma(k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
+                + (1./rhobf(k))* &
+              ( eomp *gammap* ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
+                        +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) + ekm2(kp)* svwmp &
+                -eomm *gammam* ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
+                        +(w0(i,j,k)-w0(i,jm,k))    *dyi) - ekm2(k)*svwmm  ) / dzf(k)
 
         end do
       end do
@@ -815,6 +1010,12 @@ contains
         else
           vpcv  = min(vcv,-1.e-10)
         end if
+        
+         svwmp = 0.5 * (dzf(2)*svwm(1) + dzf(1)*svwm(2) )/dzh(2)
+         
+         ekm2p = 0.5 * ( dzf(2)*ekm2(1) + dzf(1)*ekm2(2) )/dzh(2)
+         
+         gammap=0.5 *(dzf(2)*gamma(1) + dzf(1)*gamma(2) )/dzh(2)
 
 
         fv    = ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
@@ -822,18 +1023,18 @@ contains
                 ((u0(i,j,1)+u0(i+1,j,1)+u0(i,jm,1)+u0(i+1,jm,1))/4.+cu)**2)
 
         putout(i,j,1) = putout(i,j,1) &
-                  + &
-                  ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
+                  + (1./rhobf(1))*&
+                  ( epmo *gamma(1)* ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                             +(u0(i+1,j,1)-u0(i+1,jm,1))*dyi) &
-                    -emmo * ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
-                            +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) / dx &
-                  + &
-                ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
-                  -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
-                  + &
-                ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
-                          +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
-                  -rhobh(1)/rhobf(1)*fv   ) / dzf(1)
+                    -emmo * gamma(1)* ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
+                            +(u0(i,j,1)-u0(i,jm,1)) *dyi)   ) / dx &
+                  + (1./rhobf(1))*&
+                ( ekm(i,j,1) *gamma(1)* (v0(i,jp,1)-v0(i,j,1)) &
+                  -ekm(i,jm,1)*gamma(1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
+                  + (1./rhobf(1))*&
+                ( eomp * gammap*( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
+                          +(w0(i,j,2)-w0(i,jm,2))    *dyi) +ekm2(2)*svwmp  & !Victor: Hier weer een aanpassing gedaan
+                  -rhobh(1)*fv  ) / dzf(1)          !Victor:  Zitten op deze plekken de grote fout!?!?!
 
       end do
     end do
@@ -843,9 +1044,10 @@ contains
 
 
   subroutine diffw(putout)
+ 
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dy,dyi,dzf,dzh
-    use modfields, only : u0,v0,w0,rhobh,rhobf
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dy,dyi,dy2i,dzf,dzh
+    use modfields, only : u0,v0,w0,rhobh
     implicit none
 
   !*****************************************************************
@@ -853,7 +1055,9 @@ contains
     real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
-
+    real                :: gammam, svwmm, ekm2m, ekm2p, suwmm !Victor: geinterpoleerde versies van de orginiele variabele
+    
+    
     do k=2,kmax
       kp=k+1
       km=k-1
@@ -877,28 +1081,148 @@ contains
           epom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i+1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i+1,j,km) ) ) / &
                     ( 4.   * dzh(k) )
-
-
-          putout(i,j,k) = putout(i,j,k) &
-                + &
-                  ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
-                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
-                    -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
+                    
+         gammam = 0.5 * (dzf(k-1)*gamma(k) + dzf(k)*gamma(k-1) )/dzh(k)
+         
+         svwmm = 0.5 * (dzf(k-1)*svwm(k) + dzf(k)*svwm(k-1) )/dzh(k)
+         
+         suwmm =0.5 * (dzf(k-1)*suwm(k) + dzf(k)*suwm(k-1) )/dzh(k)
+         
+         ekm2m = 0.5 * ( dzf(k-1)*ekm2(k) + dzf(k)*ekm2(k-1) )/dzh(k)
+         
+         ekm2p = 0.5 * ( dzf(k+1)*ekm2(k) + dzf(k)*ekm2(k+1) )/dzh(k+1)        
+         
+         
+         if (k==2) then !Victor: ook hier een special treatment for the lowest level ==> k=2
+         
+         putout(i,j,k) = putout(i,j,k) &
+                + (1./rhobh(k))* &
+                  ( epom *gammam* ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
+                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k)) &
+                    -emom *gammam *( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
                             +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))/dx &
-                + &
-                  ( eopm * ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
+                + (1./rhobh(k))* &
+                  ( eopm * gammam* ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
                             +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
-                    -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
+                    -eomm * gammam *( (w0(i,j,k)-w0(i,jm,k))     *dyi &
                             +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))/dy &
                 + (1./rhobh(k))*&
-                  ( rhobf(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
-                  - rhobf(km) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
+                  ( ekm(i,j,k) *gamma(k)* (w0(i,j,kp)-w0(i,j,k)) /dzf(k) + ekm2p*swwm(k) &
+                  -ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &   !Victor: hier de afhankelijkheid van gamma en ekm2 weggehaald bij S_ww op k==2 --> daarvoor is ekm2 op z=0 nodig (== ekm2(1)), en die is niet gedefinieerd!
                                                               / dzh(k)
+         
+         else 
+
+          putout(i,j,k) = putout(i,j,k) &
+                + (1./rhobh(k))* &
+                  ( epom *gammam* ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
+                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k)) &
+                    -emom *gammam *( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
+                            +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))/dx &
+                + (1./rhobh(k))* &
+                  ( eopm * gammam* ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
+                            +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
+                    -eomm * gammam *( (w0(i,j,k)-w0(i,jm,k))     *dyi &
+                            +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))/dy &
+                + (1./rhobh(k))*&
+                  ( ekm(i,j,k) *gamma(k)* (w0(i,j,kp)-w0(i,j,k)) /dzf(k) + ekm2p*swwm(k) &
+                  -ekm(i,j,km)*gamma(km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) -ekm2m*swwm(km) ) * 2. &
+                                                              / dzh(k)    
+         end if
 
         end do
       end do
     end do
 
   end subroutine diffw
+  
+  
+  subroutine closure2 !Victor
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dy,dyi,dy2i,dzf,dzh, rslabs, fkar, cu, cv, zh, zf
+    use modfields, only : u0,v0,w0,rhobh, ustarsullivan, oblsullivan
+    use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum, slabsum
+    use modsubgriddata, only : zisullivan
+    implicit none
+    
+    real   ekmgammal
+    real  ekmgamma
+    real  uwresl
+    real uwres
+    real  vwresl
+    real vwres
+    real ustar2l
+    real phimzf2l, phimzf
+    integer :: i,j,k,kp,km,jp,jm
+    
+    
+    ! Per definitie is deze ekm2 bepaald op de cell faces, 
+    
+    do j=2,j1
+      do i=2,i1
+        uwr(i,j)     = (w0(i,j,2)+w0(i-1,j,2)) &
+                          *((u0(i,j,1)+cu)*dzf(2)+(u0(i,j,2)+cu)*dzf(1))/(4*dzh(2))
+                          
+        vwr(i,j)     = (w0(i,j,2)+w0(i,j-1,2)) &
+                        *((v0(i,j,1)+cv)*dzf(2)+(v0(i,j,2)+cv)*dzf(1))/(4*dzh(2))
+                        
+        uwresl = uwresl + uwr(i,j)
+        vwresl = vwresl + vwr(i,j)
+        ustar2l= ustar2l + ustarsullivan(i,j)
+        
+        !Victor: onderstaand stuk komt uit modsurface, alleen zf(1) --> zh(2) om op het eerste w-punt te komen
+        if (oblsullivan(i,j) < 0.) then
+            phimzf = (1.-16.*zh(2)/oblsullivan(i,j))**(-0.25)
+            !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+            !phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
+            !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+          elseif (oblsullivan(i,j) > 0.) then
+            phimzf = (1.+5.*zh(2)/oblsullivan(i,j))
+            !phihzf = (1.+5.*zf(1)/obl(i,j))
+          else
+            phimzf = 1.
+            !phihzf = 1.
+          endif
+        
+        phimzf2l = phimzf2l +phimzf
+        
+        ekmgammal= ekmgammal + (ekm(i,j,1)+ekm(i,j,2))*(gamma(1)+gamma(2))/4 !Victor: gamma en ekm zijn beide op het full level gedefinieerd, maar ik heb ze op het half level nodig
+        
+         
+       end do
+    end do
+    
+    call MPI_ALLREDUCE(ekmgammal, ekmgamma, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(uwresl, uwres, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(vwresl, vwres, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(ustar2l, ustar2, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(phimzf2l, phimzf2, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    
+    uwres    = uwres    /rslabs
+    vwres    = vwres    /rslabs
+    ekmgamma = ekmgamma / rslabs
+    phimzf2  = phimzf2 / rslabs
+    ustar2   = ustar2 / rslabs
+    
+      
+    do k=1,kmax
+          
+       if (k == 1) then 
+        ekm2(1)=0 !Victor: Op k=1 (ground) is ekm2 niet gedefinieerd, gaat pas een rol spelen op 2 en hoger!!
+        else if (k==2) then
+        ekm2(2)=ustar2*fkar*zh(2)/phimzf2-ekmgamma-fkar*zh(2)/(ustar2*phimzf2)*sqrt((uwres)**2+(vwres)**2)
+        else
+        ekm2(k)=ekm2(2)*fkar*zh(2)/(ustar2*phimzf2)*(dzf(k)*sslab(k+1)+dzf(k+1)*sslab(k))/dzf(k)
+        end if      
+      
+      !Victor Rekening houden met de maximale hoogte van de boundary layer
+      if (zf(k).gt.zisullivan) then
+      ekm2(k)=0
+      gamma(k)=1
+      end if
+      
+      
+    end do
+    
+  end subroutine closure2
 
 end module
