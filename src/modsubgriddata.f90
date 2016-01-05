@@ -61,5 +61,50 @@ save
   
   real, allocatable :: csz(:)       !< Smagorinsky constant
 
-end module modsubgriddata
+  !victor: onderstaande variabelen zijn allemaal nodig voor het subgrid model van Sullivan
+  
+  real, allocatable :: suu(:,:,:) !< element 11 of Strain tensor = 1/2(du_i/dx_j + du_j/dx_i) 
+  real, allocatable :: svv(:,:,:) !< element 22 of Strain tensor = 1/2(du_i/dx_j + du_j/dx_i)
+  real, allocatable :: sww(:,:,:) !< element 33 of Strain tensor = 1/2(du_i/dx_j + du_j/dx_i)  
+  real, allocatable :: suv(:,:,:) !< element 12 of Strain tensor = 1/2(du_i/dx_j + du_j/dx_i)
+  real, allocatable :: suw(:,:,:) !< element 13 of Strain tensor = 1/2(du_i/dx_j + du_j/dx_i)
+  real, allocatable :: svw(:,:,:) !< element 23 of Strain tensor = 1/2(du_i/dx_j + du_j/dx_i)
+  
+  real, allocatable :: suum(:) !< element 11 of slab averaged strain
+  real, allocatable :: svvm(:) !< element 22 of slab averaged strain
+  real, allocatable :: swwm(:) !< element 33 of slab averaged strain  
+  real, allocatable :: suvm(:) !< element 12 of slab averaged strain
+  real, allocatable :: suwm(:) !< element 13 of slab averaged strain
+  real, allocatable :: svwm(:) !< element 23 of slab averaged strain
+   
+  real, allocatable :: svaruu(:) !< variance of 11 component of slabstrain
+  real, allocatable :: svarvv(:)
+  real, allocatable :: svarww(:)
+  real, allocatable :: svaruv(:)
+  real, allocatable :: svaruw(:)
+  real, allocatable :: svarvw(:)
+  
+  real, allocatable :: svaruul(:,:,:) !< local variance of 11 component of slabstrain
+  real, allocatable :: svarvvl(:,:,:)
+  real, allocatable :: svarwwl(:,:,:)
+  real, allocatable :: svaruvl(:,:,:)
+  real, allocatable :: svaruwl(:,:,:)
+  real, allocatable :: svarvwl(:,:,:)
+  
+  
+  
+  real, allocatable :: sacc(:) !< S' , defined as sqrt( 2 <Sij-<Sij>><Sij-<Sij>>)
+  real, allocatable :: sslab(:) !< <S>, defined by sqrt(2<Sij><Sij>)
+  real, allocatable :: gamma(:) ! < isotropy factor, defined by S'/(S'+<S>)
+  real, allocatable :: sdemean(:,:,:) !<  (Sij-<Sij>)^2, as used in the Sullivan subgrid shear production term
+  
+  real, allocatable :: ekm2(:)
+  real, allocatable :: uwr(:,:)
+  real, allocatable :: vwr(:,:)
+  
+  real:: ustar2
+  real:: phimzf2
+  
+  real:: zisullivan
 
+end module modsubgriddata
