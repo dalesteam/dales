@@ -129,6 +129,10 @@ save
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
 
+    ! Victor: MO length op het oppervlak en ustar, om te gebruiken in modsubgrid
+  real, allocatable :: ustarsullivan(:,:)
+  real, allocatable :: oblsullivan(:,:)
+
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -229,6 +233,8 @@ subroutine initfields
              ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
+    allocate(ustarsullivan(2-ih:i1+ih,2-jh:j1+jh),oblsullivan(2-ih:i1+ih,2-jh:j1+jh)) !Victor
+
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.
     wm=0.;w0=0.;wp=0.;wp_store=0.
@@ -250,6 +256,9 @@ subroutine initfields
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
+    ustarsullivan=1.; oblsullivan=1.; !Victor
+
+
   end subroutine initfields
 
 !> Deallocate the fields
@@ -267,6 +276,7 @@ subroutine initfields
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
+    deallocate(ustarsullivan, oblsullivan) !Victor
     end subroutine exitfields
 
 end module modfields
