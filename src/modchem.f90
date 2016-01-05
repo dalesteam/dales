@@ -1093,6 +1093,7 @@ implicit none
   if ((.not. lchem) .and. lrsAgs) then
     nr_raddep = 0
     if (.not. allocated(keff)) allocate (keff(2:i1,2:j1,0,kmax))
+    if (.not. allocated(kefftemp)) allocate (kefftemp(kmax,0))
     CALL ratech
   endif
   if (.not. (lchem)) return
