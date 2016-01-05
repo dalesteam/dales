@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 39
+  integer :: nvar = 39 + 6 ! Victor
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -99,6 +99,9 @@ save
   real, allocatable  :: uwtmn  (:),vwtmn  (:) !total    uw, vw
   real, allocatable  :: uwsmn  (:),vwsmn  (:) !resolved uw, vw
   real, allocatable  :: uwrmn  (:),vwrmn  (:) !subgrid  uw, vw
+  ! Victor  
+  real, allocatable :: gammashruwmn(:), gammashrvwmn(:), gammashruw(:), gammashrvw(:)
+ 
 ! real, allocatable  ::     --- various moments ---
 
 !   real, allocatable  :: rmn        (:), r2mn   (:), r3mn (:), rhmn (:)
@@ -161,6 +164,14 @@ save
 
  real, allocatable :: qlmnlast(:)
  real, allocatable :: wthvtmnlast(:)
+
+!Victor: time averaged fields, sullivan terms
+  real, allocatable :: gammamn(:)
+  real, allocatable :: ekm2mn(:)
+  !real, allocatable :: gammashrmn(:) --> naar modgenstat, veel logischer!
+  real, allocatable :: sullivanshruwmn(:)
+  real, allocatable :: sullivanshrvwmn(:)
+
 
 contains
 
@@ -266,6 +277,12 @@ contains
     allocate(svptav(k1,nsv))
     allocate(svpav(k1,nsv))
 
+    !Victor
+    allocate(gammashruw(k1),gammashruwmn(k1),gammashrvw(k1),gammashrvwmn(k1))
+     !Victor: sullivan fields
+    allocate(gammamn(k1),ekm2mn(k1),sullivanshruwmn(k1),sullivanshrvwmn(k1))
+
+
     allocate(cszmn(k1), cszav(k1))
 
     allocate(qlmnlast(k1))
@@ -303,6 +320,10 @@ contains
       uwsmn  = 0.
       vwsmn  = 0.
 
+      !Victor 
+      gammashruw=0.; gammashruwmn=0.; gammashrvw=0.; gammashrvwmn=0.
+      !Victor 
+    gammamn=0.;ekm2mn=0.;sullivanshruwmn=0.;sullivanshrvwmn=0.;
 
       u2mn     = 0.
       v2mn     = 0.
@@ -416,6 +437,14 @@ contains
           call ncinfo(ncname(39+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
           call ncinfo(ncname(39+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
+        call ncinfo(ncname(39+7*nsv+1,:),'gammashruw','gamma*k_m*Suv','...','tt')
+        call ncinfo(ncname(39+7*nsv+2,:),'gammashrvw','gamma*k_m*Suv','...','tt')
+        !Victor
+        call ncinfo(ncname(39+7*nsv+3,:),'gamma','Sullivan gamma factor = Sacc/(Sacc+<S>)','m/s^2','tt')
+        call ncinfo(ncname(39+7*nsv+4,:),'ekm2   ','Mean shear viscosity (Sullivan)','m/s^2','mt')
+        call ncinfo(ncname(39+7*nsv+5,:),'sullivanshruw   ','2 K_m2 <S_uw>, second term in the sullivan LES shear  ','m/s^2','mt')
+        call ncinfo(ncname(39+7*nsv+6,:),'sullivanshrvw   ','2 K_m2 <S_vw>, second term in the sullivan LES shear  ','m/s^2','mt')
+
 
         if (isurf==1) then
           call open_nc(fname,  ncid,nrec,n3=kmax,ns=ksoilmax)
@@ -461,7 +490,7 @@ contains
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
-    use modsubgriddata,only : ekm, ekh, csz
+    use modsubgriddata,only : ekm, ekh, csz,gamma, ekm2, suwm,svwm !victor
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
                           rslabs,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : comm3d,my_real,mpi_sum,mpierr,slabsum
@@ -531,6 +560,12 @@ contains
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
+
+     !Victor
+    real, allocatable :: sullivanshruw(:),sullivanshrvw(:)
+    !Victor
+    allocate(sullivanshruw(k1),sullivanshrvw(k1))
+ 
     allocate( &
         qlhavl (k1), & ! slab averaged ql_0 at half level &
         wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
@@ -653,6 +688,11 @@ contains
     svmav = 0.
 
     cszav = 0.
+
+    !Victor
+    sullivanshruw=0.;sullivanshrvw=0.;
+
+
 
     do  k=1,k1
       do  j=2,j1
@@ -1053,6 +1093,16 @@ contains
       uwtot    = uwres + uwsub
       vwtot    = vwres + vwsub
 
+     !Victor
+      do k=2,kmax    
+        sullivanshruw(k)= suwm(k)*ekm2(k)
+        sullivanshrvw(k)= svwm(k)*ekm2(k)
+      
+        gammashruw = uwsub(k) * gamma(k)
+        gammashrvw = vwsub(k) * gamma(k)   
+      end do
+
+
       u2av     = u2av     /rslabs
       v2av     = v2av     /rslabs
       w2av     = w2av     /rslabs
@@ -1105,6 +1155,17 @@ contains
       vwrmn  = vwrmn + vwres
       uwsmn  = uwsmn + uwsub
       vwsmn  = vwsmn + vwsub
+
+    !Victor
+      gammashruwmn = gammashruwmn + gammashruw
+      gammashrvwmn = gammashrvwmn + gammashrvw
+      
+      ekm2mn    = ekm2mn   + ekm2
+      gammamn   = gammamn   + gamma
+     
+      sullivanshruwmn =  sullivanshruwmn+ sullivanshruw
+      sullivanshrvwmn =  sullivanshrvwmn + sullivanshrvw
+      
       u2mn     = u2mn     + u2av
       v2mn     = v2mn     + v2av
       w2mn     = w2mn     + w2av
@@ -1189,6 +1250,10 @@ contains
     deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
+
+   !Victor
+    deallocate(sullivanshruw,sullivanshrvw)
+
   end subroutine do_genstat
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1246,6 +1311,15 @@ contains
       vwrmn  = vwrmn /nsamples
       uwsmn  = uwsmn /nsamples
       vwsmn  = vwsmn /nsamples
+
+     !Victor 
+      gammashruwmn = gammashruwmn / nsamples
+      gammashrvwmn = gammashrvwmn / nsamples
+      ekm2mn    = ekm2mn /nsamples
+      gammamn   = gammamn /nsamples  
+       
+      sullivanshruwmn =  sullivanshruwmn/nsamples
+      sullivanshrvwmn =  sullivanshrvwmn/nsamples
 
 !       rmn      = rmn    /nsamples
 !       r2mn     = r2mn   /nsamples
@@ -1567,6 +1641,14 @@ contains
           vars(:,39+7*(n-1)+6)=wsvrmn(:,n)
           vars(:,39+7*(n-1)+7)=wsvtmn(:,n)
         end do
+        !Victor
+        vars(:,39+7*nsv+1)=gammashruwmn
+        vars(:,39+7*nsv+2)=gammashrvwmn
+        vars(:,39+7*nsv+3)=gammamn
+        vars(:,39+7*nsv+4)=ekm2mn
+        vars(:,39+7*nsv+5)=sullivanshruwmn
+        vars(:,39+7*nsv+6)=sullivanshrvwmn
+
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
       end if
@@ -1607,6 +1689,11 @@ contains
       vwrmn  =  0.
       uwsmn  =  0.
       vwsmn  =  0.
+
+   !Victor 
+      gammashruwmn=0.;  gammashrvwmn=0.
+      !Victor 
+    gammamn=0.;ekm2mn=0.;sullivanshruwmn=0.;sullivanshrvwmn=0.;
 
 
       u2mn     = 0.
@@ -1714,6 +1801,13 @@ contains
 
     deallocate(qlmnlast)
     deallocate(wthvtmnlast)
+
+   !Victor 
+    deallocate(gammashruw,gammashruwmn,gammashrvw,gammashrvwmn)
+    
+    !Victor
+    deallocate(gammamn,ekm2mn,sullivanshruwmn,sullivanshrvwmn) 
+
 
   end subroutine exitgenstat
 
