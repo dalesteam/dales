@@ -248,7 +248,7 @@ contains
     call initsubgrid
     call initpois
     call initmicrophysics
-    call readinitfiles ! moved to the correct btime for the timedependent forcings in case of a warmstart
+    call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues
