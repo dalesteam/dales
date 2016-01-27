@@ -122,6 +122,8 @@ program DALES      !Version 4.0.0alpha
   !use modspectra2,     only : dospecs,initspectra2,tanhfilter
   use modtimestat,     only : inittimestat, timestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
+  use modgenstat2,      only : initgenstat2, genstat2, exitgenstat2
+  use modgenstat3,      only : initgenstat3, genstat3, exitgenstat3
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
@@ -165,6 +167,8 @@ program DALES      !Version 4.0.0alpha
   call initstat_nc   ! Should be called before stat-routines that might do netCDF
   call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
   call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+  call initgenstat2   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+  call initgenstat3   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
   !call inittilt
   call initsampling
   call initquadrant
@@ -265,6 +269,8 @@ program DALES      !Version 4.0.0alpha
     call checksim
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+    call genstat2  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+    call genstat3  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
     call radstat
     call lsmstat
     call sampling
@@ -296,6 +302,8 @@ program DALES      !Version 4.0.0alpha
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
 !-------------------------------------------------------
   call exitgenstat
+  call exitgenstat2
+  call exitgenstat3
   call exitradstat
   call exitlsmstat
   !call exitparticles
