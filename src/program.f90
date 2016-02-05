@@ -28,6 +28,8 @@
 
 !! Notes
 !! This subversion
+!! Xabi:
+!! - Included module for conditional sampling surface under clouds
 !! Huug:
 !! - Included heterosurf routine
 !! - Statistics for heterosurf routine
@@ -125,6 +127,7 @@ program DALES      !Version 4.0.0alpha
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
+  use modsamplingsurf, only : initsamplingsurf, samplingsurf,exitsamplingsurf
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection  
   use modAGScross,     only : initAGScross, AGScross,exitAGScross  
@@ -167,6 +170,7 @@ program DALES      !Version 4.0.0alpha
   call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
   !call inittilt
   call initsampling
+  call initsamplingsurf
   call initquadrant
   call initcrosssection
   call initAGScross
@@ -268,6 +272,7 @@ program DALES      !Version 4.0.0alpha
     call radstat
     call lsmstat
     call sampling
+    call samplingsurf
     call quadrant
     call crosssection
     call AGScross
@@ -300,7 +305,7 @@ program DALES      !Version 4.0.0alpha
   call exitlsmstat
   !call exitparticles
   call exitnudge
-  call exitsampling
+  call exitsamplingsurf
   call exitquadrant
   call exitsamptend
   call exitbulkmicrostat
