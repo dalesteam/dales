@@ -40,8 +40,8 @@ save
   character(80),dimension(:,:), allocatable :: ncname
   character(80),dimension(1,4) :: tncname
 
-  real    :: dtav
-  integer(kind=longint) :: idtav,tnext
+  real    :: dtav, tmin, tmax
+  integer(kind=longint) :: idtav,tnext,itmax,itmin
   integer :: klow,khigh,ncoarse=-1
   logical :: lfielddump= .false. !< switch to enable the fielddump (on/off)
   logical :: ldiracc   = .false. !< switch for doing direct access writing (on/off)
@@ -59,11 +59,13 @@ contains
 
 
     namelist/NAMFIELDDUMP/ &
-    dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse
+    dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax
 
     dtav=dtav_glob
     klow=1
     khigh=kmax
+    tmin = 0. 
+    tmax = 1e8
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
@@ -79,6 +81,8 @@ contains
     call MPI_BCAST(klow        ,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(khigh       ,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(dtav        ,1,MY_REAL   ,0,comm3d,ierr)
+    call MPI_BCAST(tmin        ,1,MY_REAL   ,0,comm3d,ierr)
+    call MPI_BCAST(tmax        ,1,MY_REAL   ,0,comm3d,ierr)
     call MPI_BCAST(lfielddump  ,1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(ldiracc     ,1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(lbinary     ,1,MPI_LOGICAL,0,comm3d,ierr)
@@ -86,8 +90,10 @@ contains
       ncoarse = 1
     end if
     idtav = dtav/tres
+    itmin = tmin/tres
+    itmax = tmax/tres
 
-    tnext      = idtav   +btime
+    tnext      = min(max(idtav   +btime,itmin),itmax)
     if(.not.(lfielddump)) return
     dt_lim = min(dt_lim,tnext)
 
@@ -143,6 +149,7 @@ contains
 
     if (.not. lfielddump) return
     if (rkStep/=rkMaxStep) return
+    if (timee > itmax) return
 
     if(timee<tnext) then
       dt_lim = min(dt_lim,tnext-timee)

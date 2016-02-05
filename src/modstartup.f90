@@ -940,7 +940,7 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("ln -sf "//name //" "//linkname)
+      call system("cp "//name //" "//linkname)
 
       if (nsv>0) then
         name  = 'inits   h  m   .'
@@ -957,7 +957,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
 
       end if
 
@@ -984,7 +984,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
       end if
 !       if (lexitnow) then
 !         timeleft = 0  !jump out of the time loop

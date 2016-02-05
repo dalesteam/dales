@@ -292,6 +292,7 @@ program DALES      !Version 4.0.0alpha
     call heterostats
     call mpi_get_time(t2)
     if (t2-t0>=wctime) then
+      write (*,*) wctime, "NO WALL CLOCK TIME LEFT"
       timeleft=0
     end if
     call writerestartfiles
