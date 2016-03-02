@@ -38,7 +38,9 @@ SAVE
   logical :: lsampbuupsurf  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampclsurf    = .false. !< switch for conditional sampling cloud (on/off)
   logical :: lsampclearsurf    = .false. !< switch for conditional sampling cloud (on/off)
-  logical :: lsampclU20surf    = .false. !< switch for conditional sampling shallow (cumulative tau<20) cloud (on/off)
-  logical :: lsampclO20surf    = .false. !< switch for conditional sampling deep (cumulative tau>20) cloud (on/off)
+  logical :: lsampcl0_2surf    = .false. !< switch for conditional sampling shallow (0<cumulative tau<2) cloud (on/off)
+  logical :: lsampcl2_5surf    = .false. !< switch for conditional sampling shallow (2<cumulative tau<5) cloud (on/off)
+  logical :: lsampcl5_10surf    = .false. !< switch for conditional sampling shallow (5<cumulative tau<10) cloud (on/off)
+  logical :: lsampclO10surf    = .false. !< switch for conditional sampling deep (cumulative tau>10) cloud (on/off)
 
 end module modsampsurfdata
