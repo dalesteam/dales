@@ -152,7 +152,7 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'dtav should be a integer multiple of dtmax'
     end if
-    if (isurf/=1) return
+    if (isurf/=1)return 
     if (lrsAgs) then
       allocate(nrsampAGSl (isamptot),Qnetavl    (isamptot),Havl      (isamptot),LEavl    (isamptot), &
                G0avl      (isamptot),tendskinavl(isamptot),rsavl     (isamptot),raavl    (isamptot), &
@@ -218,7 +218,7 @@ contains
     implicit none
 
     if (isamptot < 2) return
-    if (isurf /= 1)   return
+    if (isurf /= 1) return
     if (lrsAgs) then
 
       deallocate( nrsampAGSl,Qnetavl,Havl,LEavl,G0avl,tendskinavl,rsavl,raavl, & 
@@ -519,92 +519,118 @@ contains
       swdifavl    = 0.0
         
         
-      if (myid==0) then
-        do isamp = 1,isamptot
- 
-           nrsampAGSmn  = 0.0
-           Qnetmn     = 0.0
-           Hmn        = 0.0
-           LEmn       = 0.0
-           G0mn       = 0.0
-           tendskinmn = 0.0
-           rsmn       = 0.0
-           ramn       = 0.0
-           tskinmn    = 0.0
-           cliqmn     = 0.0
-           wlmn       = 0.0
-           rssoilmn   = 0.0
-           rsvegmn    = 0.0
-           Respmn     = 0.0
-           wco2mn     = 0.0
-           Anmn       = 0.0
-           gcco2mn    = 0.0
-           cimn       = 0.0
-           co2surfmn  = 0.0
-           taumn      = 0.0
-           swdirmean  = 0.0
-           swdifmean  = 0.0
- 
+      !have a dummy marker for doing ALLREDUCE for standard deviation only once
+      dummy=.false.
+      do isamp = 1,isamptot
+
+         nrsampAGSmn  = 0.0
+         Qnetmn     = 0.0
+         Hmn        = 0.0
+         LEmn       = 0.0
+         G0mn       = 0.0
+         tendskinmn = 0.0
+         rsmn       = 0.0
+         ramn       = 0.0
+         tskinmn    = 0.0
+         cliqmn     = 0.0
+         wlmn       = 0.0
+         rssoilmn   = 0.0
+         rsvegmn    = 0.0
+         Respmn     = 0.0
+         wco2mn     = 0.0
+         Anmn       = 0.0
+         gcco2mn    = 0.0
+         cimn       = 0.0
+         co2surfmn  = 0.0
+         taumn      = 0.0
+         swdirmean  = 0.0
+         swdifmean  = 0.0
+
     !normalize variables
- 
- 
-          if (nrsampAGSav(isamp).gt.0) then
- 
-            Qnetmn     = Qnetav    (isamp)/nrsampAGSav(isamp)
-            Hmn        = Hav       (isamp)/nrsampAGSav(isamp)
-            LEmn       = LEav      (isamp)/nrsampAGSav(isamp)
-            G0mn       = G0av      (isamp)/nrsampAGSav(isamp)
-            tendskinmn = tendskinav(isamp)/nrsampAGSav(isamp)
-            rsmn       = rsav      (isamp)/nrsampAGSav(isamp)
-            ramn       = raav      (isamp)/nrsampAGSav(isamp)
-            tskinmn    = tskinav   (isamp)/nrsampAGSav(isamp)
-            cliqmn     = cliqav    (isamp)/nrsampAGSav(isamp)
-            wlmn       = wlav      (isamp)/nrsampAGSav(isamp)
-            rssoilmn   = rssoilav  (isamp)/nrsampAGSav(isamp)
-            rsvegmn    = rsvegav   (isamp)/nrsampAGSav(isamp)
-            Respmn     = Respav    (isamp)/nrsampAGSav(isamp)
-            wco2mn     = wco2av    (isamp)/nrsampAGSav(isamp)
-            Anmn       = Anav      (isamp)/nrsampAGSav(isamp)
-            gcco2mn    = gcco2av   (isamp)/nrsampAGSav(isamp)
-            cimn       = ciav      (isamp)/nrsampAGSav(isamp)
-            co2surfmn  = co2surfav (isamp)/nrsampAGSav(isamp)
-            taumn      = tauav     (isamp)/nrsampAGSav(isamp)
-            swdirmean  = swdiraver (isamp)/nrsampAGSav(isamp)
-            swdifmean  = swdifaver (isamp)/nrsampAGSav(isamp)
-          endif
-          nrsampAGSmn= nrsampAGSav   (isamp)/inorm
- 
- 
-    !write files
+
+
+         if (nrsampAGSav(isamp).gt.0) then
+
+           Qnetmn     = Qnetav    (isamp)/nrsampAGSav(isamp)
+           Hmn        = Hav       (isamp)/nrsampAGSav(isamp)
+           LEmn       = LEav      (isamp)/nrsampAGSav(isamp)
+           G0mn       = G0av      (isamp)/nrsampAGSav(isamp)
+           tendskinmn = tendskinav(isamp)/nrsampAGSav(isamp)
+           rsmn       = rsav      (isamp)/nrsampAGSav(isamp)
+           ramn       = raav      (isamp)/nrsampAGSav(isamp)
+           tskinmn    = tskinav   (isamp)/nrsampAGSav(isamp)
+           cliqmn     = cliqav    (isamp)/nrsampAGSav(isamp)
+           wlmn       = wlav      (isamp)/nrsampAGSav(isamp)
+           rssoilmn   = rssoilav  (isamp)/nrsampAGSav(isamp)
+           rsvegmn    = rsvegav   (isamp)/nrsampAGSav(isamp)
+           Respmn     = Respav    (isamp)/nrsampAGSav(isamp)
+           wco2mn     = wco2av    (isamp)/nrsampAGSav(isamp)
+           Anmn       = Anav      (isamp)/nrsampAGSav(isamp)
+           gcco2mn    = gcco2av   (isamp)/nrsampAGSav(isamp)
+           cimn       = ciav      (isamp)/nrsampAGSav(isamp)
+           co2surfmn  = co2surfav (isamp)/nrsampAGSav(isamp)
+           taumn      = tauav     (isamp)/nrsampAGSav(isamp)
+           swdirmean  = swdiraver (isamp)/nrsampAGSav(isamp)
+           swdifmean  = swdifaver (isamp)/nrsampAGSav(isamp)
+         endif
+  !calculate standard deviations
+         !first we calculate the local square difference  at every gridbox
+         
+         Ansq_diff_l(2:i1,2:j1)=(AnField  (2:i1,2:j1) - Anmn ) * (AnField  (2:i1,2:j1) - Anmn)
+         
+         !we now only add the ones with the proper condition
+         
+         Ansq_diff_avl (isamp) = Ansq_diff_avl  (isamp)+sum  (Ansq_diff_l(2:i1,2:j1),maskAGS(2:i1,2:j1))
+         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+         !!PROBLEM!: maskAGS is different for every isamp, and they are not
+         !stored!so this line above would always give the same mask AGS (the
+         !mask for the last condition evaluated)--SOLUTION:restructure the
+         !module (dosampling and writesampling)so that there is no need to store
+         !masks and I calculate stdevs and means in one go
+         !!!!!!!!!!!
+         !we add all the standard deviations in the domain
+
+         call MPI_ALLREDUCE(Ansq_diff_avl       ,Ansq_diff_av   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+         call MPI_ALLREDUCE(Ansq_diff_avl       ,Ansq_diff_av   ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+         !we divide over number of samples:
+         Anstdev      = Ansq_diff_av /nrsampAGSav(isamp)
+         Anstdev      = Ansq_diff_av (isamp) /nrsampAGSav(isamp)
+         
+
+
+         nrsampAGSmn= nrsampAGSav   (isamp)/inorm
+  !write files
+       if (myid==0) then
+         open(ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
          write(ifoutput,'(f10.0, F10.4,6f11.3,f17.3,2f11.3,e13.3, 5f11.3,e13.3,2f9.2,f8.4,2f9.3)') &
-          rtimee      , &
-          nrsampAGSmn , &
-          Qnetmn      , &
-          Hmn         , &
-          LEmn        , &
-          G0mn        , &
-          tendskinmn  , &
-          rsmn        , &
-          ramn        , &
-          tskinmn     , &
-          cliqmn      , &
-          wlmn        , & 
-          rssoilmn    , &  
-          rsvegmn     , &
-          Respmn      , &
-          wco2mn      , &
-          Anmn        , &
-          gcco2mn     , &
-          cimn        , &
-          co2surfmn/1000   , &
-          taumn       , &  
-          swdirmean   , &
-          swdifmean
+         rtimee      , &
+         nrsampAGSmn , &
+         Qnetmn      , &
+         Hmn         , &
+         LEmn        , &
+         G0mn        , &
+         tendskinmn  , &
+         rsmn        , &
+         ramn        , &
+         tskinmn     , &
+         cliqmn      , &
+         wlmn        , & 
+         rssoilmn    , &  
+         rsvegmn     , &
+         Respmn      , &
+         wco2mn      , &
+         Anmn        , &
+         gcco2mn     , &
+         cimn        , &
+         co2surfmn/1000   , &
+         taumn       , &  
+         swdirmean   , &
+         swdifmean
          close(ifoutput)
-                         
- 
-        end do
-      end if
+        end if
+      
+      dummy= .true. 
+      end do!isamp
       deallocate( nrsampAGSav,Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav,tskinav, &
                   cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,Anav,gcco2av,ciav, &
                   co2surfav,tauav, swdiraver,swdifaver)

@@ -305,6 +305,7 @@ program DALES      !Version 4.0.0alpha
   call exitlsmstat
   !call exitparticles
   call exitnudge
+  call exitsampling
   call exitsamplingsurf
   call exitquadrant
   call exitsamptend
