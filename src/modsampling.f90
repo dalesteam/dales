@@ -984,7 +984,7 @@ contains
             '#------------------------------------------------------' &
             ,'------------------------------' &
             ,'#   LEV  HGHT  PRES       AW                WTHL                 ' &
-            ,'WQT                WQL                WTHV                UW                VW'
+            ,'WQT              WQL              WTHV              UW              VW'
         do k=1,kmax
           write(ifoutput,'(i5,F8.0,F7.1,7E16.8)') &
                 k, &

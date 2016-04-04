@@ -927,7 +927,7 @@ contains
       end if
 
       if (isurf == 1) then
-        name  = 'initl  h  m   .'
+        name  = 'initl  h  m        .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
         name(12:19) = cmyid
