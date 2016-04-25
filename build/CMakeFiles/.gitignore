@@ -1,0 +1,5 @@
+*.check_cache
+*.log
+/Makefile2
+*.marks
+/TargetDirectories.txt

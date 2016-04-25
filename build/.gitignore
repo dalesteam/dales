@@ -1,0 +1,5 @@
+*.cmake
+/CMakeCache.txt
+/dales4
+/Makefile
+/install_manifest.txt
