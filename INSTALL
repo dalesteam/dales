@@ -1,9 +1,9 @@
-DALES version 3.2
-===================
-Packages are available at www.gitorious.org/dales
+DALES version 4
+===============
+Packages are available at https://github.com/dalesteam/dales
 If git is installed, the best way to obtain DALES is with:
 
-git clone git://gitorious.org/dales/dales.git 
+git clone https://github.com/dalesteam/dales.git
 For updates you can then just use the command 
 git pull origin master
 
