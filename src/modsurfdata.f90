@@ -152,10 +152,12 @@ SAVE
   real, allocatable :: PARdirField  (:,:)
   real, allocatable :: PARdifField  (:,:)
   real, allocatable :: cctau        (:,:)  !cumulative tau over whole vertical column, needed for conditional AGS output
-  real, allocatable :: An_sqdiffl   (:,:)  !square differneces between local and spatial average An
-  real, allocatable :: fAn_sqdiffl  (:,:)  !
+  real, allocatable :: An_sqdiffl   (:,:)  !square differneces between local and spatial average An(dynamic average)
+  real, allocatable :: fAn_sqdiffl  (:,:)  !square differneces between local and spatial average An(static average)
   real, allocatable :: LE_sqdiffl   (:,:)  !
   real, allocatable :: fLE_sqdiffl  (:,:)  !
+  real, allocatable :: H_sqdiffl   (:,:)  !
+  real, allocatable :: fH_sqdiffl  (:,:)  !
  
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS

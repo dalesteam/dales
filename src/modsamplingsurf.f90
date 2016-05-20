@@ -2,9 +2,27 @@
 !!  Calculates surface statistics under conditional criteria
 
 !>
-!!  Calculates statistics under conditional criteria
+!!  Calculates statistics under conditional criteria(cloud optical depth)
 !! Currently implemented criteria for sampling are:
-!! - Cloud (ql0>0)
+!! - Cloud optical depth:
+!! 0<tau<0.5 
+!! 0.5<tau<1.0 
+!! 1.0<tau<1.5 
+!! 1.5<tau<2.0 
+!! 2.0<tau<2.5 
+!! 2.5<tau<3.0 
+!! 3.0<tau<3.5 
+!! 3.5<tau<4.0 
+!! 4.0<tau<4.5 
+!! 4.5<tau<5.0 
+!! 5<tau<6 
+!! 6<tau<7 
+!! 7<tau<8 
+!! 8<tau<9 
+!! 9<tau<10 
+!! 10<tau<15 
+!! 15<tau<20 
+!! 20<tau 
 !!
 !!  \author Xabier Pedruzo, WUR
 !  This file is part of DALES.
@@ -42,7 +60,7 @@ save
  real, allocatable, dimension(:) :: Qnetavl,Havl,LEavl,G0avl,tendskinavl,rsavl, &
                                     raavl,tskinavl,cliqavl,wlavl,rssoilavl,rsvegavl,Respavl, &
                                     wco2avl,Anavl,gcco2avl,ciavl,co2surfavl,nrsampAGSl,tauavl,swdiravl,swdifavl,&
-                                    An_stdevl,fAn_stdevl,LE_stdevl,fLE_stdevl
+                                    An_stdevl,fAn_stdevl,LE_stdevl,fLE_stdevl,H_stdevl,fH_stdevl
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -264,7 +282,7 @@ contains
                rsvegavl   (isamptot),Respavl    (isamptot),wco2avl   (isamptot),Anavl    (isamptot), &
                gcco2avl   (isamptot),ciavl      (isamptot),co2surfavl(isamptot),tauavl   (isamptot), &
                swdiravl   (isamptot),swdifavl   (isamptot),An_stdevl (isamptot),fAn_stdevl(isamptot), &
-               LE_stdevl  (isamptot),fLE_stdevl  (isamptot))  
+               LE_stdevl  (isamptot),fLE_stdevl (isamptot),H_stdevl  (isamptot),fH_stdevl(isamptot))  
   
  ! initialize variables
       
@@ -294,6 +312,8 @@ contains
       fAn_stdevl  = 0.0
       LE_stdevl   = 0.0
       fLE_stdevl  = 0.0
+      H_stdevl    = 0.0
+      fH_stdevl   = 0.0
 
       if(myid==0)then
         do isamp = 1,isamptot
@@ -306,12 +326,13 @@ contains
              '#     time     nr_samples Qnet        H          LE        G0     ', &
              '   tendskin      rs            ra           tskin     cliq   ', &
              '    Wl           rssoil     rsveg       Resp      wco2         An     gc_CO2        ci     CO2_surf',& 
-             '  cctau    swdir    swdif    stdev_An   Fstdev_An       stdev_LE      Fstdev_LE '
-          write(ifoutput,'(4a)') &
+             '  cctau    swdir    swdif    stdev_An Fstdev_An stdev_LE Fstdev_LE stdev_H Fstdev_H  '
+          write(ifoutput,'(5a)') &
              '#      [s]     []         [W/m2]     [W/m2]     [W/m2]    [W/m2]   ', &
              '    [W/m2]       [s/m]      [s/m]      [K]         [-]   ', &
              '     [m]          [s/m]      [s/m]            [ppm m s-1]             [mm/s?]                 [ppm]',&   
-             '    [-]      [w/m2]    [W/m2]  [accu mean]  [static mean(f)]    [accu mean,W/m2]  [static mean(f),W/m2] '
+             '    [-]      [w/m2]    [W/m2] [accu mn] [static mn(f)]  [accu mn,W/m2] [static mn(f),W/m2]',&
+             ' [accu mn,W/m2] [static mn(f),W/m2]'
           close (ifoutput)
         enddo
       endif
@@ -332,7 +353,7 @@ contains
       deallocate( nrsampAGSl,Qnetavl,Havl,LEavl,G0avl,tendskinavl,rsavl,raavl, & 
                   tskinavl,cliqavl,wlavl,rssoilavl,rsvegavl,Respavl,wco2avl,Anavl, &
                   gcco2avl,ciavl,co2surfavl,tauavl,swdiravl,swdifavl,An_stdevl, &
-                  fAn_stdevl,LE_stdevl,fLE_stdevl)  
+                  fAn_stdevl,LE_stdevl,fLE_stdevl,H_stdevl,fH_stdevl)  
     end if
 
   end subroutine exitsamplingsurf
@@ -369,7 +390,7 @@ contains
                           grav,om22,cu,nsv,zh
     use modsurfdata, only:Qnet,H,LE,G0,tendskin,rs,ra,tskin,cliq,wl,rssoil,rsveg, &
                           AnField,RespField,gcco2Field,ciField,indCO2,wco2Field,cctau,&
-                          fAn_sqdiffl,An_sqdiffl,fLE_sqdiffl,LE_sqdiffl
+                          fAn_sqdiffl,An_sqdiffl,fLE_sqdiffl,LE_sqdiffl,fH_sqdiffl,H_sqdiffl
     use modfields,   only: w0,thl0,qt0,ql0,thv0h,exnf,svm
     use modraddata,  only:swdir,swdif
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
@@ -386,8 +407,8 @@ contains
     real, allocatable, dimension(:) :: thvhav
 
     integer :: i,j,k,km,kp,iih,iif
-    real    :: fAnavl,fLEavl, fnrsampAGSl,nrsampAGSaver
-    real    :: fAnav,fLEav,fnrsampAGSaver,fAnaver,Anaver,fLEaver,LEaver
+    real    :: fAnavl,fLEavl,fHavl, fnrsampAGSl,nrsampAGSaver
+    real    :: fAnav,fLEav,fHav,fnrsampAGSaver,fAnaver,Anaver,fLEaver,LEaver,fHaver,Haver
 
     if (isurf/=1) return
     if (lrsAgs) then
@@ -398,6 +419,7 @@ contains
       allocate(thvhav(k1))
       allocate (fAn_sqdiffl(2:i1,2:j1),An_sqdiffl(2:i1,2:j1)) 
       allocate (fLE_sqdiffl(2:i1,2:j1),LE_sqdiffl(2:i1,2:j1)) 
+      allocate (fH_sqdiffl(2:i1,2:j1),H_sqdiffl(2:i1,2:j1)) 
       
       !next thv0 and w0f calculations are already done in modsampling.AGS and
       !variables could be taken from there to speed up the code
@@ -414,6 +436,8 @@ contains
       fAn_sqdiffl = 0.0
       LE_sqdiffl = 0.0
       fLE_sqdiffl = 0.0
+      H_sqdiffl = 0.0
+      fH_sqdiffl = 0.0
  
       thvav = 0.0
       call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -687,30 +711,29 @@ contains
       !!!option 1
       !fixed averaging: we calculate the stdev with respect to the mean  at that
       !timestep
-      !!!!!
-      !vars to be defined:fAnavl,fnrsampAGSl real     nrsampAGSaver 
-      !!                  :fAnav,fnrsampAGSaver,fAnaver,   real  Anaver,nrsampAGSaver
-      
-      !                   :fAn_sqdiffl, (like Anfield)          An_sqdiffl
-      !                   :fAn_stdevl, real isamp dimensions     An_stdevl
       
       fAnavl       = sum  (AnField    (2:i1,2:j1),maskAGS(2:i1,2:j1))
       fLEavl       = sum  (LE         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+      fHavl        = sum  (H          (2:i1,2:j1),maskAGS(2:i1,2:j1))
       fnrsampAGSl  = count(maskAGS    (2:i1,2:j1))
       call MPI_ALLREDUCE(fAnavl          ,fAnav      ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fLEavl          ,fLEav      ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(fHavl           ,fHav       ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fnrsampAGSl     ,fnrsampAGSaver   ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       
       if (fnrsampAGSaver .gt. 0.0) then
         fAnaver = fAnav/fnrsampAGSaver
         fLEaver = fLEav/fnrsampAGSaver
+        fHaver  = fHav/fnrsampAGSaver
         fAn_sqdiffl(2:i1,2:j1) = (AnField (2:i1,2:j1) - fAnaver) * (AnField(2:i1,2:j1) - fAnaver)
         fLE_sqdiffl(2:i1,2:j1) = (LE      (2:i1,2:j1) - fLEaver) * (LE     (2:i1,2:j1) - fLEaver)
+        fH_sqdiffl (2:i1,2:j1) = (H       (2:i1,2:j1) - fHaver) *  (H      (2:i1,2:j1) - fHaver)
         fAn_stdevl (isamp) = fAn_stdevl(isamp) + sum(fAn_sqdiffl(2:i1,2:j1),maskAGS(2:i1,2:j1)) 
         fLE_stdevl (isamp) = fLE_stdevl(isamp) + sum(fLE_sqdiffl(2:i1,2:j1),maskAGS(2:i1,2:j1)) 
+        fH_stdevl (isamp)  = fH_stdevl (isamp) + sum(fH_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1)) 
       end if
 !!!!!!!!!!
-!!!!!!!!!Option2:if we do dosampling more times than write sampling, every time
+!!!!!!!!!Option2:if we do dosampling more often than write sampling, every time
 !we do dosampling and not writesampling we keep the average values and use them
 !for next dosampling stdev calculatuion. --this means there will also be a time
 !average, then
@@ -718,28 +741,33 @@ contains
       !progressive averaging
       call MPI_ALLREDUCE(Anavl       ,Anaver         ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(LEavl       ,LEaver         ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(Havl        ,Haver          ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(nrsampAGSl  ,nrsampAGSaver  ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
 !the global domain average is:
       if (nrsampAGSaver .gt. 0.0) then
         Anaver= Anaver / nrsampAGSaver
         LEaver= LEaver / nrsampAGSaver
+        Haver = Haver  / nrsampAGSaver
       
       !now we calculate the local square differneces:
       
         An_sqdiffl (2:i1,2:j1)= (AnField (2:i1,2:j1) - Anaver) * (AnField (2:i1,2:j1) - Anaver)
         LE_sqdiffl (2:i1,2:j1)= (LE      (2:i1,2:j1) - LEaver) * (LE (2:i1,2:j1) - LEaver)
+        H_sqdiffl  (2:i1,2:j1)= (H       (2:i1,2:j1) -  Haver) * (H  (2:i1,2:j1) - Haver)
       
       !now that we have a field of squared differences, we calculate the local sum of it
       
         An_stdevl (isamp) = An_stdevl(isamp) + sum(An_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1))
         LE_stdevl (isamp) = LE_stdevl(isamp) + sum(LE_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1))
+        H_stdevl (isamp)  = H_stdevl(isamp)  + sum(H_sqdiffl  (2:i1,2:j1),maskAGS(2:i1,2:j1))
       end if
       
 
       deallocate(maskAGS)
       deallocate (fAn_sqdiffl,An_sqdiffl)
       deallocate (fLE_sqdiffl,LE_sqdiffl)
+      deallocate (fH_sqdiffl,H_sqdiffl)
     end if !lrsAGs
   end subroutine dosamplingsurf
 !> Write the statistics to file
@@ -756,11 +784,12 @@ contains
     real                             :: nrsampAGSmn,Qnetmn,Hmn,LEmn,G0mn,tendskinmn,rsmn,ramn, &
                                         tskinmn,cliqmn,wlmn,rssoilmn,rsvegmn,Respmn,wco2mn,&
                                         Anmn,gcco2mn,cimn,co2surfmn,taumn,swdirmean,swdifmean,&
-                                        An_stdevmn,fAn_stdevmn,LE_stdevmn,fLE_stdevmn
+                                        An_stdevmn,fAn_stdevmn,LE_stdevmn,fLE_stdevmn,&
+                                        H_stdevmn,fH_stdevmn
     real, allocatable, dimension(:)  :: nrsampAGSav,Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav, &
                                         tskinav,cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,&
                                         Anav,gcco2av,ciav,co2surfav,tauav,swdiraver,swdifaver,&
-                                        An_stdev,fAn_stdev,LE_stdev,fLE_stdev
+                                        An_stdev,fAn_stdev,LE_stdev,fLE_stdev,H_stdev,fH_stdev
     integer :: nsecs, nhrs, nminut, k
     integer :: inorm
     if (lrsAgs) then
@@ -770,7 +799,7 @@ contains
                 Respav(isamptot),wco2av(isamptot),Anav(isamptot),gcco2av(isamptot), &
                 ciav(isamptot),co2surfav(isamptot),tauav(isamptot),swdiraver(isamptot), &
                 swdifaver(isamptot),An_stdev(isamptot),fAn_stdev(isamptot),LE_stdev(isamptot), &
-                fLE_stdev(isamptot))
+                fLE_stdev(isamptot),H_stdev(isamptot),fH_stdev(isamptot))
  
       nsecs   = nint(rtimee)
       nhrs    = int(nsecs/3600)
@@ -804,6 +833,8 @@ contains
       call MPI_ALLREDUCE(fAn_stdevl   ,fAn_stdev  ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(LE_stdevl    ,LE_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fLE_stdevl   ,fLE_stdev  ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(H_stdevl     ,H_stdev    ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(fH_stdevl    ,fH_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
       
     !reset variables
       nrsampAGSl  = 0.0
@@ -832,6 +863,8 @@ contains
       fAn_stdevl  = 0.0
       LE_stdevl   = 0.0
       fLE_stdevl  = 0.0
+      H_stdevl    = 0.0
+      fH_stdevl   = 0.0
         
         
       if (myid==0) then
@@ -863,6 +896,8 @@ contains
            fAn_stdevmn = 0.0
            LE_stdevmn  = 0.0
            fLE_stdevmn = 0.0
+           H_stdevmn   = 0.0
+           fH_stdevmn  = 0.0
   
       !normalize variables
   
@@ -890,10 +925,12 @@ contains
              taumn      = tauav     (isamp)/nrsampAGSav(isamp)
              swdirmean  = swdiraver (isamp)/nrsampAGSav(isamp)
              swdifmean  = swdifaver (isamp)/nrsampAGSav(isamp)
-             An_stdevmn  = sqrt(An_stdev (isamp)/nrsampAGSav(isamp))
+             An_stdevmn  = sqrt(An_stdev  (isamp)/nrsampAGSav(isamp))
              fAn_stdevmn = sqrt(fAn_stdev (isamp)/nrsampAGSav(isamp))
-             LE_stdevmn  = sqrt(LE_stdev (isamp)/nrsampAGSav(isamp))
+             LE_stdevmn  = sqrt(LE_stdev  (isamp)/nrsampAGSav(isamp))
              fLE_stdevmn = sqrt(fLE_stdev (isamp)/nrsampAGSav(isamp))
+             H_stdevmn   = sqrt(H_stdev   (isamp)/nrsampAGSav(isamp))
+             fH_stdevmn  = sqrt(fH_stdev  (isamp)/nrsampAGSav(isamp))
            endif
            nrsampAGSmn= nrsampAGSav   (isamp)/inorm
   
@@ -901,7 +938,7 @@ contains
     !write files
  !     if (myid==0) then
            open(ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
-           write(ifoutput,'(f10.0, F11.8,6f11.3,f17.3,2f11.3,e13.3, 5f11.3,e13.3,2f9.2,f8.4,2f9.3,2f11.5,2f8.3)') &
+           write(ifoutput,'(f10.0, F11.8,6f11.3,f17.3,2f11.3,e13.3, 5f11.3,e13.3,2f9.2,f8.4,2f9.3,2f11.5,4f8.3)') &
            rtimee      , &
            nrsampAGSmn , &
            Qnetmn      , &
@@ -928,7 +965,9 @@ contains
            An_stdevmn  , &
            fAn_stdevmn , &
            LE_stdevmn  , &
-           fLE_stdevmn
+           fLE_stdevmn , &
+           H_stdevmn   , &
+           fH_stdevmn
            close(ifoutput)
                          
  
@@ -938,7 +977,7 @@ contains
       deallocate( nrsampAGSav,Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav,tskinav, &
                   cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,Anav,gcco2av,ciav, &
                   co2surfav,tauav,swdiraver,swdifaver,An_stdev,fAn_stdev, &
-                  LE_stdev,fLE_stdev)
+                  LE_stdev,fLE_stdev,H_stdev,fH_stdev)
     end if !lrsAgs
   end subroutine writesamplingsurf
 
