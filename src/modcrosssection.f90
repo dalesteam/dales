@@ -43,7 +43,7 @@ save
   integer :: nrec1 = 0
   integer,allocatable :: nrec2(:)
   integer :: nrec3 = 0
-  integer :: crossheight(100)
+  integer :: crossheight(400)
   integer :: nxy = 0
   integer :: cross
   character(4) :: cheight
@@ -79,7 +79,7 @@ contains
 
     allocate(ncid2(kmax),nrec2(kmax))
     crossheight(1)=2
-    crossheight(2:100)=-999
+    crossheight(2:400)=-999
     ncid2(1)=2
     ncid2(2:kmax)=0
     nrec2(1:kmax)=0
@@ -100,7 +100,7 @@ contains
     call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(lcross     ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lbinary    ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(crossheight(1:100),100,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(crossheight(1:400),400,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(crossplane ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(crossortho ,1,MPI_INTEGER,0,comm3d,mpierr)
 
@@ -118,7 +118,7 @@ contains
     if(.not.(lcross)) return
     dt_lim = min(dt_lim,tnext)
 
-    if(any((crossheight(1:100).gt.kmax)) .or. crossplane>j1 .or. crossortho> i1 ) then
+    if(any((crossheight(1:400).gt.kmax)) .or. crossplane>j1 .or. crossortho> i1 ) then
       stop 'CROSSSECTION: crosssection out of range'
     end if
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
