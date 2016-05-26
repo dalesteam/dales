@@ -44,19 +44,28 @@ save
   real    CPU_program    !end time
   real    CPU_program0   !start time
 
-   character(3) :: cmyid
+  character(3) :: cmyid
 
 contains
+
   subroutine initmpi
     implicit none
+
+    call MPI_INIT(mpierr)
+    call startmpi(MPI_COMM_WORLD)
+
+  end subroutine initmpi
+  
+  subroutine startmpi(commwrld)
+    implicit none
+    integer commwrld
     integer dims(1)
     logical periods(1)
     integer periods2(1)
 
-    call MPI_INIT(mpierr)
     MY_REAL = MPI_DOUBLE_PRECISION
-    call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
-    call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr )
+    call MPI_COMM_RANK( commwrld, myid, mpierr )
+    call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
 ! Specify the # procs in each direction.
 ! specifying a 0 means that MPI will try to find a useful # procs in
 ! the corresponding  direction,
@@ -83,14 +92,14 @@ contains
 ! create the Cartesian communicator, denoted by the integer comm3d
 
     ! BUG - Thijs, Harm
-    !call MPI_CART_CREATE(MPI_COMM_WORLD, 1, dims, periods,.false., &
+    !call MPI_CART_CREATE(commwrld, 1, dims, periods,.false., &
     !                    comm3d, ierr )
 
-    call MPI_CART_CREATE(MPI_COMM_WORLD, 1, dims, periods,.true., &
+    call MPI_CART_CREATE(commwrld, 1, dims, periods,.true., &
                         comm3d, mpierr )
 
 ! Soares 20080115
-!     call MPI_CART_CREATE(MPI_COMM_WORLD, 1, dims, periods2,1, &
+!     call MPI_CART_CREATE(commwrld, 1, dims, periods2,1, &
 !                         comm3d, mpierr )
 
 ! Get my processor number in this communicator
@@ -115,7 +124,7 @@ contains
     end if
 
     write(*,*)'nprocs = ', nprocs
-  end subroutine initmpi
+  end subroutine startmpi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
