@@ -364,7 +364,7 @@ contains
     integer:: i, j, k
 
     ! heterogeneity variables
-    integer:: patchx, patchy
+    integer:: patchx=0, patchy=0
 
     if (.not.(ltimestat)) return
     if (rk3step/=3) return

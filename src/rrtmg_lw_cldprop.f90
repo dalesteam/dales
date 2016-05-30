@@ -76,8 +76,8 @@
       integer(kind=im) :: lay                         ! Layer index
       integer(kind=im) :: ib                          ! spectral band index
       integer(kind=im) :: index 
-      integer(kind=im) :: iceind
-      integer(kind=im) :: liqind
+      integer(kind=im) :: iceind = 0
+      integer(kind=im) :: liqind = 0
       integer(kind=im) :: icb(nbndlw,0:2)
 
       real(kind=rb) :: abscoice(nbndlw)               ! ice absorption coefficients

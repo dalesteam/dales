@@ -132,10 +132,10 @@
       real(kind=rb) :: rad0, reflect, radlu, radclru
 
       integer(kind=im) :: icldlyr(nlayers)             ! flag for cloud in layer
-      integer(kind=im) :: ibnd, ib, iband, lay, lev, l ! loop indices
-      integer(kind=im) :: igc                          ! g-point interval counter
-      integer(kind=im) :: iclddn                       ! flag for cloud in down path
-      integer(kind=im) :: ittot, itgas, itr            ! lookup table indices
+      integer(kind=im) :: ibnd = 0, ib = 0, iband = 0, lay = 0, lev = 0, l = 0 ! loop indices
+      integer(kind=im) :: igc = 0                          ! g-point interval counter
+      integer(kind=im) :: iclddn = 0                       ! flag for cloud in down path
+      integer(kind=im) :: ittot = 0, itgas = 0, itr = 0            ! lookup table indices
       integer(kind=im) :: ipat(16,0:2)
 
 
@@ -334,7 +334,7 @@
 
                      odtot = odepth + odcld(lev,ib)
                      tblind = odtot/(bpade+odtot)
-                     ittot = tblint*tblind + 0.5_rb
+                     ittot = INT(tblint*tblind + 0.5_rb)
                      tfactot = tfn_tbl(ittot)
                      bbdtot = plfrac * (blay + tfactot*dplankdn)
                      bbd = plfrac*(blay+dplankdn*odepth_rec)
@@ -352,7 +352,7 @@
                   else
 
                      tblind = odepth/(bpade+odepth)
-                     itgas = tblint*tblind+0.5_rb
+                     itgas = INT(tblint*tblind+0.5_rb)
                      odepth = tau_tbl(itgas)
                      atrans(lev) = 1._rb - exp_tbl(itgas)
                      tfacgas = tfn_tbl(itgas)
@@ -360,7 +360,7 @@
 
                      odtot = odepth + odcld(lev,ib)
                      tblind = odtot/(bpade+odtot)
-                     ittot = tblint*tblind + 0.5_rb
+                     ittot = INT(tblint*tblind + 0.5_rb)
                      tfactot = tfn_tbl(ittot)
                      bbdtot = plfrac * (blay + tfactot*dplankdn)
                      bbd = plfrac*(blay+tfacgas*dplankdn)
@@ -383,7 +383,7 @@
                      bbugas(lev) = plfrac*(blay+dplankup*odepth)
                   else
                      tblind = odepth/(bpade+odepth)
-                     itr = tblint*tblind+0.5_rb
+                     itr = INT(tblint*tblind+0.5_rb)
                      transc = exp_tbl(itr)
                      atrans(lev) = 1._rb-transc
                      tausfac = tfn_tbl(itr)
