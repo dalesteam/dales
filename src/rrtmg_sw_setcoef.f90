@@ -48,7 +48,7 @@
 ! ----- Input -----
       integer(kind=im), intent(in) :: nlayers         ! total number of layers
 
-      real(kind=rb), intent(in) :: pavel(:)           ! layer pressures (mb) 
+      real(kind=rb), intent(in) :: pavel(:)           ! layer pressures (mb)
                                                       !    Dimensions: (nlayers)
       real(kind=rb), intent(in) :: tavel(:)           ! layer temperatures (K)
                                                       !    Dimensions: (nlayers)
@@ -64,10 +64,10 @@
 
 ! ----- Output -----
       integer(kind=im), intent(out) :: laytrop        ! tropopause layer index
-      integer(kind=im), intent(out) :: layswtch       ! 
-      integer(kind=im), intent(out) :: laylow         ! 
+      integer(kind=im), intent(out) :: layswtch       !
+      integer(kind=im), intent(out) :: laylow         !
 
-      integer(kind=im), intent(out) :: jp(:)          ! 
+      integer(kind=im), intent(out) :: jp(:)          !
                                                       !    Dimensions: (nlayers)
       integer(kind=im), intent(out) :: jt(:)          !
                                                       !    Dimensions: (nlayers)
@@ -86,7 +86,7 @@
                                                       !    Dimensions: (nlayers)
       real(kind=rb), intent(out) :: colo2(:)          ! column amount (o2)
                                                       !    Dimensions: (nlayers)
-      real(kind=rb), intent(out) :: colmol(:)         ! 
+      real(kind=rb), intent(out) :: colmol(:)         !
                                                       !    Dimensions: (nlayers)
       real(kind=rb), intent(out) :: co2mult(:)        !
                                                       !    Dimensions: (nlayers)
@@ -106,7 +106,7 @@
 
       real(kind=rb), intent(out) :: &                 !
                          fac00(:), fac01(:), &        !    Dimensions: (nlayers)
-                         fac10(:), fac11(:) 
+                         fac10(:), fac11(:)
 
 ! ----- Local -----
 
@@ -159,11 +159,11 @@
          fp = 5._rb * (preflog(jp(lay)) - plog)
 
 ! Determine, for each reference pressure (JP and JP1), which
-! reference temperature (these are different for each  
+! reference temperature (these are different for each
 ! reference pressure) is nearest the layer temperature but does
 ! not exceed it.  Store these indices in JT and JT1, resp.
 ! Store in FT (resp. FT1) the fraction of the way between JT
-! (JT1) and the next highest reference temperature that the 
+! (JT1) and the next highest reference temperature that the
 ! layer temperature falls.
 
          jt(lay) = int(3._rb + (tavel(lay)-tref(jp(lay)))/15._rb)
@@ -269,9 +269,9 @@
  5400    continue
 
 ! We have now isolated the layer ln pressure and temperature,
-! between two reference pressures and two reference temperatures 
-! (for each reference pressure).  We multiply the pressure 
-! fraction FP with the appropriate temperature fractions to get 
+! between two reference pressures and two reference temperatures
+! (for each reference pressure).  We multiply the pressure
+! fraction FP with the appropriate temperature fractions to get
 ! the factors that will be needed for the interpolation that yields
 ! the optical depths (performed in routines TAUGBn for band n).
 
@@ -291,7 +291,7 @@
 !***************************************************************************
 
       save
- 
+
 ! These pressures are chosen such that the ln of the first pressure
 ! has only a few non-zero digits (i.e. ln(PREF(1)) = 6.96000) and
 ! each subsequent ln(pressure) differs from the previous one by 0.2.
@@ -324,8 +324,8 @@
           -3.0400e+00_rb,-3.2400e+00_rb,-3.4400e+00_rb,-3.6400e+00_rb,-3.8400e+00_rb, &
           -4.0400e+00_rb,-4.2400e+00_rb,-4.4400e+00_rb,-4.6400e+00_rb /)
 
-! These are the temperatures associated with the respective 
-! pressures for the MLS standard atmosphere. 
+! These are the temperatures associated with the respective
+! pressures for the MLS standard atmosphere.
 
       tref(:) = (/ &
            2.9420e+02_rb, 2.8799e+02_rb, 2.7894e+02_rb, 2.6925e+02_rb, 2.5983e+02_rb, &
@@ -336,7 +336,7 @@
            2.4371e+02_rb, 2.4726e+02_rb, 2.5085e+02_rb, 2.5457e+02_rb, 2.5832e+02_rb, &
            2.6216e+02_rb, 2.6606e+02_rb, 2.6999e+02_rb, 2.7340e+02_rb, 2.7536e+02_rb, &
            2.7568e+02_rb, 2.7372e+02_rb, 2.7163e+02_rb, 2.6955e+02_rb, 2.6593e+02_rb, &
-           2.6211e+02_rb, 2.5828e+02_rb, 2.5360e+02_rb, 2.4854e+02_rb, 2.4348e+02_rb, & 
+           2.6211e+02_rb, 2.5828e+02_rb, 2.5360e+02_rb, 2.4854e+02_rb, 2.4348e+02_rb, &
            2.3809e+02_rb, 2.3206e+02_rb, 2.2603e+02_rb, 2.2000e+02_rb, 2.1435e+02_rb, &
            2.0887e+02_rb, 2.0340e+02_rb, 1.9792e+02_rb, 1.9290e+02_rb, 1.8809e+02_rb, &
            1.8329e+02_rb, 1.7849e+02_rb, 1.7394e+02_rb, 1.7212e+02_rb /)

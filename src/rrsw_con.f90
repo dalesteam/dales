@@ -15,7 +15,7 @@
 
 !  name     type     purpose
 ! -----  :  ----   : ----------------------------------------------
-! fluxfac:  real   : radiance to flux conversion factor 
+! fluxfac:  real   : radiance to flux conversion factor
 ! heatfac:  real   : flux to heating rate conversion factor
 !oneminus:  real   : 1.-1.e-6
 ! pi     :  real   : pi
@@ -23,7 +23,7 @@
 ! planck :  real   : planck constant
 ! boltz  :  real   : boltzmann constant
 ! clight :  real   : speed of light
-! avogad :  real   : avogadro constant 
+! avogad :  real   : avogadro constant
 ! alosmt :  real   : loschmidt constant
 ! gascon :  real   : molar gas constant
 ! radcn1 :  real   : first radiation constant

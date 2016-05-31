@@ -16,11 +16,11 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefao: real    
+!fracrefao: real
 !fracrefbo: real
-! kao     : real     
-! kbo     : real     
-! selfrefo: real     
+! kao     : real
+! kbo     : real
+! selfrefo: real
 ! forrefo : real
 !-----------------------------------------------------------------
 
@@ -42,13 +42,13 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefa : real    
+!fracrefa : real
 !fracrefb : real
-! ka      : real     
-! kb      : real     
+! ka      : real
+! kb      : real
 ! absa    : real
 ! absb    : real
-! selfref : real     
+! selfref : real
 ! forref  : real
 !
 ! refparam: real

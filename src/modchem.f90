@@ -21,9 +21,9 @@ module modchem
   !         lchconst    = .false.  SWITCH: if TRUE then the calculation of the reaction rates
   !                                        uses t_ref, p_ref, q_ref and not the model temp, humidity and pressure
   !         lcloudKconst   = .false.  SWITCH: if TRUE then if there are clouds they will not change the K of the photolysis reactions
-  !         t_ref	    = 298.
-  !         p_ref	    = 100000.
-  !         q_ref	    = 5.e-3
+  !         t_ref       = 298.
+  !         p_ref       = 100000.
+  !         q_ref       = 5.e-3
   !         lchmovie    = .false.  SWITCH: if TRUE gives extra output for movies(experimental)
   !         dtchmovie   = 60.      when to write extra output
   !         lsegr       = .false.  SWITCH: if TRUE gives information about segregation in a Mixed Layer approach
@@ -46,12 +46,12 @@ module modchem
 ! @  1       2       3       4       5      6       7       8       9       10      11       12      13      14     15
 !   O3      NO      NO2     NO3     H2OP    HNO3    RH      R       HO      HO2     H2O2    CO       CO2     H2O    INERT
 !   1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5
-!   0.01	  0.01 	  0.01    0.01	  0.01 	  0.01	  0.01 	  0.01	  0.01    0.01	  0.01     0.01    0.01    0.01   0.01
+!   0.01   0.01     0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01
 ! #
 ! #--------------------------------------------------------------------------------------------------------------
 ! # kr2nd  |Name |Rad |func1|  A    |   B   |   C   |   D   |  E   |   F  |  G   | chemical reaction
 ! #        |     |Dep |     |       |       |       |       |      |      |      | with inactive species
-! #        |5char|int |int  | real  | real  | real  | real  | real | real | real |	 in ( )
+! #        |5char|int |int  | real  | real  | real  | real  | real | real | real | in ( )
 ! #---------------------------------------------------------------------------------------------------------------
 ! # all reactions must have a name
 ! 2.396E-13 R_CO   0    1     1.0      1.0     1.0    1.0      1.0    1.0    1.0   HO + CO    -> HO2 + CO2
@@ -419,7 +419,7 @@ subroutine inputchem
   allocate (RC(tnor))
   allocate (chem_name(nchsp))
 
-  do i=1, nchsp 
+  do i=1, nchsp
     pl_temp(i)=pl_scheme(1)
   enddo
 
@@ -1404,7 +1404,7 @@ implicit none
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 - 1))
-                
+
               case(4) !A^a + B^b -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
@@ -1426,8 +1426,8 @@ implicit none
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
                                    / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
-                
-              case(5) ! A + B + C -> ...   
+
+              case(5) ! A + B + C -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
                     do it_i=2,i1
@@ -1448,7 +1448,7 @@ implicit none
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
                                    * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) &
                                    * (sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) / ((ijtot*(k_zi+rest_zi))**2)
-                
+
               case(6) ! A^a + B^b + C^c -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
@@ -1475,8 +1475,8 @@ implicit none
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
                                    * ((sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp3)&
                                    / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
-                
-              case(7) ! A^a + B^b + C^c + D^d -> ... 
+
+              case(7) ! A^a + B^b + C^c + D^d -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
                     do it_i=2,i1
@@ -1517,7 +1517,7 @@ implicit none
 !              if(myid==0) then
 !                Print *,'Finished segregation calculation for reaction #',Rnr
 !              endif
-!                
+!
               reaction_ev(PL_scheme(n)%PL(j)%r_nr) = .TRUE. ! Reaction #<r_nr> has been evaluated
             endif !reaction evaluated yet?
           endif   !only PRODUCTION terms for chemical n
@@ -1544,7 +1544,7 @@ implicit none
       endwhere
 
       if(myid==0) then
-        open (ifoutput,file='seg.'//cexpnr,position='append') 
+        open (ifoutput,file='seg.'//cexpnr,position='append')
           write(formatstring,'(a,i3,a)') '(F9.2,1x,F7.2,',tnor,'(2x,e12.6))'
           write(ifoutput,formatstring) rtimee,zi,(segregation(i),i=1,tnor)
         close(ifoutput)
@@ -1553,7 +1553,7 @@ implicit none
         nhrs    = int(nsecs/3600)
         nminut  = int(nsecs/60)-nhrs*60
         nsecs   = mod(nsecs,60)
-        open (ifoutput,file='seg_h.'//cexpnr,position='append') 
+        open (ifoutput,file='seg_h.'//cexpnr,position='append')
           write(ifoutput,'(A,/A,F5.0,A,I4,A,I2.2,A,I2.2,A,/A)') &
           '#-----------------------------------------------------------------------------'&
           ,'#',(timeav_glob),'--- AVERAGING TIMESTEP --- '      &
@@ -1562,12 +1562,12 @@ implicit none
 
           write(formatstring,'(a,i3,a)') '(a9,1x,a7,1x,a7,',tnor,'(2x,a5,i3.3,a4))'
           write(ifoutput,formatstring) '#Time [s]','z_i [m]','h [m]',('IsegR',i,' [-]',i=1,tnor)
- 
+
           write(formatstring,'(a,i3,a)') '(F9.2,1x,F7.2,1x,F7.2,',tnor,'(2x,e12.6))'
           do it_k=1,kmax
             write(ifoutput,formatstring) rtimee,zi,(it_k-0.5)*dz,(segregation_vert(i,it_k),i=1,tnor)
           enddo !Loop over height
-          write(ifoutput,'(//)') 
+          write(ifoutput,'(//)')
         close(ifoutput)
       endif !(myid == 0)
     endif   !timee>=tnextwrite

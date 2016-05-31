@@ -31,14 +31,14 @@ save
   real                 :: dtav
   integer(kind=longint):: idtav,tnext
   logical              :: lheterostats  = .false.
-  integer              :: ncklimit 
+  integer              :: ncklimit
 
   !VARIABLES FOR STATISTICS
   !id of netcdf file
   integer :: ncid
 
   !id of dimensions
-  integer :: xid, yid, zid, tid             
+  integer :: xid, yid, zid, tid
 
   !id of variables (means)
   integer :: uavgid, vavgid, wavgid, thlavgid, thvavgid, qtavgid, qlavgid, eavgid
@@ -272,7 +272,7 @@ contains
 
     real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg,&
     thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
-    real, dimension(imax,jmax)         :: lwpavg 
+    real, dimension(imax,jmax)         :: lwpavg
     real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
     real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
     real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
@@ -376,7 +376,7 @@ contains
         enddo
       enddo
     enddo
-    
+
 
     !LOOPS ARE NOT PUT IN FUNCTION BECAUSE OF ARRAY DEFINITIONS WHICH DIFFER AMONG VARIABLES!
     do k = 1,ncklimit
@@ -934,7 +934,7 @@ contains
           !shift prognostic fields one step as 1st column
           !is dummy column because of MPI and periodicity
           if(k==1) then
-            wqlcovs(j,k) = 0.0 
+            wqlcovs(j,k) = 0.0
           else
             wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(dzf(k-1)*ekh(i+1,j+1,k)+dzf(k)*ekh(i+1,j+1,k-1))/dzh(k) * &
             (ql0(i+1,j+1,k) - ql0(i+1,j+1,k-1)) / dzh(k)
@@ -959,7 +959,7 @@ contains
           if(k==1) then
             c1  = 1.+(rv/rd-1)*qts
             c2  = (rv/rd-1)
- 
+
             wthvcovs(j-1,k) = wthvcovs(j-1,k) + c1 * thlflux(i,j) + c2 * thls * qtflux(i,j)
 
           else
@@ -995,14 +995,14 @@ contains
           end do
         end do
       end do
-    
+
       do k = 1,ncklimit
         do j = 1,jmax
           do i = 1,imax
             !shift prognostic fields one step as 1st column
             !is dummy column because of MPI and periodicity
             if(k==1) then
-              wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n) 
+              wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n)
             else
               wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(dzf(k-1)*ekh(i+1,j+1,k)+dzf(k)*ekh(i+1,j+1,k-1))/dzh(k) &
               * (sv0(i+1,j+1,k,n) - sv0(i+1,j+1,k-1,n)) / dzh(k)

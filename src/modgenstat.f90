@@ -1134,7 +1134,7 @@ contains
       skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
 
       cszmn = cszmn + cszav
-      
+
     deallocate( &
         qlhavl , & ! slab averaged ql_0 at half level &
         wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
@@ -1708,7 +1708,7 @@ contains
     deallocate(th0av)
     deallocate(svpav)
     deallocate(svptav)
-    
+
     deallocate(cszmn)
     deallocate(cszav)
 

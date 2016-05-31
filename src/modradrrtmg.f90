@@ -19,7 +19,7 @@ contains
     use rrtmg_sw_init, only : rrtmg_sw_ini
     use rrtmg_sw_rad,  only : rrtmg_sw
     implicit none
-    
+
     integer                :: npatch    ! Sounding levels above domain
     integer                :: i,j,k,ierr(3)
     logical                :: sunUp
@@ -34,7 +34,7 @@ contains
                                lambm0, &  ! Mean longitude of perihelion at the vernal equinox (radians)
                                mvelpp     ! Earth's moving vernal equinox longitude
                                           ! of perihelion plus pi (radians)
-  
+
     real                   :: thlpld,thlplu,thlpsd,thlpsu
     real(KIND=kind_rb)     :: cpdair
 !    real(KIND=kind_rb),allocatable,dimension(:,:) :: cloudFrac, &
@@ -44,7 +44,7 @@ contains
                                                      !IWP_slice
 
 
-    
+
     if(.not.isReadSounding) then
       call readSounding(presh(k1)/100.,npatch_start,npatch_end)
 
@@ -59,13 +59,13 @@ contains
       kradmax = nzrad   !a la kmax, k1
       krad1   = nzrad + 1
       krad2   = nzrad + 2
-      
+
       isReadSounding = .true.
     end if
 
     ! Allocate the sizes of the slices once nzrad is known
     !
-    !  nzrad = kmax + npatch, nzrad+1 
+    !  nzrad = kmax + npatch, nzrad+1
     !
     if(.not.isAllocated_RadInputsOutputs) then
       allocate(layerP      (imax,krad1),       &
@@ -104,7 +104,7 @@ contains
                lwDown_slice   (imax,krad2),    &
                lwUpCS_slice   (imax,krad2),    &
                lwDownCS_slice (imax,krad2),    &
-               swUp_slice     (imax,krad2),    & 
+               swUp_slice     (imax,krad2),    &
                swDown_slice   (imax,krad2),    &
                swUpCS_slice   (imax,krad2),    &
                swDownCS_slice (imax,krad2),    &
@@ -117,10 +117,10 @@ contains
       allocate(solarZenithAngleCos(imax), asdir(imax), asdif(imax), aldir(imax),       &
                  aldif(imax),                                                          &
                  STAT=ierr(3))
-      
+
       if(any(ierr(:)/=0)) then
         if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrrtmg'
-        stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90' 
+        stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90'
       else
         isAllocated_RadInputsOutputs = .true.
       end if
@@ -139,11 +139,11 @@ contains
                                       1.5*psnd(npatch_end) - 0.5*psnd(npatch_end-1) )
       end if
       call readTraceProfs
-      
+
       if(myid==0) write(*,*) 'Trace gas profile have been read'
       isReadTraceProfiles = .true.
     end if
-    
+
     cpdair = cp
     if(.not.isInitializedRrtmg) then
       if (rad_longw) then
@@ -227,14 +227,14 @@ contains
     use modmpi, only        : myid
     use netcdf
     implicit none
-    
+
     real,intent(in)        :: ptop_model
     integer,intent(out)    :: npatch_start,npatch_end        ! the level#s of the sounding above the model
-    
+
     real,allocatable,dimension(:,:) :: psnd_in,qsnd_in,tsnd_in,o3snd_in
     integer                :: ncid,dimIDp, dimIDt, varID,sts ! netcdf id; netcdf function output
     integer                :: ntime,nlev                     ! dimensions in the netcdf file
-    
+
     character (len=19)     :: SoundingFileName
     character (len=nf90_max_name) :: tmpName
     integer                :: k,ierr
@@ -243,7 +243,7 @@ contains
 
     sts        = nf90_open(trim(SoundingFileName),nf90_nowrite,ncid)
     if (sts.ne.nf90_noerr) stop 'ERROR: Sounding file not found!'
-  
+
     ! get number of pressure levels
     sts        = nf90_inq_dimid(ncid,"lev",dimIDp)
     sts        = nf90_inquire_dimension(ncid, dimIDp, tmpName, nlev)
@@ -303,9 +303,9 @@ contains
     ! tsnd(1:nlev) = tsnd_in(nlev:1:-1,1)
     ! qsnd(1:nlev) = qsnd_in(nlev:1:-1,1)
     ! Variables are already bottom-up in the Netcdf file for some reason .. JvdD
-    
+
     ! No time dependent reference profiles are allowed (yet), first timestep taken
-    do k=1,nlev 
+    do k=1,nlev
       psnd(k) = psnd_in(k,1) / 100
       tsnd(k) = tsnd_in(k,1)
       qsnd(k) = qsnd_in(k,1)
@@ -366,7 +366,7 @@ contains
     integer :: sts(9),ncid,dimIDp,dimIDab,varID,np,nab
     integer :: ab ! Absorber Index
     integer :: m,ks,k,ierr
-    
+
     real    :: plow, pupp, pmid, wgtlow, wgtupp
 !    real    :: godp
     real(kind=kind_rb),allocatable,dimension(:)    :: pMLS  ! Sounding pressure
@@ -429,7 +429,7 @@ contains
 
     do m = 1,nTraceGases
       call getAbsorberIndex(TRIM(traceGasNameOrder(m)),ab) !trace gas order (in), ab (out)
-      trace(m,1:np) = trace_in(ab,1:np)                    !Make sure the profiles are stored 
+      trace(m,1:np) = trace_in(ab,1:np)                    !Make sure the profiles are stored
       where (trace(m,:)>2.)                                !the right order
         trace(m,:) = 0.
       end where
@@ -487,7 +487,7 @@ contains
       if (tmppresh(k).lt.pMLS(np)) then
         trpath(k,:) = trpath(k,:) &
              + (min(tmppresh(k-1),pMLS(np)) - tmppresh(k))/grav &
-             *trace(:,np)                                        
+             *trace(:,np)
       end if
 
     end do ! loop over levels, k
@@ -564,7 +564,7 @@ contains
       use modmpi, only: myid
 
       implicit none
-      
+
       integer,intent(in) :: j,npatch_start,npatch_end
       real(KIND=kind_rb),intent(out) ::    LWP_slice(imax,krad1), &
                                            IWP_slice(imax,krad1), &
@@ -581,10 +581,10 @@ contains
 
       ! Compute absolute temperature and water contents (without border points)
 
-     ! tabs(:,:) = 0.; 
+     ! tabs(:,:) = 0.;
       sstxy(:,:) = 0.
-      tabs_slice(:,:) = 0.; qv_slice(:,:) = 0.; qcl_slice(:,:) = 0.; qci_slice(:,:) = 0.; 
-      
+      tabs_slice(:,:) = 0.; qv_slice(:,:) = 0.; qcl_slice(:,:) = 0.; qci_slice(:,:) = 0.;
+
       sst = thls*(ps/pref0) ** (rd/cp)
 
       do i=2,i1
@@ -597,7 +597,7 @@ contains
 
       !tabs(:,:)     = thl0(2:i1,j,2:k1) * spread(exnf(2:k1),dim=1,ncopies=imax) &
       !                  + (rlv / cp) * ql0(2:i1,j,2:k1)
-     
+
       do i=2,i1
       im=i-1
       do k=1,kmax
@@ -609,7 +609,7 @@ contains
 
          h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
 !         h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
-         layerT    (im,k) = tabs_slice(im,k) 
+         layerT    (im,k) = tabs_slice(im,k)
          layerP    (im,k) = presf_input(k)
       enddo
       enddo
@@ -649,7 +649,7 @@ contains
 
       do i=1,imax
         do k=kmax+1,kradmax
-           
+
            !h2ovmr  (i, k)    = mwdry/mwh2o * (qv_slice(i,k)/(1-qv_slice(i,k)))
            h2ovmr  (i, k)    = mwdry/mwh2o * qv_slice(i,k)
            layerP(i,k)       = presf_input (k)
@@ -672,10 +672,10 @@ contains
           cfc12vmr(i, k) = cfc12(k)
           cfc22vmr(i, k) = cfc22(k)
           ccl4vmr (i, k) = ccl4(k)
-  
+
           interfaceP(i,k ) =   presh_input(k)
         enddo
-  
+
         interfaceP(i, krad2)  = min( 1.e-4_kind_rb , 0.25*layerP(1,krad1) )
         do k=2,krad1
            interfaceT(i, k) = (layerT(i,k-1) + layerT(i, k)) / 2.
@@ -691,10 +691,10 @@ contains
           IWP_slice(i,k) = qci_slice(i,k)*layerMass(i,k)*1e3
         enddo
         layerMass(i,krad1) = 100.*( interfaceP(i,krad1) - interfaceP(i,krad2) ) / grav
-        LWP_slice(i,krad1) = 0. 
+        LWP_slice(i,krad1) = 0.
         IWP_slice(i,krad1) = 0.
       enddo
-      
+
       cloudFrac(:,:) = 0.
       liquidRe (:,:) = 0.
       iceRe    (:,:) = 0.
@@ -740,13 +740,13 @@ contains
 
     logical,intent(out) :: sunUp
     real                :: dayForSW
-    
+
     if(doperpetual) then
         !====================!
         !   To be inserted   !
         !====================!
     else
-      
+
       if(doseasons) then
         ! The diurnal cycle of insolation will vary
         ! according to time of year of the current day.
@@ -757,9 +757,9 @@ contains
         ! repeated throughout the simulation.
         ! dayForSW = float(floor(day0)) + xday - float(floor(xday))
       end if
- 
+
       call shr_orb_decl( dayForSW )                      ! Saves some orbital values to modraddata
-      !if (myid==0) write(*,*) 'eccf = ',eccf 
+      !if (myid==0) write(*,*) 'eccf = ',eccf
       solarZenithAngleCos(:) =  &
            zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
 !      solarZenithAngleCos(:) =  0.707106781               ! cos 45gr
@@ -768,7 +768,7 @@ contains
        !solarZenithAngleCos(:) = 0.356   !cos 69.144 gr
       !solarZenithAngleCos(:) = 1.
        ! solarZenithAngleCos(:) = mu0_cgils
-      
+
     end if
 
     sunUp = .false.
@@ -783,7 +783,7 @@ contains
       else
         call albedo             ! calculate albedo for the solarZenithAngleCos
       end if
-      
+
     end if
 
   end subroutine setupSW

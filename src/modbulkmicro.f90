@@ -168,7 +168,7 @@ module modbulkmicro
        end if
 
        do j=2,j1
-       do i=2,i1 
+       do i=2,i1
        do k=1,k1
           if (Nr(i,j,k) < 0.)  then
             Nr(i,j,k) = 0.
@@ -187,7 +187,7 @@ module modbulkmicro
        if (qr(i,j,k) .gt. qrmin.and.Nr(i,j,k).gt.0)  then
           qrmask (i,j,k) = .true.
        else
-          qrmask (i,j,k) = .false. 
+          qrmask (i,j,k) = .false.
        endif
     enddo
     enddo
@@ -224,7 +224,7 @@ module modbulkmicro
       lbdr (2:i1,2:j1,1:k1) = 0.
 
       if (l_sb ) then
-        
+
         do j=2,j1
         do i=2,i1
         do k=1,k1
@@ -257,7 +257,7 @@ module modbulkmicro
           do k=1,k1
             if (qrmask(i,j,k)) then
 !
-!             mur(2:i1,2:j1,1:k1) = 10. * (1+tanh(1200.*(Dvr(2:i1,2:j1,1:k1)-0.0014))) 
+!             mur(2:i1,2:j1,1:k1) = 10. * (1+tanh(1200.*(Dvr(2:i1,2:j1,1:k1)-0.0014)))
 !             Stevens & Seifert (2008) param
 !
               mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
@@ -358,7 +358,7 @@ module modbulkmicro
       do j=2,j1
       do i=2,i1
       do k=1,k1
-         if (qcmask(i,j,k)) then 
+         if (qcmask(i,j,k)) then
             nuc    (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
 !           nuc    (i,j,k) = 0. !
             xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k) ! No eps0 necessary
@@ -427,7 +427,7 @@ module modbulkmicro
     !
     ! SB accretion
     !
-     
+
      do j=2,j1
      do i=2,i1
      do k=1,k1
@@ -492,7 +492,7 @@ module modbulkmicro
    if (any(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
      write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
    end if
- 
+
    deallocate (phi_br)
 
   end subroutine accretion
@@ -668,9 +668,9 @@ module modbulkmicro
       do k=1,k1
         if (qr_spl(i,j,k) > qrmin) then
            xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
-           xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders 
+           xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders
            Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
-           sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhof(k) 
+           sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhof(k)
            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl(i,j,k)- 0.1) * Nr_spl(i,j,k)
         endif
       enddo
@@ -696,7 +696,7 @@ module modbulkmicro
                 (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
       enddo
-  
+
       if ( jn == 1. ) then
       do j=2,j1
       do i=2,i1
@@ -712,7 +712,7 @@ module modbulkmicro
     Nrp(2:i1,2:j1,1:k1)= Nrp(2:i1,2:j1,1:k1) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/delt
     qrp(2:i1,2:j1,1:k1)= qrp(2:i1,2:j1,1:k1) + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/delt
 
-    deallocate (wvar, xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr) 
+    deallocate (wvar, xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr)
   end subroutine sedimentation_rain
 
   !*********************************************************************
@@ -751,7 +751,7 @@ module modbulkmicro
     enddo
     enddo
 
-                
+
     if (l_sb ) then
        do j=2,j1
        do i=2,i1
@@ -788,7 +788,7 @@ module modbulkmicro
 
     do j=2,j1
     do i=2,i1
-    do k=1,k1  
+    do k=1,k1
        if (evap(i,j,k) < -svm(i,j,k,iqr)/delt .and. qrmask(i,j,k)) then
           Nevap(i,j,k) = - svm(i,j,k,inr)/delt
           evap (i,j,k) = - svm(i,j,k,iqr)/delt

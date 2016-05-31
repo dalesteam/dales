@@ -37,9 +37,9 @@ contains
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
-    
+
     integer :: ierr
-    
+
     namelist/NAMDE/ &
       SSA,iDE,laero
 
@@ -51,7 +51,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
-      if (ierr > 0) then 
+      if (ierr > 0) then
         print *, 'Problem in namoptions NAMDE'
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMDE'
@@ -129,7 +129,7 @@ contains
     lwuca = 0.
 
     swdir = 0.
-    swdif = 0.         
+    swdif = 0.
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
     SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
@@ -172,7 +172,7 @@ contains
       rad_longw  = .false.
       rad_smoke  = .false.
     end if
-    
+
     if (iradiation == 0) return
     itimerad = floor(timerad/tres)
     tnext = itimerad+btime
@@ -221,13 +221,13 @@ contains
             if(rad_longw.or.rad_shortw) then
               call radpar
             endif
-    
-            call rad_user    
-             
+
+            call rad_user
+
       end select
       if (rad_ls) then
         call radprof
-      endif   
+      endif
     end if
     thlp = thlp + thlprad
 
@@ -331,7 +331,7 @@ subroutine radpar
             tau(k) = sv0(i,j,k,iDE)
           else  ! there are clouds
             if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
-          end if  
+          end if
           tauc=tauc+tau(k)
         end do
         call sunray(tau,tauc,i,j)
@@ -434,12 +434,12 @@ subroutine radpar
 
   do k = k1,1,-1
       taupath = taupath + taude(k)
-    
-      Irr0    = sw0*(    c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
-      Irr1    = sw0*(rp*(c1*exp(-rk*taupath) - c2*exp(rk*taupath))- beta *exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+
+      Irr0    = sw0*(    c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976
+      Irr1    = sw0*(rp*(c1*exp(-rk*taupath) - c2*exp(rk*taupath))- beta *exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976
 
       swd(i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu) ! difuse down + direct down
-      swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian) 
+      swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian)
       swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
       swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
       lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.

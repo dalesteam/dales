@@ -17,11 +17,11 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefao: real    
-! kao     : real     
-! kao_mco2: real     
-! selfrefo: real     
-! forrefo : real     
+!fracrefao: real
+! kao     : real
+! kao_mco2: real
+! selfrefo: real
+! forrefo : real
 !cfc11adjo: real
 ! cfc12o  : real
 !-----------------------------------------------------------------
@@ -48,11 +48,11 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefa : real    
-! ka      : real     
-! ka_mco2 : real     
-! selfref : real     
-! forref  : real     
+!fracrefa : real
+! ka      : real
+! ka_mco2 : real
+! selfref : real
+! forref  : real
 !cfc11adj : real
 ! cfc12   : real
 !

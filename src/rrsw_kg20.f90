@@ -18,12 +18,12 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! kao     : real     
-! kbo     : real     
-! selfrefo: real     
+! kao     : real
+! kbo     : real
+! selfrefo: real
 ! forrefo : real
-!sfluxrefo: real     
-! absch4o : real     
+!sfluxrefo: real
+! absch4o : real
 !-----------------------------------------------------------------
 
       integer(kind=im), parameter :: no20 = 16
@@ -34,7 +34,7 @@
       real(kind=rb) :: sfluxrefo(no20)
       real(kind=rb) :: absch4o(no20)
 
-      real(kind=rb) :: rayl 
+      real(kind=rb) :: rayl
 
 !-----------------------------------------------------------------
 ! rrtmg_sw COMBINED abs. coefficients for interval 20
@@ -47,14 +47,14 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! ka      : real     
-! kb      : real     
+! ka      : real
+! kb      : real
 ! absa    : real
 ! absb    : real
-! selfref : real     
+! selfref : real
 ! forref  : real
-! sfluxref: real     
-! absch4  : real     
+! sfluxref: real
+! absch4  : real
 !-----------------------------------------------------------------
 
       real(kind=rb) :: ka(5,13,ng20), absa(65,ng20)

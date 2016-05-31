@@ -18,10 +18,10 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! kao     : real     
-! kbo     : real     
-!sfluxrefo: real     
-! raylo   : real     
+! kao     : real
+! kbo     : real
+!sfluxrefo: real
+! raylo   : real
 !-----------------------------------------------------------------
 
       integer(kind=im), parameter :: no27 = 16
@@ -42,12 +42,12 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! ka      : real     
-! kb      : real     
+! ka      : real
+! kb      : real
 ! absa    : real
 ! absb    : real
-! sfluxref: real     
-! rayl    : real     
+! sfluxref: real
+! rayl    : real
 !-----------------------------------------------------------------
 
       real(kind=rb) :: ka(5,13,ng27), absa(65,ng27)

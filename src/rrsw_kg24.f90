@@ -18,15 +18,15 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! kao     : real     
-! kbo     : real     
-! selfrefo: real     
+! kao     : real
+! kbo     : real
+! selfrefo: real
 ! forrefo : real
-!sfluxrefo: real     
-! abso3ao : real     
-! abso3bo : real     
-! raylao  : real     
-! raylbo  : real     
+!sfluxrefo: real
+! abso3ao : real
+! abso3bo : real
+! raylao  : real
+! raylbo  : real
 !-----------------------------------------------------------------
 
       integer(kind=im), parameter :: no24 = 16
@@ -49,17 +49,17 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! ka      : real     
-! kb      : real     
+! ka      : real
+! kb      : real
 ! absa    : real
 ! absb    : real
-! selfref : real     
+! selfref : real
 ! forref  : real
-! sfluxref: real     
-! abso3a  : real     
-! abso3b  : real     
-! rayla   : real     
-! raylb   : real     
+! sfluxref: real
+! abso3a  : real
+! abso3b  : real
+! rayla   : real
+! raylb   : real
 !-----------------------------------------------------------------
 
       real(kind=rb) :: ka(9,5,13,ng24), absa(585,ng24)

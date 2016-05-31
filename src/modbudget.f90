@@ -415,7 +415,7 @@ contains
                ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                          +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
                 - rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
-                         +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) / dzf(k) 
+                         +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) / dzf(k)
 
       tau1ml(k) = tau1ml(k) + tau1j(i,j,k)
 
@@ -461,7 +461,7 @@ contains
                ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                          +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
                 - rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
-                         +(w0(i,j,k)-w0(i,jm,k))    *dyi)  ) / dzf(k) 
+                         +(w0(i,j,k)-w0(i,jm,k))    *dyi)  ) / dzf(k)
 
       tau2ml(k) = tau2ml(k) + tau2j(i,j,k)
     enddo
@@ -508,7 +508,7 @@ contains
                  + &
                   ( rhobf(k)/rhobh(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
                   - rhobf(km)/rhobh(k) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
-                                                       / dzh(k) 
+                                                       / dzh(k)
 
       tau3ml(k) = tau3ml(k) + tau3j(i,j,k)
 

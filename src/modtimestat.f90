@@ -63,7 +63,7 @@ save
   real   :: qlint
   logical:: store_zi = .false.
 
-  !Variables for heterogeneity 
+  !Variables for heterogeneity
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
   real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
   real, allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
@@ -72,7 +72,7 @@ save
   real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
   real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
   real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
-  !In combination with isurf = 1    
+  !In combination with isurf = 1
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
@@ -116,7 +116,7 @@ contains
     call MPI_BCAST(iblh_var   ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(blh_nsamp  ,1,MPI_INTEGER,0,comm3d,mpierr)
     idtav = dtav/tres
-   
+
     tnext = idtav+btime
 
     if(.not.(ltimestat)) return
@@ -232,7 +232,7 @@ contains
         else
           nvar = 21
         end if
-        
+
         allocate(ncname(nvar,4))
 
         fname(7:9) = cexpnr
@@ -302,7 +302,7 @@ contains
       allocate(u0av_patch(xpatches,ypatches))
       allocate(v0av_patch(xpatches,ypatches))
       allocate(w0av_patch(xpatches,ypatches))
- 
+
       allocate(ust_patch (xpatches,ypatches))
       allocate(qst_patch (xpatches,ypatches))
       allocate(tst_patch (xpatches,ypatches))
@@ -474,7 +474,7 @@ contains
             qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
           endif
         end if
-  
+
         do k=1,kmax
           if (ql0(i,j,k) > 0.) then
             zbaseavl = zbaseavl + zf(k)
@@ -486,7 +486,7 @@ contains
             exit
           end if
         end do
-  
+
       end do
     end do
 
@@ -526,7 +526,7 @@ contains
           patchx = patchxnr(i)
         endif
          ztop  = 0.0
-   
+
          do  k=1,kmax
            if (ql0(i,j,k) > 0) ztop = zf(k)
            wmaxl = max(wm(i,j,k),wmaxl)
@@ -540,13 +540,13 @@ contains
             qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
          enddo
          endif
-  
+
         ztopavl = ztopavl + ztop
         if (ztop > ztopmaxl) ztopmaxl = ztop
 
         if (lhetero) then
           ztop_field = ztop
-          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop 
+          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop
         endif
       end do
     end do
@@ -637,7 +637,7 @@ contains
                           MPI_SUM, comm3d,mpierr)
 
     tke_tot = tke_tot/ijtot
-    
+
     if (lhetero) then
       tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
     endif
@@ -693,7 +693,7 @@ contains
         wthls_patch  = patchsum_1level(thlflux(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         wqls_patch = patchsum_1level( qtflux(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       else
-        wthls_patch  = wt_patch 
+        wthls_patch  = wt_patch
         wqls_patch = wq_patch
       endif
       wthvs_patch = (1.+(rv/rd-1)*qts_patch) * wthls_patch + c2 * (thls_patch) * wq_patch
@@ -812,7 +812,7 @@ contains
             rsvegav     ,&
             Respav      ,&
             wco2av      ,&
-            Anav      
+            Anav
         close(ifoutput)
       end if
       if (lnetcdf) then
@@ -854,7 +854,7 @@ contains
           vars(31) = rssoilav
           vars(32) = rsvegav
         end if
-        
+
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
       end if
 
@@ -915,7 +915,7 @@ contains
                 cliq_patch(i,j)       ,&
                 wl_patch(i,j)         ,&
                 rssoil_patch(i,j)     ,&
-                rsveg_patch(i,j)     
+                rsveg_patch(i,j)
               close(ifoutput)
             endif
           enddo
@@ -1056,7 +1056,7 @@ contains
             zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
           end do
         end do
- 
+
       case (iblh_grad)
         blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
         blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
@@ -1172,7 +1172,7 @@ contains
       deallocate(qlmax_patchl   )
       deallocate(ztopmax_patch  )
       deallocate(ztopmax_patchl )
-        
+
       deallocate(u0av_patch)
       deallocate(v0av_patch)
       deallocate(w0av_patch)
@@ -1197,7 +1197,7 @@ contains
       deallocate(rssoil_patch  )
       deallocate(tskin_patch   )
       deallocate(obl_patch     )
-      
+
       deallocate(zi_patch      )
       deallocate(zi_field      )
       deallocate(ziold_patch   )
@@ -1214,10 +1214,10 @@ contains
    real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
    real, intent(in)    :: x(imax,jmax)
    integer             :: i,j,iind,jind
-   
+
    patchsum_1level = 0
    xl              = 0
-   
+
    do j=1,jmax
      jind  = patchynr(j)
 

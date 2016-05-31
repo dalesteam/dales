@@ -18,8 +18,8 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!sfluxrefo: real     
-! raylo   : real     
+!sfluxrefo: real
+! raylo   : real
 !-----------------------------------------------------------------
 
       integer(kind=im), parameter :: no26 = 16
@@ -38,8 +38,8 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-! sfluxref: real     
-! rayl    : real     
+! sfluxref: real
+! rayl    : real
 !-----------------------------------------------------------------
 
       real(kind=rb) :: sfluxref(ng26)

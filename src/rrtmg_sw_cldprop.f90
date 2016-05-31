@@ -58,7 +58,7 @@
                                                       !    Dimensions: (nlayers)
                                                       ! specific definition of rei depends on setting of iceflag:
                                                       ! iceflag = 0: (inactive)
-                                                      !              
+                                                      !
                                                       ! iceflag = 1: ice effective radius, r_ec, (Ebert and Curry, 1992),
                                                       !              r_ec range is limited to 13.0 to 130.0 microns
                                                       ! iceflag = 2: ice effective radius, r_k, (Key, Streamer Ref. Manual, 1996)
@@ -157,7 +157,7 @@
                enddo
 
 ! (inflag=2): Separate treatement of ice clouds and water clouds.
-            elseif (inflag .eq. 2) then       
+            elseif (inflag .eq. 2) then
                radice = rei(lay)
 
 ! Calculation of absorption coefficients due to ice clouds.
@@ -169,7 +169,7 @@
                      forwice(ib)  = 0.0_rb
                   enddo
 
-! (iceflag = 1): 
+! (iceflag = 1):
 ! Note: This option uses Ebert and Curry approach for all particle sizes similar to
 ! CAM3 implementation, though this is somewhat ineffective for large ice particles
                elseif (iceflag .eq. 1) then
@@ -244,9 +244,9 @@
                      fdelta(ib) = fdlice3(index,ib) + fint * &
                                  (fdlice3(index+1,ib) - fdlice3(index,ib))
                      if (fdelta(ib) .lt. 0.0_rb) stop 'FDELTA LESS THAN 0.0'
-                     if (fdelta(ib) .gt. 1.0_rb) stop 'FDELTA GT THAN 1.0'                     
+                     if (fdelta(ib) .gt. 1.0_rb) stop 'FDELTA GT THAN 1.0'
                      forwice(ib) = fdelta(ib) + 0.5_rb / ssacoice(ib)
-! See Fu 1996 p. 2067 
+! See Fu 1996 p. 2067
                      if (forwice(ib) .gt. gice(ib)) forwice(ib) = gice(ib)
 ! Check to ensure all calculated quantities are within physical limits.
                      if (extcoice(ib) .lt. 0.0_rb) stop 'ICE EXTINCTION LESS THAN 0.0'
@@ -257,7 +257,7 @@
                   enddo
 
                endif
-                  
+
 ! Calculation of absorption coefficients due to water clouds.
                 if (clwp(lay) .eq. 0.0_rb) then
                    do ib = ib1 , ib2
@@ -318,7 +318,7 @@
                    ssacloud(lay,ib) = (scatliq + scatice) / taucloud(lay,ib)
 
                    if (iceflag .eq. 3) then
-! In accordance with the 1996 Fu paper, equation A.3, 
+! In accordance with the 1996 Fu paper, equation A.3,
 ! the moments for ice were calculated depending on whether using spheres
 ! or hexagonal ice crystals.
                       istr = 1
@@ -326,14 +326,14 @@
                          (scatliq*(gliq(ib)**istr - forwliq(ib)) / &
                          (1.0_rb - forwliq(ib)) + scatice * ((gice(ib)-forwice(ib)) / &
                          (1.0_rb - forwice(ib)))**istr)
-                   else 
-! This code is the standard method for delta-m scaling. 
+                   else
+! This code is the standard method for delta-m scaling.
                       istr = 1
                       asmcloud(lay,ib) = (scatliq *  &
                          (gliq(ib)**istr - forwliq(ib)) / &
                          (1.0_rb - forwliq(ib)) + scatice * (gice(ib)**istr - forwice(ib)) / &
                          (1.0_rb - forwice(ib)))/(scatliq + scatice)
-                   endif 
+                   endif
 
                 enddo
 

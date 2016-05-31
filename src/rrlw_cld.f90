@@ -15,13 +15,13 @@
 
 !  name     type     purpose
 ! -----  :  ----   : ----------------------------------------------
-! abscld1:  real   : 
-! absice0:  real   : 
-! absice1:  real   : 
-! absice2:  real   : 
-! absice3:  real   : 
-! absliq0:  real   : 
-! absliq1:  real   : 
+! abscld1:  real   :
+! absice0:  real   :
+! absice1:  real   :
+! absice2:  real   :
+! absice3:  real   :
+! absliq0:  real   :
+! absliq1:  real   :
 !------------------------------------------------------------------
 
       real(kind=rb) :: abscld1

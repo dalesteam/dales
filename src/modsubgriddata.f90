@@ -57,7 +57,7 @@ save
   real, allocatable :: sbshr(:,:,:) !< shear production
   real, allocatable :: sbbuo(:,:,:) !< buoyancy production / destruction
   real, allocatable :: zlt(:,:,:)   !< filter width
-  
+
   real, allocatable :: csz(:)       !< Smagorinsky constant
 
 end module modsubgriddata

@@ -17,19 +17,19 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefao: real    
-!fracrefbo: real    
-! kao     : real     
-! kbo     : real     
-! kao_mco2: real     
-! kbo_mco2: real     
-! kao_mn2o: real     
-! kbo_mn2o: real     
-! kao_mo3 : real     
-! selfrefo: real     
-! forrefo : real     
-! cfc12o  : real     
-!cfc22adjo: real     
+!fracrefao: real
+!fracrefbo: real
+! kao     : real
+! kbo     : real
+! kao_mco2: real
+! kbo_mco2: real
+! kao_mn2o: real
+! kbo_mn2o: real
+! kao_mo3 : real
+! selfrefo: real
+! forrefo : real
+! cfc12o  : real
+!cfc22adjo: real
 !-----------------------------------------------------------------
 
       integer(kind=im), parameter :: no8  = 16
@@ -60,19 +60,19 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefa : real    
-!fracrefb : real    
-! ka      : real     
-! kb      : real     
-! ka_mco2 : real     
-! kb_mco2 : real     
-! ka_mn2o : real     
-! kb_mn2o : real     
-! ka_mo3  : real     
-! selfref : real     
-! forref  : real     
-! cfc12   : real     
-! cfc22adj: real     
+!fracrefa : real
+!fracrefb : real
+! ka      : real
+! kb      : real
+! ka_mco2 : real
+! kb_mco2 : real
+! ka_mn2o : real
+! kb_mn2o : real
+! ka_mo3  : real
+! selfref : real
+! forref  : real
+! cfc12   : real
+! cfc22adj: real
 !
 ! absa    : real
 ! absb    : real

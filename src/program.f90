@@ -66,7 +66,7 @@
 !! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
 !! \par todo (future)
 !! - General code cleanup
-!! - Unified and simpler diagnostics 
+!! - Unified and simpler diagnostics
 !! - Fielddump timing (Johan)
 !! - Input header detection (Steef)
 !! - Cleanup namoptions, remove dtav and timeav from some of the namoptions
@@ -126,8 +126,8 @@ program DALES      !Version 4.0.0alpha
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
-  use modcrosssection, only : initcrosssection, crosssection,exitcrosssection  
-  use modAGScross,     only : initAGScross, AGScross,exitAGScross  
+  use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
+  use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
@@ -199,7 +199,7 @@ program DALES      !Version 4.0.0alpha
     call samptend(tend_start,firstterm=.true.)
 
 !-----------------------------------------------------
-!   3.1   RADIATION         
+!   3.1   RADIATION
 !-----------------------------------------------------
     call radiation !radiation scheme
     call samptend(tend_rad)

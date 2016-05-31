@@ -113,15 +113,15 @@ subroutine initstattend
     qtpav = 0
 
     if(myid==0)then
-      open (ifoutput,file='utend.'//cexpnr,status='replace')  
+      open (ifoutput,file='utend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='vtend.'//cexpnr,status='replace')  
+      open (ifoutput,file='vtend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='wtend.'//cexpnr,status='replace')  
+      open (ifoutput,file='wtend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='thltend.'//cexpnr,status='replace')  
+      open (ifoutput,file='thltend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='qttend.'//cexpnr,status='replace')  
+      open (ifoutput,file='qttend.'//cexpnr,status='replace')
       close (ifoutput)
     endif
 

@@ -33,9 +33,9 @@
       integer(kind=im), parameter :: mxmol  = 38
       integer(kind=im), parameter :: nstr   = 2
       integer(kind=im), parameter :: nmol   = 7
-! Use for 112 g-point model   
+! Use for 112 g-point model
       integer(kind=im), parameter :: ngptsw = 112    !jpgpt
-! Use for 224 g-point model   
+! Use for 224 g-point model
 !      integer(kind=im), parameter :: ngptsw = 224   !jpgpt
 
 ! may need to rename these - from v2.6
@@ -50,7 +50,7 @@
       integer(kind=im), parameter :: jmxstr   = 16
 ! ^
 
-! Use for 112 g-point model   
+! Use for 112 g-point model
       integer(kind=im), parameter :: ng16 = 6
       integer(kind=im), parameter :: ng17 = 12
       integer(kind=im), parameter :: ng18 = 8
@@ -81,7 +81,7 @@
       integer(kind=im), parameter :: ngs28 = 100
       integer(kind=im), parameter :: ngs29 = 112
 
-! Use for 224 g-point model   
+! Use for 224 g-point model
 !      integer(kind=im), parameter :: ng16 = 16
 !      integer(kind=im), parameter :: ng17 = 16
 !      integer(kind=im), parameter :: ng18 = 16
@@ -114,7 +114,7 @@
 
 ! Source function solar constant
       real(kind=rb), parameter :: rrsw_scon = 1.36822e+03     ! W/m2
- 
+
       end module parrrsw
 
 

@@ -176,7 +176,7 @@ contains
     uwthavl     = 0.0
     vwthavl     = 0.0
     qrfavl      = 0.0
-    
+
     nrsamphl    = 0.0
     wwrhavl     = 0.0
     wwsfavl     = 0.0
@@ -647,17 +647,17 @@ contains
 !     2)       fluxes on half levels
 
     do k=2,kmax
-      massflxhavl(k,isamp) = massflxhavl(k,isamp) + sum(w0   (2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      wthlthavl   (k,isamp) = wthlthavl   (k,isamp) + sum(wthlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      wthvthavl   (k,isamp) = wthvthavl   (k,isamp) + sum(wthvth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      wqtthavl   (k,isamp) = wqtthavl   (k,isamp) + sum(wqtth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      wqlthavl   (k,isamp) = wqlthavl   (k,isamp) + sum(wqlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      uwthavl    (k,isamp) = uwthavl    (k,isamp) + sum(uwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
-      vwthavl    (k,isamp) = vwthavl    (k,isamp) + sum(vwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k)) 
+      massflxhavl(k,isamp) = massflxhavl(k,isamp) + sum(w0   (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      wthlthavl   (k,isamp) = wthlthavl   (k,isamp) + sum(wthlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      wthvthavl   (k,isamp) = wthvthavl   (k,isamp) + sum(wthvth(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      wqtthavl   (k,isamp) = wqtthavl   (k,isamp) + sum(wqtth(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      wqlthavl   (k,isamp) = wqlthavl   (k,isamp) + sum(wqlth(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      uwthavl    (k,isamp) = uwthavl    (k,isamp) + sum(uwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      vwthavl    (k,isamp) = vwthavl    (k,isamp) + sum(vwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       wwrhavl    (k,isamp) = wwrhavl    (k,isamp) + sum(wwrh (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       ! there may be some numerical noise in wp_store due to the Runge Kutta time integration scheme
       dwdthavl   (k,isamp) = dwdthavl   (k,isamp) + sum(wp_store(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
-                                            
+
       wh_el      (k,isamp) =                        sum(w0 (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       sigh_el    (k,isamp) =                        count(maskh(2:i1,2:j1,k))
 
@@ -675,7 +675,7 @@ contains
            duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwrh(i+1,j,k) - uwrh (i,j,k))/dx - &
                                                        (vwrh(i,j+1,k) - vwrh (i,j,k))/dy
            dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uwsh(i+1,j,k) - uwsh (i,j,k))/dx - &
-                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy   
+                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy
            dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (1./rhobh(k))*(rhobf(k)*wwsf(i,j,k)   - rhobf(k-1)*wwsf(i,j,k-1))/dzh(k)
            fcorhavl  (k,isamp) = fcorhavl(k,isamp) + om22 * cu  &
                                       +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
@@ -695,7 +695,7 @@ contains
            duwdxhavl (k,isamp) = duwdxhavl (k,isamp) - (uwrh(i+1,j,k) - uwrh (i,j,k))/dx - &
                                                        (vwrh(i,j+1,k) - vwrh (i,j,k))/dy
            dtaudxhavl(k,isamp) = dtaudxhavl(k,isamp) - (uwsh(i+1,j,k) - uwsh (i,j,k))/dx - &
-                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy   
+                                                       (vwsh(i,j+1,k) - vwsh (i,j,k))/dy
            dtaudzhavl(k,isamp) = dtaudzhavl(k,isamp) - (1./rhobh(k))*(rhobf(k)*wwsf(i,j,k)   - rhobf(k-1)*wwsf(i,j,k-1))/dzh(k)
            fcorhavl  (k,isamp) = fcorhavl(k,isamp) + om22 * cu  &
                                       +( (dzf(k-1) * (u0(i,j,k)   + u0(i+1,j,k) )    &
@@ -720,7 +720,7 @@ contains
             wwshav0 (k) = wwthav0(k) - whav0(k)**2
         endif
     enddo
-   
+
     do k=2,kmax-1
        if (nrsamph0(k-1) * nrsamph0(k) * nrsamph0(k+1).ne.0) then
          nrtsamphav (k,isamp) = nrtsamphav (k,isamp) + 1
@@ -765,7 +765,7 @@ contains
                                         pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                                         dtaudxhmn,dtaudzhmn,thvhmn, &
                                         fcorhmn
-    real, allocatable, dimension(:,:):: nrsamph,wwrhav,wwsfav, & 
+    real, allocatable, dimension(:,:):: nrsamph,wwrhav,wwsfav, &
                                         pfav,dwdthav,dwwdzhav,dpdzhav,duwdxhav,&
                                         dtaudxhav,dtaudzhav,thvhav,&
                                         fcorhav,wh_e,sigh_e
@@ -846,7 +846,7 @@ contains
     uwthavl     = 0.0
     vwthavl     = 0.0
     qrfavl      = 0.0
-    
+
     nrsamphl    = 0.0
     wwrhavl     = 0.0
     wwsfavl     = 0.0

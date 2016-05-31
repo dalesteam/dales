@@ -144,7 +144,7 @@ contains
       write(6 ,DYNAMICS)
       close(ifnamopt)
     end if
-    
+
   !broadcast namelists
     call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
@@ -339,9 +339,9 @@ contains
 
     if (ltimedep .and. lhetero) then
       if (myid == 0) write(6,*)&
-      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
       if (myid == 0) write(0,*)&
-      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
     endif
 
   end subroutine checkinitvalues
@@ -362,7 +362,7 @@ contains
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero,qskin 
+                                  thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
@@ -542,7 +542,7 @@ contains
       oblav = -0.1
 
       call qtsurf
-      
+
       dthldz = (thlprof(1) - thls)/zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
       if(lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
@@ -550,7 +550,7 @@ contains
       u0av(1)   = uprof(1)
       thl0av(1) = thlprof(1)
       svs = svprof(1,:)
-     
+
       call baseprofs ! call baseprofs before thermodynamics
       call boundary
       call thermodynamics
@@ -631,7 +631,7 @@ contains
       sv0av = sv0av /ijtot
       th0av  = thl0av + (rlv/cp)*ql0av/exnf
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-      
+
       do k=1,k1
         rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
       end do
@@ -1049,7 +1049,7 @@ contains
     real :: zsurf=0.
     real :: tsurf
     real,dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
-    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/) 
+    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
     real,dimension(4) :: pmat
     real,dimension(4) :: tmat
 
@@ -1098,7 +1098,7 @@ contains
           log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
         tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
         ! write(*,*)(*,*) 'make profiles'
-        
+
         do j=2,4
           if(abs(lapserate(j))<1e-10) then
             pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
@@ -1108,7 +1108,7 @@ contains
           endif
           tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
         enddo
-        
+
         do k=1,k1
           if(zf(k)<zmat(1)) then
             pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
@@ -1144,7 +1144,7 @@ contains
           log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
         tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
         ! write(*,*)(*,*) 'make profiles'
-        
+
         do j=2,4
           if(abs(lapserate(j))<1e-10) then
             pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
@@ -1154,7 +1154,7 @@ contains
           endif
           tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
         enddo
-        
+
         do k=1,k1
           if(zf(k)<zmat(1)) then
             pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
@@ -1194,7 +1194,7 @@ contains
       open (ifinput,file='baseprof.inp.'//cexpnr)
       read (ifinput,'(a80)') chmess
       read (ifinput,'(a80)') chmess
-      
+
       do k=1,kmax
         read (ifinput,*) &
                 height(k), &
@@ -1202,7 +1202,7 @@ contains
       end do
       close(ifinput)
 
-   
+
       rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
 
       do k=2,k1
@@ -1217,7 +1217,7 @@ contains
     end do
 
     drhobdzf(k1) = drhobdzf(kmax)
-  
+
     drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
 
     do k=2,k1

@@ -7,7 +7,7 @@
       save
 
 !------------------------------------------------------------------
-! rrtmg_sw reference atmosphere 
+! rrtmg_sw reference atmosphere
 ! Based on standard mid-latitude summer profile
 !
 ! Initial version:  JJMorcrette, ECMWF, jul1998

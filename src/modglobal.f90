@@ -45,7 +45,7 @@ save
       integer ::  jh=3
       integer ::  kh=1
       integer ::  kcb=0
-      
+
       character(50) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
@@ -74,8 +74,8 @@ save
       real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
-      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation 
-      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation 
+      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation
+      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation
       real,parameter :: tup     = 268.             !<    * Temperature range over which mixed phase occurs (high)
       real,parameter :: tdn     = 253.             !<    * Temperature range over which mixed phase occurs (low)
       real,parameter :: ep       = rd/rv            !<    0.622
@@ -99,7 +99,7 @@ save
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
-      integer :: igrw_damp = 2 !< switch to enable gravity wave damping 
+      integer :: igrw_damp = 2 !< switch to enable gravity wave damping
       real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real    :: om22                       !<    *2.*omega_earth*cos(lat)
       real    :: om23                       !<    *2.*omega_earth*sin(lat)
@@ -114,7 +114,7 @@ save
       integer :: ibas_prf = 3
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)
       integer, parameter :: ibas_bou    = 2 !< Boussinesq-like
-      integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction 
+      integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction
       integer, parameter :: ibas_st2    = 4 !< Standard atmosphere, surface temperature 15 Celsius
       integer, parameter :: ibas_usr    = 5 !< User specified
 
@@ -129,15 +129,15 @@ save
       integer, parameter :: iadv_kappa  = 7
       integer, parameter :: iadv_hybrid = 55
 
-      real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or 
+      real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
       ! Tabulated saturation relation
       real, dimension(1:2000) :: ttab
       real, dimension(1:2000) :: esatltab
-      real, dimension(1:2000) :: esatitab     
+      real, dimension(1:2000) :: esatitab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
-                                             
+
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
@@ -168,7 +168,7 @@ save
       integer :: ntimee         !<     * number of timesteps since the cold start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-      
+
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
 
       real    :: courant = -1
@@ -265,7 +265,7 @@ contains
    end if
 
     ! phsgrid
-    imax = itot/nprocx 
+    imax = itot/nprocx
     jmax = jtot/nprocy
     i1=imax+1
     j1=jmax+1
@@ -465,10 +465,10 @@ contains
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)
- 
+
 ! Code converted using TO_F90 by Alan Miller
 ! Date: 2003-01-14  Time: 15:25:00
- 
+
 !----------------------------------------------------------------------
 
 ! This routine calculates the GAMMA function for a real argument X.

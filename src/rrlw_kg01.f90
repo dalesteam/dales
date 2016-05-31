@@ -17,13 +17,13 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefao: real    
+!fracrefao: real
 !fracrefbo: real
-! kao     : real     
-! kbo     : real     
-! kao_mn2 : real     
-! kbo_mn2 : real     
-! selfrefo: real     
+! kao     : real
+! kbo     : real
+! kao_mn2 : real
+! kbo_mn2 : real
+! selfrefo: real
 ! forrefo : real
 !-----------------------------------------------------------------
       integer(kind=im), parameter :: no1  = 16
@@ -45,15 +45,15 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefa : real    
+!fracrefa : real
 !fracrefb : real
-! ka      : real     
-! kb      : real     
+! ka      : real
+! kb      : real
 ! absa    : real
 ! absb    : real
-! ka_mn2  : real     
-! kb_mn2  : real     
-! selfref : real     
+! ka_mn2  : real
+! kb_mn2  : real
+! selfref : real
 ! forref  : real
 !-----------------------------------------------------------------
 

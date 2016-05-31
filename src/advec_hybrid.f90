@@ -3,7 +3,7 @@
 !  around locations were discontinuities arise. There, the 5th order WENO scheme is used.
 !  Discontinuities should be preserved, while the damping of high wavenumber components of the flow,
 !  common in pure WENO solutions.
-!  The scheme is more or less equal to the scheme proposed by Hill and Pullin (2004) but using 
+!  The scheme is more or less equal to the scheme proposed by Hill and Pullin (2004) but using
 !  the fifth order advection scheme instead of their tuned one.
 !  JvdD (2011)
 !
@@ -59,7 +59,7 @@ subroutine advecc_hybrid(pin,pout)
 
   ! Initialize face values
   pfacex=0.;pfacey=0.;pfacez=0.
-  
+
   ! calculate the smoothness indicator in all 3 directions and immediately check if it exceeds the critical value
   ! note that the smoothness indicator is defined at cell [i]faces[/i].
   lsmx = smoothness(pin,1)<lambda_crit
@@ -76,8 +76,8 @@ subroutine advecc_hybrid(pin,pout)
   ! The smoothness is not checked at these levels, because 5th order (WENO) advection cannot be used anyway.
   pfacez(2:i1,2:j1,2:3)     = ( rhopin(2:i1,2:j1,2:3)+rhopin(2:i1,2:j1,1:2) )/2    !note that pin and pfacez do not have the same dimensions!
   pfacez(2:i1,2:j1,kmax:k1) = ( rhopin(2:i1,2:j1,kmax:k1)+rhopin(2:i1,2:j1,kmax-1:kmax) )/2
-  
-  ! Start looping over the remaining points 
+
+  ! Start looping over the remaining points
   do j=2,j1+1
     jp2=j+2;jm3=j-3
     do i=2,i1+1
@@ -153,8 +153,8 @@ function ip_hybrid(vin,lpos,lsmooth)
                                            ! Values 1,2 or 3 should work
   real,parameter    :: epsWeno=1e-12       ! Small value set to keep from dividing by zero
   integer           :: sgn                 ! 1 if velocity is positive, -1 if velocity is negative
- 
-  sgn=-1 
+
+  sgn=-1
 
   if (lsmooth) then ! field around this location is smooth -> use regular 5th order (upwind)
     if (lpos) sgn=1 ! set sgn, to account for different wind directions
@@ -188,7 +188,7 @@ function ip_hybrid(vin,lpos,lsmooth)
     wgt = wgtOpt*(epsWeno+beta)**(-pweno)
     wgtfac = sum(wgt)**(-1)
 
-    ! compute interpolated value 
+    ! compute interpolated value
     ip_hybrid = sum(wgt(:)*varFace(:))*wgtfac
   end if
 
@@ -225,7 +225,7 @@ function smoothness(pin,dir)
   else ! probably qt
     phi_tilde = 1.e-3
   end if
-  
+
   ! Calculate 'small' value to keep from dividing by zero. Value is relative to a
   ! representative value of the variable being advected (=phi_tilde where phi \in {qt,thl,sv,u,v,w,tke})
   eps_hybrid = 1.e-8*phi_tilde**2

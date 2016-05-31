@@ -17,13 +17,13 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefao: real    
+!fracrefao: real
 !fracrefbo: real
-! kao     : real     
-! kbo     : real     
-! kao_mo3 : real     
-! selfrefo: real     
-! forrefo : real     
+! kao     : real
+! kbo     : real
+! kao_mo3 : real
+! selfrefo: real
+! forrefo : real
 ! ccl4o   : real
 !-----------------------------------------------------------------
 
@@ -48,13 +48,13 @@
 !
 !  name     type     purpose
 !  ----   : ----   : ---------------------------------------------
-!fracrefa : real    
+!fracrefa : real
 !fracrefb : real
-! ka      : real     
-! kb      : real     
-! ka_mo3  : real     
-! selfref : real     
-! forref  : real     
+! ka      : real
+! kb      : real
+! ka_mo3  : real
+! selfref : real
+! forref  : real
 ! ccl4    : real
 !
 ! absa    : real
@@ -70,7 +70,7 @@
       real(kind=rb) :: selfref(10,ng5)
       real(kind=rb) :: forref(4,ng5)
       real(kind=rb) :: ccl4(ng5)
-      
+
       equivalence (ka(1,1,1,1),absa(1,1)),(kb(1,1,13,1),absb(1,1))
 
       end module rrlw_kg05

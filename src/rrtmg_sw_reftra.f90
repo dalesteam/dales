@@ -30,8 +30,8 @@
       subroutine reftra_sw(nlayers, lrtchk, pgg, prmuz, ptau, pw, &
                            pref, prefd, ptra, ptrad)
 ! --------------------------------------------------------------------
-  
-! Purpose: computes the reflectivity and transmissivity of a clear or 
+
+! Purpose: computes the reflectivity and transmissivity of a clear or
 !   cloudy layer using a choice of various approximations.
 !
 ! Interface:  *rrtmg_sw_reftra* is called by *rrtmg_sw_spcvrt*
@@ -40,9 +40,9 @@
 ! explicit arguments :
 ! --------------------
 ! inputs
-! ------ 
+! ------
 !      lrtchk  = .t. for all layers in clear profile
-!      lrtchk  = .t. for cloudy layers in cloud profile 
+!      lrtchk  = .t. for cloudy layers in cloud profile
 !              = .f. for clear layers in cloud profile
 !      pgg     = assymetry factor
 !      prmuz   = cosine solar zenith angle
@@ -52,7 +52,7 @@
 ! outputs
 ! -------
 !      pref    : collimated beam reflectivity
-!      prefd   : diffuse beam reflectivity 
+!      prefd   : diffuse beam reflectivity
 !      ptra    : collimated beam transmissivity
 !      ptrad   : diffuse beam transmissivity
 !
@@ -80,14 +80,14 @@
       integer(kind=im), intent(in) :: nlayers
 
       logical, intent(in) :: lrtchk(:)                         ! Logical flag for reflectivity and
-                                                               ! and transmissivity calculation; 
+                                                               ! and transmissivity calculation;
                                                                !   Dimensions: (nlayers)
 
       real(kind=rb), intent(in) :: pgg(:)                      ! asymmetry parameter
                                                                !   Dimensions: (nlayers)
       real(kind=rb), intent(in) :: ptau(:)                     ! optical depth
                                                                !   Dimensions: (nlayers)
-      real(kind=rb), intent(in) :: pw(:)                       ! single scattering albedo 
+      real(kind=rb), intent(in) :: pw(:)                       ! single scattering albedo
                                                                !   Dimensions: (nlayers)
       real(kind=rb), intent(in) :: prmuz                       ! cosine of solar zenith angle
 
@@ -138,7 +138,7 @@
          else
             zto1=ptau(jk)
             zw  =pw(jk)
-            zg  =pgg(jk)  
+            zg  =pgg(jk)
 
 ! General two-stream expressions
 
@@ -147,37 +147,37 @@
                zgamma1= (7._rb - zw * (4._rb + zg3)) * 0.25_rb
                zgamma2=-(1._rb - zw * (4._rb - zg3)) * 0.25_rb
                zgamma3= (2._rb - zg3 * prmuz ) * 0.25_rb
-            else if (kmodts == 2) then  
+            else if (kmodts == 2) then
                zgamma1= (8._rb - zw * (5._rb + zg3)) * 0.25_rb
                zgamma2=  3._rb *(zw * (1._rb - zg )) * 0.25_rb
                zgamma3= (2._rb - zg3 * prmuz ) * 0.25_rb
-            else if (kmodts == 3) then  
+            else if (kmodts == 3) then
                zgamma1= zsr3 * (2._rb - zw * (1._rb + zg)) * 0.5_rb
                zgamma2= zsr3 * zw * (1._rb - zg ) * 0.5_rb
                zgamma3= (1._rb - zsr3 * zg * prmuz ) * 0.5_rb
             end if
             zgamma4= 1._rb - zgamma3
-    
+
 ! Recompute original s.s.a. to test for conservative solution
 
             zwo= zw / (1._rb - (1._rb - zw) * (zg / (1._rb - zg))**2)
-    
+
             if (zwo >= zwcrit) then
 ! Conservative scattering
 
-               za  = zgamma1 * prmuz 
+               za  = zgamma1 * prmuz
                za1 = za - zgamma3
                zgt = zgamma1 * zto1
-        
+
 ! Homogeneous reflectance and transmittance,
 ! collimated beam
 
                ze1 = min ( zto1 / prmuz , 500._rb)
 !               ze2 = exp( -ze1 )
 
-! Use exponential lookup table for transmittance, or expansion of 
+! Use exponential lookup table for transmittance, or expansion of
 ! exponential for low tau
-               if (ze1 .le. od_lo) then 
+               if (ze1 .le. od_lo) then
                   ze2 = 1._rb - ze1 + 0.5_rb * ze1 * ze1
                else
                   tblind = ze1 / (bpade + ze1)
@@ -192,12 +192,12 @@
 ! isotropic incidence
 
                prefd(jk) = zgt / (1._rb + zgt)
-               ptrad(jk) = 1._rb - prefd(jk)        
+               ptrad(jk) = 1._rb - prefd(jk)
 
-! This is applied for consistency between total (delta-scaled) and direct (unscaled) 
+! This is applied for consistency between total (delta-scaled) and direct (unscaled)
 ! calculations at very low optical depths (tau < 1.e-4) when the exponential lookup
 ! table returns a transmittance of 1.0.
-               if (ze2 .eq. 1.0_rb) then 
+               if (ze2 .eq. 1.0_rb) then
                   pref(jk) = 0.0_rb
                   ptra(jk) = 1.0_rb
                   prefd(jk) = 0.0_rb
@@ -210,7 +210,7 @@
                za1 = zgamma1 * zgamma4 + zgamma2 * zgamma3
                za2 = zgamma1 * zgamma3 + zgamma2 * zgamma4
                zrk = sqrt ( zgamma1**2 - zgamma2**2)
-               zrp = zrk * prmuz               
+               zrp = zrk * prmuz
                zrp1 = 1._rb + zrp
                zrm1 = 1._rb - zrp
                zrk2 = 2._rb * zrk
@@ -231,7 +231,7 @@
 !               zbeta = - zr5 / zr4
                zbeta = (zgamma1 - zrk) / zrkg
 !!
-        
+
 ! Homogeneous reflectance and transmittance
 
                ze1 = min ( zrk * zto1, 500._rb)
@@ -249,9 +249,9 @@
 !              zep2 = exp( ze2 )
 !              zem2 = 1._rb / zep2
 !
-! Use exponential lookup table for transmittance, or expansion of 
+! Use exponential lookup table for transmittance, or expansion of
 ! exponential for low tau
-               if (ze1 .le. od_lo) then 
+               if (ze1 .le. od_lo) then
                   zem1 = 1._rb - ze1 + 0.5_rb * ze1 * ze1
                   zep1 = 1._rb / zem1
                else
@@ -261,7 +261,7 @@
                   zep1 = 1._rb / zem1
                endif
 
-               if (ze2 .le. od_lo) then 
+               if (ze2 .le. od_lo) then
                   zem2 = 1._rb - ze2 + 0.5_rb * ze2 * ze2
                   zep2 = 1._rb / zem2
                else
@@ -284,7 +284,7 @@
                if (zdenr .ge. -eps .and. zdenr .le. eps) then
                   pref(jk) = eps
                   ptra(jk) = zem2
-               else 
+               else
                   pref(jk) = zw * (zr1*zep1 - zr2*zem1 - zr3*zem2) / zdenr
                   ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) / zdent
                endif
@@ -299,9 +299,9 @@
 
             endif
 
-         endif         
+         endif
 
-      enddo    
+      enddo
 
       end subroutine reftra_sw
 

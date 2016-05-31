@@ -148,7 +148,7 @@ contains
 !! \endlatexonly
  subroutine grwdamp
   use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
-  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg & 
+  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 

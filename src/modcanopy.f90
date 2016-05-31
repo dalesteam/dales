@@ -66,7 +66,7 @@ contains
     namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai, lpaddistr, npaddistr, &
                         wth_total, wqt_total, wsv_total, wth_can, wqt_can, wsv_can, &
                         wth_alph, wqt_alph, wsv_alph
-  
+
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCANOPY,iostat=ierr)
@@ -77,11 +77,10 @@ contains
       endif
       write(6 ,NAMCANOPY)
       close(ifnamopt)
-  
+
       ncanopy = min(ncanopy,kmax)
     endif
-  
-  
+
     call MPI_BCAST(lcanopy   ,   1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(ncanopy   ,   1, mpi_integer , 0, comm3d, mpierr)
     call MPI_BCAST(cd        ,   1, my_real     , 0, comm3d, mpierr)
@@ -99,7 +98,7 @@ contains
     call MPI_BCAST(wsv_alph  , 100, my_real     , 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
-    
+
     if (.not. lpaddistr) npaddistr = 11
 
     allocate(padfactor (npaddistr))
@@ -128,7 +127,7 @@ contains
         close(ifinput)
 
         !And now, weigh it such that the array of averages of 2 adjacent padfactor values is on average 1 (just in case the user's array does not fulfill that criterion)
-        padfactor = padfactor * (npaddistr-1) * 2 / sum(padfactor(1:(npaddistr-1))+padfactor(2:npaddistr)) 
+        padfactor = padfactor * (npaddistr-1) * 2 / sum(padfactor(1:(npaddistr-1))+padfactor(2:npaddistr))
 
         write(*,*) 'Prescribed weighing for plant area density from surface to canopy top (equidistant); normalized if necessary'
         do k=1,npaddistr
@@ -171,7 +170,7 @@ contains
       padf(k) = ( dzh(kp) * padh(k) + dzh(k) * padh(kp) ) / ( dzh(k) + dzh(kp) )
     end do
 
-    ! Vertically integrate the plant area density to arrive at plant area index 
+    ! Vertically integrate the plant area density to arrive at plant area index
     pai = 0.0
     do k=ncanopy,1,-1
       pai(k) = pai(k+1) + dzf(k) * padf(k)
@@ -179,7 +178,7 @@ contains
 
     return
   end subroutine initcanopy
-  
+
   subroutine canopy
     use modfields,   only : up,vp,wp,e12p,thlp,qtp,sv0,svp
     use modsurfdata, only : thlflux, qtflux, svflux
@@ -189,9 +188,9 @@ contains
 
     integer n
     real :: zeroar(i2,j2)
-    
+
     zeroar = 0.0
-  
+
     if (.not. (lcanopy)) return
 
 !!  Momentum affected by trees
@@ -221,7 +220,7 @@ contains
 
     return
   end subroutine canopy
-  
+
   subroutine exitcanopy
     implicit none
 
@@ -236,7 +235,7 @@ contains
     deallocate(pai      )
     return
   end subroutine exitcanopy
-  
+
   subroutine canopyu (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0
@@ -257,13 +256,13 @@ contains
                 ((vcor(1:imax,2:j1,k)+vcor(2:i1,2:j1,k)+vcor(1:imax,3:j2,k)+vcor(2:i1,3:j2,k))/4)**2 + &
                 ((dzh(kp)*(w0(1:imax,2:j1,k)+w0(2:i1,2:j1,k))+dzh(k)*(w0(1:imax,2:j1,kp)+w0(2:i1,2:j1,kp)))/(2*(dzh(k)+dzh(kp))))**2 &
                 )
-      
+
       putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * ucor(2:i1,2:j1,k)
     end do
 
     return
   end subroutine canopyu
-    
+
   subroutine canopyv (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0
@@ -284,13 +283,13 @@ contains
                 ((ucor(3:i2,2:j1,k)+ucor(2:i1,2:j1,k)+ucor(3:i2,1:jmax,k)+ucor(2:i1,1:jmax,k))/4)**2 + &
                 ((dzh(kp)*(w0(2:i1,1:jmax,k)+w0(2:i1,2:j1,k))+dzh(k)*(w0(2:i1,1:jmax,kp)+w0(2:i1,2:j1,kp)))/(2*(dzh(k)+dzh(kp))))**2 &
                 )
-      
+
       putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * vcor(2:i1,2:j1,k)
     end do
 
     return
   end subroutine canopyv
-    
+
   subroutine canopyw (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0
@@ -311,13 +310,13 @@ contains
                 ((dzf(km)*(ucor(2:i1,2:j1,k)+ucor(3:i2,2:j1,k))+dzf(k)*(ucor(2:i1,2:j1,km)+ucor(3:i2,2:j1,km)))/(4*dzh(k)))**2 + &
                 ((dzf(km)*(vcor(2:i1,2:j1,k)+vcor(2:i1,3:j2,k))+dzf(k)*(vcor(2:i1,2:j1,km)+vcor(2:i1,3:j2,km)))/(4*dzh(k)))**2 &
                 )
-      
+
       putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * w0(2:i1,2:j1,k)
     end do
 
     return
   end subroutine canopyw
-  
+
   subroutine canopye (putout)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0, e120
@@ -338,13 +337,13 @@ contains
                                  ((vcor(2:i1,3:j2,k)+vcor(2:i1,2:j1,k))/2)**2 + &
                 ((dzh(kp)*w0(2:i1,2:j1,k)+dzh(k)*w0(2:i1,2:j1,kp))/(dzh(k)+dzh(kp)))**2 &
                 )
-      
+
       putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - e120(2:i1,2:j1,k) * ftau
     end do
 
     return
   end subroutine canopye
- 
+
   subroutine canopyc (putout, flux_top, flux_surf, alpha, pai)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, dzf, imax, jmax
     use modfields, only  : rhobh, rhobf
@@ -358,7 +357,7 @@ contains
     real                :: flux_net (i2,j2)
     integer             :: k
     real                :: integratedcontribution(imax,jmax,ncanopy+1), tendency(imax,jmax,ncanopy)
-    
+
     flux_net                        = flux_top * rhobh(ncanopy+1) - flux_surf * rhobh(1)
     integratedcontribution(:,:,1)   = 0.0
 

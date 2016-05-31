@@ -31,13 +31,13 @@
                            pdbt, prdnd, prup, prupd, ptdbt, &
                            pfd, pfu)
 ! --------------------------------------------------------------------------
- 
+
 ! Purpose: This routine performs the vertical quadrature integration
 !
 ! Interface:  *vrtqdr_sw* is called from *spcvrt_sw* and *spcvmc_sw*
 !
 ! Modifications.
-! 
+!
 ! Original: H. Barker
 ! Revision: Integrated with rrtmg_sw, J.-J. Morcrette, ECMWF, Oct 2002
 ! Revision: Reformatted for consistency with rrtmg_lw: MJIacono, AER, Jul 2006
@@ -85,7 +85,7 @@
       integer(kind=im) :: ikp, ikx, jk
 
       real(kind=rb) :: zreflect
-      real(kind=rb) :: ztdn(klev+1)  
+      real(kind=rb) :: ztdn(klev+1)
 
 ! Definitions
 !
@@ -98,9 +98,9 @@
 ! ptdbt(jk)  total direct beam transmittance at levels
 !
 !-----------------------------------------------------------------------------
-                   
+
 ! Link lowest layer with surface
-             
+
       zreflect = 1._rb / (1._rb - prefd(klev+1) * prefd(klev))
       prup(klev) = pref(klev) + (ptrad(klev) * &
                  ((ptra(klev) - pdbt(klev)) * prefd(klev+1) + &
@@ -108,10 +108,10 @@
       prupd(klev) = prefd(klev) + ptrad(klev) * ptrad(klev) * &
                     prefd(klev+1) * zreflect
 
-! Pass from bottom to top 
+! Pass from bottom to top
 
       do jk = 1,klev-1
-         ikp = klev+1-jk                       
+         ikp = klev+1-jk
          ikx = ikp-1
          zreflect = 1._rb / (1._rb -prupd(ikp) * prefd(ikx))
          prup(ikx) = pref(ikx) + (ptrad(ikx) * &
@@ -120,7 +120,7 @@
          prupd(ikx) = prefd(ikx) + ptrad(ikx) * ptrad(ikx) * &
                       prupd(ikp) * zreflect
       enddo
-    
+
 ! Upper boundary conditions
 
       ztdn(1) = 1._rb
@@ -139,7 +139,7 @@
          prdnd(ikp) = prefd(jk) + ptrad(jk) * ptrad(jk) * &
                       prdnd(jk) * zreflect
       enddo
-    
+
 ! Up and down-welling fluxes at levels
 
       do jk = 1,klev+1

@@ -51,10 +51,10 @@ SAVE
   ! Spatially varying properties
   real, allocatable :: lambda  (:,:,:)    !<  Heat conductivity soil layer [W/m/K]
   real, allocatable :: lambdah (:,:,:)    !<  Heat conductivity soil layer half levels [W/m/K]
-  real, allocatable :: lambdas (:,:,:)    !<  Soil moisture diffusivity soil layer 
-  real, allocatable :: lambdash(:,:,:)    !<  Soil moisture diffusivity soil half levels 
-  real, allocatable :: gammas  (:,:,:)    !<  Soil moisture conductivity soil layer 
-  real, allocatable :: gammash (:,:,:)    !<  Soil moisture conductivity soil half levels 
+  real, allocatable :: lambdas (:,:,:)    !<  Soil moisture diffusivity soil layer
+  real, allocatable :: lambdash(:,:,:)    !<  Soil moisture diffusivity soil half levels
+  real, allocatable :: gammas  (:,:,:)    !<  Soil moisture conductivity soil layer
+  real, allocatable :: gammash (:,:,:)    !<  Soil moisture conductivity soil half levels
   real, allocatable :: Dh      (:,:,:)    !<  Heat diffusivity
   real, allocatable :: phiw    (:,:,:)    !<  Water content soil matrix [-]
   real, allocatable :: phiwm   (:,:,:)    !<  Water content soil matrix previous time step [-]
@@ -104,7 +104,7 @@ SAVE
   real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
   real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
-  real              :: Wlav     = -1                                  
+  real              :: Wlav     = -1
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
   real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
@@ -126,10 +126,10 @@ SAVE
   logical           :: lrsAgs     = .false.!<  Switch to apply AGS to calculate resistances
   logical           :: lCO2Ags    = .false.!<  Switch to calculate CO2 fluxes with AGS
   integer           :: planttype  = 3      !<  Integer to switch between (C)3 and (C)4 plants
-  logical           :: lrelaxgc   = .false.!<  Switch to delay plant response. Timescale is equal to 1/kgc 
+  logical           :: lrelaxgc   = .false.!<  Switch to delay plant response. Timescale is equal to 1/kgc
   real              :: kgc        = 0.00113!<  Standard stomatal response rate (corresponding to a time scale of 14.75 min.) [1/s]
   real              :: kci        = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
-  real, allocatable :: gc_old       (:,:)  !<  Old value for gc                    
+  real, allocatable :: gc_old       (:,:)  !<  Old value for gc
   real              :: gc_inf              !<  Attractor for stomatal response rate
   logical           :: gc_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once
   logical           :: lrelaxci   = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
@@ -261,7 +261,7 @@ SAVE
   real              :: albedo_land(max_lands)      = -1 !< Albedo
   real, allocatable :: tsoil_patch(:,:,:)               !< Soil temperature [K]
   real, allocatable :: tsoildeep_patch(:,:)             !< Soil temperature [K]
-  real, allocatable :: phiw_patch(:,:,:)                !< 
+  real, allocatable :: phiw_patch(:,:,:)                !<
   real, allocatable :: rootf_patch(:,:,:)               !< Root fraction per soil layer [-]
   real, allocatable :: Cskin_patch(:,:)                 !< Heat capacity skin layer [J]
   real, allocatable :: lambdaskin_patch(:,:)            !< Heat conductivity skin layer [W/m/K]
@@ -273,7 +273,7 @@ SAVE
   real, allocatable :: gD_patch(:,:)                    !< Response factor vegetation to vapor pressure deficit [-]
   real              :: tsoil_land(ksoilmax,max_lands)=-1!< Soil temperature [K]
   real              :: tsoildeep_land(max_lands)   = -1 !< Soil temperature [K]
-  real              :: phiw_land(ksoilmax,max_lands) =-1!< 
+  real              :: phiw_land(ksoilmax,max_lands) =-1!<
   real              :: rootf_land(ksoilmax,max_lands)=-1!< Root fraction per soil layer [-]
   real              :: Cskin_land(max_lands)       = -1 !< Heat capacity skin layer [J]
   real              :: lambdaskin_land(max_lands)  = -1 !< Heat conductivity skin layer [W/m/K]

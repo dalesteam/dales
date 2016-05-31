@@ -120,7 +120,7 @@ subroutine initsimpleicestat
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
     nsamples = itimeav/idtav
-    
+
     if (.not. lmicrostat) return
     if (abs(timeav/dtav - nsamples) > 1e-4) then
       stop 'timeav must be an integer multiple of dtav (NAMSIMPLEICESTAT)'

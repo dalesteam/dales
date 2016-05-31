@@ -55,7 +55,7 @@ contains
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
-!! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure, 
+!! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
@@ -500,7 +500,7 @@ contains
               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
               qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
               thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
- 
+
               Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
               do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
                 niter = niter+1
@@ -529,7 +529,7 @@ contains
                 esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
                 qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
                 thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
- 
+
                 Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
               enddo
               nitert =max(nitert,niter)
@@ -607,7 +607,7 @@ contains
               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
               qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
               thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
- 
+
               Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
               do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
                 niter = niter+1
@@ -636,7 +636,7 @@ contains
                 esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
                 qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
                 thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
- 
+
                 Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
               enddo
               nitert =max(nitert,niter)

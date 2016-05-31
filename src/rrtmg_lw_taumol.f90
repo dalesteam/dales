@@ -17,8 +17,8 @@
 
 ! ------- Modules -------
 
-!      use parkind, only : im => kind_im, rb => kind_rb 
-      use modglobal, only : im => kind_im, rb => kind_rb 
+!      use parkind, only : im => kind_im, rb => kind_rb
+      use modglobal, only : im => kind_im, rb => kind_rb
       use parrrtm, only : mg, nbndlw, maxxsec, ngptlw
       use rrlw_con, only: oneminus
       use rrlw_wvn, only: nspa, nspb
@@ -53,8 +53,8 @@
 ! *                        LEXINGTON, MA 02421                                  *
 ! *                                                                             *
 ! *                                                                             *
-! *                           ELI J. MLAWER                                     * 
-! *                         JENNIFER DELAMERE                                   * 
+! *                           ELI J. MLAWER                                     *
+! *                         JENNIFER DELAMERE                                   *
 ! *                         STEVEN J. TAUBMAN                                   *
 ! *                         SHEPARD A. CLOUGH                                   *
 ! *                                                                             *
@@ -65,7 +65,7 @@
 ! *                       email:  jdelamer@aer.com                              *
 ! *                                                                             *
 ! *        The authors wish to acknowledge the contributions of the             *
-! *        following people:  Karen Cady-Pereira, Patrick D. Brown,             *  
+! *        following people:  Karen Cady-Pereira, Patrick D. Brown,             *
 ! *        Michael J. Iacono, Ronald E. Farren, Luke Chen, Robert Bergstrom.    *
 ! *                                                                             *
 ! *******************************************************************************
@@ -177,7 +177,7 @@
 
 ! ----- Input -----
       integer(kind=im), intent(in) :: nlayers         ! total number of layers
-      real(kind=rb), intent(in) :: pavel(:)           ! layer pressures (mb) 
+      real(kind=rb), intent(in) :: pavel(:)           ! layer pressures (mb)
                                                       !    Dimensions: (nlayers)
       real(kind=rb), intent(in) :: wx(:,:)            ! cross-section amounts (mol/cm2)
                                                       !    Dimensions: (maxxsec,nlayers)
@@ -185,17 +185,17 @@
                                                       !    Dimensions: (nlayers)
 
       integer(kind=im), intent(in) :: laytrop         ! tropopause layer index
-      integer(kind=im), intent(in) :: jp(:)           ! 
+      integer(kind=im), intent(in) :: jp(:)           !
                                                       !    Dimensions: (nlayers)
       integer(kind=im), intent(in) :: jt(:)           !
                                                       !    Dimensions: (nlayers)
       integer(kind=im), intent(in) :: jt1(:)          !
                                                       !    Dimensions: (nlayers)
-      real(kind=rb), intent(in) :: planklay(:,:)      ! 
+      real(kind=rb), intent(in) :: planklay(:,:)      !
                                                       !    Dimensions: (nlayers,nbndlw)
-      real(kind=rb), intent(in) :: planklev(0:,:)     ! 
+      real(kind=rb), intent(in) :: planklev(0:,:)     !
                                                       !    Dimensions: (nlayers,nbndlw)
-      real(kind=rb), intent(in) :: plankbnd(:)        ! 
+      real(kind=rb), intent(in) :: plankbnd(:)        !
                                                       !    Dimensions: (nbndlw)
 
       real(kind=rb), intent(in) :: colh2o(:)          ! column amount (h2o)
@@ -239,7 +239,7 @@
 
       real(kind=rb), intent(in) :: &                  !
                        fac00(:), fac01(:), &          !    Dimensions: (nlayers)
-                       fac10(:), fac11(:) 
+                       fac10(:), fac11(:)
       real(kind=rb), intent(in) :: &                  !
                        rat_h2oco2(:),rat_h2oco2_1(:), &
                        rat_h2oo3(:),rat_h2oo3_1(:), & !    Dimensions: (nlayers)
@@ -251,7 +251,7 @@
 ! ----- Output -----
       real(kind=rb), intent(out) :: fracs(:,:)        ! planck fractions
                                                       !    Dimensions: (nlayers,ngptlw)
-      real(kind=rb), intent(out) :: taug(:,:)         ! gaseous optical depth 
+      real(kind=rb), intent(out) :: taug(:,:)         ! gaseous optical depth
                                                       !    Dimensions: (nlayers,ngptlw)
 
       hvrtau = '$Revision: 1.5 $'
@@ -288,7 +288,7 @@
 !     band 1:  10-350 cm-1 (low key - h2o; low minor - n2)
 !                          (high key - h2o; high minor - n2)
 !
-!     note: previous versions of rrtm band 1: 
+!     note: previous versions of rrtm band 1:
 !           10-250 cm-1 (low - h2o; high - h2o)
 !----------------------------------------------------------------------------
 
@@ -300,7 +300,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       real(kind=rb) :: pp, corradj, scalen2, tauself, taufor, taun2
 
@@ -309,7 +309,7 @@
 !     lower - n2, p = 142.5490 mbar, t = 215.70 k
 !     upper - n2, p = 142.5490 mbar, t = 215.70 k
 
-! Compute the optical depth by interpolating in ln(pressure) and 
+! Compute the optical depth by interpolating in ln(pressure) and
 ! temperature.  Below laytrop, the water vapor self-continuum and
 ! foreign continuum is interpolated (in temperature) separately.
 
@@ -332,14 +332,14 @@
             tauself = selffac(lay) * (selfref(inds,ig) + selffrac(lay) * &
                  (selfref(inds+1,ig) - selfref(inds,ig)))
             taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                 (forref(indf+1,ig) -  forref(indf,ig))) 
-            taun2 = scalen2*(ka_mn2(indm,ig) + & 
+                 (forref(indf+1,ig) -  forref(indf,ig)))
+            taun2 = scalen2*(ka_mn2(indm,ig) + &
                  minorfrac(lay) * (ka_mn2(indm+1,ig) - ka_mn2(indm,ig)))
             taug(lay,ig) = corradj * (colh2o(lay) * &
                 (fac00(lay) * absa(ind0,ig) + &
                  fac10(lay) * absa(ind0+1,ig) + &
                  fac01(lay) * absa(ind1,ig) + &
-                 fac11(lay) * absa(ind1+1,ig)) & 
+                 fac11(lay) * absa(ind1+1,ig)) &
                  + tauself + taufor + taun2)
              fracs(lay,ig) = fracrefa(ig)
          enddo
@@ -358,14 +358,14 @@
          scalen2 = colbrd(lay) * scaleminorn2(lay)
          do ig = 1, ng1
             taufor = forfac(lay) * (forref(indf,ig) + &
-                 forfrac(lay) * (forref(indf+1,ig) - forref(indf,ig))) 
-            taun2 = scalen2*(kb_mn2(indm,ig) + & 
+                 forfrac(lay) * (forref(indf+1,ig) - forref(indf,ig)))
+            taun2 = scalen2*(kb_mn2(indm,ig) + &
                  minorfrac(lay) * (kb_mn2(indm+1,ig) - kb_mn2(indm,ig)))
             taug(lay,ig) = corradj * (colh2o(lay) * &
                 (fac00(lay) * absb(ind0,ig) + &
                  fac10(lay) * absb(ind0+1,ig) + &
                  fac01(lay) * absb(ind1,ig) + &
-                 fac11(lay) * absb(ind1+1,ig)) &  
+                 fac11(lay) * absb(ind1+1,ig)) &
                  + taufor + taun2)
             fracs(lay,ig) = fracrefb(ig)
          enddo
@@ -379,7 +379,7 @@
 !
 !     band 2:  350-500 cm-1 (low key - h2o; high key - h2o)
 !
-!     note: previous version of rrtm band 2: 
+!     note: previous version of rrtm band 2:
 !           250 - 500 cm-1 (low - h2o; high - h2o)
 !----------------------------------------------------------------------------
 
@@ -391,12 +391,12 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, ig
       real(kind=rb) :: pp, corradj, tauself, taufor
 
 
-! Compute the optical depth by interpolating in ln(pressure) and 
+! Compute the optical depth by interpolating in ln(pressure) and
 ! temperature.  Below laytrop, the water vapor self-continuum and
 ! foreign continuum is interpolated (in temperature) separately.
 
@@ -413,7 +413,7 @@
             tauself = selffac(lay) * (selfref(inds,ig) + selffrac(lay) * &
                  (selfref(inds+1,ig) - selfref(inds,ig)))
             taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                 (forref(indf+1,ig) - forref(indf,ig))) 
+                 (forref(indf+1,ig) - forref(indf,ig)))
             taug(lay,ngs1+ig) = corradj * (colh2o(lay) * &
                 (fac00(lay) * absa(ind0,ig) + &
                  fac10(lay) * absa(ind0+1,ig) + &
@@ -432,7 +432,7 @@
          indf = indfor(lay)
          do ig = 1, ng2
             taufor =  forfac(lay) * (forref(indf,ig) + &
-                 forfrac(lay) * (forref(indf+1,ig) - forref(indf,ig))) 
+                 forfrac(lay) * (forref(indf+1,ig) - forref(indf,ig)))
             taug(lay,ngs1+ig) = colh2o(lay) * &
                 (fac00(lay) * absb(ind0,ig) + &
                  fac10(lay) * absb(ind0+1,ig) + &
@@ -462,7 +462,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       integer(kind=im) :: js, js1, jmn2o, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -491,12 +491,12 @@
 !  P = 706.270mb
       refrat_m_a = chi_mls(1,3)/chi_mls(2,3)
 
-!  P = 95.58 mb 
+!  P = 95.58 mb
       refrat_m_b = chi_mls(1,13)/chi_mls(2,13)
 
-! Compute the optical depth by interpolating in ln(pressure) and 
-! temperature, and appropriate species.  Below laytrop, the water vapor 
-! self-continuum and foreign continuum is interpolated (in temperature) 
+! Compute the optical depth by interpolating in ln(pressure) and
+! temperature, and appropriate species.  Below laytrop, the water vapor
+! self-continuum and foreign continuum is interpolated (in temperature)
 ! separately.
 
 ! Lower atmosphere loop
@@ -507,7 +507,7 @@
          if (specparm .ge. oneminus) specparm = oneminus
          specmult = 8._rb*(specparm)
          js = 1 + int(specmult)
-         fs = mod(specmult,1.0_rb)        
+         fs = mod(specmult,1.0_rb)
 
          speccomb1 = colh2o(lay) + rat_h2oco2_1(lay)*colco2(lay)
          specparm1 = colh2o(lay)/speccomb1
@@ -524,7 +524,7 @@
          fmn2o = mod(specmult_mn2o,1.0_rb)
          fmn2omf = minorfrac(lay)*fmn2o
 !  In atmospheres where the amount of N2O is too great to be considered
-!  a minor species, adjust the column amount of N2O by an empirical factor 
+!  a minor species, adjust the column amount of N2O by an empirical factor
 !  to obtain the proper contribution.
          chi_n2o = coln2o(lay)/coldry(lay)
          ratn2o = 1.e20_rb*chi_n2o/chi_mls(4,jp(lay)+1)
@@ -577,7 +577,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2om1 = ka_mn2o(jmn2o,indm,ig) + fmn2o * &
                     (ka_mn2o(jmn2o+1,indm,ig) - ka_mn2o(jmn2o,indm,ig))
                n2om2 = ka_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -603,7 +603,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -615,7 +615,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -631,7 +631,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2om1 = ka_mn2o(jmn2o,indm,ig) + fmn2o * &
                     (ka_mn2o(jmn2o+1,indm,ig) - ka_mn2o(jmn2o,indm,ig))
                n2om2 = ka_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -671,7 +671,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2om1 = ka_mn2o(jmn2o,indm,ig) + fmn2o * &
                     (ka_mn2o(jmn2o+1,indm,ig) - ka_mn2o(jmn2o,indm,ig))
                n2om2 = ka_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -729,7 +729,7 @@
          fmn2o = mod(specmult_mn2o,1.0_rb)
          fmn2omf = minorfrac(lay)*fmn2o
 !  In atmospheres where the amount of N2O is too great to be considered
-!  a minor species, adjust the column amount of N2O by an empirical factor 
+!  a minor species, adjust the column amount of N2O by an empirical factor
 !  to obtain the proper contribution.
          chi_n2o = coln2o(lay)/coldry(lay)
          ratn2o = 1.e20*chi_n2o/chi_mls(4,jp(lay)+1)
@@ -754,7 +754,7 @@
 
          do ig = 1, ng3
             taufor = forfac(lay) * (forref(indf,ig) + &
-                 forfrac(lay) * (forref(indf+1,ig) - forref(indf,ig))) 
+                 forfrac(lay) * (forref(indf+1,ig) - forref(indf,ig)))
             n2om1 = kb_mn2o(jmn2o,indm,ig) + fmn2o * &
                  (kb_mn2o(jmn2o+1,indm,ig)-kb_mn2o(jmn2o,indm,ig))
             n2om2 = kb_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -795,7 +795,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, ig
       integer(kind=im) :: js, js1, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -814,9 +814,9 @@
 ! P = 95.58350 mb
       refrat_planck_b = chi_mls(3,13)/chi_mls(2,13)
 
-! Compute the optical depth by interpolating in ln(pressure) and 
-! temperature, and appropriate species.  Below laytrop, the water 
-! vapor self-continuum and foreign continuum is interpolated (in temperature) 
+! Compute the optical depth by interpolating in ln(pressure) and
+! temperature, and appropriate species.  Below laytrop, the water
+! vapor self-continuum and foreign continuum is interpolated (in temperature)
 ! separately.
 
 ! Lower atmosphere loop
@@ -877,7 +877,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs3+ig) = speccomb * &
                     (fac000 * absa(ind0,ig) + &
                     fac100 * absa(ind0+1,ig) + &
@@ -897,7 +897,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -909,7 +909,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -924,7 +924,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs3+ig) = speccomb * &
                     (fac200 * absa(ind0-1,ig) + &
                     fac100 * absa(ind0,ig) + &
@@ -958,7 +958,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs3+ig) = speccomb * &
                     (fac000 * absa(ind0,ig) + &
                     fac100 * absa(ind0+1,ig) + &
@@ -1059,7 +1059,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       integer(kind=im) :: js, js1, jmo3, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -1089,9 +1089,9 @@
 ! P = 317.3480
       refrat_m_a = chi_mls(1,7)/chi_mls(2,7)
 
-! Compute the optical depth by interpolating in ln(pressure) and 
-! temperature, and appropriate species.  Below laytrop, the 
-! water vapor self-continuum and foreign continuum is 
+! Compute the optical depth by interpolating in ln(pressure) and
+! temperature, and appropriate species.  Below laytrop, the
+! water vapor self-continuum and foreign continuum is
 ! interpolated (in temperature) separately.
 
 ! Lower atmosphere loop
@@ -1160,7 +1160,7 @@
                tauself = selffac(lay) * (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                o3m1 = ka_mo3(jmo3,indm,ig) + fmo3 * &
                     (ka_mo3(jmo3+1,indm,ig)-ka_mo3(jmo3,indm,ig))
                o3m2 = ka_mo3(jmo3,indm+1,ig) + fmo3 * &
@@ -1187,7 +1187,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
            enddo
       else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -1199,7 +1199,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -1215,7 +1215,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) *  &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                o3m1 = ka_mo3(jmo3,indm,ig) + fmo3 * &
                     (ka_mo3(jmo3+1,indm,ig)-ka_mo3(jmo3,indm,ig))
                o3m2 = ka_mo3(jmo3,indm+1,ig) + fmo3 * &
@@ -1256,7 +1256,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                o3m1 = ka_mo3(jmo3,indm,ig) + fmo3 * &
                     (ka_mo3(jmo3+1,indm,ig)-ka_mo3(jmo3,indm,ig))
                o3m2 = ka_mo3(jmo3,indm+1,ig) + fmo3 * &
@@ -1316,7 +1316,7 @@
 
          ind0 = ((jp(lay)-13)*5+(jt(lay)-1))*nspb(5) + js
          ind1 = ((jp(lay)-12)*5+(jt1(lay)-1))*nspb(5) + js1
-         
+
          do ig = 1, ng5
             taug(lay,ngs4+ig) = speccomb * &
                 (fac000 * absb(ind0,ig) + &
@@ -1353,7 +1353,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       real(kind=rb) :: chi_co2, ratco2, adjfac, adjcolco2
       real(kind=rb) :: tauself, taufor, absco2
@@ -1365,13 +1365,13 @@
 
 ! Compute the optical depth by interpolating in ln(pressure) and
 ! temperature. The water vapor self-continuum and foreign continuum
-! is interpolated (in temperature) separately.  
+! is interpolated (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
 
 ! In atmospheres where the amount of CO2 is too great to be considered
-! a minor species, adjust the column amount of CO2 by an empirical factor 
+! a minor species, adjust the column amount of CO2 by an empirical factor
 ! to obtain the proper contribution.
          chi_co2 = colco2(lay)/(coldry(lay))
          ratco2 = 1.e20_rb*chi_co2/chi_mls(2,jp(lay)+1)
@@ -1439,7 +1439,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       integer(kind=im) :: js, js1, jmco2, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -1467,10 +1467,10 @@
 ! P = 706.2720 mb
       refrat_m_a = chi_mls(1,3)/chi_mls(3,3)
 
-! Compute the optical depth by interpolating in ln(pressure), 
+! Compute the optical depth by interpolating in ln(pressure),
 ! temperature, and appropriate species.  Below laytrop, the water
-! vapor self-continuum and foreign continuum is interpolated 
-! (in temperature) separately. 
+! vapor self-continuum and foreign continuum is interpolated
+! (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -1498,7 +1498,7 @@
          fmco2 = mod(specmult_mco2,1.0_rb)
 
 !  In atmospheres where the amount of CO2 is too great to be considered
-!  a minor species, adjust the column amount of CO2 by an empirical factor 
+!  a minor species, adjust the column amount of CO2 by an empirical factor
 !  to obtain the proper contribution.
          chi_co2 = colco2(lay)/(coldry(lay))
          ratco2 = 1.e20*chi_co2/chi_mls(2,jp(lay)+1)
@@ -1551,7 +1551,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
                     (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
                co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
@@ -1577,7 +1577,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -1589,7 +1589,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -1605,7 +1605,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
                     (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
                co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
@@ -1645,7 +1645,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
                     (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
                co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
@@ -1673,7 +1673,7 @@
       do lay = laytrop+1, nlayers
 
 !  In atmospheres where the amount of CO2 is too great to be considered
-!  a minor species, adjust the column amount of CO2 by an empirical factor 
+!  a minor species, adjust the column amount of CO2 by an empirical factor
 !  to obtain the proper contribution.
          chi_co2 = colco2(lay)/(coldry(lay))
          ratco2 = 1.e20*chi_co2/chi_mls(2,jp(lay)+1)
@@ -1732,7 +1732,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       real(kind=rb) :: tauself, taufor, absco2, abso3, absn2o
       real(kind=rb) :: chi_co2, ratco2, adjfac, adjcolco2
@@ -1746,16 +1746,16 @@
 !     upper - co2, p = 35.1632 mb, t = 223.28 k
 !     upper - n2o, p = 8.716e-2 mb, t = 226.03 k
 
-! Compute the optical depth by interpolating in ln(pressure) and 
-! temperature, and appropriate species.  Below laytrop, the water vapor 
-! self-continuum and foreign continuum is interpolated (in temperature) 
+! Compute the optical depth by interpolating in ln(pressure) and
+! temperature, and appropriate species.  Below laytrop, the water vapor
+! self-continuum and foreign continuum is interpolated (in temperature)
 ! separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
 
 !  In atmospheres where the amount of CO2 is too great to be considered
-!  a minor species, adjust the column amount of CO2 by an empirical factor 
+!  a minor species, adjust the column amount of CO2 by an empirical factor
 !  to obtain the proper contribution.
          chi_co2 = colco2(lay)/(coldry(lay))
          ratco2 = 1.e20_rb*chi_co2/chi_mls(2,jp(lay)+1)
@@ -1802,7 +1802,7 @@
       do lay = laytrop+1, nlayers
 
 !  In atmospheres where the amount of CO2 is too great to be considered
-!  a minor species, adjust the column amount of CO2 by an empirical factor 
+!  a minor species, adjust the column amount of CO2 by an empirical factor
 !  to obtain the proper contribution.
          chi_co2 = colco2(lay)/coldry(lay)
          ratco2 = 1.e20_rb*chi_co2/chi_mls(2,jp(lay)+1)
@@ -1828,7 +1828,7 @@
                  fac01(lay) * absb(ind1,ig) + &
                  fac11(lay) * absb(ind1+1,ig)) &
                  + adjcolco2*absco2 &
-                 + coln2o(lay)*absn2o & 
+                 + coln2o(lay)*absn2o &
                  + wx(3,lay) * cfc12(ig) &
                  + wx(4,lay) * cfc22adj(ig)
             fracs(lay,ngs7+ig) = fracrefb(ig)
@@ -1854,7 +1854,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       integer(kind=im) :: js, js1, jmn2o, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -1879,13 +1879,13 @@
 ! P = 212 mb
       refrat_planck_a = chi_mls(1,9)/chi_mls(6,9)
 
-! P = 706.272 mb 
+! P = 706.272 mb
       refrat_m_a = chi_mls(1,3)/chi_mls(6,3)
 
-! Compute the optical depth by interpolating in ln(pressure), 
+! Compute the optical depth by interpolating in ln(pressure),
 ! temperature, and appropriate species.  Below laytrop, the water
-! vapor self-continuum and foreign continuum is interpolated 
-! (in temperature) separately.  
+! vapor self-continuum and foreign continuum is interpolated
+! (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -1912,7 +1912,7 @@
          fmn2o = mod(specmult_mn2o,1.0_rb)
 
 !  In atmospheres where the amount of N2O is too great to be considered
-!  a minor species, adjust the column amount of N2O by an empirical factor 
+!  a minor species, adjust the column amount of N2O by an empirical factor
 !  to obtain the proper contribution.
          chi_n2o = coln2o(lay)/(coldry(lay))
          ratn2o = 1.e20_rb*chi_n2o/chi_mls(4,jp(lay)+1)
@@ -1965,7 +1965,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2om1 = ka_mn2o(jmn2o,indm,ig) + fmn2o * &
                     (ka_mn2o(jmn2o+1,indm,ig) - ka_mn2o(jmn2o,indm,ig))
                n2om2 = ka_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -1979,7 +1979,7 @@
                     fac110 * absa(ind0+10,ig) + &
                     fac210 * absa(ind0+11,ig)) &
                     + speccomb1 * &
-                    (fac001 * absa(ind1,ig) + & 
+                    (fac001 * absa(ind1,ig) + &
                     fac101 * absa(ind1+1,ig) + &
                     fac201 * absa(ind1+2,ig) + &
                     fac011 * absa(ind1+9,ig) + &
@@ -1991,7 +1991,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2003,7 +2003,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2019,7 +2019,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2om1 = ka_mn2o(jmn2o,indm,ig) + fmn2o * &
                     (ka_mn2o(jmn2o+1,indm,ig) - ka_mn2o(jmn2o,indm,ig))
                n2om2 = ka_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -2059,7 +2059,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2om1 = ka_mn2o(jmn2o,indm,ig) + fmn2o * &
                     (ka_mn2o(jmn2o+1,indm,ig) - ka_mn2o(jmn2o,indm,ig))
                n2om2 = ka_mn2o(jmn2o,indm+1,ig) + fmn2o * &
@@ -2087,7 +2087,7 @@
       do lay = laytrop+1, nlayers
 
 !  In atmospheres where the amount of N2O is too great to be considered
-!  a minor species, adjust the column amount of N2O by an empirical factor 
+!  a minor species, adjust the column amount of N2O by an empirical factor
 !  to obtain the proper contribution.
          chi_n2o = coln2o(lay)/(coldry(lay))
          ratn2o = 1.e20_rb*chi_n2o/chi_mls(4,jp(lay)+1)
@@ -2132,12 +2132,12 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, ig
       real(kind=rb) :: tauself, taufor
 
 
-! Compute the optical depth by interpolating in ln(pressure) and 
+! Compute the optical depth by interpolating in ln(pressure) and
 ! temperature.  Below laytrop, the water vapor self-continuum and
 ! foreign continuum is interpolated (in temperature) separately.
 
@@ -2152,7 +2152,7 @@
             tauself = selffac(lay) * (selfref(inds,ig) + selffrac(lay) * &
                  (selfref(inds+1,ig) - selfref(inds,ig)))
             taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                 (forref(indf+1,ig) - forref(indf,ig))) 
+                 (forref(indf+1,ig) - forref(indf,ig)))
             taug(lay,ngs9+ig) = colh2o(lay) * &
                  (fac00(lay) * absa(ind0,ig) + &
                  fac10(lay) * absa(ind0+1,ig) + &
@@ -2171,7 +2171,7 @@
 
          do ig = 1, ng10
             taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                 (forref(indf+1,ig) - forref(indf,ig))) 
+                 (forref(indf+1,ig) - forref(indf,ig)))
             taug(lay,ngs9+ig) = colh2o(lay) * &
                  (fac00(lay) * absb(ind0,ig) + &
                  fac10(lay) * absb(ind0+1,ig) + &
@@ -2200,7 +2200,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       real(kind=rb) :: scaleo2, tauself, taufor, tauo2
 
@@ -2209,7 +2209,7 @@
 !     lower - o2, p = 706.2720 mbar, t = 278.94 k
 !     upper - o2, p = 4.758820 mbarm t = 250.85 k
 
-! Compute the optical depth by interpolating in ln(pressure) and 
+! Compute the optical depth by interpolating in ln(pressure) and
 ! temperature.  Below laytrop, the water vapor self-continuum and
 ! foreign continuum is interpolated (in temperature) separately.
 
@@ -2248,7 +2248,7 @@
          scaleo2 = colo2(lay)*scaleminor(lay)
          do ig = 1, ng11
             taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                 (forref(indf+1,ig) - forref(indf,ig))) 
+                 (forref(indf+1,ig) - forref(indf,ig)))
             tauo2 =  scaleo2 * (kb_mo2(indm,ig) + minorfrac(lay) * &
                  (kb_mo2(indm+1,ig) - kb_mo2(indm,ig)))
             taug(lay,ngs10+ig) = colh2o(lay) * &
@@ -2280,7 +2280,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, ig
       integer(kind=im) :: js, js1, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -2296,13 +2296,13 @@
 ! Calculate reference ratio to be used in calculation of Planck
 ! fraction in lower/upper atmosphere.
 
-! P =   174.164 mb 
+! P =   174.164 mb
       refrat_planck_a = chi_mls(1,10)/chi_mls(2,10)
 
-! Compute the optical depth by interpolating in ln(pressure), 
+! Compute the optical depth by interpolating in ln(pressure),
 ! temperature, and appropriate species.  Below laytrop, the water
-! vapor self-continuum adn foreign continuum is interpolated 
-! (in temperature) separately.  
+! vapor self-continuum adn foreign continuum is interpolated
+! (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -2362,7 +2362,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs11+ig) = speccomb * &
                     (fac000 * absa(ind0,ig) + &
                     fac100 * absa(ind0+1,ig) + &
@@ -2382,7 +2382,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2394,7 +2394,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2410,7 +2410,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs11+ig) = speccomb * &
                     (fac200 * absa(ind0-1,ig) + &
                     fac100 * absa(ind0,ig) + &
@@ -2444,7 +2444,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs11+ig) = speccomb * &
                     (fac000 * absa(ind0,ig) + &
                     fac100 * absa(ind0+1,ig) + &
@@ -2488,7 +2488,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       integer(kind=im) :: js, js1, jmco2, jmco, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -2499,7 +2499,7 @@
       real(kind=rb) :: p, p4, fk0, fk1, fk2
       real(kind=rb) :: fac000, fac100, fac200, fac010, fac110, fac210
       real(kind=rb) :: fac001, fac101, fac201, fac011, fac111, fac211
-      real(kind=rb) :: tauself, taufor, co2m1, co2m2, absco2 
+      real(kind=rb) :: tauself, taufor, co2m1, co2m2, absco2
       real(kind=rb) :: com1, com2, absco, abso3
       real(kind=rb) :: chi_co2, ratco2, adjfac, adjcolco2
       real(kind=rb) :: refrat_planck_a, refrat_m_a, refrat_m_a3
@@ -2522,10 +2522,10 @@
 ! P = 706. (Level 3)
       refrat_m_a3 = chi_mls(1,3)/chi_mls(4,3)
 
-! Compute the optical depth by interpolating in ln(pressure), 
+! Compute the optical depth by interpolating in ln(pressure),
 ! temperature, and appropriate species.  Below laytrop, the water
-! vapor self-continuum and foreign continuum is interpolated 
-! (in temperature) separately.  
+! vapor self-continuum and foreign continuum is interpolated
+! (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -2552,7 +2552,7 @@
          fmco2 = mod(specmult_mco2,1.0_rb)
 
 !  In atmospheres where the amount of CO2 is too great to be considered
-!  a minor species, adjust the column amount of CO2 by an empirical factor 
+!  a minor species, adjust the column amount of CO2 by an empirical factor
 !  to obtain the proper contribution.
          chi_co2 = colco2(lay)/(coldry(lay))
          ratco2 = 1.e20_rb*chi_co2/3.55e-4_rb
@@ -2612,7 +2612,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
                     (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
                co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
@@ -2644,7 +2644,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2656,7 +2656,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2672,7 +2672,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
                     (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
                co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
@@ -2718,7 +2718,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                co2m1 = ka_mco2(jmco2,indm,ig) + fmco2 * &
                     (ka_mco2(jmco2+1,indm,ig) - ka_mco2(jmco2,indm,ig))
                co2m2 = ka_mco2(jmco2,indm+1,ig) + fmco2 * &
@@ -2776,14 +2776,14 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, ig
       real(kind=rb) :: tauself, taufor
 
 
-! Compute the optical depth by interpolating in ln(pressure) and 
-! temperature.  Below laytrop, the water vapor self-continuum 
-! and foreign continuum is interpolated (in temperature) separately.  
+! Compute the optical depth by interpolating in ln(pressure) and
+! temperature.  Below laytrop, the water vapor self-continuum
+! and foreign continuum is interpolated (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -2795,7 +2795,7 @@
             tauself = selffac(lay) * (selfref(inds,ig) + selffrac(lay) * &
                  (selfref(inds+1,ig) - selfref(inds,ig)))
             taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                 (forref(indf+1,ig) - forref(indf,ig))) 
+                 (forref(indf+1,ig) - forref(indf,ig)))
             taug(lay,ngs13+ig) = colco2(lay) * &
                  (fac00(lay) * absa(ind0,ig) + &
                  fac10(lay) * absa(ind0+1,ig) + &
@@ -2839,7 +2839,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, indm, ig
       integer(kind=im) :: js, js1, jmn2, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -2849,11 +2849,11 @@
       real(kind=rb) :: p, p4, fk0, fk1, fk2
       real(kind=rb) :: fac000, fac100, fac200, fac010, fac110, fac210
       real(kind=rb) :: fac001, fac101, fac201, fac011, fac111, fac211
-      real(kind=rb) :: scalen2, tauself, taufor, n2m1, n2m2, taun2 
+      real(kind=rb) :: scalen2, tauself, taufor, n2m1, n2m2, taun2
       real(kind=rb) :: refrat_planck_a, refrat_m_a
 
 
-! Minor gas mapping level : 
+! Minor gas mapping level :
 !     Lower - Nitrogen Continuum, P = 1053., T = 294.
 
 ! Calculate reference ratio to be used in calculation of Planck
@@ -2864,10 +2864,10 @@
 ! P = 1053.
       refrat_m_a = chi_mls(4,1)/chi_mls(2,1)
 
-! Compute the optical depth by interpolating in ln(pressure), 
+! Compute the optical depth by interpolating in ln(pressure),
 ! temperature, and appropriate species.  Below laytrop, the water
-! vapor self-continuum and foreign continuum is interpolated 
-! (in temperature) separately.  
+! vapor self-continuum and foreign continuum is interpolated
+! (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -2905,7 +2905,7 @@
          inds = indself(lay)
          indf = indfor(lay)
          indm = indminor(lay)
-         
+
          scalen2 = colbrd(lay)*scaleminor(lay)
          if (specparm .lt. 0.125_rb .and. specparm1 .lt. 0.125_rb) then
             p = fs - 1
@@ -2936,7 +2936,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2m1 = ka_mn2(jmn2,indm,ig) + fmn2 * &
                     (ka_mn2(jmn2+1,indm,ig) - ka_mn2(jmn2,indm,ig))
                n2m2 = ka_mn2(jmn2,indm+1,ig) + fmn2 * &
@@ -2963,7 +2963,7 @@
             enddo
 
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2975,7 +2975,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -2991,7 +2991,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2m1 = ka_mn2(jmn2,indm,ig) + fmn2 * &
                     (ka_mn2(jmn2+1,indm,ig) - ka_mn2(jmn2,indm,ig))
                n2m2 = ka_mn2(jmn2,indm+1,ig) + fmn2 * &
@@ -3032,7 +3032,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                n2m1 = ka_mn2(jmn2,indm,ig) + fmn2 * &
                     (ka_mn2(jmn2+1,indm,ig) - ka_mn2(jmn2,indm,ig))
                n2m2 = ka_mn2(jmn2,indm+1,ig) + fmn2 * &
@@ -3082,7 +3082,7 @@
 
 ! ------- Declarations -------
 
-! Local 
+! Local
       integer(kind=im) :: lay, ind0, ind1, inds, indf, ig
       integer(kind=im) :: js, js1, jpl
       real(kind=rb) :: speccomb, specparm, specmult, fs
@@ -3101,10 +3101,10 @@
 ! P = 387. mb (Level 6)
       refrat_planck_a = chi_mls(1,6)/chi_mls(6,6)
 
-! Compute the optical depth by interpolating in ln(pressure), 
+! Compute the optical depth by interpolating in ln(pressure),
 ! temperature,and appropriate species.  Below laytrop, the water
-! vapor self-continuum and foreign continuum is interpolated 
-! (in temperature) separately.  
+! vapor self-continuum and foreign continuum is interpolated
+! (in temperature) separately.
 
 ! Lower atmosphere loop
       do lay = 1, laytrop
@@ -3164,7 +3164,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor =  forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs15+ig) = speccomb * &
                     (fac000 * absa(ind0,ig) + &
                     fac100 * absa(ind0+1,ig) + &
@@ -3184,7 +3184,7 @@
                     (fracrefa(ig,jpl+1)-fracrefa(ig,jpl))
             enddo
          else if (specparm .gt. 0.875_rb .and. specparm1 .gt. 0.875_rb) then
-            p = -fs 
+            p = -fs
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -3196,7 +3196,7 @@
             fac110 = fk1*fac10(lay)
             fac210 = fk2*fac10(lay)
 
-            p = -fs1 
+            p = -fs1
             p4 = p**4
             fk0 = p4
             fk1 = 1 - p - 2.0_rb*p4
@@ -3212,7 +3212,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs15+ig) = speccomb * &
                     (fac200 * absa(ind0-1,ig) + &
                     fac100 * absa(ind0,ig) + &
@@ -3246,7 +3246,7 @@
                tauself = selffac(lay)* (selfref(inds,ig) + selffrac(lay) * &
                     (selfref(inds+1,ig) - selfref(inds,ig)))
                taufor = forfac(lay) * (forref(indf,ig) + forfrac(lay) * &
-                    (forref(indf+1,ig) - forref(indf,ig))) 
+                    (forref(indf+1,ig) - forref(indf,ig)))
                taug(lay,ngs15+ig) = speccomb * &
                     (fac000 * absa(ind0,ig) + &
                     fac100 * absa(ind0+1,ig) + &

@@ -26,10 +26,10 @@
 !                    the Planck function from that for the mean layer
 !                    temperature to that for the layer boundary
 !                    temperature as a function of optical depth.
-!                    The "linear in tau" method is used to make 
+!                    The "linear in tau" method is used to make
 !                    the table.
-! pade   :  real   : Pade constant   
-! bpade  :  real   : Inverse of Pade constant   
+! pade   :  real   : Pade constant
+! bpade  :  real   : Inverse of Pade constant
 !------------------------------------------------------------------
 
       integer(kind=im), parameter :: ntbl = 10000

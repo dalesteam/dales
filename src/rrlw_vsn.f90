@@ -13,33 +13,33 @@
 
 !  name     type     purpose
 ! -----  :  ----   : ----------------------------------------------
-!hnamrtm :character: 
-!hnamini :character: 
-!hnamcld :character: 
-!hnamclc :character: 
-!hnamrtr :character: 
-!hnamrtx :character: 
-!hnamrtc :character: 
-!hnamset :character: 
-!hnamtau :character: 
-!hnamatm :character: 
-!hnamutl :character: 
-!hnamext :character: 
-!hnamkg  :character: 
+!hnamrtm :character:
+!hnamini :character:
+!hnamcld :character:
+!hnamclc :character:
+!hnamrtr :character:
+!hnamrtx :character:
+!hnamrtc :character:
+!hnamset :character:
+!hnamtau :character:
+!hnamatm :character:
+!hnamutl :character:
+!hnamext :character:
+!hnamkg  :character:
 !
-! hvrrtm :character: 
-! hvrini :character: 
-! hvrcld :character: 
-! hvrclc :character: 
-! hvrrtr :character: 
-! hvrrtx :character: 
-! hvrrtc :character: 
-! hvrset :character: 
-! hvrtau :character: 
-! hvratm :character: 
-! hvrutl :character: 
-! hvrext :character: 
-! hvrkg  :character: 
+! hvrrtm :character:
+! hvrini :character:
+! hvrcld :character:
+! hvrclc :character:
+! hvrrtr :character:
+! hvrrtx :character:
+! hvrrtc :character:
+! hvrset :character:
+! hvrtau :character:
+! hvratm :character:
+! hvrutl :character:
+! hvrext :character:
+! hvrkg  :character:
 !------------------------------------------------------------------
 
       character*18 hvrrtm,hvrini,hvrcld,hvrclc,hvrrtr,hvrrtx, &

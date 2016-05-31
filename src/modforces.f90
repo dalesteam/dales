@@ -292,7 +292,7 @@ contains
             svp(i,j,k,n) = svp(i,j,k,n)-subs_sv
           enddo
         endif
-    
+
         thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k)-subs_thl
         qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k)-subs_qt+dqtdtls(k)
         up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k)-subs_u

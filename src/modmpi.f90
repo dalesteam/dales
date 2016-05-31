@@ -175,7 +175,7 @@ contains
   allocate( sendb(bsize), recvb(bsize) )
 
 !   communicate north/south
- 
+
   if(nprocy .gt. 1)then
     ii = 0
     do k=sz,ez
@@ -438,8 +438,8 @@ contains
     integer  :: n,i,j, ii
     real     :: sbuffer(imax * jmax)
     real     :: rbuffer(itot * jmax)
-   
-    ii = 0 
+
+    ii = 0
     do j=1,jmax
     do i=1,imax
        ii = ii + 1

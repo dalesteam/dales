@@ -139,7 +139,7 @@ contains
           end do
         end do
       end do
-      
+
       !take care of the surface boundary conditions
       !CvH edit, extrapolation creates instability in surface scheme
       exnersurf = (ps/pref0) ** (rd/cp)
@@ -189,7 +189,7 @@ contains
     deallocate(rhof_b,exnf_b)
     deallocate(temp_b,qv_b,ql_b,rr_b)
     deallocate(tempskin)
-    
+
     end subroutine radfull
 
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &

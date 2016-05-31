@@ -139,7 +139,7 @@ contains
           call writestat_dims_nc(ncid2)
           call define_nc( ncid2, NVar, ncname2)
         end if
-! 
+!
 ! !Surface values
         fname3(11:18) = cmyid
         fname3(20:22) = cexpnr

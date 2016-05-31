@@ -17,7 +17,7 @@ MODULE shr_orb_mod
    ! PUBLIC: Interfaces and global data
    !----------------------------------------------------------------------------
    public shr_orb_cosz, shr_orb_params, shr_orb_decl, shr_orb_print
-   real   (SHR_KIND_R4),public, parameter :: SHR_ORB_UNDEF_REAL = 1.e36      ! undefined real 
+   real   (SHR_KIND_R4),public, parameter :: SHR_ORB_UNDEF_REAL = 1.e36      ! undefined real
    integer(SHR_KIND_IN),public, parameter :: SHR_ORB_UNDEF_INT  = 2000000000 ! undefined int
    !----------------------------------------------------------------------------
    ! PRIVATE: by default everything else is private to this module
@@ -70,9 +70,9 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
 
 !-------------------------------------------------------------------------------
 !
-! Calculate earths orbital parameters using Dave Threshers formula which 
-! came from Berger, Andre.  1978  "A Simple Algorithm to Compute Long-Term 
-! Variations of Daily Insolation".  Contribution 18, Institute of Astronomy 
+! Calculate earths orbital parameters using Dave Threshers formula which
+! came from Berger, Andre.  1978  "A Simple Algorithm to Compute Long-Term
+! Variations of Daily Insolation".  Contribution 18, Institute of Astronomy
 ! and Geophysics, Universite Catholique de Louvain, Louvain-la-Neuve, Belgium
 !
 !------------------------------Code history-------------------------------------
@@ -102,10 +102,10 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
 
    real   (SHR_KIND_R4) :: degrad = pi/180.   ! degree to radian conversion factor
    real   (SHR_KIND_R4) :: yb4_1950AD         ! number of years before 1950 AD
- 
+
    ! Cosine series data for computation of obliquity: amplitude (arc seconds),
    ! rate (arc seconds/year), phase (degrees).
- 
+
    real   (SHR_KIND_R4), parameter :: obamp(poblen) =  & ! amplitudes for obliquity cos series
    &      (/   -2462.2214466, -857.3232075, -629.3231835,   &
    &            -414.2804924, -311.7632587,  308.9408604,   &
@@ -123,7 +123,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &              -1.5428851,    1.4738838,   -1.4593669,   &
    &               1.4192259,   -1.1818980,    1.1756474,   &
    &              -1.1316126,    1.0896928/)
- 
+
    real   (SHR_KIND_R4), parameter :: obrate(poblen) = & ! rates for obliquity cosine series
    &        (/  31.609974, 32.620504, 24.172203,   &
    &            31.983787, 44.828336, 30.973257,   &
@@ -141,7 +141,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &            48.344406, 55.145460, 69.000539,   &
    &            11.071350, 74.291298, 11.047742,   &
    &             0.636717, 12.844549/)
- 
+
    real   (SHR_KIND_R4), parameter :: obphas(poblen) = & ! phases for obliquity cosine series
    &      (/    251.9025, 280.8325, 128.3057,   &
    &            292.7252,  15.3747, 263.7951,   &
@@ -159,11 +159,11 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &            256.6114,  32.1008, 143.6804,   &
    &             16.8784, 160.6835,  27.5932,   &
    &            348.1074,  82.6496/)
- 
-   ! Cosine/sine series data for computation of eccentricity and fixed vernal 
-   ! equinox longitude of perihelion (fvelp): amplitude, 
+
+   ! Cosine/sine series data for computation of eccentricity and fixed vernal
+   ! equinox longitude of perihelion (fvelp): amplitude,
    ! rate (arc seconds/year), phase (degrees).
- 
+
    real   (SHR_KIND_R4), parameter :: ecamp (pecclen) = & ! ampl for eccen/fvelp cos/sin series
    &      (/   0.01860798,  0.01627522, -0.01300660,   &
    &           0.00988829, -0.00336700,  0.00333077,   &
@@ -172,7 +172,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &           0.00037800, -0.00033700,  0.00027600,   &
    &           0.00018200, -0.00017400, -0.00012400,   &
    &           0.00001250/)
- 
+
    real   (SHR_KIND_R4), parameter :: ecrate(pecclen) = & ! rates for eccen/fvelp cos/sin series
    &      (/    4.2072050,  7.3460910, 17.8572630,  &
    &           17.2205460, 16.8467330,  5.1990790,  &
@@ -181,7 +181,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &           18.4939800,  6.1909530, 18.8677930,  &
    &           17.4255670,  6.1860010, 18.4174410,  &
    &            0.6678630/)
- 
+
    real   (SHR_KIND_R4), parameter :: ecphas(pecclen) = & ! phases for eccen/fvelp cos/sin series
    &      (/    28.620089, 193.788772, 308.307024,  &
    &           320.199637, 279.376984,  87.195000,  &
@@ -190,11 +190,11 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &           296.414411, 145.769910, 337.237063,  &
    &           152.092288, 126.839891, 210.667199,  &
    &            72.108838/)
- 
-   ! Sine series data for computation of moving vernal equinox longitude of 
-   ! perihelion: amplitude (arc seconds), rate (arc sec/year), phase (degrees).      
- 
-   real   (SHR_KIND_R4), parameter :: mvamp (pmvelen) = & ! amplitudes for mvelp sine series 
+
+   ! Sine series data for computation of moving vernal equinox longitude of
+   ! perihelion: amplitude (arc seconds), rate (arc sec/year), phase (degrees).
+
+   real   (SHR_KIND_R4), parameter :: mvamp (pmvelen) = & ! amplitudes for mvelp sine series
    &      (/   7391.0225890, 2555.1526947, 2022.7629188,  &
    &          -1973.6517951, 1240.2321818,  953.8679112,  &
    &           -931.7537108,  872.3795383,  606.3544732,  &
@@ -221,8 +221,8 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &             11.6018181,  -11.2617293,  -10.4664199,  &
    &             10.4333970,  -10.2377466,   10.1934446,  &
    &            -10.1280191,   10.0289441,  -10.0034259/)
- 
-   real   (SHR_KIND_R4), parameter :: mvrate(pmvelen) = & ! rates for mvelp sine series 
+
+   real   (SHR_KIND_R4), parameter :: mvrate(pmvelen) = & ! rates for mvelp sine series
    &      (/    31.609974, 32.620504, 24.172203,   &
    &             0.636717, 31.983787,  3.138886,   &
    &            30.973257, 44.828336,  0.991874,   &
@@ -277,7 +277,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &            213.5577, 154.1631, 232.7153,   &
    &            138.3034, 204.6609, 106.5938,   &
    &            250.4676, 332.3345,  27.3039/)
- 
+
    !---------------------------Local variables----------------------------------
    integer(SHR_KIND_IN) :: i       ! Index for series summations
    real   (SHR_KIND_R4) :: obsum   ! Obliquity series summation
@@ -298,19 +298,19 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
 
    !----------------------------------------------------------------------------
    ! radinp and algorithms below will need a degree to radian conversion factor
- 
+
    if ( log_print ) then
      write(6,F00) 'Calculate characteristics of the orbit:'
      write(6,F00) 'CVS revision: $Revision: 1.1 $'
      write(6,F00) 'CVS Tag     : $Name:  $'
    end if
- 
+
    ! Check for flag to use input orbit parameters
- 
+
    IF ( iyear_AD == SHR_ORB_UNDEF_INT ) THEN
 
       ! Check input obliq, eccen, and mvelp to ensure reasonable
- 
+
       if( obliq == SHR_ORB_UNDEF_REAL )then
         if ( log_print ) then
           write(6,F00) 'Have to specify orbital parameters:'
@@ -356,7 +356,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
       eccen3 = eccen2*eccen
 
    ELSE  ! Otherwise calculate based on years before present
- 
+
       if ( log_print ) then
          write(6,F01) 'Calculate orbit for year: ' , iyear_AD
       end if
@@ -372,7 +372,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
          !call task_abort()
 !bloss        call shr_sys_abort()
       end if
- 
+
       ! The following calculates the earths obliquity, orbital eccentricity
       ! (and various powers of it) and vernal equinox mean longitude of
       ! perihelion for years in the past (future = negative of years past),
@@ -394,10 +394,10 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
       ! 5-10 million year solution.
       !
       ! Years to time of interest must be negative of years before present
-      ! (1950) in formulas that follow. 
- 
+      ! (1950) in formulas that follow.
+
       years = - yb4_1950AD
- 
+
       ! In the summations below, cosine or sine arguments, which end up in
       ! degrees, must be converted to radians via multiplication by degrad.
       !
@@ -406,38 +406,38 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
       ! degrees via multiplication by psecdeg (arc seconds to degrees conversion
       ! factor).  For obliq, first term is Berger 1978 epsilon star; second
       ! term is series summation in degrees.
-  
+
       obsum = 0.0
       do i = 1, poblen
          obsum = obsum + obamp(i)*psecdeg*cos((obrate(i)*psecdeg*years + &
          &       obphas(i))*degrad)
       end do
       obliq = 23.320556 + obsum
- 
-      ! Summation of cosine and sine series for computation of eccentricity 
-      ! (eccen; e in Berger 1978) and fixed vernal equinox longitude of 
-      ! perihelion (fvelp; pi in Berger 1978), which is used for computation 
-      ! of moving vernal equinox longitude of perihelion.  Convert the rates, 
+
+      ! Summation of cosine and sine series for computation of eccentricity
+      ! (eccen; e in Berger 1978) and fixed vernal equinox longitude of
+      ! perihelion (fvelp; pi in Berger 1978), which is used for computation
+      ! of moving vernal equinox longitude of perihelion.  Convert the rates,
       ! which are in arc seconds, into degrees via multiplication by psecdeg.
- 
+
       cossum = 0.0
       do i = 1, pecclen
         cossum = cossum+ecamp(i)*cos((ecrate(i)*psecdeg*years+ecphas(i))*degrad)
       end do
- 
+
       sinsum = 0.0
       do i = 1, pecclen
         sinsum = sinsum+ecamp(i)*sin((ecrate(i)*psecdeg*years+ecphas(i))*degrad)
       end do
- 
+
       ! Use summations to calculate eccentricity
- 
+
       eccen2 = cossum*cossum + sinsum*sinsum
       eccen  = sqrt(eccen2)
       eccen3 = eccen2*eccen
- 
+
       ! A series of cases for fvelp, which is in radians.
-         
+
       if (abs(cossum) .le. 1.0E-8) then
         if (sinsum .eq. 0.0) then
           fvelp = 0.0
@@ -455,25 +455,25 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
           fvelp = atan(sinsum/cossum)
         endif
       endif
- 
+
       ! Summation of sin series for computation of moving vernal equinox long
       ! of perihelion (mvelp; omega bar in Berger 1978) in degrees.  For mvelp,
-      ! first term is fvelp in degrees; second term is Berger 1978 psi bar 
-      ! times years and in degrees; third term is Berger 1978 zeta; fourth 
+      ! first term is fvelp in degrees; second term is Berger 1978 psi bar
+      ! times years and in degrees; third term is Berger 1978 zeta; fourth
       ! term is series summation in degrees.  Convert the amplitudes and rates,
-      ! which are in arc seconds, into degrees via multiplication by psecdeg.  
+      ! which are in arc seconds, into degrees via multiplication by psecdeg.
       ! Series summation plus second and third terms constitute Berger 1978
       ! psi, which is the general precession.
- 
+
       mvsum = 0.0
       do i = 1, pmvelen
         mvsum = mvsum + mvamp(i)*psecdeg*sin((mvrate(i)*psecdeg*years + &
         &       mvphas(i))*degrad)
       end do
       mvelp = fvelp/degrad + 50.439273*psecdeg*years + 3.392506 + mvsum
- 
+
       ! Cases to make sure mvelp is between 0 and 360.
- 
+
       do while (mvelp .lt. 0.0)
         mvelp = mvelp + 360.0
       end do
@@ -482,11 +482,11 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
       end do
 
    END IF  ! end of test on whether to calculate or use input orbital params
- 
+
    ! Orbit needs the obliquity in radians
- 
+
    obliqr = obliq*degrad
- 
+
    ! 180 degrees must be added to mvelp since observations are made from the
    ! earth and the sun is considered (wrongly for the algorithm) to go around
    ! the earth. For a more graphic explanation see Appendix B in:
@@ -496,22 +496,22 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    !
    ! Additionally, orbit will need this value in radians. So mvelp becomes
    ! mvelpp (mvelp plus pi)
- 
+
    mvelpp = (mvelp + 180.)*degrad
- 
+
    ! Set up an argument used several times in lambm0 calculation ahead.
- 
+
    beta = sqrt(1. - eccen2)
- 
+
    ! The mean longitude at the vernal equinox (lambda m nought in Berger
-   ! 1978; in radians) is calculated from the following formula given in 
+   ! 1978; in radians) is calculated from the following formula given in
    ! Berger 1978.  At the vernal equinox the true longitude (lambda in Berger
    ! 1978) is 0.
 
    lambm0 = 2.*((.5*eccen + .125*eccen3)*(1. + beta)*sin(mvelpp)  &
    &      - .250*eccen2*(.5    + beta)*sin(2.*mvelpp)            &
    &      + .125*eccen3*(1./3. + beta)*sin(3.*mvelpp))
- 
+
    if ( log_print ) then
      write(6,F03) '------ Computed Orbital Parameters ------'
      write(6,F03) 'Eccentricity      = ',eccen
@@ -522,7 +522,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
      write(6,F03) 'Long at v.e.(rad) = ',lambm0
      write(6,F03) '-----------------------------------------'
    end if
- 
+
 END SUBROUTINE shr_orb_params
 
 !===============================================================================
@@ -546,18 +546,18 @@ END SUBROUTINE shr_orb_params
 
    !------------------------------Arguments--------------------------------
    real                ,intent(in)  :: calday ! Calendar day, including fraction
- 
+
    !---------------------------Local variables-----------------------------
    real   (SHR_KIND_R4),parameter :: dayspy = 365.0  ! days per year
    real   (SHR_KIND_R4),parameter :: ve     = 80.5   ! Calday of vernal equinox
                                                      ! assumes Jan 1 = calday 1
- 
+
    real   (SHR_KIND_R4) ::   lambm  ! Lambda m, mean long of perihelion (rad)
    real   (SHR_KIND_R4) ::   lmm    ! Intermediate argument involving lambm
    real   (SHR_KIND_R4) ::   lamb   ! Lambda, the earths long of perihelion
    real   (SHR_KIND_R4) ::   invrho ! Inverse normalized sun/earth distance
    real   (SHR_KIND_R4) ::   sinl   ! Sine of lmm
- 
+
    ! Compute eccentricity factor and solar declination using
    ! day value where a round day (such as 213.0) refers to 0z at
    ! Greenwich longitude.
@@ -566,7 +566,7 @@ END SUBROUTINE shr_orb_params
    ! Insolation and Quaternary Climatic Changes. J. of the Atmo. Sci.
    ! 35:2362-2367.
    !
-   ! To get the earths true longitude (position in orbit; lambda in Berger 
+   ! To get the earths true longitude (position in orbit; lambda in Berger
    ! 1978) which is necessary to find the eccentricity factor and declination,
    ! must first calculate the mean longitude (lambda m in Berger 1978) at
    ! the present day.  This is done by adding to lambm0 (the mean longitude
@@ -574,32 +574,32 @@ END SUBROUTINE shr_orb_params
    ! an increment (delta lambda m in Berger 1978) that is the number of
    ! days past or before (a negative increment) the vernal equinox divided by
    ! the days in a model year times the 2*pi radians in a complete orbit.
- 
+
    lambm = lambm0 + (calday - ve)*2.*pi/dayspy
    lmm   = lambm  - mvelpp
- 
+
    ! The earths true longitude, in radians, is then found from
    ! the formula in Berger 1978:
- 
+
    sinl  = sin(lmm)
    lamb  = lambm  + eccen*(2.*sinl + eccen*(1.25*sin(2.*lmm)  &
             + eccen*((13.0/12.0)*sin(3.*lmm) - 0.25*sinl)))
- 
+
    ! Using the obliquity, eccentricity, moving vernal equinox longitude of
    ! perihelion (plus), and earths true longitude, the declination (delta)
    ! and the normalized earth/sun distance (rho in Berger 1978; actually inverse
-   ! rho will be used), and thus the eccentricity factor (eccf), can be 
+   ! rho will be used), and thus the eccentricity factor (eccf), can be
    ! calculated from formulas given in Berger 1978.
- 
+
    invrho = (1. + eccen*cos(lamb - mvelpp)) / (1. - eccen*eccen)
- 
+
    ! Set solar declination and eccentricity factor
- 
+
    delta  = asin(sin(obliqr)*sin(lamb))
    eccf   = invrho*invrho
- 
+
    return
- 
+
 END SUBROUTINE shr_orb_decl
 
 !===============================================================================
@@ -619,9 +619,9 @@ SUBROUTINE shr_orb_print( iyear_AD, eccen, obliq, mvelp )
 
    !---------------------------Arguments----------------------------------------
    integer(SHR_KIND_IN),intent(in) :: iyear_AD ! requested Year (AD)
-   real   (SHR_KIND_R4),intent(in) :: eccen    ! eccentricity (unitless) 
+   real   (SHR_KIND_R4),intent(in) :: eccen    ! eccentricity (unitless)
                                                ! (typically 0 to 0.1)
-   real   (SHR_KIND_R4),intent(in) :: obliq    ! obliquity (-90 to +90 degrees) 
+   real   (SHR_KIND_R4),intent(in) :: obliq    ! obliquity (-90 to +90 degrees)
                                                ! typically 22-26
    real   (SHR_KIND_R4),intent(in) :: mvelp    ! moving vernal equinox at perhel
                                                ! (0 to 360 degrees)
@@ -631,7 +631,7 @@ SUBROUTINE shr_orb_print( iyear_AD, eccen, obliq, mvelp )
    character(len=*),parameter :: F02 = "('(shr_orb_print) ',a,f6.3)"
    character(len=*),parameter :: F03 = "('(shr_orb_print) ',a,es14.6)"
    !----------------------------------------------------------------------------
- 
+
    if ( iyear_AD .ne. SHR_ORB_UNDEF_INT ) then
      if ( iyear_AD > 0 ) then
        write(6,F01) 'Orbital parameters calculated for year: AD ',iyear_AD
@@ -646,7 +646,7 @@ SUBROUTINE shr_orb_print( iyear_AD, eccen, obliq, mvelp )
    else
      write(6,F03) 'Orbit parameters not set!'
    end if
- 
+
 END SUBROUTINE shr_orb_print
 !===============================================================================
 

@@ -61,7 +61,7 @@ SAVE
   real :: gc         = 0.85              !< asymmetry factor of droplet scattering angle distribution
   real :: SSA        = 0.999             !< typical single scattering albedo for clouds
   integer :: iDE     = 1                 !< scalar field to be used as extinction
-  logical :: laero   = .false.           !< .true. for aeosols .false. for clouds 
+  logical :: laero   = .false.           !< .true. for aeosols .false. for clouds
 
   real :: reff       = 1.e-5             !< cloud droplet effective radius (m)
   integer :: isvsmoke = 1                !< number of passive scalar to be used for optical depth calculation
@@ -140,7 +140,7 @@ SAVE
                     mwh2o = 18.016, &
                     mwo3  = 47.998
   !real ,parameter :: scon = 765.84!471.5!1367                          ! Solar constant in W/m^2; code Thijs uses 1365
-  real  :: scon 
+  real  :: scon
   real  :: mu0_cgils
   integer :: cgils_case_nr
   real, parameter :: tmelt = 273.16
@@ -175,11 +175,11 @@ SAVE
   real, allocatable :: swuca(:,:,:)  !<  clear air shortwave upward radiative flux
   real, allocatable :: lwdca(:,:,:)  !<  clear air longwave downward radiative flux
   real, allocatable :: lwuca(:,:,:)  !<  clear air longwave upward radiative flux
- 
+
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
   real, allocatable :: SW_up_ca_TOA(:,:), SW_dn_ca_TOA(:,:), LW_up_ca_TOA(:,:), LW_dn_ca_TOA(:,:)
 
-  
+
 contains
 !< Calculation of the cosine of the zenith angle
 !< \param time UTC Time of the simulation
@@ -196,7 +196,7 @@ contains
     if (.not.lCnstZenith) then
       day    = xday + floor(time/86400.)
       daytime= mod(time,86400.)
-  
+
       phi    = xlat * pi/180.
       el     = xlon * pi/180.
       obliq  = 23.45 * pi/180.

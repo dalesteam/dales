@@ -18,7 +18,7 @@
 ! -----  :  ----   : ----------------------------------------------
 ! ntbl   :  integer: Lookup table dimension
 ! tblint :  real   : Lookup table conversion factor
-! tau_tbl:  real   : Clear-sky optical depth 
+! tau_tbl:  real   : Clear-sky optical depth
 ! exp_tbl:  real   : Exponential lookup table for transmittance
 ! od_lo  :  real   : Value of tau below which expansion is used
 !                  : in place of lookup table

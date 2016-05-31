@@ -242,7 +242,7 @@ contains
             strain2 = strain2 + 0.5 * ( &
               ( 0.25*(w0(i,jp,kp)-w0(i,jm,kp))*dyi + &
               dvdz(i,j)   )**2 )
-      
+
           else
 
             strain2 =  ( &

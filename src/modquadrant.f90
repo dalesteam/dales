@@ -4,7 +4,7 @@
 
 !>
 !!  Calculates quadrant-hole statistics
-!!  Written to Q#quadrant.<expnr> 
+!!  Written to Q#quadrant.<expnr>
 !! If netcdf is true, this module also writes to a NetCDF file: quadrant.<expnr>.nc
 !!
 !!  \author Huug Ouwersloot, MPIC
@@ -37,7 +37,7 @@ save
   real                                       :: hole = 0.0
   real                                       :: dtav
   real                                       :: timeav = -1.0
-  integer                                    :: iwind = 1 ! 1: u, 2: v, 3: U = sqrt(u^2+v^2) 
+  integer                                    :: iwind = 1 ! 1: u, 2: v, 3: U = sqrt(u^2+v^2)
   integer                                    :: nvar, klow, khigh, knr
   character(80)                              :: fname = 'quadrant.xxx.nc'
   integer                                    :: ncid,nrec = 0
@@ -593,7 +593,7 @@ contains
     allocate(wures     (klow:khigh,    4),wvres     (klow:khigh,    4),wthlres    (klow:khigh,4),wqtres     (klow:khigh,4),thlqtcov    (klow:khigh,4)                         )
     allocate(wusub     (klow:khigh,    4),wvsub     (klow:khigh,    4),wthlsub    (klow:khigh,4),wqtsub     (klow:khigh,4)                                                    )
     allocate(wsvres    (klow:khigh,nsv,4),wsvsub    (klow:khigh,nsv,4)                                                                                                        )
-    
+
     allocate(perc      (klow:khigh    ,4)                                                                                                                                     )
     allocate(uavgnorm  (klow:khigh    ,4),vavgnorm  (klow:khigh    ,4),wavgnorm   (klow:khigh,4),utotavgnorm(klow:khigh,4),thlavgnorm  (klow:khigh,4),qtavgnorm(klow:khigh,4) )
     allocate(uvarnorm  (klow:khigh    ,4),vvarnorm  (klow:khigh    ,4),wvarnorm   (klow:khigh,4),utotvarnorm(klow:khigh,4),thlvarnorm  (klow:khigh,4),qtvarnorm(klow:khigh,4) )
@@ -609,31 +609,31 @@ contains
     inorm   = nint(ijtot*timeav/dtav)
 
     call MPI_ALLREDUCE(nrsampl  ,nrsamp  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(uavl     ,uavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(vavl     ,vavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wavl     ,wavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(utotavl  ,utotavg ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(thlavl   ,thlavg  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(qtavl    ,qtavg   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(uvarl    ,uvar    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(vvarl    ,vvar    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wvarl    ,wvar    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(utotvarl ,utotvar ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(thlvarl  ,thlvar  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(qtvarl   ,qtvar   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(svavl    ,svavg   ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(svvarl   ,svvar   ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wuresl   ,wures   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wvresl   ,wvres   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wthlresl ,wthlres ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wqtresl  ,wqtres  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wusubl   ,wusub   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wvsubl   ,wvsub   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wthlsubl ,wthlsub ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wqtsubl  ,wqtsub  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wsvresl  ,wsvres  ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(wsvsubl  ,wsvsub  ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr) 
-    call MPI_ALLREDUCE(thlqtcovl,thlqtcov,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr) 
+    call MPI_ALLREDUCE(uavl     ,uavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(vavl     ,vavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wavl     ,wavg    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(utotavl  ,utotavg ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(thlavl   ,thlavg  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(qtavl    ,qtavg   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(uvarl    ,uvar    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(vvarl    ,vvar    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wvarl    ,wvar    ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(utotvarl ,utotvar ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(thlvarl  ,thlvar  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(qtvarl   ,qtvar   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(svavl    ,svavg   ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(svvarl   ,svvar   ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wuresl   ,wures   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wvresl   ,wvres   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wthlresl ,wthlres ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wqtresl  ,wqtres  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wusubl   ,wusub   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wvsubl   ,wvsub   ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wthlsubl ,wthlsub ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wqtsubl  ,wqtsub  ,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wsvresl  ,wsvres  ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(wsvsubl  ,wsvsub  ,isamptot*knr*nsv,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(thlqtcovl,thlqtcov,isamptot*knr    ,MY_REAL,MPI_SUM,comm3d,mpierr)
 
 !reset variables
     nrsampl   = 0.0
@@ -666,7 +666,7 @@ contains
     if (myid==0) then
       if (lnetcdf) then
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      endif 
+      endif
 
       perc         = 0.0
       uavgnorm     = 0.0
@@ -715,8 +715,8 @@ contains
         wvresnorm    = wvres    / nrsamp - (wavg    / nrsamp) * (vavg   / nrsamp)
         wthlresnorm  = wthlres  / nrsamp - (wavg    / nrsamp) * (thlavg / nrsamp)
         wqtresnorm   = wqtres   / nrsamp - (wavg    / nrsamp) * (qtavg  / nrsamp)
-        wusubnorm    = wusub    / nrsamp                        
-        wvsubnorm    = wvsub    / nrsamp                        
+        wusubnorm    = wusub    / nrsamp
+        wvsubnorm    = wvsub    / nrsamp
         wthlsubnorm  = wthlsub  / nrsamp
         wqtsubnorm   = wqtsub   / nrsamp
         thlqtcovnorm = thlqtcov / nrsamp - (thlavg  / nrsamp) * (qtavg  / nrsamp)
@@ -774,7 +774,7 @@ contains
               wthlsubnorm  (k,isamp) , &
               wqtresnorm   (k,isamp) , &
               wqtsubnorm   (k,isamp) , &
-              thlqtcovnorm (k,isamp) 
+              thlqtcovnorm (k,isamp)
         end do ! klow - khigh
         close(ifoutput)
 
@@ -801,7 +801,7 @@ contains
                 svavgnorm    (k,n,isamp) , &
                 svvarnorm    (k,n,isamp) , &
                 wsvresnorm   (k,n,isamp) , &
-                wsvsubnorm   (k,n,isamp) 
+                wsvsubnorm   (k,n,isamp)
           end do ! klow - khigh
           close(ifoutput)
         end do ! nsv

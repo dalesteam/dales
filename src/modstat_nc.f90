@@ -153,7 +153,7 @@ contains
 
         do while(xtimes(ncall+1) < rtimee - spacing(1.))
             ncall=ncall+1
-            if (ncall >= nrec) exit 
+            if (ncall >= nrec) exit
         end do
         deallocate(xtimes)
        end if
@@ -207,7 +207,7 @@ contains
     iret = nf90_inq_dimid(ncid,'zm',zmId)
     iret = nf90_inq_dimid(ncid,'zts',ztsId)
     iret = nf90_inq_dimid(ncid,'zq',zqId)
-    iret = nf90_redef(ncid) 
+    iret = nf90_redef(ncid)
     dim_tt = (/ztId,timeId/)
     dim_mt = (/zmId,timeId/)
 

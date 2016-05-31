@@ -164,7 +164,7 @@ contains
         chmess1 = "#"
         ierr = 1 ! not zero
         !search for the next line consisting of "# time", from there onwards the profiles will be read
-        do while (.not.(chmess1 == "#" .and. ierr ==0)) 
+        do while (.not.(chmess1 == "#" .and. ierr ==0))
           read(ifinput,*,iostat=ierr) chmess1,timels(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run'

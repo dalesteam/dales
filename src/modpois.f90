@@ -166,7 +166,7 @@ contains
         do i=2,i1
           p(i,j,k)  =  rhobf(k)*(( pup(i+1,j,k)-pup(i,j,k) ) / dx &
                                 +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy ) &
-                      +( pwp(i,j,k+1)*rhobh(k+1)-pwp(i,j,k)*rhobh(k)) / dzf(k) 
+                      +( pwp(i,j,k+1)*rhobh(k+1)-pwp(i,j,k)*rhobh(k)) / dzf(k)
         end do
       end do
     end do
@@ -282,7 +282,7 @@ contains
     bk =b(kmax)
     do j=2,j1
       do i=2,i1
-        bbk = bk + rhobf(kmax)*xyrt(i,j) 
+        bbk = bk + rhobf(kmax)*xyrt(i,j)
         z        = bbk-ak*d(i,j,kmax-1)
         if(z/=0.) then
           p(i,j,kmax) = (p(i,j,kmax)-ak*p(i,j,kmax-1))/z

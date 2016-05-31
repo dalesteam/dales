@@ -254,7 +254,7 @@ contains
     enddo
     enddo
     enddo
-    
+
     if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
 
     if (lbinary) then

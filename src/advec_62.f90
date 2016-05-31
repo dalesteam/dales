@@ -77,7 +77,7 @@ subroutine advecc_62(putin, putout)
                 )
 
         else
-            
+
               putout(i,j,k)  = putout(i,j,k)- (  &
                   ( &
                       u0(i+1,j,k)/60. &

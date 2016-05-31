@@ -73,7 +73,7 @@ contains
     CALL rffti(itot,winew)
     CALL rffti(jtot,wjnew)
 
-  end subroutine 
+  end subroutine
 
 
   subroutine fft2dexit()
@@ -82,7 +82,7 @@ contains
     deallocate(worka,workb)
     deallocate(winew,wjnew)
 
-  end subroutine 
+  end subroutine
 
 
 !
@@ -91,7 +91,7 @@ contains
 !   These funtions redistribute the matrix over the MPI nodes so that
 !   a whole dimension (x or y) is on one processor. This enables us to do
 !   a Fourier transform over that dimension.
-!   
+!
 !
 !
 ! Rotation a:  p(imax,jmax,kmax)                      ptrans(itot,jmax,nkonx)
@@ -100,11 +100,11 @@ contains
 !         /-------------/|                                /-------------/|
 !        /../          / |                               /             / |
 !  kmax  |------------|  |                               |------------|  |
-!        |..|         |  |            ==>                |            |  |         
+!        |..|         |  |            ==>                |            |  |
 !        |..|         |  |                        nkonx  |____________|. |
 !        |..|         | /    jmax                        |............|./    jmax
 !   1    |--|--|--|---|/   1                        1    |------------|/   1
-!                                                
+!
 !        1  imax                                         1            itot
 !
 !
@@ -115,12 +115,12 @@ contains
 !         /-------------/|                                /-------------/|
 !        /../          / |                               /             / |
 !  kmax  |------------|  |                               |------------|  |
-!        |..|         |  |            ==>                |..../       |  |         
+!        |..|         |  |            ==>                |..../       |  |
 !        |..|         |  |                        nkony  |___/________|. |
 !        |..|         | /    jmax                        |...|        |./    jtot
 !   1    |--|--|--|---|/   1                        1    |---|--------|/   1
-!                                                
-!        1  imax                                         1  imax          
+!
+!        1  imax                                         1  imax
 !
 !
 
@@ -288,7 +288,7 @@ contains
     do i=1,imax
     do j=n*jmax + 1, (n+1)*jmax
       ii = ii + 1
-      bufin(ii) = ptrans(j,i,k) 
+      bufin(ii) = ptrans(j,i,k)
     enddo
     enddo
     enddo
