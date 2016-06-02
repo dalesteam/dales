@@ -1,0 +1,144 @@
+&RUN
+iexpnr        =  104
+lwarmstart    =  .false.
+runtime       =  50400
+trestart      =  25200
+ladaptive     =  .true.
+irandom       =  43
+randthl       =  0.1
+randqt        =  2.5e-5
+nsv           =  1
+nprocx        = 24
+nprocy        = 24
+/
+
+&DOMAIN
+itot          =  240
+jtot          =  240
+kmax          =  200
+
+xsize         =  12720.
+ysize         =  12720.
+
+xlat          =  51.97
+xlon          =  4.926244
+xday          =  129.
+xtime         =  6 
+/
+
+&PHYSICS 
+isurf         =  1
+iradiation    =  2
+ps         =  101300.00
+thls       =  286.5
+lcoriol    = .true.
+rad_shortw = .true.
+rad_longw  = .false.
+sw0         = 1120.
+wsvsurf(1) = 0.0e-4
+
+/
+
+&DYNAMICS
+ibas_prf   =  2
+lqlnr      =  .false.
+lqlnr      =  .true.
+cu         =  0.
+cv         =  0.
+
+iadv_mom      =  5
+iadv_tke      =  5
+iadv_thl      =  5
+iadv_qt       =  5
+iadv_sv       =  7
+/
+
+&NAMCHECKSIM
+tcheck      =  60
+/
+&NAMSAMPLING
+lsampup     = .false.
+dtav        = 60
+timeav      = 600
+/
+&NAMTIMESTAT
+ltimestat   = .true. 
+iblh_meth   = 2
+iblh_var    = -1
+dtav        = 60
+/
+&NAMCROSSSECTION
+lcross      = .true.
+dtav        = 600
+/
+&NAMNETCDFSTATS
+lnetcdf      = .true.
+/
+&NAMGENSTAT
+lstat       = .true. 
+dtav        = 60
+timeav      = 600
+/
+
+&NAMCHEM
+lchem       = .false.
+tnor        = 25
+firstchem   = 1
+lastchem    = 8
+ldiuvar     = .true.
+lchmovie    = .false.
+lsegr       = .true.
+/
+
+&NAMRADSTAT
+lstat       = .true.
+dtav        = 600
+timeav      = 600
+/
+
+&NAMHETEROSTATS
+lheterostats = .true.
+dtav = 600
+/
+
+&NAMSURFACE
+tsoilav(1)   = 286.60
+tsoilav(2)   = 287.50
+tsoilav(3)   = 288.00
+tsoilav(4)   = 288.50
+tsoildeepav  = 289.50
+
+phiwav(1)    = 0.43
+phiwav(2)    = 0.43
+phiwav(3)    = 0.43
+phiwav(4)    = 0.43
+
+rootfav(1)   = 0.35
+rootfav(2)   = 0.38
+rootfav(3)   = 0.23
+rootfav(4)   = 0.04
+
+lmostlocal   = .true.
+lsmoothflux  = .false.
+rsisurf2     = 50.
+
+z0mav        = 0.05 
+z0hav        = 0.01 
+Cskinav      = 10000.
+lambdaskinav = 4.
+albedoav     = 0.25
+Qnetav       = -99999
+
+rsminav      = 110.
+rssoilminav  = 50.
+cvegav       = 0.9
+LAIav        = 2.
+gDav         = 0.
+Wlav         = 0.00000
+/
+
+&NAMDE
+SSA          = 0.92
+iDE          = 1
+laero        = .true.
+/
