@@ -948,6 +948,8 @@ contains
     allocate(profile(k1),gradient(k1),dgrad(k1))
     if (lhetero) then
       allocate(blh_fld2(2:i1,2:j1,k1))
+    else
+      allocate(blh_fld2(0,0,0))
     endif
     zil = 0.0
     gradient = 0.0

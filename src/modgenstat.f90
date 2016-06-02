@@ -701,7 +701,7 @@ contains
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
     qsat  = qts - qls
-    if (qls==0) then
+    if (qls==0.) then
       c1  = 1.+(rv/rd-1)*qts
       c2  = (rv/rd-1)
     else
