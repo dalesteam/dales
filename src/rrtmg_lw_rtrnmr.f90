@@ -130,7 +130,7 @@
       real(kind=rb) :: rad0, reflect, radlu, radclru
 
       integer(kind=im) :: icldlyr(nlayers)             ! flag for cloud in layer
-      integer(kind=im) :: ibnd=0, ib=0, iband=0, lay=0, lev=0, l=0 ! loop indices
+      integer(kind=im) :: ibnd=0, ib=0, iband, lay=0, lev=0, l=0 ! loop indices
       integer(kind=im) :: igc                          ! g-point interval counter
       integer(kind=im) :: iclddn                       ! flag for cloud in down path
       integer(kind=im) :: ittot, itgas, itr            ! lookup table indices
@@ -451,7 +451,7 @@
          endif
 
 ! Loop over g-channels.
- 1000    continue
+! 1000    continue
 
 ! Radiative transfer starts here.
          radld = 0._rb
@@ -641,7 +641,13 @@
 ! Increment g-point counter
          igc = igc + 1
 ! Return to continue radiative transfer for all g-channels in present band
-         if (igc .le. ngs(iband)) go to 1000
+!         if (igc .le. ngs(iband)) go to 1000
+         if (igc .le. ngs(iband)) then
+             write (*,*) 'Should never happen'
+             write (*,*) 'This fix was incorrect as iband could be unitialized'
+             write (*,*) 'as a result of the got statement'
+             call abort
+         endif
 
 ! Process longwave output from band.
 ! Calculate upward, downward, and net flux.
