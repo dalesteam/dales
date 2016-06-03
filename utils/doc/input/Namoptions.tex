@@ -2,7 +2,7 @@
 
 \usepackage{psfrag}		% Hiermee kun je tekst vanuit latex in een eps-figuur zetten (ook gedraaid e.d.)
 \usepackage{babel} 		% Afbreken van woorden in vreemde talen & Engels
-\usepackage{psfig, epsfig}	% volgens mij onnodig door graphicsx
+%\usepackage{psfig, epsfig}	% volgens mij onnodig door graphicsx
 \usepackage{amsfonts}		% Nodig om normale tekst in formules te zetten
 \usepackage{amsmath}		% Nodig voor bijzondere formule-structuren, incl. align
 \usepackage{amssymb}		% Nodig om redelijk standaard symbolen weer te geven (vooral dingen als \lesssim)
@@ -154,7 +154,7 @@ All options that can be set for the LES experiments will be discussed in the fol
   llsadv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for large scale forcings			& -\\
 	 &&&&\\
   lqlnr		& .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for Newton-Raphson approximation of the liquid water content	& -\\
-  lnoclouds	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to disable $\theta_l$ calculations	& -\\
+  lnoclouds	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to disable $q_l$ calculations	& -\\
   \qquad	&		&				&							&\\
   \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}\hypertarget{iadvmom}{iadv\_mom}\\\hypertarget{iadvtke}{iadv\_tke}\\\hypertarget{iadvthl}{iadv\_thl}\\\hypertarget{iadvqt}{iadv\_qt}\\\hypertarget{iadvsv}{iadv\_sv(1:nsv)} \end{tabular}$\left. \begin{tabular}{l} \\ \\ \\ \\ \\ \end{tabular} \right\}$} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}5\\-1\\-1\\-1\\-1
 \end{tabular}} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}p{4cm}}$x \in \{1,$ $2,$ $5,$ $52,$ $55,$ $6,$ $62,$ $7\}$\end{tabular}}	& Advection scheme for momentum, TKE, $\theta_l$, $q_t$ and scalars: & \multirow{10}{*}{-}\\
@@ -353,7 +353,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   lsmagorinsky & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for smagorinsky subgrid scheme & -\\
   cs	& -1	& $x \in \mathbb{R}, \quad x>0$ & Smagorinsky constant	& -\\
   nmason	& 2	& $x \in \mathbb{R}, \quad x>0$ & Exponent in Mason correction function & -\\
-  sgs\_surface\_fix & .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
+  sgs\_surface\_fix & .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
 \end{supertabular}
 \end{center}
 
@@ -1090,8 +1090,11 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
  ocean		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to calculate radiation over ocean	& -\\
  usero3		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to take O$_3$ profile from backrad.inp instead of standard profile	& -\\
  co2factor	& 1			& $x \in \mathbb{R},\quad x \geq 0$			& Multiplication factor for reading CO$_2$ input by RRTMG	& - \\
- doperpetual	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to not use a diurnal cycle	& -\\
- doseasons	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to account for changes in Earth's position from day to day	& -\\
+ &&&&\\
+ doperpetual	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& \parbox{6cm}{Switch to not use a diurnal cycle	(code not yet inserted if .true.; highly recommended not to enable)}& -\\
+  &&&&\\
+ doseasons	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& \parbox{6cm}{Switch to account for changes in Earth's position from day to day (code not correct if .false.; highly recommended not to disable)} & -\\
+  &&&&\\
  iyear	& 1992			& $x\in\mathbb{Z}$	& Year of the simulation & -\\
 \end{supertabular}
 \end{center}
@@ -1124,6 +1127,7 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
+%\newpage
 \subsection{Namelist NAMSAMPLING}\label{par:sampling}
 \begin{center}
 	  \tablefirsthead{
@@ -1276,8 +1280,11 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
   wsvsurf(1:nsv)& 0	& $x \in \mathbb{R}[100]$	& Prescribed surface scalar flux & ppb m s$^{-1}$\\ 
   tsoilav	& -	& $x \in \mathbb{R}[4], \quad x[i] > 0$	& Initial soil temperature (for 4 layers, only used if isurf = 1)	& K\\
   tsoildeepav	& - & $x \in \mathbb{R}, \quad x>0$ & Soil bottom temperature (if isurf = 1)& K \\
-  phiwav	& -	& $x \in \mathbb{R}[4], \quad 0 \leq x[i] \leq 0.472$	& Soil moisture (if isurf = 1 and preferably below 0.323)	& m$^{3}$ m$^{-3}$\\
-  rootfav	& -	& $x \in \mathbb{R}[4], \quad 0 \leq x[i] \leq 1, \quad \sum_i x[i] =1$	& Root fraction	(if isurf = 1) & -	\\
+  &&&&\\
+  phiwav	& -	& \parbox{3.5cm}{$x \in \mathbb{R}[4],$\\$0 \leq x[i] \leq 0.472$}	& \parbox{6cm}{Soil moisture (if isurf = 1 and preferably below 0.323)}	& m$^{3}$ m$^{-3}$\\
+  &&&&\\
+  rootfav	& -	& \parbox{3.5cm}{$x \in \mathbb{R}[4],$\\$ 0 \leq x[i] \leq 1, $\\$ \sum_i x[i] =1$}	& Root fraction	(if isurf = 1) & -	\\
+  &&&&\\
   Cskinav	& -1	& $x \in \mathbb{R}, \quad x \ge 0$	& Heat capacity skin layer (if isurf = 1)	& J K$^{-1}$ m$^{-2}$\\
   lambdaskinav	&-1	& $x \in \mathbb{R}, \quad x \ge 0$	& Heat conductivity skin layer (if isurf = 1)	& J s$^{-1}$ K$^{-1}$ m$^{-2}$\\
   \hypertarget{albedo}{albedoav}	& -1	& $x \in \mathbb{R}, \quad 0 \le x \le 1$ & Albedo (if isurf = 1)	& -\\
