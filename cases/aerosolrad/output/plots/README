@@ -1,0 +1,4 @@
+Note that 4 simulations are evaluated.
+104 is the original setup, tested in the current (4.1) DALES version
+105 and 106 are identical setups, except for the use of a different random seed (resp. 42 and 47 instead of 43)
+100 is the same as the original setup, but then performed with DALES 4
