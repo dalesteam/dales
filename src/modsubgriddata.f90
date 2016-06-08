@@ -48,8 +48,8 @@ save
   real :: nmason  = 2.   !< exponent in Mason correction function
   real :: alpha_kolm  = 1.5     !< factor in Kolmogorov expression for spectral energy
   real :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
-! Arnold Moene added 14-1-2015
   logical :: sgs_surface_fix = .true.  !< which fix to apply to coupling of SGSTKE to surface
+  logical :: sgs_surface_fix_limit = .true.  !< apply correction to SGSTKE fix if needed
 
 
   real, allocatable :: ekm(:,:,:)   !< k-coefficient for momentum
@@ -58,7 +58,7 @@ save
   real, allocatable :: sbshr(:,:,:) !< shear production
   real, allocatable :: sbbuo(:,:,:) !< buoyancy production / destruction
   real, allocatable :: zlt(:,:,:)   !< filter width
-  
+
   real, allocatable :: csz(:)       !< Smagorinsky constant
 
 end module modsubgriddata
