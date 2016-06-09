@@ -23,10 +23,10 @@ ysize         =  12720.
 xlat          =  51.97
 xlon          =  4.926244
 xday          =  129.
-xtime         =  6 
+xtime         =  6
 /
 
-&PHYSICS 
+&PHYSICS
 isurf         =  1
 iradiation    =  2
 ps         =  101300.00
@@ -62,7 +62,7 @@ dtav        = 60
 timeav      = 600
 /
 &NAMTIMESTAT
-ltimestat   = .true. 
+ltimestat   = .true.
 iblh_meth   = 2
 iblh_var    = -1
 dtav        = 60
@@ -75,7 +75,7 @@ dtav        = 600
 lnetcdf      = .true.
 /
 &NAMGENSTAT
-lstat       = .true. 
+lstat       = .true.
 dtav        = 60
 timeav      = 600
 /
@@ -122,8 +122,8 @@ lmostlocal   = .true.
 lsmoothflux  = .false.
 rsisurf2     = 50.
 
-z0mav        = 0.05 
-z0hav        = 0.01 
+z0mav        = 0.05
+z0hav        = 0.01
 Cskinav      = 10000.
 lambdaskinav = 4.
 albedoav     = 0.25
