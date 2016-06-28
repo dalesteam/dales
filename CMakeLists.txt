@@ -37,7 +37,7 @@ endif()
 PROJECT(DALES Fortran)
 cmake_minimum_required(VERSION 2.6)
 set(VERSION_MAJOR "4")
-set(VERSION_MINOR "1")
+set(VERSION_MINOR "2")
 set(VERSION_PATCH "0")
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
