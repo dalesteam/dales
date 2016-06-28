@@ -38,8 +38,9 @@ implicit none
 save
 
   integer (KIND=selected_int_kind(6)) :: irandom= 0     !    * number to seed the randomnizer with
-  integer :: krand = huge(0)
+  integer :: krand = huge(0), krandumin=1,krandumax=0
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
+  real :: randu = 0.5
 
 contains
   subroutine startup
@@ -54,9 +55,9 @@ contains
 
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
-                                  nsv,imax,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
+                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -65,13 +66,14 @@ contains
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-                                  timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke
+                                  timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
     use modtimedep,        only : inittimedep,ltimedep
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use modmpi,            only : comm3d,myid, mpi_integer,mpi_logical,my_real,mpierr, mpi_character
+    use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
+    use modmpi,            only : initmpi,my_real,myid,nprocx,nprocy,mpierr
 
     implicit none
     integer :: ierr
@@ -79,18 +81,24 @@ contains
     !declare namelists
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
-        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author
+        trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
+        krandumin, krandumax, randu,&
+        nprocx,nprocy
     namelist/DOMAIN/ &
-        imax,jtot,kmax,&
+        itot,jtot,kmax,&
         xsize,ysize,&
         xlat,xlon,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+
+    ! get myid
+    call MPI_INIT(mpierr)
+    call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
 
     !read namelists
     if(myid==0)then
@@ -136,85 +144,98 @@ contains
       write(6 ,DYNAMICS)
       close(ifnamopt)
     end if
-    
+
   !broadcast namelists
-    call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,comm3d,mpierr)
-    call MPI_BCAST(author     ,80,MPI_CHARACTER,0,comm3d,mpierr)
-    call MPI_BCAST(runtime    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(trestart   ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(author     ,80,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(runtime    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nprocy     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(imax       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(xsize      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ysize      ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xlat       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xlon       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xday       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(xtime      ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(itot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xsize      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ysize      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xlat       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xlon       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xday       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(xtime      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(z0         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,comm3d,mpierr)
-    !call MPI_BCAST(lneutraldrag ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ps         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(thls       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(geodamptime,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(z0         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    !call MPI_BCAST(lneutraldrag ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ps         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(thls       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(geodamptime,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(irad       ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(timerad    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(iradiation ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(rad_ls     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rad_longw  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rad_shortw ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(rka        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(sw0        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(gc         ,1,MY_REAL   ,0,comm3d,mpierr)
-    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(reff       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(irad       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(timerad    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iradiation ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_ls     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_longw  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_shortw ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(rka        ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(sw0        ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(gc         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(reff       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cu         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cv         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(krand      ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(randthl    ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(randqt     ,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(cv         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krand      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(krandumax  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randthl    ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randqt     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(randu      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(courant,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(peclet,1,MY_REAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(courant,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(peclet,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+
+    call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+
+    ! Initialize MPI
+    call initmpi
 
     ! Allocate and initialize core modules
     call initglobal
@@ -227,10 +248,10 @@ contains
     call initsubgrid
     call initpois
     call initmicrophysics
+    call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues
-    call readinitfiles
 
 
   end subroutine startup
@@ -254,29 +275,37 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,isurf,ps,lhetero
-    use modglobal, only : imax,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1
-    use modmpi,    only : myid, nprocs,mpierr
+    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
+    use modmpi,    only : myid,nprocx,nprocy,mpierr
     use modtimedep, only : ltimedep
 
 
-      if(mod(jtot,nprocs) /= 0) then
+      if(mod(jtot,nprocy) /= 0) then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocs must divide jtot!!! '
-          write(6,*)'nprocs and jtot are: ',nprocs, jtot
+          write(6,*)'nprocy must divide jtot!!! '
+          write(6,*)'nprocy and jtot are: ',nprocy, jtot
         end if
         call MPI_FINALIZE(mpierr)
         stop
+      else
+        if(myid==0)then
+          write(6,*)'jmax = jtot / nprocy = ', jmax
+        endif
       end if
 
-      if(mod(imax,nprocs)/=0)then
+      if(mod(itot,nprocx)/=0)then
         if(myid==0)then
           write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocs must divide imax!!! '
-          write(6,*)'nprocs and imax are: ',nprocs,imax
+          write(6,*)'nprocx must divide itot!!! '
+          write(6,*)'nprocx and itot are: ',nprocx,itot
         end if
         call MPI_FINALIZE(mpierr)
         stop
+      else
+        if(myid==0)then
+          write(6,*)'imax = itot / nprocx = ', imax
+        endif
       end if
 
   !Check Namroptions
@@ -310,9 +339,9 @@ contains
 
     if (ltimedep .and. lhetero) then
       if (myid == 0) write(6,*)&
-      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
       if (myid == 0) write(0,*)&
-      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time' 
+      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
     endif
 
   end subroutine checkinitvalues
@@ -328,12 +357,12 @@ contains
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
-                                  rslabs,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero,qskin 
+                                  thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
@@ -441,6 +470,15 @@ contains
         call randomnize(thl0,k,randthl,irandom,ih,jh)
       end do
 
+      do k=krandumin,krandumax
+        call randomnize(um  ,k,randu  ,irandom,ih,jh)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh)
+      end do
+
       svprof = 0.
       if(myid==0)then
         if (nsv>0) then
@@ -504,7 +542,7 @@ contains
       oblav = -0.1
 
       call qtsurf
-      
+
       dthldz = (thlprof(1) - thls)/zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
       if(lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
@@ -512,7 +550,7 @@ contains
       u0av(1)   = uprof(1)
       thl0av(1) = thlprof(1)
       svs = svprof(1,:)
-     
+
       call baseprofs ! call baseprofs before thermodynamics
       call boundary
       call thermodynamics
@@ -562,11 +600,11 @@ contains
 
       thvh=0.
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-      thvh = thvh/rslabs
+      thvh = thvh/ijtot
 
       thvf = 0.0
       call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvf = thvf/rslabs
+      thvf = thvf/ijtot
 
       u0av = 0.0
       v0av = 0.0
@@ -585,15 +623,15 @@ contains
         call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       end do
 
-      u0av  = u0av  /rslabs + cu
-      v0av  = v0av  /rslabs + cv
-      thl0av = thl0av/rslabs
-      qt0av = qt0av /rslabs
-      ql0av = ql0av /rslabs
-      sv0av = sv0av /rslabs
+      u0av  = u0av  /ijtot + cu
+      v0av  = v0av  /ijtot + cv
+      thl0av = thl0av/ijtot
+      qt0av = qt0av /ijtot
+      ql0av = ql0av /ijtot
+      sv0av = sv0av /ijtot
       th0av  = thl0av + (rlv/cp)*ql0av/exnf
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-      
+
       do k=1,k1
         rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
       end do
@@ -723,7 +761,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(12:14)=cmyid
+    name(12:19)=cmyid
     write(6,*) 'loading ',name
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
@@ -811,7 +849,7 @@ contains
     logical :: lexitnow = .false.
     integer imin,ihour
     integer i,j,k,n
-    character(20) name,linkname
+    character(50) name,linkname
 
     if (timee == 0) return
     if (rk3step /=3) return
@@ -823,11 +861,11 @@ contains
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd  h  m   .'
+      name = 'initd  h  m        .'
       write (name(6:7)  ,'(i2.2)') ihour
       write (name(9:10) ,'(i2.2)') imin
-      name(12:14)= cmyid
-      name(16:18)= cexpnr
+      name(12:19)= cmyid
+      name(21:23)= cexpnr
       open  (ifoutput,file=name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -870,11 +908,11 @@ contains
       call system("ln -sf "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m   .'
+        name  = 'inits  h  m        .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
-        name(12:14) = cmyid
-        name(16:18) = cexpnr
+        name(12:19) = cmyid
+        name(21:23) = cexpnr
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -889,11 +927,11 @@ contains
       end if
 
       if (isurf == 1) then
-        name  = 'initl  h  m   .'
+        name  = 'initl  h  m        .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
-        name(12:14) = cmyid
-        name(16:18) = cexpnr
+        name(12:19) = cmyid
+        name(21:23) = cexpnr
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
@@ -959,45 +997,44 @@ contains
  end subroutine exitmodules
 !----------------------------------------------------------------
   subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
+    ! Adds (pseudo) random noise with given amplitude to the field at level k
+    ! Use our own pseudo random function so results are reproducibly the same,
+    ! independent of parallization.
 
-    use modmpi,    only :  myid,nprocs
-    use modglobal, only : i1,imax,jmax,j1,k1
+    use modmpi,    only : myidx, myidy
+    use modglobal, only : itot,jtot,imax,jmax,i1,j1,k1
     integer (KIND=selected_int_kind(6)):: imm, ia, ic,ir
     integer ihl, jhl
     integer i,j,klev
+    integer is,ie,js,je
     integer m,mfac
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
 
-    if (myid>0) then
-      mfac = myid * jmax * imax
-      do m =1,mfac
-        ir=mod((ir)*ia+ic,imm)
+    is = myidx * imax + 1
+    ie = is + imax - 1
 
-      end do
-    end if
-    do j=2,j1
-    do i=2,i1
-      ir=mod((ir)*ia+ic,imm)
-      ran=real(ir)/real(imm)
-      field(i,j,klev) = field(i,j,klev) + (ran-0.5)*2.0*ampl
-    end do
-    end do
+    js = myidy * jmax + 1
+    je = js + jmax - 1
 
-    if (nprocs-1-myid > 0) then
-      mfac = (nprocs-1-myid) * imax * jmax
-      do m=1,mfac
+    do j=1,jtot
+    do i=1,itot
         ir=mod((ir)*ia+ic,imm)
-      end do
-    end if
+        ran=real(ir)/real(imm)
+        if (i >= is .and. i <= ie .and. &
+            j >= js .and. j <= je) then
+            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+        endif
+    enddo
+    enddo
 
     return
   end subroutine randomnize
 
   subroutine baseprofs
     ! Calculates the profiles corresponding to the base state
-    ! In the currecnt implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
+    ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
     ! They are nevertheless calculated and printed to the stdin/baseprof files for user convenience
     use modfields,         only : rhobf,rhobh,drhobdzf,drhobdzh
     use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
@@ -1012,7 +1049,7 @@ contains
     real :: zsurf=0.
     real :: tsurf
     real,dimension(4) :: zmat=(/11000.,20000.,32000.,47000./)
-    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/) 
+    real,dimension(4) :: lapserate=(/-6.5/1000.,0.,1./1000,2.8/1000/)
     real,dimension(4) :: pmat
     real,dimension(4) :: tmat
 
@@ -1061,7 +1098,7 @@ contains
           log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
         tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
         ! write(*,*)(*,*) 'make profiles'
-        
+
         do j=2,4
           if(abs(lapserate(j))<1e-10) then
             pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
@@ -1071,7 +1108,7 @@ contains
           endif
           tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
         enddo
-        
+
         do k=1,k1
           if(zf(k)<zmat(1)) then
             pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
@@ -1107,7 +1144,7 @@ contains
           log(tsurf+zmat(1)*lapserate(1))*grav)/(lapserate(1)*rd))
         tmat(1)=tsurf+lapserate(1)*(zmat(1)-zsurf);
         ! write(*,*)(*,*) 'make profiles'
-        
+
         do j=2,4
           if(abs(lapserate(j))<1e-10) then
             pmat(j)=exp((log(pmat(j-1))*tmat(j-1)*rd+zmat(j-1)*grav-zmat(j)*grav)/(tmat(j-1)*rd))
@@ -1117,7 +1154,7 @@ contains
           endif
           tmat(j)=tmat(j-1)+lapserate(j)*(zmat(j)-zmat(j-1));
         enddo
-        
+
         do k=1,k1
           if(zf(k)<zmat(1)) then
             pb(k)=exp((log(ps)*lapserate(1)*rd+log(tsurf+zsurf*lapserate(1))*grav-&
@@ -1157,7 +1194,7 @@ contains
       open (ifinput,file='baseprof.inp.'//cexpnr)
       read (ifinput,'(a80)') chmess
       read (ifinput,'(a80)') chmess
-      
+
       do k=1,kmax
         read (ifinput,*) &
                 height(k), &
@@ -1165,7 +1202,7 @@ contains
       end do
       close(ifinput)
 
-   
+
       rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
 
       do k=2,k1
@@ -1180,7 +1217,7 @@ contains
     end do
 
     drhobdzf(k1) = drhobdzf(kmax)
-  
+
     drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
 
     do k=2,k1

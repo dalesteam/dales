@@ -71,7 +71,7 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i2, j2, imax, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
     use modraddata, only : iradiation,rad_shortw
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
@@ -87,9 +87,16 @@ contains
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf,lidealised, &
+      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
       ! Heterogeneous variables
-      lhetero, xpatches, ypatches, land_use, loldtable
+      lhetero, xpatches, ypatches, land_use, loldtable, &
+      ! AGS variables
+      lrsAgs, lCO2Ags,planttype, &
+      ! Delay plant response in Ags
+      lrelaxgc, kgc, lrelaxci, kci, &
+      ! Soil properties
+      phi, phifc, phiwp, R10
+
 
     ! 1    -   Initialize soil
 
@@ -125,7 +132,6 @@ contains
     call MPI_BCAST(lambdaskinav , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(albedoav     , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Qnetav       , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lidealised   , 1, MY_REAL, 0, comm3d, mpierr)
 
     call MPI_BCAST(rsminav      , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(rssoilminav  , 1, MY_REAL, 0, comm3d, mpierr)
@@ -144,11 +150,52 @@ contains
 
     call MPI_BCAST(lhetero                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrsAgs                     ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lCO2Ags                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(kci                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phi                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phifc                      ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
+    if(lCO2Ags .and. (.not. lrsAgs)) then
+      if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
+      if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
+      lCO2Ags = .false.
+    endif
+
+    if(lrsAgs) then
+      if(planttype==4) then !C4 plants, so standard settings for C3 plants are replaced
+        CO2comp298 =    4.3 !<  CO2 compensation concentration
+        Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
+        gm298      =   17.5 !<  Mesophyll conductance at 298 K
+        Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
+        T1gm       =  286.0 !<  Reference temperature to calculate the mesophyll conductance
+        T2gm       =  309.0 !<  Reference temperature to calculate the mesophyll conductance
+        f0         =   0.85 !<  Maximum value Cfrac
+        ad         =   0.15 !<  Regression coefficient to calculate Cfrac
+        Ammax298   =    1.7 !<  CO2 maximal primary productivity
+        Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
+        T1Am       =    286 !<  Reference temperature to calculate maximal primary productivity
+        T2Am       =    311 !<  Reference temperature to calculate maximal primary productivity
+        alpha0     =  0.014 !<  Initial low light conditions
+      else
+        if(planttype/=3) then
+          if(myid==0) print *,"WARNING::: planttype should be either 3 or 4, corresponding to C3 or C4 plants. It now defaulted to 3."
+        endif
+      endif
+    endif
+
     if(lhetero) then
+
       if(xpatches .gt. mpatch) then
         stop "NAMSURFACE: more xpatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
@@ -156,8 +203,8 @@ contains
         stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
       if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
-      'heterogeneous surface conditions (lhetero) at the same time' 
-      if (mod(imax,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
+      'heterogeneous surface conditions (lhetero) at the same time'
+      if (mod(itot,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
 
       allocate(z0mav_patch(xpatches,ypatches))
@@ -220,7 +267,7 @@ contains
       if(loldtable) then !Old input-file for heterogeneous surfaces: only valid w/o sw-radiation (due to albedo) and isurf = 3,4
         open (ifinput,file='surface.inp.'//cexpnr)
         ierr = 0
-        do while (ierr == 0)  
+        do while (ierr == 0)
           read(ifinput, '(A)', iostat=ierr) readbuffer
           if (ierr == 0) then                               !So no end of file is encountered
             if (readbuffer(1:1)=='#') then
@@ -230,8 +277,8 @@ contains
               defined_landtypes = defined_landtypes + 1
               i = defined_landtypes
               read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
-                ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i) 
-  
+                ps_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i)
+
               if (ustin_land(i) .lt. 0) then
                 if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
               endif
@@ -243,12 +290,12 @@ contains
                   if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
                 end if
               end if
-  
+
               if (landtype(i) .eq. 0) landtype_0 = i
               do j = 1, (i-1)
                 if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
               enddo
-                  
+
             endif
           endif
         enddo
@@ -258,7 +305,7 @@ contains
           case (1) ! Interactive land surface
             open (ifinput,file='surface.interactive.inp.'//cexpnr)
             ierr = 0
-            do while (ierr == 0)  
+            do while (ierr == 0)
               read(ifinput, '(A)', iostat=ierr) readbuffer
               if (ierr == 0) then                               !So no end of file is encountered
                 if (readbuffer(1:1)=='#') then
@@ -270,8 +317,8 @@ contains
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), ps_land(i), &
                     albedo_land(i),tsoil_land(1:ksoilmax,i),tsoildeep_land(i),phiw_land(1:ksoilmax,i),rootf_land(1:ksoilmax,i),&
                     Cskin_land(i), lambdaskin_land(i), Qnet_land(i), cveg_land(i), Wl_land(i), rsmin_land(i), LAI_land(i), &
-                    gD_land(i), wsv_land(1:nsv,i) 
-  
+                    gD_land(i), wsv_land(1:nsv,i)
+
                   if(z0mav_land(i) .lt. 0) then
                     if (myid == 0) stop "NAMSURFACE: a z0mav value is not set or negative in the surface input file"
                   end if
@@ -284,21 +331,21 @@ contains
                   if (albedo_land(i) .gt. 1) then
                     if (myid == 0) stop "NAMSURFACE: An albedo value in the surface input file is greater than 1"
                   endif
-  
+
                   if (landtype(i) .eq. 0) landtype_0 = i
                   do j = 1, (i-1)
                     if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
                   enddo
-                      
+
                 endif
               endif
             enddo
             close(ifinput)
-            
+
           case default ! Prescribed land surfaces: isurf = 2, 3, 4 (& 10)
             open (ifinput,file='surface.prescribed.inp.'//cexpnr)
             ierr = 0
-            do while (ierr == 0)  
+            do while (ierr == 0)
               read(ifinput, '(A)', iostat=ierr) readbuffer
               if (ierr == -1) then
                 if (myid == 0)  print *, "iostat = ",ierr,": No file ",'surface.prescribed.inp.'//cexpnr," found"
@@ -311,8 +358,8 @@ contains
                   defined_landtypes = defined_landtypes + 1
                   i = defined_landtypes
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
-                    ps_land(i), albedo_land(i), rsisurf2_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i) 
-  
+                    ps_land(i), albedo_land(i), rsisurf2_land(i), ustin_land(i), wt_land(i), wq_land(i), wsv_land(1:nsv,i)
+
                   if (ustin_land(i) .lt. 0) then
                     if (myid == 0) stop "NAMSURFACE: A ustin value in the surface input file is negative"
                   endif
@@ -330,12 +377,12 @@ contains
                       if (myid == 0) stop "NAMSURFACE: a z0hav value is not set or negative in the surface input file"
                     end if
                   end if
-  
+
                   if (landtype(i) .eq. 0) landtype_0 = i
                   do j = 1, (i-1)
                     if (landtype(i) .eq. landtype(j)) stop "NAMSURFACE: Two land types have the same type number"
                   enddo
-                      
+
                 endif
               endif
             enddo
@@ -381,28 +428,28 @@ contains
                   landindex = k
                 endif
               enddo
-            
-              tsoil_patch(:,i,j)    = tsoil_land(:,landindex)   
-              tsoildeep_patch(i,j)  = tsoildeep_land(landindex) 
-              phiw_patch(:,i,j)     = phiw_land(:,landindex)    
-              rootf_patch(:,i,j)    = rootf_land(:,landindex)   
-              Cskin_patch(i,j)      = Cskin_land(landindex)     
+
+              tsoil_patch(:,i,j)    = tsoil_land(:,landindex)
+              tsoildeep_patch(i,j)  = tsoildeep_land(landindex)
+              phiw_patch(:,i,j)     = phiw_land(:,landindex)
+              rootf_patch(:,i,j)    = rootf_land(:,landindex)
+              Cskin_patch(i,j)      = Cskin_land(landindex)
               lambdaskin_patch(i,j) = lambdaskin_land(landindex)
-              albedo_patch(i,j)     = albedo_land(landindex)    
-              Qnet_patch(i,j)       = Qnet_land(landindex)      
-              cveg_patch(i,j)       = cveg_land(landindex)      
-              rsmin_patch(i,j)      = rsmin_land(landindex)     
-              LAI_patch(i,j)        = LAI_land(landindex)       
-              gD_patch(i,j)         = gD_land(landindex)        
-              Wl_patch(i,j)         = Wl_land(landindex)        
+              albedo_patch(i,j)     = albedo_land(landindex)
+              Qnet_patch(i,j)       = Qnet_land(landindex)
+              cveg_patch(i,j)       = cveg_land(landindex)
+              rsmin_patch(i,j)      = rsmin_land(landindex)
+              LAI_patch(i,j)        = LAI_land(landindex)
+              gD_patch(i,j)         = gD_land(landindex)
+              Wl_patch(i,j)         = Wl_land(landindex)
 
               z0mav_patch(i,j)     = z0mav_land(landindex)
               z0hav_patch(i,j)     = z0hav_land(landindex)
               ps_patch(i,j)        = ps_land(landindex)
-               
+
               wsv_patch(1:nsv,i,j) = wsv_land(1:nsv,landindex)
-            
-              tsoilav(:)    = tsoilav(:)   +  ( tsoil_patch(:,i,j)    / ( xpatches * ypatches ) ) 
+
+              tsoilav(:)    = tsoilav(:)   +  ( tsoil_patch(:,i,j)    / ( xpatches * ypatches ) )
               tsoildeepav   = tsoildeepav  +  ( tsoildeep_patch(i,j)  / ( xpatches * ypatches ) )
               phiwav(:)     = phiwav(:)    +  ( phiw_patch(:,i,j)     / ( xpatches * ypatches ) )
               rootfav(:)    = rootfav(:)   +  ( rootf_patch(:,i,j)    / ( xpatches * ypatches ) )
@@ -415,10 +462,10 @@ contains
               LAIav         = LAIav        +  ( LAI_patch(i,j)        / ( xpatches * ypatches ) )
               gDav          = gDav         +  ( gD_patch(i,j)         / ( xpatches * ypatches ) )
               Wlav          = Wlav         +  ( Wl_patch(i,j)         / ( xpatches * ypatches ) )
-   
-              z0mav         = z0mav        +  ( z0mav_patch(i,j)      / ( xpatches * ypatches ) ) 
-              z0hav         = z0hav        +  ( z0hav_patch(i,j)      / ( xpatches * ypatches ) ) 
-              ps            = ps           +  ( ps_patch(i,j)         / ( xpatches * ypatches ) ) 
+
+              z0mav         = z0mav        +  ( z0mav_patch(i,j)      / ( xpatches * ypatches ) )
+              z0hav         = z0hav        +  ( z0hav_patch(i,j)      / ( xpatches * ypatches ) )
+              ps            = ps           +  ( ps_patch(i,j)         / ( xpatches * ypatches ) )
             enddo
           enddo
         case default ! Prescribed land surfaces: isurf = 2, 3, 4 (& 10)
@@ -434,7 +481,7 @@ contains
 
           z0mav        = 0
           z0hav        = 0
-    
+
           do i = 1, xpatches
             do j = 1, ypatches
               landindex = landtype_0
@@ -443,7 +490,7 @@ contains
                   landindex = k
                 endif
               enddo
-            
+
               z0mav_patch(i,j)     = z0mav_land(landindex)
               z0hav_patch(i,j)     = z0hav_land(landindex)
               thls_patch(i,j)      = thls_land(landindex)
@@ -456,7 +503,7 @@ contains
                 albedo_patch(i,j)  = albedo_land(landindex)
                 rsisurf2_patch(i,j)= rsisurf2_land(landindex)
               endif
-    
+
               thls   = thls   + ( thls_patch(i,j)  / ( xpatches * ypatches ) )
               ps     = ps     + ( ps_patch(i,j)    / ( xpatches * ypatches ) )
               ustin  = ustin  + ( ustin_patch(i,j) / ( xpatches * ypatches ) )
@@ -464,11 +511,11 @@ contains
               wqsurf = wqsurf + ( wq_patch(i,j)    / ( xpatches * ypatches ) )
               wsvsurf(1:nsv) = wsvsurf(1:nsv) + ( wsv_patch(1:nsv,i,j) / ( xpatches * ypatches ) )
               if (.not. loldtable) then
-                albedoav  = albedoav + ( albedo_patch(i,j) / ( xpatches * ypatches ) ) 
+                albedoav  = albedoav + ( albedo_patch(i,j) / ( xpatches * ypatches ) )
               endif
-   
-              z0mav  = z0mav  + ( z0mav_patch(i,j) / ( xpatches * ypatches ) ) 
-              z0hav  = z0hav  + ( z0hav_patch(i,j) / ( xpatches * ypatches ) ) 
+
+              z0mav  = z0mav  + ( z0mav_patch(i,j) / ( xpatches * ypatches ) )
+              z0hav  = z0hav  + ( z0hav_patch(i,j) / ( xpatches * ypatches ) )
             enddo
           enddo
       end select
@@ -540,7 +587,7 @@ contains
     if (isurf==1) then
       call initlsm
     end if
- 
+
     allocate(rs(i2,j2))
     if(isurf <= 2) then
       allocate(ra(i2,j2))
@@ -614,12 +661,23 @@ contains
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
 
+    if (lrsAgs) then
+      allocate(AnField   (2:i1,2:j1))
+      allocate(RespField (2:i1,2:j1))
+      allocate(wco2Field (2:i1,2:j1))
+      allocate(rsco2Field(2:i1,2:j1))
+      allocate(fstrField (2:i1,2:j1))
+      allocate(gc_old    (2:i1,2:j1))
+      allocate(ci_old    (2:i1,2:j1))
+      allocate(tauField  (2:i1,2:j1))
+      allocate(ciField   (2:i1,2:j1))
+    endif
     return
   end subroutine initsurface
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,rslabs,rd,rv
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -646,7 +704,7 @@ contains
       return
     end if
 
-    if(lhetero) then 
+    if(lhetero) then
       upatch = 0
       vpatch = 0
       Npatch = 0
@@ -654,7 +712,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           patchx = patchxnr(i)
-          patchy = patchynr(j) 
+          patchy = patchynr(j)
           upatch(patchx,patchy) = upatch(patchx,patchy) + 0.5 * (u0(i,j,1) + u0(i+1,j,1))
           vpatch(patchx,patchy) = vpatch(patchx,patchy) + 0.5 * (v0(i,j,1) + v0(i,j+1,1))
           Npatch(patchx,patchy) = Npatch(patchx,patchy) + 1
@@ -667,10 +725,10 @@ contains
       xpatches*ypatches,    MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),&
       xpatches*ypatches,MPI_INTEGER,MPI_SUM, comm3d,mpierr)
-          
+
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
-    endif 
+    endif
 
 
     ! CvH start with computation of drag coefficients to allow for implicit solver
@@ -689,7 +747,7 @@ contains
         do i = 2, i1
           if(lhetero) then
             patchx = patchxnr(i)
-            patchy = patchynr(j) 
+            patchy = patchynr(j)
           endif
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
@@ -746,34 +804,36 @@ contains
           horv   = max(horv, 0.1)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
           horvav = max(horvav, 0.1)
-            
+
           if(lhetero) then
             patchx = patchxnr(i)
-            patchy = patchynr(j) 
+            patchy = patchynr(j)
           endif
-          
-          if(lmostlocal) then 
-            ustar  (i,j) = sqrt(Cm(i,j)) * horv 
+
+          if(lmostlocal) then
+            ustar  (i,j) = sqrt(Cm(i,j)) * horv
           else
             if(lhetero) then
-              ustar  (i,j) = sqrt(Cm(i,j)) * horvpatch(patchx,patchy) 
+              ustar  (i,j) = sqrt(Cm(i,j)) * horvpatch(patchx,patchy)
             else
               ustar  (i,j) = sqrt(Cm(i,j)) * horvav
             endif
           end if
-          
-          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j) 
+
+          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j)
           qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
-          
+
           if(lhetero) then
             do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchy) 
+              svflux(i,j,n) = wsv_patch(n,patchx,patchy)
             enddo
           else
             do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n) 
+              svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
+
+          if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
 
           if (obl(i,j) < 0.) then
             phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
@@ -805,14 +865,14 @@ contains
         call MPI_ALLREDUCE(wtsurfl, wtsurf, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
         call MPI_ALLREDUCE(wqsurfl, wqsurf, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-        wtsurf = wtsurf / rslabs
-        wqsurf = wqsurf / rslabs
+        wtsurf = wtsurf / ijtot
+        wqsurf = wqsurf / ijtot
 
         do j = 2, j1
           do i = 2, i1
 
-            thlflux(i,j) = wtsurf 
-            qtflux (i,j) = wqsurf 
+            thlflux(i,j) = wtsurf
+            qtflux (i,j) = wqsurf
 
             do n=1,nsv
               svflux(i,j,n) = wsvsurf(n)
@@ -856,7 +916,7 @@ contains
 
       thlsl = 0.
       qtsl  = 0.
-      
+
       if(lhetero) then
         lthls_patch = 0.0
         lqts_patch  = 0.0
@@ -867,7 +927,7 @@ contains
         do i = 2, i1
           if(lhetero) then
             patchx = patchxnr(i)
-            patchy = patchynr(j) 
+            patchy = patchynr(j)
           endif
 
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -897,7 +957,7 @@ contains
 
           ustar  (i,j) = max(ustar(i,j), 1.e-2)
           if(lhetero) then
-            thlflux(i,j) = wt_patch(patchx,patchynr(j)) 
+            thlflux(i,j) = wt_patch(patchx,patchynr(j))
             qtflux (i,j) = wq_patch(patchx,patchynr(j))
           else
             thlflux(i,j) = wtsurf
@@ -906,7 +966,7 @@ contains
 
           if(lhetero) then
             do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j)) 
+              svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j))
             enddo
           else
             do n=1,nsv
@@ -951,8 +1011,8 @@ contains
       call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
 
-      thls = thls / rslabs
-      qts  = qts  / rslabs
+      thls = thls / ijtot
+      qts  = qts  / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
       if (lhetero) then
@@ -975,11 +1035,6 @@ contains
     end if
 
     ! Transfer ustar to neighbouring cells
-    do j=1,j2
-      ustar(1,j)=ustar(i1,j)
-      ustar(i2,j)=ustar(2,j)
-    end do
-
     call excj( ustar  , 1, i2, 1, j2, 1,1)
 
     return
@@ -988,7 +1043,7 @@ contains
 
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf
-    use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,rslabs,i1,j1
+    use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,ijtot,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
     use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
@@ -1018,10 +1073,10 @@ contains
 
       call MPI_ALLREDUCE(qtsl, qts, 1,  MY_REAL, &
                          MPI_SUM, comm3d,mpierr)
-      qts  = qts / rslabs
+      qts  = qts / ijtot
       thvs = thls * (1. + (rv/rd - 1.) * qts)
 
-      if (lhetero) then 
+      if (lhetero) then
         lqts_patch = 0.
         Npatch     = 0
         do j = 2, j1
@@ -1038,7 +1093,7 @@ contains
             lqts_patch(patchx,patchy) = lqts_patch(patchx,patchy) + qskin(i,j)
             Npatch(patchx,patchy)     = Npatch(patchx,patchy)     + 1
           enddo
-        enddo  
+        enddo
         call MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches), qts_patch(1:xpatches,1:ypatches),&
         xpatches*ypatches,     MY_REAL,MPI_SUM, comm3d,mpierr)
         call MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)    , SNpatch(1:xpatches,1:ypatches)  ,&
@@ -1068,7 +1123,7 @@ contains
     integer             :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches),&
                            lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
-    real                :: loblpatch(xpatches,ypatches) 
+    real                :: loblpatch(xpatches,ypatches)
 
     if(lmostlocal) then
 
@@ -1125,14 +1180,14 @@ contains
         end do
       end do
     end if
-    
-    if(lhetero) then 
+
+    if(lhetero) then
       upatch    = 0
       vpatch    = 0
       Npatch    = 0
       lthlpatch = 0
       lqpatch   = 0
-      loblpatch = 0 
+      loblpatch = 0
 
       do j = 2, j1
         do i = 2, i1
@@ -1159,14 +1214,14 @@ contains
       MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,&
       MY_REAL,MPI_SUM, comm3d,mpierr)
-          
+
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
 
       thlpatch  = thlpatch / SNpatch
       qpatch    = qpatch   / SNpatch
       oblpatch  = oblpatch / SNpatch
-          
+
       thvpatch  = thlpatch * (1. + (rv/rd - 1.) * qpatch)
 
       do patchy = 1, ypatches
@@ -1203,7 +1258,7 @@ contains
             if(abs((L - Lold)/L) < 1e-4) exit
           end do
 
-          if (abs(L)>1e6) L = sign(1.0e6,L) 
+          if (abs(L)>1e6) L = sign(1.0e6,L)
           oblpatch(patchx,patchy) = L
         enddo
       enddo
@@ -1254,7 +1309,7 @@ contains
 
     if (abs(L)>1e6) L = sign(1.0e6,L)
     if(.not. lmostlocal) then
-      if(.not. lhetero) then 
+      if(.not. lhetero) then
         obl(:,:) = L
       endif
     end if
@@ -1305,36 +1360,79 @@ contains
     return
   end function psih
 
+  function E1(x)
+  implicit none
+    real             :: E1
+    real, intent(in) :: x
+    real             :: E1sum!, factorial
+    integer          :: k,t
+
+    E1sum = 0.0
+    do k=1,99
+      E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
+    end do
+    E1 = -0.57721566490153286060 - log(x) - E1sum
+
+    return
+  end function E1
+
+  function factorial(k)
+  implicit none
+    real                :: factorial
+    integer, intent(in) :: k
+    integer             :: n
+    factorial = 1.0
+    do n = 2, k
+      factorial = factorial * n
+    enddo
+  end function factorial
+
   function patchxnr(xpos)
-    use modglobal,  only : imax
+    use modmpi,     only : myidx
+    use modglobal,  only : imax,itot
     implicit none
-    integer             :: patchxnr
-    integer             :: positionx
     integer, intent(in) :: xpos
 
-    positionx = xpos - 2                                   !First grid point lies at i = 2. This lines makes sure that position = 0 for first grid point 
-    if (positionx .lt. 0)    positionx = positionx + imax  !To account for border grid points
-    if (positionx .ge. imax) positionx = positionx - imax  !To account for border grid points
-    patchxnr  = 1 + (positionx*xpatches)/imax              !Converts position to patch number
+    integer             :: patchxnr
+    integer             :: positionx
+
+    ! Converting the j position to the real j position by taking the processor number into account
+    ! First grid point lies at j = 2. Make position = 0 for first grid point
+
+    positionx = xpos + (myidx * imax) - 2
+
+    ! Account for border grid points
+    if (positionx .lt. 0)    positionx = positionx + itot
+    if (positionx .ge. itot) positionx = positionx - itot
+
+    ! Convert position to patch number
+    patchxnr  = 1 + (positionx*xpatches)/itot
+
     return
   end function
 
   function patchynr(ypos)
-    use modmpi,     only : myid
+    use modmpi,     only : myidy
     use modglobal,  only : jmax,jtot
     implicit none
-    integer             :: patchynr
-    integer             :: yposreal, positiony
     integer, intent(in) :: ypos
-    
-    yposreal  = ypos + (myid * jmax)                       !Converting the j position to the real j position by taking the processor number into account
-    positiony = yposreal - 2                               !First grid point lies at j = 2. This lines makes sure that position = 0 for first grid point
-    if (positiony .lt. 0)    positiony = positiony + jtot  !To account for border grid points
-    if (positiony .ge. jtot) positiony = positiony - jtot  !To account for border grid points
-    patchynr  = 1 + (positiony*ypatches)/jtot              !Converts position to patch number
+    integer             :: patchynr
+    integer             :: positiony
+
+    ! Converting the j position to the real j position by taking the processor number into account
+    ! First grid point lies at j = 2. Make position = 0 for first gridpoint
+    positiony = ypos + (myidy * jmax) - 2
+
+    ! Account for border grid points
+    if (positiony .lt. 0)    positiony = positiony + jtot
+    if (positiony .ge. jtot) positiony = positiony - jtot
+
+    ! Convert position to patch number
+    patchynr  = 1 + (positiony*ypatches)/jtot
+
     return
   end function
-  
+
   subroutine exitsurface
     implicit none
     return
@@ -1394,6 +1492,7 @@ contains
     allocate(LE(i2,j2))
     allocate(H(i2,j2))
     allocate(G0(i2,j2))
+    allocate(CO2flux(i2,j2))
 
     allocate(rsveg(i2,j2))
     allocate(rsmin(i2,j2))
@@ -1486,11 +1585,11 @@ contains
 
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
-  
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,rslabs,rk3step
-    use modfields, only : ql0,qt0,thl0,rhof,presf
+
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv
+    use modfields, only : ql0,qt0,thl0,rhof,presf,svm
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu
-    use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer
+    use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k
@@ -1502,8 +1601,18 @@ contains
     real     :: fH, fLE, fLEveg, fLEsoil, fLEliq, LEveg, LEsoil, LEliq
     real     :: Wlmx
 
+    real     :: CO2ags, CO2comp, gm, fmin0, fmin, esatsurf, Ds, D0, cfrac, co2abs, ci !Variables for AGS
+    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, AGSa1, Dstar, gcco2 !Variables for AGS
+    real     :: rsAgs, rsCO2, fw, Resp, wco2 !Variables for AGS
+    real     :: MW_Air = 28.97
+    real     :: MW_CO2 = 44
+
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
+
+    real     :: local_wco2av
+    real     :: local_Anav
+    real     :: local_Respav
 
     patchx = 0
     patchy = 0
@@ -1528,12 +1637,30 @@ contains
       Npatch      = 0
     endif
 
+    wco2av       = 0.0
+    Anav         = 0.0
+    Respav       = 0.0
+    local_wco2av = 0.0
+    local_Anav   = 0.0
+    local_Respav = 0.0
+
+    if (lrsAgs) then
+      AnField    = 0.0
+      RespField  = 0.0
+      wco2Field  = 0.0
+      rsco2Field = 0.0
+      fstrField  = 0.0
+      ciField    = 0.0
+    endif
+
+    rk3coef = rdt / (4. - dble(rk3step))
+
     do j = 2, j1
       do i = 2, i1
         if(lhetero) then
           patchx = patchxnr(i)
-          patchy = patchynr(j) 
-        endif 
+          patchy = patchynr(j)
+        endif
 
         ! 1.2   -   Calculate the skin temperature as the top boundary conditions for heat transport
         if(iradiation > 0) then
@@ -1558,7 +1685,7 @@ contains
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
           elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
-            swdav = -swd(i,j,1)
+            swdav      = -swd(i,j,1)
             Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
           else ! simple radiation scheme
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
@@ -1603,6 +1730,149 @@ contains
         f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
 
         rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
+
+        ! 2.1a  - Recalculate vegetation resistance using AGS
+
+        if (lrsAgs) then
+          if (.not. linags) then !initialize AGS
+            if(nsv .le. 0) then
+              if (myid == 0) then
+                print *, 'Problem in namoptions NAMSURFACE'
+                print *, 'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
+                stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+              endif
+            endif
+            if(lCHon) then !Chemistry is on
+              if (CO2loc .lt. 1) then !No CO2 in chemistry
+                if (myid == 0) then
+                  print *, 'WARNING ::: There is no CO2 defined in the chemistry scheme'
+                  print *, 'WARNING ::: Scalar 1 might be considered to be CO2 '
+                  stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
+                endif
+                indCO2 = 1
+              else  !CO2 present in chemistry
+                indCO2 = CO2loc
+              endif !Is CO2 present?
+            else !Chemistry is not on
+              if (myid == 0) then
+                print *, 'WARNING ::: There is no CO2 defined due to the absence of a chemistry scheme'
+                print *, 'WARNING ::: Scalar 1 is considered to be CO2 '
+              endif
+              indCO2 = 1
+            endif !Is chemistry on?
+            linags = .true.
+          endif !linags
+
+          CO2ags  = svm(i,j,1,indCO2)/1000.0  !From ppb (usual DALES standard) to ppm
+
+          ! Calculate surface resistances using the plant physiological (A-gs) model
+          ! Calculate the CO2 compensation concentration
+          CO2comp = rhof(1) * CO2comp298 * Q10CO2 ** (0.1 * ( thl0(i,j,1) - 298.0 ) )
+
+          ! Calculate the mesophyll conductance
+          gm       = gm298 * Q10gm ** (0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1. + exp(0.3 * ( T1gm - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2gm))))
+          gm       = gm / 1000   ! conversion from mm s-1 to m s-1
+
+          ! calculate CO2 concentration inside the leaf (ci)
+          fmin0    = gmin/nuco2q - (1.0/9.0) * gm
+          fmin     = (-fmin0 + ( fmin0 ** 2.0 + 4 * gmin/nuco2q * gm ) ** (0.5)) / (2. * gm)
+
+          esatsurf = 0.611e3 * exp(17.2694 * (tskin(i,j) - 273.16) / (tskin(i,j) - 35.86))
+          Ds       = (esatsurf - e) / 1000.0 ! In kPa
+          D0       = (f0 - fmin) / ad
+
+          cfrac    = f0 * (1.0 - Ds/D0) + fmin * (Ds/D0)
+          co2abs   = CO2ags * (MW_CO2/MW_Air) * rhof(1)
+
+          if (lrelaxci) then
+            if (ci_old_set) then
+              ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
+              ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
+              if (rk3step  == 3) then
+                ci_old(i,j) = ci
+              endif
+            else
+              ci            = cfrac * (co2abs - CO2comp) + CO2comp
+              ci_old(i,j)   = ci
+            endif
+          else
+            ci              = cfrac * (co2abs - CO2comp) + CO2comp
+          endif
+
+          ! Calculate maximal gross primary production in high light conditions (Ag)
+          Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2Am))) )
+
+          ! Calculate the effect of soil moisture stress on gross assimilation rate
+          betaw    = max(1.0e-3,min(1.0,(phitot(i,j)-phiwp)/(phifc-phiwp)))
+
+          ! Calculate stress function
+          fstr     = betaw
+
+          ! Calculate gross assimilation rate (Am)
+          Am       = Ammax * (1 - exp( -(gm * (ci - CO2comp) / Ammax) ) )
+
+          Rdark    = (1.0/9) * Am
+
+          !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
+          PAR      = 0.50 * max(0.1,-swdav) !Increase PAR to 50 SW
+
+          ! Calculate the light use efficiency
+          alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
+
+          ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
+          tempy    = alphac * Kx * PAR / (Am + Rdark)
+          An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
+
+          ! Calculate upscaling from leaf to canopy: CO2 conductance at canopy level
+          AGSa1    = 1.0 / (1 - f0)
+          Dstar    = D0 / (AGSa1 * (f0 - fmin))
+
+          if (lrelaxgc) then
+            if (gc_old_set) then
+              gc_inf      = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+              if (rk3step ==3) then
+                gc_old(i,j) = gcco2
+              endif
+            else
+              gcco2       = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+              gc_old(i,j) = gcco2
+            endif
+          else
+            gcco2  = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+          endif
+
+          ! Calculate surface resistances for moisture and carbon dioxide
+          rsAgs    = 1.0 / (1.6 * gcco2)
+          rsCO2    = 1.0 / gcco2
+
+          rsveg(i,j) = rsAgs
+
+          ! Calculate net flux of CO2 into the plant (An)
+          An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
+
+          ! CO2 soil respiraion surface flux
+          fw       = Cw * wsmax / (phitot(i,j) + wsmin)
+
+!          Resp     = R10 * (1 - fw)*(1+ustar(i,j)) * exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( thl0(i,j,1) )))
+          Resp     = R10 * (1 - fw)* exp( Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / ( tsoil(i,j,1) )))
+
+          wco2     = (An + Resp) * (MW_Air/MW_CO2) * (1.0/rhof(1)) ! In ppm m/s
+
+          CO2flux(i,j) = wco2 * 1000.0 ! In ppb m/s
+
+
+          local_wco2av = local_wco2av + wco2
+          local_Anav   = local_Anav   + An
+          local_Respav = local_Respav + Resp
+
+          AnField   (i,j) = An
+          RespField (i,j) = Resp
+          wco2Field (i,j) = wco2
+          rsco2Field(i,j) = rsCO2
+          fstrField (i,j) = fstr
+          ciField   (i,j) = ci
+        endif !lrsAgs
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
 
@@ -1663,8 +1933,6 @@ contains
 
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
-
-        rk3coef = rdt / (4. - dble(rk3step))
 
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
@@ -1760,13 +2028,34 @@ contains
         end do
         ! closed bottom for now
         phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rk3coef * (- lambdash(i,j,ksoilmax-1) * &
-        (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) & 
+        (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) &
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
       end do
     end do
 
+    if (lrelaxgc .and. (.not. gc_old_set) ) then
+      if (rk3step == 3) then
+        gc_old_set = .true.
+      endif
+    endif
+
+    if (lrelaxci .and. (.not. ci_old_set) ) then
+      if (rk3step == 3) then
+        ci_old_set = .true.
+      endif
+    endif
+
+    call MPI_ALLREDUCE(local_wco2av, wco2av, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_Respav, Respav, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+
+    Anav   = Anav/ijtot
+    wco2av = wco2av/ijtot
+    Respav = Respav/ijtot
+
+
     call MPI_ALLREDUCE(thlsl, thls, 1,  MY_REAL, MPI_SUM, comm3d,mpierr)
-    thls = thls / rslabs
+    thls = thls / ijtot
     if (lhetero) then
       call MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
       xpatches*ypatches,     MY_REAL, MPI_SUM, comm3d,mpierr)

@@ -1124,7 +1124,7 @@ SUBROUTINE twostep2(y)
 !c                                                                 |
 !c-----------------------------------------------------------------|
 !c
-use modglobal, only : ih,i1,jh,j1,i2,j2,k1,kmax,nsv,xtime,rtimee,rdt,timee,timeav_glob,xday,xlat,xlon,zf,dzf,ifoutput,cexpnr,dz,rslabs
+use modglobal, only : ih,i1,jh,j1,i2,j2,k1,kmax,nsv,xtime,rtimee,rdt,timee,timeav_glob,xday,xlat,xlon,zf,dzf,ifoutput,cexpnr,dz,ijtot
 use modfields, only : qt0
 use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,mpi_real,myid,cmyid,nprocs
 use modtimestat, only: we, zi, ziold, calcblheight
@@ -1369,10 +1369,10 @@ implicit none
                   call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
-                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)/rslabs
+                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)/ijtot
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
-                                   * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr))/(rslabs*(k_zi+rest_zi))
+                                   * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr))/(ijtot*(k_zi+rest_zi))
               case(3) ! A^a -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
@@ -1386,10 +1386,10 @@ implicit none
                   call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
-                seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) / (rslabs ** (PL_scheme(n)%PL(j)%exp1 - 1))
+                seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) / (ijtot ** (PL_scheme(n)%PL(j)%exp1 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 - 1))
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 - 1))
                 
               case(4) !A^a + B^b -> ...
                 do it_k=1,kmax
@@ -1407,11 +1407,11 @@ implicit none
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
-                                          / (rslabs ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
+                                          / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
                 
               case(5) ! A + B + C -> ...   
                 do it_k=1,kmax
@@ -1429,11 +1429,11 @@ implicit none
                   call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
-                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)*seg_conc(3,:,Rnr)/(rslabs**2)
+                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)*seg_conc(3,:,Rnr)/(ijtot**2)
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
                                    * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) &
-                                   * (sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) / ((rslabs*(k_zi+rest_zi))**2)
+                                   * (sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) / ((ijtot*(k_zi+rest_zi))**2)
                 
               case(6) ! A^a + B^b + C^c -> ...
                 do it_k=1,kmax
@@ -1455,12 +1455,12 @@ implicit none
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) &
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
-                                          / (rslabs ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
+                                          / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
                                    * ((sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp3)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
                 
               case(7) ! A^a + B^b + C^c + D^d -> ... 
                 do it_k=1,kmax
@@ -1485,14 +1485,14 @@ implicit none
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
                                           * (seg_conc(4,:,Rnr) ** PL_scheme(n)%PL(j)%exp4) &
-                                          / (rslabs ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
+                                          / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
                                                       + PL_scheme(n)%PL(j)%exp3 + PL_scheme(n)%PL(j)%exp4 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
                                    * ((sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp3)&
                                    * ((sum(seg_conc(4,1:k_zi,Rnr)) + rest_zi*seg_conc(4,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp4)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
                                                                 + PL_scheme(n)%PL(j)%exp3 + PL_scheme(n)%PL(j)%exp4 - 1))
               case default
                 if(myid==0) then
@@ -1774,7 +1774,7 @@ subroutine ratech
 !
 
   use modglobal, only : i1,i2,ih, j1,j2,jh, k1,kmax,pi,xtime,timee,rtimee,tres,xday,xlat,xlon, &
-                        zf,dzf, iexpnr,rslabs,ifoutput,cexpnr
+                        zf,dzf, iexpnr,ijtot,ifoutput,cexpnr
   use modfields, only : sv0, qt0, ql0 ,rhof
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_integer, mpi_sum
   implicit none
@@ -1995,7 +1995,7 @@ subroutine ratech
 
      if ( myid ==0 ) then
        open (ifoutput,file='cloudstat.'//cexpnr,position='append')
-       write(ifoutput,'(f7.0,f6.2,2f7.2,4f9.1,4f9.4)')rtimee, xhr, zbasecount/rslabs, cloudcount/rslabs, zbasesum / (zbasecount+1.0e-5), &
+       write(ifoutput,'(f7.0,f6.2,2f7.2,4f9.1,4f9.4)')rtimee, xhr, zbasecount/ijtot, cloudcount/ijtot, zbasesum / (zbasecount+1.0e-5), &
          ztopmax, cloudheightsum/(zbasecount+1.0e-5), cloudheightmax, qlintsum / (zbasecount+1.0e-5), &
          qlintmax, qlintallsum / (cloudcount + 1.0e-5), qlintallmax
        close (ifoutput)

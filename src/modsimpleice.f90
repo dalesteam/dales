@@ -92,7 +92,7 @@ module modsimpleice
   subroutine exitsimpleice
     implicit none
     deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
-    deallocate(qrmask,qcmask) 
+    deallocate(qrmask,qcmask)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
   end subroutine exitsimpleice
@@ -103,7 +103,7 @@ module modsimpleice
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,tmp0,rhobf
     use modsimpleicestat, only : simpleicetend
     implicit none
-    integer:: i,j,k 
+    integer:: i,j,k
     real:: qrsmall, qrsum,qrtest
 
     delt = rdt/ (4. - dble(rk3step))
@@ -111,7 +111,7 @@ module modsimpleice
     ! used to check on negative qr and nr
     qrsum=0.
     qrsmall=0.
-    ! reset microphysics tendencies 
+    ! reset microphysics tendencies
     qrp=0.
     nrp=0.
     nr=0.
@@ -266,7 +266,7 @@ module modsimpleice
     do j=2,j1
     do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
-          ! ql partitioning 
+          ! ql partitioning
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
           ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
@@ -288,7 +288,7 @@ module modsimpleice
       do j=2,j1
       do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
-          ! ql partitioning 
+          ! ql partitioning
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
           autl=max(0.,timekessl*(qll-qll0))
@@ -322,7 +322,7 @@ module modsimpleice
         ! ql partitioning
         qll=ql0(i,j,k)*ilratio(i,j,k)
         qli=ql0(i,j,k)-qll
-        ! qr partitioning 
+        ! qr partitioning
         qrr=qr(i,j,k)*rsgratio(i,j,k)
         qrs=qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))
         qrg=qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)
@@ -418,7 +418,7 @@ module modsimpleice
     enddo
     enddo
     enddo
-   
+
     !  advect precipitation using upwind scheme
     do k=1,kmax
     do j=2,j1
@@ -430,8 +430,8 @@ module modsimpleice
 
     ! begin time splitting loop
     IF (n_spl > 1) THEN
-      DO jn = 2 , n_spl 
-    
+      DO jn = 2 , n_spl
+
         ! reset fluxes at each step of loop
         sed_qr = 0.
         do k=1,k1
@@ -462,7 +462,7 @@ module modsimpleice
         enddo
         enddo
         enddo
-    
+
       ! end time splitting loop and if n>1
       ENDDO
     ENDIF

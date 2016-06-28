@@ -66,7 +66,7 @@
 !! - Consistent modbudget and modgenstat with anelastic dynamics (Steef)
 !! \par todo (future)
 !! - General code cleanup
-!! - Unified and simpler diagnostics 
+!! - Unified and simpler diagnostics
 !! - Fielddump timing (Johan)
 !! - Input header detection (Steef)
 !! - Cleanup namoptions, remove dtav and timeav from some of the namoptions
@@ -100,7 +100,6 @@ program DALES      !Version 4.0.0alpha
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modmpi,            only : myid, initmpi
   use modglobal,         only : rk3step,timeleft
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
@@ -126,7 +125,9 @@ program DALES      !Version 4.0.0alpha
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
   use modsampling,     only : initsampling, sampling,exitsampling
-  use modcrosssection, only : initcrosssection, crosssection,exitcrosssection  
+  use modquadrant,     only : initquadrant, quadrant,exitquadrant
+  use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
+  use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
@@ -145,6 +146,7 @@ program DALES      !Version 4.0.0alpha
   use modnudge,        only : initnudge, nudge, exitnudge
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
+  use modcanopy,       only : initcanopy, canopy, exitcanopy
 
 
   implicit none
@@ -152,8 +154,8 @@ program DALES      !Version 4.0.0alpha
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
-  call initmpi
 
+  ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call startup
 
 !---------------------------------------------------------
@@ -165,7 +167,9 @@ program DALES      !Version 4.0.0alpha
   call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
   !call inittilt
   call initsampling
+  call initquadrant
   call initcrosssection
+  call initAGScross
   call initlsmcrosssection
   !call initprojection
   call initcloudfield
@@ -180,6 +184,7 @@ program DALES      !Version 4.0.0alpha
   !call initstressbudget
   call initchem
   call initheterostats
+  call initcanopy
 
   !call initspectra2
   call initcape
@@ -188,14 +193,13 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
-  write(*,*)'START myid ', myid
   do while (timeleft>0 .or. rk3step < 3)
     call tstep_update                           ! Calculate new timestep
     call timedep
     call samptend(tend_start,firstterm=.true.)
 
 !-----------------------------------------------------
-!   3.1   RADIATION         
+!   3.1   RADIATION
 !-----------------------------------------------------
     call radiation !radiation scheme
     call samptend(tend_rad)
@@ -211,6 +215,7 @@ program DALES      !Version 4.0.0alpha
     call advection
     call samptend(tend_adv)
     call subgrid
+    call canopy
     call samptend(tend_subg)
 
 !-----------------------------------------------------
@@ -263,7 +268,9 @@ program DALES      !Version 4.0.0alpha
     call radstat
     call lsmstat
     call sampling
+    call quadrant
     call crosssection
+    call AGScross
     call lsmcrosssection
     !call tanhfilter
     call docape
@@ -294,15 +301,18 @@ program DALES      !Version 4.0.0alpha
   !call exitparticles
   call exitnudge
   call exitsampling
+  call exitquadrant
   call exitsamptend
   call exitbulkmicrostat
   call exitbudget
   !call exitstressbudget
   call exitcrosssection
+  call exitAGScross
   call exitlsmcrosssection
   call exitcape
   call exitfielddump
   call exitheterostats
+  call exitcanopy
   call exitmodules
 
 end program DALES

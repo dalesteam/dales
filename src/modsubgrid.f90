@@ -197,11 +197,11 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
-                         dxi,dyi,dzf,dzh
-  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf
+  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar, &
+                          dxi,dyi,dzf,dzh
+  use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
-  use modmpi,    only : excjs
+  use modmpi,      only : excjs
   implicit none
 
   real    :: strain2,mlen
@@ -242,7 +242,7 @@ contains
             strain2 = strain2 + 0.5 * ( &
               ( 0.25*(w0(i,jp,kp)-w0(i,jm,kp))*dyi + &
               dvdz(i,j)   )**2 )
-      
+
           else
 
             strain2 =  ( &
@@ -321,11 +321,6 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
 
-  ekm(1, :,:) = ekm(i1,:,:)
-  ekm(i2,:,:) = ekm(2, :,:)
-  ekh(1, :,:) = ekh(i1,:,:)
-  ekh(i2,:,:) = ekh(2, :,:)
-
   call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
 
@@ -369,7 +364,7 @@ contains
 
   implicit none
 
-  real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz
+  real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz, horv
   integer i,j,k,jm,jp,km,kp
 
 
@@ -445,11 +440,14 @@ contains
           + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive consistent
-          ! gradient (such that
-          ! correct flux will occur in shear production term)
-          uwflux = -ustar(i,j)*ustar(i,j)* &
-              (u0(i,j,1)+cu)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
+          ! Use known surface flux and exchange coefficient to derive 
+          ! consistent gradient (such that correct flux will occur in 
+          ! shear production term)
+          ! Make sure that no division by zero occurs in determination of the
+          ! directional component; ekm should already be >= ekmin
+          ! Replace the dudz by surface flux -uw / ekm
+          horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
+          uwflux = -ustar(i,j)*ustar(i,j)* ((u0(i,j,1)+cu)/horv)
           local_dudz = -uwflux / ekm(i,j,1)
           tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
                local_dudz )**2
@@ -466,9 +464,14 @@ contains
                                  (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
 
     if (sgs_surface_fix) then
-          ! replace the dvdz by surface flux -vw / ekm
-          vwflux = -ustar(i,j)*ustar(i,j)* &
-              (v0(i,j,1)+cv)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
+          ! Use known surface flux and exchange coefficient to derive 
+          ! consistent gradient (such that correct flux will occur in 
+          ! shear production term)
+          ! Make sure that no division by zero occurs in determination of the
+          ! directional component; ekm should already be >= ekmin
+          ! Replace the dvdz by surface flux -vw / ekm
+          horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
+          vwflux = -ustar(i,j)*ustar(i,j)* ((v0(i,j,1)+cv)/horv)
           local_dvdz = -vwflux / ekm(i,j,1)
           tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
                         local_dvdz  )**2
@@ -481,7 +484,7 @@ contains
 
     sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
     if (sgs_surface_fix) then
-          ! replace the -ekh *  dthvdz by the surface flux of thv
+          ! Replace the -ekh *  dthvdz by the surface flux of thv
           ! (but we only have the thlflux , which seems at the surface to be
           ! equivalent
           local_dthvdz = -thlflux(i,j)/ekh(i,j,1)

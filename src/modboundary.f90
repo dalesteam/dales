@@ -97,21 +97,6 @@ contains
   use modmpi,    only : excjs
   integer n,m
 
-  do m = 1,ih
-    thl0(2-m,:,:)   = thl0(i2-m,:,:)
-    thl0(i1+m,:,:)  = thl0(1+m,:,:)
-    thlm(2-m,:,:)   = thlm(i2-m,:,:)
-    thlm(i1+m,:,:)  = thlm(1+m,:,:)
-    qt0(2-m,:,:)    = qt0(i2-m,:,:)
-    qt0(i1+m,:,:)   = qt0(1+m,:,:)
-    qtm(2-m,:,:)    = qtm(i2-m,:,:)
-    qtm(i1+m,:,:)   = qtm(1+m,:,:)
-    sv0(2-m,:,:,:)  = sv0(i2-m,:,:,:)
-    sv0(i1+m,:,:,:) = sv0(1+m,:,:,:)
-    svm(2-m,:,:,:)  = svm(i2-m,:,:,:)
-    svm(i1+m,:,:,:) = svm(1+m,:,:,:)
-  end do
-
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
@@ -133,28 +118,6 @@ contains
   use modmpi,    only : excjs
 
   integer m
-
-  do m = 1,ih
-
-    u0(2-m,:,:)    = u0(i2-m,:,:)
-    u0(i1+m,:,:)   = u0(1+m,:,:)
-    v0(2-m,:,:)    = v0(i2-m,:,:)
-    v0(i1+m,:,:)   = v0(1+m,:,:)
-    w0(2-m,:,:)    = w0(i2-m,:,:)
-    w0(i1+m,:,:)   = w0(1+m,:,:)
-    um(2-m,:,:)    = um(i2-m,:,:)
-    um(i1+m,:,:)   = um(1+m,:,:)
-    vm(2-m,:,:)    = vm(i2-m,:,:)
-    vm(i1+m,:,:)   = vm(1+m,:,:)
-    wm(2-m,:,:)    = wm(i2-m,:,:)
-    wm(i1+m,:,:)   = wm(1+m,:,:)
-
-    e120(2-m,:,:)  = e120(i2-m,:,:)
-    e120(i1+m,:,:)  = e120(1+m,:,:)
-    e12m(2-m,:,:)  = e12m(i2-m,:,:)
-    e12m(i1+m,:,:)  = e12m(1+m,:,:)
-
-  end do
 
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
@@ -184,8 +147,8 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv
-  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg & 
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
+  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
@@ -223,6 +186,9 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+  case(-1)
+    up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
+    vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
   case default
     stop "no gravity wave damping option selected"
   end select
@@ -277,18 +243,20 @@ contains
 !> Sets top boundary conditions for momentum
   subroutine topm
 
-    use modglobal, only : kmax,k1,e12min
+    use modglobal, only : kmax,k1,e12min,lrigidlid
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
+    if (lrigidlid) e120(:,:,k1) = e120(:,:,kmax)
 
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)
     wm(:,:,k1)   = 0.0
     e12m(:,:,k1) = e12min
+    if (lrigidlid) e12m(:,:,k1) = e12m(:,:,kmax)
 
   return
   end subroutine topm
@@ -299,7 +267,7 @@ contains
 !  subroutine tqaver
 !
 !  use modmpi,    only : comm3d,mpierr,my_real, mpi_sum
-!  use modglobal, only : i1,j1,kmax,nsv,rslabs
+!  use modglobal, only : i1,j1,kmax,nsv,ijtot
 !  use modfields, only : thl0,qt0,sv0
 !  implicit none
 !
@@ -326,9 +294,9 @@ contains
 !  end if
 !
 !
-!  thl0a=thl0a/rslabs
-!  qt0a =qt0a/rslabs
-!  sv0a = sv0a/rslabs
+!  thl0a=thl0a/ijtot
+!  qt0a =qt0a/ijtot
+!  sv0a = sv0a/ijtot
 !
 !  thl0(2:i1,2:j1,kmax)=thl0a
 !  qt0(2:i1,2:j1,kmax) =qt0a

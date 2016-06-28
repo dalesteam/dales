@@ -224,7 +224,7 @@ subroutine advecc_5th(putin, putout)
                           +(rhoputin(i,j,k+2)-rhoputin(i,j,k-3)))&
                   ) / dzf(k) &
                   )
-                  
+
         end if
 
       end do
@@ -384,7 +384,7 @@ subroutine advecu_5th(putin,putout)
                           +(rhoputin(i,j,k+2)-rhoputin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
                   )
-                
+
         else
 
           putout(i,j,k)  = putout(i,j,k)- ( &
@@ -423,7 +423,7 @@ subroutine advecu_5th(putin,putout)
                           +(rhoputin(i,j,k+2)-rhoputin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
                   )
-                
+
         end if
 
         end do
@@ -688,7 +688,7 @@ subroutine advecw_5th(putin, putout)
                 -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
                   )/ (4. * dzh(k)) &
                   )
- 
+
           elseif(k==3) then
             putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
@@ -791,7 +791,7 @@ subroutine advecw_5th(putin, putout)
                       +(rhoputin(i,j,k+2)-rhoputin(i,j,k-3)))&
                   ) / (2. * dzh(k)) &
                   )
-                  
+
           end if
         end do
       end do

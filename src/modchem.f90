@@ -21,9 +21,9 @@ module modchem
   !         lchconst    = .false.  SWITCH: if TRUE then the calculation of the reaction rates
   !                                        uses t_ref, p_ref, q_ref and not the model temp, humidity and pressure
   !         lcloudKconst   = .false.  SWITCH: if TRUE then if there are clouds they will not change the K of the photolysis reactions
-  !         t_ref	    = 298.
-  !         p_ref	    = 100000.
-  !         q_ref	    = 5.e-3
+  !         t_ref       = 298.
+  !         p_ref       = 100000.
+  !         q_ref       = 5.e-3
   !         lchmovie    = .false.  SWITCH: if TRUE gives extra output for movies(experimental)
   !         dtchmovie   = 60.      when to write extra output
   !         lsegr       = .false.  SWITCH: if TRUE gives information about segregation in a Mixed Layer approach
@@ -46,12 +46,12 @@ module modchem
 ! @  1       2       3       4       5      6       7       8       9       10      11       12      13      14     15
 !   O3      NO      NO2     NO3     H2OP    HNO3    RH      R       HO      HO2     H2O2    CO       CO2     H2O    INERT
 !   1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5    1e-5
-!   0.01	  0.01 	  0.01    0.01	  0.01 	  0.01	  0.01 	  0.01	  0.01    0.01	  0.01     0.01    0.01    0.01   0.01
+!   0.01   0.01     0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01    0.01
 ! #
 ! #--------------------------------------------------------------------------------------------------------------
 ! # kr2nd  |Name |Rad |func1|  A    |   B   |   C   |   D   |  E   |   F  |  G   | chemical reaction
 ! #        |     |Dep |     |       |       |       |       |      |      |      | with inactive species
-! #        |5char|int |int  | real  | real  | real  | real  | real | real | real |	 in ( )
+! #        |5char|int |int  | real  | real  | real  | real  | real | real | real | in ( )
 ! #---------------------------------------------------------------------------------------------------------------
 ! # all reactions must have a name
 ! 2.396E-13 R_CO   0    1     1.0      1.0     1.0    1.0      1.0    1.0    1.0   HO + CO    -> HO2 + CO2
@@ -124,7 +124,7 @@ module modchem
 implicit none
 
 private
-PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset
+PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2
 save
 
   ! namoptions
@@ -238,8 +238,9 @@ save
 contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
-  use modglobal, only : i1,j1, nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
-  use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
+  use modglobal,   only : i1,j1,i2,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
+  use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
+  use modsurfdata, only : lCHon
   implicit none
 
   integer i, ierr
@@ -292,6 +293,8 @@ SUBROUTINE initchem
   call MPI_BCAST(h_ref     ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(itermin   ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(dtchmovie ,1,MY_REAL     , 0,comm3d, mpierr)
+
+  lCHon = lchem
 
   if (.not. (lchem)) return
   itimeav = floor(timeav_glob/tres)
@@ -416,7 +419,7 @@ subroutine inputchem
   allocate (RC(tnor))
   allocate (chem_name(nchsp))
 
-  do i=1, nchsp 
+  do i=1, nchsp
     pl_temp(i)=pl_scheme(1)
   enddo
 
@@ -992,7 +995,8 @@ end subroutine inputchem
 !-----------------------------------------------------------------------------------------
 
 SUBROUTINE read_chem(chem_name)
-  use modmpi,    only : myid
+  use modmpi,      only : myid
+  use modsurfdata, only : CO2loc
 
   implicit none
 
@@ -1020,6 +1024,8 @@ SUBROUTINE read_chem(chem_name)
   H2SO4%name  = 'H2SO4'
   ISO%name    = 'ISO'
 
+  CO2%loc     = -1
+
   !chem species and atol and rtol
   read(10,'(a)',err=100)scalarline
 
@@ -1046,6 +1052,10 @@ SUBROUTINE read_chem(chem_name)
     if (INERT%name == chem_name(i)) then ; INERT%loc  = i;  cycle; endif
     if (PRODUC%name== chem_name(i)) then ; PRODUC%loc  = i;  cycle; endif
   enddo
+
+  CO2loc = CO2%loc
+  if (CO2%loc .gt. 0) CO2loc = CO2loc + choffset
+
 ! the above loc gives the location of a chemical component relative to the first chemical position
 ! in SV0. The loc of the first chemical is always 1.  If you need the absolute
 ! position in SV0 you have to add CHOFFSET to the above loc position
@@ -1075,10 +1085,17 @@ end subroutine read_chem
 
 
 SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
-use modglobal, only : rk3step,timee
+use modglobal, only : rk3step,timee,i1,j1,kmax
 use modfields, only: svm
+use modsurfdata, only: lrsAgs
 implicit none
 
+  if ((.not. lchem) .and. lrsAgs) then
+    nr_raddep = 0
+    if (.not. allocated(keff)) allocate (keff(2:i1,2:j1,0,kmax))
+    if (.not. allocated(kefftemp)) allocate (kefftemp(kmax,0))
+    CALL ratech
+  endif
   if (.not. (lchem)) return
 
   if (rk3step/=3) return
@@ -1121,7 +1138,7 @@ SUBROUTINE twostep2(y)
 !c                                                                 |
 !c-----------------------------------------------------------------|
 !c
-use modglobal, only : ih,i1,jh,j1,k1,kmax,rtimee,rdt,timee,timeav_glob,ifoutput,cexpnr,dz,rslabs
+use modglobal, only : ih,i1,jh,j1,k1,kmax,rtimee,rdt,timee,timeav_glob,ifoutput,cexpnr,dz,ijtot
 use modfields, only : qt0
 use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,myid,nprocs
 use modtimestat, only: we, zi, ziold, calcblheight
@@ -1366,10 +1383,10 @@ implicit none
                   call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
-                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)/rslabs
+                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)/ijtot
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
-                                   * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr))/(rslabs*(k_zi+rest_zi))
+                                   * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr))/(ijtot*(k_zi+rest_zi))
               case(3) ! A^a -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
@@ -1383,11 +1400,11 @@ implicit none
                   call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
-                seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) / (rslabs ** (PL_scheme(n)%PL(j)%exp1 - 1))
+                seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) / (ijtot ** (PL_scheme(n)%PL(j)%exp1 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 - 1))
-                
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 - 1))
+
               case(4) !A^a + B^b -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
@@ -1404,13 +1421,13 @@ implicit none
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
-                                          / (rslabs ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
+                                          / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
-                
-              case(5) ! A + B + C -> ...   
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
+
+              case(5) ! A + B + C -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
                     do it_i=2,i1
@@ -1426,12 +1443,12 @@ implicit none
                   call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
                 enddo
                 call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
-                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)*seg_conc(3,:,Rnr)/(rslabs**2)
+                seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)*seg_conc(3,:,Rnr)/(ijtot**2)
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
                                    * (sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) &
-                                   * (sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) / ((rslabs*(k_zi+rest_zi))**2)
-                
+                                   * (sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) / ((ijtot*(k_zi+rest_zi))**2)
+
               case(6) ! A^a + B^b + C^c -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
@@ -1452,14 +1469,14 @@ implicit none
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) &
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
-                                          / (rslabs ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
+                                          / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
                                    * ((sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp3)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
-                
-              case(7) ! A^a + B^b + C^c + D^d -> ... 
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 + PL_scheme(n)%PL(j)%exp3 - 1))
+
+              case(7) ! A^a + B^b + C^c + D^d -> ...
                 do it_k=1,kmax
                   do it_j=2,j1
                     do it_i=2,i1
@@ -1482,14 +1499,14 @@ implicit none
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
                                           * (seg_conc(4,:,Rnr) ** PL_scheme(n)%PL(j)%exp4) &
-                                          / (rslabs ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
+                                          / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
                                                       + PL_scheme(n)%PL(j)%exp3 + PL_scheme(n)%PL(j)%exp4 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
                                    * ((sum(seg_conc(2,1:k_zi,Rnr)) + rest_zi*seg_conc(2,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp2)&
                                    * ((sum(seg_conc(3,1:k_zi,Rnr)) + rest_zi*seg_conc(3,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp3)&
                                    * ((sum(seg_conc(4,1:k_zi,Rnr)) + rest_zi*seg_conc(4,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp4)&
-                                   / ((rslabs*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
+                                   / ((ijtot*(k_zi+rest_zi)) ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 &
                                                                 + PL_scheme(n)%PL(j)%exp3 + PL_scheme(n)%PL(j)%exp4 - 1))
               case default
                 if(myid==0) then
@@ -1500,7 +1517,7 @@ implicit none
 !              if(myid==0) then
 !                Print *,'Finished segregation calculation for reaction #',Rnr
 !              endif
-!                
+!
               reaction_ev(PL_scheme(n)%PL(j)%r_nr) = .TRUE. ! Reaction #<r_nr> has been evaluated
             endif !reaction evaluated yet?
           endif   !only PRODUCTION terms for chemical n
@@ -1527,7 +1544,7 @@ implicit none
       endwhere
 
       if(myid==0) then
-        open (ifoutput,file='seg.'//cexpnr,position='append') 
+        open (ifoutput,file='seg.'//cexpnr,position='append')
           write(formatstring,'(a,i3,a)') '(F9.2,1x,F7.2,',tnor,'(2x,e12.6))'
           write(ifoutput,formatstring) rtimee,zi,(segregation(i),i=1,tnor)
         close(ifoutput)
@@ -1536,7 +1553,7 @@ implicit none
         nhrs    = int(nsecs/3600)
         nminut  = int(nsecs/60)-nhrs*60
         nsecs   = mod(nsecs,60)
-        open (ifoutput,file='seg_h.'//cexpnr,position='append') 
+        open (ifoutput,file='seg_h.'//cexpnr,position='append')
           write(ifoutput,'(A,/A,F5.0,A,I4,A,I2.2,A,I2.2,A,/A)') &
           '#-----------------------------------------------------------------------------'&
           ,'#',(timeav_glob),'--- AVERAGING TIMESTEP --- '      &
@@ -1545,12 +1562,12 @@ implicit none
 
           write(formatstring,'(a,i3,a)') '(a9,1x,a7,1x,a7,',tnor,'(2x,a5,i3.3,a4))'
           write(ifoutput,formatstring) '#Time [s]','z_i [m]','h [m]',('IsegR',i,' [-]',i=1,tnor)
- 
+
           write(formatstring,'(a,i3,a)') '(F9.2,1x,F7.2,1x,F7.2,',tnor,'(2x,e12.6))'
           do it_k=1,kmax
             write(ifoutput,formatstring) rtimee,zi,(it_k-0.5)*dz,(segregation_vert(i,it_k),i=1,tnor)
           enddo !Loop over height
-          write(ifoutput,'(//)') 
+          write(ifoutput,'(//)')
         close(ifoutput)
       endif !(myid == 0)
     endif   !timee>=tnextwrite
@@ -1770,10 +1787,11 @@ subroutine ratech
 !-----------------------------------------------------------------
 !
 
-  use modglobal, only : i1,j1,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
-                        zf,dzf,rslabs,ifoutput,cexpnr
+  use modglobal, only : i1,j1,i2,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
+                        zf,dzf,ijtot,ifoutput,cexpnr
   use modfields, only : qt0, ql0 ,rhof
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum
+  use modsurfdata,only: taufield, lrsAgs
   implicit none
 
   real  sza
@@ -1892,6 +1910,10 @@ subroutine ratech
     !for clouds the the max solar zenith angle is cutoff at 60 degrees
     coszenmax = min(60*pi/180,coszen)
 
+    if (lrsAgs) then
+      tauField   = 0.0
+    endif
+
     do j=2,j1
       do i=2,i1
         kefftemp = 1.0
@@ -1914,6 +1936,11 @@ subroutine ratech
 
             !- Calculating transmission coefficient, cloud optical depth
             tau2 = (3./2.)*(qlint/(rhow*re))
+
+            if (lrsAgs) then
+              tauField(i,j) = tau2
+            endif
+
             if (tau2 >= tauc ) then  ! 'dense' cloud
               ! smooting of cloud base and top
               zbase = zf(k) - (ql0(i,j,k)/(ql0(i,j,k) + ql0(i,j,k+1))) * dzf(k)  !!!!! of dzf(k+-?) with non equidistant grid
@@ -1992,7 +2019,7 @@ subroutine ratech
 
      if ( myid ==0 ) then
        open (ifoutput,file='cloudstat.'//cexpnr,position='append')
-       write(ifoutput,'(f7.0,f6.2,2f7.2,4f9.1,4f9.4)')rtimee, xhr, zbasecount/rslabs, cloudcount/rslabs, zbasesum / (zbasecount+1.0e-5), &
+       write(ifoutput,'(f7.0,f6.2,2f7.2,4f9.1,4f9.4)')rtimee, xhr, zbasecount/ijtot, cloudcount/ijtot, zbasesum / (zbasecount+1.0e-5), &
          ztopmax, cloudheightsum/(zbasecount+1.0e-5), cloudheightmax, qlintsum / (zbasecount+1.0e-5), &
          qlintmax, qlintallsum / (cloudcount + 1.0e-5), qlintallmax
        close (ifoutput)
@@ -2125,20 +2152,20 @@ end function getth
 subroutine chemmovie(ybegin)
 use modglobal, only : i1,j1,ih,jh,k1,kmax,iexpnr
 use modfields, only: svm,qt0,ql0
-use modmpi, only: myid
+use modmpi, only: myidx, myidy
 implicit none
 
   real*4, allocatable ::dummy(:,:,:)
   real ,dimension(2-ih:i1+ih,2-jh:j1+jh,k1,nchsp)::ybegin
   integer fileout,i,j,k,n
 
-  character (len=20) ::filenaam
-  character (len=8)  ::id
+  character (len=30) ::filenaam
+  character (len=13) ::id
 
   allocate(dummy(2:i1,2:j1,kmax))
 
   fileout=20
-  write(id,'(a,i3.3,a,i3.3)')'.',myid,'.',iexpnr
+  write(id,'(2a,i3.3,a,i3.3,a,i3.3)')'.','x', myidx, 'y', myidy,'.',iexpnr
   do n=1,nchsp
     write(filenaam,'(a,a)')trim(PL_scheme(n)%name),id
     open(fileout,file=filenaam,form='unformatted',position='append',action='write')

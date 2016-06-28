@@ -52,7 +52,7 @@ save
   integer,parameter :: nvar = 8
   integer :: ncid = 0
   integer :: nrec = 0
-  character(80) :: fname = 'proj.xxx.xxx.nc'
+  character(80) :: fname = 'proj.xxxxyxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
 
@@ -106,8 +106,8 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'projection: dtav should be a integer multiple of dtmax'
     end if
-    fname(6:8) = cmyid
-    fname(10:12) = cexpnr
+    fname(6:13) = cmyid
+    fname(15:17) = cexpnr
     call ncinfo(tncname(1,:),'time','Time','s','time')
     call ncinfo(ncname( 1,:),'thlxylow','Subcloud Integrated liquid water potential temperature path','K/m','tt0t')
     call ncinfo(ncname( 2,:),'thlxyhigh','Cloudlayer Integrated liquid water potential temperature path','K/m','tt0t')
@@ -155,23 +155,23 @@ contains
     integer i,j
 !     character(20) :: name
     real,allocatable,dimension(:,:,:) :: vars
-!     
+!
 !     open(ifoutput,file='projh_thl.'//cmyid//'.'//cexpnr,position='append',action='write')
 !     write(ifoutput,'(es12.5)') ((sum(thlm(i,j,projectheight:kmax)-thl0av(projectheight:kmax)),i=2,i1),j=2,j1)
 !     close(ifoutput)
-! 
+!
 !     open(ifoutput,file='projh_thv.'//cmyid//'.'//cexpnr,position='append',action='write')
 !     write(ifoutput,'(es12.5)') ((sum(thv0h(i,j,projectheight:kmax)-thl0av(projectheight:kmax)),i=2,i1),j=2,j1)
 !     close(ifoutput)
-! 
+!
 !     open(ifoutput,file='projh_qt.'//cmyid//'.'//cexpnr,position='append',action='write')
 !     write(ifoutput,'(es12.5)') ((1.e3*sum(qtm(i,j,projectheight:kmax)-qt0av(projectheight:kmax)),i=2,i1),j=2,j1)
 !     close(ifoutput)
-! 
+!
 !     open(ifoutput,file='projh_ql.'//cmyid//'.'//cexpnr,position='append',action='write')
 !     write(ifoutput,'(es12.5)') ((1.e3*sum(ql0(i,j,projectheight:kmax)),i=2,i1),j=2,j1)
 !     close(ifoutput)
-! 
+!
 !     do n = 1,nsv
 !       name = 'projh_snn.'//cmyid//'.'//cexpnr
 !       write(name(7:8),'(i2.2)') n
@@ -194,13 +194,12 @@ contains
           vars(i-1,j-1,8) = sum(ql0  (i,j,ksplit+1:kmax)*rhof(ksplit+1:kmax)*dzf(ksplit+1:kmax))
         end do
       end do
-      
-      
+
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
       deallocate(vars)
     end if
-    
+
 
   end subroutine wrthorz
 end module modprojection

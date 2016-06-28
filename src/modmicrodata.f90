@@ -198,7 +198,7 @@
      ,bbg=3.&
      ,ccg=82.5 &
      ,ddg=0.25 &
-     ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here GRABOSKWI 
+     ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here GRABOSKWI
      ,ceffrl=0.8 &
      ,ceffsl=0.06 & ! probably 0.8 is better, wsa exp 156
      ,ceffgl=0.06 & ! probably 0.8 is better

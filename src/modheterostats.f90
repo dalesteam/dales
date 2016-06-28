@@ -31,14 +31,14 @@ save
   real                 :: dtav
   integer(kind=longint):: idtav,tnext
   logical              :: lheterostats  = .false.
-  integer              :: ncklimit 
+  integer              :: ncklimit
 
   !VARIABLES FOR STATISTICS
   !id of netcdf file
   integer :: ncid
 
   !id of dimensions
-  integer :: xid, yid, zid, tid             
+  integer :: xid, yid, zid, tid
 
   !id of variables (means)
   integer :: uavgid, vavgid, wavgid, thlavgid, thvavgid, qtavgid, qlavgid, eavgid
@@ -114,13 +114,15 @@ contains
       stop 'HETEROSTATS: dtav should be a integer multiple of dtmax'
     end if
 
+    if(myidx .ne. 0) return
+
     allocate(svavgid(nsv))
     allocate(svvarid(nsv))
     allocate(usvcovid(nsv), vsvcovid(nsv), wsvcovid(nsv))
     allocate(wsvcovsid(nsv))
 
     ncfile = 'heterostats123.nc'
-    write(ncfile(12:14),'(i3.3)') myid
+    write(ncfile(12:14),'(i3.3)') myidy
 !    write(6,*) "HETEROSTATS: Creating: ", ncfile
 
     !create file
@@ -128,7 +130,7 @@ contains
     if (status /= nf90_noerr) call nchandle_error(status)
 
     !create dimensions
-    status = nf90_def_dim(ncid, "x", imax, xid)
+    status = nf90_def_dim(ncid, "x", itot, xid)
     if (status /= nf90_noerr) call nchandle_error(status)
     status = nf90_def_dim(ncid, "y", jmax, yid)
     if (status /= nf90_noerr) call nchandle_error(status)
@@ -257,10 +259,11 @@ contains
     use typeSizes
     use netcdf
     use modfields
+    use modmpi,     only : myidx,commrow,mpierr,gatherrow,MY_REAL,MPI_SUM
     use modsurfdata
     use modsubgrid, only : ekm, ekh
     use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, rlv, cp, rv, &
-                           rd, imax, jmax, i1, j1, k1, ih, jh
+                           rd, imax, jmax, i1, j1, k1, ih, jh, itot
 
     implicit none
 
@@ -269,7 +272,7 @@ contains
 
     real, dimension(jmax,ncklimit)     :: uavg, vavg, wavg, thlavg, thvavg, qtavg, qlavg, eavg,&
     thlhavg, thvhavg, qthavg, qlhavg, vonwavg, uonwavg
-    real, dimension(imax,jmax)         :: lwpavg 
+    real, dimension(imax,jmax)         :: lwpavg
     real, dimension(jmax,ncklimit)     :: uvar, vvar, wvar, thlvar, thvvar, qtvar, qlvar
     real, dimension(jmax,ncklimit)     :: uwcov, uwcovs, vwcov, vwcovs
     real, dimension(jmax,ncklimit)     :: wthlcov, wthlcovs, wthvcov, wthvcovs, wqtcov, wqtcovs, thlqcov, wqlcov, wqlcovs
@@ -277,6 +280,9 @@ contains
 
     real  vonw(2-ih:i1+ih,2-jh:j1+jh,k1),uonw(2-ih:i1+ih,2-jh:j1+jh,k1)
     real  sv0h(2-ih:i1+ih,2-jh:j1+jh,k1,nsv),thv0(2-ih:i1+ih,2-jh:j1+jh,k1)
+
+    real  buffer(jmax,ncklimit)
+    real  bufferij(itot,jmax)
 
     real  qs0h, t0h, den, c1, c2
 
@@ -326,6 +332,9 @@ contains
     wsvcov(:,:,:) = 0.0
     wsvcovs(:,:,:)= 0.0
 
+    buffer(:,:)   = 0.0
+    bufferij(:,:) = 0.0
+
     !calculate averages and store them
 
     !Prepare data
@@ -367,7 +376,7 @@ contains
         enddo
       enddo
     enddo
-    
+
 
     !LOOPS ARE NOT PUT IN FUNCTION BECAUSE OF ARRAY DEFINITIONS WHICH DIFFER AMONG VARIABLES!
     do k = 1,ncklimit
@@ -538,43 +547,116 @@ contains
     enddo
 
 
-    uavg   = uavg / imax
-    vavg   = vavg / imax
-    wavg   = wavg / imax
-    thlavg = thlavg / imax
-    thvavg = thvavg / imax
-    qtavg  = qtavg / imax
-    qlavg  = qlavg / imax
-    eavg   = eavg / imax
-    svavg  = svavg / imax
+    uavg   = uavg / itot
+    vavg   = vavg / itot
+    wavg   = wavg / itot
+    thlavg = thlavg / itot
+    thvavg = thvavg / itot
+    qtavg  = qtavg / itot
+    qlavg  = qlavg / itot
+    eavg   = eavg / itot
+    svavg  = svavg / itot
 
-    thlhavg = thlhavg / imax
-    thvhavg = thvhavg / imax
-    qthavg  = qthavg / imax
-    qlhavg  = qlhavg / imax
-    vonwavg = vonwavg / imax
-    uonwavg = uonwavg / imax
-    svhavg  = svhavg / imax
+    thlhavg = thlhavg / itot
+    thvhavg = thvhavg / itot
+    qthavg  = qthavg / itot
+    qlhavg  = qlhavg / itot
+    vonwavg = vonwavg / itot
+    uonwavg = uonwavg / itot
+    svhavg  = svhavg / itot
 
-    status = nf90_put_var(ncid, uavgid, uavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, vavgid, vavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wavgid, wavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, thlavgid, thlavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, thvavgid, thvavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, qtavgid, qtavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, qlavgid, qlavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, eavgid, eavg, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
+    ! Communicate all the averages to the processors in the row
+    ! copy the results back from the mpi buffer because they are needed
+    ! to calculate the variances
+    ! TODO: 1. create fast path: the mpi calls are slow and are not needed for nprocx = 1
+    !       2. this function could be cleaned up a lot
+
+    call MPI_ALLREDUCE(uavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, uavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    uavg = buffer
+
+    call MPI_ALLREDUCE(vavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, vavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    vavg = buffer
+
+    call MPI_ALLREDUCE(wavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    wavg = buffer
+
+    call MPI_ALLREDUCE(thlavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, thlavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    thlavg = buffer
+
+    call MPI_ALLREDUCE(thvavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, thvavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    thvavg = buffer
+
+    call MPI_ALLREDUCE(qtavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, qtavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    qtavg = buffer
+
+    call MPI_ALLREDUCE(qlavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, qlavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    qlavg = buffer
+
+    call MPI_ALLREDUCE(eavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, eavgid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+    eavg = buffer
+
     do n=1,nsv
-      status = nf90_put_var(ncid, svavgid(n), svavg(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
-      if(status /= nf90_noerr) call nchandle_error(status)
+      call MPI_ALLREDUCE(svavg(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+      if(myidx == 0) then
+         status = nf90_put_var(ncid, svavgid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+         if(status /= nf90_noerr) call nchandle_error(status)
+      endif
+      svavg(:,:,n) = buffer
+    enddo
+
+    call MPI_ALLREDUCE(thlhavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    thlhavg = buffer
+
+    call MPI_ALLREDUCE(thvhavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    thvhavg = buffer
+
+    call MPI_ALLREDUCE(qthavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    qthavg = buffer
+
+    call MPI_ALLREDUCE(qlhavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    qlhavg = buffer
+
+    call MPI_ALLREDUCE(vonwavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    vonwavg = buffer
+
+    call MPI_ALLREDUCE(uonwavg,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+    uonwavg = buffer
+
+    do n = 1,nsv
+      call MPI_ALLREDUCE(svhavg(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,commrow,mpierr)
+      svhavg(:,:,n) = buffer
     enddo
 
     !calculate liquid water path and store it
@@ -586,8 +668,11 @@ contains
       end do
     end do
 
-    status = nf90_put_var(ncid, lwpid, lwpavg, (/1,1,nccall/), (/imax, jmax, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
+    call gatherrow(lwpavg,bufferij,imax,jmax,itot)
+    if(myidx == 0) then
+       status = nf90_put_var(ncid, lwpid, bufferij, (/1,1,nccall/), (/itot, jmax, 1/))
+       if(status /= nf90_noerr) call nchandle_error(status)
+    endif
 
     !calculate variances and store them
     do k = 1,ncklimit
@@ -670,32 +755,63 @@ contains
       end do
     end do
 
-    uvar = uvar / imax
-    vvar = vvar / imax
-    wvar = wvar / imax
-    thlvar = thlvar / imax
-    thvvar = thvvar / imax
-    qtvar = qtvar / imax
-    qlvar = qlvar / imax
-    svvar = svvar / imax
+    uvar = uvar / itot
+    vvar = vvar / itot
+    wvar = wvar / itot
+    thlvar = thlvar / itot
+    thvvar = thvvar / itot
+    qtvar = qtvar / itot
+    qlvar = qlvar / itot
+    svvar = svvar / itot
 
-    status = nf90_put_var(ncid, uvarid, uvar, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, vvarid, vvar, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wvarid, wvar, (/1,1,nccall/), (/jmax, ncklimit , 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, thlvarid, thlvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, thvvarid, thvvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, qtvarid, qtvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, qlvarid, qlvar, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
+    call MPI_REDUCE(uvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, uvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(vvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, vvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(thlvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, thlvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(thvvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, thvvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(qtvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, qtvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(qlvar,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, qlvarid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
     do n=1,nsv
-      status = nf90_put_var(ncid, svvarid(n), svvar(:,:,n), (/1,1,nccall/), (/jmax, ncklimit , 1/))
-      if(status /= nf90_noerr) call nchandle_error(status)
+      call MPI_REDUCE(svvar(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+      if(myidx == 0) then
+        status = nf90_put_var(ncid, svvarid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit , 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+      endif
     enddo
 
     !calculate covariances and store them
@@ -818,7 +934,7 @@ contains
           !shift prognostic fields one step as 1st column
           !is dummy column because of MPI and periodicity
           if(k==1) then
-            wqlcovs(j,k) = 0.0 
+            wqlcovs(j,k) = 0.0
           else
             wqlcovs(j,k) = wqlcovs(j,k) - 0.5*(dzf(k-1)*ekh(i+1,j+1,k)+dzf(k)*ekh(i+1,j+1,k-1))/dzh(k) * &
             (ql0(i+1,j+1,k) - ql0(i+1,j+1,k-1)) / dzh(k)
@@ -843,7 +959,7 @@ contains
           if(k==1) then
             c1  = 1.+(rv/rd-1)*qts
             c2  = (rv/rd-1)
- 
+
             wthvcovs(j-1,k) = wthvcovs(j-1,k) + c1 * thlflux(i,j) + c2 * thls * qtflux(i,j)
 
           else
@@ -879,14 +995,14 @@ contains
           end do
         end do
       end do
-    
+
       do k = 1,ncklimit
         do j = 1,jmax
           do i = 1,imax
             !shift prognostic fields one step as 1st column
             !is dummy column because of MPI and periodicity
             if(k==1) then
-              wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n) 
+              wsvcovs(j,k,n) = wsvcovs(j,k,n) + svflux(i+1,j+1,n)
             else
               wsvcovs(j,k,n) = wsvcovs(j,k,n) - 0.5*(dzf(k-1)*ekh(i+1,j+1,k)+dzf(k)*ekh(i+1,j+1,k-1))/dzh(k) &
               * (sv0(i+1,j+1,k,n) - sv0(i+1,j+1,k-1,n)) / dzh(k)
@@ -907,53 +1023,111 @@ contains
       end do
     end do
 
-    vwcov    = vwcov    / imax
-    vwcovs   = vwcovs   / imax
-    uwcov    = uwcov    / imax
-    uwcovs   = uwcovs   / imax
-    wthlcov  = wthlcov  / imax
-    wthlcovs = wthlcovs / imax
-    wthvcov  = wthvcov  / imax
-    wthvcovs = wthvcovs / imax
-    wqtcov   = wqtcov   / imax
-    wqtcovs  = wqtcovs  / imax
-    wqlcov   = wqlcov   / imax
-    wqlcovs  = wqlcovs  / imax
-    wsvcov   = wsvcov   / imax
-    wsvcovs  = wsvcovs  / imax
-    thlqcov  = thlqcov  / imax
+    vwcov    = vwcov    / itot
+    vwcovs   = vwcovs   / itot
+    uwcov    = uwcov    / itot
+    uwcovs   = uwcovs   / itot
+    wthlcov  = wthlcov  / itot
+    wthlcovs = wthlcovs / itot
+    wthvcov  = wthvcov  / itot
+    wthvcovs = wthvcovs / itot
+    wqtcov   = wqtcov   / itot
+    wqtcovs  = wqtcovs  / itot
+    wqlcov   = wqlcov   / itot
+    wqlcovs  = wqlcovs  / itot
+    wsvcov   = wsvcov   / itot
+    wsvcovs  = wsvcovs  / itot
+    thlqcov  = thlqcov  / itot
 
-    status = nf90_put_var(ncid, uwcovid, uwcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, uwcovsid, uwcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, vwcovid, vwcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, vwcovsid, vwcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wthlcovid, wthlcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wthlcovsid, wthlcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wthvcovid, wthvcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wthvcovsid, wthvcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wqtcovid, wqtcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wqtcovsid, wqtcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wqlcovid, wqlcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, wqlcovsid, wqlcovs, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
-    status = nf90_put_var(ncid, thlqcovid, thlqcov, (/1,1,nccall/), (/jmax, ncklimit, 1/))
-    if(status /= nf90_noerr) call nchandle_error(status)
+    call MPI_REDUCE(uwcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, uwcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(uwcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, uwcovsid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(vwcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, vwcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(vwcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, vwcovsid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wthlcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wthlcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wthlcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wthlcovsid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wthvcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wthvcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wthvcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wthvcovsid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wqtcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wqtcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wqtcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wqtcovsid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wqlcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wqlcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(wqlcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, wqlcovsid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
+    call MPI_REDUCE(thlqcov,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+    if(myidx == 0) then
+        status = nf90_put_var(ncid, thlqcovid, buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+        if(status /= nf90_noerr) call nchandle_error(status)
+    endif
+
     do n=1,nsv
-      status = nf90_put_var(ncid, wsvcovid(n), wsvcov(:,:,n), (/1,1,nccall/), (/jmax, ncklimit, 1/))
-      if(status /= nf90_noerr) call nchandle_error(status)
-      status = nf90_put_var(ncid, wsvcovsid(n), wsvcovs(:,:,n), (/1,1,nccall/), (/jmax, ncklimit, 1/))
-      if(status /= nf90_noerr) call nchandle_error(status)
+       call MPI_REDUCE(wsvcov(:,:,n),buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+       if(myidx == 0) then
+          status = nf90_put_var(ncid, wsvcovid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+          if(status /= nf90_noerr) call nchandle_error(status)
+       endif
+       call MPI_REDUCE(wsvcovs,buffer,ncklimit*jmax,MY_REAL,MPI_SUM,0,commrow,mpierr)
+       if(myidx == 0) then
+          status = nf90_put_var(ncid, wsvcovsid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
+          if(status /= nf90_noerr) call nchandle_error(status)
+       endif
     enddo
 
   end subroutine do_heterostats
@@ -962,12 +1136,15 @@ contains
 
     use typeSizes
     use netcdf
+    use modmpi, only : myid,myidx
 
     implicit none
 
     integer status
 
     if(.not.(lheterostats)) return
+
+    if(myidx .ne. 0) return
 
     deallocate(svavgid)
     deallocate(svvarid)

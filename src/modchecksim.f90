@@ -96,7 +96,7 @@ contains
   end subroutine checksim
 !>      Calculates the courant number as in max(w)*deltat/deltaz
   subroutine calccourant
-    use modglobal, only : i1,j1,kmax,k1,dx,dy,dzh
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh
     use modfields, only : u0,v0,w0
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
@@ -104,7 +104,7 @@ contains
     real, allocatable, dimension (:) :: courxl,courx,couryl,coury,courzl,courz,courtotl,courtot
     integer       :: k
 
-    allocate(courxl(k1),courx(k1),couryl(k1),coury(k1),courzl(k1),courz(k1),courtotl(k1),courtot(k1))
+    allocate(courxl(kmax),courx(kmax),couryl(kmax),coury(kmax),courzl(kmax),courz(kmax),courtotl(kmax),courtot(kmax))
     courxl = 0.0
     courx  = 0.0
     couryl = 0.0
@@ -119,10 +119,10 @@ contains
       courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
       w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*dtmn*dtmn
     end do
-    call MPI_ALLREDUCE(courxl,courx,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(couryl,coury,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(courzl,courz,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(courtotl,courtot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(courxl,courx,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(couryl,coury,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(courzl,courz,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
       write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
       maxval(courx(1:kmax)),maxval(coury(1:kmax)),maxval(courz(1:kmax)),maxloc(courz(1:kmax)),sqrt(maxval(courtot(1:kmax))),maxloc(courtot(1:kmax))

@@ -185,7 +185,7 @@ contains
 
   subroutine do_stressbudget
     use modglobal,  only : i1,i2,j1,j2,k1,ih,jh,imax,jmax,kmax,dzf,dzh, &
-                          rslabs,cu,cv,iadv_thl,grav, &
+                          ijtot,cu,cv,iadv_thl,grav, &
                           dxi,dyi,dx2i,dy2i,om22,om23,iadv_cd2,iadv_5th,iadv_cd6,iadv_mom
     use modsurfdata, only : thvs, ustar
     use modsubgrid, only : ekm, diffu, diffv, diffw
@@ -278,7 +278,7 @@ contains
 
     call slabsum(w0av  ,1,k1,w0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
-    w0av = w0av / rslabs
+    w0av = w0av / ijtot
 
     !**************************************************
     ! 0.2 Store the wind fields in u0, v0 and w0
@@ -356,7 +356,7 @@ contains
     fstrl(1,2,3) = 0.
     fstrl(1,3,2) = fstrl(1,2,3)
 
-    fstrl = fstrl/rslabs
+    fstrl = fstrl/ijtot
 
     do m=1,3
       do n=1,3
@@ -388,7 +388,7 @@ contains
     call cyclicx(thv0h)
 
     do k=1,kmax
-       thv0h_avl(k) =  sum(thv0h(2:i1,2:j1,k))/rslabs
+       thv0h_avl(k) =  sum(thv0h(2:i1,2:j1,k))/ijtot
     enddo
 
     call MPI_ALLREDUCE(thv0h_avl, thv0h_av, k1,  MY_REAL, &
@@ -408,7 +408,7 @@ contains
     dumfield(:,:,1) = 0.
 
     do k=1,k1
-       fbuol(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fbuol(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fbuol(:,3,1) = fbuol(:,1,3)
@@ -418,7 +418,7 @@ contains
     dumfield(:,:,1) = 0.
 
     do k=1,k1
-       fbuol(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fbuol(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fbuol(:,3,2) = fbuol(:,2,3)
@@ -426,7 +426,7 @@ contains
     dumfield = 2.*(w0_dev * w_term)
 
     do k=1,k1
-       fbuol(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fbuol(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     do m=1,3
@@ -479,19 +479,19 @@ contains
     dumfield = 2.*u0_dev*u_term
 
     do k=1,k1
-       fshrl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fshrl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*v0_dev*v_term
 
     do k=1,k1
-       fshrl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fshrl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*w0_dev*w_term
 
     do k=1,k1
-       fshrl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fshrl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield(2:i1,2:j1,:)    = 0.25*(u0_dev(2:i1,2:j1,:)+u0_dev(2:i1,1:jmax,:))*          &
@@ -500,7 +500,7 @@ contains
                                     (v0_dev(2:i1,2:j1,:)+v0_dev(1:imax,2:j1,:))
 
     do k=1,k1
-       fshrl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fshrl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fshrl(:,2,1) = fshrl(:,1,2)
@@ -513,7 +513,7 @@ contains
     dumfield(:,:,1) = 0.
 
     do k=1,k1
-       fshrl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fshrl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fshrl(:,3,1) = fshrl(:,1,3)
@@ -526,7 +526,7 @@ contains
     dumfield(:,:,1) = 0.
 
     do k=1,k1
-       fshrl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fshrl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fshrl(:,3,2) = fshrl(:,2,3)
@@ -580,19 +580,19 @@ contains
    dumfield = 2.*u0_dev*u_term
 
    do k=1,k1
-     fttrl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/rslabs
+     fttrl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/ijtot
    enddo
 
    dumfield = 2.*v0_dev*v_term
 
    do k=1,k1
-     fttrl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+     fttrl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
    enddo
 
    dumfield = 2.*w0_dev*w_term
 
    do k=1,k1
-     fttrl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+     fttrl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
    enddo
 
    dumfield(2:i1,2:j1,:) = 0.25*(u0_dev(2:i1,2:j1,:)+u0_dev(2:i1,1:jmax,:))*  &
@@ -601,7 +601,7 @@ contains
                                 (v0_dev(2:i1,2:j1,:)+v0_dev(1:imax,2:j1,:))
 
    do k=1,k1
-     fttrl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+     fttrl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
    enddo
 
    fttrl(:,2,1) = fttrl(:,1,2)
@@ -614,7 +614,7 @@ contains
    dumfield(:,:,1) = 0.
 
    do k=1,k1
-     fttrl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+     fttrl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
    enddo
 
    fttrl(:,3,1) = fttrl(:,1,3)
@@ -627,7 +627,7 @@ contains
    dumfield(:,:,1) = 0.
 
    do k=1,k1
-     fttrl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+     fttrl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
    enddo
 
    fttrl(:,3,2) = fttrl(:,2,3)
@@ -681,19 +681,19 @@ contains
     dumfield = 2.*u0_dev*u_term
 
     do k=1,k1
-       fadvl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fadvl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*v0_dev*v_term
 
     do k=1,k1
-       fadvl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fadvl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*w0_dev*w_term
 
     do k=1,k1
-       fadvl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fadvl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield(2:i1,2:j1,:) =  0.25*(u0_dev(2:i1,2:j1,:)+u0_dev(2:i1,1:jmax,:))*          &
@@ -702,7 +702,7 @@ contains
                                   (v0_dev(2:i1,2:j1,:)+v0_dev(1:imax,2:j1,:))
 
     do k=1,k1
-       fadvl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fadvl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fadvl(:,2,1) = fadvl(:,1,2)
@@ -715,7 +715,7 @@ contains
     dumfield(:,:,1) = 0.
 
     do k=1,k1
-       fadvl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fadvl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fadvl(:,3,1) = fadvl(:,1,3)
@@ -728,7 +728,7 @@ contains
     dumfield(:,:,1) = 0.
 
     do k=1,k1
-       fadvl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fadvl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fadvl(:,3,2) = fadvl(:,2,3)
@@ -767,19 +767,19 @@ contains
     dumfield = 2.* u0_dev * u_term
 
     do k=1,k1
-       fcorl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fcorl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.* v0_dev * v_term
 
     do k=1,k1
-       fcorl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fcorl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.* w0_dev * w_term
 
     do k=1,k1
-       fcorl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fcorl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield(2:i1,2:j1,:) =     0.25*(u0_dev(2:i1,2:j1,:)+u0_dev(2:i1,1:jmax,:))*          &
@@ -788,7 +788,7 @@ contains
                                      (v0_dev(2:i1,2:j1,:)+v0_dev(1:imax,2:j1,:))
 
     do k=1,k1
-       fcorl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fcorl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fcorl(:,2,1) = fcorl(:,1,2)
@@ -799,7 +799,7 @@ contains
                                        (w0_dev(2:i1,2:j1,2:k1)+w0_dev(1:imax,2:j1,2:k1))
 
     do k=1,k1
-       fcorl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fcorl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fcorl(:,3,1) = fcorl(:,1,3)
@@ -810,7 +810,7 @@ contains
                                        (w0_dev(2:i1,2:j1,2:k1)+w0_dev(2:i1,1:jmax,2:k1))
 
     do k=1,k1
-       fcorl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fcorl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     fcorl(:,3,2) = fcorl(:,2,3)
@@ -842,17 +842,17 @@ contains
 
     dumfield = 2.*u_term*u0_dev
     do k=1,k1
-       fptrl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fptrl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*v_term*v0_dev
     do k=1,k1
-       fptrl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fptrl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*w_term*w0_dev
     do k=1,k1
-       fptrl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fptrl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield(2:i1,2:j1,2:k1) = 0.25*(u0_dev(2:i1,2:j1,2:k1) + u0_dev(2:i1,1:jmax,2:k1))*      &
@@ -860,7 +860,7 @@ contains
                                0.25*(u_term(2:i1,2:j1,2:k1) + u_term(2:i1,1:jmax,2:k1))*      &
                                     (v0_dev(2:i1,2:j1,2:k1) + v0_dev(1:imax,2:j1,2:k1))
     do k=1,k1
-       fptrl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fptrl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
     fptrl(:,2,1) = fptrl(:,1,2)
 
@@ -869,7 +869,7 @@ contains
                                0.25*(u_term(2:i1,2:j1,2:k1) + u_term(2:i1,2:j1,1:kmax))*      &
                                     (w0_dev(2:i1,2:j1,2:k1) + w0_dev(1:imax,2:j1,2:k1))
     do k=1,k1
-       fptrl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fptrl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
     fptrl(:,3,1) = fptrl(:,1,3)
 
@@ -878,7 +878,7 @@ contains
                                0.25*(v_term(2:i1,2:j1,2:k1) + v_term(2:i1,2:j1,1:kmax))*      &
                                     (w0_dev(2:i1,2:j1,2:k1) + w0_dev(2:i1,1:jmax,2:k1))
     do k=1,k1
-       fptrl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fptrl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
     fptrl(:,3,2) = fptrl(:,2,3)
 
@@ -907,9 +907,9 @@ contains
     call cyclicx(w_term)
 
     do k=1,k1
-       uterm_avl(k) = sum(u_term(2:i1,2:j1,k))/rslabs
-       vterm_avl(k) = sum(v_term(2:i1,2:j1,k))/rslabs
-       wterm_avl(k) = sum(w_term(2:i1,2:j1,k))/rslabs
+       uterm_avl(k) = sum(u_term(2:i1,2:j1,k))/ijtot
+       vterm_avl(k) = sum(v_term(2:i1,2:j1,k))/ijtot
+       wterm_avl(k) = sum(w_term(2:i1,2:j1,k))/ijtot
     enddo
 
     call MPI_ALLREDUCE(uterm_avl, uterm_av, k1,  MY_REAL, &
@@ -928,17 +928,17 @@ contains
 
     dumfield = 2.*u_term*u0_dev
     do k=1,k1
-       fdisl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fdisl(k,1,1) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*v_term*v0_dev
     do k=1,k1
-       fdisl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fdisl(k,2,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield = 2.*w_term*w0_dev
     do k=1,k1
-       fdisl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fdisl(k,3,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
 
     dumfield(2:i1,2:j1,2:k1) = 0.25*(u0_dev(2:i1,2:j1,2:k1) + u0_dev(2:i1,1:jmax,2:k1))*      &
@@ -946,7 +946,7 @@ contains
                                0.25*(u_term(2:i1,2:j1,2:k1) + u_term(2:i1,1:jmax,2:k1))*      &
                                     (v0_dev(2:i1,2:j1,2:k1) + v0_dev(1:imax,2:j1,2:k1))
     do k=1,k1
-       fdisl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fdisl(k,1,2) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
     fdisl(:,2,1) = fdisl(:,1,2)
 
@@ -955,7 +955,7 @@ contains
                                0.25*(u_term(2:i1,2:j1,2:k1) + u_term(2:i1,2:j1,1:kmax))*      &
                                     (w0_dev(2:i1,2:j1,2:k1) + w0_dev(1:imax,2:j1,2:k1))
     do k=1,k1
-       fdisl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fdisl(k,1,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
     fdisl(:,3,1) = fdisl(:,1,3)
 
@@ -964,7 +964,7 @@ contains
                                0.25*(v_term(2:i1,2:j1,2:k1) + v_term(2:i1,2:j1,1:kmax))*      &
                                     (w0_dev(2:i1,2:j1,2:k1) + w0_dev(2:i1,1:jmax,2:k1))
     do k=1,k1
-       fdisl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/rslabs
+       fdisl(k,2,3) = sum(dumfield(2:i1,2:j1,k))/ijtot
     enddo
     fdisl(:,3,2) = fdisl(:,2,3)
 
@@ -1034,7 +1034,7 @@ contains
     rstrel(1,2,3) = 0.
     rstrel(1,3,2) = rstrel(1,2,3)
 
-    rstrel = rstrel/rslabs
+    rstrel = rstrel/ijtot
 
     do m=1,3
       do n=1,3
@@ -1065,7 +1065,7 @@ contains
 
   subroutine writestressbudget
 
-    use modglobal, only : kmax,k1,zf,zh,rtimee,cexpnr,ifoutput,rslabs,i1,j1
+    use modglobal, only : kmax,k1,zf,zh,rtimee,cexpnr,ifoutput,ijtot,i1,j1
     use modmpi,    only : myid
     use modstat_nc,only : writestat_nc,lnetcdf
     use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec

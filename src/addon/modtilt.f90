@@ -488,7 +488,7 @@ contains
 
   subroutine do_tiltstat
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,rslabs
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,ijtot
     use modmpi,    only : nprocs,comm3d,nprocs,my_real, mpi_sum,mpierr, slabsum
 
 
@@ -496,7 +496,7 @@ contains
 
     !Calculate slab average
     call slabsum(thldefav,1,k1,thldefm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    thldefav = thldefav/rslabs
+    thldefav = thldefav/ijtot
 
     !Add slab average to time mean
     thldefmn  = thldefmn + thldefav
@@ -560,7 +560,7 @@ contains
 ! The resolved tke budget is altered by the slope, e.g. the buoyancy term
 
   subroutine adjustbudget(buoyav)
-    use modglobal,  only : j1,i1,rslabs,k1,cu,grav
+    use modglobal,  only : j1,i1,ijtot,k1,cu,grav
     use modfields,  only : u0av,u0
     use modsurface, only : thvs
 
@@ -577,7 +577,7 @@ contains
        enddo
        enddo
        buoyav(k) = buoyav(k)*cos(alfa) & !Tilt term in modbudget
-                 + (grav/thvs)*(-buox/rslabs+(u0av(k)-cu)*thldefav(k))*sin(alfa)
+                 + (grav/thvs)*(-buox/ijtot+(u0av(k)-cu)*thldefav(k))*sin(alfa)
     enddo
 
   end subroutine adjustbudget

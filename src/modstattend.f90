@@ -113,15 +113,15 @@ subroutine initstattend
     qtpav = 0
 
     if(myid==0)then
-      open (ifoutput,file='utend.'//cexpnr,status='replace')  
+      open (ifoutput,file='utend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='vtend.'//cexpnr,status='replace')  
+      open (ifoutput,file='vtend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='wtend.'//cexpnr,status='replace')  
+      open (ifoutput,file='wtend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='thltend.'//cexpnr,status='replace')  
+      open (ifoutput,file='thltend.'//cexpnr,status='replace')
       close (ifoutput)
-      open (ifoutput,file='qttend.'//cexpnr,status='replace')  
+      open (ifoutput,file='qttend.'//cexpnr,status='replace')
       close (ifoutput)
     endif
 
@@ -190,7 +190,7 @@ subroutine initstattend
 !> Performs the statistics, keeps track of what the tendencies were last time, and what they are this time.
   subroutine stattend(tendterm,lastterm)
     use modmpi,    only : slabsum
-    use modglobal, only : ih,jh,i1,j1,k1,rk3step,timee,dt_lim,rslabs
+    use modglobal, only : ih,jh,i1,j1,k1,rk3step,timee,dt_lim,ijtot
     use modfields, only : up,vp,wp,thlp,qtp
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
@@ -232,11 +232,11 @@ subroutine initstattend
     if (present(lastterm)) then
     if (lastterm) then
       tnext = tnext+idtav
-      upmn  = upmn  + upav /nsamples/rslabs
-      vpmn  = vpmn  + vpav /nsamples/rslabs
-      wpmn  = wpmn  + wpav /nsamples/rslabs
-      qtpmn  = qtpmn  + qtpav /nsamples/rslabs
-      thlpmn  = thlpmn  + thlpav /nsamples/rslabs
+      upmn  = upmn  + upav /nsamples/ijtot
+      vpmn  = vpmn  + vpav /nsamples/ijtot
+      wpmn  = wpmn  + wpav /nsamples/ijtot
+      qtpmn  = qtpmn  + qtpav /nsamples/ijtot
+      thlpmn  = thlpmn  + thlpav /nsamples/ijtot
       upav  = 0.0
       vpav  = 0.0
       wpav  = 0.0

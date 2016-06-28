@@ -463,7 +463,7 @@ contains
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          rslabs,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
+                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : comm3d,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
@@ -676,14 +676,14 @@ contains
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
-    umav  = umav  /rslabs + cu
-    vmav  = vmav  /rslabs + cv
-    thlmav = thlmav/rslabs
-    qtmav = qtmav /rslabs
-    qlmav = qlmav /rslabs
-    cfracav = cfracav / rslabs
+    umav  = umav  /ijtot + cu
+    vmav  = vmav  /ijtot + cv
+    thlmav = thlmav/ijtot
+    qtmav = qtmav /ijtot
+    qlmav = qlmav /ijtot
+    cfracav = cfracav / ijtot
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
-    thvmav = thvmav/rslabs
+    thvmav = thvmav/ijtot
 
     cszav  = csz
   !
@@ -691,7 +691,7 @@ contains
     do n=1,nsv
       call slabsum(svmav(1,n),1,k1,svm(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     enddo
-    svmav = svmav/rslabs
+    svmav = svmav/ijtot
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
@@ -1022,19 +1022,19 @@ contains
   !     6   NORMALIZATION OF THE FIELDS AND FLUXES
   !     -----------------------------------------------
 
-      qlhav   = qlhav  /rslabs
+      qlhav   = qlhav  /ijtot
 
-      wqlsub  = wqlsub /rslabs
-      wqlres  = wqlres /rslabs
+      wqlsub  = wqlsub /ijtot
+      wqlres  = wqlres /ijtot
 
-      wthlsub  = wthlsub /rslabs
-      wthlres  = wthlres /rslabs
+      wthlsub  = wthlsub /ijtot
+      wthlres  = wthlres /ijtot
 
-      wqtsub  = wqtsub /rslabs
-      wqtres  = wqtres /rslabs
+      wqtsub  = wqtsub /ijtot
+      wqtres  = wqtres /ijtot
 
-      wthvsub  = wthvsub /rslabs
-      wthvres  = wthvres /rslabs
+      wthvsub  = wthvsub /ijtot
+      wthvres  = wthvres /ijtot
 
       wqttot  = wqtres + wqtsub
       wqltot  = wqlres + wqlsub
@@ -1042,37 +1042,37 @@ contains
       wthvtot  = wthvres + wthvsub
 
 
-        wsvsub = wsvsub /rslabs
-        wsvres = wsvres /rslabs
+        wsvsub = wsvsub /ijtot
+        wsvres = wsvres /ijtot
         wsvtot = wsvsub + wsvres
 
-      uwres    = uwres    /rslabs
-      vwres    = vwres    /rslabs
-      uwsub    = uwsub    /rslabs
-      vwsub    = vwsub    /rslabs
+      uwres    = uwres    /ijtot
+      vwres    = vwres    /ijtot
+      uwsub    = uwsub    /ijtot
+      vwsub    = vwsub    /ijtot
       uwtot    = uwres + uwsub
       vwtot    = vwres + vwsub
 
-      u2av     = u2av     /rslabs
-      v2av     = v2av     /rslabs
-      w2av     = w2av     /rslabs
-      w3av     = w3av     /rslabs
-      w2subav  = w2subav  /rslabs
-      qt2av    = qt2av    /rslabs
-      thl2av   = thl2av   /rslabs
-      thv2av   = thv2av   /rslabs
-      th2av    = th2av    /rslabs
-      ql2av    = ql2av    /rslabs
-!       qs2av    = qs2av    /rslabs
-!       qsav     = qsav     /rslabs
+      u2av     = u2av     /ijtot
+      v2av     = v2av     /ijtot
+      w2av     = w2av     /ijtot
+      w3av     = w3av     /ijtot
+      w2subav  = w2subav  /ijtot
+      qt2av    = qt2av    /ijtot
+      thl2av   = thl2av   /ijtot
+      thv2av   = thv2av   /ijtot
+      th2av    = th2av    /ijtot
+      ql2av    = ql2av    /ijtot
+!       qs2av    = qs2av    /ijtot
+!       qsav     = qsav     /ijtot
 !       qs2av    = qs2av    - qsav**2
-!       rhav     = rhav     /rslabs
-!       rav      = rav      /rslabs
-!       r2av     = r2av     /rslabs
-!       r3av     = r3av     /rslabs
+!       rhav     = rhav     /ijtot
+!       rav      = rav      /ijtot
+!       r2av     = r2av     /ijtot
+!       r3av     = r3av     /ijtot
 
 
-        sv2av = sv2av/rslabs
+        sv2av = sv2av/ijtot
 
   !********************************************************************
 
@@ -1134,7 +1134,7 @@ contains
       skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
 
       cszmn = cszmn + cszav
-      
+
     deallocate( &
         qlhavl , & ! slab averaged ql_0 at half level &
         wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
@@ -1372,7 +1372,7 @@ contains
       write (ifoutput,'(A/A/A/3A/4A/2A)') &
             '#(------------------------------------------------------------)' &
           ,'#                                                             ' &
-          ,'                                      TURBULENT FLUXES        ' &
+          ,'#                                     TURBULENT FLUXES        ' &
           ,'#LEV HEIGHT  PRES  |    UW_TOT      VW_TOT       UW_SGS   ' &
           ,'   VW_SGS       UW_RES       VW_RES ' &
           ,'      WTH_TOT       WQ_L       WTHV_SUB     WTHV_RES     WTHV_TOT' &
@@ -1708,7 +1708,7 @@ contains
     deallocate(th0av)
     deallocate(svpav)
     deallocate(svptav)
-    
+
     deallocate(cszmn)
     deallocate(cszav)
 

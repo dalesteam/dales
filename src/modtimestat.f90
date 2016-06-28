@@ -63,7 +63,7 @@ save
   real   :: qlint
   logical:: store_zi = .false.
 
-  !Variables for heterogeneity 
+  !Variables for heterogeneity
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
   real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
   real, allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
@@ -72,7 +72,7 @@ save
   real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
   real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
   real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
-  !In combination with isurf = 1    
+  !In combination with isurf = 1
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
@@ -116,7 +116,7 @@ contains
     call MPI_BCAST(iblh_var   ,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(blh_nsamp  ,1,MPI_INTEGER,0,comm3d,mpierr)
     idtav = dtav/tres
-   
+
     tnext = idtav+btime
 
     if(.not.(ltimestat)) return
@@ -178,7 +178,7 @@ contains
         write(ifoutput,'(3a)') &
                '#     time      Qnet        H          LE         G0  ', &
                '   tendskin     rs         ra        tskin        cliq  ', &
-               '    Wl          rssoil     rsveg'
+               '    Wl          rssoil     rsveg       Resp       wco2         An'
         write(ifoutput,'(3a)') &
                '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
                '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
@@ -232,7 +232,7 @@ contains
         else
           nvar = 21
         end if
-        
+
         allocate(ncname(nvar,4))
 
         fname(7:9) = cexpnr
@@ -302,7 +302,7 @@ contains
       allocate(u0av_patch(xpatches,ypatches))
       allocate(v0av_patch(xpatches,ypatches))
       allocate(w0av_patch(xpatches,ypatches))
- 
+
       allocate(ust_patch (xpatches,ypatches))
       allocate(qst_patch (xpatches,ypatches))
       allocate(tst_patch (xpatches,ypatches))
@@ -337,13 +337,13 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,&
-                          rslabs,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
+                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
 !
     use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch
+                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
@@ -474,7 +474,7 @@ contains
             qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
           endif
         end if
-  
+
         do k=1,kmax
           if (ql0(i,j,k) > 0.) then
             zbaseavl = zbaseavl + zf(k)
@@ -486,7 +486,7 @@ contains
             exit
           end if
         end do
-  
+
       end do
     end do
 
@@ -526,7 +526,7 @@ contains
           patchx = patchxnr(i)
         endif
          ztop  = 0.0
-   
+
          do  k=1,kmax
            if (ql0(i,j,k) > 0) ztop = zf(k)
            wmaxl = max(wm(i,j,k),wmaxl)
@@ -540,13 +540,13 @@ contains
             qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
          enddo
          endif
-  
+
         ztopavl = ztopavl + ztop
         if (ztop > ztopmaxl) ztopmaxl = ztop
 
         if (lhetero) then
           ztop_field = ztop
-          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop 
+          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop
         endif
       end do
     end do
@@ -578,8 +578,8 @@ contains
       ztopav = 0.0
     end if
 
-    cc      = cc/rslabs
-    qlintav = qlintav / rslabs !domain averaged liquid water path
+    cc      = cc/ijtot
+    qlintav = qlintav / ijtot !domain averaged liquid water path
 
     if (lhetero) then
       do j=1,ypatches
@@ -591,8 +591,8 @@ contains
              zbase_patch(i,j) = 0.0
              ztop_patch (i,j) = 0.0
            endif
-           cc_patch    = cc_patch    * (xpatches*ypatches/rslabs)
-           qlint_patch = qlint_patch * (xpatches*ypatches/rslabs)
+           cc_patch    = cc_patch    * (xpatches*ypatches/ijtot)
+           qlint_patch = qlint_patch * (xpatches*ypatches/ijtot)
         enddo
       enddo
     endif
@@ -603,9 +603,9 @@ contains
 
     do  k=1,kmax
       if (lhetero) then
-        u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
-        v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
-        w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/rslabs)
+        u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
       endif
       do  j=2,j1
         if (lhetero) then
@@ -636,10 +636,10 @@ contains
     call MPI_ALLREDUCE(tke_totl, tke_tot, 1,    MY_REAL, &
                           MPI_SUM, comm3d,mpierr)
 
-    tke_tot = tke_tot/rslabs
-    
+    tke_tot = tke_tot/ijtot
+
     if (lhetero) then
-      tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/rslabs)
+      tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
     endif
 
 !     -------------------------
@@ -653,14 +653,14 @@ contains
     call MPI_ALLREDUCE(tstl, tst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(qstl, qst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-    ust = ust / rslabs
-    tst = tst / rslabs
-    qst = qst / rslabs
+    ust = ust / ijtot
+    tst = tst / ijtot
+    qst = qst / ijtot
 
     if (lhetero) then
-      ust_patch = patchsum_1level(ustar(2:i1,2:j1)) * (xpatches*ypatches/rslabs)
-      tst_patch = patchsum_1level(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/rslabs)
-      qst_patch = patchsum_1level(-  qtflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/rslabs)
+      ust_patch = patchsum_1level(ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
+      tst_patch = patchsum_1level(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
+      qst_patch = patchsum_1level(-  qtflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
     endif
 
     if(isurf < 3) then
@@ -670,8 +670,8 @@ contains
       call MPI_ALLREDUCE(thlfluxl, usttst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(qtfluxl,  ustqst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-      usttst = -usttst / rslabs
-      ustqst = -ustqst / rslabs
+      usttst = -usttst / ijtot
+      ustqst = -ustqst / ijtot
     end if
 
     !Constants c1 and c2
@@ -690,14 +690,14 @@ contains
 
     if (lhetero) then
       if(isurf < 3) then
-        wthls_patch  = patchsum_1level(thlflux(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        wqls_patch = patchsum_1level( qtflux(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
+        wthls_patch  = patchsum_1level(thlflux(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        wqls_patch = patchsum_1level( qtflux(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       else
-        wthls_patch  = wt_patch 
+        wthls_patch  = wt_patch
         wqls_patch = wq_patch
       endif
       wthvs_patch = (1.+(rv/rd-1)*qts_patch) * wthls_patch + c2 * (thls_patch) * wq_patch
-      obl_patch  = patchsum_1level(obl(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
+      obl_patch  = patchsum_1level(obl(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
     endif
 
   !  9.7  Create statistics for the land surface scheme
@@ -728,32 +728,32 @@ contains
       call MPI_ALLREDUCE(rssoilavl,   rssoilav,   1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(tskinavl,    tskinav,    1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-      Qnetav        = Qnetav      / rslabs
-      Hav           = Hav         / rslabs
-      LEav          = LEav        / rslabs
-      G0av          = G0av        / rslabs
-      tendskinav    = tendskinav  / rslabs
-      rsav          = rsav        / rslabs
-      raav          = raav        / rslabs
-      cliqav        = cliqav      / rslabs
-      wlav          = wlav      / rslabs
-      rsvegav       = rsvegav     / rslabs
-      rssoilav      = rssoilav    / rslabs
-      tskinav       = tskinav     / rslabs
+      Qnetav        = Qnetav      / ijtot
+      Hav           = Hav         / ijtot
+      LEav          = LEav        / ijtot
+      G0av          = G0av        / ijtot
+      tendskinav    = tendskinav  / ijtot
+      rsav          = rsav        / ijtot
+      raav          = raav        / ijtot
+      cliqav        = cliqav      / ijtot
+      wlav          = wlav        / ijtot
+      rsvegav       = rsvegav     / ijtot
+      rssoilav      = rssoilav    / ijtot
+      tskinav       = tskinav     / ijtot
 
       if (lhetero) then
-        Qnet_patch     = patchsum_1level(Qnet    (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        H_patch        = patchsum_1level(H       (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        LE_patch       = patchsum_1level(LE      (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        G0_patch       = patchsum_1level(G0      (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        tendskin_patch = patchsum_1level(tendskin(2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        rs_patch       = patchsum_1level(rs      (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        ra_patch       = patchsum_1level(ra      (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        cliq_patch     = patchsum_1level(cliq    (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        wl_patch       = patchsum_1level(wl      (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        rsveg_patch    = patchsum_1level(rsveg   (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
-        tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/rslabs)
+        Qnet_patch     = patchsum_1level(Qnet    (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        H_patch        = patchsum_1level(H       (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        LE_patch       = patchsum_1level(LE      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        G0_patch       = patchsum_1level(G0      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        tendskin_patch = patchsum_1level(tendskin(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        rs_patch       = patchsum_1level(rs      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        ra_patch       = patchsum_1level(ra      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        cliq_patch     = patchsum_1level(cliq    (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        wl_patch       = patchsum_1level(wl      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        rsveg_patch    = patchsum_1level(rsveg   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
     end if
 
@@ -796,7 +796,7 @@ contains
       if (isurf == 1) then
         !tmlsm
         open (ifoutput,file='tmlsm.'//cexpnr,position='append')
-        write(ifoutput,'(f10.2,9f11.3,e13.3, 2f11.3)') &
+        write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3)') &
             rtimee       ,&
             Qnetav      ,&
             Hav         ,&
@@ -809,7 +809,10 @@ contains
             cliqav      ,&
             wlav        ,&
             rssoilav    ,&
-            rsvegav    
+            rsvegav     ,&
+            Respav      ,&
+            wco2av      ,&
+            Anav
         close(ifoutput)
       end if
       if (lnetcdf) then
@@ -851,7 +854,7 @@ contains
           vars(31) = rssoilav
           vars(32) = rsvegav
         end if
-        
+
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
       end if
 
@@ -912,7 +915,7 @@ contains
                 cliq_patch(i,j)       ,&
                 wl_patch(i,j)         ,&
                 rssoil_patch(i,j)     ,&
-                rsveg_patch(i,j)     
+                rsveg_patch(i,j)
               close(ifoutput)
             endif
           enddo
@@ -931,7 +934,7 @@ contains
 !! - By monitoring a threshold value of some scalar, averaged over a definable number of columns
   subroutine calcblheight
 
-    use modglobal,  only : ih,i1,jh,j1,kmax,k1,cp,rlv,imax,rd,zh,dzh,zf,dzf,rv,rslabs,iadv_sv,iadv_kappa
+    use modglobal,  only : ih,i1,jh,j1,kmax,k1,cp,rlv,imax,rd,zh,dzh,zf,dzf,rv,ijtot,iadv_sv,iadv_kappa
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
     use modsurfdata,only : svs, lhetero, xpatches, ypatches
     use modsurface, only : patchxnr,patchynr
@@ -1053,7 +1056,7 @@ contains
             zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
           end do
         end do
- 
+
       case (iblh_grad)
         blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
         blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
@@ -1100,10 +1103,10 @@ contains
     endif
 
     call MPI_ALLREDUCE(zil, zi, 1, MY_REAL, MPI_SUM, comm3d,mpierr)
-    zi = zi / rslabs
+    zi = zi / ijtot
 
     if (lhetero) then
-      zi_patch = patchsum_1level(zi_field) * (xpatches*ypatches/rslabs)
+      zi_patch = patchsum_1level(zi_field) * (xpatches*ypatches/ijtot)
     endif
 
     if (ziold< 0) ziold = zi
@@ -1169,7 +1172,7 @@ contains
       deallocate(qlmax_patchl   )
       deallocate(ztopmax_patch  )
       deallocate(ztopmax_patchl )
-        
+
       deallocate(u0av_patch)
       deallocate(v0av_patch)
       deallocate(w0av_patch)
@@ -1194,7 +1197,7 @@ contains
       deallocate(rssoil_patch  )
       deallocate(tskin_patch   )
       deallocate(obl_patch     )
-      
+
       deallocate(zi_patch      )
       deallocate(zi_field      )
       deallocate(ziold_patch   )
@@ -1203,25 +1206,25 @@ contains
   end subroutine exittimestat
 
  function patchsum_1level(x)
-   use modglobal,  only : imax,jmax,jtot
+   use modglobal,  only : imax,jmax
+   use modsurface, only : patchxnr, patchynr
    use modsurfdata,only : xpatches,ypatches
-   use modmpi,     only : myid,mpierr, comm3d,my_real,mpi_sum
+   use modmpi,     only : mpierr,comm3d,my_real,mpi_sum
    implicit none
    real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
    real, intent(in)    :: x(imax,jmax)
-   integer             :: i,j,jind,itpatch,posperxpatch,jreal
-   
+   integer             :: i,j,iind,jind
+
    patchsum_1level = 0
    xl              = 0
-   posperxpatch    = imax/xpatches
-   
+
    do j=1,jmax
-     jreal = j + (myid * jmax) - 1 !In connection with next line, the -1 makes sure that division there is the same over a patch
-     jind  = 1 + (jreal*ypatches)/jtot
-     do itpatch=1,xpatches
-       do i=1,posperxpatch
-         xl(itpatch,jind) = xl(itpatch,jind) + x(i+((itpatch-1)*posperxpatch),j)
-       enddo
+     jind  = patchynr(j)
+
+     do i=1,imax
+       iind  = patchxnr(i)
+
+       xl(iind,jind) = xl(iind,jind) + x(i,j)
      enddo
    enddo
 
