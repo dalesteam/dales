@@ -34,10 +34,10 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 8
+  integer :: nvar = 7
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname
+  character(80),dimension(:,:), allocatable :: ncname
   character(80),dimension(1,4) :: tncname
 
   real    :: dtav, tmin, tmax
@@ -105,6 +105,7 @@ contains
     if (lnetcdf) then
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
+      allocate(ncname(nvar,4))
       call ncinfo(tncname(1,:),'time','Time','s','time')
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
