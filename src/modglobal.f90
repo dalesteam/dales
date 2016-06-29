@@ -171,7 +171,7 @@ save
       integer :: ntimee         !<     * number of timesteps since the cold start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-
+      real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
 
       real    :: courant = -1

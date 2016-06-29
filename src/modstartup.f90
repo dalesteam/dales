@@ -53,7 +53,7 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
+    use modglobal,         only : initglobal,iexpnr,runtime, dtmax, wctime, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
@@ -82,7 +82,7 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,startfile,runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy
@@ -156,6 +156,7 @@ contains
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wctime     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -900,26 +901,23 @@ contains
     use modsubgriddata, only : ekm
 
     implicit none
-    logical :: lexitnow = .false.
     integer imin,ihour
     integer i,j,k,n
     character(50) name,linkname
 
     if (timee == 0) return
-    if (rk3step /=3) return
-    name = 'exit_now.'//cexpnr
-    inquire(file=trim(name), EXIST=lexitnow)
+    if (rk3Step/=3) return
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    if (timee>=tnextrestart .or. lexitnow) then
+    if (timee>=tnextrestart .or. timeleft==0) then
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
       name = 'initd  h  m        .'
-      write (name(6:7)  ,'(i2.2)') ihour
-      write (name(9:10) ,'(i2.2)') imin
-      name(12:19)= cmyid
-      name(21:23)= cexpnr
+      write (name(6:8)  ,'(i3.3)') ihour
+      write (name(10:11),'(i2.2)') imin
+      name(13:15)= cmyid
+      name(17:19)= cexpnr
       open  (ifoutput,file=name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -959,14 +957,14 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("ln -sf "//name //" "//linkname)
+      call system("cp "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m        .'
-        write (name(6:7)  ,'(i2.2)') ihour
-        write (name(9:10) ,'(i2.2)') imin
-        name(12:19) = cmyid
-        name(21:23) = cexpnr
+        name  = 'inits   h  m   .'
+        write (name(6:8)  ,'(i3.3)') ihour
+        write (name(10:11),'(i2.2)') imin
+        name(13:15) = cmyid
+        name(17:19) = cexpnr
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -976,16 +974,16 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
 
       end if
 
       if (isurf == 1) then
-        name  = 'initl  h  m        .'
-        write (name(6:7)  ,'(i2.2)') ihour
-        write (name(9:10) ,'(i2.2)') imin
-        name(12:19) = cmyid
-        name(21:23) = cexpnr
+        name  = 'initl   h  m   .'
+        write (name(6:8)  ,'(i3.3)') ihour
+        write (name(10:11),'(i2.2)') imin
+        name(13:15) = cmyid
+        name(17:19) = cexpnr
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
@@ -1003,16 +1001,9 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
       end if
-      if (lexitnow) then
-        timeleft = 0  !jump out of the time loop
-      end if
-      if (lexitnow .and. myid == 0 ) then
-        open(1, file=trim(name), status='old')
-        close(1,status='delete')
-        write(*,*) 'Stopped at t=',rtimee
-      end if
+
 
       if (myid==0) then
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput

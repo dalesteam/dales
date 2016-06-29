@@ -100,7 +100,8 @@ program DALES      !Version 4.0.0alpha
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
+  use modglobal,         only : rk3step,timeleft, wctime
+  use modmpi,            only : mpi_get_time
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -151,6 +152,7 @@ program DALES      !Version 4.0.0alpha
 
 
   implicit none
+  real :: t0,t2
 
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
@@ -194,6 +196,8 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
+  call mpi_get_time(t0)
+
   do while (timeleft>0 .or. rk3step < 3)
     call tstep_update                           ! Calculate new timestep
     call timedep
@@ -285,8 +289,13 @@ program DALES      !Version 4.0.0alpha
     call budgetstat
     !call stressbudgetstat
     call heterostats
-
+    call mpi_get_time(t2)
+    if (t2-t0>=wctime) then
+      write (*,*) wctime, "NO WALL CLOCK TIME LEFT"
+      timeleft=0
+    end if
     call writerestartfiles
+
   end do
 
 !-------------------------------------------------------

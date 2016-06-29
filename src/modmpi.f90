@@ -424,6 +424,14 @@ contains
 
     return
   end subroutine slabsum
+  
+  subroutine mpi_get_time(val)
+   real, intent(out) :: val
+ 
+   val = MPI_Wtime()
+   call MPI_BCAST(val,1,MY_REAL   ,0,comm3d,mpierr)
+
+  end subroutine mpi_get_time
 
   ! Gather a variable l(imax,jmax) along a row (ie. constant myidy)
   ! into              g(itot,jmax) at the processor with myix=0
