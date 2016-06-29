@@ -56,7 +56,7 @@ contains
     use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
-                                  lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -68,6 +68,8 @@ contains
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
     use modtimedep,        only : inittimedep,ltimedep
+    use modtimedepsv,      only : inittimedepsv,ltimedepsv
+    use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
@@ -91,10 +93,10 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv, llstend, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -180,11 +182,13 @@ contains
     call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lpressgrad ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(geodamptime,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepsv ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 
@@ -207,6 +211,7 @@ contains
     call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(llstend    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -240,6 +245,8 @@ contains
     ! Allocate and initialize core modules
     call initglobal
     call initfields
+
+    call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     call initboundary
     call initthermodynamics
@@ -363,12 +370,14 @@ contains
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
-    use modsurface,        only : surface,qtsurf,dthldz
+    use modsurface,        only : surface,qtsurf,dthldz,ps
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
+    use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
+                                  tb_dqtdxls,tb_dqtdyls,tb_uadv,tb_vadv,tb_qtadv,tb_thladv
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
@@ -396,22 +405,47 @@ contains
       dt  = floor(rdt/tres)
       timee = 0
       if (myid==0) then
-        open (ifinput,file='prof.inp.'//cexpnr)
-        read (ifinput,'(a80)') chmess
-        write(*,     '(a80)') chmess
-        read (ifinput,'(a80)') chmess
 
-        do k=1,kmax
-          read (ifinput,*) &
+        if (ltestbed) then
+
+          write(*,*) 'readinitfiles: testbed mode: profiles for initialization obtained from scm_in.nc'
+          
+          do k=1,kmax
+            height (k) = zf(k)
+            thlprof(k) = tb_thl(1,k)
+            qtprof (k) = tb_qt(1,k)
+            uprof  (k) = tb_u(1,k)
+            vprof  (k) = tb_v(1,k)
+            e12prof(k) = e12min
+          end do
+
+          ps         = tb_ps(1)
+          !qts
+          !thls
+          !wtsurf
+          !wqsurf
+         
+        else
+
+          open (ifinput,file='prof.inp.'//cexpnr)
+          read (ifinput,'(a80)') chmess
+          write(*,     '(a80)') chmess
+          read (ifinput,'(a80)') chmess
+
+          do k=1,kmax
+            read (ifinput,*) &
                 height (k), &
                 thlprof(k), &
                 qtprof (k), &
                 uprof  (k), &
                 vprof  (k), &
                 e12prof(k)
-        end do
+          end do
+        
+          close(ifinput)
 
-        close(ifinput)
+        end if   !ltestbed
+
         write(*,*) 'height    thl      qt         u      v     e12'
         do k=kmax,1,-1
           write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
@@ -648,13 +682,29 @@ contains
 
 
     if(myid==0)then
-      open (ifinput,file='lscale.inp.'//cexpnr)
-      read (ifinput,'(a80)') chmess
-      read (ifinput,'(a80)') chmess
-      write(6,*) ' height u_geo   v_geo    subs     ' &
-                    ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
-      do  k=1,kmax
-        read (ifinput,*) &
+
+      if (ltestbed) then
+
+          write(*,*) 'readinitfiles: testbed mode: profiles for ls forcing obtained from scm_in.nc'
+          
+          do k=1,kmax
+            height (k) = zf(k)
+            ug     (k) = tb_ug(1,k)
+            vg     (k) = tb_vg(1,k)
+            wfls   (k) = tb_w(1,k)
+            dqtdxls(k) = tb_dqtdxls(1,k)
+            dqtdyls(k) = tb_dqtdyls(1,k)
+            dqtdtls(k) = tb_qtadv(1,k)
+            thlpcar(k) = tb_thladv(1,k)
+          end do
+         
+      else
+
+        open (ifinput,file='lscale.inp.'//cexpnr)
+        read (ifinput,'(a80)') chmess
+        read (ifinput,'(a80)') chmess
+        do  k=1,kmax
+          read (ifinput,*) &
               height (k), &
               ug     (k), &
               vg     (k), &
@@ -663,9 +713,13 @@ contains
               dqtdyls(k), &
               dqtdtls(k), &
               thlpcar(k)
-      end do
-      close(ifinput)
+        end do
+        close(ifinput)
 
+      end if
+
+      write(6,*) ' height u_geo   v_geo    subs     ' &
+                ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
       do k=kmax,1,-1
         write (6,'(3f7.1,5e12.4)') &
               height (k), &

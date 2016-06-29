@@ -29,6 +29,7 @@
 module modradfull
 
   use RandomNumbers
+  use modglobal, only : pi
   implicit none
   private
   public :: radfull,d4stream
@@ -197,6 +198,7 @@ contains
       use modglobal, only : cexpnr,cp,cpr,pi,pref0,rtimee,xday,xlat,xlon,xtime,rhow
       use modraddata,only : useMcICA,zenith,sw0,SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA, &
                             SW_up_ca_TOA, SW_dn_ca_TOA, LW_up_ca_TOA, LW_dn_ca_TOA
+      use modtestbed, only : ltestbed
       implicit none
 
       integer, intent (in) :: i1,ih,j1,jh,k1
@@ -213,18 +215,30 @@ contains
       real    :: prw, p0(k1), exner(k1), pres(k1)
       character (len=19) :: background
 
-      if (.not. d4stream_initialized) then
-         p0(k1) = (pref0*(pi0(k1)/cp)**cpr) / 100.
-         p0(k1-1) = (pref0*(pi0(k1-1)/cp)**cpr) / 100.
-         background  = 'backrad.inp.'//cexpnr
-         call d4stream_setup(background,k1,npts,nv1,nv,p0)
-         d4stream_initialized = .True.
-         if (allocated(pre))   pre(:) = 0.
-         if (allocated(pde))   pde(:) = 0.
-         if (allocated(piwc)) piwc(:) = 0.
-         if (allocated(prwc)) prwc(:) = 0.
-         if (allocated(plwc)) plwc(:) = 0.
-         if (allocated(pgwc)) pgwc(:) = 0.
+      if (ltestbed) then
+        p0(k1) = (pref0*(pi0(k1)/cp)**cpr) / 100.
+        p0(k1-1) = (pref0*(pi0(k1-1)/cp)**cpr) / 100.
+        call d4stream_tb_setup(k1,npts,nv1,nv,p0)
+        if (allocated(pre))   pre(:) = 0.
+        if (allocated(pde))   pde(:) = 0.
+        if (allocated(piwc)) piwc(:) = 0.
+        if (allocated(prwc)) prwc(:) = 0.
+        if (allocated(plwc)) plwc(:) = 0.
+        if (allocated(pgwc)) pgwc(:) = 0.
+      else
+        if (.not. d4stream_initialized) then
+          p0(k1) = (pref0*(pi0(k1)/cp)**cpr) / 100.
+          p0(k1-1) = (pref0*(pi0(k1-1)/cp)**cpr) / 100.
+          background  = 'backrad.inp.'//cexpnr
+          call d4stream_setup(background,k1,npts,nv1,nv,p0)
+          d4stream_initialized = .True.
+          if (allocated(pre))   pre(:) = 0.
+          if (allocated(pde))   pde(:) = 0.
+          if (allocated(piwc)) piwc(:) = 0.
+          if (allocated(prwc)) prwc(:) = 0.
+          if (allocated(plwc)) plwc(:) = 0.
+          if (allocated(pgwc)) pgwc(:) = 0.
+        end if
       end if
       if (present(lclear)) then
         doclear=lclear
@@ -383,6 +397,7 @@ contains
        pt(1:norig) = st(1:norig)
        ph(1:norig) = sh(1:norig)
        po(1:norig) = so(1:norig)
+       plwc(1:norig) = sl(1:norig)
 
        do k=norig+1,npts
           pp(k) = (ptop + pp(k-1))*0.5
@@ -390,6 +405,7 @@ contains
           pt(k) =  intrpl(sp(index),st(index),sp(index+1),st(index+1),pp(k))
           ph(k) =  intrpl(sp(index),sh(index),sp(index+1),sh(index+1),pp(k))
           po(k) =  intrpl(sp(index),so(index),sp(index+1),so(index+1),pp(k))
+          plwc(k) =  intrpl(sp(index),sl(index),sp(index+1),sl(index+1),pp(k))
        end do
        !
        ! set the ozone constant below the reference profile
@@ -400,6 +416,120 @@ contains
     end if
 
   end subroutine d4stream_setup
+  
+  subroutine d4stream_tb_setup(k1,npts,nv1,nv,zp)
+    use modmpi, only : myid
+    use modtestbed, only : tbrad_p, tbrad_t, tbrad_ql, tbrad_qv, tbrad_o3, testbed_getinttime, nknudge
+    implicit none
+
+    integer, intent (in) :: k1
+    integer, intent (out):: npts,nv1,nv
+    real, intent (in)    :: zp(k1)
+
+    real, allocatable  :: sp(:), st(:), sh(:), so(:), sl(:)
+
+    integer :: k, norig, index, t
+    logical :: blend
+    real    :: pa, pb, ptop, ptest, test, dp1, dp2, dp3, dtm, dtp
+
+    norig = 0
+    allocate ( sp(nknudge), st(nknudge), sh(nknudge), so(nknudge), sl(nknudge))
+    if (allocated(pp)) then
+      deallocate (pp,fds,fus,fdir,fuir)
+      deallocate (pt,ph,po,pre,pde,plwc,prwc)
+    end if
+    call testbed_getinttime(t, dtm, dtp)
+    sp = tbrad_p (t,:) * dtp + tbrad_p (t+1,:) * dtm /100.  !convert to hPa
+    st = tbrad_t (t,:) * dtp + tbrad_t (t+1,:) * dtm
+    sh = tbrad_qv(t,:) * dtp + tbrad_qv(t+1,:) * dtm
+    so = tbrad_o3(t,:) * dtp + tbrad_o3(t+1,:) * dtm
+    sl = tbrad_ql(t,:) * dtp + tbrad_ql(t+1,:) * dtm
+
+!     open ( unit = 08, file = filenm, status = 'old' )
+!     if (myid==0) print *, 'Reading Background Sounding: ',filenm
+!     read (08,*) Tsurf, ns
+!     allocate ( sp(ns), st(ns), sh(ns), so(ns), sl(ns))
+!     do k=1,ns
+!        read ( 08, *) sp(k), st(k), sh(k), so(k), sl(k)
+!        sp(k) = sp(k) / 100.   !convert to hPa
+!     enddo
+!     close (08)
+
+    !
+    ! identify what part, if any, of background sounding to use
+    !
+    ptop = zp(k1)
+    if (sp(2) < ptop) then
+       pa = sp(1)
+       pb = sp(2)
+       k = 3
+       do while (sp(k) < ptop)
+          pa = pb
+          pb = sp(k)
+          k  = k+1
+       end do
+       k=k-1           ! identify first level above top of input
+       blend = .True.
+    else
+       blend = .False.
+    end if
+    !
+    ! if blend is true then the free atmosphere above the sounding will be
+    ! specified based on the specified background climatology, here the
+    ! pressure levels for this part of the sounding are determined
+    !
+    if (blend) then
+       dp1 = pb-pa
+       dp2 = ptop - pb
+       dp3 = zp(k1-1) - zp(k1)
+       if (dp1 > 2.*dp2) k = k-1 ! first level is too close, blend from prev
+       npts  = k
+       norig = k
+       ptest = sp(k)
+       test = ptop-ptest
+       do while (test > 2*dp3)
+          ptest = (ptest+ptop)*0.5
+          test  = ptop-ptest
+          npts  = npts + 1
+       end do
+       nv1 = npts + k1
+    else
+       nv1 = k1
+    end if
+    nv = nv1-1
+    !
+    ! allocate the arrays for the sounding data to be used in the radiation
+    ! profile and then fill them first with the sounding data, by afill, then
+    ! by interpolating the background profile at pressures less than the
+    ! pressure at the top fo the sounding
+    !
+    allocate (pp(nv1),fds(nv1),fus(nv1),fdir(nv1),fuir(nv1))
+    allocate (pt(nv),ph(nv),po(nv),pre(nv),pde(nv),plwc(nv),prwc(nv))
+
+    if (blend) then
+       pp(1:norig) = sp(1:norig)
+       pt(1:norig) = st(1:norig)
+       ph(1:norig) = sh(1:norig)
+       po(1:norig) = so(1:norig)
+       plwc(1:norig) = sl(1:norig)
+
+       do k=norig+1,npts
+          pp(k) = (ptop + pp(k-1))*0.5
+          index = getindex(sp,nknudge,pp(k))
+          pt(k) =  intrpl(sp(index),st(index),sp(index+1),st(index+1),pp(k))
+          ph(k) =  intrpl(sp(index),sh(index),sp(index+1),sh(index+1),pp(k))
+          po(k) =  intrpl(sp(index),so(index),sp(index+1),so(index+1),pp(k))
+          plwc(k) =  intrpl(sp(index),sl(index),sp(index+1),sl(index+1),pp(k))
+       end do
+       !
+       ! set the ozone constant below the reference profile
+       !
+       do k=npts+1,nv
+          po(k) =  po(npts)
+       end do
+    end if
+
+  end subroutine d4stream_tb_setup
   !> coefficient calculations for four first-order differential equations.
   !>
   !> See the paper by Liou, Fu and Ackerman (1988) for the formulation of
@@ -426,7 +556,7 @@ contains
        q2 =   w2w * ( 1.5 * fw - 0.5 )
        q3 = - w3w * ( 2.5 * fw - 1.5 ) * u0
        do i = 1, 4
-          c(i,5) = (w0w + q1*p1d(i) + q2*p2d(i) + q3*p3d(i))/(u(i) + epsilon(u(i)))
+          c(i,5) = (w0w + q1*p1d(i) + q2*p2d(i) + q3*p3d(i))/(u(i)+epsilon(u0))
        end do
     else
        do i = 1, 4
@@ -944,9 +1074,8 @@ contains
   !> Subroutine qft: Delta 4-stream solver for fluxes
   !>
   subroutine qft (solar, ee, as, u0, bf, tt, ww, ww1, ww2, ww3, ww4, ffu, ffd)
-    use modglobal, only : pi
+
     logical, intent (in) :: solar
-    logical              :: ldummy ! serves to make radiation scheme work under O4
     real, intent (in)    :: ee, as, u0
     real, dimension (nv), intent (in)   :: tt,ww,ww1,ww2,ww3,ww4
     real, dimension (nv1), intent (in)  :: bf
@@ -975,13 +1104,9 @@ contains
        tkm1 = 0.0
         do k = 1, nv
            f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
-           u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ) + epsilon(1.))
+          u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ))
+          u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
            tkm1 = t(k)
-            if(abs(u0a(k))<10.e-10) then
-              ldummy=.true.
-            else
-              ldummy=.false.
-            endif
         end do
      end if
 
