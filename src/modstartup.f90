@@ -816,7 +816,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(12:19)=cmyid
+    name(13:20)=cmyid
     write(6,*) 'loading ',name
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
@@ -913,11 +913,11 @@ contains
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd  h  m        .'
+      name = 'initdXXXhXXmXXXXXXXX.XXX'
       write (name(6:8)  ,'(i3.3)') ihour
       write (name(10:11),'(i2.2)') imin
-      name(13:15)= cmyid
-      name(17:19)= cexpnr
+      name(13:20)= cmyid
+      name(22:24)= cexpnr
       open  (ifoutput,file=name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -960,11 +960,7 @@ contains
       call system("cp "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits   h  m   .'
-        write (name(6:8)  ,'(i3.3)') ihour
-        write (name(10:11),'(i2.2)') imin
-        name(13:15) = cmyid
-        name(17:19) = cexpnr
+        name(5:5)='s'
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -979,11 +975,7 @@ contains
       end if
 
       if (isurf == 1) then
-        name  = 'initl   h  m   .'
-        write (name(6:8)  ,'(i3.3)') ihour
-        write (name(10:11),'(i2.2)') imin
-        name(13:15) = cmyid
-        name(17:19) = cexpnr
+        name(5:5)='l'
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
