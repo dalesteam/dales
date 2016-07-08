@@ -12,7 +12,7 @@ nsv        =  2
 /
 
 &DOMAIN
-imax       =  128
+itot       =  128
 jtot       =  128
 kmax       =  126
 
