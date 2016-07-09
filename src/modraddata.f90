@@ -56,7 +56,9 @@ SAVE
   real :: rka        = 130.              !< extinction coefficient in radpar scheme
   real :: dlwtop     = 74.               !< longwave radiative flux divergence at top of domain
   real :: dlwbot     = 0.                !< longwave radiative flux divergence near the surface
-  real :: sw0        = 1100.0            !< direct component at top of the cloud (W/m^2)
+  real :: sw0        = 1368.22           !< Solar constant (in W/m2). SWD at TOA = sw0*cos(mu)
+                                         !< NOTE: when using delta-Eddington (iradiation=2) this represents the downwelling solar 
+                                         !        radiation at the top of the domain/cloud
 
   real :: gc         = 0.85              !< asymmetry factor of droplet scattering angle distribution
   real :: SSA        = 0.999             !< typical single scattering albedo for clouds
