@@ -196,7 +196,7 @@ contains
 
   subroutine netcdfstats
 
-    use modglobal, only : rk3step,ntimee
+    use modglobal, only : rk3step
     implicit none
 
     if (.not. lnetcdf) return

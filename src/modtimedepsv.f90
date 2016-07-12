@@ -196,7 +196,7 @@ contains
     do while(rtimee>timesvsurf(t))
       t=t+1
     end do
-    if (rtimee/=timesvsurf(t)) then
+    if (rtimee>timesvsurf(t)) then
       t=t-1
     end if
 

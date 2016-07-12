@@ -428,7 +428,7 @@ contains
 
     ! LOCAL
     integer j,k,n
-    character(20) :: name
+    character(21) :: name
 
     real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 

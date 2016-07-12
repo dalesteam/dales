@@ -44,7 +44,7 @@ SAVE
 contains
   subroutine initnudge
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,runtime,btime,cexpnr,ifinput,k1,kmax,tres
+    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax
     implicit none
 
     integer :: ierr,k,t
@@ -137,7 +137,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine nudge
-    use modglobal, only : rtimee,i1,j1,kmax,rdt
+    use modglobal, only : timee,rtimee,i1,j1,kmax,rdt
     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
     implicit none
 
@@ -146,13 +146,13 @@ contains
 
     if (.not.(lnudge)) return
 !     if (rk3step/=3) return
-    if (rtimee==0) return
+    if (timee==0) return
 
     t=1
     do while(rtimee>timenudge(t))
       t=t+1
     end do
-    if (rtimee/=timenudge(1)) then
+    if (rtimee>timenudge(1)) then
       t=t-1
     end if
 

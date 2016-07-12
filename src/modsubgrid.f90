@@ -69,7 +69,7 @@ contains
     ce1  = (cn**2)* (cm/Rigc - ch1*cm )
     ce2  = ceps - ce1
 
-    if(cs == -1.) then
+    if(cs < 0.) then
       csz(:)  = (cm**3/ceps)**0.25   !< Smagorinsky constant
     else
       csz(:)  = cs

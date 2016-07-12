@@ -318,7 +318,7 @@ contains
     use modglobal,      only : imax,jmax,i1,j1,i2,j2,dzh,dzf,nsv,ijtot,cu,cv,dx,dy
     use modfields,      only : u0,v0,w0,thl0,qt0,sv0
     use modsubgriddata, only : ekh,ekm
-    use modmpi,         only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
+    use modmpi,         only : slabsum
     implicit none
 
     logical, allocatable, dimension(:,:,:)   :: mask
@@ -334,7 +334,7 @@ contains
     real,    allocatable, dimension(:,:,:)   :: thlqtcov
     real,    allocatable, dimension(:,:,:)   :: ekhhalf,ekmhalf
 
-    integer :: i,j,k,km,n
+    integer :: k,km,n
 
     allocate(mask     (2:i1,2:j1,klow:khigh    ))
     allocate(uloc     (2:i1,2:j1,klow:khigh    ))

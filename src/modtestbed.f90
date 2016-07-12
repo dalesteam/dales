@@ -58,9 +58,9 @@ contains
   subroutine inittestbed
 
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer
-    use modglobal,only :ifnamopt,fname_options,cexpnr,ifinput,k1,kmax,&
-                        grav,rd,cp,pref0,rlv,zf,dzf,dzh
-    use modsurfdata,only : ksoilmax, phifc, phiwp, dzsoil
+    use modglobal,only :ifnamopt,fname_options,k1,&
+                        grav,rd,cp,pref0,rlv,zf
+    use modsurfdata,only : ksoilmax
     use modforces, only : lforce_user
 
     implicit none
@@ -81,7 +81,6 @@ contains
     character(len = nf90_max_name) :: RecordDimName
 
     integer :: ierr,i,k,ik,nknudgep1,nknudges
-    character(1) :: chmess1
     real tv,rho,iexner,fac
 
     namelist /NAMTESTBED/ &
@@ -691,9 +690,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine testbednudge
-    use modglobal, only : rtimee,i1,j1,k1,kmax,rdt
+    use modglobal, only : timee,rtimee,i1,j1,kmax,rdt
     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
-    use modmpi,    only : myid
     implicit none
 
     integer k,t
@@ -701,13 +699,13 @@ contains
 
     if (.not.(ltestbed .and. ltb_nudge)) return
 
-    if (rtimee==0) return
+    if (timee==0) return
 
     t=1
     do while(rtimee>tb_time(t))
       t=t+1
     end do
-    if (rtimee/=tb_time(1)) then
+    if (rtimee>tb_time(1)) then
       t=t-1
     end if
 
@@ -764,7 +762,7 @@ contains
     do while(rtimee>tb_time(t))
       t=t+1
     end do
-    if (rtimee/=tb_time(1)) then
+    if (rtimee>tb_time(1)) then
       t=t-1
     end if
 
