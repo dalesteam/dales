@@ -173,6 +173,7 @@ save
       integer(kind=longint) :: timeleft
       real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
+      logical :: ltotruntime = .false. !<    * Whether the runtime is counted since the last cold start (if true) or the last warm start (if false, default)
 
       real    :: courant = -1
       real    :: peclet  = 0.15
@@ -458,8 +459,8 @@ contains
         write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
     end if
-    tnextrestart = trestart/tres
-    timeleft=ceiling(runtime/tres)
+!     tnextrestart = trestart/tres
+!     timeleft=ceiling(runtime/tres)
 
   end subroutine initglobal
 !> Clean up when leaving the run

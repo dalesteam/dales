@@ -73,7 +73,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
     use modmpi,    only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal, only :btime,cexpnr,k1,kmax,ifinput,runtime,zf,tres
+    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
 
@@ -205,7 +205,7 @@ contains
         !--- load fluxes---
         t    = 0
         ierr = 0
-        do while (timeflux(t) < (tres*real(btime)+runtime))
+        do while (timeflux(t) < runtime)
           t=t+1
           read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t),Qnetavt(t)
           write(*,'(i8,7e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t),Qnetavt(t)
@@ -213,7 +213,7 @@ contains
             stop 'STOP: No time dependend data for end of run (surface fluxes)'
           end if
         end do
-        if(timeflux(1)>(tres*real(btime)+runtime)) then
+        if(timeflux(1)>runtime) then
          write(6,*) 'Time dependent surface variables do not change before end of'
          write(6,*) 'simulation. --> only large scale forcings'
          ltimedepsurf=.false.
@@ -227,7 +227,7 @@ contains
 
         !---load large scale forcings----
         t = 0
-        do while (timels(t) < (runtime+btime))
+        do while (timels(t) < runtime)
           t = t + 1
           chmess1 = "#"
           ierr = 1 ! not zero
@@ -269,13 +269,13 @@ contains
 !      end do
 
 
-      if(timeflux(1)>(runtime+btime)) then
+      if(timeflux(1)>runtime) then
         write(6,*) 'Time dependent surface variables do not change before end of'
         write(6,*) 'simulation. --> only large scale forcings'
         ltimedepsurf=.false.
       endif
 
-      if ((timels(1) > (tres*real(btime)+runtime)) .or. (timeflux(1) > (tres*real(btime)+runtime))) then
+      if ((timels(1) > runtime) .or. (timeflux(1) > runtime)) then
         write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
         write(6,*) '--> only time dependent surface variables'
         ltimedepz=.false.

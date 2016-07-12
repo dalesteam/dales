@@ -81,7 +81,7 @@ contains
       t = 0
       open (ifinput,file='nudge.inp.'//cexpnr)
 
-      do while (timenudge(t) < tres*real(runtime+btime))
+      do while (timenudge(t) < tres*real(runtime))
         t = t + 1
         chmess1 = "#"
         ierr = 1 ! not zero

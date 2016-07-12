@@ -58,7 +58,7 @@ contains
   subroutine inittestbed
 
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer
-    use modglobal,only :ifnamopt,fname_options,runtime,btime,cexpnr,ifinput,k1,kmax,tres,&
+    use modglobal,only :ifnamopt,fname_options,cexpnr,ifinput,k1,kmax,&
                         grav,rd,cp,pref0,rlv,zf,dzf,dzh
     use modsurfdata,only : ksoilmax, phifc, phiwp, dzsoil
     use modforces, only : lforce_user

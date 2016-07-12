@@ -53,7 +53,7 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr,runtime, dtmax, wctime, dtav_glob,timeav_glob,&
+    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, wctime, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
@@ -82,7 +82,7 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,runtime,dtmax,wctime,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy
@@ -156,6 +156,7 @@ contains
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltotruntime,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(wctime     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -245,8 +246,9 @@ contains
 
     ! Allocate and initialize core modules
     call initglobal
+print *, runtime
     call initfields
-
+print *, runtime
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     call initboundary
@@ -365,7 +367,7 @@ contains
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
-                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -782,7 +784,11 @@ contains
 
     idtmax = floor(dtmax/tres)
     btime   = timee
-    timeleft=ceiling(runtime/tres)
+    if (.not.(ltotruntime)) then
+      runtime = runtime + btime*tres
+    end if
+    timeleft=ceiling((runtime)/tres-btime)
+
     dt_lim = timeleft
     rdt = real(dt)*tres
     ntrun   = 0
