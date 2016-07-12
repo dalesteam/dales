@@ -55,6 +55,7 @@ save
       character(50) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
+      logical :: llstend  = .true. !<  switch for large scale forcings
 
       !< Parameter kinds, for rrtmg radiation scheme
       integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
@@ -99,6 +100,8 @@ save
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
+      logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
+
       integer :: igrw_damp = 2 !< switch to enable gravity wave damping
       real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real    :: om22                       !<    *2.*omega_earth*cos(lat)
@@ -168,7 +171,7 @@ save
       integer :: ntimee         !<     * number of timesteps since the cold start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-
+      real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
 
       real    :: courant = -1

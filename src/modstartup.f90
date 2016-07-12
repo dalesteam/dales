@@ -53,10 +53,10 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
+    use modglobal,         only : initglobal,iexpnr,runtime, dtmax, wctime, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
-                                  lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -68,6 +68,8 @@ contains
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
     use modtimedep,        only : inittimedep,ltimedep
+    use modtimedepsv,      only : inittimedepsv,ltimedepsv
+    use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
@@ -80,7 +82,7 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,startfile,runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy
@@ -91,10 +93,10 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv, llstend, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -154,6 +156,7 @@ contains
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wctime     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -180,11 +183,13 @@ contains
     call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lpressgrad ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(geodamptime,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepsv ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 
@@ -207,6 +212,7 @@ contains
     call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(llstend    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -240,6 +246,8 @@ contains
     ! Allocate and initialize core modules
     call initglobal
     call initfields
+
+    call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     call initboundary
     call initthermodynamics
@@ -363,12 +371,14 @@ contains
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
-    use modsurface,        only : surface,qtsurf,dthldz
+    use modsurface,        only : surface,qtsurf,dthldz,ps
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
+    use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
+                                  tb_dqtdxls,tb_dqtdyls,tb_uadv,tb_vadv,tb_qtadv,tb_thladv
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
@@ -396,22 +406,47 @@ contains
       dt  = floor(rdt/tres)
       timee = 0
       if (myid==0) then
-        open (ifinput,file='prof.inp.'//cexpnr)
-        read (ifinput,'(a80)') chmess
-        write(*,     '(a80)') chmess
-        read (ifinput,'(a80)') chmess
 
-        do k=1,kmax
-          read (ifinput,*) &
+        if (ltestbed) then
+
+          write(*,*) 'readinitfiles: testbed mode: profiles for initialization obtained from scm_in.nc'
+          
+          do k=1,kmax
+            height (k) = zf(k)
+            thlprof(k) = tb_thl(1,k)
+            qtprof (k) = tb_qt(1,k)
+            uprof  (k) = tb_u(1,k)
+            vprof  (k) = tb_v(1,k)
+            e12prof(k) = e12min
+          end do
+
+          ps         = tb_ps(1)
+          !qts
+          !thls
+          !wtsurf
+          !wqsurf
+         
+        else
+
+          open (ifinput,file='prof.inp.'//cexpnr)
+          read (ifinput,'(a80)') chmess
+          write(*,     '(a80)') chmess
+          read (ifinput,'(a80)') chmess
+
+          do k=1,kmax
+            read (ifinput,*) &
                 height (k), &
                 thlprof(k), &
                 qtprof (k), &
                 uprof  (k), &
                 vprof  (k), &
                 e12prof(k)
-        end do
+          end do
+        
+          close(ifinput)
 
-        close(ifinput)
+        end if   !ltestbed
+
         write(*,*) 'height    thl      qt         u      v     e12'
         do k=kmax,1,-1
           write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
@@ -648,13 +683,29 @@ contains
 
 
     if(myid==0)then
-      open (ifinput,file='lscale.inp.'//cexpnr)
-      read (ifinput,'(a80)') chmess
-      read (ifinput,'(a80)') chmess
-      write(6,*) ' height u_geo   v_geo    subs     ' &
-                    ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
-      do  k=1,kmax
-        read (ifinput,*) &
+
+      if (ltestbed) then
+
+          write(*,*) 'readinitfiles: testbed mode: profiles for ls forcing obtained from scm_in.nc'
+          
+          do k=1,kmax
+            height (k) = zf(k)
+            ug     (k) = tb_ug(1,k)
+            vg     (k) = tb_vg(1,k)
+            wfls   (k) = tb_w(1,k)
+            dqtdxls(k) = tb_dqtdxls(1,k)
+            dqtdyls(k) = tb_dqtdyls(1,k)
+            dqtdtls(k) = tb_qtadv(1,k)
+            thlpcar(k) = tb_thladv(1,k)
+          end do
+         
+      else
+
+        open (ifinput,file='lscale.inp.'//cexpnr)
+        read (ifinput,'(a80)') chmess
+        read (ifinput,'(a80)') chmess
+        do  k=1,kmax
+          read (ifinput,*) &
               height (k), &
               ug     (k), &
               vg     (k), &
@@ -663,9 +714,13 @@ contains
               dqtdyls(k), &
               dqtdtls(k), &
               thlpcar(k)
-      end do
-      close(ifinput)
+        end do
+        close(ifinput)
 
+      end if
+
+      write(6,*) ' height u_geo   v_geo    subs     ' &
+                ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
       do k=kmax,1,-1
         write (6,'(3f7.1,5e12.4)') &
               height (k), &
@@ -761,7 +816,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(12:19)=cmyid
+    name(13:20)=cmyid
     write(6,*) 'loading ',name
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
@@ -846,26 +901,23 @@ contains
     use modsubgriddata, only : ekm
 
     implicit none
-    logical :: lexitnow = .false.
     integer imin,ihour
     integer i,j,k,n
     character(50) name,linkname
 
     if (timee == 0) return
-    if (rk3step /=3) return
-    name = 'exit_now.'//cexpnr
-    inquire(file=trim(name), EXIST=lexitnow)
+    if (rk3Step/=3) return
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    if (timee>=tnextrestart .or. lexitnow) then
+    if (timee>=tnextrestart .or. timeleft==0) then
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd  h  m        .'
-      write (name(6:7)  ,'(i2.2)') ihour
-      write (name(9:10) ,'(i2.2)') imin
-      name(12:19)= cmyid
-      name(21:23)= cexpnr
+      name = 'initdXXXhXXmXXXXXXXX.XXX'
+      write (name(6:8)  ,'(i3.3)') ihour
+      write (name(10:11),'(i2.2)') imin
+      name(13:20)= cmyid
+      name(22:24)= cexpnr
       open  (ifoutput,file=name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -905,14 +957,10 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("ln -sf "//name //" "//linkname)
+      call system("cp "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m        .'
-        write (name(6:7)  ,'(i2.2)') ihour
-        write (name(9:10) ,'(i2.2)') imin
-        name(12:19) = cmyid
-        name(21:23) = cexpnr
+        name(5:5)='s'
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -922,16 +970,12 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
 
       end if
 
       if (isurf == 1) then
-        name  = 'initl  h  m        .'
-        write (name(6:7)  ,'(i2.2)') ihour
-        write (name(9:10) ,'(i2.2)') imin
-        name(12:19) = cmyid
-        name(21:23) = cexpnr
+        name(5:5)='l'
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
@@ -949,16 +993,9 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
       end if
-      if (lexitnow) then
-        timeleft = 0  !jump out of the time loop
-      end if
-      if (lexitnow .and. myid == 0 ) then
-        open(1, file=trim(name), status='old')
-        close(1,status='delete')
-        write(*,*) 'Stopped at t=',rtimee
-      end if
+
 
       if (myid==0) then
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
