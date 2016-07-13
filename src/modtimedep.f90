@@ -207,8 +207,8 @@ contains
         ierr = 0
         do while (timeflux(t) < runtime)
           t=t+1
-          read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t),Qnetavt(t)
-          write(*,'(i8,7e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t),Qnetavt(t)
+          read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
+          write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run (surface fluxes)'
           end if
