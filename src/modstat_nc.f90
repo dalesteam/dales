@@ -73,11 +73,11 @@ contains
 ! ----------------------------------------------------------------------
 !> Subroutine Open_NC: Opens a NetCDF File and identifies starting record
 !
-  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq, ncoarse)
+  subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq)
     use modglobal, only : author,version,rtimee
     implicit none
     integer, intent (out) :: ncid,nrec
-    integer, optional, intent (in) :: n1, n2, n3, ns, ncoarse, nq
+    integer, optional, intent (in) :: n1, n2, n3, ns, nq
     character (len=40), intent (in) :: fname
 
     character (len=12):: date='',time=''
