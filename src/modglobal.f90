@@ -170,7 +170,6 @@ save
       integer(kind=longint) :: btime             !<     * time of (re)start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-      real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
       logical :: ltotruntime = .false. !<    * Whether the runtime is counted since the last cold start (if true) or the last warm start (if false, default)
 

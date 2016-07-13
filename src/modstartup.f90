@@ -41,6 +41,7 @@ save
   integer :: krand = huge(0), krandumin=1,krandumax=0
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
   real :: randu = 0.5
+  real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
 
 contains
   subroutine startup
@@ -53,7 +54,7 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, wctime, dtav_glob,timeav_glob,&
+    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
@@ -244,11 +245,10 @@ contains
     ! Initialize MPI
     call initmpi
 
+    call testwctime
     ! Allocate and initialize core modules
     call initglobal
-print *, runtime
     call initfields
-print *, runtime
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     call initboundary
@@ -1010,6 +1010,25 @@ print *, runtime
 
 
   end subroutine writerestartfiles
+
+  subroutine testwctime
+    use modmpi,    only : mpi_get_time
+    use modglobal, only : timeleft
+    implicit none
+    real, save :: tstart = -1., tend = -1.
+
+    if (tstart < 0) then
+      call mpi_get_time(tstart)
+    else
+      call mpi_get_time(tstart)
+      if (tend-tstart>=wctime) then
+        write (*,*) wctime, "NO WALL CLOCK TIME LEFT"
+        timeleft=0
+      end if
+    end if
+
+
+  end subroutine testwctime
 
   subroutine exitmodules
     use modfields,         only : exitfields
