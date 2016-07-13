@@ -357,7 +357,7 @@ contains
                             dpdxl,dpdyl
 
     use modglobal,   only : rtimee,om23_gs,dzf,dzh,k1,kmax,llsadv
-    use modtestbed,  only : ltestbed
+
     use modmpi,      only : myid
 
     implicit none
