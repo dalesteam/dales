@@ -55,7 +55,6 @@ save
       character(50) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
-      logical :: llstend  = .true. !<  switch for large scale forcings
 
       !< Parameter kinds, for rrtmg radiation scheme
       integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real

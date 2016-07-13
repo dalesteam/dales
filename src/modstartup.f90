@@ -57,7 +57,7 @@ contains
     use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -97,7 +97,7 @@ contains
         lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, llstend, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -214,7 +214,6 @@ contains
     call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(llstend    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
