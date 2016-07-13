@@ -33,8 +33,9 @@ module modthermodynamics
   implicit none
 !   private
   public :: thermodynamics,calc_halflev
-  public :: lqlnr
+  public :: lqlnr, loldthermo
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
+  logical :: loldthermo = .false. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
   real, allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
@@ -59,41 +60,54 @@ contains
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
-    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
+    use modfields, only : thl0,qt0,ql0, thl0h, qt0h, ql0h, presh, exnh, presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmpi, only : slabsum
     implicit none
     integer:: k
-    if (timee < 0.01) then
+    if (timee == 0) then
       call diagfld
     end if
-    if (lmoist .and. (.not. lnoclouds)) then
-      call icethermo0
-    end if
-    call diagfld
-    call calc_halflev !calculate halflevel values of qt0 and thl0
+    if (loldthermo) then
+        if (lmoist) then
+          call thermo(thl0,qt0,ql0,presf,exnf)
+        end if
 
-    if (lmoist .and. (.not. lnoclouds)) then
-      call icethermoh
-    end if
+        call diagfld
+        call calc_halflev !calculate halflevel values of qt0 and thl0
+        if (lmoist) then
+          call thermo(thl0h,qt0h,ql0h,presh,exnh)
+        end if
+        call calthv
 
-    ! recalculate thv and rho on the basis of results
-    call calthv
+    else
+        if (lmoist .and. (.not. lnoclouds)) then
+        call icethermo0
+        end if
+        call diagfld
+        call calc_halflev !calculate halflevel values of qt0 and thl0
+
+        if (lmoist .and. (.not. lnoclouds)) then
+        call icethermoh
+        end if
+
+        ! recalculate thv and rho on the basis of results
+        call calthv
+     end if
     thvh=0.
     call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
     do k=1,k1
-      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                 *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
+        thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
+                *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
     enddo
     thvf = 0.0
     call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     thvf = thvf/ijtot
     do k=1,k1
-      rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
+        rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
-
-  end subroutine thermodynamics
+ end subroutine thermodynamics
 !> Cleans up after the run
   subroutine exitthermodynamics
   implicit none
