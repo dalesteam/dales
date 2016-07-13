@@ -162,7 +162,6 @@ NAMLSMSTAT	src/modlsmstat.f90	/^    namelist\/NAMLSMSTAT\//;"	n	subroutine:initl
 NAMMICROPHYSICS	src/modmicrophysics.f90	/^    namelist\/NAMMICROPHYSICS\//;"	n	subroutine:initmicrophysics
 NAMNETCDFMOVIE	src/addon/modnetcdfmovie.f90	/^    namelist\/NAMNETCDFMOVIE\//;"	n	subroutine:initnetcdfmovie
 NAMNETCDFSTATS	src/addon/modnetcdfstats.f90	/^    namelist\/NAMNETCDFSTATS\//;"	n	subroutine:initnetcdfstats
-NAMNETCDFSTATS	src/addon/stat_nc_dummy.f90	/^    namelist\/NAMNETCDFSTATS\//;"	n	subroutine:initstat_nc
 NAMNETCDFSTATS	src/modstat_nc.f90	/^    namelist\/NAMNETCDFSTATS\//;"	n	subroutine:initstat_nc
 NAMNUDGE	src/modnudge.f90	/^    namelist \/NAMNUDGE\//;"	n	subroutine:initnudge
 NAMPARTICLES	src/addon/modparticles.f90	/^    namelist\/NAMPARTICLES\//;"	n	subroutine:initparticles
@@ -696,7 +695,6 @@ ddg	src/modmicrodata.f90	/^     ,ddg=/;"	v	module:modmicrodata
 ddr	src/modmicrodata.f90	/^     ,ddr=/;"	v	module:modmicrodata
 dds	src/modmicrodata.f90	/^     ,dds=/;"	v	module:modmicrodata
 default_conc	src/modradfull.f90	/^     real              :: mweight, default_conc,/;"	k	type:ckd_properties
-define_nc	src/addon/stat_nc_dummy.f90	/^  subroutine define_nc(/;"	s	module:modstat_nc
 define_nc	src/modstat_nc.f90	/^  subroutine define_nc(/;"	s	module:modstat_nc
 delt	src/addon/modbulkmicrodata.f90	/^  real :: delt$/;"	v	module:modbulkmicrodata
 delt	src/modmicrodata.f90	/^  real :: delt$/;"	v	module:modmicrodata
@@ -896,7 +894,6 @@ exitsampling	src/modsampling.f90	/^  subroutine exitsampling$/;"	s	module:modsam
 exitsamptend	src/modsamptend.f90	/^  subroutine exitsamptend$/;"	s	module:modsamptend
 exitsimpleice	src/modsimpleice.f90	/^  subroutine exitsimpleice$/;"	s	module:modsimpleice
 exitsimpleicestat	src/modsimpleicestat.f90	/^  subroutine exitsimpleicestat$/;"	s	module:modsimpleicestat
-exitstat_nc	src/addon/stat_nc_dummy.f90	/^  subroutine exitstat_nc(/;"	s	module:modstat_nc
 exitstat_nc	src/modstat_nc.f90	/^  subroutine exitstat_nc(/;"	s	module:modstat_nc
 exitstattend	src/modstattend.f90	/^  subroutine exitstattend$/;"	s	module:modstattend
 exitstressbudget	src/addon/modstress.f90	/^  subroutine exitstressbudget$/;"	s	module:modstress
@@ -1330,7 +1327,6 @@ initsampling	src/modsampling.f90	/^  subroutine initsampling$/;"	s	module:modsam
 initsamptend	src/modsamptend.f90	/^subroutine initsamptend$/;"	s	module:modsamptend
 initsimpleice	src/modsimpleice.f90	/^  subroutine initsimpleice$/;"	s	module:modsimpleice
 initsimpleicestat	src/modsimpleicestat.f90	/^subroutine initsimpleicestat$/;"	s	module:modsimpleicestat
-initstat_nc	src/addon/stat_nc_dummy.f90	/^  subroutine initstat_nc$/;"	s	module:modstat_nc
 initstat_nc	src/modstat_nc.f90	/^  subroutine initstat_nc$/;"	s	module:modstat_nc
 initstattend	src/modstattend.f90	/^subroutine initstattend$/;"	s	module:modstattend
 initstressbudget	src/addon/modstress.f90	/^  subroutine initstressbudget$/;"	s	module:modstress
@@ -1754,7 +1750,6 @@ lmomsubs	src/modglobal.f90	/^      logical :: lmomsubs /;"	v	module:modglobal
 lmostlocal	src/modsurfdata.f90	/^  logical           :: lmostlocal /;"	v	module:modsurfdata
 lmoviez	src/addon/modnetcdfmovie.f90	/^  logical              :: lmoviez /;"	v	module:modnetcdfmovie
 lnetcdf	src/addon/modnetcdfstats.f90	/^  logical              :: lnetcdf /;"	v	module:modnetcdfstats
-lnetcdf	src/addon/stat_nc_dummy.f90	/^    logical :: lnetcdf$/;"	v	module:modstat_nc
 lnetcdf	src/modstat_nc.f90	/^    logical :: lnetcdf /;"	v	module:modstat_nc
 lnetcdfmovie	src/addon/modnetcdfmovie.f90	/^  logical              :: lnetcdfmovie /;"	v	module:modnetcdfmovie
 lneutral	src/modsurfdata.f90	/^  logical           :: lneutral /;"	v	module:modsurfdata
@@ -1927,7 +1922,6 @@ modsamptend	src/modsamptend.f90	/^module modsamptend$/;"	m
 modsimpleice	src/modsimpleice.f90	/^module modsimpleice$/;"	m
 modsimpleicestat	src/modsimpleicestat.f90	/^module modsimpleicestat$/;"	m
 modstartup	src/modstartup.f90	/^module modstartup$/;"	m
-modstat_nc	src/addon/stat_nc_dummy.f90	/^module modstat_nc$/;"	m
 modstat_nc	src/modstat_nc.f90	/^module modstat_nc$/;"	m
 modstattend	src/modstattend.f90	/^module modstattend$/;"	m
 modstress	src/addon/modstress.f90	/^module modstress$/;"	m
@@ -1985,7 +1979,6 @@ nbreast	src/modmpi.f90	/^  integer  :: nbreast$/;"	v	module:modmpi
 nbrnorth	src/modmpi.f90	/^  integer  :: nbrnorth$/;"	v	module:modmpi
 nbrsouth	src/modmpi.f90	/^  integer  :: nbrsouth$/;"	v	module:modmpi
 nbrwest	src/modmpi.f90	/^  integer  :: nbrwest$/;"	v	module:modmpi
-nc_fillvalue	src/addon/stat_nc_dummy.f90	/^    real :: nc_fillvalue=/;"	v	module:modstat_nc
 nc_fillvalue	src/modstat_nc.f90	/^    real(kind=4) :: nc_fillvalue /;"	v	module:modstat_nc
 ncanopy	src/modcanopy.f90	/^  integer :: ncanopy /;"	v	module:modcanopy
 nccall	src/addon/modnetcdfmovie.f90	/^  integer :: nccall /;"	v	module:modnetcdfmovie
@@ -2022,7 +2015,6 @@ ncidfieldu	src/addon/modnetcdfstats.f90	/^  integer :: ncidfieldu,/;"	v	module:m
 ncidfieldv	src/addon/modnetcdfstats.f90	/^  integer :: ncidfieldu, ncidfieldv,/;"	v	module:modnetcdfstats
 ncidfieldw	src/addon/modnetcdfstats.f90	/^  integer :: ncidfieldu, ncidfieldv, ncidfieldw,/;"	v	module:modnetcdfstats
 ncidmovie	src/addon/modnetcdfstats.f90	/^  integer :: ncidmovie$/;"	v	module:modnetcdfstats
-ncinfo	src/addon/stat_nc_dummy.f90	/^  subroutine ncinfo(/;"	s	module:modstat_nc
 ncinfo	src/modstat_nc.f90	/^  subroutine ncinfo(/;"	s	module:modstat_nc
 ncklimit	src/addon/modnetcdfmovie.f90	/^  integer              :: ncklimit /;"	v	module:modnetcdfmovie
 ncklimit	src/addon/modnetcdfstats.f90	/^  integer              :: ncklimit /;"	v	module:modnetcdfstats
@@ -2314,7 +2306,6 @@ om23	src/modglobal.f90	/^      real    :: om23 /;"	v	module:modglobal
 om23_gs	src/modglobal.f90	/^      real    :: om23_gs /;"	v	module:modglobal
 oneminus	src/rrlw_con.f90	/^      real(kind=rb) :: oneminus,/;"	v	module:rrlw_con
 oneminus	src/rrsw_con.f90	/^      real(kind=rb) :: oneminus,/;"	v	module:rrsw_con
-open_nc	src/addon/stat_nc_dummy.f90	/^  subroutine open_nc /;"	s	module:modstat_nc
 open_nc	src/modstat_nc.f90	/^  subroutine open_nc /;"	s	module:modstat_nc
 outp	src/modchem.f90	/^    type (Chem) outp(/;"	k	type:Reaction
 p	src/modpois.f90	/^  real,allocatable :: p(/;"	v	module:modpois
@@ -2628,7 +2619,6 @@ read_chem	src/modchem.f90	/^SUBROUTINE read_chem(/;"	s	module:modchem
 readinitfiles	src/modstartup.f90	/^  subroutine readinitfiles$/;"	s	module:modstartup
 readrestartfiles	src/modstartup.f90	/^  subroutine readrestartfiles$/;"	s	module:modstartup
 readthla	src/addon/modtilt.f90	/^  subroutine readthla$/;"	s	module:modtilt
-redefine_nc	src/addon/stat_nc_dummy.f90	/^  subroutine redefine_nc(/;"	s	module:modstat_nc
 redefine_nc	src/modstat_nc.f90	/^  subroutine redefine_nc(/;"	s	module:modstat_nc
 reff	src/modraddata.f90	/^  real :: reff /;"	v	module:modraddata
 refparam	src/rrlw_kg02.f90	/^      real(kind=rb) :: refparam(/;"	v	module:rrlw_kg02
@@ -3222,7 +3212,6 @@ tidmovie	src/addon/modnetcdfstats.f90	/^  integer :: xidmovie, yidmovie, zidmovi
 tiltedboundary	src/addon/modtilt.f90	/^  subroutine tiltedboundary$/;"	s	module:modtilt
 tiltedgravity	src/addon/modtilt.f90	/^  subroutine tiltedgravity$/;"	s	module:modtilt
 tiltstat	src/addon/modtilt.f90	/^  subroutine tiltstat$/;"	s	module:modtilt
-timeID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=/;"	v	module:modstat_nc
 timeID	src/modstat_nc.f90	/^    integer, save :: timeID=/;"	v	module:modstat_nc
 timeav	src/addon/modparticles.f90	/^  real    :: timeav /;"	v	module:modparticles
 timeav	src/addon/modstress.f90	/^  real    :: dtav, timeav$/;"	v	module:modstress
@@ -3575,18 +3564,12 @@ writesampling	src/modsampling.f90	/^  subroutine writesampling$/;"	s	module:mods
 writesamptend	src/modsamptend.f90	/^  subroutine writesamptend$/;"	s	module:modsamptend
 writesimpleicestat	src/modsimpleicestat.f90	/^  subroutine writesimpleicestat$/;"	s	module:modsimpleicestat
 writestat	src/modgenstat.f90	/^  subroutine writestat$/;"	s	module:modgenstat
-writestat_1D_nc	src/addon/stat_nc_dummy.f90	/^  subroutine writestat_1D_nc(/;"	s	module:modstat_nc
 writestat_1D_nc	src/modstat_nc.f90	/^  subroutine writestat_1D_nc(/;"	s	module:modstat_nc
-writestat_2D_nc	src/addon/stat_nc_dummy.f90	/^  subroutine writestat_2D_nc(/;"	s	module:modstat_nc
 writestat_2D_nc	src/modstat_nc.f90	/^  subroutine writestat_2D_nc(/;"	s	module:modstat_nc
-writestat_3D_nc	src/addon/stat_nc_dummy.f90	/^  subroutine writestat_3D_nc(/;"	s	module:modstat_nc
 writestat_3D_nc	src/modstat_nc.f90	/^  subroutine writestat_3D_nc(/;"	s	module:modstat_nc
-writestat_3D_short_nc	src/addon/stat_nc_dummy.f90	/^  subroutine writestat_3D_short_nc(/;"	s	module:modstat_nc
 writestat_3D_short_nc	src/modstat_nc.f90	/^  subroutine writestat_3D_short_nc(/;"	s	module:modstat_nc
-writestat_dims_nc	src/addon/stat_nc_dummy.f90	/^  subroutine writestat_dims_nc(/;"	s	module:modstat_nc
 writestat_dims_nc	src/modstat_nc.f90	/^  subroutine writestat_dims_nc(/;"	s	module:modstat_nc
 writestat_dims_q_nc	src/modstat_nc.f90	/^  subroutine writestat_dims_q_nc(/;"	s	module:modstat_nc
-writestat_time_nc	src/addon/stat_nc_dummy.f90	/^  subroutine writestat_time_nc(/;"	s	module:modstat_nc
 writestat_time_nc	src/modstat_nc.f90	/^  subroutine writestat_time_nc(/;"	s	module:modstat_nc
 writestattend	src/modstattend.f90	/^  subroutine writestattend$/;"	s	module:modstattend
 writestressbudget	src/addon/modstress.f90	/^  subroutine writestressbudget$/;"	s	module:modstress
@@ -3687,7 +3670,6 @@ xidmovie	src/addon/modnetcdfstats.f90	/^  integer :: xidmovie,/;"	v	module:modne
 xk	src/modradfull.f90	/^     real, allocatable :: hk(:),sp(:),xk(/;"	k	type:ckd_properties
 xlat	src/modglobal.f90	/^      real    :: xlat /;"	v	module:modglobal
 xlon	src/modglobal.f90	/^      real    :: xlon /;"	v	module:modglobal
-xmID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=/;"	v	module:modstat_nc
 xmID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=/;"	v	module:modstat_nc
 xpatches	src/modsurfdata.f90	/^  integer           :: xpatches /;"	v	module:modsurfdata
 xr	src/addon/modbulkmicrodata.f90	/^    ,xr /;"	v	module:modbulkmicrodata
@@ -3700,7 +3682,6 @@ xrmin	src/addon/modbulkmicrodata.f90	/^              ,xrmin /;"	v	module:modbulk
 xrmin	src/modmicrodata.f90	/^              ,xrmin /;"	v	module:modmicrodata
 xsize	src/modglobal.f90	/^      real :: xsize /;"	v	module:modglobal
 xstart	src/addon/modparticles.f90	/^    real :: x,x_prev, xstart,/;"	k	type:particle_record
-xtID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=/;"	v	module:modstat_nc
 xtID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=/;"	v	module:modstat_nc
 xtime	src/modglobal.f90	/^      real :: xtime /;"	v	module:modglobal
 xyrt	src/modpois.f90	/^  real,allocatable :: xyrt(/;"	v	module:modpois
@@ -3716,7 +3697,6 @@ yidfieldv	src/addon/modnetcdfstats.f90	/^  integer :: xidfieldv,   yidfieldv,/;"
 yidfieldw	src/addon/modnetcdfstats.f90	/^  integer :: xidfieldw,   yidfieldw,/;"	v	module:modnetcdfstats
 yidmovie	src/addon/modnetcdfstats.f90	/^  integer :: xidmovie, yidmovie,/;"	v	module:modnetcdfstats
 yl	src/modchem.f90	/^  real, allocatable,target :: yl(/;"	v	module:modchem
-ymID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=/;"	v	module:modstat_nc
 ymID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=/;"	v	module:modstat_nc
 ynew	src/modchem.f90	/^  real, allocatable :: ynew(/;"	v	module:modchem
 yold	src/modchem.f90	/^  real, allocatable :: ynew(:,:,:),yold(/;"	v	module:modchem
@@ -3726,7 +3706,6 @@ ysize	src/modglobal.f90	/^      real :: ysize /;"	v	module:modglobal
 ysizelocal	src/addon/modparticles.f90	/^  real :: ysizelocal$/;"	v	module:modparticles
 ystart	src/addon/modparticles.f90	/^    real :: y,y_prev, ystart,/;"	k	type:particle_record
 ysum	src/modchem.f90	/^  real, allocatable :: ynew(:,:,:),yold(:,:,:),ysum(/;"	v	module:modchem
-ytID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=/;"	v	module:modstat_nc
 ytID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=/;"	v	module:modstat_nc
 z	src/addon/modparticles.f90	/^    real :: z,/;"	k	type:particle_record
 z0	src/modsurfdata.f90	/^  real              :: z0 /;"	v	module:modsurfdata
@@ -3763,14 +3742,12 @@ zidmovie	src/addon/modnetcdfstats.f90	/^  integer :: xidmovie, yidmovie, zidmovi
 ziold	src/modtimestat.f90	/^  real    :: zi,ziold=/;"	v	module:modtimestat
 ziold_patch	src/modtimestat.f90	/^  real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,/;"	v	module:modtimestat
 zlt	src/modsubgriddata.f90	/^  real, allocatable :: zlt(/;"	v	module:modsubgriddata
-zmID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=0, ztID=0, zmID=/;"	v	module:modstat_nc
 zmID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=0, zmID=/;"	v	module:modstat_nc
 zpad	src/modcanopy.f90	/^  real, allocatable :: zpad(/;"	v	module:modcanopy
 zqID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=/;"	v	module:modstat_nc
 zsoil	src/modsurfdata.f90	/^  real, allocatable :: zsoil /;"	v	module:modsurfdata
 zsoilc	src/modsurfdata.f90	/^  real, allocatable :: zsoilc /;"	v	module:modsurfdata
 zstart	src/addon/modparticles.f90	/^    real :: z,z_prev, zstart,/;"	k	type:particle_record
-ztID	src/addon/stat_nc_dummy.f90	/^    integer, save :: timeID=0, ztID=/;"	v	module:modstat_nc
 ztID	src/modstat_nc.f90	/^    integer, save :: timeID=0, ztID=/;"	v	module:modstat_nc
 ztop_field	src/modtimestat.f90	/^  real,allocatable, dimension(:,:) :: zbase_field, ztop_field,/;"	v	module:modtimestat
 ztop_patch	src/modtimestat.f90	/^  real,allocatable, dimension(:,:) :: zbase_patch, ztop_patch,/;"	v	module:modtimestat
