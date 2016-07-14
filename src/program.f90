@@ -144,7 +144,7 @@ program DALES      !Version 4.0.0alpha
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
-  use modtestbed,        only : inittestbed, testbednudge, exittestbed
+  use modtestbed,      only : testbednudge, exittestbed
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
