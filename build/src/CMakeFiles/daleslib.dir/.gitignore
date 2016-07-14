@@ -1,8 +1,0 @@
-*.f90.o
-/advec_hybrid.f90.o.provides.build
-/advec_hybrid.mod.stamp
-*.make
-*.internal
-/link.txt
-*.f90.o.provides.build
-*.mod.stamp

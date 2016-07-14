@@ -1,7 +1,0 @@
-*.f90.o
-*.mod.stamp
-*.f90.o.provides.build
-*.cmake
-*.make
-*.internal
-/link.txt
