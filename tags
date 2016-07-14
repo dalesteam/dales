@@ -18,7 +18,6 @@
 5400	src/rrtmg_sw_setcoef.f90	/^ 5400    continue$/;"	l	subroutine:setcoef_sw	file:
 60	src/modchem.f90	/^60  continue$/;"	l	subroutine:twostep2	file:
 600	src/modradfull.f90	/^600 format ('-----------------------------------------------------------', &$/;"	l	subroutine:init_ckd	file:
-600	src/modradfull.f90	/^600 format(\/'CLOUD_INIT WARNING:  Extrapolating because data out of range', &$/;"	l	subroutine:interpolate	file:
 601	src/modradfull.f90	/^601 format ('                                                -----------', &$/;"	l	subroutine:init_ckd	file:
 602	src/modradfull.f90	/^602 format ('-----------                                                ', &$/;"	l	subroutine:init_ckd	file:
 604	src/modradfull.f90	/^604 format ('---------------------------------------- Finished band init ')$/;"	l	subroutine:init_ckd	file:
@@ -1348,7 +1347,6 @@ inr	src/addon/modbulkmicrodata.f90	/^  integer :: inr /;"	v	module:modbulkmicrod
 inr	src/modmicrodata.f90	/^  integer :: inr /;"	v	module:modmicrodata
 interfaceP	src/modraddata.f90	/^  real(kind=kind_rb),allocatable,dimension(:,:) :: interfaceP,/;"	v	module:modraddata
 interfaceT	src/modraddata.f90	/^  real(kind=kind_rb),allocatable,dimension(:,:) :: interfaceP,    &$/;"	v	module:modraddata
-interpolate	src/modradfull.f90	/^  subroutine interpolate(/;"	s	module:modradfull
 intmeth	src/addon/modparticles.f90	/^  integer :: intmeth /;"	v	module:modparticles
 intrpl	src/modradfull.f90	/^  real function intrpl(/;"	f	module:modradfull
 ioverlap	src/modraddata.f90	/^  integer :: ioverlap /;"	v	module:modraddata
@@ -1741,7 +1739,6 @@ liquidRe	src/modraddata.f90	/^  real(kind=kind_rb),allocatable,dimension(:,:) ::
 llimit	src/modradfull.f90	/^     real                 :: llimit,/;"	k	type:band_properties
 llimit	src/modradfull.f90	/^  elemental real function llimit(/;"	f	module:modradfull
 llsadv	src/modglobal.f90	/^      logical :: llsadv /;"	v	module:modglobal
-llstend	src/modglobal.f90	/^      logical :: llstend /;"	v	module:modglobal
 lmason	src/modsubgriddata.f90	/^  logical :: lmason /;"	v	module:modsubgriddata
 lmicrostat	src/modbulkmicrostat.f90	/^  logical          :: lmicrostat /;"	v	module:modbulkmicrostat
 lmicrostat	src/modsimpleicestat.f90	/^  logical          :: lmicrostat /;"	v	module:modsimpleicestat
@@ -1815,6 +1812,7 @@ ltimedepsvz	src/modtimedepsv.f90	/^  logical       :: ltimedepsvz /;"	v	module:m
 ltimedepz	src/modtimedep.f90	/^  logical       :: ltimedepz /;"	v	module:modtimedep
 ltimestat	src/modtimestat.f90	/^  logical :: ltimestat=/;"	v	module:modtimestat
 ltkeb	src/modbudget.f90	/^  logical :: ltkeb /;"	v	module:modbudget
+ltotruntime	src/modglobal.f90	/^      logical :: ltotruntime /;"	v	module:modglobal
 lunudge	src/modnudge.f90	/^  logical :: lnudge = .false.,lunudge,/;"	v	module:modnudge
 lvnudge	src/modnudge.f90	/^  logical :: lnudge = .false.,lunudge,lvnudge,/;"	v	module:modnudge
 lwDownCS_slice	src/modraddata.f90	/^                                                   lwUpCS_slice,   &    ! Upwelling longwave rad, clear sky value   (2D slice)$/;"	v	module:modraddata
@@ -2251,7 +2249,6 @@ nsv	src/modglobal.f90	/^      integer ::  nsv /;"	v	module:modglobal
 nt	src/modradfull.f90	/^     inte/;"	k	type:ckd_properties
 ntbl	src/rrlw_tbl.f90	/^      integer(kind=im), parameter :: ntbl /;"	v	module:rrlw_tbl
 ntbl	src/rrsw_tbl.f90	/^      integer(kind=im), parameter :: ntbl /;"	v	module:rrsw_tbl
-ntimee	src/modglobal.f90	/^      integer :: ntimee /;"	v	module:modglobal
 ntnudge	src/modnudge.f90	/^  integer :: ntnudge /;"	v	module:modnudge
 ntnudge	src/modtestbed.f90	/^  integer :: nknudge,ntnudge$/;"	v	module:modtestbed
 ntrun	src/modglobal.f90	/^      integer :: ntrun /;"	v	module:modglobal
@@ -3002,8 +2999,6 @@ swuca	src/modraddata.f90	/^  real, allocatable :: swuca(/;"	v	module:modraddata
 swucaav	src/modradstat.f90	/^  real, allocatable :: swucaav(/;"	v	module:modradstat
 swucamn	src/modradstat.f90	/^  real, allocatable :: swucamn(/;"	v	module:modradstat
 swumn	src/modradstat.f90	/^  real, allocatable :: swumn(/;"	v	module:modradstat
-t0	src/program.f90	/^  real :: t0,/;"	v	program:DALES
-t2	src/program.f90	/^  real :: t0,t2$/;"	v	program:DALES
 t_ref	src/modchem.f90	/^  real t_ref,/;"	v	module:modchem
 tabs_slice	src/modraddata.f90	/^  real(kind=kind_rb),allocatable,dimension(:,:) :: tabs_slice,/;"	v	module:modraddata
 tadv	src/addon/modstress.f90	/^  real, allocatable, dimension (:,:,:) :: tadv /;"	v	module:modstress
@@ -3121,6 +3116,7 @@ tendskin_patch	src/modtimestat.f90	/^  real,allocatable, dimension(:,:) :: Qnet_
 tendskinid	src/addon/modnetcdfmovie.f90	/^  integer :: Hid, LEid, G0id, tendskinid,/;"	v	module:modnetcdfmovie
 testbed_getinttime	src/modtestbed.f90	/^  subroutine testbed_getinttime(/;"	s	module:modtestbed
 testbednudge	src/modtestbed.f90	/^  subroutine testbednudge$/;"	s	module:modtestbed
+testwctime	src/modstartup.f90	/^  subroutine testwctime$/;"	s	module:modstartup
 tfn_tbl	src/rrlw_tbl.f90	/^      real(kind=rb) , dimension(0:ntbl) :: tfn_tbl$/;"	v	module:rrlw_tbl
 tg_slice	src/modraddata.f90	/^  real,allocatable,dimension(:)   :: tg_slice /;"	v	module:modraddata
 th0av	src/modgenstat.f90	/^  real, allocatable :: th0av(/;"	v	module:modgenstat
@@ -3488,7 +3484,7 @@ wavgid	src/modheterostats.f90	/^  integer :: uavgid, vavgid, wavgid,/;"	v	module
 wavl	src/modquadrant.f90	/^  real, allocatable, dimension(:,:)          :: uavl,vavl,wavl,/;"	v	module:modquadrant
 wco2Field	src/modsurfdata.f90	/^  real, allocatable :: wco2Field /;"	v	module:modsurfdata
 wco2av	src/modsurfdata.f90	/^  real              :: wco2av /;"	v	module:modsurfdata
-wctime	src/modglobal.f90	/^      real :: wctime=/;"	v	module:modglobal
+wctime	src/modstartup.f90	/^  real :: wctime=/;"	v	module:modstartup
 we	src/modtimestat.f90	/^  real    :: zi,ziold=-1, we$/;"	v	module:modtimestat
 we_patch	src/modtimestat.f90	/^  real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch,/;"	v	module:modtimestat
 wfall_Nr	src/addon/modbulkmicrodata.f90	/^    ,wfall_Nr /;"	v	module:modbulkmicrodata
