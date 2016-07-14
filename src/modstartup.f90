@@ -43,7 +43,7 @@ save
   real :: randu = 0.5
 
 contains
-  subroutine startup(mpi_comm_)
+  subroutine startup(path,mpi_comm_)
 
       !-----------------------------------------------------------------|
       !                                                                 |
@@ -57,7 +57,8 @@ contains
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,&
+                                  ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -77,7 +78,8 @@ contains
 
     implicit none
     integer :: ierr,mpi_comm
-    integer, optional, intent(in) :: mpi_comm_
+    character(256), optional, intent(in) :: path
+    integer, optional, intent(in) ::        mpi_comm_
 
     !declare namelists
     namelist/RUN/ &
@@ -103,15 +105,19 @@ contains
     else
         call MPI_INIT(mpierr)
         mpi_comm=MPI_COMM_WORLD
-    endif
+    end if
 
     ! get myid
     call MPI_COMM_RANK(mpi_comm, myid, mpierr)
 
     !read namelists
     if(myid==0)then
-      if (command_argument_count() >=1) then
-        call get_command_argument(1,fname_options)
+      if(present(path)) then
+          fname_options=path
+      else
+        if (command_argument_count() >=1) then
+            call get_command_argument(1,fname_options)
+        end if
       end if
       write (*,*) fname_options
 

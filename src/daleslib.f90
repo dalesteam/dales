@@ -18,7 +18,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
-subroutine initialize(mpi_comm)
+subroutine initialize(path,mpi_comm)
 
     !!----------------------------------------------------------------
     !!     0.0    USE STATEMENTS FOR CORE MODULES
@@ -60,16 +60,17 @@ subroutine initialize(mpi_comm)
 
     implicit none
 
-    integer, optional, intent(in) :: mpi_comm
+    character(len=512), intent(in) :: path
+    integer, optional, intent(in)  :: mpi_comm
 
     !----------------------------------------------------------------
     !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
     !----------------------------------------------------------------
 
     if(present(mpi_comm)) then
-        call startup(mpi_comm)
+        call startup(path,mpi_comm)
     else
-        call startup
+        call startup(path)
     endif
     
     !---------------------------------------------------------

@@ -46,13 +46,13 @@ save
       integer ::  kh=1
       integer ::  kcb=0
 
-      character(50) :: fname_options = 'namoptions'
+      character(256) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
-      character(50) :: startfile    !<    * name of the restart file
+      character(256) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
 
