@@ -54,13 +54,6 @@ save
   character(3) :: cmyidx, cmyidy
 
 contains
-
-  subroutine initmpi
-    implicit none
-
-    call MPI_INIT(mpierr)
-    call startmpi(MPI_COMM_WORLD)
-  end subroutine initmpi
   
   ! This routine does the setup of the MPI mesh
   ! NPROCS
@@ -77,7 +70,7 @@ contains
   !       slower than the default.
   !
   
-  subroutine startmpi(commwrld)
+  subroutine initmpi(commwrld)
     implicit none
     integer commwrld
     integer dims(2)
@@ -141,7 +134,7 @@ contains
     write(cmyid,'(a,i3.3,a,i3.3)') 'x', myidx, 'y', myidy
     write(cmyidx,'(i3.3)') myidx
     write(cmyidy,'(i3.3)') myidy
-  end subroutine startmpi
+  end subroutine initmpi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 

@@ -23,7 +23,6 @@ subroutine initialize(mpi_comm)
     !!----------------------------------------------------------------
     !!     0.0    USE STATEMENTS FOR CORE MODULES
     !!----------------------------------------------------------------
-    use modmpi,             only : initmpi, startmpi
     use modstartup,         only : startup
 
     !----------------------------------------------------------------
@@ -66,13 +65,11 @@ subroutine initialize(mpi_comm)
     !----------------------------------------------------------------
 
     if(present(mpi_comm)) then
-        call startmpi(mpi_comm)
+        call startup(mpi_comm)
     else
-        call initmpi
+        call startup
     endif
     
-    call startup
-
     !---------------------------------------------------------
     !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
     !---------------------------------------------------------
