@@ -1073,6 +1073,8 @@ contains
   !> Subroutine qft: Delta 4-stream solver for fluxes
   !>
   subroutine qft (solar, ee, as, u0, bf, tt, ww, ww1, ww2, ww3, ww4, ffu, ffd)
+    use modglobal,  only : eps1
+    implicit none
 
     logical, intent (in) :: solar
     real, intent (in)    :: ee, as, u0
@@ -1083,7 +1085,7 @@ contains
     real, dimension (nv) :: t,w,w1,w2,w3,u0a,f0a,fk1,fk2
     integer :: k, kk, ii, jj
     real    :: x(4), fi(4), a4(4,4,nv), z4(4,nv), g4(4,nv)
-    real    :: tkm1, fw3, fw4, y1, xy, xas, xee
+    real    :: tkm1, fw3, fw4, y1, xy, xas, xee, tmp
     real, parameter :: fw1 = 0.6638960, fw2 = 2.4776962
 
     call adjust(tt,ww,ww1,ww2,ww3,ww4,t,w,w1,w2,w3)
@@ -1103,7 +1105,8 @@ contains
        tkm1 = 0.0
         do k = 1, nv
            f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
-           u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ))
+           tmp    = alog( bf(k+1)/bf(k) )
+           u0a(k) = -(t(k)-tkm1) / sign(max(abs(tmp),eps1),tmp)
            u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
            tkm1   = t(k)
         end do
