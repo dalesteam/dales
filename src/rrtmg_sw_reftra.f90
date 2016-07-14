@@ -104,7 +104,7 @@
 
 ! ------- Local -------
 
-      integer(kind=im) :: jk, jl, kmodts
+      integer(kind=im) :: jk, kmodts
       integer(kind=im) :: itind
 
       real(kind=rb) :: tblind
