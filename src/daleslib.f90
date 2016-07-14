@@ -39,6 +39,7 @@ subroutine initialize(path,mpi_comm)
     use modsampling,        only : initsampling
     use modquadrant,        only : initquadrant
     use modcrosssection,    only : initcrosssection 
+    use modAGScross,        only : initAGScross
     use modlsmcrosssection, only : initlsmcrosssection
     use modcloudfield,      only : initcloudfield
     use modfielddump,       only : initfielddump
