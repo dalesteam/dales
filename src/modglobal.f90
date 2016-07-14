@@ -421,7 +421,7 @@ contains
     leq=.true.
     dz = dzf(1)
     do k=1,k1
-      if ((dzf(k)-dz)/dz>eps1) then
+      if (abs(dzf(k)-dz)/dz>eps1) then
         leq = .false.
       end if
     end do
