@@ -195,7 +195,7 @@ contains
 
     subroutine d4stream(i1,ih,j1,jh,k1, tskin, albedo, CCN, dn0, &
          pi0,  tk, rv, rc, fds3D,fus3D,fdir3D,fuir3D, rr,lclear)
-      use modglobal, only : cexpnr,cp,cpr,pi,pref0,rtimee,xday,xlat,xlon,xtime,rhow
+      use modglobal, only : cexpnr,cp,cpr,pref0,rtimee,xday,xlat,xlon,xtime,rhow
       use modraddata,only : useMcICA,zenith,sw0,SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA, &
                             SW_up_ca_TOA, SW_dn_ca_TOA, LW_up_ca_TOA, LW_dn_ca_TOA
       use modtestbed, only : ltestbed
@@ -1103,9 +1103,9 @@ contains
        tkm1 = 0.0
         do k = 1, nv
            f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
-          u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ))
-          u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
-           tkm1 = t(k)
+           u0a(k) = -(t(k)-tkm1) / ( alog( bf(k+1)/bf(k) ))
+           u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
+           tkm1   = t(k)
         end do
      end if
 
@@ -1210,7 +1210,6 @@ contains
   !>
   subroutine rad_ir (pts, ee, pp, pt, ph, po, fdir, fuir, &
        plwc, pre, useMcICA  )
-    use modglobal, only : pi
 
     real, intent (in)  :: pp (nv1) ! pressure at interfaces
 
