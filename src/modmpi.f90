@@ -60,7 +60,6 @@ contains
 
     call MPI_INIT(mpierr)
     call startmpi(MPI_COMM_WORLD)
-
   end subroutine initmpi
   
   ! This routine does the setup of the MPI mesh
@@ -142,8 +141,7 @@ contains
     write(cmyid,'(a,i3.3,a,i3.3)') 'x', myidx, 'y', myidy
     write(cmyidx,'(i3.3)') myidx
     write(cmyidy,'(i3.3)') myidy
-
-  end subroutine initmpi
+  end subroutine startmpi
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
