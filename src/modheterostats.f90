@@ -1136,7 +1136,7 @@ contains
 
     use typeSizes
     use netcdf
-    use modmpi, only : myid,myidx
+    use modmpi, only : myidx
 
     implicit none
 

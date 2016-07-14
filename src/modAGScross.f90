@@ -50,13 +50,13 @@ save
 contains
 !> Initializing AGScross. Read out the namelist, initializing the variables
   subroutine initAGScross
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
+    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
     use modsurfdata, only : lrsAgs, ksoilmax
    implicit none
 
-    integer :: ierr,k
+    integer :: ierr
 
     namelist/NAMAGScross/ &
     lAGScross, dtav
@@ -131,7 +131,7 @@ contains
   end subroutine initAGScross
 !>Run AGScross. Mainly timekeeping
   subroutine AGScross
-    use modglobal, only : rk3step,timee,rtimee,dt_lim
+    use modglobal, only : rk3step,timee,dt_lim
     use modstat_nc, only : writestat_nc
     implicit none
 
@@ -162,8 +162,7 @@ contains
 
 
     ! LOCAL
-    integer i,j,n
-    character(40) :: name
+    integer i,j
     real, allocatable :: vars(:,:,:)
     real :: lwp(2:i1,2:j1)
 

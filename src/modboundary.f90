@@ -92,10 +92,11 @@ contains
 !> Sets lateral periodic boundary conditions for the scalars
  subroutine cyclich
 
-  use modglobal, only : i1,i2,ih,j1,jh,k1,nsv
+  use modglobal, only : i1,ih,j1,jh,k1,nsv
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
   use modmpi,    only : excjs
-  integer n,m
+
+  integer n
 
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
@@ -113,11 +114,9 @@ contains
 !>set lateral periodic boundary conditions for momentum
  subroutine cyclicm
 
-  use modglobal, only : i1,i2,ih,j1,jh,k1
+  use modglobal, only : i1,ih,j1,jh,k1
   use modfields, only : u0,um,v0,vm,w0,wm,e120,e12m
   use modmpi,    only : excjs
-
-  integer m
 
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)

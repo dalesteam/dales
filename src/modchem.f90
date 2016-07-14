@@ -238,7 +238,7 @@ save
 contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
-  use modglobal,   only : i1,j1,i2,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
+  use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
   use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
   use modsurfdata, only : lCHon
   implicit none
@@ -1787,7 +1787,7 @@ subroutine ratech
 !-----------------------------------------------------------------
 !
 
-  use modglobal, only : i1,j1,i2,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
+  use modglobal, only : i1,j1,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
                         zf,dzf,ijtot,ifoutput,cexpnr
   use modfields, only : qt0, ql0 ,rhof
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum

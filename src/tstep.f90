@@ -43,7 +43,7 @@
 subroutine tstep_update
 
 
-  use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntimee,ntrun,courant,peclet,&
+  use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,&
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm
   use modsubgrid,only : ekm
@@ -93,7 +93,6 @@ subroutine tstep_update
         timee   = timee  + dt
         rtimee  = dble(timee)*tres
         timeleft=timeleft-dt
-        ntimee  = ntimee + 1
         ntrun   = ntrun  + 1
       else
         dt = 2 * dt
@@ -126,12 +125,10 @@ subroutine tstep_update
         dt_lim = timeleft
         timee   = timee  + dt
         rtimee  = dble(timee)*tres
-        ntimee  = ntimee + 1
         ntrun   = ntrun  + 1
       else
         dt = idtmax
         rdt = dtmax
-        ntimee  = ntimee + 1
         ntrun   = ntrun  + 1
         timee   = timee  + dt !ntimee*dtmax
         rtimee  = dble(timee)*tres

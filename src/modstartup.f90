@@ -41,6 +41,7 @@ save
   integer :: krand = huge(0), krandumin=1,krandumax=0
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
   real :: randu = 0.5
+  real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
 
 contains
   subroutine startup
@@ -53,10 +54,10 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr,runtime, dtmax, wctime, dtav_glob,timeav_glob,&
+    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,llstend,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -82,7 +83,7 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,runtime,dtmax,wctime,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy
@@ -96,7 +97,7 @@ contains
         lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, llstend, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -156,6 +157,7 @@ contains
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltotruntime,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(wctime     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -212,7 +214,6 @@ contains
     call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(llstend    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -243,10 +244,10 @@ contains
     ! Initialize MPI
     call initmpi
 
+    call testwctime
     ! Allocate and initialize core modules
     call initglobal
     call initfields
-
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     call initboundary
@@ -335,8 +336,8 @@ contains
       case(1)
       case(2,10)
       case(3:4)
-        if (wtsurf == -1)  stop 'wtsurf not set'
-        if (wqsurf == -1)  stop 'wqsurf not set'
+        if (wtsurf <-1e10)  stop 'wtsurf not set'
+        if (wqsurf <-1e10)  stop 'wqsurf not set'
       case default
         stop 'isurf out of range/not set'
       end select
@@ -363,9 +364,9 @@ contains
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
-                                  rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
+                                  rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
-                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
+                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
@@ -378,7 +379,7 @@ contains
     use moduser,           only : initsurf_user
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
-                                  tb_dqtdxls,tb_dqtdyls,tb_uadv,tb_vadv,tb_qtadv,tb_thladv
+                                  tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
@@ -782,12 +783,15 @@ contains
 
     idtmax = floor(dtmax/tres)
     btime   = timee
-    timeleft=ceiling(runtime/tres)
+    if (.not.(ltotruntime)) then
+      runtime = runtime + btime*tres
+    end if
+    timeleft=ceiling((runtime)/tres-btime)
+
     dt_lim = timeleft
     rdt = real(dt)*tres
     ntrun   = 0
     rtimee  = real(timee)*tres
-    ntimee  = nint(timee/dtmax)
     itrestart = floor(trestart/tres)
     tnextrestart = btime + itrestart
     deallocate (height,th0av)
@@ -1006,6 +1010,25 @@ contains
 
   end subroutine writerestartfiles
 
+  subroutine testwctime
+    use modmpi,    only : mpi_get_time
+    use modglobal, only : timeleft
+    implicit none
+    real, save :: tstart = -1., tend = -1.
+
+    if (tstart < 0) then
+      call mpi_get_time(tstart)
+    else
+      call mpi_get_time(tstart)
+      if (tend-tstart>=wctime) then
+        write (*,*) wctime, "NO WALL CLOCK TIME LEFT"
+        timeleft=0
+      end if
+    end if
+
+
+  end subroutine testwctime
+
   subroutine exitmodules
     use modfields,         only : exitfields
     use modglobal,         only : exitglobal
@@ -1044,7 +1067,6 @@ contains
     integer ihl, jhl
     integer i,j,klev
     integer is,ie,js,je
-    integer m,mfac
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)

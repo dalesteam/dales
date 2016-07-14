@@ -198,7 +198,7 @@ contains
 !>Run crosssection. Mainly timekeeping
   subroutine crosssection
     use modglobal, only : rk3step,timee,dt_lim
-    use modstat_nc, only : lnetcdf, writestat_nc
+    use modstat_nc, only : writestat_nc
     implicit none
 
 
@@ -428,7 +428,7 @@ contains
 
     ! LOCAL
     integer j,k,n
-    character(20) :: name
+    character(21) :: name
 
     real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
