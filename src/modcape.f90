@@ -1,5 +1,5 @@
 !> \file modcape.f90
-!!   Dumps cross sections of dcape, CAPEmax, CINlower,CINupper, CINmax, ALE, W2max, 
+!!   Dumps cross sections of dcape, CAPEmax, CINlower,CINupper, CINmax, ALE, W2max,
 !!   QTcloudbase, THLcloudbase, Wcloudbase, THVcloudbase, QLcloudbase, LWP, RWP, cloud top
 !
 !>
@@ -36,7 +36,7 @@ save
   integer,parameter :: nvar = 20
   integer :: ncid4 = 0
   integer :: nrec = 0
-  character(80) :: fname = 'cape.xxx.xxx.nc'
+  character(80) :: fname = 'cape.xxxxyxxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
   real    :: dtav
@@ -82,8 +82,8 @@ contains
       stop 'cape: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-    fname(6:8) = cmyid
-    fname(10:12) = cexpnr
+    fname(6:13) = cmyid
+    fname(15:17) = cexpnr
     call ncinfo(tncname(1,:),'time','Time','s','time')
     call ncinfo(ncname( 1,:),'dcape','xy crosssections of actual dcape','J/m^2','tt0t')
     call ncinfo(ncname( 2,:),'dscape','xy crosssections of actual dscape','J/m^2','tt0t')
@@ -285,7 +285,7 @@ contains
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
-    
+
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
             tlonr=int((Tnr-150.)*5.)
@@ -296,7 +296,7 @@ contains
             esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
-    
+
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
           enddo
         nitert =max(nitert,niter)
@@ -336,7 +336,7 @@ contains
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
-    
+
             ttry=Tnr-0.002
             ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
             tlonr=int((Tnr-150.)*5.)
@@ -347,7 +347,7 @@ contains
             esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
             qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt200400(i,j)-qsatur,0.)
-    
+
             Tnr = Tnr - (thlguess-thl200400(i,j))/((thlguess-thlguessmin)*500.)
           enddo
         nitert =max(nitert,niter)
@@ -368,7 +368,7 @@ contains
         if(thvma(i,j,k)<thvf(k)-10) then
           matop(i,j)=k
         elseif(k==k1) then
-          matop(i,j)=k        
+          matop(i,j)=k
         endif
       endif
     enddo
@@ -376,7 +376,7 @@ contains
     enddo
 
     ! calculate top of moist adiabat for dcape calculations
-    do k=1,k1 
+    do k=1,k1
     do j=2,j1
     do i=2,i1
       if(k<matop(i,j)) then

@@ -51,10 +51,10 @@ SAVE
   ! Spatially varying properties
   real, allocatable :: lambda  (:,:,:)    !<  Heat conductivity soil layer [W/m/K]
   real, allocatable :: lambdah (:,:,:)    !<  Heat conductivity soil layer half levels [W/m/K]
-  real, allocatable :: lambdas (:,:,:)    !<  Soil moisture diffusivity soil layer 
-  real, allocatable :: lambdash(:,:,:)    !<  Soil moisture diffusivity soil half levels 
-  real, allocatable :: gammas  (:,:,:)    !<  Soil moisture conductivity soil layer 
-  real, allocatable :: gammash (:,:,:)    !<  Soil moisture conductivity soil half levels 
+  real, allocatable :: lambdas (:,:,:)    !<  Soil moisture diffusivity soil layer
+  real, allocatable :: lambdash(:,:,:)    !<  Soil moisture diffusivity soil half levels
+  real, allocatable :: gammas  (:,:,:)    !<  Soil moisture conductivity soil layer
+  real, allocatable :: gammash (:,:,:)    !<  Soil moisture conductivity soil half levels
   real, allocatable :: Dh      (:,:,:)    !<  Heat diffusivity
   real, allocatable :: phiw    (:,:,:)    !<  Water content soil matrix [-]
   real, allocatable :: phiwm   (:,:,:)    !<  Water content soil matrix previous time step [-]
@@ -77,11 +77,12 @@ SAVE
 
   integer           :: nradtime  = 60
 
-  ! Soil related constants [adapted from ECMWF]
-  real, parameter   :: phi       = 0.472  !<  volumetric soil porosity [-]
-  real, parameter   :: phifc     = 0.323  !<  volumetric moisture at field capacity [-]
-  real, parameter   :: phiwp     = 0.171  !<  volumetric moisture at wilting point [-]
+  ! Soil related properties [case specific]
+  real              :: phi       = 0.472  !<  volumetric soil porosity [-]
+  real              :: phifc     = 0.323  !<  volumetric moisture at field capacity [-]
+  real              :: phiwp     = 0.171  !<  volumetric moisture at wilting point [-]
 
+  ! Soil related constants [adapted from ECMWF]
   real, parameter   :: pCm       = 2.19e6 !<  Volumetric soil heat capacity [J/m3/K]
   real, parameter   :: pCw       = 4.2e6  !<  Volumetric water heat capacity [J/m3/K]
 
@@ -103,7 +104,7 @@ SAVE
   real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
   real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
-  real              :: Wlav     = -1                                  
+  real              :: Wlav     = -1
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
   real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
@@ -117,8 +118,63 @@ SAVE
   real, allocatable :: Cskin      (:,:) !<  Heat capacity skin layer [J]
   real              :: Cskinav  = -1
   real, allocatable :: lambdaskin (:,:) !<  Heat conductivity skin layer [W/m/K]
-  real              :: lambdaskinav
+  real              :: lambdaskinav = -1
   real              :: ps       = -1    !<  Surface pressure [Pa]
+
+  ! AGS options (require interactive landsurface: isurf=2)
+  !<Namelist options
+  logical           :: lrsAgs     = .false.!<  Switch to apply AGS to calculate resistances
+  logical           :: lCO2Ags    = .false.!<  Switch to calculate CO2 fluxes with AGS
+  integer           :: planttype  = 3      !<  Integer to switch between (C)3 and (C)4 plants
+  logical           :: lrelaxgc   = .false.!<  Switch to delay plant response. Timescale is equal to 1/kgc
+  real              :: kgc        = 0.00113!<  Standard stomatal response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  real              :: kci        = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  real, allocatable :: gc_old       (:,:)  !<  Old value for gc
+  real              :: gc_inf              !<  Attractor for stomatal response rate
+  logical           :: gc_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once
+  logical           :: lrelaxci   = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
+  real, allocatable :: ci_old       (:,:)  !<  Old value for ci
+  real              :: ci_inf              !<  Attractor for ci
+  logical           :: ci_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
+  real              :: wco2av     = 0.0
+  real              :: Anav       = 0.0
+  real              :: Respav     = 0.0
+  real, allocatable :: wco2Field    (:,:)
+  real, allocatable :: AnField      (:,:)
+  real, allocatable :: rsco2Field   (:,:)
+  real, allocatable :: RespField    (:,:)
+  real, allocatable :: fstrField    (:,:)
+  real, allocatable :: tauField     (:,:)
+  real, allocatable :: ciField      (:,:)
+  !<Non namelist options
+  logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
+  logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
+  integer           :: indCO2     = -1     !<  Index of CO2 in the scalars
+  integer           :: CO2loc     = -1     !<  Index of CO2 in the scalars
+  real, allocatable :: CO2flux(:,:)        !<  Surface flux of CO2 as calculated by AGS
+
+  !AGS variables
+  real              :: CO2comp298 =   68.5 !<  CO2 compensation concentration
+  real              :: Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
+  real              :: gm298      =    7.0 !<  Mesophyll conductance at 298 K
+  real              :: Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
+  real              :: T1gm       =  278.0 !<  Reference temperature to calculate the mesophyll conductance
+  real              :: T2gm       =  301.0 !<  Reference temperature to calculate the mesophyll conductance
+  real              :: gmin       = 2.5e-4 !<  Cuticular (minimum) conductance
+  real              :: nuco2q     =    1.6 !<  Ratio molecular viscosity water to carbon dioxide
+  real              :: f0         =   0.89 !<  Maximum value Cfrac
+  real              :: ad         =   0.07 !<  Regression coefficient to calculate Cfrac
+  real              :: Ammax298   =    2.2 !<  CO2 maximal primary productivity
+  real              :: Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
+  real              :: T1Am       =    281 !<  Reference temperature to calculate maximal primary productivity
+  real              :: T2Am       =    311 !<  Reference temperature to calculate maximal primary productivity
+  real              :: alpha0     =  0.017 !<  Initial low light conditions
+  real              :: Kx         =    0.7 !<  Extinction coefficient PAR
+  real              :: Cw         = 1.6e-3 !<  Constant water stress correction
+  real              :: wsmax      =   0.55 !<  Upper reference value soil water
+  real              :: wsmin      =  0.005 !<  Lower reference value soil water
+  real              :: R10        =   0.23 !<  Respiration at 10oC (Jacobs 2007)
+  real              :: Eact0      = 53.3e3 !<  Activation energy
 
   ! Surface energy balance
   real, allocatable :: Qnet     (:,:)   !<  Net radiation [W/m2]
@@ -143,7 +199,6 @@ SAVE
   logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
-  logical           :: lidealised = .false. !< Use analytical expressions for surface fluxes
   real, allocatable :: obl   (:,:)      !<  Obukhov length [m]
   real              :: oblav            !<  Spatially averaged obukhov length [m]
   real, allocatable :: Cm    (:,:)      !<  Drag coefficient for momentum [-]
@@ -206,7 +261,7 @@ SAVE
   real              :: albedo_land(max_lands)      = -1 !< Albedo
   real, allocatable :: tsoil_patch(:,:,:)               !< Soil temperature [K]
   real, allocatable :: tsoildeep_patch(:,:)             !< Soil temperature [K]
-  real, allocatable :: phiw_patch(:,:,:)                !< 
+  real, allocatable :: phiw_patch(:,:,:)                !<
   real, allocatable :: rootf_patch(:,:,:)               !< Root fraction per soil layer [-]
   real, allocatable :: Cskin_patch(:,:)                 !< Heat capacity skin layer [J]
   real, allocatable :: lambdaskin_patch(:,:)            !< Heat conductivity skin layer [W/m/K]
@@ -218,7 +273,7 @@ SAVE
   real, allocatable :: gD_patch(:,:)                    !< Response factor vegetation to vapor pressure deficit [-]
   real              :: tsoil_land(ksoilmax,max_lands)=-1!< Soil temperature [K]
   real              :: tsoildeep_land(max_lands)   = -1 !< Soil temperature [K]
-  real              :: phiw_land(ksoilmax,max_lands) =-1!< 
+  real              :: phiw_land(ksoilmax,max_lands) =-1!<
   real              :: rootf_land(ksoilmax,max_lands)=-1!< Root fraction per soil layer [-]
   real              :: Cskin_land(max_lands)       = -1 !< Heat capacity skin layer [J]
   real              :: lambdaskin_land(max_lands)  = -1 !< Heat conductivity skin layer [W/m/K]

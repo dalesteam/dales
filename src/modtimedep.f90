@@ -164,7 +164,7 @@ contains
         chmess1 = "#"
         ierr = 1 ! not zero
         !search for the next line consisting of "# time", from there onwards the profiles will be read
-        do while (.not.(chmess1 == "#" .and. ierr ==0)) 
+        do while (.not.(chmess1 == "#" .and. ierr ==0))
           read(ifinput,*,iostat=ierr) chmess1,timels(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run'
@@ -324,25 +324,14 @@ contains
 
   subroutine timedepsurf
     use modglobal,   only : rtimee, lmoist
-    use modsurfdata, only : wtsurf,wqsurf,thls,qts,ps,lidealised
+    use modsurfdata, only : wtsurf,wqsurf,thls,qts,ps
     use modsurface,  only : qtsurf
     implicit none
     integer t
     real fac
 
-
-    if(.not.(ltimedepsurf)) then
-    return
-    elseif(lidealised) then
-    call idealisedfluxes
-    if (lmoist) then
-       call qtsurf
-    else
-       qts = 0.
-    endif
-    else
+    if(.not.(ltimedepsurf)) return
   !     --- interpolate! ----
-    
     t=1
     do while(rtimee>timeflux(t))
       t=t+1
@@ -363,7 +352,6 @@ contains
        qts = 0.
     endif
 
-    end if
     return
   end subroutine timedepsurf
 
@@ -377,25 +365,5 @@ contains
     call exittimedepsv
 
   end subroutine
-
-  subroutine idealisedfluxes
-  !    thls is not nudged
-  !    ps is not given
-    use modsurfdata, only: wqsurf,wtsurf
-    use modglobal, only : rtimee,xtime, pi, cp, rlv
-    use modfields, only : rhobh ! use base state since transports are considered
-    implicit none
-    real :: xfact
-    
-    if (rhobh(1)>1e-2) then ! prevents problems during initialisation
-    xfact=cos(pi/2.*(12.75-(xtime+rtimee/3600.))/5.25)
-    if(xfact.le.0.) then
-    xfact=0.
-    endif
-    wqsurf =(554.*xfact**1.3)/(rlv*rhobh(1))
-    wtsurf =(270.*xfact**1.5)/(cp*rhobh(1))
-    endif
-
-  end subroutine idealisedfluxes
 
 end module modtimedep

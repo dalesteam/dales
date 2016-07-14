@@ -27,12 +27,11 @@ implicit none
 save
 
       ! Simulation dimensions (parconst.f90)
-      integer :: imax = 64
+      integer :: itot = 64
       integer :: jtot = 64
+      integer :: imax
       integer :: jmax
-      integer :: jsen
       integer :: kmax = 96
-      integer :: isen
       integer ::  i1
       integer ::  j1
       integer ::  k1
@@ -46,7 +45,7 @@ save
       integer ::  jh=3
       integer ::  kh=1
       integer ::  kcb=0
-      
+
       character(50) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
@@ -56,6 +55,12 @@ save
       character(50) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
+
+      !< Parameter kinds, for rrtmg radiation scheme
+      integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
+      integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
+      integer,parameter  :: SHR_KIND_R4 = selected_real_kind( 6) ! 4 byte real
+      integer,parameter  :: SHR_KIND_IN = kind(1)   ! native integer
 
       !<  Global constants modconst.f90
       !< File numbers
@@ -69,8 +74,8 @@ save
       real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
-      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation 
-      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation 
+      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation
+      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation
       real,parameter :: tup     = 268.             !<    * Temperature range over which mixed phase occurs (high)
       real,parameter :: tdn     = 253.             !<    * Temperature range over which mixed phase occurs (low)
       real,parameter :: ep       = rd/rv            !<    0.622
@@ -94,7 +99,7 @@ save
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
-      integer :: igrw_damp = 2 !< switch to enable gravity wave damping 
+      integer :: igrw_damp = 2 !< switch to enable gravity wave damping
       real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real    :: om22                       !<    *2.*omega_earth*cos(lat)
       real    :: om23                       !<    *2.*omega_earth*sin(lat)
@@ -102,12 +107,14 @@ save
       real    :: om23_gs                       !<    *2.*omega_earth*sin(lat)
       real    :: xlat    = 52.              !<    *latitude  in degrees.
       real    :: xlon    = 0.               !<    *longitude in degrees.
+      logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
+      real    :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
 
       !Base state
       integer :: ibas_prf = 3
       integer, parameter :: ibas_thv    = 1 !< Theta_v constant (Useful in dry cases)
       integer, parameter :: ibas_bou    = 2 !< Boussinesq-like
-      integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction 
+      integer, parameter :: ibas_st1    = 3 !< Standard atmosphere, with surface temperature correction
       integer, parameter :: ibas_st2    = 4 !< Standard atmosphere, surface temperature 15 Celsius
       integer, parameter :: ibas_usr    = 5 !< User specified
 
@@ -122,16 +129,17 @@ save
       integer, parameter :: iadv_kappa  = 7
       integer, parameter :: iadv_hybrid = 55
 
-      real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or 
+      real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
       ! Tabulated saturation relation
       real, dimension(1:2000) :: ttab
       real, dimension(1:2000) :: esatltab
-      real, dimension(1:2000) :: esatitab     
+      real, dimension(1:2000) :: esatitab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
-                                             
+
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
+      logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
 
 
@@ -160,7 +168,7 @@ save
       integer :: ntimee         !<     * number of timesteps since the cold start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-      
+
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
 
       real    :: courant = -1
@@ -194,7 +202,7 @@ save
       real :: dy2i            !<  (1/dy)**2
 
 
-      real :: rslabs
+      real :: ijtot
       real, allocatable :: dzf(:)         !<  thickness of full level
       real, allocatable :: dzh(:)         !<  thickness of half level
       real, allocatable :: zh(:)          !<  height of half level [m]
@@ -205,14 +213,14 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-      character(80) :: author='', version='DALES 4.0'
+      character(80) :: author='', version='DALES 4.1'
 contains
 
 !> Initialize global settings.
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
-    use modmpi, only : nprocs, myid,comm3d, my_real, mpierr
+    use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
     implicit none
 
     integer :: advarr(4)
@@ -257,10 +265,8 @@ contains
    end if
 
     ! phsgrid
-
-    jmax = jtot/nprocs
-    isen = imax/nprocs
-    jsen = jmax
+    imax = itot/nprocx
+    jmax = jtot/nprocy
     i1=imax+1
     j1=jmax+1
     k1=kmax+1
@@ -358,9 +364,9 @@ contains
     allocate(delta(k1))
 
 
-    rslabs = real(imax*jtot)
+    ijtot = real(itot*jtot)
 
-    dx = xsize / float(imax)
+    dx = xsize / float(itot)
     dy = ysize / float(jtot)
 
     ! MPI
@@ -459,10 +465,10 @@ contains
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)
- 
+
 ! Code converted using TO_F90 by Alan Miller
 ! Date: 2003-01-14  Time: 15:25:00
- 
+
 !----------------------------------------------------------------------
 
 ! This routine calculates the GAMMA function for a real argument X.

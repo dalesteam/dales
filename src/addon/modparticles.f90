@@ -846,7 +846,7 @@ contains
 !calculation of several 3D fields necesarry for sgs model
 !fce
 
-  use modglobal, only : i1,j1,kmax,k1,rslabs
+  use modglobal, only : i1,j1,kmax,k1,ijtot
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : comm3d,my_real,mpi_sum,mpierr
   implicit none
@@ -889,12 +889,12 @@ contains
   call MPI_ALLREDUCE(tkesgsmslabl,tkesgsmslab,k1,MY_REAL,MPI_SUM, comm3d,mpierr)
 
 
-  umslab=umslab/rslabs
-  vmslab=vmslab/rslabs
-  um2slab=um2slab/rslabs-umslab**2
-  vm2slab=vm2slab/rslabs-vmslab**2
-  wm2slab=wm2slab/rslabs
-  tkesgsmslab=tkesgsmslab/rslabs
+  umslab=umslab/ijtot
+  vmslab=vmslab/ijtot
+  um2slab=um2slab/ijtot-umslab**2
+  vm2slab=vm2slab/ijtot-vmslab**2
+  wm2slab=wm2slab/ijtot
+  tkesgsmslab=tkesgsmslab/ijtot
 
   do k=1,kmax
     tkeresmslab(k)=0.5*(um2slab(k)+vm2slab(k)+0.5*(wm2slab(k)+wm2slab(k+1)))
@@ -1215,7 +1215,7 @@ contains
   subroutine partcommunicate
 
     use modglobal, only : jmax,j2
-    use modmpi,    only : comm3d,mpi_integer,mpi_status_size,mpierr,my_real,nbrtop,nbrbottom
+    use modmpi,    only : comm3d,mpi_integer,mpi_status_size,mpierr,my_real,nbrnorth,nbrsouth
     implicit none
 
     integer:: ii, n
@@ -1235,12 +1235,12 @@ contains
       particle => particle%next
     end do
 
-    call MPI_SENDRECV(nrtonorth,1,MPI_INTEGER,nbrtop,4, &
-                      nrfrsouth,1,MPI_INTEGER,nbrbottom,4, &
+    call MPI_SENDRECV(nrtonorth,1,MPI_INTEGER,nbrnorth,4, &
+                      nrfrsouth,1,MPI_INTEGER,nbrsouth,4, &
                       comm3d, status, mpierr)
 
-    call MPI_SENDRECV(nrtosouth,1,MPI_INTEGER,nbrbottom,5, &
-                      nrfrnorth,1,MPI_INTEGER,nbrtop,5, &
+    call MPI_SENDRECV(nrtosouth,1,MPI_INTEGER,nbrsouth,5, &
+                      nrfrnorth,1,MPI_INTEGER,nbrnorth,5, &
                       comm3d, status, mpierr)
 
     if( nrtonorth > 0 ) allocate(buffsend(nrpartvar*nrtonorth))
@@ -1264,8 +1264,8 @@ contains
       end do
     end if
 
-    call MPI_SENDRECV(buffsend,nrpartvar*nrtonorth,MY_REAL,nbrtop,6, &
-                      buffrecv,nrpartvar*nrfrsouth,MY_REAL,nbrbottom,6, &
+    call MPI_SENDRECV(buffsend,nrpartvar*nrtonorth,MY_REAL,nbrnorth,6, &
+                      buffrecv,nrpartvar*nrfrsouth,MY_REAL,nbrsouth,6, &
                       comm3d, status, mpierr)
 
     ii = 0
@@ -1303,8 +1303,8 @@ contains
 
     end if
 
-    call MPI_SENDRECV(buffsend,nrpartvar*nrtosouth,MY_REAL,nbrbottom,7, &
-                      buffrecv,nrpartvar*nrfrnorth,MY_REAL,nbrtop,7, &
+    call MPI_SENDRECV(buffsend,nrpartvar*nrtosouth,MY_REAL,nbrsouth,7, &
+                      buffrecv,nrpartvar*nrfrnorth,MY_REAL,nbrnorth,7, &
                       comm3d, status, mpierr)
     ii = 0
     do n = 1,nrfrnorth

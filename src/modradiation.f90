@@ -38,49 +38,101 @@ contains
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
 
-    
     integer :: ierr
-    
+
     namelist/NAMDE/ &
       SSA,iDE,laero
+
+    namelist/NAMRADIATION/ &
+      lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
+      inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
+      ocean, usero3, co2factor, doperpetual, doseasons, iyear
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
-      if (ierr > 0) then 
+      if (ierr > 0) then
         print *, 'Problem in namoptions NAMDE'
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMDE'
       endif
       write(6 ,NAMDE)
+
+      rewind(ifnamopt)
+
+      read (ifnamopt,NAMRADIATION,iostat=ierr)
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMRADIATION'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMRADIATION'
+      end if
+      write(6 ,NAMRADIATION)
+
       close(ifnamopt)
     end if
+
     call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
     call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
 
+    call MPI_BCAST(lCnstZenith,1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(cnstZenith, 1,my_real,    0,comm3d,ierr)
+    call MPI_BCAST(lCnstAlbedo,1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(ioverlap,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(inflglw,    1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(iceflglw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(liqflglw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(inflgsw,    1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(iceflgsw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(liqflgsw,   1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(ocean,      1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(usero3,     1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(co2factor,  1,my_real,    0,comm3d,ierr)
+    call MPI_BCAST(doperpetual,1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(doseasons,  1,MPI_LOGICAL,0,comm3d,ierr)
+    call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
 
-    allocate(thlprad(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(swd(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(swu(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(lwd(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(lwu(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(swdir(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(swdif(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+    allocate(swdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+    allocate(swdir     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(swdif     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+
+    allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+    allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+    allocate(LW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+    allocate(LW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
+
+    allocate(SW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    allocate(SW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    allocate(LW_up_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+    allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
+
     thlprad = 0.
 
     swd = 0.
     swu = 0.
     lwd = 0.
     lwu = 0.
+
+    swdca = 0.
+    swuca = 0.
+    lwdca = 0.
+    lwuca = 0.
+
     swdir = 0.
-    swdif = 0.         
+    swdif = 0.
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
+    SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
 
     if (irad/=-1) then
       if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
@@ -120,7 +172,7 @@ contains
       rad_longw  = .false.
       rad_smoke  = .false.
     end if
-    
+
     if (iradiation == 0) return
     itimerad = floor(timerad/tres)
     tnext = itimerad+btime
@@ -143,6 +195,7 @@ contains
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
+    use modradrrtmg, only : radrrtmg
     implicit none
 
     if(timee<tnext .and. rk3step==3) then
@@ -161,18 +214,20 @@ contains
             endif
           case (irad_lsm)
             call radlsm
+          case (irad_rrtmg)
+            call radrrtmg
           case (irad_user)
 ! EWB: the if statement should came first because moduser uses a radpar variable
             if(rad_longw.or.rad_shortw) then
               call radpar
             endif
-    
-            call rad_user    
-             
+
+            call rad_user
+
       end select
       if (rad_ls) then
         call radprof
-      endif   
+      endif
     end if
     thlp = thlp + thlprad
 
@@ -181,8 +236,10 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
     implicit none
-    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu)
-    deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
+    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca)
+    deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
+               SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
+
   end subroutine exitradiation
 
 
@@ -274,7 +331,7 @@ subroutine radpar
             tau(k) = sv0(i,j,k,iDE)
           else  ! there are clouds
             if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
-          end if  
+          end if
           tauc=tauc+tau(k)
         end do
         call sunray(tau,tauc,i,j)
@@ -377,12 +434,12 @@ subroutine radpar
 
   do k = k1,1,-1
       taupath = taupath + taude(k)
-    
-      Irr0    = sw0*(    c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
-      Irr1    = sw0*(rp*(c1*exp(-rk*taupath) - c2*exp(rk*taupath))- beta *exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976 
+
+      Irr0    = sw0*(    c1*exp(-rk*taupath) + c2*exp(rk*taupath) - alpha*exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976
+      Irr1    = sw0*(rp*(c1*exp(-rk*taupath) - c2*exp(rk*taupath))- beta *exp(-taupath/mu)) ! Shettle & Weinmann JAS 1976
 
       swd(i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu) ! difuse down + direct down
-      swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian) 
+      swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian)
       swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
       swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
       lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.
@@ -416,12 +473,14 @@ subroutine radpar
 
   subroutine radlsm
     use modsurfdata, only : albedo, tskin
-    use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz
-    use modfields,   only : thl0
+    use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz, dzf
+    use modfields,   only : thl0, ql0, rhof
     implicit none
     integer        :: i,j
-    real           :: Tr, sinlea
+    real           :: Tr, sinlea, qlint, tau
     real,parameter :: S0 = 1376.
+    real           :: rhow  = 1000.  ! density of water
+    real           :: tauc  = 5.     ! Optically thin clouds (critical value)
 
     sinlea = zenith(xtime*3600 + rtimee, xday, xlat, xlon)
 
@@ -429,7 +488,13 @@ subroutine radpar
 
     do j=2,j1
       do i=2,i1
-        swd(i,j,1) = - S0 * Tr * sinlea
+        qlint = sum(ql0(i,j,:) * rhof(:) * dzf(:))
+        tau   = (3./2.)*(qlint/(rhow*reff))
+        if(lcloudshading .and. (tau >= tauc)) then ! 'dense' cloud and cloud shading is active
+          swd(i,j,1) = - S0 * Tr * sinlea * (5. - exp(-tau))/(4.+ 3.*tau*0.14)
+        else
+          swd(i,j,1) = - S0 * Tr * sinlea
+        endif
         swu(i,j,1) = - albedo(i,j) * swd(i,j,1)
         lwd(i,j,1) = - 0.8 * boltz * thl0(i,j,1) ** 4.
         lwu(i,j,1) = boltz * tskin(i,j) ** 4.

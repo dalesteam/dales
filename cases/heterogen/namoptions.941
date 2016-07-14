@@ -14,7 +14,7 @@ timeav_glob= 60.
 /
 
 &DOMAIN
-imax       = 64 
+itot       = 64
 jtot       = 64 
 kmax       = 128 
 

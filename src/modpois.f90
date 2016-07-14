@@ -24,6 +24,7 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
+!            2014      Netherlands eScience Center
 !
 
 module modpois
@@ -34,27 +35,79 @@ public :: initpois,poisson,exitpois,p
 save
 
   real,allocatable :: p(:,:,:)                            ! pressure fluctuations
+  real,allocatable :: xyrt(:,:)                           ! constant factors in poisson equation
 
 contains
   subroutine initpois
-    use modglobal, only : i2,j2,k1
+    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh
+    use modfft2d,  only : fft2dinit
+    use modmpi, only    : myidx, myidy
+
     implicit none
 
-    allocate(p(i2,j2,0:k1))
+    integer :: i,j,iv,jv
+    real    :: fac
+    real    :: xrt(itot), yrt(jtot)
+
+    allocate(   p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh)     )
+
+  ! Generate Eigenvalues xrt and yrt
+
+  !  I --> direction
+
+    fac = 1./(2.*itot)
+    do i=3,itot,2
+      xrt(i-1)=-4.*dxi*dxi*(sin(float((i-1))*pi*fac))**2
+      xrt(i)  = xrt(i-1)
+    end do
+    xrt(1    ) = 0.
+    xrt(itot ) = -4.*dxi*dxi
+
+  !  J --> direction
+
+    fac = 1./(2.*jtot)
+    do j=3,jtot,2
+      yrt(j-1)=-4.*dyi*dyi*(sin(float((j-1))*pi*fac))**2
+      yrt(j  )= yrt(j-1)
+    end do
+    yrt(1    ) = 0.
+    yrt(jtot ) = -4.*dyi*dyi
+
+  ! Combine I and J directions
+  ! Note that:
+  ! 1. MPI starts counting at 0 so it should be myidy * jmax
+  ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
+
+    do j=2,j1
+      jv = j + myidy*jmax - 1
+      do i=2,i1
+        iv = i + myidx*imax - 1
+        xyrt(i,j)=(xrt(iv)+yrt(jv)) !!! LH
+      end do
+    end do
+
+    call fft2dinit()
 
   end subroutine initpois
 
   subroutine poisson
     implicit none
+
     call fillps
-    call solmpj(p)
+    call solmpj
     call tderive
 
   end subroutine poisson
 
   subroutine exitpois
+    use modfft2d,  only : fft2dexit
     implicit none
-    deallocate(p)
+
+    deallocate(p,xyrt)
+
+    call fft2dexit()
+
   end subroutine exitpois
 !
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -65,16 +118,16 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step, i1,i2,j1,kmax,k1,ih,jh, dx,dy,dzf,rdt
-    use modmpi,    only : excjs
+    use modglobal, only : rk3step, i1,j1,kmax,k1, dx,dy,dzf,rdt
+    use modmpi,    only : excj
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
     real rk3coef
 
-    allocate(pup(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(pup(2-1:i1+1,2-1:j1+1,k1))
+    allocate(pvp(2-1:i1+1,2-1:j1+1,k1))
+    allocate(pwp(2-1:i1+1,2-1:j1+1,k1))
 
     rk3coef = rdt / (4. - dble(rk3step))
 
@@ -92,15 +145,8 @@ contains
   !****************************************************************
 
   !     Fill the right hand for the poisson solver.
-  !     The values for up(i2,j,k) and vp(i,j2,k) are still
-  !     unknown and have to be set cyclic.
+  !     Call excj to set the values in the halo zone.
   !     Also we take wp(i,j,1) and wp(i,j,k1) equal to zero.
-
-  !     NOTE:
-
-  !     The poisson-solver only accepts values for i from 2 to i1,
-  !     for j from 1 to jmax and for k from 1 to kmax.
-  !     The right-hand p is therefore filled in this partical way.
 
   !**************************************************************
 
@@ -111,22 +157,16 @@ contains
       end do
     end do
 
-    do k=1,kmax
-      do j=2,j1
-        pup(i2,j,k) = pup(2,j,k)
-      end do
-    end do
-
-    call excjs( pup          , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( pvp          , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( pwp          , 2,i1,2,j1,1,k1,ih,jh)
+    call excj( pup, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+    call excj( pvp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+    call excj( pwp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
 
     do k=1,kmax
       do j=2,j1
         do i=2,i1
           p(i,j,k)  =  rhobf(k)*(( pup(i+1,j,k)-pup(i,j,k) ) / dx &
-                          +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy ) &
-                          +( pwp(i,j,k+1)*rhobh(k+1)-pwp(i,j,k)*rhobh(k)) / dzf(k) 
+                                +( pvp(i,j+1,k)-pvp(i,j,k) ) / dy ) &
+                      +( pwp(i,j,k+1)*rhobh(k+1)-pwp(i,j,k)*rhobh(k)) / dzf(k)
         end do
       end do
     end do
@@ -137,7 +177,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  subroutine solmpj(p1)
+  subroutine solmpj
 ! version: working version, barrou's removed,
 !          correct timing fft's
 !          AAPC with MPI-provided routines
@@ -147,7 +187,7 @@ contains
 !          uses ALLTOALL instead of ALLTOALLV
 !          ONLY distribution in j-direction allowed
 
-! NOTE: input array p1 is supposed to have the ip1ray distribution,
+! NOTE: input array p is supposed to have the ip1ray distribution,
 !       i.e. the entire range of the first index must be present on
 !       each processor
 
@@ -188,99 +228,27 @@ contains
 ! mpi-version, no master region for timing
 !              copy times all included
 
-    use modmpi,    only : myid,comm3d,mpierr,nprocs, barrou
-    use modglobal, only : imax,jmax,kmax,i1,j1,k1,kmax,isen,jtot,pi,dxi,dyi,dzf,dzh
+    use modfft2d,  only : fft2df, fft2db
+    use modglobal, only : kmax,dzf,dzh,i1,j1,ih,jh
     use modfields, only : rhobf, rhobh
     implicit none
 
-    real, intent (inout) :: p1(0:i1,0:j1,0:k1)
-    real, allocatable, dimension(:,:,:) :: d,p2
-    real, allocatable, dimension(:,:,:) :: xyzrt
-    real, allocatable, dimension(:) :: xrt,yrt,a,b,c,FFTI,FFTJ,winew,wjnew
-    real    z,ak,bk,bbk,fac
-    integer jv
+    real :: a(kmax),b(kmax),c(kmax)
+
+  ! allocate d in the same shape as p and xyrt
+    real :: d(2-ih:i1+ih,2-jh:j1+jh,kmax)
+
+    real    z,ak,bk,bbk
     integer i, j, k
-  ! p and d distributed equally:
-    allocate(d(imax,jmax,kmax))
 
-  ! re-distributed p:
-
-    allocate(p2(isen,jtot,kmax))
-
-  ! re-distributed p1:
-
-    allocate(xyzrt(0:i1,0:j1,0:k1),xrt(0:i1),yrt(0:jtot+1))
-    allocate(a(0:kmax+1),b(0:kmax+1),c(0:kmax+1))
-    allocate(FFTI(imax),FFTJ(jtot),winew(2*imax+15),wjnew(2*jtot+15))
-
-    call MPI_COMM_RANK( comm3d, myid, mpierr )
-    call MPI_COMM_SIZE( comm3d, nprocs, mpierr )
-    call rffti(imax,winew)
-    call rffti(jtot,wjnew)
-!     call barrou()
-  !FFT  ---> I direction
-    fac = 1./sqrt(imax*1.)
-    do k=1,kmax
-      do j=1,jmax
-          do i=1,imax
-            FFTI(i) =p1(i,j,k)
-          end do
-          call rfftf(imax,FFTI,winew)
-          do i=1,imax
-  ! ATT: First back to p1, then re-distribution!!!
-            p1(i,j,k)=FFTI(i)*fac
-          end do
-      end do
-    end do
-    call ALL_ALL_j(p1,p2,0)
-  !FFT  ---> J direction
-
-    fac = 1./sqrt(jtot*1.)
-    do i=1,isen
-      do k=1,kmax
-          do j=1,jtot
-            FFTJ(j) =p2(i,j,k)
-          end do
-          call rfftf(jtot,FFTJ,wjnew)
-          do j=1,jtot
-  ! ATTT back to pl
-            p2(i,j,k)=FFTJ(j)*fac
-          end do
-      end do
-    end do
-!     call barrou()
-    call ALL_ALL_j(p1,p2,1)
-!     call barrou()
-
-
-  ! Generate Eigenvalues  (xrt and yrt )
-
-  !  I --> direction
-
-
-    fac = 1./(2.*imax)
-    do i=3,imax,2
-      xrt(i-1)=-4.*dxi*dxi*(sin(float((i-1))*pi*fac))**2
-      xrt(i)  = xrt(i-1)
-    end do
-    xrt(1    ) = 0.
-    xrt(imax ) = -4.*dxi*dxi
-
-  !  J --> direction
-
-    fac = 1./(2.*jtot)
-    do j=3,jtot,2
-      yrt(j-1)=-4.*dyi*dyi*(sin(float((j-1))*pi*fac))**2
-      yrt(j  )= yrt(j-1)
-    end do
-    yrt(1    ) = 0.
-    yrt(jtot ) = -4.*dyi*dyi
+  ! Forward FFT
+    call fft2df(p,ih,jh)
 
   ! Generate tridiagonal matrix
 
     do k=1,kmax
       ! SB fixed the coefficients
-      a(k)=rhobh(k)/(dzf(k)*dzh(k))
+      a(k)=rhobh(k)  /(dzf(k)*dzh(k  ))
       c(k)=rhobh(k+1)/(dzf(k)*dzh(k+1))
       b(k)=-(a(k)+c(k))
     end do
@@ -290,109 +258,51 @@ contains
     b(kmax)=b(kmax)+c(kmax)
     c(kmax)=0.
 
-    do k=1,kmax
-    do j=1,jmax
-    jv = j + myid*jmax
-    do i=1,imax
-      xyzrt(i,j,k)= rhobf(k)*(xrt(i)+yrt(jv)) !!! LH
-    end do
-    end do
-    end do
-
-  ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
-    do j=1,jmax
-      jv = j + myid*jmax
-      do i=1,imax
-        z        = 1./(b(1)+xyzrt(i,j,1))
+    ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
+    do j=2,j1
+      do i=2,i1
+        z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
         d(i,j,1) = c(1)*z
-        p1(i,j,1) = p1(i,j,1)*z
+        p(i,j,1) = p(i,j,1)*z
       end do
     end do
 
     do k=2,kmax-1
-      do  j=1,jmax
-      jv = j + myid*jmax
-        do  i=1,imax
-          bbk      = b(k)+xyzrt(i,j,k)
+      do  j=2,j1
+        do  i=2,i1
+          bbk      = b(k)+rhobf(k)*xyrt(i,j)
           z        = 1./(bbk-a(k)*d(i,j,k-1))
           d(i,j,k) = c(k)*z
-          p1(i,j,k) = (p1(i,j,k)-a(k)*p1(i,j,k-1))*z
+          p(i,j,k) = (p(i,j,k)-a(k)*p(i,j,k-1))*z
         end do
       end do
     end do
 
-
-
     ak =a(kmax)
     bk =b(kmax)
-    do j=1,jmax
-      jv = j + myid*jmax
-      do i=1,imax
-        bbk = bk +xyzrt(i,j,kmax)
+    do j=2,j1
+      do i=2,i1
+        bbk = bk + rhobf(kmax)*xyrt(i,j)
         z        = bbk-ak*d(i,j,kmax-1)
         if(z/=0.) then
-          p1(i,j,kmax) = (p1(i,j,kmax)-ak*p1(i,j,kmax-1))/z
+          p(i,j,kmax) = (p(i,j,kmax)-ak*p(i,j,kmax-1))/z
         else
-          p1(i,j,kmax) =0.
+          p(i,j,kmax) =0.
         end if
       end do
     end do
 
     do k=kmax-1,1,-1
-      do j=1,jmax
-        do i=1,imax
-          p1(i,j,k) = p1(i,j,k)-d(i,j,k)*p1(i,j,k+1)
+      do j=2,j1
+        do i=2,i1
+          p(i,j,k) = p(i,j,k)-d(i,j,k)*p(i,j,k+1)
         end do
       end do
     end do
-!     call barrou()
 
+    ! Backward FFT
+    call fft2db(p,ih,jh)
 
-  ! MPI_ALL CALL!!!
-
-
-
-    call ALL_ALL_j(p1,p2,0)
-!     call barrou()
-
-
-  ! BACKWARD FFT ---> I direction
-
-
-  ! BACKWARD FFT ---> J direction
-
-    fac = 1./sqrt(jtot*1.)
-    do i=1,isen
-      do k=1,kmax
-        do j=1,jtot
-  ! ATT, ADAPTED!!!
-          FFTJ(j) =p2(i,j,k)
-        end do
-        call rfftb(jtot,FFTJ,wjnew)
-        do j=1,jtot
-  ! ATT back to p2!!!
-          p2(i,j,k)=FFTJ(j)*fac
-        end do
-      end do
-    end do
-!     call barrou()
-    call ALL_ALL_j(p1,p2,1)
-
-    fac = 1./sqrt(imax*1.)
-    do k=1,kmax
-      do j=1,jmax
-        do i=1,imax
-          FFTI(i) =p1(i,j,k)
-        end do
-        call rfftb(imax,FFTI,winew)
-        do i=1,imax
-  ! ATT back to p1 !!!
-          p1(i,j,k)=FFTI(i)*fac
-        end do
-      end do
-    end do
-    deallocate(d,p2,xyzrt,xrt,yrt,a,b,c,FFTI,FFTJ,winew,wjnew)
-!     call barrou()
     return
   end subroutine solmpj
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -407,11 +317,7 @@ contains
 !     purpose.                                                    |
 !     --------                                                    |
 !                                                                 |
-!     Refill array p with pressure values. The poisson-solver     |
-!     produced a pressure array p in which the i-index varied     |
-!     between 2 and i1, the j- and k-index between 1 and resp.    |
-!     jmax and kmax. For our further calculations we'll change    |
-!     the range for the j-index to vary between 2 and j1.         |
+!     Refill array p with pressure values.                        |
 !                                                                 |
 !     Further we set cyclic boundary conditions for the pressure- |
 !     fluctuations in the x-y plane.                              |
@@ -424,24 +330,14 @@ contains
 !-----------------------------------------------------------------|
 
     use modfields, only : up, vp, wp
-    use modglobal, only : i1,j1,i2,j2,kmax,k1,dx,dy,dzh
-    use modmpi,    only : excj
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh,ih,jh
+    use modmpi,    only : excjs
     implicit none
     integer i,j,k
 
-
-  ! Mathieu ATTTT: CHANGED!!! Loop removed!!!
-
   ! **  Cyclic boundary conditions **************
-
-    do k=1,kmax
-    do j=2,j1
-      p(1,j,k)  = p(i1,j,k)
-      p(i2,j,k) = p(2,j,k)
-    end do
-
-    end do
-    call excj( p           , 1, i2, 1, j2, 0,k1)
+  ! **  set by the commcart communication in excj
+  call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
@@ -468,118 +364,4 @@ contains
     return
   end subroutine tderive
 
-
-  subroutine ALL_ALL_j(p,ptrans,iaction)
-! purpose: do all-to-all communication
-! data are only distributed over the j-direction for p
-! data are only distributed over the k-direction for ptrans
-! NOTE: p     (0:imax+1  etc
-!       ptrans(1:imax    etc
-
-
-  use modglobal, only : imax,isen,jmax,jsen,jtot,kmax
-  use modmpi,    only : comm3d,mpierr,my_real,nprocs, barrou
-
-  implicit none
-
-
-  integer  iaction
-  real     p(0:imax+1,0:jmax+1,0:kmax+1)
-  real     ptrans(1:isen,1:jtot,1:kmax)
-
-
-! help arrays for sending and receiving
-
-  real,allocatable,dimension(:) :: bufin, bufout
-
-
-! help variables
-
-  integer ii, jbegin, jend, proc
-  integer     ibegin, iend
-  integer     i, j, k
-
-  allocate(bufin(imax*jmax*kmax),bufout(imax*jmax*kmax))
-  if(iaction==0)then
-    ii = 0
-    do proc=0,nprocs-1
-      ibegin =  (proc)*isen+1
-      iend   =  (proc+1)*isen
-      do i=ibegin,iend
-      do j=1,jmax
-      do k=1,kmax
-        ii = ii + 1
-        bufin(ii) = p(i,j,k)
-      enddo
-      enddo
-      enddo
-    enddo
-
-    ii = 0
-!     call barrou()
-    call MPI_ALLTOALL(bufin,   (isen*jsen*kmax),MY_REAL, &
-                          bufout,(isen*jsen*kmax),MY_REAL, &
-                          comm3d,mpierr)
-!     call barrou()
-    ii = 0
-    do proc = 0,nprocs-1
-      jbegin =  proc   *jsen + 1
-      jend   = (proc+1)*jsen
-      do i=1,isen
-      do j=jbegin,jend
-      do k=1,kmax
-        ii = ii + 1
-        ptrans(i,j,k) = bufout(ii)
-      enddo
-      enddo
-      enddo
-    enddo
-!     call barrou()
-
-  elseif(iaction==1)then
-    ii = 0
-    do  proc = 0,nprocs-1
-      jbegin =  proc   *jsen + 1
-      jend   = (proc+1)*jsen
-      do i=1,isen
-      do j=jbegin,jend
-      do k=1,kmax
-        ii = ii + 1
-        bufin(ii)  = ptrans(i,j,k)
-      enddo
-      enddo
-      enddo
-    enddo
-
-!     call barrou()
-    call MPI_ALLTOALL(bufin,   (isen*jsen*kmax),MY_REAL, &
-                          bufout,(isen*jsen*kmax),MY_REAL, &
-                          comm3d,mpierr)
-!     call barrou()
-
-    ii = 0
-    do proc=0,nprocs-1
-      ibegin =    (proc)*isen+1
-      iend   =  (proc+1)*isen
-      do i=ibegin,iend
-      do j=1,jmax
-      do k=1,kmax
-        ii = ii + 1
-        p(i,j,k) = bufout(ii)
-      enddo
-      enddo
-      enddo
-    enddo
-!     call barrou()
-  endif
-
-  deallocate(bufin,bufout)
-
-  return
-  end subroutine ALL_ALL_j
-
-
 end module modpois
-
-
-

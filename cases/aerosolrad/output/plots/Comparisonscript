@@ -1,0 +1,270 @@
+#!/bin/bash
+
+F1=104
+F2=105
+F3=106
+F4=100
+P1="R"
+P2="R"
+P3="R"
+P4="R"
+N1="4.1 #1"
+N2="4.1 #2"
+N3="4.1 #3"
+N4="4.0"
+
+gnuplot << __EOF__
+set term postscript eps enhanced color font 20
+set key below
+
+set xlabel "t [UTC]"
+
+set output "plots/LSM_Q.eps"
+set title "Q_{net}"
+set ylabel "Q [W m^{-2}]"
+
+plot '${P1}${F1}/tmlsm.${F1}' u (6+\$1/3600):2 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmlsm.${F2}' u (6+\$1/3600):2 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmlsm.${F3}' u (6+\$1/3600):2 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmlsm.${F4}' u (6+\$1/3600):2 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/LSM_SH.eps"
+set title "SH"
+set ylabel "SH [W m^{-2}]"
+
+plot '${P1}${F1}/tmlsm.${F1}' u (6+\$1/3600):3 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmlsm.${F2}' u (6+\$1/3600):3 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmlsm.${F3}' u (6+\$1/3600):3 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmlsm.${F4}' u (6+\$1/3600):3 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/LSM_LE.eps"
+set title "LE"
+set ylabel "LE [W m^{-2}]"
+
+plot '${P1}${F1}/tmlsm.${F1}' u (6+\$1/3600):4 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmlsm.${F2}' u (6+\$1/3600):4 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmlsm.${F3}' u (6+\$1/3600):4 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmlsm.${F4}' u (6+\$1/3600):4 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/LSM_G.eps"
+set title "G"
+set ylabel "G [W m^{-2}]"
+
+plot '${P1}${F1}/tmlsm.${F1}' u (6+\$1/3600):5 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmlsm.${F2}' u (6+\$1/3600):5 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmlsm.${F3}' u (6+\$1/3600):5 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmlsm.${F4}' u (6+\$1/3600):5 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/LSM_Tskin.eps"
+set title "Skin temperature"
+set ylabel "T_{skin} [K]"
+
+plot '${P1}${F1}/tmlsm.${F1}' u (6+\$1/3600):9 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmlsm.${F2}' u (6+\$1/3600):9 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmlsm.${F3}' u (6+\$1/3600):9 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmlsm.${F4}' u (6+\$1/3600):9 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/tmser_zi.eps"
+set title "Boundary-layer height"
+set ylabel "z_i [m]"
+
+plot '${P1}${F1}/tmser1.${F1}' u (6+\$1/3600):6 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmser1.${F2}' u (6+\$1/3600):6 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmser1.${F3}' u (6+\$1/3600):6 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmser1.${F4}' u (6+\$1/3600):6 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/tmser_tke.eps"
+set title "TKE"
+set ylabel "TKE [m^2 s^{-2}]"
+
+plot '${P1}${F1}/tmser1.${F1}' u (6+\$1/3600):11 with lines lw 2.5 lt 1 lc -1 ti '104', \
+     '${P2}${F2}/tmser1.${F2}' u (6+\$1/3600):11 with lines lw 2.5 lt 1 lc  1 ti '105', \
+     '${P3}${F3}/tmser1.${F3}' u (6+\$1/3600):11 with lines lw 2.5 lt 1 lc  2 ti '106', \
+     '${P4}${F4}/tmser1.${F4}' u (6+\$1/3600):11 with lines lw 5.0 lt 0 lc  3 ti '100'
+
+set output "plots/field_theta.eps"
+set title "Potential temperature at 202.5 m"
+set ylabel "{/Symbol q} [K]"
+
+plot '${P1}${F1}/field.${F1}' u (6+(column(-2)+1.0)/6.0):6 every ::13::13 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u (6+(column(-2)+1.0)/6.0):6 every ::13::13 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u (6+(column(-2)+1.0)/6.0):6 every ::13::13 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u (6+(column(-2)+1.0)/6.0):6 every ::13::13 lw 2.0 lc  3 ti '100'
+
+set output "plots/field_q.eps"
+set title "Specific humidity at 202.5 m"
+set ylabel "{q} [g kg^{-1}]"
+
+plot '${P1}${F1}/field.${F1}' u (6+(column(-2)+1.0)/6.0):8 every ::13::13 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u (6+(column(-2)+1.0)/6.0):8 every ::13::13 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u (6+(column(-2)+1.0)/6.0):8 every ::13::13 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u (6+(column(-2)+1.0)/6.0):8 every ::13::13 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_lwup.eps"
+set title "Longwave upward radiation at surface"
+set ylabel "LW_{up} [W m^{-2}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):3 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):3 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):3 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):3 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_lwdown.eps"
+set title "Longwave downward radiation at surface"
+set ylabel "LW_{down} [W m^{-2}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):4 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):4 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):4 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):4 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_swup.eps"
+set title "Shortwave upward radiation at surface"
+set ylabel "SW_{up} [W m^{-2}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):5 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):5 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):5 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):5 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_swdowndir.eps"
+set title "Direct shortwave downward radiation at surface"
+set ylabel "SW_{down,direct} [W m^{-2}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):6 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):6 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):6 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):6 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_swdowndif.eps"
+set title "Diffuse shortwave downward radiation at surface"
+set ylabel "SW_{down,difuse} [W m^{-2}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):7 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):7 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):7 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):7 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_swdown.eps"
+set title "Shortwave downward radiation at surface"
+set ylabel "SW_{down} [W m^{-2}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):8 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):8 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):8 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):8 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set output "plots/radsplit_Ttend.eps"
+set title "Temperature tendency at surface"
+set ylabel "dT/dt [K day^{-1}]"
+
+plot '${P1}${F1}/radsplitstat.${F1}' u (6+(column(-2)+1.0)/6.0):9 every ::0::0 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/radsplitstat.${F2}' u (6+(column(-2)+1.0)/6.0):9 every ::0::0 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/radsplitstat.${F3}' u (6+(column(-2)+1.0)/6.0):9 every ::0::0 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/radsplitstat.${F4}' u (6+(column(-2)+1.0)/6.0):9 every ::0::0 lw 2.0 lc  3 ti '100'
+
+set ylabel "z [m]"
+
+set xlabel "{/Symbol q} [K]"
+
+set output "plots/prof_th_08UTC.eps"
+set title "Potential temperature at 08:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 6:2 i 11 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 6:2 i 11 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 6:2 i 11 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 6:2 i 11 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_th_10UTC.eps"
+set title "Potential temperature at 10:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 6:2 i 23 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 6:2 i 23 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 6:2 i 23 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 6:2 i 23 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_th_12UTC.eps"
+set title "Potential temperature at 12:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 6:2 i 35 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 6:2 i 35 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 6:2 i 35 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 6:2 i 35 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_th_14UTC.eps"
+set title "Potential temperature at 14:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 6:2 i 47 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 6:2 i 47 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 6:2 i 47 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 6:2 i 47 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_th_16UTC.eps"
+set title "Potential temperature at 16:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 6:2 i 59 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 6:2 i 59 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 6:2 i 59 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 6:2 i 59 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_th_18UTC.eps"
+set title "Potential temperature at 18:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 6:2 i 71 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 6:2 i 71 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 6:2 i 71 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 6:2 i 71 lw 2.0 lc  3 ti '100'
+
+set xlabel "{q} [g kg^{-1}]"
+
+set output "plots/prof_q_08UTC.eps"
+set title "Specific humidity at 08:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 8:2 i 11 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 8:2 i 11 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 8:2 i 11 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 8:2 i 11 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_q_10UTC.eps"
+set title "Specific humidity at 10:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 8:2 i 23 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 8:2 i 23 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 8:2 i 23 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 8:2 i 23 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_q_12UTC.eps"
+set title "Specific humidity at 12:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 8:2 i 35 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 8:2 i 35 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 8:2 i 35 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 8:2 i 35 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_q_14UTC.eps"
+set title "Specific humidity at 14:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 8:2 i 47 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 8:2 i 47 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 8:2 i 47 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 8:2 i 47 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_q_16UTC.eps"
+set title "Specific humidity at 16:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 8:2 i 59 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 8:2 i 59 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 8:2 i 59 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 8:2 i 59 lw 2.0 lc  3 ti '100'
+
+set output "plots/prof_q_18UTC.eps"
+set title "Specific humidity at 18:00 UTC"
+
+plot '${P1}${F1}/field.${F1}' u 8:2 i 71 lw 1.5 lc -1 ti '104', \
+     '${P2}${F2}/field.${F2}' u 8:2 i 71 lw 1.5 lc  1 ti '105', \
+     '${P3}${F3}/field.${F3}' u 8:2 i 71 lw 1.5 lc  2 ti '106', \
+     '${P4}${F4}/field.${F4}' u 8:2 i 71 lw 2.0 lc  3 ti '100'
+
+
+
+__EOF__

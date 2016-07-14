@@ -218,7 +218,7 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,&
-                          rslabs,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
+                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
 !
     use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
@@ -350,8 +350,8 @@ contains
       ztopav = 0.0
     end if
 
-    cc      = cc/rslabs
-    qlintav = qlintav / rslabs !domain averaged liquid water path
+    cc      = cc/ijtot
+    qlintav = qlintav / ijtot !domain averaged liquid water path
 
   !     -------------------------
   !     9.5  Domain Averaged TKE
@@ -373,7 +373,7 @@ contains
     call MPI_ALLREDUCE(tke_totl, tke_tot, 1,    MY_REAL, &
                           MPI_SUM, comm3d,mpierr)
 
-    tke_tot = tke_tot/rslabs
+    tke_tot = tke_tot/ijtot
 !     -------------------------
 !     9.6  Horizontally  Averaged ustar, tstar and obl
 !     -------------------------
@@ -385,9 +385,9 @@ contains
     call MPI_ALLREDUCE(tstl, tst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(qstl, qst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-    ust = ust / rslabs
-    tst = tst / rslabs
-    qst = qst / rslabs
+    ust = ust / ijtot
+    tst = tst / ijtot
+    qst = qst / ijtot
 
     if(isurf < 3) then
       thlfluxl = sum(thlflux(2:i1, 2:j1))
@@ -396,8 +396,8 @@ contains
       call MPI_ALLREDUCE(thlfluxl, usttst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(qtfluxl,  ustqst, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-      usttst = -usttst / rslabs
-      ustqst = -ustqst / rslabs
+      usttst = -usttst / ijtot
+      ustqst = -ustqst / ijtot
     end if
 
     !Constants c1 and c2
@@ -434,14 +434,14 @@ contains
       call MPI_ALLREDUCE(raavl,       raav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(tskinavl,    tskinav,    1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
-      Qnetav        = Qnetav      / rslabs
-      Hav           = Hav         / rslabs
-      LEav          = LEav        / rslabs
-      G0av          = G0av        / rslabs
-      tendskinav    = tendskinav  / rslabs
-      rsav          = rsav        / rslabs
-      raav          = raav        / rslabs
-      tskinav       = tskinav     / rslabs
+      Qnetav        = Qnetav      / ijtot
+      Hav           = Hav         / ijtot
+      LEav          = LEav        / ijtot
+      G0av          = G0av        / ijtot
+      tendskinav    = tendskinav  / ijtot
+      rsav          = rsav        / ijtot
+      raav          = raav        / ijtot
+      tskinav       = tskinav     / ijtot
     end if
 
   !  9.8  write the results to output file
@@ -544,7 +544,7 @@ contains
 !! - By determining the minimum local gradient of some scalar, averaged over a definable number of columns
 !! - By monitoring a threshold value of some scalar, averaged over a definable number of columns
   subroutine calcblheight
-    use modglobal,  only : ih,i1,jh,j1,kmax,k1,cp,rlv,imax,rd,zh,dzh,zf,dzf,rv,rslabs,iadv_sv,iadv_kappa
+    use modglobal,  only : ih,i1,jh,j1,kmax,k1,cp,rlv,imax,rd,zh,dzh,zf,dzf,rv,ijtot,iadv_sv,iadv_kappa
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
     use modsurfdata,only :svs
     use modmpi,     only : mpierr, comm3d,mpi_sum,my_real
@@ -649,7 +649,7 @@ contains
     end select
 
     call MPI_ALLREDUCE(zil, zi, 1, MY_REAL, MPI_SUM, comm3d,mpierr)
-    zi = zi / rslabs
+    zi = zi / ijtot
 
     if (ziold< 0) ziold = zi
     dhdt = (zi-ziold)/dtav

@@ -37,8 +37,8 @@ endif()
 PROJECT(DALES Fortran)
 cmake_minimum_required(VERSION 2.6)
 set(VERSION_MAJOR "4")
-set(VERSION_MINOR "0")
-set(VERSION_PATCH "1")
+set(VERSION_MINOR "1")
+set(VERSION_PATCH "0")
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
 EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)

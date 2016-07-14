@@ -317,8 +317,8 @@ subroutine initsamptend
   subroutine samptend(tendterm,firstterm,lastterm)
     use modmpi,    only : slabsum
     use modglobal, only : i1,j1,kmax,k1,ih,jh,&
-                          cp,rv,rlv,rd,rslabs,&
-                          timee,rk3step,dt_lim,rslabs,nsv,rdt
+                          cp,rv,rlv,rd,&
+                          timee,rk3step,dt_lim,ijtot,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     use modstat_nc, only : lnetcdf
@@ -360,9 +360,9 @@ subroutine initsamptend
       nrst = 0.
 
       allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1),&
-                w0f(2-ih:i1+ih,2-jh:j1+jh,k1))   
+                w0f(2-ih:i1+ih,2-jh:j1+jh,k1))
       allocate(thvav(k1))
-  
+
       do k=1,k1
         thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
                     *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
@@ -370,10 +370,10 @@ subroutine initsamptend
       do k=1,kmax
         w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
       end do
-  
+
       thvav = 0.0
       call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvav = thvav/rslabs
+      thvav = thvav/ijtot
 
       do isamp=1,isamptot
         select case (samplname(isamp))
@@ -459,8 +459,8 @@ subroutine initsamptend
     ENDIF
     ENDIF
 
-    allocate(wpf(2-ih:i1+ih,2-jh:j1+jh,k1))  
-    
+    allocate(wpf(2-ih:i1+ih,2-jh:j1+jh,k1))
+
     do k=1,kmax
       wpf (2:i1,2:j1,k) = 0.5*(wp (2:i1,2:j1,k) + wp  (2:i1,2:j1,k+1))
     end do
@@ -519,14 +519,14 @@ subroutine initsamptend
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
     END IF
     END IF
-    
+
   end subroutine samptend
 
   subroutine leibniztend
     use modmpi,    only : slabsum
     use modglobal, only : i1,j1,kmax,k1,ih,jh,&
-                          cp,rv,rlv,rd,rslabs,&
-                          rslabs,nsv
+                          cp,rv,rlv,rd,&
+                          ijtot,nsv
     use modfields, only : w0,thl0,ql0,exnf,qt0,u0,v0,sv0
     use modmicrodata, only : iqr,inr
     implicit none
@@ -542,9 +542,9 @@ subroutine initsamptend
       nrsampnew=0
 
       allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1),&
-                w0f(2-ih:i1+ih,2-jh:j1+jh,k1))   
+                w0f(2-ih:i1+ih,2-jh:j1+jh,k1))
       allocate(thvav(k1))
-  
+
       do k=1,k1
         thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
                     *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
@@ -552,10 +552,10 @@ subroutine initsamptend
       do k=1,kmax
         w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
       end do
-  
+
       thvav = 0.0
       call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvav = thvav/rslabs
+      thvav = thvav/ijtot
 
       do isamp=1,isamptot
         select case (samplname(isamp))
@@ -696,7 +696,7 @@ subroutine initsamptend
     enddo
     enddo
 
-    if(myid == 0) then 
+    if(myid == 0) then
       if (lnetcdf) then
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         do isamp=1,isamptot
