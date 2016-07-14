@@ -1020,7 +1020,7 @@ contains
     if (tstart < 0) then
       call mpi_get_time(tstart)
     else
-      call mpi_get_time(tstart)
+      call mpi_get_time(tend)
       if (tend-tstart>=wctime) then
         write (*,*) wctime, "NO WALL CLOCK TIME LEFT"
         timeleft=0
