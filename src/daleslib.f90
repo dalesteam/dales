@@ -37,6 +37,7 @@ subroutine initialize(mpi_comm)
     use modradstat,         only : initradstat
     use modlsmstat,         only : initlsmstat
     use modsampling,        only : initsampling
+    use modquadrant,        only : initquadrant
     use modcrosssection,    only : initcrosssection 
     use modlsmcrosssection, only : initlsmcrosssection
     use modcloudfield,      only : initcloudfield
@@ -55,6 +56,7 @@ subroutine initialize(mpi_comm)
     use modnudge,           only : initnudge
     !use modprojection,     only : initprojection
     use modchem,            only : initchem
+    use modcanopy,          only : initcanopy
 
     implicit none
 
@@ -79,7 +81,9 @@ subroutine initialize(mpi_comm)
     call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
     !call inittilt
     call initsampling
+    call initquadrant
     call initcrosssection
+    call initAGScross
     call initlsmcrosssection
     !call initprojection
     call initcloudfield
@@ -94,6 +98,7 @@ subroutine initialize(mpi_comm)
     !call initstressbudget
     call initchem
     call initheterostats
+    call initcanopy
 
     !call initspectra2
     call initcape
@@ -128,7 +133,9 @@ subroutine step()
     use modradstat,         only : radstat
     use modlsmstat,         only : lsmstat
     use modsampling,        only : sampling
+    use modquadrant,        only : quadrant
     use modcrosssection,    only : crosssection
+    use modAGScross,        only : AGScross
     use modlsmcrosssection, only : lsmcrosssection
     use modcloudfield,      only : cloudfield
     use modfielddump,       only : fielddump
@@ -147,6 +154,7 @@ subroutine step()
     use modnudge,           only : nudge
     !use modprojection,     only : projection
     use modchem,            only : twostep
+    use modcanopy,          only : canopy
 
     implicit none
 
@@ -171,6 +179,7 @@ subroutine step()
     call advection
     call samptend(tend_adv)
     call subgrid
+    call canopy
     call samptend(tend_subg)
 
     !-----------------------------------------------------
@@ -223,7 +232,9 @@ subroutine step()
     call radstat
     call lsmstat
     call sampling
+    call quadrant
     call crosssection
+    call AGScross
     call lsmcrosssection
     !call tanhfilter
     call docape
@@ -256,7 +267,9 @@ subroutine finalize()
     use modradstat,         only : exitradstat
     use modlsmstat,         only : exitlsmstat
     use modsampling,        only : exitsampling
+    use modquadrant,        only : exitquadrant
     use modcrosssection,    only : exitcrosssection  
+    use modAGScross,        only : exitAGScross
     use modlsmcrosssection, only : exitlsmcrosssection
     use modcloudfield,      only : cloudfield
     use modfielddump,       only : exitfielddump
@@ -272,6 +285,7 @@ subroutine finalize()
     !use modtilt,           only : exittilt
     !use modparticles,      only : exitparticles
     use modnudge,           only : exitnudge
+    use modcanopy,          only : exitcanopy
 
     implicit none
 
@@ -284,15 +298,18 @@ subroutine finalize()
     !call exitparticles
     call exitnudge
     call exitsampling
+    call exitquadrant
     call exitsamptend
     call exitbulkmicrostat
     call exitbudget
     !call exitstressbudget
     call exitcrosssection
+    call exitAGScross
     call exitlsmcrosssection
     call exitcape
     call exitfielddump
     call exitheterostats
+    call exitcanopy
     call exitmodules
 
 end subroutine finalize
