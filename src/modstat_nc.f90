@@ -280,7 +280,7 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID)
         case ('tttts')
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID)
-          
+
 !Quadrant analysis fields
         case('qt')
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
@@ -328,13 +328,13 @@ contains
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse
     integer             :: i=0,iret,length,varid, nc
-    
+
     if (present(ncoarse)) then
       nc = ncoarse
     else
       nc = 1
     end if
-    
+
     iret = nf90_inq_varid(ncid, 'xt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
     if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i),i=0,length-1)/),(/1/))
