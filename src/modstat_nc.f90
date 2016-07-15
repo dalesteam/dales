@@ -295,7 +295,9 @@ contains
 
         call nchandle_error(iret)
       end if
+#ifdef deflate
       iret=nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2)
+#endif
       iret=nf90_put_att(ncID,VarID,'longname',sx(n,2))
       iret=nf90_put_att(ncID,VarID,'units',sx(n,3))
       iret = nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue)
