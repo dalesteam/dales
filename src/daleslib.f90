@@ -18,6 +18,11 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+! Initializes the libary's dales instance. This routine requires a path to the namoptions file to be passed 
+! as an argument, and optionally the mpi communicator can be set too (this is particularly useful when 
+! nesting into other parallelized codes). If the latter argument is not provided, the communicator will be 
+! assumed to be MPI_COMM_WORLD. 
+
 subroutine initialize(path,mpi_comm)
 
     !!----------------------------------------------------------------
@@ -107,7 +112,10 @@ subroutine initialize(path,mpi_comm)
 
 end subroutine initialize
 
-subroutine step()
+! Performs a single time step. This is exactly the code inside the time loop of the main program. 
+! If the adaptive time stepping is enabled, the new time stamp is not guaranteed to be a dt later.
+
+subroutine step
 
     !!----------------------------------------------------------------
     !!     0.0    USE STATEMENTS FOR CORE MODULES
@@ -253,6 +261,40 @@ subroutine step()
     call writerestartfiles
 
 end subroutine step
+
+! Performs repeatedly time stepping until the tstop (measured in seconds after the cold start) is reached. 
+! Note that the resulting model time may be a bit later than tstop.
+
+subroutine run_to(tstop)
+
+    use modglobal,          only: timee,longint,rk3step
+
+    implicit none
+
+    integer(kind=longint),intent(in) :: tstop
+
+    do while (timee < tstop .or. rk3step < 3)
+        call step
+    end do
+
+end subroutine run_to
+
+! Returns the model time, measured in s after the cold start.
+
+function get_model_time() result(ret)
+
+    use modglobal,          only: timee,longint
+
+    implicit none
+
+    integer(kind=longint) :: ret
+
+    ret=timee
+
+end function get_model_time
+
+! Cleans up; closes file handles ans deallocates arrays. This is a copy of the code 
+! in the main program after the time loop. 
 
 subroutine finalize()
 
