@@ -328,10 +328,6 @@ contains
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse
     integer             :: i=0,iret,length,varid, nc
-    implicit none
-    integer, intent(in) :: ncid
-    integer, optional, intent(in) :: ncoarse
-    integer             :: i=0,iret,length,varid, nc
 
     if (present(ncoarse)) then
       nc = ncoarse
