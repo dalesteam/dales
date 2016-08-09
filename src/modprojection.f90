@@ -67,7 +67,7 @@ contains
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo, writestat_dims_nc
+    use modstat_nc, only : open_nc,define_nc,ncinfo, writestat_dims_nc
     implicit none
 
     integer :: ierr

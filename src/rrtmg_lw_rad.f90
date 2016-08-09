@@ -279,8 +279,7 @@
       integer(kind=im) :: iout                ! output option flag (inactive)
       integer(kind=im) :: iaer                ! aerosol option flag
       integer(kind=im) :: iplon               ! column loop index
-      integer(kind=im) :: imca                ! flag for mcica [0=off, 1=on]
-      integer(kind=im) :: i,k                   ! layer loop index
+      integer(kind=im) :: k                   ! layer loop index
       integer(kind=im) :: ig                  ! g-point loop index
 
 ! Atmosphere
@@ -466,7 +465,7 @@
 !  each longwave spectral band.
 
          call taumol(nlayers, pavel, wx, coldry, &
-                     laytrop, jp, jt, jt1, planklay, planklev, plankbnd, &
+                     laytrop, jp, jt, jt1,       &
                      colh2o, colco2, colo3, coln2o, colco, colch4, colo2, &
                      colbrd, fac00, fac01, fac10, fac11, &
                      rat_h2oco2, rat_h2oco2_1, rat_h2oo3, rat_h2oo3_1, &
@@ -689,7 +688,7 @@
       real(kind=rb), parameter :: amdc1 = 0.210852_rb ! Molecular weight of dry air / CFC11
       real(kind=rb), parameter :: amdc2 = 0.239546_rb ! Molecular weight of dry air / CFC12
 
-      integer(kind=im) :: isp, l, ix, n, imol, ib       ! Loop indices
+      integer(kind=im) :: l, ix, n, imol, ib          ! Loop indices
       real(kind=rb) :: amm, amttl, wvttl, wvsh, summol
 
 

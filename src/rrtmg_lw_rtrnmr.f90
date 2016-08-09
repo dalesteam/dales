@@ -105,14 +105,12 @@
 
 ! ----- Local -----
 ! Declarations for radiative transfer
-      real(kind=rb) :: abscld(nlayers,nbndlw)
       real(kind=rb) :: atot(nlayers)
       real(kind=rb) :: atrans(nlayers)
       real(kind=rb) :: bbugas(nlayers)
       real(kind=rb) :: bbutot(nlayers)
       real(kind=rb) :: clrurad(0:nlayers)
       real(kind=rb) :: clrdrad(0:nlayers)
-      real(kind=rb) :: efclfrac(nlayers,nbndlw)
       real(kind=rb) :: uflux(0:nlayers)
       real(kind=rb) :: dflux(0:nlayers)
       real(kind=rb) :: urad(0:nlayers)
@@ -124,7 +122,7 @@
       real(kind=rb) :: secdiff(nbndlw)                 ! secant of diffusivity angle
       real(kind=rb) :: a0(nbndlw),a1(nbndlw),a2(nbndlw)! diffusivity angle adjustment coefficients
       real(kind=rb) :: wtdiff, rec_6
-      real(kind=rb) :: transcld, radld, radclrd, plfrac, blay, dplankup, dplankdn
+      real(kind=rb) :: radld, radclrd, plfrac, blay, dplankup, dplankdn
       real(kind=rb) :: odepth, odtot, odepth_rec, odtot_rec, gassrc, ttot
       real(kind=rb) :: tblind, tfactot, bbd, bbdtot, tfacgas, transc, tausfac
       real(kind=rb) :: rad0, reflect, radlu, radclru
@@ -177,7 +175,6 @@
 
 ! local
 !    atrans                       ! gaseous absorptivity
-!    abscld                       ! cloud absorptivity
 !    atot                         ! combined gaseous and cloud absorptivity
 !    odclr                        ! clear sky (gaseous) optical depth
 !    odcld                        ! cloud optical depth
@@ -189,7 +186,6 @@
 !    bbdtot                       ! gas and cloud planck function for downward rt
 !    bbutot                       ! gas and cloud planck function for upward calc.
 !    gassrc                       ! source radiance due to gas only
-!    efclfrac                     ! effective cloud fraction
 !    radlu                        ! spectrally summed upward radiance
 !    radclru                      ! spectrally summed clear sky upward radiance
 !    urad                         ! upward radiance by layer

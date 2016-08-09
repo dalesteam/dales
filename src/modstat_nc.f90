@@ -245,55 +245,57 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt,VarID)
   !2D Fields
         case ('t0tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tt,VarID)
         case ('t0mt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0mt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0mt,VarID)
         case ('m0tt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_m0tt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_m0tt,VarID)
         case ('tt0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tt0t,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tt0t,VarID)
         case ('tm0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tm0t,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tm0t,VarID)
         case ('mt0t')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt0t,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mt0t,VarID)
         case ('0ttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttt,VarID)
         case ('0tmt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0tmt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0tmt,VarID)
         case ('0mtt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0mtt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0mtt,VarID)
   !3D Fields
         case ('tttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttt,VarID)
         case ('mttt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mttt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_mttt,VarID)
         case ('tmtt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tmtt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tmtt,VarID)
         case ('ttmt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_ttmt,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_ttmt,VarID)
 !Soil fields
         case ('tts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tts ,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tts ,VarID)
         case ('t0tts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tts,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_t0tts,VarID)
         case ('0ttts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_0ttts,VarID)
         case ('tttts')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID, deflate_level = 2)
-          
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_tttts,VarID)
+
 !Quadrant analysis fields
         case('qt')
-          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID, deflate_level = 2)
+          iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
         case default
         print *, 'ABORTING: Bad dimensional information ',sx(n,:)
         stop
         ! call appl_abort(0)
+
       end select
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
 
         call nchandle_error(iret)
       end if
+      iret=nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2)
       iret=nf90_put_att(ncID,VarID,'longname',sx(n,2))
       iret=nf90_put_att(ncID,VarID,'units',sx(n,3))
       iret = nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue)
@@ -319,33 +321,37 @@ contains
    if (status /= nf90_noerr) call nchandle_error(status)
  end subroutine exitstat_nc
   subroutine writestat_dims_nc(ncid, ncoarse)
-    use modglobal, only : dx,dy,zf,zh,jmax
+    use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
-    use modmpi, only : myid
+    use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse
     integer             :: i=0,iret,length,varid, nc
-    
+    implicit none
+    integer, intent(in) :: ncid
+    integer, optional, intent(in) :: ncoarse
+    integer             :: i=0,iret,length,varid, nc
+
     if (present(ncoarse)) then
       nc = ncoarse
     else
       nc = 1
     end if
-    
+
     iret = nf90_inq_varid(ncid, 'xt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i),i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
     iret = nf90_inq_varid(ncid, 'xm', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
 
     iret = nf90_inq_varid(ncid, 'yt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myid*jmax*dy,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
     iret = nf90_inq_varid(ncid, 'ym', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myid*jmax*dy,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
 
     iret = nf90_inq_varid(ncid, 'zt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)
@@ -362,25 +368,25 @@ contains
   end subroutine writestat_dims_nc
 
   subroutine writestat_dims_q_nc(ncid,k1,k2)
-    use modglobal, only : dx,dy,zf,zh,jmax
+    use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
-    use modmpi, only : myid
+    use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid,k1,k2
     integer             :: i=0,iret,length,varid
     iret = nf90_inq_varid(ncid, 'xt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+i),i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+i)+myidx*imax*dx,i=0,length-1)/),(/1/))
     iret = nf90_inq_varid(ncid, 'xm', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*i,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*i+myidx*imax*dx,i=0,length-1)/),(/1/))
 
     iret = nf90_inq_varid(ncid, 'yt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+i)+myid*jmax*dy,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
     iret = nf90_inq_varid(ncid, 'ym', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*i+myid*jmax*dy,i=0,length-1)/),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
 
     iret = nf90_inq_varid(ncid, 'zt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)

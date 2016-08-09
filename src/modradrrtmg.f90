@@ -23,8 +23,7 @@ contains
     integer                :: npatch    ! Sounding levels above domain
     integer                :: i,j,k,ierr(3)
     logical                :: sunUp
-    real(SHR_KIND_R4),save ::  eccf,  & ! eccentricity factor (1./earth-sun dist^2)
-                               eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
+    real(SHR_KIND_R4),save ::  eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
                                obliq, & ! Earth's obliquity angle (deg) (-90 to +90) (typically 22-26)
                                mvelp, & ! Earth's moving vernal equinox at perhelion (deg)(0 to 360.0)
                                !
@@ -162,7 +161,7 @@ contains
    ! Loop over the slices in the model, in the y direction
     do j=2,j1
       call setupSlicesFromProfiles &
-           ( j, npatch_start, npatch_end, &                               !input
+           ( j, npatch_start, &                                           !input
            LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe )             !output
 
       if (rad_longw) then
@@ -543,7 +542,7 @@ contains
 ! ==============================================================================;
 ! ==============================================================================;
 
-  subroutine setupSlicesFromProfiles(j,npatch_start,npatch_end, &
+  subroutine setupSlicesFromProfiles(j,npatch_start, &
            LWP_slice,IWP_slice,cloudFrac,liquidRe,iceRe)
   !=============================================================================!
   ! This subroutine sets up 2D (xz) slices of different variables:              !
@@ -565,7 +564,7 @@ contains
 
       implicit none
 
-      integer,intent(in) :: j,npatch_start,npatch_end
+      integer,intent(in) :: j,npatch_start
       real(KIND=kind_rb),intent(out) ::    LWP_slice(imax,krad1), &
                                            IWP_slice(imax,krad1), &
                                            cloudFrac(imax,krad1), &
@@ -759,7 +758,6 @@ contains
       end if
 
       call shr_orb_decl( dayForSW )                      ! Saves some orbital values to modraddata
-      !if (myid==0) write(*,*) 'eccf = ',eccf
       solarZenithAngleCos(:) =  &
            zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
 !      solarZenithAngleCos(:) =  0.707106781               ! cos 45gr

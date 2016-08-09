@@ -169,7 +169,7 @@ contains
 !>Run lsmcrosssection. Mainly timekeeping
   subroutine lsmcrosssection
     use modglobal, only : rk3step,timee,dt_lim
-    use modstat_nc, only : lnetcdf, writestat_nc
+    use modstat_nc, only : writestat_nc
     implicit none
 
 
