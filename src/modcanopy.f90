@@ -56,7 +56,7 @@ contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf
+    use modglobal, only : kmax,k1, ifnamopt, fname_options, ifinput, ifoutput, cexpnr, zh, dzh, dzf, nsv
 
     implicit none
 
@@ -180,7 +180,7 @@ contains
   end subroutine initcanopy
 
   subroutine canopy
-    use modfields,   only : up,vp,wp,e12p,thlp,qtp,svp
+    use modfields,   only : up,vp,wp,e12p,thlp,qtp,sv0,svp
     use modsurfdata, only : thlflux, qtflux, svflux
     use modglobal,   only : nsv,i2,j2
 
@@ -237,7 +237,7 @@ contains
   end subroutine exitcanopy
 
   subroutine canopyu (putout)
-    use modglobal, only  : i1, ih, j1, j2, jh, k1, cu, cv, dzh, imax, jmax
+    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
@@ -264,7 +264,7 @@ contains
   end subroutine canopyu
 
   subroutine canopyv (putout)
-    use modglobal, only  : i1, i2, ih, j1, jh, k1, cu, cv, dzh, imax, jmax
+    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
@@ -318,7 +318,7 @@ contains
   end subroutine canopyw
 
   subroutine canopye (putout)
-    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, imax, jmax
+    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0, e120
     implicit none
 

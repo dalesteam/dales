@@ -336,8 +336,8 @@ contains
       case(1)
       case(2,10)
       case(3:4)
-        if (wtsurf <-1e10)  stop 'wtsurf not set'
-        if (wqsurf <-1e10)  stop 'wqsurf not set'
+        if (wtsurf == -1)  stop 'wtsurf not set'
+        if (wqsurf == -1)  stop 'wqsurf not set'
       case default
         stop 'isurf out of range/not set'
       end select
@@ -364,7 +364,7 @@ contains
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
-                                  rtimee,timee,ntrun,btime,dt_lim,nsv,&
+                                  rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart
@@ -379,7 +379,7 @@ contains
     use moduser,           only : initsurf_user
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
-                                  tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+                                  tb_dqtdxls,tb_dqtdyls,tb_uadv,tb_vadv,tb_qtadv,tb_thladv
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
@@ -792,6 +792,7 @@ contains
     rdt = real(dt)*tres
     ntrun   = 0
     rtimee  = real(timee)*tres
+    ntimee  = nint(timee/dtmax)
     itrestart = floor(trestart/tres)
     tnextrestart = btime + itrestart
     deallocate (height,th0av)
@@ -1067,6 +1068,7 @@ contains
     integer ihl, jhl
     integer i,j,klev
     integer is,ie,js,je
+    integer m,mfac
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)

@@ -349,13 +349,13 @@ contains
   end subroutine timedep
 
   subroutine timedepz
-    use modfields,   only : ug, vg, wfls,whls, &
+    use modfields,   only : ug, vg, wfls,whls,thlprof,qtprof, &
                             dqtdtls,dqtdxls,dqtdyls, &
                             dthldtls,dthldxls,dthldyls,thlpcar, &
                             dudtls,dudxls,dudyls, &
                             dvdtls,dvdxls,dvdyls, &
-                            dpdxl,dpdyl
-
+                            dpdxl,dpdyl, &
+                            u0,v0,w0,u0av,v0av,e120,rhobf
     use modglobal,   only : rtimee,om23_gs,dzf,dzh,k1,kmax,llsadv
 
     use modmpi,      only : myid
@@ -372,7 +372,7 @@ contains
     do while(rtimee>timels(t))
       t=t+1
     end do
-    if (rtimee>timels(1)) then
+    if (rtimee/=timels(1)) then
       t=t-1
     end if
 
@@ -432,7 +432,7 @@ contains
     do while(rtimee>timeflux(t))
       t=t+1
     end do
-    if (rtimee>timeflux(t)) then
+    if (rtimee/=timeflux(t)) then
       t=t-1
     endif
 

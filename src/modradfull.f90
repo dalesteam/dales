@@ -418,6 +418,7 @@ contains
   end subroutine d4stream_setup
   
   subroutine d4stream_tb_setup(k1,npts,nv1,nv,zp)
+    use modmpi, only : myid
     use modtestbed, only : tbrad_p, tbrad_t, tbrad_ql, tbrad_qv, tbrad_o3, testbed_getinttime, nknudge
     implicit none
 
@@ -2191,35 +2192,35 @@ contains
 
     return
   end subroutine cloud_water
-!
-!   !> linear interpolation between two points, returns indicies of the
-!   !> interpolation points and weights
-!   !>
-!   subroutine interpolate(x,ny,y,i1,i2,alpha)
-!
-!     integer, intent (in) :: ny
-!     real, intent (in)    :: x, y(ny)
-!
-!     integer, intent (out) :: i1, i2
-!     real, intent (out)    :: alpha
-!
-!     if (y(1) < y(2)) stop 'TERMINATING: band centers increasing'
-!
-!     i2 = 1
-!     do while (x < y(i2) .and. i2 < ny)
-!        i2 = i2+1
-!     end do
-!     i1 = max(1,i2-1)
-!     alpha = 1.
-!
-!     if(i2.ne.i1) alpha = (x-y(i1))/(y(i2)-y(i1))
-!     if (alpha <0 .or. alpha >1) print 600, x, y(1), y(ny), alpha
-!
-!     return
-!
-! 600 format(/'CLOUD_INIT WARNING:  Extrapolating because data out of range', &
-!          /1x,'x = ',F8.1,', ymax = ',F7.0,', ymin =',F7.0,', alpha = ',F6.3)
-!   end subroutine interpolate
+
+  !> linear interpolation between two points, returns indicies of the
+  !> interpolation points and weights
+  !>
+  subroutine interpolate(x,ny,y,i1,i2,alpha)
+
+    integer, intent (in) :: ny
+    real, intent (in)    :: x, y(ny)
+
+    integer, intent (out) :: i1, i2
+    real, intent (out)    :: alpha
+
+    if (y(1) < y(2)) stop 'TERMINATING: band centers increasing'
+
+    i2 = 1
+    do while (x < y(i2) .and. i2 < ny)
+       i2 = i2+1
+    end do
+    i1 = max(1,i2-1)
+    alpha = 1.
+
+    if(i2.ne.i1) alpha = (x-y(i1))/(y(i2)-y(i1))
+    if (alpha <0 .or. alpha >1) print 600, x, y(1), y(ny), alpha
+
+    return
+
+600 format(/'CLOUD_INIT WARNING:  Extrapolating because data out of range', &
+         /1x,'x = ',F8.1,', ymax = ',F7.0,', ymin =',F7.0,', alpha = ',F6.3)
+  end subroutine interpolate
   subroutine initvar_cldwtr(cntrs,re,fl,bz,wz,gz)
   real, dimension(:),intent(out) :: cntrs,re,fl
   real, dimension(:,:),intent(out) :: bz,wz,gz

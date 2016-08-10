@@ -1365,7 +1365,7 @@ contains
     real             :: E1
     real, intent(in) :: x
     real             :: E1sum!, factorial
-    integer          :: k
+    integer          :: k,t
 
     E1sum = 0.0
     do k=1,99
