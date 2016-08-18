@@ -1,5 +1,11 @@
-set(target_name daleslib)
+set(target_name dales)
 FILE(GLOB sourcefiles "*.f90")
 add_executable(${target_name} ${sourcefiles})
 target_link_libraries(${target_name} ${NETCDF_LIBS})
+install(TARGETS dales DESTINATION ${CMAKE_BINARY_DIR})
+
+set(target_lib daleslib)
+FILE(GLOB libsourcefiles "daleslib.f90")
+add_library(${target_lib} ${libsourcefiles})
+target_link_libraries(${target_lib} ${NETCDF_LIBS})
 install(TARGETS daleslib DESTINATION ${CMAKE_BINARY_DIR})
