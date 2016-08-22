@@ -23,337 +23,356 @@
 ! nesting into other parallelized codes). If the latter argument is not provided, the communicator will be 
 ! assumed to be MPI_COMM_WORLD. 
 
-subroutine initialize(path,mpi_comm)
+module daleslib
 
-    !!----------------------------------------------------------------
-    !!     0.0    USE STATEMENTS FOR CORE MODULES
-    !!----------------------------------------------------------------
-    use modstartup,         only : startup
+!    interface initialize
+!        module procedure dales_init
+!    end interface
+!    public :: initialize
 
-    !----------------------------------------------------------------
-    !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
-    !----------------------------------------------------------------
-    use modcape,            only : initcape
-    use modchecksim,        only : initchecksim
-    use modstat_nc,         only : initstat_nc
-    !use modspectra2,       only : initspectra2
-    use modtimestat,        only : inittimestat
-    use modgenstat,         only : initgenstat
-    use modradstat,         only : initradstat
-    use modlsmstat,         only : initlsmstat
-    use modsampling,        only : initsampling
-    use modquadrant,        only : initquadrant
-    use modcrosssection,    only : initcrosssection 
-    use modAGScross,        only : initAGScross
-    use modlsmcrosssection, only : initlsmcrosssection
-    use modcloudfield,      only : initcloudfield
-    use modfielddump,       only : initfielddump
-    use modsamptend,        only : initsamptend
+!    interface step
+!        module procedure dales_step
+!    end interface
+!    public :: step
 
-    use modbulkmicrostat,   only : initbulkmicrostat
-    use modbudget,          only : initbudget
-    use modheterostats,     only : initheterostats
+!    interface finalize
+!        module procedure dales_close
+!    end interface
+!    public :: finalize
 
-    ! modules below are disabled by default to improve compilation time
-    !use modstress,         only : initstressbudget
+    contains
+        subroutine initialize(path,mpi_comm)
 
-    !use modtilt,           only : inittilt
-    !use modparticles,      only : initparticles
-    use modnudge,           only : initnudge
-    !use modprojection,     only : initprojection
-    use modchem,            only : initchem
-    use modcanopy,          only : initcanopy
+            !!----------------------------------------------------------------
+            !!     0.0    USE STATEMENTS FOR CORE MODULES
+            !!----------------------------------------------------------------
+            use modstartup,         only : startup
 
-    implicit none
+            !----------------------------------------------------------------
+            !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
+            !----------------------------------------------------------------
+            use modcape,            only : initcape
+            use modchecksim,        only : initchecksim
+            use modstat_nc,         only : initstat_nc
+            !use modspectra2,       only : initspectra2
+            use modtimestat,        only : inittimestat
+            use modgenstat,         only : initgenstat
+            use modradstat,         only : initradstat
+            use modlsmstat,         only : initlsmstat
+            use modsampling,        only : initsampling
+            use modquadrant,        only : initquadrant
+            use modcrosssection,    only : initcrosssection 
+            use modAGScross,        only : initAGScross
+            use modlsmcrosssection, only : initlsmcrosssection
+            use modcloudfield,      only : initcloudfield
+            use modfielddump,       only : initfielddump
+            use modsamptend,        only : initsamptend
 
-    character(len=512), intent(in) :: path
-    integer, optional, intent(in)  :: mpi_comm
+            use modbulkmicrostat,   only : initbulkmicrostat
+            use modbudget,          only : initbudget
+            use modheterostats,     only : initheterostats
 
-    !----------------------------------------------------------------
-    !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
-    !----------------------------------------------------------------
+            ! modules below are disabled by default to improve compilation time
+            !use modstress,         only : initstressbudget
 
-    if(present(mpi_comm)) then
-        call startup(path,mpi_comm)
-    else
-        call startup(path)
-    endif
-    
-    !---------------------------------------------------------
-    !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
-    !---------------------------------------------------------
-    call initchecksim
-    call initstat_nc   ! Should be called before stat-routines that might do netCDF
-    call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-    call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
-    !call inittilt
-    call initsampling
-    call initquadrant
-    call initcrosssection
-    call initAGScross
-    call initlsmcrosssection
-    !call initprojection
-    call initcloudfield
-    call initfielddump
-    call initsamptend
-    call initradstat
-    call initlsmstat
-    !call initparticles
-    call initnudge
-    call initbulkmicrostat
-    call initbudget
-    !call initstressbudget
-    call initchem
-    call initheterostats
-    call initcanopy
+            !use modtilt,           only : inittilt
+            !use modparticles,      only : initparticles
+            use modnudge,           only : initnudge
+            !use modprojection,     only : initprojection
+            use modchem,            only : initchem
+            use modcanopy,          only : initcanopy
 
-    !call initspectra2
-    call initcape
+            implicit none
 
-end subroutine initialize
+            character(len=512), intent(in) :: path
+            integer, intent(in), optional  :: mpi_comm
 
-! Performs a single time step. This is exactly the code inside the time loop of the main program. 
-! If the adaptive time stepping is enabled, the new time stamp is not guaranteed to be a dt later.
+            !----------------------------------------------------------------
+            !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
+            !----------------------------------------------------------------
 
-subroutine step
+            if(present(mpi_comm)) then
+                call startup(path=path,mpi_comm_=mpi_comm)
+            else
+                call startup(path=path)
+            endif
 
-    !!----------------------------------------------------------------
-    !!     0.0    USE STATEMENTS FOR CORE MODULES
-    !!----------------------------------------------------------------
-    use modstartup,         only : writerestartfiles
-    use modtimedep,         only : timedep
-    use modboundary,        only : boundary, grwdamp! JvdD ,tqaver
-    use modthermodynamics,  only : thermodynamics
-    use modmicrophysics,    only : microsources
-    use modsurface,         only : surface
-    use modsubgrid,         only : subgrid
-    use modforces,          only : forces, coriolis, lstend
-    use modradiation,       only : radiation
-    use modpois,            only : poisson
-    !use modedgecold,       only : coldedge
+            !---------------------------------------------------------
+            !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
+            !---------------------------------------------------------
+            call initchecksim
+            call initstat_nc   ! Should be called before stat-routines that might do netCDF
+            call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
+            call initgenstat   ! Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+            !call inittilt
+            call initsampling
+            call initquadrant
+            call initcrosssection
+            call initAGScross
+            call initlsmcrosssection
+            !call initprojection
+            call initcloudfield
+            call initfielddump
+            call initsamptend
+            call initradstat
+            call initlsmstat
+            !call initparticles
+            call initnudge
+            call initbulkmicrostat
+            call initbudget
+            !call initstressbudget
+            call initchem
+            call initheterostats
+            call initcanopy
 
-    !----------------------------------------------------------------
-    !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
-    !----------------------------------------------------------------
-    use modcape,            only : docape
-    use modchecksim,        only : checksim
-    !use modspectra2,       only : dospecs, tanhfilter
-    use modtimestat,        only : timestat
-    use modgenstat,         only : genstat
-    use modradstat,         only : radstat
-    use modlsmstat,         only : lsmstat
-    use modsampling,        only : sampling
-    use modquadrant,        only : quadrant
-    use modcrosssection,    only : crosssection
-    use modAGScross,        only : AGScross
-    use modlsmcrosssection, only : lsmcrosssection
-    use modcloudfield,      only : cloudfield
-    use modfielddump,       only : fielddump
-    use modsamptend,        only : samptend,tend_start,tend_adv,tend_subg,tend_force,&
-        tend_rad,tend_ls,tend_micro,tend_topbound,tend_pois,tend_addon,tend_coriolis,leibniztend
+            !call initspectra2
+            call initcape
 
-    use modbulkmicrostat,   only : bulkmicrostat
-    use modbudget,          only : budgetstat
-    use modheterostats,     only : heterostats
+        end subroutine initialize
 
-    ! modules below are disabled by default to improve compilation time
-    !use modstress,         only : stressbudgetstat
+        ! Performs a single time step. This is exactly the code inside the time loop of the main program. 
+        ! If the adaptive time stepping is enabled, the new time stamp is not guaranteed to be a dt later.
 
-    !use modtilt,           only : tiltedgravity, tiltedboundary
-    !use modparticles,      only : particles
-    use modnudge,           only : nudge
-    !use modprojection,     only : projection
-    use modchem,            only : twostep
-    use modcanopy,          only : canopy
+        subroutine step
 
-    implicit none
+            !!----------------------------------------------------------------
+            !!     0.0    USE STATEMENTS FOR CORE MODULES
+            !!----------------------------------------------------------------
+            use modstartup,         only : writerestartfiles
+            use modtimedep,         only : timedep
+            use modboundary,        only : boundary, grwdamp! JvdD ,tqaver
+            use modthermodynamics,  only : thermodynamics
+            use modmicrophysics,    only : microsources
+            use modsurface,         only : surface
+            use modsubgrid,         only : subgrid
+            use modforces,          only : forces, coriolis, lstend
+            use modradiation,       only : radiation
+            use modpois,            only : poisson
+            !use modedgecold,       only : coldedge
 
-    call tstep_update                           ! Calculate new timestep
-    call timedep
-    call samptend(tend_start,firstterm=.true.)
+            !----------------------------------------------------------------
+            !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
+            !----------------------------------------------------------------
+            use modcape,            only : docape
+            use modchecksim,        only : checksim
+            !use modspectra2,       only : dospecs, tanhfilter
+            use modtimestat,        only : timestat
+            use modgenstat,         only : genstat
+            use modradstat,         only : radstat
+            use modlsmstat,         only : lsmstat
+            use modsampling,        only : sampling
+            use modquadrant,        only : quadrant
+            use modcrosssection,    only : crosssection
+            use modAGScross,        only : AGScross
+            use modlsmcrosssection, only : lsmcrosssection
+            use modcloudfield,      only : cloudfield
+            use modfielddump,       only : fielddump
+            use modsamptend,        only : samptend,tend_start,tend_adv,tend_subg,tend_force,&
+                tend_rad,tend_ls,tend_micro,tend_topbound,tend_pois,tend_addon,tend_coriolis,leibniztend
 
-    !-----------------------------------------------------
-    !   3.1   RADIATION         
-    !-----------------------------------------------------
-    call radiation !radiation scheme
-    call samptend(tend_rad)
+            use modbulkmicrostat,   only : bulkmicrostat
+            use modbudget,          only : budgetstat
+            use modheterostats,     only : heterostats
 
-    !-----------------------------------------------------
-    !   3.2   THE SURFACE LAYER
-    !-----------------------------------------------------
-    call surface
+            ! modules below are disabled by default to improve compilation time
+            !use modstress,         only : stressbudgetstat
 
-    !-----------------------------------------------------
-    !   3.3   ADVECTION AND DIFFUSION
-    !-----------------------------------------------------
-    call advection
-    call samptend(tend_adv)
-    call subgrid
-    call canopy
-    call samptend(tend_subg)
+            !use modtilt,           only : tiltedgravity, tiltedboundary
+            !use modparticles,      only : particles
+            use modnudge,           only : nudge
+            !use modprojection,     only : projection
+            use modchem,            only : twostep
+            use modcanopy,          only : canopy
 
-    !-----------------------------------------------------
-    !   3.4   REMAINING TERMS
-    !-----------------------------------------------------
-    call coriolis !remaining terms of ns equation
-    call samptend(tend_coriolis)
-    call forces !remaining terms of ns equation
-    call samptend(tend_force)
+            implicit none
 
-    call lstend !large scale forcings
-    call samptend(tend_ls)
-    call microsources !Drizzle etc.
-    call samptend(tend_micro)
+            call tstep_update                           ! Calculate new timestep
+            call timedep
+            call samptend(tend_start,firstterm=.true.)
 
-    !------------------------------------------------------
-    !   3.4   EXECUTE ADD ONS
-    !------------------------------------------------------
-    call nudge
-    !    call dospecs
-    !    call tiltedgravity
+            !-----------------------------------------------------
+            !   3.1   RADIATION         
+            !-----------------------------------------------------
+            call radiation !radiation scheme
+            call samptend(tend_rad)
 
-    call samptend(tend_addon)
+            !-----------------------------------------------------
+            !   3.2   THE SURFACE LAYER
+            !-----------------------------------------------------
+            call surface
 
-    !-----------------------------------------------------------------------
-    !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
-    !-----------------------------------------------------------------------
-    call grwdamp !damping at top of the model
-    !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
-    call samptend(tend_topbound)
-    call poisson
-    call samptend(tend_pois,lastterm=.true.)
+            !-----------------------------------------------------
+            !   3.3   ADVECTION AND DIFFUSION
+            !-----------------------------------------------------
+            call advection
+            call samptend(tend_adv)
+            call subgrid
+            call canopy
+            call samptend(tend_subg)
 
-    call tstep_integrate                        ! Apply tendencies to all variables
-    call boundary
-    !call tiltedboundary
-    !-----------------------------------------------------
-    !   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
-    !-----------------------------------------------------
-    call thermodynamics
-    call leibniztend
-    !-----------------------------------------------------
-    !   3.7  WRITE RESTARTFILES AND DO STATISTICS
-    !------------------------------------------------------
-    call twostep
-    !call coldedge
-    call checksim
-    call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
-    call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
-    call radstat
-    call lsmstat
-    call sampling
-    call quadrant
-    call crosssection
-    call AGScross
-    call lsmcrosssection
-    !call tanhfilter
-    call docape
-    !call projection
-    call cloudfield
-    call fielddump
-    !call particles
+            !-----------------------------------------------------
+            !   3.4   REMAINING TERMS
+            !-----------------------------------------------------
+            call coriolis !remaining terms of ns equation
+            call samptend(tend_coriolis)
+            call forces !remaining terms of ns equation
+            call samptend(tend_force)
 
-    call bulkmicrostat
-    call budgetstat
-    !call stressbudgetstat
-    call heterostats
+            call lstend !large scale forcings
+            call samptend(tend_ls)
+            call microsources !Drizzle etc.
+            call samptend(tend_micro)
 
-    call writerestartfiles
+            !------------------------------------------------------
+            !   3.4   EXECUTE ADD ONS
+            !------------------------------------------------------
+            call nudge
+            !    call dospecs
+            !    call tiltedgravity
 
-end subroutine step
+            call samptend(tend_addon)
 
-! Performs repeatedly time stepping until the tstop (measured in seconds after the cold start) is reached. 
-! Note that the resulting model time may be a bit later than tstop.
+            !-----------------------------------------------------------------------
+            !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
+            !-----------------------------------------------------------------------
+            call grwdamp !damping at top of the model
+            !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
+            call samptend(tend_topbound)
+            call poisson
+            call samptend(tend_pois,lastterm=.true.)
 
-subroutine run_to(tstop)
+            call tstep_integrate                        ! Apply tendencies to all variables
+            call boundary
+            !call tiltedboundary
+            !-----------------------------------------------------
+            !   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
+            !-----------------------------------------------------
+            call thermodynamics
+            call leibniztend
+            !-----------------------------------------------------
+            !   3.7  WRITE RESTARTFILES AND DO STATISTICS
+            !------------------------------------------------------
+            call twostep
+            !call coldedge
+            call checksim
+            call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
+            call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
+            call radstat
+            call lsmstat
+            call sampling
+            call quadrant
+            call crosssection
+            call AGScross
+            call lsmcrosssection
+            !call tanhfilter
+            call docape
+            !call projection
+            call cloudfield
+            call fielddump
+            !call particles
 
-    use modglobal,          only: timee,longint,rk3step
+            call bulkmicrostat
+            call budgetstat
+            !call stressbudgetstat
+            call heterostats
 
-    implicit none
+            call writerestartfiles
 
-    integer(kind=longint),intent(in) :: tstop
+        end subroutine step
 
-    do while (timee < tstop .or. rk3step < 3)
-        call step
-    end do
+        ! Performs repeatedly time stepping until the tstop (measured in seconds after the cold start) is reached. 
+        ! Note that the resulting model time may be a bit later than tstop.
 
-end subroutine run_to
+        subroutine run_to(tstop)
 
-! Returns the model time, measured in s after the cold start.
+            use modglobal,          only: timee,longint,rk3step
 
-function get_model_time() result(ret)
+            implicit none
 
-    use modglobal,          only: timee,longint
+            integer(kind=longint),intent(in) :: tstop
 
-    implicit none
+            do while (timee < tstop .or. rk3step < 3)
+                call step
+            end do
 
-    integer(kind=longint) :: ret
+        end subroutine run_to
 
-    ret=timee
+        ! Returns the model time, measured in s after the cold start.
 
-end function get_model_time
+        function get_model_time() result(ret)
 
-! Cleans up; closes file handles ans deallocates arrays. This is a copy of the code 
-! in the main program after the time loop. 
+            use modglobal,          only: timee,longint
 
-subroutine finalize()
+            implicit none
 
-    !!----------------------------------------------------------------
-    !!     0.0    USE STATEMENTS FOR CORE MODULES
-    !!----------------------------------------------------------------
-    use modstartup,         only : exitmodules
+            integer(kind=longint) :: ret
 
-    !----------------------------------------------------------------
-    !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
-    !----------------------------------------------------------------
-    use modcape,            only : exitcape
-    use modgenstat,         only : exitgenstat
-    use modradstat,         only : exitradstat
-    use modlsmstat,         only : exitlsmstat
-    use modsampling,        only : exitsampling
-    use modquadrant,        only : exitquadrant
-    use modcrosssection,    only : exitcrosssection  
-    use modAGScross,        only : exitAGScross
-    use modlsmcrosssection, only : exitlsmcrosssection
-    use modcloudfield,      only : cloudfield
-    use modfielddump,       only : exitfielddump
-    use modsamptend,        only : exitsamptend
+            ret=timee
 
-    use modbulkmicrostat,   only : exitbulkmicrostat
-    use modbudget,          only : exitbudget
-    use modheterostats,     only : exitheterostats
+        end function get_model_time
 
-    ! modules below are disabled by default to improve compilation time
-    !use modstress,         only : exitstressbudget
+        ! Cleans up; closes file handles ans deallocates arrays. This is a copy of the code 
+        ! in the main program after the time loop. 
 
-    !use modtilt,           only : exittilt
-    !use modparticles,      only : exitparticles
-    use modnudge,           only : exitnudge
-    use modcanopy,          only : exitcanopy
+        subroutine finalize()
 
-    implicit none
+            !!----------------------------------------------------------------
+            !!     0.0    USE STATEMENTS FOR CORE MODULES
+            !!----------------------------------------------------------------
+            use modstartup,         only : exitmodules
 
-    !--------------------------------------------------------
-    !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
-    !-------------------------------------------------------
-    call exitgenstat
-    call exitradstat
-    call exitlsmstat
-    !call exitparticles
-    call exitnudge
-    call exitsampling
-    call exitquadrant
-    call exitsamptend
-    call exitbulkmicrostat
-    call exitbudget
-    !call exitstressbudget
-    call exitcrosssection
-    call exitAGScross
-    call exitlsmcrosssection
-    call exitcape
-    call exitfielddump
-    call exitheterostats
-    call exitcanopy
-    call exitmodules
+            !----------------------------------------------------------------
+            !     0.1     USE STATEMENTS FOR ADDONS STATISTICAL ROUTINES
+            !----------------------------------------------------------------
+            use modcape,            only : exitcape
+            use modgenstat,         only : exitgenstat
+            use modradstat,         only : exitradstat
+            use modlsmstat,         only : exitlsmstat
+            use modsampling,        only : exitsampling
+            use modquadrant,        only : exitquadrant
+            use modcrosssection,    only : exitcrosssection  
+            use modAGScross,        only : exitAGScross
+            use modlsmcrosssection, only : exitlsmcrosssection
+            use modcloudfield,      only : cloudfield
+            use modfielddump,       only : exitfielddump
+            use modsamptend,        only : exitsamptend
 
-end subroutine finalize
+            use modbulkmicrostat,   only : exitbulkmicrostat
+            use modbudget,          only : exitbudget
+            use modheterostats,     only : exitheterostats
+
+            ! modules below are disabled by default to improve compilation time
+            !use modstress,         only : exitstressbudget
+
+            !use modtilt,           only : exittilt
+            !use modparticles,      only : exitparticles
+            use modnudge,           only : exitnudge
+            use modcanopy,          only : exitcanopy
+
+            implicit none
+
+            !--------------------------------------------------------
+            !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
+            !-------------------------------------------------------
+            call exitgenstat
+            call exitradstat
+            call exitlsmstat
+            !call exitparticles
+            call exitnudge
+            call exitsampling
+            call exitquadrant
+            call exitsamptend
+            call exitbulkmicrostat
+            call exitbudget
+            !call exitstressbudget
+            call exitcrosssection
+            call exitAGScross
+            call exitlsmcrosssection
+            call exitcape
+            call exitfielddump
+            call exitheterostats
+            call exitcanopy
+            call exitmodules
+
+        end subroutine finalize
+    end module daleslib
