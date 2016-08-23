@@ -100,7 +100,7 @@ module daleslib
 
             implicit none
 
-            character(len=512), intent(in) :: path
+            character(len=256), intent(in) :: path
 
             !----------------------------------------------------------------
             !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
