@@ -28,13 +28,11 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
-
-
 module modmpi
 use mpi
 implicit none
 save
-  integer  :: comm3d, commrow, commcol
+  integer  :: commwrld, comm3d, commrow, commcol
   integer  :: nbrnorth
   integer  :: nbrsouth
   integer  :: nbreast
@@ -70,15 +68,32 @@ contains
   !       slower than the default.
   !
   
-  subroutine initmpi(commwrld)
+  subroutine initmpicomm(comm)
     implicit none
-    integer commwrld
-    integer dims(2)
-    logical periods(2)
+    integer, optional:: comm
 
     MY_REAL = MPI_DOUBLE_PRECISION
+
+    ! Default communicator: MPI_COMM_WORLD
+    if(present(comm)) then
+        commwrld=comm
+    else
+        commwrld=MPI_COMM_WORLD
+    end if
+
+    ! If the communicator is not MPI_COMM_WORLD, assume already initialized (embedded models)
+    if(commwrld==MPI_COMM_WORLD) then
+        call MPI_INIT(mpierr)
+    end if
+
     call MPI_COMM_RANK( commwrld, myid, mpierr )
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
+  end subroutine initmpicomm
+
+  subroutine initmpi()
+    implicit none
+    integer dims(2)
+    logical periods(2)
 
     ! Specify the # procs in each direction.
     ! specifying a 0 means that MPI will try to find a useful # procs in

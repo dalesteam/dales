@@ -41,7 +41,23 @@ module daleslib
 !    public :: finalize
 
     contains
-        subroutine initialize(path,mpi_comm)
+        subroutine pre_initialize(mpi_comm)
+
+            use modmpi,             only : initmpicomm
+
+            implicit none
+
+            integer, intent(in), optional:: mpi_comm
+
+            if(present(mpi_comm)) then
+                call initmpicomm()
+            else
+                call initmpicomm(mpi_comm)
+            end if
+
+        end subroutine pre_initialize
+
+        subroutine initialize(path)
 
             !!----------------------------------------------------------------
             !!     0.0    USE STATEMENTS FOR CORE MODULES
@@ -85,17 +101,12 @@ module daleslib
             implicit none
 
             character(len=512), intent(in) :: path
-            integer, intent(in), optional  :: mpi_comm
 
             !----------------------------------------------------------------
             !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
             !----------------------------------------------------------------
 
-            if(present(mpi_comm)) then
-                call startup(path=path,mpi_comm_=mpi_comm)
-            else
-                call startup(path=path)
-            endif
+            call startup(path)
 
             !---------------------------------------------------------
             !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS

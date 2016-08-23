@@ -20,14 +20,17 @@
 
 program dales_check
 
-    use daleslib,  only: initialize,step,finalize
+    use daleslib,  only: pre_initialize,initialize,step,finalize
     use modglobal, only: timeleft,rk3step
 
     character(512):: fname_options
 
+    call pre_initialize
+
     if (command_argument_count() >=1) then
         call get_command_argument(1,fname_options)
     end if
+
 
     call initialize(fname_options)
 
