@@ -67,7 +67,9 @@ contains
   ! NOTE: the code is not symmetrical in NPROCX and NPROCY and NPROCX=0 NPROCY=1 will be
   !       slower than the default.
   !
-  
+
+  ! Initializes the world communicator within dales. Optionally this communicator is passed from an external caller.
+  ! TODO: Handle errors correctly.
   subroutine initmpicomm(comm)
     implicit none
     integer, optional:: comm
@@ -76,20 +78,17 @@ contains
 
     ! Default communicator: MPI_COMM_WORLD
     if(present(comm)) then
-        commwrld=comm
+        call MPI_COMM_DUP(comm,commwrld,mpierr)
     else
-        commwrld=MPI_COMM_WORLD
-    end if
-
-    ! If the communicator is not MPI_COMM_WORLD, assume already initialized (embedded models)
-    if(commwrld==MPI_COMM_WORLD) then
         call MPI_INIT(mpierr)
+        call MPI_COMM_DUP(MPI_COMM_WORLD,commwrld,mpierr)
     end if
 
     call MPI_COMM_RANK( commwrld, myid, mpierr )
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
   end subroutine initmpicomm
 
+  ! Initializes the mpi process grid, based upon the nprocx and nprocy parameters given in the input file.
   subroutine initmpi()
     implicit none
     integer dims(2)
