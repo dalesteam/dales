@@ -50,9 +50,9 @@ module daleslib
             integer, intent(in), optional:: mpi_comm
 
             if(present(mpi_comm)) then
-                call initmpicomm()
-            else
                 call initmpicomm(mpi_comm)
+            else
+                call initmpicomm
             end if
 
         end subroutine pre_initialize
