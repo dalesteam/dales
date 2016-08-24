@@ -25,21 +25,6 @@
 
 module daleslib
 
-!    interface initialize
-!        module procedure dales_init
-!    end interface
-!    public :: initialize
-
-!    interface step
-!        module procedure dales_step
-!    end interface
-!    public :: step
-
-!    interface finalize
-!        module procedure dales_close
-!    end interface
-!    public :: finalize
-
     contains
 
         subroutine initialize(path,mpi_comm)
