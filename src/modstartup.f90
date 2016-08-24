@@ -146,7 +146,7 @@ contains
       close(ifnamopt)
     end if
 
-    call initmpi()
+    call initmpi
 
   !broadcast namelists
     call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,commwrld,mpierr)
@@ -981,6 +981,8 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modthermodynamics, only : exitthermodynamics
+
+    implicit none
 
     call exittimedep
     call exitthermodynamics

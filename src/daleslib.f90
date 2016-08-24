@@ -41,27 +41,13 @@ module daleslib
 !    public :: finalize
 
     contains
-        subroutine pre_initialize(mpi_comm)
 
-            use modmpi,             only : initmpicomm
-
-            implicit none
-
-            integer, intent(in), optional:: mpi_comm
-
-            if(present(mpi_comm)) then
-                call initmpicomm(mpi_comm)
-            else
-                call initmpicomm
-            end if
-
-        end subroutine pre_initialize
-
-        subroutine initialize(path)
+        subroutine initialize(path,mpi_comm)
 
             !!----------------------------------------------------------------
             !!     0.0    USE STATEMENTS FOR CORE MODULES
             !!----------------------------------------------------------------
+            use modmpi,             only : initmpicomm
             use modstartup,         only : startup
 
             !----------------------------------------------------------------
@@ -100,7 +86,14 @@ module daleslib
 
             implicit none
 
-            character(len=512), intent(in) :: path
+            character(len=512), intent(in)  :: path
+            integer, intent(in), optional   :: mpi_comm
+
+            !----------------------------------------------------------------
+            !     0      INITIALIZE MPI COMMUNICATOR
+            !----------------------------------------------------------------
+
+            call initmpicomm(mpi_comm)
 
             !----------------------------------------------------------------
             !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
@@ -325,7 +318,7 @@ module daleslib
         ! Cleans up; closes file handles ans deallocates arrays. This is a copy of the code 
         ! in the main program after the time loop. 
 
-        subroutine finalize()
+        subroutine finalize
 
             !!----------------------------------------------------------------
             !!     0.0    USE STATEMENTS FOR CORE MODULES

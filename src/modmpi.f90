@@ -72,17 +72,22 @@ contains
   ! TODO: Handle errors correctly.
   subroutine initmpicomm(comm)
     implicit none
-    integer, optional:: comm
+    integer, intent(in),optional  :: comm
+    logical                       :: init
+
+    call MPI_INITIALIZED(init,mpierr)
+
+    if(.not.init) then
+        call MPI_INIT(mpierr)
+    endif
 
     MY_REAL = MPI_DOUBLE_PRECISION
 
-    ! Default communicator: MPI_COMM_WORLD
     if(present(comm)) then
         call MPI_COMM_DUP(comm,commwrld,mpierr)
     else
-        call MPI_INIT(mpierr)
-        call MPI_COMM_DUP(MPI_COMM_WORLD,commwrld,mpierr)
-    end if
+        commwrld=MPI_COMM_WORLD
+    endif
 
     call MPI_COMM_RANK( commwrld, myid, mpierr )
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
@@ -154,6 +159,7 @@ contains
 
   subroutine exitmpi
     implicit none
+    logical :: mpifin
 
 
     if(myid==0)then
@@ -162,7 +168,16 @@ contains
     end if
 
     call MPI_Comm_free( comm3d, mpierr )
-    call MPI_FINALIZE(mpierr)
+
+    if(commwrld/=MPI_COMM_WORLD) then
+        call MPI_COMM_FREE(commwrld,mpierr)
+    endif
+
+    call MPI_FINALIZED(mpifin,mpierr)
+    if(.not.mpifin) then
+        call MPI_FINALIZE(mpierr)
+    endif
+
   end subroutine exitmpi
 
   subroutine barrou()
