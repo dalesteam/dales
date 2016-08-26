@@ -33,6 +33,7 @@ use mpi
 implicit none
 save
   integer  :: commwrld, comm3d, commrow, commcol
+  logical  :: libmode !Library mode: skip finalize, assumed to be called externally
   integer  :: nbrnorth
   integer  :: nbrsouth
   integer  :: nbreast
@@ -84,8 +85,14 @@ contains
     MY_REAL = MPI_DOUBLE_PRECISION
 
     if(present(comm)) then
-        call MPI_COMM_DUP(comm,commwrld,mpierr)
+        libmode=.true.
+        if(comm==MPI_COMM_WORLD) then
+            commwrld=comm
+        else
+            call MPI_COMM_DUP(comm,commwrld,mpierr)
+        endif
     else
+        libmode=.false.
         commwrld=MPI_COMM_WORLD
     endif
 
@@ -169,12 +176,12 @@ contains
 
     call MPI_Comm_free( comm3d, mpierr )
 
-    if(commwrld/=MPI_COMM_WORLD) then
+    if(commwrld/=MPI_COMM_WORLD .and. myid==0) then
         call MPI_COMM_FREE(commwrld,mpierr)
     endif
 
     call MPI_FINALIZED(mpifin,mpierr)
-    if(.not.mpifin) then
+    if(.not.mpifin .and. .not.libmode) then
         call MPI_FINALIZE(mpierr)
     endif
 
