@@ -442,15 +442,35 @@ contains
     if (sgs_surface_fix) then
           ! Use known surface flux and exchange coefficient to derive 
           ! consistent gradient (such that correct flux will occur in 
-          ! shear production term)
+          ! shear production term); this is only done for the gradient
+          ! that is used to produce the flux, not the gradient that represents
+          ! the shear
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
           ! Replace the dudz by surface flux -uw / ekm
           horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
           uwflux = -ustar(i,j)*ustar(i,j)* ((u0(i,j,1)+cu)/horv)
           local_dudz = -uwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
-               local_dudz )**2
+! Old code
+!          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi ) **2 + &
+!                         0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi*local_dudz + &
+!                          0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi*dudz(i,j) + &
+!                          local_dudz * dudz(i,j)
+! This is the full expression without simplifications
+!         tdef2 = tdef2 + 0.25 * ( &
+!              ((w0(i,j,2)-w0(i-1,j,2)) / dx)**2  + 2*((w0(i,j,2)-w0(i-1,j,2)) / dx)*((u0(i,j,2)-u0(i,j,1))     / dzh(2)) + ((u0(i,j,2)-u0(i,j,1))     / dzh(2)  )**2    + &
+!              ((w0(i,j,1)-w0(i-1,j,1)) / dx)**2  + 2*((w0(i,j,1)-w0(i-1,j,1)) / dx)*((u0(i,j,1)-u0(i,j,0))     / dzh(1)) + ((u0(i,j,1)-u0(i,j,0))     / dzh(1)   )**2    + &
+!              ((w0(i+1,j,1)-w0(i,j,1)) / dx)**2  + 2*((w0(i+1,j,1)-w0(i,j,1)) / dx)*((u0(i+1,j,1)-u0(i+1,j,0)) / dzh(1)) + ((u0(i+1,j,1)-u0(i+1,j,0)) / dzh(1)   )**2    + &
+!              ((w0(i+1,j,2)-w0(i,j,2)) / dx)**2  + 2*((w0(i+1,j,2)-w0(i,j,2)) / dx)*((u0(i+1,j,2)-u0(i+1,j,1)) / dzh(2)) + ((u0(i+1,j,2)-u0(i+1,j,1)) / dzh(2)  )**2     &
+!                                )
+         tdef2 = tdef2 + 0.25 * ( &
+              ((w0(i,j,2)-w0(i-1,j,2)) / dx)**2  +  ((w0(i,j,2)-w0(i-1,j,2)) / dx)*local_dudz + &
+                                                    ((w0(i,j,2)-w0(i-1,j,2)) / dx)*((u0(i,j,2)-u0(i,j,1))     / dzh(2)) +  ((u0(i,j,2)-u0(i,j,1)) / dzh(2) )*local_dudz  + &
+                0                                + 0                                                                    + 0  + &
+                0                                + 0                                                                    + 0  + &
+              ((w0(i+1,j,2)-w0(i,j,2)) / dx)**2  + ((w0(i+1,j,2)-w0(i,j,2)) / dx) *local_dudz + &
+                                                   ((w0(i+1,j,2)-w0(i,j,2)) / dx)*((u0(i+1,j,2)-u0(i+1,j,1)) / dzh(2)) + ((u0(i+1,j,2)-u0(i+1,j,1)) / dzh(2))*local_dudz  &
+                                )
     else
           tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
                                   dudz(i,j)   )**2
@@ -466,15 +486,35 @@ contains
     if (sgs_surface_fix) then
           ! Use known surface flux and exchange coefficient to derive 
           ! consistent gradient (such that correct flux will occur in 
-          ! shear production term)
+          ! shear production term); this is only done for the gradient
+          ! that is used to produce the flux, not the gradient that represents
+          ! the shear
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
           ! Replace the dvdz by surface flux -vw / ekm
           horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
           vwflux = -ustar(i,j)*ustar(i,j)* ((v0(i,j,1)+cv)/horv)
           local_dvdz = -vwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
-                        local_dvdz  )**2
+! The full code before we simplify :
+! - if a gradient is intended as the flux-part of shear production the local_dudz is used
+! - terms with w at the surface are zero
+! -.....
+!          tdef2 = tdef2 + 0.25 * ( &
+!              ((v0(i,j,kp)-v0(i,j,k))     / dzh(kp))**2 + 2*((v0(i,j,kp)-v0(i,j,k))  / dzh(kp))*((w0(i,j,kp)-w0(i,jm,kp))/ dy) + ((w0(i,j,kp)-w0(i,jm,kp))   / dy        )**2    + &
+!              ((v0(i,j,k)-v0(i,j,km))     / dzh(k))**2  + 2*((v0(i,j,k)-v0(i,j,km))  / dzh(k)) *((w0(i,j,k)-w0(i,jm,k))  / dy) + ((w0(i,j,k)-w0(i,jm,k))     / dy        )**2    + &
+!              ((v0(i,jp,k)-v0(i,jp,km))   / dzh(k))**2  + 2*((v0(i,jp,k)-v0(i,jp,km))/ dzh(k)) *((w0(i,jp,k)-w0(i,j,k))  / dy) + ((w0(i,jp,k)-w0(i,j,k))     / dy        )**2    + &
+!              ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp))**2 + 2*((v0(i,jp,kp)-v0(i,jp,k))/ dzh(kp))*((w0(i,jp,kp)-w0(i,j,kp))/ dy) + ((w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2      &
+!                                 )
+          tdef2 = tdef2 + 0.25 * ( &
+              ((v0(i,j,2)-v0(i,j,1))     / dzh(2))*local_dvdz + &
+                                            local_dvdz*((w0(i,j,2)-w0(i,jm,2))/ dy) + &
+                     ((v0(i,j,2)-v0(i,j,1))  / dzh(2))*((w0(i,j,2)-w0(i,jm,2))/ dy) + ((w0(i,j,2)-w0(i,jm,2)) / dy )**2 + &
+              ((v0(i,j,1)-v0(i,j,0))     / dzh(1))**2 + 0 + 0  + 0 + &
+              ((v0(i,jp,1)-v0(i,jp,0))   / dzh(1))**2 + 0 + 0  + 0 + &
+              ((v0(i,jp,2)-v0(i,jp,1))   / dzh(2))*local_dvdz + &
+                                            local_dvdz*((w0(i,jp,2)-w0(i,j,2))/ dy) + &
+                     ((v0(i,jp,2)-v0(i,jp,1))/ dzh(2))*((w0(i,jp,2)-w0(i,j,2))/ dy) + ((w0(i,jp,2)-w0(i,j,2)) / dy )**2 &
+                                 )
     else
          tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
                                 dvdz(i,j)   )**2
@@ -905,3 +945,4 @@ contains
   end subroutine diffw
 
 end module
+
