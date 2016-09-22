@@ -504,4 +504,28 @@ contains
 
   end subroutine gatherrow
 
+  ! Retrieves the corresponding global array to l and stores it in the array g
+  subroutine gathervol(l,g)
+      implicit none
+
+      real                  :: l(:,:,:),g(:,:,:)
+      integer               :: nl
+      real,allocatable      :: bufl(:),bufg(:)
+
+      bufl=pack(l,.true.)
+      bufg=pack(g,.true.)
+
+      call MPI_GATHER(bufl,size(bufl),MY_REAL, &
+                      bufg,nl,MY_REAL, &
+                      0,commwrld,mpierr)
+
+      if(myid==0) then
+          g=reshape(bufg,shape(g))
+      endif
+
+      deallocate(bufl)
+      deallocate(bufg)
+
+  end subroutine gathervol
+
 end module

@@ -364,4 +364,34 @@ module daleslib
             call exitmodules
 
         end subroutine finalize
+
+        function get_field_3d(field_id) result(arr)
+
+            use modfields, only: u0,v0,w0,thl0,qt0
+            use modglobal, only: itot,jtot,kmax
+            use modmpi,    only: gathervol
+
+            implicit none
+
+            integer, intent(in)             :: field_id
+            real, allocatable               :: arr(:,:,:)
+
+            allocate(arr(itot,jtot,kmax))
+
+            select case(field_id)
+            case(1)
+                call gathervol(u0,arr)
+            case(2)
+                call gathervol(v0,arr)
+            case(3)
+                call gathervol(w0,arr)
+            case(4)
+                call gathervol(thl0,arr)
+            case(5)
+                call gathervol(qt0,arr)
+                ! TODO: default case, error code?
+            end select
+
+        end function get_field_3d
+
     end module daleslib
