@@ -503,15 +503,49 @@ contains
     endif
 
   end subroutine gatherrow
+  
+  ! Retrieves the z-layer average of the given array
+  subroutine gatherlayeravg(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,kmaxg)
+      implicit none
 
-  ! Retrieves the corresponding global array to l and stores it in the array g
+      integer               :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,kmaxg,&
+                              &nkl,nh,ii
+      real                  :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl),&
+                              &Ag(kmaxg)
+      real, allocatable     :: bufl(:)
+
+      write(*,*) "Filling local buffer..."
+      nkl=kmaxl-kminl+1
+      nh=(imaxl-iminl+1)*(jmaxl-jminl+1)
+      allocate(bufl(nkl))
+      do ii=1,nkl
+          bufl(ii)=sum(Al(iminl:imaxl,jminl:jmaxl,ii+kminl-1))/nh
+      enddo
+      
+      write(*,*) "Setting global buffer to zero..."
+      if(myid==0) then
+          Ag=0
+      endif
+
+
+      write(*,*) "Calling mpi reduce..."
+      write(*,*) "layers: ",size(bufl)," = ",size(Ag)
+      call MPI_REDUCE(bufl,Ag,nkl,MY_REAL,MPI_SUM,0,comm3d,mpierr)
+
+      deallocate(bufl)
+
+      write(*,*) "Taking average..."
+      Ag=Ag/nprocs
+  end subroutine gatherlayeravg
+
+  ! Retrieves the local array Al and stores it in the global array Ag
   subroutine gathervol(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,imaxg,jmaxg,kmaxg)
       implicit none
 
       integer               :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,imaxg,&
-                               jmaxg,kmaxg,nl,ng,np,i,j,k,ig,jg,kg,ii
+                              &jmaxg,kmaxg,nl,ng,np,i,j,k,ig,jg,kg,ii
       real                  :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl),&
-                               Ag(imaxg,jmaxg,kmaxg)
+                              &Ag(imaxg,jmaxg,kmaxg)
       real,allocatable      :: bufl(:),bufg(:)
 
       nl=(imaxl-iminl+1)*(jmaxl-jminl+1)*(kmaxl-kminl+1)

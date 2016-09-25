@@ -20,13 +20,15 @@
 
 program dales_check
 
-    use daleslib,  only: initialize,step,finalize,grid_shape,get_field_3d,FIELDID_THL
+    use daleslib,  only: initialize,step,finalize,grid_shape,get_field_3d,&
+                        &get_field_layer_avg,FIELDID_THL
     use modglobal, only: timeleft,rk3step
     use modmpi,    only: myid
 
     character(512)      :: fname_options
     integer             :: s(3), ierr
     real,allocatable    ::a(:,:,:)
+    real,allocatable    ::b(:)
 
     if (command_argument_count() >=1) then
         call get_command_argument(1,fname_options)
@@ -36,13 +38,15 @@ program dales_check
 
     s=grid_shape()
     allocate(a(s(1),s(2),s(3)))
+    allocate(b(s(3)))
     ierr=0
 
     do while (timeleft>0 .or. rk3step < 3)
         call step()
-        ierr=get_field_3d(FIELDID_THL,a)
+        !ierr=get_field_3d(FIELDID_THL,a)
+        ierr=get_field_layer_avg(FIELDID_THL,b)
         if(myid==0) then
-            write(*,*) "First theta liquid is ",a(1,1,1)
+            write(*,*) "top layer theta liquid is ",b(1)
         endif
     enddo
 
