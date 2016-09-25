@@ -20,10 +20,13 @@
 
 program dales_check
 
-    use daleslib,  only: initialize,step,finalize
+    use daleslib,  only: initialize,step,finalize,grid_shape,get_field_3d,FIELDID_THL
     use modglobal, only: timeleft,rk3step
+    use modmpi,    only: myid
 
-    character(512):: fname_options
+    character(512)      :: fname_options
+    integer             :: s(3), ierr
+    real,allocatable    ::a(:,:,:)
 
     if (command_argument_count() >=1) then
         call get_command_argument(1,fname_options)
@@ -31,9 +34,19 @@ program dales_check
 
     call initialize(fname_options)
 
+    s=grid_shape()
+    allocate(a(s(1),s(2),s(3)))
+    ierr=0
+
     do while (timeleft>0 .or. rk3step < 3)
         call step()
+        ierr=get_field_3d(FIELDID_THL,a)
+        if(myid==0) then
+            write(*,*) "First theta liquid is ",a(1,1,1)
+        endif
     enddo
+
+    deallocate(a)
 
     call finalize
 

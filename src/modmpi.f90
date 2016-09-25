@@ -505,26 +505,58 @@ contains
   end subroutine gatherrow
 
   ! Retrieves the corresponding global array to l and stores it in the array g
-  subroutine gathervol(l,g)
+  subroutine gathervol(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,imaxg,jmaxg,kmaxg)
       implicit none
 
-      real                  :: l(:,:,:),g(:,:,:)
-      integer               :: nl
+      integer               :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,imaxg,&
+                               jmaxg,kmaxg,nl,ng,np,i,j,k,ig,jg,kg,ii
+      real                  :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl),&
+                               Ag(imaxg,jmaxg,kmaxg)
       real,allocatable      :: bufl(:),bufg(:)
 
-      bufl=pack(l,.true.)
-      bufg=pack(g,.true.)
+      nl=(imaxl-iminl+1)*(jmaxl-jminl+1)*(kmaxl-kminl+1)
+      ng=imaxg*jmaxg*kmaxg
 
-      call MPI_GATHER(bufl,size(bufl),MY_REAL, &
-                      bufg,nl,MY_REAL, &
-                      0,commwrld,mpierr)
+      allocate(bufl(nl))
+
+      ii=1
+      do k=kminl,kmaxl
+          do j=jminl,jmaxl
+              do i=iminl,imaxl
+                  bufl(ii)=Al(i,j,k)
+                  ii=ii+1
+              enddo
+          enddo
+      enddo
+      
+      if(myid==0) then
+          allocate(bufg(ng))
+      endif
+
+      call MPI_GATHER(bufl,nl,MY_REAL,bufg,nl,MY_REAL,0,comm3d,mpierr)
 
       if(myid==0) then
-          g=reshape(bufg,shape(g))
+          ii=1
+          do np=0,nprocs-1
+              do k=kminl,kmaxl
+                  kg=np*nl+(k-kminl+1)
+                  do j=jminl,jmaxl
+                      jg=np*nl+(j-jminl+1)
+                      do i=iminl,imaxl
+                          ig=np*nl+(i-iminl+1)
+                          Ag(ig,jg,kg)=bufg(ii)
+                          ii=ii+1
+                      enddo
+                  enddo
+              enddo
+          enddo
       endif
 
       deallocate(bufl)
-      deallocate(bufg)
+
+      if(myid==0) then
+          deallocate(bufg)
+      endif
 
   end subroutine gathervol
 

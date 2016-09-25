@@ -25,6 +25,14 @@
 
 module daleslib
 
+    implicit none
+
+    integer, parameter :: FIELDID_U=1
+    integer, parameter :: FIELDID_V=2
+    integer, parameter :: FIELDID_W=3
+    integer, parameter :: FIELDID_THL=4
+    integer, parameter :: FIELDID_QT=5
+
     contains
 
         subroutine initialize(path,mpi_comm)
@@ -365,33 +373,79 @@ module daleslib
 
         end subroutine finalize
 
-        function get_field_3d(field_id) result(arr)
+        function grid_shape() result(s)
 
-            use modfields, only: u0,v0,w0,thl0,qt0
             use modglobal, only: itot,jtot,kmax
+
+            implicit none
+
+            integer:: s(3)
+
+            s=(/itot,jtot,kmax/)
+
+        end function
+
+        function allocate_3d(a) result(ierr)
+
+            use modglobal, only: itot,jtot,kmax
+
+            implicit none
+
+            real, allocatable :: a(:,:,:)
+            integer           :: ierr
+
+            ierr=0
+            
+            if(allocated(a)) then
+                deallocate(a,stat=ierr)
+            endif
+            
+            if(ierr/=0) then
+                return
+            endif
+
+            allocate(a(itot,jtot,kmax),stat=ierr)
+
+        end function
+
+            
+        function get_field_3d(field_id,a) result(ierr)
+
+            use modglobal, only: i1,j1,k1,itot,jtot,kmax
+            use modfields, only: u0,v0,w0,thl0,qt0
             use modmpi,    only: gathervol
 
             implicit none
 
+            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
             integer, intent(in)             :: field_id
-            real, allocatable               :: arr(:,:,:)
+            real, intent(inout)             :: a(itot,jtot,kmax)
 
-            allocate(arr(itot,jtot,kmax))
+            ! Local array sizes, without ghost cells:
+            iminl=2
+            imaxl=i1
+            jminl=2
+            jmaxl=j1
+            kminl=1
+            kmaxl=k1-1
+
+            ierr=0
 
             select case(field_id)
-            case(1)
-                call gathervol(u0,arr)
-            case(2)
-                call gathervol(v0,arr)
-            case(3)
-                call gathervol(w0,arr)
-            case(4)
-                call gathervol(thl0,arr)
-            case(5)
-                call gathervol(qt0,arr)
-                ! TODO: default case, error code?
+            case(FIELDID_U)
+                call gathervol(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
+            case(FIELDID_V)
+                call gathervol(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
+            case(FIELDID_W)
+                call gathervol(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
+            case(FIELDID_THL)
+                call gathervol(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
+            case(FIELDID_QT)
+                call gathervol(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
+            case default
+                ierr=1
             end select
 
-        end function get_field_3d
+        end function
 
     end module daleslib
