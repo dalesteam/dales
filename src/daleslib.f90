@@ -385,29 +385,6 @@ module daleslib
 
         end function
 
-        function allocate_3d(a) result(ierr)
-
-            use modglobal, only: itot,jtot,kmax
-
-            implicit none
-
-            real, allocatable :: a(:,:,:)
-            integer           :: ierr
-
-            ierr=0
-            
-            if(allocated(a)) then
-                deallocate(a,stat=ierr)
-            endif
-            
-            if(ierr/=0) then
-                return
-            endif
-
-            allocate(a(itot,jtot,kmax),stat=ierr)
-
-        end function
-
         function allocate_z_axis(a) result(ierr)
 
             use modglobal, only: kmax
@@ -431,6 +408,52 @@ module daleslib
 
         end function
 
+        function allocate_2d(a) result(ierr)
+
+            use modglobal, only: itot,jtot
+
+            implicit none
+
+            real, allocatable :: a(:,:)
+            integer           :: ierr
+
+            ierr=0
+            
+            if(allocated(a)) then
+                deallocate(a,stat=ierr)
+            endif
+            
+            if(ierr/=0) then
+                return
+            endif
+
+            allocate(a(itot,jtot),stat=ierr)
+
+        end function
+        
+        function allocate_3d(a) result(ierr)
+
+            use modglobal, only: itot,jtot,kmax
+
+            implicit none
+
+            real, allocatable :: a(:,:,:)
+            integer           :: ierr
+
+            ierr=0
+            
+            if(allocated(a)) then
+                deallocate(a,stat=ierr)
+            endif
+            
+            if(ierr/=0) then
+                return
+            endif
+
+            allocate(a(itot,jtot,kmax),stat=ierr)
+
+        end function
+
         function get_field_layer_avg(field_id,a) result(ierr)
 
             use modglobal, only: i1,j1,k1,itot,jtot,kmax
@@ -441,7 +464,7 @@ module daleslib
 
             integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
             integer, intent(in)             :: field_id
-            real, intent(inout)             :: a(kmax)
+            real, intent(out)               :: a(kmax)
 
             ! Local array sizes, without ghost cells:
             iminl=2
@@ -480,7 +503,7 @@ module daleslib
 
             integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
             integer, intent(in)             :: field_id
-            real, intent(inout)             :: a(itot,jtot,kmax)
+            real, intent(out)               :: a(itot,jtot,kmax)
 
             ! Local array sizes, without ghost cells:
             iminl=2
@@ -503,6 +526,46 @@ module daleslib
                 call gathervol(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
             case(FIELDID_QT)
                 call gathervol(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
+            case default
+                ierr=1
+            end select
+
+        end function
+
+        function get_field_2d(field_id,klev,a) result(ierr)
+
+            use modglobal, only: i1,j1,k1,itot,jtot
+            use modfields, only: u0,v0,w0,thl0,qt0
+            use modmpi,    only: gatherslab
+
+            implicit none
+
+            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,&
+                                             & kminl,kmaxl
+            integer, intent(in)             :: field_id,klev
+            real, intent(out)               :: a(itot,jtot)
+
+            ! Local array sizes, without ghost cells:
+            iminl=2
+            imaxl=i1
+            jminl=2
+            jmaxl=j1
+            kminl=1
+            kmaxl=k1-1
+
+            ierr=0
+
+            select case(field_id)
+            case(FIELDID_U)
+                call gatherslab(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
+            case(FIELDID_V)
+                call gatherslab(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
+            case(FIELDID_W)
+                call gatherslab(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
+            case(FIELDID_THL)
+                call gatherslab(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
+            case(FIELDID_QT)
+                call gatherslab(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
             case default
                 ierr=1
             end select

@@ -508,13 +508,12 @@ contains
   subroutine gatherlayeravg(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,kmaxg)
       implicit none
 
-      integer               :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,kmaxg,&
-                              &nkl,nh,ii
-      real                  :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl),&
-                              &Ag(kmaxg)
+      integer, intent(in)   :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,kmaxg
+      real, intent(in)      :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl)
+      real, intent(out)     :: Ag(kmaxg)
+      integer               :: nkl,nh,ii
       real, allocatable     :: bufl(:)
 
-      write(*,*) "Filling local buffer..."
       nkl=kmaxl-kminl+1
       nh=(imaxl-iminl+1)*(jmaxl-jminl+1)
       allocate(bufl(nkl))
@@ -522,30 +521,30 @@ contains
           bufl(ii)=sum(Al(iminl:imaxl,jminl:jmaxl,ii+kminl-1))/nh
       enddo
       
-      write(*,*) "Setting global buffer to zero..."
       if(myid==0) then
           Ag=0
       endif
 
 
-      write(*,*) "Calling mpi reduce..."
-      write(*,*) "layers: ",size(bufl)," = ",size(Ag)
       call MPI_REDUCE(bufl,Ag,nkl,MY_REAL,MPI_SUM,0,comm3d,mpierr)
 
       deallocate(bufl)
 
-      write(*,*) "Taking average..."
-      Ag=Ag/nprocs
+      if(myid==0) then
+          Ag=Ag/nprocs
+      endif
+
   end subroutine gatherlayeravg
 
   ! Retrieves the local array Al and stores it in the global array Ag
   subroutine gathervol(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,imaxg,jmaxg,kmaxg)
       implicit none
 
-      integer               :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,imaxg,&
-                              &jmaxg,kmaxg,nl,ng,np,i,j,k,ig,jg,kg,ii
-      real                  :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl),&
-                              &Ag(imaxg,jmaxg,kmaxg)
+      integer, intent(in)   :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,imaxg,&
+                              &jmaxg,kmaxg
+      real, intent(in)      :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl)
+      real, intent(out)     :: Ag(imaxg,jmaxg,kmaxg)
+      integer               :: nl,ng,npx,npy,i,j,k,itot,jtot,ktot,ii
       real,allocatable      :: bufl(:),bufg(:)
 
       nl=(imaxl-iminl+1)*(jmaxl-jminl+1)*(kmaxl-kminl+1)
@@ -571,15 +570,17 @@ contains
 
       if(myid==0) then
           ii=1
-          do np=0,nprocs-1
-              do k=kminl,kmaxl
-                  kg=np*nl+(k-kminl+1)
-                  do j=jminl,jmaxl
-                      jg=np*nl+(j-jminl+1)
-                      do i=iminl,imaxl
-                          ig=np*nl+(i-iminl+1)
-                          Ag(ig,jg,kg)=bufg(ii)
-                          ii=ii+1
+          itot=imaxl-iminl+1
+          jtot=jmaxl-jminl+1
+          ktot=kmaxl-kminl+1
+          do npy=1,nprocy
+              do npx=1,nprocx
+                  do k=1,ktot
+                      do j=1,jtot
+                          do i=1,itot
+                              Ag((npx-1)*itot+i,(npy-1)*jtot+j,k)=bufg(ii)
+                              ii=ii+1
+                          enddo
                       enddo
                   enddo
               enddo
@@ -593,5 +594,60 @@ contains
       endif
 
   end subroutine gathervol
+
+  ! Retrieves klev-slab of the local array Al and stores it in the global array Ag
+  subroutine gatherslab(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,Ag,imaxg,jmaxg)
+      implicit none
+
+      integer, intent(in)   :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,&
+                             & klev,imaxg,jmaxg
+      real, intent(in)      :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl)
+      real, intent(out)     :: Ag(imaxg,jmaxg)
+
+      integer               :: nl,ng,npx,npy,i,j,itot,jtot,ii
+      real,allocatable      :: bufl(:),bufg(:)
+
+      nl=(imaxl-iminl+1)*(jmaxl-jminl+1)
+      ng=imaxg*jmaxg
+
+      allocate(bufl(nl))
+
+      ii=1
+      do j=jminl,jmaxl
+          do i=iminl,imaxl
+              bufl(ii)=Al(i,j,klev)
+              ii=ii+1
+          enddo
+      enddo
+      
+      if(myid==0) then
+          allocate(bufg(ng))
+      endif
+
+      call MPI_GATHER(bufl,nl,MY_REAL,bufg,nl,MY_REAL,0,comm3d,mpierr)
+
+      if(myid==0) then
+          ii=1
+          itot=imaxl-iminl+1
+          jtot=jmaxl-jminl+1
+          do npy=1,nprocy
+              do npx=1,nprocx
+                  do j=1,jtot
+                      do i=1,itot
+                          Ag((npx-1)*itot+i,(npy-1)*jtot+j)=bufg(ii)
+                          ii=ii+1
+                      enddo
+                  enddo
+              enddo
+          enddo
+      endif
+
+      deallocate(bufl)
+
+      if(myid==0) then
+          deallocate(bufg)
+      endif
+
+  end subroutine gatherslab
 
 end module
