@@ -32,6 +32,8 @@ module daleslib
     integer, parameter :: FIELDID_W=3
     integer, parameter :: FIELDID_THL=4
     integer, parameter :: FIELDID_QT=5
+    
+    integer :: my_task,master_task
 
     contains
 
@@ -40,7 +42,7 @@ module daleslib
             !!----------------------------------------------------------------
             !!     0.0    USE STATEMENTS FOR CORE MODULES
             !!----------------------------------------------------------------
-            use modmpi,             only : initmpicomm
+            use modmpi,             only : initmpicomm,myid
             use modstartup,         only : startup
 
             !----------------------------------------------------------------
@@ -124,6 +126,10 @@ module daleslib
 
             !call initspectra2
             call initcape
+
+            !Set additional library information
+            my_task=myid
+            master_task=0
 
         end subroutine initialize
 
