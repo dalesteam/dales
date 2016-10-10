@@ -49,8 +49,8 @@ program dales_check
     allocate(c(sz))
     ierr=0
 
-    call MPI_BARRIER(commwrld)
-
+    !call MPI_BARRIER(commwrld,ierr)
+    
     do while (timeleft>0 .or. rk3step < 3)
         call step()
         ierr=get_field_3d(fid,a)
