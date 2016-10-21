@@ -35,6 +35,12 @@ module daleslib
     
     integer :: my_task,master_task
 
+    real, allocatable :: u_tend(:)
+    real, allocatable :: v_tend(:)
+    real, allocatable :: thl_tend(:)
+    real, allocatable :: qt_tend(:)
+        
+    
     contains
 
         subroutine initialize(path,mpi_comm)
@@ -131,13 +137,76 @@ module daleslib
             my_task=myid
             master_task=0
 
+            call initdaleslib
+            
         end subroutine initialize
 
+
+        ! allocate arrays for tendencies set through the daleslib interface        
+        subroutine initdaleslib
+          use modglobal, only: itot,jtot,kmax
+          ! use modforces, only: lforce_user
+          implicit none
+
+          allocate(u_tend(1:kmax))
+          allocate(v_tend(1:kmax))
+          allocate(thl_tend(1:kmax))
+          allocate(qt_tend(1:kmax))
+          u_tend = 0
+          v_tend = 0
+          thl_tend = 0
+          qt_tend = 0
+          ! lforce_user = .true.
+          
+        end subroutine initdaleslib
+
+                ! deallocate arrays for tendencies 
+        subroutine exitdaleslib
+          use modglobal, only: itot,jtot,kmax
+          implicit none
+
+          deallocate(u_tend)
+          deallocate(v_tend)
+          deallocate(thl_tend)
+          deallocate(qt_tend)
+          
+        end subroutine exitdaleslib
+
+        subroutine force_tendencies
+          use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs
+          use modfields, only : up,vp,thlp,qtp,svp
+          implicit none
+          integer i,j,k
+
+          !if (myid == 0)
+          print *, "force_tendencies"
+          !print *, "u_tend"
+          !print *, u_tend
+          !print *, i1, j1, kmax
+          
+          !print *, up(:,:,5)
+
+          print*, u_tend(4)
+          print*, u_tend(5)
+          print*, u_tend(6)
+          
+          do k=1,kmax
+             up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 
+             vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k) + v_tend(k) 
+             thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) + thl_tend(k)
+             qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) + qt_tend(k)            
+          enddo
+          !print *, up(:,:,6)
+          
+        end subroutine force_tendencies
+
+
+
+        
         ! Performs a single time step. This is exactly the code inside the time loop of the main program. 
         ! If the adaptive time stepping is enabled, the new time stamp is not guaranteed to be a dt later.
 
         subroutine step
-
             !!----------------------------------------------------------------
             !!     0.0    USE STATEMENTS FOR CORE MODULES
             !!----------------------------------------------------------------
@@ -189,6 +258,9 @@ module daleslib
 
             implicit none
 
+            write (*,*) "STEP !!\n"
+
+                      
             call tstep_update                           ! Calculate new timestep
             call timedep
             call samptend(tend_start,firstterm=.true.)
@@ -219,6 +291,7 @@ module daleslib
             call coriolis !remaining terms of ns equation
             call samptend(tend_coriolis)
             call forces !remaining terms of ns equation
+            call force_tendencies         ! NOTE - not standard DALES, these are our own tendencies
             call samptend(tend_force)
 
             call lstend !large scale forcings
@@ -280,6 +353,7 @@ module daleslib
             call heterostats
 
             call writerestartfiles
+
 
         end subroutine step
 
@@ -376,6 +450,7 @@ module daleslib
             call exitheterostats
             call exitcanopy
             call exitmodules
+            call exitdaleslib
 
         end subroutine finalize
 
@@ -464,7 +539,7 @@ module daleslib
 
             use modglobal, only: i1,j1,k1,itot,jtot,kmax
             use modfields, only: u0,v0,w0,thl0,qt0
-            use modmpi,    only: gatherlayeravg
+            use modmpi,    only: gatherlayeravg, gatherlayeravg2, gatherlayeravg3, myid
 
             implicit none
 
@@ -484,21 +559,93 @@ module daleslib
 
             select case(field_id)
             case(FIELDID_U)
-                call gatherlayeravg(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg2(u0, a)
+               call gatherlayeravg3(u0(2:i1, 2:j1, :), a)
             case(FIELDID_V)
-                call gatherlayeravg(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg2(v0, a)
+               call gatherlayeravg3(v0(2:i1, 2:j1, :), a)
             case(FIELDID_W)
-                call gatherlayeravg(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg2(w0, a)
+               call gatherlayeravg3(w0(2:i1, 2:j1, :), a)
             case(FIELDID_THL)
-                call gatherlayeravg(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg2(thl0, a)
+               call gatherlayeravg3(thl0(2:i1, 2:j1, :), a)
             case(FIELDID_QT)
-                call gatherlayeravg(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
+               !call gatherlayeravg2(qt0, a)
+               call gatherlayeravg3(qt0(2:i1, 2:j1, :), a)
             case default
                 ierr=1
             end select
 
-        end function
+            !if (myid == 0) then
+            !  print *, "get_field_layer_avg returning:"
+            !  print *, a
+            !endif
+          end function get_field_layer_avg
+          
+          function set_field_tendency(field_id,a) result(ierr)
+
+            use modglobal, only: i1,j1,k1,itot,jtot,kmax
+            use modfields, only: u0,v0,w0,thl0,qt0
+            use modmpi,    only: gatherlayeravg
+            use modmpi,    only: comm3d,  my_real, myid
             
+            implicit none
+
+            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
+            integer, intent(in)             :: field_id
+            real, intent(in)               :: a(kmax)
+
+            ! Local array sizes, without ghost cells:
+            iminl=2
+            imaxl=i1
+            jminl=2
+            jmaxl=j1
+            kminl=1
+            kmaxl=k1-1
+
+            ierr=0
+
+            call MPI_BCAST(a, kmaxl, MY_REAL, 0, comm3d, ierr)
+            
+            select case(field_id)
+            case(FIELDID_U)
+               if(myid == 0) then
+                  print *, "set_field_tendency U"
+                  print *, a
+                endif
+               u_tend = a
+               if(myid == 0) then
+                  print *, u_tend
+                  print *, "u_tend(1)"
+                  print *, u_tend(1)
+                  print *, "u_tend(2)"
+                  print *, u_tend(2)
+
+               endif
+            case(FIELDID_V)
+               v_tend = a
+            case(FIELDID_W)
+               print *, "No tendency setting for w at the moment :("
+               ierr = 1
+            case(FIELDID_THL)
+               thl_tend = a
+            case(FIELDID_QT)
+               qt_tend = a
+            case default
+                ierr=1 
+            end select
+
+        end function
+
+        
+
+        
         function get_field_3d(field_id,a) result(ierr)
 
             use modglobal, only: i1,j1,k1,itot,jtot,kmax
