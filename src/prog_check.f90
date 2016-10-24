@@ -18,10 +18,14 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+
+! currently broken - FJ changed the fortran interface functions
 program dales_check
 
-    use daleslib,  only: initialize,step,finalize,grid_shape,get_field_3d,&
-                        &get_field_layer_avg,get_field_2d,FIELDID_QT
+    use daleslib,  only: initialize,step,finalize,grid_shape,& !get_field_3d,&
+                         FIELDID_QT
+    !&get_field_layer_avg,get_field_2d,
+    
     use modglobal, only: timeleft,rk3step
     use modmpi,    only: myid,commwrld
 
@@ -53,15 +57,15 @@ program dales_check
     
     do while (timeleft>0 .or. rk3step < 3)
         call step()
-        ierr=get_field_3d(fid,a)
-        ierr=get_field_layer_avg(fid,c)
+!        ierr=get_field_3d(fid,a)
+!        ierr=get_field_layer_avg(fid,c)
         if(myid==0) then
             write(*,*) 'delta ca           delta cb'
         endif
         abserra=0
         abserrb=0
         do i=1,sz
-            ierr=get_field_2d(fid,i,b)
+!            ierr=get_field_2d(fid,i,b)
             ca=sum(a(:,:,i))/(sx*sy)
             cb=sum(b)/(sx*sy)
             abserra=max(abserra,abs(c(i)-ca))

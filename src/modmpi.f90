@@ -438,7 +438,7 @@ contains
   return
   end subroutine excjs
 
-  subroutine slabsum(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+   subroutine slabsum(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
     implicit none
 
     integer :: ks,kf
@@ -464,7 +464,7 @@ contains
     return
   end subroutine slabsum
 
-  ! Gather a variable l(imax,jmax) along a row (ie. constant myidy)
+    ! Gather a variable l(imax,jmax) along a row (ie. constant myidy)
   ! into              g(itot,jmax) at the processor with myix=0
 
   subroutine gatherrow(l,g,imax,jmax,itot)
@@ -503,214 +503,8 @@ contains
     endif
 
   end subroutine gatherrow
-  
-  ! Retrieves the z-layer average of the given array
-  ! NOTE: this routine breaks if the dimensions passed in are not the dimensions of the original array
-  
-  subroutine gatherlayeravg(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,kmaxg)
-      implicit none
-
-      integer, intent(in)   :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,kmaxg
-      real, intent(in)      :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl)
-      real, intent(out)     :: Ag(kmaxg)
-      integer               :: nkl,nh,ii
-      real, allocatable     :: bufl(:)
-
-      nkl=kmaxl-kminl+1
-      nh=(imaxl-iminl+1)*(jmaxl-jminl+1)
-      allocate(bufl(nkl))
-      do ii=1,nkl
-          bufl(ii)=sum(Al(iminl:imaxl,jminl:jmaxl,ii+kminl-1))/nh
-      enddo
-      
-      if(myid==0) then
-          Ag=0
-      endif
 
 
-      call MPI_REDUCE(bufl,Ag,nkl,MY_REAL,MPI_SUM,0,comm3d,mpierr)
-
-      deallocate(bufl)
-
-      if(myid==0) then
-          Ag=Ag/nprocs
-      endif
-
-    end subroutine gatherlayeravg
-
-    ! Retrieves the z-layer average of the given array
-    ! Al : input field, 3d.  
-    ! Ag : output vector, 1d, in Z
-    ! averages Al(2:i1,2:j1,k)  for k=1...k1
-    subroutine gatherlayeravg2(Al,Ag)
-      use modglobal, only : i1, j1, k1
-      implicit none
-      real, intent(in)      :: Al(:,:,:)
-      real, intent(out)     :: Ag(:)
-      integer               :: k, nh
-      real, allocatable     :: bufl(:)
-
-     
-      nh=(i1-1)*(j1-1)
-      
-      allocate(bufl(1:k1))
-      
-      do k=1,k1
-          bufl(k)=sum(Al(2:i1,2:j1,k)) / nh
-      enddo
-      
-      if(myid==0) then
-          Ag=0
-      endif
-
-      call MPI_REDUCE(bufl,Ag,k1,MY_REAL,MPI_SUM,0,comm3d,mpierr)
-
-      deallocate(bufl)
-
-      if(myid==0) then
-          Ag=Ag/nprocs
-      endif
-
-  end subroutine gatherlayeravg2
-
-  ! Retrieves the z-layer average of the given array
-  ! Al : input field, 3d.  
-  ! Ag : output vector, 1d, in Z direction. Assumed to be as high as Al
-  ! NOTE averages the FULL input array - if less is wanted, pass a slice !
-  subroutine gatherlayeravg3(Al,Ag)
-    implicit none
-    real, intent(in)      :: Al(:,:,:)
-    real, intent(out)     :: Ag(:)
-    integer               :: k, nk
-
-    nk = size(Al ,3)
-    Ag = (/ (sum(Al(:,:,k)), k=1,nk) /)     ! sum layers of Al
-
-    !in-place reduction
-    if (myid == 0) then
-       CALL mpi_reduce(MPI_IN_PLACE, Ag, nk, MY_REAL, MPI_SUM, 0, comm3d, mpierr)
-    else
-       CALL mpi_reduce(          Ag, Ag, nk, MY_REAL, MPI_SUM, 0, comm3d, mpierr)
-    endif
-
-    if (myid == 0) then
-       Ag = Ag / (size(Al,1) * size(Al,2) * nprocs)
-    endif
-  end subroutine gatherlayeravg3
-
-  
-  ! Retrieves the local array Al and stores it in the global array Ag
-  subroutine gathervol(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,Ag,imaxg,jmaxg,kmaxg)
-      implicit none
-
-      integer, intent(in)   :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,imaxg,&
-                              &jmaxg,kmaxg
-      real, intent(in)      :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl)
-      real, intent(out)     :: Ag(imaxg,jmaxg,kmaxg)
-      integer               :: nl,ng,npx,npy,i,j,k,itot,jtot,ktot,ii
-      real,allocatable      :: bufl(:),bufg(:)
-
-      nl=(imaxl-iminl+1)*(jmaxl-jminl+1)*(kmaxl-kminl+1)
-      ng=imaxg*jmaxg*kmaxg
-
-      allocate(bufl(nl))
-
-      ii=1
-      do k=kminl,kmaxl
-          do j=jminl,jmaxl
-              do i=iminl,imaxl
-                  bufl(ii)=Al(i,j,k)
-                  ii=ii+1
-              enddo
-          enddo
-      enddo
-      
-      if(myid==0) then
-          allocate(bufg(ng))
-      endif
-
-      call MPI_GATHER(bufl,nl,MY_REAL,bufg,nl,MY_REAL,0,comm3d,mpierr)
-
-      if(myid==0) then
-          ii=1
-          itot=imaxl-iminl+1
-          jtot=jmaxl-jminl+1
-          ktot=kmaxl-kminl+1
-          do npy=1,nprocy
-              do npx=1,nprocx
-                  do k=1,ktot
-                      do j=1,jtot
-                          do i=1,itot
-                              Ag((npx-1)*itot+i,(npy-1)*jtot+j,k)=bufg(ii)
-                              ii=ii+1
-                          enddo
-                      enddo
-                  enddo
-              enddo
-          enddo
-      endif
-
-      deallocate(bufl)
-
-      if(myid==0) then
-          deallocate(bufg)
-      endif
-
-  end subroutine gathervol
-
-  ! Retrieves klev-slab of the local array Al and stores it in the global array Ag
-  subroutine gatherslab(Al,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,Ag,imaxg,jmaxg)
-      implicit none
-
-      integer, intent(in)   :: iminl,imaxl,jminl,jmaxl,kminl,kmaxl,&
-                             & klev,imaxg,jmaxg
-      real, intent(in)      :: Al(iminl:imaxl,jminl:jmaxl,kminl:kmaxl)
-      real, intent(out)     :: Ag(imaxg,jmaxg)
-
-      integer               :: nl,ng,npx,npy,i,j,itot,jtot,ii
-      real,allocatable      :: bufl(:),bufg(:)
-
-      nl=(imaxl-iminl+1)*(jmaxl-jminl+1)
-      ng=imaxg*jmaxg
-
-      allocate(bufl(nl))
-
-      ii=1
-      do j=jminl,jmaxl
-          do i=iminl,imaxl
-              bufl(ii)=Al(i,j,klev)
-              ii=ii+1
-          enddo
-      enddo
-      
-      if(myid==0) then
-          allocate(bufg(ng))
-      endif
-
-      call MPI_GATHER(bufl,nl,MY_REAL,bufg,nl,MY_REAL,0,comm3d,mpierr)
-
-      if(myid==0) then
-          ii=1
-          itot=imaxl-iminl+1
-          jtot=jmaxl-jminl+1
-          do npy=1,nprocy
-              do npx=1,nprocx
-                  do j=1,jtot
-                      do i=1,itot
-                          Ag((npx-1)*itot+i,(npy-1)*jtot+j)=bufg(ii)
-                          ii=ii+1
-                      enddo
-                  enddo
-              enddo
-          enddo
-      endif
-
-      deallocate(bufl)
-
-      if(myid==0) then
-          deallocate(bufg)
-      endif
-
-  end subroutine gatherslab
-
-end module
+    
+    
+end module modmpi

@@ -1,3 +1,4 @@
 *.txt.swp
 *.syntastic_config
 /output
+*~

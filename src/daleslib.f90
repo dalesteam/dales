@@ -144,7 +144,7 @@ module daleslib
 
         ! allocate arrays for tendencies set through the daleslib interface        
         subroutine initdaleslib
-          use modglobal, only: itot,jtot,kmax
+          use modglobal, only: kmax
           ! use modforces, only: lforce_user
           implicit none
 
@@ -162,7 +162,6 @@ module daleslib
 
                 ! deallocate arrays for tendencies 
         subroutine exitdaleslib
-          use modglobal, only: itot,jtot,kmax
           implicit none
 
           deallocate(u_tend)
@@ -173,31 +172,17 @@ module daleslib
         end subroutine exitdaleslib
 
         subroutine force_tendencies
-          use modglobal, only : i1,j1,kmax,dzh,nsv,lmomsubs
-          use modfields, only : up,vp,thlp,qtp,svp
+          use modglobal, only : i1,j1,kmax
+          use modfields, only : up,vp,thlp,qtp
           implicit none
-          integer i,j,k
+          integer k
 
-          !if (myid == 0)
-          print *, "force_tendencies"
-          !print *, "u_tend"
-          !print *, u_tend
-          !print *, i1, j1, kmax
-          
-          !print *, up(:,:,5)
-
-          print*, u_tend(4)
-          print*, u_tend(5)
-          print*, u_tend(6)
-          
           do k=1,kmax
              up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 
              vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k) + v_tend(k) 
              thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) + thl_tend(k)
              qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) + qt_tend(k)            
           enddo
-          !print *, up(:,:,6)
-          
         end subroutine force_tendencies
 
 
@@ -258,7 +243,6 @@ module daleslib
 
             implicit none
 
-            write (*,*) "STEP !!\n"
 
                       
             call tstep_update                           ! Calculate new timestep
@@ -535,194 +519,102 @@ module daleslib
 
         end function
 
-        function get_field_layer_avg(field_id,a) result(ierr)
 
-            use modglobal, only: i1,j1,k1,itot,jtot,kmax
-            use modfields, only: u0,v0,w0,thl0,qt0
-            use modmpi,    only: gatherlayeravg, gatherlayeravg2, gatherlayeravg3, myid
+    ! Retrieves the z-layer average of the given array
+    ! Al : input field, 3d.  
+    ! Ag : output vector, 1d, in Z
+    ! averages Al(2:i1,2:j1,k)  for k=1...k1
+    subroutine gatherlayeravg(Al,Ag)
+      use modglobal, only : i1, j1, k1, itot, jtot
+      use mpi
+      use modmpi, only: comm3d, my_real, mpierr, myid
+      real, intent(in)      :: Al(:,:,:)
+      real, intent(out)     :: Ag(:)
+      integer               :: k
 
-            implicit none
+      Ag = (/ (sum(Al(2:i1,2:j1,k)), k=1,k1) /)     ! sum layers of Al
 
-            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
-            integer, intent(in)             :: field_id
-            real, intent(out)               :: a(kmax)
+      !in-place reduction
+      if (myid == 0) then
+         CALL mpi_reduce(MPI_IN_PLACE, Ag, k1, MY_REAL, MPI_SUM, 0, comm3d, mpierr)
+      else
+         CALL mpi_reduce(          Ag, Ag, k1, MY_REAL, MPI_SUM, 0, comm3d, mpierr)
+      endif
+    
+      if(myid==0) then
+          Ag=Ag/(itot*jtot)
+      endif
 
-            ! Local array sizes, without ghost cells:
-            iminl=2
-            imaxl=i1
-            jminl=2
-            jmaxl=j1
-            kminl=1
-            kmaxl=k1-1
+    end subroutine gatherlayeravg
 
-            ierr=0
+    ! Retrieves the z-layer average of the given array
+    ! Al : input field, 3d.  
+    ! Ag : output vector, 1d, in Z direction. Assumed to be as high as Al
+    ! NOTE averages the FULL input array - if less is wanted, pass a slice !
+    subroutine gatherlayeravg2(Al,Ag)
+      use mpi
+      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      real, intent(in)      :: Al(:,:,:)
+      real, intent(out)     :: Ag(:)
+      integer               :: k, nk
 
-            select case(field_id)
-            case(FIELDID_U)
-               !call gatherlayeravg(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
-               !call gatherlayeravg2(u0, a)
-               call gatherlayeravg3(u0(2:i1, 2:j1, :), a)
-            case(FIELDID_V)
-               !call gatherlayeravg(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
-               !call gatherlayeravg2(v0, a)
-               call gatherlayeravg3(v0(2:i1, 2:j1, :), a)
-            case(FIELDID_W)
-               !call gatherlayeravg(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
-               !call gatherlayeravg2(w0, a)
-               call gatherlayeravg3(w0(2:i1, 2:j1, :), a)
-            case(FIELDID_THL)
-               !call gatherlayeravg(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
-               !call gatherlayeravg2(thl0, a)
-               call gatherlayeravg3(thl0(2:i1, 2:j1, :), a)
-            case(FIELDID_QT)
-               !call gatherlayeravg(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,kmax)
-               !call gatherlayeravg2(qt0, a)
-               call gatherlayeravg3(qt0(2:i1, 2:j1, :), a)
-            case default
-                ierr=1
-            end select
+      nk = size(Al, 3)
+      Ag = (/ (sum(Al(:,:,k)), k=1,nk) /)     ! sum layers of Al
+      
+      !in-place reduction
+      if (myid == 0) then
+         CALL mpi_reduce(MPI_IN_PLACE, Ag, nk, MY_REAL, MPI_SUM, 0, comm3d, mpierr)
+      else
+         CALL mpi_reduce(          Ag, Ag, nk, MY_REAL, MPI_SUM, 0, comm3d, mpierr)
+      endif
+      
+      if (myid == 0) then
+         Ag = Ag / (size(Al,1) * size(Al,2) * nprocs)
+      endif
+    end subroutine gatherlayeravg2
+    
+ 
+  
+    ! getter function for 3D field data
+    ! g_i, g_j, g_k are index arrays
+    ! data from the specified field is extracted and returned in a
+    ! a(r) = field(g_(r), g_j(r), g_k(r))
+    !
+    ! Assumptions: the indexing arrays are 0-based, as generated by numpy
+    !              the data is stored in field(2:i1,2:j1,1:kmax)
+    function gathervol(g_i,g_j,g_k,a,n,field) result(ret)
+      !use modmpi, only: myidx, myidy, nprocx, nprocy
+      
+      use modglobal, only: imax, jmax, kmax, i1, j1
+      use mpi
+      use modmpi, only: myidx, myidy, comm3d, my_real, myid
+      
+      integer, intent(in)                 :: n
+      integer, dimension(n), intent(in)   :: g_i,g_j,g_k
+      real,    dimension(n), intent(out)  :: a
+      real,    intent(in)                 :: field (:,:,:)
+      integer                             :: r, i, j, k, ret
+      
+      ! store the data that belongs to "my" chunk or 0
+      ! this is reduced with SUM, yielding the full data
+      do r = 1,n
+         i = g_i(r) - myidx * imax + 2
+         j = g_j(r) - myidy * jmax + 2 
+         k = g_k(r)                + 1
+         if (i >= 2 .and. i <= i1 .and. j >= 2 .and. j <= j1 .and. k >= 1 .and. k <= kmax) then
+            a(r) = field(i,j,k)
+         else
+            a(r) = 0
+         endif
+      enddo
+      
+      !in-place reduction
+      if (myid == 0) then
+         CALL mpi_reduce(MPI_IN_PLACE, a, n, MY_REAL, MPI_SUM, 0, comm3d, ret)
+      else
+         CALL mpi_reduce(           a, a, n, MY_REAL, MPI_SUM, 0, comm3d, ret)
+      endif
+      
+    end function gathervol
 
-            !if (myid == 0) then
-            !  print *, "get_field_layer_avg returning:"
-            !  print *, a
-            !endif
-          end function get_field_layer_avg
-          
-          function set_field_tendency(field_id,a) result(ierr)
-
-            use modglobal, only: i1,j1,k1,itot,jtot,kmax
-            use modfields, only: u0,v0,w0,thl0,qt0
-            use modmpi,    only: gatherlayeravg
-            use modmpi,    only: comm3d,  my_real, myid
-            
-            implicit none
-
-            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
-            integer, intent(in)             :: field_id
-            real, intent(in)               :: a(kmax)
-
-            ! Local array sizes, without ghost cells:
-            iminl=2
-            imaxl=i1
-            jminl=2
-            jmaxl=j1
-            kminl=1
-            kmaxl=k1-1
-
-            ierr=0
-
-            call MPI_BCAST(a, kmaxl, MY_REAL, 0, comm3d, ierr)
-            
-            select case(field_id)
-            case(FIELDID_U)
-               if(myid == 0) then
-                  print *, "set_field_tendency U"
-                  print *, a
-                endif
-               u_tend = a
-               if(myid == 0) then
-                  print *, u_tend
-                  print *, "u_tend(1)"
-                  print *, u_tend(1)
-                  print *, "u_tend(2)"
-                  print *, u_tend(2)
-
-               endif
-            case(FIELDID_V)
-               v_tend = a
-            case(FIELDID_W)
-               print *, "No tendency setting for w at the moment :("
-               ierr = 1
-            case(FIELDID_THL)
-               thl_tend = a
-            case(FIELDID_QT)
-               qt_tend = a
-            case default
-                ierr=1 
-            end select
-
-        end function
-
-        
-
-        
-        function get_field_3d(field_id,a) result(ierr)
-
-            use modglobal, only: i1,j1,k1,itot,jtot,kmax
-            use modfields, only: u0,v0,w0,thl0,qt0
-            use modmpi,    only: gathervol
-
-            implicit none
-
-            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,kminl,kmaxl
-            integer, intent(in)             :: field_id
-            real, intent(out)               :: a(itot,jtot,kmax)
-
-            ! Local array sizes, without ghost cells:
-            iminl=2
-            imaxl=i1
-            jminl=2
-            jmaxl=j1
-            kminl=1
-            kmaxl=k1-1
-
-            ierr=0
-
-            select case(field_id)
-            case(FIELDID_U)
-                call gathervol(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
-            case(FIELDID_V)
-                call gathervol(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
-            case(FIELDID_W)
-                call gathervol(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
-            case(FIELDID_THL)
-                call gathervol(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
-            case(FIELDID_QT)
-                call gathervol(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,a,itot,jtot,kmax)
-            case default
-                ierr=1
-            end select
-
-        end function
-
-        function get_field_2d(field_id,klev,a) result(ierr)
-
-            use modglobal, only: i1,j1,k1,itot,jtot
-            use modfields, only: u0,v0,w0,thl0,qt0
-            use modmpi,    only: gatherslab
-
-            implicit none
-
-            integer                         :: ierr,iminl,imaxl,jminl,jmaxl,&
-                                             & kminl,kmaxl
-            integer, intent(in)             :: field_id,klev
-            real, intent(out)               :: a(itot,jtot)
-
-            ! Local array sizes, without ghost cells:
-            iminl=2
-            imaxl=i1
-            jminl=2
-            jmaxl=j1
-            kminl=1
-            kmaxl=k1-1
-
-            ierr=0
-
-            select case(field_id)
-            case(FIELDID_U)
-                call gatherslab(u0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
-            case(FIELDID_V)
-                call gatherslab(v0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
-            case(FIELDID_W)
-                call gatherslab(w0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
-            case(FIELDID_THL)
-                call gatherslab(thl0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
-            case(FIELDID_QT)
-                call gatherslab(qt0,iminl,imaxl,jminl,jmaxl,kminl,kmaxl,klev,a,itot,jtot)
-            case default
-                ierr=1
-            end select
-
-        end function
-
-    end module daleslib
+end module daleslib
