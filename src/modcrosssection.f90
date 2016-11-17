@@ -293,6 +293,7 @@ contains
 
     if (lnetcdf) then
       allocate(vars(1:imax,1:kmax,nvar))
+      vars = 0.
       vars(:,:,1) = u0(2:i1,crossplane,1:kmax)+cu
       vars(:,:,2) = v0(2:i1,crossplane,1:kmax)+cv
       vars(:,:,3) = w0(2:i1,crossplane,1:kmax)
@@ -304,7 +305,7 @@ contains
       if(nsv>1) then
       vars(:,:,9) = sv0(2:i1,crossplane,1:kmax,2)
       vars(:,:,10) = sv0(2:i1,crossplane,1:kmax,1)
-      vars(:,:,11) = Dvr(2:i1,crossplane,1:kmax)
+      !vars(:,:,11) = Dvr(2:i1,crossplane,1:kmax)
       else
       vars(:,:,9) = 0.
       vars(:,:,10) = 0.
@@ -408,9 +409,9 @@ contains
       vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
       vars(:,:,8) = buoy(2:i1,2:j1,cross)
       if(nsv>1) then
-      vars(:,:,9) = sv0(2:i1,2:j1,crossheight(cross),iqr)
-      vars(:,:,10) = sv0(2:i1,2:j1,crossheight(cross),inr)
-      vars(:,:,11) = Dvr(2:i1,2:j1,crossheight(cross))
+      vars(:,:,9) = sv0(2:i1,2:j1,crossheight(cross),1)
+      vars(:,:,10) = sv0(2:i1,2:j1,crossheight(cross),2)
+      !vars(:,:,11) = Dvr(2:i1,2:j1,crossheight(cross))
       else 
       vars(:,:,9) = 0.
       vars(:,:,10) = 0.
@@ -500,6 +501,7 @@ contains
 
     if (lnetcdf) then
       allocate(vars(1:jmax,1:kmax,nvar))
+      vars = 0.
       vars(:,:,1) = u0(crossortho,2:j1,1:kmax)+cu
       vars(:,:,2) = v0(crossortho,2:j1,1:kmax)+cv
       vars(:,:,3) = w0(crossortho,2:j1,1:kmax)
@@ -511,7 +513,7 @@ contains
       if(nsv>1) then
       vars(:,:,9) = sv0(crossortho,2:j1,1:kmax,2)
       vars(:,:,10) = sv0(crossortho,2:j1,1:kmax,1)
-      vars(:,:,11) = Dvr(crossortho,2:j1,1:kmax)
+      !vars(:,:,11) = Dvr(crossortho,2:j1,1:kmax)
       else 
       vars(:,:,9) = 0.
       vars(:,:,10) = 0.
