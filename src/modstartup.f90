@@ -372,13 +372,13 @@ contains
     integer i,j,k,n
 
     real, allocatable :: height(:), th0av(:)
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
+    real, allocatable :: thv0(:,:,:)
 
     character(80) chmess
 
     allocate (height(k1))
     allocate (th0av(k1))
-
+    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
 
 
     if (.not. lwarmstart) then
@@ -735,7 +735,7 @@ contains
     ntimee  = nint(timee/dtmax)
     itrestart = floor(trestart/tres)
     tnextrestart = btime + itrestart
-    deallocate (height,th0av)
+    deallocate (height,th0av,thv0)
 
 
   end subroutine readinitfiles
