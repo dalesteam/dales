@@ -146,6 +146,11 @@ contains
       close(ifnamopt)
     end if
 
+    ! these must be shared before initmpi sets up the cartesian grid
+    ! commwrld is already set up
+    call MPI_BCAST(nprocx ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(nprocy ,1,MPI_INTEGER,0,commwrld,mpierr)
+
     call initmpi
 
   !broadcast namelists
@@ -159,8 +164,6 @@ contains
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(nprocy     ,1,MPI_INTEGER,0,commwrld,mpierr)
 
     call MPI_BCAST(itot       ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,commwrld,mpierr)
