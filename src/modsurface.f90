@@ -1369,7 +1369,9 @@ contains
 
     E1sum = 0.0
     do k=1,99
-      E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
+      !E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
+       E1sum = E1sum + (-x) ** k / ( k  * factorial(k) )  ! FJ changed this for compilation with cray fortran
+                                                          
     end do
     E1 = -0.57721566490153286060 - log(x) - E1sum
 
