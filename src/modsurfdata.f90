@@ -158,6 +158,10 @@ SAVE
   real, allocatable :: fLE_sqdiffl  (:,:)  !
   real, allocatable :: H_sqdiffl   (:,:)  !
   real, allocatable :: fH_sqdiffl  (:,:)  !
+  real, allocatable :: ra_sqdiffl  (:,:)  !
+  real, allocatable :: fra_sqdiffl (:,:)  !
+  real, allocatable :: rs_sqdiffl  (:,:)  !
+  real, allocatable :: frs_sqdiffl (:,:)  !
  
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS

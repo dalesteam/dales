@@ -452,23 +452,28 @@ subroutine radpar
 
       swd(i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu) ! difuse down + direct down
       swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian) 
-      !swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
-      !swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
+      swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
+      swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
       !###DIR#########
       !we assume all radiation to be direct
       !swdir (i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu)
       !swdif (i,j,k) = 0.0
-      !###############
+      !###END DIR############
       !####DIF########
       !diffuse case,provided there is a cloud
-      if (tauc>0.0) then
-        swdif (i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu)
-        swdir (i,j,k) = 0.0
-      else
-        swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
-        swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
-      end if
-      !################
+      !if (tauc>0.0) then
+      !  swdif (i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu)
+      !  swdir (i,j,k) = 0.0
+      !else
+      !  swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
+      !  swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
+      !end if
+      !###END DIF###########
+      !####DDIF########
+      !we assume all radiation to be diffuse (even when there is no cloud)
+      !swdir (i,j,k) = 0.0
+      !swdif (i,j,k) = (Irr0 + (2./3.)*Irr1) + mu*sw0*exp(-taupath/mu)
+      !###END DDIF########
       lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.
       lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
   end do

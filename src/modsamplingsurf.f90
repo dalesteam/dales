@@ -60,7 +60,8 @@ save
  real, allocatable, dimension(:) :: Qnetavl,Havl,LEavl,G0avl,tendskinavl,rsavl, &
                                     raavl,tskinavl,cliqavl,wlavl,rssoilavl,rsvegavl,Respavl, &
                                     wco2avl,Anavl,gcco2avl,ciavl,co2surfavl,nrsampAGSl,tauavl,swdiravl,swdifavl,&
-                                    An_stdevl,fAn_stdevl,LE_stdevl,fLE_stdevl,H_stdevl,fH_stdevl
+                                    An_stdevl,fAn_stdevl,LE_stdevl,fLE_stdevl,H_stdevl,fH_stdevl,ra_stdevl,&
+                                    fra_stdevl,rs_stdevl,frs_stdevl
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -282,7 +283,9 @@ contains
                rsvegavl   (isamptot),Respavl    (isamptot),wco2avl   (isamptot),Anavl    (isamptot), &
                gcco2avl   (isamptot),ciavl      (isamptot),co2surfavl(isamptot),tauavl   (isamptot), &
                swdiravl   (isamptot),swdifavl   (isamptot),An_stdevl (isamptot),fAn_stdevl(isamptot), &
-               LE_stdevl  (isamptot),fLE_stdevl (isamptot),H_stdevl  (isamptot),fH_stdevl(isamptot))  
+               LE_stdevl  (isamptot),fLE_stdevl (isamptot),H_stdevl  (isamptot),fH_stdevl(isamptot), &
+               ra_stdevl  (isamptot),fra_stdevl (isamptot),rs_stdevl (isamptot),&
+               frs_stdevl (isamptot))
   
  ! initialize variables
       
@@ -314,6 +317,10 @@ contains
       fLE_stdevl  = 0.0
       H_stdevl    = 0.0
       fH_stdevl   = 0.0
+      ra_stdevl    = 0.0
+      fra_stdevl   = 0.0
+      rs_stdevl    = 0.0
+      frs_stdevl   = 0.0
 
       if(myid==0)then
         do isamp = 1,isamptot
@@ -322,11 +329,12 @@ contains
              '#-----------------------------',trim(samplname(isamp)),'tmlsm -------------------------------'      &
              ,'#',timeav,'--- AVERAGING TIMESTEP (s) --- '     
 
-          write(ifoutput,'(4a)') &
+          write(ifoutput,'(5a)') &
              '#     time     nr_samples Qnet        H          LE        G0     ', &
              '   tendskin      rs            ra           tskin     cliq   ', &
              '    Wl           rssoil     rsveg       Resp      wco2         An     gc_CO2        ci     CO2_surf',& 
-             '  cctau    swdir    swdif    stdev_An Fstdev_An stdev_LE Fstdev_LE stdev_H Fstdev_H  '
+             '  cctau    swdir    swdif    stdev_An Fstdev_An stdev_LE Fstdev_LE stdev_H Fstdev_H stdev_ra Fstdev_ra ',&
+             'stdev_rs Fstdev_rs'
           write(ifoutput,'(5a)') &
              '#      [s]     []         [W/m2]     [W/m2]     [W/m2]    [W/m2]   ', &
              '    [W/m2]       [s/m]      [s/m]      [K]         [-]   ', &
@@ -353,7 +361,8 @@ contains
       deallocate( nrsampAGSl,Qnetavl,Havl,LEavl,G0avl,tendskinavl,rsavl,raavl, & 
                   tskinavl,cliqavl,wlavl,rssoilavl,rsvegavl,Respavl,wco2avl,Anavl, &
                   gcco2avl,ciavl,co2surfavl,tauavl,swdiravl,swdifavl,An_stdevl, &
-                  fAn_stdevl,LE_stdevl,fLE_stdevl,H_stdevl,fH_stdevl)  
+                  fAn_stdevl,LE_stdevl,fLE_stdevl,H_stdevl,fH_stdevl,ra_stdevl,&
+                  fra_stdevl,rs_stdevl,frs_stdevl)  
     end if
 
   end subroutine exitsamplingsurf
@@ -390,7 +399,8 @@ contains
                           grav,om22,cu,nsv,zh
     use modsurfdata, only:Qnet,H,LE,G0,tendskin,rs,ra,tskin,cliq,wl,rssoil,rsveg, &
                           AnField,RespField,gcco2Field,ciField,indCO2,wco2Field,cctau,&
-                          fAn_sqdiffl,An_sqdiffl,fLE_sqdiffl,LE_sqdiffl,fH_sqdiffl,H_sqdiffl
+                          fAn_sqdiffl,An_sqdiffl,fLE_sqdiffl,LE_sqdiffl,fH_sqdiffl,H_sqdiffl,&
+                          ra_sqdiffl,fra_sqdiffl,rs_sqdiffl,frs_sqdiffl
     use modfields,   only: w0,thl0,qt0,ql0,thv0h,exnf,svm
     use modraddata,  only:swdir,swdif
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
@@ -407,8 +417,9 @@ contains
     real, allocatable, dimension(:) :: thvhav
 
     integer :: i,j,k,km,kp,iih,iif
-    real    :: fAnavl,fLEavl,fHavl, fnrsampAGSl,nrsampAGSaver
-    real    :: fAnav,fLEav,fHav,fnrsampAGSaver,fAnaver,Anaver,fLEaver,LEaver,fHaver,Haver
+    real    :: fAnavl,fLEavl,fHavl,fraavl,frsavl, fnrsampAGSl,nrsampAGSaver
+    real    :: fAnav,fLEav,fHav,fraav,frsav,fnrsampAGSaver,fAnaver,Anaver,fLEaver,LEaver,&
+               fHaver,Haver,raaver,fraaver,frsaver,rsaver
 
     if (isurf/=1) return
     if (lrsAgs) then
@@ -420,6 +431,8 @@ contains
       allocate (fAn_sqdiffl(2:i1,2:j1),An_sqdiffl(2:i1,2:j1)) 
       allocate (fLE_sqdiffl(2:i1,2:j1),LE_sqdiffl(2:i1,2:j1)) 
       allocate (fH_sqdiffl(2:i1,2:j1),H_sqdiffl(2:i1,2:j1)) 
+      allocate (fra_sqdiffl(2:i1,2:j1),ra_sqdiffl(2:i1,2:j1)) 
+      allocate (frs_sqdiffl(2:i1,2:j1),rs_sqdiffl(2:i1,2:j1)) 
       
       !next thv0 and w0f calculations are already done in modsampling.AGS and
       !variables could be taken from there to speed up the code
@@ -438,6 +451,10 @@ contains
       fLE_sqdiffl = 0.0
       H_sqdiffl = 0.0
       fH_sqdiffl = 0.0
+      ra_sqdiffl = 0.0
+      fra_sqdiffl = 0.0
+      rs_sqdiffl = 0.0
+      frs_sqdiffl = 0.0
  
       thvav = 0.0
       call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -715,22 +732,32 @@ contains
       fAnavl       = sum  (AnField    (2:i1,2:j1),maskAGS(2:i1,2:j1))
       fLEavl       = sum  (LE         (2:i1,2:j1),maskAGS(2:i1,2:j1))
       fHavl        = sum  (H          (2:i1,2:j1),maskAGS(2:i1,2:j1))
+      fraavl       = sum  (ra         (2:i1,2:j1),maskAGS(2:i1,2:j1))
+      frsavl       = sum  (rs         (2:i1,2:j1),maskAGS(2:i1,2:j1))
       fnrsampAGSl  = count(maskAGS    (2:i1,2:j1))
       call MPI_ALLREDUCE(fAnavl          ,fAnav      ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fLEavl          ,fLEav      ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fHavl           ,fHav       ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(fraavl          ,fraav       ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(frsavl          ,frsav       ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fnrsampAGSl     ,fnrsampAGSaver   ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       
       if (fnrsampAGSaver .gt. 0.0) then
         fAnaver = fAnav/fnrsampAGSaver
         fLEaver = fLEav/fnrsampAGSaver
         fHaver  = fHav/fnrsampAGSaver
+        fraaver = fraav/fnrsampAGSaver
+        frsaver = frsav/fnrsampAGSaver
         fAn_sqdiffl(2:i1,2:j1) = (AnField (2:i1,2:j1) - fAnaver) * (AnField(2:i1,2:j1) - fAnaver)
         fLE_sqdiffl(2:i1,2:j1) = (LE      (2:i1,2:j1) - fLEaver) * (LE     (2:i1,2:j1) - fLEaver)
         fH_sqdiffl (2:i1,2:j1) = (H       (2:i1,2:j1) - fHaver) *  (H      (2:i1,2:j1) - fHaver)
+        fra_sqdiffl (2:i1,2:j1) = (ra       (2:i1,2:j1) - fraaver) *  (ra      (2:i1,2:j1) - fraaver)
+        frs_sqdiffl (2:i1,2:j1) = (rs       (2:i1,2:j1) - frsaver) *  (rs      (2:i1,2:j1) - frsaver)
         fAn_stdevl (isamp) = fAn_stdevl(isamp) + sum(fAn_sqdiffl(2:i1,2:j1),maskAGS(2:i1,2:j1)) 
         fLE_stdevl (isamp) = fLE_stdevl(isamp) + sum(fLE_sqdiffl(2:i1,2:j1),maskAGS(2:i1,2:j1)) 
         fH_stdevl (isamp)  = fH_stdevl (isamp) + sum(fH_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1)) 
+        fra_stdevl (isamp)  = fra_stdevl (isamp) + sum(fra_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1)) 
+        frs_stdevl (isamp)  = frs_stdevl (isamp) + sum(frs_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1)) 
       end if
 !!!!!!!!!!
 !!!!!!!!!Option2:if we do dosampling more often than write sampling, every time
@@ -742,6 +769,8 @@ contains
       call MPI_ALLREDUCE(Anavl       ,Anaver         ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(LEavl       ,LEaver         ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(Havl        ,Haver          ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(raavl       ,raaver         ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(rsavl       ,rsaver         ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(nrsampAGSl  ,nrsampAGSaver  ,1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
 !the global domain average is:
@@ -749,18 +778,24 @@ contains
         Anaver= Anaver / nrsampAGSaver
         LEaver= LEaver / nrsampAGSaver
         Haver = Haver  / nrsampAGSaver
+        raaver = raaver  / nrsampAGSaver
+        rsaver = rsaver  / nrsampAGSaver
       
-      !now we calculate the local square differneces:
+      !now we calculate the local square differences:
       
         An_sqdiffl (2:i1,2:j1)= (AnField (2:i1,2:j1) - Anaver) * (AnField (2:i1,2:j1) - Anaver)
         LE_sqdiffl (2:i1,2:j1)= (LE      (2:i1,2:j1) - LEaver) * (LE (2:i1,2:j1) - LEaver)
         H_sqdiffl  (2:i1,2:j1)= (H       (2:i1,2:j1) -  Haver) * (H  (2:i1,2:j1) - Haver)
+        ra_sqdiffl (2:i1,2:j1)= (ra      (2:i1,2:j1) - raaver) * (ra (2:i1,2:j1) - raaver)
+        rs_sqdiffl (2:i1,2:j1)= (rs      (2:i1,2:j1) - rsaver) * (rs (2:i1,2:j1) - rsaver)
       
       !now that we have a field of squared differences, we calculate the local sum of it
       
         An_stdevl (isamp) = An_stdevl(isamp) + sum(An_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1))
         LE_stdevl (isamp) = LE_stdevl(isamp) + sum(LE_sqdiffl (2:i1,2:j1),maskAGS(2:i1,2:j1))
         H_stdevl (isamp)  = H_stdevl(isamp)  + sum(H_sqdiffl  (2:i1,2:j1),maskAGS(2:i1,2:j1))
+        ra_stdevl (isamp)  = ra_stdevl(isamp)  + sum(ra_sqdiffl  (2:i1,2:j1),maskAGS(2:i1,2:j1))
+        rs_stdevl (isamp)  = rs_stdevl(isamp)  + sum(rs_sqdiffl  (2:i1,2:j1),maskAGS(2:i1,2:j1))
       end if
       
 
@@ -768,6 +803,8 @@ contains
       deallocate (fAn_sqdiffl,An_sqdiffl)
       deallocate (fLE_sqdiffl,LE_sqdiffl)
       deallocate (fH_sqdiffl,H_sqdiffl)
+      deallocate (fra_sqdiffl,ra_sqdiffl)
+      deallocate (frs_sqdiffl,rs_sqdiffl)
     end if !lrsAGs
   end subroutine dosamplingsurf
 !> Write the statistics to file
@@ -785,11 +822,13 @@ contains
                                         tskinmn,cliqmn,wlmn,rssoilmn,rsvegmn,Respmn,wco2mn,&
                                         Anmn,gcco2mn,cimn,co2surfmn,taumn,swdirmean,swdifmean,&
                                         An_stdevmn,fAn_stdevmn,LE_stdevmn,fLE_stdevmn,&
-                                        H_stdevmn,fH_stdevmn
+                                        H_stdevmn,fH_stdevmn,ra_stdevmn,fra_stdevmn,&
+                                        rs_stdevmn,frs_stdevmn
     real, allocatable, dimension(:)  :: nrsampAGSav,Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav, &
                                         tskinav,cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,&
                                         Anav,gcco2av,ciav,co2surfav,tauav,swdiraver,swdifaver,&
-                                        An_stdev,fAn_stdev,LE_stdev,fLE_stdev,H_stdev,fH_stdev
+                                        An_stdev,fAn_stdev,LE_stdev,fLE_stdev,H_stdev,fH_stdev,&
+                                        ra_stdev,fra_stdev,rs_stdev,frs_stdev
     integer :: nsecs, nhrs, nminut, k
     integer :: inorm
     if (lrsAgs) then
@@ -799,7 +838,8 @@ contains
                 Respav(isamptot),wco2av(isamptot),Anav(isamptot),gcco2av(isamptot), &
                 ciav(isamptot),co2surfav(isamptot),tauav(isamptot),swdiraver(isamptot), &
                 swdifaver(isamptot),An_stdev(isamptot),fAn_stdev(isamptot),LE_stdev(isamptot), &
-                fLE_stdev(isamptot),H_stdev(isamptot),fH_stdev(isamptot))
+                fLE_stdev(isamptot),H_stdev(isamptot),fH_stdev(isamptot),ra_stdev(isamptot),&
+                fra_stdev(isamptot),rs_stdev(isamptot),frs_stdev(isamptot))
  
       nsecs   = nint(rtimee)
       nhrs    = int(nsecs/3600)
@@ -835,6 +875,10 @@ contains
       call MPI_ALLREDUCE(fLE_stdevl   ,fLE_stdev  ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(H_stdevl     ,H_stdev    ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
       call MPI_ALLREDUCE(fH_stdevl    ,fH_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(ra_stdevl    ,ra_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(fra_stdevl   ,fra_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(rs_stdevl    ,rs_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+      call MPI_ALLREDUCE(frs_stdevl   ,frs_stdev   ,isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
       
     !reset variables
       nrsampAGSl  = 0.0
@@ -865,6 +909,10 @@ contains
       fLE_stdevl  = 0.0
       H_stdevl    = 0.0
       fH_stdevl   = 0.0
+      ra_stdevl   = 0.0
+      fra_stdevl  = 0.0
+      rs_stdevl   = 0.0
+      frs_stdevl  = 0.0
         
         
       if (myid==0) then
@@ -898,6 +946,10 @@ contains
            fLE_stdevmn = 0.0
            H_stdevmn   = 0.0
            fH_stdevmn  = 0.0
+           ra_stdevmn  = 0.0
+           fra_stdevmn  = 0.0
+           rs_stdevmn  = 0.0
+           frs_stdevmn  = 0.0
   
       !normalize variables
   
@@ -931,6 +983,10 @@ contains
              fLE_stdevmn = sqrt(fLE_stdev (isamp)/nrsampAGSav(isamp))
              H_stdevmn   = sqrt(H_stdev   (isamp)/nrsampAGSav(isamp))
              fH_stdevmn  = sqrt(fH_stdev  (isamp)/nrsampAGSav(isamp))
+             ra_stdevmn  = sqrt(ra_stdev  (isamp)/nrsampAGSav(isamp))
+             fra_stdevmn = sqrt(fra_stdev (isamp)/nrsampAGSav(isamp))
+             rs_stdevmn  = sqrt(rs_stdev  (isamp)/nrsampAGSav(isamp))
+             frs_stdevmn = sqrt(frs_stdev (isamp)/nrsampAGSav(isamp))
            endif
            nrsampAGSmn= nrsampAGSav   (isamp)/inorm
   
@@ -938,7 +994,7 @@ contains
     !write files
  !     if (myid==0) then
            open(ifoutput,file=trim(samplname(isamp))//'tmlsm.'//cexpnr,position='append')
-           write(ifoutput,'(f10.0, F11.8,6f11.3,f17.3,2f11.3,e13.3, 5f11.3,e13.3,2f9.2,f8.4,2f9.3,2f11.5,4f8.3)') &
+           write(ifoutput,'(f10.0, F11.8,6f11.3,f18.2,2f11.3,e13.3, 5f11.3,e13.3,2f9.2,f8.4,2f9.3,2f11.5,4f8.3,2f19.2,2f8.3)') &
            rtimee      , &
            nrsampAGSmn , &
            Qnetmn      , &
@@ -967,7 +1023,11 @@ contains
            LE_stdevmn  , &
            fLE_stdevmn , &
            H_stdevmn   , &
-           fH_stdevmn
+           fH_stdevmn  , &  
+           ra_stdevmn  , &  
+           fra_stdevmn , &  
+           rs_stdevmn  , &  
+           frs_stdevmn    
            close(ifoutput)
                          
  
@@ -977,7 +1037,8 @@ contains
       deallocate( nrsampAGSav,Qnetav,Hav,LEav,G0av,tendskinav,rsav,raav,tskinav, &
                   cliqav,wlav,rssoilav,rsvegav,Respav,wco2av,Anav,gcco2av,ciav, &
                   co2surfav,tauav,swdiraver,swdifaver,An_stdev,fAn_stdev, &
-                  LE_stdev,fLE_stdev,H_stdev,fH_stdev)
+                  LE_stdev,fLE_stdev,H_stdev,fH_stdev,ra_stdev,fra_stdev,&
+                  rs_stdev,frs_stdev)
     end if !lrsAgs
   end subroutine writesamplingsurf
 
