@@ -919,7 +919,7 @@ contains
       call system("ln -sf "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m   .'
+        name  = 'inits  h  m        .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
         name(12:19) = cmyid

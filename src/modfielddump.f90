@@ -34,10 +34,11 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 9
+!  integer,parameter :: nvar = 9
+  integer :: nvar ! If we want to include scalars, it cannot be a parameter
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname
+  character(80),allocatable,dimension(:,:) :: ncname
   character(80),dimension(1,4) :: tncname
 
   real    :: dtav
@@ -51,14 +52,19 @@ contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,myidx,myidy
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
+    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres, nsv
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
-    integer :: ierr
+    integer :: ierr, i
+    character(5) :: scalname
 
 
     namelist/NAMFIELDDUMP/ &
     dtav,lfielddump,ldiracc,lbinary,klow,khigh
+ 
+    nvar = 9 + nsv ! 9 is the original number of fields, plus one field for every scalar
+    allocate(ncname(nvar,4))
+
 
     dtav=dtav_glob
     klow=1
@@ -102,6 +108,12 @@ contains
       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
       call ncinfo(ncname( 9,:),'e12','sqrt(SGS TKE)','m/s','tttt')
+      if (nsv > 0) then
+         do i=1,nsv
+            write(scalname,'(A,i3.3)') 'sv', i
+            call ncinfo(ncname( 9+i,:),scalname, scalname,'kg/kg','tttt')
+         enddo
+      endif
       call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
@@ -117,7 +129,7 @@ contains
     use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh, e12m
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
-                          timee,dt_lim,cexpnr,ifoutput,rtimee
+                          timee,dt_lim,cexpnr,ifoutput,rtimee, nsv
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr, imicro, imicro_none
