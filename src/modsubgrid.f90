@@ -36,8 +36,7 @@ save
 
 contains
   subroutine initsubgrid
-    use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar, &
-                          pi,ifnamopt,fname_options
+    use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar,pi
     use modmpi, only : myid
 
     implicit none
@@ -99,8 +98,8 @@ contains
   end subroutine initsubgrid
 
   subroutine subgridnamelist
-    use modglobal, only : pi,ifnamopt,fname_options
-    use modmpi,    only : myid, nprocs, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+    use modglobal, only : ifnamopt,fname_options
+    use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
 
     implicit none
 
@@ -140,10 +139,9 @@ contains
  ! Diffusion subroutines
 ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,nsv, lmoist
+    use modglobal, only : nsv, lmoist
     use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
-    use modsurfdata,only : ustar,thlflux,qtflux,svflux
-    use modmicrodata, only : imicro, imicro_sice, iqr
+    use modsurfdata,only : thlflux,qtflux,svflux
     implicit none
     integer n
 
@@ -199,11 +197,11 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,  only : i1, j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav, zf, fkar, &
-                         dxi,dyi,dzf,dzh,rk3step
-  use modfields,  only : dthvdz,e120,u0,v0,w0,thvf,rhobf
-  use modsurfdata, only : dudz,dvdz,thvs,z0m
-  use modmpi,    only : excjs, myid, nprocs, comm3d, mpierr, my_real, mpi_sum
+  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar, &
+                          dxi,dyi,dzf,dzh
+  use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
+  use modsurfdata, only : dudz,dvdz,z0m
+  use modmpi,      only : excjs
   implicit none
 
   real    :: strain2,mlen
@@ -244,7 +242,7 @@ contains
             strain2 = strain2 + 0.5 * ( &
               ( 0.25*(w0(i,jp,kp)-w0(i,jm,kp))*dyi + &
               dvdz(i,j)   )**2 )
-      
+
           else
 
             strain2 =  ( &
@@ -359,14 +357,14 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,zf,dzh,grav, cu, cv
-  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvh,rhobf,thvf
+  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav, cu, cv
+  use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
   use modsurfdata,  only : dudz,dvdz,ustar,thlflux
   use modsubgriddata, only: sgs_surface_fix
 
   implicit none
 
-  real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz
+  real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz, horv
   integer i,j,k,jm,jp,km,kp
 
 
@@ -442,11 +440,14 @@ contains
           + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive consistent
-          ! gradient (such that
-          ! correct flux will occur in shear production term)
-          uwflux = -ustar(i,j)*ustar(i,j)* &
-              (u0(i,j,1)+cu)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
+          ! Use known surface flux and exchange coefficient to derive 
+          ! consistent gradient (such that correct flux will occur in 
+          ! shear production term)
+          ! Make sure that no division by zero occurs in determination of the
+          ! directional component; ekm should already be >= ekmin
+          ! Replace the dudz by surface flux -uw / ekm
+          horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
+          uwflux = -ustar(i,j)*ustar(i,j)* ((u0(i,j,1)+cu)/horv)
           local_dudz = -uwflux / ekm(i,j,1)
           tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
                local_dudz )**2
@@ -463,9 +464,14 @@ contains
                                  (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
 
     if (sgs_surface_fix) then
-          ! replace the dvdz by surface flux -vw / ekm
-          vwflux = -ustar(i,j)*ustar(i,j)* &
-              (v0(i,j,1)+cv)/sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2)
+          ! Use known surface flux and exchange coefficient to derive 
+          ! consistent gradient (such that correct flux will occur in 
+          ! shear production term)
+          ! Make sure that no division by zero occurs in determination of the
+          ! directional component; ekm should already be >= ekmin
+          ! Replace the dvdz by surface flux -vw / ekm
+          horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
+          vwflux = -ustar(i,j)*ustar(i,j)* ((v0(i,j,1)+cv)/horv)
           local_dvdz = -vwflux / ekm(i,j,1)
           tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
                         local_dvdz  )**2
@@ -478,7 +484,7 @@ contains
 
     sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
     if (sgs_surface_fix) then
-          ! replace the -ekh *  dthvdz by the surface flux of thv
+          ! Replace the -ekh *  dthvdz by the surface flux of thv
           ! (but we only have the thlflux , which seems at the surface to be
           ! equivalent
           local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
@@ -561,7 +567,7 @@ contains
 
   subroutine diffe(putout)
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx2i,dzf,dy2i,dzh
     use modfields, only : e120,rhobf,rhobh
     implicit none
 
@@ -621,7 +627,7 @@ contains
 
   subroutine diffu (putout)
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dxi,dx2i,dzf,dy,dyi,dy2i,dzh, cu,cv
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dy,dyi,dzh, cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
@@ -732,7 +738,7 @@ contains
 
   subroutine diffv (putout)
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dzf,dyi,dy2i,dzh, cu,cv
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dzf,dyi,dy2i,dzh, cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
 
@@ -841,7 +847,7 @@ contains
 
   subroutine diffw(putout)
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx,dxi,dx2i,dy,dyi,dy2i,dzf,dzh
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dy,dyi,dzf,dzh
     use modfields, only : u0,v0,w0,rhobh,rhobf
     implicit none
 
