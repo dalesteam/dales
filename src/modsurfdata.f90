@@ -229,5 +229,7 @@ SAVE
   real              :: LAI_land(max_lands)         = -1 !< Leaf area index vegetation [-]
   real              :: gD_land(max_lands)          = -1 !< Response factor vegetation to vapor pressure deficit [-]
   real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
+ 
+  logical           :: gabls4 = .false.
 
 end module modsurfdata

@@ -87,7 +87,9 @@ contains
       ! Prescribed values for isurf 2, 3, 4
       z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf,lidealised, &
       ! Heterogeneous variables
-      lhetero, xpatches, ypatches, land_use, loldtable
+      lhetero, xpatches, ypatches, land_use, loldtable,
+      ! GABLS4
+      gabls4
 
     ! 1    -   Initialize soil
 
@@ -736,6 +738,42 @@ contains
 
     ! 2     -   Calculate the surface fluxes
     if(isurf <= 2) then
+      if (gabls4) then
+      Z_Z0_O_Z0H = 10.0 ! the ratio between roughness length for momentum and heat
+      ZBM=4.8 ! constant used in the formulation
+      ZBH=7.8 ! constant used in the formulation
+      ZL = -9999
+      XKARMAN = 0.4
+      XP00=1.E5 ! reference pressure
+      XCPD=7.*XRD/2.
+      XRD/XCPD=2./7.
+      do j = 2, j1
+        do i = 2, i1
+          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+          horv   = sqrt(upcu ** 2. + vpcv ** 2.)
+          horv   = max(horv, 0,1*min(10.0,zf(1))) ! Wind threshold
+          horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
+          horvav = max(horvav, 0.1*min(10.0,zf(1))) ! Wind threshold
+          do n=1,50
+              USTAR(i,j) = horv/(LOG(ZF(1)/z0m)/XKARMAN +ZBM/(ZL)*XKARMAN)*(ZF(1)-z0m))
+              TSTAR = (PTA(:)*((XP00/PPA)**(XRD/XCPD))-XTG(:,1,1)*((XP00/PPS)**(XRD/XCPD))) /(LOG(PZREF(:)/Z0/Z_Z0_O_Z0H)/XKARMAN+ZBH/(ZL(:)*XKARMAN)* (ZREF(:)-Z0/Z_Z0_O_Z0H))
+              if (abs(ustar(i,j)) < 1e-10) then
+                  ustar(i,j) = 1e-10
+              endif
+              if (abs(tstar) < 1e-10) then
+                  TSTAR = 1e-10
+              endif
+              ZL=(ustar(i,j)/(XG/(PTA(:)*((XP00/PPA)**(XRD/XCPD)))*XKARMAN*TSTAR)
+          enddo
+
+          PSFU(:)  = -u0(i,j,1)/ZVMOD(:)*(ustar(i,j)**2)*PRHOA
+          PSFV(:)  = -v0(i,j,1)/ZVMOD(:)*(ustar(i,j)**2)*PRHOA
+          PSFTH(:) = -TSTAR*ustar(i,j)*PRHOA*XCPD
+          enddo
+        enddo 
+      enddo  
+      else
       do j = 2, j1
         do i = 2, i1
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -792,6 +830,7 @@ contains
           dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
         end do
       end do
+      endif ! added for GABLS4
 
       if(lsmoothflux) then
 

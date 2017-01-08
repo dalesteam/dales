@@ -1,4 +1,4 @@
-!> \file modgenstat.f90
+!> \file modgenstat3.f90
 !!  Genstat calculates slab averages of several variables
 
 !>
@@ -33,7 +33,7 @@
 
 
 
-module modgenstat
+module modgenstat3
 
     !-----------------------------------------------------------------|
     !                                                                 |
@@ -70,13 +70,13 @@ module modgenstat
 
 implicit none
 ! private
-PUBLIC :: initgenstat, genstat, exitgenstat
+PUBLIC :: initgenstat3, genstat3, exitgenstat3
 save
 
 !NetCDF variables
   integer :: nvar = 39
   integer :: ncid,nrec = 0
-  character(80) :: fname = 'profiles.xxx.nc'
+  character(80) :: fname = 'profiles.xxx.3.nc'
   character(80),allocatable, dimension(:,:) :: ncname
   character(80),dimension(1,4) :: tncname
 
@@ -164,7 +164,7 @@ save
 
 contains
 
-  subroutine initgenstat
+  subroutine initgenstat3
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres
@@ -176,20 +176,20 @@ contains
     integer n, ierr
     character(40) :: name
     character(3) :: csvname
-    namelist/NAMGENSTAT/ &
+    namelist/NAMGENSTAT3/ &
     dtav,timeav,lstat
 
     dtav=dtav_glob;timeav=timeav_glob
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
-      read (ifnamopt,NAMGENSTAT,iostat=ierr)
+      read (ifnamopt,NAMGENSTAT3,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMGENSTAT'
+        print *, 'Problem in namoptions NAMGENSTAT3'
         print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMGENSTAT'
+        stop 'ERROR: Problem in namoptions NAMGENSTAT3'
       endif
-      write(6 ,NAMGENSTAT)
+      write(6 ,NAMGENSTAT3)
       close(ifnamopt)
     end if
 
@@ -341,22 +341,22 @@ contains
       wthvtmnlast = 0.
 
       if(myid==0)then
-        open (ifoutput,file='field.'//cexpnr,status='replace')
+        open (ifoutput,file='field3.'//cexpnr,status='replace')
         close (ifoutput)
-        open (ifoutput,file='flux1.'//cexpnr,status='replace')
+        open (ifoutput,file='flux31.'//cexpnr,status='replace')
         close (ifoutput)
-        open (ifoutput,file='flux2.'//cexpnr,status='replace')
+        open (ifoutput,file='flux32.'//cexpnr,status='replace')
         close (ifoutput)
-        open (ifoutput,file='moments.'//cexpnr,status='replace')
+        open (ifoutput,file='moments3.'//cexpnr,status='replace')
         close (ifoutput)
         do n=1,nsv
-            name = 'svnnnfld.'//cexpnr
+            name = 'svnnnfld3.'//cexpnr
             write (name(3:5),'(i3.3)') n
             open (ifoutput,file=name,status='replace')
             close (ifoutput)
         end do
         do n=1,nsv
-            name = 'svnnnflx.'//cexpnr
+            name = 'svnnnflx3.'//cexpnr
             write (name(3:5),'(i3.3)') n
             open (ifoutput,file=name,status='replace')
             close (ifoutput)
@@ -432,9 +432,9 @@ contains
 
       end if
 
-  end subroutine initgenstat
+  end subroutine initgenstat3
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine genstat
+  subroutine genstat3
 
     use modglobal, only : rk3step,timee,dt_lim
     implicit none
@@ -447,16 +447,16 @@ contains
     end if
     if (timee>=tnext) then
       tnext = tnext+idtav
-      call do_genstat
+      call do_genstat3
     end if
     if (timee>=tnextwrite) then
       tnextwrite = tnextwrite+itimeav
       call writestat
     end if
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
-  end subroutine genstat
+  end subroutine genstat3
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine do_genstat
+  subroutine do_genstat3
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
                           ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
@@ -1189,7 +1189,7 @@ contains
     deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
-  end subroutine do_genstat
+  end subroutine do_genstat3
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writestat
@@ -1643,7 +1643,7 @@ contains
 
 
   end subroutine writestat
-  subroutine exitgenstat
+  subroutine exitgenstat3
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
     implicit none
@@ -1715,7 +1715,7 @@ contains
     deallocate(qlmnlast)
     deallocate(wthvtmnlast)
 
-  end subroutine exitgenstat
+  end subroutine exitgenstat3
 
 
-end module modgenstat
+end module modgenstat3
