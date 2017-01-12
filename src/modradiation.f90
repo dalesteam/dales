@@ -170,11 +170,21 @@ contains
         rad_smoke  = .true.
       end select
     end if
-    if(iradiation==0 .or. iradiation==10) then
+    
+    !XPB edit to keep rad settings when using rad_user
+    !if(iradiation==0 .or. iradiation==10) then
+    !  rad_shortw = .false.
+    !  rad_longw  = .false.
+    !  rad_smoke  = .false.
+    !end if
+    !
+    if(iradiation==0) then
       rad_shortw = .false.
       rad_longw  = .false.
       rad_smoke  = .false.
     end if
+    
+    !finish edit XPB
     
     if (iradiation == 0) return
     itimerad = floor(timerad/tres)
@@ -271,7 +281,6 @@ subroutine radpar
   lwpt = 0.0
   lwpb = 0.0
 
-
 ! MPI
 ! initialise local variables
 
@@ -300,6 +309,7 @@ subroutine radpar
        end do
 
        do k=1,k1
+
         lwd(i,j,k) = dlwtop*exp(-rka*lwpt(k))
         lwu(i,j,k) = dlwbot*exp(-rka*lwpb(k))
       end do
