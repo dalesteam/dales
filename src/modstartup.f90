@@ -464,8 +464,8 @@ contains
 
       krand  = min(krand,kmax)
       do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
+        call randomnize(qtm ,k,min(randqt,qtm) ,irandom,ih,jh)
+        call randomnize(qt0 ,k,min(randqt,qt0) ,irandom,ih,jh)
         call randomnize(thlm,k,randthl,irandom,ih,jh)
         call randomnize(thl0,k,randthl,irandom,ih,jh)
       end do
