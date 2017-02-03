@@ -39,7 +39,7 @@ module daleslib
     real, allocatable :: v_tend(:)
     real, allocatable :: thl_tend(:)
     real, allocatable :: qt_tend(:)
-        
+    real :: ps_tend
     
     contains
 
@@ -84,7 +84,6 @@ module daleslib
             !use modprojection,     only : initprojection
             use modchem,            only : initchem
             use modcanopy,          only : initcanopy
-
             implicit none
 
             character(len=256), intent(in)  :: path
@@ -157,7 +156,7 @@ module daleslib
           thl_tend = 0
           qt_tend = 0
           ! lforce_user = .true.
-          
+          ps_tend = 0
         end subroutine initdaleslib
 
                 ! deallocate arrays for tendencies 
@@ -172,8 +171,9 @@ module daleslib
         end subroutine exitdaleslib
 
         subroutine force_tendencies
-          use modglobal, only : i1,j1,kmax
-          use modfields, only : up,vp,thlp,qtp
+          use modglobal,   only : i1,j1,kmax
+          use modfields,   only : up,vp,thlp,qtp
+
           implicit none
           integer k
 
@@ -247,6 +247,8 @@ module daleslib
                       
             call tstep_update                           ! Calculate new timestep
             call timedep
+            call update_ps
+            
             call samptend(tend_start,firstterm=.true.)
 
             !-----------------------------------------------------
@@ -341,6 +343,31 @@ module daleslib
 
         end subroutine step
 
+        ! update the surface pressure according to ps_tend
+        ! perform the update every full timestep to avoid introducing ps0, psm
+        subroutine update_ps
+          use modglobal,          only: rdt, rk3step, lmoist
+          use modsurfdata,        only : ps, qts
+          use modsurface,         only : qtsurf
+
+
+          if(rk3step == 1) then
+             ps = ps + ps_tend * rdt
+             
+             ! modtimedep calls qtsurf to update surface values after changing ps, so we'll do the same
+             if (lmoist .and. ps_tend /= 0) then
+                call qtsurf
+             else
+                qts = 0.
+             endif
+          endif
+        end subroutine update_ps
+        
+
+
+
+
+        
         ! Performs repeatedly time stepping until the tstop (measured in seconds after the cold start) is reached. 
         ! Note that the resulting model time may be a bit later than tstop.
 
