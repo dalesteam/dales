@@ -135,7 +135,10 @@ contains
     use modmicrodata, only : iqr, imicro, imicro_none
     implicit none
 
-    integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:),vars(:,:,:,:)
+    integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
+    ! Changes vars from integer to real in order to be able to write real fields
+    ! (AM)
+    real, allocatable ::     vars(:,:,:,:)
     integer i,j,k
     integer :: writecounter = 1
     integer :: reclength
@@ -157,9 +160,9 @@ contains
 
     reclength = imax*jmax*(khigh-klow+1)*2
 
-    field = NINT(1.0E3*um,2)
-    if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,1) = um(2:i1,2:j1,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E3*um,2)
       if (ldiracc) then
         open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
@@ -170,9 +173,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*vm,2)
-    if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,2) = vm(2:i1,2:j1,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E3*vm,2)
       if (ldiracc) then
         open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
@@ -183,9 +186,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*wm,2)
-    if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,3) = wm(2:i1,2:j1,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E3*wm,2)
       if (ldiracc) then
         open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
@@ -196,9 +199,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*qtm,2)
-    if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,4) = qtm(2:i1,2:j1,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E5*qtm,2)
       if (ldiracc) then
         open (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
@@ -209,9 +212,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*ql0,2)
-    if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,5) = ql0(2:i1,2:j1,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E5*ql0,2)
       if (ldiracc) then
         open (ifoutput,file='wbql.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
@@ -222,10 +225,10 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E2*(thlm-300),2)
-    if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,6) = thlm(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
+        field = NINT(1.0E2*(thlm-300),2)
         open (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
       else
@@ -246,8 +249,8 @@ contains
     else
       field = 0.
     endif
-
-    if (lnetcdf) vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
+ 
+    if (lnetcdf) vars(:,:,:,7) = svm(:,:,klow:khigh, iqr)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -268,7 +271,13 @@ contains
     enddo
     enddo
     
-    if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) then
+    do i=2-ih,i1+ih
+    do j=2-jh,j1+jh
+        vars(i,j,:,8) = (thv0h(i,j,klow:khigh)-thvh(klow:khigh))
+    enddo
+    enddo
+    endif
 
     if (lbinary) then
       if (ldiracc) then
@@ -282,7 +291,12 @@ contains
     endif
 
     field = NINT(1.0E4*e12m,2)
-    if (lnetcdf) vars(:,:,:,9) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,9) = e12m(2:i1,2:j1,klow:khigh)
+
+    ! Scalar fields
+    do i=1,nsv
+        if (lnetcdf) vars(:,:,:,9+i) = svm(2:i1,2:j1,klow:khigh,i)
+    enddo
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
@@ -296,6 +310,7 @@ contains
         close(ifoutput)
       end if
     endif
+
 
     writecounter=writecounter+1
 

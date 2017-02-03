@@ -69,7 +69,7 @@ contains
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,itimerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke
     use modtimedep,        only : inittimedep,ltimedep
-    use modboundary,       only : initboundary,ksp
+    use modboundary,       only : initboundary,ksp, top_zero_grad
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
@@ -89,7 +89,7 @@ contains
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
-        xlat,xlon,xday,xtime,ksp
+        xlat,xlon,xday,xtime,ksp, top_zero_grad
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
@@ -216,6 +216,7 @@ contains
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cv         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(top_zero_grad        ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(krand      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)

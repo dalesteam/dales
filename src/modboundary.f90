@@ -32,10 +32,11 @@ module modboundary
 implicit none
 save
 private
-public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
+public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich, top_zero_grad
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real :: rnu0 = 2.75e-3
+  logical :: top_zero_grad = .false.  !<   impose zero gradient for scalars at top of domain
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -219,15 +220,21 @@ contains
 ! **  Top conditions :
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 !JvdD
-  dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
-             dzh(kmax-kav+1:kmax))/kav
-  dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
-             dzh(kmax-kav+1:kmax))/kav
-  do n=1,nsv
-    dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
-               dzh(kmax-kav:kmax-1))/kav
-  enddo
-
+  if (top_zero_grad) then
+      dtheta = 0
+      dqt    = 0
+      dsv(:) = 0
+  else
+  ! The original code
+      dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
+                   dzh(kmax-kav+1:kmax))/kav
+      dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
+                   dzh(kmax-kav+1:kmax))/kav
+      do n=1,nsv
+          dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
+                        dzh(kmax-kav:kmax-1))/kav
+      enddo
+  endif
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
 

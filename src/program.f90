@@ -100,8 +100,9 @@ program DALES      !Version 4.0.0alpha
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timee,btime,runtime,timeleft
-  use modfields,         only : thl0
+  use modmpi,            only : myid
+  use modglobal,         only : rk3step,timee,btime,runtime,timeleft, kmax
+  use modfields,         only : thl0, svp
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -218,8 +219,8 @@ program DALES      !Version 4.0.0alpha
     call advection
     call samptend(tend_adv)
     call subgrid
-    call canopy
     call samptend(tend_subg)
+    call canopy
 
 !-----------------------------------------------------
 !   3.4   REMAINING TERMS
