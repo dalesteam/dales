@@ -181,7 +181,7 @@ module daleslib
              up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 
              vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k) + v_tend(k) 
              thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) + thl_tend(k)
-             qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) + qt_tend(k)            
+             qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) + qt_tend(k)
           enddo
         end subroutine force_tendencies
 
@@ -679,7 +679,7 @@ module daleslib
          i = g_i(r) - myidx * imax + 1
          j = g_j(r) - myidy * jmax + 1 
          if (i >= 1 .and. i <= is .and. j >= 1 .and. j <= js ) then
-            a(r) = sum(field(i,j,:) * dzf * rhobf) ! vertical sum of the field, weighted by cell height and density
+            a(r) = sum(field(i,j,1:kmax) * dzf(1:kmax) * rhobf(1:kmax)) ! vertical sum of the field, weighted by cell height and density
          else
             a(r) = 0
          endif
