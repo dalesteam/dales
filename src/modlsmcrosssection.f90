@@ -155,7 +155,7 @@ contains
         call ncinfo(ncname3( 9,:),'cliq','Fraction of vegetated surface covered with liquid water','-','tt0t')
         call ncinfo(ncname3(10,:),'Wl','Liquid water reservoir','m','tt0t')
         call ncinfo(ncname3(11,:),'rssoil','Soil evaporation resistance','s/m','tt0t')
-        call ncinfo(ncname3(12,:),'rsveg','Vegitation resistance','s/m','tt0t')
+        call ncinfo(ncname3(12,:),'rsveg','Vegetation resistance','s/m','tt0t')
         call open_nc(fname3,  ncid3,nrec3,n1=imax,n2=jmax)
         if (nrec3==0) then
           call define_nc( ncid3, 1, tncname3)

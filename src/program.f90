@@ -102,7 +102,7 @@ program DALES      !Version 4.0.0alpha
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
+  use modglobal,         only : rk3step,timeleft,dt,rdt
   use modstartup,        only : startup, writerestartfiles,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -150,6 +150,7 @@ program DALES      !Version 4.0.0alpha
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
+  use modmpi,          only : myid
 
 
   implicit none

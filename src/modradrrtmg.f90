@@ -10,14 +10,16 @@ contains
   subroutine radrrtmg
     use modglobal,     only : cp,rlv,dzf,&
                               imax,jmax,kmax,i1,j1,k1,&
-                              kind_rb,SHR_KIND_R4
+                              kind_rb,SHR_KIND_R4,boltz
     use modmpi,        only : myid
-    use modfields,     only : presh,presf,rhof,exnf
+    use modfields,     only : presh,presf,rhof,exnf,thl0
+    use modsurfdata ,  only : tskin
     use rrtmg_lw_init, only : rrtmg_lw_ini
     use rrtmg_lw_rad,  only : rrtmg_lw
     use shr_orb_mod,   only : shr_orb_params
     use rrtmg_sw_init, only : rrtmg_sw_ini
     use rrtmg_sw_rad,  only : rrtmg_sw
+
     implicit none
     
     integer                :: npatch    ! Sounding levels above domain
@@ -106,6 +108,8 @@ contains
                lwDownCS_slice (imax,krad2),    &
                swUp_slice     (imax,krad2),    & 
                swDown_slice   (imax,krad2),    &
+               swDownDir_slice(imax,krad2),    &
+               swDownDif_slice(imax,krad2),    &
                swUpCS_slice   (imax,krad2),    &
                swDownCS_slice (imax,krad2),    &
                lwHR_slice     (imax,krad2),    &
@@ -168,7 +172,6 @@ contains
       if (rad_longw) then
         call rrtmg_lw &
              ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )!input
-        !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
          call setupSW(sunUp)
@@ -180,13 +183,23 @@ contains
 
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
       lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
-      swu(2:i1,j,1:k1) =  swUp_slice  (1:imax,1:k1)
-      swd(2:i1,j,1:k1) = -swDown_slice(1:imax,1:k1)
+      if (.not. rad_longw) then
+      !we calculate LW at surface, identical to how it is done in sunray subroutine XPB
+        do i=2,i1
+          lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
+          lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
+        end do
+      end if
 
-      lwuca(2:i1,j,1:k1) =  lwUpCS_slice  (1:imax,1:k1)
-      lwdca(2:i1,j,1:k1) = -lwDownCS_slice(1:imax,1:k1)
-      swuca(2:i1,j,1:k1) =  swUpCS_slice  (1:imax,1:k1)
-      swdca(2:i1,j,1:k1) = -swDownCS_slice(1:imax,1:k1)
+      swu  (2:i1,j,1:k1) =  swUp_slice     (1:imax,1:k1)
+      swd  (2:i1,j,1:k1) = -swDown_slice   (1:imax,1:k1)
+      swdir(2:i1,j,1:k1) = -swDownDir_slice(1:imax,1:k1)
+      swdif(2:i1,j,1:k1) = -swDownDif_slice(1:imax,1:k1)
+      lwc  (2:i1,j,1:k1) =  LWP_slice      (1:imax,1:k1)
+      lwuca(2:i1,j,1:k1) =  lwUpCS_slice   (1:imax,1:k1)
+      lwdca(2:i1,j,1:k1) = -lwDownCS_slice (1:imax,1:k1)
+      swuca(2:i1,j,1:k1) =  swUpCS_slice   (1:imax,1:k1)
+      swdca(2:i1,j,1:k1) = -swDownCS_slice (1:imax,1:k1)
 
       SW_up_TOA (2:i1,j) =  swUp_slice  (1:imax,krad2)
       SW_dn_TOA (2:i1,j) = -swDown_slice(1:imax,krad2)
@@ -197,20 +210,24 @@ contains
       SW_dn_ca_TOA (2:i1,j) = -swDownCS_slice(1:imax,krad2)
       LW_up_ca_TOA (2:i1,j) =  lwUpCS_slice  (1:imax,krad2)
       LW_dn_ca_TOA (2:i1,j) = -lwDownCS_slice(1:imax,krad2)
-
     end do ! Large loop over j=2,j1
 
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k))
-          thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k))
+          !thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k)) we remove this in analogy with dEDD XPB
+          thlpld           = 0.0 
+          thlplu           = 0.0
+          !thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k)) we remove this in analogy with dEDD XPB
           thlpsd          = -(swd(i,j,k+1)-swd(i,j,k))
           thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
 
           !thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
-          thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
-                              /(rhof(k)*cp*exnf(k)*dzf(k))
+          !we comment following line for analogy with dEdd:
+          !thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+          !                    /(rhof(k)*cp*exnf(k)*dzf(k))
+          thlprad(i,j,k)  = thlprad(i,j,k)-(swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+                              /(rhof(k)*cp*exnf(k)*dzf(k)) !only SW components  XPB
         end do
       end do
     end do
@@ -601,7 +618,7 @@ contains
       do i=2,i1
       im=i-1
       do k=1,kmax
-         qv_slice  (im,k) = qt0(i,j,k) - ql0(i,j,k)
+         qv_slice  (im,k) = max((qt0(i,j,k) - ql0(i,j,k)),1e-18)!XPB try to avoid negative qv's
          qcl_slice (im,k) = ql0(i,j,k)
          qci_slice (im,k) = 0.
          o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
@@ -687,7 +704,7 @@ contains
       do i=1,imax
         do k=1,kradmax
           layerMass(i,k) = 100.*( interfaceP(i,k) - interfaceP(i,k+1) ) / grav  !of full level
-          LWP_slice(i,k) = qcl_slice(i,k)*layerMass(i,k)*1e3
+          LWP_slice(i,k) = qcl_slice(i,k)*layerMass(i,k)*1e3   
           IWP_slice(i,k) = qci_slice(i,k)*layerMass(i,k)*1e3
         enddo
         layerMass(i,krad1) = 100.*( interfaceP(i,krad1) - interfaceP(i,krad2) ) / grav

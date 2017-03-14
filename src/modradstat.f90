@@ -406,7 +406,7 @@ contains
       end do
       close (ifoutput)
 
-     if(iradiation == 2) then
+     if(iradiation == 2 .or. iradiation ==4) then! delta eddington or RRTMG
       open (ifoutput,file='radsplitstat.'//cexpnr,position='append')
       write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
       '#--------------------------------------------------------'      &

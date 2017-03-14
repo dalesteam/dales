@@ -370,6 +370,8 @@ contains
     use moduser,           only : initsurf_user
 
     integer i,j,k,n
+    logical negval  !XPB whether we want to allow negative values when randomnization 
+   
 
     real, allocatable :: height(:), th0av(:)
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
@@ -463,20 +465,23 @@ contains
     !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
+      negval = .True.
       do k = 1,krand
-        call randomnize(qtm ,k,min(randqt,qtm) ,irandom,ih,jh)
-        call randomnize(qt0 ,k,min(randqt,qt0) ,irandom,ih,jh)
-        call randomnize(thlm,k,randthl,irandom,ih,jh)
-        call randomnize(thl0,k,randthl,irandom,ih,jh)
+        negval = .False.
+        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+        negval = .True.
+        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
       end do
 
       do k=krandumin,krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
       end do
 
       svprof = 0.
@@ -908,7 +913,7 @@ contains
       call system("ln -sf "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m   .'
+        name  = 'inits  h  m        .'
         write (name(6:7)  ,'(i2.2)') ihour
         write (name(9:10) ,'(i2.2)') imin
         name(12:19) = cmyid
@@ -996,7 +1001,7 @@ contains
 
  end subroutine exitmodules
 !----------------------------------------------------------------
-  subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
+  subroutine randomnize(field,klev,ampl,ir,ihl,jhl,negval)
     ! Adds (pseudo) random noise with given amplitude to the field at level k
     ! Use our own pseudo random function so results are reproducibly the same,
     ! independent of parallization.
@@ -1011,7 +1016,7 @@ contains
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
-
+    logical negval
     is = myidx * imax + 1
     ie = is + imax - 1
 
@@ -1025,6 +1030,10 @@ contains
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
             field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+            !XPB we avoid non-physical negative values for certain fields
+            if ((.not. negval) .and. field(i-is+2,j-js+2,klev)<0.0) then 
+              field(i-is+2,j-js+2,klev) = 0.0
+            endif
         endif
     enddo
     enddo

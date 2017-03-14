@@ -796,7 +796,7 @@ contains
       if (isurf == 1) then
         !tmlsm
         open (ifoutput,file='tmlsm.'//cexpnr,position='append')
-        write(ifoutput,'(f10.2,6f11.3,f14.3,2f11.3,e13.3, 5f11.3,e13.3)') &
+        write(ifoutput,'(f10.2,6f11.3,f16.3,2f11.3,e13.3, 5f11.3,e13.3)') &
             rtimee       ,&
             Qnetav      ,&
             Hav         ,&

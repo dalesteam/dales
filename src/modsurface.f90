@@ -72,7 +72,7 @@ contains
   subroutine initsurface
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
@@ -175,8 +175,10 @@ contains
       lCO2Ags = .false.
     endif
 
-    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user))))) then
+    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) .or. (iradiation .eq. irad_rrtmg))))) then
       if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse light calculations from modradiation! Make sure you enable rad_shortw"
+      if(myid==0) stop "WARNING::: Since there is no directa nd diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
+      lsplitleaf = .false.
     endif
 
     if(lrsAgs) then
@@ -680,8 +682,10 @@ contains
       allocate(tauField  (2:i1,2:j1))
       allocate(ciField   (2:i1,2:j1))
       allocate(PARField  (2:i1,2:j1))
-      allocate(PARdirField  (2:i1,2:j1))
-      allocate(PARdifField  (2:i1,2:j1))
+      if (lsplitleaf) then
+        allocate(PARdirField  (2:i1,2:j1))
+        allocate(PARdifField  (2:i1,2:j1))
+      endif
     endif
     return
   end subroutine initsurface
@@ -690,7 +694,7 @@ contains
   subroutine surface
     use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer,myid
     use moduser,    only : surf_user
     implicit none
 
@@ -1599,7 +1603,7 @@ contains
   
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
-    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,swdir,swdif,zenith
+    use modraddata,only : iradiation,irad_par,useMcICA,swd,swu,lwd,lwu,swdir,swdif,zenith
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
@@ -1676,8 +1680,10 @@ contains
       fstrField  = 0.0
       ciField    = 0.0
       PARField   = 0.0
-      PARdirField= 0.0
-      PARdifField= 0.0
+      if (lsplitleaf) then
+        PARdirField= 0.0
+        PARdifField= 0.0
+      endif  
 
     endif
     
@@ -1712,10 +1718,10 @@ contains
             lwuav = sum(lwuavn(i,j,:)) / nradtime
 
             Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
-          elseif(iradiation == 2 .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
+          elseif(iradiation == irad_par .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
             swdav      = -swd(i,j,1)
             Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
-          else ! simple radiation scheme
+          else ! simple radiation scheme and RRTMG
             Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
             swdav     = swd(i,j,1)
           end if
@@ -1842,10 +1848,11 @@ contains
           Rdark    = (1.0/9) * Am
 
           !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
-          PAR      = 0.50 * max(0.1,-swdav) !Increase PAR to 50 SW
-          PARdir   = 0.50 * max(0.1,swdir(i,j,1))
-          PARdif   = 0.50 * max(0.1,swdif(i,j,1))
-
+          PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
+          if (lsplitleaf) then
+            PARdir   = 0.50 * max(0.1,abs(swdir(i,j,1)))
+            PARdif   = 0.50 * max(0.1,abs(swdif(i,j,1)))
+          endif  
           ! Calculate the light use efficiency
           alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
 
@@ -1955,8 +1962,10 @@ contains
           fstrField  (i,j) = fstr
           ciField    (i,j) = ci
           PARField   (i,j) = PAR
-          PARdirField(i,j) = PARdir
-          PARdifField(i,j) = PARdif
+          if (lsplitleaf)then
+            PARdirField(i,j) = PARdir
+            PARdifField(i,j) = PARdif
+          endif
 
         endif !lrsAgs
 

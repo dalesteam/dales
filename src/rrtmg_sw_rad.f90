@@ -558,6 +558,7 @@
                stop 'PARTIAL CLOUD NOT ALLOWED'
             endif
          enddo
+         !XPB in this call we get some values for taucloud
          call cldprop_sw(nlayers, inflag, iceflag, liqflag, cldfrac, &
                          tauc, ssac, asmc, fsfc, ciwp, clwp, rei, rel, &
                          taucldorig, taucloud, ssacloud, asmcloud)
@@ -722,6 +723,8 @@
             dirdflux(i) = zbbfddir(i)
             !difdflux(i) = swdflx(iplon,i) - dirdflux(i)
             difdflux(i) = swDown_slice(iplon,i) - dirdflux(i)
+            swDownDir_slice(iplon,i) = dirdflux(i)
+            swDownDif_slice(iplon,i) = difdflux(i)
 !  UV/visible direct/diffuse fluxes
             dirdnuv(i) = zuvfddir(i)
             difdnuv(i) = zuvfd(i) - dirdnuv(i)

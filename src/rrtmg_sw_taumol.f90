@@ -352,6 +352,7 @@
       use parrrsw, only : ng17, ngs16
       use rrsw_kg17, only : absa, ka, absb, kb, forref, selfref, &
                             sfluxref, rayl
+      use modmpi, only: myid                      
 
 ! ------- Declarations -------
 

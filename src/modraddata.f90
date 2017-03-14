@@ -63,7 +63,9 @@ SAVE
   integer :: iDE     = 1                 !< scalar field to be used as extinction
   logical :: laero   = .false.           !< .true. for aeosols .false. for clouds 
 
-  real :: reff       = 1.e-5             !< cloud droplet effective radius (m)
+  !real :: reff       = 5.e-5             !< cloud droplet effective radius (m) !extreme case representing my typo in paper1
+  real :: reff       = 1.e-5             !< cloud droplet effective radius (m)! XPB original value
+  !real :: reff       = 7.e-6             !< cloud droplet effective radius (m) ! XPB extra run for reviewer 2
   integer :: isvsmoke = 1                !< number of passive scalar to be used for optical depth calculation
   integer :: iradiation = irad_none      !< Selection parameter for type of radiation scheme
   integer :: irad    = -1                !< Deprecated selection parameter for the type of radiation scheme
@@ -106,6 +108,8 @@ SAVE
                                                    lwHRCS_slice,   &    ! Heating rate due to longwave rad,clear sky value          (2D slice)
                                                    swUp_slice,     &    ! Upwelling shortwave rad                   (2D slice)
                                                    swDown_slice,   &    ! Downwelling shortwave rad                 (2D slice)
+                                                   swDownDir_slice,&    ! Downwelling shortwave direct rad          (2D slice)
+                                                   swDownDif_slice,&    ! Downwelling shortwave diffuse rad         (2D slice)
                                                    swUpCS_slice,   &    ! Upwelling shortwave rad, clear sky value  (2D slice)
                                                    swDownCS_slice, &    ! Downwelling shortwave rad, clear sky value(2D slice)
                                                    swHR_slice,     &    ! Heating rate due to shortwave rad         (2D slice)
@@ -167,6 +171,7 @@ SAVE
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
   real, allocatable :: swdir(:,:,:)  !<   Direct shortwave downward radiative flux
   real, allocatable :: swdif(:,:,:)  !<   Difuse shortwave downward radiative flux
+  real, allocatable :: lwc (:,:,:)  !<   Liquid water content calculated in rrtmg XPB
   real, allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
   real, allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
   real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux

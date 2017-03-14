@@ -1791,7 +1791,7 @@ subroutine ratech
                         zf,dzf,ijtot,ifoutput,cexpnr
   use modfields, only : qt0, ql0 ,rhof
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum
-  use modsurfdata,only: taufield, lrsAgs
+  use modsurfdata,only: tauField, lrsAgs
   implicit none
 
   real  sza
@@ -1909,10 +1909,11 @@ subroutine ratech
 
     !for clouds the the max solar zenith angle is cutoff at 60 degrees
     coszenmax = min(60*pi/180,coszen)
-
-    if (lrsAgs) then
-      tauField   = 0.0
-    endif
+    
+    !next 3lines are commented so that tau is output from radiation moduleXPB
+    !if (lrsAgs) then
+    !  tauField   = 0.0
+    !endif
 
     do j=2,j1
       do i=2,i1
@@ -1937,9 +1938,10 @@ subroutine ratech
             !- Calculating transmission coefficient, cloud optical depth
             tau2 = (3./2.)*(qlint/(rhow*re))
 
-            if (lrsAgs) then
-              tauField(i,j) = tau2
-            endif
+            !next 3lines are commented so that tau is output from radiation moduleXPB
+            !if (lrsAgs) then
+            !  tauField(i,j) = tau2
+            !endif
 
             if (tau2 >= tauc ) then  ! 'dense' cloud
               ! smooting of cloud base and top

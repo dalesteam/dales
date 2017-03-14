@@ -36,11 +36,13 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 35
+  integer,parameter :: nvar = 36
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
+  integer :: final_nvar  
   character(80) :: fnameAGS = 'crossAGS.xxxxyxxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncnameAGS
+  !character(80),dimension(nvar,4) :: ncnameAGS
+  character(80),allocatable,dimension(:,:) :: ncnameAGS
   character(80),dimension(1,4) :: tncnameAGS
 
   real    :: dtav
@@ -53,7 +55,8 @@ contains
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
-    use modsurfdata, only : lrsAgs, ksoilmax
+    use modraddata,only   : irad_par,irad_rrtmg,iradiation
+    use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf
    implicit none
 
     integer :: ierr,k
@@ -87,6 +90,16 @@ contains
       stop 'AGScross: dtav should be a integer multiple of dtmax'
     end if
     if (ksoilmax /= 4) stop 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well'
+
+    ! XPB edit
+    ! we set the final number of variables in the output:
+    final_nvar = nvar
+    if (iradiation == irad_par .or. iradiation == irad_rrtmg ) final_nvar = final_nvar+2 !swdir and swdif
+    if (lsplitleaf) final_nvar = final_nvar+2 !PARdir,PARdif
+    
+    allocate(ncnameAGS(final_nvar,4))
+
+    
     fnameAGS(10:17) = cmyid
     fnameAGS(19:21) = cexpnr
     call ncinfo(tncnameAGS(1,:),'time  ','Time','s','time')
@@ -119,19 +132,30 @@ contains
     call ncinfo(ncnameAGS(27,:),'lwd   ', 'xy AGScross of LW down rad.','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(28,:),'lwu   ', 'xy AGScross of LW up rad.  ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(29,:),'ci    ', 'xy AGScross of int CO2 conc','mg/m3  ','tt0t')
-    call ncinfo(ncnameAGS(30,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(31,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(32,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(33,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(34,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(35,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s?  ','tt0t')
+    call ncinfo(ncnameAGS(30,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s?  ','tt0t')
+    call ncinfo(ncnameAGS(31,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(32,:),'Qnet  ', 'xy AGScross of Qnet        ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(33,:),'LE    ', 'xy AGScross of LE          ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(34,:),'H     ', 'xy AGScross of H           ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(35,:),'G0    ', 'xy AGScross of G0          ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(36,:),'lwp2  ', 'xy AGScross of lwp2        ','kg/m2?   ','tt0t')
+    if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
+      call ncinfo(ncnameAGS(37,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
+      call ncinfo(ncnameAGS(38,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
+    endif  
+    if (lsplitleaf) then
+      call ncinfo(ncnameAGS(39,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
+      call ncinfo(ncnameAGS(40,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+    endif
 
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
     if (nrecAGS == 0) then
       call define_nc( ncidAGS, 1, tncnameAGS)
       call writestat_dims_nc(ncidAGS)
     end if
-    call define_nc( ncidAGS, NVar, ncnameAGS)
+    
+
+    call define_nc( ncidAGS, final_nvar, ncnameAGS)
 
   end subroutine initAGScross
 !>Run AGScross. Mainly timekeeping
@@ -160,9 +184,10 @@ contains
     use modglobal, only : imax,jmax,i1,j1,rtimee,dzf
     use modstat_nc, only : writestat_nc
     use modsurfdata, only : AnField, gcco2Field, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
-                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, PARField, PARdirField,PARdifField
+                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, PARField, Qnet,LE,H,G0,&
+                            PARdirField,PARdifField,lsplitleaf
     use modfields, only   : svm, rhof, ql0
-    use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif
+    use modraddata,only   : swd, swu, lwd,lwu,swdir,swdif,irad_par,iradiation,irad_rrtmg,lwc
     implicit none
 
 
@@ -170,15 +195,16 @@ contains
     integer i,j,n
     character(40) :: name
     real, allocatable :: vars(:,:,:)
-    real :: lwp(2:i1,2:j1)
+    real :: lwp(2:i1,2:j1),lwp2(2:i1,2:j1)
 
     do i = 2,i1
       do j = 2,j1
         lwp(i,j) = sum(ql0(i,j,1:kmax)*rhof(1:kmax)*dzf(1:kmax))
+        lwp2(i,j) = sum(lwc(i,j,1:kmax))
       enddo
     enddo
 
-      allocate(vars(1:imax,1:jmax,nvar))
+      allocate(vars(1:imax,1:jmax,final_nvar))
       vars=0.
       vars(:,:, 1) = AnField   (2:i1,2:j1)
       vars(:,:, 2) = RespField (2:i1,2:j1)
@@ -209,15 +235,23 @@ contains
       vars(:,:,27) = lwd       (2:i1,2:j1,1)
       vars(:,:,28) = lwu       (2:i1,2:j1,1)
       vars(:,:,29) = ciField   (2:i1,2:j1)
-      vars(:,:,30) = swdir     (2:i1,2:j1,1)
-      vars(:,:,31) = swdif     (2:i1,2:j1,1)
-      vars(:,:,32) = PARField   (2:i1,2:j1)
-      vars(:,:,33) = PARdirField(2:i1,2:j1)
-      vars(:,:,34) = PARdifField(2:i1,2:j1)
-      vars(:,:,35) = gcco2Field (2:i1,2:j1)
-
+      vars(:,:,30) = gcco2Field(2:i1,2:j1)
+      vars(:,:,31) = PARField  (2:i1,2:j1)
+      vars(:,:,32) = Qnet  (2:i1,2:j1)
+      vars(:,:,33) = LE    (2:i1,2:j1)
+      vars(:,:,34) = H    (2:i1,2:j1)
+      vars(:,:,35) = G0    (2:i1,2:j1)
+      vars(:,:,36) = lwp2    (2:i1,2:j1)*1000.
+      if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
+        vars(:,:,37) = swdir      (2:i1,2:j1,1)
+        vars(:,:,38) = swdif      (2:i1,2:j1,1)
+      endif
+      if (lsplitleaf) then
+        vars(:,:,39) = PARdirField(2:i1,2:j1)
+        vars(:,:,40) = PARdifField(2:i1,2:j1)
+      endif
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
-      call writestat_nc(ncidAGS,nvar,ncnameAGS(1:nvar,:),vars,nrecAGS,imax,jmax)
+      call writestat_nc(ncidAGS,final_nvar,ncnameAGS,vars,nrecAGS,imax,jmax)
       deallocate(vars)
 
   end subroutine AGShorz
@@ -230,6 +264,8 @@ contains
 
     if(lAGScross) then
     call exitstat_nc(ncidAGS)
+    deallocate(ncnameAGS)
+
     end if
 
   end subroutine exitAGScross
