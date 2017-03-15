@@ -610,6 +610,8 @@ contains
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
 
+    obl = -1.e10
+
     if(rad_shortw .and. albedoav == -1) then
       stop "NAMSURFACE: albedoav is not set"
     end if
@@ -1115,7 +1117,7 @@ contains
     implicit none
 
     integer             :: i,j,iter,patchx,patchy
-    real                :: thv, thvsl, L, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
+    real                :: thv, thvsl, L, horv2, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
     real                :: Rib, Lstart, Lend, fx, fxdif, Lold
     real                :: upcu, vpcv
     real                :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
@@ -1126,8 +1128,6 @@ contains
     real                :: loblpatch(xpatches,ypatches)
 
     if(lmostlocal) then
-
-      oblavl = 0.
 
       do i=2,i1
         do j=2,j1
@@ -1149,10 +1149,12 @@ contains
           iter = 0
           L = obl(i,j)
 
-          if(Rib * L < 0. .or. abs(L) == 1e5) then
+          if(Rib * L < 0. .or. abs(L) .GE. 1e6) then
             if(Rib > 0) L = 0.01
             if(Rib < 0) L = -0.01
           end if
+
+          if(abs(Rib) .LE. 1e-10) L = sign(1.0e6,Rib)
 
           do while (.true.)
             iter    = iter + 1
@@ -1166,7 +1168,7 @@ contains
             (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
             + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
             L = L - fx / fxdif
-            if(Rib * L < 0. .or. abs(L) == 1e5) then
+            if(Rib * L < 0. .or. abs(L) .GE. 1e6) then
               if(Rib > 0) L = 0.01
               if(Rib < 0) L = -0.01
             end if
@@ -1231,10 +1233,12 @@ contains
           iter = 0
           L = oblpatch(patchx,patchy)
 
-          if(Rib * L < 0. .or. abs(L) == 1e5) then
+          if(Rib * L < 0. .or. abs(L) .GE. 1e6) then
             if(Rib > 0) L = 0.01
             if(Rib < 0) L = -0.01
           end if
+
+          if(abs(Rib) .LE. 1e-10) L = sign(1.0e6,Rib)
 
           do while (.true.)
             iter    = iter + 1
@@ -1251,7 +1255,7 @@ contains
             (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lend) + psim(z0mav_patch(patchx,patchy) / Lend)) ** 2.) )&
             / (Lstart - Lend)
             L       = L - fx / fxdif
-            if(Rib * L < 0. .or. abs(L) == 1e5) then
+            if(Rib * L < 0. .or. abs(L) .GE. 1e6) then
               if(Rib > 0) L = 0.01
               if(Rib < 0) L = -0.01
             end if
@@ -1282,10 +1286,12 @@ contains
     iter = 0
     L = oblav
 
-    if(Rib * L < 0. .or. abs(L) == 1e5) then
+    if(Rib * L < 0. .or. abs(L) .GE. 1e6) then
       if(Rib > 0) L = 0.01
       if(Rib < 0) L = -0.01
     end if
+
+    if(abs(Rib) .LE. 1e-10) L = sign(1.0e6,Rib)
 
     do while (.true.)
       iter    = iter + 1
@@ -1299,7 +1305,7 @@ contains
       - psih(zf(1) / Lend) + psih(z0hav / Lend)) / (log(zf(1) / z0mav) - psim(zf(1) / Lend) &
       + psim(z0mav / Lend)) ** 2.) ) / (Lstart - Lend)
       L       = L - fx / fxdif
-      if(Rib * L < 0. .or. abs(L) == 1e5) then
+      if(Rib * L < 0. .or. abs(L) .GE. 1e6) then
         if(Rib > 0) L = 0.01
         if(Rib < 0) L = -0.01
       end if
