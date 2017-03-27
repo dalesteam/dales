@@ -215,19 +215,19 @@ contains
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          !thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k)) we remove this in analogy with dEDD XPB
-          thlpld           = 0.0 
-          thlplu           = 0.0
-          !thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k)) we remove this in analogy with dEDD XPB
+          thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k)) !we remove this in analogy with dEDD XPB(inactive)
+          !thlpld           = 0.0 
+          !thlplu           = 0.0
+          thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k)) 
           thlpsd          = -(swd(i,j,k+1)-swd(i,j,k))
           thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
 
           !thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
-          !we comment following line for analogy with dEdd:
-          !thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
-          !                    /(rhof(k)*cp*exnf(k)*dzf(k))
-          thlprad(i,j,k)  = thlprad(i,j,k)-(swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
-                              /(rhof(k)*cp*exnf(k)*dzf(k)) !only SW components  XPB
+          !we comment following line for analogy with dEdd:XPB (inactive now )
+          thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+                              /(rhof(k)*cp*exnf(k)*dzf(k))
+          !thlprad(i,j,k)  = thlprad(i,j,k)-(swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+          !                    /(rhof(k)*cp*exnf(k)*dzf(k)) !only SW components  XPB
         end do
       end do
     end do
