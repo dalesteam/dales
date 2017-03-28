@@ -30,6 +30,9 @@ module modcanopy
   real    :: lai       = 2             !< Leaf Area Index (or actually plant area index) of the canopy
   logical :: lpaddistr = .false.       !< Switch to customize the general plant area density distribution (at half levels)
   integer :: npaddistr = 11            !< (if lpaddistr): number of half levels for prescribed general plant area density distribution
+  logical :: lsrcdistr = .false.       !< Switch to customized src distribution (for scalars only at the moment, only including the canopy source)
+  integer :: maxsrcdistr = 50          !< (if lsrcdistr): number of half levels for prescribed general plant area density distribution
+  integer :: nsrcdistr(100)  !< length of srcfactor for scalar i
 
   logical :: wth_total = .false.       !< Switch: prescribed SH flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
   logical :: wqt_total = .false.       !< Switch: prescribed LE flux is added to surface flux if .false., it contains (the effect of) the surface flux if .true.
@@ -51,6 +54,8 @@ module modcanopy
   real, allocatable :: padf(:)         !< plant area density field full level
   real, allocatable :: padh(:)         !< plant area density field full level
   real, allocatable :: pai(:)          !< plant area index of the column starting in this grid cell up to the canopy top
+
+  real, allocatable :: srcfactor(:,:)  !< prescribed weighing factor for scalar source density
 
   real              :: f_lai_h         !< average plant area density [m2/m2 / m]
 
@@ -144,6 +149,49 @@ function relypos(jj)
 end function
 
 !-----------------------------------------------------------------------------------------
+! Note that the source distribution is defined on full levels
+SUBROUTINE read_srcdistr(maxnsrc, srcfact, nsrc, srcname)
+    use modglobal, only : ifinput, cexpnr
+    character(80) readstring
+    integer       k, maxnsrc, nsrc, ierr
+    real          srcfact(maxnsrc)
+    character*(*)      srcname
+
+    open (ifinput,file=srcname//'.inp.'//cexpnr)
+
+    k = 0
+    ierr = 0
+    ! Initialize srcfact
+    srcfact = 0
+    do while (ierr == 0)
+       read(ifinput, '(A)', iostat=ierr) readstring
+       do while (readstring(1:1)=='#')     ! Skip the lines that are commented (like headers)
+         read (ifinput,'(A)', iostat=ierr) readstring
+       end do
+       if (ierr == 0) then
+         k = k + 1
+         if (k > maxnsrc) then
+           STOP 'Number of levels in srcdistr file is too large'
+         else
+           read(readstring, *) srcfact(k)
+         endif
+       endif
+    end do
+    nsrc = k
+
+    close(ifinput)
+
+    !And now, weigh it such that the array of srcfactor values is on average 1 (just in case the user's array does not fulfill that criterion)
+    !Note that the weighing is different here than for the padfactor array, as
+    !the srcfactors are defined on full levels, rather than half levels
+    if (sum(srcfact(1:(nsrc-1)) + srcfact(2:nsrc)) > 0) then 
+        srcfact = srcfact * (nsrc) / sum(srcfact(1:nsrc))
+    endif
+    write(*,*) 'DEBUG ', srcfact
+
+end subroutine
+!-----------------------------------------------------------------------------------------
+
 SUBROUTINE read_paddistr(maxnpad, padfact, npad, padname)
     use modglobal, only : ifinput, cexpnr
     character(80) readstring
@@ -193,12 +241,14 @@ end subroutine
     integer       ::  ierr, i,j,k, kp, defined_cantypes = 0, canopytype_0 = -1, defined_canpatches = 0
     character(len=1500) :: readbuffer
     logical       ::       found_type
+    character(len=5) :: srcname
 
 
     namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai, lpaddistr, npaddistr, &
                         wth_total, wqt_total, wsv_total, wth_can, wqt_can, wsv_can, &
                         wth_alph, wqt_alph, wsv_alph, &
-                        lhetcanopy
+                        lhetcanopy, &
+                        lsrcdistr
   
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -231,6 +281,7 @@ end subroutine
     call MPI_BCAST(wth_alph  ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(wqt_alph  ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(wsv_alph  , 100, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lsrcdistr ,   1, mpi_logical , 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
     
@@ -253,6 +304,10 @@ end subroutine
       allocate(padh_c      (max_ncan+1,max_canopy))
       allocate(pai_c       (max_ncan+1,max_canopy))
       allocate(map_c       (i2,j2))
+    endif
+  
+    if (lsrcdistr) then
+      allocate(srcfactor (maxsrcdistr,100))
     endif
 
     ! If heterogeneous canopy, read file that describes land types
@@ -377,6 +432,15 @@ end subroutine
                        1.2944881889763780, &
                        0.3236220472440945, &
                        0.0000000000000000  /)
+      endif
+      if (lsrcdistr) then
+      ! First only implement reading of source distribution for scalars
+          do i=1,nsv 
+              write(srcname,'(a,i3.3)') 'sv', i
+              call read_srcdistr(maxsrcdistr, srcfactor(:,i), nsrcdistr(i), srcname)
+          enddo
+          call MPI_BCAST(srcfactor, 100*maxsrcdistr, my_real , 0, comm3d, mpierr)
+          call MPI_BCAST(nsrcdistr, maxsrcdistr, my_real , 0, comm3d, mpierr)
       endif
     endif
 
@@ -574,6 +638,7 @@ end subroutine
           end do
        enddo
     else
+      
       if (wth_total) then
           call canopyc(thlp,wth_can,thlflux,wth_alph,pai)
       else
@@ -584,13 +649,25 @@ end subroutine
       else
           call canopyc( qtp,wqt_can,zeroar,wqt_alph,pai)
       endif
-      do n=1,nsv
-        if (wsv_total(n)) then
-          call canopyc(svp(:,:,:,n),wsv_can(n),svflux(:,:,n),wsv_alph(n),pai)
-        else
-          call canopyc(svp(:,:,:,n),wsv_can(n),       zeroar,wsv_alph(n),pai)
-        endif
-      end do
+      ! Here I have to implement a new canopyc that can use a prescribed source
+      ! distibution, having srcdistr as an input, rather than the alpha and pai
+      if (lsrcdistr) then
+         do n=1,nsv
+            if (wsv_total(n)) then
+              call canopycd(svp(:,:,:,n),wsv_can(n),svflux(:,:,n),nsrcdistr(n), srcfactor(:,n))
+            else
+              call canopycd(svp(:,:,:,n),wsv_can(n),zeroar       ,nsrcdistr(n), srcfactor(:,n))
+            endif
+         end do
+      else
+         do n=1,nsv
+            if (wsv_total(n)) then
+              call canopyc(svp(:,:,:,n),wsv_can(n),svflux(:,:,n),wsv_alph(n),pai)
+            else
+              call canopyc(svp(:,:,:,n),wsv_can(n),       zeroar,wsv_alph(n),pai)
+            endif
+         end do
+      endif
     endif
     return
   end subroutine canopy
@@ -841,6 +918,32 @@ end subroutine
 
     return
   end subroutine canopyc
+
+! Scalar soure with prescribed source distribution
+  subroutine canopycd (putout, flux_top, flux_surf, npoints, srcdistr)
+    use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, dzf, imax, jmax, zh
+    use modfields, only  : rhobh, rhobf
+    implicit none
+
+    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real, intent(in   ) :: flux_top
+    real, intent(in   ) :: flux_surf(i2,j2)
+    real, intent(in   ) :: srcdistr(:)
+    integer, intent(in) :: npoints
+    real                :: flux_net (i2,j2)
+    integer             :: k
+    real                :: integratedcontribution(imax,jmax,ncanopy+1), tendency(imax,jmax,ncanopy)
+    
+    flux_net                        = flux_top * rhobh(ncanopy+1) - flux_surf * rhobh(1)
+
+    do k=1,npoints
+      tendency(:,:,k) = srcdistr(k)*flux_net(2:i1,2:j1) / zh(1+ncanopy)
+    end do
+
+    putout(2:i1,2:j1,1:ncanopy) = putout(2:i1,2:j1,1:ncanopy) + tendency
+
+    return
+  end subroutine canopycd
 
 ! ======================================================================
 ! subroutine from Ned Patton ~ adapted where obvious
