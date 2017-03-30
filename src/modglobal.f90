@@ -48,7 +48,8 @@ save
       
       character(50) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
-      logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
+      logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start 
+      logical :: lwarmstart_noscalar = .false.!<   flag for not reading the scalar fields on warmstart
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk

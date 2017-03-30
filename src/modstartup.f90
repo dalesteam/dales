@@ -363,7 +363,7 @@ contains
                                   zf,zh,dzf,dzh,rv,rd,grav,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,dtheta,dqt,dsv,cexpnr,ifinput,lwarmstart,itrestart,&
                                   trestart, ladaptive,llsadv,tnextrestart,ibas_prf,&
-                                  presgradx, presgrady, lcoriol
+                                  presgradx, presgrady, lcoriol, lwarmstart_noscalar
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wtsurf,wqsurf,wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,ustin,ps,qts,isurf,svs,obl,oblav,&
@@ -574,7 +574,30 @@ contains
       call thermodynamics
 
     else !if lwarmstart
+      if (lwarmstart_noscalar) then
+         svprof = 0.
+         if(myid==0)then
+           if (nsv>0) then
+             open (ifinput,file='scalar.inp.'//cexpnr)
+             read (ifinput,'(a80)') chmess
+             read (ifinput,'(a80)') chmess
+             do k=1,kmax
+               read (ifinput,*) &
+                     height (k), &
+                     (svprof (k,n),n=1,nsv)
+             end do
+             open (ifinput,file='scalar.inp.'//cexpnr)
+             write (6,*) 'height   sv(1) --------- sv(nsv) '
+             do k=kmax,1,-1
+               write (6,*) &
+                     height (k), &
+                   (svprof (k,n),n=1,nsv)
+             end do
+           end if
+        endif
+      endif
 
+      ! Note: readrestartfiles knows about discarding scalars yes or no
       call readrestartfiles
       um   = u0
       vm   = v0
@@ -760,7 +783,7 @@ contains
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                          iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv
+                          iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv, lwarmstart_noscalar
     use modmpi,     only : cmyid, myid
     use modsubgriddata, only : ekm
 
@@ -814,16 +837,18 @@ contains
       endif
     close(ifinput)
 
-    if (nsv>0) then
-      name(5:5) = 's'
-      write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
-      read(ifinput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
-      read(ifinput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
-      read(ifinput) (dsv(n),n=1,nsv)
-      read(ifinput)  timee
-      close(ifinput)
-    end if
+    if (.not. lwarmstart_noscalar) then
+        if (nsv>0) then
+          name(5:5) = 's'
+          write(6,*) 'loading ',name
+          open(unit=ifinput,file=name,form='unformatted')
+          read(ifinput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
+          read(ifinput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
+          read(ifinput) (dsv(n),n=1,nsv)
+          read(ifinput)  timee
+          close(ifinput)
+        end if
+    endif
 
     if (isurf == 1) then
       name(5:5) = 'l'
