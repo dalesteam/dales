@@ -50,6 +50,8 @@ save
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start 
       logical :: lwarmstart_noscalar = .false.!<   flag for not reading the scalar fields on warmstart
+      logical :: lwarmstart_changecu = .false.!<   flag for changing the cu value of the fields read/written
+                                              !<   if true, you need to specificy cu_in cv_in   
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
@@ -145,6 +147,8 @@ save
       real :: xtime     = 0.    !<     * GMT time
       real :: cu        = 0.    !<     * translation velocity in x-direction
       real :: cv        = 0.    !<     * translation velocity in y-direction
+      real :: cu_in     = -999. !<     * translation velocity in x-direction as was applied in the warmstart file that is being read
+      real :: cv_in     = -999. !<     * translation velocity in y-direction as was applied in the warmstart file that is being read
       real :: runtime   = 300.  !<     * simulation time in secs
       real :: dtmax     = 20.    !<     * maximum time integration interval
       integer(kind=longint) :: idtmax        !<     * maximum time integration interval

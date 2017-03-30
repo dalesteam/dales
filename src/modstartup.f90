@@ -58,7 +58,7 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author, lrigidlid, unudge, &
-                                  presgradx, presgrady
+                                  presgradx, presgrady, lwarmstart_noscalar, lwarmstart_changecu
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -85,7 +85,7 @@ contains
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
-        nprocx,nprocy
+        nprocx,nprocy, lwarmstart_noscalar, lwarmstart_changecu
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
@@ -151,6 +151,8 @@ contains
   !broadcast namelists
     call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lwarmstart_noscalar ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lwarmstart_changecu ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(author     ,80,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(runtime    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
@@ -278,7 +280,8 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,z0,isurf,ps,lhetero
-    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
+    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax, &
+                          lwarmstart_changecu, cu_in, cv_in
     use modmpi,    only : myid,nprocx,nprocy,mpierr
     use modtimedep, only : ltimedep
 
@@ -323,6 +326,10 @@ contains
 
     if (lwarmstart) then
       if (startfile == '') stop 'no restartfile set'
+      if (lwarmstart_changecu) then
+         if (cu_in < -900) stop 'no cu_in set'
+         if (cv_in < -900) stop 'no cv_in set'
+      endif
     end if
   !isurf
     if (myid == 0) then
@@ -783,7 +790,8 @@ contains
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                          iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv, lwarmstart_noscalar
+                          iexpnr,ntimee,tres,rk3step,ifinput,nsv,runtime,dt,rdt,cu,cv, lwarmstart_noscalar, lwarmstart_changecu, &
+                          cu, cv, cu_in, cv_in
     use modmpi,     only : cmyid, myid
     use modsubgriddata, only : ekm
 
@@ -801,9 +809,9 @@ contains
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
       read(ifinput)  (((u0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-!       u0 = u0-cu
+      if (lwarmstart_changecu) u0 = u0 + cu_in - cu
       read(ifinput)  (((v0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-!       v0 = v0-cv
+      if (lwarmstart_changecu) v0 = v0 + cv_in - cv
       read(ifinput)  (((w0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((thl0  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((qt0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
