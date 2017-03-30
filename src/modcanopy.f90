@@ -186,8 +186,11 @@ SUBROUTINE read_srcdistr(maxnsrc, srcfact, nsrc, srcname)
     !the srcfactors are defined on full levels, rather than half levels
     if (sum(srcfact(1:(nsrc-1)) + srcfact(2:nsrc)) > 0) then 
         srcfact = srcfact * (nsrc) / sum(srcfact(1:nsrc))
+    else
+        WRITE(*,*) 'The source has no non-zero values in file ', srcname//'.inp.'//cexpnr
+        STOP 'Fix your source file'
     endif
-    write(*,*) 'DEBUG ', srcfact
+    write(*,*) 'DEBUG ', srcfact(:nsrc)
 
 end subroutine
 !-----------------------------------------------------------------------------------------
