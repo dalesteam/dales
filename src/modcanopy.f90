@@ -940,7 +940,7 @@ end subroutine
       tendency(:,:,k) = srcdistr(k)*flux_net(2:i1,2:j1) / zh(1+ncanopy)
     end do
 
-    putout(2:i1,2:j1,1:ncanopy) = putout(2:i1,2:j1,1:ncanopy) + tendency
+    putout(2:i1,2:j1,1:npoints) = putout(2:i1,2:j1,1:ncanopy) + tendency
 
     return
   end subroutine canopycd
