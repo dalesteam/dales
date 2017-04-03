@@ -940,10 +940,10 @@ end subroutine
     flux_net                        = flux_top * rhobh(ncanopy+1) - flux_surf * rhobh(1)
 
     do k=1,npoints
-      tendency(:,:,k) = srcdistr(k)*flux_net(2:i1,2:j1) / zh(1+ncanopy)
+      tendency(:,:,k) = ((srcdistr(k)/npoints)*flux_net(2:i1,2:j1)) / ( rhobf(k) * dzf(k) )
     end do
 
-    putout(2:i1,2:j1,1:npoints) = putout(2:i1,2:j1,1:ncanopy) + tendency
+    putout(2:i1,2:j1,1:npoints) = putout(2:i1,2:j1,1:npoints) + tendency
 
     return
   end subroutine canopycd
