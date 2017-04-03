@@ -58,7 +58,7 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author, lrigidlid, unudge, &
-                                  presgradx, presgrady, lwarmstart_noscalar, lwarmstart_changecu
+                                  presgradx, presgrady, lwarmstart_noscalar, lwarmstart_changecu, cu_in, cv_in
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -97,7 +97,7 @@ contains
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lrigidlid, unudge, &
         presgradx, presgrady
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv
+        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, cu_in, cv_in
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -217,6 +217,8 @@ contains
     call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(cv         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(cu_in      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(cv_in      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(top_zero_grad        ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -601,7 +603,15 @@ contains
                    (svprof (k,n),n=1,nsv)
              end do
            end if
-        endif
+         endif
+         call MPI_BCAST(wsvsurf,nsv   ,MY_REAL   ,0,comm3d,mpierr)
+         call MPI_BCAST(svprof ,k1*nsv,MY_REAL   ,0,comm3d,mpierr)
+         do k=1,kmax
+            do n=1,nsv
+              sv0(:,:,k,n) = svprof(k,n)
+              svm(:,:,k,n) = svprof(k,n)
+            end do
+         end do
       endif
 
       ! Note: readrestartfiles knows about discarding scalars yes or no
