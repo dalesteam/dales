@@ -693,5 +693,59 @@ module daleslib
       endif
       
     end function gatherLWP
+
+    ! Compute cloud fraction for a slabs of ql
+    ! for every slab, count how many columns contain non-zero ql
+    ! sum this count over MPI threads, then divide by the number of columns
+    
+    ! ql : input field, 3d.  
+    ! I  : index array defining how layers are grouped.
+    ! A  : output vector, 1d, in Z direction. Assumed to be as high as I
+    ! A(i) = result for layers I(i-1) ... I(i)   I(0) is assumed to be 1
+    
+
+    ! important: the order of summing and counting matters
+    ! we assume that any non-zero ql makes the column opaque
+    ! then this cloud fraction is the fraction of opaque columns.
+    
+    ! NOTE averages the FULL input array - if less is wanted, pass a slice !
+    function gatherCloudFrac(ql,I,A) result(ret)
+      use mpi
+      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      real,    intent(in)     :: ql(:,:,:)
+      integer, intent(in)     :: I(:)
+      real,    intent(out)    :: A(:)
+      integer                 :: ii, k, k1, k2, nk, ret
+      integer                 :: Ni, Nj
+
+      Ni = size(ql, 1)
+      Nj = size(ql, 2)
+      
+      
+      k1 = 1                    ! start of k-range
+      do ii = 1, size(I)
+         k2 = I(ii)             ! end of k-range
+
+         A(ii) = count (sum (ql(:,:,k1:k2-1), dim=3) > 0)  ! count how many columns in the current slab contains non-zero ql
+
+         k1 = I(ii)
+      enddo
+      
+      write (*,*) 'gatherCloudFrac partial (', myid, '): ', A
+      
+      !in-place reduction
+      if (myid == 0) then
+         CALL mpi_reduce(MPI_IN_PLACE, A, size(I), MY_REAL, MPI_SUM, 0, comm3d, ret)
+      else
+         CALL mpi_reduce(          A,  A, size(I), MY_REAL, MPI_SUM, 0, comm3d, ret)
+      endif
+      
+      if (myid == 0) then
+         A = A / (size(ql,1) * size(ql,2) * nprocs)
+         write (*,*) 'gatherCloudFrac final:', A
+      endif
+    end function gatherCloudFrac
+    
+
     
 end module daleslib
