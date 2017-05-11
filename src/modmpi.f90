@@ -213,7 +213,7 @@ contains
   else
     do k=sz,ez
     do i=sx,ex
-      ii = ii + 1
+      ! ii = ii + 1   ! not needed, not initialized - triggers undef variable -check
       a(i,sy,k) = a(i,ey-1,k)
       a(i,ey,k) = a(i,sy+1,k)
     enddo
@@ -259,7 +259,7 @@ contains
   else
     do k=sz,ez
     do i=sy,ey
-      ii = ii + 1
+      ! ii = ii + 1  ! not needed, not initialized - triggers undef variable -check
       a(sx,i,k) = a(ex-1,i,k)
       a(ex,i,k) = a(sx+1,i,k)
     enddo
