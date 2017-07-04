@@ -120,6 +120,7 @@ save
 
       !Advection scheme
       integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
+      integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
       integer, parameter :: iadv_5th    = 5
