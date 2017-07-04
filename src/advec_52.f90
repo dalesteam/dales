@@ -42,21 +42,27 @@ subroutine advecc_52(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
+!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
+!  real                                      :: rhobfinvk                      
+  real                                       :: inv2dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
   !if (leq) then
 
-  do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
-      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-      end do
-    end do
-  end do
+!  do k=1,k1
+!    do j=2-jh,j1+jh
+!      do i=2-ih,i1+ih
+!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+!      end do
+!    end do
+!  end do
 
   do k=1,kmax
+     !rhobfinvk = 1./rhobf(k)
+     inv2dzfk = 1./(2. * dzf(k))
+     rhobf_p = rhobf(k+1)/rhobf(k)
+     if (k > 1) rhobf_m = rhobf(k-1)/rhobf(k)
     do j=2,j1
       do i=2,i1
 
@@ -66,26 +72,26 @@ subroutine advecc_52(putin, putout)
                 ( &
                   u0(i+1,j,k)/60.&
                   *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                  -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                  -abs(u0(i+1,j,k))/60.&
                   *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                   -u0(i,j,k)/60.&
                   *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                  +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                  +abs(u0(i,j,k))/60.&
                   *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi&
                 +(&
                   v0(i,j+1,k)/60.&
                   *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                  -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                  -abs(v0(i,j+1,k))/60.&
                   *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                   -v0(i,j,k)/60.&
                   *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                  +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                  +abs(v0(i,j,k))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k))) &
                   )* dyi &
-                +(1./rhobf(k))*( &
-                w0(i,j,k+1) * (rhoputin(i,j,k+1) + rhoputin(i,j,k)) &
-                ) / ( 2. * dzf(k) ) &
+                + ( &
+                w0(i,j,k+1) * (rhobf_p * putin(i,j,k+1) + putin(i,j,k)) &
+                ) * inv2dzfk  &
                 )
 
         else
@@ -93,27 +99,27 @@ subroutine advecc_52(putin, putout)
                   ( &
                       u0(i+1,j,k)/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                      -abs(u0(i+1,j,k))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -u0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                      +abs(u0(i,j,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi&
                 +(&
                       v0(i,j+1,k)/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                      -abs(v0(i,j+1,k))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -v0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                      +abs(v0(i,j,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
-                +(1./rhobf(k))*( &
-                  w0(i,j,k+1) * (rhoputin(i,j,k+1)+rhoputin(i,j,k)) &
-                  -w0(i,j,k)  * (rhoputin(i,j,k-1)+rhoputin(i,j,k)) &
-                  ) / ( 2. * dzf(k) ) &
+                + ( &
+                  w0(i,j,k+1) * (rhobf_p * putin(i,j,k+1) +  putin(i,j,k)) &
+                  -w0(i,j,k)  * (rhobf_m * putin(i,j,k-1) +  putin(i,j,k)) &
+                  ) * inv2dzfk &
                   )
         end if
 
@@ -133,19 +139,19 @@ subroutine advecu_52(putin,putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
+  !real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
   !if (leq) then
 
-  do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
-      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-      end do
-    end do
-  end do
+!  do k=1,k1
+!    do j=2-jh,j1+jh
+!      do i=2-ih,i1+ih
+!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+!      end do
+!    end do
+!  end do
 
   do k=1,kmax
     do j=2,j1
@@ -175,7 +181,7 @@ subroutine advecu_52(putin,putout)
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
               )* dyi5 &
             +(1./rhobf(k))*( &
-              ( rhoputin(i,j,k+1) + rhoputin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
+              ( rhobf(k+1)*putin(i,j,k+1) + rhobf(k) * putin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
               ) / (4.*dzf(k)) &
               )
 
@@ -202,8 +208,8 @@ subroutine advecu_52(putin,putout)
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
               )* dyi5 &
             +(1./rhobf(k))*( &
-              (rhoputin(i,j,k)+rhoputin(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
-            -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  )) &
+              (rhobf(k) * putin(i,j,k) + rhobf(k+1) * putin(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
+            -(rhobf(k) * putin(i,j,k) + rhobf(k-1) * putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  )) &
               ) / (4. * dzf(k)) &
               )
       end if
@@ -224,19 +230,19 @@ subroutine advecv_52(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
+  !real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
   !if (leq) then
 
-  do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
-      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-      end do
-    end do
-  end do
+  !do k=1,k1
+  !  do j=2-jh,j1+jh
+  !    do i=2-ih,i1+ih
+  !    rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
+  !    end do
+  !  end do
+  !end do
 
   do k=1,kmax
     do j=2,j1
@@ -266,7 +272,7 @@ subroutine advecv_52(putin, putout)
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
               +(1./rhobf(k))*( &
-                (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhoputin(i,j,k+1)+rhoputin(i,j,k)) &
+                (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf(k+1) * putin(i,j,k+1) + rhobf(k) * putin(i,j,k)) &
                 ) / (4. * dzf(k)) &
                 )
 
@@ -293,8 +299,8 @@ subroutine advecv_52(putin, putout)
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
               +(1./rhobf(k))*( &
-                (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhoputin(i,j,k+1)+rhoputin(i,j,k)) &
-                -(w0(i,j,k) +w0(i,j-1,k))  *(rhoputin(i,j,k-1)+rhoputin(i,j,k)) &
+                (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1) * putin(i,j,k+1) + rhobf(k) * putin(i,j,k)) &
+                -(w0(i,j,k) +w0(i,j-1,k))  *(rhobf(k-1) * putin(i,j,k-1) + rhobf(k) * putin(i,j,k)) &
                 ) / (4. * dzf(k)) &
                 )
       end if
@@ -315,19 +321,19 @@ subroutine advecw_52(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
+  !real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
 
   !if (leq) then
 
-  do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
-      rhoputin(i,j,k)=rhobh(k)*putin(i,j,k)
-      end do
-    end do
-  end do
+  !do k=1,k1
+  !  do j=2-jh,j1+jh
+  !    do i=2-ih,i1+ih
+  !    rhoputin(i,j,k)=rhobh(k)*putin(i,j,k)
+  !    end do
+  !  end do
+  !end do
 
   do k=2,kmax
     do j=2,j1
@@ -354,8 +360,8 @@ subroutine advecw_52(putin, putout)
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
               + (1./rhobh(k))*( &
-                (rhoputin(i,j,k)+rhoputin(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
-                -(rhoputin(i,j,k)+rhoputin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
+              (rhobh(k) * putin(i,j,k) + rhobh(k+1) * putin(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
+                -(rhobh(k) * putin(i,j,k) + rhobh(k-1) * putin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
                 )/ (4. * dzh(k)) &
                 )
       end do
