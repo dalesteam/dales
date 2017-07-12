@@ -257,7 +257,7 @@ contains
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     do k=1,kmax
       thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
-      thlswtendav(k) = ((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
+      thlswtendav(k) = -((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
     end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
