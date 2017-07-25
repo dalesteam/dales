@@ -174,27 +174,30 @@ subroutine tstep_integrate
   rk3coef = rdt / (4. - dble(rk3step))
   wp_store = wp
 
-  do k=1,kmax
-    do j=2,j1
-      do i=2,i1
-
-        u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
-        v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
-        w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
-        thl0(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
-        qt0(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
-        e120(i,j,k) = e12m(i,j,k) + rk3coef * e12p(i,j,k)
-
-        e120(i,j,k) = max(e12min,e120(i,j,k))
-        e12m(i,j,k) = max(e12min,e12m(i,j,k))
-
-        do n=1,nsv
-          sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
-        end do
-
-      end do
-    end do
-  end do
+  if(rk3step /= 3) then
+     u0   = um   + rk3coef * up
+     v0   = vm   + rk3coef * vp
+     w0   = wm   + rk3coef * wp
+     thl0 = thlm + rk3coef * thlp
+     qt0  = qtm  + rk3coef * qtp
+     sv0  = svm  + rk3coef * svp
+     e120 = max(e12min,e12m + rk3coef * e12p)
+  else ! step 3 - store result in both ..0 and ..m
+     um   = um   + rk3coef * up
+     u0 = um
+     vm   = vm   + rk3coef * vp
+     v0 = vm
+     wm   = wm   + rk3coef * wp
+     w0 = wm
+     thlm = thlm + rk3coef * thlp
+     thl0 = thlm
+     qtm  = qtm  + rk3coef * qtp
+     qt0  = qtm
+     svm  = svm  + rk3coef * svp
+     sv0 = svm
+     e12m = max(e12min,e12m + rk3coef * e12p)
+     e120 = e12m
+  end if
 
   up=0.
   vp=0.
@@ -203,15 +206,5 @@ subroutine tstep_integrate
   qtp=0.
   svp=0.
   e12p=0.
-
-  if(rk3step == 3) then
-    um = u0
-    vm = v0
-    wm = w0
-    thlm = thl0
-    qtm  = qt0
-    e12m = e120
-    svm = sv0
-  end if
 
 end subroutine tstep_integrate
