@@ -677,7 +677,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,timee,pi
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -921,6 +921,20 @@ contains
         lthls_patch = 0.0
         lqts_patch  = 0.0
         Npatch      = 0
+      endif
+
+      if (timee <= 8100.) then
+        wtsurf = 0.
+      else if ( (timee > 8100) .and. (timee <= 36900.)) then
+        wtsurf = 0.19     * sin(pi*((timee-8100))/(8.*3600))
+      else
+        wtsurf = 0.
+      endif
+
+      if (timee <= 3600.) then
+      wqsurf = 0.
+      else
+      wqsurf = 0.000130 * sin(pi*((timee-3600.))/(10.5*3600))
       endif
 
       do j = 2, j1
