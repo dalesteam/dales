@@ -57,7 +57,7 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,&
-                                  ladaptive,author,lnoclouds,lrigidlid,unudge
+                                  ladaptive,author,lnoclouds,lrigidlid,unudge,outfile
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -83,7 +83,7 @@ contains
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
-        krandumin, krandumax, randu,&
+        krandumin, krandumax, randu, outfile, &
         nprocx,nprocy
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
@@ -118,7 +118,7 @@ contains
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions RUN'
       endif
-      write(6 ,RUN)
+      !write(6 ,RUN)
       rewind(ifnamopt)
       read (ifnamopt,DOMAIN,iostat=ierr)
       if (ierr > 0) then
@@ -126,7 +126,7 @@ contains
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions DOMAIN'
       endif
-      write(6 ,DOMAIN)
+      !write(6 ,DOMAIN)
       rewind(ifnamopt)
       read (ifnamopt,PHYSICS,iostat=ierr)
       if (ierr > 0) then
@@ -134,7 +134,7 @@ contains
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions PHYSICS'
       endif
-      write(6 ,PHYSICS)
+      !write(6 ,PHYSICS)
       rewind(ifnamopt)
       read (ifnamopt,DYNAMICS,iostat=ierr)
       if (ierr > 0) then
@@ -142,7 +142,7 @@ contains
         print *, 'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions DYNAMICS'
       endif
-      write(6 ,DYNAMICS)
+      !write(6 ,DYNAMICS)
       close(ifnamopt)
     end if
 
@@ -153,7 +153,8 @@ contains
 
     call initmpi
 
-  !broadcast namelists
+    !broadcast namelists
+    call MPI_BCAST(outfile  ,255,MPI_CHARACTER,0,commwrld,mpierr)
     call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,commwrld,mpierr)
     call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,commwrld,mpierr)
@@ -240,6 +241,16 @@ contains
 
     call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,commwrld,mpierr)
 
+    ! If the namelist argument outfile is provided, open it using the stdout handle 6
+    ! so that message output is redirected there.
+    if (outfile /= "") then
+      open(unit=6,file=outfile,iostat=ierr)
+      if (ierr /= 0) then
+        stop "Failed to open output file for messages"
+      endif
+    endif
+
+    
     ! Allocate and initialize core modules
     call initglobal
     call initfields

@@ -47,6 +47,7 @@ save
       integer ::  kcb=0
 
       character(256) :: fname_options = 'namoptions'
+      character(256) :: outfile = '' !< Output file for messages
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
