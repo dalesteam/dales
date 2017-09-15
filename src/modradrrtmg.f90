@@ -1,4 +1,5 @@
 module modradrrtmg
+  use modglobal, only : ifmessages
   use modraddata
   implicit none
 
@@ -51,7 +52,7 @@ contains
       if(npatch_end.ne.npatch_start) then
         npatch = npatch_end - npatch_start + 1
       else
-        if(myid==0) write(*,*) 'No sounding levels above the LES domain, check sounding input file'
+        if(myid==0) write(ifmessages,*) 'No sounding levels above the LES domain, check sounding input file'
         stop 'ERROR: No valid radiation sounding found (modradrrtmg.f90)'
       end if
 
@@ -119,7 +120,7 @@ contains
                  STAT=ierr(3))
 
       if(any(ierr(:)/=0)) then
-        if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrrtmg'
+        if(myid==0) write(ifmessages,*) 'Could not allocate input/output arrays in modradrrtmg'
         stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90'
       else
         isAllocated_RadInputsOutputs = .true.
@@ -140,7 +141,7 @@ contains
       end if
       call readTraceProfs
 
-      if(myid==0) write(*,*) 'Trace gas profile have been read'
+      if(myid==0) write(ifmessages,*) 'Trace gas profile have been read'
       isReadTraceProfiles = .true.
     end if
 
@@ -151,7 +152,7 @@ contains
       end if
       if (rad_shortw) then
         call shr_orb_params(iyear,eccen,obliq,mvelp,obliqr,lambm0,mvelpp,.false.)
-        if (myid==0) write(*,*) 'orb_params = ',eccen,obliq,mvelp,obliqr,lambm0,mvelpp
+        if (myid==0) write(ifmessages,*) 'orb_params = ',eccen,obliq,mvelp,obliqr,lambm0,mvelpp
         call rrtmg_sw_ini(cpdair)
       end if
       isInitializedRrtmg = .true.
@@ -168,7 +169,7 @@ contains
       if (rad_longw) then
         call rrtmg_lw &
              ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )!input
-        !if(myid==0) write(*,*) 'after call to rrtmg_lw'
+        !if(myid==0) write(ifmessages,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
          call setupSW(sunUp)
@@ -215,7 +216,7 @@ contains
       end do
     end do
 
-    !if(myid==0) write(*,*) 'RadiationDone'
+    !if(myid==0) write(ifmessages,*) 'RadiationDone'
 !    stop 'FINISHED radrrtmg!!'
   end subroutine radrrtmg
 
@@ -258,9 +259,9 @@ contains
     end if
 
     if(nlev.gt.nzsnd) then
-      write(*,*) 'ERROR in modradrrtmg.f90'
-      write(*,*) '***** number of levels in ', TRIM(SoundingFileName)
-      write(*,*) '***** exceeds nzsnd.  Reset nzsnd in modraddata.f90'
+      write(ifmessages,*) 'ERROR in modradrrtmg.f90'
+      write(ifmessages,*) '***** number of levels in ', TRIM(SoundingFileName)
+      write(ifmessages,*) '***** exceeds nzsnd.  Reset nzsnd in modraddata.f90'
       stop 'ERROR in readSounding'
     end if
 
@@ -269,8 +270,8 @@ contains
              psnd(nlev), tsnd(nlev), qsnd(nlev), o3snd(nlev), &
              STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR in modradrrtmg.f90'
-      write(*,*) '***** Could not allocate arrays to read in sounding'
+      write(ifmessages,*) 'ERROR in modradrrtmg.f90'
+      write(ifmessages,*) '***** Could not allocate arrays to read in sounding'
       stop 'ERROR in readSounding'
     end if
 
@@ -288,9 +289,9 @@ contains
       if (sts/=nf90_NoErr) then
         usero3 = .false.
         if (myid==0) then
-          write(*,*) 'WARNING: could not obtain ozon profile from file.'
-          write(*,*) 'Using reference profile instead!'
-          write(*,*) 'usero3 has now been set to .false.'
+          write(ifmessages,*) 'WARNING: could not obtain ozon profile from file.'
+          write(ifmessages,*) 'Using reference profile instead!'
+          write(ifmessages,*) 'usero3 has now been set to .false.'
         end if
       else
         sts          = nf90_get_var(ncid, varID, o3snd_in)
@@ -330,21 +331,21 @@ contains
     end if
 
     if(myid == 0) then
-      write(*,*)
-      write(*,*) 'Background sounding, p (mb), T (K), q (kg/kg)'
+      write(ifmessages,*)
+      write(ifmessages,*) 'Background sounding, p (mb), T (K), q (kg/kg)'
       do k = 1,nlev
-        if(k.eq.npatch_start) write(*,*) '**** Start Patch Here *****'
-        write(*,998) k,psnd(k), tsnd(k), qsnd(k)
+        if(k.eq.npatch_start) write(ifmessages,*) '**** Start Patch Here *****'
+        write(ifmessages,998) k,psnd(k), tsnd(k), qsnd(k)
 998     format(i4,f8.3,f8.3,e12.4)
-        if(k.eq.npatch_end) write(*,*) '**** End Patch Here *****'
+        if(k.eq.npatch_end) write(ifmessages,*) '**** End Patch Here *****'
       end do
-      if(npatch_start.gt.nlev) write(*,*) '**** No patching required -- model top is deeper than sounding ****'
+      if(npatch_start.gt.nlev) write(ifmessages,*) '**** No patching required -- model top is deeper than sounding ****'
     end if
 
     deallocate(psnd_in, tsnd_in, qsnd_in, o3snd_in, STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR in modradrrtmg.f90'
-      write(*,*) '***** Could not allocate arrays to read in sounding'
+      write(ifmessages,*) 'ERROR in modradrrtmg.f90'
+      write(ifmessages,*) '***** Could not allocate arrays to read in sounding'
       stop 'ERROR in readSounding'
     end if
 
@@ -391,7 +392,7 @@ contains
            cfc12(krad1), cfc22(krad1), ccl4(krad1), &
            STAT=ierr)
       if(ierr.ne.0) then
-        write(*,*) 'ERROR: could not allocate trace gas arrays in tracesini'
+        write(ifmessages,*) 'ERROR: could not allocate trace gas arrays in tracesini'
         stop 'ERROR in readTraceProfs'
       else
         isAllocated_TraceGases=.true.
@@ -409,14 +410,14 @@ contains
     sts(5)  = nf90_inquire_dimension(ncid, dimIDab,tmpName, nab)
 
     if (any(sts.ne.nf90_noerr)) then
-      write(*,*) 'ERROR: input file either not found or incorrectly formatted'
+      write(ifmessages,*) 'ERROR: input file either not found or incorrectly formatted'
       stop 'rrtmg_lw.nc input file either not found or incorrectly formatted'
     end if
 
     ! allocate local variables and set their value to zero
     allocate(pMLS(np), trace(nTraceGases,np), trace_in(nab,np), STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR: could not declare arrays in tracesini'
+      write(ifmessages,*) 'ERROR: could not declare arrays in tracesini'
       stop 'ERROR: Could not allocate (in readTraceProfs, modradrrtmg.f90)'
     end if
     pMLS=0. ; trace=0. ; trace_in=0.
@@ -436,7 +437,7 @@ contains
     end do
 
     if(maxval(abs(sts(:))).ne.nf90_noerr) then
-      write(*,*) 'Error in reading trace gas sounding from RRTMG_data/rrtmg_lw.nc'
+      write(ifmessages,*) 'Error in reading trace gas sounding from RRTMG_data/rrtmg_lw.nc'
       stop 'ERROR: tracegas data could not be read from rrtmg_lw.nc'
     end if
 
@@ -524,18 +525,18 @@ contains
     end do !loop over trace gases, m
 
     if(myid==0)then
-      write(*,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
-      write(*,*) 'gas traces vertical profiles (ppmv):'
-      write(*,*) 'p, hPa', ('       ',traceGasNameOrder(m),m=1,nTraceGases)
+      write(ifmessages,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
+      write(ifmessages,*) 'gas traces vertical profiles (ppmv):'
+      write(ifmessages,*) 'p, hPa', ('       ',traceGasNameOrder(m),m=1,nTraceGases)
       do k=1,krad1
-        write(*,*) tmppresf(k),o3(k),co2(k),ch4(k),n2o(k),o2(k), &
+        write(ifmessages,*) tmppresf(k),o3(k),co2(k),ch4(k),n2o(k),o2(k), &
              cfc11(k),cfc12(k), cfc22(k),ccl4(k)
       end do
     end if
 
     deallocate(pMLS, trace, trace_in, STAT=ierr)
     if(ierr.ne.0) then
-      write(*,*) 'ERROR: could not deallocate arrays in tracesini'
+      write(ifmessages,*) 'ERROR: could not deallocate arrays in tracesini'
       stop 'ERROR: Could not deallocate (in readTraceProfs, modradrrtmg.f90)'
     end if
   end subroutine readTraceProfs
@@ -711,7 +712,7 @@ contains
             liquidRe(i, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(i,k)/layerMass(i,k) ) &
                               /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
 !  cstep, 1e6*Nc_0 assumes Nc_0 in cm^-3             /(4.*pi*1.e6*Nc_0*rho_liq) )**(1./3.) * exp(log(sigmag)**2 )
-!  cstep              write (6,*) 'reff = ',i,k,qcl_slice(i,k),liquidRe(i,k)
+!  cstep              write(ifmessages,*) 'reff = ',i,k,qcl_slice(i,k),liquidRe(i,k)
           endif
 
           if ( (LWP_slice(i,k).gt.0.) .AND. (liquidRe(i,k).lt.2.5)) then
@@ -759,7 +760,7 @@ contains
       end if
 
       call shr_orb_decl( dayForSW )                      ! Saves some orbital values to modraddata
-      !if (myid==0) write(*,*) 'eccf = ',eccf
+      !if (myid==0) write(ifmessages,*) 'eccf = ',eccf
       solarZenithAngleCos(:) =  &
            zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
 !      solarZenithAngleCos(:) =  0.707106781               ! cos 45gr

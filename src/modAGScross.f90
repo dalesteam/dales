@@ -29,7 +29,7 @@
 module modAGScross
 
 
-  use modglobal, only : longint,kmax
+  use modglobal, only : ifmessages,longint,kmax
 
 implicit none
 private
@@ -66,11 +66,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMAGScross,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMAGScross'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMAGScross'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMAGScross'
       endif
-      write(6 ,NAMAGScross)
+      write(ifmessages,NAMAGScross)
       close(ifnamopt)
     end if
 

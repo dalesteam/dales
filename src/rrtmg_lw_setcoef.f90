@@ -236,7 +236,7 @@
 !  fraction of the difference (in ln(pressure)) between these
 !  two values that the layer pressure lies.
          plog = log(pavel(lay))
-!         write (6,*) 'plog',log(pavel(lay)),alog(pavel(lay)) are the same
+!         write(ifmessages,*) 'plog',log(pavel(lay)),alog(pavel(lay)) are the same
 !         plog = dlog(pavel(lay))
          jp(lay) = int(36._rb - 5*(plog+0.04_rb))
          if (jp(lay) .lt. 1) then

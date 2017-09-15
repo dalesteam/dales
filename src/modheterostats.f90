@@ -20,7 +20,7 @@
 !
 module modheterostats
 
-use modglobal, only: nsv, kmax,longint
+use modglobal, only: ifmessages, nsv, kmax, longint
 
 implicit none
 private
@@ -97,7 +97,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMHETEROSTATS,iostat=ierr)
-      write(6, NAMHETEROSTATS)
+      write(ifmessages, NAMHETEROSTATS)
       close(ifnamopt)
     end if
 
@@ -123,7 +123,7 @@ contains
 
     ncfile = 'heterostats123.nc'
     write(ncfile(12:14),'(i3.3)') myidy
-!    write(6,*) "HETEROSTATS: Creating: ", ncfile
+!    write(ifmessages,*) "HETEROSTATS: Creating: ", ncfile
 
     !create file
     status = nf90_create(ncfile, nf90_clobber, ncid)
@@ -1151,7 +1151,7 @@ contains
     deallocate(usvcovid, vsvcovid, wsvcovid)
     deallocate(wsvcovsid)
 
-!    write(6,*) "HETEROSTATS: Closing: ", myid
+!    write(ifmessages,*) "HETEROSTATS: Closing: ", myid
 
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call nchandle_error(status)
@@ -1167,7 +1167,7 @@ contains
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      print *, trim(nf90_strerror(status))
+      write(ifmessages,*)  trim(nf90_strerror(status))
       stop "Stopped"
     end if
 

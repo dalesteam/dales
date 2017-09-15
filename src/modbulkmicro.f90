@@ -50,6 +50,7 @@ module modbulkmicro
 !   bulkmicro is called from *modmicrophysics*
 !
 !*********************************************************************
+  use modglobal, only : ifmessages
   use modmicrodata
 
   implicit none
@@ -135,7 +136,7 @@ module modbulkmicro
     do j=2,j1
     do i=2,i1
     do k=1,k1
-      !write (6,*) myid,i,j,k,sv0(i,j,k,inr),sv0(i,j,k,iqr)
+      !write(ifmessages,*) myid,i,j,k,sv0(i,j,k,inr),sv0(i,j,k,iqr)
       Nr  (i,j,k) = sv0(i,j,k,inr)
       qr  (i,j,k) = sv0(i,j,k,iqr)
     enddo
@@ -150,10 +151,10 @@ module modbulkmicro
     delt = rdt/ (4. - dble(rk3step))
 
     if ( timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
-      write(*,*) 'l_lognormal',l_lognormal
-      write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
-      write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
-      write(*,*) 'nuc = param'
+      write(ifmessages,*) 'l_lognormal',l_lognormal
+      write(ifmessages,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
+      write(ifmessages,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
+      write(ifmessages,*) 'nuc = param'
     endif
 
   !*********************************************************************
@@ -161,10 +162,10 @@ module modbulkmicro
   !*********************************************************************
     if (l_rain) then
        if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+         write(ifmessages,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
        end if
        if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+          write(ifmessages,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
        end if
 
        do j=2,j1
@@ -192,7 +193,7 @@ module modbulkmicro
     enddo
     enddo
     enddo
-   !write (6,*) 'second part done'
+   !write(ifmessages,*) 'second part done'
 
   !*********************************************************************
   ! calculate qltot and initialize cloud droplet number Nc
@@ -284,7 +285,7 @@ module modbulkmicro
 
       endif ! l_sb
     endif   ! l_rain
-    !write (6,*) 'parameters calculated'
+    !write(ifmessages,*) 'parameters calculated'
 
   !*********************************************************************
   ! call microphysical processes subroutines
@@ -403,7 +404,7 @@ module modbulkmicro
 
 
     if (any(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
-      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
+      write(ifmessages,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
     end if
 
   end subroutine autoconversion
@@ -490,7 +491,7 @@ module modbulkmicro
 
 
    if (any(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
-     write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
+     write(ifmessages,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
    end if
 
    deallocate (phi_br)
@@ -686,7 +687,7 @@ module modbulkmicro
       enddo
       enddo
       if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
-        write(6,*)'sed qr too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
+        write(ifmessages,*)'sed qr too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
       end if
       do j=2,j1
       do i=2,i1
@@ -960,7 +961,7 @@ module modbulkmicro
       erfymax = -1.*erfymax
     end if
     erfint = D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin)
-  !  if (erfint < 0.) write(*,*)'erfint neg'
+  !  if (erfint < 0.) write(ifmessages,*)'erfint neg'
     if (erfint < 0.) erfint = 0.
   end function erfint
 

@@ -29,7 +29,7 @@
 module modcrosssection
 
 
-  use modglobal, only : longint,kmax
+  use modglobal, only : ifmessages,longint,kmax
 
 implicit none
 private
@@ -89,11 +89,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCROSSSECTION,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCROSSSECTION'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMCROSSSECTION'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMCROSSSECTION'
       endif
-      write(6 ,NAMCROSSSECTION)
+      write(ifmessages,NAMCROSSSECTION)
       close(ifnamopt)
     end if
 

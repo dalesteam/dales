@@ -17,6 +17,7 @@
 
 ! ------- Modules -------
 !      use parkind, only : im => kind_im, rb => kind_rb
+      use modglobal, only : ifmessages  
       use modglobal, only: im => kind_im, rb => kind_rb
       use rrlw_wvn
       use rrtmg_lw_setcoef, only: lwatmref, lwavplank
@@ -89,7 +90,7 @@
       hvrini = '$Revision: 1.4 $'
 
 ! Initialize model data
-      if(myid==0) write(*,*) 'Inside subroutine rrtmg_lw_ini'
+      if(myid==0) write(ifmessages,*) 'Inside subroutine rrtmg_lw_ini'
       call lwdatinit(cpdair)
       call lwcmbdat               ! g-point interval reduction data
       call lwcldpr                ! cloud optical properties
@@ -173,7 +174,7 @@
 
 ! Reduce g-points for absorption coefficient data in each LW spectral band.
 
-      if(myid==0) write(*,*) 'Before calls to cmbgb#'
+      if(myid==0) write(ifmessages,*) 'Before calls to cmbgb#'
       call cmbgb1
       call cmbgb2
       call cmbgb3
@@ -191,7 +192,7 @@
       call cmbgb15
       call cmbgb16
 
-      if(myid==0) write(*,*) 'Completed calls to cmbgb#'
+      if(myid==0) write(ifmessages,*) 'Completed calls to cmbgb#'
 
       end subroutine rrtmg_lw_ini
 

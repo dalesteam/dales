@@ -28,6 +28,7 @@
 
 
 module modsimpleice
+  use modglobal, only : ifmessages
   use modmicrodata
 
   implicit none
@@ -154,7 +155,7 @@ module modsimpleice
     enddo
 
     if (qrsmall > 0.000001*qrsum) then
-      write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
+      write(ifmessages,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
     end if
 
 

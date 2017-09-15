@@ -1,7 +1,8 @@
 module rrlw_ncpar
 !       use parkind ,only : im => kind_im, rb => kind_rb
         use modglobal ,only : im => kind_im, rb => kind_rb
-
+        use modglobal, only : ifmessages
+        
         implicit none
         save
 
@@ -60,7 +61,7 @@ module rrlw_ncpar
                 end do
 
                 if (AbsorberIndex == -1) then
-                        print*, "Absorber name index lookup failed."
+                        write(ifmessages,*)  "Absorber name index lookup failed."
                 end if
         end subroutine getAbsorberIndex
 

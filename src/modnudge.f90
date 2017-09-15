@@ -29,7 +29,7 @@
 
 
 module modnudge
-
+use modglobal, only : ifmessages
 
 implicit none
 PRIVATE
@@ -67,11 +67,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNUDGE,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMNUDGE'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMNUDGE'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMNUDGE'
       endif
-      write(6 ,NAMNUDGE)
+      write(ifmessages,NAMNUDGE)
       close(ifnamopt)
     end if
     call MPI_BCAST(lnudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
@@ -93,7 +93,7 @@ contains
           end if
 
         end do
-        write(6,*) ' height    t_nudge    u_nudge    v_nudge    w_nudge    thl_nudge    qt_nudge'
+        write(ifmessages,*) ' height    t_nudge    u_nudge    v_nudge    w_nudge    thl_nudge    qt_nudge'
         do  k=1,kmax
           read (ifinput,*) &
                 height (k), &
@@ -106,7 +106,7 @@ contains
         end do
 
         do k=kmax,1,-1
-          write (6,'(f7.1,6e12.4)') &
+          write(ifmessages,'(f7.1,6e12.4)') &
                 height (k), &
                 tnudge (k,t), &
                 unudge (k,t), &

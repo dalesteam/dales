@@ -26,7 +26,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modstattend
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
 
   implicit none
 !   private
@@ -71,11 +71,11 @@ subroutine initstattend
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSTATTEND,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSTATTEND'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMSTATTEND'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMSTATTEND'
       endif
-      write(6 ,NAMSTATTEND)
+      write(ifmessages,NAMSTATTEND)
       close(ifnamopt)
     end if
 

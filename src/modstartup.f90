@@ -30,7 +30,7 @@
 !
 
 module modstartup
-
+use modglobal, only : ifmessages
 implicit none
 ! private
 ! public :: startup, writerestartfiles,trestart
@@ -52,7 +52,7 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
+    use modglobal,         only : ifmessages,initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
@@ -106,7 +106,7 @@ contains
             call get_command_argument(1,fname_options)
         end if
       end if
-      write (*,*) fname_options
+      !write (*,*) fname_options
 
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       if (ierr /= 0) then
@@ -114,35 +114,35 @@ contains
       end if
       read (ifnamopt,RUN,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions RUN'
-        print *, 'iostat error: ', ierr
+        write(*,*)  'Problem in namoptions RUN'
+        write(*,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions RUN'
       endif
-      !write(6 ,RUN)
+      !write(ifmessages,RUN)
       rewind(ifnamopt)
       read (ifnamopt,DOMAIN,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions DOMAIN'
-        print *, 'iostat error: ', ierr
+        write(*,*)  'Problem in namoptions DOMAIN'
+        write(*,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions DOMAIN'
       endif
-      !write(6 ,DOMAIN)
+      !write(ifmessages,DOMAIN) 
       rewind(ifnamopt)
       read (ifnamopt,PHYSICS,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions PHYSICS'
-        print *, 'iostat error: ', ierr
+        write(*,*)  'Problem in namoptions PHYSICS'
+        write(*,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions PHYSICS'
       endif
-      !write(6 ,PHYSICS)
+      !write(ifmessages,PHYSICS)
       rewind(ifnamopt)
       read (ifnamopt,DYNAMICS,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions DYNAMICS'
-        print *, 'iostat error: ', ierr
+        write(*,*)  'Problem in namoptions DYNAMICS'
+        write(*,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions DYNAMICS'
       endif
-      !write(6 ,DYNAMICS)
+      !write(ifmessages,DYNAMICS)
       close(ifnamopt)
     end if
 
@@ -241,10 +241,12 @@ contains
 
     call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,commwrld,mpierr)
 
-    ! If the namelist argument outfile is provided, open it using the stdout handle 6
-    ! so that message output is redirected there.
+    ! If the namelist argument outfile is provided, open it with
+    ! the handle ifmessages, set to 10.
+    ! Standard output messages are redirected there.
     if (outfile /= "") then
-      open(unit=6,file=outfile,iostat=ierr)
+      ifmessages=8 
+      open(unit=ifmessages,file=outfile,iostat=ierr)
       if (ierr /= 0) then
         stop "Failed to open output file for messages"
       endif
@@ -296,29 +298,29 @@ contains
 
       if(mod(jtot,nprocy) /= 0) then
         if(myid==0)then
-          write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocy must divide jtot!!! '
-          write(6,*)'nprocy and jtot are: ',nprocy, jtot
+          write(ifmessages,*)'STOP ERROR IN NUMBER OF PROCESSORS'
+          write(ifmessages,*)'nprocy must divide jtot!!! '
+          write(ifmessages,*)'nprocy and jtot are: ',nprocy, jtot
         end if
         call MPI_FINALIZE(mpierr)
         stop
       else
         if(myid==0)then
-          write(6,*)'jmax = jtot / nprocy = ', jmax
+          write(ifmessages,*)'jmax = jtot / nprocy = ', jmax
         endif
       end if
 
       if(mod(itot,nprocx)/=0)then
         if(myid==0)then
-          write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocx must divide itot!!! '
-          write(6,*)'nprocx and itot are: ',nprocx,itot
+          write(ifmessages,*)'STOP ERROR IN NUMBER OF PROCESSORS'
+          write(ifmessages,*)'nprocx must divide itot!!! '
+          write(ifmessages,*)'nprocx and itot are: ',nprocx,itot
         end if
         call MPI_FINALIZE(mpierr)
         stop
       else
         if(myid==0)then
-          write(6,*)'imax = itot / nprocx = ', imax
+          write(ifmessages,*)'imax = itot / nprocx = ', imax
         endif
       end if
 
@@ -352,7 +354,7 @@ contains
     end if
 
     if (ltimedep .and. lhetero) then
-      if (myid == 0) write(6,*)&
+      if (myid == 0) write(ifmessages,*)&
       'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
       if (myid == 0) write(0,*)&
       'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
@@ -412,7 +414,7 @@ contains
       if (myid==0) then
         open (ifinput,file='prof.inp.'//cexpnr)
         read (ifinput,'(a80)') chmess
-        write(*,     '(a80)') chmess
+        write(ifmessages,'(a80)') chmess
         read (ifinput,'(a80)') chmess
 
         do k=1,kmax
@@ -426,9 +428,9 @@ contains
         end do
 
         close(ifinput)
-        write(*,*) 'height    thl      qt         u      v     e12'
+        write(ifmessages,*) 'height    thl      qt         u      v     e12'
         do k=kmax,1,-1
-          write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
+          write(ifmessages,'(f7.1,f8.1,e12.4,3f7.1)') &
                 height (k), &
                 thlprof(k), &
                 qtprof (k), &
@@ -439,7 +441,7 @@ contains
         end do
 
         if (minval(e12prof(1:kmax)) < e12min) then
-          write(*,*)  'e12 value is zero (or less) in prof.inp'
+          write(ifmessages,*)  'e12 value is zero (or less) in prof.inp'
           do k=1,kmax
             e12prof(k) = max(e12prof(k),e12min)
           end do
@@ -505,9 +507,9 @@ contains
                   (svprof (k,n),n=1,nsv)
           end do
           open (ifinput,file='scalar.inp.'//cexpnr)
-          write (6,*) 'height   sv(1) --------- sv(nsv) '
+          write(ifmessages,*) 'height   sv(1) --------- sv(nsv) '
           do k=kmax,1,-1
-            write (6,*) &
+            write(ifmessages,*) &
                   height (k), &
                 (svprof (k,n),n=1,nsv)
           end do
@@ -665,7 +667,7 @@ contains
       open (ifinput,file='lscale.inp.'//cexpnr)
       read (ifinput,'(a80)') chmess
       read (ifinput,'(a80)') chmess
-      write(6,*) ' height u_geo   v_geo    subs     ' &
+      write(ifmessages,*) ' height u_geo   v_geo    subs     ' &
                     ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
       do  k=1,kmax
         read (ifinput,*) &
@@ -681,7 +683,7 @@ contains
       close(ifinput)
 
       do k=kmax,1,-1
-        write (6,'(3f7.1,5e12.4)') &
+        write(ifmessages,'(3f7.1,5e12.4)') &
               height (k), &
               ug     (k), &
               vg     (k), &
@@ -776,7 +778,7 @@ contains
     name = startfile
     name(5:5) = 'd'
     name(12:19)=cmyid
-    write(6,*) 'loading ',name
+    write(ifmessages,*) 'loading ',name
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
       read(ifinput)  (((u0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -818,7 +820,7 @@ contains
 
     if (nsv>0) then
       name(5:5) = 's'
-      write(6,*) 'loading ',name
+      write(ifmessages,*) 'loading ',name
       open(unit=ifinput,file=name,form='unformatted')
       read(ifinput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
       read(ifinput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -829,7 +831,7 @@ contains
 
     if (isurf == 1) then
       name(5:5) = 'l'
-      write(6,*) 'loading ',name
+      write(ifmessages,*) 'loading ',name
       open(unit=ifinput,file=name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
       read(ifinput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
@@ -971,11 +973,11 @@ contains
       if (lexitnow .and. myid == 0 ) then
         open(1, file=trim(name), status='old')
         close(1,status='delete')
-        write(*,*) 'Stopped at t=',rtimee
+        write(ifmessages,*) 'Stopped at t=',rtimee
       end if
 
       if (myid==0) then
-        write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
+        write(ifmessages,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
       end if
 
     end if
@@ -1075,7 +1077,7 @@ contains
 
       if((lwarmstart.eqv..true.).and.(ibas_prf /= 5)) then
         ibas_prf = 5
-        print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
+        write(ifmessages,*)  'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
       endif
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance
@@ -1241,16 +1243,16 @@ contains
     end do
 
     ! write profiles and derivatives to standard output
-    write (6,*) ' height   rhobf       rhobh'
+    write(ifmessages,*) ' height   rhobf       rhobh'
     do k=k1,1,-1
-        write (6,'(1f7.1,2E25.17)') &
+        write(ifmessages,'(1f7.1,2E25.17)') &
               height (k), &
               rhobf (k), &
               rhobh (k)
     end do
-    write (6,*) ' height   drhobdzf    drhobdzh'
+    write(ifmessages,*) ' height   drhobdzf    drhobdzh'
     do k=k1,1,-1
-        write (6,'(1f7.1,2E25.17)') &
+        write(ifmessages,'(1f7.1,2E25.17)') &
               height (k), &
               drhobdzf (k), &
               drhobdzh (k)

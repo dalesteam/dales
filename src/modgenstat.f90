@@ -66,7 +66,7 @@ module modgenstat
     !                                                                 |
     !    lstat      SWITCH TO ENABLE TIMESERIES                       |
     !-----------------------------------------------------------------|
-  use modglobal, only : longint
+  use modglobal, only : ifmessages,longint
 
 implicit none
 ! private
@@ -185,11 +185,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMGENSTAT,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMGENSTAT'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMGENSTAT'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMGENSTAT'
       endif
-      write(6 ,NAMGENSTAT)
+      write(ifmessages,NAMGENSTAT)
       close(ifnamopt)
     end if
 

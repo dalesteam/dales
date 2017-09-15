@@ -18,6 +18,7 @@
 !  Copyright 1993-2014 Delft University of Technology, Wageningen University, Utrecht University, KNMI, MPIC
 !
 module modcanopy
+  use modglobal, only : ifmessages
   implicit none
   save
 
@@ -71,11 +72,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCANOPY,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCANOPY'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMCANOPY'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMCANOPY'
       endif
-      write(6 ,NAMCANOPY)
+      write(ifmessages,NAMCANOPY)
       close(ifnamopt)
 
       ncanopy = min(ncanopy,kmax)
@@ -129,9 +130,9 @@ contains
         !And now, weigh it such that the array of averages of 2 adjacent padfactor values is on average 1 (just in case the user's array does not fulfill that criterion)
         padfactor = padfactor * (npaddistr-1) * 2 / sum(padfactor(1:(npaddistr-1))+padfactor(2:npaddistr))
 
-        write(*,*) 'Prescribed weighing for plant area density from surface to canopy top (equidistant); normalized if necessary'
+        write(ifmessages,*) 'Prescribed weighing for plant area density from surface to canopy top (equidistant); normalized if necessary'
         do k=1,npaddistr
-          write (*,*) padfactor(k)
+          write(ifmessages,*) padfactor(k)
         end do
       endif
 

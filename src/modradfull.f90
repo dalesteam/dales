@@ -27,7 +27,7 @@
 !
 
 module modradfull
-
+  use modglobal, only : ifmessages
   use RandomNumbers
   implicit none
   private
@@ -318,7 +318,7 @@ contains
 
     norig = 0
     open ( unit = 08, file = filenm, status = 'old' )
-    if (myid==0) print *, 'Reading Background Sounding: ',filenm
+    if (myid==0) write(ifmessages,*)  'Reading Background Sounding: ',filenm
     read (08,*) Tsurf, ns
     allocate ( sp(ns), st(ns), sh(ns), so(ns), sl(ns))
     do k=1,ns
@@ -1652,7 +1652,7 @@ contains
           if (myid==0) print 601, gas(n)%name, gas(n)%iband, gas(n)%noverlap,              &
                gas(n)%ng, gas(n)%np, gas(n)%nt
        else
-          print *, gas(n)%hk, sum(gas(n)%hk(:))
+          write(ifmessages,*)  gas(n)%hk, sum(gas(n)%hk(:))
           stop 'TERMINATING: gas did not occur with probability one in band'
        end if
     end do
@@ -1970,7 +1970,7 @@ contains
     filenm = 'cldwtr.inp.'//cexpnr
     open ( unit = 71, file = filenm, status = 'old', recl=nrec,iostat=ierr)
     if (ierr.ne.0) then
-       write (6,*) 'cldwtr.inp not present. terminate run'
+       write(ifmessages,*) 'cldwtr.inp not present. terminate run'
        stop
     endif
     if (ierr==0) read (71,'(2I3)') nsizes, nbands

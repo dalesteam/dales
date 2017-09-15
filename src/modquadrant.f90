@@ -27,7 +27,7 @@
 !
 module modquadrant
 
-use modglobal, only : longint
+use modglobal, only : ifmessages, longint
 
 implicit none
 private
@@ -82,11 +82,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMquadrant,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMquadrant'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMquadrant'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMquadrant'
       endif
-      write(6 ,NAMquadrant)
+      write(ifmessages,NAMquadrant)
       close(ifnamopt)
 
       if (timeav .lt. 0.0) timeav = dtav

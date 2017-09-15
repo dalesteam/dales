@@ -29,7 +29,7 @@
 module modlsmcrosssection
 
 
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
   use modsurfdata,only : ksoilmax
 
 implicit none
@@ -87,11 +87,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMLSMCROSSSECTION,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMLSMCROSSSECTION'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMLSMCROSSSECTION'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMLSMCROSSSECTION'
       endif
-      write(6 ,NAMLSMCROSSSECTION)
+      write(ifmessages,NAMLSMCROSSSECTION)
       close(ifnamopt)
     end if
 

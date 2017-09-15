@@ -27,7 +27,7 @@
 !
 module modfielddump
 
-  use modglobal, only : longint
+  use modglobal, only : ifmessages,longint
 
 implicit none
 private
@@ -67,11 +67,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMFIELDDUMP'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMFIELDDUMP'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMFIELDDUMP'
       endif
-      write(6 ,NAMFIELDDUMP)
+      write(ifmessages,NAMFIELDDUMP)
       close(ifnamopt)
     end if
     call MPI_BCAST(klow        ,1,MPI_INTEGER,0,comm3d,ierr)

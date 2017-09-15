@@ -27,6 +27,7 @@
 !
 
 module modradiation
+use modglobal, only : ifmessages
 use modraddata
 implicit none
 
@@ -52,21 +53,21 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMDE'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMDE'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMDE'
       endif
-      write(6 ,NAMDE)
+      write(ifmessages,NAMDE)
 
       rewind(ifnamopt)
 
       read (ifnamopt,NAMRADIATION,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMRADIATION'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMRADIATION'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMRADIATION'
       end if
-      write(6 ,NAMRADIATION)
+      write(ifmessages,NAMRADIATION)
 
       close(ifnamopt)
     end if
@@ -135,7 +136,7 @@ contains
     SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
 
     if (irad/=-1) then
-      if (myid==0) write (*,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
+      if (myid==0) write(ifmessages,*) 'WARNING: The use of irad is deprecated. Please use the iradiation switch'
       select case (irad)
       case (0)
         iradiation = 0
@@ -501,7 +502,7 @@ subroutine radpar
       end do
     end do
 
-    !write(6,*) "CvHrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2)
+    !write(ifmessages,*) "CvHrad", swd(2,2,1), swu(2,2,1), lwd(2,2,1), lwu(2,2,1), tskin(2,2)
 
   end subroutine radlsm
 

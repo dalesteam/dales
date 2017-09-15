@@ -27,7 +27,7 @@
 
 module modcloudfield
 
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
 
 implicit none
 private
@@ -56,11 +56,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCLOUDFIELD,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCLOUDFIELD'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMCLOUDFIELD'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMCLOUDFIELD'
       endif
-      write(6 ,NAMCLOUDFIELD)
+      write(ifmessages,NAMCLOUDFIELD)
       close(ifnamopt)
     end if
 

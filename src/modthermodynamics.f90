@@ -29,7 +29,7 @@
 !
 
 module modthermodynamics
-
+  use modglobal, only : ifmessages
   implicit none
 !   private
   public :: thermodynamics,calc_halflev
@@ -508,8 +508,8 @@ contains
                 ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
                 tlonr=int((Tnr-150.)*5.)
                 if(tlonr<1 .or.tlonr>1999) then
-                  write(*,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
+                  write(ifmessages,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
+                  write(ifmessages,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
                 endif
                 thinr=tlonr+1
                 tlo=ttab(tlonr)
@@ -556,7 +556,7 @@ contains
       end do
       end do
       if(nitert>99) then
-      write(*,*) 'thermowarning'
+      write(ifmessages,*) 'thermowarning'
       endif
 
   end subroutine icethermo0
@@ -615,8 +615,8 @@ contains
                 ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
                 tlonr=int((Tnr-150.)*5.)
                 if(tlonr<1 .or.tlonr>1999) then
-                  write(*,*) 'thermo crash: i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)
+                  write(ifmessages,*) 'thermo crash: i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)'
+                  write(ifmessages,*) i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)
                 endif
                 thinr=tlonr+1
                 tlo=ttab(tlonr)
@@ -656,7 +656,7 @@ contains
       end do
       end do
       if(nitert>99) then
-      write(*,*) 'thermowarning'
+      write(ifmessages,*) 'thermowarning'
       endif
 
   end subroutine icethermoh

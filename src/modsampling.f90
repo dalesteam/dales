@@ -33,7 +33,7 @@
 !
 module modsampling
 
-use modglobal, only : longint
+use modglobal, only : ifmessages, longint
 use modsampdata
 
 implicit none
@@ -80,11 +80,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSAMPLING,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSAMPLING'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMSAMPLING'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMSAMPLING'
       endif
-      write(6 ,NAMSAMPLING)
+      write(ifmessages,NAMSAMPLING)
       close(ifnamopt)
     end if
 

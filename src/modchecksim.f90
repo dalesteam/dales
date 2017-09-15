@@ -27,7 +27,7 @@
 !
 !
 module modchecksim
-  use modglobal, only : longint
+  use modglobal, only : ifmessages,longint
 
   implicit none
   private
@@ -52,11 +52,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCHECKSIM,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCHECKSIM'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMCHECKSIM'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMCHECKSIM'
       endif
-      write(6 ,NAMCHECKSIM)
+      write(ifmessages,NAMCHECKSIM)
       close(ifnamopt)
 
       if (.not. ladaptive .and. tcheck < dtmax) then
@@ -84,8 +84,8 @@ contains
     dtmn  = dtmn / ndt
     if (myid==0) then
       call date_and_time(time=timeday)
-      write (*,*) '================================================================='
-      write (*,'(3A,F9.2,A,F12.9)') 'Time of Day: ', timeday(1:10),'    Time of Simulation: ', rtimee, '    dt: ',dtmn
+      write (ifmessages,*) '================================================================='
+      write (ifmessages,'(3A,F9.2,A,F12.9)') 'Time of Day: ', timeday(1:10),'    Time of Simulation: ', rtimee, '    dt: ',dtmn
     end if
     call calccourant
     call calcpeclet
@@ -124,7 +124,7 @@ contains
     call MPI_ALLREDUCE(courzl,courz,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
     call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
-      write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
+      write(ifmessages,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
       maxval(courx(1:kmax)),maxval(coury(1:kmax)),maxval(courz(1:kmax)),maxloc(courz(1:kmax)),sqrt(maxval(courtot(1:kmax))),maxloc(courtot(1:kmax))
     end if
 
@@ -153,7 +153,7 @@ contains
 
     call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
-      write(6,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
+      write(ifmessages,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
     end if
 
     deallocate(peclettotl,peclettot)
@@ -198,7 +198,7 @@ contains
                           MPI_MAX, comm3d,mpierr)
 
     if(myid==0)then
-      write(6,'(A,2ES11.2)')'divmax, divtot = ', divmax, divtot
+      write(ifmessages,'(A,2ES11.2)')'divmax, divtot = ', divmax, divtot
     end if
 
     return

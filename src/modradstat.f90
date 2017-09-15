@@ -27,7 +27,7 @@
 !
 module modradstat
 
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
 
 implicit none
 !private
@@ -98,11 +98,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMRADSTAT,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMRADSTAT'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMRADSTAT'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMRADSTAT'
       endif
-      write(6 ,NAMRADSTAT)
+      write(ifmessages,NAMRADSTAT)
       close(ifnamopt)
     end if
 

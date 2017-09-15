@@ -24,7 +24,7 @@
 ! assumed to be MPI_COMM_WORLD. 
 
 module daleslib
-
+     use modglobal, only: ifmessages
     implicit none
 
     integer, parameter :: FIELDID_U=1
@@ -630,7 +630,7 @@ module daleslib
          k = g_k(r)                + 1
          if (i >= 1 .and. i <= is .and. j >= 1 .and. j <= js .and. k >= 1 .and. k <= ks) then
             a(r) = field(i,j,k)
-            !print *, '(', g_i(r), g_j(r), g_k(r), ') ', i, j, k, '(', myidx, myidy, ')'
+            !write(ifmessages,*)  '(', g_i(r), g_j(r), g_k(r), ') ', i, j, k, '(', myidx, myidy, ')'
          else
             a(r) = 0
          endif
@@ -731,7 +731,7 @@ module daleslib
          k1 = I(ii)
       enddo
       
-      write (*,*) 'gatherCloudFrac partial (', myid, '): ', A
+      write(ifmessages,*) 'gatherCloudFrac partial (', myid, '): ', A
       
       !in-place reduction
       if (myid == 0) then
@@ -742,7 +742,7 @@ module daleslib
       
       if (myid == 0) then
          A = A / (size(ql,1) * size(ql,2) * nprocs)
-         write (*,*) 'gatherCloudFrac final:', A
+         write(ifmessages,*) 'gatherCloudFrac final:', A
       endif
     end function gatherCloudFrac
     

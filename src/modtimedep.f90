@@ -30,7 +30,7 @@
 !
 
 module modtimedep
-
+  use modglobal, only : ifmessages
 
 implicit none
 private
@@ -123,11 +123,11 @@ contains
 
       open(ifinput,file='ls_flux.inp.'//cexpnr)
       read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+      write(ifmessages,*) chmess
       read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+      write(ifmessages,*) chmess
       read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+      write(ifmessages,*) chmess
 
       timeflux = 0
       timels   = 0
@@ -140,14 +140,14 @@ contains
       do while (timeflux(t) < (tres*real(btime)+runtime))
         t=t+1
         read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
-        write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
+        write(ifmessages,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
         if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run (surface fluxes)'
         end if
       end do
       if(timeflux(1)>(tres*real(btime)+runtime)) then
-         write(6,*) 'Time dependent surface variables do not change before end of'
-         write(6,*) 'simulation. --> only large scale forcings'
+         write(ifmessages,*) 'Time dependent surface variables do not change before end of'
+         write(ifmessages,*) 'simulation. --> only large scale forcings'
          ltimedepsurf=.false.
       endif
 ! flush to the end of fluxlist
@@ -170,7 +170,7 @@ contains
             stop 'STOP: No time dependend data for end of run'
           end if
         end do
-        write (*,*) 'timels = ',timels(t)
+        write(ifmessages,*) 'timels = ',timels(t)
         do k=1,kmax
           read (ifinput,*) &
             height  (k)  , &
@@ -183,7 +183,7 @@ contains
             thlpcart(k,t)
         end do
         do k=kmax,1,-1
-          write (6,'(3f7.1,5e12.4)') &
+          write(ifmessages,'(3f7.1,5e12.4)') &
             height  (k)  , &
             ugt     (k,t), &
             vgt     (k,t), &
@@ -196,8 +196,8 @@ contains
       end do
 
       if ((timels(1) > (tres*real(btime)+runtime)) .or. (timeflux(1) > (tres*real(btime)+runtime))) then
-        write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
-        write(6,*) '--> only time dependent surface variables'
+        write(ifmessages,*) 'Time dependent large scale forcings sets in after end of simulation -->'
+        write(ifmessages,*) '--> only time dependent surface variables'
         ltimedepz=.false.
       end if
 

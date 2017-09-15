@@ -28,6 +28,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modstat_nc
+    use modglobal, only : ifmessages
     use netcdf
     implicit none
     logical :: lnetcdf = .true.
@@ -45,7 +46,7 @@ contains
 
 
   subroutine initstat_nc
-    use modglobal, only : ifnamopt,fname_options
+    use modglobal, only : ifmessages,ifnamopt,fname_options
     use modmpi,    only : mpierr,mpi_logical,comm3d,myid
     implicit none
 
@@ -58,11 +59,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNETCDFSTATS,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMNETCDFSTATS'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMNETCDFSTATS'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMNETCDFSTATS'
       endif
-      write(6, NAMNETCDFSTATS)
+      write(ifmessages, NAMNETCDFSTATS)
       close(ifnamopt)
     end if
 
@@ -284,12 +285,12 @@ contains
         case('qt')
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
         case default
-        print *, 'ABORTING: Bad dimensional information ',sx(n,:)
+        write(ifmessages,*)  'ABORTING: Bad dimensional information ',sx(n,:)
         stop
         ! call appl_abort(0)
       end select
       if (iret/=0) then
-        write (*,*) 'nvar', nvar, sx(n,:)
+        write(ifmessages,*) 'nvar', nvar, sx(n,:)
 
         call nchandle_error(iret)
       end if
@@ -388,9 +389,9 @@ contains
     iret = nf90_inq_varid(ncid, 'zq', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,zqID, len=length)
     if (length .ne. (1+k2-k1)) then
-      print *,"k1     = ",k1
-      print *,"k2     = ",k2
-      print *,"length = ",length
+      write(ifmessages,*) "k1     = ",k1
+      write(ifmessages,*) "k2     = ",k2
+      write(ifmessages,*) "length = ",length
       stop "Problem in writestat_dims_q_nc: not matching lengths"
     endif
     if (iret==0) iret = nf90_put_var(ncid, varID, zh(k1:k2),(/1/))
@@ -493,7 +494,7 @@ contains
     integer, intent(in) :: status
 
     if(status /= nf90_noerr) then
-      print *, trim(nf90_strerror(status))
+      write(ifmessages,*)  trim(nf90_strerror(status))
       stop "Stopped"
     end if
 

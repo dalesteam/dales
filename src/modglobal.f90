@@ -69,6 +69,7 @@ save
       integer, parameter :: ifinput    = 1
       integer, parameter :: ifoutput   = 2
       integer, parameter :: ifnamopt   = 3
+      integer            :: ifmessages = 6        ! unit for printing log messages. Defaults to 6 = stdout, but can be attached to a file.
 
       real,parameter :: pi       = 3.141592653589793116
       real,parameter :: grav     = 9.81             !<    *gravity acceleration.
@@ -438,7 +439,7 @@ contains
 
     if(myid==0)then
       if (.not.leq) then
-        write(6,*) &
+        write(ifmessages,*) &
             'WARNING, You are working with a non-equidistant grid!!!!'
       end if
     end if ! end if myid==0
@@ -459,9 +460,9 @@ contains
     dzi5    = 0.5*dzi
 
     if(myid==0)then
-      write (6,*) 'lev    dz     zf      zh       dzh    delta'
+      write (ifmessages,*) 'lev    dz     zf      zh       dzh    delta'
       do k=k1,1,-1
-        write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
+        write(ifmessages,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
     end if
     tnextrestart = trestart/tres

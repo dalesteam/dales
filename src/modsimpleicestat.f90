@@ -30,7 +30,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modsimpleicestat
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
 
 implicit none
 private
@@ -103,11 +103,11 @@ subroutine initsimpleicestat
       open (ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSIMPLEICESTAT,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSIMPLEICESTAT'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMSIMPLEICESTAT'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMSIMPLEICESTAT'
       endif
-      write(6,NAMSIMPLEICESTAT)
+      write(ifmessages,NAMSIMPLEICESTAT)
       close(ifnamopt)
     end if
 

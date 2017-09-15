@@ -33,7 +33,7 @@
 module modtimestat
 
 
-  use modglobal, only : longint
+  use modglobal, only : ifmessages,longint
 
 implicit none
 ! private
@@ -101,11 +101,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTIMESTAT,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMTIMESTAT'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMTIMESTAT'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMTIMESTAT'
       endif
-      write(6 ,NAMTIMESTAT)
+      write(ifmessages, NAMTIMESTAT)
       close(ifnamopt)
     end if
 
@@ -153,7 +153,7 @@ contains
           endif
         enddo
         blh_thres=profile(location)
-        if (myid==0) write (*,*) 'TIMESTAT: blh_tres =',blh_thres
+        if (myid==0) write(ifmessages,*) 'TIMESTAT: blh_tres =',blh_thres
       end if
     case default
       stop 'TIMESTAT: Incorrect iblh_meth'

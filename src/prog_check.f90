@@ -60,7 +60,7 @@ program dales_check
 !        ierr=get_field_3d(fid,a)
 !        ierr=get_field_layer_avg(fid,c)
         if(myid==0) then
-            write(*,*) 'delta ca           delta cb'
+            write(ifmessages,*) 'delta ca           delta cb'
         endif
         abserra=0
         abserrb=0
@@ -72,7 +72,7 @@ program dales_check
             abserrb=max(abserrb,abs(c(i)-cb))
         enddo
         if(myid==0) then
-            write(*,*) abserra,abserrb
+            write(ifmessages,*) abserra,abserrb
         endif
     enddo
 

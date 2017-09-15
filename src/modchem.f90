@@ -119,7 +119,7 @@ module modchem
 !
 !
 
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
 
 implicit none
 
@@ -269,11 +269,11 @@ SUBROUTINE initchem
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
     read (ifnamopt,NAMCHEM,iostat=ierr)
     if (ierr > 0) then
-      print *, 'Problem in namoptions NAMCHEM'
-      print *, 'iostat error: ', ierr
+      write(ifmessages,*)  'Problem in namoptions NAMCHEM'
+      write(ifmessages,*)  'iostat error: ', ierr
       stop 'ERROR: Problem in namoptions NAMCHEM'
     endif
-    write(6 ,NAMCHEM)
+    write(ifmessages,NAMCHEM)
     close(ifnamopt)
   endif
 
@@ -446,7 +446,7 @@ subroutine inputchem
   do while(.true.)
     read(10,'(a)',err=100) line
     if (line(1:1)=='#') then
-      if (myid == 0)   print *, trim(line)
+      if (myid == 0)   write(ifmessages,*)  trim(line)
     elseif (line(1:1) == '@') then
       call read_chem(chem_name)
     elseif (line(1:1) == '$') then
@@ -456,11 +456,11 @@ subroutine inputchem
       number = number + 1
       react = react + 1
       if( react > tnor ) then
-        write(6,*) 'Number of reactions is greater then tnor specified in namoptions',tnor
+        write(ifmessages,*) 'Number of reactions is greater then tnor specified in namoptions',tnor
         STOP
       endif
       if (myid == 0) then
-        write(*,'(i2,2x,a)') number,trim(line)
+        write(ifmessages,'(i2,2x,a)') number,trim(line)
       endif
 
       do i=1,NNSPEC
@@ -471,7 +471,7 @@ subroutine inputchem
 300   j=j-1
 
       if ((func1 == 6 .or. (raddep==1 .and. func1== 4)) .and. H2O%loc == 0) then
-        write(*,*) 'Function 6 or 4 needs H2O and this is not specified as a chemical component'
+        write(ifmessages,*) 'Function 6 or 4 needs H2O and this is not specified as a chemical component'
         STOP
       endif
 
@@ -480,7 +480,7 @@ subroutine inputchem
       do while (len_trim(spec(i))>0 .and. i<NNSPEC)
         i=i+1
       end do
-      !   if (myid==0) print *,'aantal componenten=', i,(i+1)/2,(spec(j),j=1,7)
+      !   if (myid==0) write(ifmessages,*) 'aantal componenten=', i,(i+1)/2,(spec(j),j=1,7)
 
       nr_chemcomp = (i+1)/2
 
@@ -521,9 +521,9 @@ subroutine inputchem
       do j=1, 2 * nr_chemcomp - 1
         select case (spec(j))
         case ('+          ')
-!         print *,'found +'
+!         write(ifmessages,*) 'found +'
         case ('->         ')
-!         print *,'found ->'
+!         write(ifmessages,*) 'found ->'
           prod = .true.
           reactions(react)%nr_chem_inp = l
           l=0
@@ -543,18 +543,18 @@ subroutine inputchem
                   read( spec(j)(1:i-1),*)coefficient
                 endif
                 if( (prod .eqv. .false.) .and. ((coefficient +.0005)< 1.))then
-                  write(*,*) 'Sorry, coefficient on input should be a multiply of 1'
+                  write(ifmessages,*) 'Sorry, coefficient on input should be a multiply of 1'
                   STOP
                 endif
                 if( (prod .eqv. .false.) .and. (coefficient/int(coefficient) > 1.005) ) then
-                  write(*,*) 'Sorry, coefficient on input should be a multiply of 1 found:',spec(j)
+                  write(ifmessages,*) 'Sorry, coefficient on input should be a multiply of 1 found:',spec(j)
                   STOP
                 endif
                 exit
               else
                 if (i >= len(spec(j)) )then
-                  write(*,*)'Probably space between coefficient and chemical component'
-                  write(*,*) 'look between ',spec(j),spec(j+1)
+                  write(ifmessages,*)'Probably space between coefficient and chemical component'
+                  write(ifmessages,*) 'look between ',spec(j),spec(j+1)
                   STOP
                 endif
               endif
@@ -565,7 +565,7 @@ subroutine inputchem
             do while(tempname /= chem_name(i) )
               i= i+1
               if (i > nchsp) then
-                if (myid == 0) print *,'Name ',tempname, 'NOT FOUND in speciesline after @'
+                if (myid == 0) write(ifmessages,*) 'Name ',tempname, 'NOT FOUND in speciesline after @'
                 STOP
               end if
             end do
@@ -588,7 +588,7 @@ subroutine inputchem
 
 !total number of reactions is equal to react
 
-  if (myid == 0)  print *, 'Total number of reactions is',react,'of which', keff_nr,'is/are radiation dependent'
+  if (myid == 0)  write(ifmessages,*)  'Total number of reactions is',react,'of which', keff_nr,'is/are radiation dependent'
 
   if (tnor > react ) tnor = react
 
@@ -645,7 +645,7 @@ subroutine inputchem
           reactions(i)%inp(j)%chem_nr = l    !put chem component number in reaction
           PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1 !count number of reactions
           if ( PL_scheme(l)%nr_PL > mrpcc ) then
-            print *, 'mrpcc to low, increase mrpcc in modchem'
+            write(ifmessages,*)  'mrpcc to low, increase mrpcc in modchem'
             stop
           end if
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number index to RC
@@ -660,7 +660,7 @@ subroutine inputchem
         reactions(i)%inp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
-          print *, 'mrpcc to low, increase mrpcc in modchem'
+          write(ifmessages,*)  'mrpcc to low, increase mrpcc in modchem'
           stop
         end if
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
@@ -679,7 +679,7 @@ subroutine inputchem
           reactions(i)%outp(j)%chem_nr = l
           PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
           if ( PL_scheme( l)%nr_PL > mrpcc ) then
-            print *, 'mrpcc to low, increase mrpcc in modchem'
+            write(ifmessages,*)  'mrpcc to low, increase mrpcc in modchem'
             stop
           end if
           PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
@@ -694,7 +694,7 @@ subroutine inputchem
         reactions(i)%outp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
-          print *, 'mrpcc to low, increase mrpcc in modchem'
+          write(ifmessages,*)  'mrpcc to low, increase mrpcc in modchem'
           stop
         end if
         PL_scheme(l)%PL(PL_scheme(l)%nr_PL)%r_nr = i   !store reaction number
@@ -706,7 +706,7 @@ subroutine inputchem
   nr_active_chemicals = k
 
   if (nr_active_chemicals < nchsp ) then
-    if (myid == 0)  print *, 'WARNING: More chemicals specified in @ line then actually used.', nr_active_chemicals,' <', nchsp
+    if (myid == 0)  write(ifmessages,*)  'WARNING: More chemicals specified in @ line then actually used.', nr_active_chemicals,' <', nchsp
   endif
 
   !Determine from the reactions which formula to use for all the production and loss reactions
@@ -985,7 +985,7 @@ subroutine inputchem
 RETURN
 
 100 if (myid == 0)  then
-      print *,'error in inputchem'
+      write(ifmessages,*) 'error in inputchem'
       STOP
     ENDIF
 
@@ -1067,14 +1067,14 @@ SUBROUTINE read_chem(chem_name)
   read(scalarline,*)(rtol(j),j=1,nchsp)
 
   do i=1,nchsp
-    if (myid == 0)  print*, i,'  ',chem_name(i),atol(i),rtol(i)
+    if (myid == 0)  write(ifmessages,*)  i,'  ',chem_name(i),atol(i),rtol(i)
   enddo
 
-  print *,' '
+  write(ifmessages,*) ' '
 
 RETURN
 
-100 print *, 'error in reading chem species in inputchem'
+100 write(ifmessages,*)  'error in reading chem species in inputchem'
     STOP
 
 
@@ -1203,7 +1203,7 @@ implicit none
     nstart = 0
     !c Initial stepsize computation.
     if (dtmin.eq.kdtmax) then
-      write(6,*) 'dtmin.eq.kdtmax'
+      write(ifmessages,*) 'dtmin.eq.kdtmax'
       stop
     endif
 
@@ -1733,7 +1733,7 @@ implicit none
       case(7) ! same as 3 but third order so conv_ppb to the power 2
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* (convppb(:,:)**2)
       case default !if someone put by mistake a different number
-        write (*,*) 'Unknown function specified'
+        write(ifmessages,*) 'Unknown function specified'
         STOP
       end select
 
@@ -1832,18 +1832,18 @@ subroutine ratech
     lday = .true.
     if(myid==0 .and. (switch .eqv. .false.)) then
       switch = .true.
-      write(*,*)'The SUN is UP at timee=',rtimee,xhr
+      write(ifmessages,*)'The SUN is UP at timee=',rtimee,xhr
     endif
     if (ldiuvar .eqv. .false.) then ! we have to fix the sza to the fixed hour h_ref
       sza = getth(xday,xlat,xlon,h_ref)
       coszen = max(0.0,cos(sza))
-!write(*,*)sza,coszen
+!write(ifmessages,*)sza,coszen
     endif
   else
     lday = .false.
     if(myid==0 .and. (switch .eqv. .true.) ) then
       switch = .false.
-      write(*,*)'The SUN is DOWN at timee=',rtimee,xhr
+      write(ifmessages,*)'The SUN is DOWN at timee=',rtimee,xhr
     endif
   endif
 
@@ -1859,12 +1859,12 @@ subroutine ratech
         RC(r)%Keff = RC(r)%A
       case (2) ! exponential function
         RC(r)%Keff = RC(r)%A * exp(RC(r)%B / coszen)
-!write(*,*)'func 2',RC(r)%Keff
+!write(ifmessages,*)'func 2',RC(r)%Keff
       case (3) ! powerfunction
         RC(r)%Keff = RC(r)%A * coszen ** RC(r)%B
       case (4) ! powerfunction but special for JO3
         RC(r)%Keff = RC(r)%A * coszen ** RC(r)%B
-!write(*,*)'func 4',RC(r)%Keff
+!write(ifmessages,*)'func 4',RC(r)%Keff
       case default
         RC(r)%Keff = 1.
       end select
@@ -1879,7 +1879,7 @@ subroutine ratech
       if(lchconst .eqv. .true.) then
         keff(:,:,i,:) = RC(r)%Keff * RC(r)%D *  (q_ref * MW_air/MW_h2o ) / &
          (RC(r)%D * q_ref * MW_air/MW_h2o + RC(r)%E * (1.- q_ref* MW_air/MW_h2o))
-!write(*,*)'func 4', keff(2,2,i,2),RC(r)%Keff,RC(r)%D *  (q_ref * MW_air/MW_h2o ),RC(r)%D * q_ref * MW_air/MW_h2o,RC(r)%E * (1.- q_ref* MW_air/MW_h2o)
+!write(ifmessages,*)'func 4', keff(2,2,i,2),RC(r)%Keff,RC(r)%D *  (q_ref * MW_air/MW_h2o ),RC(r)%D * q_ref * MW_air/MW_h2o,RC(r)%E * (1.- q_ref* MW_air/MW_h2o)
       else
         keff(:,:,i,:) = RC(r)%Keff * RC(r)%D * ( qt0(2:i1,2:j1,1:kmax) * MW_air/MW_h2o ) / &
          (RC(r)%D * ( qt0(2:i1,2:j1,1:kmax) * MW_air/MW_h2o ) + RC(r)%E * (1.- qt0(2:i1,2:j1,1:kmax)* MW_air/MW_h2o))
@@ -1970,7 +1970,7 @@ subroutine ratech
                 !inside cloud
                 diff = fab - fba
                 ks = fab
-       !if(myid==0)write(*,*) raddep_RCindex(m),'fab=',fab,'fba=',fba
+       !if(myid==0)write(ifmessages,*) raddep_RCindex(m),'fab=',fab,'fba=',fba
                 ! scale inside cloud with ql0
                 ! not sure this is correct with non equidistant grid
                 do n=l-1,k,-1
@@ -1978,7 +1978,7 @@ subroutine ratech
                   kefftemp(n,m) = ks
                 enddo
                 keff(i,j,m,:) = keff(i,j,m,:) * kefftemp(:,m)
-        !if(myid==0)write (*,*) myid,'xxx',timee,m,r,RC(r)%func1, RC(r)%Keff,keff(i,j,m,1)
+        !if(myid==0)write(ifmessages,*) myid,'xxx',timee,m,r,RC(r)%func1, RC(r)%Keff,keff(i,j,m,1)
               enddo !m = 1, nr_raddep
 
             endif !dense cloud

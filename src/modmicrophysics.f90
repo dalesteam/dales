@@ -31,6 +31,7 @@
 
 
 module modmicrophysics
+use modglobal, only : ifmessages
 use modmicrodata
 
 implicit none
@@ -51,11 +52,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMMICROPHYSICS'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMMICROPHYSICS'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMMICROPHYSICS'
       endif
-      write(6 ,NAMMICROPHYSICS)
+      write(ifmessages,NAMMICROPHYSICS)
       close(ifnamopt)
     end if
 

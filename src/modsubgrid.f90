@@ -29,6 +29,7 @@
 !
 
 module modsubgrid
+use modglobal, only : ifmessages
 use modsubgriddata
 implicit none
 save
@@ -83,16 +84,16 @@ contains
     end if
 
     if (myid==0) then
-      write (6,*) 'cf    = ',cf
-      write (6,*) 'cm    = ',cm
-      write (6,*) 'ch    = ',ch
-      write (6,*) 'ch1   = ',ch1
-      write (6,*) 'ch2   = ',ch2
-      write (6,*) 'ceps  = ',ceps
-      write (6,*) 'ceps1 = ',ce1
-      write (6,*) 'ceps2 = ',ce2
-      write (6,*) 'cs    = ',cs
-      write (6,*) 'Rigc  = ',Rigc
+      write(ifmessages,*) 'cf    = ',cf
+      write(ifmessages,*) 'cm    = ',cm
+      write(ifmessages,*) 'ch    = ',ch
+      write(ifmessages,*) 'ch1   = ',ch1
+      write(ifmessages,*) 'ch2   = ',ch2
+      write(ifmessages,*) 'ceps  = ',ceps
+      write(ifmessages,*) 'ceps1 = ',ce1
+      write(ifmessages,*) 'ceps2 = ',ce2
+      write(ifmessages,*) 'cs    = ',cs
+      write(ifmessages,*) 'Rigc  = ',Rigc
     endif
 
   end subroutine initsubgrid
@@ -112,11 +113,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSUBGRID,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSUBGRID'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMSUBGRID'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMSUBGRID'
       endif
-      write(6 ,NAMSUBGRID)
+      write(ifmessages,NAMSUBGRID)
       close(ifnamopt)
     end if
 

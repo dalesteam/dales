@@ -7,7 +7,7 @@
 MODULE shr_orb_mod
 
 !   use shr_kind_mod, only: SHR_KIND_R4, SHR_KIND_IN
-   use modglobal, only: SHR_KIND_R4, SHR_KIND_IN
+   use modglobal, only: ifmessages, SHR_KIND_R4, SHR_KIND_IN
 !bloss   use shr_sys_mod, only: shr_sys_abort
 !bloss   use shr_const_mod, only: SHR_CONST_PI
 
@@ -300,9 +300,9 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    ! radinp and algorithms below will need a degree to radian conversion factor
 
    if ( log_print ) then
-     write(6,F00) 'Calculate characteristics of the orbit:'
-     write(6,F00) 'CVS revision: $Revision: 1.1 $'
-     write(6,F00) 'CVS Tag     : $Name:  $'
+     write(ifmessages,F00) 'Calculate characteristics of the orbit:'
+     write(ifmessages,F00) 'CVS revision: $Revision: 1.1 $'
+     write(ifmessages,F00) 'CVS Tag     : $Name:  $'
    end if
 
    ! Check for flag to use input orbit parameters
@@ -313,24 +313,24 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
 
       if( obliq == SHR_ORB_UNDEF_REAL )then
         if ( log_print ) then
-          write(6,F00) 'Have to specify orbital parameters:'
-          write(6,F00) 'Either set: iyear_AD, OR [obliq, eccen, and mvelp]:'
-          write(6,F00) 'iyear_AD is the year to simulate orbit for (ie. 1950): '
-          write(6,F00) 'obliq, eccen, mvelp specify the orbit directly:'
-          write(6,F00) 'The AMIP II settings (for a 1995 orbit) are: '
-          write(6,F00) ' obliq =  23.4441'
-          write(6,F00) ' eccen =   0.016715'
-          write(6,F00) ' mvelp = 102.7'
+          write(ifmessages,F00) 'Have to specify orbital parameters:'
+          write(ifmessages,F00) 'Either set: iyear_AD, OR [obliq, eccen, and mvelp]:'
+          write(ifmessages,F00) 'iyear_AD is the year to simulate orbit for (ie. 1950): '
+          write(ifmessages,F00) 'obliq, eccen, mvelp specify the orbit directly:'
+          write(ifmessages,F00) 'The AMIP II settings (for a 1995 orbit) are: '
+          write(ifmessages,F00) ' obliq =  23.4441'
+          write(ifmessages,F00) ' eccen =   0.016715'
+          write(ifmessages,F00) ' mvelp = 102.7'
         end if
         !call task_abort()
         stop 'ERROR in shr_orb_params'
 !bloss        call shr_sys_abort()
       else if ( log_print ) then
-         write(6,F00) 'Use input orbital parameters: '
+         write(ifmessages,F00) 'Use input orbital parameters: '
       end if
       if( (obliq < SHR_ORB_OBLIQ_MIN).or.(obliq > SHR_ORB_OBLIQ_MAX) ) then
          if ( log_print ) then
-            write(6,F03) 'Input obliquity unreasonable: ', obliq
+            write(ifmessages,F03) 'Input obliquity unreasonable: ', obliq
          end if
          stop 'ERROR in shr_orb_params'
 !         call task_abort()
@@ -338,7 +338,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
       end if
       if( (eccen < SHR_ORB_ECCEN_MIN).or.(eccen > SHR_ORB_ECCEN_MAX) ) then
          if ( log_print ) then
-            write(6,F03) 'Input eccentricity unreasonable: ', eccen
+            write(ifmessages,F03) 'Input eccentricity unreasonable: ', eccen
          end if
          stop 'ERROR in shr_orb_params'
          !call task_abort()
@@ -346,7 +346,7 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
       end if
       if( (mvelp < SHR_ORB_MVELP_MIN).or.(mvelp > SHR_ORB_MVELP_MAX) ) then
          if ( log_print ) then
-            write(6,F03) 'Input mvelp unreasonable: ' , mvelp
+            write(ifmessages,F03) 'Input mvelp unreasonable: ' , mvelp
          end if
          stop 'ERROR in shr_orb_params'
          !call task_abort()
@@ -358,15 +358,15 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    ELSE  ! Otherwise calculate based on years before present
 
       if ( log_print ) then
-         write(6,F01) 'Calculate orbit for year: ' , iyear_AD
+         write(ifmessages,F01) 'Calculate orbit for year: ' , iyear_AD
       end if
       yb4_1950AD = 1950.0 - float(iyear_AD)
       if ( abs(yb4_1950AD) .gt. 1000000.0 )then
          if ( log_print ) then
-            write(6,F00) 'orbit only valid for years+-1000000'
-            write(6,F00) 'Relative to 1950 AD'
-            write(6,F03) '# of years before 1950: ',yb4_1950AD
-            write(6,F01) 'Year to simulate was  : ',iyear_AD
+            write(ifmessages,F00) 'orbit only valid for years+-1000000'
+            write(ifmessages,F00) 'Relative to 1950 AD'
+            write(ifmessages,F03) '# of years before 1950: ',yb4_1950AD
+            write(ifmessages,F01) 'Year to simulate was  : ',iyear_AD
          end if
          stop 'ERROR in shr_orb_params'
          !call task_abort()
@@ -513,14 +513,14 @@ SUBROUTINE shr_orb_params( iyear_AD , eccen  , obliq , mvelp     ,     &
    &      + .125*eccen3*(1./3. + beta)*sin(3.*mvelpp))
 
    if ( log_print ) then
-     write(6,F03) '------ Computed Orbital Parameters ------'
-     write(6,F03) 'Eccentricity      = ',eccen
-     write(6,F03) 'Obliquity (deg)   = ',obliq
-     write(6,F03) 'Obliquity (rad)   = ',obliqr
-     write(6,F03) 'Long of perh(deg) = ',mvelp
-     write(6,F03) 'Long of perh(rad) = ',mvelpp
-     write(6,F03) 'Long at v.e.(rad) = ',lambm0
-     write(6,F03) '-----------------------------------------'
+     write(ifmessages,F03) '------ Computed Orbital Parameters ------'
+     write(ifmessages,F03) 'Eccentricity      = ',eccen
+     write(ifmessages,F03) 'Obliquity (deg)   = ',obliq
+     write(ifmessages,F03) 'Obliquity (rad)   = ',obliqr
+     write(ifmessages,F03) 'Long of perh(deg) = ',mvelp
+     write(ifmessages,F03) 'Long of perh(rad) = ',mvelpp
+     write(ifmessages,F03) 'Long at v.e.(rad) = ',lambm0
+     write(ifmessages,F03) '-----------------------------------------'
    end if
 
 END SUBROUTINE shr_orb_params
@@ -634,17 +634,17 @@ SUBROUTINE shr_orb_print( iyear_AD, eccen, obliq, mvelp )
 
    if ( iyear_AD .ne. SHR_ORB_UNDEF_INT ) then
      if ( iyear_AD > 0 ) then
-       write(6,F01) 'Orbital parameters calculated for year: AD ',iyear_AD
+       write(ifmessages,F01) 'Orbital parameters calculated for year: AD ',iyear_AD
      else
-       write(6,F01) 'Orbital parameters calculated for year: BC ',iyear_AD
+       write(ifmessages,F01) 'Orbital parameters calculated for year: BC ',iyear_AD
      end if
    else if ( obliq /= SHR_ORB_UNDEF_REAL ) then
-     write(6,F03) 'Orbital parameters: '
-     write(6,F03) 'Obliquity (degree):              ', obliq
-     write(6,F03) 'Eccentricity (unitless):         ', eccen
-     write(6,F03) 'Long. of moving Perhelion (deg): ', mvelp
+     write(ifmessages,F03) 'Orbital parameters: '
+     write(ifmessages,F03) 'Obliquity (degree):              ', obliq
+     write(ifmessages,F03) 'Eccentricity (unitless):         ', eccen
+     write(ifmessages,F03) 'Long. of moving Perhelion (deg): ', mvelp
    else
-     write(6,F03) 'Orbit parameters not set!'
+     write(ifmessages,F03) 'Orbit parameters not set!'
    end if
 
 END SUBROUTINE shr_orb_print

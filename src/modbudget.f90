@@ -26,7 +26,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modbudget
-  use modglobal, only : longint
+  use modglobal, only : ifmessages,longint
 
   implicit none
   PRIVATE
@@ -94,11 +94,11 @@ contains
        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
        read (ifnamopt,NAMBUDGET,iostat=ierr)
        if (ierr > 0) then
-         print *, 'Problem in namoptions NAMBUDGET'
-         print *, 'iostat error: ', ierr
+         write(ifmessages,*)  'Problem in namoptions NAMBUDGET'
+         write(ifmessages,*)  'iostat error: ', ierr
          stop 'ERROR: Problem in namoptions NAMBUDGET'
        endif
-       write(6 ,NAMBUDGET)
+       write(ifmessages,NAMBUDGET)
        close(ifnamopt)
     end if
 

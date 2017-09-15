@@ -514,7 +514,7 @@
 !  Vertical indexing goes from bottom to top; reverse here for GCM if necessary.
 
            do k = 0, nlayers
-!              if(myid==0) write(*,*) 'inside layer loop, k=',k
+!              if(myid==0) write(ifmessages,*) 'inside layer loop, k=',k
               !uflx(iplon,k+1) = totuflux(k)
               !dflx(iplon,k+1) = totdflux(k)
               !uflxc(iplon,k+1) = totuclfl(k)
@@ -525,7 +525,7 @@
               lwDownCS_slice(iplon,k+1) = totdclfl(k)
            enddo
            do k = 0, nlayers-1
-!              if(myid==0) write(*,*) 'inside second layer loop, k=',k
+!              if(myid==0) write(ifmessages,*) 'inside second layer loop, k=',k
               lwHR_slice(iplon,k+1)           = htr(k)
               lwHRCS_slice(iplon,k+1)         = htrc(k)
            enddo
@@ -799,7 +799,7 @@
          do imol = 1, nmol
             wkl(imol,l) = coldry(l) * wkl(imol,l)
          enddo
-!         if(myid==0) write(*,*) 'inside nlayer loop, l=',l
+!         if(myid==0) write(ifmessages,*) 'inside nlayer loop, l=',l
          amttl = amttl + coldry(l)+wkl(1,l)
          wvttl = wvttl + wkl(1,l)
          do ix = 1,maxxsec

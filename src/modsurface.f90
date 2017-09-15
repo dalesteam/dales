@@ -61,6 +61,7 @@
 
 
 module modsurface
+  use modglobal, only : ifmessages
   use modsurfdata
   implicit none
   !public  :: initsurface, surface, exitsurface
@@ -108,11 +109,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSURFACE,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSURFACE'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMSURFACE'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMSURFACE'
       endif
-      write(6 ,NAMSURFACE)
+      write(ifmessages,NAMSURFACE)
       close(ifnamopt)
     end if
 
@@ -167,8 +168,8 @@ contains
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
-      if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
-      if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
+      if(myid==0) write(ifmessages,*) "WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
+      if(myid==0) write(ifmessages,*) "WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
       lCO2Ags = .false.
     endif
 
@@ -189,7 +190,7 @@ contains
         alpha0     =  0.014 !<  Initial low light conditions
       else
         if(planttype/=3) then
-          if(myid==0) print *,"WARNING::: planttype should be either 3 or 4, corresponding to C3 or C4 plants. It now defaulted to 3."
+          if(myid==0) write(ifmessages,*) "WARNING::: planttype should be either 3 or 4, corresponding to C3 or C4 plants. It now defaulted to 3."
         endif
       endif
     endif
@@ -202,7 +203,7 @@ contains
       if(ypatches .gt. mpatch) then
         stop "NAMSURFACE: more ypatches defined than possible (change mpatch in modsurfdata to a higher value)"
       endif
-      if (lsmoothflux .eqv. .true.) write(6,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
+      if (lsmoothflux .eqv. .true.) write(ifmessages,*) 'WARNING: You selected to use uniform heat fluxes (lsmoothflux) and ',&
       'heterogeneous surface conditions (lhetero) at the same time'
       if (mod(itot,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
@@ -271,9 +272,9 @@ contains
           read(ifinput, '(A)', iostat=ierr) readbuffer
           if (ierr == 0) then                               !So no end of file is encountered
             if (readbuffer(1:1)=='#') then
-              if (myid == 0)   print *,trim(readbuffer)
+              if (myid == 0)   write(ifmessages,*) trim(readbuffer)
             else
-              if (myid == 0)   print *,trim(readbuffer)
+              if (myid == 0)   write(ifmessages,*) trim(readbuffer)
               defined_landtypes = defined_landtypes + 1
               i = defined_landtypes
               read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
@@ -309,9 +310,9 @@ contains
               read(ifinput, '(A)', iostat=ierr) readbuffer
               if (ierr == 0) then                               !So no end of file is encountered
                 if (readbuffer(1:1)=='#') then
-                  if (myid == 0)   print *,trim(readbuffer)
+                  if (myid == 0)   write(ifmessages,*) trim(readbuffer)
                 else
-                  if (myid == 0)   print *,trim(readbuffer)
+                  if (myid == 0)   write(ifmessages,*) trim(readbuffer)
                   defined_landtypes = defined_landtypes + 1
                   i = defined_landtypes
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), ps_land(i), &
@@ -348,13 +349,13 @@ contains
             do while (ierr == 0)
               read(ifinput, '(A)', iostat=ierr) readbuffer
               if (ierr == -1) then
-                if (myid == 0)  print *, "iostat = ",ierr,": No file ",'surface.prescribed.inp.'//cexpnr," found"
+                if (myid == 0)  write(ifmessages,*)  "iostat = ",ierr,": No file ",'surface.prescribed.inp.'//cexpnr," found"
               endif
               if (ierr == 0) then                               !So no end of file is encountered
                 if (readbuffer(1:1)=='#') then
-                  if (myid == 0)   print *,trim(readbuffer)
+                  if (myid == 0)   write(ifmessages,*) trim(readbuffer)
                 else
-                  if (myid == 0)   print *,trim(readbuffer)
+                  if (myid == 0)   write(ifmessages,*) trim(readbuffer)
                   defined_landtypes = defined_landtypes + 1
                   i = defined_landtypes
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), thls_land(i), &
@@ -523,7 +524,7 @@ contains
       if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
         z0mav = z0
         z0hav = z0
-        write(6,*) "WARNING: z0m and z0h not defined, set equal to z0"
+        write(ifmessages,*) "WARNING: z0m and z0h not defined, set equal to z0"
       end if
 
       if(isurf .ne. 3) then
@@ -570,7 +571,7 @@ contains
         stop "NAMSURFACE: rsminav is not set"
       end if
       if(rssoilminav == -1) then
-        print *,"WARNING: RSSOILMINAV is undefined... RSMINAV will be used as a proxy"
+        write(ifmessages,*) "WARNING: RSSOILMINAV is undefined... RSMINAV will be used as a proxy"
         rssoilminav = rsminav
       end if
       if(LAIav == -1) then
@@ -1150,7 +1151,7 @@ contains
              ! Rib can be 0 if there is no surface flux
              ! L is capped at 1e6 below, so use the same cap here
              L = 1e6
-             write(*,*) 'Obukhov length: Rib = 0 -> setting L=1e6'
+             write(ifmessages,*) 'Obukhov length: Rib = 0 -> setting L=1e6'
           else
              iter = 0
              L = obl(i,j)
@@ -1289,7 +1290,7 @@ contains
        ! Rib can be 0 if there is no surface flux
        ! L is capped at 1e6 below, so use the same cap here
        L = 1e6
-       write(*,*) 'Obukhov length: Rib = 0 -> setting L=1e6 (2nd point)'
+       write(ifmessages,*) 'Obukhov length: Rib = 0 -> setting L=1e6 (2nd point)'
     else
        iter = 0
        L = oblav
@@ -1752,16 +1753,16 @@ contains
           if (.not. linags) then !initialize AGS
             if(nsv .le. 0) then
               if (myid == 0) then
-                print *, 'Problem in namoptions NAMSURFACE'
-                print *, 'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
+                write(ifmessages,*)  'Problem in namoptions NAMSURFACE'
+                write(ifmessages,*)  'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
                 stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
               endif
             endif
             if(lCHon) then !Chemistry is on
               if (CO2loc .lt. 1) then !No CO2 in chemistry
                 if (myid == 0) then
-                  print *, 'WARNING ::: There is no CO2 defined in the chemistry scheme'
-                  print *, 'WARNING ::: Scalar 1 might be considered to be CO2 '
+                  write(ifmessages,*)  'WARNING ::: There is no CO2 defined in the chemistry scheme'
+                  write(ifmessages,*)  'WARNING ::: Scalar 1 might be considered to be CO2 '
                   stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
                 endif
                 indCO2 = 1
@@ -1770,8 +1771,8 @@ contains
               endif !Is CO2 present?
             else !Chemistry is not on
               if (myid == 0) then
-                print *, 'WARNING ::: There is no CO2 defined due to the absence of a chemistry scheme'
-                print *, 'WARNING ::: Scalar 1 is considered to be CO2 '
+                write(ifmessages,*)  'WARNING ::: There is no CO2 defined due to the absence of a chemistry scheme'
+                write(ifmessages,*)  'WARNING ::: Scalar 1 is considered to be CO2 '
               endif
               indCO2 = 1
             endif !Is chemistry on?

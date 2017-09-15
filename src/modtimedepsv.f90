@@ -31,7 +31,7 @@
 
 
 module modtimedepsv
-
+  use modglobal, only : ifmessages
 
 implicit none
 private
@@ -84,11 +84,11 @@ contains
 
       open(ifinput,file='ls_fluxsv.inp.'//cexpnr)
       read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+      write(ifmessages,*) chmess
       read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+      write(ifmessages,*) chmess
       read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+      write(ifmessages,*) chmess
 
 
 !      --- load fluxes---
@@ -99,14 +99,14 @@ contains
       do while (timesvsurf(t)< tres*real(btime)+runtime)
         t=t+1
         read(ifinput,*, iostat = ierr) timesvsurf(t), (svst(t,n),n=1,nsv)
-        write(*,'(f7.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
+        write(ifmessages,'(f7.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
         if (ierr < 0) then
             stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
         end if
       end do
       if(timesvsurf(1)>tres*real(btime)+runtime) then
-         write(6,*) 'Time dependent surface variables do not change before end of'
-         write(6,*) 'simulation. --> only large scale changes in scalars'
+         write(ifmessages,*) 'Time dependent surface variables do not change before end of'
+         write(ifmessages,*) 'simulation. --> only large scale changes in scalars'
          ltimedepsvsurf=.false.
       endif
       ! flush to the end of fluxlist
@@ -127,18 +127,18 @@ contains
             stop 'STOP: No time dependend data (scalars) for end of run'
           end if
         end do
-        write (*,*) 'timesvz = ',timesvz(t)
+        write(ifmessages,*) 'timesvz = ',timesvz(t)
         do k=1,kmax
           read (ifinput,*) height(k), (svzt(k,t,n),n=1,nsv)
         end do
         do k=kmax,1,-1
-          write (6,outputfmt) height(k),(svzt(k,t,n),n=1,nsv)
+          write(ifmessages,outputfmt) height(k),(svzt(k,t,n),n=1,nsv)
         end do
       end do
 
       if ((timesvz(1) > tres*real(btime)+runtime) .or. (timesvsurf(1) > tres*real(btime)+runtime)) then
-        write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
-        write(6,*) '--> only time dependent surface variables (scalars)'
+        write(ifmessages,*) 'Time dependent large scale forcings sets in after end of simulation -->'
+        write(ifmessages,*) '--> only time dependent surface variables (scalars)'
         ltimedepsvz=.false.
       end if
 

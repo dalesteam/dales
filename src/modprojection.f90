@@ -42,7 +42,7 @@ module modprojection
     !                                                                 |
     !    projectplane  LOCATION OF THE YZ-PLANE ON EVERY PROCESSOR      |
     !-----------------------------------------------------------------|
-  use modglobal, only : longint
+  use modglobal, only : ifmessages, longint
 
 implicit none
 private
@@ -80,11 +80,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMprojection,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMprojection'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMprojection'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMprojection'
       endif
-      write(6 ,NAMprojection)
+      write(ifmessages,NAMprojection)
       close(ifnamopt)
     end if
     do ksplit=1,kmax

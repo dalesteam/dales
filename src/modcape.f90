@@ -26,7 +26,7 @@
 !
 module modcape
 
-  use modglobal, only : longint,kmax
+  use modglobal, only : ifmessages,longint,kmax
 
 implicit none
 private
@@ -62,11 +62,11 @@ contains
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCAPE,iostat=ierr)
       if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCAPE'
-        print *, 'iostat error: ', ierr
+        write(ifmessages,*)  'Problem in namoptions NAMCAPE'
+        write(ifmessages,*)  'iostat error: ', ierr
         stop 'ERROR: Problem in namoptions NAMCAPE'
       endif
-      write(6 ,NAMCAPE)
+      write(ifmessages,NAMCAPE)
       close(ifnamopt)
     end if
 
