@@ -78,6 +78,7 @@ contains
     implicit none
     integer :: ierr
     character(256), optional, intent(in) :: path
+    character(256) :: extension
 
     !declare namelists
     namelist/RUN/ &
@@ -246,8 +247,10 @@ contains
     ! Standard output messages are redirected there.
     if (outfile /= "") then
       ifmessages=8 
-      open(unit=ifmessages,file=outfile,iostat=ierr)
+      write(extension, '(i3.3)') myid
+      open(unit=ifmessages, file=trim(outfile)//'.'//trim(extension), iostat=ierr)
       if (ierr /= 0) then
+         write(0,*) 'Filename', trim(outfile)//'.'//trim(extension)
         stop "Failed to open output file for messages"
       endif
     endif
