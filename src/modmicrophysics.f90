@@ -39,7 +39,7 @@ implicit none
 contains
   subroutine initmicrophysics
     use modmpi,   only :myid,my_real,comm3d,mpi_integer,mpi_logical
-    use modglobal,only :ifnamopt,fname_options
+    use modglobal,only :ifnamopt,fname_options,nsv
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     implicit none
@@ -77,10 +77,12 @@ contains
     case(imicro_none)
     case(imicro_drizzle)
     case(imicro_bulk)
+       if (nsv < 2) STOP "ERROR: Bulk microphysics requires nsv >=2"
       call initbulkmicro
     case(imicro_bin)
 !       call initbinmicro
     case(imicro_sice)
+       if (nsv < 2) STOP "ERROR: Simple ice microphysics requires nsv >=2"
       call initsimpleice
     case(imicro_user)
     end select
