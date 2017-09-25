@@ -41,7 +41,7 @@ contains
     use modmpi,   only :myid,my_real,comm3d,mpi_integer,mpi_logical
     use modglobal,only :ifnamopt,fname_options,nsv
     use modbulkmicro, only : initbulkmicro
-    use modsimpleice, only : initsimpleice
+    use modsimpleice2, only : initsimpleice
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
@@ -108,7 +108,7 @@ contains
   subroutine microsources
    use moduser,      only : micro_user
    use modbulkmicro, only : bulkmicro
-   use modsimpleice, only : simpleice
+   use modsimpleice2, only : simpleice
 !     use modbinmicro,  only : binmicrosources
     implicit none
 
@@ -130,7 +130,7 @@ contains
 
   subroutine exitmicrophysics
     use modbulkmicro, only : exitbulkmicro
-    use modsimpleice, only : exitsimpleice
+    use modsimpleice2, only : exitsimpleice
  !     use modbinmicro,  only : exitbinmicro
     implicit none
 
