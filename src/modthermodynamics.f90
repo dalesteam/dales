@@ -468,8 +468,8 @@ contains
   subroutine get_qsatur(T, pres, qsatur, esl, qvsl, qvsi)
     use modglobal, only : rd,rv,tup,tdn,ttab,esatltab,esatitab
     real,    intent(in)  :: T, pres
-    real,    intent(out) :: esl, qvsl, qvsi
-    real     :: ilratio, esi, qsatur, tlo, thi
+    real,    intent(out) :: esl, qvsl, qvsi, qsatur
+    real     :: ilratio, esi, tlo, thi
     integer  :: tlonr, thinr
     
     ilratio = max(0.,min(1.,(T-tdn)/(tup-tdn))) ! ice liquid ratio
@@ -514,6 +514,63 @@ contains
        ! return 1 in the hope that the Newton solver behaves well
     endif
   end subroutine get_qsatur
+
+! faster version of qsatur
+function get_qsatur_fast(T, pres) result(qsatur)
+  use modglobal, only : rd,rv,tup,tdn,ttab,esatltab,esatitab
+  real,    intent(in)  :: T, pres
+  real     :: ilratio, qsatur, tlo, thi, esl, esi, qvsl, qvsi
+  integer  :: tlonr, thinr
+  
+  ilratio = max(0.,min(1.,(T-tdn)/(tup-tdn))) ! ice liquid ratio
+  tlonr=int((T-150.)*5.)                      
+  thinr=tlonr+1
+  if(tlonr < 1 .or. tlonr > 1999) then      
+     write (*,*) 'tlonr out of range: ', tlonr
+     write (*,*) 'T = ', T
+     call abort
+  endif
+  tlo=ttab(tlonr)
+  thi=ttab(thinr)
+  
+  ! linear interpolation between the tabulated esl, esi values
+  ! 5 = 1/(thi-tlo)
+  if (ilratio > 0) then
+     esl=(thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(thinr) ! vapor pressure over water
+     qvsl=(rd/rv)*esl/(pres - (1.-rd/rv)*esl) ! q vapor sat liquid Eq. (56) in [Heus et al 2010]
+  else
+     qvsl = 0
+  end if
+
+  if (ilratio < 1) then
+     esi=(thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(thinr) ! vapor pressure over ice
+     qvsi=(rd/rv)*esi/(pres - (1.-rd/rv)*esi) ! q vapor sat ice
+  else
+     qvsi = 0
+  end if
+  
+  qsatur = ilratio*qvsl+(1.-ilratio)*qvsi  ! q sat total - interpolated with ice-liquid ratio
+  
+  if (qsatur < 0) then
+     write (*,*) 'Negative qsatur', qsatur
+     write (*,*) 'T        = ', T
+     write (*,*) 'pres     = ', pres
+     write (*,*) 'esl      = ', esl
+     write (*,*) 'esi      = ', esi
+     write (*,*) 'qvsl     = ', qvsl
+     write (*,*) 'qvsi     = ', qvsi
+     write (*,*) 'ilratio  = ', ilratio
+     ! if temperature is high enough, (1.-rd/rv)*esl > pres  --> qvsl < 0 --> qsatur < 0
+     ! call abort
+  endif
+  
+  if (qsatur > 1.0 .or. qsatur < 0.0) then
+     qsatur = 1.0 
+     ! higher values are not possible
+     ! negative values here happen if T is above the boiling point
+     ! return 1 in the hope that the Newton solver behaves well
+  endif
+end function get_qsatur_fast
   
 
 subroutine icethermo0
@@ -547,7 +604,7 @@ subroutine icethermo0
               thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
               
               ttry=Tnr-0.002
-              call get_qsatur(ttry, presf(k), qsatur, esl1, qvsl1, qvsi1)
+              qsatur = get_qsatur_fast(ttry, presf(k))
               thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
               
               Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
@@ -555,11 +612,11 @@ subroutine icethermo0
                  niter = niter+1
                  Tnr_old=Tnr
                  
-                 call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1)
+                 qsatur = get_qsatur_fast(Tnr, presf(k))
                  thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
                  
                  ttry=Tnr-0.002  !dT = 0.002
-                 call get_qsatur(ttry, presf(k), qsatur, esl1, qvsl1, qvsi1)
+                 qsatur = get_qsatur_fast(ttry, presf(k))
                  thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
                  
                  Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)  ! 500 = 1/dT
@@ -607,7 +664,7 @@ subroutine icethermoh
         do i=2,i1
            ! first guess for temperature
            Tnr=exnh(k)*thl0h(i,j,k)
-           call get_qsatur(Tnr, presh(k), qsatur, esl1, qvsl1, qvsi1)
+           qsatur = get_qsatur_fast(Tnr, presh(k))
            
            if(qt0h(i,j,k)>qsatur) then
               Tnr_old=0.
@@ -615,7 +672,7 @@ subroutine icethermoh
               thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
               
               ttry=Tnr-0.002
-              call get_qsatur(ttry, presh(k), qsatur, esl1, qvsl1, qvsi1)
+              qsatur = get_qsatur_fast(ttry, presh(k))
               thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
               
               Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
@@ -623,18 +680,18 @@ subroutine icethermoh
                  niter = niter+1
                  Tnr_old=Tnr
                  
-                 call get_qsatur(Tnr, presh(k), qsatur, esl1, qvsl1, qvsi1)
+                 qsatur = get_qsatur_fast(Tnr, presh(k))
                  thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
                  
                  ttry=Tnr-0.002  !dT = 0.002
-                 call get_qsatur(ttry, presh(k), qsatur, esl1, qvsl1, qvsi1)
+                 qsatur = get_qsatur_fast(ttry, presh(k))
                  thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
                  
                  Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)  ! 500 = 1/dT
               enddo
               nitert =max(nitert,niter)
 
-              call get_qsatur(Tnr, presh(k), qsatur, esl1, qvsl1, qvsi1)
+              qsatur = get_qsatur_fast(Tnr, presh(k))
            endif
            
            ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
