@@ -233,5 +233,5 @@
    real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
    real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
-
+   real,allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
   end module modmicrodata
