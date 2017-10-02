@@ -40,9 +40,13 @@ save
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
+  integer :: ncid4 = 1
   integer :: nrec1 = 0
   integer,allocatable :: nrec2(:)
   integer :: nrec3 = 0
+  integer :: nrec4 = 0
+  integer::nvar4 = 1 !number of surface variables stored
+  
   integer :: crossheight(100)
   integer :: nxy = 0
   integer :: cross
@@ -50,13 +54,19 @@ save
   character(80) :: fname1 = 'crossxz.xxxxyxxx.xxx.nc'
   character(80) :: fname2 = 'crossxy.xxxx.xxxxyxxx.xxx.nc'
   character(80) :: fname3 = 'crossyz.xxxxyxxx.xxx.nc'
+  character(80) :: fname4 = 'surf_xy.xxxxyxxx.xxx.nc' ! surface feilds, LWP for now
+  
   character(80),dimension(nvar,4) :: ncname1
   character(80),dimension(1,4) :: tncname1
   character(80),dimension(nvar,4) :: ncname2
   character(80),dimension(1,4) :: tncname2
   character(80),dimension(nvar,4) :: ncname3
   character(80),dimension(1,4) :: tncname3
+  character(80),dimension(1,4) :: ncname4
+  character(80),dimension(1,4) :: tncname4
 
+
+  
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
   logical :: lcross = .false. !< switch for doing the crosssection (on/off)
@@ -193,6 +203,18 @@ contains
     call define_nc( ncid3, NVar, ncname3)
     end if
 
+    fname4(9:16) = cmyid
+    fname4(18:20) = cexpnr
+    call ncinfo(tncname4(1,:),'time','Time','s','time')
+    call ncinfo(ncname4( 1,:),'lwp','Liquid Water Path','kg/m2','tt0t')
+    print *, ncname4(1,:)
+    call open_nc(fname4,  ncid4,nrec4,n1=imax,n2=jmax)
+    if (nrec4==0) then
+       call define_nc( ncid4, 1, tncname4)
+       call writestat_dims_nc(ncid4)
+    end if
+    call define_nc( ncid4, NVar4, ncname4)
+    
 
   end subroutine initcrosssection
 !>Run crosssection. Mainly timekeeping
@@ -214,7 +236,7 @@ contains
     call wrtvert
     call wrthorz
     call wrtorth
-
+    call wrtsurf
   end subroutine crosssection
 
 
@@ -515,6 +537,41 @@ contains
 
   end subroutine wrtorth
 
+
+
+  subroutine wrtsurf
+    use modglobal, only : imax,jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee,dzf
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr,rhobf
+    use modmpi,    only : cmyid
+    use modstat_nc, only : lnetcdf, writestat_nc
+    implicit none
+
+
+    ! LOCAL
+    integer i,j,k,n
+    character(20) :: name
+    
+    real, allocatable :: vars(:,:,:)
+
+    if (lnetcdf) then
+      allocate(vars(1:imax,1:jmax,nvar4))
+      do j = 2,j1
+         do i = 2,i1
+            vars(i-1,j-1,1) = sum(ql0(i,j,1:kmax) * dzf(1:kmax) * rhobf(1:kmax))
+            ! note compensate for ghost cells - no ghost cells in vars
+         enddo
+      enddo
+      
+
+      call writestat_nc(ncid4,1,tncname4,(/rtimee/),nrec4,.true.)
+      call writestat_nc(ncid4,nvar4,ncname4(1:nvar4,:),vars,nrec4,imax,jmax)
+      deallocate(vars)
+    end if
+
+
+  end subroutine wrtsurf
+
+  
 !> Clean up when leaving the run
   subroutine exitcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
@@ -522,13 +579,14 @@ contains
     implicit none
 
     if(lcross .and. lnetcdf) then
-    if (myid==0) then
-    call exitstat_nc(ncid1)
-    end if
-    do cross=1,nxy
-    call exitstat_nc(ncid2(cross))
-    end do
-    call exitstat_nc(ncid3)
+       if (myid==0) then   ! why only id 0 ?
+          call exitstat_nc(ncid1)
+       end if
+       do cross=1,nxy
+          call exitstat_nc(ncid2(cross))
+       end do
+       call exitstat_nc(ncid3)
+       call exitstat_nc(ncid4)
     end if
 
   end subroutine exitcrosssection

@@ -191,7 +191,7 @@ contains
   subroutine define_nc(ncID, nVar, sx)
     implicit none
     integer, intent (in) :: nVar, ncID
-    character (*), intent (in) :: sx(nVar,4)
+    character (*), intent (in) :: sx(:,:)
 
     integer, save ::  dim_mttt(4) = 0, dim_tmtt(4) = 0, dim_ttmt(4) = 0, dim_tttt(4) = 0, &
                       dim_tt(2)= 0, dim_mt(2)= 0,dim_t0tt(3)=0,dim_m0tt(3)=0,dim_t0mt(3)=0,dim_tt0t(3)=0, &
@@ -286,7 +286,8 @@ contains
           iret=nf90_def_var(ncID,sx(n,1),NF90_FLOAT,dim_qt ,VarID)
         case default
         write(ifmessages,*)  'ABORTING: Bad dimensional information ',sx(n,:)
-        stop
+        !stop
+        call abort
         ! call appl_abort(0)
       end select
       if (iret/=0) then
