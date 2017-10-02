@@ -526,8 +526,8 @@ function get_qsatur_fast(T, pres) result(qsatur)
   tlonr=int((T-150.)*5.)                      
   thinr=tlonr+1
   if(tlonr < 1 .or. tlonr > 1999) then      
-     write (*,*) 'tlonr out of range: ', tlonr
-     write (*,*) 'T = ', T
+     write (ifmessages,*) 'tlonr out of range: ', tlonr
+     write (ifmessages,*) 'T = ', T
      call abort
   endif
   tlo=ttab(tlonr)
@@ -552,14 +552,14 @@ function get_qsatur_fast(T, pres) result(qsatur)
   qsatur = ilratio*qvsl+(1.-ilratio)*qvsi  ! q sat total - interpolated with ice-liquid ratio
   
   if (qsatur < 0) then
-     write (*,*) 'Negative qsatur', qsatur
-     write (*,*) 'T        = ', T
-     write (*,*) 'pres     = ', pres
-     write (*,*) 'esl      = ', esl
-     write (*,*) 'esi      = ', esi
-     write (*,*) 'qvsl     = ', qvsl
-     write (*,*) 'qvsi     = ', qvsi
-     write (*,*) 'ilratio  = ', ilratio
+     write (ifmessages,*) 'Negative qsatur', qsatur
+     write (ifmessages,*) 'T        = ', T
+     write (ifmessages,*) 'pres     = ', pres
+     write (ifmessages,*) 'esl      = ', esl
+     write (ifmessages,*) 'esi      = ', esi
+     write (ifmessages,*) 'qvsl     = ', qvsl
+     write (ifmessages,*) 'qvsi     = ', qvsi
+     write (ifmessages,*) 'ilratio  = ', ilratio
      ! if temperature is high enough, (1.-rd/rv)*esl > pres  --> qvsl < 0 --> qsatur < 0
      ! call abort
   endif

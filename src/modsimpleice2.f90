@@ -36,6 +36,7 @@
 
 
 module modsimpleice2
+  use modglobal, only : ifmessages
   use modmicrodata
   use modfields, only : rhobf
   implicit none
@@ -530,7 +531,7 @@ module modsimpleice2
 
     
     if (qrsmall > 0.000001*qrsum) then
-      write(*,*)'amount of neg. qr thrown away is too high  ',timee, ' sec', qrsmall, qrsum
+      write(ifmessages,*)'amount of neg. qr thrown away is too high  ',timee, ' sec', qrsmall, qrsum
     end if
 
     do k=1,kmax !was k1
