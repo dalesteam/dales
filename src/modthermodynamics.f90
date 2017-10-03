@@ -464,21 +464,29 @@ contains
   !
   ! T range: 150 ... 550K - valid for the esatltab table
   ! The routine may break earlier and return a negative qsatur, at the boiling point of water.
-  ! Then we print a warning and return qsatur = 1
-  subroutine get_qsatur(T, pres, qsatur, esl, qvsl, qvsi)
+  ! Then we print a warning and return qsatur = 0
+  ! status is a return code. 0 for success, non-zero for errors or warnings
+  ! status = 1 - warning. qsatur is unreasonable
+  ! status = 2 - critical error, Tlonr outside the range of the table
+  
+  subroutine get_qsatur(T, pres, qsatur, esl, qvsl, qvsi, status)
     use modglobal, only : rd,rv,tup,tdn,ttab,esatltab,esatitab
     real,    intent(in)  :: T, pres
     real,    intent(out) :: esl, qvsl, qvsi, qsatur
+    integer, intent(out) :: status
     real     :: ilratio, esi, tlo, thi
     integer  :: tlonr, thinr
-    
+
+    status = 0
     ilratio = max(0.,min(1.,(T-tdn)/(tup-tdn))) ! ice liquid ratio
     tlonr=int((T-150.)*5.)                      
     thinr=tlonr+1
     if(tlonr < 1 .or. tlonr > 1999) then      
        write (ifmessages,*) 'tlonr out of range: ', tlonr
        write (ifmessages,*) 'T = ', T
-       call abort
+       status = 2
+       return
+       !call abort
     endif
     tlo=ttab(tlonr)
     thi=ttab(thinr)
@@ -501,6 +509,7 @@ contains
        write (ifmessages,*) 'qvsl     = ', qvsl
        write (ifmessages,*) 'qvsi     = ', qvsi
        write (ifmessages,*) 'ilratio  = ', ilratio
+       status = 1
        ! if temperature is high enough, (1.-rd/rv)*esl > pres  --> qvsl < 0 --> qsatur < 0
        ! call abort
     endif
@@ -509,6 +518,7 @@ contains
        qsatur = 1.0 
        qvsl = 1.0
        qvsi = 1.0
+       status = 1
        ! higher values are not possible
     endif
 
@@ -516,6 +526,7 @@ contains
        qsatur = 0.0 
        qvsl = 0.0
        qvsi = 0.0
+       status = 1
        ! negative values here happen if T is above the boiling point
        ! return 0 in the hope that the Newton solver behaves well
     endif
@@ -524,19 +535,23 @@ contains
   end subroutine get_qsatur
 
 ! faster version of qsatur
-function get_qsatur_fast(T, pres) result(qsatur)
+function get_qsatur_fast(T, pres, status) result(qsatur)
   use modglobal, only : rd,rv,tup,tdn,ttab,esatltab,esatitab
   real,    intent(in)  :: T, pres
+  integer, intent(out) :: status
   real     :: ilratio, qsatur, tlo, thi, esl, esi, qvsl, qvsi
   integer  :: tlonr, thinr
   
+  status = 0
   ilratio = max(0.,min(1.,(T-tdn)/(tup-tdn))) ! ice liquid ratio
   tlonr=int((T-150.)*5.)                      
   thinr=tlonr+1
   if(tlonr < 1 .or. tlonr > 1999) then      
      write (ifmessages,*) 'tlonr out of range: ', tlonr
      write (ifmessages,*) 'T = ', T
-     call abort
+     status = 2
+     return
+     !call abort
   endif
   tlo=ttab(tlonr)
   thi=ttab(thinr)
@@ -570,10 +585,18 @@ function get_qsatur_fast(T, pres) result(qsatur)
      write (ifmessages,*) 'ilratio  = ', ilratio
      ! if temperature is high enough, (1.-rd/rv)*esl > pres  --> qvsl < 0 --> qsatur < 0
      ! call abort
+     status = 1
   endif
   
-  if (qsatur > 1.0) qsatur = 1.0      ! higher values are not possible
-  if (qsatur < 0.0) qsatur = 0.0 
+  if (qsatur > 1.0) then
+     qsatur = 1.0      ! higher values are not possible
+     status = 1
+  endif
+  
+  if (qsatur < 0.0) then
+     qsatur = 0.0
+     status = 1
+  endif
      
   ! negative values here happen if T is above the boiling point
   ! return 0 in the hope that the Newton solver behaves well
@@ -594,7 +617,7 @@ subroutine icethermo0
   integer i, j, k
   real :: esl1, qvsl1, qvsi1, qsatur, thlguess, thlguessmin, ttry
   real :: Tnr, Tnr_old
-  integer :: niter, nitert
+  integer :: niter, nitert, status
 
   !     find the T, ql that correspond to theta_l, qt
   !     calculation of T with Newton-Raphson method
@@ -605,8 +628,9 @@ subroutine icethermo0
         do i=2,i1
            ! first guess for temperature
            Tnr=exnf(k)*thl0(i,j,k)
-           call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1)
-
+           call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1, status)
+           if (status/=0) go to 666
+           
            if (qt0(i,j,k) < 0) then
               write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in icethermo0. Setting to 0'
               qt0(i,j,k) = 0
@@ -618,7 +642,8 @@ subroutine icethermo0
               thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
               
               ttry=Tnr-0.002
-              qsatur = get_qsatur_fast(ttry, presf(k))
+              qsatur = get_qsatur_fast(ttry, presf(k), status)
+              if (status/=0) go to 666
               thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
               
               Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
@@ -626,11 +651,13 @@ subroutine icethermo0
                  niter = niter+1
                  Tnr_old=Tnr
                  
-                 qsatur = get_qsatur_fast(Tnr, presf(k))
+                 qsatur = get_qsatur_fast(Tnr, presf(k), status)
+                 if (status/=0) go to 666
                  thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
                  
                  ttry=Tnr-0.002  !dT = 0.002
-                 qsatur = get_qsatur_fast(ttry, presf(k))
+                 qsatur = get_qsatur_fast(ttry, presf(k), status)
+                 if (status/=0) go to 666
                  thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
                  
                  Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)  ! 500 = 1/dT
@@ -638,7 +665,8 @@ subroutine icethermo0
               nitert =max(nitert,niter)
               
               ! Note  qvsl, qvsi, esl from here are saved in global tables
-              call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1)
+              call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1, status)
+              if (status/=0) go to 666
            endif
 
            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
@@ -652,6 +680,18 @@ subroutine icethermo0
   if(nitert>99) then
      write(ifmessages,*) 'thermowarning - icethermo0'
   endif
+
+  return
+
+666 write(ifmessages,*) 'thermowarning from get_qsatur - icethermo0'
+  write(ifmessages,*), 'i,j,k=', i, j, k
+  write(ifmessages,*), 'thl0(i,j,k)', thl0(i,j,k)
+  write(ifmessages,*), 'qt0(i,j,k)',   qt0(i,j,k)
+  write(ifmessages,*), 'niter', niter
+  write(ifmessages,*), 'Initial Tnr', exnf(k)*thl0(i,j,k)
+  write(ifmessages,*), 'Tnr', Tnr
+  call abort()
+  
 end subroutine icethermo0
 
 subroutine icethermoh
@@ -667,7 +707,7 @@ subroutine icethermoh
   integer i, j, k
   real :: esl1, qvsl1, qvsi1, qsatur, thlguess, thlguessmin, ttry
   real :: Tnr, Tnr_old
-  integer :: niter, nitert
+  integer :: niter, nitert, status
 
   !     find the T, ql that correspond to theta_l, qt
   !     calculation of T with Newton-Raphson method
@@ -678,8 +718,9 @@ subroutine icethermoh
         do i=2,i1
            ! first guess for temperature
            Tnr=exnh(k)*thl0h(i,j,k)
-           qsatur = get_qsatur_fast(Tnr, presh(k))
-
+           qsatur = get_qsatur_fast(Tnr, presh(k), status)
+           if (status/=0) go to 666
+           
            if (qt0h(i,j,k) < 0) then
               write(ifmessages,*) 'Warning: qt0h(', i, j, k, ') = ', qt0h(i,j,k), 'in icethermoh. Setting to 0'
               qt0h(i,j,k) = 0
@@ -691,7 +732,8 @@ subroutine icethermoh
               thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
               
               ttry=Tnr-0.002
-              qsatur = get_qsatur_fast(ttry, presh(k))
+              qsatur = get_qsatur_fast(ttry, presh(k), status)
+              if (status/=0) go to 666
               thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
               
               Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
@@ -699,18 +741,21 @@ subroutine icethermoh
                  niter = niter+1
                  Tnr_old=Tnr
                  
-                 qsatur = get_qsatur_fast(Tnr, presh(k))
+                 qsatur = get_qsatur_fast(Tnr, presh(k), status)
+                 if (status/=0) go to 666
                  thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
                  
                  ttry=Tnr-0.002  !dT = 0.002
-                 qsatur = get_qsatur_fast(ttry, presh(k))
+                 qsatur = get_qsatur_fast(ttry, presh(k), status)
+                 if (status/=0) go to 666
                  thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
                  
                  Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)  ! 500 = 1/dT
               enddo
               nitert =max(nitert,niter)
 
-              qsatur = get_qsatur_fast(Tnr, presh(k))
+              qsatur = get_qsatur_fast(Tnr, presh(k), status)
+              if (status/=0) go to 666
            endif
            
            ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
@@ -720,6 +765,17 @@ subroutine icethermoh
   if(nitert>99) then
      write(ifmessages,*) 'thermowarning - icethermoh'
   endif
+
+  return
+  
+666 write(ifmessages,*) 'thermowarning from get_qsatur - icethermoh'
+  write(ifmessages,*), 'i,j,k=', i, j, k
+  write(ifmessages,*), 'thl0h(i,j,k)', thl0h(i,j,k)
+  write(ifmessages,*), 'qt0h(i,j,k)',   qt0h(i,j,k)
+  write(ifmessages,*), 'niter', niter
+  write(ifmessages,*), 'Initial Tnr', exnh(k)*thl0h(i,j,k)
+  write(ifmessages,*), 'Tnr', Tnr
+  call abort()
   
 end subroutine icethermoh
   
