@@ -493,7 +493,7 @@ contains
     qsatur = ilratio*qvsl+(1.-ilratio)*qvsi  ! q sat total - interpolated with ice-liquid ratio
 
     if (qsatur < 0) then
-       write (ifmessages,*) 'Negative qsatur', qsatur
+       write (ifmessages,*) 'Negative qsatur', qsatur, 'in get_qsatur'
        write (ifmessages,*) 'T        = ', T
        write (ifmessages,*) 'pres     = ', pres
        write (ifmessages,*) 'esl      = ', esl
@@ -505,14 +505,22 @@ contains
        ! call abort
     endif
 
-    if (qsatur > 1.0 .or. qsatur < 0.0) then
+    if (qsatur > 1.0) then
        qsatur = 1.0 
        qvsl = 1.0
        qvsi = 1.0
        ! higher values are not possible
-       ! negative values here happen if T is above the boiling point
-       ! return 1 in the hope that the Newton solver behaves well
     endif
+
+    if (qsatur < 0.0) then
+       qsatur = 0.0 
+       qvsl = 0.0
+       qvsi = 0.0
+       ! negative values here happen if T is above the boiling point
+       ! return 0 in the hope that the Newton solver behaves well
+    endif
+    
+    
   end subroutine get_qsatur
 
 ! faster version of qsatur
@@ -552,7 +560,7 @@ function get_qsatur_fast(T, pres) result(qsatur)
   qsatur = ilratio*qvsl+(1.-ilratio)*qvsi  ! q sat total - interpolated with ice-liquid ratio
   
   if (qsatur < 0) then
-     write (ifmessages,*) 'Negative qsatur', qsatur
+     write (ifmessages,*) 'Negative qsatur', qsatur, 'in get_qsatur_fast'
      write (ifmessages,*) 'T        = ', T
      write (ifmessages,*) 'pres     = ', pres
      write (ifmessages,*) 'esl      = ', esl
@@ -564,12 +572,13 @@ function get_qsatur_fast(T, pres) result(qsatur)
      ! call abort
   endif
   
-  if (qsatur > 1.0 .or. qsatur < 0.0) then
-     qsatur = 1.0 
-     ! higher values are not possible
-     ! negative values here happen if T is above the boiling point
-     ! return 1 in the hope that the Newton solver behaves well
-  endif
+  if (qsatur > 1.0) qsatur = 1.0      ! higher values are not possible
+  if (qsatur < 0.0) qsatur = 0.0 
+     
+  ! negative values here happen if T is above the boiling point
+  ! return 0 in the hope that the Newton solver behaves well
+  
+
 end function get_qsatur_fast
   
 
@@ -597,6 +606,11 @@ subroutine icethermo0
            ! first guess for temperature
            Tnr=exnf(k)*thl0(i,j,k)
            call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1)
+
+           if (qt0(i,j,k) < 0) then
+              write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in icethermo0. Setting to 0'
+              qt0(i,j,k) = 0
+           endif
            
            if(qt0(i,j,k)>qsatur) then
               Tnr_old=0.
@@ -665,6 +679,11 @@ subroutine icethermoh
            ! first guess for temperature
            Tnr=exnh(k)*thl0h(i,j,k)
            qsatur = get_qsatur_fast(Tnr, presh(k))
+
+           if (qt0h(i,j,k) < 0) then
+              write(ifmessages,*) 'Warning: qt0h(', i, j, k, ') = ', qt0h(i,j,k), 'in icethermoh. Setting to 0'
+              qt0h(i,j,k) = 0
+           endif
            
            if(qt0h(i,j,k)>qsatur) then
               Tnr_old=0.
