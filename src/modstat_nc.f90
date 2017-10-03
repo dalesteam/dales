@@ -199,6 +199,16 @@ contains
                       dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0,dim_qt(2)=0
 
     integer :: iret, n, VarID
+    integer :: nc_shuffle, nc_deflate, nc_deflate_level
+
+    ! enable compression of the data in netCDF.
+    ! compression parameters set here, for all fields for now.
+    nc_shuffle = 1         ! seems beneficial for cross sections, make surface fields (LWP) worse
+    nc_deflate = 1         ! enable compression
+    nc_deflate_level = 5   ! 0...9, anything > 0 seems to have minimal effect on file size and time in practice 
+                           !        - tested on 2D cross sections
+                           ! 0 is no compression
+    
     iret = nf90_inq_dimid(ncid,'time',timeId)
     iret = nf90_inq_dimid(ncid,'xt',xtId)
     iret = nf90_inq_dimid(ncid,'xm',xmId)
@@ -295,10 +305,10 @@ contains
 
         call nchandle_error(iret)
       end if
-      iret=nf90_put_att(ncID,VarID,'longname',sx(n,2))
-      iret=nf90_put_att(ncID,VarID,'units',sx(n,3))
+      iret = nf90_put_att(ncID, VarID, 'longname',  sx(n,2))
+      iret = nf90_put_att(ncID, VarID, 'units',     sx(n,3))
       iret = nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue)
-
+      iret = nf90_def_var_deflate(ncid, VarID, nc_shuffle, nc_deflate, nc_deflate_level)
     end do
     iret= nf90_enddef(ncID)
   end subroutine define_nc
