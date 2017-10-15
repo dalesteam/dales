@@ -610,8 +610,10 @@ subroutine icethermo0
   !! \author Steef B\"oing
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
-  use modglobal, only : i1,j1,k1,rlv,cp
+  use modglobal, only : i1,j1,k1,rlv,cp,rk3step
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modcrosssection, only : immediatecrosssection, exitcrosssection
+  
   implicit none
   
   integer i, j, k
@@ -684,12 +686,18 @@ subroutine icethermo0
   return
 
 666 write(ifmessages,*) 'thermowarning from get_qsatur - icethermo0'
-  write(ifmessages,*), 'i,j,k=', i, j, k
-  write(ifmessages,*), 'thl0(i,j,k)', thl0(i,j,k)
-  write(ifmessages,*), 'qt0(i,j,k)',   qt0(i,j,k)
-  write(ifmessages,*), 'niter', niter
-  write(ifmessages,*), 'Initial Tnr', exnf(k)*thl0(i,j,k)
-  write(ifmessages,*), 'Tnr', Tnr
+  write(ifmessages,*) 'i,j,k=', i, j, k
+  write(ifmessages,*) 'thl0(i,j,k)', thl0(i,j,k)
+  write(ifmessages,*) 'qt0(i,j,k)',   qt0(i,j,k)
+  write(ifmessages,*) 'niter', niter
+  write(ifmessages,*) 'Initial Tnr', exnf(k)*thl0(i,j,k)
+  write(ifmessages,*) 'Tnr', Tnr
+  write(ifmessages,*) 'rk3step', rk3step
+  
+  ! write the final cross-section fields
+  call immediatecrosssection
+  call exitcrosssection
+
   call abort()
   
 end subroutine icethermo0
@@ -699,9 +707,9 @@ subroutine icethermoh
   !! \author Steef B\"oing
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
-  use modglobal, only : i1,j1,k1,rlv,cp
+  use modglobal, only : i1,j1,k1,rlv,cp,rk3step
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
-  
+  use modcrosssection, only : immediatecrosssection, exitcrosssection
   implicit none
   
   integer i, j, k
@@ -769,12 +777,18 @@ subroutine icethermoh
   return
   
 666 write(ifmessages,*) 'thermowarning from get_qsatur - icethermoh'
-  write(ifmessages,*), 'i,j,k=', i, j, k
-  write(ifmessages,*), 'thl0h(i,j,k)', thl0h(i,j,k)
-  write(ifmessages,*), 'qt0h(i,j,k)',   qt0h(i,j,k)
-  write(ifmessages,*), 'niter', niter
-  write(ifmessages,*), 'Initial Tnr', exnh(k)*thl0h(i,j,k)
-  write(ifmessages,*), 'Tnr', Tnr
+  write(ifmessages,*) 'i,j,k=', i, j, k
+  write(ifmessages,*) 'thl0h(i,j,k)', thl0h(i,j,k)
+  write(ifmessages,*) 'qt0h(i,j,k)',   qt0h(i,j,k)
+  write(ifmessages,*) 'niter', niter
+  write(ifmessages,*) 'Initial Tnr', exnh(k)*thl0h(i,j,k)
+  write(ifmessages,*) 'Tnr', Tnr
+  write(ifmessages,*) 'rk3step', rk3step
+  
+  ! write the final cross-section fields
+  call immediatecrosssection
+  call exitcrosssection
+  
   call abort()
   
 end subroutine icethermoh

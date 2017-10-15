@@ -33,7 +33,7 @@ module modcrosssection
 
 implicit none
 private
-PUBLIC :: initcrosssection, crosssection,exitcrosssection
+PUBLIC :: initcrosssection, crosssection, exitcrosssection, immediatecrosssection
 save
 !NetCDF variables
   integer,parameter :: nvar = 11
@@ -238,6 +238,23 @@ contains
     call wrtorth
     call wrtsurf
   end subroutine crosssection
+
+  ! write a crossection immediately - for debugging crashes
+  subroutine immediatecrosssection
+    use modglobal, only : rk3step,timee,dt_lim
+    use modstat_nc, only : lnetcdf, writestat_nc
+    implicit none
+
+
+    if (.not. lcross) return
+!    if (rk3step/=3) return
+
+    call wrtvert
+    call wrthorz
+    call wrtorth
+    call wrtsurf
+  end subroutine immediatecrosssection
+  
 
 
 !> Do the xz crosssections and dump them to file
