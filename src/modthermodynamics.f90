@@ -610,7 +610,7 @@ subroutine icethermo0
   !! \author Steef B\"oing
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
-  use modglobal, only : i1,j1,k1,rlv,cp,rk3step
+  use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
   use modcrosssection, only : immediatecrosssection, exitcrosssection
   
@@ -635,6 +635,8 @@ subroutine icethermo0
            
            if (qt0(i,j,k) < 0) then
               write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in icethermo0. Setting to 0'
+              write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+              
               qt0(i,j,k) = 0
            endif
            
@@ -692,7 +694,7 @@ subroutine icethermo0
   write(ifmessages,*) 'niter', niter
   write(ifmessages,*) 'Initial Tnr', exnf(k)*thl0(i,j,k)
   write(ifmessages,*) 'Tnr', Tnr
-  write(ifmessages,*) 'rk3step', rk3step
+  write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
   
   ! write the final cross-section fields
   call immediatecrosssection
@@ -707,7 +709,7 @@ subroutine icethermoh
   !! \author Steef B\"oing
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
-  use modglobal, only : i1,j1,k1,rlv,cp,rk3step
+  use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
   use modcrosssection, only : immediatecrosssection, exitcrosssection
   implicit none
@@ -731,6 +733,7 @@ subroutine icethermoh
            
            if (qt0h(i,j,k) < 0) then
               write(ifmessages,*) 'Warning: qt0h(', i, j, k, ') = ', qt0h(i,j,k), 'in icethermoh. Setting to 0'
+              write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
               qt0h(i,j,k) = 0
            endif
            
@@ -783,7 +786,7 @@ subroutine icethermoh
   write(ifmessages,*) 'niter', niter
   write(ifmessages,*) 'Initial Tnr', exnh(k)*thl0h(i,j,k)
   write(ifmessages,*) 'Tnr', Tnr
-  write(ifmessages,*) 'rk3step', rk3step
+  write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
   
   ! write the final cross-section fields
   call immediatecrosssection
