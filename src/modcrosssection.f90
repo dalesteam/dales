@@ -207,7 +207,6 @@ contains
     fname4(18:20) = cexpnr
     call ncinfo(tncname4(1,:),'time','Time','s','time')
     call ncinfo(ncname4( 1,:),'lwp','Liquid Water Path','kg/m2','tt0t')
-    print *, ncname4(1,:)
     call open_nc(fname4,  ncid4,nrec4,n1=imax,n2=jmax)
     if (nrec4==0) then
        call define_nc( ncid4, 1, tncname4)
