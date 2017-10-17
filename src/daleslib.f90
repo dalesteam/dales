@@ -172,7 +172,7 @@ module daleslib
 
         subroutine force_tendencies
           use modglobal,   only : i1,j1,imax,jmax,kmax
-          use modfields,   only : up,vp,thlp,qtp,qt0
+          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av
 
           implicit none
           integer k
@@ -188,8 +188,8 @@ module daleslib
              
              ! multiplicative correcion of qt
              if (l_multiplicative_qt) then
-                qt_avg = sum(qt0(2:i1,2:j1,k)) / (imax * jmax)
-                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qt0(2:i1,2:j1,k) / qt_avg * qt_tend(k)
+                ! qt_avg = sum(qt0(2:i1,2:j1,k)) / (imax * jmax) ! wrong - need global average .
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qt0(2:i1,2:j1,k) / qt0av(k) * qt_tend(k)
              else
              ! additive correction of qt
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + qt_tend(k)
