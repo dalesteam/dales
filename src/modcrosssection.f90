@@ -135,7 +135,7 @@ contains
       stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-    if (myid==0) then
+    !if (myid==0) then  ! remnant of slab parallelization - either all do this or myidx == 0
       fname1(9:16) = cmyid
       fname1(18:20) = cexpnr
       call ncinfo(tncname1(1,:),'time','Time','s','time')
@@ -156,7 +156,7 @@ contains
         call writestat_dims_nc(ncid1)
       end if
       call define_nc( ncid1, NVar, ncname1)
-    end if
+    !end if
     do cross=1,nxy
       write(cheight,'(i4.4)') crossheight(cross)
       fname2(9:12) = cheight
@@ -269,7 +269,7 @@ contains
 
   real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
-  if( myid /= 0 ) return
+  ! if( myid /= 0 ) return ! remnant of slab parallelization - either all do this, or myid_x == 0
 
   allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
 
@@ -595,9 +595,9 @@ contains
     implicit none
 
     if(lcross .and. lnetcdf) then
-       if (myid==0) then   ! why only id 0 ?
-          call exitstat_nc(ncid1)
-       end if
+       ! if (myid==0) then   ! remnant of slab parallelization
+       call exitstat_nc(ncid1)
+       ! end if
        do cross=1,nxy
           call exitstat_nc(ncid2(cross))
        end do
