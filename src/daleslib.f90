@@ -171,17 +171,33 @@ module daleslib
         end subroutine exitdaleslib
 
         subroutine force_tendencies
-          use modglobal,   only : i1,j1,kmax
-          use modfields,   only : up,vp,thlp,qtp
+          use modglobal,   only : i1,j1,imax,jmax,kmax
+          use modfields,   only : up,vp,thlp,qtp,qt0
 
           implicit none
           integer k
-
+          logical l_multiplicative_qt
+          real qt_avg
+          
+          l_multiplicative_qt = .true.
+          
           do k=1,kmax
              up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 
              vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k) + v_tend(k) 
              thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) + thl_tend(k)
-             qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) + qt_tend(k)
+             
+             ! multiplicative correcion of qt
+             if (l_multiplicative_qt) then
+                qt_avg = sum(qt0(2:i1,2:j1,k)) / (imax * jmax)
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qt0(2:i1,2:j1,k) / qt_avg * qt_tend(k)
+             else
+             ! additive correction of qt
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + qt_tend(k)
+             endif
+
+             ! what if qt decreased so that ql > qt
+             ! will ql be re-calculated before it is used ?
+             ! note: we don't change qt yet, only apply a tendency
           enddo
         end subroutine force_tendencies
 
