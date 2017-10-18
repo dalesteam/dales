@@ -613,7 +613,6 @@ subroutine icethermo0
   use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
   use modcrosssection, only : immediatecrosssection, exitcrosssection
-  use daleslib, only : qt_tend
   
   implicit none
   
@@ -637,7 +636,6 @@ subroutine icethermo0
            if (qt0(i,j,k) < 0) then
               write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in icethermo0. Setting to 0'
               write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
-              write(ifmessages,*) 'qt_tend(k)', qt_tend(k)
               
               qt0(i,j,k) = 0
            endif
@@ -714,7 +712,7 @@ subroutine icethermoh
   use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
   use modcrosssection, only : immediatecrosssection, exitcrosssection
-  use daleslib, only : qt_tend
+
   implicit none
   
   integer i, j, k
@@ -737,7 +735,6 @@ subroutine icethermoh
            if (qt0h(i,j,k) < 0) then
               write(ifmessages,*) 'Warning: qt0h(', i, j, k, ') = ', qt0h(i,j,k), 'in icethermoh. Setting to 0'
               write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
-              write(ifmessages,*) 'qt_tend(k)', qt_tend(k)
               qt0h(i,j,k) = 0
            endif
            
