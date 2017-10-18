@@ -162,7 +162,7 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min
+  use modglobal, only : ifmessages,i1,j1,kmax,nsv,rdt,rk3step,e12min,ntimee,rtimee
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
@@ -180,6 +180,21 @@ subroutine tstep_integrate
      w0   = wm   + rk3coef * wp
      thl0 = thlm + rk3coef * thlp
      qt0  = qtm  + rk3coef * qtp
+     do k=1,kmax
+        do j=2,j1
+           do i=2,i1
+              if (qt0(i,j,k) < 0) then
+                 write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in tstep_integrate. Setting to 1e-6'
+                 write(ifmessages,*) ' rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+                 write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
+                 qt0(i,j,k) = 1e-6
+              endif
+           enddo
+        enddo
+     enddo
+
+
+     
      sv0  = svm  + rk3coef * svp
      e120 = max(e12min,e12m + rk3coef * e12p)
   else ! step 3 - store result in both ..0 and ..m
@@ -192,6 +207,18 @@ subroutine tstep_integrate
      thlm = thlm + rk3coef * thlp
      thl0 = thlm
      qtm  = qtm  + rk3coef * qtp
+     do k=1,kmax
+        do j=2,j1
+           do i=2,i1
+              if (qt0(i,j,k) < 0) then
+                 write(ifmessages,*) 'Warning: qtm(', i, j, k, ') = ', qtm(i,j,k), 'in tstep_integrate. Setting to 1e-6'
+                 write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+                 write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
+                 qtm(i,j,k) = 1e-6
+              endif
+           enddo
+        enddo
+     enddo
      qt0  = qtm
      svm  = svm  + rk3coef * svp
      sv0 = svm
