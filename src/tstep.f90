@@ -210,7 +210,7 @@ subroutine tstep_integrate
      do k=1,kmax
         do j=2,j1
            do i=2,i1
-              if (qt0(i,j,k) < 0) then
+              if (qtm(i,j,k) < 0) then
                  write(ifmessages,*) 'Warning: qtm(', i, j, k, ') = ', qtm(i,j,k), 'in tstep_integrate. Setting to 1e-6'
                  write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
                  write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
