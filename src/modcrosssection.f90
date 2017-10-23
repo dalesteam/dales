@@ -45,7 +45,7 @@ save
   integer,allocatable :: nrec2(:)
   integer :: nrec3 = 0
   integer :: nrec4 = 0
-  integer::nvar4 = 1 !number of surface variables stored
+  integer::nvar4 = 3 !number of surface variables stored
   
   integer :: crossheight(100)
   integer :: nxy = 0
@@ -63,7 +63,7 @@ save
   character(80),dimension(nvar,4) :: ncname3
   character(80),dimension(1,4) :: tncname3
   character(80),dimension(1,4) :: ncname4
-  character(80),dimension(1,4) :: tncname4
+  character(80),dimension(3,4) :: tncname4
 
 
   
@@ -207,6 +207,8 @@ contains
     fname4(18:20) = cexpnr
     call ncinfo(tncname4(1,:),'time','Time','s','time')
     call ncinfo(ncname4( 1,:),'lwp','Liquid Water Path','kg/m2','tt0t')
+    call ncinfo(ncname4( 2,:),'rwp','Rain Water Path','kg/m2','tt0t')
+    call ncinfo(ncname4( 3,:),'twp','Total Water Path','kg/m2','tt0t')
     call open_nc(fname4,  ncid4,nrec4,n1=imax,n2=jmax)
     if (nrec4==0) then
        call define_nc( ncid4, 1, tncname4)
@@ -556,10 +558,11 @@ contains
 
 
   subroutine wrtsurf
-    use modglobal, only : imax,jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee,dzf
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr,rhobf
+    use modglobal, only : imax,jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee,dzf,nsv
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr,rhobf,sv0
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
+    use modmicrodata, only : iqr
     implicit none
 
 
@@ -573,11 +576,17 @@ contains
       allocate(vars(1:imax,1:jmax,nvar4))
       do j = 2,j1
          do i = 2,i1
-            vars(i-1,j-1,1) = sum(ql0(i,j,1:kmax) * dzf(1:kmax) * rhobf(1:kmax))
+            vars(i-1,j-1,1) = sum(ql0(i,j,1:kmax)      * dzf(1:kmax) * rhobf(1:kmax)) ! LWP
+            if (nsv >= iqr) then
+               vars(i-1,j-1,2) = sum(sv0(i,j,1:kmax,iqr)  * dzf(1:kmax) * rhobf(1:kmax)) ! RWP
+            else
+               vars(i-1,j-1,2) = 0
+            endif
+            vars(i-1,j-1,3) = sum(qt0(i,j,1:kmax)      * dzf(1:kmax) * rhobf(1:kmax)) ! TWP            
             ! note compensate for ghost cells - no ghost cells in vars
          enddo
       enddo
-      
+
 
       call writestat_nc(ncid4,1,tncname4,(/rtimee/),nrec4,.true.)
       call writestat_nc(ncid4,nvar4,ncname4(1:nvar4,:),vars,nrec4,imax,jmax)

@@ -429,7 +429,7 @@ contains
             nitert =max(nitert,niter)
             niter = 0.0
 
-            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
+            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.) ! dim here clamps result to >= 0
 
           end do
         end do
