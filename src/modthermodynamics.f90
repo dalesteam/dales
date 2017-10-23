@@ -690,7 +690,8 @@ subroutine icethermo0
 666 write(ifmessages,*) 'thermowarning from get_qsatur - icethermo0'
   write(ifmessages,*) 'i,j,k=', i, j, k
   write(ifmessages,*) 'thl0(i,j,k)', thl0(i,j,k)
-  write(ifmessages,*) 'qt0(i,j,k)',   qt0(i,j,k)
+  write(ifmessages,*) 'qt0(i,j,k)',  qt0(i,j,k)
+  write(ifmessages,*) 'ql0(i,j,k)',  ql0(i,j,k)
   write(ifmessages,*) 'niter', niter
   write(ifmessages,*) 'Initial Tnr', exnf(k)*thl0(i,j,k)
   write(ifmessages,*) 'Tnr', Tnr
@@ -783,7 +784,8 @@ subroutine icethermoh
 666 write(ifmessages,*) 'thermowarning from get_qsatur - icethermoh'
   write(ifmessages,*) 'i,j,k=', i, j, k
   write(ifmessages,*) 'thl0h(i,j,k)', thl0h(i,j,k)
-  write(ifmessages,*) 'qt0h(i,j,k)',   qt0h(i,j,k)
+  write(ifmessages,*) 'qt0h(i,j,k)',  qt0h(i,j,k)
+  write(ifmessages,*) 'ql0h(i,j,k)',  ql0h(i,j,k)
   write(ifmessages,*) 'niter', niter
   write(ifmessages,*) 'Initial Tnr', exnh(k)*thl0h(i,j,k)
   write(ifmessages,*) 'Tnr', Tnr
