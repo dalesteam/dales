@@ -41,7 +41,8 @@ contains
     use modmpi,   only :myid,my_real,comm3d,mpi_integer,mpi_logical
     use modglobal,only :ifnamopt,fname_options,nsv
     use modbulkmicro, only : initbulkmicro
-    use modsimpleice2, only : initsimpleice
+    use modsimpleice, only : initsimpleice
+    use modsimpleice2, only : initsimpleice2
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
@@ -83,7 +84,10 @@ contains
 !       call initbinmicro
     case(imicro_sice)
        if (nsv < 2) STOP "ERROR: Simple ice microphysics requires nsv >=2"
-      call initsimpleice
+       call initsimpleice
+    case(imicro_sice2)
+       if (nsv < 2) STOP "ERROR: Simple ice microphysics requires nsv >=2"
+       call initsimpleice2
     case(imicro_user)
     end select
   end subroutine initmicrophysics
@@ -108,7 +112,8 @@ contains
   subroutine microsources
    use moduser,      only : micro_user
    use modbulkmicro, only : bulkmicro
-   use modsimpleice2, only : simpleice
+   use modsimpleice, only : simpleice
+   use modsimpleice2, only : simpleice2
 !     use modbinmicro,  only : binmicrosources
     implicit none
 
@@ -121,7 +126,9 @@ contains
     case(imicro_bin)
 !       call binmicrosources
     case(imicro_sice)
-      call simpleice
+       call simpleice
+    case(imicro_sice2)
+      call simpleice2
     case(imicro_user)
       call micro_user
     end select
@@ -130,7 +137,8 @@ contains
 
   subroutine exitmicrophysics
     use modbulkmicro, only : exitbulkmicro
-    use modsimpleice2, only : exitsimpleice
+    use modsimpleice, only : exitsimpleice
+    use modsimpleice2, only : exitsimpleice2
  !     use modbinmicro,  only : exitbinmicro
     implicit none
 
@@ -143,7 +151,9 @@ contains
 !       call exitbinmicro
      case(imicro_user)
      case(imicro_sice)
-      call exitsimpleice
+        call exitsimpleice
+     case(imicro_sice2)
+      call exitsimpleice2
   end select
   end subroutine exitmicrophysics
 

@@ -179,7 +179,7 @@ module daleslib
           logical l_multiplicative_qt
           real qt_avg
           
-          l_multiplicative_qt = .true.
+          l_multiplicative_qt = .false.
           
           do k=1,kmax
              up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 

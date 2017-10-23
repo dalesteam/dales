@@ -55,7 +55,7 @@ module modsimpleice2
   contains
 
 !> Initializes and allocates the arrays
-  subroutine initsimpleice
+  subroutine initsimpleice2
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
     implicit none
     integer:: k
@@ -114,20 +114,22 @@ module modsimpleice2
     nrp=0. ! not used in this scheme 
     nr=0.  ! set to 0 here in case the statistics use them
      
-  end subroutine initsimpleice
+  end subroutine initsimpleice2
+  
 
 !> Cleaning up after the run
-  subroutine exitsimpleice
+  subroutine exitsimpleice2
     implicit none
     deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(qrmask,qcmask)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
     deallocate(ccrz2,ccsz2,ccgz2)
-  end subroutine exitsimpleice
+  end subroutine exitsimpleice2
+  
 
 !> Calculates the microphysical source term.
-  subroutine simpleice
+  subroutine simpleice2
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl
     
@@ -556,6 +558,7 @@ module modsimpleice2
 !    if (l_rain) then
 !      call simpleicetend !after corrections
 !    endif
-  end subroutine simpleice
+  end subroutine simpleice2
+  
 
 end module modsimpleice2
