@@ -611,7 +611,7 @@ subroutine icethermo0
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
   use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modfields, only : qvsl,qvsi,qt0,thl0,e120,exnf,presf,tmp0,ql0,esl
   use modcrosssection, only : immediatecrosssection, exitcrosssection
   
   implicit none
@@ -692,6 +692,7 @@ subroutine icethermo0
   write(ifmessages,*) 'thl0(i,j,k)', thl0(i,j,k)
   write(ifmessages,*) 'qt0(i,j,k)',  qt0(i,j,k)
   write(ifmessages,*) 'ql0(i,j,k)',  ql0(i,j,k)
+  write(ifmessages,*) 'e120(i,j,k)', e120(i,j,k)
   write(ifmessages,*) 'niter', niter
   write(ifmessages,*) 'Initial Tnr', exnf(k)*thl0(i,j,k)
   write(ifmessages,*) 'Tnr', Tnr
@@ -711,7 +712,7 @@ subroutine icethermoh
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
   use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
-  use modfields, only : qt0h,thl0h,exnh,presh,ql0h
+  use modfields, only : qt0h,thl0h,e120,exnh,presh,ql0h
   use modcrosssection, only : immediatecrosssection, exitcrosssection
 
   implicit none
@@ -786,6 +787,7 @@ subroutine icethermoh
   write(ifmessages,*) 'thl0h(i,j,k)', thl0h(i,j,k)
   write(ifmessages,*) 'qt0h(i,j,k)',  qt0h(i,j,k)
   write(ifmessages,*) 'ql0h(i,j,k)',  ql0h(i,j,k)
+  write(ifmessages,*) 'e120(i,j,k)',  e120(i,j,k)
   write(ifmessages,*) 'niter', niter
   write(ifmessages,*) 'Initial Tnr', exnh(k)*thl0h(i,j,k)
   write(ifmessages,*) 'Tnr', Tnr
