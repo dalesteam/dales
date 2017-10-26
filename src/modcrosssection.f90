@@ -62,8 +62,8 @@ save
   character(80),dimension(1,4) :: tncname2
   character(80),dimension(nvar,4) :: ncname3
   character(80),dimension(1,4) :: tncname3
-  character(80),dimension(1,4) :: ncname4
-  character(80),dimension(3,4) :: tncname4
+  character(80),dimension(3,4) :: ncname4
+  character(80),dimension(1,4) :: tncname4
 
 
   
