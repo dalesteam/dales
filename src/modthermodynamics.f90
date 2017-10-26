@@ -633,12 +633,11 @@ subroutine icethermo0
            call get_qsatur(Tnr, presf(k), qsatur, esl1, qvsl1, qvsi1, status)
            if (status/=0) go to 666
            
-           if (qt0(i,j,k) < 0) then
-              write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in icethermo0. Setting to 0'
-              write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
-              
-              qt0(i,j,k) = 0
-           endif
+!           if (qt0(i,j,k) < 0) then
+!              write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in icethermo0. Setting to 0'
+!              write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+!              qt0(i,j,k) = 0
+!           endif
            
            if(qt0(i,j,k)>qsatur) then
               Tnr_old=0.
@@ -734,11 +733,11 @@ subroutine icethermoh
            qsatur = get_qsatur_fast(Tnr, presh(k), status)
            if (status/=0) go to 666
            
-           if (qt0h(i,j,k) < 0) then
-              write(ifmessages,*) 'Warning: qt0h(', i, j, k, ') = ', qt0h(i,j,k), 'in icethermoh. Setting to 0'
-              write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
-              qt0h(i,j,k) = 0
-           endif
+!           if (qt0h(i,j,k) < 0) then
+!              write(ifmessages,*) 'Warning: qt0h(', i, j, k, ') = ', qt0h(i,j,k), 'in icethermoh. Setting to 0'
+!              write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+!              qt0h(i,j,k) = 0
+!           endif
            
            if(qt0h(i,j,k)>qsatur) then
               Tnr_old=0.
