@@ -201,7 +201,7 @@ module daleslib
           enddo
         end subroutine force_tendencies
 
-        ! find min and max vale of all tendencies. Check that they are within reasonable boundaries.
+        ! find min and max value of all tendencies. Check that they are within reasonable boundaries.        
         subroutine check_tend(msg)
           use modfields,   only : up,vp,wp,thlp,qtp,qt0,qt0av,e12p
           use modglobal,   only : i1,j1,kmax,rk3step,rtimee,ntimee
@@ -626,6 +626,42 @@ module daleslib
          Ag = Ag / (size(Al,1) * size(Al,2) * nprocs)
       endif
     end function gatherlayeravg
+
+    ! Retrieves the z-layer average of the ice fraction of the condensed water ql
+    ! ilratio is calculated from the temperature, as in simpleice and icethermo routines.
+    ! note: assumes the qi array is large enough (kmax elements)
+    function gather_ice(qi) result(ret)
+      use mpi
+      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn
+      use modfields, only: ql0, tmp0
+      
+      real, intent(out)     :: qi(:)
+      integer               :: i,j,k, nk, ret
+      real                  :: ilratio
+
+      do k=1,kmax
+         qi(k) = 0
+         do j = 2,j1
+            do i = 2,i1
+               ilratio = max(0.,min(1., (tmp0(i,j,k)-tdn) / (tup-tdn))) ! ice liquid ratio . 0 for ice, 1 for liquid
+               qi(k) = qi(k) + (1.0 - ilratio) * ql0(i,j,k)              ! amount of ice 
+            enddo
+         enddo
+      enddo
+      
+      !in-place reduction
+      if (myid == 0) then
+         CALL mpi_reduce(MPI_IN_PLACE, qi, kmax, MY_REAL, MPI_SUM, 0, comm3d, ret)
+      else
+         CALL mpi_reduce(          qi, qi, kmax, MY_REAL, MPI_SUM, 0, comm3d, ret)
+      endif
+      
+      if (myid == 0) then
+         qi = qi / (imax * jmax * nprocs)
+      endif
+    end function gather_ice
+    
 
     ! map global indices to local
     ! gi = 0...itot-1  <-- zero-based global indices, good for numpy
