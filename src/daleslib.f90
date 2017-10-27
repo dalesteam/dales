@@ -204,7 +204,7 @@ module daleslib
         ! find min and max vale of all tendencies. Check that they are within reasonable boundaries.
         subroutine check_tend(msg)
           use modfields,   only : up,vp,wp,thlp,qtp,qt0,qt0av,e12p
-          use modglobal,   only : i1,j1,kmax
+          use modglobal,   only : i1,j1,kmax,rk3step,rtimee,ntimee
           implicit none
           real thlp_l, qtp_l, e12p_l, up_l, vp_l, wp_l, thlp_h, qtp_h, e12p_h, up_h, vp_h, wp_h
           character (*), intent (in) :: msg
@@ -220,14 +220,15 @@ module daleslib
           vp_h    = maxval(vp(2:i1,2:j1,1:kmax))
           wp_l    = minval(wp(2:i1,2:j1,1:kmax))
           wp_h    = maxval(wp(2:i1,2:j1,1:kmax))
-          if (max(-up_l, up_h, -vp_l, vp_h, -wp_l, wp_h) > 10 .or. max(-qtp_l, qtp_h) > 0.003 .or. max(-thlp_l, thlp_h) > 5) then
-             write(ifmessages,*) '--- extreme tendenies found at', msg, ' ---'
+          if (max(-up_l, up_h, -vp_l, vp_h, -wp_l, wp_h) > 10 .or. max(-qtp_l, qtp_h) > 0.003 .or. max(-thlp_l, thlp_h) > 5 .or. max(-e12p_l, e12p_h) > 1) then
+             write(ifmessages,*) '--- extreme tendencies found ', msg, ' ---'
              write(ifmessages,*) 'thlp', thlp_l, thlp_h
              write(ifmessages,*) 'qtp', qtp_l, qtp_h
              write(ifmessages,*) 'e12p', e12p_l, e12p_h
              write(ifmessages,*) 'up', up_l, up_h
              write(ifmessages,*) 'vp', vp_l, vp_h
              write(ifmessages,*) 'wp', wp_l, wp_h
+             write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
              write(ifmessages,*) '-----------------'
           endif
           
