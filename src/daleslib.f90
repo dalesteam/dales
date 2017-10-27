@@ -201,8 +201,39 @@ module daleslib
           enddo
         end subroutine force_tendencies
 
-
-
+        ! find min and max vale of all tendencies. Check that they are within reasonable boundaries.
+        subroutine check_tend(msg)
+          use modfields,   only : up,vp,wp,thlp,qtp,qt0,qt0av,e12p
+          use modglobal,   only : i1,j1,kmax
+          implicit none
+          real thlp_l, qtp_l, e12p_l, up_l, vp_l, wp_l, thlp_h, qtp_h, e12p_h, up_h, vp_h, wp_h
+          character (*), intent (in) :: msg
+          thlp_l = minval(thlp(2:i1,2:j1,1:kmax))
+          thlp_h = maxval(thlp(2:i1,2:j1,1:kmax))
+          qtp_l  = minval(qtp(2:i1,2:j1,1:kmax))
+          qtp_h  = maxval(qtp(2:i1,2:j1,1:kmax))
+          e12p_l = minval(e12p(2:i1,2:j1,1:kmax))
+          e12p_h = maxval(e12p(2:i1,2:j1,1:kmax))
+          up_l    = minval(up(2:i1,2:j1,1:kmax))
+          up_h    = maxval(up(2:i1,2:j1,1:kmax))
+          vp_l    = minval(vp(2:i1,2:j1,1:kmax))
+          vp_h    = maxval(vp(2:i1,2:j1,1:kmax))
+          wp_l    = minval(wp(2:i1,2:j1,1:kmax))
+          wp_h    = maxval(wp(2:i1,2:j1,1:kmax))
+          if (max(-up_l, up_h, -vp_l, vp_h, -wp_l, wp_h) > 10 .or. max(-qtp_l, qtp_h) > 0.003 .or. max(-thlp_l, thlp_h) > 5) then
+             write(ifmessages,*) '--- extreme tendenies found at', msg, ' ---'
+             write(ifmessages,*) 'thlp', thlp_l, thlp_h
+             write(ifmessages,*) 'qtp', qtp_l, qtp_h
+             write(ifmessages,*) 'e12p', e12p_l, e12p_h
+             write(ifmessages,*) 'up', up_l, up_h
+             write(ifmessages,*) 'vp', vp_l, vp_h
+             write(ifmessages,*) 'wp', wp_l, wp_h
+             write(ifmessages,*) '-----------------'
+          endif
+          
+        end subroutine check_tend
+        
+        
         
         ! Performs a single time step. This is exactly the code inside the time loop of the main program. 
         ! If the adaptive time stepping is enabled, the new time stamp is not guaranteed to be a dt later.
@@ -283,7 +314,9 @@ module daleslib
             !-----------------------------------------------------
             call advection
             call samptend(tend_adv)
+            call check_tend('after advection')
             call subgrid
+            call check_tend('after subgrid')
             call canopy
             call samptend(tend_subg)
 
@@ -298,7 +331,10 @@ module daleslib
 
             call lstend !large scale forcings
             call samptend(tend_ls)
+
+            call check_tend('after lstend')
             call microsources !Drizzle etc.
+            call check_tend('after microsources')
             call samptend(tend_micro)
 
             !------------------------------------------------------
@@ -317,6 +353,7 @@ module daleslib
             !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
             call samptend(tend_topbound)
             call poisson
+            call check_tend('after poisson')
             call samptend(tend_pois,lastterm=.true.)
 
             call tstep_integrate                        ! Apply tendencies to all variables
