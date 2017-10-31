@@ -201,7 +201,8 @@ module daleslib
           enddo
         end subroutine force_tendencies
 
-        ! find min and max value of all tendencies. Check that they are within reasonable boundaries.        
+        ! find min and max value of all tendencies. Check that they are within reasonable boundaries.
+        ! if not, print a message including 'msg' and the min/max values of all the tendencies.
         subroutine check_tend(msg)
           use modfields,   only : up,vp,wp,thlp,qtp,qt0,qt0av,e12p
           use modglobal,   only : i1,j1,kmax,rk3step,rtimee,ntimee
@@ -315,7 +316,7 @@ module daleslib
             !-----------------------------------------------------
             call advection
             call samptend(tend_adv)
-            call check_tend('after advection')
+            !call check_tend('after advection')
             call subgrid
             call check_tend('after subgrid')
             call canopy
@@ -333,9 +334,9 @@ module daleslib
             call lstend !large scale forcings
             call samptend(tend_ls)
 
-            call check_tend('after lstend')
+            !call check_tend('after lstend')
             call microsources !Drizzle etc.
-            call check_tend('after microsources')
+            !call check_tend('after microsources')
             call samptend(tend_micro)
 
             !------------------------------------------------------
