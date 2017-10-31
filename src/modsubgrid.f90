@@ -450,6 +450,14 @@ contains
           ! For convective cases, in the early stage of the simulation the local_dudz is
           ! in some cases extremely large, leading eventually in crashes in the thermodynamics
           if (abs(local_dudz) > abs(dudz(i,j))) then
+             write(ifmessages,*) "modsubgrid: limiting local_dudz ", local_dudz, " to dudz ", dudz
+             write(ifmessages,*) " uwflux: ", uwflux
+             write(ifmessages,*) " ustar: ", ustar
+             write(ifmessages,*) " ekm: ", ekm
+             write(ifmessages,*) " e120: ", e120(i,j,1)
+             write(ifmessages,*) " u0, v0: ", u0(i,j,1), v0(i,j,1)
+             write(ifmessages,*) " i, j: ", i, j
+             write(ifmessages,*) " "
              local_dudz = dudz(i,j)
           endif
           tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
@@ -474,6 +482,14 @@ contains
           ! For convective cases, in the early stage of the simulation the local_dvdz is
           ! in some cases extremely large, leading eventually in crashes in the thermodynamics
           if (abs(local_dvdz) > abs(dvdz(i,j))) then
+             write(ifmessages,*) "modsubgrid: limiting local_dvdz ", local_dvdz, " to dvdz ", dvdz
+             write(ifmessages,*) " vwflux: ", vwflux
+             write(ifmessages,*) " ustar: ", ustar
+             write(ifmessages,*) " ekm: ", ekm
+             write(ifmessages,*) " e120: ", e120(i,j,1)
+             write(ifmessages,*) " u0, v0: ", u0(i,j,1), v0(i,j,1)
+             write(ifmessages,*) " i, j: ", i, j
+             write(ifmessages,*) " "
              local_dvdz = dvdz(i,j)
           endif
           tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
@@ -494,7 +510,15 @@ contains
           ! For convective cases, in the early stage of the simulation the local_dthvdz is
           ! in some cases extremely large, leading eventually in crashes in the thermodynamics
           if (abs(local_dthvdz) > abs(dthvdz(i,j,1))) then
-              local_dthvdz = dthvdz(i,j,1)
+             write(ifmessages,*) "modsubgrid: limiting local_dthvdz ", local_dthvdz, " to dthvdz ", dthvdz
+             write(ifmessages,*) " uwflux: ", uwflux
+             write(ifmessages,*) " ustar: ", ustar
+             write(ifmessages,*) " ekm: ", ekm
+             write(ifmessages,*) " e120: ", e120(i,j,1)
+             write(ifmessages,*) " u0, v0: ", u0(i,j,1), v0(i,j,1)
+             write(ifmessages,*) " i, j: ", i, j
+             write(ifmessages,*) " "
+             local_dthvdz = dthvdz(i,j,1)
           endif
           sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
     else
