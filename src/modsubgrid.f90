@@ -358,7 +358,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav, cu, cv
+  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav, cu, cv,rk3step,rtimee,ntimee
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
   use modsurfdata,  only : dudz,dvdz,ustar,thlflux
   use modsubgriddata, only: sgs_surface_fix
@@ -457,6 +457,7 @@ contains
              write(ifmessages,*) " e120: ", e120(i,j,1)
              write(ifmessages,*) " u0, v0: ", u0(i,j,1), v0(i,j,1)
              write(ifmessages,*) " i, j: ", i, j
+             write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
              write(ifmessages,*) " "
              local_dudz = dudz(i,j)
           endif
@@ -489,6 +490,7 @@ contains
              write(ifmessages,*) " e120: ", e120(i,j,1)
              write(ifmessages,*) " u0, v0: ", u0(i,j,1), v0(i,j,1)
              write(ifmessages,*) " i, j: ", i, j
+             write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
              write(ifmessages,*) " "
              local_dvdz = dvdz(i,j)
           endif
@@ -515,6 +517,7 @@ contains
              write(ifmessages,*) " e120: ", e120(i,j,1)
              write(ifmessages,*) " u0, v0: ", u0(i,j,1), v0(i,j,1)
              write(ifmessages,*) " i, j: ", i, j
+             write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
              write(ifmessages,*) " "
              local_dthvdz = dthvdz(i,j,1)
           endif
