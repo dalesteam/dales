@@ -27,7 +27,7 @@
 !
 !
 module modchecksim
-  use modglobal, only : ifmessages,longint
+  use modglobal, only : ifmessages,longint,dt_reason
 
   implicit none
   private
@@ -37,6 +37,9 @@ module modchecksim
   integer(kind=longint) :: tnext = 3600.,itcheck
   real    :: dtmn =0.,ndt =0.
 
+  ! explanations for dt_limit, determined in tstep_update()
+  character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
+  
   save
 contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
@@ -90,6 +93,7 @@ contains
     call calccourant
     call calcpeclet
     call chkdiv
+    
     dtmn  = 0.
     ndt   = 0.
 
@@ -136,7 +140,7 @@ contains
   subroutine calcpeclet
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
-    use modsubgrid,only : ekm
+    use modsubgrid,only : ekm, ekh
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
 
@@ -148,7 +152,8 @@ contains
     peclettotl = 0.
     peclettot  = 0.
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+       peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+       peclettotl(k)=max(peclettotl(k), maxval(ekh(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2)
     end do
 
     call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
@@ -198,7 +203,8 @@ contains
                           MPI_MAX, comm3d,mpierr)
 
     if(myid==0)then
-      write(ifmessages,'(A,2ES11.2)')'divmax, divtot = ', divmax, divtot
+      write(ifmessages,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  '       dt limited by ', dt_reasons(dt_reason)
+
     end if
 
     return
