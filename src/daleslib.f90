@@ -318,7 +318,7 @@ module daleslib
             call samptend(tend_adv)
             !call check_tend('after advection')
             call subgrid
-            call check_tend('after subgrid')
+            ! call check_tend('after subgrid')
             call canopy
             call samptend(tend_subg)
 
