@@ -47,8 +47,9 @@ contains
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
-    Nc_0, sig_g, sig_gr                                ! SdeR
-
+    Nc_0, sig_g, sig_gr, &                                ! SdeR
+    courantp                                              ! FJ
+    
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
