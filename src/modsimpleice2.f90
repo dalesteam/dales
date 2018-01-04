@@ -107,7 +107,7 @@ module modsimpleice2
 
         ! these coefficients are used in evapdep - tabulated because of sqrt
         ccrz2(k) = gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)
-        ccsz2(k) = gam2ds*.27*n0rs*sqrt(ccsz(k)/2.e-5) ! NOTE: .27 here is suspect
+        ccsz2(k) = gam2ds*.39*n0rs*sqrt(ccsz(k)/2.e-5) ! NOTE: .27 here is suspect -> .39
         ccgz2(k) = gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)
      end do
 
@@ -385,7 +385,8 @@ module modsimpleice2
                  endif
                  if (snow_present) then
                     !vents=.78*n0rs/lambdas_**2 + gam2ds*.27*n0rs*sqrt(ccsz(k)/2.e-5)*lambdas_**(-2.5-0.5*dds)
-                    vents=.78*n0rs/lambdas_**2 + ccsz2(k)*lambdas_**(-2.5-0.5*dds)
+                    !vents=.78*n0rs/lambdas_**2 + ccsz2(k)*lambdas_**(-2.5-0.5*dds)
+                    vents=.65*n0rs/lambdas_**2 + ccsz2(k)*lambdas_**(-2.5-0.5*dds)  ! FJ corrected coefficient
                     evapdeps=(4.*pi/(betas*rhof(k)))*(ssi-1.)*vents*thfun
                  endif
                  if (graupel_present) then
