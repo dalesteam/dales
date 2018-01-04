@@ -79,8 +79,15 @@ subroutine tstep_update
         enddo
         courtotmax=sqrt(courtotmax)
         do k=1,kmax
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2) !FJ. ekh > ekm 
+           ! peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           ! peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2) !FJ. ekh > ekm 
+           
+           ! experimental !
+           ! take into account that the grid is non-uniform
+           ! assume ekh >= ekm, so we test only ekh
+           peclettotl=max(peclettotl, maxval(ekh(2:i1,2:j1,k))*rdt * (1.0/dzh(k)**2 + 1.0/dx**2 + 1.0/dy**2) / 3) 
+           ! / 3 is here because peclet is defined as 1/6 now, but we want 1/2 in this formulation
+
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
@@ -119,8 +126,14 @@ subroutine tstep_update
             courtotmax=max(courtotmax,sqrt(courtot(k)))
         enddo
         do k=1,kmax
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2) 
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2) !FJ. ekh > ekm 
+           !peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2) 
+           !peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2) !FJ. ekh > ekm 
+
+                      ! experimental !
+           ! take into account that the grid is non-uniform
+           ! assume ekh >= ekm, so we test only ekh
+           peclettotl=max(peclettotl, maxval(ekh(2:i1,2:j1,k))*rdt * (1.0/dzh(k)**2 + 1.0/dx**2 + 1.0/dy**2) / 3) 
+           ! / 3 is here because peclet is defined as 1/6 now, but we want 1/2 in this formulation
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
@@ -188,18 +201,18 @@ subroutine tstep_integrate
      w0   = wm   + rk3coef * wp
      thl0 = thlm + rk3coef * thlp
      qt0  = qtm  + rk3coef * qtp
-     do k=1,kmax
-        do j=2,j1
-           do i=2,i1
-              if (qt0(i,j,k) < 0) then
-                 write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in tstep_integrate. Setting to 1e-6'
-                 write(ifmessages,*) ' rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
-                 write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
-                 qt0(i,j,k) = 1e-6
-              endif
-           enddo
-        enddo
-     enddo
+     !do k=1,kmax
+     !   do j=2,j1
+     !      do i=2,i1
+     !         if (qt0(i,j,k) < 0) then
+     !            write(ifmessages,*) 'Warning: qt0(', i, j, k, ') = ', qt0(i,j,k), 'in tstep_integrate. Setting to 1e-6'
+     !            write(ifmessages,*) ' rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+     !            write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
+     !            qt0(i,j,k) = 1e-6
+     !         endif
+     !      enddo
+     !   enddo
+     !enddo
 
 
      
@@ -215,18 +228,18 @@ subroutine tstep_integrate
      thlm = thlm + rk3coef * thlp
      thl0 = thlm
      qtm  = qtm  + rk3coef * qtp
-     do k=1,kmax
-        do j=2,j1
-           do i=2,i1
-              if (qtm(i,j,k) < 0) then
-                 write(ifmessages,*) 'Warning: qtm(', i, j, k, ') = ', qtm(i,j,k), 'in tstep_integrate. Setting to 1e-6'
-                 write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
-                 write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
-                 qtm(i,j,k) = 1e-6
-              endif
-           enddo
-        enddo
-     enddo
+     !do k=1,kmax
+     !   do j=2,j1
+     !      do i=2,i1
+     !         if (qtm(i,j,k) < 0) then
+     !            write(ifmessages,*) 'Warning: qtm(', i, j, k, ') = ', qtm(i,j,k), 'in tstep_integrate. Setting to 1e-6'
+     !            write(ifmessages,*) 'rk3step:', rk3step, 'ntimee:', ntimee, 'rtimee:', rtimee
+     !            write(ifmessages,*) ' qtp(i,j,k)', qtp(i,j,k), 'rk3coef', rk3coef
+     !            qtm(i,j,k) = 1e-6
+     !         endif
+     !      enddo
+     !   enddo
+     !enddo
      qt0  = qtm
      svm  = svm  + rk3coef * svp
      sv0 = svm
