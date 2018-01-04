@@ -265,7 +265,7 @@ contains
   subroutine wrtvert
   use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
   use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
-  use modmpi,    only : myid
+  use modmpi,    only : myid, myidx,myidy
   use modstat_nc, only : lnetcdf, writestat_nc
   implicit none
 
@@ -274,7 +274,8 @@ contains
 
   real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
-  ! if( myid /= 0 ) return ! remnant of slab parallelization - either all do this, or myid_x == 0
+  ! if( myid /= 0 ) return ! remnant of slab parallelization - either all do this, or myid_y == 0
+  if( myidy /= 0 ) return 
 
   allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
 
@@ -463,10 +464,11 @@ contains
 
   end subroutine wrthorz
 
+  ! yz cross section
   subroutine wrtorth
     use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
-    use modmpi,    only : cmyid
+    use modmpi,    only : cmyid, myidx, myidy
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -476,6 +478,9 @@ contains
     character(20) :: name
 
     real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
+
+    if( myidx /= 0 ) return 
+
 
     allocate(thv0(1:j1,1:kmax),buoy(1:j1,1:kmax))
 
