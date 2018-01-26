@@ -836,19 +836,9 @@ contains
 
           if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
 
-          if (obl(i,j) < 0.) then
-            phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
-            !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-            phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
-            !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-          elseif (obl(i,j) > 0.) then
-            phimzf = (1.+5.*zf(1)/obl(i,j))
-            phihzf = (1.+5.*zf(1)/obl(i,j))
-          else
-            phimzf = 1.
-            phihzf = 1.
-          endif
-
+          phimzf = phim(zf(1)/obl(i,j))
+          phihzf = phih(zf(1)/obl(i,j))
+          
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -879,19 +869,9 @@ contains
               svflux(i,j,n) = wsvsurf(n)
             enddo
 
-            if (obl(i,j) < 0.) then
-              phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
-              !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-              phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
-              !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-            elseif (obl(i,j) > 0.) then
-              phimzf = (1.+5.*zf(1)/obl(i,j))
-              phihzf = (1.+5.*zf(1)/obl(i,j))
-            else
-              phimzf = 1.
-              phihzf = 1.
-            endif
-
+            phimzf = phim(zf(1)/obl(i,j))
+            phihzf = phih(zf(1)/obl(i,j))
+            
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
@@ -974,20 +954,10 @@ contains
               svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
-
-          if (obl(i,j) < 0.) then
-            phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
-            !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-            phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
-            !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-          elseif (obl(i,j) > 0.) then
-            phimzf = (1.+5.*zf(1)/obl(i,j))
-            phihzf = (1.+5.*zf(1)/obl(i,j))
-          else
-            phimzf = 1.
-            phihzf = 1.
-          endif
-
+         
+          phimzf = phim(zf(1)/obl(i,j))
+          phihzf = phih(zf(1)/obl(i,j))
+          
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -1374,6 +1344,47 @@ contains
     return
   end function psih
 
+  ! stability function Phi for momentum.
+  ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
+  ! Phi and Psi above are related by an integral and should in principle match, 
+  ! currently they do not.
+  ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
+ function phim(zeta)
+    implicit none
+    real             :: phim
+    real, intent(in) :: zeta
+
+    if (zeta < 0.) then ! unstable
+       phim = (1.-16.*zeta)**(-0.25)
+       !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+    elseif ( zeta < 1.) then  ! 0 < zeta < 1, stable
+       phim = (1.+5.*zeta)
+    else
+       phim = 6 ! cap phi when z/L > 1
+    endif
+
+    return
+  end function phim
+
+   ! stability function Phi for heat.  
+ function phih(zeta)
+    implicit none
+    real             :: phih
+    real, intent(in) :: zeta
+
+    if (zeta < 0.) then ! unstable
+       phih = (1.-16.*zeta)**(-0.50)
+       !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+    elseif ( zeta < 1.) then  ! 0 < zf(1) / obl < 1, stable
+       phih = (1.+5.*zeta)
+    else
+     phih = 6  ! cap phi when z/L > 1
+    endif
+
+    return
+  end function phih
+
+  
   function E1(x)
   implicit none
     real             :: E1
