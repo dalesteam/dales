@@ -46,7 +46,7 @@ subroutine tstep_update
   use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,&
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm
-  use modsubgrid,only : ekm
+  use modsubgrid,only : ekm,ekh
   use modmpi,    only : comm3d,mpierr,mpi_max,my_real
   implicit none
 
@@ -79,7 +79,9 @@ subroutine tstep_update
         enddo
         courtotmax=sqrt(courtotmax)
         do k=1,kmax
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           ! limit by the larger of ekh, ekm. ekh is generally larger.
+           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
@@ -116,7 +118,9 @@ subroutine tstep_update
             courtotmax=max(courtotmax,sqrt(courtot(k)))
         enddo
         do k=1,kmax
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           ! limit by the larger of ekh, ekm. ekh is generally larger.
+           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
