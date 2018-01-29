@@ -34,6 +34,7 @@
   integer, parameter :: imicro_bulk    = 2
   integer, parameter :: imicro_bin     = 3
   integer, parameter :: imicro_sice    = 5
+  integer, parameter :: imicro_sice2   = 6
   integer, parameter :: imicro_user    = 10
   logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
@@ -233,5 +234,5 @@
    real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
    real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
-
+   real,allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
   end module modmicrodata
