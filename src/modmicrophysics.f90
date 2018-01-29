@@ -38,15 +38,17 @@ implicit none
 contains
   subroutine initmicrophysics
     use modmpi,   only :myid,my_real,comm3d,mpi_integer,mpi_logical
-    use modglobal,only :ifnamopt,fname_options
+    use modglobal,only :ifnamopt,fname_options,nsv
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
+    use modsimpleice2, only : initsimpleice2
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
-    Nc_0, sig_g, sig_gr                                ! SdeR
-
+    Nc_0, sig_g, sig_gr, &                                ! SdeR
+    courantp                                              ! FJ
+    
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
@@ -76,11 +78,16 @@ contains
     case(imicro_none)
     case(imicro_drizzle)
     case(imicro_bulk)
+       if (nsv < 2) STOP "ERROR: Bulk microphysics requires nsv >=2"
       call initbulkmicro
     case(imicro_bin)
 !       call initbinmicro
     case(imicro_sice)
-      call initsimpleice
+       if (nsv < 2) STOP "ERROR: Simple ice microphysics requires nsv >=2"
+       call initsimpleice
+    case(imicro_sice2)
+       if (nsv < 2) STOP "ERROR: Simple ice microphysics requires nsv >=2"
+       call initsimpleice2
     case(imicro_user)
     end select
   end subroutine initmicrophysics
@@ -106,6 +113,7 @@ contains
    use moduser,      only : micro_user
    use modbulkmicro, only : bulkmicro
    use modsimpleice, only : simpleice
+   use modsimpleice2, only : simpleice2
 !     use modbinmicro,  only : binmicrosources
     implicit none
 
@@ -118,7 +126,9 @@ contains
     case(imicro_bin)
 !       call binmicrosources
     case(imicro_sice)
-      call simpleice
+       call simpleice
+    case(imicro_sice2)
+      call simpleice2
     case(imicro_user)
       call micro_user
     end select
@@ -128,6 +138,7 @@ contains
   subroutine exitmicrophysics
     use modbulkmicro, only : exitbulkmicro
     use modsimpleice, only : exitsimpleice
+    use modsimpleice2, only : exitsimpleice2
  !     use modbinmicro,  only : exitbinmicro
     implicit none
 
@@ -140,7 +151,9 @@ contains
 !       call exitbinmicro
      case(imicro_user)
      case(imicro_sice)
-      call exitsimpleice
+        call exitsimpleice
+     case(imicro_sice2)
+      call exitsimpleice2
   end select
   end subroutine exitmicrophysics
 
