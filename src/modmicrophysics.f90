@@ -73,6 +73,7 @@ contains
     call MPI_BCAST(Nc_0,     1, MY_REAL     ,0,comm3d,ierr)
     call MPI_BCAST(sig_g,    1, MY_REAL     ,0,comm3d,ierr)
     call MPI_BCAST(sig_gr,   1, MY_REAL     ,0,comm3d,ierr)
+    call MPI_BCAST(courantp, 1, MY_REAL     ,0,comm3d,ierr)
 
     select case (imicro)
     case(imicro_none)
