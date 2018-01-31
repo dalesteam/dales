@@ -35,7 +35,7 @@ module modtimedepsv
 
 implicit none
 private
-public :: inittimedepsv, timedepsv,exittimedepsv
+public :: inittimedepsv,timedepsv,ltimedepsvz,ltimedepsvsurf,exittimedepsv
 save
 ! switches for timedependent surface fluxes and large scale forcings
   logical       :: ltimedepsvz    = .false. !< Switch for large scale forcings

@@ -67,7 +67,8 @@ contains
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
-    use modtimedep,        only : inittimedep,ltimedep
+    use modtimedep,        only : inittimedep,ltimedep,ltimedepz,ltimedepsurf
+    use modtimedepsv,      only : inittimedepsv,ltimedepsvz,ltimedepsvsurf
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
@@ -91,7 +92,7 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepz,ltimedepsurf,ltimedepsvz,ltimedepsvsurf,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
         llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
@@ -185,6 +186,10 @@ contains
     call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepz  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepsurf,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepsvz,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepsvsurf,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 

@@ -34,7 +34,7 @@ module modtimedep
 
 implicit none
 private
-public :: inittimedep, timedep,ltimedep,exittimedep
+public :: inittimedep, timedep,ltimedep,ltimedepz,ltimedepsurf,exittimedep
 
 save
 ! switches for timedependent surface fluxes and large scale forcings
@@ -222,8 +222,8 @@ contains
     call MPI_BCAST(thlproft,kmax*kls,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(qtproft ,kmax*kls,MY_REAL,0,comm3d,mpierr)
 
-    call MPI_BCAST(ltimedepsurf ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(ltimedepz    ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    !call MPI_BCAST(ltimedepsurf ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    !call MPI_BCAST(ltimedepz    ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call inittimedepsv
     call timedep
 
