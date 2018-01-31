@@ -67,7 +67,7 @@ save
 contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
+    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
@@ -125,7 +125,7 @@ contains
       stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-    if (myid==0) then
+    if (myidy==0) then
       fname1(9:16) = cmyid
       fname1(18:20) = cexpnr
       call ncinfo(tncname1(1,:),'time','Time','s','time')
@@ -172,7 +172,8 @@ contains
         call writestat_dims_nc(ncid2(cross))
       end if
       call define_nc( ncid2(cross), NVar, ncname2)
-    end do
+   end do
+   if (myidx==0) then
     fname3(9:16) = cmyid
     fname3(18:20) = cexpnr
     call ncinfo(tncname3(1,:),'time','Time','s','time')
@@ -195,6 +196,7 @@ contains
     end if
     call define_nc( ncid3, NVar, ncname3)
     end if
+ end if
 
 
   end subroutine initcrosssection
@@ -225,7 +227,7 @@ contains
   subroutine wrtvert
   use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
   use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
-  use modmpi,    only : myid
+  use modmpi,    only : myidy
   use modstat_nc, only : lnetcdf, writestat_nc
   implicit none
 
@@ -234,7 +236,7 @@ contains
 
   real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
-  if( myid /= 0 ) return
+  if( myidy /= 0 ) return 
 
   allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
 
@@ -423,10 +425,11 @@ contains
 
   end subroutine wrthorz
 
+  ! yz cross section
   subroutine wrtorth
     use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
-    use modmpi,    only : cmyid
+    use modmpi,    only : cmyid, myidx
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -436,6 +439,9 @@ contains
     character(20) :: name
 
     real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
+
+    if( myidx /= 0 ) return 
+
 
     allocate(thv0(1:j1,1:kmax),buoy(1:j1,1:kmax))
 
