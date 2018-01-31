@@ -41,7 +41,7 @@
              l_mur_cst   = .false. ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
 
   real    :: mur_cst     = 5        & !<  mur value if l_mur_cst=T                     (in namelist NAMMICROPHYSICS)
-                 ,Nc_0 = 70e6       & !<  initial cloud droplet number
+                 ,Nc_0 = 70e6       & !<  initial cloud droplet number (#/m3)
                  ,sig_g = 1.34      & !<  geom. std dev of cloud droplet DSD
                  ,sig_gr = 1.5        !<  geometric std dev of rain drop DSD
 

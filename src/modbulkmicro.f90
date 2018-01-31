@@ -497,7 +497,7 @@ module modbulkmicro
 
   end subroutine accretion
 
-!> Sedimentation of cloud water
+!> Sedimentation of cloud water (Bretherton et al,GRL 2007)
 !!
 !!   The sedimentation of cloud droplets assumes a lognormal DSD in which the
 !!   geometric std dev. is assumed to be fixed at 1.3.

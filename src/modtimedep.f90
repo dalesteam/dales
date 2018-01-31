@@ -283,6 +283,7 @@ contains
     if (rtimee/=timels(1)) then
       t=t-1
     end if
+    
 
     fac = ( rtimee-timels(t) ) / ( timels(t+1)-timels(t) )
     ug      = ugt     (:,t) + fac * ( ugt     (:,t+1) - ugt     (:,t) )
@@ -292,7 +293,6 @@ contains
     dqtdyls = dqtdylst(:,t) + fac * ( dqtdylst(:,t+1) - dqtdylst(:,t) )
     dqtdtls = dqtdtlst(:,t) + fac * ( dqtdtlst(:,t+1) - dqtdtlst(:,t) )
     thlpcar = thlpcart(:,t) + fac * ( thlpcart(:,t+1) - thlpcart(:,t) )
-
 
     do k=1,kmax
       dpdxl(k) =  om23_gs*vg(k)

@@ -223,7 +223,7 @@ contains
           thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
 
           !thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
-          !we comment following line for analogy with dEdd:XPB (inactive now )
+          !we comment following line for analogy with dEdd:XPB (inactive)
           thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
                               /(rhof(k)*cp*exnf(k)*dzf(k))
           !thlprad(i,j,k)  = thlprad(i,j,k)-(swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
@@ -542,7 +542,7 @@ contains
 
     if(myid==0)then
       write(*,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
-      write(*,*) 'gas traces vertical profiles (ppmv):'
+      write(*,*) 'gas traces vertical profiles (ppmv*10^-6):' 
       write(*,*) 'p, hPa', ('       ',traceGasNameOrder(m),m=1,nTraceGases)
       do k=1,krad1
         write(*,*) tmppresf(k),o3(k),co2(k),ch4(k),n2o(k),o2(k), &

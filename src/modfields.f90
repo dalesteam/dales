@@ -111,7 +111,7 @@ save
   real, allocatable :: dudyls(:)                     !<   large scale y-gradient of u
   real, allocatable :: dvdxls(:)                     !<   large scale x-gradient of v
   real, allocatable :: dvdyls(:)                     !<   large scale y-gradient of v
-  real, allocatable :: wfls  (:)                     !<   large scale y-gradient of v
+  real, allocatable :: wfls  (:)                     !<   large scale vertical velocity 
   real, allocatable :: ql0h(:,:,:)
   real, allocatable :: dthvdz(:,:,:)!<   theta_v at half level
 

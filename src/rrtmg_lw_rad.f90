@@ -464,7 +464,6 @@
 
 !  Calculate the gaseous optical depths and Planck fractions for 
 !  each longwave spectral band.
-
          call taumol(nlayers, pavel, wx, coldry, &
                      laytrop, jp, jt, jt1, planklay, planklev, plankbnd, &
                      colh2o, colco2, colo3, coln2o, colco, colch4, colo2, &
@@ -695,7 +694,6 @@
 
 ! Add one to nlayers here to include extra model layer at top of atmosphere
       nlayers = nlay
-
 !  Initialize all molecular amounts and cloud properties to zero here, then pass input amounts
 !  into RRTM arrays below.
 

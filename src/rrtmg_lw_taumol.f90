@@ -257,7 +257,6 @@
       hvrtau = '$Revision: 1.5 $'
 
 ! Calculate gaseous optical depth and planck fractions for each spectral band.
-
       call taugb1
       call taugb2
       call taugb3
