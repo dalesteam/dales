@@ -140,7 +140,7 @@ contains
       call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
       call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
       call ncinfo(ncname1( 11,:),'cloudnrxz','xz crosssection of the cloud number','-','t0tt')
-      call ncinfo(ncname1( 12,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
+      call ncinfo(ncname1( 12,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m/s','t0tt')
       call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
       if (nrec1 == 0) then
         call define_nc( ncid1, 1, tncname1)
@@ -165,7 +165,7 @@ contains
       call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
       call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
       call ncinfo(ncname2(11,:),'cloudnrxy','xy crosssection of the cloud number','-','tt0t')
-      call ncinfo(ncname2(12,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','tt0t')
+      call ncinfo(ncname2(12,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m/s','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
@@ -188,7 +188,7 @@ contains
     call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
     call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
     call ncinfo(ncname3(11,:),'cloudnryz','yz crosssection of the cloud number','-','0ttt')
-    call ncinfo(ncname3(12,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
+    call ncinfo(ncname3(12,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m/s','0ttt')
     call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
     if (nrec3==0) then
       call define_nc( ncid3, 1, tncname3)
