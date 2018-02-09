@@ -260,12 +260,12 @@ contains
         thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) ! When radpar is used XPB
         thlswtendav(k) = ((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !when radpar is used
       end do
-   else !upward fluxes positive, donwards negative
+    else !upward fluxes positive, donwards negative
       do k=1,kmax
         thllwtendav(k) = (-lwdav(k+1) - lwuav(k+1) + lwdav(k) + lwuav(k))/(rhof(k)*exnf(k)*cp*dzf(k))  !When RRTMG is used XPB
         thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k))  !When RRTMG is used XPB
       end do
-
+    endif
  !    ADD SLAB AVERAGES TO TIME MEAN
 
     lwumn       = lwumn       + lwuav       / ijtot
