@@ -835,19 +835,9 @@ contains
 
           if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
 
-          if (obl(i,j) < 0.) then
-            phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
-            !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-            phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
-            !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-          elseif (obl(i,j) > 0.) then
-            phimzf = (1.+5.*zf(1)/obl(i,j))
-            phihzf = (1.+5.*zf(1)/obl(i,j))
-          else
-            phimzf = 1.
-            phihzf = 1.
-          endif
-
+          phimzf = phim(zf(1)/obl(i,j))
+          phihzf = phih(zf(1)/obl(i,j))
+          
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -878,19 +868,9 @@ contains
               svflux(i,j,n) = wsvsurf(n)
             enddo
 
-            if (obl(i,j) < 0.) then
-              phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
-              !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-              phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
-              !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-            elseif (obl(i,j) > 0.) then
-              phimzf = (1.+5.*zf(1)/obl(i,j))
-              phihzf = (1.+5.*zf(1)/obl(i,j))
-            else
-              phimzf = 1.
-              phihzf = 1.
-            endif
-
+            phimzf = phim(zf(1)/obl(i,j))
+            phihzf = phih(zf(1)/obl(i,j))
+            
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
@@ -973,20 +953,10 @@ contains
               svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
-
-          if (obl(i,j) < 0.) then
-            phimzf = (1.-16.*zf(1)/obl(i,j))**(-0.25)
-            !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-            phihzf = (1.-16.*zf(1)/obl(i,j))**(-0.50)
-            !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
-          elseif (obl(i,j) > 0.) then
-            phimzf = (1.+5.*zf(1)/obl(i,j))
-            phihzf = (1.+5.*zf(1)/obl(i,j))
-          else
-            phimzf = 1.
-            phihzf = 1.
-          endif
-
+         
+          phimzf = phim(zf(1)/obl(i,j))
+          phihzf = phih(zf(1)/obl(i,j))
+          
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -1107,7 +1077,7 @@ contains
 
   end subroutine qtsurf
 
-!> Calculates the Obuhkov length iteratively.
+!> Calculates the Obukhov length iteratively.
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
@@ -1146,35 +1116,42 @@ contains
             Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
           endif
 
-          iter = 0
-          L = obl(i,j)
+          if (Rib == 0) then
+             ! Rib can be 0 if there is no surface flux
+             ! L is capped at 1e6 below, so use the same cap here
+             L = 1e6
+             write(*,*) 'Obukhov length: Rib = 0 -> setting L=1e6'
+          else
+             iter = 0
+             L = obl(i,j)
 
-          if(Rib * L < 0. .or. abs(L) == 1e5) then
-            if(Rib > 0) L = 0.01
-            if(Rib < 0) L = -0.01
+             if(Rib * L < 0. .or. abs(L) == 1e5) then
+                if(Rib > 0) L = 0.01
+                if(Rib < 0) L = -0.01
+             end if
+             
+             do while (.true.)
+                iter    = iter + 1
+                Lold    = L
+                fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) /&
+                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
+                Lstart  = L - 0.001*L
+                Lend    = L + 0.001*L
+                fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) /&
+                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * &
+                     (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
+                     + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
+                L = L - fx / fxdif
+                if(Rib * L < 0. .or. abs(L) == 1e5) then
+                   if(Rib > 0) L = 0.01
+                   if(Rib < 0) L = -0.01
+                end if
+                if(abs((L - Lold)/L) < 1e-4) exit
+                if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+             end do
+
+             if (abs(L)>1e6) L = sign(1.0e6,L)
           end if
-
-          do while (.true.)
-            iter    = iter + 1
-            Lold    = L
-            fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) /&
-            (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
-            Lstart  = L - 0.001*L
-            Lend    = L + 0.001*L
-            fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) /&
-            (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * &
-            (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
-            + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
-            L = L - fx / fxdif
-            if(Rib * L < 0. .or. abs(L) == 1e5) then
-              if(Rib > 0) L = 0.01
-              if(Rib < 0) L = -0.01
-            end if
-            if(abs((L - Lold)/L) < 1e-4) exit
-            if(iter > 1000) stop 'Obukhov length calculation does not converge!'
-          end do
-
-          if (abs(L)>1e6) L = sign(1.0e6,L)
           obl(i,j) = L
 
         end do
@@ -1278,40 +1255,46 @@ contains
     horv2 = max(horv2, 0.01)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
+    if (Rib == 0) then
+       ! Rib can be 0 if there is no surface flux
+       ! L is capped at 1e6 below, so use the same cap here
+       L = 1e6
+       write(*,*) 'Obukhov length: Rib = 0 -> setting L=1e6 (2nd point)'
+    else
+       iter = 0
+       L = oblav
 
-    iter = 0
-    L = oblav
+       if(Rib * L < 0. .or. abs(L) == 1e5) then
+          if(Rib > 0) L = 0.01
+          if(Rib < 0) L = -0.01
+       end if
+       
+       do while (.true.)
+          iter    = iter + 1
+          Lold    = L
+          fx      = Rib - zf(1) / L * (log(zf(1) / z0hav) - psih(zf(1) / L) + psih(z0hav / L)) /&
+               (log(zf(1) / z0mav) - psim(zf(1) / L) + psim(z0mav / L)) ** 2.
+          Lstart  = L - 0.001*L
+          Lend    = L + 0.001*L
+          fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav) - psih(zf(1) / Lstart) + psih(z0hav / Lstart)) /&
+               (log(zf(1) / z0mav) - psim(zf(1) / Lstart) + psim(z0mav / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav) &
+               - psih(zf(1) / Lend) + psih(z0hav / Lend)) / (log(zf(1) / z0mav) - psim(zf(1) / Lend) &
+               + psim(z0mav / Lend)) ** 2.) ) / (Lstart - Lend)
+          L       = L - fx / fxdif
+          if(Rib * L < 0. .or. abs(L) == 1e5) then
+             if(Rib > 0) L = 0.01
+             if(Rib < 0) L = -0.01
+          end if
+          if(abs((L - Lold)/L) < 1e-4) exit
+          if(iter > 1000) stop 'Obukhov length calculation does not converge!'
+       end do
 
-    if(Rib * L < 0. .or. abs(L) == 1e5) then
-      if(Rib > 0) L = 0.01
-      if(Rib < 0) L = -0.01
-    end if
-
-    do while (.true.)
-      iter    = iter + 1
-      Lold    = L
-      fx      = Rib - zf(1) / L * (log(zf(1) / z0hav) - psih(zf(1) / L) + psih(z0hav / L)) /&
-      (log(zf(1) / z0mav) - psim(zf(1) / L) + psim(z0mav / L)) ** 2.
-      Lstart  = L - 0.001*L
-      Lend    = L + 0.001*L
-      fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav) - psih(zf(1) / Lstart) + psih(z0hav / Lstart)) /&
-      (log(zf(1) / z0mav) - psim(zf(1) / Lstart) + psim(z0mav / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav) &
-      - psih(zf(1) / Lend) + psih(z0hav / Lend)) / (log(zf(1) / z0mav) - psim(zf(1) / Lend) &
-      + psim(z0mav / Lend)) ** 2.) ) / (Lstart - Lend)
-      L       = L - fx / fxdif
-      if(Rib * L < 0. .or. abs(L) == 1e5) then
-        if(Rib > 0) L = 0.01
-        if(Rib < 0) L = -0.01
-      end if
-      if(abs((L - Lold)/L) < 1e-4) exit
-      if(iter > 1000) stop 'Obukhov length calculation does not converge!'
-    end do
-
-    if (abs(L)>1e6) L = sign(1.0e6,L)
-    if(.not. lmostlocal) then
-      if(.not. lhetero) then
-        obl(:,:) = L
-      endif
+       if (abs(L)>1e6) L = sign(1.0e6,L)
+       if(.not. lmostlocal) then
+          if(.not. lhetero) then
+             obl(:,:) = L
+          endif
+       end if
     end if
     oblav = L
 
@@ -1360,6 +1343,47 @@ contains
     return
   end function psih
 
+  ! stability function Phi for momentum.
+  ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
+  ! Phi and Psi above are related by an integral and should in principle match, 
+  ! currently they do not.
+  ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
+ function phim(zeta)
+    implicit none
+    real             :: phim
+    real, intent(in) :: zeta
+
+    if (zeta < 0.) then ! unstable
+       phim = (1.-16.*zeta)**(-0.25)
+       !phimzf = (1. + 3.6 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+    elseif ( zeta < 1.) then  ! 0 < zeta < 1, stable
+       phim = (1.+5.*zeta)
+    else
+       phim = 6 ! cap phi when z/L > 1
+    endif
+
+    return
+  end function phim
+
+   ! stability function Phi for heat.  
+ function phih(zeta)
+    implicit none
+    real             :: phih
+    real, intent(in) :: zeta
+
+    if (zeta < 0.) then ! unstable
+       phih = (1.-16.*zeta)**(-0.50)
+       !phihzf = (1. + 7.9 * (-zf(1)/obl(i,j))**(2./3.))**(-0.5)
+    elseif ( zeta < 1.) then  ! 0 < zf(1) / obl < 1, stable
+       phih = (1.+5.*zeta)
+    else
+     phih = 6  ! cap phi when z/L > 1
+    endif
+
+    return
+  end function phih
+
+  
   function E1(x)
   implicit none
     real             :: E1
@@ -1369,7 +1393,9 @@ contains
 
     E1sum = 0.0
     do k=1,99
-      E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
+      !E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
+       E1sum = E1sum + (-x) ** k / ( k  * factorial(k) )  ! FJ changed this for compilation with cray fortran
+                                                          
     end do
     E1 = -0.57721566490153286060 - log(x) - E1sum
 

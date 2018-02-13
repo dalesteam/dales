@@ -36,7 +36,7 @@ private
 PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
-  integer,parameter :: nvar = 11
+  integer,parameter :: nvar = 12
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -67,7 +67,7 @@ save
 contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
+    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
@@ -125,7 +125,7 @@ contains
       stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-    if (myid==0) then
+    if (myidy==0) then
       fname1(9:16) = cmyid
       fname1(18:20) = cexpnr
       call ncinfo(tncname1(1,:),'time','Time','s','time')
@@ -140,6 +140,7 @@ contains
       call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
       call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
       call ncinfo(ncname1( 11,:),'cloudnrxz','xz crosssection of the cloud number','-','t0tt')
+      call ncinfo(ncname1( 12,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m/s','t0tt')
       call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
       if (nrec1 == 0) then
         call define_nc( ncid1, 1, tncname1)
@@ -164,13 +165,15 @@ contains
       call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
       call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
       call ncinfo(ncname2(11,:),'cloudnrxy','xy crosssection of the cloud number','-','tt0t')
+      call ncinfo(ncname2(12,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m/s','tt0t')
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
         call writestat_dims_nc(ncid2(cross))
       end if
       call define_nc( ncid2(cross), NVar, ncname2)
-    end do
+   end do
+   if (myidx==0) then
     fname3(9:16) = cmyid
     fname3(18:20) = cexpnr
     call ncinfo(tncname3(1,:),'time','Time','s','time')
@@ -185,6 +188,7 @@ contains
     call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
     call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
     call ncinfo(ncname3(11,:),'cloudnryz','yz crosssection of the cloud number','-','0ttt')
+    call ncinfo(ncname3(12,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m/s','0ttt')
     call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
     if (nrec3==0) then
       call define_nc( ncid3, 1, tncname3)
@@ -192,6 +196,7 @@ contains
     end if
     call define_nc( ncid3, NVar, ncname3)
     end if
+ end if
 
 
   end subroutine initcrosssection
@@ -221,8 +226,8 @@ contains
 !> Do the xz crosssections and dump them to file
   subroutine wrtvert
   use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-  use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
-  use modmpi,    only : myid
+  use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
+  use modmpi,    only : myidy
   use modstat_nc, only : lnetcdf, writestat_nc
   implicit none
 
@@ -231,7 +236,7 @@ contains
 
   real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
-  if( myid /= 0 ) return
+  if( myidy /= 0 ) return 
 
   allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
 
@@ -304,6 +309,7 @@ contains
       vars(:,:,10) = 0.
       end if
       vars(:,:,11) = cloudnr(2:i1,crossplane,1:kmax)
+      vars(:,:,12) = e120(2:i1,crossplane,1:kmax)
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
       call writestat_nc(ncid1,nvar,ncname1(1:nvar,:),vars,nrec1,imax,kmax)
       deallocate(vars)
@@ -315,7 +321,7 @@ contains
 !> Do the xy crosssections and dump them to file
   subroutine wrthorz
     use modglobal, only : imax,jmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr,inr
@@ -408,6 +414,7 @@ contains
       vars(:,:,10) = 0.
       end if
       vars(:,:,11) = cloudnr(2:i1,2:j1,crossheight(cross))
+      vars(:,:,12) = e120(2:i1,2:j1,crossheight(cross))
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
       call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
@@ -418,10 +425,11 @@ contains
 
   end subroutine wrthorz
 
+  ! yz cross section
   subroutine wrtorth
     use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
-    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,exnf,thvf,cloudnr
-    use modmpi,    only : cmyid
+    use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
+    use modmpi,    only : cmyid, myidx
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -431,6 +439,9 @@ contains
     character(20) :: name
 
     real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
+
+    if( myidx /= 0 ) return 
+
 
     allocate(thv0(1:j1,1:kmax),buoy(1:j1,1:kmax))
 
@@ -506,6 +517,7 @@ contains
       vars(:,:,10) = 0.
       end if
       vars(:,:,11) = cloudnr(crossortho,2:j1,1:kmax)
+      vars(:,:,12) = e120(crossortho,2:j1,1:kmax)
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
       call writestat_nc(ncid3,nvar,ncname3(1:nvar,:),vars,nrec3,jmax,kmax)
       deallocate(vars)
