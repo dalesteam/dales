@@ -876,9 +876,11 @@ end subroutine
     flux_net                        = flux_top * rhobh(ncanopy_c(ican)+1) - flux_surf * rhobh(1)
     integratedcontribution(:,:,:)   = 0.0
     tendency(:,:,:) = 0.0
-
     do k=2,(ncanopy_c(ican)+1)
-      integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * exp(- alpha * pai(k))
+      ! Subtract contribution at maximum pai to ensure that flux is zero there,
+      ! and subsequently scale so that the total contribution equals the net
+      ! flux.
+      integratedcontribution(:,:,k) = flux_net * (exp(- alpha * pai(k)) - exp( - alpha * pai(1)))/(1 - exp( -alpha * pai(1)))
     end do
     do k=1,ncanopy_c(ican)
       where (map_c(2:i1,2:j1) == canopytype(ican))
@@ -911,7 +913,10 @@ end subroutine
     integratedcontribution(:,:,1)   = 0.0
 
     do k=2,(ncanopy+1)
-      integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * exp(- alpha * pai(k))
+      ! Subtract contribution at maximum pai to ensure that flux is zero there,
+      ! and subsequently scale so that the total contribution equals the net
+      ! flux.
+      integratedcontribution(:,:,k) = flux_net(2:i1,2:j1) * (exp(- alpha * pai(k)) - exp( - alpha * pai(1)))/(1 - exp( -alpha * pai(1)))
     end do
     do k=1,ncanopy
       tendency(:,:,k) = ( integratedcontribution(:,:,(k+1)) - integratedcontribution(:,:,k) ) / ( rhobf(k) * dzf(k) )
