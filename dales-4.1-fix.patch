@@ -1,0 +1,22 @@
+diff --git a/src/modmpi.f90 b/src/modmpi.f90
+index 6886ffa..68fca3d 100644
+--- a/src/modmpi.f90
++++ b/src/modmpi.f90
+@@ -176,8 +176,8 @@ contains
+ 
+ !   communicate north/south
+  
++  ii = 0
+   if(nprocy .gt. 1)then
+-    ii = 0
+     do k=sz,ez
+     do i=sx,ex
+       ii = ii + 1
+@@ -189,7 +189,6 @@ contains
+                         recvb,  nssize, MY_REAL, nbrsouth, 4, &
+                         comm3d,  status, mpierr )
+ 
+-    ii = 0
+     do k=sz,ez
+     do i=sx,ex
+       ii = ii + 1

@@ -122,7 +122,7 @@ contains
     use modmicrodata, only : iqr, imicro, imicro_none
     implicit none
 
-    integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:),vars(:,:,:,:)
+    real, allocatable :: field(:,:,:),vars(:,:,:,:)
     integer i,j,k
     integer :: writecounter = 1
     integer :: reclength
@@ -144,7 +144,7 @@ contains
 
     reclength = imax*jmax*(khigh-klow+1)*2
 
-    field = NINT(1.0E3*um,2)
+    field = um
     if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -157,7 +157,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*vm,2)
+    field = vm
     if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -170,7 +170,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*wm,2)
+    field = wm
     if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -183,7 +183,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*qtm,2)
+    field = qtm
     if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -196,7 +196,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*ql0,2)
+    field = ql0
     if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -209,7 +209,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E2*(thlm-300),2)
+    field = thlm
     if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -226,7 +226,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iqr),2)
+        field(i,j,k) = svm(i,j,k,iqr)
       enddo
       enddo
       enddo
@@ -250,7 +250,7 @@ contains
     do i=2-ih,i1+ih
     do j=2-jh,j1+jh
     do k=2,k1
-      field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
+      field(i,j,k) = thv0h(i,j,k)-thvh(k)
     enddo
     enddo
     enddo

@@ -1,0 +1,12 @@
+--- modmpi.f90
++++ modmpi.f90
+@@ -176,8 +176,8 @@ contains
+ 
+ !   communicate north/south
+  
++  ii = 0
+   if(nprocy .gt. 1)then
+-    ii = 0
+     do k=sz,ez
+     do i=sx,ex
+       ii = ii + 1

@@ -113,7 +113,7 @@ contains
   !   use radiation,    only : d4stream
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,dzf,dzh,rlv,rd,pref0
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
-    use modsurfdata,  only : albedo, ps
+    use modsurfdata,  only : albedo, ps, thls, isurf
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
     use modraddata,   only : thlprad, lwd,lwu,swd,swu
       implicit none
@@ -151,12 +151,26 @@ contains
           ql_b(i,j,1)   = 0
           qv_b(i,j,1)   = qv_b(i,j,2) +dzh(1)/dzh(2)*(qv_b(i,j,2)-qv_b(i,j,3))
           temp_b(i,j,1) = temp_b(i,j,2) +dzh(1)/dzh(2)*(temp_b(i,j,2)-temp_b(i,j,3))
-          tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
+          !cstep tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2)) !cstep: this is strange, scalar value!
         end do
       end do
 
+      if (isurf.ne.2) then 
+        do j=2,j1
+        do i=2,i1
+           tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
+        enddo
+        enddo
+      else
+        tempskin = thls * exnh(1)
+        write (6,*) 'thls, tempskin',thls,tempskin
+      endif
+
+
       ! tempskin = tskin*exnh(1)
      !CvH end edit
+
+      
 
       if (imicro==imicro_bulk) then
         rr_b(:,:,1) = 0.
