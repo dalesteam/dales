@@ -138,14 +138,19 @@ SAVE
   logical           :: ci_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
   real              :: wco2av     = 0.0
   real              :: Anav       = 0.0
+  real              :: gcco2av    = 0.0
   real              :: Respav     = 0.0
   real, allocatable :: wco2Field    (:,:)
   real, allocatable :: AnField      (:,:)
+  real, allocatable :: gcco2Field   (:,:)
   real, allocatable :: rsco2Field   (:,:)
   real, allocatable :: RespField    (:,:)
   real, allocatable :: fstrField    (:,:)
   real, allocatable :: tauField     (:,:)
   real, allocatable :: ciField      (:,:)
+  real, allocatable :: PARField     (:,:)
+  real, allocatable :: PARdirField  (:,:)
+  real, allocatable :: PARdifField  (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
@@ -175,6 +180,16 @@ SAVE
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
   real              :: R10        =   0.23 !<  Respiration at 10oC (Jacobs 2007)
   real              :: Eact0      = 53.3e3 !<  Activation energy
+
+  !Variables for 2leaf AGS
+  logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)
+  integer,parameter         :: nr_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
+  real, dimension(nr_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
+  real, dimension(nr_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
+  real, dimension(nr_gauss) :: LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
+  real                      :: sigma      =                      0.2 !<  Scattering coefficient
+  real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
+
 
   ! Surface energy balance
   real, allocatable :: Qnet     (:,:)   !<  Net radiation [W/m2]
