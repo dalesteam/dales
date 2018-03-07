@@ -1792,6 +1792,7 @@ subroutine ratech
   use modfields, only : qt0, ql0 ,rhof
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum
   use modsurfdata,only: taufield, lrsAgs
+  use modraddata,only: iradiation, irad_par
   implicit none
 
   real  sza
@@ -1910,7 +1911,7 @@ subroutine ratech
     !for clouds the the max solar zenith angle is cutoff at 60 degrees
     coszenmax = min(60*pi/180,coszen)
 
-    if (lrsAgs) then
+    if (lrsAgs .and. (iradiation/=irad_par)) then !irad_par get tau with ql0 theshold
       tauField   = 0.0
     endif
 
@@ -1937,7 +1938,7 @@ subroutine ratech
             !- Calculating transmission coefficient, cloud optical depth
             tau2 = (3./2.)*(qlint/(rhow*re))
 
-            if (lrsAgs) then
+            if (lrsAgs .and. (iradiation/=irad_par)) then
               tauField(i,j) = tau2
             endif
 
