@@ -192,7 +192,11 @@ contains
 
     do i = 2,i1
       do j = 2,j1
-        lwp(i,j) = sum(ql0(i,j,1:kmax)*rhof(1:kmax)*dzf(1:kmax))
+        if (iradiation == irad_rrtmg) then
+          lwp(i,j) = sum(lwc(i,j,1:kmax))*1.e-3 ! we get the already calculated lwc from RRTMG
+        else
+          lwp(i,j) = sum(ql0(i,j,1:kmax)*rhof(1:kmax)*dzf(1:kmax))
+        end if
       enddo
     enddo
 
