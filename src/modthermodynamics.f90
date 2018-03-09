@@ -610,7 +610,7 @@ subroutine icethermo0
   !! \author Steef B\"oing
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
-  use modglobal, only : i1,j1,k1,rlv,cp,rk3step,rtimee,ntimee
+  use modglobal, only : i1,j1,k1,kmax,rlv,cp,rk3step,rtimee,ntimee
   use modfields, only : qvsl,qvsi,qt0,thl0,e120,exnf,presf,tmp0,ql0,esl
   use modcrosssection, only : immediatecrosssection, exitcrosssection
   
@@ -681,7 +681,8 @@ subroutine icethermo0
      end do
   end do
   if(nitert>99) then
-     write(ifmessages,*) 'thermowarning - icethermo0'
+     write(ifmessages,*) 'thermowarning - icethermo0. nitert = ', nitert
+     write(ifmessages,*) 'min(qt): ', minval(qt0(2:i1, 2:j1, 1:kmax))
   endif
 
   return

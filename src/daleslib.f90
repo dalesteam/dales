@@ -39,7 +39,11 @@ module daleslib
     real, allocatable :: v_tend(:)
     real, allocatable :: thl_tend(:)
     real, allocatable :: qt_tend(:)
+    real, allocatable :: ql_ref(:)   ! QL profile from global model - not a tendency
     real :: ps_tend
+
+    logical l_multiplicative_qt, l_force_fluctuations
+
     
     contains
 
@@ -151,12 +155,18 @@ module daleslib
           allocate(v_tend(1:kmax))
           allocate(thl_tend(1:kmax))
           allocate(qt_tend(1:kmax))
+          allocate(ql_ref(1:kmax))
           u_tend = 0
           v_tend = 0
           thl_tend = 0
           qt_tend = 0
+          ql_ref = 0
           ! lforce_user = .true.
           ps_tend = 0
+
+          l_multiplicative_qt = .false.
+          l_force_fluctuations = .false.
+
         end subroutine initdaleslib
 
                 ! deallocate arrays for tendencies 
@@ -167,37 +177,63 @@ module daleslib
           deallocate(v_tend)
           deallocate(thl_tend)
           deallocate(qt_tend)
+          deallocate(ql_ref)
           
         end subroutine exitdaleslib
 
         subroutine force_tendencies
           use modglobal,   only : i1,j1,imax,jmax,kmax
-          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av
+          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0av         
 
           implicit none
           integer k
-          logical l_multiplicative_qt
-          real qt_avg
-          
-          l_multiplicative_qt = .false.
-          
+          real qt_avg, alpha
+          real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost
+
+
           do k=1,kmax
              up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 
              vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k) + v_tend(k) 
              thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) + thl_tend(k)
-             
+             qtp_lost = 0
+             if (l_force_fluctuations) then
+                ! do this if we don't have enough clouds on this k-level. OpenIFS can have very low but non-zero QL, 
+                ! we only care if QL large enough. 1e-4 is too high - never happens.
+                alpha = 0
+                if (ql_ref(k) > ql0av(k) .and. ql_ref(k) > 1e-6) then
+                   alpha = 0.01
+                end if
+
+                ! we have too much clouds on this level
+                if (ql_ref(k) < ql0av(k) * .95) then
+                   alpha = -0.01
+                end if
+
+                if (alpha /= 0) then
+                   ! amplify fluctuations from the mean by factor (1+alpha)
+                   qtp_local = (qt0(2:i1,2:j1,k) - qt0av(k)) * alpha
+                   
+                   ! limit the tendency from below, so that it cannot make qt0 negative in a 60s time step
+                   qtp_local_lim = max (qtp_local, -qt0(2:i1, 2:j1, k)/60.0)
+                   qtp_lost = sum(qtp_local - qtp_local_lim) ! < 0 if the cut-off was activated
+                   ! qt_tend(k) = qt_tend(k) + qtp_lost / (imax * jmax) ! add to tendency to conserve total water - note correction of <qt> must follow this
+                   ! CANNOT accumulate into qt_tend, we want the correction applied only this step.
+                   
+                   ! NOTE !  the correction is per thread for simplicity
+                   
+                   qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qtp_local_lim 
+                   
+                   write(ifmessages,*) k, 'ql_ref', ql_ref(k), ' <-> ', 'ql0av', ql0av(k), 'adjusting qt fluctuations by', alpha, '. qtp_lost:', qtp_lost
+                endif
+             endif
              ! multiplicative correcion of qt
              if (l_multiplicative_qt) then
-                ! qt_avg = sum(qt0(2:i1,2:j1,k)) / (imax * jmax) ! wrong - need global average .
-                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qt0(2:i1,2:j1,k) / qt0av(k) * qt_tend(k)
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qt0(2:i1,2:j1,k) / qt0av(k) * ( qt_tend(k) +  qtp_lost / (imax * jmax) )
              else
-             ! additive correction of qt
-                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + qt_tend(k)
+                ! additive correction of qt
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + ( qt_tend(k) +  qtp_lost / (imax * jmax) )
              endif
-
-             ! what if qt decreased so that ql > qt
-             ! will ql be re-calculated before it is used ?
-             ! note: we don't change qt yet, only apply a tendency
+             
           enddo
         end subroutine force_tendencies
 
