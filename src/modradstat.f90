@@ -232,7 +232,7 @@ contains
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
-    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,,irad_par,iradiation
+    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
 
     implicit none
     integer :: k
@@ -262,8 +262,8 @@ contains
       end do
     else !upward fluxes positive, downwards negative
       do k=1,kmax
-        thllwtendav(k) = (-lwdav(k+1) - lwuav(k+1) + lwdav(k) + lwuav(k))/(rhof(k)*exnf(k)*
-        thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*
+        thllwtendav(k) = (-lwdav(k+1) - lwuav(k+1) + lwdav(k) + lwuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
+        thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
       end do
     endif
 

@@ -72,7 +72,7 @@ contains
   subroutine initsurface
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only :    iradiation,rad_shortw,,irad_par,irad_user,irad_rrtmg
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
@@ -1626,9 +1626,9 @@ contains
 !> Calculates surface resistance, temperature and moisture using the Land Surface Model
   subroutine do_lsm
 
-    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,,xtime,rtimee,xday,xlat,xlon
+    use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
-    use modraddata,only :    iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
+    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
@@ -1872,7 +1872,7 @@ contains
           Rdark    = (1.0/9) * Am
 
           !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
-          PAR      = 0.50 * max(0.1,ab(swdav)) !Increase PAR to 50 SW
+          PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
           if (lsplitleaf) then
             PARdir   = 0.50 * max(0.1,abs(swdir(i,j,1)))
             PARdif   = 0.50 * max(0.1,abs(swdif(i,j,1)))
@@ -1880,14 +1880,6 @@ contains
 
           ! Calculate the light use efficiency
           alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
-
-          ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-          tempy    = alphac * Kx * PAR / (Am + Rdark)
-          An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
-
-          ! Calculate upscaling from leaf to canopy: CO2 conductance at canopy level
-          AGSa1    = 1.0 / (1 - f0)
-          Dstar    = D0 / (AGSa1 * (f0 - fmin))
 
           if(lsplitleaf) then
             sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
@@ -1937,28 +1929,33 @@ contains
             end do !itg
 
             An       = LAI(i,j) * sum(weight_g * Fnet)
-            gcco2    = LAI(i,j) * sum(weight_g * gnet)
+            gc_inf   = LAI(i,j) * sum(weight_g * gnet)
 
           else !lsplitleaf
- 
-            ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-            tempy    = alphac * Kx * PAR / (Am + Rdark)
-            An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
-            gcco2    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
- 
+          
+          ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
+          AGSa1    = 1.0 / (1 - f0)
+          Dstar    = D0 / (AGSa1 * (f0 - fmin))
+
+          tempy    = alphac * Kx * PAR / (Am + Rdark)
+          An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
+          gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+
           endif !lsplitleaf
 
 
           if (lrelaxgc) then
             if (gc_old_set) then
-              gc_inf      = gcco2
               gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
               if (rk3step ==3) then
                 gc_old(i,j) = gcco2
               endif
             else
+              gcco2 = gc_inf
               gc_old(i,j) = gcco2
             endif
+          else
+            gcco2 = gc_inf
           endif
 
           ! Calculate surface resistances for moisture and carbon dioxide

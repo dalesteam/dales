@@ -95,8 +95,10 @@ contains
     
     ! we set the final number of variables in the output:
     final_nvar = nvar
-    if (iradiation == irad_par .or. iradiation == irad_rrtmg) final_nvar = final_nvar+2!swdir,swdif
-    if (lsplitleaf) final_nvar = final_nvar+2 !PARdir,PARdif
+    if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
+      final_nvar = final_nvar+2                 !swdir,swdif
+      if (lsplitleaf) final_nvar = final_nvar+2 !PARdir,PARdif
+    endif
     allocate(ncnameAGS(final_nvar,4))
 
     call ncinfo(tncnameAGS(1,:),'time  ','Time','s','time')
@@ -138,10 +140,10 @@ contains
     if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
       call ncinfo(ncnameAGS(36,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
       call ncinfo(ncnameAGS(37,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
-    endif
-    if (lsplitleaf) then
-      call ncinfo(ncnameAGS(38,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
-      call ncinfo(ncnameAGS(39,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+      if (lsplitleaf) then
+        call ncinfo(ncnameAGS(38,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
+        call ncinfo(ncnameAGS(39,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+      endif
     endif
 
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
@@ -181,7 +183,7 @@ contains
                             indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, gcco2Field, &
                             PARField,Qnet,LE,H,G0,PARdirField,PARdifField,lsplitleaf
     use modfields, only   : svm, rhof, ql0
-    use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif,irad_par,iradiation,irad_rrtmg
+    use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif,irad_par,iradiation,irad_rrtmg,lwc
     implicit none
 
 
@@ -240,10 +242,10 @@ contains
       if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
         vars(:,:,36) = swdir   (2:i1,2:j1,1)
         vars(:,:,37) = swdif   (2:i1,2:j1,1)
-      endif
-      if (lsplitleaf) then
-        vars(:,:,38) = PARdirField(2:i1,2:j1)
-        vars(:,:,39) = PARdifField(2:i1,2:j1)
+        if (lsplitleaf) then
+          vars(:,:,38) = PARdirField(2:i1,2:j1)
+          vars(:,:,39) = PARdifField(2:i1,2:j1)
+        endif
       endif
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,final_nvar,ncnameAGS,vars,nrecAGS,imax,jmax)

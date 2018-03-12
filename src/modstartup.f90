@@ -381,7 +381,7 @@ contains
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     integer i,j,k,n
-    logical negval !whether we want to allow negative values (RRMTG may crash)when randomnization XPB
+    logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
     real, allocatable :: thv0(:,:,:)
@@ -500,18 +500,17 @@ contains
     !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
-      negval = .True. ! I set it by default false, allowing negative perturbations
+      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
       do k = 1,krand
         call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
         call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
       end do
-      negval = .False. ! negative moisture is non physical
-      do
+      negval = .True. ! negative perturbations allowed
+      do k = 1,krand
         call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
         call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
       end do
 
-      negval = .True. 
       do k=krandumin,krandumax
         call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
         call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
@@ -1090,10 +1089,10 @@ contains
         ran=real(ir)/real(imm)
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
-            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
-            !we avoid non-physical negative values if negval=False  XPB 
-            if ((.not. negval) .and. field(i-is+2,j-js+2,klev)<0.0) then
-              field(i-is+2,j-js+2,klev) = 0.0
+            if (.not. negval) then ! Avoid non-physical negative values
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
+            else 
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
             endif
 
         endif

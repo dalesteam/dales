@@ -182,7 +182,7 @@ contains
 
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
       lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
-      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine XPB
+      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
         do i=2,i1
           lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
           lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
@@ -614,7 +614,7 @@ contains
       do i=2,i1
       im=i-1
       do k=1,kmax
-         qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid negative initial values XPB
+         qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
          qcl_slice (im,k) = ql0(i,j,k)
          qci_slice (im,k) = 0.
          o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)

@@ -339,7 +339,7 @@ subroutine radpar
             tauc=tauc+tau(k)
           end do
         endif
-        tauField(i,j) = tauc(i,j)
+        tauField(i,j) = tauc
         call sunray(tau,tauc,i,j)
       end if
 
