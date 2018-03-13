@@ -158,12 +158,12 @@ contains
       if (isurf.ne.2) then 
         do j=2,j1
         do i=2,i1
-           tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
+           tempskin (i,j) = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
         enddo
         enddo
       else
-        tempskin = thls * exnh(1)
-        write (6,*) 'thls, tempskin',thls,tempskin
+        tempskin (:,:) = thls * exnh(1)
+        !write (6,*) 'thls, tempskin',thls,tempskin (2,2)
       endif
 
 

@@ -203,13 +203,13 @@ contains
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k))
-          thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k))
-          thlpsd          = -(swd(i,j,k+1)-swd(i,j,k))
-          thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
+          !thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k))
+          !thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k))
+          !thlpsd          = -(swd(i,j,k+1)-swd(i,j,k))
+          !thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
 
           !thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
-          thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+          thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)-lwu(i,j,k+1)+lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)-swu(i,j,k+1)+swu(i,j,k)) &
                               /(rhof(k)*cp*exnf(k)*dzf(k))
         end do
       end do
