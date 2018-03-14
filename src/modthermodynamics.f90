@@ -430,7 +430,7 @@ contains
             niter = 0.0
 
             ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.) ! dim here clamps result to >= 0
-
+            
           end do
         end do
       end do
@@ -611,7 +611,7 @@ subroutine icethermo0
   ! refactored with table lookup in a function - Fredrik Jansson 2017
   
   use modglobal, only : i1,j1,k1,kmax,rlv,cp,rk3step,rtimee,ntimee
-  use modfields, only : qvsl,qvsi,qt0,thl0,e120,exnf,presf,tmp0,ql0,esl
+  use modfields, only : qvsl,qvsi,qt0,thl0,e120,exnf,presf,tmp0,ql0,esl,qsat
   use modcrosssection, only : immediatecrosssection, exitcrosssection
   
   implicit none
@@ -673,6 +673,7 @@ subroutine icethermo0
            endif
 
            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+           qsat(i,j,k) = qsatur
            tmp0(i,j,k)= Tnr
            esl(i,j,k)=esl1
            qvsl(i,j,k)=qvsl1

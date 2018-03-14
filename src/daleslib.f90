@@ -181,6 +181,26 @@ module daleslib
           
         end subroutine exitdaleslib
 
+
+        ! tendency nudging function
+        ! the ql calculation needs MPI communication
+        ! moving this to python for now.
+!        
+!        subroutine calculate_tendency_nudge
+!          use modglobal,   only : i1,j1,imax,jmax,kmax
+!          use modfields,   only : thlp,qtp,qt0,qt0av,ql0av,qsat
+!          implicit none
+!          integer k
+!          real ql, beta
+!
+!          do k=1,kmax
+!             beta = 1
+!             ql = sum( max (beta * (qt0(2:i1, 2:j1, k) - qt0av) + qt0av - qsat(2:i1, 2:j1, k), 0))
+!             write(ifmessages,*) beta, ql/(imax*jmax), ql0av
+!          end do          
+!        end subroutine calculate_tendency_nudge
+        
+        
         subroutine force_tendencies
           use modglobal,   only : i1,j1,imax,jmax,kmax
           use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0av         
@@ -216,8 +236,6 @@ module daleslib
                    ! limit the tendency from below, so that it cannot make qt0 negative in a 60s time step
                    qtp_local_lim = max (qtp_local, -qt0(2:i1, 2:j1, k)/60.0)
                    qtp_lost = sum(qtp_local - qtp_local_lim) ! < 0 if the cut-off was activated
-                   ! qt_tend(k) = qt_tend(k) + qtp_lost / (imax * jmax) ! add to tendency to conserve total water - note correction of <qt> must follow this
-                   ! CANNOT accumulate into qt_tend, we want the correction applied only this step.
                    
                    ! NOTE !  the correction is per thread for simplicity
                    

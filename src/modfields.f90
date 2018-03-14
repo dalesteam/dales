@@ -129,6 +129,8 @@ save
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
 
+  real, allocatable :: qsat(:,:,:)
+
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -229,6 +231,8 @@ subroutine initfields
              ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
+    allocate(qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
+    
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.
     wm=0.;w0=0.;wp=0.;wp_store=0.
@@ -267,6 +271,7 @@ subroutine initfields
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
+    deallocate(qsat)
     end subroutine exitfields
 
 end module modfields
