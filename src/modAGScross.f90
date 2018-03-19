@@ -94,9 +94,10 @@ contains
     ! XPB edit
     ! we set the final number of variables in the output:
     final_nvar = nvar
-    if (iradiation == irad_par .or. iradiation == irad_rrtmg ) final_nvar = final_nvar+2 !swdir and swdif
-    if (lsplitleaf) final_nvar = final_nvar+2 !PARdir,PARdif
-    
+    if (iradiation == irad_par .or. iradiation == irad_rrtmg ) then
+      final_nvar = final_nvar+2 !swdir and swdif
+      if (lsplitleaf) final_nvar = final_nvar+2 !PARdir,PARdif
+    endif
     allocate(ncnameAGS(final_nvar,4))
 
     
@@ -142,10 +143,10 @@ contains
     if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
       call ncinfo(ncnameAGS(37,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
       call ncinfo(ncnameAGS(38,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
-    endif  
-    if (lsplitleaf) then
-      call ncinfo(ncnameAGS(39,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
-      call ncinfo(ncnameAGS(40,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+      if (lsplitleaf) then
+        call ncinfo(ncnameAGS(39,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
+        call ncinfo(ncnameAGS(40,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+      endif  
     endif
 
     call open_nc(fnameAGS,  ncidAGS,nrecAGS,n1=imax,n2=jmax)
@@ -245,10 +246,10 @@ contains
       if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
         vars(:,:,37) = swdir      (2:i1,2:j1,1)
         vars(:,:,38) = swdif      (2:i1,2:j1,1)
-      endif
-      if (lsplitleaf) then
-        vars(:,:,39) = PARdirField(2:i1,2:j1)
-        vars(:,:,40) = PARdifField(2:i1,2:j1)
+        if (lsplitleaf) then
+          vars(:,:,39) = PARdirField(2:i1,2:j1)
+          vars(:,:,40) = PARdifField(2:i1,2:j1)
+        endif
       endif
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
       call writestat_nc(ncidAGS,final_nvar,ncnameAGS,vars,nrecAGS,imax,jmax)

@@ -472,7 +472,7 @@ contains
       krand  = min(krand,kmax)
       negval = .True.
       do k = 1,krand
-        negval = .False.
+        negval = .False. ! No negative perturbations for qt
         call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
         call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
         negval = .True.
@@ -1034,10 +1034,10 @@ contains
         ran=real(ir)/real(imm)
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
-            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
-            !XPB we avoid non-physical negative values for certain fields
-            if ((.not. negval) .and. field(i-is+2,j-js+2,klev)<0.0) then 
-              field(i-is+2,j-js+2,klev) = 0.0
+            if (.not. negval) then ! Avoid non-physical negative values
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
+            else
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
             endif
         endif
     enddo

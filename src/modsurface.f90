@@ -1908,25 +1908,27 @@ contains
             end do !itg
 
             An       = LAI(i,j) * sum(weight_g * Fnet)
-            gcco2    = LAI(i,j) * sum(weight_g * gnet)
+            gc_inf   = LAI(i,j) * sum(weight_g * gnet)
 
           else !lsplitleaf
             ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
             tempy    = alphac * Kx * PAR / (Am + Rdark)
             Ag       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
-            gcco2    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * Ag / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+            gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * Ag / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
           endif !lsplitleaf
 
           if (lrelaxgc) then
             if (gc_old_set) then
-              gc_inf      = gcco2
               gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
               if (rk3step ==3) then
                 gc_old(i,j) = gcco2
               endif
             else
+              gcco2 = gc_inf
               gc_old(i,j) = gcco2
             endif
+          else
+            gcco2 = gc_inf
           endif
 
           ! Calculate surface resistances for moisture and carbon dioxide
