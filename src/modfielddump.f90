@@ -34,7 +34,8 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 8
+  !  integer,parameter :: nvar = 8
+  integer,parameter :: nvar = 2    ! reduced set of parameters for SP runs - dump only QL, QR
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -93,14 +94,18 @@ contains
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
       call ncinfo(tncname(1,:),'time','Time','s','time')
-      call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
-      call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
-      call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-      call ncinfo(ncname( 7,:),'qr','Rain water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
+      ! call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
+      ! call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
+      ! call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
+      ! call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
+      ! call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
+      ! call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
+      ! call ncinfo(ncname( 7,:),'qr','Rain water specific humidity','1e-5kg/kg','tttt')
+      ! call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
+
+      call ncinfo(ncname( 1,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 2,:),'qr','Rain water specific humidity','1e-5kg/kg','tttt')
+      
       call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
@@ -143,61 +148,63 @@ contains
     allocate(vars(imax,jmax,khigh-klow+1,nvar))
 
     reclength = imax*jmax*(khigh-klow+1)*2
+    
+    ! field = NINT(1.0E3*um,2)
+    ! if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
+    ! if (lbinary) then
+    !   if (ldiracc) then
+    !     open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !     write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !   else
+    !     open  (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+    !     write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !   end if
+    !   close (ifoutput)
+    ! endif
 
-    field = NINT(1.0E3*um,2)
-    if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-      else
-        open  (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+    ! field = NINT(1.0E3*vm,2)
+    ! if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
+    ! if (lbinary) then
+    !   if (ldiracc) then
+    !     open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !     write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !   else
+    !     open  (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+    !     write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !   end if
+    !   close (ifoutput)
+    ! endif
 
-    field = NINT(1.0E3*vm,2)
-    if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-      else
-        open  (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+    ! field = NINT(1.0E3*wm,2)
+    ! if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
+    ! if (lbinary) then
+    !   if (ldiracc) then
+    !     open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !     write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !   else
+    !     open  (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+    !     write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !   end if
+    !   close (ifoutput)
+    ! endif
 
-    field = NINT(1.0E3*wm,2)
-    if (lnetcdf) vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-      else
-        open  (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
-
-    field = NINT(1.0E5*qtm,2)
-    if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-      else
-        open  (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+    ! field = NINT(1.0E5*qtm,2)
+    ! if (lnetcdf) vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
+    ! if (lbinary) then
+    !   if (ldiracc) then
+    !     open (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !     write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !   else
+    !     open  (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+    !     write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !   end if
+    !   close (ifoutput)
+    ! endif
 
     field = NINT(1.0E5*ql0,2)
-    if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
+    ! if (lnetcdf) vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
+    
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbql.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -209,18 +216,18 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E2*(thlm-300),2)
-    if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-      else
-        open  (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-      end if
-      close (ifoutput)
-    end if
+    ! field = NINT(1.0E2*(thlm-300),2)
+    ! if (lnetcdf) vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
+    ! if (lbinary) then
+    !   if (ldiracc) then
+    !     open (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !     write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !   else
+    !     open  (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+    !     write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !   end if
+    !   close (ifoutput)
+    ! end if
 
     if(imicro/=imicro_none) then
       do i=2-ih,i1+ih
@@ -234,7 +241,8 @@ contains
       field = 0.
     endif
 
-    if (lnetcdf) vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
+!    if (lnetcdf) vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
+    if (lnetcdf) vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -246,27 +254,27 @@ contains
       close (ifoutput)
     endif
 
-    field=0.
-    do i=2-ih,i1+ih
-    do j=2-jh,j1+jh
-    do k=2,k1
-      field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
-    enddo
-    enddo
-    enddo
+    ! field=0.
+    ! do i=2-ih,i1+ih
+    ! do j=2-jh,j1+jh
+    ! do k=2,k1
+    !   field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
+    ! enddo
+    ! enddo
+    ! enddo
 
-    if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
+    ! if (lnetcdf) vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
 
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
-      else
-        open  (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+    ! if (lbinary) then
+    !   if (ldiracc) then
+    !     open (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+    !     write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+    !   else
+    !     open  (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+    !     write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+    !   end if
+    !   close (ifoutput)
+    ! endif
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)

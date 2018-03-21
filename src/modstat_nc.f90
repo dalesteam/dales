@@ -92,7 +92,10 @@ contains
     if (.not.exans) then
 
       call date_and_time(date,time)
-      iret = nf90_create(fname,NF90_SHARE,ncid)
+      !iret = nf90_create(fname,NF90_SHARE,ncid)
+      iret = nf90_create(fname,ior(NF90_SHARE,NF90_HDF5)  ,ncid)  ! force netcdf4 to make compression work
+      ! note - files cannot be read until Dales is done
+      
       iret = nf90_put_att(ncid,NF90_GLOBAL,'title',fname)
       iret = nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time))
       iret = nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version))
