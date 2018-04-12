@@ -85,7 +85,7 @@ contains
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo
+    use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     implicit none
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
@@ -236,7 +236,7 @@ contains
         allocate(ncname(nvar,4))
 
         fname(7:9) = cexpnr
-        call ncinfo(ncname( 1,:),'time','Time','s','time')
+        call nctiminfo(ncname(1,:))
         call ncinfo(ncname( 2,:),'cfrac','Cloud fraction','-','time')
         call ncinfo(ncname( 3,:),'zb','Cloud-base height','m','time')
         call ncinfo(ncname( 4,:),'zc_av','Average Cloud-top height','m','time')

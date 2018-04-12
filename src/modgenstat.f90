@@ -168,7 +168,7 @@ contains
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
 
     implicit none
@@ -365,7 +365,7 @@ contains
         fname(10:12) = cexpnr
         nvar = nvar + 7*nsv
         allocate(ncname(nvar,4))
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         call ncinfo(ncname( 1,:),'rhof','Full level slab averaged density','kg/m^3','tt')
         call ncinfo(ncname( 2,:),'rhobf','Full level base-state density','kg/m^3','tt')
         call ncinfo(ncname( 3,:),'rhobh','Half level base-state density','kg/m^3','mt')

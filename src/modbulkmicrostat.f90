@@ -86,7 +86,7 @@ subroutine initbulkmicrostat
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
               dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres
-    use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata,only: imicro, imicro_bulk, imicro_sice
     implicit none
@@ -189,7 +189,7 @@ subroutine initbulkmicrostat
       tnextwrite = itimeav+btime
       nsamples = itimeav/idtav
       if (myid==0) then
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         call ncinfo(ncname( 1,:),'cfrac','Cloud fraction','-','tt')
         call ncinfo(ncname( 2,:),'rainrate','Echo Rain Rate','W/m^2','tt')
         call ncinfo(ncname( 3,:),'preccount','Preccount','W/m^2','tt')

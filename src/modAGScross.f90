@@ -52,7 +52,7 @@ contains
   subroutine initAGScross
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,rk3step, dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
-    use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : lrsAgs, ksoilmax
    implicit none
 
@@ -89,7 +89,7 @@ contains
     if (ksoilmax /= 4) stop 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well'
     fnameAGS(10:17) = cmyid
     fnameAGS(19:21) = cexpnr
-    call ncinfo(tncnameAGS(1,:),'time  ','Time','s','time')
+    call nctiminfo(tncnameAGS(1,:))
     call ncinfo(ncnameAGS( 1,:),'An    ', 'xy AGScross of An          ','mg/m2/s','tt0t')
     call ncinfo(ncnameAGS( 2,:),'Resp  ', 'xy AGScross of Resp        ','mg/m2/s','tt0t')
     call ncinfo(ncnameAGS( 3,:),'wco2  ', 'xy AGScross of wco2        ','ppm m/s','tt0t')

@@ -70,7 +70,7 @@ contains
   subroutine initlsmcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
    implicit none
 
     integer :: ierr
@@ -116,7 +116,7 @@ contains
       if (myid==0) then
         fname1(12:19) = cmyid
         fname1(21:23) = cexpnr
-        call ncinfo(tncname1(1,:),'time','Time','s','time')
+        call nctiminfo(tncname1(1,:))
         call ncinfo(ncname1( 1,:),'tsoil', 'xz crosssection of the Soil temperature','K','t0tts')
         call ncinfo(ncname1( 2,:),'phiw', 'xz crosssection of the Soil moisture','m3/m3','t0tts')
         call open_nc(fname1,  ncid1,nrec1,n1=imax,ns=ksoilmax)
@@ -130,7 +130,7 @@ contains
         fname2(12:15) = cheight
         fname2(17:24) = cmyid
         fname2(26:28) = cexpnr
-        call ncinfo(tncname2(1,:),'time','Time','s','time')
+        call nctiminfo(tncname2(1,:))
         call ncinfo(ncname2( 1,:),'tsoil', 'xy crosssection of the Soil temperature','K','tt0t')
         call ncinfo(ncname2( 2,:),'phiw', 'xy crosssection of the Soil moisture','m3/m3','tt0t')
         call open_nc(fname2,  ncid2,nrec2,n1=imax,n2=jmax)
@@ -143,7 +143,7 @@ contains
 ! !Surface values
         fname3(11:18) = cmyid
         fname3(20:22) = cexpnr
-        call ncinfo(tncname3(1,:),'time','Time','s','time')
+        call nctiminfo(tncname3(1,:))
         call ncinfo(ncname3( 1,:),'Qnet','Net radiation','W/m^2','tt0t')
         call ncinfo(ncname3( 2,:),'H','Sensible heat flux','W/m^2','tt0t')
         call ncinfo(ncname3( 3,:),'LE','Latent heat flux','W/m^2','tt0t')

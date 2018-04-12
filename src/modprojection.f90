@@ -67,7 +67,7 @@ contains
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo, writestat_dims_nc
+    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     implicit none
 
     integer :: ierr
@@ -108,7 +108,7 @@ contains
     end if
     fname(6:13) = cmyid
     fname(15:17) = cexpnr
-    call ncinfo(tncname(1,:),'time','Time','s','time')
+    call nctiminfo(tncname(1,:))
     call ncinfo(ncname( 1,:),'thlxylow','Subcloud Integrated liquid water potential temperature path','K/m','tt0t')
     call ncinfo(ncname( 2,:),'thlxyhigh','Cloudlayer Integrated liquid water potential temperature path','K/m','tt0t')
     call ncinfo(ncname( 3,:),'thvxylow','Subcloud Integrated virtual potential temperature path','K/m','tt0t')

@@ -65,7 +65,7 @@ contains
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical,mpi_integer
     use modglobal, only : ladaptive, dtmax,ifnamopt,fname_options,kmax,   &
                            dtav_glob,btime,tres,cexpnr,ifoutput,nsv
-    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_q_nc
+    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_q_nc
     implicit none
 
     integer      :: ierr,n
@@ -196,7 +196,7 @@ contains
 
     if (lnetcdf) then
       if (myid==0) then
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         fname(10:12) = cexpnr
         call open_nc(fname,ncid,nrec,nq=knr)
         call define_nc(ncid,1,tncname)

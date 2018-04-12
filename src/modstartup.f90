@@ -54,7 +54,7 @@ contains
 
     use modglobal,         only : ifmessages,initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
-                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
+                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,&
                                   ladaptive,author,lnoclouds,lrigidlid,unudge,outfile
@@ -89,7 +89,7 @@ contains
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
-        xlat,xlon,xday,xtime,ksp
+        xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
@@ -174,6 +174,7 @@ contains
     call MPI_BCAST(ysize      ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(xlat       ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(xlon       ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(xyear      ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(xday       ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(xtime      ,1,MY_REAL   ,0,commwrld,mpierr)
 

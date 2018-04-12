@@ -42,7 +42,7 @@ program dales_check
         call get_command_argument(1,fname_options)
     end if
 
-    call initialize(fname_options)
+    call initialize(fname_options,date=20160131,time=121530)
 
     s=grid_shape()
     sx=s(1)

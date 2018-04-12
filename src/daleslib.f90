@@ -48,7 +48,7 @@ module daleslib
     
     contains
 
-        subroutine initialize(path,mpi_comm)
+        subroutine initialize(path,mpi_comm,date,time)
 
             !!----------------------------------------------------------------
             !!     0.0    USE STATEMENTS FOR CORE MODULES
@@ -92,7 +92,8 @@ module daleslib
             implicit none
 
             character(len=256), intent(in)  :: path
-            integer, intent(in), optional   :: mpi_comm
+            integer, intent(in), optional   :: mpi_comm,date,time
+            integer                         :: yy,mo,dd,hh,mm,ss
 
             !----------------------------------------------------------------
             !     0      INITIALIZE MPI COMMUNICATOR
@@ -105,6 +106,23 @@ module daleslib
             !----------------------------------------------------------------
 
             call startup(path)
+
+            ! Initial time overrides
+
+            if (present(date)) then
+                yy = date/10000
+                mo = mod(date,10000)/100
+                dd = mod(date,100)
+                hh = 0
+                mm = 0
+                ss = 0
+                if (present(time)) then
+                    hh = time/10000
+                    mm = mod(time,10000)/100
+                    ss = mod(time,100)
+                endif
+                call set_start_time(yy,mo,dd,hh,mm,ss)
+            endif
 
             !---------------------------------------------------------
             !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
@@ -904,7 +922,34 @@ module daleslib
          write(ifmessages,*) 'gatherCloudFrac final:', A
       endif
     end function gatherCloudFrac
-    
 
+    subroutine set_start_time(year,month,day,hour,minute,second)
+        use modstat_nc, only : get_date, leap_year
+        use modglobal, only  : xyear, xday, xtime
+        implicit none
+        integer, intent(in) :: year,month,day,hour,minute,second
+        integer             :: mdays(12), mm, dd, i
+        
+        xyear = year
+        if (month < 1 .or. month > 12) then
+            write(ifmessages,*) 'warning: invalid month, applying modulo to get', mod(month,13)
+        endif
+        mm = mod(month,13)
+        mdays = (/ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 /)
+        if (leap_year(xyear)) then
+            mdays(2) = 29
+        endif
+        if (day < 1 .or. day > mdays(mm)) then
+            write(ifmessages,*) 'warning: invalid day, applying modulo to get', mod(day,mdays(mm) + 1)
+        endif
+        dd = mod(day,mdays(mm) + 1)
+        xday = 0
+        i = 1
+        do i=1,mm - 1
+            xday = xday + mdays(i)
+        enddo
+        xday = xday + dd - 1
+        xtime = float(hour) + minute/60. + second/3600. 
+    end subroutine set_start_time
     
 end module daleslib

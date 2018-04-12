@@ -147,12 +147,13 @@ save
 
 
       ! Global variables (modvar.f90)
+      integer :: xyear  = 0     !<     * year, only for time units in netcdf
       real :: xday      = 1.    !<     * day number
-      real :: xtime     = 0.    !<     * GMT time
+      real :: xtime     = 0.    !<     * GMT time (in hours)
       real :: cu        = 0.    !<     * translation velocity in x-direction
       real :: cv        = 0.    !<     * translation velocity in y-direction
       real :: runtime   = 300.  !<     * simulation time in secs
-      real :: dtmax     = 20.    !<     * maximum time integration interval
+      real :: dtmax     = 20.   !<     * maximum time integration interval
       integer(kind=longint) :: idtmax        !<     * maximum time integration interval
       real :: dtav_glob   = 60.
       real :: timeav_glob = 3600.

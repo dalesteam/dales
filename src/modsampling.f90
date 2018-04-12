@@ -65,7 +65,7 @@ contains
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
                            dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput
-    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc, only : lnetcdf,define_nc,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
@@ -216,7 +216,7 @@ contains
       nsamples = itimeav/idtav
      if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         fname(10:12) = cexpnr
         call open_nc(fname,ncid,nrec,n3=kmax)
         call define_nc(ncid,1,tncname)
