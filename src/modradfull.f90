@@ -26,6 +26,13 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+!
+! cstep: in the original version the surface temperature was found from a linear extrapolation
+!        this gives rise to quite large errors in LWup
+!        in this version thls is used the sst (with aid of the Exner function)
+!        note that this is similar to what is done in modradrrtmg
+!        issue: thls is homogeneous. formulation needs to be modified for heterogeneous surface
+
 module modradfull
 
   use RandomNumbers
@@ -155,16 +162,18 @@ contains
         end do
       end do
 
-      if (isurf.ne.2) then 
-        do j=2,j1
-        do i=2,i1
-           tempskin (i,j) = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
-        enddo
-        enddo
-      else
+     !cstep if (isurf.ne.2) then 
+     !cstep   do j=2,j1
+     !cstep   do i=2,i1
+     !cstep      tempskin (i,j) = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
+     !cstep   enddo
+     !cstep   enddo
+     !cstep else
+
         tempskin (:,:) = thls * exnh(1)
-        !write (6,*) 'thls, tempskin',thls,tempskin (2,2)
-      endif
+
+     !cstep   !write (6,*) 'thls, tempskin',thls,tempskin (2,2)
+     !cstep endif
 
 
       ! tempskin = tskin*exnh(1)
