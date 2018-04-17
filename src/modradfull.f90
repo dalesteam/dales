@@ -41,7 +41,8 @@ module modradfull
   public :: radfull,d4stream
   logical, save     :: d4stream_initialized = .False.
   real, allocatable, save ::  pp(:), pt(:), ph(:), po(:), pre(:), pde(:), &
-       plwc(:), piwc(:), prwc(:), pgwc(:), fds(:), fus(:), fdir(:), fuir(:)
+       plwc(:), piwc(:), prwc(:), pgwc(:), fds(:), fus(:), fdir(:), fuir(:),&
+       pre_lw(:) ! different effective radius for LW radiation
 
   integer :: i,j,k, npts
   real    :: ee, u0
@@ -248,6 +249,7 @@ contains
          if (allocated(prwc)) prwc(:) = 0.
          if (allocated(plwc)) plwc(:) = 0.
          if (allocated(pgwc)) pgwc(:) = 0.
+         if (allocated(pre_lw))   pre_lw(:) = 0.
       end if
       if (present(lclear)) then
         doclear=lclear
@@ -288,11 +290,13 @@ contains
                end if
                pre(kk)  = 1.e6*(plwc(kk)/(1000.*prw*CCN))**(1./3.)   !CCN already in right units
                if (plwc(kk)<=0.) pre(kk) = 0.
+               if (pre(kk).gt.0.) pre_lw(kk) = 14.
                if (k < k1) pp(kk) = 0.5*(pres(k)+pres(k+1)) / 100.
             end do
             pp(nv-k1+2) = pres(k1)/100. - 0.5*(pres(k1-1)-pres(k1)) / 100.
             call rad( albedo(i,j), u0, sw0, tskin(i,j), ee, pp, pt, ph, po,&
-                 fds, fus, fdir, fuir, plwc=plwc, pre=pre, useMcICA=useMcICA)
+                 fds, fus, fdir, fuir, plwc=plwc, pre=pre, useMcICA=useMcICA,&
+                 pre_lw=pre_lw)
 
             do k=1,k1
                kk = nv1 - (k-1)
@@ -399,7 +403,7 @@ contains
     ! pressure at the top fo the sounding
     !
     allocate (pp(nv1),fds(nv1),fus(nv1),fdir(nv1),fuir(nv1))
-    allocate (pt(nv),ph(nv),po(nv),pre(nv),pde(nv),plwc(nv),prwc(nv))
+    allocate (pt(nv),ph(nv),po(nv),pre(nv),pde(nv),plwc(nv),prwc(nv),pre_lw(nv))
 
     if (blend) then
        pp(1:norig) = sp(1:norig)
@@ -1062,7 +1066,7 @@ contains
   !> Subroutine rad: Computes radiative fluxes using a band structure
   !> defined by input ckd file
   subroutine rad (as, u0, ss, pts, ee, pp, pt, ph, po, fds, fus, fdir, fuir, &
-       plwc, pre, useMcICA )
+       plwc, pre, useMcICA,pre_lw )
 
     real, intent (in)  :: pp (nv1) ! pressure at interfaces
 
@@ -1073,7 +1077,8 @@ contains
 
     real, optional, dimension(nv), intent (in)  :: &
          plwc, & ! cloud liquid water content [g/m^3]
-         pre!,  & ! effective radius of cloud droplets [microns]
+         pre,  & ! effective radius of cloud droplets [microns]
+         pre_lw ! reff for LW
 !          piwc, & ! cloud ice water content [g/m^3]
 !          pde,  & ! effective diameter of ice particles [microns]
 !          prwc, & ! rain water content [g/m^3]
@@ -1096,8 +1101,9 @@ contains
 
     if(present(useMcICA)) McICA = useMcICA
 
+    !write (6,*) 'pre ',pre
     call rad_ir(pts, ee, pp, pt, ph, po, fdir, fuir, &
-                 plwc, pre, McICA  )
+                 plwc, pre_lw, McICA  )
     call rad_vis(as, u0, ss, pp, pt, ph, po, fds, fus,  &
                  plwc, pre, McICA  )
 
