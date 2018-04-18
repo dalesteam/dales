@@ -159,25 +159,17 @@ contains
           ql_b(i,j,1)   = 0
           qv_b(i,j,1)   = qv_b(i,j,2) +dzh(1)/dzh(2)*(qv_b(i,j,2)-qv_b(i,j,3))
           temp_b(i,j,1) = temp_b(i,j,2) +dzh(1)/dzh(2)*(temp_b(i,j,2)-temp_b(i,j,3))
-          !cstep tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2)) !cstep: this is strange, scalar value!
+          !cstep tempskin = 0.5*(temp_b(i,j,1)+temp_b(i,j,2)) !cstep: this is strange, scalar value is stored in 2D array
         end do
       end do
 
-     !cstep if (isurf.ne.2) then 
-     !cstep   do j=2,j1
-     !cstep   do i=2,i1
-     !cstep      tempskin (i,j) = 0.5*(temp_b(i,j,1)+temp_b(i,j,2))
-     !cstep   enddo
-     !cstep   enddo
-     !cstep else
+      !cstep surface temperature is taken in the same way as in modradrrtmg
+      !cstep the original version with extrapolation gives rise to large errors in LWup
+      !cstep in case of a high sensible heat flux
 
-        tempskin (:,:) = thls * exnh(1)
+      tempskin (:,:) = thls * exnh(1) 
 
-     !cstep   !write (6,*) 'thls, tempskin',thls,tempskin (2,2)
-     !cstep endif
-
-
-      ! tempskin = tskin*exnh(1)
+   
      !CvH end edit
 
       
