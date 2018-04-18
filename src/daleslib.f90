@@ -39,12 +39,12 @@ module daleslib
     real, allocatable :: v_tend(:)
     real, allocatable :: thl_tend(:)
     real, allocatable :: qt_tend(:)
-    real, allocatable :: ql_ref(:)   ! QL profile from global model - not a tendency
     real, allocatable :: ql_tend(:)  ! Only used whith local nudging
+    real, allocatable :: ql_ref(:)   ! QL profile from global model - not a tendency
     real, allocatable :: qt_alpha(:)
     real :: ps_tend
 
-    logical l_multiplicative_qt, l_force_fluctuations
+    logical l_multiplicative_qt, l_force_fluctuations, l_local_forcing
 
     
     contains
@@ -190,6 +190,7 @@ module daleslib
           
           l_multiplicative_qt = .false.
           l_force_fluctuations = .false.
+          l_local_forcing = .false.
 
         end subroutine initdaleslib
 
@@ -226,19 +227,36 @@ module daleslib
 !          end do          
 !        end subroutine calculate_tendency_nudge
         
+
+        ! Counts the profile of saturated grid cells and scatters the result to all processes
+        function gatherSatFrac(ql,a) result(ret)
+          use mpi, only: mpi_allreduce, MPI_SUM
+          use modmpi, only: comm3d, my_real, mpierr, nprocs
+          use modglobal, only: itot, jtot
+          real,    intent(in)     :: ql(:,:,:)
+          real,    intent(out)    :: a(:)
+          integer                 :: k, ret
+
+          a(:) = real(sum(count(ql(:,:,:) > 0, dim=1), dim=1))/(itot * jtot)
+
+          CALL mpi_allreduce(a, a, size(a), MY_REAL, MPI_SUM, comm3d, ret)
+        
+        end function gatherSatFrac
         
         subroutine force_tendencies
           use modglobal,   only : i1,j1,imax,jmax,kmax
-          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0av,qsat         
+          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0,ql0av,qsat         
 
           implicit none
           integer i,j,k
-          real qt_avg, alpha
+          real qt_avg, alpha, qlt, qvt
           real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost, a(1:kmax)
 
           if (l_local_forcing) then
              a = 0
-             gatherSatFrac(ql0,a)
+             if (gatherSatFrac(ql0,a) /= 0) then
+                 return
+             endif
           endif
 
           do k=1,kmax
@@ -283,16 +301,9 @@ module daleslib
                 
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qtp_local_lim
              elseif (l_local_forcing) then
-                do k=1,kmax
-                   qlt = ql_tend(k)
-                   qvt = (qt_tend + a(k)*qlt)/(1 - a(k))
-                   where ql0(:,:,k) > 0
-                       qtp(:,:,k) = qlt
-                   elsewhere
-                       qtp(:,:,k) = qvt
-                   end where
-                enddo
-
+                qlt = ql_tend(k)
+                qvt = (qt_tend(k) + a(k)*qlt)/(1 - a(k))
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + merge(qlt,qvt,ql0(2:i1,2:j1,k) > 0)
              endif
                 
              ! multiplicative correcion of qt
@@ -934,21 +945,6 @@ module daleslib
          write(ifmessages,*) 'gatherCloudFrac final:', A
       endif
     end function gatherCloudFrac
-
-    ! Counts the profile of saturated grid cells and scatters the result to all processes
-    function gatherSatFrac(ql,a) result(ret)
-      use mpi
-      use modmpi, only: comm3d, my_real, mpierr, nprocs
-      use modglobal, only: itot, jtot, ktot
-      real,    intent(in)     :: ql(:,:,:)
-      real,    intent(out)    :: a(:)
-      integer                 :: k, ret
-
-      a(:) = real(count(ql(:,:,:) > 0, dim=(/1,2/)))/(itot * jtot) ! count how many columns in the current slab contains non-zero ql
-
-      CALL mpi_allreduce(a, a, size(a), MY_REAL, MPI_SUM, 0, comm3d, ret)
-    
-    end function gatherSatFrac
 
     subroutine set_start_time(year,month,day,hour,minute,second)
         use modstat_nc, only : get_date, leap_year
