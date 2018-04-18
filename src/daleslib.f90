@@ -40,6 +40,7 @@ module daleslib
     real, allocatable :: thl_tend(:)
     real, allocatable :: qt_tend(:)
     real, allocatable :: ql_ref(:)   ! QL profile from global model - not a tendency
+    real, allocatable :: ql_tend(:)  ! Only used whith local nudging
     real, allocatable :: qt_alpha(:)
     real :: ps_tend
 
@@ -174,12 +175,14 @@ module daleslib
           allocate(v_tend(1:kmax))
           allocate(thl_tend(1:kmax))
           allocate(qt_tend(1:kmax))
+          allocate(ql_tend(1:kmax))
           allocate(ql_ref(1:kmax))
           allocate(qt_alpha(1:kmax))
           u_tend = 0
           v_tend = 0
           thl_tend = 0
           qt_tend = 0
+          ql_tend = 0
           ql_ref = 0
           ! lforce_user = .true.
           ps_tend = 0
@@ -198,6 +201,7 @@ module daleslib
           deallocate(v_tend)
           deallocate(thl_tend)
           deallocate(qt_tend)
+          deallocate(ql_tend)
           deallocate(ql_ref)
           deallocate(qt_alpha)
           
@@ -225,13 +229,17 @@ module daleslib
         
         subroutine force_tendencies
           use modglobal,   only : i1,j1,imax,jmax,kmax
-          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0av         
+          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0av,qsat         
 
           implicit none
-          integer k
+          integer i,j,k
           real qt_avg, alpha
-          real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost
+          real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost, a(1:kmax)
 
+          if (l_local_forcing) then
+             a = 0
+             gatherSatFrac(ql0,a)
+          endif
 
           do k=1,kmax
              up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k) + u_tend(k) 
@@ -273,7 +281,18 @@ module daleslib
                 qtp_lost = sum(qtp_local - qtp_local_lim) ! < 0 if the cut-off was activated
                 ! NOTE !  the correction is per thread for simplicity
                 
-                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qtp_local_lim                
+                qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qtp_local_lim
+             elseif (l_local_forcing) then
+                do k=1,kmax
+                   qlt = ql_tend(k)
+                   qvt = (qt_tend + a(k)*qlt)/(1 - a(k))
+                   where ql0(:,:,k) > 0
+                       qtp(:,:,k) = qlt
+                   elsewhere
+                       qtp(:,:,k) = qvt
+                   end where
+                enddo
+
              endif
                 
              ! multiplicative correcion of qt
@@ -892,19 +911,12 @@ module daleslib
       real,    intent(in)     :: ql(:,:,:)
       integer, intent(in)     :: I(:)
       real,    intent(out)    :: A(:)
-      integer                 :: ii, k, k1, k2, nk, ret
-      integer                 :: Ni, Nj
+      integer                 :: ii, k, k1, k2, ret
 
-      Ni = size(ql, 1)
-      Nj = size(ql, 2)
-      
-      
       k1 = 1                    ! start of k-range
       do ii = 1, size(I)
          k2 = I(ii)             ! end of k-range
-
          A(ii) = count (sum (ql(:,:,k1:k2-1), dim=3) > 0)  ! count how many columns in the current slab contains non-zero ql
-
          k1 = I(ii)
       enddo
       
@@ -922,6 +934,21 @@ module daleslib
          write(ifmessages,*) 'gatherCloudFrac final:', A
       endif
     end function gatherCloudFrac
+
+    ! Counts the profile of saturated grid cells and scatters the result to all processes
+    function gatherSatFrac(ql,a) result(ret)
+      use mpi
+      use modmpi, only: comm3d, my_real, mpierr, nprocs
+      use modglobal, only: itot, jtot, ktot
+      real,    intent(in)     :: ql(:,:,:)
+      real,    intent(out)    :: a(:)
+      integer                 :: k, ret
+
+      a(:) = real(count(ql(:,:,:) > 0, dim=(/1,2/)))/(itot * jtot) ! count how many columns in the current slab contains non-zero ql
+
+      CALL mpi_allreduce(a, a, size(a), MY_REAL, MPI_SUM, 0, comm3d, ret)
+    
+    end function gatherSatFrac
 
     subroutine set_start_time(year,month,day,hour,minute,second)
         use modstat_nc, only : get_date, leap_year
