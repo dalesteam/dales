@@ -227,34 +227,20 @@ module daleslib
 !          end do          
 !        end subroutine calculate_tendency_nudge
         
-
-        ! Counts the profile of saturated grid cells and scatters the result to all processes
-        function gatherSatFrac(ql,a) result(ret)
-          use mpi, only: mpi_allreduce, MPI_SUM
-          use modmpi, only: comm3d, my_real, mpierr, nprocs
-          use modglobal, only: itot, jtot
-          real,    intent(in)     :: ql(:,:,:)
-          real,    intent(out)    :: a(:)
-          integer                 :: k, ret
-
-          a(:) = real(sum(count(ql(:,:,:) > 0, dim=1), dim=1))/(itot * jtot)
-
-          CALL mpi_allreduce(a, a, size(a), MY_REAL, MPI_SUM, comm3d, ret)
-        
-        end function gatherSatFrac
         
         subroutine force_tendencies
+          use modmpi,      only : mpierr
           use modglobal,   only : i1,j1,imax,jmax,kmax
           use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0,ql0av,qsat         
 
           implicit none
-          integer i,j,k
+          integer k
           real qt_avg, alpha, qlt, qvt
-          real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost, a(1:kmax)
+          real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost, al(1:kmax)
 
           if (l_local_forcing) then
-             a = 0
-             if (gatherSatFrac(ql0,a) /= 0) then
+             al = 0
+             if (gathersatfrac(al) == mpierr) then
                  return
              endif
           endif
@@ -302,7 +288,7 @@ module daleslib
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qtp_local_lim
              elseif (l_local_forcing) then
                 qlt = ql_tend(k)
-                qvt = (qt_tend(k) + a(k)*qlt)/(1 - a(k))
+                qvt = (qt_tend(k) + al(k)*qlt)/(1 - al(k))
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + merge(qlt,qvt,ql0(2:i1,2:j1,k) > 0)
              endif
                 
@@ -743,6 +729,25 @@ module daleslib
          Ag = Ag / (size(Al,1) * size(Al,2) * nprocs)
       endif
     end function gatherlayeravg
+
+
+    ! Counts the profile of saturated grid cell fraction and scatters the result to all processes
+    function gathersatfrac(Ag) result(ret)
+      use mpi, only: mpi_allreduce, MPI_SUM
+      use modmpi, only: comm3d, my_real, nprocs
+      use modglobal,   only : i1, j1
+      use modfields, only: ql0
+      real,    intent(out)    :: Ag(:)
+      integer                 :: k, nk, ret
+
+      nk = size(ql0, 3)
+      Ag = (/ (sum(merge(1., 0., ql0(2:i1,2:j1,k) > 0.)), k=1,nk) /)     ! sum layers of ql
+
+      CALL mpi_allreduce(Ag, Ag, nk, MY_REAL, MPI_SUM, comm3d, ret)
+
+      Ag = Ag / (size(ql0,1) * size(ql0,2) * nprocs)
+    
+    end function gathersatfrac
 
     ! Retrieves the z-layer average of the ice fraction of the condensed water ql
     ! ilratio is calculated from the temperature, as in simpleice and icethermo routines.
