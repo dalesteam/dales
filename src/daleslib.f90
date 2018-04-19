@@ -24,7 +24,8 @@
 ! assumed to be MPI_COMM_WORLD. 
 
 module daleslib
-     use modglobal, only: ifmessages
+    use modglobal, only: ifmessages
+    
     implicit none
 
     integer, parameter :: FIELDID_U=1
@@ -32,8 +33,15 @@ module daleslib
     integer, parameter :: FIELDID_W=3
     integer, parameter :: FIELDID_THL=4
     integer, parameter :: FIELDID_QT=5
+
+    integer, parameter :: QT_FORCING_GLOBAL=0
+    integer, parameter :: QT_FORCING_LOCAL=1
+    integer, parameter :: QT_FORCING_VARIANCE=2
+    integer, parameter :: QT_CORRECTION_NONE=-1
+    integer, parameter :: QT_CORRECTION_REGULAR=0
+    integer, parameter :: QT_CORRECTION_RESCALE=1
     
-    integer :: my_task,master_task
+    integer :: my_task, master_task
 
     real, allocatable :: u_tend(:)
     real, allocatable :: v_tend(:)
@@ -44,7 +52,7 @@ module daleslib
     real, allocatable :: qt_alpha(:)
     real :: ps_tend
 
-    logical l_multiplicative_qt, l_force_fluctuations, l_local_forcing
+    integer qt_forcing_type, qt_correction_type
 
     
     contains
@@ -188,9 +196,8 @@ module daleslib
           ps_tend = 0
           qt_alpha = 0
           
-          l_multiplicative_qt = .false.
-          l_force_fluctuations = .false.
-          l_local_forcing = .false.
+          qt_forcing_type = QT_FORCING_GLOBAL
+          qt_correction_type = QT_CORRECTION_REGULAR
 
         end subroutine initdaleslib
 
@@ -238,7 +245,7 @@ module daleslib
           real qt_avg, alpha, qlt, qvt
           real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost, al(1:kmax)
 
-          if (l_local_forcing) then
+          if (qt_forcing_type == QT_FORCING_LOCAL) then
              al = 0
              if (gathersatfrac(al) == mpierr) then
                  return
@@ -251,7 +258,7 @@ module daleslib
              thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) + thl_tend(k)
              qtp_lost = 0
 
-             if (l_force_fluctuations) then
+             if (qt_forcing_type == QT_FORCING_VARIANCE) then
              !    ! do this if we don't have enough clouds on this k-level. OpenIFS can have very low but non-zero QL, 
              !    ! we only care if QL large enough. 1e-4 is too high - never happens.
              !    alpha = 0
@@ -284,22 +291,21 @@ module daleslib
                 qtp_local_lim = max (qtp_local, -qt0(2:i1, 2:j1, k)/60.0)
                 qtp_lost = sum(qtp_local - qtp_local_lim) ! < 0 if the cut-off was activated
                 ! NOTE !  the correction is per thread for simplicity
-                
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qtp_local_lim
-             elseif (l_local_forcing) then
+             endif
+             if (qt_forcing_type == QT_FORCING_LOCAL) then
                 qlt = ql_tend(k)
                 qvt = (qt_tend(k) + al(k)*qlt)/(1 - al(k))
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + merge(qlt,qvt,ql0(2:i1,2:j1,k) > 0)
-             endif
-                
+             endif                
              ! multiplicative correcion of qt
-             if (l_multiplicative_qt) then
+             if (qt_correction_type == QT_CORRECTION_RESCALE) then
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k)  +  qt0(2:i1,2:j1,k) / qt0av(k) * ( qt_tend(k) +  qtp_lost / (imax * jmax) )
-             else
+             endif
+             if (qt_correction_type == QT_CORRECTION_REGULAR) then
                 ! additive correction of qt
                 qtp(2:i1,2:j1,k) = qtp(2:i1,2:j1,k) + ( qt_tend(k) +  qtp_lost / (imax * jmax) )
              endif
-             
           enddo
         end subroutine force_tendencies
 
