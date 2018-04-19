@@ -50,9 +50,10 @@ module daleslib
     real, allocatable :: ql_tend(:)  ! Only used whith local nudging
     real, allocatable :: ql_ref(:)   ! QL profile from global model - not a tendency
     real, allocatable :: qt_alpha(:)
+
     real :: ps_tend
 
-    integer qt_forcing_type, qt_correction_type
+    integer :: qt_forcing_type, qt_correction_type
 
     
     contains
