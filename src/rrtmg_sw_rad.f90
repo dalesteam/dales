@@ -409,6 +409,8 @@
       real(kind=rb) :: znicddir(nzrad+3)       ! temporary clear sky near-IR downward direct shortwave flux (w/m2)
 
 ! Optional output fields
+      real(kind=rb) :: swnflx(nzrad+3)         ! Total sky shortwave net flux (W/m2)
+      real(kind=rb) :: swnflxc(nzrad+3)        ! Clear sky shortwave net flux (W/m2)
       real(kind=rb) :: dirdflux(nzrad+3)       ! Direct downward shortwave surface flux
       real(kind=rb) :: difdflux(nzrad+3)       ! Diffuse downward shortwave surface flux
       real(kind=rb) :: uvdflx(nzrad+3)         ! Total sky downward shortwave flux, UV/vis
@@ -715,6 +717,8 @@
             dirdflux(i) = zbbfddir(i)
             !difdflux(i) = swdflx(iplon,i) - dirdflux(i)
             difdflux(i) = swDown_slice(iplon,i) - dirdflux(i)
+            swDownDir_slice(iplon,i)   = dirdflux(i)
+            swDownDif_slice(iplon,i)   = difdflux(i)
 !  UV/visible direct/diffuse fluxes
             dirdnuv(i) = zuvfddir(i)
             difdnuv(i) = zuvfd(i) - dirdnuv(i)

@@ -211,6 +211,7 @@ contains
     enddo
     enddo
   else
+    ii = 0 !XPB added this line, otherwise crash if nprocy=0,nprocx=1 (may be unnecessary after commenting lines 217 and 263)
     do k=sz,ez
     do i=sx,ex
 !      ii = ii + 1

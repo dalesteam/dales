@@ -381,6 +381,7 @@ contains
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     integer i,j,k,n
+    logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
     real, allocatable :: thv0(:,:,:)
@@ -499,20 +500,24 @@ contains
     !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
+      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
       do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
-        call randomnize(thlm,k,randthl,irandom,ih,jh)
-        call randomnize(thl0,k,randthl,irandom,ih,jh)
+        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+      end do
+      negval = .True. ! negative perturbations allowed
+      do k = 1,krand
+        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
       end do
 
       do k=krandumin,krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
       end do
 
       svprof = 0.
@@ -1056,7 +1061,7 @@ contains
 
  end subroutine exitmodules
 !----------------------------------------------------------------
-  subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
+  subroutine randomnize(field,klev,ampl,ir,ihl,jhl,negval)
     ! Adds (pseudo) random noise with given amplitude to the field at level k
     ! Use our own pseudo random function so results are reproducibly the same,
     ! independent of parallization.
@@ -1070,6 +1075,7 @@ contains
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
+    logical negval
 
     is = myidx * imax + 1
     ie = is + imax - 1
@@ -1083,7 +1089,12 @@ contains
         ran=real(ir)/real(imm)
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
-            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+            if (.not. negval) then ! Avoid non-physical negative values
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
+            else 
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+            endif
+
         endif
     enddo
     enddo

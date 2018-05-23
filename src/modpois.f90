@@ -286,7 +286,8 @@ contains
       do i=2,i1
         bbk = bk + rhobf(kmax)*xyrt(i,j)
         z        = bbk-ak*d(i,j,kmax-1)
-        if(abs(z)>epsilon(0.0)) then
+        !if(abs(z)>epsilon(0.0)) then 
+        if(abs(z)<eps1) then
           p(i,j,kmax) = (p(i,j,kmax)-ak*p(i,j,kmax-1))/z
         else
           p(i,j,kmax) =0.
