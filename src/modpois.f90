@@ -229,20 +229,18 @@ contains
 !              copy times all included
 
     use modfft2d,  only : fft2df, fft2db
-    use modglobal, only : kmax,dzf,dzh,i1,j1,ih,jh,eps1
+    use modglobal, only : kmax,dzf,dzh,i1,j1,ih,jh
     use modfields, only : rhobf, rhobh
     implicit none
 
     real :: a(kmax),b(kmax),c(kmax)
 
   ! allocate d in the same shape as p and xyrt
-    real, allocatable :: d(:,:,:)
+    real :: d(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     real    z,ak,bk,bbk
     integer i, j, k
 
-    allocate(d(2-ih:i1+ih,2-jh:j1+jh,kmax))
-    
   ! Forward FFT
     call fft2df(p,ih,jh)
 
@@ -286,8 +284,7 @@ contains
       do i=2,i1
         bbk = bk + rhobf(kmax)*xyrt(i,j)
         z        = bbk-ak*d(i,j,kmax-1)
-        !if(abs(z)>epsilon(0.0)) then 
-        if(abs(z)<eps1) then
+        if(z/=0.) then
           p(i,j,kmax) = (p(i,j,kmax)-ak*p(i,j,kmax-1))/z
         else
           p(i,j,kmax) =0.
@@ -306,8 +303,7 @@ contains
     ! Backward FFT
     call fft2db(p,ih,jh)
 
-    deallocate(d)
-    return    
+    return
   end subroutine solmpj
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tderive
