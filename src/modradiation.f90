@@ -105,6 +105,7 @@ contains
 
     allocate(swdir     (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swdif     (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(lwc       (2-ih:i1+ih,2-jh:j1+jh,k1) )
 
     allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
     allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
@@ -130,6 +131,7 @@ contains
 
     swdir = 0.
     swdif = 0.
+    lwc   = 0.
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
     SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
@@ -236,7 +238,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
     implicit none
-    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca)
+    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
 
@@ -248,6 +250,7 @@ subroutine radpar
 
   use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
   use modfields,    only : ql0, sv0, rhof,exnf
+  use modsurfdata,  only : tauField
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
   real, allocatable :: tau(:)
@@ -324,16 +327,19 @@ subroutine radpar
     do i=2,i1
 
       if (mu > 0.035) then  !factor 0.035 needed for security
-        tauc = 0.           ! tau cloud
-        do k = 1,kmax
-          tau(k) = 0.      ! tau laagje dz
-          if(laero) then ! there are aerosols
-            tau(k) = sv0(i,j,k,iDE)
-          else  ! there are clouds
-            if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
-          end if
-          tauc=tauc+tau(k)
-        end do
+        tauc = 0.           ! column-integrated tau cloud
+        if (laero .or. lcloudshading) then ! not sure if I have to define the use of lcldoushading before
+          do k = 1,kmax        
+            tau(k) = 0.      ! tau laagje dz
+            if(laero) then ! there are aerosols
+              tau(k) = sv0(i,j,k,iDE)
+            else if (lcloudshading) then ! there are clouds
+              if (ql0(i,j,k) > 1e-5)  tau(k)=1.5*ql0(i,j,k)*rhof(k)*dzf(k)/reff/rho_l
+            end if
+            tauc=tauc+tau(k)
+          end do
+        endif
+        tauField(i,j) = tauc
         call sunray(tau,tauc,i,j)
       end if
 
