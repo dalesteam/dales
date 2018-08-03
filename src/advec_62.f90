@@ -31,27 +31,18 @@
 !> Advection at cell center
 subroutine advecc_62(putin, putout)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
 
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
   real                                       :: inv2dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
-  !if (leq) then
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
+  if (leq) then
 
   k = 1
   inv2dzfk = 1./(2. * dzf(k))
@@ -109,35 +100,84 @@ subroutine advecc_62(putin, putout)
 
       end do
     end do
+ end do
+else ! non-equidistant grid
+ k = 1
+  inv2dzfk = 1./(2. * dzf(k))
+  rhobf_p = rhobf(k+1)/rhobf(k)
+  do j=2,j1
+     do i=2,i1
+        putout(i,j,k)  = putout(i,j,k)- ( &
+             ( &
+             u0(i+1,j,k)/60. &
+             *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+             -u0(i,j,k)/60. &
+             *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+             )*dxi&
+             +(&
+             v0(i,j+1,k)/60. &
+             *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+             -v0(i,j,k)/60. &
+             *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+             )* dyi &
+             + ( &
+             w0(i,j,k+1) * (rhobf_p * putin(i,j,k+1) * dzf(k) +  putin(i,j,k) * dzf(k+1) ) / dzh(k+1) &
+             ) * inv2dzfk &
+             )
+     end do
   end do
+
+
+  do k=2,kmax
+     inv2dzfk = 1./(2. * dzf(k))
+     rhobf_p = rhobf(k+1)/rhobf(k)
+     rhobf_m = rhobf(k-1)/rhobf(k)
+
+    do j=2,j1
+      do i=2,i1
+
+
+              putout(i,j,k)  = putout(i,j,k)- (  &
+                  ( &
+                      u0(i+1,j,k)/60. &
+                      *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+                      -u0(i,j,k)/60. &
+                      *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+                  )*dxi&
+                +(&
+                      v0(i,j+1,k)/60. &
+                      *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+                      -v0(i,j,k)/60. &
+                      *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+                  )* dyi &
+                  + ( &
+                   w0(i,j,k+1) * (rhobf_p * putin(i,j,k+1) * dzf(k) +  putin(i,j,k) * dzf(k+1) ) / dzh(k+1) &
+                  -w0(i,j,k )  * (rhobf_m * putin(i,j,k-1) * dzf(k) +  putin(i,j,k) * dzf(k-1) ) / dzh(k) &
+                  ) * inv2dzfk &
+                  )
+
+      end do
+    end do
+ end do
+ end if
 end subroutine advecc_62
 
 
 !> Advection at the u point.
 subroutine advecu_62(putin,putout)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
 
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
   real                                       :: inv4dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
-  !if (leq) then
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
-
+  if (leq) then
   
   k = 1
   inv4dzfk = 1./(4. * dzf(k))
@@ -196,8 +236,66 @@ subroutine advecu_62(putin,putout)
         end do
       end do
     end do
+ else ! non-equidistant grid
+    k = 1
+  inv4dzfk = 1./(4. * dzf(k))
+  rhobf_p = rhobf(k+1)/rhobf(k)
+  do j=2,j1
+     do i=2,i1
 
-!   end if
+        putout(i,j,k)  = putout(i,j,k)- ( &
+             ( &
+             (u0(i+1,j,k)+u0(i,j,k))/60. &
+             *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i-1,j,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+             )*dxi5&
+             +(&
+             (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
+             *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i-1,j,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+             )* dyi5 &
+             + ( &
+             (putin(i,j,k) * dzf(k+1) + rhobf_p * putin(i,j,k+1)*dzf(k)) * (w0(i,j,k+1)+w0(i-1,j,k+1)) / dzh(k+1) &
+             ) * inv4dzfk &
+             )
+     end do
+  end do
+
+
+    do k=2,kmax
+       inv4dzfk = 1./(4. * dzf(k))
+       rhobf_p = rhobf(k+1)/rhobf(k)
+       rhobf_m = rhobf(k-1)/rhobf(k)
+
+      do j=2,j1
+        do i=2,i1
+
+          putout(i,j,k)  = putout(i,j,k)- ( &
+                (&
+                    (u0(i+1,j,k)+u0(i,j,k))/60. &
+                    *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+                    -(u0(i,j,k)+u0(i-1,j,k))/60. &
+                    *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+                )*dxi5&
+              +(&
+                    (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
+                    *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+                    -(v0(i,j,k)+v0(i-1,j,k))/60. &
+                    *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+                )* dyi5 &
+              + ( &
+                     (putin(i,j,k) * dzf(k+1) + rhobf_p * putin(i,j,k+1) *dzf(k)) * (w0(i,j,k+1)+w0(i-1,j,k+1)) / dzh(k+1) &
+                    -(putin(i,j,k) * dzf(k-1) + rhobf_m * putin(i,j,k-1) *dzf(k)) * (w0(i,j,k  )+w0(i-1,j,k  )) / dzh(k)   &                     
+                ) * inv4dzfk &
+                )
+
+        end do
+      end do
+    end do
+    
+  end if
 
 end subroutine advecu_62
 
@@ -206,26 +304,17 @@ end subroutine advecu_62
 !> Advection at the v point.
 subroutine advecv_62(putin, putout)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  !real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
   real                                       :: inv4dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
-  !if (leq) then
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
+  if (leq) then
 
   k = 1
   inv4dzfk = 1./(4. * dzf(k))
@@ -248,7 +337,7 @@ subroutine advecv_62(putin, putout)
              *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
              )* dyi5 &
              +( &
-             (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf_p * putin(i,j,k+1)+putin(i,j,k)) &
+             (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf_p * putin(i,j,k+1)+putin(i,j,k)) &                          
              ) * inv4dzfk  &
              )
      end do
@@ -276,13 +365,71 @@ subroutine advecv_62(putin, putout)
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
                   )* dyi5 &
                 + ( &
-                    (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf_p * putin(i,j,k+1) + putin(i,j,k))&
-                    -(w0(i,j,k) +w0(i,j-1,k))  *(rhobf_m * putin(i,j,k-1) + putin(i,j,k))&
+                (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf_p * putin(i,j,k+1) + putin(i,j,k))&
+                -(w0(i,j,k) +w0(i,j-1,k))  *(rhobf_m * putin(i,j,k-1) + putin(i,j,k))&
                   ) * inv4dzfk  &
                   )
         end do
       end do
     end do
+ else ! non-equidistant grid
+    k = 1
+  inv4dzfk = 1./(4. * dzf(k))
+  rhobf_p = rhobf(k+1)/rhobf(k)
+
+    do j=2,j1
+     do i=2,i1
+
+        putout(i,j,k)  = putout(i,j,k)- ( &
+             ( &
+             (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
+             *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i,j-1,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+             )*dxi5&
+             +(&
+             (v0(i,j+1,k)+v0(i,j,k))/60. &
+             *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i,j-1,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+             )* dyi5 &
+             +( &
+             (w0(i,j,k+1)+w0(i,j-1,k+1)) * (rhobf_p * putin(i,j,k+1)*dzf(k) + putin(i,j,k)*dzf(k+1)) / dzh(k+1)&
+             ) * inv4dzfk  &
+             )
+     end do
+  end do
+        
+    do k=2,kmax
+       inv4dzfk = 1./(4. * dzf(k))
+       rhobf_p = rhobf(k+1)/rhobf(k)
+       rhobf_m = rhobf(k-1)/rhobf(k)
+
+      do j=2,j1
+        do i=2,i1
+        
+          putout(i,j,k)  = putout(i,j,k)- ( &
+                ( &
+                    (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
+                    *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+                    -(u0(i,j,k)+u0(i,j-1,k))/60. &
+                    *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+                 )*dxi5&
+                +(&
+                    (v0(i,j+1,k)+v0(i,j,k))/60. &
+                    *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+                    -(v0(i,j,k)+v0(i,j-1,k))/60. &
+                    *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+                  )* dyi5 &
+                  + ( &
+                  (w0(i,j,k+1)+w0(i,j-1,k+1)) * (rhobf_p * putin(i,j,k+1) * dzf(k) + putin(i,j,k) * dzf(k+1)) / dzh(k+1)&
+                 -(w0(i,j,k)  +w0(i,j-1,k))   * (rhobf_m * putin(i,j,k-1) * dzf(k) + putin(i,j,k) * dzf(k-1)) / dzh(k)  &
+                  ) * inv4dzfk  &
+                  )
+        end do
+      end do
+   end do
+end if
 
 end subroutine advecv_62
 
@@ -297,20 +444,11 @@ subroutine advecw_62(putin, putout)
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  !real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
   real                                       :: inv4dzhk, rhobh_p, rhobh_m
 
   integer :: i,j,k
 
   !if (leq) then
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobh(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
 
     do k=2,kmax
        inv4dzhk = 1./(4. * dzh(k))
