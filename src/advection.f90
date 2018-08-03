@@ -35,6 +35,9 @@ subroutine advection
   implicit none
   integer :: n
 
+  ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
+                  ! when the grid is uniform
+  
   select case(iadv_mom)
     case(iadv_cd2)
       call advecu_2nd(u0,up)
@@ -46,7 +49,6 @@ subroutine advection
       call advecv_5th(v0,vp)
       call advecw_5th(w0,wp)
     case(iadv_52)
-      if (.not. leq) stop "advec_52 does not support a non-uniform vertical grid."
       call advecu_52(u0,up)
       call advecv_52(v0,vp)
       call advecw_52(w0,wp)
@@ -80,7 +82,6 @@ subroutine advection
         if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
         call advecc_5th(e120,e12p)
       case(iadv_52)
-        if (.not. leq) stop "advec_52 does not support a non-uniform vertical grid."
         call advecc_52(e120,e12p)
       case(iadv_cd6)
         if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
@@ -109,7 +110,6 @@ subroutine advection
       if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecc_5th(thl0,thlp)
     case(iadv_52)
-       if (.not. leq) stop "advec_52 does not support a non-uniform vertical grid."
       call advecc_52(thl0,thlp)
     case(iadv_cd6)
       if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
@@ -140,7 +140,6 @@ subroutine advection
         if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
         call advecc_5th(qt0,qtp)
       case(iadv_52)
-        if (.not. leq) stop "advec_52 does not support a non-uniform vertical grid."
         call advecc_52(qt0,qtp)
       case(iadv_cd6)
         if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
@@ -172,7 +171,6 @@ subroutine advection
       if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecc_5th(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_52)
-      if (.not. leq) stop "advec_52 does not support a non-uniform vertical grid."
       call advecc_52(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_cd6)
       if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
