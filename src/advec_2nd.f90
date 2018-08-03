@@ -330,7 +330,7 @@ subroutine advecv_2nd(putin, putout)
           ip=i+1
           putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
             (w0(i,j,kp)+w0(i,jm,kp)) &
-            *(rhobf(k) * putin(i,j,kp)*dzf(k) + rhobf(k) * putin(i,j,k)*dzf(kp) )/ dzh(kp) &
+            *(rhobf(kp) * putin(i,j,kp)*dzf(k) + rhobf(k) * putin(i,j,k)*dzf(kp) )/ dzh(kp) &
             -(w0(i,j,k)+w0(i,jm,k)) &
             *(rhobf(km) * putin(i,j,km)*dzf(k) + rhobf(k) * putin(i,j,k)*dzf(km)) / dzh(k) &
             ) / (4. * dzf(k))
