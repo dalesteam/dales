@@ -53,35 +53,40 @@ subroutine advecc_62(putin, putout)
 !    end do
 !  end do
 
-  do k=1,kmax
+  k = 1
+  inv2dzfk = 1./(2. * dzf(k))
+  rhobf_p = rhobf(k+1)/rhobf(k)
+  do j=2,j1
+     do i=2,i1
+        putout(i,j,k)  = putout(i,j,k)- ( &
+             ( &
+             u0(i+1,j,k)/60. &
+             *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+             -u0(i,j,k)/60. &
+             *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+             )*dxi&
+             +(&
+             v0(i,j+1,k)/60. &
+             *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+             -v0(i,j,k)/60. &
+             *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+             )* dyi &
+             + ( &
+             w0(i,j,k+1) * (rhobf_p * putin(i,j,k+1) + putin(i,j,k)) &
+             ) * inv2dzfk &
+             )
+     end do
+  end do
+
+
+  do k=2,kmax
      inv2dzfk = 1./(2. * dzf(k))
      rhobf_p = rhobf(k+1)/rhobf(k)
-     if (k > 1) rhobf_m = rhobf(k-1)/rhobf(k)
+     rhobf_m = rhobf(k-1)/rhobf(k)
 
     do j=2,j1
       do i=2,i1
 
-        if(k==1) then
-
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                ( &
-                    u0(i+1,j,k)/60. &
-                    *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -u0(i,j,k)/60. &
-                    *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                  )*dxi&
-                +(&
-                    v0(i,j+1,k)/60. &
-                    *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -v0(i,j,k)/60. &
-                    *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                  )* dyi &
-                + ( &
-                w0(i,j,k+1) * (rhobf_p * putin(i,j,k+1) + putin(i,j,k)) &
-                ) * inv2dzfk &
-                )
-
-        else
 
               putout(i,j,k)  = putout(i,j,k)- (  &
                   ( &
@@ -101,14 +106,10 @@ subroutine advecc_62(putin, putout)
                   -w0(i,j,k)  * (rhobf_m * putin(i,j,k-1) + putin(i,j,k)) &
                   ) * inv2dzfk &
                   )
-       end if
 
       end do
     end do
   end do
-
-!   end if
-
 end subroutine advecc_62
 
 
@@ -137,35 +138,41 @@ subroutine advecu_62(putin,putout)
 !    end do
 !  end do
 
-    do k=1,kmax
+  
+  k = 1
+  inv4dzfk = 1./(4. * dzf(k))
+  rhobf_p = rhobf(k+1)/rhobf(k)
+  do j=2,j1
+     do i=2,i1
+
+        putout(i,j,k)  = putout(i,j,k)- ( &
+             ( &
+             (u0(i+1,j,k)+u0(i,j,k))/60. &
+             *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i-1,j,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+             )*dxi5&
+             +(&
+             (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
+             *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i-1,j,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+             )* dyi5 &
+             + ( &
+             (rhobf_p * putin(i,j,k+1) + putin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
+             ) * inv4dzfk &
+             )
+     end do
+  end do
+
+
+    do k=2,kmax
        inv4dzfk = 1./(4. * dzf(k))
        rhobf_p = rhobf(k+1)/rhobf(k)
-       if (k > 1) rhobf_m = rhobf(k-1)/rhobf(k)
+       rhobf_m = rhobf(k-1)/rhobf(k)
 
       do j=2,j1
         do i=2,i1
-
-        if(k==1) then
-
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                ( &
-                    (u0(i+1,j,k)+u0(i,j,k))/60. &
-                    *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -(u0(i,j,k)+u0(i-1,j,k))/60. &
-                    *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                )*dxi5&
-              +(&
-                    (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
-                    *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -(v0(i,j,k)+v0(i-1,j,k))/60. &
-                    *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                )* dyi5 &
-              + ( &
-                    (rhobf_p * putin(i,j,k+1) + putin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
-                ) * inv4dzfk &
-                )
-
-        else
 
           putout(i,j,k)  = putout(i,j,k)- ( &
                 (&
@@ -185,7 +192,6 @@ subroutine advecu_62(putin,putout)
                     -(putin(i,j,k) + rhobf_m * putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  )) &
                 ) * inv4dzfk &
                 )
-        end if
 
         end do
       end do
@@ -221,36 +227,41 @@ subroutine advecv_62(putin, putout)
 !    end do
 !  end do
 
-    do k=1,kmax
+  k = 1
+  inv4dzfk = 1./(4. * dzf(k))
+  rhobf_p = rhobf(k+1)/rhobf(k)
+
+    do j=2,j1
+     do i=2,i1
+
+        putout(i,j,k)  = putout(i,j,k)- ( &
+             ( &
+             (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
+             *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i,j-1,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
+             )*dxi5&
+             +(&
+             (v0(i,j+1,k)+v0(i,j,k))/60. &
+             *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i,j-1,k))/60. &
+             *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
+             )* dyi5 &
+             +( &
+             (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf_p * putin(i,j,k+1)+putin(i,j,k)) &
+             ) * inv4dzfk  &
+             )
+     end do
+  end do
+        
+    do k=2,kmax
        inv4dzfk = 1./(4. * dzf(k))
        rhobf_p = rhobf(k+1)/rhobf(k)
-       if (k > 1) rhobf_m = rhobf(k-1)/rhobf(k)
+       rhobf_m = rhobf(k-1)/rhobf(k)
 
       do j=2,j1
         do i=2,i1
-
-        if(k==1) then
-
-          putout(i,j,k)  = putout(i,j,k)- ( &
-                ( &
-                    (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
-                    *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -(u0(i,j,k)+u0(i,j-1,k))/60. &
-                    *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                 )*dxi5&
-                +(&
-                    (v0(i,j+1,k)+v0(i,j,k))/60. &
-                    *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -(v0(i,j,k)+v0(i,j-1,k))/60. &
-                    *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                  )* dyi5 &
-                +( &
-                    (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf_p * putin(i,j,k+1)+putin(i,j,k)) &
-                  ) * inv4dzfk  &
-                  )
-
-        else
-
+        
           putout(i,j,k)  = putout(i,j,k)- ( &
                 ( &
                     (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
@@ -269,13 +280,9 @@ subroutine advecv_62(putin, putout)
                     -(w0(i,j,k) +w0(i,j-1,k))  *(rhobf_m * putin(i,j,k-1) + putin(i,j,k))&
                   ) * inv4dzfk  &
                   )
-        end if
-
         end do
       end do
     end do
-
-!   end if
 
 end subroutine advecv_62
 
