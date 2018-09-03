@@ -124,7 +124,11 @@ contains
       else
         isAllocated_RadInputsOutputs = .true.
       end if
+
     end if
+    
+    swUp_slice = 0.
+    swDown_slice = 0.
 
     if(.not.isReadTraceProfiles) then
       ! Patch sounding profile pressures above domain pressures (convert to hPa!)
@@ -159,6 +163,16 @@ contains
 
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
 
+    !cstep: initialize to zero (this is not done yet).
+    !cstep: if not they may have nonzero values even at night.
+    !cstep: (because for nighttime rrtmg_sw is not called, and uninitialized nonzero values will be maintained)
+    !cstep: LW*slice is always  computed
+
+    swUp_slice     (:,:) = 0.  
+    swDown_slice   (:,:) = 0.  
+    swUpCS_slice   (:,:) = 0. 
+    swDownCS_slice (:,:) = 0.
+
    ! Loop over the slices in the model, in the y direction
     do j=2,j1
       call setupSlicesFromProfiles &
@@ -170,12 +184,15 @@ contains
              ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )!input
         !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
+
+      
       if (rad_shortw) then
          call setupSW(sunUp)
          if (sunUp) then
            call rrtmg_sw &
                 ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )
          end if
+
       end if
 
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
