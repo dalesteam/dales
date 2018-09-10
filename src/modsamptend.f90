@@ -320,7 +320,7 @@ subroutine initsamptend
                           cp,rv,rlv,rd,&
                           timee,rk3step,dt_lim,ijtot,nsv,rdt
     use modfields, only : up,vp,wp,thlp,qtp,svp,w0,thl0,ql0,exnf,qt0,u0,v0,sv0
-    use modmicrodata, only : iqr,inr
+    use modmicrodata, only : iqr,inr, iaer_offset
     use modstat_nc, only : lnetcdf
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
@@ -448,7 +448,7 @@ subroutine initsamptend
         qtst(k,isamp) = sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
         if(nsv>1) then
         qrst(k,isamp) = sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))
-        nrst(k,isamp) = sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))
+        nrst(k,isamp) = sum(sv0(2:i1,2:j1,k,inr+iaer_offset),tendmask(2:i1,2:j1,k,isamp))
         endif
       end do
       end do
@@ -474,7 +474,7 @@ subroutine initsamptend
       qtptm(k,tendterm,isamp) = sum(qtp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-qtptm (k,tend_tot,isamp)
       if(nsv>1) then
       qrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))-qrptm (k,tend_tot,isamp)
-      nrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))-nrptm (k,tend_tot,isamp)
+      nrptm(k,tendterm,isamp) = sum(svp (2:i1,2:j1,k,inr+iaer_offset),tendmask(2:i1,2:j1,k,isamp))-nrptm (k,tend_tot,isamp)
       endif
       uptm(k,tend_tot,isamp) = sum(up (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       vptm(k,tend_tot,isamp) = sum(vp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
@@ -483,7 +483,7 @@ subroutine initsamptend
       qtptm(k,tend_tot,isamp) = sum(qtp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
       if(nsv>1) then
       qrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))
-      nrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))
+      nrptm(k,tend_tot,isamp) = sum(svp (2:i1,2:j1,k,inr+iaer_offset),tendmask(2:i1,2:j1,k,isamp))
       endif
       upav(k,tendterm,isamp) = upav(k,tendterm,isamp)+uptm(k,tendterm,isamp)
       vpav(k,tendterm,isamp) = vpav(k,tendterm,isamp)+vptm(k,tendterm,isamp)
@@ -528,7 +528,7 @@ subroutine initsamptend
                           cp,rv,rlv,rd,&
                           ijtot,nsv
     use modfields, only : w0,thl0,ql0,exnf,qt0,u0,v0,sv0
-    use modmicrodata, only : iqr,inr
+    use modmicrodata, only : iqr,inr, iaer_offset
     implicit none
     real, allocatable, dimension(:,:,:) :: w0f
     real, allocatable, dimension(:,:,:) :: thv0
@@ -627,7 +627,7 @@ subroutine initsamptend
             qrpav(k,tend_totlb,isamp) = qrpav(k,tend_totlb,isamp)+(qrst(k,isamp)-&
             sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
             nrpav(k,tend_totlb,isamp) = nrpav(k,tend_totlb,isamp)+(nrst(k,isamp)-&
-            sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
+            sum(sv0(2:i1,2:j1,k,inr+iaer_offset),tendmask(2:i1,2:j1,k,isamp))*nrsamplast(k,isamp)/nrsampnew(k,isamp))/lastrk3coef
           endif
         endif
       enddo

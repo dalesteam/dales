@@ -77,6 +77,7 @@ save
   real, allocatable :: distw(:,:)
 
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
+  real, allocatable :: qlm(:,:,:)  !<   liquid water content
   real, allocatable :: tmp0(:,:,:) !<   temperature at full level
   real, allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
@@ -181,6 +182,7 @@ subroutine initfields
 
     ! Allocation of diagnostic variables
     allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qlm(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(tmp0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(whls(k1))
@@ -238,7 +240,7 @@ subroutine initfields
     svm=0.;sv0=0.;svp=0.
 
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
-    ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
+    ql0=0.; qlm=0.; tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
@@ -260,7 +262,7 @@ subroutine initfields
     deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,qlm,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,dthldxls,dthldyls,dqtdxls,dqtdyls,dqtdtls,dudxls,dudyls,dvdxls,dvdyls,wfls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)

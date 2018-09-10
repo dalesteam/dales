@@ -165,7 +165,7 @@ subroutine tstep_integrate
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
-                        e120,e12m,e12p,sv0,svm,svp
+                        e120,e12m,e12p,sv0,svm,svp,ql0, qlm
   implicit none
 
   integer i,j,k,n
@@ -189,7 +189,14 @@ subroutine tstep_integrate
         e12m(i,j,k) = max(e12min,e12m(i,j,k))
 
         do n=1,nsv
-          sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+
+!           sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+
+          if (svm(i,j,k,n) + rk3coef * svp(i,j,k,n) > 0.) then
+             sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+          else
+             sv0(i,j,k,n) = 0.           
+          end if
         end do
 
       end do
@@ -212,6 +219,7 @@ subroutine tstep_integrate
     qtm  = qt0
     e12m = e120
     svm = sv0
+    qlm = ql0    
   end if
 
 end subroutine tstep_integrate
