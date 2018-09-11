@@ -698,19 +698,23 @@ contains
 
     fk1 = 4.7320545
     fk2 = 1.2679491
-    y = exp ( - ( t1 - t0 ) / (u0+epsilon(u0)))
-    fw = 0.5 * f0
-    do i = 1, 4
-       if ( solar ) then
+    if ( solar ) then
+       do i = 1, 4
           z1(i) = 0.0
           zz(i,1) = 0.0
           zz(i,2) = 0.0
-       else
+       end do
+    else
+       y = exp ( - ( t1 - t0 ) / (u0+epsilon(u0)))
+       fw = 0.5 * f0
+       do i = 1, 4          
           jj = 5 - i
           z1(i) = fw / ( 1.0 + u(jj) / (u0+epsilon(u0)) )
           zz(i,1) = z1(i)
           zz(i,2) = z1(i) * y
-       endif
+       end do
+    endif
+    do i = 1, 4
        do j = 1, 4
           a1(i,j) = 0.0
           do k = 1, 2
