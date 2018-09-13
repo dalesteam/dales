@@ -1024,7 +1024,7 @@ SUBROUTINE read_chem(chem_name)
   H2SO4%name  = 'H2SO4'
   ISO%name    = 'ISO'
 
-  CO2%loc     = -1
+  CO2%loc     = 21
 
   !chem species and atol and rtol
   read(10,'(a)',err=100)scalarline

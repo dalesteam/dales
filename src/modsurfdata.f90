@@ -153,7 +153,7 @@ SAVE
   real, allocatable :: PARdifField  (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
-  logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
+  logical           :: lCHon      = .true.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
   integer           :: indCO2     = -1     !<  Index of CO2 in the scalars
   integer           :: CO2loc     = -1     !<  Index of CO2 in the scalars
   real, allocatable :: CO2flux(:,:)        !<  Surface flux of CO2 as calculated by AGS
@@ -162,9 +162,9 @@ SAVE
   real              :: CO2comp298 =   68.5 !<  CO2 compensation concentration
   real              :: Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
   real              :: gm298      =    7.0 !<  Mesophyll conductance at 298 K
-  real              :: Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
+  real              :: Q10gm      =    2.2 !<  Parameter to calculate the mesophyll conductance
   real              :: T1gm       =  278.0 !<  Reference temperature to calculate the mesophyll conductance
-  real              :: T2gm       =  301.0 !<  Reference temperature to calculate the mesophyll conductance
+  real              :: T2gm       =  302.5 !<  Reference temperature to calculate the mesophyll conductance
   real              :: gmin       = 2.5e-4 !<  Cuticular (minimum) conductance
   real              :: nuco2q     =    1.6 !<  Ratio molecular viscosity water to carbon dioxide
   real              :: f0         =   0.89 !<  Maximum value Cfrac
@@ -178,7 +178,7 @@ SAVE
   real              :: Cw         = 1.6e-3 !<  Constant water stress correction
   real              :: wsmax      =   0.55 !<  Upper reference value soil water
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
-  real              :: R10        =   0.23 !<  Respiration at 10oC (Jacobs 2007)
+  real              :: R10        =   0.14 !<  Respiration at 10oC (Jacobs 2007)
   real              :: Eact0      = 53.3e3 !<  Activation energy
 
   !Variables for 2leaf AGS

@@ -71,15 +71,15 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, rtimee, ifinput, cexpnr
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
 
-    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
+    integer   :: i,j,k, n, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
- character(len=1500) :: readbuffer
+    character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -476,6 +476,7 @@ contains
               ps            = ps           +  ( ps_patch(i,j)         / ( xpatches * ypatches ) )
             enddo
           enddo
+         
         case default ! Prescribed land surfaces: isurf = 2, 3, 4 (& 10)
           thls   = 0
           ps     = 0
@@ -691,7 +692,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
@@ -709,6 +710,7 @@ contains
 
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
+    real      :: a0,a1,a2,factor3 ! Fitting isoprene emission flux (start 5)
 
     patchx = 0
     patchy = 0
@@ -807,6 +809,7 @@ contains
       call qtsurf
 
     end if
+    
 
     ! 2     -   Calculate the surface fluxes
     if(isurf <= 2) then
@@ -843,7 +846,15 @@ contains
             enddo
           else
             do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n)
+              if (n == 10) then
+!                a0 = 0.65
+                a0 = 1.15     ! JV new factor to get closer to Gunther's parameterization                                         
+                a1 = 42705.1
+                a2 = 7999.29
+                factor3    = ((rtimee+5*3600.) -a1)/a2
+                wsvsurf(n) = a0 * exp(-(0.5*factor3**2.)) 
+               endif
+             svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
 
@@ -1794,13 +1805,14 @@ contains
         if (lrsAgs) then
           if (.not. linags) then !initialize AGS
             if(nsv .le. 0) then
-              if (myid == 0) then
-                print *, 'Problem in namoptions NAMSURFACE'
                 print *, 'You enabled AGS (with switch lrsAgs), but there are no scalars (and thus no CO2 as needed for AGS) '
                 stop 'ERROR: Problem in namoptions NAMSURFACE - AGS'
-              endif
+!              endif
             endif
             if(lCHon) then !Chemistry is on
+              indCO2=21
+              CO2loc=21
+              write(*,*) 'in 1'
               if (CO2loc .lt. 1) then !No CO2 in chemistry
                 if (myid == 0) then
                   print *, 'WARNING ::: There is no CO2 defined in the chemistry scheme'
@@ -1810,6 +1822,8 @@ contains
                 indCO2 = 1
               else  !CO2 present in chemistry
                 indCO2 = CO2loc
+                indCO2 = 21 
+                write(*,*) 'in 2'
               endif !Is CO2 present?
             else !Chemistry is not on
               if (myid == 0) then

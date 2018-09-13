@@ -175,16 +175,14 @@ contains
       close(ifoutput)
       if(isurf == 1) then
         open (ifoutput,file='tmlsm.'//cexpnr,status='replace',position='append')
-        write(ifoutput,'(3a)') &
+        write(ifoutput,'(3a)') & 
                '#     time      Qnet        H          LE         G0  ', &
                '   tendskin     rs         ra        tskin        cliq  ', &
-               '    Wl          rssoil     rsveg       Resp       wco2         An', &
-               '    gcco2'
+               '    Wl          rssoil     rsveg       Resp       wco2       An   gcco2' 
         write(ifoutput,'(3a)') &
                '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
                '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
-               '   [m]          [s/m]      [s/m]   [mgCm2/s]               [mgCm2/s]',&
-               '   [m/s]  '
+               '   [m]          [s/m]      [s/m]   [mgCm2/s]               [mgCm2/s]    [m/s]'
         close(ifoutput)
       end if
 
