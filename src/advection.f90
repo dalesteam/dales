@@ -67,6 +67,11 @@ subroutine advection
       call advecu_5th(u0,up)
       call advecv_5th(v0,vp)
       call advecw_5th(w0,wp)
+    case(iadv_hybrid_f)
+       if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
+      call advecu_5th(u0,up)
+      call advecv_5th(v0,vp)
+      call advecw_5th(w0,wp)
     case(iadv_null)
       ! null advection scheme 
       stop "Null advection scheme selected for iadv_mom - probably a bad idea."
