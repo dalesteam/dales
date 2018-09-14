@@ -190,7 +190,6 @@ SUBROUTINE read_srcdistr(maxnsrc, srcfact, nsrc, srcname)
         WRITE(*,*) 'The source has no non-zero values in file ', srcname//'.inp.'//cexpnr
         STOP 'Fix your source file'
     endif
-    write(*,*) 'DEBUG ', srcfact(:nsrc)
 
 end subroutine
 !-----------------------------------------------------------------------------------------
