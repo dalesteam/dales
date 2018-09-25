@@ -456,7 +456,7 @@ contains
       end do
     end if
     tnextrestart = trestart/tres
-    timeleft=ceiling(runtime/tres)
+    timeleft=ceiling(runtime/tres, longint)
 
   end subroutine initglobal
 !> Clean up when leaving the run
