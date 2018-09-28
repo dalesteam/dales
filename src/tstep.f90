@@ -80,8 +80,8 @@ subroutine tstep_update
         courtotmax=sqrt(courtotmax)
         do k=1,kmax
            ! limit by the larger of ekh, ekm. ekh is generally larger.
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           peclettotl=max(peclettotl, maxval(ekm(2:i1,2:j1,k))*rdt * (1.0/dzh(k)**2 + 1.0/dx**2 + 1.0/dy**2) / 3) 
+           peclettotl=max(peclettotl, maxval(ekh(2:i1,2:j1,k))*rdt * (1.0/dzh(k)**2 + 1.0/dx**2 + 1.0/dy**2) / 3) 
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
@@ -119,8 +119,8 @@ subroutine tstep_update
         enddo
         do k=1,kmax
            ! limit by the larger of ekh, ekm. ekh is generally larger.
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           peclettotl=max(peclettotl, maxval(ekm(2:i1,2:j1,k))*rdt * (1.0/dzh(k)**2 + 1.0/dx**2 + 1.0/dy**2) / 3) 
+           peclettotl=max(peclettotl, maxval(ekh(2:i1,2:j1,k))*rdt * (1.0/dzh(k)**2 + 1.0/dx**2 + 1.0/dy**2) / 3) 
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
