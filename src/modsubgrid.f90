@@ -106,7 +106,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,ch2,cm,ce1,ce2
+        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1,ch2,cm,ce1,ce2
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
