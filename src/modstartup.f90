@@ -367,7 +367,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart
+                                  trestart, ladaptive,llsadv,tnextrestart,longint
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -797,7 +797,7 @@ contains
     rdt = real(dt)*tres
     ntrun   = 0
     rtimee  = real(timee)*tres
-    itrestart = floor(trestart/tres)
+    itrestart = floor(trestart/tres, longint)
     tnextrestart = btime + itrestart
     deallocate (height,th0av,thv0)
 

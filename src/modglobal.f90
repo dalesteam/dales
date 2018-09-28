@@ -473,8 +473,8 @@ contains
         write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
     end if
-!     tnextrestart = trestart/tres
-!     timeleft=ceiling(runtime/tres)
+    tnextrestart = trestart/tres
+    timeleft=ceiling(runtime/tres, longint)
 
   end subroutine initglobal
 !> Clean up when leaving the run
