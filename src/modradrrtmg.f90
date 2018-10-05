@@ -583,10 +583,9 @@ contains
   ! JvdDussen, 24-6-2010                                                        !
   ! ============================================================================!
 
-      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0,&
-                           tup,tdn,tmelt
-      use modfields, only: thl0,ql0,qt0,exnf,rhof
-      use modsurfdata, only: thls,ps
+      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
+      use modfields, only: thl0,ql0,qt0,exnf
+      use modsurfdata, only: tskin,ps
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
 
@@ -599,7 +598,7 @@ contains
                                            liquidRe (imax,krad1), &
                                            iceRe    (imax,krad1)
       integer :: i,k,ksounding,im
-      real (KIND=kind_rb) :: sst
+      real (KIND=kind_rb) :: exners
       real(KIND=kind_rb) :: layerMass(imax,krad1)
       !real(KIND=kind_rb),dimension(imax,kmax)     :: tabs         ! Absolute temperature
       real(KIND=kind_rb),dimension(imax,jmax)     :: sstxy        ! sea surface temperature
@@ -621,7 +620,7 @@ contains
       tabs_slice(:,:) = 0.; qv_slice(:,:) = 0.; qcl_slice(:,:) = 0.; qci_slice(:,:) = 0.;
       rho_slice(:,:) = 0.
 
-      sst = thls*(ps/pref0) ** (rd/cp)
+      exners = (ps/pref0) ** (rd/cp)
 
       do i=2,i1
       do k=1,kmax
@@ -635,21 +634,22 @@ contains
       !                  + (rlv / cp) * ql0(2:i1,j,2:k1)
 
       do i=2,i1
-      im=i-1
-      do k=1,kmax
-         ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
-         qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
-         qcl_slice (im,k) = ql0(i,j,k) * ilratio
-         qci_slice (im,k) = ql0(i,j,k) - qcl_slice(im,k) 
-         o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
-         rho_slice (im,k) = rhof(k)
-         tg_slice  (im)   = sst
+        im=i-1
 
-         h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
-!         h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
-         layerT    (im,k) = tabs_slice(im,k)
-         layerP    (im,k) = presf_input(k)
-      enddo
+        !tg_slice  (im)   = sst
+        tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
+
+        do k=1,kmax
+           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
+           qcl_slice (im,k) = ql0(i,j,k)
+           qci_slice (im,k) = 0.
+           o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
+
+           h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
+!           h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
+           layerT    (im,k) = tabs_slice(im,k)
+           layerP    (im,k) = presf_input(k)
+        enddo
       enddo
 
      ! Patch sounding on top (no qcl or qci above domain; hard coded)
