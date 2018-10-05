@@ -106,7 +106,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,ch2,cm,ce1,ce2
+        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1,ch2,cm,ce1,ce2
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -200,7 +200,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar, &
+  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
                           dxi,dyi,dzf,dzh
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
@@ -286,6 +286,9 @@ contains
 
           ekm(i,j,k)  = mlen ** 2. * sqrt(2. * strain2)
           ekh(i,j,k)  = ekm(i,j,k) / Prandtl
+
+          ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+          ekh(i,j,k) = max(ekh(i,j,k),ekmin)
         end do
       end do
     end do
@@ -300,26 +303,30 @@ contains
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
             ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
+
+            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
           else
-            zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+             ! zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+             ! faster calculation: evaluate sqrt only if the second argument is actually smaller
+             zlt(i,j,k) = delta(k)
+             if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
+                zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
+             end if
+             
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
 
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
-            ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)/delta(k)) * ekm(i,j,k)
+            ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
+
+            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
           endif
         end do
       end do
     end do
   end if
 
-  do k=1,k1
-    do j=2,j1
-      do i=2,i1
-        ekm(i,j,k) = max(ekm(i,j,k),ekmin)
-        ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-      end do
-    end do
-  end do
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
@@ -360,7 +367,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav, cu, cv
+  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav,cu,cv,deltai
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
   use modsurfdata,  only : dudz,dvdz,ustar,thlflux
   use modsubgriddata, only: sgs_surface_fix
@@ -415,9 +422,16 @@ contains
                (w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2    )
 
 
-    sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
-    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
-    sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
+!    sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
+!    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
+!    sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
+
+!     e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1)+ &
+!            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+    e12p(i,j,k) = e12p(i,j,k) &
+                + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
+                - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
+    
   end do
   end do
   end do
@@ -495,12 +509,14 @@ contains
     else
           sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
     endif
-    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)/delta(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
+    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
   end do
   end do
 
-  e12p(2:i1,2:j1,1:kmax) = e12p(2:i1,2:j1,1:kmax)+ &
-            sbshr(2:i1,2:j1,1:kmax)+sbbuo(2:i1,2:j1,1:kmax)+sbdiss(2:i1,2:j1,1:kmax)
+!  e12p(2:i1,2:j1,1:kmax) = e12p(2:i1,2:j1,1:kmax)+ &
+!            sbshr(2:i1,2:j1,1:kmax)+sbbuo(2:i1,2:j1,1:kmax)+sbdiss(2:i1,2:j1,1:kmax)
+  e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
+            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
 
   return
   end subroutine sources

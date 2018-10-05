@@ -122,6 +122,7 @@ save
 
       !Advection scheme
       integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
+      integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
       integer, parameter :: iadv_5th    = 5
@@ -130,6 +131,7 @@ save
       integer, parameter :: iadv_52     = 52
       integer, parameter :: iadv_kappa  = 7
       integer, parameter :: iadv_hybrid = 55
+      integer, parameter :: iadv_hybrid_f = 555
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
@@ -211,6 +213,7 @@ save
       real :: xsize    = -1 !<  domain size in x-direction
       real :: ysize    = -1 !<  domain size in y-direction
       real, allocatable :: delta(:)       !<  (dx*dy*dz)**(1/3)
+      real, allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
@@ -243,6 +246,8 @@ contains
       case(iadv_52)
         courant = 1.
       case(iadv_hybrid)
+         courant = 1.
+      case(iadv_hybrid_f)
         courant = 1.
       case default
         courant = 1.
@@ -293,6 +298,10 @@ contains
       jh = 3
       kh = 1
     elseif (any(advarr==iadv_hybrid).or.any(iadv_sv(1:nsv)==iadv_hybrid)) then
+      ih = 3
+      jh = 3
+      kh = 1
+    elseif (any(advarr==iadv_hybrid_f).or.any(iadv_sv(1:nsv)==iadv_hybrid_f)) then
       ih = 3
       jh = 3
       kh = 1
@@ -369,7 +378,7 @@ contains
     allocate(dzh(k1))
     allocate(zh(k1))
     allocate(zf(k1))
-    allocate(delta(k1))
+    allocate(delta(k1),deltai(k1))
 
 
     ijtot = real(itot*jtot)
@@ -418,7 +427,8 @@ contains
 
     do k=1,k1
 
-      delta(k) = (dx*dy*dzf(k))**(1./3.)
+       delta(k) = (dx*dy*dzf(k))**(1./3.)
+       deltai(k) = 1./delta(k)
     end do
 
   !--------------------------------------------------
@@ -469,7 +479,7 @@ contains
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    deallocate(dsv,dzf,dzh,zh,zf,delta)
+    deallocate(dsv,dzf,dzh,zh,zf,delta,deltai)
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)

@@ -367,7 +367,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart
+                                  trestart, ladaptive,llsadv,tnextrestart,longint
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -791,13 +791,13 @@ contains
     if (.not.(ltotruntime)) then
       runtime = runtime + btime*tres
     end if
-    timeleft=ceiling((runtime)/tres-btime)
+    timeleft=ceiling((runtime)/tres-btime,longint)
 
     dt_lim = timeleft
     rdt = real(dt)*tres
     ntrun   = 0
     rtimee  = real(timee)*tres
-    itrestart = floor(trestart/tres)
+    itrestart = floor(trestart/tres,longint)
     tnextrestart = btime + itrestart
     deallocate (height,th0av,thv0)
 
@@ -814,7 +814,7 @@ contains
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
-    use modsubgriddata, only : ekm
+    use modsubgriddata, only : ekm,ekh
 
 
     character(50) :: name
@@ -841,6 +841,7 @@ contains
       read(ifinput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((ekh   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -904,10 +905,10 @@ contains
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,trestart,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
                           rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
-    use modsubgriddata, only : ekm
+    use modsubgriddata, only : ekm,ekh
 
     implicit none
     integer imin,ihour
@@ -918,7 +919,11 @@ contains
     if (rk3Step/=3) return
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    if (timee>=tnextrestart .or. timeleft==0) then
+    
+    ! if trestart > 0, write a restartfile every trestart seconds and at the end
+    ! if trestart = 0, write restart files only at the end of the simulation
+    ! if trestart < 0, don't write any restart files
+    if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
@@ -939,6 +944,7 @@ contains
       write(ifoutput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((ekh   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)

@@ -1641,6 +1641,7 @@ contains
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
+    use modmicrodata, only : imicro,imicro_bulk
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k, itg
@@ -1825,13 +1826,20 @@ contains
                 indCO2 = 21 
                 write(*,*) 'in 2'
               endif !Is CO2 present?
-            else !Chemistry is not on
+            else if (imicro==imicro_bulk) then !chemistry off and bulk_microphysics on
+              if (myid==0) then
+                print *,'WARNING ::: bulk microphysics and AGS are both ON'
+                print *,'WARNING ::: Scalar 1 and 2 are considered qr and Nr,respectively for microphysics scheme'
+                print *,'WARNING ::: Scalar 3 is considered CO2 for A-gs'
+              endif
+              indCO2 = 3
+            else !Chemistry and bulk_micro are off
               if (myid == 0) then
                 print *, 'WARNING ::: There is no CO2 defined due to the absence of a chemistry scheme'
                 print *, 'WARNING ::: Scalar 1 is considered to be CO2 '
               endif
               indCO2 = 1
-            endif !Is chemistry on?
+            endif !Is chemistry or bulk_micro on?
             linags = .true.
           endif !linags
 

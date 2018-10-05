@@ -236,11 +236,12 @@ contains
     real :: a(kmax),b(kmax),c(kmax)
 
   ! allocate d in the same shape as p and xyrt
-    real :: d(2-ih:i1+ih,2-jh:j1+jh,kmax)
-
+    real, allocatable :: d(:,:,:)
+    
     real    z,ak,bk,bbk
     integer i, j, k
-
+    allocate(d(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    
   ! Forward FFT
     call fft2df(p,ih,jh)
 
@@ -303,6 +304,8 @@ contains
     ! Backward FFT
     call fft2db(p,ih,jh)
 
+    deallocate(d)
+    
     return
   end subroutine solmpj
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
