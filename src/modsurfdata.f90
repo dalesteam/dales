@@ -178,7 +178,7 @@ SAVE
   real              :: Cw         = 1.6e-3 !<  Constant water stress correction
   real              :: wsmax      =   0.55 !<  Upper reference value soil water
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
-  real              :: R10        =   0.14 !<  Respiration at 10oC (Jacobs 2007)
+  real              :: R10        =   0.20 !<  Respiration at 10oC (Jacobs 2007)
   real              :: Eact0      = 53.3e3 !<  Activation energy
 
   !Variables for 2leaf AGS
