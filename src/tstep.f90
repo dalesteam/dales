@@ -166,6 +166,8 @@ subroutine tstep_integrate
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp,ql0, qlm
+  use modmicrodata, only: inr, iqr      
+
   implicit none
 
   integer i,j,k,n
@@ -175,32 +177,33 @@ subroutine tstep_integrate
   wp_store = wp
 
   do k=1,kmax
-    do j=2,j1
-      do i=2,i1
+  do j=2,j1
+  do i=2,i1
 
-        u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
-        v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
-        w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
-        thl0(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
-        qt0(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
-        e120(i,j,k) = e12m(i,j,k) + rk3coef * e12p(i,j,k)
+     u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
+     v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
+     w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
+     thl0(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
+     qt0(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
+     e120(i,j,k) = e12m(i,j,k) + rk3coef * e12p(i,j,k)
 
-        e120(i,j,k) = max(e12min,e120(i,j,k))
-        e12m(i,j,k) = max(e12min,e12m(i,j,k))
+     e120(i,j,k) = max(e12min,e120(i,j,k))
+     e12m(i,j,k) = max(e12min,e12m(i,j,k))
 
-        do n=1,nsv
+     do n=1,nsv
+        if (n == iqr .or. n == inr) then  
+           if (svm(i,j,k,n) + rk3coef * svp(i,j,k,n) > 0.) then
+              sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+           else
+              sv0(i,j,k,n) = 0.           
+           endif
+        else
+           sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+        endif    
+     end do
 
-!           sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
-
-          if (svm(i,j,k,n) + rk3coef * svp(i,j,k,n) > 0.) then
-             sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
-          else
-             sv0(i,j,k,n) = 0.           
-          end if
-        end do
-
-      end do
-    end do
+  end do
+  end do
   end do
 
   up=0.
@@ -211,15 +214,15 @@ subroutine tstep_integrate
   svp=0.
   e12p=0.
 
-  if(rk3step == 3) then
-    um = u0
-    vm = v0
-    wm = w0
+  if (rk3step == 3) then
+    um   = u0
+    vm   = v0
+    wm   = w0
     thlm = thl0
     qtm  = qt0
     e12m = e120
-    svm = sv0
-    qlm = ql0    
+    svm  = sv0
+    qlm  = ql0    
   end if
 
 end subroutine tstep_integrate

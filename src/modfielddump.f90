@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer,parameter :: nvar = 14
+  integer,parameter :: nvar = 45
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -93,21 +93,60 @@ contains
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
       call ncinfo(tncname(1,:),'time','Time','s','time')
-      call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
-      call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
-      call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-6kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-      call ncinfo(ncname( 7,:),'qr','Rain water specific humidity','1e-6kg/kg','tttt')
-      call ncinfo(ncname( 8,:),'buoy','Buoyancy','K','tttt')
-      call ncinfo(ncname( 9,:),'na','Free aerosol number concentration','#/kg','tttt')
-      call ncinfo(ncname(10,:),'nc','Cloud droplet number concentration','#/kg','tttt')
-      call ncinfo(ncname(11,:),'nr','Rain droplet number concentration','#/kg','tttt')
-      call ncinfo(ncname(12,:),'ma','Free aerosol mass concentration','1e-5kg/kg','tttt')
-      call ncinfo(ncname(13,:),'mc','In-cloud aerosol mass concentration','1e-5kg/kg','tttt')
-      call ncinfo(ncname(14,:),'mr','In-rain aerosol mass concentration','1e-5kg/kg','tttt')
-  
+
+      call ncinfo(ncname( 1,:),'u', 'West-East velocity',  'm/s', 'mttt')
+      call ncinfo(ncname( 2,:),'v', 'South-North velocity','m/s', 'tmtt')
+      call ncinfo(ncname( 3,:),'w', 'Vertical velocity',   'm/s', 'ttmt')
+
+      call ncinfo(ncname( 4,:),'qt',  'Total water specific humidity',                 '1e-5kg/kg', 'tttt')
+      call ncinfo(ncname( 5,:),'ql',  'Liquid water specific humidity',                '1e-6kg/kg', 'tttt')
+      call ncinfo(ncname( 6,:),'thl', 'Liquid water potential temperature above 300K', 'K',         'tttt')
+      call ncinfo(ncname( 7,:),'qr',  'Rain water specific humidity',                  '1e-6kg/kg', 'tttt')
+      call ncinfo(ncname( 8,:),'buoy','Buoyancy',                                      'K',         'tttt')
+
+      call ncinfo(ncname( 9,:),'nusn','Free aerosol number concentration Nucleation soluble',    '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(10,:),'aisn','Free aerosol number concentration Aitken soluble',        '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(11,:),'acsn','Free aerosol number concentration Accumulation soluble',  '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(12,:),'cosn','Free aerosol number concentration Coarse soluble',        '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(13,:),'aiin','Free aerosol number concentration Aitken insoluble',      '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(14,:),'acin','Free aerosol number concentration Accumulation insoluble','1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(15,:),'coin','Free aerosol number concentration Coarse insoluble',      '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(16,:),'nc','Cloud droplet number concentration',                        '1e-4 #/kg', 'tttt')
+      call ncinfo(ncname(17,:),'nr','Rain droplet number concentration',                         '1e-4 #/kg', 'tttt')
+
+      call ncinfo(ncname(18,:),'so4nus','Free aerosol sulphate mass concentration NUS', '1e-4 ng/kg','tttt')
+      call ncinfo(ncname(19,:),'so4ais','Free aerosol sulphate mass concentration AIS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(20,:),'so4acs','Free aerosol sulphate mass concentration ACS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(21,:),'so4cos','Free aerosol sulphate mass concentration COS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(22,:),'so4cld','In-cloud aerosol sulphate mass concentration', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(23,:),'so4rai','In-rain aerosol sulphate mass concentration',  '1e-2 ng/kg','tttt')
+
+      call ncinfo(ncname(24,:),'bcais', 'Free aerosol black carbon mass concentration AIS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(25,:),'bcacs', 'Free aerosol black carbon mass concentration ACS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(26,:),'bccos', 'Free aerosol black carbon mass concentration COS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(27,:),'bcaii', 'Free aerosol black carbon mass concentration AII', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(28,:),'bccld', 'In-cloud aerosol black carbon mass concentration', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(29,:),'bcrai', 'In-rain aerosol black carbon mass concentration',  '1e-2 ng/kg','tttt')
+
+      call ncinfo(ncname(30,:),'pomais','Free aerosol organic matter mass concentration AIS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(31,:),'pomacs','Free aerosol organic matter mass concentration ACS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(32,:),'pomcos','Free aerosol organic matter mass concentration COS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(33,:),'pomaii','Free aerosol organic matter mass concentration AII', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(34,:),'pomcld','In-cloud aerosol organic matter mass concentration', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(35,:),'pomrai','In-rain aerosol organic matter mass concentration',  '1e-2 ng/kg','tttt')
+ 
+      call ncinfo(ncname(36,:),'ssacs', 'Free aerosol sea salt mass concentration ACS', 'ng/kg','tttt')
+      call ncinfo(ncname(37,:),'sscos', 'Free aerosol sea salt mass concentration COS', 'ng/kg','tttt')
+      call ncinfo(ncname(38,:),'sscld', 'In-cloud aerosol sea salt mass concentration', 'ng/kg','tttt')
+      call ncinfo(ncname(39,:),'ssrai', 'In-rain aerosol sea salt mass concentration',  'ng/kg','tttt')
+
+      call ncinfo(ncname(40,:),'duacs', 'Free aerosol mineral dust mass concentration ACS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(41,:),'ducos', 'Free aerosol mineral dust mass concentration COS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(42,:),'duaci', 'Free aerosol mineral dust mass concentration ACI', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(43,:),'ducoi', 'Free aerosol mineral dust mass concentration COI', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(44,:),'ducld', 'In-cloud aerosol mineral dust mass concentration', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(45,:),'durai', 'In-rain aerosol mineral dust mass concentration',  '1e-2 ng/kg','tttt')
+ 
       call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
@@ -120,16 +159,21 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh
-    use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
-                          timee,dt_lim,cexpnr,ifoutput,rtimee
-    use modmpi,    only : myid,cmyidx, cmyidy
-    use modstat_nc, only : lnetcdf, writestat_nc
+    use modfields,    only : um,vm,wm,thlm,qtm,ql0,svm,thv0h,thvh
+    use modsurfdata,  only : thls,qts,thvs
+    use modglobal,    only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
+                             timee,dt_lim,cexpnr,ifoutput,rtimee
+    use modmpi,       only : myid,cmyidx, cmyidy
+    use modstat_nc,   only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr, imicro, imicro_none, &
                              iaer_offset,              &   
-                             iacs_n,  icos_n,   inc,     inr,  & 
-                             iso4nus, iso4ais, iso4acs, iso4cos, iso4cld, iso4rai
+                             inus_n,iais_n,iacs_n,icos_n,iaii_n,iaci_n,icoi_n,inc,inr, &   
+                             iso4nus,iso4ais,iso4acs,iso4cos,iso4cld,iso4rai, &
+                             ibcais, ibcacs, ibccos, ibcaii, ibccld, ibcrai,  &
+                             ipomais,ipomacs,ipomcos,ipomaii,ipomcld,ipomrai, &
+                             issacs, isscos,                 isscld, issrai,  &
+                             iduacs, iducos, iduaci, iducoi, iducld, idurai   
+         
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:),vars(:,:,:,:)
@@ -298,8 +342,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1e-6*(svm(i,j,k,iacs_n+iaer_offset) + & 
-                                  svm(i,j,k,icos_n+iaer_offset)),4)
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,inus_n+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -325,7 +368,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1e-6*svm(i,j,k,inc+iaer_offset),4)
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,iais_n+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -351,7 +394,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1e-6*svm(i,j,k,inr+iaer_offset),4)
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,iacs_n+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -377,8 +420,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*(svm(i,j,k,iso4acs+iaer_offset) + &
-                                    svm(i,j,k,iso4cos+iaer_offset)   ),4)
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,icos_n+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -404,7 +446,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*svm(i,j,k,iso4cld+iaer_offset),4)
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,iaii_n+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -430,7 +472,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*svm(i,j,k,iso4rai+iaer_offset),4)
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,iaci_n+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -439,6 +481,812 @@ contains
     endif
 
     if (lnetcdf) vars(:,:,:,14) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1E-4*svm(i,j,k,icoi_n+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,15) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! = CLOUD DROPLETS ===================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1e-4*svm(i,j,k,inc+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,16) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1e-4*svm(i,j,k,inr+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,17) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E16*svm(i,j,k,iso4nus+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,18) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4ais+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,19) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4acs+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,20) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4cos+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,21) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4cld+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,22) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4rai+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,23) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcais+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,24) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcacs+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,25) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibccos+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,26) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcaii+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,27) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibccld+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,28) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcrai+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,29) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomais+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,30) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomacs+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,31) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomcos+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,32) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomaii+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,33) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomcld+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,34) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomrai+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,35) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E12*svm(i,j,k,issacs+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,36) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E12*svm(i,j,k,isscos+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,37) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E12*svm(i,j,k,isscld+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,38) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E12*svm(i,j,k,issrai+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,39) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iduacs+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,40) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iducos+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,41) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iduaci+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,42) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iducoi+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,43) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iducld+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,44) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    ! ===================================================================================================================    
+
+    if(imicro/=imicro_none) then
+      do i=2-ih,i1+ih
+      do j=2-jh,j1+jh
+      do k=1,k1
+        field(i,j,k) = NINT(1.0E14*svm(i,j,k,idurai+iaer_offset),4)
+      enddo
+      enddo
+      enddo
+    else
+      field = 0.
+    endif
+
+    if (lnetcdf) vars(:,:,:,45) = field(2:i1,2:j1,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
