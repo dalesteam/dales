@@ -71,8 +71,10 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
+
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, rtimee, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_tenstr
+
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
@@ -174,9 +176,12 @@ contains
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
       lCO2Ags = .false.
     endif
-    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) .or. (iradiation .eq. irad_rrtmg))))) then
-      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw"
-      if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
+
+
+    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) .or. (iradiation .eq. irad_tenstr) .or. (iradiation .eq. irad_rrtmg))))) then
+      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse light calculations from modradiation! Make sure you enable rad_shortw"
+      if(myid==0) stop "WARNING::: Since there is no directa nd diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
+
       lsplitleaf = .false.
     endif
 

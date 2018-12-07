@@ -93,6 +93,8 @@ contains
     call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(thlprSW   (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(thlprLW   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -118,7 +120,8 @@ contains
     allocate(LW_dn_ca_TOA(2-ih:i1+ih,2-jh:j1+jh)  )
 
     thlprad = 0.
-
+    thlprSW = 0.
+    thlprLW = 0.
     swd = 0.
     swu = 0.
     lwd = 0.
@@ -179,7 +182,8 @@ contains
     itimerad = floor(timerad/tres)
     tnext = itimerad+btime
     dt_lim = min(dt_lim,tnext)
-
+    
+    
     if (rad_smoke.and.isvsmoke>nsv) then
       if (rad_shortw) then
          stop 'you want to compute solar radiative transfer through a smoke cloud'
@@ -194,20 +198,30 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
     use modglobal, only : timee, dt_lim,rk3step
-    use modfields, only : thlp
+    use modfields, only : thlp,ql0,qlrad
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
+    use modradtenstream, only : dales_tenstream
     implicit none
-
+    
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
+        
     end if
-    if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
-      tnext = tnext+itimerad
+    if(((itimerad==0 .or. timee==tnext) .and. rk3step==1) .or. restartrad==.True.) then
+      if (restartrad == .False.) then 
+         tnext = tnext+itimerad
+      endif
+      restartrad=.False.      
+      
       thlprad = 0.0
+      thlprSW = 0.0
+      thlprLW = 0.0
+      qlrad = 0.0
       select case (iradiation)
-          case (irad_none)
+     
+      case(irad_none)
           case (irad_full)
             call radfull
           case (irad_par)
@@ -218,6 +232,8 @@ contains
             call radlsm
           case (irad_rrtmg)
             call radrrtmg
+          case (irad_tenstr)
+            call dales_tenstream
           case (irad_user)
 ! EWB: the if statement should came first because moduser uses a radpar variable
             if(rad_longw.or.rad_shortw) then
@@ -232,13 +248,15 @@ contains
       endif
     end if
     thlp = thlp + thlprad
-
+    qlrad = ql0
 
   end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
     implicit none
-    deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
+
+    deallocate(thlprad,thlprSW,thlprLW,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
+
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
 
@@ -307,6 +325,7 @@ subroutine radpar
          thlpld         = -(lwd(i,j,k+1)-lwd(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
          thlplu         = -(lwu(i,j,k+1)-lwu(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
          thlprad(i,j,k) =   thlprad(i,j,k) + thlpld+thlplu
+         thlprLW(i,j,k) = thlprLW(i,j,k) + thlpld + thlplu  
        end do
 
     end do
@@ -346,7 +365,7 @@ subroutine radpar
       do k=1,kmax
         thlpsw          = ((swd(i,j,k+1)-swu(i,j,k+1))-(swd(i,j,k)-swu(i,j,k)))/(rhof(k)*cp*exnf(k)*dzf(k))
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
-
+        thlprSW(i,j,k)  = thlprSW(i,j,k) + thlpsw 
       end do
 
     end do

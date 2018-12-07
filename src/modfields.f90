@@ -52,7 +52,6 @@ save
   real, allocatable :: thlp(:,:,:)      !<   tendency of thlm
   real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real, allocatable :: qtp(:,:,:)       !<   tendency of qtm
-
   real, allocatable :: svm(:,:,:,:)   !<  scalar sv(n) at time step t-1
   real, allocatable :: sv0(:,:,:,:)   !<  scalar sv(n) at time step t
   real, allocatable :: svp(:,:,:,:)   !<  tendency of sv(n)
@@ -77,6 +76,7 @@ save
   real, allocatable :: distw(:,:)
 
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
+  real, allocatable :: qlrad(:,:,:) !<  liquid water content during radiation calculations
   real, allocatable :: tmp0(:,:,:) !<   temperature at full level
   real, allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
@@ -187,6 +187,7 @@ subroutine initfields
 
     ! Allocation of diagnostic variables
     allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qlrad(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(tmp0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(whls(k1))
@@ -252,7 +253,7 @@ subroutine initfields
     svm=0.;sv0=0.;svp=0.
 
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
-    ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
+    ql0=0.;qlrad=0;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
@@ -278,7 +279,7 @@ subroutine initfields
     deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(ql0,qlrad,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)

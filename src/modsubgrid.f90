@@ -130,6 +130,7 @@ contains
     call MPI_BCAST(Rigc       ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
+    call MPI_BCAST(cm         ,1,MY_REAL            ,0,comm3d,mpierr)    
     call MPI_BCAST(ch1        ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ch2        ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ce1         ,1,MY_REAL   ,0,comm3d,mpierr)

@@ -1,4 +1,4 @@
-!> \file modtimestat.f90
+	!> \file modtimestat.f90
 !!  Timestat calculates timeseries of several variables
 
 !>
@@ -34,7 +34,7 @@ module modtimestat
 
 
   use modglobal, only : longint
-
+  use mpi, only: MPI_Wtime
 implicit none
 ! private
 ! PUBLIC :: inittimestat, timestat
@@ -60,7 +60,7 @@ save
   real   :: zbaseav, ztopav, ztopmax,zbasemin
   real   :: qlintav, qlintmax, tke_tot
   real   :: cc, wmax, qlmax
-  real   :: qlint
+  real   :: qlint,CPU_prog_men,CPU_prog_men0
   logical:: store_zi = .false.
 
   !Variables for heterogeneity
@@ -98,6 +98,7 @@ contains
 
     dtav=dtav_glob
     if(myid==0)then
+      CPU_prog_men0 = MPI_Wtime()
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTIMESTAT,iostat=ierr)
       if (ierr > 0) then
@@ -165,7 +166,7 @@ contains
       open (ifoutput,file='tmser1.'//cexpnr,status='replace',position='append')
       write(ifoutput,'(2a)') &
              '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
-             '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
+             '   <<ql>>  <<ql>>_max   w_max   tke     ql_max   WALLtime'
       close(ifoutput)
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,status='replace',position='append')
@@ -195,7 +196,7 @@ contains
             open (ifoutput,file=name,status='replace',position='append')
             write(ifoutput,'(2a)') &
                '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
-               '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
+               '   <<ql>>  <<ql>>_max   w_max   tke     ql_max   WALLtime'
             close(ifoutput)
 
             name = 'tmsurfpatchiiixjjj.'//cexpnr
@@ -761,9 +762,11 @@ contains
   !     ---------------------------------------
 
     if(myid==0)then
+      CPU_prog_men = MPI_Wtime() - CPU_prog_men0
+      CPU_prog_men0 = MPI_Wtime() 
        !tmser1
       open (ifoutput,file='tmser1.'//cexpnr,position='append')
-      write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3)') &
+      write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3,f12.3)') &
           rtimee, &
           cc, &
           zbaseav, &
@@ -775,7 +778,8 @@ contains
           qlintmax*1000., &
           wmax, &
           tke_tot*dzf(1), &
-          qlmax*1000.
+          qlmax*1000., &
+          CPU_prog_men
       close(ifoutput)
 
       !tmsurf

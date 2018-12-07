@@ -119,7 +119,18 @@ contains
       allocate(solarZenithAngleCos(imax), asdir(imax), asdif(imax), aldir(imax),       &
                  aldif(imax),                                                          &
                  STAT=ierr(3))
-
+     lwUp_slice    = 0.
+     lwDown_slice   = 0.
+     lwUpCS_slice    = 0.
+     lwDownCS_slice  = 0.
+     swDown_slice = 0.
+     swUp_slice = 0.
+     swUpCS_slice = 0.
+     swDownCS_slice = 0.
+     lwHR_slice    = 0.
+     lwHRCS_slice  = 0.
+     swHR_slice    = 0.
+     swHRCS_slice  = 0.    
       if(any(ierr(:)/=0)) then
         if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrrtmg'
         stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90'
@@ -176,7 +187,13 @@ contains
          call setupSW(sunUp)
          if (sunUp) then
            call rrtmg_sw &
-                ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )
+                ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe)
+         elseif (swDown_slice(2,2) > 0.) then
+           swUp_slice = 0.
+           swDown_slice = 0.
+           swUpCS_slice = 0.
+           swDown_slice = 0.
+
          end if
       end if
 
@@ -224,6 +241,12 @@ contains
           !thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
           thlprad(i,j,k)  = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
                               /(rhof(k)*cp*exnf(k)*dzf(k))
+          thlprSW(i,j,k)  = thlprSW(i,j,k)-(swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+                              /(rhof(k)*cp*exnf(k)*dzf(k))
+          thlprLW(i,j,k)  = thlprLW(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)) &
+                              /(rhof(k)*cp*exnf(k)*dzf(k))
+
+
         end do
       end do
     end do
@@ -570,9 +593,10 @@ contains
   ! JvdDussen, 24-6-2010                                                        !
   ! ============================================================================!
 
-      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
+      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0,j1
       use modfields, only: thl0,ql0,qt0,exnf
-      use modsurfdata, only: tskin,ps
+      use modsurfdata, only: thls,ps,tskin
+
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
 
@@ -588,16 +612,15 @@ contains
       real (KIND=kind_rb) :: exners
       real(KIND=kind_rb) :: layerMass(imax,krad1)
       !real(KIND=kind_rb),dimension(imax,kmax)     :: tabs         ! Absolute temperature
-      real(KIND=kind_rb),dimension(imax,jmax)     :: sstxy        ! sea surface temperature
+      
       real   (SHR_KIND_R4), parameter :: pi = 3.14159265358979
       real , parameter :: rho_liq = 1000.
 
       ! Compute absolute temperature and water contents (without border points)
 
      ! tabs(:,:) = 0.;
-      sstxy(:,:) = 0.
+      
       tabs_slice(:,:) = 0.; qv_slice(:,:) = 0.; qcl_slice(:,:) = 0.; qci_slice(:,:) = 0.;
-
       exners = (ps/pref0) ** (rd/cp)
 
       do i=2,i1
@@ -613,7 +636,6 @@ contains
 
       do i=2,i1
         im=i-1
-
         !tg_slice  (im)   = sst
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
 
@@ -628,6 +650,7 @@ contains
            layerT    (im,k) = tabs_slice(im,k)
            layerP    (im,k) = presf_input(k)
         enddo
+
       enddo
 
      ! Patch sounding on top (no qcl or qci above domain; hard coded)

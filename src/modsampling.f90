@@ -39,6 +39,7 @@ use modsampdata
 implicit none
 private
 PUBLIC :: initsampling, sampling, exitsampling
+PUBLIC :: wqtthrad,wthlthrad
 save
 !NetCDF variables
   integer,parameter :: nvar = 32
@@ -54,6 +55,8 @@ save
                                        fcorhavl,nrsamphl
   real,allocatable, dimension(:,:) :: wh_el,sigh_el
   real,allocatable, dimension(:,:) :: wadvhavl,subphavl
+  real, allocatable, dimension(:,:,:) :: wqtthrad,wthlthrad
+
   integer,allocatable, dimension(:,:) :: nrtsamphav
   character(80) :: fname = 'sampling.xxx.nc'
   integer :: ncid,nrec = 0
@@ -61,6 +64,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
+    use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
@@ -75,6 +79,8 @@ contains
     dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend
 
     dtav=dtav_glob;timeav=timeav_glob
+     allocate(wqtthrad(2-ih:i1+ih,2-jh:j1+jh,k1)) !added
+     allocate(wthlthrad(2-ih:i1+ih,2-jh:j1+jh,k1)) !added
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -351,6 +357,8 @@ contains
 
     logical, allocatable, dimension(:,:,:) :: maskf
     real, allocatable, dimension(:,:,:) :: wthlth,wqtth,wqlth,wthvth,uwth,vwth
+
+
     real, allocatable, dimension(:,:,:) :: w0f
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
@@ -513,6 +521,8 @@ contains
     wwrh  = 0.0
     wwsf = 0.0
 
+    wqtthrad = 0.0
+    wthlthrad = 0.0
     do j=2,j1
     do i=2,i1
     do k=2,kmax
@@ -545,10 +555,12 @@ contains
       wthlsh   = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
       wthlrh   = w0(i,j,k)*thl0h(i,j,k)
       wthlth (i,j,k)   = wthlsh + wthlrh
+      wthlthrad(i,j,k) = wthlsh+wthlrh
 
       wqtsh   = -ekhalf*(qt0(i,j,k)-qt0(i,j,km))/dzh(k)
       wqtrh   = w0(i,j,k)*qt0h(i,j,k)
       wqtth(i,j,k)   = wqtsh + wqtrh
+      wqtthrad(i,j,k)   = wqtsh + wqtrh
 
       if (ql0h(i,j,k)>0) then
         wqls   = cthl*wthlsh+ cqt*wqtsh
@@ -580,7 +592,7 @@ contains
     end do
     end do
     end do
-
+   ! wqtthrad = wqtth
     do k=2,kmax
        i=i2
        do j=2,j1

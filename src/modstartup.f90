@@ -77,7 +77,7 @@ contains
     use modsubgrid,        only : initsubgrid
     use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
     use modmpi,            only : initmpi,my_real,myid,nprocx,nprocy,mpierr
-
+  
     implicit none
     integer :: ierr
 
@@ -378,8 +378,11 @@ contains
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
+
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+    use modraddata,      only : itimerad,tnext
+
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
 
@@ -788,10 +791,20 @@ contains
 
     idtmax = floor(dtmax/tres)
     btime   = timee
+
+
     if (.not.(ltotruntime)) then
       runtime = runtime + btime*tres
     end if
     timeleft=ceiling((runtime)/tres-btime)
+
+
+!adjust next time step in case of warm start, might be fixed in 4.2 so commented
+!out for now
+    if (lwarmstart) then
+       tnext = itimerad+btime
+    endif
+    timeleft=ceiling(runtime/tres)
 
     dt_lim = timeleft
     rdt = real(dt)*tres

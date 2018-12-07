@@ -162,7 +162,6 @@ end subroutine tstep_update
 !! \see Wicker and Skamarock, 2002
 subroutine tstep_integrate
 
-
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
@@ -174,6 +173,7 @@ subroutine tstep_integrate
 
   rk3coef = rdt / (4. - dble(rk3step))
   wp_store = wp
+
 
   if(rk3step /= 3) then
      u0   = um   + rk3coef * up
@@ -199,6 +199,8 @@ subroutine tstep_integrate
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
   end if
+
+
 
   up=0.
   vp=0.

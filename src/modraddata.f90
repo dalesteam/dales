@@ -40,6 +40,7 @@ SAVE
   integer, parameter :: irad_par   = 2   !< 2=parameterized radiation
   integer, parameter :: irad_lsm   = 3   !< 3=simple surface radiation for land surface model
   integer, parameter :: irad_rrtmg = 4   !< 4=radiation using the rapid radiative transfer model
+  integer, parameter :: irad_tenstr= 5   !< 5=radiation using the rapid radiative transfer model with the tenstream solver library
   integer, parameter :: irad_user  = 10  !< 10=user specified radiation
 
   logical :: rad_ls      = .true.        !< prescribed radiative forcing
@@ -47,7 +48,7 @@ SAVE
   logical :: rad_shortw  = .true.        !< parameterized shortwave radiative forcing
   logical :: rad_smoke   = .false.       !< longwave divergence for smoke cloud
   logical :: useMcICA    = .true.        !< Use the Monte Carlo Independent Column Approach
-
+  logical :: restartrad  = .false.
   logical :: lcloudshading = .false.     !< Let clouds shade the surface for rad_lsm
 
   real              :: timerad = 0       !<  timescale of the radiation scheme
@@ -168,6 +169,8 @@ SAVE
   real mu                            !< cosine of the solar zenith angle
 
   real, allocatable :: thlprad(:,:,:)!<   the radiative tendencies
+  real, allocatable :: thlprSW(:,:,:)!<   Shortwave radiative tendency
+  real, allocatable :: thlprLW(:,:,:)!<   Longwave radiative tendency
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
   real, allocatable :: swdir(:,:,:)  !<   Direct shortwave downward radiative flux
   real, allocatable :: swdif(:,:,:)  !<   Difuse shortwave downward radiative flux

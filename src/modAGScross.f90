@@ -54,8 +54,12 @@ contains
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
+
+
+    use modraddata,only   : irad_par,irad_rrtmg,iradiation,irad_tenstr
+
     use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf
-    use modraddata,only   : irad_par,irad_rrtmg,iradiation
+    
 
    implicit none
 
@@ -95,8 +99,10 @@ contains
     
     ! we set the final number of variables in the output:
     final_nvar = nvar
-    if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
-      final_nvar = final_nvar+2                 !swdir,swdif
+
+    if ((iradiation == irad_par .or. iradiation == irad_rrtmg ).or. iradiation == irad_tenstr) then
+      final_nvar = final_nvar+2 !swdir and swdif
+
       if (lsplitleaf) final_nvar = final_nvar+2 !PARdir,PARdif
     endif
     allocate(ncnameAGS(final_nvar,4))
@@ -137,7 +143,7 @@ contains
     call ncinfo(ncnameAGS(33,:),'LE    ', 'xy AGScross of LE          ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(34,:),'H     ', 'xy AGScross of H           ','W/m2   ','tt0t')
     call ncinfo(ncnameAGS(35,:),'G0    ', 'xy AGScross of G0          ','W/m2   ','tt0t')
-    if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
+    if ((iradiation == irad_par .or. iradiation == irad_rrtmg) .or. iradiation == irad_tenstr) then
       call ncinfo(ncnameAGS(36,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
       call ncinfo(ncnameAGS(37,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
       if (lsplitleaf) then
@@ -182,8 +188,8 @@ contains
     use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
                             indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, gcco2Field, &
                             PARField,Qnet,LE,H,G0,PARdirField,PARdifField,lsplitleaf
-    use modfields, only   : svm, rhof, ql0
-    use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif,irad_par,iradiation,irad_rrtmg,lwc
+    use modfields, only   : svm, rhof, qlrad,ql0
+    use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif,irad_par,iradiation,irad_rrtmg,lwc,irad_tenstr
     implicit none
 
 
@@ -239,7 +245,7 @@ contains
       vars(:,:,33) = LE        (2:i1,2:j1)
       vars(:,:,34) = H         (2:i1,2:j1)
       vars(:,:,35) = G0        (2:i1,2:j1)
-      if (iradiation == irad_par .or. iradiation == irad_rrtmg) then
+      if ((iradiation == irad_par .or. iradiation == irad_rrtmg) .or. iradiation ==irad_tenstr)  then
         vars(:,:,36) = swdir   (2:i1,2:j1,1)
         vars(:,:,37) = swdif   (2:i1,2:j1,1)
         if (lsplitleaf) then
