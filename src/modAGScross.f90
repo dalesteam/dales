@@ -36,7 +36,7 @@ private
 PUBLIC :: initAGScross, AGScross,exitAGScross
 save
 !NetCDF variables
-  integer,parameter :: nvar = 35 !gc_CO2,PAR,Qnet,LE,H,G0 added, and swdir swdif conditionally
+  integer,parameter :: nvar = 36 !gc_CO2,PAR,Qnet,LE,H,G0 added, and swdir swdif conditionally
   integer :: ncidAGS = 123
   integer :: nrecAGS = 0
   integer :: final_nvar = 0
@@ -131,24 +131,25 @@ contains
     call ncinfo(ncnameAGS(21,:),'wtheta', 'xy AGScross of kin. heat fl','K m/s  ','tt0t')
     call ncinfo(ncnameAGS(22,:),'wq    ', 'xy AGScross of kin. wat. fl','- m/s  ','tt0t')
     call ncinfo(ncnameAGS(23,:),'lwp   ', 'xy AGScross of liq. wat. p.','kg/m2  ','tt0t')
-    call ncinfo(ncnameAGS(24,:),'tau   ', 'xy AGScross of opt. thickn.','-      ','tt0t')
-    call ncinfo(ncnameAGS(25,:),'swd   ', 'xy AGScross of SW down rad.','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(26,:),'swu   ', 'xy AGScross of SW up rad.  ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(27,:),'lwd   ', 'xy AGScross of LW down rad.','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(28,:),'lwu   ', 'xy AGScross of LW up rad.  ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(29,:),'ci    ', 'xy AGScross of int CO2 conc','mg/m3  ','tt0t')
-    call ncinfo(ncnameAGS(30,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s?  ','tt0t')
-    call ncinfo(ncnameAGS(31,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(32,:),'Qnet  ', 'xy AGScross of Qnet        ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(33,:),'LE    ', 'xy AGScross of LE          ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(34,:),'H     ', 'xy AGScross of H           ','W/m2   ','tt0t')
-    call ncinfo(ncnameAGS(35,:),'G0    ', 'xy AGScross of G0          ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(24,:),'lwprad', 'xy AGScross of lwp rad     ','kg/m2  ','tt0t')
+    call ncinfo(ncnameAGS(25,:),'tau   ', 'xy AGScross of opt. thickn.','-      ','tt0t')
+    call ncinfo(ncnameAGS(26,:),'swd   ', 'xy AGScross of SW down rad.','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(27,:),'swu   ', 'xy AGScross of SW up rad.  ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(28,:),'lwd   ', 'xy AGScross of LW down rad.','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(29,:),'lwu   ', 'xy AGScross of LW up rad.  ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(30,:),'ci    ', 'xy AGScross of int CO2 conc','mg/m3  ','tt0t')
+    call ncinfo(ncnameAGS(31,:),'gc_CO2', 'xy AGScross of gc_CO2      ','mm/s?  ','tt0t')
+    call ncinfo(ncnameAGS(32,:),'PAR   ', 'xy AGScross of PAR         ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(33,:),'Qnet  ', 'xy AGScross of Qnet        ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(34,:),'LE    ', 'xy AGScross of LE          ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(35,:),'H     ', 'xy AGScross of H           ','W/m2   ','tt0t')
+    call ncinfo(ncnameAGS(36,:),'G0    ', 'xy AGScross of G0          ','W/m2   ','tt0t')
     if ((iradiation == irad_par .or. iradiation == irad_rrtmg) .or. iradiation == irad_tenstr) then
-      call ncinfo(ncnameAGS(36,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
-      call ncinfo(ncnameAGS(37,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
+      call ncinfo(ncnameAGS(37,:),'swdir ', 'xy AGScross of SW dir rad. ','W/m2   ','tt0t')
+      call ncinfo(ncnameAGS(38,:),'swdif ', 'xy AGScross of SW diff rad.','W/m2   ','tt0t')
       if (lsplitleaf) then
-        call ncinfo(ncnameAGS(38,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
-        call ncinfo(ncnameAGS(39,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
+        call ncinfo(ncnameAGS(39,:),'PARdir', 'xy AGScross of direct PAR  ','W/m2   ','tt0t')
+        call ncinfo(ncnameAGS(40,:),'PARdif', 'xy AGScross of diffuse PAR ','W/m2   ','tt0t')
       endif
     endif
 
@@ -196,15 +197,16 @@ contains
     ! LOCAL
     integer i,j
     real, allocatable :: vars(:,:,:)
-    real :: lwp(2:i1,2:j1)
+    real :: lwp(2:i1,2:j1),lwprad(2:i1,2:j1)
 
     do i = 2,i1
       do j = 2,j1
-        if (iradiation == irad_rrtmg) then
-          lwp(i,j) = sum(lwc(i,j,1:kmax))*1.e-3 ! we get the already calculated lwc from RRTMG
-        else
+!        if (iradiation == irad_rrtmg) then
+!          lwp(i,j) = sum(lwc(i,j,1:kmax))*1.e-3 ! we get the already calculated lwc from RRTMG
+!        else
           lwp(i,j) = sum(ql0(i,j,1:kmax)*rhof(1:kmax)*dzf(1:kmax))
-        end if
+          lwprad(i,j) = sum(qlrad(i,j,1:kmax)*rhof(1:kmax)*dzf(1:kmax))!LWP based on ql values used in the radiation scheme 
+        !end if
       enddo
     enddo
 
@@ -233,24 +235,25 @@ contains
       vars(:,:,21) = thlflux   (2:i1,2:j1)
       vars(:,:,22) = qtflux    (2:i1,2:j1)
       vars(:,:,23) = lwp       (2:i1,2:j1)
-      vars(:,:,24) = tauField  (2:i1,2:j1)
-      vars(:,:,25) = swd       (2:i1,2:j1,1)
-      vars(:,:,26) = swu       (2:i1,2:j1,1)
-      vars(:,:,27) = lwd       (2:i1,2:j1,1)
-      vars(:,:,28) = lwu       (2:i1,2:j1,1)
-      vars(:,:,29) = ciField   (2:i1,2:j1)
-      vars(:,:,30) = gcco2Field(2:i1,2:j1)
-      vars(:,:,31) = PARField  (2:i1,2:j1)
-      vars(:,:,32) = Qnet      (2:i1,2:j1)
-      vars(:,:,33) = LE        (2:i1,2:j1)
-      vars(:,:,34) = H         (2:i1,2:j1)
-      vars(:,:,35) = G0        (2:i1,2:j1)
+      vars(:,:,24) = lwprad    (2:i1,2:j1)
+      vars(:,:,25) = tauField  (2:i1,2:j1)
+      vars(:,:,26) = swd       (2:i1,2:j1,1)
+      vars(:,:,27) = swu       (2:i1,2:j1,1)
+      vars(:,:,28) = lwd       (2:i1,2:j1,1)
+      vars(:,:,29) = lwu       (2:i1,2:j1,1)
+      vars(:,:,30) = ciField   (2:i1,2:j1)
+      vars(:,:,31) = gcco2Field(2:i1,2:j1)
+      vars(:,:,32) = PARField  (2:i1,2:j1)
+      vars(:,:,33) = Qnet      (2:i1,2:j1)
+      vars(:,:,34) = LE        (2:i1,2:j1)
+      vars(:,:,35) = H         (2:i1,2:j1)
+      vars(:,:,36) = G0        (2:i1,2:j1)
       if ((iradiation == irad_par .or. iradiation == irad_rrtmg) .or. iradiation ==irad_tenstr)  then
-        vars(:,:,36) = swdir   (2:i1,2:j1,1)
-        vars(:,:,37) = swdif   (2:i1,2:j1,1)
+        vars(:,:,37) = swdir   (2:i1,2:j1,1)
+        vars(:,:,38) = swdif   (2:i1,2:j1,1)
         if (lsplitleaf) then
-          vars(:,:,38) = PARdirField(2:i1,2:j1)
-          vars(:,:,39) = PARdifField(2:i1,2:j1)
+          vars(:,:,39) = PARdirField(2:i1,2:j1)
+          vars(:,:,40) = PARdifField(2:i1,2:j1)
         endif
       endif
       call writestat_nc(ncidAGS,1,tncnameAGS,(/rtimee/),nrecAGS,.true.)
