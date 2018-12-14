@@ -93,7 +93,7 @@ contains
       ! Heterogeneous variables
       lhetero, xpatches, ypatches, land_use, loldtable, &
       ! AGS variables
-      lrsAgs, lCO2Ags,planttype, &
+      lrsAgs, lCO2Ags,planttype,lCHon, &
       ! Delay plant response in Ags
       lrelaxgc, kgc, lrelaxci, kci, &
       ! Soil properties
@@ -156,6 +156,8 @@ contains
     call MPI_BCAST(loldtable                  ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lrsAgs                     ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lCO2Ags                    ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lCHon                      ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
