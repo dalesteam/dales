@@ -37,7 +37,7 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend, bulkaertend
 save
 !NetCDF variables
-  integer,parameter :: nvar = 84
+  integer,parameter :: nvar = 74
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
   real          :: dtav, timeav
@@ -51,7 +51,7 @@ save
                ievpr = 4, &
                isedr = 5, &
 
-               aerfields = 11, & 
+               aerfields = 10, & 
                jacti = 1, &
                jscvc = 2, &
                jevpc = 3, &
@@ -61,8 +61,7 @@ save
                jaccr = 7, &
                jslfc = 8, &
                jslfr = 9, &
-               jsedr = 10, &
-               jblnc = 11       
+               jsedr = 10
 
   real, allocatable, dimension(:,:)  :: &
                  Npav,   Npmn, &
@@ -145,7 +144,7 @@ subroutine initbulkmicrostat
 
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
-    nsamples = itimeav/idtav
+    nsamples   = itimeav/idtav
 
     if (.not. lmicrostat) return
     if (abs(timeav/dtav - nsamples) > 1e-4) then
@@ -276,74 +275,65 @@ subroutine initbulkmicrostat
         call ncinfo(ncname(26,:),  'ncauto','Autoconversion       cloud drop tendency','?/?/s','tt')        
         call ncinfo(ncname(27,:),  'ncaccr','Accretion            cloud drop tendency','?/?/s','tt')        
         call ncinfo(ncname(28,:),  'ncevpc','Cloud evaporation    cloud drop tendency','?/?/s','tt')        
-        call ncinfo(ncname(29,:),  'ncblnc','Balance fixer        cloud drop tendency','?/?/s','tt')        
 
-        call ncinfo(ncname(30,:),'so4cacti','Activation           in-cloud sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(31,:),'so4cauto','Autoconversion       in-cloud sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(32,:),'so4caccr','Accretion            in-cloud sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(33,:),'so4cscvc','In-cloud scavenging  in-cloud sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(34,:),'so4cevpc','Cloud evaporation    in-cloud sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(35,:),'so4cblnc','Balance fixer        in-cloud sulphate tendency','?/?/s','tt')        
+        call ncinfo(ncname(29,:),'so4cacti','Activation           in-cloud sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(30,:),'so4cauto','Autoconversion       in-cloud sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(31,:),'so4caccr','Accretion            in-cloud sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(32,:),'so4cscvc','In-cloud scavenging  in-cloud sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(33,:),'so4cevpc','Cloud evaporation    in-cloud sulphate tendency','?/?/s','tt')
 
-        call ncinfo(ncname(36,:), 'bccacti','Activation           in-cloud black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(37,:), 'bccauto','Autoconversion       in-cloud black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(38,:), 'bccaccr','Accretion            in-cloud black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(39,:), 'bccscvc','In-cloud scavenging  in-cloud black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(40,:), 'bccevpc','Cloud evaporation    in-cloud black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(41,:), 'bccblnc','Balance fixer        in-cloud black carbon tendency','?/?/s','tt')        
+        call ncinfo(ncname(34,:), 'bccacti','Activation           in-cloud black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(35,:), 'bccauto','Autoconversion       in-cloud black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(36,:), 'bccaccr','Accretion            in-cloud black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(37,:), 'bccscvc','In-cloud scavenging  in-cloud black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(38,:), 'bccevpc','Cloud evaporation    in-cloud black carbon tendency','?/?/s','tt')
 
-        call ncinfo(ncname(42,:),'pomcacti','Activation           in-cloud organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(43,:),'pomcauto','Autoconversion       in-cloud organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(44,:),'pomcaccr','Accretion            in-cloud organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(45,:),'pomcscvc','In-cloud scavenging  in-cloud organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(46,:),'pomcevpc','Cloud evaporation    in-cloud organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(47,:),'pomcblnc','Balance fixer        in-cloud organic matter tendency','?/?/s','tt')        
+        call ncinfo(ncname(39,:),'pomcacti','Activation           in-cloud organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(40,:),'pomcauto','Autoconversion       in-cloud organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(41,:),'pomcaccr','Accretion            in-cloud organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(42,:),'pomcscvc','In-cloud scavenging  in-cloud organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(43,:),'pomcevpc','Cloud evaporation    in-cloud organic matter tendency','?/?/s','tt')
 
-        call ncinfo(ncname(48,:), 'sscacti','Activation           in-cloud sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(49,:), 'sscauto','Autoconversion       in-cloud sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(50,:), 'sscaccr','Accretion            in-cloud sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(51,:), 'sscscvc','In-cloud scavenging  in-cloud sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(52,:), 'sscevpc','Cloud evaporation    in-cloud sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(53,:), 'sscblnc','Balance fixer        in-cloud sea salt tendency','?/?/s','tt')        
+        call ncinfo(ncname(44,:), 'sscacti','Activation           in-cloud sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(45,:), 'sscauto','Autoconversion       in-cloud sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(46,:), 'sscaccr','Accretion            in-cloud sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(47,:), 'sscscvc','In-cloud scavenging  in-cloud sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(48,:), 'sscevpc','Cloud evaporation    in-cloud sea salt tendency','?/?/s','tt')
 
-        call ncinfo(ncname(54,:), 'ducacti','Activation           in-cloud dust tendency','?/?/s','tt')
-        call ncinfo(ncname(55,:), 'ducauto','Autoconversion       in-cloud dust tendency','?/?/s','tt')
-        call ncinfo(ncname(56,:), 'ducaccr','Accretion            in-cloud dust tendency','?/?/s','tt')
-        call ncinfo(ncname(57,:), 'ducscvc','In-cloud scavenging  in-cloud dust tendency','?/?/s','tt')
-        call ncinfo(ncname(58,:), 'ducevpc','Cloud evaporation    in-cloud dust tendency','?/?/s','tt')
-        call ncinfo(ncname(59,:), 'ducblnc','Balance fixer        in-cloud dust tendency','?/?/s','tt')        
+        call ncinfo(ncname(49,:), 'ducacti','Activation           in-cloud dust tendency','?/?/s','tt')
+        call ncinfo(ncname(50,:), 'ducauto','Autoconversion       in-cloud dust tendency','?/?/s','tt')
+        call ncinfo(ncname(51,:), 'ducaccr','Accretion            in-cloud dust tendency','?/?/s','tt')
+        call ncinfo(ncname(52,:), 'ducscvc','In-cloud scavenging  in-cloud dust tendency','?/?/s','tt')
+        call ncinfo(ncname(53,:), 'ducevpc','Cloud evaporation    in-cloud dust tendency','?/?/s','tt')
 
-        call ncinfo(ncname(60,:), 'nrauto','Autoconversion          rain drop tendency','?/?/s','tt')
-        call ncinfo(ncname(61,:), 'nrevpr','Rain evaporation        rain drop tendency','?/?/s','tt')
-        call ncinfo(ncname(62,:), 'nrsedr','Rain sedimentation      rain drop tendency','?/?/s','tt')
-        call ncinfo(ncname(63,:), 'nrslfr','Rain selfcollection     rain drop tendency','?/?/s','tt')
-        call ncinfo(ncname(64,:), 'nrblnc','Balance fixer           rain drop tendency','?/?/s','tt')
+        call ncinfo(ncname(54,:), 'nrauto','Autoconversion          rain drop tendency','?/?/s','tt')
+        call ncinfo(ncname(55,:), 'nrevpr','Rain evaporation        rain drop tendency','?/?/s','tt')
+        call ncinfo(ncname(56,:), 'nrsedr','Rain sedimentation      rain drop tendency','?/?/s','tt')
+        call ncinfo(ncname(57,:), 'nrslfr','Rain selfcollection     rain drop tendency','?/?/s','tt')
 
-        call ncinfo(ncname(65,:),'so4rscvr','Below-cloud scavenging in-rain sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(66,:),'so4revpr','Rain evaporation       in-rain sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(67,:),'so4rsedr','Rain sedimentation     in-rain sulphate tendency','?/?/s','tt')
-        call ncinfo(ncname(68,:),'so4rblnc','Balance fixer          in-rain sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(58,:),'so4rscvr','Below-cloud scavenging in-rain sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(59,:),'so4revpr','Rain evaporation       in-rain sulphate tendency','?/?/s','tt')
+        call ncinfo(ncname(60,:),'so4rsedr','Rain sedimentation     in-rain sulphate tendency','?/?/s','tt')
 
-        call ncinfo(ncname(69,:), 'bcrscvr','Below-cloud scavenging in-rain black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(70,:), 'bcrevpr','Rain evaporation       in-rain black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(71,:), 'bcrsedr','Rain sedimentation     in-rain black carbon tendency','?/?/s','tt')
-        call ncinfo(ncname(72,:), 'bcrblnc','Balance fixer          in-rain black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(61,:), 'bcrscvr','Below-cloud scavenging in-rain black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(62,:), 'bcrevpr','Rain evaporation       in-rain black carbon tendency','?/?/s','tt')
+        call ncinfo(ncname(63,:), 'bcrsedr','Rain sedimentation     in-rain black carbon tendency','?/?/s','tt')
 
-        call ncinfo(ncname(73,:),'pomrscvr','Below-cloud scavenging in-rain organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(74,:),'pomrevpr','Rain evaporation       in-rain organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(75,:),'pomrsedr','Rain sedimentation     in-rain organic matter tendency','?/?/s','tt')
-        call ncinfo(ncname(76,:),'pomrblnc','Balance fixer          in-rain organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(64,:),'pomrscvr','Below-cloud scavenging in-rain organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(65,:),'pomrevpr','Rain evaporation       in-rain organic matter tendency','?/?/s','tt')
+        call ncinfo(ncname(66,:),'pomrsedr','Rain sedimentation     in-rain organic matter tendency','?/?/s','tt')
 
-        call ncinfo(ncname(77,:), 'ssrscvr','Below-cloud scavenging in-rain sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(78,:), 'ssrevpr','Rain evaporation       in-rain sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(79,:), 'ssrsedr','Rain sedimentation     in-rain sea salt tendency','?/?/s','tt')
-        call ncinfo(ncname(80,:), 'ssrblnc','Balance fixer          in-rain sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(67,:), 'ssrscvr','Below-cloud scavenging in-rain sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(68,:), 'ssrevpr','Rain evaporation       in-rain sea salt tendency','?/?/s','tt')
+        call ncinfo(ncname(69,:), 'ssrsedr','Rain sedimentation     in-rain sea salt tendency','?/?/s','tt')
 
-        call ncinfo(ncname(81,:), 'durscvr','Below-cloud scavenging in-rain dust tendency','?/?/s','tt')
-        call ncinfo(ncname(82,:), 'durevpr','Rain evaporation       in-rain dust tendency','?/?/s','tt')
-        call ncinfo(ncname(83,:), 'dursedr','Rain sedimentation     in-rain dust tendency','?/?/s','tt')
-        call ncinfo(ncname(84,:), 'durblnc','Balance fixer          in-rain dust tendency','?/?/s','tt')
+        call ncinfo(ncname(70,:), 'durscvr','Below-cloud scavenging in-rain dust tendency','?/?/s','tt')
+        call ncinfo(ncname(71,:), 'durevpr','Rain evaporation       in-rain dust tendency','?/?/s','tt')
+        call ncinfo(ncname(72,:), 'dursedr','Rain sedimentation     in-rain dust tendency','?/?/s','tt')
         
+        call ncinfo(ncname(73,:),  'ncscvc','In-cloud number scavenging tendency','#/kg/s','tt')        
+        call ncinfo(ncname(74,:),  'nrscvr','In-rain  number scavenging tendency','#/kg/s','tt')        
+
         call define_nc( ncid_prof, nvar, ncname)
       end if
    end if
@@ -479,12 +469,13 @@ subroutine initbulkmicrostat
      use modmpi,       only : slabsum
      use modglobal,    only : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot
      use modmicrodata, only : naer, &
+                              inus_n, iais_n, iacs_n, icos_n, iaii_n, iaci_n, icoi_n, &  
                               inc, iso4cld, ibccld, ipomcld, isscld, iducld, &
                               inr, iso4rai, ibcrai, ipomrai, issrai, idurai, & 
                               aer_acti, aer_scvc, aer_evpc, &
                               aer_scvr, aer_evpr, & 
                               aer_auto, aer_accr, &
-                              aer_slfc, aer_slfr, aer_sedr, aer_blnc 
+                              aer_slfc, aer_slfr, aer_sedr 
      implicit none
 
      real, dimension(:),       allocatable  :: avfield
@@ -515,13 +506,19 @@ subroutine initbulkmicrostat
            case(jslfc); tend = aer_slfc(:,:,:,:)
            case(jslfr); tend = aer_slfr(:,:,:,:)
            case(jsedr); tend = aer_sedr(:,:,:,:)
-           case(jblnc); tend = aer_blnc(:,:,:,:)
         end select
                 
         avfield = 0.0
         ! In-cloud --------------------------------- ------------------------------------------!
-        call slabsum(avfield,1,k1,tend(:,:,:,inc    ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        ncmn(:,ifield)   = ncmn(:,ifield)   + avfield/nsamples/ijtot
+
+        if (ifield == jscvc) then
+           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n)+tend(:,:,:,icos_n)+ &
+                                     tend(:,:,:,iaii_n)+tend(:,:,:,iaci_n)+tend(:,:,:,icoi_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+           ncmn(:,ifield)   = ncmn(:,ifield)   + avfield/nsamples/ijtot
+        else
+           call slabsum(avfield,1,k1,tend(:,:,:,inc    ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+           ncmn(:,ifield)   = ncmn(:,ifield)   + avfield/nsamples/ijtot
+        endif
 
         avfield = 0.0
         call slabsum(avfield,1,k1,tend(:,:,:,iso4cld),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -545,8 +542,15 @@ subroutine initbulkmicrostat
     
         ! In-rain ----------------------------------------------------------------------------!
         avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,inr   ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        nrmn(:,ifield)   = nrmn(:,ifield)   + avfield/nsamples/ijtot
+        
+        if (ifield == jscvr) then
+           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n)+tend(:,:,:,icos_n)+ & 
+                                     tend(:,:,:,iaii_n)+tend(:,:,:,iaci_n)+tend(:,:,:,icoi_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+           nrmn(:,ifield)   = nrmn(:,ifield)   + avfield/nsamples/ijtot
+        else
+           call slabsum(avfield,1,k1,tend(:,:,:,inr   ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+           nrmn(:,ifield)   = nrmn(:,ifield)   + avfield/nsamples/ijtot
+        end if
 
         avfield = 0.0
         call slabsum(avfield,1,k1,tend(:,:,:,iso4rai),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -571,7 +575,8 @@ subroutine initbulkmicrostat
      enddo
        
      deallocate(avfield) 
-  end subroutine bulkaertend
+     deallocate(tend)
+   end subroutine bulkaertend
 
 !------------------------------------------------------------------------------!
 !> Write the stats to file
@@ -769,73 +774,64 @@ subroutine initbulkmicrostat
         vars(:,26) =   ncmn(:,jauto)
         vars(:,27) =   ncmn(:,jaccr)
         vars(:,28) =   ncmn(:,jevpc)
-        vars(:,29) =   ncmn(:,jblnc)
 
-        vars(:,30) = so4cmn(:,jacti)
-        vars(:,31) = so4cmn(:,jauto)
-        vars(:,32) = so4cmn(:,jaccr)
-        vars(:,33) = so4cmn(:,jscvc)
-        vars(:,34) = so4cmn(:,jevpc)
-        vars(:,35) = so4cmn(:,jblnc)
+        vars(:,29) = so4cmn(:,jacti)
+        vars(:,30) = so4cmn(:,jauto)
+        vars(:,31) = so4cmn(:,jaccr)
+        vars(:,32) = so4cmn(:,jscvc)
+        vars(:,33) = so4cmn(:,jevpc)
 
-        vars(:,36) =  bccmn(:,jacti)
-        vars(:,37) =  bccmn(:,jauto)
-        vars(:,38) =  bccmn(:,jaccr)
-        vars(:,39) =  bccmn(:,jscvc)
-        vars(:,40) =  bccmn(:,jevpc)
-        vars(:,41) =  bccmn(:,jblnc)
+        vars(:,34) =  bccmn(:,jacti)
+        vars(:,35) =  bccmn(:,jauto)
+        vars(:,36) =  bccmn(:,jaccr)
+        vars(:,37) =  bccmn(:,jscvc)
+        vars(:,38) =  bccmn(:,jevpc)
 
-        vars(:,42) = pomcmn(:,jacti)
-        vars(:,43) = pomcmn(:,jauto)
-        vars(:,44) = pomcmn(:,jaccr)
-        vars(:,45) = pomcmn(:,jscvc)
-        vars(:,46) = pomcmn(:,jevpc)
-        vars(:,47) = pomcmn(:,jblnc)
+        vars(:,39) = pomcmn(:,jacti)
+        vars(:,40) = pomcmn(:,jauto)
+        vars(:,41) = pomcmn(:,jaccr)
+        vars(:,42) = pomcmn(:,jscvc)
+        vars(:,43) = pomcmn(:,jevpc)
 
-        vars(:,48) =  sscmn(:,jacti)
-        vars(:,49) =  sscmn(:,jauto)
-        vars(:,50) =  sscmn(:,jaccr)
-        vars(:,51) =  sscmn(:,jscvc)
-        vars(:,52) =  sscmn(:,jevpc)
-        vars(:,53) =  sscmn(:,jblnc)
+        vars(:,44) =  sscmn(:,jacti)
+        vars(:,45) =  sscmn(:,jauto)
+        vars(:,46) =  sscmn(:,jaccr)
+        vars(:,47) =  sscmn(:,jscvc)
+        vars(:,48) =  sscmn(:,jevpc)
 
-        vars(:,54) =  ducmn(:,jacti)
-        vars(:,55) =  ducmn(:,jauto)
-        vars(:,56) =  ducmn(:,jaccr)
-        vars(:,57) =  ducmn(:,jscvc)
-        vars(:,58) =  ducmn(:,jevpc)
-        vars(:,59) =  ducmn(:,jblnc)
+        vars(:,49) =  ducmn(:,jacti)
+        vars(:,50) =  ducmn(:,jauto)
+        vars(:,51) =  ducmn(:,jaccr)
+        vars(:,52) =  ducmn(:,jscvc)
+        vars(:,53) =  ducmn(:,jevpc)
 
-        vars(:,60) =   nrmn(:,jauto)      
-        vars(:,61) =   nrmn(:,jevpr)
-        vars(:,62) =   nrmn(:,jsedr)
-        vars(:,63) =   nrmn(:,jslfr)
-        vars(:,64) =   nrmn(:,jblnc)
+        vars(:,54) =   nrmn(:,jauto)      
+        vars(:,55) =   nrmn(:,jevpr)
+        vars(:,56) =   nrmn(:,jsedr)
+        vars(:,57) =   nrmn(:,jslfr)
 
-        vars(:,65) = so4rmn(:,jscvr)
-        vars(:,66) = so4rmn(:,jevpr)
-        vars(:,67) = so4rmn(:,jsedr)
-        vars(:,68) = so4rmn(:,jblnc)
+        vars(:,58) = so4rmn(:,jscvr)
+        vars(:,59) = so4rmn(:,jevpr)
+        vars(:,60) = so4rmn(:,jsedr)
                 
-        vars(:,69) =  bcrmn(:,jscvr)
-        vars(:,70) =  bcrmn(:,jevpr)
-        vars(:,71) =  bcrmn(:,jsedr)
-        vars(:,72) =  bcrmn(:,jblnc)
+        vars(:,61) =  bcrmn(:,jscvr)
+        vars(:,62) =  bcrmn(:,jevpr)
+        vars(:,63) =  bcrmn(:,jsedr)
         
-        vars(:,73) = pomrmn(:,jscvr)
-        vars(:,74) = pomrmn(:,jevpr)
-        vars(:,75) = pomrmn(:,jsedr)
-        vars(:,76) = pomrmn(:,jblnc)
+        vars(:,64) = pomrmn(:,jscvr)
+        vars(:,65) = pomrmn(:,jevpr)
+        vars(:,66) = pomrmn(:,jsedr)
 
-        vars(:,77) =  ssrmn(:,jscvr)
-        vars(:,78) =  ssrmn(:,jevpr)
-        vars(:,79) =  ssrmn(:,jsedr)
-        vars(:,80) =  ssrmn(:,jblnc)
+        vars(:,67) =  ssrmn(:,jscvr)
+        vars(:,68) =  ssrmn(:,jevpr)
+        vars(:,69) =  ssrmn(:,jsedr)
         
-        vars(:,81) =  durmn(:,jscvr)
-        vars(:,82) =  durmn(:,jevpr)
-        vars(:,83) =  durmn(:,jsedr)
-        vars(:,84) =  durmn(:,jblnc)
+        vars(:,70) =  durmn(:,jscvr)
+        vars(:,71) =  durmn(:,jevpr)
+        vars(:,72) =  durmn(:,jsedr)
+
+        vars(:,73) =   ncmn(:,jscvc)
+        vars(:,74) =   nrmn(:,jscvr)
 
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if

@@ -190,6 +190,8 @@ subroutine tstep_integrate
      e120(i,j,k) = max(e12min,e120(i,j,k))
      e12m(i,j,k) = max(e12min,e12m(i,j,k))
 
+
+     ! To ensure mass conservation don't clip aerosol tracers. (MdB)           
      do n=1,nsv
         if (n == iqr .or. n == inr) then  
            if (svm(i,j,k,n) + rk3coef * svp(i,j,k,n) > 0.) then

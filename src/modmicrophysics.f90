@@ -46,7 +46,7 @@ contains
     namelist/NAMMICROPHYSICS/ &
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst,        &     ! OG
     Nc_0, sig_g, sig_gr,                                                         &     ! SdeR
-    l_kohler, l_aertend                                                                ! MdB 
+    l_kohler, l_aertend, Ssat                                                          ! MdB 
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -75,6 +75,8 @@ contains
 
     call MPI_BCAST(l_kohler ,1, MPI_LOGICAL ,0,comm3d,ierr)     
     call MPI_BCAST(l_aertend,1, MPI_LOGICAL ,0,comm3d,ierr)     
+    call MPI_BCAST(Ssat,       1, MY_REAL     ,0,comm3d,ierr)
+
     select case (imicro)
     case(imicro_none)
     case(imicro_drizzle)

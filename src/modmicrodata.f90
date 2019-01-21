@@ -47,7 +47,8 @@
   real    :: mur_cst = 5,    & !<  mur value if l_mur_cst=T                          (in namelist NAMMICROPHYSICS)
              Nc_0    = 70e6, & !<  initial cloud droplet number
              sig_g   = 1.34, & !<  geom. std dev of cloud droplet DSD
-             sig_gr  = 1.5     !<  geometric std dev of rain drop DSD
+             sig_gr  = 1.5,  & !<  geometric std dev of rain drop DSD
+             Ssat    = 0.2     !< Prescribed value for supersaturation used in kohler activation routine
 
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
 
@@ -67,10 +68,10 @@
                               iduacs  = 32, iducos  = 33,               iduaci  = 34, iducoi = 35 , iducld  = 36, idurai  = 37  
 
   real, dimension(nmod-2),  parameter :: sigma_lognormal = (/ 1.59, 1.59, 1.59, 2.00, 1.59, 1.59, 2.00 /)
+  real, dimension(nspec-1), parameter :: spec_rho  = (/ 1841,  1300, 1800, 2165, 2650 /) ! Densities [kg m-3]
+  real, dimension(nspec-1), parameter :: spec_k    = (/  0.88,   0.,  0.1, 1.28,   0. /) ! Hygroscopicity parameters [-]
 
-  real, dimension(nspec-1), parameter :: spec_rho  = (/ 1841.,    1300.,  1800.,  2165.,  2650. /) ! Densities         [kg m-3]
-  real, dimension(nspec-1), parameter :: spec_mol  = (/ 96057.6, 28967., 28967., 58443., 28967. /) ! Molar masses    [kg mol-1]
-  real, dimension(nspec-1), parameter :: spec_k    = (/  0.88,      0.,     0.1,   1.28,     0. /) ! Hygroscopicity parameters [-]
+  real, parameter :: scalefac = 1.e9 
 
   ! ====================================================================================
   ! nmod_type, defining mode type, including cloud & rain 'phases'
@@ -113,7 +114,7 @@
                      ,qcmin = 1.0e-7    & !< Cloud specific mixing ratio treshold for calculations
                      ,qrmin = 1.0e-13   & !< Rain  specific mixing ratio treshold for calculation
                      ,ncmin = 1.0e3     & !< Cloud droplet number concentration threshold for calculations
-                     ,mcmin = 1.0e-20   & !< In-cloud aerosol mass mixing ratio threshold for calculations
+                     ,mcmin = 1.0e-12   & !< In-cloud aerosol mass mixing ratio threshold for calculations
 !                     ,nuc = 0          & !< width parameter of cloud DSD
                      ,eps0 = 1e-20      & !< parameter used to avoid division by zero floating point exceptions
                      ,epscloud= 0.01e-3 &
@@ -169,7 +170,7 @@
 !  is value for ~ 15C How sensitive is G for this Aug 2006, ~5% -> Dv changed to 15 C value?
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]
 !          ,pirhow = (pi*rhow)/6. & !< used in conversion of mass to diameter
-                     ,pirhow = 3.14159*rhow/6.        &
+         ,pirhow = 3.14159*rhow/6.        &
          ,Rv = 461.5       & !<  specific gas constant for water vapor
          ,avf = 0.78       & !<  constants in vent. factor fv   (fv = 1. --> av=1,
          ,bvf = 0.308      & !<                                             bv=0 )
@@ -227,7 +228,6 @@
 
   real, allocatable, dimension(:,:,:,:) :: aer_conc & ! Local variable containing aerosol fields
                                           ,aer_tend & !  ""     ""        ""        ""    tendencies
-                                          ,aer_blnc & !  ""     ""        ""        ""    fixer tendencies
                                   
                                           ,aer_acti & !  ""     ""        ""        ""    A<->C activation   
                                           ,aer_scvc & !  ""     ""        ""        ""    A<->C in-cloud scav   

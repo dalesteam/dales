@@ -116,8 +116,8 @@ contains
 
       call ncinfo(ncname(18,:),'so4nus','Free aerosol sulphate mass concentration NUS', '1e-4 ng/kg','tttt')
       call ncinfo(ncname(19,:),'so4ais','Free aerosol sulphate mass concentration AIS', '1e-2 ng/kg','tttt')
-      call ncinfo(ncname(20,:),'so4acs','Free aerosol sulphate mass concentration ACS', '1e-2 ng/kg','tttt')
-      call ncinfo(ncname(21,:),'so4cos','Free aerosol sulphate mass concentration COS', '1e-2 ng/kg','tttt')
+      call ncinfo(ncname(20,:),'so4acs','Free aerosol sulphate mass concentration ACS', 'ng/kg','tttt')
+      call ncinfo(ncname(21,:),'so4cos','Free aerosol sulphate mass concentration COS', 'ng/kg','tttt')
       call ncinfo(ncname(22,:),'so4cld','In-cloud aerosol sulphate mass concentration', '1e-2 ng/kg','tttt')
       call ncinfo(ncname(23,:),'so4rai','In-rain aerosol sulphate mass concentration',  '1e-2 ng/kg','tttt')
 
@@ -576,7 +576,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E16*svm(i,j,k,iso4nus+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E7*svm(i,j,k,iso4nus+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -602,7 +602,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4ais+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iso4ais+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -628,7 +628,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4acs+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E3*svm(i,j,k,iso4acs+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -654,7 +654,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4cos+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E3*svm(i,j,k,iso4cos+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -680,7 +680,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4cld+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iso4cld+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -706,7 +706,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iso4rai+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iso4rai+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -732,7 +732,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcais+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ibcais+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -758,7 +758,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcacs+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ibcacs+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -784,7 +784,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibccos+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ibccos+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -810,7 +810,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcaii+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ibcaii+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -836,7 +836,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibccld+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ibccld+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -862,7 +862,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ibcrai+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ibcrai+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -888,7 +888,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomais+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ipomais+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -914,7 +914,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomacs+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ipomacs+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -940,7 +940,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomcos+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ipomcos+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -966,7 +966,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomaii+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ipomaii+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -992,7 +992,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomcld+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ipomcld+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1018,7 +1018,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,ipomrai+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,ipomrai+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1044,7 +1044,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*svm(i,j,k,issacs+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E3*svm(i,j,k,issacs+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1070,7 +1070,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*svm(i,j,k,isscos+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E3*svm(i,j,k,isscos+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1096,7 +1096,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*svm(i,j,k,isscld+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E3*svm(i,j,k,isscld+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1122,7 +1122,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E12*svm(i,j,k,issrai+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E3*svm(i,j,k,issrai+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1148,7 +1148,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iduacs+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iduacs+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1174,7 +1174,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iducos+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iducos+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1200,7 +1200,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iduaci+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iduaci+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1226,7 +1226,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iducoi+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iducoi+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1252,7 +1252,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,iducld+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iducld+iaer_offset),4)
       enddo
       enddo
       enddo
@@ -1278,7 +1278,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E14*svm(i,j,k,idurai+iaer_offset),4)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,idurai+iaer_offset),4)
       enddo
       enddo
       enddo
