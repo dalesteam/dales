@@ -792,8 +792,7 @@ contains
     idtmax = floor(dtmax/tres)
     btime   = timee
 
-
-    if (.not.(ltotruntime)) then
+    if (ltotruntime) then
       runtime = runtime + btime*tres
     end if
     timeleft=ceiling((runtime)/tres-btime)
