@@ -72,6 +72,7 @@ SAVE
   integer :: irad    = -1                !< Deprecated selection parameter for the type of radiation scheme
   logical :: lCnstZenith = .false.       !< Switch to disable the diurnal cycle and use diurnally averaged SW radiation (e.g. CGILS)
   logical :: lCnstAlbedo = .false.       !< Switch to disable the surface albedo parameterization in RRTMG
+  logical :: lsmoothsurfrad = .false.    !< Switch to use smoothening of diffuse radiative fluxes at the surface in RRTMG (diffuse swd, swu, lwd, lwu)
   real :: cnstZenith=0.                  !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
   ! Options in NAMRADIATION that apply to the rrtmg script
@@ -115,6 +116,10 @@ SAVE
                                                    swDownCS_slice, &    ! Downwelling shortwave rad, clear sky value(2D slice)
                                                    swHR_slice,     &    ! Heating rate due to shortwave rad         (2D slice)
                                                    swHRCS_slice         ! Heating rate due to shortwave rad,clear sky value         (2D slice)
+  real ::   swdif_surfavl, swu_surfavl, lwd_surfavl, lwu_surfavl !for surface smoothing of diffuse radiation, local sums 
+  real ::   swdif_surfav, swu_surfav, lwd_surfav, lwu_surfav !for surface smoothing of diffuse radiation, global sums
+
+
 
   real,allocatable,dimension(:) ::                 solarZenithAngleCos  ! The zenith angle of a slice
   real(kind=kind_rb),allocatable,dimension(:) :: asdir,asdif,aldir,aldif                         ! Albedos ...

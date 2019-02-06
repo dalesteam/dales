@@ -11,7 +11,7 @@ module modradtenstream
   use m_data_parameters, only: ireals, iintegers, mpiint, one, zero,  init_mpi_data_parameters, pi, default_str_len
   use m_dyn_atm_to_rrtmg, only: t_tenstr_atm, setup_tenstr_atm, destroy_tenstr_atm
   use m_pprts_rrtmg, only : pprts_rrtmg, destroy_pprts_rrtmg
-  use m_pprts_base, only : t_solver_3_10,t_solver_8_10
+  use m_pprts_base, only : t_solver_3_10,t_solver_8_16
   use m_helper_functions, only : imp_allgather_int_inplace,rad2deg,deg2rad,CHKERR,reorder_mpi_comm
   use modfields, only : &
     qt0, &    ! (:,:,:) total specific humidity at time step t

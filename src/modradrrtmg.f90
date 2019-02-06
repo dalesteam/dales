@@ -10,8 +10,8 @@ contains
   subroutine radrrtmg
     use modglobal,     only : cp,rlv,dzf,&
                               imax,jmax,kmax,i1,j1,k1,&
-                              kind_rb,SHR_KIND_R4,boltz
-    use modmpi,        only : myid
+                              kind_rb,SHR_KIND_R4,boltz,ijtot
+    use modmpi,        only : myid,comm3d,mpierr,mpi_sum,my_real
     use modfields,     only : presh,presf,rhof,exnf,thl0
     use modsurfdata ,  only : tskin
     use rrtmg_lw_init, only : rrtmg_lw_ini
@@ -227,7 +227,8 @@ contains
       SW_dn_ca_TOA (2:i1,j) = -swDownCS_slice(1:imax,krad2)
       LW_up_ca_TOA (2:i1,j) =  lwUpCS_slice  (1:imax,krad2)
       LW_dn_ca_TOA (2:i1,j) = -lwDownCS_slice(1:imax,krad2)
-
+      
+      
     end do ! Large loop over j=2,j1
 
     do k=1,kmax
@@ -250,6 +251,29 @@ contains
         end do
       end do
     end do
+  if (lsmoothsurfrad == .true.) then
+      ! surface smoothing
+      swdif_surfavl = sum(swdif(2:i1,2:j1,1))
+      swu_surfavl   = sum(swu(2:i1,2:j1,1))
+      lwd_surfavl   = sum(swd(2:i1,2:j1,1))
+      lwu_surfavl   = sum(swu(2:i1,2:j1,1))
+      
+      call MPI_ALLREDUCE(swdif_surfavl,  swdif_surfav,   1, MY_REAL, MPI_SUM, comm3d, mpierr)     
+      call MPI_ALLREDUCE(swu_surfavl,    swu_surfav,     1, MY_REAL, MPI_SUM, comm3d, mpierr)
+      call MPI_ALLREDUCE(lwd_surfavl,    lwd_surfav,     1, MY_REAL, MPI_SUM, comm3d, mpierr)
+      call MPI_ALLREDUCE(lwu_surfavl,    lwu_surfav,     1, MY_REAL, MPI_SUM, comm3d, mpierr)
+      
+      swdif_surfav =  swdif_surfav / ijtot
+      swu_surfav   =  swu_surfav   / ijtot
+      lwd_surfav   =  lwd_surfav   / ijtot
+      lwu_surfav   =  lwu_surfav   / ijtot
+      
+      swdif(2:i1,2:j1,1) = swdif_surfav
+      swu  (2:i1,2:j1,1) = swu_surfav
+      lwd  (2:i1,2:j1,1) = lwd_surfav
+      lwu  (2:i1,2:j1,1) = lwu_surfav
+      swd  (2:i1,2:j1,1) = swdif(2:i1,2:j1,1) + swdir(2:i1,2:j1,1)
+  endif
 
     !if(myid==0) write(*,*) 'RadiationDone'
 !    stop 'FINISHED radrrtmg!!'
