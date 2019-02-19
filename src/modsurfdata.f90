@@ -162,13 +162,14 @@ SAVE
   real              :: CO2comp298 =   68.5 !<  CO2 compensation concentration
   real              :: Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
   real              :: gm298      =    7.0 !<  Mesophyll conductance at 298 K
-  real              :: Q10gm      =    2.2 !<  Parameter to calculate the mesophyll conductance
+  real              :: Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
   real              :: T1gm       =  278.0 !<  Reference temperature to calculate the mesophyll conductance
-  real              :: T2gm       =  302.5 !<  Reference temperature to calculate the mesophyll conductance
+  real              :: T2gm       =  301.0 !<  Reference temperature to calculate the mesophyll conductance
   real              :: gmin       = 2.5e-4 !<  Cuticular (minimum) conductance
   real              :: nuco2q     =    1.6 !<  Ratio molecular viscosity water to carbon dioxide
   real              :: f0         =   0.89 !<  Maximum value Cfrac
-  real              :: ad         =   0.07 !<  Regression coefficient to calculate Cfrac
+!  real              :: ad         =   0.07 !<  Regression coefficient to calculate Cfrac
+  real              :: ad         =   0.15 !<  Regression coefficient to calculate Cfrac (same value as C4 sensitivity 036)
   real              :: Ammax298   =    2.2 !<  CO2 maximal primary productivity
   real              :: Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
   real              :: T1Am       =    281 !<  Reference temperature to calculate maximal primary productivity
@@ -178,7 +179,7 @@ SAVE
   real              :: Cw         = 1.6e-3 !<  Constant water stress correction
   real              :: wsmax      =   0.55 !<  Upper reference value soil water
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
-  real              :: R10        =   0.20 !<  Respiration at 10oC (Jacobs 2007)
+  real              :: R10        =   0.15 !<  Respiration at 10oC (Jacobs 2007)
   real              :: Eact0      = 53.3e3 !<  Activation energy
 
   !Variables for 2leaf AGS

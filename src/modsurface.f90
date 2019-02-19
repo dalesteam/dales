@@ -847,10 +847,14 @@ contains
           else
             do n=1,nsv
               if (n == 10) then
-!                a0 = 0.65
-                a0 = 1.15     ! JV new factor to get closer to Gunther's parameterization                                         
-                a1 = 42705.1
-                a2 = 7999.29
+!                a0 = 0.65   ! run 029
+                a0 = 0.85    ! run CONTROL 031, 035 and 036
+!                a0 = 1.00
+                a1 = 43200. 
+                a2 = 7999.
+!                a0 = 1.15     ! JV new factor to get closer to Gunther's parameterization                                         
+!                a1 = 42705.1
+!                a2 = 7999.29
                 factor3    = ((rtimee+5*3600.) -a1)/a2
                 wsvsurf(n) = a0 * exp(-(0.5*factor3**2.)) 
                endif
