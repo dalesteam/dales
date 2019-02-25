@@ -513,10 +513,6 @@ module modbulkmicro
                 
                   fix = max(aertest, sinktotal)                      
 
-!                  if (sinktotal > aertest) then
-!                     write(6,"(A20,5E10.3)") 'Cannot balance free!', sinktotal, aertest, aer_acti(i,j,k,iaer), aer_scvc(i,j,k,iaer), aer_scvr(i,j,k,iaer)   
-!                  end if
-
                   aer_acti(i,j,k,iaer) = aer_acti(i,j,k,iaer) - fix*f_acti
                   aer_scvc(i,j,k,iaer) = aer_scvc(i,j,k,iaer) - fix*f_scvc
                   aer_scvr(i,j,k,iaer) = aer_scvr(i,j,k,iaer) - fix*f_scvr
@@ -571,10 +567,6 @@ module modbulkmicro
                   
                   fix = max(aertest, sinktotal)
 
-!                  if (sinktotal > aertest) then
-!                     write(6,"(A20,7E10.3)") 'Cannot balance incl!', sinktotal, aertest, fix, aer_evpc(i,j,k,iaer), aer_auto(i,j,k,iaer), aer_accr(i,j,k,iaer), aer_slfc(i,j,k,iaer)
-!                  end if
-                                     
                   if (aer_evpc(i,j,k,iaer) < 0.) then
                      aer_tend(i,j,k,taer)   = aer_tend(i,j,k,taer)   + fix*f_evpc*( -aer_evpc(i,j,k,taer)/aer_evpc(i,j,k,iaer))
                      aer_evpc(i,j,k,taer)   = aer_evpc(i,j,k,taer)   + fix*f_evpc*( -aer_evpc(i,j,k,taer)/aer_evpc(i,j,k,iaer))
@@ -587,18 +579,12 @@ module modbulkmicro
                   end if
      
                   if (ispec /= 1) then
-!                     if (abs(f_evpc+f_auto+f_accr-1.) > eps0) then
-!                        write(6,"(A9, 4E11.4)") "CLD SINK", f_evpc, f_auto, f_accr, f_evpc+f_auto+f_accr-1.   
-!                     end if   
                      aer_auto(i,j,k,iaer+1) = aer_auto(i,j,k,iaer+1) + fix*f_auto
                      aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + fix*f_auto
 
                      aer_accr(i,j,k,iaer+1) = aer_accr(i,j,k,iaer+1) + fix*f_accr
                      aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + fix*f_accr
                   else
-!                     if (abs(f_evpc+f_auto+f_accr+f_slfc-1.) > eps0) then   
-!                        write(6,"(A9, 5E11.4)") "CLD SINK", f_evpc, f_auto, f_accr, f_slfc, f_evpc+f_auto+f_accr+f_slfc-1.   
-!                     end if   
                      ! Note:
                      ! 1. Accretion does not influence raindrop number concentration (Nr)
                      ! 2. Due to difference in size of cloud and raindrops, 
@@ -634,20 +620,9 @@ module modbulkmicro
                    
                   fix = max(aertest,aer_evpr(i,j,k,iaer))     
 
-!                  if (aer_evpr(i,j,k,iaer) > aertest) then
-!                     write(6,"(A20,3E10.3)") 'Cannot balance rain!', aer_evpr(i,j,k,iaer), aertest, fix
-!                  end if
- 
                   !Distribution between acs and cos modes
                   f_acs = -aer_evpr(i,j,k,taer  )/aer_evpr(i,j,k,iaer)!(aer_evpr(i,j,k,taer)+aer_evpr(i,j,k,taer+1)) !ACS
                   f_cos = -aer_evpr(i,j,k,taer+1)/aer_evpr(i,j,k,iaer)!(aer_evpr(i,j,k,taer)+aer_evpr(i,j,k,taer+1)) !COS 
-!                  if (abs(f_acs+f_cos-1.) > eps0) then      
-!                     write(6,"(A9, 3E11.4)") "RAIN SINK", f_acs, f_cos, f_acs+f_cos-1.
-!                  end if
-
-!                  write(6,"(A15, F7.4, A6, F7.4, A6, E10.3, A9, E10.3, A9, E10.3, A9, E10.3, A9, E10.3)") "RAIN-FIX f_acs", f_acs, "f_cos", f_cos, "f_sum", 1-(f_acs+f_cos), &
-!                                                                         "evap_acs", aer_evpr(i,j,k,taer), "evap_cos", aer_evpr(i,j,k,taer+1), "evap_rai", aer_evpr(i,j,k,iaer), & 
-!                                                                         "evap_sum", aer_evpr(i,j,k,iaer)+aer_evpr(i,j,k,taer)+aer_evpr(i,j,k,taer+1) 
 
                   aer_tend(i,j,k,taer  ) = aer_tend(i,j,k,taer  ) + fix*f_acs!( -aer_evpr(i,j,k,taer)/aer_evpr(i,j,k,iaer))
                   aer_evpr(i,j,k,taer  ) = aer_evpr(i,j,k,taer  ) + fix*f_acs!( -aer_evpr(i,j,k,taer)/aer_evpr(i,j,k,iaer))
@@ -676,36 +651,6 @@ module modbulkmicro
          qtp(i,j,k)     = qtp(i,j,k)  + qtpmcr(i,j,k)                      + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
          thlp(i,j,k)    = thlp(i,j,k) + thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
          svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-
-!         do iaer = 1,naer
-!           if (nmod_type(iaer) == 9) then
-!
-!           select case(nspec_type(iaer))
-!           case(1) ! Number
-!              taer = iacs_n
-!              aertest = nrtest
-!           case(2) ! SO4
-!              taer = iso4acs
-!              aertest = svm(i,j,k,iaer+iaer_offset)+(svp(i,j,k,iaer+iaer_offset)+aer_tend(i,j,k,iaer))*delt
-!           case(3) ! BC
-!              taer = ibcacs
-!              aertest = svm(i,j,k,iaer+iaer_offset)+(svp(i,j,k,iaer+iaer_offset)+aer_tend(i,j,k,iaer))*delt
-!           case(4) ! POM
-!              taer = ipomacs
-!              aertest = svm(i,j,k,iaer+iaer_offset)+(svp(i,j,k,iaer+iaer_offset)+aer_tend(i,j,k,iaer))*delt
-!           case(5) ! SS
-!              taer = issacs
-!              aertest = svm(i,j,k,iaer+iaer_offset)+(svp(i,j,k,iaer+iaer_offset)+aer_tend(i,j,k,iaer))*delt
-!           case(6) ! DUST
-!              taer = iduacs
-!              aertest = svm(i,j,k,iaer+iaer_offset)+(svp(i,j,k,iaer+iaer_offset)+aer_tend(i,j,k,iaer))*delt
-!           end select
-!                
-!           aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) - max(aer_tend(i,j,k,iaer),aertest/delt)
-!           aer_tend(i,j,k,taer) = aer_tend(i,j,k,taer) + max(aer_tend(i,j,k,iaer),aertest/delt)
-!
-!           end if
-!        enddo
 
       else
 
@@ -799,7 +744,7 @@ module modbulkmicro
    
           if (l_kohler) then
 
-          if ( Nc(i,j,k) < ncmin ) then
+          if ( Nc(i,j,k) < 1e6 ) then
 
              !Aggregate free aerosol modes
              do iaer = 1, naer !Aggregate modes
@@ -840,7 +785,6 @@ module modbulkmicro
                    fn(imod) = 1. - .5*erfc(-log(d_crit/dn_mean)/sqrt(2.)*log(sigma))
                    fm(imod) = 1. - .5*erfc(-log(d_crit/dm_mean)/sqrt(2.)*log(sigma))
 
-!                   write(6,"(I3, 3E11.4, 2F7.4)") imod, 1e6*d_crit, 1e6*dn_mean, 1e6*dm_mean, fn(imod), fm(imod)
              enddo !imod
 
           end if !ncmin
@@ -1095,12 +1039,8 @@ module modbulkmicro
   do k=1,k1
 
      meancld =  min( max( 1e6*(3.*ql0(i,j,k)*rhof(k)/(4.*3.1415*Nc(i,j,k)*rhow))**(1/3.) ,5.001), 49.999) ! in micron
-     rainrate = min( max(sed_qr(i,j,k)*3600, 0.01001) , 99.999)                                           !kg m-2 s-1 --> mm/hr
+     rainrate = min( max(sed_qr(i,j,k)*3600., 0.01001) , 99.999)                                           !kg m-2 s-1 --> mm/hr
   
-!     if ( qrmask(i,j,k) ) then 
-!        write(6,"(A9, E11.4,A7,E11.4,A2)") 'rainrate:', rainrate, 'raw:(', sed_qr(i,j,k)*3600, ')'        
-!     end if   
- 
      mod_numb = 0.0
      mod_mass = 0.0        
      mod_rho  = 0.0   
@@ -1135,8 +1075,8 @@ module modbulkmicro
 
         if ( (mod_mass(imod) > eps0) .and. (mod_numb(imod) > ncmin)) then
    
-           ! Get geometric mean aerosol radius
-           meanaer = 0.5*((6.*mod_mass(imod))/(pi*mod_numb(imod)*scalefac*mod_rho(imod)))**(1./3.)*exp(-(3./2.)*log(sigma_lognormal(imod))**2.)           ! in meter
+           ! Get geometric mean aerosol radius (in meter)
+           meanaer = 0.5*((6.*mod_mass(imod))/(pi*mod_numb(imod)*scalefac*mod_rho(imod)))**(1./3.)*exp(-(3./2.)*log(sigma_lognormal(imod))**2.)
 
            ! IN-CLOUD SCAVENGING  
            ! ==================================================================================== !
@@ -1155,22 +1095,17 @@ module modbulkmicro
            ! ==================================================================================== !
            if ( qcmask(i,j,k) .and. ( Nc(i,j,k) > ncmin )) then
 
-               meanaer_inc = max(min(100.*meanaer,8.0E-03),1.0E-8) ! in cm
+              ! Transform aerosol radius to cm and apply bounds of lookup table (80 um > r > 0.1 nm)  
+              meanaer_inc = max(min(100.*meanaer,8.0E-03),1.0E-8) ! in cm
 
               scavinc_n(imod) = 1e-6*Nc(i,j,k)*lookup_interpolate(ncld,logcldrad,naer,logaerrad,incnumb,log(meancld),log(meanaer_inc)) 
               scavinc_m(imod) = 1e-6*Nc(i,j,k)*lookup_interpolate(ncld,logcldrad,naer,logaerrad,incmass,log(meancld),log(meanaer_inc))
-
-!              write(6,"(A10,A5,I2,A3,E10.3,A3,E10.3,A3,E10.3,A8,E10.3,A8,E10.3)") 'SCVC-Stats', 'mode', imod, 'N:', scavinc_n(imod), 'M:', scavinc_m(imod), 'Nc', 1e-6*Nc(i,j,k), 'meancld', meancld,'meanaer', meanaer_inc
 
               if ((scavinc_n(imod)*delt > 1.) .or. (scavinc_m(imod)*delt > 1.)) then   
                  scavinc_n(imod) = 1./delt
                  scavinc_m(imod) = 1./delt
               end if
 
-!              if ((scavinc_n(imod)*delt < 0.) .or. (scavinc_m(imod)*delt < 0.)) then
-!                 write(6,"(A8,A5,I2,A3,E10.3,A3,E10.3,A3,E10.3,A8,E10.3,A8,E10.3)") 'SCVC < 0', 'mode', imod, 'N:', scavinc_n(imod), 'M:', scavinc_m(imod), 'Nc', Nc(i,j,k), 'meancld', meancld,'meanaer', meanaer
-!              end if    
- 
            end if !qcmask, Nc>0
 
            ! BELOW-CLOUD SCAVENGING  
@@ -1192,10 +1127,11 @@ module modbulkmicro
            !     aer_tend(i,j,k,iaer) = aer_conc(i,j,k,iaer) * scav                               !
            ! ==================================================================================== !
            if (l_rain) then
-              if ( qrmask(i,j,k) .and. (sed_qr(i,j,k)*3600> 1.1e-2) ) then   
-
-                 meanaer  = max(1.001e-3,min(.9999e3,meanaer*1e6 )) !in micron 
-
+              if ( qrmask(i,j,k) .and. (sed_qr(i,j,k)*3600. > .01) ) then   
+                 
+                 ! Transform aerosol radius to micron and apply bounds of lookup table ( 1 nm > r > 1000 um )
+                 meanaer  = max(min(.9999e3,meanaer*1e6 ),1.001e-3) !in micron 
+                 
                  scavblc_n(imod) = lookup_interpolate(nrai,lograinrate,naer,logaerrad_blc,blcnumb,log(rainrate),log(meanaer))
                  scavblc_m(imod) = lookup_interpolate(nrai,lograinrate,naer,logaerrad_blc,blcmass,log(rainrate),log(meanaer))
               end if !qrmask, sed_qr
@@ -1236,11 +1172,6 @@ module modbulkmicro
            aer_tend(i,j,k,taerblc) = aer_tend(i,j,k,taerblc) - aer_scvr(i,j,k,iaer)
 
         end if
-
-! TEMPORARY
-!        if ( (aer_conc(i,j,k,iaer) + aer_scvc(i,j,k,iaer) + aer_scvr(i,j,k,iaer)) < 0) then
-!        write(6,"(A9, 3I3, 4E10.3)") 'SCVR STAT', iaer, taerinc, taerblc, aer_conc(i,j,k,iaer), aer_scvc(i,j,k,iaer), aer_scvr(i,j,k,iaer), aer_conc(i,j,k,iaer)+aer_scvc(i,j,k,iaer)+aer_scvr(i,j,k,iaer)
-!        endif
 
      enddo !iaer                   
            
@@ -1696,13 +1627,10 @@ module modbulkmicro
            if (qr_spl(i,j,k+1) > 0.) then
               aer_in  = min(rhof(k+1)*dzf(k+1)/dt_spl      *aer_spl(i,j,k+1,ispec), &
                             sed_qr(i,j,k+1)/qr_spl(i,j,k+1)*aer_spl(i,j,k+1,ispec))
-!              aer_in  = sed_qr(i,j,k+1)/qr_spl(i,j,k+1)*aer_spl(i,j,k+1,ispec)
            endif
            if (qr_spl(i,j,k  ) > 0.) then
               aer_out = min(rhof(k  )*dzf(k  )/dt_spl      *aer_spl(i,j,k  ,ispec), &
                             sed_qr(i,j,k  )/qr_spl(i,j,k  )*aer_spl(i,j,k  ,ispec))
-!              aer_out = sed_qr(i,j,k  )/qr_spl(i,j,k  )*aer_spl(i,j,k  ,ispec)
-!              write(6,"(A13, E11.4)") 'SEDIMENTATION', sed_qr(i,j,k)/qr_spl(i,j,k)*dt_spl/(dzf(k)*rhof(k))     
            endif
            
            aer_spl(i,j,k,ispec) = aer_spl(i,j,k,ispec) + (aer_in - aer_out)*dt_spl/(dzf(k)*rhof(k))
@@ -1711,25 +1639,7 @@ module modbulkmicro
            end if          
         enddo
 
-
         qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-
-!        do iaer = 1,naer 
-!           if (nspec_type(iaer) == 9 .and. nmod_type(iaer) > 1) then
-!              aer_in = 0.
-!              aer_out = 0.
-!
-!              if (qrmask(i,j,k+1)) then 
-!                 aer_in =  sed_qr(i,j,k+1)/qr_spl(i,j,k+1)/(dzf(k+1)*rhof(k+1)) * aer_spl(i,j,k+1,nspec_type(iaer)-1)
-!              end if
-!              if (qrmask(i,j,k)) then 
-!                 aer_out = sed_qr(i,j,k  )/qr_spl(i,j,k  )/(dzf(k  )*rhof(k  )) * aer_spl(i,j,k,  nspec_type(iaer)-1)
-!              end if
-!      
-!              aer_spl(i,j,k,nspec_type(iaer)-1) = aer_spl(i,j,k,nspec_type(iaer)-1) + (aer_in - aer_out)*dt_spl
-!
-!           end if
-!        enddo
 
       enddo
       enddo
@@ -1742,28 +1652,6 @@ module modbulkmicro
       enddo
       endif
     end do  ! second k loop
-
-!       do k = 1, kmax
-!       do j = 2, j1
-!       do i = 2, i1
-!          do ispec = 1, nspec-1
-!             aer_in = 0.
-!             aer_out = 0.
-!
-!             if (qrmask(i,j,k+1)) then
-!                aer_in = min(sed_qr(i,j,k+1)/qr_spl(i,j,k+1)/(dzf(k+1)*rhof(k+1)),1.) * aer_spl(i,j,k+1,ispec)
-!                if 
-!             end if      
-!
-!             if (qrmask(i,j,k  )) then
-!                aer_in = min(sed_qr(i,j,k  )/qr_spl(i,j,k  )/(dzf(k  )*rhof(k  )),1.) * aer_spl(i,j,k  ,ispec)
-!             end if
-!
-!             aer_spl(i,j,k,ispec) = aer_spl(i,j,k,ispec) + (aer_in - aer_out)*dt_spl
-!          enddo    
-!       enddo
-!       enddo
-!       enddo    
 
     enddo ! time splitting loop
 
@@ -1931,7 +1819,6 @@ module modbulkmicro
           endif !imod == 9, i.e. rain   
        enddo !iaer
 
-!       if ( (evapn > 0.) .and. (SUM(evapm) > 0.) ) then
        if ( SUM(evapm) > 0. ) then
           ! Complete evaporated tracer value calculation
           evapr = SUM(evapm) / SUM(evapm/spec_rho)
@@ -1944,8 +1831,6 @@ module modbulkmicro
           ! Calculate partitioning accumulation/coarse aerosol mode
           Fn = .5*erfc(- log(Dc/Dn)/( sqrt(2.)*log(sigma)) )
           Fm = .5*erfc(- log(Dc/Dm)/( sqrt(2.)*log(sigma)) )
-
-!          write(6,"(A16, 2F5.2, 2E9.2, A6, F5.0, A6, E9.2, A6, 5E9.2)") 'Evap Fn,Fm,Dn,Dm',Fn,Fm,Dn,Dm,'evapr',evapr,'evapn',evapn,'evapm',evapm(1),evapm(2),evapm(3),evapm(4),evapm(5)
 
           do iaer = 1,naer
   
@@ -2133,7 +2018,6 @@ module modbulkmicro
       erfymax = -1.*erfymax
     end if
     erfint = D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin)
-  !  if (erfint < 0.) write(*,*)'erfint neg'
     if (erfint < 0.) erfint = 0.
   end function erfint
 
