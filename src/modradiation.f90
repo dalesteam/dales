@@ -29,6 +29,7 @@
 module modradiation
 use modraddata
 implicit none
+ logical :: first_time_rad
 
 contains
 
@@ -46,7 +47,7 @@ contains
     namelist/NAMRADIATION/ &
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
-      ocean, usero3, co2factor, doperpetual, doseasons, iyear
+      ocean, usero3, co2factor, ch4factor,n2ofactor,doperpetual, doseasons, iyear
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -88,6 +89,8 @@ contains
     call MPI_BCAST(ocean,      1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(usero3,     1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(co2factor,  1,my_real,    0,comm3d,ierr)
+    call MPI_BCAST(ch4factor,  1,my_real,    0,comm3d,ierr)
+    call MPI_BCAST(n2ofactor,  1,my_real,    0,comm3d,ierr)
     call MPI_BCAST(doperpetual,1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(doseasons,  1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
@@ -179,6 +182,7 @@ contains
     itimerad = floor(timerad/tres)
     tnext = itimerad+btime
     dt_lim = min(dt_lim,tnext)
+    first_time_rad = .true.
 
     if (rad_smoke.and.isvsmoke>nsv) then
       if (rad_shortw) then
@@ -203,8 +207,18 @@ contains
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
-    if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
-      tnext = tnext+itimerad
+
+    !cstep write(6,*) itimerad, timee,tnext,rk3step,first_time_rad  !cstep
+
+    if(((itimerad==0 .or. timee==tnext) .and. rk3step==1).or. first_time_rad) then
+      first_time_rad = .false.
+
+      !cstep tnext = tnext+itimerad
+
+      tnext = timee+itimerad
+
+     !cstep  write(6,*) 'do radiation',itimerad,timee,tnext,rk3step
+
       thlprad = 0.0
       select case (iradiation)
           case (irad_none)

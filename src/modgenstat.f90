@@ -101,7 +101,9 @@ save
   real, allocatable  :: uwrmn  (:),vwrmn  (:) !subgrid  uw, vw
 ! real, allocatable  ::     --- various moments ---
 
-!   real, allocatable  :: rmn        (:), r2mn   (:), r3mn (:), rhmn (:)
+!   real, allocatable  :: rmn        (:), r2mn   (:), r3mn (:)
+  real, allocatable ::  rhmn (:)
+  real, allocatable ::  qsmn (:)  , qimn (:) , qrimn (:)
   real, allocatable  :: w2mn       (:), skewmn (:)
   real, allocatable  :: w2submn    (:)
   real, allocatable  :: u2mn       (:), v2mn  (:),     qt2mn(:)
@@ -218,7 +220,9 @@ contains
     allocate(wqtsmn (k1),wqtrmn (k1),wqttmn(k1))
     allocate(wsvsmn (k1,nsv),wsvrmn(k1,nsv),wsvtmn(k1,nsv))
     allocate(uwtmn  (k1),vwtmn  (k1),uwrmn  (k1),  vwrmn(k1),uwsmn(k1),vwsmn(k1))
-!     allocate(rmn(k1), r2mn   (k1), r3mn (k1), rhmn (k1))
+!     allocate(rmn(k1), r2mn   (k1), r3mn (k1), 
+    allocate(rhmn (k1))
+    allocate(qsmn (k1), qimn (k1),  qrimn (k1))
     allocate(w2mn       (k1), skewmn (k1))
     allocate(w2submn    (k1))
     allocate(u2mn       (k1), v2mn  (k1),     qt2mn(k1))
@@ -316,7 +320,10 @@ contains
       ql2mn    = 0.
 !       qs2mn    = 0.
 !       qsmn     = 0.
-!       rhmn     = 0.
+       rhmn     = 0.
+       qsmn     = 0.
+       qimn     = 0.
+       qrimn    = 0.
 !       rmn      = 0.
 !       r2mn     = 0.
 !       r3mn     = 0.
@@ -348,6 +355,8 @@ contains
         open (ifoutput,file='flux2.'//cexpnr,status='replace')
         close (ifoutput)
         open (ifoutput,file='moments.'//cexpnr,status='replace')
+        close (ifoutput)
+        open (ifoutput,file='rcemip.'//cexpnr,status='replace')
         close (ifoutput)
         do n=1,nsv
             name = 'svnnnfld.'//cexpnr
@@ -459,11 +468,14 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
+                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh, &
+                          rhof,&
+                          qsat0, tmp0, qri, field_2D_mn
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
+                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,&
+                          tup,tdn
     use modmpi,    only : comm3d,my_real,mpi_sum,mpierr,slabsum
     implicit none
 
@@ -482,7 +494,11 @@ contains
         thl2avl  , &
         thv2avl  , &
         ql2avl   , &
-        th2avl
+        th2avl   , &
+        rhavl    , &
+        qsavl    , & 
+        qiavl    , &
+        qriavl
     real,allocatable, dimension(:,:) :: &
         wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
         wsvresl,&   ! slab averaged res w-sv(n)  flux &
@@ -520,6 +536,7 @@ contains
               thv2av  , &
               th2av   , &
               ql2av
+    real,allocatable, dimension(:):: rhav,qsav, qiav ,qriav   
     real,allocatable, dimension(:,:,:)::  thv0
     real,allocatable, dimension(:)::   thvmav
     real ,allocatable, dimension(:,:,:):: sv0h
@@ -531,6 +548,7 @@ contains
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
+    real    ilratio_
     allocate( &
         qlhavl (k1), & ! slab averaged ql_0 at half level &
         wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
@@ -547,6 +565,7 @@ contains
     allocate( &
         ql2avl   (k1), &
         sv2avl   (k1,nsv))
+    allocate (rhavl(k1),qsavl(k1),qiavl(k1),qriavl(k1))
 
 
     allocate( wqlsubl    (k1))
@@ -581,6 +600,7 @@ contains
               th2av   (k1), &
               ql2av   (k1), &
               sv2av   (k1,nsv))
+    allocate(rhav (k1), qsav(k1), qiav(k1), qriav(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -639,6 +659,10 @@ contains
     thv2avl   = 0.0
     th2avl    = 0.0
     ql2avl    = 0.0
+    rhavl     = 0.0
+    qsavl     = 0.0
+    qiavl     = 0.0
+    qriavl    = 0.0
     thvmav    = 0.0
 
     sv2av   = 0.0
@@ -700,7 +724,7 @@ contains
 
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
-    qsat  = qts - qls
+    qsat  = qts - qls   
     if (qls< eps1) then  ! TH: Should always be true
       c1  = 1.+(rv/rd-1)*qts
       c2  = (rv/rd-1)
@@ -755,7 +779,11 @@ contains
       ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
 !       qs2avl   (1) = qs2avl   (1) + qs0**2
 !       qsavl    (1) = qsavl    (1) + qs0
-!       rhavl    (1) = rhavl    (1) + qtm (i,j,1)/qs0
+       rhavl    (1) = rhavl    (1) + (qt0 (i,j,1)-ql0(i,j,1))/qsat0(i,j,1)
+       qsavl    (1) = qsavl    (1) + qsat0 (i,j,1)
+       ilratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning  
+       qiavl    (1) = qiavl    (1) + ql0 (i,j,1) *(1-ilratio_)
+       qriavl   (1) = qriavl   (1) + qri (i,j,1)
 !       ravl     (1) = ravl     (1) + ((qt0(i,j,1) - qs0))
 !       r2avl    (1) = r2avl    (1) + ((qt0(i,j,1) - qs0)**2)
 !       r3avl    (1) = r3avl    (1) + ((qt0(i,j,1) - qs0)**3)
@@ -764,6 +792,15 @@ contains
         wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
         sv2avl(1,n)  = sv2avl(1,n) + (svm(i,j,1,n)-svmav(1,n))**2
       end do
+
+      field_2D_mn (i,j,16) = field_2D_mn (i,j,16) + rhof(1) * (qt0(i,j,1) - ql0(i,j,1)) * dzf(1)
+      field_2D_mn (i,j,17) = field_2D_mn (i,j,17) + rhof(1) *  ql0(i,j,1) * dzf(1)
+      field_2D_mn (i,j,18) = field_2D_mn (i,j,18) + rhof(1) *  ql0(i,j,1) * dzf(1) *(1-ilratio_)
+      field_2D_mn (i,j,19) = field_2D_mn (i,j,19) + rhof(1) *  qsat0(i,j,1) * dzf(1)
+      field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + u0(i,j,1)
+      field_2D_mn (i,j,21) = field_2D_mn (i,j,21) + v0(i,j,1)
+      field_2D_mn (i,j,22) = field_2D_mn (i,j,22) + tmp0 (i,j,1)
+
     end do
     end do
 
@@ -878,10 +915,21 @@ contains
         ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
 !         qs2avl   (k) = qs2avl   (k) + qs0**2
 !         qsavl    (k) = qsavl    (k) + qs0
-!         rhavl    (k) = rhavl    (k) + qtm (i,j,k)/qs0
+        rhavl    (k) = rhavl    (k) + (qt0 (i,j,k) - ql0(i,j,k))/qsat0(i,j,k)
+        qsavl    (k) = qsavl    (k) + qsat0 (i,j,k) 
+        ilratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+        qiavl    (k) = qiavl    (k) + ql0 (i,j,k) *(1-ilratio_)
+        qriavl   (k) = qriavl   (k) + qri (i,j,k)
 !         ravl     (k) = ravl     (k) + (qt0(i,j,k) - qs0)
 !         r2avl    (k) = r2avl    (k) + (qt0(i,j,k) - qs0)**2
 !         r3avl    (k) = r3avl    (k) + (qt0(i,j,k) - qs0)**3
+
+        field_2D_mn (i,j,16) = field_2D_mn (i,j,16) + rhof(k) * (qt0(i,j,k) - ql0(i,j,k)) * dzf(k)
+        field_2D_mn (i,j,17) = field_2D_mn (i,j,17) + rhof(k) *  ql0(i,j,k) * dzf(k)
+        field_2D_mn (i,j,18) = field_2D_mn (i,j,18) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio_)
+        field_2D_mn (i,j,19) = field_2D_mn (i,j,19) + rhof(k) *  qsat0(i,j,k) * dzf(k)
+     
+     
 
       end do
     end do
@@ -998,8 +1046,15 @@ contains
 !                       MPI_SUM, comm3d,mpierr)
 !     call MPI_ALLREDUCE(qsavl, qsav, k1,    MY_REAL, &
 !                       MPI_SUM, comm3d,mpierr)
-!     call MPI_ALLREDUCE(rhavl, rhav, k1,    MY_REAL, &
-!                       MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(rhavl, rhav, k1,    MY_REAL, &
+                       MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(qsavl, qsav, k1,    MY_REAL, &
+                       MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(qiavl, qiav, k1,    MY_REAL, &
+                       MPI_SUM, comm3d,mpierr)
+     call MPI_ALLREDUCE(qriavl, qriav, k1,    MY_REAL, &
+                       MPI_SUM, comm3d,mpierr)
+
 !     call MPI_ALLREDUCE(ravl, rav, k1,    MY_REAL, &
 !                       MPI_SUM, comm3d,mpierr)
 !     call MPI_ALLREDUCE(r2avl, r2av, k1,    MY_REAL, &
@@ -1017,6 +1072,13 @@ contains
   call MPI_ALLREDUCE(wsvresl(:,n),wsvres(:,n), k1,    MY_REAL, &
       MPI_SUM, comm3d,mpierr)
     end do
+
+  ! rcempi , neglect density difference zf and zh (consistent with surface flux parameterization)
+   
+       field_2D_mn (2:i1,2:j1,1) = field_2D_mn (2:i1,2:j1,1) + rhof(1) * rlv * qtflux (2:i1,2:j1)
+       field_2D_mn (2:i1,2:j1,2) = field_2D_mn (2:i1,2:j1,2) + rhof(1) * cp * thlflux(2:i1,2:j1)
+       
+  !
 
   !     -----------------------------------------------
   !     6   NORMALIZATION OF THE FIELDS AND FLUXES
@@ -1066,7 +1128,10 @@ contains
 !       qs2av    = qs2av    /ijtot
 !       qsav     = qsav     /ijtot
 !       qs2av    = qs2av    - qsav**2
-!       rhav     = rhav     /ijtot
+       rhav     = rhav     /ijtot
+       qsav     = qsav     /ijtot
+       qiav     = qiav     /ijtot
+       qriav    = qriav    /ijtot 
 !       rav      = rav      /ijtot
 !       r2av     = r2av     /ijtot
 !       r3av     = r3av     /ijtot
@@ -1116,7 +1181,10 @@ contains
 !       ql2mn    = ql2mn    + ql2av
 !       qs2mn    = qs2mn    + qs2av
 !       qsmn     = qsmn     + qsav
-!       rhmn     = rhmn     + rhav
+       rhmn     = rhmn     + rhav
+       qsmn     = qsmn     + qsav
+       qimn     = qimn     + qiav
+       qrimn    = qrimn    + qriav
 !       rmn      = rmn      + rav
 !       r2mn     = r2mn     + r2av
 !       r3mn     = r3mn     + r3av
@@ -1151,6 +1219,7 @@ contains
     deallocate( &
         ql2avl   , &
         sv2avl   )
+    deallocate (rhavl,qsavl,qiavl,qriavl)
 
 
     deallocate( wqlsubl    )
@@ -1186,6 +1255,7 @@ contains
               th2av   , &
               ql2av   , &
               sv2av   )
+    deallocate(rhav,qsav,qiav,qriav)
     deallocate(thv0)
     deallocate(thvmav)
     deallocate(sv0h)
@@ -1194,7 +1264,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writestat
       use modglobal, only : kmax,k1,nsv, zh,zf,rtimee,rlv,cp,cexpnr,ifoutput
-      use modfields, only : presf,presh,exnf,exnh,rhof,rhobf,rhobh
+      use modfields, only : presf,presh,exnf,exnh,rhof,rhobf,rhobh,field_2D_mn
       use modsubgriddata, only : csz
       use modmpi,    only : myid
       use modstat_nc, only: lnetcdf, writestat_nc
@@ -1249,7 +1319,10 @@ contains
 
 !       rmn      = rmn    /nsamples
 !       r2mn     = r2mn   /nsamples
-!       rhmn     = rhmn   /nsamples
+      rhmn     = rhmn   /nsamples
+      qsmn     = qsmn   /nsamples
+      qimn     = qimn   /nsamples
+      qrimn    = qrimn  /nsamples
       w2mn     = w2mn   /nsamples
       skewmn   = skewmn /nsamples
       w2submn  = w2submn/nsamples
@@ -1277,7 +1350,10 @@ contains
 
         cszmn = cszmn / nsamples
 
-
+       field_2D_mn(:,:,1:2) = field_2D_mn(:,:,1:2) / nsamples
+       field_2D_mn(:,:,16:22) = field_2D_mn(:,:,16:22) / nsamples
+     !rce  write (6,*) field_2D_mn(:,:,1)
+    
   !     ------------------------------------------
   !     2.0  Construct other time averaged fields
   !     ------------------------------------------
@@ -1440,6 +1516,37 @@ contains
             k=1,kmax)
 
       close(ifoutput)
+
+      open (ifoutput,file='rcemip.'//cexpnr,position='append')
+
+      write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
+        '#--------------------------------------------------------'      &
+        ,'#',(timeav),'--- AVERAGING TIMESTEP --- '      &
+        ,nhrs,':',nminut,':',nsecs      &
+        ,'   HRS:MIN:SEC AFTER INITIALIZATION '
+
+      write (ifoutput,'(3A/3A/3A)') &
+            '#----------------------------------------------------' &
+            ,'---------------------------------------------------' &
+            ,'------------------------------' &
+            ,'#  LEV   HGHT     RH    QSAT          QICE       QI_PREC ' &
+            ,'    ' &
+            ,'  ' &
+            ,'#        (M)     (0-1)  (G/KG)        (G/KG)      (G/KG)' &
+            ,'' &
+            ,''
+
+      write(ifoutput,'(I5,F10.2,F8.4,3E13.5)') &
+            (k, &
+            zf    (k), &
+            rhmn(k), &
+            qsmn(k)*1000., &
+            qimn(k)*1000., &
+            qrimn(k)*1000., &
+            k=1,kmax)
+
+      close(ifoutput)
+
 
 
   !----   Write information about scalar field and its tendencies ------
@@ -1621,7 +1728,10 @@ contains
       ql2mn    = 0.
 !       qs2mn    = 0.
 !       qsmn     = 0.
-!       rhmn     = 0.
+       rhmn     = 0.
+       qsmn     = 0.
+       qimn     = 0.
+       qrimn    = 0.
 !       rmn      = 0.
 !       r2mn     = 0.
 !       r3mn     = 0.
@@ -1638,6 +1748,8 @@ contains
       wsvtmn = 0.
 
       cszmn  = 0.
+
+      !do in fielddump field_2D_mn = 0.
 
       deallocate(tmn, thmn)
 
@@ -1661,7 +1773,8 @@ contains
     deallocate(wqtsmn ,wqtrmn ,wqttmn)
     deallocate(wsvsmn ,wsvrmn,wsvtmn)
     deallocate(uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,vwsmn )
-!     deallocate(rmn, r2mn   , r3mn , rhmn )
+!    deallocate(rmn, r2mn   , r3mn , rhmn )
+    deallocate(rhmn, qsmn , qimn, qrimn)
     deallocate(w2mn       , skewmn )
     deallocate(w2submn    )
     deallocate(u2mn       , v2mn  ,     qt2mn)

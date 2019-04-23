@@ -72,8 +72,10 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
+    use netcdf
     use modmpi,    only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf
+    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,&
+                         nc_input  !cstep
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
 
@@ -88,15 +90,39 @@ contains
     character (1) :: chmess1
     integer :: k,t, ierr
     real :: dummyr
+
     real, allocatable, dimension (:) :: height
+  
+    !cstep : NCDF vars
+    real, allocatable, dimension (:,:) :: help_var
+    integer :: ncid,varID,sts ! checks for presence ncdf input file
+    integer :: dimIDkls,dimIDkflux,dimIDnsv
+    character(len=nf90_max_name) :: tmpName
+    real   :: error_val   = -999.99  !cstep lets model crash if value is needed, but not provided in ncdf file
+                                     !cstep if variable is not needed, error_val is not used
+
+
     if (.not. ltimedep) return
 
     if (ltestbed) then
       kflux = ntnudge
       kls   = ntnudge
     else
-      kflux = 100
-      kls   = 100
+      if (nc_input) then
+         sts        = nf90_open('case_setup.nc',nf90_nowrite,ncid)
+         if (sts.ne.nf90_noerr) stop 'ERROR: ncdf input file not found!'
+
+         sts          = nf90_inq_dimid(ncid,"Ntimels",dimIDkls)
+         if (sts.ne.nf90_noerr) stop 'ERROR: kls time steps not present'
+         sts          = nf90_inquire_dimension(ncid, dimIDkls, tmpName,kls)
+
+         sts          = nf90_inq_dimid(ncid,"Ntimeflux",dimIDkflux)
+         if (sts.ne.nf90_noerr) stop 'ERROR: kflux time steps not present'
+         sts          = nf90_inquire_dimension(ncid, dimIDkflux, tmpName,kflux)         
+      else
+         kflux = 100
+         kls   = 100
+      endif
     end if
 
     allocate(height   (k1))
@@ -126,6 +152,8 @@ contains
 
     allocate(thlproft (k1,kls))
     allocate(qtproft  (k1,kls))
+
+    allocate(help_var (k1,kls))
 
     timeflux = 0
     timels   = 0
@@ -189,84 +217,198 @@ contains
         end do
 
       else
-    
-        open(ifinput,file='ls_flux.inp.'//cexpnr)
-        read(ifinput,'(a80)') chmess
-        write(6,*) chmess
-        read(ifinput,'(a80)') chmess
-        write(6,*) chmess
-        read(ifinput,'(a80)') chmess
-        write(6,*) chmess
 
         timeflux = 0
         timels   = 0
+       
+        wtsurft (:) = error_val
+        wqsurft (:) = error_val
+        thlst   (:) = error_val
+        qtst    (:) = error_val
+        pst     (:) = error_val
+
+        ugt      (:,:) = 0.
+        vgt      (:,:) = 0.
+        wflst    (:,:) = 0.
+        dqtdxlst (:,:) = 0.
+        dqtdylst (:,:) = 0.
+        dqtdtlst (:,:) = 0.
+        thlpcart (:,:) = 0.
+      
+   
+        if (nc_input) then  !cstep
+             sts        = nf90_open('case_setup.nc',nf90_nowrite,ncid)
+             if (sts.ne.nf90_noerr) stop 'ERROR: ncdf input file not found!'
+
+             sts          = nf90_inq_varid(ncid,"zf",varID)
+             sts          = nf90_get_var(ncid, varID, height(1:kmax))
+
+             sts          = nf90_inq_varid(ncid,"timels",varID)
+             sts          = nf90_get_var(ncid, varID, timels(1:kls))
+
+             sts          = nf90_inq_varid(ncid,"timeflux",varID)
+             sts          = nf90_get_var(ncid, varID, timeflux(1:kflux))
+
+             if (timels(kls) < runtime) then
+                  write (6,*) 'max timels, runtime ',timels(kls),runtime
+                  stop 'STOP: No time dependent large-scale forcing data for end of run in ncdf input file '
+             end if
+             if (timeflux(kflux) < runtime) then
+                  write (6,*) 'max timeflux, runtime ',timeflux(kls),runtime
+                  stop 'STOP: No time dependent surface forcing data for end of run in ncdf input file '
+             end if
+
+ !read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
+
+             sts          = nf90_inq_varid(ncid,"wtsurf",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent wtsurf not present, values initialized to error_val'
+             else
+                sts          = nf90_get_var(ncid, varID,wtsurft (1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"wqsurf",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent wqsurf not present, values initialized to error_val'
+             else
+                sts          = nf90_get_var(ncid, varID,wqsurft (1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"thls",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent thls not present, values initialized to error_val'
+             else
+                sts          = nf90_get_var(ncid, varID,thlst (1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"qts",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent qts not present, values initialized to error_val'
+             else
+                sts          = nf90_get_var(ncid, varID,qtst (1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"ps",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent psurface not present, values initialized to error_val'
+             else
+                sts          = nf90_get_var(ncid, varID,pst (1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"ug",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent ug not present, values initialized to zero'
+             else
+                sts          = nf90_get_var(ncid, varID,ugt (1:kmax,1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"vg",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent vg not present, values initialized to zero'
+             else
+                sts          = nf90_get_var(ncid, varID,vgt (1:kmax,1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"wfls",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent wfls not present, values initialized to zero'
+             else
+                sts          = nf90_get_var(ncid, varID,wflst (1:kmax,1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"dqtdxls",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent dqtdxls not present, values initialized to zero'
+             else
+                sts          = nf90_get_var(ncid, varID,dqtdxlst (1:kmax,1:kls)) 
+             endif
+
+             sts          = nf90_inq_varid(ncid,"dqtdyls",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent dqtdyls not present, values initialized to zero'
+             else
+                sts          = nf90_get_var(ncid, varID,dqtdylst(1:kmax,1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"dthldtls",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent dthldtls not present, values initialized to zero'
+             else
+                sts          = nf90_get_var(ncid, varID,thlpcart(1:kmax,1:kls))
+             endif
+
+             sts          = nf90_inq_varid(ncid,"dqtdtls",varID)
+             if (sts.ne.nf90_noerr) then
+                write (6,*) 'warning: time dependent dqtdtls not present, values initialized to zero'
+             else
+                 sts          = nf90_get_var(ncid, varID,dqtdtlst(1:kmax,1:kls))
+             endif
+        else  
+           open(ifinput,file='ls_flux.inp.'//cexpnr)
+           read(ifinput,'(a80)') chmess
+           write(6,*) chmess
+           read(ifinput,'(a80)') chmess
+           write(6,*) chmess
+           read(ifinput,'(a80)') chmess
+           write(6,*) chmess
 
 
-        !--- load fluxes---
-        t    = 0
-        ierr = 0
-        do while (timeflux(t) < runtime)
-          t=t+1
-          read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
-          write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
-          if (ierr < 0) then
-            stop 'STOP: No time dependend data for end of run (surface fluxes)'
-          end if
-        end do
-        if(timeflux(1)>runtime) then
-         write(6,*) 'Time dependent surface variables do not change before end of'
-         write(6,*) 'simulation. --> only large scale forcings'
-         ltimedepsurf=.false.
-        endif
-        ! flush to the end of fluxlist
-        do while (ierr ==0)
-          read (ifinput,*,iostat=ierr) dummyr
-        end do
-        backspace (ifinput)
+           !--- load fluxes---
+           t    = 0
+           ierr = 0
+           do while (timeflux(t) < runtime)
+             t=t+1
+             read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
+             write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
+             if (ierr < 0) then
+                stop 'STOP: No time dependend data for end of run (surface fluxes)'
+             end if
+           end do
+
+!cstep, added below           if(timeflux(1)>runtime) then
+!cstep              write(6,*) 'Time dependent surface variables do not change before end of'
+!cstep              write(6,*) 'simulation. --> only large scale forcings'
+!cstep              ltimedepsurf=.false.
+!cstep           endif
+
+           ! flush to the end of fluxlist
+           do while (ierr ==0)
+             read (ifinput,*,iostat=ierr) dummyr
+           end do
+           backspace (ifinput)
 
 
-        !---load large scale forcings----
-        t = 0
-        do while (timels(t) < runtime)
-          t = t + 1
-          chmess1 = "#"
-          ierr = 1 ! not zero
-          do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read
-            read(ifinput,*,iostat=ierr) chmess1,timels(t)
-            if (ierr < 0) then
-              stop 'STOP: No time dependend data for end of run'
-            end if
-          end do
-          write (*,*) 'timels = ',timels(t)
-          do k=1,kmax
-            read (ifinput,*) &
-              height  (k)  , &
-              ugt     (k,t), &
-              vgt     (k,t), &
-              wflst   (k,t), &
-              dqtdxlst(k,t), &
-              dqtdylst(k,t), &
-              dqtdtlst(k,t), &
-              thlpcart(k,t)
-          end do
-        end do
+           !---load large scale forcings----
+           t = 0
+           do while (timels(t) < runtime)
+             t = t + 1
+             chmess1 = "#"
+             ierr = 1 ! not zero
+             do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read
+                read(ifinput,*,iostat=ierr) chmess1,timels(t)
+                if (ierr < 0) then
+                  stop 'STOP: No time dependend data for end of run'
+                end if
+             end do
+             write (*,*) 'timels = ',timels(t)
+             do k=1,kmax
+                read (ifinput,*) &
+                  height  (k)  , &
+                  ugt     (k,t), &
+                  vgt     (k,t), &
+                  wflst   (k,t), &
+                  dqtdxlst(k,t), &
+                  dqtdylst(k,t), &
+                  dqtdtlst(k,t), &
+                  thlpcart(k,t)
+              end do
+           end do
 
-        close(ifinput)
+           close(ifinput)
 
+        end if  !nc_input
       end if   !ltestbed
 
-
-!      do k=kmax,1,-1
-!        write (6,'(3f7.1,5e12.4)') &
-!            height  (k)  , &
-!            ugt     (k,t), &
-!            vgt     (k,t), &
-!            wflst   (k,t), &
-!            dqtdxlst(k,t), &
-!            dqtdylst(k,t), &
-!            dqtdtlst(k,t), &
-!            thlpcart(k,t)
-!      end do
 
 
       if(timeflux(1)>runtime) then
@@ -313,6 +455,7 @@ contains
     call timedep
 
     deallocate(height)
+    deallocate(help_var)
 
 
   end subroutine inittimedep

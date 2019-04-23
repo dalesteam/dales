@@ -59,7 +59,7 @@ contains
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
-    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
+    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof,qsat0,qi0
     use modmpi, only : slabsum
     implicit none
     integer:: k
@@ -458,8 +458,8 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab,grav,zf
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl, qsat0,mse0
   implicit none
 
   integer i, j, k
@@ -509,7 +509,7 @@ contains
                 tlonr=int((Tnr-150.)*5.)
                 if(tlonr<1 .or.tlonr>1999) then
                   write(*,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
+                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k),presf(k),Tnr,exnf(k)*thl0(i,j,k)
                 endif
                 thinr=tlonr+1
                 tlo=ttab(tlonr)
@@ -552,6 +552,8 @@ contains
               qvsi(i,j,k)=qvsi1
             endif
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+            qsat0 (i,j,k) = qsatur   !if ilratio.eq.1 then qsat0 is wrt liquid
+            mse0(i,j,k)  = cp * tmp0(i,j,k) + grav * zf(k) + rlv * (qt0(i,j,k) - ql0(i,j,k))
       end do
       end do
       end do

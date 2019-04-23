@@ -49,6 +49,8 @@ save
   real, allocatable :: thltendav(:)
   real, allocatable :: thllwtendav(:)
   real, allocatable :: thlswtendav(:)
+  real, allocatable :: thllwtendcaav(:)
+  real, allocatable :: thlswtendcaav(:)
   real, allocatable :: lwuav(:)
   real, allocatable :: lwdav(:)
   real, allocatable :: swdav(:)
@@ -64,6 +66,9 @@ save
   real, allocatable :: thltendmn(:)
   real, allocatable :: thllwtendmn(:)
   real, allocatable :: thlswtendmn(:)
+  real, allocatable :: thllwtendcamn(:)
+  real, allocatable :: thlswtendcamn(:)
+
   real, allocatable :: lwumn(:)
   real, allocatable :: lwdmn(:)
   real, allocatable :: swdmn(:)
@@ -138,9 +143,12 @@ contains
     allocate(lwdcaav(k1))
     allocate(swdcaav(k1))
     allocate(swucaav(k1))
-    allocate(thllwtendav(k1))
     allocate(thltendav(k1))
+    allocate(thllwtendav(k1))
     allocate(thlswtendav(k1))
+    allocate(thllwtendcaav(k1))
+    allocate(thlswtendcaav(k1))
+
 
     allocate(lwumn(k1))
     allocate(lwdmn(k1))
@@ -156,6 +164,9 @@ contains
     allocate(thltendmn(k1))
     allocate(thlswtendmn(k1))
     allocate(thlradlsmn(k1))
+    allocate(thllwtendcamn(k1))
+    allocate(thlswtendcamn(k1))
+
 
     lwumn = 0.0
     lwdmn = 0.0
@@ -171,6 +182,8 @@ contains
     thllwtendmn = 0.0
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
+    thllwtendcamn = 0.0
+    thlswtendcamn = 0.0
 
     if(myid==0)then
       open (ifoutput,file='radstat.'//cexpnr,status='replace')
@@ -231,8 +244,9 @@ contains
 
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
-    use modfields, only : thlpcar,rhof,exnf
-    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
+    use modfields, only : thlpcar,rhof,exnf, &
+                          field_2D_mn
+    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation,lwdca,lwuca,swdca,swuca
 
     implicit none
     integer :: k
@@ -240,21 +254,35 @@ contains
     lwdav  = 0.
     lwuav  = 0.
     swdav  = 0.
+    swuav  = 0.
     swdirav = 0.
     swdifav = 0.
-    swuav  = 0.
     thltendav = 0.
     thllwtendav = 0.
     thlswtendav = 0.
     thltendav = 0.
+    thllwtendcaav = 0.
+    thlswtendcaav = 0.
 
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdirav ,1,k1,swdir ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+
+    field_2D_mn (2:i1,2:j1,3) = field_2D_mn (2:i1,2:j1,3) + lwd(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,4) = field_2D_mn (2:i1,2:j1,4) + lwu(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,5) = field_2D_mn (2:i1,2:j1,5) + swd(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,6) = field_2D_mn (2:i1,2:j1,6) + swu(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,7) = field_2D_mn (2:i1,2:j1,7) + swd(2:i1,2:j1,kmax)
+    field_2D_mn (2:i1,2:j1,8) = field_2D_mn (2:i1,2:j1,8) + swu(2:i1,2:j1,kmax)
+    field_2D_mn (2:i1,2:j1,9) = field_2D_mn (2:i1,2:j1,9) + lwu(2:i1,2:j1,kmax)
+
+
+
+
     if (iradiation==irad_par) then !irad_par=Delta eddington keeps all fluxes(upwards and downwards) positive
       do k=1,kmax
         thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
@@ -280,20 +308,32 @@ contains
     thllwtendmn = thllwtendmn + thllwtendav / ijtot
     thlswtendmn = thlswtendmn + thlswtendav / ijtot
     thlradlsmn  = thlradlsmn  + thlpcar
+    
 
-    if (lradclearair) call radclearair
+    if (lradclearair) then 
+        call radclearair
+        do k=1,kmax
+          thllwtendcaav(k) = (-lwdcaav(k+1) - lwucaav(k+1) + lwdcaav(k) + lwucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
+          thlswtendcaav(k) = (-swdcaav(k+1) - swucaav(k+1) + swdcaav(k) + swucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
+        enddo
+
+        thllwtendcamn = thllwtendcamn + thllwtendcaav / ijtot
+        thlswtendcamn = thlswtendcamn + thlswtendcaav / ijtot
+    endif
   end subroutine do_radstat
 
       subroutine radclearair
     use modradfull,    only : d4stream
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,rlv,rd,pref0,ijtot
-    use modfields,    only : rhof, exnf, thl0,qt0,ql0
+    use modfields,    only : rhof, exnf, thl0,qt0,ql0,&
+                             field_2D_mn
     use modsurfdata,  only : albedo, tskin, qskin, thvs, ps
     use modmicrodata, only : Nc_0
+    use modraddata,   only : thlprad, swdca, swuca, lwdca, lwuca, irad_full, iradiation
     use modmpi,    only :  slabsum
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b,swdca,swuca,lwdca,lwuca
+    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b
     integer :: i,j,k
 
     real :: exnersurf
@@ -302,6 +342,7 @@ contains
     swdcaav  = 0.
     swucaav  = 0.
 
+    if (iradiation.eq.irad_full) then   !rrtmg has calculated lwdca already
 !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax
         rhof_b(k+1)     = rhof(k)
@@ -333,12 +374,21 @@ contains
       end do
 
       call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
+    endif
 
 
     call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwucaav ,1,k1,lwuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdcaav ,1,k1,swdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swucaav ,1,k1,swuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+
+    field_2D_mn (2:i1,2:j1,10) = field_2D_mn (2:i1,2:j1,10) + swdca(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,11) = field_2D_mn (2:i1,2:j1,11) + swuca(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,12) = field_2D_mn (2:i1,2:j1,12) + lwdca(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,13) = field_2D_mn (2:i1,2:j1,13) + lwuca(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,14) = field_2D_mn (2:i1,2:j1,14) + swuca(2:i1,2:j1,kmax)
+    field_2D_mn (2:i1,2:j1,15) = field_2D_mn (2:i1,2:j1,15) + lwuca(2:i1,2:j1,kmax)
+
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 
@@ -355,6 +405,8 @@ contains
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
       use modraddata, only : iradiation,irad_par,irad_rrtmg
+      use modfields,  only : field_2D_mn
+
       implicit none
       real,dimension(k1,nvar) :: vars
       integer nsecs, nhrs, nminut,k
@@ -377,8 +429,13 @@ contains
       swucamn   = swucamn    /nsamples
       thllwtendmn = thllwtendmn /nsamples
       thlswtendmn = thlswtendmn /nsamples
+      thllwtendcamn = thllwtendcamn /nsamples
+      thlswtendcamn = thlswtendcamn /nsamples
       thlradlsmn  = thlradlsmn  /nsamples
       thltendmn   = thltendmn   /nsamples
+
+      field_2D_mn (:,:,3:15) = field_2D_mn (:,:,3:15) / nsamples
+
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -390,14 +447,16 @@ contains
       ,'#',(timeav),'--- AVERAGING TIMESTEP --- '      &
       ,nhrs,':',nminut,':',nsecs      &
       ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-      write (ifoutput,'(A/2A/2A)') &
+      write (ifoutput,'(A/3A/3A)') &
           '#--------------------------------------------------------------------------' &
           ,'#LEV RAD_FLX_HGHT  THL_HGHT  LW_UP        LW_DN        SW_UP       SW_DN       ' &
           ,'TL_LW_TEND   TL_SW_TEND   TL_LS_TEND   TL_TEND' &
+          ,'  LW_UP_CLR    LW_DN_CLR    SW_UP_CLR   SW_DN_CLR   TL_LW_CLR_TEND   TL_SW_CLR_TEND   ' &
           ,'#    (M)    (M)      (W/M^2)      (W/M^2)      (W/M^2)      (W/M^2)      ' &
-          ,'(K/H)         (K/H)        (K/H)        (K/H)'
+          ,'(K/H)         (K/H)        (K/H)        (K/H)      (W/M^2)      (W/M^2)      (W/M^2)      (W/M^2) ' &
+          ,'    (K/H)        (K/H)'
       do k=1,kmax
-        write(ifoutput,'(I4,2F10.2,12E13.4)') &
+        write(ifoutput,'(I4,2F10.2,14E13.4)') &
             k,zh(k), zf(k),&
             lwumn(k),&
             lwdmn(k),&
@@ -410,7 +469,9 @@ contains
             lwucamn(k),&
             lwdcamn(k),&
             swucamn(k),&
-            swdcamn(k)
+            swdcamn(k),& 
+            thllwtendcamn(k)*3600,&
+            thlswtendcamn(k)*3600
       end do
       close (ifoutput)
 
@@ -472,6 +533,8 @@ contains
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
     thltendmn  = 0.0
+    thllwtendcamn = 0.0
+    thlswtendcamn = 0.0
 
   end subroutine writeradstat
 
@@ -484,9 +547,10 @@ contains
     if(.not.(lstat)) return
 
     deallocate(lwuav,lwdav,swdav,swdirav,swdifav,swuav)
-    deallocate(thllwtendav,thlswtendav)
+    deallocate(thllwtendav,thlswtendav,thllwtendcaav,thlswtendcaav)
     deallocate(lwumn,lwdmn,swdmn,swdirmn,swdifmn,swumn)
     deallocate(thllwtendmn,thlswtendmn,thlradlsmn)
+    deallocate(thllwtendcamn,thlswtendcamn)
 
 
 

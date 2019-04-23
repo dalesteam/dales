@@ -32,7 +32,7 @@
 
 module modtimedepsv
 
-
+use netcdf
 implicit none
 private
 public :: inittimedepsv, timedepsv,ltimedepsv,exittimedepsv
@@ -56,7 +56,9 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedepsv
     use modmpi,   only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal,only :cexpnr,kmax,k1,ifinput,runtime,nsv
+    use modglobal,only :cexpnr,kmax,k1,ifinput,runtime,nsv,&
+                         nc_input  !cstep
+
     implicit none
 
     character (80):: chmess
@@ -66,7 +68,16 @@ contains
     real :: dummyr
     real, allocatable, dimension (:) :: height
 
-    if (nsv==0 .or. .not.ltimedepsv ) return
+    !cstep : NCDF vars
+    integer :: ncid,varID,sts ! checks for presence ncdf input file
+    integer :: nsv_in         ! number of passive scalars present in ncdf input file. 
+                              !if nsv_in < nsv, profiles are assumed to be zero
+    integer :: dimIDkls,dimIDkflux,dimIDnsv
+    integer :: kflux_nc, kls_nc
+    character(len=nf90_max_name) :: tmpName
+
+
+    if (nsv==0 .or. .not.ltimedepsv ) return  !cstep : only do if ltimedepsv = .true.
 
     allocate(height(k1))
     allocate(timesvsurf (0:kflux))
@@ -81,75 +92,127 @@ contains
 
     if (myid==0) then
 
+       outputfmt = '(f10.3,100e10.3)'
+       write(outputfmt(8:10),'(I3)') nsv
+
 !    --- load lsforcings---
 
+      if (nc_input) then
+         sts        = nf90_open('case_setup.nc',nf90_nowrite,ncid)
 
-      open(ifinput,file='ls_fluxsv.inp.'//cexpnr)
-      read(ifinput,'(a80)') chmess
-      write(6,*) chmess
-      read(ifinput,'(a80)') chmess
-      write(6,*) chmess
-      read(ifinput,'(a80)') chmess
-      write(6,*) chmess
+         sts          = nf90_inq_dimid(ncid,"Ntimesvz",dimIDkls)
+         if (sts.ne.nf90_noerr) stop  'ERROR:  time dependent scalars not present'
+         sts          = nf90_inquire_dimension(ncid, dimIDkls, tmpName,kls_nc)
+
+         sts          = nf90_inq_dimid(ncid,"Ntimesvsurf",dimIDkflux)
+         if (sts.ne.nf90_noerr) stop  'ERROR:  time dependent scalar fluxes not present'
+         sts          = nf90_inquire_dimension(ncid, dimIDkflux, tmpName,kflux_nc)
+
+         sts          = nf90_inq_dimid(ncid,"nsv",dimIDnsv)
+         if (sts.ne.nf90_noerr) stop 'no scalars provided in ncdf file'
+
+         sts          = nf90_inquire_dimension(ncid, dimIDnsv, tmpName,nsv_in)
+         if (nsv_in.ne.nsv) then 
+            stop 'nr of scalars in ncdf input file does not match nsv in namoptions'
+         else
+             sts          = nf90_inq_varid(ncid,"timesvz",varID)
+             sts          = nf90_get_var(ncid, varID, timesvz(1:kls_nc))
+ 
+             sts          = nf90_inq_varid(ncid,"timesvsurf",varID)
+             sts          = nf90_get_var(ncid, varID, timesvsurf(1:kflux_nc))
+
+         endif
+    
+         sts          = nf90_inq_varid(ncid,"zf",varID)
+         sts          = nf90_get_var(ncid, varID, height(1:kmax))
+
+         sts          = nf90_inq_varid(ncid,"svst",varID)
+         sts          = nf90_get_var(ncid, varID, svst(1:kflux_nc,1:nsv))
+
+         sts          = nf90_inq_varid(ncid,"svzt",varID)
+         sts          = nf90_get_var(ncid, varID, svzt(1:kmax,1:kls_nc,1:nsv))
+
+
+      else !cstep input from ascii file
+
+         open(ifinput,file='ls_fluxsv.inp.'//cexpnr)
+         read(ifinput,'(a80)') chmess
+         write(6,*) chmess
+         read(ifinput,'(a80)') chmess
+         write(6,*) chmess
+         read(ifinput,'(a80)') chmess
+         write(6,*) chmess
 
 
 !      --- load fluxes---
-      outputfmt = '(f10.3,100e10.3)'
-      write(outputfmt(8:10),'(I3)') nsv
+         t    = 0
+         ierr = 0
+         do while (timesvsurf(t)< runtime.and.t.lt.kflux)
+            t=t+1
+            read(ifinput,*, iostat = ierr) timesvsurf(t), (svst(t,n),n=1,nsv)
+            if (ierr < 0) then
+                stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
+            end if
+         end do
+
+         ! flush to the end of fluxlist
+         do while (ierr ==0)
+            read (ifinput,*,iostat=ierr) dummyr
+         end do
+!       ---load large scale forcings----
+         t = 0
+
+         do while (timesvz(t) < runtime.and.t.lt.kls)
+            t = t + 1
+            chmess1 = "#"
+            ierr = 1 ! not zero
+            !search for the next line consisting of "# time", from there onwards the profiles will be read
+            do while (.not.(chmess1 == "#" .and. ierr ==0))
+               read(ifinput,*,iostat=ierr) chmess1,timesvz(t)
+               if (ierr < 0) then
+                  stop 'STOP: No time dependend data (scalars) for end of run'
+               end if
+            end do
+            write (*,*) 'timesvz = ',timesvz(t)
+            do k=1,kmax
+               read (ifinput,*) height(k), (svzt(k,t,n),n=1,nsv)
+            end do
+         end do
+
+         close(ifinput)
+      endif  !nc_input
+
       t    = 0
-      ierr = 0
       do while (timesvsurf(t)< runtime)
-        t=t+1
-        read(ifinput,*, iostat = ierr) timesvsurf(t), (svst(t,n),n=1,nsv)
-        write(*,'(f7.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
-        if (ierr < 0) then
-            stop 'STOP: No time dependend data for end of run (surface fluxes of scalar)'
-        end if
+         t=t+1
+         write(*,'(f9.1,4e12.4)') timesvsurf(t), (svst(t,n),n=1,nsv)
       end do
+
+      t = 0
+      do while (timesvz(t) < runtime)
+          t = t + 1
+          write (*,*) 'timesvz = ',timesvz(t)
+          do k=kmax,1,-1
+             write (6,outputfmt) height(k),(svzt(k,t,n),n=1,nsv)
+          end do
+      enddo
+
       if(timesvsurf(1)>runtime) then
          write(6,*) 'Time dependent surface variables do not change before end of'
          write(6,*) 'simulation. --> only large scale changes in scalars'
          ltimedepsvsurf=.false.
       endif
-      ! flush to the end of fluxlist
-      do while (ierr ==0)
-         read (ifinput,*,iostat=ierr) dummyr
-      end do
-!     ---load large scale forcings----
-      t = 0
-
-      do while (timesvz(t) < runtime)
-        t = t + 1
-        chmess1 = "#"
-        ierr = 1 ! not zero
-        !search for the next line consisting of "# time", from there onwards the profiles will be read
-        do while (.not.(chmess1 == "#" .and. ierr ==0))
-          read(ifinput,*,iostat=ierr) chmess1,timesvz(t)
-          if (ierr < 0) then
-            stop 'STOP: No time dependend data (scalars) for end of run'
-          end if
-        end do
-        write (*,*) 'timesvz = ',timesvz(t)
-        do k=1,kmax
-          read (ifinput,*) height(k), (svzt(k,t,n),n=1,nsv)
-        end do
-        do k=kmax,1,-1
-          write (6,outputfmt) height(k),(svzt(k,t,n),n=1,nsv)
-        end do
-      end do
 
       if ((timesvz(1) > runtime) .or. (timesvsurf(1) > runtime)) then
-        write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
-        write(6,*) '--> only time dependent surface variables (scalars)'
-        ltimedepsvz=.false.
+         write(6,*) 'Time dependent large scale forcings sets in after end of simulation -->'
+         write(6,*) '--> only time dependent surface variables (scalars)'
+         ltimedepsvz=.false.
       end if
+   endif   !myid
 
-      close(ifinput)
-   endif
-
-
+   
     call MPI_BCAST(timesvsurf(1:kflux),kflux,MY_REAL,0,comm3d,mpierr)
-    call MPI_BCAST(timesvz(1:kflux),kflux,MY_REAL,0,comm3d,mpierr)
+    !cstep  call MPI_BCAST(timesvz(1:kflux),kflux,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(svst             ,kflux*nsv,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(timesvz(1:kls)    ,kls,MY_REAL  ,0,comm3d,mpierr)
     call MPI_BCAST(ltimedepsvsurf ,1,MPI_LOGICAL,0,comm3d,mpierr)

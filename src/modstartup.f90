@@ -31,7 +31,7 @@
 
 module modstartup
 
-
+use netcdf
 implicit none
 ! private
 ! public :: startup, writerestartfiles,trestart
@@ -56,6 +56,7 @@ contains
 
     use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
+                                  nc_input,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
@@ -86,7 +87,7 @@ contains
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
-        nprocx,nprocy
+        nprocx,nprocy,nc_input
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
@@ -163,6 +164,7 @@ contains
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nprocy     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(nc_input   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(itot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -367,7 +369,8 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,&
+                                  nc_input
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -385,8 +388,17 @@ contains
 
     real, allocatable :: height(:), th0av(:)
     real, allocatable :: thv0(:,:,:)
+    real, allocatable :: help_var (:,:)
 
     character(80) chmess
+
+    !cstep : NCDF vars
+    integer :: ncid,varID,sts ! checks for presence ncdf input file
+    integer :: dimIDNt,dimIDnsv
+    integer :: nsv_in         ! number of passive scalars present in ncdf input file. if nsv_in < nsv, profiles are assumed to be zero
+    integer :: kls          ! number of times for which large-scale forcings are provided (e.g., for time-dependent forcings, kls > 1) 
+
+    character(len=nf90_max_name) :: tmpName
 
     allocate (height(k1))
     allocate (th0av(k1))
@@ -430,22 +442,50 @@ contains
          
         else
 
-          open (ifinput,file='prof.inp.'//cexpnr)
-          read (ifinput,'(a80)') chmess
-          write(*,     '(a80)') chmess
-          read (ifinput,'(a80)') chmess
+          if (nc_input) then  !cstep
+             sts        = nf90_open('case_setup.nc',nf90_nowrite,ncid)
+             if (sts.ne.nf90_noerr) stop 'ERROR: ncdf input file not found!'
 
-          do k=1,kmax
-            read (ifinput,*) &
+             sts          = nf90_inq_dimid(ncid,"Ntimels",dimIDNt)
+             sts          = nf90_inquire_dimension(ncid, dimIDNt, tmpName,kls)
+             allocate (help_var(k1,kls))  !will be used for large-scale forcings
+
+             sts          = nf90_inq_varid(ncid,"zf",varID)
+             sts          = nf90_get_var(ncid, varID, height(1:kmax))
+
+             sts          = nf90_inq_varid(ncid,"thl",varID)
+             if (sts.ne.nf90_noerr) stop 'ERROR: thl not present!'
+             sts          = nf90_get_var(ncid, varID, thlprof(1:kmax))
+
+             sts          = nf90_inq_varid(ncid,"qt",varID)
+             sts          = nf90_get_var(ncid, varID, qtprof(1:kmax))
+
+             sts          = nf90_inq_varid(ncid,"u",varID)
+             sts          = nf90_get_var(ncid, varID, uprof(1:kmax))
+
+             sts          = nf90_inq_varid(ncid,"v",varID)
+             sts          = nf90_get_var(ncid, varID, vprof(1:kmax))
+
+             sts          = nf90_inq_varid(ncid,"tkes",varID)
+             sts          = nf90_get_var(ncid, varID, e12prof(1:kmax))            
+          else
+            open (ifinput,file='prof.inp.'//cexpnr)
+            read (ifinput,'(a80)') chmess
+            write(*,     '(a80)') chmess
+            read (ifinput,'(a80)') chmess
+
+            do k=1,kmax
+              read (ifinput,*) &
                 height (k), &
                 thlprof(k), &
                 qtprof (k), &
                 uprof  (k), &
                 vprof  (k), &
                 e12prof(k)
-          end do
+            end do
         
-          close(ifinput)
+            close(ifinput)
+          endif
 
         end if   !ltestbed
 
@@ -523,23 +563,42 @@ contains
       svprof = 0.
       if(myid==0)then
         if (nsv>0) then
-          open (ifinput,file='scalar.inp.'//cexpnr)
-          read (ifinput,'(a80)') chmess
-          read (ifinput,'(a80)') chmess
-          do k=1,kmax
-            read (ifinput,*) &
+             svprof(:,:) = 0.   !cstep assumes zero values
+          if (nc_input) then  !cstep
+
+              sts          = nf90_inq_dimid(ncid,"nsv",dimIDnsv)
+              if (sts.ne.nf90_noerr) then 
+                 write (6,*) 'warning: nsv not present!'
+              else
+                 sts          = nf90_inquire_dimension(ncid, dimIDnsv, tmpName,nsv_in)
+              endif
+           
+              if (nsv_in.eq.nsv) then
+                 sts          = nf90_inq_varid(ncid,"sv",varID)
+                 sts          = nf90_get_var(ncid, varID, svprof(1:kmax,1:nsv))  
+              else
+                write (6,*) 'scalars are initialized to zero'
+              end if
+          else
+             open (ifinput,file='scalar.inp.'//cexpnr)
+             read (ifinput,'(a80)') chmess
+             read (ifinput,'(a80)') chmess
+             do k=1,kmax
+               read (ifinput,*) &
                   height (k), &
                   (svprof (k,n),n=1,nsv)
-          end do
+             end do
+          endif  !nc_input
+
           open (ifinput,file='scalar.inp.'//cexpnr)
           write (6,*) 'height   sv(1) --------- sv(nsv) '
           do k=kmax,1,-1
-            write (6,*) &
-                  height (k), &
-                (svprof (k,n),n=1,nsv)
+             write (6,*) &
+              height (k), &
+                 (svprof (k,n),n=1,nsv)
           end do
 
-        end if
+        end if  !nsv > 0
       end if ! end if myid==0
 
       call MPI_BCAST(wsvsurf,nsv   ,MY_REAL   ,0,comm3d,mpierr)
@@ -706,22 +765,73 @@ contains
           end do
          
       else
+  
+         if (nc_input) then  !cstep
 
-        open (ifinput,file='lscale.inp.'//cexpnr)
-        read (ifinput,'(a80)') chmess
-        read (ifinput,'(a80)') chmess
-        do  k=1,kmax
-          read (ifinput,*) &
-              height (k), &
-              ug     (k), &
-              vg     (k), &
-              wfls   (k), &
-              dqtdxls(k), &
-              dqtdyls(k), &
-              dqtdtls(k), &
-              thlpcar(k)
-        end do
-        close(ifinput)
+             ug      (:) = 0
+             vg      (:) = 0
+             wfls    (:) = 0
+             dqtdtls (:) = 0
+             thlpcar (:) = 0
+             dqtdyls (:) = 0
+             dqtdxls (:) = 0
+
+             sts          = nf90_inq_varid(ncid,"ug",varID)
+             if (sts.ne.nf90_noerr)  write(6,*) 'ug not present, set to zero'
+             sts          = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             ug (1:kmax)  = help_var (1:kmax,1)
+
+             sts          = nf90_inq_varid(ncid,"vg",varID)
+             if (sts.ne.nf90_noerr) write (6,*)  'vg not present, set to zero'
+             sts          = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             vg (1:kmax)  = help_var (1:kmax,1)
+
+             sts          = nf90_inq_varid(ncid,"wfls",varID)
+             if (sts.ne.nf90_noerr) write (6,*)  'wfls not present, set to zero'  
+             sts          = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             wfls (1:kmax)  = help_var (1:kmax,1)
+
+             sts          = nf90_inq_varid(ncid,"dqtdtls",varID)
+             if (sts.ne.nf90_noerr) write (6,*)  'dqtdtls not present, set to zero'
+             sts          = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             dqtdtls (1:kmax)  = help_var (1:kmax,1)
+
+             sts          = nf90_inq_varid(ncid,"dthldtls",varID)
+             if (sts.ne.nf90_noerr) write (6,*)  'thlpcar not present, set to zero'
+             sts          = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             thlpcar (1:kmax)  = help_var (1:kmax,1)
+
+             sts          = nf90_inq_varid(ncid,"dqtdxls",varID)
+             if (sts.ne.nf90_noerr) write (6,*)  'dqtdxls not present, set to zero'
+             sts             = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             dqtdxls(1:kmax) = help_var (1:kmax,1)
+
+             sts          = nf90_inq_varid(ncid,"dqtdyls",varID)
+             if (sts.ne.nf90_noerr) write (6,*)  'dqtdyls not present, set to zero'
+             sts             = nf90_get_var(ncid, varID,help_var (1:kmax,1:kls))
+             dqtdyls(1:kmax) = help_var (1:kmax,1)
+
+             sts          = nf90_close(ncid)
+
+             deallocate (help_var)
+
+        else
+           open (ifinput,file='lscale.inp.'//cexpnr)
+           read (ifinput,'(a80)') chmess
+           read (ifinput,'(a80)') chmess
+           do  k=1,kmax
+             read (ifinput,*) &
+                height (k), &
+                ug     (k), &
+                vg     (k), &
+                wfls   (k), &
+                dqtdxls(k), &
+                dqtdyls(k), &
+                dqtdtls(k), &
+                thlpcar(k)
+           end do
+           close(ifinput)
+        endif !nc_input
 
       end if
 
@@ -800,7 +910,6 @@ contains
     itrestart = floor(trestart/tres,longint)
     tnextrestart = btime + itrestart
     deallocate (height,th0av,thv0)
-
 
   end subroutine readinitfiles
 

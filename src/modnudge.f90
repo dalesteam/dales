@@ -26,6 +26,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+!cstep netcdf input file option. note that I have not tested the ncdf reading part yet.
 
 
 module modnudge
@@ -43,13 +44,22 @@ SAVE
 
 contains
   subroutine initnudge
+    use netcdf
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax
+    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax,&
+                        nc_input !cstep
     implicit none
 
     integer :: ierr,k,t
     real,allocatable,dimension(:) :: height
     character(1) :: chmess1
+
+    !cstep : NCDF vars
+    integer :: ncid,varID,sts ! checks for presence ncdf input file
+    integer ::  dimIDtnudge
+    integer ::  Nt_nudge
+    character(len=nf90_max_name) :: tmpName
+
     namelist /NAMNUDGE/ &
        lnudge,tnudgefac
     allocate(tnudge(k1,ntnudge),unudge(k1,ntnudge),vnudge(k1,ntnudge),wnudge(k1,ntnudge),thlnudge(k1,ntnudge),qtnudge(k1,ntnudge))
@@ -77,7 +87,42 @@ contains
     call MPI_BCAST(lnudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
 
     if (.not. lnudge) return
+
     if(myid==0) then
+      if (nc_input) then 
+          sts        = nf90_open('case_setup.nc',nf90_nowrite,ncid)
+          if (sts.ne.nf90_noerr) stop 'ERROR: ncdf input file not found!'
+
+          sts          = nf90_inq_dimid(ncid,"Ntimenudge",dimIDtnudge)
+          if (sts.ne.nf90_noerr) stop  'ERROR:  nudging info not present'
+          sts          = nf90_inquire_dimension(ncid, dimIDtnudge, tmpName,Nt_nudge)
+
+          sts          = nf90_inq_varid(ncid,"timenudge",varID)
+          
+          sts          = nf90_get_var(ncid, varID, timenudge(1:Nt_nudge))
+
+          sts          = nf90_inq_varid(ncid,"zf",varID)
+          sts          = nf90_get_var(ncid, varID, height(1:kmax))
+
+          sts          = nf90_inq_varid(ncid,"tnudge",varID)
+          sts          = nf90_get_var(ncid, varID, tnudge(1:kmax,1:Nt_nudge))
+    
+          sts          = nf90_inq_varid(ncid,"unudge",varID)
+          sts          = nf90_get_var(ncid, varID, unudge(1:kmax,1:Nt_nudge))
+
+          sts          = nf90_inq_varid(ncid,"vnudge",varID)
+          sts          = nf90_get_var(ncid, varID, vnudge(1:kmax,1:Nt_nudge))
+  
+          sts          = nf90_inq_varid(ncid,"wnudge",varID)
+          sts          = nf90_get_var(ncid, varID, wnudge(1:kmax,1:Nt_nudge))      
+
+          sts          = nf90_inq_varid(ncid,"thlnudge",varID)
+          sts          = nf90_get_var(ncid, varID, thlnudge(1:kmax,1:Nt_nudge))
+
+          sts          = nf90_inq_varid(ncid,"qtnudge",varID)
+          sts          = nf90_get_var(ncid, varID, qtnudge(1:kmax,1:Nt_nudge))
+
+      else
       t = 0
       open (ifinput,file='nudge.inp.'//cexpnr)
 
@@ -88,14 +133,10 @@ contains
         !search for the next line consisting of "# time", from there onwards the profiles will be read
         do while (.not.(chmess1 == "#" .and. ierr ==0))
           read(ifinput,*,iostat=ierr) chmess1,timenudge(t)
-          if (ierr < 0) then
-            stop 'STOP: No time dependend nudging data for end of run'
-          end if
 
-        end do
-        write(6,*) ' height    t_nudge    u_nudge    v_nudge    w_nudge    thl_nudge    qt_nudge'
-        do  k=1,kmax
-          read (ifinput,*) &
+           end do
+           do  k=1,kmax
+              read (ifinput,*) &
                 height (k), &
                 tnudge (k,t), &
                 unudge (k,t), &
@@ -103,8 +144,20 @@ contains
                 wnudge (k,t), &
                 thlnudge(k,t), &
                 qtnudge(k,t)
-        end do
+            end do
 
+         end do
+         close(ifinput)
+      endif !nc_input
+   
+      if (maxval(timenudge).lt.runtime) &
+         stop 'STOP: No time dependend nudging data for end of run'
+
+      tnudge  = tnudgefac*tnudge
+      t = 0
+      do while (timenudge(t) < runtime)
+        t = t + 1
+        write(6,*) ' height    t_nudge    u_nudge    v_nudge    w_nudge    thl_nudge    qt_nudge'
         do k=kmax,1,-1
           write (6,'(f7.1,6e12.4)') &
                 height (k), &
@@ -115,10 +168,9 @@ contains
                 thlnudge(k,t), &
                 qtnudge(k,t)
         end do
-      end do
-      close(ifinput)
-      tnudge  = tnudgefac*tnudge
+      enddo
     end if
+
     call MPI_BCAST(timenudge ,ntnudge+1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(tnudge    ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(unudge    ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)

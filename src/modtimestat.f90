@@ -59,8 +59,10 @@ save
   real    :: blh_thres=-1 ,blh_sign=1.0
   real   :: zbaseav, ztopav, ztopmax,zbasemin
   real   :: qlintav, qlintmax, tke_tot
+  real   :: qvintav, qiintav,qsintav
   real   :: cc, wmax, qlmax
   real   :: qlint
+  real   :: qvint,qiint,qsint
   logical:: store_zi = .false.
 
   !Variables for heterogeneity
@@ -165,7 +167,7 @@ contains
       open (ifoutput,file='tmser1.'//cexpnr,status='replace',position='append')
       write(ifoutput,'(2a)') &
              '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
-             '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
+             '   <<qcld>>  <<ql>>_max   w_max   tke     ql_max'
       close(ifoutput)
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,status='replace',position='append')
@@ -187,6 +189,16 @@ contains
                '   [m/s]  '
         close(ifoutput)
       end if
+
+      !tmrce
+      open (ifoutput,file='tmrce.'//cexpnr,status='replace',position='append')
+      write(ifoutput,'(2a)') &
+             '#  time    SWP       WVP           CWP          LWP          IWP   ', &
+             '   '
+       write(ifoutput,'(2a)') &
+             '#  [s]    [kg/m2]   [kg/m2]        [g/m2]      [g/m2]       [g/m2]  ', &
+             '   '
+      close(ifoutput)
 
       if(lhetero) then
         do i=1,xpatches
@@ -339,9 +351,10 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
-                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
+                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput,&
+                           tup,tdn
 !
-    use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
+    use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0,qt0,tmp0,qsat0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -353,6 +366,7 @@ contains
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
     real   :: qlintavl, qlintmaxl, tke_totl
+    real   :: qvintavl, qiintavl, qsintavl !cstep rcemip
     real   :: ccl, wmaxl, qlmaxl
     real   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
     real   :: usttst, ustqst
@@ -367,6 +381,8 @@ contains
 
     ! heterogeneity variables
     integer:: patchx, patchy
+
+    real :: ilratio_   !rcemip
 
     if (.not.(ltimestat)) return
     if (rk3step/=3) return
@@ -452,6 +468,9 @@ contains
     qlintavl = 0.0
     qlintmaxl= 0.0
     tke_totl = 0.0
+    qvintavl = 0.0
+    qiintavl = 0.0
+    qsintavl = 0.0
 
     do j=2,j1
       if (lhetero) then
@@ -463,8 +482,16 @@ contains
         endif
 
         qlint     = 0.0
+        qvint     = 0.0
+        qiint     = 0.0
+        qsint     = 0.0
+
         do k=1,kmax
+          ilratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning 
           qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
+          qvint = qvint + (qt0(i,j,k)-ql0(i,j,k))*rhof(k)*dzf(k)
+          qiint = qiint + ql0(i,j,k)*rhof(k)*dzf(k)*(1-ilratio_)
+          qsint = qsint + qsat0(i,j,k)*rhof(k)*dzf(k)
         end do
         if (qlint>0.) then
           ccl      = ccl      + 1.0
@@ -476,6 +503,10 @@ contains
             qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
           endif
         end if
+        qvintavl = qvintavl + qvint
+        qiintavl = qiintavl + qiint
+        qsintavl = qsintavl + qsint
+
 
         do k=1,kmax
           if (ql0(i,j,k) > 0.) then
@@ -498,6 +529,13 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(qlintmaxl, qlintmax, 1,    MY_REAL, &
                           MPI_MAX, comm3d,mpierr)
+    call MPI_ALLREDUCE(qvintavl, qvintav, 1,    MY_REAL, &
+                          MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(qiintavl, qiintav, 1,    MY_REAL, &
+                          MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(qsintavl, qsintav, 1,    MY_REAL, &
+                          MPI_SUM, comm3d,mpierr)
+
     call MPI_ALLREDUCE(zbaseavl, zbaseav, 1,    MY_REAL, &
                           MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(zbaseminl, zbasemin, 1,    MY_REAL, &
@@ -582,6 +620,9 @@ contains
 
     cc      = cc/ijtot
     qlintav = qlintav / ijtot !domain averaged liquid water path
+    qvintav = qvintav / ijtot 
+    qiintav = qiintav / ijtot 
+    qsintav = qsintav / ijtot 
 
     if (lhetero) then
       do j=1,ypatches
@@ -779,6 +820,17 @@ contains
           tke_tot*dzf(1), &
           qlmax*1000.
       close(ifoutput)
+
+      open (ifoutput,file='tmrce.'//cexpnr,position='append')
+      write( ifoutput,'(f10.2,5f14.5)') &
+          rtimee, &
+          qsintav, &
+          qvintav, &
+          1000*qlintav, &
+          1000*(qlintav-qiintav),&
+          1000*qiintav
+      close(ifoutput)
+
 
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,position='append')

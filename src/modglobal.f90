@@ -46,9 +46,13 @@ save
       integer ::  kh=1
       integer ::  kcb=0
 
+      integer :: Nvars_2D = 22      !< 2D output for RCEMIP
+      integer :: Nmse_2D = 5
+
       character(50) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
+      logical :: nc_input   = .false.!<   if true then ncdf input file is used
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
@@ -225,12 +229,15 @@ contains
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
     use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
+     use netcdf
     implicit none
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
     integer :: k, n, m
     character(80) chmess
+
+    integer :: sts ,ncid,varID
 
     !timestepping
     if (courant<0) then
@@ -324,7 +331,7 @@ contains
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice
     ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
-    ! Murphy and Koop 2005 parameterization formula.
+    ! Murphy and Koop 2005 parameterization formula., Eqs 7, 10
     do m=1,2000
     ttab(m)=150.+0.2*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
@@ -393,14 +400,22 @@ contains
 
 
     if(myid==0)then
-      open (ifinput,file='prof.inp.'//cexpnr)
-      read(ifinput,'(a72)') chmess
-      read(ifinput,'(a72)') chmess
+      sts        = nf90_open('case_setup.nc',nf90_nowrite,ncid)
+      if (sts.ne.nf90_noerr) then !cstep 'no ncdf input file, so take input from prof.inp'
 
-      do k=1,kmax
-        read(ifinput,*) zf(k)
-      end do
-      close(ifinput)
+        open (ifinput,file='prof.inp.'//cexpnr)
+        read(ifinput,'(a72)') chmess
+        read(ifinput,'(a72)') chmess
+
+        do k=1,kmax
+          read(ifinput,*) zf(k)
+        end do
+        close(ifinput)
+      else
+        sts          = nf90_inq_varid(ncid,"zf",varID)
+        sts          = nf90_get_var(ncid, varID, zf(1:kmax)) 
+        sts          = nf90_close(ncid)
+      endif
 
     end if ! end if myid==0
 

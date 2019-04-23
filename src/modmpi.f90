@@ -136,12 +136,17 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   subroutine exitmpi
+    !use modglobal, only : ntrun,itot,jtot,kmax
     implicit none
 
 
     if(myid==0)then
-      CPU_program = MPI_Wtime() - CPU_program0
-      write(6,*)'TOTAL wall time = ', CPU_program
+     CPU_program = MPI_Wtime() - CPU_program0
+   !   write(6,*)'TOTAL wall time = ', CPU_program
+   !   write(6,*)'TOTAL number of grid points Nx, Ny, Nz ',itot,jtot,kmax
+      write(6,*)'TOTAL number of procs ',nprocs
+  !    write(6,*)'TOTAL number of time steps ntrun ',ntrun
+  !    write(6,*)'time per grid point per time step',CPU_program*nprocs/(itot*jtot*kmax*ntrun)
     end if
 
     call MPI_Comm_free( comm3d, mpierr )

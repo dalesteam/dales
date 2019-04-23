@@ -65,6 +65,8 @@ module modsurface
   implicit none
   !public  :: initsurface, surface, exitsurface
 
+   real      :: min_horv = 1  !cstep minimum wind speed, default = 0.1, 1 for RCECMIP intercomparison project
+
 save
 
 contains
@@ -79,6 +81,7 @@ contains
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
+
  character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
@@ -773,14 +776,14 @@ contains
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 0.1)
+            horv  = max(horv, min_horv)  !cstep instead of 0.1, prescribed in RCEMIP
             ra(i,j) = 1. / ( Cs(i,j) * horv )
           else
             if (lhetero) then
               ra(i,j) = 1. / ( Cs(i,j) * horvpatch(patchx,patchy) )
             else
               horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-              horvav  = max(horvav, 0.1)
+              horvav  = max(horvav, min_horv)  !cstep RCEMIP  max(horvav, 0.1)
               ra(i,j) = 1. / ( Cs(i,j) * horvav )
             endif
           end if
@@ -815,9 +818,9 @@ contains
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
+          horv   = max(horv, min_horv) !cstep
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 0.1)
+          horvav = max(horvav, min_horv) !cstep
 
           if(lhetero) then
             patchx = patchxnr(i)
@@ -888,7 +891,7 @@ contains
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 0.1)
+            horv  = max(horv, min_horv) !cstep
 
             dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
             dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
@@ -927,9 +930,9 @@ contains
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
+          horv   = max(horv, min_horv) !cstep
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 0.1)
+          horvav = max(horvav, min_horv) !cstep
           if( isurf == 4) then
             if(lmostlocal) then
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
@@ -1120,7 +1123,7 @@ contains
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
-          horv2   =   max(horv2, 0.01)
+          horv2   =   max(horv2,min_horv**2) !cstep max(horv2, 0.01)
 
           if(lhetero) then
             patchx = patchxnr(i)
@@ -1207,7 +1210,7 @@ contains
       MY_REAL,MPI_SUM, comm3d,mpierr)
 
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
-      horvpatch = max(horvpatch, 0.1)
+      horvpatch = max(horvpatch, min_horv) !cstep max(horvpatch, 0.1)
 
       thlpatch  = thlpatch / SNpatch
       qpatch    = qpatch   / SNpatch
@@ -1266,7 +1269,7 @@ contains
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
     horv2 = u0av(1)**2. + v0av(1)**2.
-    horv2 = max(horv2, 0.01)
+    horv2 = max(horv2, min_horv**2)  !cstep max(horv2, 0.01)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
     if (Rib == 0) then

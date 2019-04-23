@@ -193,6 +193,7 @@ subroutine tstep_integrate
      thlm = thlm + rk3coef * thlp
      thl0 = thlm
      qtm  = qtm  + rk3coef * qtp
+      WHERE(qtm .lt. 0) qtm = 1e-10   !test to prevent negative concentrations for RCE
      qt0  = qtm
      svm  = svm  + rk3coef * svp
      sv0 = svm

@@ -44,6 +44,7 @@ save
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
   real, allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
   real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
+  real, allocatable :: mse0(:,:,:)      !<   rcemip, moist static energy
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
@@ -135,11 +136,21 @@ save
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
 
+  real, allocatable :: qsat0 (:,:,:)               !< water vapor saturation specific humidity 
+  real, allocatable :: qi0   (:,:,:)               !< ice specific humidity
+  real, allocatable :: qri   (:,:,:)               !< precipitating ice 
+ 
+  real, allocatable :: field_2D_mn (:,:,:) 
+  real, allocatable :: field_mse_2D  (:,:,:)
+
+
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
 
-    use modglobal, only : i1,ih,j1,jh,k1,nsv
+    use modglobal, only : i1,ih,j1,jh,k1,nsv,&
+                          Nvars_2D, Nmse_2D 
+                          
     ! Allocation of prognostic variables
     implicit none
 
@@ -241,7 +252,14 @@ subroutine initfields
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
              ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
+    allocate (qsat0(2-ih:i1+ih,2-jh:j1+jh,k1),  &
+              qi0  (2-ih:i1+ih,2-jh:j1+jh,k1),  &
+              qri  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
+
+    allocate(field_2D_mn(2-ih:i1+ih,2-jh:j1+jh,Nvars_2D))
+    allocate(field_mse_2D(2-ih:i1+ih,2-jh:j1+jh,Nmse_2D ))
+    allocate(mse0(2-ih:i1+ih,2-jh:j1+jh,k1))
 
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.
@@ -265,6 +283,9 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
+    qsat0=0. ; qi0 = 0.  ;qri = 0.
+    field_2D_mn=0. ; field_mse_2D = 0; mse0 = 0.
+   
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
@@ -287,6 +308,8 @@ subroutine initfields
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
+    deallocate(qsat0,qi0,qri)
+    deallocate(field_2D_mn,field_mse_2D, mse0)
     end subroutine exitfields
 
 end module modfields

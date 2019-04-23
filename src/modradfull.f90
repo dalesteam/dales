@@ -230,6 +230,8 @@ contains
           p0(k1) = (pref0*(pi0(k1)/cp)**cpr) / 100.
           p0(k1-1) = (pref0*(pi0(k1-1)/cp)**cpr) / 100.
           background  = 'backrad.inp.'//cexpnr
+write (6,*) 'should not do this'
+stop
           call d4stream_setup(background,k1,npts,nv1,nv,p0)
           d4stream_initialized = .True.
           if (allocated(pre))   pre(:) = 0.

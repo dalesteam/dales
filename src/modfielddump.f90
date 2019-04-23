@@ -27,45 +27,40 @@
 !
 module modfielddump
 
-  use modglobal, only : longint, nsv
+  use modglobal, only : longint
 
 implicit none
 private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer :: nvar = 7
+  integer,parameter :: nvar = 13
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
-  character(80),dimension(:,:), allocatable :: ncname
+  character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
 
-  real    :: dtav, tmin, tmax
-  integer(kind=longint) :: idtav,tnext,itmax,itmin
-  integer :: klow,khigh,ncoarse=-1
+  real    :: dtav
+  integer(kind=longint) :: idtav,tnext
+  integer :: klow,khigh
   logical :: lfielddump= .false. !< switch to enable the fielddump (on/off)
-  logical :: ldiracc   = .false. !< switch for doing direct access writing (on/off)
-  logical :: lbinary   = .false. !< switch for doing direct access writing (on/off)
 
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
     use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
+    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob, ladaptive,dt_lim,btime,tres
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
-    integer :: ierr, n
-    character(3) :: csvname
+    integer :: ierr
 
 
     namelist/NAMFIELDDUMP/ &
-    dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax
+    dtav,lfielddump,klow,khigh
 
     dtav=dtav_glob
     klow=1
     khigh=kmax
-    tmin = 0. 
-    tmax = 1e8
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
@@ -77,21 +72,11 @@ contains
       write(6 ,NAMFIELDDUMP)
       close(ifnamopt)
     end if
-    call MPI_BCAST(ncoarse     ,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(klow        ,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(khigh       ,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(dtav        ,1,MY_REAL   ,0,comm3d,ierr)
-    call MPI_BCAST(tmin        ,1,MY_REAL   ,0,comm3d,ierr)
-    call MPI_BCAST(tmax        ,1,MY_REAL   ,0,comm3d,ierr)
     call MPI_BCAST(lfielddump  ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(ldiracc     ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lbinary     ,1,MPI_LOGICAL,0,comm3d,ierr)
-    if (ncoarse==-1) then
-      ncoarse = 1
-    end if
     idtav = dtav/tres
-    itmin = tmin/tres
-    itmax = tmax/tres
 
     tnext      = idtav   +btime
     if(.not.(lfielddump)) return
@@ -100,29 +85,29 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'dtav should be a integer multiple of dtmax'
     end if
-
-    nvar = nvar + nsv
     if (lnetcdf) then
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
-      allocate(ncname(nvar,4))
       call ncinfo(tncname(1,:),'time','Time','s','time')
-      call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
-      call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
-      call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-!       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
-      do n=1,nsv
-        write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
-      end do
-      call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
+      call ncinfo(ncname( 1,:),'ua','West-East velocity','m/s','mttt')
+      call ncinfo(ncname( 2,:),'va','South-North velocity','m/s','tmtt')
+      call ncinfo(ncname( 3,:),'wa','Vertical velocity','m/s','ttmt')
+      call ncinfo(ncname( 4,:),'cli','mass fraction of cloud ice','kg/kg','tttt')  
+      call ncinfo(ncname( 5,:),'clw','mass fraction of cloud liquid water','kg/kg','tttt')
+      call ncinfo(ncname( 6,:),'ta','air temperature ','K','tttt') 
+      call ncinfo(ncname( 7,:),'plw','mass fraction of precipitating liquid water','kg/kg','tttt')
+      call ncinfo(ncname( 8,:),'pli','mass fraction of precipitating ice','kg/kg','tttt')   
+      call ncinfo(ncname( 9,:),'hus','specific humidity','kg/kg','tttt')   
+      call ncinfo(ncname( 10,:),'hur','relative humidity','%','tttt')   
+      call ncinfo(ncname( 11,:),'tntr','tendency of air temperature due to radiative heating','K/s','tttt')  
+      call ncinfo(ncname( 12,:),'tntrs','tendency of air temperature due to shortwave radiative heating','K/s','tttt')  
+      call ncinfo(ncname( 13,:),'tntrl','tendency of air temperature due to longwave radiative heating','K/s','tttt')  
+
+
+      call open_nc(fname,  ncid,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
-        call writestat_dims_nc(ncid, ncoarse)
+        call writestat_dims_nc(ncid)
       end if
      call define_nc( ncid, NVar, ncname)
     end if
@@ -131,17 +116,21 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,&
+                          tmp0,qri ,qsat0,rhof,exnf
     use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
-                          timee,dt_lim,cexpnr,ifoutput,rtimee
+    use modglobal, only : imax,i1,ih,jmax,j1,jh,kmax,k1,rk3step,&
+                          timee,dt_lim,cexpnr,ifoutput,rtimee,&
+                           tup,tdn,cp,dzf
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr, imicro, imicro_none
+    use modraddata, only   :lwu,lwd,swu,swd
+    !rce use modmsebudg, only   :msebudg
     implicit none
 
-    integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
-    real, allocatable :: vars(:,:,:,:)
+    real, allocatable :: field(:,:,:),vars(:,:,:,:)
+    real ::  il_ratio_
     integer i,j,k
     integer :: writecounter = 1
     integer :: reclength
@@ -159,158 +148,111 @@ contains
     dt_lim = minval((/dt_lim,tnext-timee/))
 
     allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))
+    allocate(vars(imax,jmax,khigh-klow+1,nvar))
 
-    reclength = ceiling(1.0*imax/ncoarse)*ceiling(1.0*jmax/ncoarse)*(khigh-klow+1)*2
+    reclength = imax*jmax*(khigh-klow+1)*2
 
-    field = NINT(1.0E3*u0,2)
-    if (lnetcdf) vars(:,:,:,1) = u0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+    write (6,*) 'go to ncdf'
+    if (lnetcdf) then
+      field = u0
+      vars(:,:,:,1) = field(2:i1,2:j1,klow:khigh)
+      write (6,*) 'var 1'
 
-    field = NINT(1.0E3*v0,2)
-    if (lnetcdf) vars(:,:,:,2) = v0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+      field = v0
+      vars(:,:,:,2) = field(2:i1,2:j1,klow:khigh)
+      write (6,*) 'var 2'
 
-    field = NINT(1.0E3*w0,2)
-    if (lnetcdf) vars(:,:,:,3) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+      field = w0
+      vars(:,:,:,3) = field(2:i1,2:j1,klow:khigh)
+      write (6,*) 'var 3'
 
-    field = NINT(1.0E5*qt0,2)
-    if (lnetcdf) vars(:,:,:,4) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
-
-    field = NINT(1.0E5*ql0,2)
-    if (lnetcdf) vars(:,:,:,5) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbql.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbql.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
-
-    field = NINT(1.0E2*(thl0-300),2)
-    if (lnetcdf) vars(:,:,:,6) = thl0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    end if
-
-    if(imicro/=imicro_none) then
-      do i=2-ih,i1+ih
-      do j=2-jh,j1+jh
+      do i=2,i1 
+      do j=2,j1
       do k=1,k1
-        field(i,j,k) = NINT(1.0E5*sv0(i,j,k,iqr),2)
+       il_ratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning  
+       field(i,j,k) = ql0(i,j,k) * il_ratio_
       enddo
       enddo
       enddo
-    else
-      field = 0.
-    endif
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+      vars(:,:,:,5) = field(2:i1,2:j1,klow:khigh)
+      
+      do i=2,i1
+      do j=2,j1
+      do k=1,k1
+       il_ratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning  
+       field(i,j,k) = ql0(i,j,k) * (1-il_ratio_)
+      enddo
+      enddo
+      enddo
+      vars(:,:,:,4) = field(2:i1,2:j1,klow:khigh)
 
-    field=0.
-    do i=2-ih,i1+ih
-    do j=2-jh,j1+jh
-    do k=2,k1
-      field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
-    enddo
-    enddo
-    enddo
-    
-    if (lnetcdf) then 
-      vars(:,:,:,7) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      do k=klow,khigh
-        vars(:,:,k,7) = vars(:,:,k,7) - thvh(k)
+      write (6,*) 'var 4,5'
+
+      field = tmp0
+      vars(:,:,:,6) = field(2:i1,2:j1,klow:khigh)
+
+      field = qri
+      vars(:,:,:,8) = field(2:i1,2:j1,klow:khigh)
+      write (6,*) 'var 6,8'
+
+      if(imicro/=imicro_none) then
+        do i=2,i1
+        do j=2,j1
+        do k=1,k1
+          field(i,j,k) = sv0(i,j,k,iqr)
+        enddo
+        enddo
+        enddo
+      else
+        field = 0.
+      endif
+      vars(:,:,:,7) = field(2:i1,2:j1,klow:khigh)
+      write (6,*) 'var 7'
+
+      field = qt0 - ql0 
+      vars(:,:,:,9)  = field(2:i1,2:j1,klow:khigh) 
+ 
+      do i=2,i1
+      do j=2,j1
+      do k=1,k1
+       field(i,j,k) = (qt0(i,j,k)--ql0(i,j,k))/qsat0(i,j,k)
+      enddo
+      enddo
+      enddo
+
+      vars(:,:,:,10) = field (2:i1,2:j1,klow:khigh)
+      write (6,*) 'var 9,10'
+
+      do i=2,i1
+      do j=2,j1
+      do k=1,k1
+        field(i,j,k) = (-lwd(i,j,k+1) - lwu(i,j,k+1) + lwd(i,j,k) + lwu(i,j,k))/(rhof(k)*exnf(k)*cp*dzf(k))
       end do
-    end if
-    do i=2-ih,i1+ih, ncoarse
-    do j=2-jh,j1+jh, ncoarse
-    do k=2,k1
-      field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
-    enddo
-    enddo
-    enddo
+      end do
+      end do
+      vars(:,:,:,13)  = field(2:i1,2:j1,klow:khigh)
 
-    if (lbinary) then
-      if (ldiracc) then
-        open (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
-        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      else
-        open  (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
-        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
-      end if
-      close (ifoutput)
-    endif
+      do i=2,i1
+      do j=2,j1
+      do k=1,k1
+        field(i,j,k) = (-swd(i,j,k+1) - swu(i,j,k+1) + swd(i,j,k) + swu(i,j,k))/(rhof(k)*exnf(k)*cp*dzf(k))
+      end do
+      end do
+      end do
+      vars(:,:,:,12)  = field(2:i1,2:j1,klow:khigh)
 
-    if (lnetcdf) vars(:,:,:,8:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+      vars(:,:,:,11) =  vars(:,:,:,13) +  vars(:,:,:,12)
 
-    if(lnetcdf) then
+      write (6,*) 'var 11,12,13'
+
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid,nvar,ncname,vars,nrec,ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1)
+      write (6,*) 'time writing done'
+      call writestat_nc(ncid,nvar,ncname,vars,nrec,imax,jmax,khigh-klow+1)
+      write (6,*) 'writing done'
     end if
 
-    if(lbinary) then
-      if (myid==0) then
-        open(ifoutput, file='wbthls.'//cexpnr,form='formatted',position='append')
-        write(ifoutput,'(F12.1 3F12.5)') timee,thls, qts,thvs
-        close(ifoutput)
-      end if
-    endif
+    !rce call msebudg
+
 
     writecounter=writecounter+1
 
