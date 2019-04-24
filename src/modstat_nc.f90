@@ -434,12 +434,13 @@ contains
     real,dimension(dim1,nvar),intent(in)     :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
 
-    integer :: iret,n,varid
+    integer :: iret,n,varid,status
     do n=1,nvar
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
     end do
-
+    status = NF90_SYNC(ncid)
+    if (status /= nf90_noerr) write(*,*) "Failed to synchronize netcdf"
   end subroutine writestat_1D_nc
 
   subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2)
@@ -449,13 +450,15 @@ contains
     real,dimension(:,:,:),intent(in)         :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
 
-    integer :: iret,n,varid
+    integer :: iret,n,varid,status
     do n=1,nvar
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
     end do
-
+    status = NF90_SYNC(ncid)
+    if (status /= nf90_noerr) write(*,*) "Failed to synchronize netcdf"
   end subroutine writestat_2D_nc
+  
   subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3
@@ -463,13 +466,16 @@ contains
     real,dimension(dim1,dim2,dim3,nvar),intent(in)       :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
 
-    integer :: iret,n,varid
+    integer :: iret,n,varid,status
     do n=1,nvar
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-
+    status = NF90_SYNC(ncid)
+    if (status /= nf90_noerr) write(*,*) "Failed to synchronize netcdf"
+    
   end subroutine writestat_3D_nc
+  
   subroutine writestat_3D_short_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
     integer, intent(in)                      :: ncid,nvar,dim1,dim2,dim3
@@ -477,12 +483,15 @@ contains
     integer(KIND=selected_int_kind(4)),dimension(dim1,dim2,dim3,nvar),intent(in)       :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
 
-    integer :: iret,n,varid
+    integer :: iret,n,varid,status
     do n=1,nvar
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
 
+    status = NF90_SYNC(ncid)
+    if (status /= nf90_noerr) write(*,*) "Failed to synchronize netcdf"
+    
   end subroutine writestat_3D_short_nc
 
 
@@ -510,4 +519,6 @@ contains
 
   end subroutine nchandle_error
 
+ 
+  
 end module modstat_nc
