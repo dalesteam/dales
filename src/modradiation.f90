@@ -197,13 +197,18 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
-    use modglobal, only : timee, dt_lim,rk3step
+    use modglobal, only : timee, dt_lim,rk3step,btime
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
     implicit none
 
+    ! FJ, testing
+    if (tnext < btime) then
+       tnext = btime
+    end if
+    
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
@@ -213,11 +218,13 @@ contains
     if(((itimerad==0 .or. timee==tnext) .and. rk3step==1).or. first_time_rad) then
       first_time_rad = .false.
 
-      !cstep tnext = tnext+itimerad
+      !cstep 
+      tnext = tnext+itimerad ! FJ put it back
 
-      tnext = timee+itimerad
+      !tnext = timee+itimerad ! FJ
 
-     !cstep  write(6,*) 'do radiation',itimerad,timee,tnext,rk3step
+      !cstep
+      write(6,*) 'do radiation',itimerad,timee,tnext,rk3step
 
       thlprad = 0.0
       select case (iradiation)
