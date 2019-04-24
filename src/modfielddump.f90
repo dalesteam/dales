@@ -199,7 +199,7 @@ contains
         do i=2,i1
         do j=2,j1
         do k=1,k1
-          field(i,j,k) = sv0(i,j,k,iqr)
+          field(i,j,k) = sv0(i,j,k,iqr)-qri(i,j,k) ! liquid rain = total precipitating water - precipitatiing ice
         enddo
         enddo
         enddo
