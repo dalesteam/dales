@@ -336,7 +336,8 @@ module modsimpleice2
                     qrs=qr(i,j,k)*(1.-rsgratio_)*(1.-sgratio_)
                     qrg=qr(i,j,k)*(1.-rsgratio_)*sgratio_
 
-                    qri(i,j,k) = qrr  !cstep for statistics
+                    !qri(i,j,k) = qrr  !cstep for statistics   ! rsgratio=1 if only rain, rsgratio=0 if only ice
+                    qri(i,j,k) = qrs + qrg                     ! total ice = snow + graupel = qr(i,j,k)*(1.-rsgratio_)
                     ! collection of cloud water by rain etc.
 
                     accr = 0
