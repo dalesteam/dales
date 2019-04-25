@@ -438,7 +438,7 @@
 !   Use this code if cloud properties are derived in rrtmg_sw_cldprop
                if (icpr .ge. 1) then
                   ztauo(jk) = ztauc(jk) + ptauc(ikl,ibm)
-                  zomco(jk) = ztauc(jk) * zomcc(jk) + ptauc(ikl,ibm) * pomgc(ikl,ibm)
+                  zomco(jk) = ztauc(jk) * zomcc(jk) + ptauc(ikl,ibm) * pomgc(ikl,ibm)     !! slowest bit
                   zgco (jk) = (ptauc(ikl,ibm) * pomgc(ikl,ibm) * pasyc(ikl,ibm) + &
                               ztauc(jk) * zomcc(jk) * zgcc(jk)) / zomco(jk)
                   zomco(jk) = zomco(jk) / ztauo(jk)

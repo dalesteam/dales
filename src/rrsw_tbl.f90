@@ -34,6 +34,7 @@
 
       real(kind=rb) :: tau_tbl
       real(kind=rb) , dimension(0:ntbl) :: exp_tbl
+      real(kind=rb) , dimension(0:ntbl) :: exp_tbli
 
       real(kind=rb), parameter :: pade = 0.278_rb
       real(kind=rb) :: bpade

@@ -39,7 +39,7 @@
 ! **************************************************************************
 
       use parrrsw, only : mg, nbndsw, ngptsw
-      use rrsw_tbl, only: ntbl, tblint, pade, bpade, tau_tbl, exp_tbl
+      use rrsw_tbl, only: ntbl, tblint, pade, bpade, tau_tbl, exp_tbl, exp_tbli
       use rrsw_vsn, only: hvrini, hnamini
 
       real(kind=rb), intent(in) :: cpdair     ! Specific heat capacity of dry air
@@ -101,6 +101,7 @@
          tfn = float(itr) / float(ntbl)
          tau_tbl = bpade * tfn / (1._rb - tfn)
          exp_tbl(itr) = exp(-tau_tbl)
+         exp_tbli(itr) =  1._rb / exp_tbl(itr)
          if (exp_tbl(itr) .le. expeps) exp_tbl(itr) = expeps
       enddo
 

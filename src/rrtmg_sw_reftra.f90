@@ -19,7 +19,7 @@
 
 !      use parkind, only : im => kind_im, rb => kind_rb
       use modglobal, only : im => kind_im, rb => kind_rb
-      use rrsw_tbl, only : tblint, bpade, od_lo, exp_tbl
+      use rrsw_tbl, only : tblint, bpade, od_lo, exp_tbl, exp_tbli
       use rrsw_vsn, only : hvrrft, hnamrft
 
       implicit none
@@ -168,7 +168,7 @@
                za  = zgamma1 * prmuz
                za1 = za - zgamma3
                zgt = zgamma1 * zto1
-
+ 
 ! Homogeneous reflectance and transmittance,
 ! collimated beam
 
@@ -258,7 +258,8 @@
                   tblind = ze1 / (bpade + ze1)
                   itind = tblint * tblind + 0.5_rb
                   zem1 = exp_tbl(itind)
-                  zep1 = 1._rb / zem1
+                  !zep1 = 1._rb / zem1
+                  zep1 = exp_tbli(itind)
                endif
 
                if (ze2 .le. od_lo) then
@@ -268,7 +269,8 @@
                   tblind = ze2 / (bpade + ze2)
                   itind = tblint * tblind + 0.5_rb
                   zem2 = exp_tbl(itind)
-                  zep2 = 1._rb / zem2
+                  !zep2 = 1._rb / zem2
+                  zep2 = exp_tbli(itind)
                endif
 
 ! collimated beam
@@ -280,13 +282,16 @@
 !               ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) / zdent
 
                zdenr = zr4*zep1 + zr5*zem1
-               zdent = zt4*zep1 + zt5*zem1
+               ! zdent = zt4*zep1 + zt5*zem1
                if (zdenr .ge. -eps .and. zdenr .le. eps) then
                   pref(jk) = eps
                   ptra(jk) = zem2
                else
-                  pref(jk) = zw * (zr1*zep1 - zr2*zem1 - zr3*zem2) / zdenr
-                  ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) / zdent
+                  !pref(jk) = zw * (zr1*zep1 - zr2*zem1 - zr3*zem2) / zdenr
+                  !ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) / zdent
+                  !  zdenr = zdent, since zt4=zr4 and zt5 = zr5
+                  pref(jk) = zw * (zr1*zep1 - zr2*zem1 - zr3*zem2) * (1/zdenr)
+                  ptra(jk) = zem2 - zem2 * zw * (zt1*zep1 - zt2*zem1 - zt3*zep2) * (1/zdenr)
                endif
 !!
 
