@@ -159,7 +159,7 @@ contains
 
     call excj( pup, 2-1, i1+1, 2-1, j1+1, 1, k1 )
     call excj( pvp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
-    call excj( pwp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+ !   call excj( pwp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
 
     do k=1,kmax
       do j=2,j1
