@@ -112,7 +112,8 @@ module modsimpleice2
 
     nrp=0. ! not used in this scheme 
     nr=0.  ! set to 0 here in case the statistics use them
-     
+
+    sed_qr = 0.
   end subroutine initsimpleice2
   
 
@@ -131,7 +132,7 @@ module modsimpleice2
   subroutine simpleice2
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,&
-                          qri
+                          qri, field_2D_mn
     
     use modsimpleicestat, only : simpleicetend
     implicit none
@@ -447,6 +448,8 @@ module modsimpleice2
        enddo
     enddo
 
+    ! accumulate surface rain
+    field_2D_mn(:,:,23) = field_2D_mn(:,:,23) + sed_qr(:,:,1)*dt_spl
 
     ! precipitate part 2
     
@@ -529,6 +532,8 @@ module modsimpleice2
              enddo
           endif
 
+          field_2D_mn(:,:,23) = field_2D_mn(:,:,23) + sed_qr(:,:,1)*dt_spl
+          
           ! end time splitting loop and if n>1
        ENDDO
     ENDIF

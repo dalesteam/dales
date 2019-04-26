@@ -46,7 +46,7 @@ save
       integer ::  kh=1
       integer ::  kcb=0
 
-      integer :: Nvars_2D = 22      !< 2D output for RCEMIP
+      integer :: Nvars_2D = 23      !< 2D output for RCEMIP
       integer :: Nmse_2D = 5
 
       character(50) :: fname_options = 'namoptions'

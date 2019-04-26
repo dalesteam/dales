@@ -35,7 +35,7 @@ private
 PUBLIC :: initfielddump2, fielddump2,exitfielddump2
 save
 !NetCDF variables
-  integer,parameter :: nvar = 22  != Nvars_2D
+  integer,parameter :: nvar = 23  != Nvars_2D
   integer,parameter :: nmsevar = 5 
   integer :: ncid2,ncid3,nrec2 = 0, nrec3 = 0
   character(80) :: fname = 'fielddump2.xxx.xxx.xxx.nc'
@@ -109,7 +109,7 @@ contains
       call ncinfo(ncname(20,:),'uabot','eastward wind at lowest model level','m/s','mttt')
       call ncinfo(ncname(21,:),'vabot','northward wind at lowest model level','m/s','tmtt')
       call ncinfo(ncname(22,:),'tabot','air temperature at lowest model level','K','tmtt')
-
+      call ncinfo(ncname(23,:),'pr', 'surface precipitation rate','kg/m2s','ttmt')
 
       call open_nc(fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
       if (nrec2==0) then

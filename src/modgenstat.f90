@@ -1352,6 +1352,7 @@ contains
 
        field_2D_mn(:,:,1:2) = field_2D_mn(:,:,1:2) / nsamples
        field_2D_mn(:,:,16:22) = field_2D_mn(:,:,16:22) / nsamples
+       field_2D_mn(:,:,23) = field_2D_mn(:,:,23) / timeav   ! time integrated surface rain flux -> rate
      !rce  write (6,*) field_2D_mn(:,:,1)
     
   !     ------------------------------------------
