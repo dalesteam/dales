@@ -99,6 +99,8 @@ save
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
+      logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
+
       integer :: igrw_damp = 2 !< switch to enable gravity wave damping
       real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real    :: om22                       !<    *2.*omega_earth*cos(lat)
@@ -120,6 +122,7 @@ save
 
       !Advection scheme
       integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
+      integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
       integer, parameter :: iadv_5th    = 5
@@ -128,6 +131,7 @@ save
       integer, parameter :: iadv_52     = 52
       integer, parameter :: iadv_kappa  = 7
       integer, parameter :: iadv_hybrid = 55
+      integer, parameter :: iadv_hybrid_f = 555
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
 
@@ -165,11 +169,10 @@ save
       integer(kind=longint) :: timee             !<     * elapsed time since the "cold" start
       real :: rtimee             !<     * elapsed time since the "cold" start
       integer(kind=longint) :: btime             !<     * time of (re)start
-      integer :: ntimee         !<     * number of timesteps since the cold start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-
       logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
+      logical :: ltotruntime = .false. !<    * Whether the runtime is counted since the last cold start (if true) or the last warm start (if false, default)
 
       real    :: courant = -1
       real    :: peclet  = 0.15
@@ -210,10 +213,11 @@ save
       real :: xsize    = -1 !<  domain size in x-direction
       real :: ysize    = -1 !<  domain size in y-direction
       real, allocatable :: delta(:)       !<  (dx*dy*dz)**(1/3)
+      real, allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-      character(80) :: author='', version='DALES 4.1'
+      character(80) :: author='', version='DALES 4.2'
 contains
 
 !> Initialize global settings.
@@ -242,6 +246,8 @@ contains
       case(iadv_52)
         courant = 1.
       case(iadv_hybrid)
+         courant = 1.
+      case(iadv_hybrid_f)
         courant = 1.
       case default
         courant = 1.
@@ -295,6 +301,10 @@ contains
       ih = 3
       jh = 3
       kh = 1
+    elseif (any(advarr==iadv_hybrid_f).or.any(iadv_sv(1:nsv)==iadv_hybrid_f)) then
+      ih = 3
+      jh = 3
+      kh = 1
     elseif (any(advarr==iadv_kappa).or.any(iadv_sv(1:nsv)==iadv_kappa)) then
       ih = 2
       jh = 2
@@ -309,10 +319,17 @@ contains
 
     ! Global constants
 
+    
+
+    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
+    ! esatitab(m) is the same over ice
+    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
+    ! Murphy and Koop 2005 parameterization formula.
     do m=1,2000
     ttab(m)=150.+0.2*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
-    tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+         tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+    
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
 
@@ -361,7 +378,7 @@ contains
     allocate(dzh(k1))
     allocate(zh(k1))
     allocate(zf(k1))
-    allocate(delta(k1))
+    allocate(delta(k1),deltai(k1))
 
 
     ijtot = real(itot*jtot)
@@ -410,7 +427,8 @@ contains
 
     do k=1,k1
 
-      delta(k) = (dx*dy*dzf(k))**(1./3.)
+       delta(k) = (dx*dy*dzf(k))**(1./3.)
+       deltai(k) = 1./delta(k)
     end do
 
   !--------------------------------------------------
@@ -420,7 +438,7 @@ contains
     leq=.true.
     dz = dzf(1)
     do k=1,k1
-      if (dzf(k)/=dz) then
+      if (abs(dzf(k)-dz)/dz>eps1) then
         leq = .false.
       end if
     end do
@@ -455,13 +473,13 @@ contains
         write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
     end if
-    tnextrestart = trestart/tres
-    timeleft=ceiling(runtime/tres)
+!     tnextrestart = trestart/tres
+!     timeleft=ceiling(runtime/tres)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    deallocate(dsv,dzf,dzh,zh,zf,delta)
+    deallocate(dsv,dzf,dzh,zh,zf,delta,deltai)
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)
@@ -580,30 +598,30 @@ REAL (dp), PARAMETER  :: one = 1.0_dp, half = 0.5_dp, twelve = 12.0_dp,  &
 !----------------------------------------------------------------------
 !  Machine dependent parameters
 !----------------------------------------------------------------------
-REAL (dp), PARAMETER  :: xbig = 171.624_dp, xminin = 2.23D-308,   &
-                         eps = 2.22D-16, xinf = 1.79D308
+REAL (dp), PARAMETER  :: xbig = 171.624_dp, xminin = 2.23E-308_dp,   &
+                         eps = 2.22E-16_dp, xinf = 1.79E308_dp
 !----------------------------------------------------------------------
 !  Numerator and denominator coefficients for rational minimax
 !     approximation over (1,2).
 !----------------------------------------------------------------------
 REAL (dp), PARAMETER  :: P(8) =  &
-           (/ -1.71618513886549492533811D+0,  2.47656508055759199108314D+1,  &
-              -3.79804256470945635097577D+2,  6.29331155312818442661052D+2,  &
-               8.66966202790413211295064D+2, -3.14512729688483675254357D+4,  &
-              -3.61444134186911729807069D+4,  6.64561438202405440627855D+4 /)
+           (/ -1.71618513886549492533811E+0_dp,  2.47656508055759199108314E+1_dp,  &
+              -3.79804256470945635097577E+2_dp,  6.29331155312818442661052E+2_dp,  &
+               8.66966202790413211295064E+2_dp, -3.14512729688483675254357E+4_dp,  &
+              -3.61444134186911729807069E+4_dp,  6.64561438202405440627855E+4_dp /)
 REAL (dp), PARAMETER  :: Q(8) =  &
-           (/ -3.08402300119738975254353D+1,  3.15350626979604161529144D+2,  &
-              -1.01515636749021914166146D+3, -3.10777167157231109440444D+3,  &
-               2.25381184209801510330112D+4,  4.75584627752788110767815D+3,  &
-              -1.34659959864969306392456D+5, -1.15132259675553483497211D+5 /)
+           (/ -3.08402300119738975254353E+1_dp,  3.15350626979604161529144E+2_dp,  &
+              -1.01515636749021914166146E+3_dp, -3.10777167157231109440444E+3_dp,  &
+               2.25381184209801510330112E+4_dp,  4.75584627752788110767815E+3_dp,  &
+              -1.34659959864969306392456E+5_dp, -1.15132259675553483497211E+5_dp /)
 !----------------------------------------------------------------------
 !  Coefficients for minimax approximation over (12, INF).
 !----------------------------------------------------------------------
 REAL (dp), PARAMETER  :: c(7) =  &
-           (/ -1.910444077728D-03, 8.4171387781295D-04,  &
-              -5.952379913043012D-04, 7.93650793500350248D-04,  &
-              -2.777777777777681622553D-03, 8.333333333333333331554247D-02,  &
-               5.7083835261D-03 /)
+           (/ -1.910444077728E-03_dp, 8.4171387781295E-04_dp,  &
+              -5.952379913043012E-04_dp, 7.93650793500350248E-04_dp,  &
+              -2.777777777777681622553E-03_dp, 8.333333333333333331554247E-02_dp,  &
+               5.7083835261E-03_dp /)
 !----------------------------------------------------------------------
 
 parity = .false.

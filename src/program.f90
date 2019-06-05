@@ -101,7 +101,7 @@ program DALES      !Version 4.0.0alpha
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
   use modglobal,         only : rk3step,timeleft
-  use modstartup,        only : startup, writerestartfiles,exitmodules
+  use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
@@ -144,6 +144,7 @@ program DALES      !Version 4.0.0alpha
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
+  use modtestbed,      only : testbednudge, exittestbed
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
@@ -193,6 +194,8 @@ program DALES      !Version 4.0.0alpha
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
+  call testwctime
+
   do while (timeleft>0 .or. rk3step < 3)
     call tstep_update                           ! Calculate new timestep
     call timedep
@@ -235,6 +238,7 @@ program DALES      !Version 4.0.0alpha
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
     call nudge
+    call testbednudge
 !    call dospecs
 !    call tiltedgravity
 
@@ -284,7 +288,9 @@ program DALES      !Version 4.0.0alpha
     !call stressbudgetstat
     call heterostats
 
+    call testwctime
     call writerestartfiles
+
   end do
 
 !-------------------------------------------------------
@@ -300,6 +306,7 @@ program DALES      !Version 4.0.0alpha
   call exitlsmstat
   !call exitparticles
   call exitnudge
+  call exittestbed
   call exitsampling
   call exitquadrant
   call exitsamptend

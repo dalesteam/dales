@@ -1,7 +1,7 @@
 &RUN
 iexpnr     =  001
 lwarmstart =  .false.
-startfile  =  'initd00h01m000.001'
+startfile  =  'initd001h00mx000y000.001'
 runtime    =  50400
 trestart   =  7200
 dtmax      =  10
@@ -54,14 +54,8 @@ iadv_thl    =  2
 iadv_qt     =  2
 iadv_sv     =  2
 /
-&SUBGRID
+&NAMSUBGRID
 ldelta      = .false.
-cm          = 0.12
-cn          = 0.76
-ch1         = 1.
-ch2         = 2.
-ce1         = 0.19
-ce2         = 0.51
 /
 &NAMBUDGET 
 lbudget     = .true.

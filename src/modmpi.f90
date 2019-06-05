@@ -211,9 +211,10 @@ contains
     enddo
     enddo
   else
+    ii = 0 !XPB added this line, otherwise crash if nprocy=0,nprocx=1 (may be unnecessary after commenting lines 217 and 263)
     do k=sz,ez
     do i=sx,ex
-      ii = ii + 1
+!      ii = ii + 1
       a(i,sy,k) = a(i,ey-1,k)
       a(i,ey,k) = a(i,sy+1,k)
     enddo
@@ -259,7 +260,7 @@ contains
   else
     do k=sz,ez
     do i=sy,ey
-      ii = ii + 1
+!      ii = ii + 1
       a(sx,i,k) = a(ex-1,i,k)
       a(ex,i,k) = a(sx+1,i,k)
     enddo
@@ -424,6 +425,14 @@ contains
 
     return
   end subroutine slabsum
+  
+  subroutine mpi_get_time(val)
+   real, intent(out) :: val
+ 
+   val = MPI_Wtime()
+   call MPI_BCAST(val,1,MY_REAL   ,0,comm3d,mpierr)
+
+  end subroutine mpi_get_time
 
   ! Gather a variable l(imax,jmax) along a row (ie. constant myidy)
   ! into              g(itot,jmax) at the processor with myix=0

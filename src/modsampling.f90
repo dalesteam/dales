@@ -949,7 +949,7 @@ contains
         write (ifoutput,'(2A/2A)') &
            '#------------------------------------------------------' &
            ,'------------------------------' &
-           ,'  LEV  HGHT_F HGHT_H   PRES   COV_F  COV_H       W       THL      QT      ' &
+           ,'#  LEV  HGHT_F HGHT_H   PRES   COV_F  COV_H       W       THL      QT      ' &
            ,'QL       THV     P   WW_RES_H   WW_SUB_F'
         do k=1,kmax
           write(ifoutput,'(i5,2F8.0,F7.1,2F10.5,5F11.5,E14.5,2F14.5)') &
@@ -980,7 +980,7 @@ contains
         write (ifoutput,'(2A/2A)') &
             '#------------------------------------------------------' &
             ,'------------------------------' &
-            ,'   LEV  HGHT  PRES       AW                WTHL                 ' &
+            ,'#   LEV  HGHT  PRES       AW                WTHL                 ' &
             ,'WQT                WQL                WTHV                UW                VW'
         do k=1,kmax
           write(ifoutput,'(i5,F8.0,F7.1,7E16.8)') &
@@ -1008,7 +1008,7 @@ contains
         write (ifoutput,'(2A/3A)') &
            '#------------------------------------------------------' &
            ,'------------------------------' &
-           ,'  LEV HGHT   PRES     COVER     DWDTMN        BUO          DPDZMN       DWWDZHMN    DUWDXHMN ' &
+           ,'#  LEV HGHT   PRES     COVER     DWDTMN        BUO          DPDZMN       DWWDZHMN    DUWDXHMN ' &
            ,'    DTAUDZHMN     DTAUDXHMN    CORIOLIS     RESIDUAL    WS_END       SIG_END      WADVHMN   SUBPLUME ' &
            ,'     NRTSAMPHAV  '
         do k=1,kmax

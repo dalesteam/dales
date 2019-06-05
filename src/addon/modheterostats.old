@@ -233,7 +233,7 @@ contains
 
   subroutine heterostats
 
-    use modglobal, only : rk3step,ntimee,dt_lim,timee
+    use modglobal, only : rk3step,dt_lim,timee
     implicit none
 
     if (.not. lheterostats) return

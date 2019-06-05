@@ -305,14 +305,10 @@
                                               ! [0 = direct and diffuse fluxes are unscaled]
                                               ! [1 = direct and diffuse fluxes are scaled]
                                               ! (total downward fluxes are always delta scaled)
-      integer(kind=im) :: isccos              ! instrumental cosine response flag (inactive)
       integer(kind=im) :: iplon               ! column loop index
       integer(kind=im) :: i                   ! layer loop index                       ! jk
       integer(kind=im) :: ib                  ! band loop index                        ! jsw
-      integer(kind=im) :: ia, ig              ! indices
-      integer(kind=im) :: k                   ! layer loop index
-      integer(kind=im) :: ims                 ! value for changing mcica permute seed
-      integer(kind=im) :: imca                ! flag for mcica [0=off, 1=on]
+      integer(kind=im) :: ia                  ! indices
 
       real(kind=rb) :: zepsec, zepzen         ! epsilon
       real(kind=rb) :: zdpgcp                 ! flux to heating conversion ratio
@@ -368,7 +364,6 @@
                          fac10(nzrad+2), fac11(nzrad+2)
 
 ! Atmosphere/clouds - cldprop
-      integer(kind=im) :: ncbands             ! number of cloud spectral bands
       integer(kind=im) :: inflag              ! flag for cloud property method
       integer(kind=im) :: iceflag             ! flag for ice cloud properties
       integer(kind=im) :: liqflag             ! flag for liquid cloud properties
@@ -537,7 +532,7 @@
          call inatm_sw (iplon, nzrad+1, ioverlap, iaer, &
               layerP, interfaceP, layerT, interfaceT, tsfc, h2ovmr, &
               o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, &
-              real(eccf,rb), dyofyr, scon, inflgsw, iceflgsw, liqflgsw, &
+              real(eccf,rb), dyofyr, inflgsw, iceflgsw, liqflgsw, &
               cldfr, taucld, ssacld, asmcld, fsfcld, cicewp, cliqwp, &
               reice, reliq, tauaer, ssaaer, asmaer, &
               nlayers, pavel, pz, pdp, tavel, tz, tbound, coldry, wkl, &
@@ -567,7 +562,7 @@
 ! molecular absorption coefficients by interpolating data from stored
 ! reference atmospheres.
 
-         call setcoef_sw(nlayers, pavel, tavel, pz, tz, tbound, coldry, wkl, &
+         call setcoef_sw(nlayers, pavel, tavel, tz, tbound, coldry, wkl, &
                          laytrop, layswtch, laylow, jp, jt, jt1, &
                          co2mult, colch4, colco2, colh2o, colmol, coln2o, &
                          colo2, colo3, fac00, fac01, fac10, fac11, &
@@ -692,11 +687,11 @@
 
          call spcvrt_sw &
              (nlayers, istart, iend, icpr, idelm, iout, &
-              pavel, tavel, pz, tz, tbound, albdif, albdir, &
+              albdif, albdir, &
               cldfrac, ztauc, zasyc, zomgc, ztaucorig, &
-              ztaua, zasya, zomga, cossza, coldry, wkl, adjflux, &
-              laytrop, layswtch, laylow, jp, jt, jt1, &
-              co2mult, colch4, colco2, colh2o, colmol, coln2o, colo2, colo3, &
+              ztaua, zasya, zomga, cossza, adjflux, &
+              laytrop, jp, jt, jt1, &
+              colch4, colco2, colh2o, colmol, colo2, colo3, &
               fac00, fac01, fac10, fac11, &
               selffac, selffrac, indself, forfac, forfrac, indfor, &
               zbbfd, zbbfu, zbbcd, zbbcu, zuvfd, zuvcd, znifd, znicd, &
@@ -722,6 +717,8 @@
             dirdflux(i) = zbbfddir(i)
             !difdflux(i) = swdflx(iplon,i) - dirdflux(i)
             difdflux(i) = swDown_slice(iplon,i) - dirdflux(i)
+            swDownDir_slice(iplon,i)   = dirdflux(i)
+            swDownDif_slice(iplon,i)   = difdflux(i)
 !  UV/visible direct/diffuse fluxes
             dirdnuv(i) = zuvfddir(i)
             difdnuv(i) = zuvfd(i) - dirdnuv(i)
@@ -785,7 +782,7 @@
       subroutine inatm_sw (iplon, nlay, icld, iaer, &
             play, plev, tlay, tlev, tsfc, h2ovmr, &
             o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, &
-            adjes, dyofyr, scon, inflgsw, iceflgsw, liqflgsw, &
+            adjes, dyofyr, inflgsw, iceflgsw, liqflgsw, &
             cldfr, taucld, ssacld, asmcld, fsfcld, cicewp, cliqwp, &
             reice, reliq, tauaer, ssaaer, asmaer, &
             nlayers, pavel, pz, pdp, tavel, tz, tbound, coldry, wkl, &
@@ -842,7 +839,6 @@
       integer(kind=im), intent(in) :: dyofyr          ! Day of the year (used to get Earth/Sun
                                                       !  distance if adjflx not provided)
       real(kind=rb), intent(in) :: adjes              ! Flux adjustment for Earth/Sun distance
-      real(kind=rb), intent(in) :: scon               ! Solar constant (W/m2)
 
       integer(kind=im), intent(in) :: inflgsw         ! Flag for cloud optical properties
       integer(kind=im), intent(in) :: iceflgsw        ! Flag for ice particle specification
@@ -949,10 +945,10 @@
 
       real(kind=rb), parameter :: sbc = 5.67e-08_rb   ! Stefan-Boltzmann constant (W/m2K4)
 
-      integer(kind=im) :: isp, l, ix, n, imol, ib       ! Loop indices
-      real(kind=rb) :: amm, summol                      !
-      real(kind=rb) :: adjflx                           ! flux adjustment for Earth/Sun distance
-!      real(kind=rb) :: earth_sun                        ! function for Earth/Sun distance adjustment
+      integer(kind=im) :: l, n, imol, ib              ! Loop indices
+      real(kind=rb) :: amm                            !
+      real(kind=rb) :: adjflx                         ! flux adjustment for Earth/Sun distance
+!      real(kind=rb) :: earth_sun                     ! function for Earth/Sun distance adjustment
 
 ! Add one to nlayers here to include extra model layer at top of atmosphere
       nlayers = nlay

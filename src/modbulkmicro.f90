@@ -149,7 +149,7 @@ module modbulkmicro
 
     delt = rdt/ (4. - dble(rk3step))
 
-    if ( timee .eq. 0. .and. rk3step .eq. 1 .and. myid .eq. 0) then
+    if ( timee .eq. 0 .and. rk3step .eq. 1 .and. myid .eq. 0) then
       write(*,*) 'l_lognormal',l_lognormal
       write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
       write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
@@ -497,7 +497,7 @@ module modbulkmicro
 
   end subroutine accretion
 
-!> Sedimentation of cloud water
+!> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
 !!
 !!   The sedimentation of cloud droplets assumes a lognormal DSD in which the
 !!   geometric std dev. is assumed to be fixed at 1.3.
@@ -697,7 +697,7 @@ module modbulkmicro
       enddo
       enddo
 
-      if ( jn == 1. ) then
+      if ( jn == 1 ) then
       do j=2,j1
       do i=2,i1
         precep(i,j,k) =  sed_qr(i,j,k)/rhof(k)   ! kg kg-1 m s-1

@@ -34,6 +34,7 @@
   integer, parameter :: imicro_bulk    = 2
   integer, parameter :: imicro_bin     = 3
   integer, parameter :: imicro_sice    = 5
+  integer, parameter :: imicro_sice2   = 6
   integer, parameter :: imicro_user    = 10
   logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
@@ -41,7 +42,7 @@
              l_mur_cst   = .false. ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
 
   real    :: mur_cst     = 5        & !<  mur value if l_mur_cst=T                     (in namelist NAMMICROPHYSICS)
-                 ,Nc_0 = 70e6       & !<  initial cloud droplet number
+                 ,Nc_0 = 70e6       & !<  initial cloud droplet number (#/m3)
                  ,sig_g = 1.34      & !<  geom. std dev of cloud droplet DSD
                  ,sig_gr = 1.5        !<  geometric std dev of rain drop DSD
 
@@ -233,5 +234,5 @@
    real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
    real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
-
+   real,allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
   end module modmicrodata

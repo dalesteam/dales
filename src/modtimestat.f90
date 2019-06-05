@@ -178,11 +178,13 @@ contains
         write(ifoutput,'(3a)') &
                '#     time      Qnet        H          LE         G0  ', &
                '   tendskin     rs         ra        tskin        cliq  ', &
-               '    Wl          rssoil     rsveg       Resp       wco2         An'
+               '    Wl          rssoil     rsveg       Resp       wco2         An', &
+               '    gcco2'
         write(ifoutput,'(3a)') &
                '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
                '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
-               '   [m]          [s/m]      [s/m]'
+               '   [m]          [s/m]      [s/m]   [mgCm2/s]               [mgCm2/s]',&
+               '   [m/s]  '
         close(ifoutput)
       end if
 
@@ -336,14 +338,14 @@ contains
 !>Run timestat. Calculate and write the statistics
   subroutine timestat
 
-    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,&
+    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
 !
     use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav
+                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
@@ -796,7 +798,7 @@ contains
       if (isurf == 1) then
         !tmlsm
         open (ifoutput,file='tmlsm.'//cexpnr,position='append')
-        write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3)') &
+        write(ifoutput,'(f10.2,9f11.3,e13.3, 5f11.3,e13.3)') &
             rtimee       ,&
             Qnetav      ,&
             Hav         ,&
@@ -812,19 +814,20 @@ contains
             rsvegav     ,&
             Respav      ,&
             wco2av      ,&
-            Anav
+            Anav        ,&
+            gcco2av
         close(ifoutput)
       end if
       if (lnetcdf) then
         vars( 1) = rtimee
         vars( 2) = cc
-        if (vars(2)==0) vars(2) = nc_fillvalue
+        if (vars(2)<eps1) vars(2) = nc_fillvalue
         vars( 3) = zbaseav
-        if (vars(3)==0) vars(3) = nc_fillvalue
+        if (vars(3)<eps1) vars(3) = nc_fillvalue
         vars( 4) = ztopav
-        if (vars(4)==0) vars(4) = nc_fillvalue
+        if (vars(4)<eps1) vars(4) = nc_fillvalue
         vars( 5) = ztopmax
-        if (vars(5)==0) vars(5) = nc_fillvalue
+        if (vars(5)<eps1) vars(5) = nc_fillvalue
         vars( 6) = zi
         vars( 7) = we
         vars( 8) = qlintav

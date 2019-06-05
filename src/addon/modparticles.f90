@@ -87,7 +87,7 @@ contains
   subroutine initparticles
     use modmpi,   only : myid,my_real,mpierr,comm3d,mpi_integer,mpi_logical,nprocs
     use modglobal,only : ifnamopt,fname_options,ifinput,dtmax,cexpnr,&
-                         dx,dy,dzf,zh,kmax,k1,iexpnr,runtime,timee,ysize,dt_lim,btime,rtimee,tres
+                         dx,dy,dzf,zh,kmax,k1,iexpnr,timee,ysize,dt_lim,btime,rtimee,tres
 
     implicit none
 

@@ -41,6 +41,7 @@ save
   integer :: krand = huge(0), krandumin=1,krandumax=0
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
   real :: randu = 0.5
+  real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
 
 contains
   subroutine startup
@@ -53,10 +54,10 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr,runtime, dtmax,dtav_glob,timeav_glob,&
+    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
-                                  lmoist,lcoriol,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -68,6 +69,8 @@ contains
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
     use modtimedep,        only : inittimedep,ltimedep
+    use modtimedepsv,      only : inittimedepsv,ltimedepsv
+    use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
@@ -80,7 +83,7 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,runtime,dtmax,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy
@@ -91,10 +94,10 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,igrw_damp,geodamptime,lmomsubs,ltimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv, lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -154,6 +157,8 @@ contains
     call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltotruntime,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(wctime     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
@@ -180,11 +185,13 @@ contains
     call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(lpressgrad ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(geodamptime,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(ltimedepsv ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
     call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
 
@@ -237,9 +244,11 @@ contains
     ! Initialize MPI
     call initmpi
 
+    call testwctime
     ! Allocate and initialize core modules
     call initglobal
     call initfields
+    call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     call initboundary
     call initthermodynamics
@@ -247,8 +256,8 @@ contains
     call initsurface
     call initsubgrid
     call initpois
-    call initmicrophysics
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
+    call initmicrophysics
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues
@@ -327,8 +336,8 @@ contains
       case(1)
       case(2,10)
       case(3:4)
-        if (wtsurf == -1)  stop 'wtsurf not set'
-        if (wqsurf == -1)  stop 'wqsurf not set'
+        if (wtsurf <-1e10)  stop 'wtsurf not set'
+        if (wqsurf <-1e10)  stop 'wqsurf not set'
       case default
         stop 'isurf out of range/not set'
       end select
@@ -355,30 +364,33 @@ contains
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
-                                  rtimee,timee,ntimee,ntrun,btime,dt_lim,nsv,&
+                                  rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
-                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart
+                                  ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
+                                  trestart, ladaptive,llsadv,tnextrestart,longint
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
-    use modsurface,        only : surface,qtsurf,dthldz
+    use modsurface,        only : surface,qtsurf,dthldz,ps
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
+    use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
+                                  tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     integer i,j,k,n
+    logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: thv0
+    real, allocatable :: thv0(:,:,:)
 
     character(80) chmess
 
     allocate (height(k1))
     allocate (th0av(k1))
-
+    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
 
 
     if (.not. lwarmstart) then
@@ -396,22 +408,47 @@ contains
       dt  = floor(rdt/tres)
       timee = 0
       if (myid==0) then
-        open (ifinput,file='prof.inp.'//cexpnr)
-        read (ifinput,'(a80)') chmess
-        write(*,     '(a80)') chmess
-        read (ifinput,'(a80)') chmess
 
-        do k=1,kmax
-          read (ifinput,*) &
+        if (ltestbed) then
+
+          write(*,*) 'readinitfiles: testbed mode: profiles for initialization obtained from scm_in.nc'
+          
+          do k=1,kmax
+            height (k) = zf(k)
+            thlprof(k) = tb_thl(1,k)
+            qtprof (k) = tb_qt(1,k)
+            uprof  (k) = tb_u(1,k)
+            vprof  (k) = tb_v(1,k)
+            e12prof(k) = e12min
+          end do
+
+          ps         = tb_ps(1)
+          !qts
+          !thls
+          !wtsurf
+          !wqsurf
+         
+        else
+
+          open (ifinput,file='prof.inp.'//cexpnr)
+          read (ifinput,'(a80)') chmess
+          write(*,     '(a80)') chmess
+          read (ifinput,'(a80)') chmess
+
+          do k=1,kmax
+            read (ifinput,*) &
                 height (k), &
                 thlprof(k), &
                 qtprof (k), &
                 uprof  (k), &
                 vprof  (k), &
                 e12prof(k)
-        end do
+          end do
+        
+          close(ifinput)
 
-        close(ifinput)
+        end if   !ltestbed
+
         write(*,*) 'height    thl      qt         u      v     e12'
         do k=kmax,1,-1
           write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
@@ -463,20 +500,24 @@ contains
     !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
+      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
       do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh)
-        call randomnize(thlm,k,randthl,irandom,ih,jh)
-        call randomnize(thl0,k,randthl,irandom,ih,jh)
+        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+      end do
+      negval = .True. ! negative perturbations allowed
+      do k = 1,krand
+        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
       end do
 
       do k=krandumin,krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh)
+        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
       end do
 
       svprof = 0.
@@ -648,13 +689,29 @@ contains
 
 
     if(myid==0)then
-      open (ifinput,file='lscale.inp.'//cexpnr)
-      read (ifinput,'(a80)') chmess
-      read (ifinput,'(a80)') chmess
-      write(6,*) ' height u_geo   v_geo    subs     ' &
-                    ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
-      do  k=1,kmax
-        read (ifinput,*) &
+
+      if (ltestbed) then
+
+          write(*,*) 'readinitfiles: testbed mode: profiles for ls forcing obtained from scm_in.nc'
+          
+          do k=1,kmax
+            height (k) = zf(k)
+            ug     (k) = tb_ug(1,k)
+            vg     (k) = tb_vg(1,k)
+            wfls   (k) = tb_w(1,k)
+            dqtdxls(k) = tb_dqtdxls(1,k)
+            dqtdyls(k) = tb_dqtdyls(1,k)
+            dqtdtls(k) = tb_qtadv(1,k)
+            thlpcar(k) = tb_thladv(1,k)
+          end do
+         
+      else
+
+        open (ifinput,file='lscale.inp.'//cexpnr)
+        read (ifinput,'(a80)') chmess
+        read (ifinput,'(a80)') chmess
+        do  k=1,kmax
+          read (ifinput,*) &
               height (k), &
               ug     (k), &
               vg     (k), &
@@ -663,9 +720,13 @@ contains
               dqtdyls(k), &
               dqtdtls(k), &
               thlpcar(k)
-      end do
-      close(ifinput)
+        end do
+        close(ifinput)
 
+      end if
+
+      write(6,*) ' height u_geo   v_geo    subs     ' &
+                ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
       do k=kmax,1,-1
         write (6,'(3f7.1,5e12.4)') &
               height (k), &
@@ -727,15 +788,18 @@ contains
 
     idtmax = floor(dtmax/tres)
     btime   = timee
-    timeleft=ceiling(runtime/tres)
+    if (.not.(ltotruntime)) then
+      runtime = runtime + btime*tres
+    end if
+    timeleft=ceiling((runtime)/tres-btime,longint)
+
     dt_lim = timeleft
     rdt = real(dt)*tres
     ntrun   = 0
     rtimee  = real(timee)*tres
-    ntimee  = nint(timee/dtmax)
-    itrestart = floor(trestart/tres)
+    itrestart = floor(trestart/tres,longint)
     tnextrestart = btime + itrestart
-    deallocate (height,th0av)
+    deallocate (height,th0av,thv0)
 
 
   end subroutine readinitfiles
@@ -750,7 +814,7 @@ contains
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
-    use modsubgriddata, only : ekm
+    use modsubgriddata, only : ekm,ekh
 
 
     character(50) :: name
@@ -761,7 +825,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(12:19)=cmyid
+    name(13:20)=cmyid
     write(6,*) 'loading ',name
     open(unit=ifinput,file=name,form='unformatted', status='old')
 
@@ -777,6 +841,7 @@ contains
       read(ifinput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((ekh   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -840,32 +905,33 @@ contains
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,trestart,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
                           rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
-    use modsubgriddata, only : ekm
+    use modsubgriddata, only : ekm,ekh
 
     implicit none
-    logical :: lexitnow = .false.
     integer imin,ihour
     integer i,j,k,n
     character(50) name,linkname
 
     if (timee == 0) return
-    if (rk3step /=3) return
-    name = 'exit_now.'//cexpnr
-    inquire(file=trim(name), EXIST=lexitnow)
+    if (rk3Step/=3) return
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    if (timee>=tnextrestart .or. lexitnow) then
+    
+    ! if trestart > 0, write a restartfile every trestart seconds and at the end
+    ! if trestart = 0, write restart files only at the end of the simulation
+    ! if trestart < 0, don't write any restart files
+    if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
       tnextrestart = tnextrestart+itrestart
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initd  h  m        .'
-      write (name(6:7)  ,'(i2.2)') ihour
-      write (name(9:10) ,'(i2.2)') imin
-      name(12:19)= cmyid
-      name(21:23)= cexpnr
+      name = 'initdXXXhXXmXXXXXXXX.XXX'
+      write (name(6:8)  ,'(i3.3)') ihour
+      write (name(10:11),'(i2.2)') imin
+      name(13:20)= cmyid
+      name(22:24)= cexpnr
       open  (ifoutput,file=name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -878,6 +944,7 @@ contains
       write(ifoutput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((ekh   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -905,14 +972,10 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("ln -sf "//name //" "//linkname)
+      call system("cp "//name //" "//linkname)
 
       if (nsv>0) then
-        name  = 'inits  h  m        .'
-        write (name(6:7)  ,'(i2.2)') ihour
-        write (name(9:10) ,'(i2.2)') imin
-        name(12:19) = cmyid
-        name(21:23) = cexpnr
+        name(5:5)='s'
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
@@ -922,16 +985,12 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
 
       end if
 
       if (isurf == 1) then
-        name  = 'initl  h  m        .'
-        write (name(6:7)  ,'(i2.2)') ihour
-        write (name(9:10) ,'(i2.2)') imin
-        name(12:19) = cmyid
-        name(21:23) = cexpnr
+        name(5:5)='l'
         open  (ifoutput,file=name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
@@ -949,16 +1008,9 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -sf "//name //" "//linkname)
+        call system("cp "//name //" "//linkname)
       end if
-      if (lexitnow) then
-        timeleft = 0  !jump out of the time loop
-      end if
-      if (lexitnow .and. myid == 0 ) then
-        open(1, file=trim(name), status='old')
-        close(1,status='delete')
-        write(*,*) 'Stopped at t=',rtimee
-      end if
+
 
       if (myid==0) then
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
@@ -968,6 +1020,25 @@ contains
 
 
   end subroutine writerestartfiles
+
+  subroutine testwctime
+    use modmpi,    only : mpi_get_time
+    use modglobal, only : timeleft
+    implicit none
+    real, save :: tstart = -1., tend = -1.
+
+    if (tstart < 0) then
+      call mpi_get_time(tstart)
+    else
+      call mpi_get_time(tend)
+      if (tend-tstart>=wctime) then
+        write (*,*) wctime, "NO WALL CLOCK TIME LEFT"
+        timeleft=0
+      end if
+    end if
+
+
+  end subroutine testwctime
 
   subroutine exitmodules
     use modfields,         only : exitfields
@@ -996,7 +1067,7 @@ contains
 
  end subroutine exitmodules
 !----------------------------------------------------------------
-  subroutine randomnize(field,klev,ampl,ir,ihl,jhl)
+  subroutine randomnize(field,klev,ampl,ir,ihl,jhl,negval)
     ! Adds (pseudo) random noise with given amplitude to the field at level k
     ! Use our own pseudo random function so results are reproducibly the same,
     ! independent of parallization.
@@ -1007,10 +1078,10 @@ contains
     integer ihl, jhl
     integer i,j,klev
     integer is,ie,js,je
-    integer m,mfac
     real ran,ampl
     real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
+    logical negval
 
     is = myidx * imax + 1
     ie = is + imax - 1
@@ -1024,7 +1095,12 @@ contains
         ran=real(ir)/real(imm)
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
-            field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+            if (.not. negval) then ! Avoid non-physical negative values
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
+            else 
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+            endif
+
         endif
     enddo
     enddo

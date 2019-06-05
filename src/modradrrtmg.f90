@@ -10,9 +10,10 @@ contains
   subroutine radrrtmg
     use modglobal,     only : cp,rlv,dzf,&
                               imax,jmax,kmax,i1,j1,k1,&
-                              kind_rb,SHR_KIND_R4
+                              kind_rb,SHR_KIND_R4,boltz
     use modmpi,        only : myid
-    use modfields,     only : presh,presf,rhof,exnf
+    use modfields,     only : presh,presf,rhof,exnf,thl0
+    use modsurfdata ,  only : tskin
     use rrtmg_lw_init, only : rrtmg_lw_ini
     use rrtmg_lw_rad,  only : rrtmg_lw
     use shr_orb_mod,   only : shr_orb_params
@@ -23,8 +24,7 @@ contains
     integer                :: npatch    ! Sounding levels above domain
     integer                :: i,j,k,ierr(3)
     logical                :: sunUp
-    real(SHR_KIND_R4),save ::  eccf,  & ! eccentricity factor (1./earth-sun dist^2)
-                               eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
+    real(SHR_KIND_R4),save ::  eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
                                obliq, & ! Earth's obliquity angle (deg) (-90 to +90) (typically 22-26)
                                mvelp, & ! Earth's moving vernal equinox at perhelion (deg)(0 to 360.0)
                                !
@@ -106,6 +106,8 @@ contains
                lwDownCS_slice (imax,krad2),    &
                swUp_slice     (imax,krad2),    &
                swDown_slice   (imax,krad2),    &
+               swDownDir_slice(imax,krad2),    &
+               swDownDif_slice(imax,krad2),    &
                swUpCS_slice   (imax,krad2),    &
                swDownCS_slice (imax,krad2),    &
                lwHR_slice     (imax,krad2),    &
@@ -162,7 +164,7 @@ contains
    ! Loop over the slices in the model, in the y direction
     do j=2,j1
       call setupSlicesFromProfiles &
-           ( j, npatch_start, npatch_end, &                               !input
+           ( j, npatch_start, &                                           !input
            LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe )             !output
 
       if (rad_longw) then
@@ -180,9 +182,20 @@ contains
 
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
       lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
+      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
+        do i=2,i1
+          lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
+          lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
+        end do
+      end if
+
       swu(2:i1,j,1:k1) =  swUp_slice  (1:imax,1:k1)
       swd(2:i1,j,1:k1) = -swDown_slice(1:imax,1:k1)
 
+      swdir(2:i1,j,1:k1) = -swDownDir_slice(1:imax,1:k1)
+      swdif(2:i1,j,1:k1) = -swDownDif_slice(1:imax,1:k1)
+      lwc  (2:i1,j,1:k1) =  LWP_slice      (1:imax,1:k1)
+ 
       lwuca(2:i1,j,1:k1) =  lwUpCS_slice  (1:imax,1:k1)
       lwdca(2:i1,j,1:k1) = -lwDownCS_slice(1:imax,1:k1)
       swuca(2:i1,j,1:k1) =  swUpCS_slice  (1:imax,1:k1)
@@ -525,7 +538,7 @@ contains
 
     if(myid==0)then
       write(*,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
-      write(*,*) 'gas traces vertical profiles (ppmv):'
+      write(*,*) 'gas traces vertical profiles (ppmv *10^-6):'
       write(*,*) 'p, hPa', ('       ',traceGasNameOrder(m),m=1,nTraceGases)
       do k=1,krad1
         write(*,*) tmppresf(k),o3(k),co2(k),ch4(k),n2o(k),o2(k), &
@@ -543,7 +556,7 @@ contains
 ! ==============================================================================;
 ! ==============================================================================;
 
-  subroutine setupSlicesFromProfiles(j,npatch_start,npatch_end, &
+  subroutine setupSlicesFromProfiles(j,npatch_start, &
            LWP_slice,IWP_slice,cloudFrac,liquidRe,iceRe)
   !=============================================================================!
   ! This subroutine sets up 2D (xz) slices of different variables:              !
@@ -565,7 +578,7 @@ contains
 
       implicit none
 
-      integer,intent(in) :: j,npatch_start,npatch_end
+      integer,intent(in) :: j,npatch_start
       real(KIND=kind_rb),intent(out) ::    LWP_slice(imax,krad1), &
                                            IWP_slice(imax,krad1), &
                                            cloudFrac(imax,krad1), &
@@ -601,7 +614,7 @@ contains
       do i=2,i1
       im=i-1
       do k=1,kmax
-         qv_slice  (im,k) = qt0(i,j,k) - ql0(i,j,k)
+         qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
          qcl_slice (im,k) = ql0(i,j,k)
          qci_slice (im,k) = 0.
          o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
@@ -759,7 +772,6 @@ contains
       end if
 
       call shr_orb_decl( dayForSW )                      ! Saves some orbital values to modraddata
-      !if (myid==0) write(*,*) 'eccf = ',eccf
       solarZenithAngleCos(:) =  &
            zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
 !      solarZenithAngleCos(:) =  0.707106781               ! cos 45gr

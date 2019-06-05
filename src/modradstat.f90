@@ -232,7 +232,7 @@ contains
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
-    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad
+    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
 
     implicit none
     integer :: k
@@ -255,10 +255,18 @@ contains
     call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    do k=1,kmax
-      thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
-      thlswtendav(k) = -((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
-    end do
+    if (iradiation==irad_par) then !irad_par=Delta eddington keeps all fluxes(upwards and downwards) positive
+      do k=1,kmax
+        thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
+        thlswtendav(k) = -((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
+      end do
+    else !upward fluxes positive, downwards negative
+      do k=1,kmax
+        thllwtendav(k) = (-lwdav(k+1) - lwuav(k+1) + lwdav(k) + lwuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
+        thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
+      end do
+    endif
+
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 
@@ -346,7 +354,7 @@ contains
       use modglobal, only : cexpnr,ifoutput,kmax,k1,zf,zh,rtimee
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
-      use modraddata, only : iradiation
+      use modraddata, only : iradiation,irad_par,irad_rrtmg
       implicit none
       real,dimension(k1,nvar) :: vars
       integer nsecs, nhrs, nminut,k
@@ -406,7 +414,7 @@ contains
       end do
       close (ifoutput)
 
-     if(iradiation == 2) then
+     if(iradiation == irad_par .or. iradiation ==irad_rrtmg) then ! delta eddington or RRTMG)
       open (ifoutput,file='radsplitstat.'//cexpnr,position='append')
       write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
       '#--------------------------------------------------------'      &
