@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH -t 120:00:00
+#SBATCH -n 240
+#SBATCH -e errorfile.208
+#SBATCH -o errorfile.208
+iexpnr=208
+
+workdir=`pwd`
+rm -rf /scratch-shared/msikma/R${iexpnr}
+mkdir /scratch-shared/msikma/R${iexpnr}
+
+ulimit -s unlimited
+cp dales4_prescr_av_SEB_20170130 *inp.$iexpnr namoptions.$iexpnr /scratch-shared/msikma/R${iexpnr}/
+cd /scratch-shared/msikma/R${iexpnr}
+srun ./dales4_prescr_av_SEB_20170130 namoptions.$iexpnr >output.$iexpnr
+
+mv errorfile.$iexpnr /scratch-shared/msikma/R${iexpnr}/
+
+mkdir /scratch-shared/msikma/R${iexpnr}/results
+mkdir /archive/msikma/MSc_thesis/R${iexpnr}
+cp /scratch-shared/msikma/R${iexpnr}/* /archive/msikma/MSc_thesis/R${iexpnr}/
+

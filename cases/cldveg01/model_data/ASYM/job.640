@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH -t 120:00:00
+#SBATCH -n 240
+#SBATCH -e errorfile.640
+#SBATCH -o errorfile.640
+iexpnr=640
+
+workdir=`pwd`
+rm -rf /scratch-shared/msikma/R${iexpnr}
+mkdir /scratch-shared/msikma/R${iexpnr}
+
+ulimit -s unlimited
+cp dales4_output_21apr *inp.$iexpnr namoptions.$iexpnr /scratch-shared/msikma/R${iexpnr}/
+cd /scratch-shared/msikma/R${iexpnr}
+srun ./dales4_output_21apr namoptions.$iexpnr >output.$iexpnr
+
+mv errorfile.$iexpnr /scratch-shared/msikma/R${iexpnr}/
+
+mkdir /scratch-shared/msikma/R${iexpnr}/results
+mkdir /archive/msikma/MSc_thesis/R${iexpnr}
+cp /scratch-shared/msikma/R${iexpnr}/* /archive/msikma/MSc_thesis/R${iexpnr}/
+
