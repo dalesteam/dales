@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH -p short
+#SBATCH -t 1:00:00
+#SBATCH -n 256
+#SBATCH -e errorfile.001
+#SBATCH -o errorfile.001
+#SBATCH --job-name=DALES
+
+iexpnr=001
+
+workdir=`pwd`
+rm -rf tmpdir.$iexpnr
+mkdir tmpdir.$iexpnr
+
+ulimit -s unlimited
+cp dales4 *inp.$iexpnr namoptions.$iexpnr tmpdir.$iexpnr/
+cd tmpdir.$iexpnr
+srun ./dales4 namoptions.$iexpnr >output.$iexpnr
+
+mkdir ${workdir}/R${iexpnr}
+mv * ${workdir}/R${iexpnr}
+cd $workdir
+rm -r tmpdir.$iexpnr
