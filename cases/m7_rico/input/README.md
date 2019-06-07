@@ -1,7 +1,9 @@
 # DALES 4.1 with explicit aerosol
 
-The following document describes the installation of the DALES model 
-version 4.1 as used in de Bruine et al. (TBA), doi:TBA.
+The following document describes the installation of the DALES (Dutch Atmospheric Large Eddy Simulation) model
+version 4.1 as used in de Bruine et al. (TBA), doi:TBA. 
+
+The main repository can be found at github.com/dalesteam/dales
 
 ## Included files in directory:
 
