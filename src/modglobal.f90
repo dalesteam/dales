@@ -167,6 +167,7 @@ save
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real :: rdt                !<     * time integration interval
+      integer               :: dt_reason=0  !< indicates which dt limit was the lowest
       integer(kind=longint) :: timee             !<     * elapsed time since the "cold" start
       real :: rtimee             !<     * elapsed time since the "cold" start
       integer(kind=longint) :: btime             !<     * time of (re)start
