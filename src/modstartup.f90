@@ -1192,7 +1192,7 @@ contains
             tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
           else
             j=1
-            do while(zf(k)>zmat(j))
+            do while(zf(k)>=zmat(j))
               j=j+1
             end do
             tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))
