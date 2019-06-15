@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH -t 120:00:00
+#SBATCH -n 240
+#SBATCH -e errorfile.100
+#SBATCH -o errorfile.100
+iexpnr=100
+
+workdir=`pwd`
+rm -rf /scratch-shared/msikma/R${iexpnr}
+mkdir /scratch-shared/msikma/R${iexpnr}
+
+ulimit -s unlimited
+cp dales41_fix_TRA_9dec *inp.$iexpnr namoptions.$iexpnr /scratch-shared/msikma/R${iexpnr}/
+cd /scratch-shared/msikma/R${iexpnr}
+srun ./dales41_fix_TRA_9dec namoptions.$iexpnr >output.$iexpnr
+
+mv errorfile.$iexpnr /scratch-shared/msikma/R${iexpnr}/
+
+mkdir /scratch-shared/msikma/R${iexpnr}/results
+mkdir /archive/msikma/MSc_thesis/R${iexpnr}
+cp /scratch-shared/msikma/R${iexpnr}/* /archive/msikma/MSc_thesis/R${iexpnr}/
+

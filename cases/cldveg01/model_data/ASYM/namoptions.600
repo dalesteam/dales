@@ -1,0 +1,206 @@
+&RUN
+iexpnr        =  600
+lwarmstart    =  .false.
+runtime       =  42000
+trestart      =  25200
+ladaptive     =  .true.
+irandom       =  43
+randthl       =  0.1
+randqt        =  2.5e-5
+nsv           =  1
+nprocx        = 15
+nprocy        = 16
+/
+
+&DOMAIN
+itot          =  960
+jtot          =  960
+kmax          =  456
+
+xsize         = 48000.
+ysize         = 48000.
+
+xlat          =  51.97
+xlon          =  4.926244
+xday          =  268.
+xtime         =  7.0
+/
+
+&PHYSICS 
+isurf         =  1
+iradiation    =  2
+ps            =  101300.00
+thls          =  284.00
+lcoriol       = .true.
+rad_shortw    = .true.
+rad_longw     = .false.
+lcloudshading = .true.
+
+sw0           = 1000.
+gc            = 0.85
+
+wsvsurf(1) = 0.0e-4
+wsvsurf(2) = 0.0e-4
+/
+
+&NAMSUBGRID
+sgs_surface_fix = .false.
+/
+
+&DYNAMICS
+lqlnr      =  .true.
+lnoclouds  =  .false.
+cu         =  0
+cv         =  0.
+
+iadv_mom      =  52
+iadv_tke      =  52
+iadv_thl      =  52
+iadv_qt       =  52
+iadv_sv       =  52
+/
+
+&NAMCHECKSIM
+tcheck      =  60
+/
+&NAMSAMPLING
+lsampcl     = .true. !< switch for conditional sampling cloud (on/off)
+lsampco     = .true. !< switch for conditional sampling core (on/off)
+lsampup     = .true. !< switch for conditional sampling updraft (on/off)
+lsampbuup   = .true. !< switch for conditional sampling buoyant updraft (on/off)
+lsampcldup  = .true. !<switch for condtional sampling cloudy updraft (on/off)
+dtav        = 60
+timeav      = 60
+/
+&NAMTIMESTAT
+ltimestat   = .true.
+iblh_meth   = 2
+iblh_var    = -1
+dtav        = 60
+/
+&NAMCROSSSECTION
+lcross      = .true.
+dtav        = 60
+crossheight(1) = 1
+crossheight(2) = 3
+crossheight(3) = 5
+crossheight(4) = 8
+crossheight(5) = 11
+crossheight(6) = 17
+crossheight(7) = 25
+crossheight(8) = 33
+crossheight(9) = 42
+crossheight(10) = 50
+crossheight(11) = 58
+crossheight(12) = 67
+crossheight(13) = 75
+crossheight(14) = 83
+crossheight(15) = 92
+crossheight(16) = 100
+crossheight(17) = 108
+crossheight(18) = 117
+crossheight(19) = 125
+crossheight(20) = 133
+crossheight(21) = 142
+crossheight(22) = 150
+crossheight(23) = 158
+crossheight(24) = 167
+crossheight(25) = 175
+crossheight(26) = 184
+crossheight(27) = 192
+crossheight(28) = 200
+crossheight(29) = 208
+crossheight(30) = 225
+crossheight(31) = 242
+crossheight(32) = 259
+crossheight(33) = 275
+crossheight(34) = 300
+crossheight(35) = 325
+crossheight(36) = 350
+crossheight(37) = 375
+crossheight(38) = 400
+crossheight(39) = 425
+crossheight(40) = 450
+/
+&NAMAGScross
+lAGScross   = .true.
+dtav        = 60.
+/
+&NAMNETCDFSTATS
+lnetcdf      = .true.
+/
+&NAMGENSTAT
+lstat       = .true. 
+dtav        = 60
+timeav      = 60
+/
+
+&NAMCHEM
+lchem       = .false.
+tnor        = 25
+firstchem   = 1
+lastchem    = 8
+ldiuvar     = .true.
+lchmovie    = .false.
+lsegr       = .true.
+/
+
+&NAMRADSTAT
+lstat       = .true.
+dtav        = 60
+timeav      = 60
+/
+
+&NAMHETEROSTATS
+lheterostats = .true.
+dtav = 60
+/
+
+&NAMSURFACE
+tsoilav(1)   = 282.00
+tsoilav(2)   = 282.50
+tsoilav(3)   = 283.00
+tsoilav(4)   = 284.00
+tsoildeepav  = 285.00
+
+phiwav(1)    = 0.385
+phiwav(2)    = 0.385
+phiwav(3)    = 0.385
+phiwav(4)    = 0.385
+
+rootfav(1)   = 0.35
+rootfav(2)   = 0.38
+rootfav(3)   = 0.23
+rootfav(4)   = 0.04
+
+phi          = 0.600
+phifc        = 0.491
+phiwp        = 0.314
+
+lmostlocal   = .true.
+lsmoothflux  = .false.
+rsisurf2     = 50.
+
+z0mav        = 0.05
+z0hav        = 0.01
+Cskinav      = 10000.
+lambdaskinav = 3.0 
+albedoav     = 0.25
+Qnetav       = -99999
+
+rsminav      = 110.
+rssoilminav  = 50.
+cvegav       = 0.9
+LAIav        = 2.
+gDav         = 0.
+Wlav         = 1.4e-4
+
+lrsAgs       = .true.
+lCO2Ags      = .true.
+lsplitleaf   = .true.
+
+R10          = 0.13
+lrelaxgc     = .true.
+kgc_open     = 0.003333333333
+kgc_close    = 0.001666666667 
+/

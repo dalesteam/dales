@@ -1,6 +1,6 @@
 \documentclass[twoside,11pt,fleqn,a4paper,english,openright]{report}
 
-\usepackage{psfrag}		% Hiermee kun je tekst vanuit latex in een eps-figuur zetten (ook gedraaid e.d.)
+%\usepackage{psfrag}		% Hiermee kun je tekst vanuit latex in een eps-figuur zetten (ook gedraaid e.d.)
 \usepackage{babel} 		% Afbreken van woorden in vreemde talen & Engels
 %\usepackage{psfig, epsfig}	% volgens mij onnodig door graphicsx
 \usepackage{amsfonts}		% Nodig om normale tekst in formules te zetten
@@ -84,12 +84,13 @@
 
 \pagenumbering{arabic}
 \setcounter{page}{1}
-This document gives an overview of all namelist options in version 4.1 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. 
+This document gives an overview of all namelist options in version 4.2 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. 
 
 \chapter{Namoptions overview}\label{chapter:namoptions}
 
 All options that can be set for the LES experiments will be discussed in the following paragraphs. These options are listed in a separate paragraph for all name lists. For all name lists, the options are given with their default values, possible values, a description and the unit. The possible values are denoted by an $x$. The paragraphs are grouped in two sections. In the first section, the main modules are discussed. In the second section an overview of the extra modules is presented.
 
+%\newpage
 \section{Main modules}\label{par:mainmod}
 
 \subsection{Namelist DOMAIN}\label{par:domain}
@@ -156,13 +157,14 @@ All options that can be set for the LES experiments will be discussed in the fol
   lqlnr		& .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for Newton-Raphson approximation of the liquid water content	& -\\
   lnoclouds	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch to disable $q_l$ calculations	& -\\
   \qquad	&		&				&							&\\
-  \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}\hypertarget{iadvmom}{iadv\_mom}\\\hypertarget{iadvtke}{iadv\_tke}\\\hypertarget{iadvthl}{iadv\_thl}\\\hypertarget{iadvqt}{iadv\_qt}\\\hypertarget{iadvsv}{iadv\_sv(1:nsv)} \end{tabular}$\left. \begin{tabular}{l} \\ \\ \\ \\ \\ \end{tabular} \right\}$} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}l}5\\-1\\-1\\-1\\-1
-\end{tabular}} & \multirow{10}{*}{\begin{tabular}{@{\hspace{0cm}}p{4cm}}$x \in \{1,$ $2,$ $5,$ $52,$ $55,$ $6,$ $62,$ $7\}$\end{tabular}}	& Advection scheme for momentum, TKE, $\theta_l$, $q_t$ and scalars: & \multirow{10}{*}{-}\\
+  \multirow{11}{*}{\begin{tabular}{@{\hspace{0cm}}l}\hypertarget{iadvmom}{iadv\_mom}\\\hypertarget{iadvtke}{iadv\_tke}\\\hypertarget{iadvthl}{iadv\_thl}\\\hypertarget{iadvqt}{iadv\_qt}\\\hypertarget{iadvsv}{iadv\_sv(1:nsv)} \end{tabular}$\left. \begin{tabular}{l} \\ \\ \\ \\ \\ \end{tabular} \right\}$} & \multirow{11}{*}{\begin{tabular}{@{\hspace{0cm}}l}5\\-1\\-1\\-1\\-1
+\end{tabular}} & \multirow{11}{*}{\begin{tabular}{@{\hspace{0cm}}p{4cm}}$x \in \{1,$ $2,$ $5,$ $52,$ $55,$ $6,$ $62,$ $7\}$\end{tabular}}	& Advection scheme for momentum, TKE, $\theta_l$, $q_t$ and scalars: & \multirow{11}{*}{-}\\
   	&		&				& 1 = 1$^{\text{st}}$ order upwind					&\\
   	&		&				& 2 = 2$^{\text{nd}}$ order central difference			&\\
   	&		&				& 5 = Option 6 + 5$^{\text{th}}$ order upwind	&\\
   	&		&				& 52 = Horizontal 5$^{\text{th}}$ \& vertical 2$^{\text{nd}}$	&\\
   	&		&				& 55 = Hybrid scheme	&\\
+  	&		&				& 555 = Alternative hybrid scheme	&\\
   	&		&				& 6 = 6$^{\text{th}}$ order central difference			&\\
   	&		&				& 62 = Horizontal 6$^{\text{th}}$ \& vertical 2$^{\text{nd}}$	&\\
 	&		&				& 7 = Kappa scheme					&\\
@@ -214,6 +216,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   wsvsurf(1:nsv)& 0		& $x \in \mathbb{R}$	& Flux of scalar n at the surface		& ppb m s$^{-1}$\\
   &&&&\\
   ltimedep	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes and large scale forcings	& -\\
+    ltimedepsv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes of scalars	& -\\
   lcoriol	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for coriolis force			& -\\
     &&&&\\
   \hypertarget{igrw}{igrw\_damp} & 2         & $x \in \{-1,0,1,2,3\}$	&	\begin{tabular}{@{\hspace{0cm}}p{6cm}}Flag for gravity wave damping\\0 = no damping \\1 = fast damping of wind to average wind \& slow damping of average to geowind \\2 = fast damping of wind to geowind  \\3 = fast damping of wind to average wind \\ -1 = nudging grid averaged wind to wind field provided by lscale.inp\\\end{tabular} & -\\
@@ -297,7 +300,9 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 \begin{supertabular}{|l|p{1.6cm}|p{4.4cm}|p{6cm}|l|}
   iexpnr	& 0		& $x \in \mathbb{N}, \quad 0 \leq  x < 1000$		& Experiment number; every output filename ends with [.iexpnr]	& -\\
   \hypertarget{dtmax}{dtmax}	& 20		& $x \in \mathbb{R}, \quad x>0$		& Maximum timestep that is used by the model	& s\\
+  wctime	& 8640000.	& $x \in \mathbb{R}, \quad x>0$		&  Maximum wall clock time of a simulation & s\\
   runtime	& 300		& $x \in \mathbb{R}, \quad x>0$		& Total simulation (or: run) time		& s\\
+  ltotruntime	& .false.		& $x\in\{\text{.false.},\text{.true.}\}$		& If true, the runtime is counted since the last cold start instead of the last warm start	& -\\
   lwarmstart& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Flag for a ``cold'' or a  ``warm'' start	& -\\
   startfile	& -		& $x = \text{initd\#\#h\#\#mxxx.\#\#\#}$	& Basis for the name of the restartfiles	& -\\
   trestart	& 3600		& $x \in \mathbb{R}, \quad x>0$		& Each $trestart$ seconds, a restart file is written to disk	& s\\
@@ -353,11 +358,16 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   lsmagorinsky & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for smagorinsky subgrid scheme & -\\
   cs	& -1	& $x \in \mathbb{R}, \quad x>0$ & Smagorinsky constant	& -\\
   nmason	& 2	& $x \in \mathbb{R}, \quad x>0$ & Exponent in Mason correction function & -\\
-  sgs\_surface\_fix & .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
+%  sgs\_surface\_fix & .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
+  ch1		& 1.0		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
+  ch2		& 2.0		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
+  cm		& 0.12		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
+  ce1		& 0.19		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
+  ce2		& 0.51		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \section{Extra modules}\label{par:extramod}
 
 \subsection{Namelist NAMAGScross}\label{par:agscross}
@@ -415,6 +425,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMBULKMICROSTAT}\label{par:bulkmicrostat}
 
 \begin{center}
@@ -458,8 +469,8 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   }
   \tabletail{
         &&&&\\\hline
-        \multicolumn{5}{c}{}\\
-        \multicolumn{5}{r}{\small \it Continued on next page}\\
+%        \multicolumn{5}{c}{}\\
+%        \multicolumn{5}{r}{\small \it Continued on next page}\\
   }
   \tablelasttail{
         &&&&\\\hline
@@ -486,6 +497,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMCAPE}\label{par:cape}
 
 \begin{center}
@@ -513,7 +525,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMCHECKSIM}\label{par:checksim}
 
 \begin{center}
@@ -582,7 +594,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMCLOUDFIELD}\label{par:cloudfield}
 
 \begin{center}
@@ -643,6 +655,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMDE}\label{par:deltaeddington}
 
 \begin{center}
@@ -674,7 +687,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMFIELDDUMP}\label{par:fielddump}
 
 \begin{center}
@@ -703,6 +716,9 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   ldiracc	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to dump into binary direct access files instead of Fortran unformatted files		& -\\
   klow		& 1		& $x \in \mathbb{N}, \quad 1 \le x \le \text{khigh}$	& Lowest level of the 3d-field output		& -\\
   khigh		& $kmax$	& $x \in \mathbb{N}, \quad \text{klow} \le x \le \text{kmax}$	& Highest level of the 3d-field output		& -\\
+  ncoarse		& 1	& $x \in \mathbb{N}, \quad x \geq 1 $	& Factor by which to reduce (sample) the 3d-field to be written (in each horizontal direction)	& -\\
+  tmin		& 0.0		& $x \in \mathbb{R}, \quad x \geq 0$	& Start time of field dump; not active yet	& s \\
+  tmax		& $10^8$	& $x \in \mathbb{R}, \quad x \geq 0$	& End time of field dump; not active yet	& s \\
 \end{supertabular}
 \end{center}
 
@@ -761,7 +777,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 \subsection{Namelist NAMLSMCROSSSECTION}\label{par:lsmcrosssection}
 \begin{center}
 	  \tablefirsthead{
@@ -859,6 +875,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   Nc\_0		& 70e6			& $x \in \mathbb{R}, \quad x \ge 0$	& Initial number of cloud droplets			& -\\
   sig\_g	& 1.34			& $x \in \mathbb{R}, \quad x \ge 0$	& Geometric standard deviation of the cloud droplet drop size distribution			& -\\
   sig\_gr	& 1.5		& $x \in \mathbb{R}, \quad x \ge 0$	& Geometric standard deviation of the rain droplet drop size distribution			& -\\
+  courantp	& 1.0		& $x \in \mathbb{R}, \quad x>0$		& CFLmax-criterion for precipitation & -\\
 \end{supertabular}
 \end{center}
 
@@ -917,73 +934,10 @@ tnudgefac & 1	& $x \in \mathbb{R}, \quad x>0$	&	Nudgefactor & -\\
 \end{supertabular}
 \end{center}
 
-\newpage 
-\subsection{Namelist NAMPARTICLES}\label{par:particles}
-\begin{center}
-	  \tablefirsthead{
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tablehead{
-        \multicolumn{5}{l}{\small \it Continued from previous page}\\
-        \multicolumn{5}{c}{}\\
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tabletail{
-        &&&&\\\hline
-        \multicolumn{5}{c}{}\\
-        \multicolumn{5}{r}{\small \it Continued on next page}\\
-  }
-  \tablelasttail{
-        &&&&\\\hline
-  }
-\begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
-  lpartic	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to enable/disable this routine		& -\\
-  lpartsgs	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for subgrid diffusion			& -\\
-  &&&&\\
-  \multirow{3}{*}{intmeth}	& \multirow{3}{*}{3}		& \multirow{3}{*}{$x\in\{0,3\}$}			& Flag for time integration scheme		& \multirow{3}{*}{-}\\
-  & & & 0 = particles stand still & \\
-  & & & 3 = Adams-Bashfort second order scheme &\\
-  &&&&\\
-  lstat		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for particle statistics		& -\\
-  dtav		& 60		& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
-  timeav	& 3600		& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics	& s\\
-  ldump		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for dump of particle field		& -\\
-  timedump	& 3600		& $x \in \mathbb{R}, \quad x>0$	& Time interval for particle field dump		& s\\
-  npartdump	& 10		& $x \in \mathbb{N}, \quad 0 \leq x \leq 10$	& Number of variables written at $timedump$, in order: $x$, $y$, $z$, $u$, $v$, $w$, $\theta_l$, $\theta_v$, $q_t$, $q_l$	& -\\
-\end{supertabular}
-\end{center}
+%\newpage 
+
 
 %\newpage
-\subsection{Namelist NAMprojection}\label{par:projection}
-Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modprojection is not advised.
-\begin{center}
-	  \tablefirsthead{
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tablehead{
-        \multicolumn{5}{l}{\small \it Continued from previous page}\\
-        \multicolumn{5}{c}{}\\
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tabletail{
-        &&&&\\\hline
-        \multicolumn{5}{c}{}\\
-        \multicolumn{5}{r}{\small \it Continued on next page}\\
-  }
-  \tablelasttail{
-        &&&&\\\hline
-  }
-\begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
-  lproject	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to activate dumping of projections of the field	& -\\
-  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
-  projectheight	& 2	& $x \in \mathbb{N}^*, \quad x \le \text{kmax}$	& Height of the xy-projection & -\\
-%  projectplane	& 2	& $x \in \mathbb{N}^*, \quad x \le \frac{\text{jtot}}{N_{\text{processors}}}$	& Position of the xz-plane on every processor & -\\
-\end{supertabular}
-\end{center}
 
 \subsection{Namelist NAMquadrant}\label{par:quadrant}
 
@@ -1127,7 +1081,6 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
-%\newpage
 \subsection{Namelist NAMSAMPLING}\label{par:sampling}
 \begin{center}
 	  \tablefirsthead{
@@ -1160,6 +1113,7 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
+\newpage
 \subsection{Namelist NAMSIMPLEICESTAT}\label{par:simpleicestat}
 \begin{center}
 	  \tablefirsthead{
@@ -1215,33 +1169,8 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
-\newpage
-\subsection{Namelist NAMSTRESS}\label{par:stress}
-\begin{center}
-	  \tablefirsthead{
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tablehead{
-        \multicolumn{5}{l}{\small \it Continued from previous page}\\
-        \multicolumn{5}{c}{}\\
-        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
-        \hline &&&&\\
-  }
-  \tabletail{
-        &&&&\\\hline
-        \multicolumn{5}{c}{}\\
-        \multicolumn{5}{r}{\small \it Continued on next page}\\
-  }
-  \tablelasttail{
-        &&&&\\\hline
-  }
-\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
-  lstress	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch for turbulent stress budget & -\\
-  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
-  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics	& s\\
-\end{supertabular}
-\end{center}
+%\newpage
+
 
 %\newpage
 \subsection{Namelist NAMSURFACE}\label{par:surface}
@@ -1312,13 +1241,14 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
   phifc		& 0.323	& $x \in \mathbb{R}, \quad x > 0$	& volumetric moisture at field capacity & - \\
   phiwp		& 0.171	& $x \in \mathbb{R}, \quad x > 0$	& volumetric moisture at wilting point & - \\
   R10		& 0.23	& $x \in \mathbb{R}, \quad x > 0$	& Respiration at 10 $^{\circ}$C & mg m$^{-2}$ s$^{-1}$ \\
+  lsplitleaf & .false.	&  $x\in\{\text{.false.},\text{.true.}\}$  & Switch to split $\text{A-}\text{g}_\text{s}$ calculations over different parts of the leaf  & - \\
 \end{supertabular}
 
 
 \end{center}
 
 %\newpage
-\subsection{Namelist NAMTILT}\label{par:tilt}
+\subsection{Namelist NAMTESTBED}\label{par:testbed}
 \begin{center}
 	  \tablefirsthead{
         \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
@@ -1339,13 +1269,14 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
         &&&&\\\hline
   }
 \begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
-  ltilted	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for a tilted boundary layer		& -\\
-  alfa		& 0		& $x \in \mathbb{R}, \quad - \frac{\pi}{2} \le x \le \frac{\pi}{2}$	& Tilt angle				& rad\\
-  lstat		& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for statistics				& -\\
-  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
-  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+  ltestbed	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for testbed functionality		& -\\
+  ltb\_nudge	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for testbed nudging		& -\\
+  tb\_taunudge & 10800.	& $x \in \mathbb{R}, \quad x > 0$			& Nudging timescale					& s\\
 \end{supertabular}
 \end{center}
+
+\newpage
+
 
 \subsection{Namelist NAMTIMESTAT}\label{par:timestat}
 \begin{center}
@@ -1383,6 +1314,130 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
   & & & &\\
   blh\_thres	& $-1$	& $x \in \mathbb{R}, \quad x \ge 0$	& Threshold for the selected variable, used only for iblh\_thres method	& K or kg kg$^{-1}$\\
   blh\_nsamp	& 4		& $x \in \mathbb{N}^*, \quad x \le \text{kmax}$	& Number of levels to integrate over	& -\\
+\end{supertabular}
+\end{center}
+
+\section{Addon modules}\label{par:addonmod}
+
+\subsection{Namelist NAMPARTICLES}\label{par:particles}
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
+  lpartic	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to enable/disable this routine		& -\\
+  lpartsgs	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for subgrid diffusion			& -\\
+  &&&&\\
+  \multirow{3}{*}{intmeth}	& \multirow{3}{*}{3}		& \multirow{3}{*}{$x\in\{0,3\}$}			& Flag for time integration scheme		& \multirow{3}{*}{-}\\
+  & & & 0 = particles stand still & \\
+  & & & 3 = Adams-Bashfort second order scheme &\\
+  &&&&\\
+  lstat		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for particle statistics		& -\\
+  dtav		& 60		& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+  timeav	& 3600		& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics	& s\\
+  ldump		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for dump of particle field		& -\\
+  timedump	& 3600		& $x \in \mathbb{R}, \quad x>0$	& Time interval for particle field dump		& s\\
+  npartdump	& 10		& $x \in \mathbb{N}, \quad 0 \leq x \leq 10$	& Number of variables written at $timedump$, in order: $x$, $y$, $z$, $u$, $v$, $w$, $\theta_l$, $\theta_v$, $q_t$, $q_l$	& -\\
+\end{supertabular}
+\end{center}
+
+\subsection{Namelist NAMprojection}\label{par:projection}
+Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modprojection is not advised.
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
+  lproject	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to activate dumping of projections of the field	& -\\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+  projectheight	& 2	& $x \in \mathbb{N}^*, \quad x \le \text{kmax}$	& Height of the xy-projection & -\\
+%  projectplane	& 2	& $x \in \mathbb{N}^*, \quad x \le \frac{\text{jtot}}{N_{\text{processors}}}$	& Position of the xz-plane on every processor & -\\
+\end{supertabular}
+\end{center}
+
+\subsection{Namelist NAMSTRESS}\label{par:stress}
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  lstress	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch for turbulent stress budget & -\\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics	& s\\
+\end{supertabular}
+\end{center}
+
+\subsection{Namelist NAMTILT}\label{par:tilt}
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  ltilted	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for a tilted boundary layer		& -\\
+  alfa		& 0		& $x \in \mathbb{R}, \quad - \frac{\pi}{2} \le x \le \frac{\pi}{2}$	& Tilt angle				& rad\\
+  lstat		& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for statistics				& -\\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
 \end{supertabular}
 \end{center}
 
