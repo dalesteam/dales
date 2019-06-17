@@ -1,4 +1,4 @@
-#DALES - Dutch Atmospheric Large Eddy Simulation
+# DALES - Dutch Atmospheric Large Eddy Simulation
 
 ## Documentation
 The following documents are included in the DALES repository (but are not fully up to date):
