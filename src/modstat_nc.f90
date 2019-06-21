@@ -151,7 +151,11 @@ contains
         allocate (xtimes(nrec))
         iret = nf90_get_var(ncid, timeId, xtimes(1:nrec))
 
-        do while(xtimes(ncall+1) < rtimee - spacing(1.))
+        ! Find the index where writing should continue.
+        ! The next record to be written is ncall+1
+        ! A warm start run does not write statistics immediately, thus
+        ! fields up to and including the current time should be preserved.
+        do while(xtimes(ncall+1)  <= rtimee)
             ncall=ncall+1
             if (ncall >= nrec) exit
         end do
