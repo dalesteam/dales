@@ -34,7 +34,8 @@ module modmpi
 use mpi
 implicit none
 save
-  integer  :: comm3d, commrow, commcol
+  integer  :: commwrld, comm3d, commrow, commcol
+  logical  :: libmode !Library mode: skip finalize, assumed to be called externally
   integer  :: nbrnorth
   integer  :: nbrsouth
   integer  :: nbreast
@@ -55,6 +56,38 @@ save
 
 contains
 
+  ! Initializes the world communicator within dales. Optionally this communicator is passed from an external caller.
+  ! TODO: Handle errors correctly.
+  subroutine initmpicomm(comm)
+    implicit none
+    integer, intent(in),optional  :: comm
+    logical                       :: init
+
+    call MPI_INITIALIZED(init,mpierr)
+
+    if(.not.init) then
+        call MPI_INIT(mpierr)
+    endif
+
+    MY_REAL = MPI_DOUBLE_PRECISION
+
+    if(present(comm)) then
+        libmode=.true.
+        if(comm==MPI_COMM_WORLD) then
+            commwrld=comm
+        else
+            call MPI_COMM_DUP(comm,commwrld,mpierr)
+        endif
+    else
+        libmode=.false.
+        commwrld=MPI_COMM_WORLD
+    endif
+
+    call MPI_COMM_RANK( commwrld, myid, mpierr )
+    call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
+  end subroutine initmpicomm
+
+  
 ! This routine does the setup of the MPI mesh
 ! NPROCS
 !        is the number of processors, this is set at run time, ie. mpirun -np 10
