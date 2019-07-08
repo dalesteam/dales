@@ -10,4 +10,4 @@ add_executable(${target_name} ${sourcefiles})
 add_library(${target_lib} ${sourcefiles})
 
 target_link_libraries(${target_name} ${NETCDF_LIBS})
-install(TARGETS dales4 DESTINATION ${CMAKE_BINARY_DIR})
+install(TARGETS dales4 dales DESTINATION ${CMAKE_BINARY_DIR})
