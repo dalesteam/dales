@@ -151,7 +151,11 @@ contains
         allocate (xtimes(nrec))
         iret = nf90_get_var(ncid, timeId, xtimes(1:nrec))
 
-        do while(xtimes(ncall+1) < rtimee - spacing(1.))
+        ! Find the index where writing should continue.
+        ! The next record to be written is ncall+1
+        ! A warm start run does not write statistics immediately, thus
+        ! fields up to and including the current time should be preserved.
+        do while(xtimes(ncall+1)  <= rtimee)
             ncall=ncall+1
             if (ncall >= nrec) exit
         end do
@@ -509,5 +513,78 @@ contains
     end if
 
   end subroutine nchandle_error
+
+   ! Utility converting year + day to full date
+  subroutine get_date_time(year, day, hours, datetime)
+    implicit none
+    integer, intent(in)     :: year
+    real, intent(in)        :: day
+    real, intent(in)        :: hours
+    integer, intent(out)    :: datetime(6)
+    real                    :: rh
+    integer                 :: dd,hh,mm,ss,date(3)
+
+    rh = (day - floor(day)) * 24 + hours
+    hh = floor(rh)
+    mm = floor((rh - hh) * 60)
+    ss = floor((rh - hh - mm/60.) * 3600)
+    dd = hh / 24
+    hh = hh - 24 * dd
+    call get_date(year,floor(day) + dd + 1, date)
+    datetime(1:3) = date(1:3)
+    datetime(4) = hh
+    datetime(5) = mm
+    datetime(6) = ss
+  end subroutine get_date_time
+
+  ! Utility converting year + day to full date
+  subroutine get_date(year, day, date)
+    implicit none
+    integer, intent(in)     :: year
+    integer, intent(in)     :: day
+    integer, intent(out)    :: date(3)
+    integer                 :: i,yy,mm,dd,dsum,ndays
+    integer                 :: mdays(12)
+
+    yy = year
+    dsum = 0
+    do
+      ndays = 365
+      if (leap_year(yy)) then
+        ndays = 366
+      endif
+      if (dsum + ndays >= day) then
+        exit
+      endif
+      dsum = dsum + ndays
+      yy = yy + 1
+    enddo
+    dd = day - dsum
+    mdays = (/ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 /)
+    if (leap_year(yy)) then
+      mdays(2) = 29
+    endif
+    dsum = 0
+    mm = 0
+    do i=1,12
+      mm = i
+      if (dsum + mdays(i) >= dd) then
+        exit
+      endif
+      dd = dd - mdays(i)
+    enddo
+    date(1) = yy
+    date(2) = mm
+    date(3) = dd
+  end subroutine get_date
+
+  ! Utility checking whether the input year is a leap year
+  function leap_year(year) result(isleap)
+    implicit none
+    integer, intent(in) :: year
+    logical             :: isleap
+
+    isleap = ((mod(year, 4) == 0) .and. (mod(year, 100) /= 0)) .or. (mod(year, 400) == 0)
+  end function leap_year
 
 end module modstat_nc

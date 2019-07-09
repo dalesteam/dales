@@ -101,6 +101,7 @@ program DALES      !Version 4.0.0alpha
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
   use modglobal,         only : rk3step,timeleft
+  use modmpi,            only : initmpicomm
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -111,6 +112,7 @@ program DALES      !Version 4.0.0alpha
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
+  use tstep,             only : tstep_update,  tstep_integrate
   !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
@@ -157,6 +159,7 @@ program DALES      !Version 4.0.0alpha
 !----------------------------------------------------------------
 
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
+  call initmpicomm
   call startup
 
 !---------------------------------------------------------

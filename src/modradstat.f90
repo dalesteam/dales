@@ -255,18 +255,12 @@ contains
     call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    if (iradiation==irad_par) then !irad_par=Delta eddington keeps all fluxes(upwards and downwards) positive
-      do k=1,kmax
-        thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
-        thlswtendav(k) = -((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
-      end do
-    else !upward fluxes positive, downwards negative
-      do k=1,kmax
-        thllwtendav(k) = (-lwdav(k+1) - lwuav(k+1) + lwdav(k) + lwuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
-        thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
-      end do
-    endif
 
+    do k=1,kmax
+       thllwtendav(k) = (abs(lwdav(k+1)) - abs(lwuav(k+1)) - abs(lwdav(k)) + abs(lwuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
+       thlswtendav(k) = (abs(swdav(k+1)) - abs(swuav(k+1)) - abs(swdav(k)) + abs(swuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
+       ! absolute values here to handle the different sign conventions in different radiation schemes.
+    end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 

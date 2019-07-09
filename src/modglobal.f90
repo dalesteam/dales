@@ -46,7 +46,7 @@ save
       integer ::  kh=1
       integer ::  kcb=0
 
-      character(50) :: fname_options = 'namoptions'
+      character(256) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
@@ -149,6 +149,7 @@ save
 
 
       ! Global variables (modvar.f90)
+      integer :: xyear  = 0     !<     * year, only for time units in netcdf
       real :: xday      = 1.    !<     * day number
       real :: xtime     = 0.    !<     * GMT time
       real :: cu        = 0.    !<     * translation velocity in x-direction
@@ -167,6 +168,7 @@ save
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real :: rdt                !<     * time integration interval
+      integer               :: dt_reason=0  !< indicates which dt limit was the lowest
       integer(kind=longint) :: timee             !<     * elapsed time since the "cold" start
       real :: rtimee             !<     * elapsed time since the "cold" start
       integer(kind=longint) :: btime             !<     * time of (re)start

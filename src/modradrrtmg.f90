@@ -161,6 +161,18 @@ contains
 
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
 
+    ! zero the RRTMG output arrays here, in case rrtmg_lw or rrtmg_sw is not executed
+    swUp_slice = 0
+    swDown_slice = 0
+    swDownDir_slice = 0
+    swDownDif_slice = 0
+    swUpCS_slice = 0
+    swDownCS_slice = 0
+    lwUp_slice = 0
+    lwDown_slice = 0
+    lwUpCS_slice = 0
+    lwDownCS_slice = 0
+
    ! Loop over the slices in the model, in the y direction
     do j=2,j1
       call setupSlicesFromProfiles &
