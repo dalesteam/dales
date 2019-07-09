@@ -130,7 +130,7 @@ module modsimpleice2
 !> Calculates the microphysical source term.
   subroutine simpleice2
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
     
     use modsimpleicestat, only : simpleicetend
     implicit none
@@ -442,8 +442,9 @@ module modsimpleice2
           enddo
        enddo
     enddo
+    surf_rain = surf_rain + sed_qr(:,:,1)*dt_spl
 
-
+    
     ! precipitate part 2
     
 !    write (*,*) 'any_qr:', any_qr
@@ -501,7 +502,7 @@ module modsimpleice2
                    enddo
                 enddo
              enddo
-
+             
           else ! alternative loops when there is only rain
              do k=kmax,1,-1
                 do j=2,j1
@@ -525,6 +526,8 @@ module modsimpleice2
              enddo
           endif
 
+          surf_rain = surf_rain + sed_qr(:,:,1)*dt_spl
+          
           ! end time splitting loop and if n>1
        ENDDO
     ENDIF

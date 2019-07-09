@@ -459,7 +459,7 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
   implicit none
 
   integer i, j, k
@@ -552,6 +552,7 @@ contains
               qvsi(i,j,k)=qvsi1
             endif
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+            qsat(i,j,k) = qsatur
       end do
       end do
       end do
