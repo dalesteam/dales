@@ -51,12 +51,11 @@ save
 contains
 !> Initializing AGScross. Read out the namelist, initializing the variables
   subroutine initAGScross
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
-    use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,rk3step,i1,j1,kmax
+    use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc,nctiminfo
     use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf
     use modraddata,only   : irad_par,irad_rrtmg,iradiation
-
    implicit none
 
     integer :: ierr
@@ -92,6 +91,7 @@ contains
     if (ksoilmax /= 4) stop 'ksoilmax is not equal to 4... this can give problems with AGScross.f90... update this file as well'
     fnameAGS(10:17) = cmyid
     fnameAGS(19:21) = cexpnr
+
     
     ! we set the final number of variables in the output:
     final_nvar = nvar
@@ -101,7 +101,8 @@ contains
     endif
     allocate(ncnameAGS(final_nvar,4))
 
-    call ncinfo(tncnameAGS(1,:),'time  ','Time','s','time')
+    call nctiminfo(tncnameAGS(1,:))
+
     call ncinfo(ncnameAGS( 1,:),'An    ', 'xy AGScross of An          ','mg/m2/s','tt0t')
     call ncinfo(ncnameAGS( 2,:),'Resp  ', 'xy AGScross of Resp        ','mg/m2/s','tt0t')
     call ncinfo(ncnameAGS( 3,:),'wco2  ', 'xy AGScross of wco2        ','ppm m/s','tt0t')

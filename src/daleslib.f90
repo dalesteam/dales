@@ -128,6 +128,7 @@ module daleslib
             ! Initial time overrides
 
             if (present(date)) then
+
                if (date /= 0) then
                   yy = date/10000
                   mo = mod(date,10000)/100

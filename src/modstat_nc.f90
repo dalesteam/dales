@@ -514,7 +514,24 @@ contains
 
   end subroutine nchandle_error
 
-   ! Utility converting year + day to full date
+
+  subroutine nctiminfo(info)
+    use modglobal, only: xyear, xday, xtime
+    implicit none
+    character(*), dimension(4), intent(out) :: info
+    character(len=33)                       :: unitstr
+    integer                                 :: dt(6)
+
+    if (xyear > 0 .and. xday > 0) then
+      call get_date_time(xyear,xday,xtime,dt)
+      write(unitstr,'(A14,I4.4,A1,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I2.2)') 'seconds since ',dt(1),'-',dt(2),'-',dt(3),'T',dt(4),':',dt(5),':',dt(6)
+      call ncinfo(info(:),'time','Time',unitstr,'time')
+    else
+      call ncinfo(info(:),'time','Time','s','time')
+    end if
+  end subroutine nctiminfo
+
+  ! Utility converting year + day to full date
   subroutine get_date_time(year, day, hours, datetime)
     implicit none
     integer, intent(in)     :: year
