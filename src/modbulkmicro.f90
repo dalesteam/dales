@@ -4,7 +4,7 @@
 !!  Bulk microphysics.
 !>
 !! Calculates bulk microphysics using a two moment scheme.
-!! \see   Seifert and Beheng (Atm. Res., 2001)
+!! \see  Seifert and Beheng (Atm. Res., 2001)
 !! \see  Seifert and Beheng (Met Atm Phys, 2006)
 !! \see  Stevens and Seifert (J. Meteorol. Soc. Japan, 2008)  (rain sedim, mur param)
 !! \see  Seifert (J. Atm Sc., 2008) (rain evap)
@@ -30,17 +30,11 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
-!
-
 
 module modbulkmicro
 
-!
-!
-!
 !   Amount of liquid water is splitted into cloud water and precipitable
-!   water (as such it is a two moment scheme). Cloud droplet number conc. is
-!   fixed in place and time.
+!   water (as such it is a two moment scheme).
 !
 !   same rhof value used for some diagnostics calculation (in modbulkmicrostat, modtimestat)
 !
@@ -56,24 +50,43 @@ module modbulkmicro
   real :: gamma25
   real :: gamma3
   real :: gamma35
+
+  integer, parameter :: ncld = 10,     & ! In-cloud scav. lookuptable  for cloud
+                        nrai = 5,      & ! Below-cloud scav. lookuptable 
+                        naer_blc = 100, &
+                        naer_inc = 60
+
+  real, dimension(naer_inc) :: aerrad,     logaerrad
+  real, dimension(naer_blc) :: aerrad_blc, logaerrad_blc
+  real, dimension(ncld)     :: cldrad,     logcldrad
+  real, dimension(nrai)     :: rainrate,   lograinrate
+
+  real, dimension(ncld,naer_inc) :: incmass, incnumb
+  real, dimension(nrai,naer_blc) :: blcmass, blcnumb
+ 
   contains
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
     use modglobal, only : ih,i1,jh,j1,k1
+    use modmpi,    only : myid, comm3d, mpierr, my_real
+
     implicit none
 
+    character(3) :: cldrad_char
+    integer :: icld, iaer
 
-    allocate( Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+    allocate( Nc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Nrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qltot    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Nc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,nuc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,thlpmcr  (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,qtpmcr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sedc     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,sedcn    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sed_qr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,sed_Nr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,Dvc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
@@ -95,14 +108,98 @@ module modbulkmicro
              ,wfall_qr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
              ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(precep    (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qrmask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-            ,qcmask    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( precep   (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-!
-  gamma25=lacz_gamma(2.5)
-  gamma3=2.
-  gamma35=lacz_gamma(3.5)
+    allocate( qrmask   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
+             ,qcmask   (2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate( sedcm    (2-ih:i1+ih,2-jh:j1+jh,k1,naer))      
+
+    !Local aerosol fields
+    allocate( aer_conc (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! Concentration
+             ,aer_tend (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! Aggregated tendency
+             ,aer_acti (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! A<->C activation
+             ,aer_scvc (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! A<->C in-cloud scav 
+             ,aer_evpc (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! A<->C cloud evap
+             ,aer_scvr (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! A<->R in-rain scav
+             ,aer_evpr (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! A<->R rain evap
+             ,aer_auto (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! C<->R autoconversion
+             ,aer_accr (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! C<->R accretion
+             ,aer_slfc (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! C<->C clouddrop selfcol
+             ,aer_slfr (2-ih:i1+ih,2-jh:j1+jh,k1,naer) & ! R<->R raindrop selfcol
+             ,aer_sedr (2-ih:i1+ih,2-jh:j1+jh,k1,naer))  ! R<->R raindrop sedimen
+
+  gamma25 = lacz_gamma(2.5)
+  gamma3  = 2.
+  gamma35 = lacz_gamma(3.5)
+
+  !*********************************************************************
+  ! Reading lookuptable for scavenging here
+  ! Could also be placed somewhere else? What is the proper place?
+  !*********************************************************************
+  if (myid == 0 )  then 
+      ! =============================================================
+      ! IN-CLOUD SCAVENGING    
+      ! =============================================================
+      cldrad = (/5., 10., 15., 20., 25., 30., 35., 40., 45., 50./)
+
+      open(100,file='rbar_aerosol')
+        read(100,*) aerrad
+      close(100)
+
+      logaerrad = log(aerrad)
+      logcldrad = log(cldrad)
+
+      ! =============================================================
+
+      do icld=1, ncld
+
+         write(cldrad_char,'(i3.3)') int(cldrad(icld))
+
+         open(101,file='CDNC1_cloudscavenging_'//cldrad_char//'.dat')
+         open(102,file='CDNC1_ncloudscavenging_'//cldrad_char//'.dat')
+
+         do iaer=1, naer_inc
+            read(101,*) incmass(icld,iaer)
+            read(102,*) incnumb(icld,iaer)
+         enddo
+
+         close(101)
+         close(102)
+      enddo
+      
+      ! =============================================================
+      ! BELOW CLOUD SCAVENGING    
+      ! =============================================================
+      rainrate = (/.01, .1, 1., 10., 100./)
+
+      open(100,file='rbar_aerosol_belowcloud.dat')
+        read(100,*) aerrad_blc
+      close(100)      
+ 
+      logaerrad_blc = log(aerrad_blc)
+      lograinrate   = log(rainrate)
+
+      ! =============================================================
+
+      open (101,file='belowcloud_m.dat')
+      read (101,*) blcmass
+      close(101)
+
+      open (102,file='belowcloud_n.dat')
+      read (102,*) blcnumb
+      close(102)
+
+  end if
+
+  call MPI_BCAST(logaerrad,     naer_inc,      MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(logaerrad_blc, naer_blc,      MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(logcldrad,     ncld,          MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(lograinrate,   nrai,          MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(incmass,       naer_inc*ncld, MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(incnumb,       naer_inc*ncld, MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(blcmass,       naer_blc*nrai, MY_REAL,0,comm3d,mpierr)
+  call MPI_BCAST(blcnumb,       naer_blc*nrai, MY_REAL,0,comm3d,mpierr)
 
   end subroutine initbulkmicro
 
@@ -113,39 +210,72 @@ module modbulkmicro
   !*********************************************************************
     implicit none
 
-    deallocate(Nr,Nrp,qltot,qr,qrp,Nc,nuc,thlpmcr,qtpmcr)
+    deallocate(Nc,Nr,Nrp,qltot,qr,qrp,nuc,thlpmcr,qtpmcr)
 
-    deallocate(sedc,sed_qr,sed_Nr,Dvc,xc,Dvr,xr,mur,lbdr, &
+    deallocate(sedc,sedcn,sedcm,sed_qr,sed_Nr,Dvc,xc,Dvr,xr,mur,lbdr, &
                au,phi,tau,ac,sc,br,evap,Nevap,qr_spl,Nr_spl,wfall_qr,wfall_Nr)
 
+    deallocate(qcmask, qrmask)
+
     deallocate(precep)
+
+    deallocate(aer_conc, aer_tend)
+
+    deallocate(aer_acti,aer_scvc,aer_evpc, & ! A<->C
+                        aer_scvr,aer_evpr, & ! A<->R
+               aer_auto,aer_accr,          & ! C<->R
+               aer_slfc,aer_slfr,aer_sedr  ) ! C<->C / R<->R
 
   end subroutine exitbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
-    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
-    use modbulkmicrostat, only : bulkmicrotend
-    use modmpi,    only : myid
+    use modglobal,        only : i1,j1,k1,rdt,rk3step,timee,rlv,cp
+    use modfields,        only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
+    use modbulkmicrostat, only : bulkmicrotend, bulkaertend
+    use modmpi,           only : myid
     implicit none
-    integer :: i,j,k
-    real :: qrtest,nrtest
+    integer :: i,j,k,taer, iaer, ispec, imod
+    real :: qrtest,nrtest,nctest,mctest,aertest,fix, &
+            sinktotal, f_acti, f_scvc, f_scvr, &
+            f_evpc,  f_auto, f_accr, f_slfc, &
+            f_acs, f_cos     
+
+    Nrp     = 0.0 
+    qrp     = 0.0
+    thlpmcr = 0.0
+    qtpmcr  = 0.0
+
+    aer_tend = 0.0     
+  
+    aer_acti = 0.0
+    aer_scvc = 0.0
+    aer_evpc = 0.0
+    aer_scvr = 0.0
+    aer_evpr = 0.0
+    aer_auto = 0.0
+    aer_accr = 0.0           
+    aer_slfc = 0.0
+    aer_slfr = 0.0
+    aer_sedr = 0.0
 
     do j=2,j1
     do i=2,i1
     do k=1,k1
-      !write (6,*) myid,i,j,k,sv0(i,j,k,inr),sv0(i,j,k,iqr)
-      Nr  (i,j,k) = sv0(i,j,k,inr)
-      qr  (i,j,k) = sv0(i,j,k,iqr)
+
+       qr(i,j,k) = sv0(i,j,k,iqr) ! kg tracer / kg air
+      
+       ! For clarity use duplicate arrays for Nc and Nr
+       Nc(i,j,k) = sv0(i,j,k,inc+iaer_offset)!For now assume tracer is in #/m3 anyway *rhof(k) ! Cloud drops [ #/m3 ]
+       Nr(i,j,k) = sv0(i,j,k,inr+iaer_offset)!Idem *rhof(k) ! Rain drops  [ #/m3 ]
+    
+       do iaer=1,naer
+          aer_conc(i,j,k,iaer) = sv0(i,j,k,iaer+iaer_offset)! Idem *rhof(k) ! kg/m3 OR #/m3
+       enddo  
+
     enddo
     enddo
     enddo
-    Nrp    = 0.0
-    qrp    = 0.0
-    thlpmcr = 0.0
-    qtpmcr  = 0.0
-    Nc     = 0.0
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -156,9 +286,10 @@ module modbulkmicro
       write(*,*) 'nuc = param'
     endif
 
-  !*********************************************************************
-  ! remove neg. values of Nr and qr
-  !*********************************************************************
+    !*********************************************************************
+    ! remove neg. values of Nr and qr
+    !*********************************************************************
+
     if (l_rain) then
        if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
@@ -170,45 +301,54 @@ module modbulkmicro
        do j=2,j1
        do i=2,i1
        do k=1,k1
+
           if (Nr(i,j,k) < 0.)  then
             Nr(i,j,k) = 0.
           endif
           if (qr(i,j,k) < 0.)  then
             qr(i,j,k) = 0.
           endif
-       enddo
-       enddo
-       enddo
-    end if   ! l_rain
 
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-       if (qr(i,j,k) .gt. qrmin.and.Nr(i,j,k).gt.0)  then
-          qrmask (i,j,k) = .true.
-       else
-          qrmask (i,j,k) = .false.
-       endif
-    enddo
-    enddo
-    enddo
-   !write (6,*) 'second part done'
+          if (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0)  then
+             qrmask (i,j,k) = .true.
+          else
+             qrmask (i,j,k) = .false.
+          endif
+
+       enddo
+       enddo
+       enddo
+    end if !l_rain
 
   !*********************************************************************
-  ! calculate qltot and initialize cloud droplet number Nc
+  ! calculate qltot and remove negative values of Nc
   !*********************************************************************
 
     do j=2,j1
     do i=2,i1
     do k=1,k1
-       ql0    (i,j,k) = ql0 (i,j,k)
+
        qltot (i,j,k) = ql0  (i,j,k) + qr (i,j,k)
        if (ql0(i,j,k) > qcmin)  then
-          Nc     (i,j,k) = Nc_0
           qcmask (i,j,k) = .true.
        else
           qcmask (i,j,k) = .false.
        end if
+
+       if (Nc(i,j,k) < 0.)  then
+         Nc(i,j,k) = 0.
+       endif
+
+  !*********************************************************************
+  ! Remove negative values in the aerosol fields
+  !*********************************************************************
+
+       do iaer=1,naer
+         if (aer_conc(i,j,k,iaer) < 0. ) then
+            aer_conc(i,j,k,iaer) = 0.
+         end if
+       end do
+
     enddo
     enddo
     enddo
@@ -223,7 +363,7 @@ module modbulkmicro
       mur  (2:i1,2:j1,1:k1) = 30.
       lbdr (2:i1,2:j1,1:k1) = 0.
 
-      if (l_sb ) then
+      if (l_sb) then
 
         do j=2,j1
         do i=2,i1
@@ -273,10 +413,10 @@ module modbulkmicro
          do j=2,j1
          do i=2,i1
          do k=1,k1
-            if (qrmask(i,j,k).and.Nr(i,j,k).gt.0.) then
-              xr  (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
-              xr  (i,j,k) = min(xr(i,j,k),xrmaxkk) ! to ensure x_pw is within borders
-              Dvr (i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+            if (qrmask(i,j,k)) then
+              xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
+              xr (i,j,k) = min(xr(i,j,k),xrmaxkk)             ! to ensure x_pw is within borders
+              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
             endif
          enddo
          enddo
@@ -289,7 +429,11 @@ module modbulkmicro
   !*********************************************************************
   ! call microphysical processes subroutines
   !*********************************************************************
-    if (l_sedc)  call sedimentation_cloud
+
+    call cloudactivation
+    call cloudselfcollection
+
+    if (l_sedc) call sedimentation_cloud
 
     if (l_rain) then
       call bulkmicrotend
@@ -303,34 +447,735 @@ module modbulkmicro
       call bulkmicrotend
     endif
 
-    sv0(2:i1,2:j1,1:k1,inr)=Nr(2:i1,2:j1,1:k1)
-    sv0(2:i1,2:j1,1:k1,iqr)=qr(2:i1,2:j1,1:k1)
+    call scavenging  
+    call cloudevaporation
 
-  !*********************************************************************
-  ! remove negative values and non physical low values
-  !*********************************************************************
     do k=1,k1
     do j=2,j1
     do i=2,i1
-      qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
-      nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*delt
+
+      ! NOTE ----------------------------------------------------------------- !
+      ! Before transferring the tendencies calculated here, values have to be  !
+      ! CHECKED for mass conservation. Rationale: If total tendency would      !
+      ! put a tracer to negative values, all local sinks are reduced by the    !
+      ! same fraction so that the tracer will become 0. instead.               ! 
+      !                                                                        !
+      ! Tracers are checked/corrected in groups based on the aerosol 'state',  !
+      ! i.e. free aerosol, in-cloud or in-rain as sinks processes are different!
+      ! for each group.                                                        !
+      !                                                                        !
+      ! Restrictions:                                                          !
+      ! - Tendencies cannot change sign                                        !
+      ! - Only local processes are taken into account, i.e. no                 ! 
+      ! advection/sedimentation                                                ! 
+      !                                                                        !
+      ! Possible issue:                                                        !
+      ! Aerosol number and corresponding mass are checked independently. This  !
+      ! could cause situations where these are corrected for unevenly.         !  
+      ! -----------------------------------------------------------------------!
+
+      ! Transform to svp units (e.g. [kg m-3 s-1]/[kga m-3] = [kg kga-1 s-1])  
+!      aer_tend(i,j,k,:) = aer_tend(i,j,k,:)! For now assume tracer is in #/ms anyway /rhof(k)
+!      aer_evpc(i,j,k,:) = aer_evpc(i,j,k,:)! Idem /rhof(k)
+
+      do iaer = 1,naer
+
+         ispec = nspec_type(iaer)
+         imod  = nmod_type(iaer)
+
+         aertest = svm(i,j,k,iaer+iaer_offset)/delt + svp(i,j,k,iaer+iaer_offset) + aer_tend(i,j,k,iaer) !(# or kg) kg-1 s-1
+
+         if ( aertest < 0. ) then
+
+            if ( imod <= 7 ) then ! Checking and correction for free aerosol sinks
+ 
+               select case(ispec)
+                  case(1); taer = inc
+                  case(2); taer = iso4cld
+                  case(3); taer = ibccld
+                  case(4); taer = ipomcld
+                  case(5); taer = isscld
+                  case(6); taer = iducld
+               end select  
+
+               sinktotal = aer_acti(i,j,k,iaer) + aer_scvc(i,j,k,iaer) + aer_scvr(i,j,k,iaer) 
+  
+               if (sinktotal < 0.) then
+                                
+                  f_acti  = aer_acti(i,j,k,iaer)/sinktotal
+                  f_scvc  = aer_scvc(i,j,k,iaer)/sinktotal
+                  f_scvr  = aer_scvr(i,j,k,iaer)/sinktotal
+                
+                  fix = max(aertest, sinktotal)                      
+
+                  aer_acti(i,j,k,iaer) = aer_acti(i,j,k,iaer) - fix*f_acti
+                  aer_scvc(i,j,k,iaer) = aer_scvc(i,j,k,iaer) - fix*f_scvc
+                  aer_scvr(i,j,k,iaer) = aer_scvr(i,j,k,iaer) - fix*f_scvr
+                  aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) - fix 
+
+                  ! Activation has both mass and number target
+                  aer_acti(i,j,k,taer) = aer_acti(i,j,k,taer) + fix*f_acti
+                  aer_tend(i,j,k,taer) = aer_tend(i,j,k,taer) + fix*f_acti
+
+                  ! Scavenging has no number target, i.e. does only yield
+                  ! in-cloud/rain mass increase
+                  if (ispec /= 1) then
+                     aer_scvc(i,j,k,taer)   = aer_scvc(i,j,k,taer)   + fix*f_scvc
+                     aer_tend(i,j,k,taer)   = aer_tend(i,j,k,taer)   + fix*f_scvc
+ 
+                     aer_scvr(i,j,k,taer+1) = aer_scvr(i,j,k,taer+1) + fix*f_scvr
+                     aer_tend(i,j,k,taer+1) = aer_tend(i,j,k,taer+1) + fix*f_scvr
+                  endif
+
+               end if 
+                 
+            elseif ( imod == 8 ) then ! Checking and correction for cloud evporation
+               
+               select case ( ispec ) ! Select free aerosol target variable
+                  case(1); taer = iacs_n  ! number
+                  case(2); taer = iso4acs ! SO4
+                  case(3); taer = ibcacs  ! BC
+                  case(4); taer = ipomacs ! POM
+                  case(5); taer = issacs  ! SS
+                  case(6); taer = iduacs  ! DUST
+               end select
+
+               if (ispec /= 1) then
+                  sinktotal = aer_evpc(i,j,k,iaer) + aer_auto(i,j,k,iaer) + aer_accr(i,j,k,iaer)
+
+                  f_evpc  =  aer_evpc(i,j,k,iaer)/sinktotal
+                  f_auto  =  aer_auto(i,j,k,iaer)/sinktotal
+                  f_accr  =  aer_accr(i,j,k,iaer)/sinktotal
+               else
+                  sinktotal = aer_evpc(i,j,k,iaer) + &
+                              aer_auto(i,j,k,iaer) + &
+                              aer_accr(i,j,k,iaer) + &
+                              aer_slfc(i,j,k,iaer)
+
+                  f_evpc  =   aer_evpc(i,j,k,iaer)/sinktotal
+                  f_auto  =   aer_auto(i,j,k,iaer)/sinktotal
+                  f_accr  =   aer_accr(i,j,k,iaer)/sinktotal
+                  f_slfc  =   aer_slfc(i,j,k,iaer)/sinktotal
+               endif
+               
+               if (sinktotal < -eps0 ) then
+                  
+                  fix = max(aertest, sinktotal)
+
+                  if (aer_evpc(i,j,k,iaer) < 0.) then
+                     aer_tend(i,j,k,taer)   = aer_tend(i,j,k,taer)   + fix*f_evpc*( -aer_evpc(i,j,k,taer)/aer_evpc(i,j,k,iaer))
+                     aer_evpc(i,j,k,taer)   = aer_evpc(i,j,k,taer)   + fix*f_evpc*( -aer_evpc(i,j,k,taer)/aer_evpc(i,j,k,iaer))
+
+                     aer_tend(i,j,k,taer+1) = aer_tend(i,j,k,taer+1) + fix*f_evpc*(1+aer_evpc(i,j,k,taer)/aer_evpc(i,j,k,iaer))
+                     aer_evpc(i,j,k,taer+1) = aer_evpc(i,j,k,taer+1) + fix*f_evpc*(1+aer_evpc(i,j,k,taer)/aer_evpc(i,j,k,iaer))
+
+                     aer_evpc(i,j,k,iaer)   = aer_evpc(i,j,k,iaer) - fix*f_evpc
+                     aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer) - fix*f_evpc
+                  end if
+     
+                  if (ispec /= 1) then
+                     aer_auto(i,j,k,iaer+1) = aer_auto(i,j,k,iaer+1) + fix*f_auto
+                     aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + fix*f_auto
+
+                     aer_accr(i,j,k,iaer+1) = aer_accr(i,j,k,iaer+1) + fix*f_accr
+                     aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + fix*f_accr
+                  else
+                     ! Note:
+                     ! 1. Accretion does not influence raindrop number concentration (Nr)
+                     ! 2. Due to difference in size of cloud and raindrops, 
+                     !    autoconversion Nr tendency has to be adjusted accordingly
+                     ! 3. Selfcollection only applies to Nc tendency
+                                         
+                     aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + fix*f_auto*(-aer_auto(i,j,k,iaer+1)/(aer_auto(i,j,k,iaer)-eps0)) 
+                     aer_auto(i,j,k,iaer+1) = aer_auto(i,j,k,iaer+1) + fix*f_auto*(-aer_auto(i,j,k,iaer+1)/(aer_auto(i,j,k,iaer)-eps0)) 
+ 
+                     aer_slfc(i,j,k,iaer)   = aer_slfc(i,j,k,iaer)   - fix*f_slfc
+                     aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer)   - fix*f_slfc 
+                  endif         
+
+                  aer_auto(i,j,k,iaer)   = aer_auto(i,j,k,iaer) - fix*f_auto
+                  aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer) - fix*f_auto
+                     
+                  aer_accr(i,j,k,iaer)   = aer_accr(i,j,k,iaer) - fix*f_accr
+                  aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer) - fix*f_accr
+               endif
+ 
+            elseif ( imod == 9 ) then
+
+               select case ( ispec ) ! Select free aerosol target variable
+                  case(1); taer = iacs_n  ! number
+                  case(2); taer = iso4acs ! SO4
+                  case(3); taer = ibcacs  ! BC
+                  case(4); taer = ipomacs ! POM
+                  case(5); taer = issacs  ! SS
+                  case(6); taer = iduacs  ! DUST
+               end select
+
+               if (aer_evpr(i,j,k,iaer) < -eps0) then
+                   
+                  fix = max(aertest,aer_evpr(i,j,k,iaer))     
+
+                  !Distribution between acs and cos modes
+                  f_acs = -aer_evpr(i,j,k,taer  )/aer_evpr(i,j,k,iaer)!(aer_evpr(i,j,k,taer)+aer_evpr(i,j,k,taer+1)) !ACS
+                  f_cos = -aer_evpr(i,j,k,taer+1)/aer_evpr(i,j,k,iaer)!(aer_evpr(i,j,k,taer)+aer_evpr(i,j,k,taer+1)) !COS 
+
+                  aer_tend(i,j,k,taer  ) = aer_tend(i,j,k,taer  ) + fix*f_acs!( -aer_evpr(i,j,k,taer)/aer_evpr(i,j,k,iaer))
+                  aer_evpr(i,j,k,taer  ) = aer_evpr(i,j,k,taer  ) + fix*f_acs!( -aer_evpr(i,j,k,taer)/aer_evpr(i,j,k,iaer))
+
+                  aer_tend(i,j,k,taer+1) = aer_tend(i,j,k,taer+1) + fix*f_cos!(1+aer_evpr(i,j,k,taer)/aer_evpr(i,j,k,iaer))
+                  aer_evpr(i,j,k,taer+1) = aer_evpr(i,j,k,taer+1) + fix*f_cos!(1+aer_evpr(i,j,k,taer)/aer_evpr(i,j,k,iaer))
+
+                  aer_tend(i,j,k,iaer  ) = aer_tend(i,j,k,iaer  ) - fix
+                  aer_evpr(i,j,k,iaer  ) = aer_evpr(i,j,k,iaer  ) - fix
+
+               end if  
+
+            end if !imod
+
+         endif !aertest < 0 etc.
+      enddo !iaer
+
+      !*********************************************************************
+      ! remove negative values and non physical low values
+      !*********************************************************************
+
+      qrtest=svm(i,j,k,iqr)             + (svp(i,j,k,iqr)             + qrp(i,j,k))         *delt
+      nrtest=svm(i,j,k,inr+iaer_offset) + (svp(i,j,k,inr+iaer_offset) + aer_tend(i,j,k,inr))*delt
+
       if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
-        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-        svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
+         qtp(i,j,k)     = qtp(i,j,k)  + qtpmcr(i,j,k)                      + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
+         thlp(i,j,k)    = thlp(i,j,k) + thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
+         svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
+
       else
-      svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-      svp(i,j,k,inr) =svp(i,j,k,inr)+nrp(i,j,k)
-      thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-      qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-      ! adjust negative qr tendencies at the end of the time-step
-     end if
+
+         ! Transferring tendencies 
+         svp(i,j,k,iqr)     = svp(i,j,k,iqr)     + qrp(i,j,k)
+         thlp(i,j,k)        = thlp(i,j,k)        + thlpmcr(i,j,k)
+         qtp(i,j,k)         = qtp(i,j,k)         + qtpmcr(i,j,k)
+
+      end if
+
+      do iaer= 1,naer
+        svp(i,j,k,iaer+iaer_offset) = svp(i,j,k,iaer+iaer_offset) + aer_tend(i,j,k,iaer)        
+      end do    
+
+      Nrp(i,j,k) = aer_tend(i,j,k,inr) !For statistical purposes    
+
     enddo
     enddo
     enddo
 
+  ! Transfer individual tendencies for statistical purposes
+
+  if (l_aertend) then
+     call bulkaertend
+  end if
+  
   end subroutine bulkmicro
+
+  ! -----------------------------------------------------------------------
+  ! SUBROUTINE CLOUDACTIVATION
+  ! 
+  ! Calculates the amount of activated aerosols that form cloud droplets.
+  !  
+  ! 2 Routines available, based on:
+  ! (1) k-Kohler (Petters & Kreidenweis, 2007); PK07)
+  ! (2) updraft  (Pousse-Nottelman, 2015); PN15)
+  !
+  ! Switch with l_kohler in namoptions. 
+  ! l_kohler = .true.  -> PK07
+  ! l_kohler = .false. -> PN15
+  !
+  ! -----------------------------------------------------------------------
+  ! For PK07: Equation for r_crit derived from Eq. (10) PK07. 
+  ! k values used for species taken from Pringle et al. (2010):
+  ! SO4 0.88,   BC 0,   POM 0.1,   SS 1.28,   DU: 0.
+  ! Procedure:
+  ! 1. Calculation of mode total mass and average density and hygrospocity
+  ! 2. Calculation of activated number/mass fraction per mode
+  ! 3. Determine source and target variables and apply activation
+  ! -----------------------------------------------------------------------
+  ! For PN15:
+  ! Parameterisation parameterized according to the approach by Lin
+  ! and Leaitch (1997) following the work by Muhlbauer and Lohmann
+  ! (2008) and Zubler et al. (2011a)
+  !
+  ! Procedure:
+  ! 1. Determine number of aerosol particles >35nm (Nt)
+  ! 2. Calculate dNc/dt
+  ! 3. Calculate mass/number tendencies of affected tracers
+  ! -----------------------------------------------------------------------
+
+  subroutine cloudactivation
+    use modglobal, only : i1,j1,k1, rlv, cp, rhow, pi
+    use modfields, only : ql0, thl0, exnf, w0, svm, svp
+
+    implicit none
+    integer         :: i,j,k, taer, iaer, ispec, imod
+    real            :: A, B, T, sigma, r_crit, d_crit, dn_mean, dm_mean, fac
+    real            :: d_ais, f_ais, Nt, dNcdt  
+
+    real, dimension(nmod-2) :: mod_numb, mod_mass, mod_rho, mod_k, fn, fm
+ 
+    real, parameter ::    & 
+        R     = 8.1314,   & ! Gas constant
+        Mw    = 0.018,    & ! Molar mass of water (kg mol-1)
+        sw    = 0.075       ! Surface tension of water 
+
+    do j=2,j1
+    do i=2,i1
+    do k=1,k1    
+
+       if ( qcmask(i,j,k) ) then
+
+          mod_numb = 0.0
+          mod_mass = 0.0
+          mod_rho  = 0.0   
+          mod_k    = 0.0
+
+          fn = 0.0
+          fm = 0.0
+   
+          if (l_kohler) then
+
+          if ( Nc(i,j,k) < ncmin ) then
+
+             !Aggregate free aerosol modes
+             do iaer = 1, naer !Aggregate modes
+
+             imod  = nmod_type(iaer)
+             ispec = nspec_type(iaer)
+
+                if (imod > 7 ) cycle  ! Only free aerosol modes
+                if (ispec == 1 ) then ! Mode number
+                   mod_numb(imod) = aer_conc(i,j,k,iaer)
+                else
+                   mod_mass(imod) = mod_mass(imod) + aer_conc(i,j,k,iaer)
+                   mod_rho (imod) = mod_rho (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)
+                   if (spec_k(ispec-1) > 0.) then
+                      mod_k(imod) = mod_k   (imod) + aer_conc(i,j,k,iaer)/spec_k  (ispec-1)
+                   endif
+                end if
+             end do   
+
+             T = thl0(i,j,k) * exnf(k) + (rlv/cp) * ql0(i,j,k)
+             A = 4.*sw*Mw/(R*T*rhow)   
+
+             ! Calculate activated fraction --------------------------------
+             do imod=1,nmod-2 ! Activation per mode, only free aerosol modes
+                if (mod_mass(imod) < eps0 .or. mod_numb(imod) < eps0 .or. mod_k(imod) == 0.) cycle
+                
+                   mod_rho(imod) = mod_mass(imod)/mod_rho(imod)
+                   mod_k (imod)  = mod_mass(imod)/mod_k (imod)             
+  
+                   d_crit = (4.*A**3./(27.*mod_k(imod)*log(Ssat/100.+1.)**2.))**(1./3.) 
+
+                   sigma = sigma_lognormal(imod)
+                   ! Number and mass mean diameter
+                   dn_mean  = (6.*mod_mass(imod)/(pi*mod_numb(imod)*scalefac*mod_rho(imod)))**(1./3.)*exp(-(3./2.)*log(sigma)**2.)
+                   dm_mean  = dn_mean * exp(3.*log(sigma)**2.)
+                
+                   ! Number and mass activation fraction
+                   fn(imod) = 1. - .5*erfc(-log(d_crit/dn_mean)/sqrt(2.)*log(sigma))
+                   fm(imod) = 1. - .5*erfc(-log(d_crit/dm_mean)/sqrt(2.)*log(sigma))
+
+             enddo !imod
+
+          end if !ncmin
+
+          else !l_kohler
+            
+             !Aggregate free aerosol modes
+             do iaer = 1, naer !Aggregate modes
+
+                imod  = nmod_type(iaer)
+                ispec = nspec_type(iaer)
+
+                if ( imod == 1 .or. imod >= 5 ) cycle  ! Only AIS,ACS,COS
+                if ( ispec == 1 ) then ! Mode number
+                   mod_numb(imod) = aer_conc(i,j,k,iaer)
+                else
+                   mod_mass(imod) = mod_mass(imod) + aer_conc(i,j,k,iaer)
+                   mod_rho (imod) = mod_rho (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)
+                end if
+             end do
+
+             if ( mod_numb(iais_n) + mod_numb(iacs_n) + mod_numb(icos_n) > 0. ) then   
+                !Complete mode mean density calculation
+                mod_mass(iais_n) = mod_mass(iais_n) + eps0
+                mod_numb(iais_n) = mod_numb(iais_n) + eps0
+                mod_rho(iais_n)  = mod_mass(iais_n)/mod_rho(iais_n)
+
+                ! Determine fraction of AIS aerosol with radius > 35 nm and calculate Nt    
+                sigma  = sigma_lognormal(iais_n)
+                r_crit = 35.e-9 !m
+            
+                d_ais  = (6.*mod_mass(iais_n)/(pi*mod_numb(iais_n)*scalefac*mod_rho(iais_n)))**(1./3.)*exp(-(3./2.)*log(sigma)**2.)
+                f_ais  = 1. - .5*erfc(-log(2.*r_crit/d_ais)/sqrt(2.)*log(sigma))
+           
+                Nt = 1e-6*(f_ais*mod_numb(iais_n) + mod_numb(iacs_n) + mod_numb(icos_n)) !Eq.(4) PN15
+                dNcdt = max(1.e6/delt*( 0.1*(w0(i,j,k)*100.*Nt/(w0(i,j,k)*100.+.023*Nt))**1.27 - 1.e-6*Nc(i,j,k)), 0. ) !Eq.(2) PN15
+
+                ! Compare activated particles with mode and calculate if mode is activated completely
+                ! If yes, activate all mode mass and continue
+                ! In not, calculated mass fraction
+                ! Order: 1:COS, 2:ACS, 3:AIS
+                
+                do imod = 4, 2, -1 !Caution imod is not the proper iterator, but coincidentally iais_n, iacs_n and icos_n = 2,3,4
+                   if ( dNcdt*delt > aer_conc(i,j,k,imod) ) then
+                      fn(imod) = 1.0
+                      fm(imod) = 1.0
+                      dNcdt    = dNcdt - aer_conc(i,j,k,imod)/delt
+                   elseif ( aer_conc(i,j,k,imod) > 0. ) then
+                      fn(imod) = dNcdt*delt/aer_conc(i,j,k,imod)
+                      fm(imod) = 1. - .5*erfc(xinverfc(2.*fn(imod))-3.*log(sigma_lognormal(imod))/sqrt(2.))
+                      dNcdt    = 0.0 
+                   endif
+                enddo ! imod
+             end if   ! Nt = 0
+          end if      ! l_kohler
+
+          ! Apply activation  --------------------------------------------
+
+          do iaer= 1,naer
+
+             ispec = nspec_type(iaer) ! Retrieve species
+             imod  = nmod_type(iaer)  ! Retrieve source mode
+
+             if (imod > 7) cycle      ! Exclude cloud and rain modes
+
+             select case ( ispec )    ! Select cloud target variable
+                case(1); taer = inc;     fac = fn(imod) ! Number
+                case(2); taer = iso4cld; fac = fm(imod) ! SO4
+                case(3); taer = ibccld;  fac = fm(imod) ! BC
+                case(4); taer = ipomcld; fac = fm(imod) ! POM
+                case(5); taer = isscld;  fac = fm(imod) ! SS
+                case(6); taer = iducld;  fac = fm(imod) ! DUST
+             end select
+
+             ! Caution with sign, source (iaer) tend. negative, target (taer) tend. positive
+             aer_acti(i,j,k,iaer) = - fac*aer_conc(i,j,k,iaer)/delt   
+             aer_acti(i,j,k,taer) = aer_acti(i,j,k,taer) - aer_acti(i,j,k,iaer) !Double negative = positive, sum of multiple sources  
+
+             aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + aer_acti(i,j,k,iaer)
+             aer_tend(i,j,k,taer) = aer_tend(i,j,k,taer) - aer_acti(i,j,k,iaer) ! No aer_acti(taer) because that carries multiple sources 
+
+          enddo !iaer 
+
+       end if !qcmask 
+    end do
+    end do
+    end do
+
+  end subroutine cloudactivation
+
+  subroutine cloudevaporation  
+    use modglobal, only : i1, j1, k1
+    use modfields, only : ql0, svp, rhof, qlm, svm, sv0
+
+    implicit none
+    integer :: i,j,k, iaer, imod, ispec, taer
+    real    :: evapn, evapr, evap, &
+               Dn, Dm, Dc, Fn, Fm, Fx, sigma, &
+               frac, corr
+    real, dimension(nspec-1) :: evapm
+
+    !Distribution width for evaporated aerosol
+    sigma = 1.5 !Following Pousse-Nottelman et al. (2015)    
+
+    do j=2,j1
+    do i=2,i1
+    do k=1,k1
+        
+    evapn = 0.
+    evapm = 0.
+    evapr = 0.
+
+    if ( Nc(i,j,k) > ncmin ) then
+
+       ! Calculate the resuspension fraction
+       if ( qcmask(i,j,k) ) then
+          if ( qlm(i,j,k) > ql0(i,j,k) ) then !partial evaporation
+             frac = min((qlm(i,j,k)-ql0(i,j,k))/(qlm(i,j,k)), 1.) !min function to prevent overflow when qlm=0.
+          else !no evaporation
+             frac = 0.
+          endif !qlm>ql0
+       else ! complete evaporation
+          frac = 1.
+       endif !qcmask
+
+       ! Correction factor between evaporated water and resuspended aerosol
+       ! based on Gong et al. (2006)
+       corr = (1. - exp(-2.*sqrt(frac))*(1. +2.*sqrt(frac) + 2.*frac + 4./3.*frac**(3./2.)) )*(1.-frac) + frac**2.
+
+       ! Aggregate resuspended aerosol number and mass 
+       if ( frac > 1e-3 ) then 
+          do iaer = 1,naer  
+
+             imod  =  nmod_type(iaer)
+             ispec = nspec_type(iaer)
+             
+             if (imod == 8) then !Clouds only
+                if (ispec == 1) then
+                   evapn          = frac/delt*aer_conc(i,j,k,iaer)
+                else
+                   evapm(ispec-1) = corr*frac/delt*aer_conc(i,j,k,iaer)
+                end if
+             endif !imod == 8 Clouds only   
+
+           enddo !iaer
+        endif !frac
+
+        if ( evapn > ncmin .and. SUM(evapm) > mcmin ) then
+
+           ! Complete evaporated tracer value calculation
+           evapr = SUM(evapm) / SUM(evapm/spec_rho)
+
+           ! Calculate number/mass median diameter for evaporated aerosol 
+           Dn = 1.e6 * ( (6.*SUM(evapm))/(3.141592654*evapn*evapr) )**(1./3.) * exp(-(3./2.)*log(sigma)**2.) !in micron
+           Dm = Dn * exp(3.*log(sigma)**2.)
+           Dc = 1. !Critical radius 0.5 micron, i.e. diameter 1 micron
+
+           ! Calculate partitioning accumulation/coarse aerosol mode
+           Fn = .5*erfc(- log(Dc/Dn)/( sqrt(2.)*log(sigma)) )
+           Fm = .5*erfc(- log(Dc/Dm)/( sqrt(2.)*log(sigma)) )
+    
+           do iaer = 1,naer
+
+              imod = nmod_type(iaer)
+              ispec = nspec_type(iaer)
+
+              if (imod == 8) then
+
+                 select case ( ispec )
+                    case(1); taer = iacs_n;  evap = evapn;          Fx = Fn ! Number
+                    case(2); taer = iso4acs; evap = evapm(ispec-1); Fx = Fm ! SO4
+                    case(3); taer = ibcacs;  evap = evapm(ispec-1); Fx = Fm ! BC
+                    case(4); taer = ipomacs; evap = evapm(ispec-1); Fx = Fm ! POM
+                    case(5); taer = issacs;  evap = evapm(ispec-1); Fx = Fm ! SS
+                    case(6); taer = iduacs;  evap = evapm(ispec-1); Fx = Fm ! DU
+                 end select 
+                 
+                 aer_evpc(i,j,k,iaer)   = -evap                      
+                 aer_evpc(i,j,k,taer)   =  evap*Fx
+                 aer_evpc(i,j,k,taer+1) =  evap*(1-Fx)
+                
+                 aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer)   - evap 
+                 aer_tend(i,j,k,taer)   = aer_tend(i,j,k,taer)   + evap*Fx
+                 aer_tend(i,j,k,taer+1) = aer_tend(i,j,k,taer+1) + evap*(1-Fx)
+                                
+              endif                
+
+          enddo !iaer
+       endif !evapn > ncmin, evapm > mcmin
+    endif !Nc > ncmin
+
+    end do
+    end do
+    end do        
+  end subroutine cloudevaporation      
+
+  subroutine cloudselfcollection
+    use modglobal, only : i1,j1,k1
+    use modfields, only : ql0, rhof
+    
+    implicit none
+    integer i,j,k
+    real    nuc    
+
+    do j=2,j1
+    do i=2,i1
+    do k=1,k1
+
+       nuc = 1580.*rhof(k)*ql0(i,j,k) - 0.28                                                        ! kg water/m3 ?
+       aer_slfc(i,j,k,inc) = - k_c*(nuc + 2.)/(nuc +1.)*(ql0(i,j,k)*rhof(k))**2. * 1.225 / rhof(k)  ! #/m3/s       
+       aer_tend(i,j,k,inc) = aer_tend(i,j,k,inc) + aer_slfc(i,j,k,inc) ! #/m3/s
+ 
+    end do
+    end do
+    end do
+    
+  end subroutine cloudselfcollection      
+
+  !> Determine scavenging rate and adjust free aerosol and in-cloud/in-rain aerosol accordingly
+  !!   
+  !! The scavenging rate is based on the work of Croft et al. (2010). Scavenging
+  !! efficiences are stored in a lookup table which is constructed during
+  !! initialization. This table contains mean scavenging coefficients (s^-1) as
+  !! a function of geometric mean aerosol radius (aerrad) and mean cloud drop radius (cldrad). 
+  !!  
+  !! Bilinear interpolation is applied to the logarithm of aerrad and cldrad to
+  !! cover the many orders of magnitude.
+  !!
+  !! Notes 
+  !! 1. Scavenging is applied to all aerosol modes individually. 
+  !! 2. Mass is aggregated per species in the cloud/rain water. 
+  !! 3. Scavenged aerosol number is 'lost' as all aerosol mass is assumed to dissolve and 
+  !!    number is now equal to cloud/rain droplet number.
+  !! 
+  subroutine scavenging
+  
+  use modglobal, only : i1,j1,k1,rhow, pi
+  use modfields, only : ql0,sv0,rhof 
+
+  implicit none
+
+  integer :: i,j,k, iaer, imod, ispec, taerinc, taerblc
+  real    :: meancld, meanaer, meanaer_inc, rainrate, scavinc, scavblc
+
+  real, dimension(nmod-2) :: mod_mass, mod_numb, mod_rho, &
+                             scavinc_m, scavinc_n, scavblc_m, scavblc_n
+
+  ! ---------------------------------------------------------------------------
+
+  do i=2,i1
+  do j=2,j1
+  do k=1,k1
+
+     meancld =  min( max( 1e6*(3.*ql0(i,j,k)*rhof(k)/(4.*3.1415*Nc(i,j,k)*rhow))**(1/3.) ,5.001), 49.999) ! in micron
+     rainrate = min( max(sed_qr(i,j,k)*3600., 0.01001) , 99.999)                                           !kg m-2 s-1 --> mm/hr
+  
+     mod_numb = 0.0
+     mod_mass = 0.0        
+     mod_rho  = 0.0   
+
+     ! Calculate number and mass for each mode and volume mean density
+     do iaer = 1,naer
+
+        imod = nmod_type(iaer)
+        ispec = nspec_type(iaer)
+
+         if (imod > 7 ) cycle !Exclude cloud & rain modes
+
+         if (ispec == 1 ) then  ! Mode number
+           mod_numb(imod) = aer_conc(i,j,k,iaer)
+         else
+           mod_mass(imod) = mod_mass(imod) + aer_conc(i,j,k,iaer)
+           mod_rho (imod) = mod_rho (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)  
+         end if
+
+     end do !iaer
+
+     scavinc_n = 0.0
+     scavinc_m = 0.0
+     scavblc_n = 0.0
+     scavblc_m = 0.0
+
+     ! ---------------------------------------------------------------------------
+     do imod= 1,nmod-2 !Only free aerosol modes
+
+        ! Complete volume mean density calculation     
+        mod_rho(imod) = mod_mass(imod)/mod_rho(imod)     
+
+        if ( (mod_mass(imod) > eps0) .and. (mod_numb(imod) > ncmin)) then
+   
+           ! Get geometric mean aerosol radius (in meter)
+           meanaer = 0.5*((6.*mod_mass(imod))/(pi*mod_numb(imod)*scalefac*mod_rho(imod)))**(1./3.)*exp(-(3./2.)*log(sigma_lognormal(imod))**2.)
+
+           ! IN-CLOUD SCAVENGING  
+           ! ==================================================================================== !
+           !                                                                                      !
+           ! Apply the interpolation to find efficiency coefficient
+           ! Calculate tendency and transfer to corresponding arrays
+           !   
+           ! Note that:
+           ! Stated in pers. comm. from Betty Croft:
+           ! "Data files containing in-cloud scavenging coefficients for a cloud
+           ! droplet number concentration (CDNC) of 1 cm^-3." 
+           ! Also:
+           ! "Coefficients are given as a function of mode radius and can be used
+           ! directly by multiplying by the CDNC"
+           ! So we multiply by the CDNC in units of cm^-1, i.e. Nc(i,j,k)*1e-6
+           ! ==================================================================================== !
+           if ( qcmask(i,j,k) .and. ( Nc(i,j,k) > ncmin )) then
+
+              ! Transform aerosol radius to cm and apply bounds of lookup table (80 um > r > 0.1 nm)  
+              meanaer_inc = max(min(100.*meanaer,8.0E-03),1.0E-8) ! in cm
+
+              scavinc_n(imod) = 1e-6*Nc(i,j,k)*lookup_interpolate(ncld,logcldrad,naer,logaerrad,incnumb,log(meancld),log(meanaer_inc)) 
+              scavinc_m(imod) = 1e-6*Nc(i,j,k)*lookup_interpolate(ncld,logcldrad,naer,logaerrad,incmass,log(meancld),log(meanaer_inc))
+
+              if ((scavinc_n(imod)*delt > 1.) .or. (scavinc_m(imod)*delt > 1.)) then   
+                 scavinc_n(imod) = 1./delt
+                 scavinc_m(imod) = 1./delt
+              end if
+
+           end if !qcmask, Nc>0
+
+           ! BELOW-CLOUD SCAVENGING  
+           ! ==================================================================================== !
+           ! EXPLANATION                                                                          !
+           !                                                                                      !
+           ! Method taken from Croft et al. (2009)                                                !
+           ! Eq (1) : dC/dt = C*f*(R*F)                                                           !
+           ! Where C is the ambient mixing ratio of tracer, f the cloud fraction,                 !
+           ! R the normalized scavenging coeff. and F the precipitation flux                      !
+           !                                                                                      !
+           ! However:                                                                             !
+           ! 1) The values in the lookuptable (L) are applied as R*F as stated on page 4656       !
+           !    of Croft et al., and                                                              !
+           ! 2) in DALES a gridbox is either cover by cloud or not. So cloud fraction             !
+           !    is not used, i.e. equals 1 if  method is applied                                  !
+           !                                                                                      !
+           ! This leads to dC/dt      = C*L           or in the variables used in the code below: ! 
+           !     aer_tend(i,j,k,iaer) = aer_conc(i,j,k,iaer) * scav                               !
+           ! ==================================================================================== !
+           if (l_rain) then
+              if ( qrmask(i,j,k) .and. (sed_qr(i,j,k)*3600. > .01) ) then   
+                 
+                 ! Transform aerosol radius to micron and apply bounds of lookup table ( 1 nm > r > 1000 um )
+                 meanaer  = max(min(.9999e3,meanaer*1e6 ),1.001e-3) !in micron 
+                 
+                 scavblc_n(imod) = lookup_interpolate(nrai,lograinrate,naer,logaerrad_blc,blcnumb,log(rainrate),log(meanaer))
+                 scavblc_m(imod) = lookup_interpolate(nrai,lograinrate,naer,logaerrad_blc,blcmass,log(rainrate),log(meanaer))
+              end if !qrmask, sed_qr
+           end if !l_rain
+        end if !mod_mass, mod_numb
+
+     enddo !imod
+
+     ! ---------------------------------------------------------------------------
+     do iaer= 1,naer
+
+        ispec = nspec_type(iaer) ! Retrieve species
+        imod  = nmod_type(iaer)  ! Retrieve source mode
+
+        if ( imod > 7 ) cycle    ! Exclude cloud and rain modes
+
+        select case ( ispec )    ! Select cloud/rain target variable
+           case(1); scavinc = scavinc_n(imod); scavblc = scavblc_n(imod); taerinc = 0;       taerblc = 0       ! Number
+           case(2); scavinc = scavinc_m(imod); scavblc = scavblc_m(imod); taerinc = iso4cld; taerblc = iso4rai ! SO4
+           case(3); scavinc = scavinc_m(imod); scavblc = scavblc_m(imod); taerinc = ibccld;  taerblc = ibcrai  ! BC
+           case(4); scavinc = scavinc_m(imod); scavblc = scavblc_m(imod); taerinc = ipomcld; taerblc = ipomrai ! POM
+           case(5); scavinc = scavinc_m(imod); scavblc = scavblc_m(imod); taerinc = isscld;  taerblc = issrai  ! SS
+           case(6); scavinc = scavinc_m(imod); scavblc = scavblc_m(imod); taerinc = iducld;  taerblc = idurai  ! DUST
+        end select
+
+        aer_scvc(i,j,k,iaer) = - scavinc*max(0.,aer_conc(i,j,k,iaer))
+        aer_scvr(i,j,k,iaer) = - scavblc*max(0.,aer_conc(i,j,k,iaer))
+        
+        aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + aer_scvc(i,j,k,iaer)
+        aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + aer_scvr(i,j,k,iaer)
+        
+        if (ispec /= 1 ) then !Scavenging does not increase Nc 
+
+           aer_scvc(i,j,k,taerinc) = aer_scvc(i,j,k,taerinc) - aer_scvc(i,j,k,iaer)
+           aer_scvr(i,j,k,taerblc) = aer_scvr(i,j,k,taerblc) - aer_scvr(i,j,k,iaer)
+
+           aer_tend(i,j,k,taerinc) = aer_tend(i,j,k,taerinc) - aer_scvc(i,j,k,iaer)
+           aer_tend(i,j,k,taerblc) = aer_tend(i,j,k,taerblc) - aer_scvr(i,j,k,iaer)
+
+        end if
+
+     enddo !iaer                   
+           
+  end do
+  end do
+  end do
+
+  end subroutine scavenging
+  
   !> Determine autoconversion rate and adjust qrp and Nrp accordingly
   !!
   !!   The autoconversion rate is formulated for f(x)=A*x**(nuc)*exp(-Bx),
@@ -342,35 +1187,60 @@ module modbulkmicro
     use modglobal, only : i1,j1,k1,kmax,rlv,cp
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
+
     implicit none
-    integer i,j,k
+    integer i,j,k,iaer
+
     au = 0.
 
-    if (l_sb ) then
+    if (l_sb) then
     !
     ! SB autoconversion
     !
       tau(2:i1,2:j1,1:k1) = 0.
       phi(2:i1,2:j1,1:k1) = 0.
       nuc(2:i1,2:j1,1:k1) = 0.
-      k_au = k_c/(20*x_s)
+      k_au = k_c/(20.*x_s)
 
       do j=2,j1
       do i=2,i1
       do k=1,k1
-         if (qcmask(i,j,k)) then
-            nuc    (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
-!           nuc    (i,j,k) = 0. !
-            xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k) ! No eps0 necessary
-            au     (i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2.    &
-                    * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
-            tau    (i,j,k) = 1.0 - ql0(i,j,k) / qltot(i,j,k)
-            phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3
-            au     (i,j,k) = au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)
+         if ( qcmask(i,j,k) .and. ( Nc(i,j,k) > ncmin ) ) then
+            nuc    (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) + 0.72 - 1. ! G09a
+            xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k)            ! No eps0 necessary
+            au     (i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2. &
+                             * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
+            tau    (i,j,k) = 1. - ql0(i,j,k) / qltot(i,j,k)
+            phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1. - tau(i,j,k)**k_2)**3
+            au     (i,j,k) = au(i,j,k) * (1. + phi(i,j,k)/(1. - tau(i,j,k))**2)
 
-            qrp    (i,j,k) = qrp    (i,j,k) + au (i,j,k)
-            Nrp    (i,j,k) = Nrp    (i,j,k) + au (i,j,k)/x_s
-            qtpmcr (i,j,k) = qtpmcr (i,j,k) - au (i,j,k)
+            !Cannot take more cloud water than available !MdB    
+            au(i,j,k) =  min( ql0(i,j,k)/delt , au(i,j,k) )   
+
+            !Water    
+            qtpmcr (i,j,k) = qtpmcr (i,j,k) - au(i,j,k)
+            qrp    (i,j,k) = qrp    (i,j,k) + au(i,j,k)
+
+            !Particle number
+            aer_auto(i,j,k,inc) = - au(i,j,k)/xc(i,j,k)*rhof(k) !Nc is in #/m3, so correct with rhof   
+            aer_auto(i,j,k,inr) =   au(i,j,k)/x_s*rhof(k)        
+
+            aer_tend(i,j,k,inc) = aer_tend(i,j,k,inc) + aer_auto(i,j,k,inc)   
+            aer_tend(i,j,k,inr) = aer_tend(i,j,k,inr) + aer_auto(i,j,k,inr)
+
+            !Aerosol mass
+            do iaer= 1,naer
+               if (nmod_type(iaer) == 8 .and. nspec_type(iaer) > 1) then
+
+                  aer_auto(i,j,k,iaer)   = - au(i,j,k)/ql0(i,j,k)*aer_conc(i,j,k,iaer)
+                  aer_auto(i,j,k,iaer+1) = + au(i,j,k)/ql0(i,j,k)*aer_conc(i,j,k,iaer)
+      
+                  aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer)   + aer_auto(i,j,k,iaer)   !- au(i,j,k)/ql0(i,j,k)*aer_conc(i,j,k,iaer) 
+                  aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + aer_auto(i,j,k,iaer+1) !  au(i,j,k)/ql0(i,j,k)*aer_conc(i,j,k,iaer) 
+
+               endif
+            enddo    
+            !Associated heat
             thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au(i,j,k)
 
          endif
@@ -418,12 +1288,12 @@ module modbulkmicro
     use modmpi,    only : myid
     implicit none
     real , allocatable :: phi_br(:,:,:)
-    integer :: i,j,k
+    integer :: i,j,k,iaer
     allocate (phi_br(2-ih:i1+ih,2-jh:j1+jh,k1))
 
     ac(2:i1,2:j1,1:k1)=0
 
-    if (l_sb ) then
+    if (l_sb) then
     !
     ! SB accretion
     !
@@ -431,13 +1301,36 @@ module modbulkmicro
      do j=2,j1
      do i=2,i1
      do k=1,k1
-        if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
+        if (qrmask(i,j,k) .and. qcmask(i,j,k) .and. Nc(i,j,k) > ncmin) then
+           xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k)
            tau    (i,j,k) = 1.0 - ql0(i,j,k)/(qltot(i,j,k))
            phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
            ac     (i,j,k) = k_r *rhof(k)*ql0(i,j,k) * qr(i,j,k) * phi(i,j,k) * &
                             (1.225/rhof(k))**0.5
-           qrp    (i,j,k) = qrp    (i,j,k) + ac(i,j,k)
+
+           !Water
            qtpmcr (i,j,k) = qtpmcr (i,j,k) - ac(i,j,k)
+           qrp    (i,j,k) = qrp    (i,j,k) + ac(i,j,k)
+
+           !Number
+           aer_accr(i,j,k,inc) = - ac(i,j,k)/xc(i,j,k)*rhof(k)     
+           aer_tend(i,j,k,inc) = aer_tend(i,j,k,inc) + aer_accr(i,j,k,inc)
+           !Number of raindrops does not change
+
+           !Aerosol mass
+           do iaer = 1,naer
+              if (nmod_type(iaer) == 8 .and. nspec_type(iaer) > 1) then
+
+                  aer_accr(i,j,k,iaer)   = - ac(i,j,k)/ql0(i,j,k)*aer_conc(i,j,k,iaer)
+                  aer_accr(i,j,k,iaer+1) = + ac(i,j,k)/ql0(i,j,k)*aer_conc(i,j,k,iaer)
+
+                  aer_tend(i,j,k,iaer)   = aer_tend(i,j,k,iaer)   + aer_accr(i,j,k,iaer)
+                  aer_tend(i,j,k,iaer+1) = aer_tend(i,j,k,iaer+1) + aer_accr(i,j,k,iaer+1)
+
+              endif
+           enddo
+
+           !Associated heat
            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac(i,j,k)
         endif
      enddo
@@ -467,7 +1360,7 @@ module modbulkmicro
      enddo
      enddo
 
-     Nrp(2:i1,2:j1,1:k1) = Nrp(2:i1,2:j1,1:k1) - sc(2:i1,2:j1,1:k1) + br(2:i1,2:j1,1:k1)
+     aer_tend(2:i1,2:j1,1:k1,inr) = aer_tend(2:i1,2:j1,1:k1,inr) - sc(2:i1,2:j1,1:k1) + br(2:i1,2:j1,1:k1)
 
     else
     !
@@ -497,41 +1390,45 @@ module modbulkmicro
 
   end subroutine accretion
 
-!> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
+!> Sedimentation of cloud water ( Bretherton et al,GRL 2007 )
 !!
-!!   The sedimentation of cloud droplets assumes a lognormal DSD in which the
-!!   geometric std dev. is assumed to be fixed at 1.3.
+!! The sedimentation of cloud droplets assumes a lognormal DSD in which the
+!! geometric std dev. is assumed to be fixed at 1.3.
 !! sedimentation of cloud droplets
 !! lognormal CDSD is assumed (1 free parameter : sig_g)
 !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
 !! flux is calc. anal.
+
   subroutine sedimentation_cloud
+
     use modglobal, only : i1,j1,k1,kmax,rlv,cp,dzf,pi
     use modfields, only : rhof,exnf,ql0
     implicit none
-    integer :: i,j,k
+    integer :: i,j,k,iaer
 
-!    real    :: ql0_spl(2-ih:i1+ih,2-jh:j1+jh,k1)       &! work variable
-!              ,Nc_spl(2-ih:i1+ih,2-jh:j1+jh,k1)
-!    real,save :: dt_spl,wfallmax
-!
-!    ql0_spl(2:i1,2:j1,1:k1) = ql0(2:i1,2:j1,1:k1)
-!    Nc_spl(2:i1,2:j1,1:k1)  = Nc(2:i1,2:j1,1:k1)
-!
-!    wfallmax = 9.9
-!    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
-!    dt_spl = delt/real(n_spl)
-!
-!    do jn = 1 , n_spl  ! time splitting loop
+    sedc (2:i1,2:j1,1:k1) = 0.
+    sedcn(2:i1,2:j1,1:k1) = 0.
+    sedcm(2:i1,2:j1,1:k1,1:nspec-1) = 0.
 
-    sedc(2:i1,2:j1,1:k1) = 0.
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
     do j=2,j1
     do i=2,i1
     do k=1,k1
-       if (qcmask(i,j,k)) then
-          sedc(i,j,k) = csed*(Nc(i,j,k))**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
+       if (qcmask(i,j,k) .and. Nc(i,j,k) > ncmin) then
+
+          sedc (i,j,k) = csed*(Nc(i,j,k))**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
+          
+          !Particle number      
+          sedcn(i,j,k) = sedc(i,j,k)/(rhof(k)*ql0(i,j,k))*Nc(i,j,k)
+
+          !In-cloud aerosol mass
+          do iaer = 1,naer
+             if (nmod_type(iaer) == 8 .and. nspec_type(iaer) > 1) then
+                sedcm(i,j,k,nspec_type(iaer)-1) = sedc(i,j,k)/(rhof(k)*ql0(i,j,k))*aer_conc(i,j,k,iaer)
+             end if
+          enddo !iaer
+
        endif
     enddo
     enddo
@@ -544,6 +1441,15 @@ module modbulkmicro
       qtpmcr(i,j,k) = qtpmcr(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
       thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlv/(cp*exnf(k))) &
                        *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
+
+      aer_tend(i,j,k,inc) = aer_tend(i,j,k,inc) + (sedcn(i,j,k+1)-sedcn(i,j,k))/dzf(k)
+
+      do iaer = 1,naer  
+         if (nmod_type(iaer) == 8 .and. nspec_type(iaer) > 1) then
+            aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + (sedcm(i,j,k+1,nspec_type(iaer)-1)-sedcm(i,j,k,nspec_type(iaer)-1))/dzf(k)
+         end if
+      enddo
+
     enddo
     enddo
     enddo
@@ -559,25 +1465,39 @@ module modbulkmicro
 !!   polynomial function
   subroutine sedimentation_rain
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf
-    use modfields, only : rhof
+    use modfields, only : rhof, svm
     use modmpi,    only : myid
     implicit none
-    integer :: i,j,k,jn
+    integer :: i,j,k,jn, iaer, ispec
     integer :: n_spl      !<  sedimentation time splitting loop
     real    :: pwcont
-    real, allocatable :: wvar(:,:,:), xr_spl(:,:,:),Dvr_spl(:,:,:),&
-                        mur_spl(:,:,:),lbdr_spl(:,:,:),Dgr(:,:,:)
-    real,save :: dt_spl,wfallmax
+    real, allocatable :: wvar    (:,:,:) &  
+                        ,xr_spl  (:,:,:) &
+                        ,Dvr_spl (:,:,:) &
+                        ,mur_spl (:,:,:) &
+                        ,lbdr_spl(:,:,:) &
+                        ,Dgr     (:,:,:) &
+                        ,aer_spl (:,:,:,:)
 
-    allocate( wvar(2-ih:i1+ih,2-jh:j1+jh,k1)       &!<  work variable
-              ,xr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)     &!<  for time splitting
-              ,Dvr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    &!<     -
-              ,mur_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    &!<     -
-              ,lbdr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)   &!<     -
-              ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1))        !<  lognormal geometric diameter
+    real,save :: dt_spl,wfallmax, aer_in, aer_out
 
+    allocate( wvar     (2-ih:i1+ih,2-jh:j1+jh,k1) & !<  work variable
+              ,xr_spl  (2-ih:i1+ih,2-jh:j1+jh,k1) & !<  for time splitting
+              ,Dvr_spl (2-ih:i1+ih,2-jh:j1+jh,k1) & !<     -
+              ,mur_spl (2-ih:i1+ih,2-jh:j1+jh,k1) & !<     -
+              ,lbdr_spl(2-ih:i1+ih,2-jh:j1+jh,k1) & !<     -
+              ,Dgr     (2-ih:i1+ih,2-jh:j1+jh,k1) & !<  lognormal geometric diameter
+              ,aer_spl (2-ih:i1+ih,2-jh:j1+jh,k1,nspec-1) ) 
+  
     qr_spl(2:i1,2:j1,1:k1) = qr(2:i1,2:j1,1:k1)
-    Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
+    Nr_spl(2:i1,2:j1,1:k1) = Nr(2:i1,2:j1,1:k1)
+ 
+    ! Copy all species of in-rain aerosol mass 
+    do iaer = 1,naer    
+       if (nmod_type(iaer) == 9 .and. nspec_type(iaer) > 1) then
+          aer_spl(2:i1,2:j1,1:k1,nspec_type(iaer)-1) = aer_conc(2:i1,2:j1,1:k1,iaer)
+       end if
+    enddo
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
@@ -685,15 +1605,37 @@ module modbulkmicro
         wvar(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
       enddo
+
       if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
         write(6,*)'sed qr too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
       end if
+
       do j=2,j1
       do i=2,i1
-        Nr_spl(i,j,k) = Nr_spl(i,j,k) + &
-                (sed_Nr(i,j,k+1) - sed_Nr(i,j,k))*dt_spl/dzf(k)
-        qr_spl(i,j,k) = qr_spl(i,j,k) + &
-                (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+        
+        Nr_spl(i,j,k) = Nr_spl(i,j,k) + (sed_Nr(i,j,k+1) - sed_Nr(i,j,k))*dt_spl/dzf(k)
+
+        do ispec = 1,nspec-1
+           aer_in  = 0.
+           aer_out = 0.     
+     
+           if (qr_spl(i,j,k+1) > 0.) then
+              aer_in  = min(rhof(k+1)*dzf(k+1)/dt_spl      *aer_spl(i,j,k+1,ispec), &
+                            sed_qr(i,j,k+1)/qr_spl(i,j,k+1)*aer_spl(i,j,k+1,ispec))
+           endif
+           if (qr_spl(i,j,k  ) > 0.) then
+              aer_out = min(rhof(k  )*dzf(k  )/dt_spl      *aer_spl(i,j,k  ,ispec), &
+                            sed_qr(i,j,k  )/qr_spl(i,j,k  )*aer_spl(i,j,k  ,ispec))
+           endif
+           
+           aer_spl(i,j,k,ispec) = aer_spl(i,j,k,ispec) + (aer_in - aer_out)*dt_spl/(dzf(k)*rhof(k))
+           if (aer_spl(i,j,k,ispec) < 0.) then
+              write(6,"(A13, E11.4)") 'SEDIMENTATION', aer_in/(dt_spl/(dzf(k+1)*rhof(k+1))), aer_out/(dt_spl/(dzf(k)*rhof(k)))
+           end if          
+        enddo
+
+        qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
+
       enddo
       enddo
 
@@ -704,13 +1646,21 @@ module modbulkmicro
       enddo
       enddo
       endif
-
     end do  ! second k loop
-!
+
     enddo ! time splitting loop
 
-    Nrp(2:i1,2:j1,1:k1)= Nrp(2:i1,2:j1,1:k1) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/delt
-    qrp(2:i1,2:j1,1:k1)= qrp(2:i1,2:j1,1:k1) + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/delt
+    qrp     (2:i1,2:j1,1:k1)    =      qrp(2:i1,2:j1,1:k1)     + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/delt
+        
+    aer_tend(2:i1,2:j1,1:k1,inr)= aer_tend(2:i1,2:j1,1:k1,inr) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/delt
+    aer_sedr(2:i1,2:j1,1:k1,inr)=                                (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/delt           
+
+    do iaer = 1,naer    
+       if (nmod_type(iaer) == 9 .and. nspec_type(iaer) > 1) then
+          aer_tend(2:i1,2:j1,1:k1,iaer)= aer_tend(2:i1,2:j1,1:k1,iaer) + (aer_spl(2:i1,2:j1,1:k1,nspec_type(iaer)-1) - aer_conc(2:i1,2:j1,1:k1,iaer))/delt
+          aer_sedr(2:i1,2:j1,1:k1,iaer)=                                 (aer_spl(2:i1,2:j1,1:k1,nspec_type(iaer)-1) - aer_conc(2:i1,2:j1,1:k1,iaer))/delt
+       endif
+    enddo
 
     deallocate (wvar, xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr)
   end subroutine sedimentation_rain
@@ -725,34 +1675,39 @@ module modbulkmicro
   !*********************************************************************
 
     use modglobal, only : ih,i1,jh,j1,k1,rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
+    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf,svm, svp
+
     implicit none
-    integer :: i,j,k
+    integer :: i, j, k, iaer, ispec, imod 
+    real    :: evapt, evapn, evapr, &
+               Dn, Dm, Dc, Fn, Fm, &
+               frac, corr 
+    real, parameter :: sigma = 1.5
+    real, dimension(nspec-1) :: evapm
+     
     real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)
     integer :: numel
 
-    allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
-              ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
-              ,G(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! cond/evap rate of a drop
-             )
+    allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! ventilation factor
+             ,S(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! super or undersaturation
+             ,G(2-ih:i1+ih,2-jh:j1+jh,k1) )   ! cond/evap rate of a drop
 
-    evap(2:i1,2:j1,1:k1) = 0.
+    evap(2:i1,2:j1,1:k1)  = 0.
     Nevap(2:i1,2:j1,1:k1) = 0.
 
     do j=2,j1
     do i=2,i1
     do k=1,k1
       if (qrmask(i,j,k)) then
-        S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-        G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-        G   (i,j,k) = 1./G(i,j,k)
+        S(i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+        G(i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+        G(i,j,k) = 1./G(i,j,k)
       endif
     enddo
     enddo
     enddo
 
-
-    if (l_sb ) then
+    if ( l_sb ) then
        do j=2,j1
        do i=2,i1
        do k=1,k1
@@ -760,10 +1715,10 @@ module modbulkmicro
            numel=nint(mur(i,j,k)*100.)
            F(i,j,k) = avf * mygamma21(numel)*Dvr(i,j,k) +  &
               bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
-              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
-                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
+              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
+                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
-                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
+                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) )
 ! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
             evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhof(k)
             Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhof(k)/xr(i,j,k)
@@ -790,7 +1745,7 @@ module modbulkmicro
     do i=2,i1
     do k=1,k1
        if (evap(i,j,k) < -svm(i,j,k,iqr)/delt .and. qrmask(i,j,k)) then
-          Nevap(i,j,k) = - svm(i,j,k,inr)/delt
+          Nevap(i,j,k) = - svm(i,j,k,inr+iaer_offset)/delt
           evap (i,j,k) = - svm(i,j,k,iqr)/delt
        endif
     enddo
@@ -800,13 +1755,111 @@ module modbulkmicro
     do j=2,j1
     do i=2,i1
     do k=1,k1
-    qrp(i,j,k) = qrp(i,j,k) + evap(i,j,k)
-    Nrp(i,j,k) = Nrp(i,j,k) + Nevap(i,j,k)
-    qtpmcr(i,j,k) = qtpmcr(i,j,k) -evap(i,j,k)
-    thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap(i,j,k)
-    enddo
-    enddo
-    enddo
+
+       !Apply tendencies for water and associated heat
+       qrp    (i,j,k) = qrp    (i,j,k) + evap(i,j,k)
+       qtpmcr (i,j,k) = qtpmcr (i,j,k) - evap(i,j,k)
+       thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap(i,j,k)
+
+       evapn = 0. 
+       evapm = 0.
+       evapr = 0.
+
+       do iaer = 1,naer
+
+          evapt = 0.      
+
+          imod  =  nmod_type(iaer)
+          ispec = nspec_type(iaer)                
+
+          if (imod == 9) then
+             ! Calculate the evaporated amount of aerosol
+             if ( qrmask(i,j,k) ) then
+                if ( ispec == 1 ) then
+                   evapt = -Nevap(i,j,k)  
+                else
+
+                ! Resuspended aerosol fraction =/= evaprated rain water
+                ! fraction, we apply a correction factor based on the work of
+                ! Gong et al., 2006
+                !
+                ! Resuspended fraction aerosol is based on the evaporated
+                ! fraction rainwater in the COMPLETE timestep, i.e. evap/qr*delt
+                ! Afterwards, when applying the correction factor, we divide 
+                ! by delt again to get the correct resuspension fraction per second.
+
+                   frac = min(-evap(i,j,k)/qr(i,j,k)*delt,1.)
+                   corr = (1. - exp(-2*sqrt(frac))*(1. + 2.*sqrt(frac) + 2.*frac + 4./3.*frac**(3./2.)) )*(1.-frac) + frac**2.
+                   evapt = corr*frac*aer_conc(i,j,k,iaer)/delt
+
+                endif !ispec
+             else
+                ! Remove trailing in-rain aerosol when there is no rain in gridbox
+                evapt = aer_conc(i,j,k,iaer)/delt
+             endif !qrmask      
+
+             evapt = min(evapt,max(0.,svm(i,j,k,iaer+iaer_offset)/delt + min(0.,svp(i,j,k,iaer+iaer_offset)) + min(0.,aer_tend(i,j,k,iaer))))   
+
+             ! Reduce source tracer, i.e. in-rain aerosol
+             aer_evpr(i,j,k,iaer) = - evapt    
+             aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) - evapt
+
+             ! Gather evaporated tracer values
+             if ( ispec == 1 ) then
+                evapn = max(0.,evapt)
+             else
+                evapm(ispec-1) = max(0.,evapt)
+             end if
+
+          endif !imod == 9, i.e. rain   
+       enddo !iaer
+
+       if ( SUM(evapm) > 0. ) then
+          ! Complete evaporated tracer value calculation
+          evapr = SUM(evapm) / SUM(evapm/spec_rho)
+
+          ! Calculate number/mass median diameter for evaporated aerosol
+          Dn = 1.e6 * ( (6.*SUM(evapm))/(pi*(evapn+eps0)*scalefac*evapr) )**(1./3.) * exp(-(3./2.)*log(sigma)**2.) !in micron
+          Dm = Dn * exp(3.*log(sigma)**2.)
+          Dc = 1. !Critical radius 0.5 micron, i.e. diameter 1 micron
+
+          ! Calculate partitioning accumulation/coarse aerosol mode
+          Fn = .5*erfc(- log(Dc/Dn)/( sqrt(2.)*log(sigma)) )
+          Fm = .5*erfc(- log(Dc/Dm)/( sqrt(2.)*log(sigma)) )
+
+          do iaer = 1,naer
+  
+             imod = nmod_type(iaer)
+             ispec = nspec_type(iaer)
+
+             if (imod == 3) then     !ACS mode
+  
+                if (ispec == 1) then !Number
+                   aer_evpr(i,j,k,iaer) =                        Fn*evapn
+                   aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + Fn*evapn
+                else                 !Mass
+                   aer_evpr(i,j,k,iaer) =                        Fm*evapm(ispec-1)
+                   aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + Fm*evapm(ispec-1)
+                endif !ispec
+
+             elseif (imod == 4) then !COS mode
+
+                if (ispec == 1) then !Number
+                   aer_evpr(i,j,k,iaer) =                        (1.-Fn)*evapn      
+                   aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + (1.-Fn)*evapn
+                else                 !Mass
+                   aer_evpr(i,j,k,iaer) =                        (1.-Fm)*evapm(ispec-1)      
+                   aer_tend(i,j,k,iaer) = aer_tend(i,j,k,iaer) + (1.-Fm)*evapm(ispec-1)
+                end if !ispec
+
+              endif !imod
+          enddo !iaer
+
+       end if !evapn > 0.
+
+    enddo !k
+    enddo !i
+    enddo !j
 
     deallocate (F,S,G)
 
@@ -960,12 +2013,107 @@ module modbulkmicro
       erfymax = -1.*erfymax
     end if
     erfint = D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin)
-  !  if (erfint < 0.) write(*,*)'erfint neg'
     if (erfint < 0.) erfint = 0.
   end function erfint
 
+  function binarysearch(length, array, value, delta)
+     ! Given an array and a value, returns the index of the element
+     ! that
+     ! is closest to, but less than, the given value.
+     ! Uses a binary search algorithm.
+     ! "delta" is the tolerance used to determine if two values are
+     ! equal
+     ! if ( abs(x1 - x2) <= delta) then
+     !    assume x1 = x2
+     ! endif
 
+     implicit none
+     integer, intent(in) :: length
+     real, dimension(length), intent(in) :: array
+     real, intent(in) :: value
+     real, intent(in), optional :: delta
 
+     integer :: binarysearch
+
+     integer :: left, middle, right
+     real :: d
+
+     if (present(delta) .eqv. .true.) then
+         d = delta
+     else
+         d = 1e-9
+     endif
+
+     left = 1
+     right = length
+     do
+         if (left > right) then
+             exit
+         endif
+         middle = nint((left+right) / 2.0)
+         if ( abs(array(middle) - value) <= d) then
+             binarySearch = middle
+             return
+         else if (array(middle) > value) then
+             right = middle - 1
+         else
+             left = middle + 1
+         end if
+     end do
+     binarysearch = right
+
+    end function binarysearch
+
+    real function lookup_interpolate(x_len, x_array, y_len, y_array, f, x, y, delta)
+        ! This function uses bilinear interpolation to estimate the
+        ! value of a function f at point (x,y)
+        ! f is assumed to be sampled on a regular grid, with the grid x
+        ! values specified by x_array and the grid y values specified by y_array
+        ! Reference: http://en.wikipedia.org/wiki/Bilinear_interpolation
+        implicit none
+        integer, intent(in) :: x_len, y_len
+        real, dimension(x_len), intent(in) :: x_array
+        real, dimension(y_len), intent(in) :: y_array
+        real, dimension(x_len, y_len), intent(in) :: f
+        real, intent(in) :: x,y
+        real, intent(in), optional :: delta
+
+        real :: denom, x1, x2, y1, y2
+        integer :: i,j
+
+        i = binarysearch(x_len, x_array, x)
+        j = binarysearch(y_len, y_array, y)
+
+        x1 = x_array(i)
+        x2 = x_array(i+1)
+
+        y1 = y_array(j)
+        y2 = y_array(j+1)
+
+        denom = (x2 - x1)*(y2 - y1)
+
+        lookup_interpolate = (f(i,j)*(x2-x)*(y2-y) + f(i+1,j)*(x-x1)*(y2-y) + &
+            f(i,j+1)*(x2-x)*(y-y1) + f(i+1, j+1)*(x-x1)*(y-y1))/denom
+
+    end function lookup_interpolate
+
+    real function xinverfc(x)
+        ! This function calculates the value of the 
+        ! inverse complementary errorfunction using the 
+        ! MKL library defined function vserfcinv designed for arrays
+        
+        implicit none
+        include 'mkl_vml.f90'
+        integer, parameter :: n=1
+        real, intent(in)   :: x
+        real a(1),v(1)
+        
+        a(1) = x        
+        call vderfcinv(n, a, v)
+        xinverfc = v(1)        
+
+    end function xinverfc
+ 
 end module modbulkmicro
 
 

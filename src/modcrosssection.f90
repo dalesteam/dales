@@ -324,7 +324,7 @@ contains
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modmicrodata, only : iqr,inr
+    use modmicrodata, only : iqr,inr,iaer_offset
     implicit none
 
 
@@ -408,7 +408,7 @@ contains
       vars(:,:,8) = buoy(2:i1,2:j1,cross)
       if(nsv>1) then
       vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
-      vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
+      vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr+iaer_offset)
       else
       vars(:,:,9) = 0.
       vars(:,:,10) = 0.
