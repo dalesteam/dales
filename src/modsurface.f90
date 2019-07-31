@@ -693,7 +693,7 @@ contains
   subroutine surface
     use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
 
@@ -1019,7 +1019,7 @@ contains
     end if
 
     ! Transfer ustar to neighbouring cells
-    call excj( ustar  , 1, i2, 1, j2, 1,1)
+    call excjs(ustar,2,i1,2,j1,1,1,1,1)
 
     return
 
@@ -1095,7 +1095,7 @@ contains
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
-    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,excj,mpi_integer
+    use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
     implicit none
 
     integer             :: i,j,iter,patchx,patchy
