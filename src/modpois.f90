@@ -118,8 +118,8 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step, i1,j1,kmax,k1, dx,dy,dzf,rdt
-    use modmpi,    only : excj
+    use modglobal, only : rk3step,i1,j1,ih,jh,kmax,k1,dx,dy,dzf,rdt
+    use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
@@ -145,7 +145,7 @@ contains
   !****************************************************************
 
   !     Fill the right hand for the poisson solver.
-  !     Call excj to set the values in the halo zone.
+  !     Call excjs to set the values in the halo zone.
   !     Also we take wp(i,j,1) and wp(i,j,k1) equal to zero.
 
   !**************************************************************
@@ -157,9 +157,9 @@ contains
       end do
     end do
 
-    call excj( pup, 2-1, i1+1, 2-1, j1+1, 1, k1 )
-    call excj( pvp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
- !   call excj( pwp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+    call excjs(pup,2,i1,2,j1,1,k1,ih,jh)
+    call excjs(pvp,2,i1,2,j1,1,k1,ih,jh)
+!    call excjs(pwp,2,i1,2,j1,1,k1,ih,jh)
 
     do k=1,kmax
       do j=2,j1
@@ -338,9 +338,9 @@ contains
     implicit none
     integer i,j,k
 
-  ! **  Cyclic boundary conditions **************
-  ! **  set by the commcart communication in excj
-  call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  ! **  Cyclic boundary conditions ***************
+  ! **  set by the commcart communication in excjs
+  call excjs(p,2,i1,2,j1,1,kmax,ih,jh)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
