@@ -212,8 +212,8 @@ contains
   allocate(recvn(nssize),recvs(nssize))
   allocate(recve(ewsize),recvw(ewsize))
 
-!   Send north/south
   if(nprocy .gt. 1)then
+    !   Send north/south
     ii = 0
     do j=1,jh
     do k=sz,ez
@@ -224,28 +224,11 @@ contains
     enddo
     enddo
     enddo
+
     call MPI_ISEND(sendn, nssize, MY_REAL, nbrnorth, 4, comm3d, reqn, mpierr)
     call MPI_ISEND(sends, nssize, MY_REAL, nbrsouth, 5, comm3d, reqs, mpierr)
-  endif
 
-!   Send east/west
-  if(nprocx .gt. 1)then
-    ii = 0
-    do i=1,ih
-    do k=sz,ez
-    do j=sy-jh,ey+jh
-      ii = ii + 1
-      sende(ii) = a(ex-i+1,j,k)
-      sendw(ii) = a(sx+i-1,j,k)
-    enddo
-    enddo
-    enddo
-    call MPI_ISEND(sende, ewsize, MY_REAL, nbreast, 6, comm3d, reqe, mpierr)
-    call MPI_ISEND(sendw, ewsize, MY_REAL, nbrwest, 7, comm3d, reqw, mpierr)
-  endif
-
-!   Receive south/north
-  if(nprocy .gt. 1)then
+    !   Receive south/north
     call MPI_RECV(recvs, nssize, MY_REAL, nbrsouth, 4, comm3d, status, mpierr)
     call MPI_RECV(recvn, nssize, MY_REAL, nbrnorth, 5, comm3d, status, mpierr)
 
@@ -260,7 +243,7 @@ contains
     enddo
     enddo
   else
-! Single processor, make sure the field is periodic
+    ! Single processor, make sure the field is periodic
     do j=1,jh
     do k=sz,ez
     do i=sx-ih,ex+ih
@@ -271,8 +254,23 @@ contains
     enddo
   endif
 
-!   Receive west/east
   if(nprocx .gt. 1)then
+    !   Send east/west
+    ii = 0
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      sende(ii) = a(ex-i+1,j,k)
+      sendw(ii) = a(sx+i-1,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_ISEND(sende, ewsize, MY_REAL, nbreast, 6, comm3d, reqe, mpierr)
+    call MPI_ISEND(sendw, ewsize, MY_REAL, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
     call MPI_RECV(recvw, ewsize, MY_REAL, nbrwest, 6, comm3d, status, mpierr)
     call MPI_RECV(recve, ewsize, MY_REAL, nbreast, 7, comm3d, status, mpierr)
 
@@ -287,7 +285,7 @@ contains
     enddo
     enddo
   else
-! Single processor, make sure the field is periodic
+    ! Single processor, make sure the field is periodic
     do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
@@ -302,6 +300,7 @@ contains
     call MPI_WAIT(reqe, status, mpierr)
     call MPI_WAIT(reqw, status, mpierr)
   endif
+
   if(nprocy.gt.1)then
     call MPI_WAIT(reqn, status, mpierr)
     call MPI_WAIT(reqs, status, mpierr)
