@@ -118,7 +118,7 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step,i1,j1,ih,jh,kmax,k1,dx,dy,dzf,rdt
+    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
@@ -157,9 +157,10 @@ contains
       end do
     end do
 
-    call excjs(pup,2,i1,2,j1,1,k1,ih,jh)
-    call excjs(pvp,2,i1,2,j1,1,k1,ih,jh)
-!    call excjs(pwp,2,i1,2,j1,1,k1,ih,jh)
+    call excjs(pup,2,i1,2,j1,1,k1,1,1)
+    call excjs(pvp,2,i1,2,j1,1,k1,1,1)
+    ! call excjs(pwp,2,i1,2,j1,1,k1,ih,jh)
+    ! note pup, pvp, pwp are declared with only 1 layer of halo cells, not ih, jh
 
     do k=1,kmax
       do j=2,j1
