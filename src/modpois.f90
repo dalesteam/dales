@@ -160,11 +160,12 @@ contains
 
     ! Remember the hardcoded 1 point halo size
     ! ih==jh==1
-    call excjs(pup,2,i1,2,j1,1,k1,1,1)
-    call excjs(pvp,2,i1,2,j1,1,k1,1,1)
+    ! Also, we only need half the halo, no full exchange
+    call excjs(pup,2,i1,2,j1,1,k1,1,1,.false.)
+    call excjs(pvp,2,i1,2,j1,1,k1,1,1,.false.)
 
     ! Not used on the halo, so no need to exchange
-    ! call excjs(pwp,2,i1,2,j1,1,k1,1,1)
+    ! call excjs(pwp,2,i1,2,j1,1,k1,1,1,.false.)
 
     do k=1,kmax
       do j=2,j1
@@ -345,7 +346,7 @@ contains
 
   ! **  Cyclic boundary conditions ***************
   ! **  set by the commcart communication in excjs
-  call excjs(p,2,i1,2,j1,1,kmax,ih,jh)
+  call excjs(p,2,i1,2,j1,1,kmax,ih,jh,.true.)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****

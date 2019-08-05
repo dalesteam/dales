@@ -1019,7 +1019,7 @@ contains
     end if
 
     ! Transfer ustar to neighbouring cells
-    call excjs(ustar,2,i1,2,j1,1,1,1,1)
+    call excjs(ustar,2,i1,2,j1,1,1,1,1,.true.)
 
     return
 

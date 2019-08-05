@@ -331,8 +331,8 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
 
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.true.)
 
   do j=1,j2
     do i=1,i2

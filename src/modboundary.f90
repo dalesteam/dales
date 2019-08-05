@@ -98,14 +98,14 @@ contains
 
   integer n
 
-  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh,.true.)
 
   do n=1,nsv
-    call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
+    call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh,.true.)
   enddo
 
   return
@@ -118,14 +118,14 @@ contains
   use modfields, only : u0,um,v0,vm,w0,wm,e120,e12m
   use modmpi,    only : excjs
 
-  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( um  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( vm  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( wm  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( e12m  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( um  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( vm  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( wm  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( e12m  , 2,i1,2,j1,1,k1,ih,jh,.true.)
 
   return
   end subroutine cyclicm
