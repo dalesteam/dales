@@ -125,6 +125,7 @@ contains
     integer i,j,k
     real rk3coef
 
+    ! add a 1 point halo size (ie ih==jh==1)
     allocate(pup(2-1:i1+1,2-1:j1+1,k1))
     allocate(pvp(2-1:i1+1,2-1:j1+1,k1))
     allocate(pwp(2-1:i1+1,2-1:j1+1,k1))
@@ -157,9 +158,13 @@ contains
       end do
     end do
 
-    call excjs(pup,2,i1,2,j1,1,k1,ih,jh)
-    call excjs(pvp,2,i1,2,j1,1,k1,ih,jh)
-    call excjs(pwp,2,i1,2,j1,1,k1,ih,jh)
+    ! Remember the hardcoded 1 point halo size
+    ! ih==jh==1
+    call excjs(pup,2,i1,2,j1,1,k1,1,1)
+    call excjs(pvp,2,i1,2,j1,1,k1,1,1)
+
+    ! Not used on the halo, so no need to exchange
+    ! call excjs(pwp,2,i1,2,j1,1,k1,1,1)
 
     do k=1,kmax
       do j=2,j1
