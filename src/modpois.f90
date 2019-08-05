@@ -121,14 +121,16 @@ contains
     use modglobal, only : rk3step,i1,j1,ih,jh,kmax,k1,dx,dy,dzf,rdt
     use modmpi,    only : excjs
     implicit none
-    real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
+    real,allocatable,target :: stackpuvwp(:,:,:)
+    real,pointer :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
     real rk3coef
 
     ! add a 1 point halo size (ie ih==jh==1)
-    allocate(pup(2-1:i1+1,2-1:j1+1,k1))
-    allocate(pvp(2-1:i1+1,2-1:j1+1,k1))
-    allocate(pwp(2-1:i1+1,2-1:j1+1,k1))
+    allocate(stackpuvwp(2-1:i1+1,2-1:j1+1,3*k1))
+    pup => stackpuvwp(2-1:i1+1,2-1:j1+1,1:k1)
+    pvp => stackpuvwp(2-1:i1+1, 2-1:j1+1,k1:2*k1)
+    pwp => stackpuvwp(2-1:i1+1, 2-1:j1+1,2*k1:3*k1)
 
     rk3coef = rdt / (4. - dble(rk3step))
 
@@ -161,8 +163,9 @@ contains
     ! Remember the hardcoded 1 point halo size
     ! ih==jh==1
     ! Also, we only need half the halo, no full exchange
-    call excjs(pup,2,i1,2,j1,1,k1,1,1,.false.)
-    call excjs(pvp,2,i1,2,j1,1,k1,1,1,.false.)
+    ! call excjs(pup,2,i1,2,j1,1,k1,1,1,.false.)
+    ! call excjs(pvp,2,i1,2,j1,1,k1,1,1,.false.)
+    call excjs(stackpuvwp,2,i1,2,j1,1,2*k1,1,1,.false.)
 
     ! Not used on the halo, so no need to exchange
     ! call excjs(pwp,2,i1,2,j1,1,k1,1,1,.false.)
@@ -177,7 +180,7 @@ contains
       end do
     end do
 
-    deallocate( pup,pvp,pwp )
+    deallocate( pup,pvp,pwp, stackpuvwp )
 
   end subroutine fillps
 
