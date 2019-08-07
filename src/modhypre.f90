@@ -22,7 +22,7 @@ module modhypre
 
 implicit none
 private
-public :: inithypre
+public :: inithypre, exithypre
 save
 
   integer   mpi_comm_hypre
@@ -208,6 +208,14 @@ contains
     call HYPRE_StructMatrixPrint(matrixA, zero, ierr)
     write (*,*) 'inithypre - done'
 
+  end subroutine
+
+  subroutine exithypre
+    call HYPRE_StructGridDestroy(grid, ierr)
+    call HYPRE_StructStencilDestroy(stencil, ierr)
+    call HYPRE_StructMatrixDestroy(matrixA, ierr)
+    call HYPRE_StructVectorDestroy(vectorB, ierr)
+    call HYPRE_StructVectorDestroy(vectorX, ierr)
   end subroutine
 
 end module

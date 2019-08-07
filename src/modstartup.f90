@@ -64,6 +64,7 @@ contains
     use modsurface,        only : initsurface
     use modfields,         only : initfields
     use modpois,           only : initpois
+    use modhypre,          only : inithypre
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
@@ -256,6 +257,7 @@ contains
     call initsurface
     call initsubgrid
     call initpois
+    call inithypre
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call initmicrophysics
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
@@ -1047,6 +1049,7 @@ contains
     use modboundary,       only : exitboundary
     use modmicrophysics,   only : exitmicrophysics
     use modpois,           only : exitpois
+    use modhypre,          only : exithypre
     use modtimedep,        only : exittimedep
     use modradiation,      only : exitradiation
     use modsubgrid,        only : exitsubgrid
@@ -1059,6 +1062,7 @@ contains
     call exitsubgrid
     call exitradiation
     call exitpois
+    call exithypre
     call exitmicrophysics
     call exitboundary
     call exitfields
