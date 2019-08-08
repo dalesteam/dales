@@ -22,39 +22,51 @@ module modhypre
 
 implicit none
 private
-public :: inithypre, exithypre
+public :: inithypre, solve_hypre, exithypre
 save
 
   integer   mpi_comm_hypre
 
   integer   ierr
-  integer*8 grid
-  integer*8 stencil
-  integer*8 matrixA
+  integer*8 grid, stencil, solver
+  integer*8 matrixA, vectorX, vectorB ! Solve Ax = b
+  integer   ilower(3), iupper(3), periodic(3)
+  integer   maxiter, n_pre, n_post
+  real      tol
+
+  integer   solver_id, zero, one
+
+  data solver_id  / 0 /
+  data zero / 0 /
+  data one  / 1 /
 
 contains
   subroutine inithypre
     use mpi
     use modmpi, only : myidx, myidy, nprocx, nprocy
 
-    use modglobal, only : imax, jmax, kmax, dzf, dx, dy, &
+    use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, &
                           itot, jtot
 
+    use modfields, only : rhobf, rhobh
 
-    real      values(7*imax*jmax)
-    integer   ilower(3), iupper(3), periodic(3)
+    implicit none
+
+    ! NOTE: we assume kmax is larger than 7,
+    ! when we make the stencil entries
+    real      values(kmax*imax*jmax)
+    real      cx, cy, cz_down, cz_up, cc
+
     integer   offsets(3,7), stencil_indices(7)
-    integer   i, j, k, zero
-
-    data zero / 0 /
+    integer   i, j, k
 
     write (*,*) 'inithypre'
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD
 
     !-----------------------------------------------------------------------
-    !     1. Set up the grid.  Here we use only one part.  Each processor
-    !     describes the piece of the grid that it owns.
+    !     1. Set up the grid.
+    !        Each processor describes the piece of the grid that it owns.
     !-----------------------------------------------------------------------
 
     ! Set up the grid
@@ -120,7 +132,7 @@ contains
 
     call HYPRE_StructStencilCreate(3, 7, stencil, ierr)
     do i = 1, 7
-      call HYPRE_StructStencilSetElement(stencil, i-1, offsets(1,i), ierr) 
+      call HYPRE_StructStencilSetElement(stencil, i-1, offsets(1,i), ierr)
     enddo
 
     !-----------------------------------------------------------------------
@@ -132,6 +144,7 @@ contains
 
     !-----------------------------------------------------------------------
     !     4. Set the coefficients for the grid
+    !        Each processor describes the piece of the grid that it owns.
     !-----------------------------------------------------------------------
 
     stencil_indices(1) = 0
@@ -143,74 +156,176 @@ contains
     stencil_indices(7) = 6
 
     ! enter stencil values per horizontal slab
+    do k = 1,kmax
+      ilower(3) = k - 1
+      iupper(3) = k - 1
 
-    ! start with the non-boundary points
-    do k = 2,kmax-1
-      ilower(3) = k - 1 ! Fortran to C indexing
-      iupper(3) = k - 1 ! Fortran to C indexing
+      cx = rhobf(k)/(dx*dx)
+      cy = rhobf(k)/(dy*dy)
+
+      ! variable:   corresponds to:
+      !  cz_down       a(k)
+      !  cz_up         c(k)
+      !  cc            b(k)
+      if (k == 1) then
+        cz_down = 0.0 ! a(1) = 0
+        cz_up =   rhobh(k+1)/(dzf(k) * dzh(k+1))
+        cc = -(cz_up + 2.0 * (cx + cy))
+      else if (k == kmax) then
+        cz_down = rhobh(k  )/(dzf(k) * dzh(k  ))
+        cz_up =   .0  ! c(kmax) = 0
+      else
+        cz_down = rhobh(k  )/(dzf(k) * dzh(k  ))
+        cz_up =   rhobh(k+1)/(dzf(k) * dzh(k+1))
+      endif
+      cc = -(cz_down + cz_up + 2.0 * (cx + cy))
+
       do i = 1, imax*jmax*7, 7
-        values(i+0) = -1.0 / (dx * dx) ! west
-        values(i+1) = -1.0 / (dx * dx) ! east
-
-        values(i+2) = -1.0 / (dy * dy) ! south
-        values(i+3) = -1.0 / (dy * dy) ! north 
-
-        ! TODO: grid spacing in the vertical. should this be:
-        ! a) the full level thickness at level k
-        ! b) the distance to the next center of the cell dzf
-        ! let's start with (a) 
-        values(i+4) = -1.0  /(dzf(k) * dzf(k)) ! below
-        values(i+5) = -1.0  /(dzf(k) * dzf(k)) ! above
-
-        ! NOTE: becuase we sum the values(), we have an extra minus sign
-        values(i+6) = -2.0 * (values(i+0) + values(i+1) + values(i+2)) ! center
+        values(i+0) = cx ! west
+        values(i+1) = cx ! east
+        values(i+2) = cy ! south
+        values(i+3) = cy ! north
+        values(i+4) = cz_down ! below
+        values(i+5) = cz_up ! above
+        values(i+6) = cc ! center
       enddo
 
       call HYPRE_StructMatrixSetBoxValues(matrixA, &
-           ilower(1), iupper(1), 7, stencil_indices, values, ierr)
+           ilower, iupper, 7, stencil_indices, values, ierr)
     enddo
-
-    ! wipe out stencil values outside of domain
-    ! bottom
-    ilower(3) = 0
-    iupper(3) = 0
-    do i = 1, imax*jmax*7, 7
-      values(i+0) = -1.0 / (dx * dx) ! west
-      values(i+1) = -1.0 / (dx * dx) ! east
-      values(i+2) = -1.0 / (dy * dy) ! south
-      values(i+3) = -1.0 / (dy * dy) ! north 
-      values(i+4) = 0 ! below
-      values(i+5) = -1.0  /(dzf(1) * dzf(1)) ! above
-      values(i+6) = -4.0 * (values(i+0) + values(i+1) + values(i+2)) ! center
-    enddo
-
-    call HYPRE_StructMatrixSetBoxValues(matrixA, &
-         ilower(1), iupper(1), 7, stencil_indices, values, ierr)
-
-    ! top
-    ilower(3) = kmax - 1
-    iupper(3) = kmax - 1
-    do i = 1, imax*jmax*7, 7
-      values(i+0) = -1.0 / (dx * dx) ! west
-      values(i+1) = -1.0 / (dx * dx) ! east
-      values(i+2) = -1.0 / (dy * dy) ! south
-      values(i+3) = -1.0 / (dy * dy) ! north 
-      values(i+4) = -1.0  /(dzf(kmax) * dzf(kmax)) ! below
-      values(i+5) = 0 ! above
-      values(i+6) = -4.0 * (values(i+0) + values(i+1) + values(i+2)) ! center
-    enddo
-
-    call HYPRE_StructMatrixSetBoxValues(matrixA, &
-         ilower(1), iupper(1), 7, stencil_indices, values, ierr)
-
 
     call HYPRE_StructMatrixAssemble(matrixA, ierr)
     call HYPRE_StructMatrixPrint(matrixA, zero, ierr)
-    write (*,*) 'inithypre - done'
 
+    !-----------------------------------------------------------------------
+    !     5. Set up the rhs and initial guess
+    !        Each processor describes the piece of the grid that it owns.
+    !-----------------------------------------------------------------------
+
+    call HYPRE_StructVectorCreate(mpi_comm_hypre, grid, vectorB, ierr)
+    call HYPRE_StructVectorCreate(mpi_comm_hypre, grid, vectorX, ierr)
+
+    call HYPRE_StructVectorInitialize(vectorB, ierr)
+    call HYPRE_StructVectorInitialize(vectorX, ierr)
+
+    ! initialize some values as starting point for the iterative solver
+    do i=1,imax*jmax
+        values(i) = 1e-5
+    enddo
+    do k=1,kmax
+      ilower(3) = k - 1
+      iupper(3) = k - 1
+      call HYPRE_StructVectorSetBoxValues(vectorX, ilower, iupper, values, ierr)
+    enddo
+    call HYPRE_StructVectorAssemble(vectorX, ierr)
+
+    !-----------------------------------------------------------------------
+    !     5. Choose a solver and initialize it
+    !-----------------------------------------------------------------------
+
+    if (solver_id .eq. 0) then
+      ! Solve the system using SMG
+      maxiter = 50
+      tol = 1e-9
+      n_pre = 1
+      n_post = 1
+
+      call HYPRE_StructSMGCreate(mpi_comm_hypre, solver, ierr)
+      call HYPRE_StructSMGSetMemoryUse(solver, zero, ierr)
+      call HYPRE_StructSMGSetMaxIter(solver, maxiter, ierr)
+      call HYPRE_StructSMGSetTol(solver, tol, ierr)
+      call HYPRE_StructSMGSetRelChange(solver, zero, ierr)
+      call HYPRE_StructSMGSetNumPreRelax(solver, n_pre, ierr)
+      call HYPRE_StructSMGSetNumPostRelax(solver, n_post, ierr)
+      call HYPRE_StructSMGSetPrintLevel(solver, one, ierr)
+      call HYPRE_StructSMGSetLogging(solver, one, ierr)
+      call HYPRE_StructSMGSetup(solver, matrixA, vectorB, vectorX, ierr)
+      write (*,*) 'Selected solver 1 (SMG) with parameters:', maxiter, tol, n_pre, n_post
+    else
+      write (*,*) 'Invalid solver in inithypre', solver
+      call exit(-1)
+    endif
+
+    write (*,*) 'inithypre - done'
+  end subroutine
+
+  subroutine solve_hypre
+    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax
+    use modpois, only : p
+
+    implicit none
+
+    ! real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real values(imax,jmax)
+
+    real final_res_norm
+    integer i,j,k, num_iterations
+    real totalsum
+
+    !-----------------------------------------------------------------------
+    !     1. Set up the rhs
+    !-----------------------------------------------------------------------
+    do k=1,kmax
+      do j=1,jmax
+        do i=1,imax
+          values(i,j) = p(i+1,j+1,k)
+        enddo
+      enddo
+
+      ilower(3) = k - 1
+      iupper(3) = k - 1
+      call HYPRE_StructVectorSetBoxValues(vectorB, ilower, iupper, values, ierr)
+    enddo
+    call HYPRE_StructVectorAssemble(vectorB, ierr)
+
+    ! use current values (ie. the solution to the previous call) as starting point
+    !do j=1,jmax
+    !  do i=1,imax
+    !    values(i,j) = 1e-5
+    !  enddo
+    !enddo
+    !do k=1,kmax
+    !  ilower(3) = k - 1
+    !  iupper(3) = k - 1
+    !  call HYPRE_StructVectorSetBoxValues(vectorX, ilower, iupper, values, ierr)
+    !enddo
+    !call HYPRE_StructVectorAssemble(vectorX, ierr)
+
+    !-----------------------------------------------------------------------
+    !     2. Call a solver
+    !-----------------------------------------------------------------------
+
+    if (solver_id .eq. 0) then
+      ! Solve the system using SMG
+      call HYPRE_StructSMGSolve(solver, matrixA, vectorB, vectorX, ierr)
+      write (*,*) 'HYPRE solver status (ierr)', ierr
+
+      call HYPRE_StructSMGGetNumIterations(solver, num_iterations, ierr)
+      call HYPRE_StructSMGGetFinalRelative(solver, final_res_norm, ierr)
+
+      write (*,*) 'HYPRE Number of iterations / max iteration', num_iterations, maxiter
+      write (*,*) 'HYPRE Final residual norm / target', final_res_norm, tol
+    endif
+
+    !-----------------------------------------------------------------------
+    !     3. Copy solution
+    !-----------------------------------------------------------------------
+
+    do k=1,kmax
+      ilower(3) = k - 1
+      iupper(3) = k - 1
+      call HYPRE_StructVectorGetBoxValues(vectorX, ilower, iupper, values, ierr)
+
+      do j=1,jmax
+        do i=1,imax
+          p(i+1,j+1,k) = values(i,j)
+        enddo
+      enddo
+    enddo
   end subroutine
 
   subroutine exithypre
+    call HYPRE_StructSMGDestroy(solver, ierr)
     call HYPRE_StructGridDestroy(grid, ierr)
     call HYPRE_StructStencilDestroy(stencil, ierr)
     call HYPRE_StructMatrixDestroy(matrixA, ierr)
