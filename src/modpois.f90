@@ -92,10 +92,12 @@ contains
   end subroutine initpois
 
   subroutine poisson
+    use modhypre, only : solve_hypre
     implicit none
 
     call fillps
-    call solmpj
+    call solve_hypre
+    ! call solmpj
     call tderive
 
   end subroutine poisson
