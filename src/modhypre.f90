@@ -43,7 +43,7 @@ save
 contains
   subroutine inithypre
     use mpi
-    use modmpi, only : myidx, myidy, nprocx, nprocy
+    use modmpi, only : myid, myidx, myidy, nprocx, nprocy
 
     use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, &
                           itot, jtot
@@ -60,7 +60,6 @@ contains
     integer   offsets(3,7), stencil_indices(7)
     integer   i, j, k
 
-    write (*,*) 'inithypre'
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD
 
@@ -72,8 +71,8 @@ contains
     ! Set up the grid
     call HYPRE_StructGridCreate(mpi_comm_hypre, 3, grid, ierr)
 
-    ilower(1) = myidx * nprocx
-    ilower(2) = myidy * nprocy
+    ilower(1) = myidx * imax
+    ilower(2) = myidy * jmax
     ilower(3) = 0
 
     iupper(1) = ilower(1) + imax - 1
@@ -88,6 +87,8 @@ contains
 
     ! This is a collective call finalizing the grid assembly
     call HYPRE_StructGridAssemble(grid, ierr)
+
+    write (*,*) 'HYPRE Setup grid: myid, ilower, iupper', myid, ilower, iupper
 
     !-----------------------------------------------------------------------
     !     2. Define the discretization stencil
@@ -250,6 +251,7 @@ contains
   end subroutine
 
   subroutine solve_hypre
+    use modmpi, only : myid
     use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax
     use modpois, only : p
 
@@ -298,13 +300,17 @@ contains
     if (solver_id .eq. 0) then
       ! Solve the system using SMG
       call HYPRE_StructSMGSolve(solver, matrixA, vectorB, vectorX, ierr)
-      write (*,*) 'HYPRE solver status (ierr)', ierr
+      if (myid == 0) then
+        write (*,*) 'HYPRE solver status (ierr)', ierr
+      endif
 
       call HYPRE_StructSMGGetNumIterations(solver, num_iterations, ierr)
       call HYPRE_StructSMGGetFinalRelative(solver, final_res_norm, ierr)
 
-      write (*,*) 'HYPRE Number of iterations / max iteration', num_iterations, maxiter
-      write (*,*) 'HYPRE Final residual norm / target', final_res_norm, tol
+      if (myid == 0) then
+        write (*,*) 'HYPRE Number of iterations / max iteration', num_iterations, maxiter
+        write (*,*) 'HYPRE Final residual norm / target', final_res_norm, tol
+      endif
     endif
 
     !-----------------------------------------------------------------------
