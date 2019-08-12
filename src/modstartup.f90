@@ -58,13 +58,13 @@ contains
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
+                                  solver_id, maxiter, tolerance, n_pre, n_post
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
     use modfields,         only : initfields
     use modpois,           only : initpois
-    use modhypre,          only : inithypre
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
@@ -99,6 +99,8 @@ contains
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+    namelist/SOLVER/ &
+        solver_id, maxiter, tolerance, n_pre, n_post
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -146,6 +148,14 @@ contains
         stop 'ERROR: Problem in namoptions DYNAMICS'
       endif
       write(6 ,DYNAMICS)
+      rewind(ifnamopt)
+      read (ifnamopt,SOLVER,iostat=ierr)
+      if (ierr > 0) then
+        print *, 'Problem in namoptions SOLVER'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions SOLVER'
+      endif
+      write(6 ,SOLVER)
       close(ifnamopt)
     end if
 
@@ -242,6 +252,12 @@ contains
 
     call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
 
+    call MPI_BCAST(solver_id,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(maxiter,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(n_pre,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(n_post,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
+    call MPI_BCAST(tolerance,1,MY_REAL,0,MPI_COMM_WORLD,mpierr)
+
     ! Initialize MPI
     call initmpi
 
@@ -256,11 +272,10 @@ contains
     call initradiation
     call initsurface
     call initsubgrid
-    call initpois
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
+    call initpois ! hypre solver needs grid and baseprofiles
     call initmicrophysics
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
-    call inithypre
 
     call checkinitvalues
 

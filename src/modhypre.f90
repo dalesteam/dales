@@ -31,12 +31,8 @@ save
   integer*8 grid, stencil, solver
   integer*8 matrixA, vectorX, vectorB ! Solve Ax = b
   integer   ilower(3), iupper(3), periodic(3)
-  integer   maxiter, n_pre, n_post
-  real      tol
 
-  integer   solver_id, zero, one
-
-  data solver_id  / 0 /
+  integer   zero, one
   data zero / 0 /
   data one  / 1 /
 
@@ -44,9 +40,8 @@ contains
   subroutine inithypre
     use mpi
     use modmpi, only : myid, myidx, myidy, nprocx, nprocy
-
-    use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, &
-                          itot, jtot
+    use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, itot, jtot, &
+      solver_id, maxiter, n_pre, n_post, tolerance
 
     use modfields, only : rhobf, rhobh
 
@@ -88,7 +83,7 @@ contains
     ! This is a collective call finalizing the grid assembly
     call HYPRE_StructGridAssemble(grid, ierr)
 
-    write (*,*) 'HYPRE Setup grid: myid, ilower, iupper', myid, ilower, iupper
+    WRITE (*,*) 'HYPRE Setup grid: myid, ilower, iupper', myid, ilower, iupper
 
     !-----------------------------------------------------------------------
     !     2. Define the discretization stencil
@@ -211,7 +206,7 @@ contains
 
     ! initialize some values as starting point for the iterative solver
     do i=1,imax*jmax
-        values(i) = 1e-5
+        values(i) = 0.0
     enddo
     do k=1,kmax
       ilower(3) = k - 1
@@ -224,40 +219,31 @@ contains
     !     5. Choose a solver and initialize it
     !-----------------------------------------------------------------------
 
-    if (solver_id .eq. 0) then
+    if (solver_id == 1) then
       ! Solve the system using SMG
-      maxiter = 50
-      tol = 1e-9
-      n_pre = 1
-      n_post = 1
-
+      write (*,*) 'Selected solver 1 (SMG) with parameters:', maxiter, tolerance, n_pre, n_post
       call HYPRE_StructSMGCreate(mpi_comm_hypre, solver, ierr)
       call HYPRE_StructSMGSetMemoryUse(solver, zero, ierr)
       call HYPRE_StructSMGSetMaxIter(solver, maxiter, ierr)
-      call HYPRE_StructSMGSetTol(solver, tol, ierr)
+      call HYPRE_StructSMGSetTol(solver, tolerance, ierr)
       call HYPRE_StructSMGSetRelChange(solver, zero, ierr)
       call HYPRE_StructSMGSetNumPreRelax(solver, n_pre, ierr)
       call HYPRE_StructSMGSetNumPostRelax(solver, n_post, ierr)
-      call HYPRE_StructSMGSetPrintLevel(solver, one, ierr)
       call HYPRE_StructSMGSetLogging(solver, one, ierr)
       call HYPRE_StructSMGSetup(solver, matrixA, vectorB, vectorX, ierr)
-      write (*,*) 'Selected solver 1 (SMG) with parameters:', maxiter, tol, n_pre, n_post
     else
       write (*,*) 'Invalid solver in inithypre', solver
       call exit(-1)
     endif
-
-    write (*,*) 'inithypre - done'
   end subroutine
 
-  subroutine solve_hypre
+  subroutine solve_hypre(p)
     use modmpi, only : myid
-    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax
-    use modpois, only : p
+    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax, solver_id
 
     implicit none
 
-    ! real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
     real values(imax,jmax)
 
     real final_res_norm
@@ -297,20 +283,23 @@ contains
     !     2. Call a solver
     !-----------------------------------------------------------------------
 
-    if (solver_id .eq. 0) then
+    if (solver_id == 1) then
       ! Solve the system using SMG
       call HYPRE_StructSMGSolve(solver, matrixA, vectorB, vectorX, ierr)
-      if (myid == 0) then
+      if (ierr /= 0) then
         write (*,*) 'HYPRE solver status (ierr)', ierr
+        call exit(-1)
       endif
 
       call HYPRE_StructSMGGetNumIterations(solver, num_iterations, ierr)
       call HYPRE_StructSMGGetFinalRelative(solver, final_res_norm, ierr)
 
       if (myid == 0) then
-        write (*,*) 'HYPRE Number of iterations / max iteration', num_iterations, maxiter
-        write (*,*) 'HYPRE Final residual norm / target', final_res_norm, tol
+        write (*,*) 'HYPRE Iterations, residual norm', num_iterations, final_res_norm
       endif
+    else
+      write (*,*) 'Invalid solver in solve_hypre'
+      call exit(-1)
     endif
 
     !-----------------------------------------------------------------------
