@@ -28,7 +28,7 @@ save
   integer   mpi_comm_hypre
 
   integer   ierr
-  integer*8 grid, stencil, solver
+  integer*8 grid, stencil, solver, precond_solver
   integer*8 matrixA, vectorX, vectorB ! Solve Ax = b
   integer   ilower(3), iupper(3), periodic(3)
 
@@ -37,11 +37,49 @@ save
   data one  / 1 /
 
 contains
+  subroutine initprecond
+    ! Setup a preconditioner for the BiCGSTAB or GMRES solvers
+    use modglobal, only : precond, maxiter, n_pre, n_post
+
+    implicit none
+
+    ! The precond_id flags mean :
+    ! 0 - setup a smg preconditioner
+    ! 1 - setup a pfmg preconditioner
+    ! 8 - setup a ds preconditioner
+    ! 9 - dont setup a preconditioner
+    if (precond == 0) then
+      call HYPRE_StructSMGCreate(mpi_comm_hypre, precond_solver, ierr)
+      call HYPRE_StructSMGSetMemoryUse(precond_solver, zero, ierr)
+      call HYPRE_StructSMGSetMaxIter(precond_solver, maxiter, ierr)
+      call HYPRE_StructSMGSetNumPreRelax(precond_solver, n_pre, ierr)
+      call HYPRE_StructSMGSetNumPostRelax(precond_solver, n_post, ierr)
+      call HYPRE_StructSMGSetLogging(precond_solver, one, ierr)
+    else if (precond == 1) then
+      call HYPRE_StructPFMGCreate(mpi_comm_hypre, precond_solver, ierr)
+      call HYPRE_StructPFMGSetMaxIter(precond_solver, maxiter, ierr)
+      ! weighted Jacobi = 1; red-black GS = 2
+      call HYPRE_StructPFMGSetRelaxType(precond_solver, one, ierr)
+      call HYPRE_StructPFMGSetNumPreRelax(solver, n_pre, ierr)
+      call HYPRE_StructPFMGSetNumPostRelax(solver, n_post, ierr)
+      ! call HYPRE_StructPFMGSetDxyz(solver, dxyz, ierr)
+      call HYPRE_StructPFMGSetLogging(solver, one, ierr)
+    else if (precond == 8) then
+      precond_solver = 0
+    else if (precond == 9) then
+      precond_solver = 0
+    else
+      write (*,*) 'Invalid preconditioner in inithypre', precond
+      write (*,*) 'Possbile values are (0) SMG (1) PFMG (8) DS (9) None'
+      call exit(-1)
+    endif
+  end subroutine
+
   subroutine inithypre
     use mpi
     use modmpi, only : myid, myidx, myidy, nprocx, nprocy
     use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, itot, jtot, &
-      solver_id, maxiter, n_pre, n_post, tolerance
+      solver_id, maxiter, n_pre, n_post, tolerance, precond
 
     use modfields, only : rhobf, rhobh
 
@@ -206,7 +244,7 @@ contains
 
     ! initialize some values as starting point for the iterative solver
     do i=1,imax*jmax
-        values(i) = 0.0
+        values(i) = 1e-5
     enddo
     do k=1,kmax
       ilower(3) = k - 1
@@ -231,6 +269,52 @@ contains
       call HYPRE_StructSMGSetNumPostRelax(solver, n_post, ierr)
       call HYPRE_StructSMGSetLogging(solver, one, ierr)
       call HYPRE_StructSMGSetup(solver, matrixA, vectorB, vectorX, ierr)
+    else if (solver_id == 2) then
+      ! Solve the system using PFMG
+      write (*,*) 'Selected solver 2 (PFMG) with parameters:', maxiter, tolerance, n_pre, n_post, precond
+      call HYPRE_StructPFMGCreate(mpi_comm_hypre, solver, ierr)
+      call HYPRE_StructPFMGSetMaxIter(solver, maxiter, ierr)
+      call HYPRE_StructPFMGSetTol(solver, tolerance, ierr)
+      call HYPRE_StructPFMGSetRelChange(solver, zero, ierr)
+
+      ! weighted Jacobi = 1; red-black GS = 2
+      if (precond == 1 .or. precond == 2) then
+        call HYPRE_StructPFMGSetRelaxType(solver, precond, ierr)
+      else
+        write (*,*) 'Invalid preconditioner in inithypre', precond
+        write (*,*) 'Possbile values are (1) weighted jacobi (2) red-black GS'
+        call exit(-1)
+      endif
+
+      call HYPRE_StructPFMGSetNumPreRelax(solver, n_pre, ierr)
+      call HYPRE_StructPFMGSetNumPostRelax(solver, n_post, ierr)
+      ! call HYPRE_StructPFMGSetDxyz(solver, dxyz, ierr)
+
+      call HYPRE_StructPFMGSetLogging(solver, one, ierr)
+      call HYPRE_StructPFMGSetup(solver, matrixA, vectorB, vectorX, ierr)
+
+    else if (solver_id == 3) then
+      ! Solve the system using BiCGSTAB
+      write (*,*) 'Selected solver 3 (BiCGSTAB) with parameters:', maxiter, tolerance, n_pre, n_post, precond
+      call HYPRE_StructBiCGSTABCreate(mpi_comm_hypre, solver, ierr)
+      call HYPRE_StructBiCGSTABSetMaxIter(solver, maxiter, ierr)
+      call HYPRE_StructBiCGSTABSetTol(solver, tolerance, ierr)
+      call initprecond
+      call HYPRE_StructBiCGSTABSetPrecond(solver, precond, precond_solver, ierr)
+
+      call HYPRE_StructBiCGSTABSetLogging(solver, one, ierr)
+      call HYPRE_StructBiCGSTABSetup(solver, matrixA, vectorB, vectorX, ierr)
+
+    else if (solver_id == 4) then
+      ! Solve the system using GMRES
+      write (*,*) 'Selected solver 4 (GMRES) with parameters:', maxiter, tolerance, n_pre, n_post, precond
+      call HYPRE_StructGMRESCreate(mpi_comm_hypre, solver, ierr)
+      call HYPRE_StructGMRESSetTol(solver, tolerance, ierr)
+      call HYPRE_StructGMRESSetMaxIter(solver, maxiter, ierr)
+      call initprecond
+      call HYPRE_StructGMRESSetLogging(solver, one, ierr)
+      call HYPRE_StructGMRESSetup(solver, matrixA, vectorB, vectorX, ierr)
+
     else
       write (*,*) 'Invalid solver in inithypre', solver
       call exit(-1)
@@ -247,7 +331,7 @@ contains
     real values(imax,jmax)
 
     real final_res_norm
-    integer i,j,k, num_iterations
+    integer i,j,k, num_iterations, stat
     real totalsum
 
     !-----------------------------------------------------------------------
@@ -285,22 +369,50 @@ contains
 
     if (solver_id == 1) then
       ! Solve the system using SMG
-      call HYPRE_StructSMGSolve(solver, matrixA, vectorB, vectorX, ierr)
-      if (ierr /= 0) then
-        write (*,*) 'HYPRE solver status (ierr)', ierr
-        call exit(-1)
-      endif
-
+      call HYPRE_StructSMGSolve(solver, matrixA, vectorB, vectorX, stat)
       call HYPRE_StructSMGGetNumIterations(solver, num_iterations, ierr)
       call HYPRE_StructSMGGetFinalRelative(solver, final_res_norm, ierr)
 
-      if (myid == 0) then
-        write (*,*) 'HYPRE Iterations, residual norm', num_iterations, final_res_norm
-      endif
+    else if (solver_id == 2) then
+      ! Solve the system using PFMG
+      call HYPRE_StructPFMGSolve(solver, matrixA, vectorB, vectorX, stat)
+      call HYPRE_StructPFMGGetNumIteration(solver, num_iterations, ierr)
+      call HYPRE_StructPFMGGetFinalRelativ(solver, final_res_norm, ierr)
+
+    else if (solver_id == 3) then
+      ! Solve the system using BiCGSTAB
+      call HYPRE_StructBiCGSTABSolve(solver, matrixA, vectorB, vectorX, stat)
+      call HYPRE_StructBiCGSTABGetNumItera(solver, num_iterations, ierr)
+      call HYPRE_StructBiCGSTABGetFinalRel(solver, final_res_norm, ierr)
+
+    else if (solver_id == 4) then
+      ! Solve the system using GMRES
+      call HYPRE_StructGMRESSolve(solver, matrixA, vectorB, vectorX, stat)
+      call HYPRE_StructGMRESGetNumIteratio(solver, num_iterations, ierr)
+      call HYPRE_StructGMRESGetFinalRelati(solver, final_res_norm, ierr)
+
     else
+
       write (*,*) 'Invalid solver in solve_hypre'
       call exit(-1)
     endif
+
+    if (myid == 0) then
+      write (*,*) 'HYPRE Iterations, residual norm', num_iterations, final_res_norm
+    endif
+    if (stat /= 0) then
+      if (stat == 1) then
+        write (*,*) 'HYPRE solver status (ierr)', stat, 'generic error'
+      else if (stat == 2) then
+        write (*,*) 'HYPRE solver status (ierr)', stat, 'unable to allocate memory'
+      else if (stat == 4) then
+        write (*,*) 'HYPRE solver status (ierr)', stat, 'argument error'
+      else if (stat == 256) then
+        write (*,*) 'HYPRE solver status (ierr)', stat, 'method did not converge as expected'
+      endif
+      call exit(-1)
+    endif
+
 
     !-----------------------------------------------------------------------
     !     3. Copy solution
@@ -320,7 +432,33 @@ contains
   end subroutine
 
   subroutine exithypre
-    call HYPRE_StructSMGDestroy(solver, ierr)
+    use modglobal, only : solver_id, precond
+
+    implicit none
+
+    if (solver_id == 1) then
+      call HYPRE_StructSMGDestroy(solver, ierr)
+    else if (solver_id == 2) then
+      call HYPRE_StructPFMGDestroy(solver, ierr)
+    else if (solver_id == 3) then
+      if (precond == 0) then
+        call HYPRE_StructSMGDestroy(precond_solver, ierr)
+      else if (precond == 1) then
+        call HYPRE_StructPFMGDestroy(precond_solver, ierr)
+      endif
+      call HYPRE_StructBiCGSTABDestroy(solver, ierr)
+    else if (solver_id == 4) then
+      if (precond == 0) then
+        call HYPRE_StructSMGDestroy(precond_solver, ierr)
+      else if (precond == 1) then
+        call HYPRE_StructPFMGDestroy(precond_solver, ierr)
+      endif
+      call HYPRE_StructGMRESDestroy(solver, ierr)
+    else
+      write (*,*) 'Invalid solver in solve_hypre'
+      call exit(-1)
+    endif
+
     call HYPRE_StructGridDestroy(grid, ierr)
     call HYPRE_StructStencilDestroy(stencil, ierr)
     call HYPRE_StructMatrixDestroy(matrixA, ierr)

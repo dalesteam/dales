@@ -61,17 +61,28 @@ contains
 
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine poisson
+    use mpi
     use modglobal, only : solver_id
     use modhypre, only : solve_hypre
+    use modmpi, only : myid
 
     implicit none
 
+    real wtime
+
     call fillps
+
+    wtime = MPI_Wtime()
 
     if (solver_id == 0) then
       call solmpj
     else
       call solve_hypre(p)
+    endif
+
+    wtime = MPI_Wtime() - wtime
+    if (myid == 0) then
+      write (*,*) 'Time spend in poisson', wtime
     endif
 
     call tderive
