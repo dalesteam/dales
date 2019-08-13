@@ -155,6 +155,190 @@ contains
   return
   end subroutine barrou
 
+  subroutine excjs4(a1,a2,a3,a4,sx,ex,sy,ey,sz,ez,ih,jh,fullexc)
+  implicit none
+  integer sx, ex, sy, ey, sz, ez, ih, jh
+  real a1(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  real a2(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  real a3(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  real a4(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  logical fullexc
+  integer status(MPI_STATUS_SIZE)
+  integer ii, i, j, k
+  integer reqn, reqs, reqe, reqw
+  integer nssize, ewsize, bsize
+  real,allocatable, dimension(:) :: sendn,recvn
+  real,allocatable, dimension(:) :: sends,recvs
+  real,allocatable, dimension(:) :: sende,recve
+  real,allocatable, dimension(:) :: sendw,recvw
+
+!   Calculate buffer size
+  nssize = jh*(ex - sx + 1 + 2*ih)*(ez - sz + 1)*4
+  ewsize = ih*(ey - sy + 1 + 2*jh)*(ez - sz + 1)*4
+
+!   Allocate send / receive buffers
+  allocate(sendn(nssize),sends(nssize))
+  allocate(sende(ewsize),sendw(ewsize))
+
+  allocate(recvn(nssize),recvs(nssize))
+  allocate(recve(ewsize),recvw(ewsize))
+
+  if(nprocy .gt. 1)then
+    !   Send north/south
+    ii = 1
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      if (fullexc) then
+        sendn(ii+0) = a1(i,ey-j+1,k)
+        sendn(ii+1) = a2(i,ey-j+1,k)
+        sendn(ii+2) = a3(i,ey-j+1,k)
+        sendn(ii+3) = a4(i,ey-j+1,k)
+      endif
+      sends(ii+0) = a1(i,sy+j-1,k)
+      sends(ii+1) = a2(i,sy+j-1,k)
+      sends(ii+2) = a3(i,sy+j-1,k)
+      sends(ii+3) = a4(i,sy+j-1,k)
+      ii = ii + 4
+    enddo
+    enddo
+    enddo
+
+    if (fullexc) then
+      call MPI_ISEND(sendn, nssize, MY_REAL, nbrnorth, 4, comm3d, reqn, mpierr)
+    endif
+    call MPI_ISEND(sends, nssize, MY_REAL, nbrsouth, 5, comm3d, reqs, mpierr)
+
+    !   Receive south/north
+    if (fullexc) then
+      call MPI_RECV(recvs, nssize, MY_REAL, nbrsouth, 4, comm3d, status, mpierr)
+    endif
+    call MPI_RECV(recvn, nssize, MY_REAL, nbrnorth, 5, comm3d, status, mpierr)
+
+    ii = 1
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      if (fullexc) then
+        a1(i,sy-j,k) = recvs(ii+0)
+        a2(i,sy-j,k) = recvs(ii+1)
+        a3(i,sy-j,k) = recvs(ii+2)
+        a4(i,sy-j,k) = recvs(ii+3)
+      endif
+      a1(i,ey+j,k) = recvn(ii+0)
+      a2(i,ey+j,k) = recvn(ii+1)
+      a3(i,ey+j,k) = recvn(ii+2)
+      a4(i,ey+j,k) = recvn(ii+3)
+      ii = ii + 4
+    enddo
+    enddo
+    enddo
+  else
+    ! Single processor, make sure the field is periodic
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      a1(i,sy-j,k) = a1(i,ey-j+1,k)
+      a2(i,sy-j,k) = a2(i,ey-j+1,k)
+      a3(i,sy-j,k) = a3(i,ey-j+1,k)
+      a4(i,sy-j,k) = a4(i,ey-j+1,k)
+      a1(i,ey+j,k) = a1(i,sy+j-1,k)
+      a2(i,ey+j,k) = a2(i,sy+j-1,k)
+      a3(i,ey+j,k) = a3(i,sy+j-1,k)
+      a4(i,ey+j,k) = a4(i,sy+j-1,k)
+    enddo
+    enddo
+    enddo
+  endif
+
+  if(nprocx .gt. 1)then
+    !   Send east/west
+    ii = 1
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      if (fullexc) then
+        sende(ii+0) = a1(ex-i+1,j,k)
+        sende(ii+1) = a2(ex-i+1,j,k)
+        sende(ii+2) = a3(ex-i+1,j,k)
+        sende(ii+3) = a4(ex-i+1,j,k)
+      endif
+      sendw(ii+0) = a1(sx+i-1,j,k)
+      sendw(ii+1) = a2(sx+i-1,j,k)
+      sendw(ii+2) = a3(sx+i-1,j,k)
+      sendw(ii+3) = a4(sx+i-1,j,k)
+      ii = ii + 4
+    enddo
+    enddo
+    enddo
+
+    if (fullexc) then
+      call MPI_ISEND(sende, ewsize, MY_REAL, nbreast, 6, comm3d, reqe, mpierr)
+    endif
+    call MPI_ISEND(sendw, ewsize, MY_REAL, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
+    if (fullexc) then
+      call MPI_RECV(recvw, ewsize, MY_REAL, nbrwest, 6, comm3d, status, mpierr)
+    endif
+    call MPI_RECV(recve, ewsize, MY_REAL, nbreast, 7, comm3d, status, mpierr)
+
+    ii = 1
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      if (fullexc) then
+        a1(sx-i,j,k) = recvw(ii+0)
+        a2(sx-i,j,k) = recvw(ii+1)
+        a3(sx-i,j,k) = recvw(ii+2)
+        a4(sx-i,j,k) = recvw(ii+3)
+      endif
+      a1(ex+i,j,k) = recve(ii+0)
+      a2(ex+i,j,k) = recve(ii+1)
+      a3(ex+i,j,k) = recve(ii+2)
+      a4(ex+i,j,k) = recve(ii+3)
+      ii = ii + 4
+    enddo
+    enddo
+    enddo
+  else
+    ! Single processor, make sure the field is periodic
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      a1(sx-i,j,k) = a1(ex-i+1,j,k)
+      a2(sx-i,j,k) = a2(ex-i+1,j,k)
+      a3(sx-i,j,k) = a3(ex-i+1,j,k)
+      a4(sx-i,j,k) = a4(ex-i+1,j,k)
+      a1(ex+i,j,k) = a1(sx+i-1,j,k)
+      a2(ex+i,j,k) = a2(sx+i-1,j,k)
+      a3(ex+i,j,k) = a3(sx+i-1,j,k)
+      a4(ex+i,j,k) = a4(sx+i-1,j,k)
+    enddo
+    enddo
+    enddo
+  endif
+
+  if(nprocx.gt.1)then
+    if (fullexc) then
+      call MPI_WAIT(reqe, status, mpierr)
+    endif
+    call MPI_WAIT(reqw, status, mpierr)
+  endif
+
+  if(nprocy.gt.1)then
+    if (fullexc) then
+      call MPI_WAIT(reqn, status, mpierr)
+    endif
+    call MPI_WAIT(reqs, status, mpierr)
+  endif
+
+  deallocate (sendn, sends, sende, sendw)
+  deallocate (recvn, recvs, recve, recvw)
+
+  return
+  endsubroutine excjs4
+
   ! fullexc : logical
   !            .true.: exchange with all neighbors
   !            .false.: send only to south and west; ie. when calculating f(i) - f(i+1)
@@ -328,10 +512,10 @@ contains
 
     return
   end subroutine slabsum
-  
+
   subroutine mpi_get_time(val)
    real, intent(out) :: val
- 
+
    val = MPI_Wtime()
    call MPI_BCAST(val,1,MY_REAL   ,0,comm3d,mpierr)
 
