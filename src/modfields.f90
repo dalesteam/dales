@@ -30,20 +30,24 @@ save
 
   ! Prognostic variables
 
-  real, allocatable :: um(:,:,:)        !<   x-component of velocity at time step t-1
-  real, allocatable :: vm(:,:,:)        !<   y-component of velocity at time step t-1
-  real, allocatable :: wm(:,:,:)        !<   z-component of velocity at time step t-1
-  real, allocatable :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
-  real, allocatable :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
-  real, allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
-  real, allocatable :: u0(:,:,:)        !<   x-component of velocity at time step t
-  real, allocatable :: v0(:,:,:)        !<   y-component of velocity at time step t
-  real, allocatable :: w0(:,:,:)        !<   z-component of velocity at time step t
-  real, allocatable :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
+  real, target, allocatable :: stackmomentum(:,:,:)
+  real, pointer :: u0(:,:,:)        !<   x-component of velocity at time step t
+  real, pointer :: v0(:,:,:)        !<   y-component of velocity at time step t
+  real, pointer :: w0(:,:,:)        !<   z-component of velocity at time step t
+  real, pointer :: um(:,:,:)        !<   x-component of velocity at time step t-1
+  real, pointer :: vm(:,:,:)        !<   y-component of velocity at time step t-1
+  real, pointer :: wm(:,:,:)        !<   z-component of velocity at time step t-1
+  real, pointer :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
+  real, pointer :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
+
   real, allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
-  real, allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
-  real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
+
+  real, target, allocatable :: stackscalar(:,:,:)
+  real, pointer :: qt0(:,:,:)       !<   total specific humidity at time step t
+  real, pointer :: qtm(:,:,:)       !<   total specific humidity at time step t
+  real, pointer :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
+  real, pointer :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
 
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
@@ -139,24 +143,29 @@ contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
 
-    use modglobal, only : i1,ih,j1,jh,k1,nsv
+    use modglobal, only : i1,ih,j1,jh,k1,nsv,imax,jmax
     ! Allocation of prognostic variables
     implicit none
 
-    allocate(um(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e12m(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(u0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(v0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(w0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thl0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(stackmomentum(imax + 2 * ih, jmax + 2 * jh, k1 * 8))
+    u0(  2-ih:,2-jh:,1:) => stackmomentum(:,:,0*k1+1:1*k1)
+    v0(  2-ih:,2-jh:,1:) => stackmomentum(:,:,1*k1+1:2*k1)
+    w0(  2-ih:,2-jh:,1:) => stackmomentum(:,:,2*k1+1:3*k1)
+    um(  2-ih:,2-jh:,1:) => stackmomentum(:,:,3*k1+1:4*k1)
+    vm(  2-ih:,2-jh:,1:) => stackmomentum(:,:,4*k1+1:5*k1)
+    wm(  2-ih:,2-jh:,1:) => stackmomentum(:,:,5*k1+1:6*k1)
+    e120(2-ih:,2-jh:,1:) => stackmomentum(:,:,6*k1+1:7*k1)
+    e12m(2-ih:,2-jh:,1:) => stackmomentum(:,:,7*k1+1:8*k1)
+
     allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e120(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate(stackscalar(imax + 2 * ih, jmax + 2 * jh, k1 * 4))
+    qt0(2-ih:,2-jh:,1:)  => stackscalar(:,:,0*k1+1:1*k1)
+    qtm(2-ih:,2-jh:,1:)  => stackscalar(:,:,1*k1+1:2*k1)
+    thl0(2-ih:,2-jh:,1:) => stackscalar(:,:,2*k1+1:3*k1)
+    thlm(2-ih:,2-jh:,1:) => stackscalar(:,:,3*k1+1:4*k1)
+
     allocate(up(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(vp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(wp(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -273,7 +282,8 @@ subroutine initfields
 !> Deallocate the fields
   subroutine exitfields
   implicit none
-    deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
+    deallocate(thl0h,qt0h)
+    deallocate(stackscalar, stackmomentum)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)

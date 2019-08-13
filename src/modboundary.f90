@@ -93,12 +93,12 @@ contains
  subroutine cyclich
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv
-  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
-  use modmpi,    only : excjs, excjs4
+  use modfields, only : sv0,svm,stackscalar
+  use modmpi,    only : excjs
 
   integer n
 
-  call excjs4(thl0, qt0, thlm, qtm, 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs(stackscalar, 2,i1,2,j1,1,4*k1,ih,jh,.true.)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n), 2,i1,2,j1,1,k1,ih,jh,.true.)
@@ -112,11 +112,10 @@ contains
  subroutine cyclicm
 
   use modglobal, only : i1,ih,j1,jh,k1
-  use modfields, only : u0,um,v0,vm,w0,wm,e120,e12m
-  use modmpi,    only : excjs, excjs4
+  use modfields, only : stackmomentum
+  use modmpi,    only : excjs
 
-  call excjs4(u0,v0,w0,um,     2,i1,2,j1,1,k1,ih,jh,.true.)
-  call excjs4(vm,wm,e120,e12m, 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs(stackmomentum,2,i1,2,j1,1,8*k1,ih,jh,.true.)
 
   return
   end subroutine cyclicm
