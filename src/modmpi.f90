@@ -223,8 +223,8 @@ contains
     enddo
   else
     ! Single processor, make sure the field is periodic
-    do j=1,jh
     do k=sz,ez
+    do j=1,jh
     do i=sx-ih,ex+ih
       a(i,sy-j,k) = a(i,ey-j+1,k)
       a(i,ey+j,k) = a(i,sy+j-1,k)
@@ -273,9 +273,9 @@ contains
     enddo
   else
     ! Single processor, make sure the field is periodic
-    do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
+    do i=1,ih
       a(sx-i,j,k) = a(ex-i+1,j,k)
       a(ex+i,j,k) = a(sx+i-1,j,k)
     enddo
