@@ -1065,7 +1065,6 @@ contains
     use modboundary,       only : exitboundary
     use modmicrophysics,   only : exitmicrophysics
     use modpois,           only : exitpois
-    use modhypre,          only : exithypre
     use modtimedep,        only : exittimedep
     use modradiation,      only : exitradiation
     use modsubgrid,        only : exitsubgrid
@@ -1078,7 +1077,6 @@ contains
     call exitsubgrid
     call exitradiation
     call exitpois
-    call exithypre
     call exitmicrophysics
     call exitboundary
     call exitfields

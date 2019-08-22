@@ -110,10 +110,13 @@ contains
     real      values(kmax*imax*jmax)
     real      cx, cy, cz_down, cz_up, cc
 
+    ! integer   num_ghost(6)
     integer   offsets(3,7), stencil_indices(7)
     integer   i, j, k
 
     real wtime
+
+    ! data num_ghost / 3, 3, 3, 3, 0, 0 /
 
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD
@@ -196,6 +199,7 @@ contains
     !-----------------------------------------------------------------------
 
     call HYPRE_StructMatrixCreate(mpi_comm_hypre, grid, stencil, matrixA, ierr)
+    !call HYPRE_StructMatrixSetNumGhost(matrixA, num_ghost, ierr)
     call HYPRE_StructMatrixInitialize(matrixA, ierr)
 
     !-----------------------------------------------------------------------
@@ -490,7 +494,7 @@ contains
 
     else
 
-      write (*,*) 'Invalid solver in solve_hypre'
+      write (*,*) 'Invalid solver in solve_hypre', solver_id
       call exit(-1)
     endif
 
@@ -554,7 +558,7 @@ contains
       call exitprecond
       call HYPRE_StructLGMRESDestroy(solver, ierr)
     else
-      write (*,*) 'Invalid solver in solve_hypre'
+      write (*,*) 'Invalid solver in exit_hypre', solver_id
       call exit(-1)
     endif
 
