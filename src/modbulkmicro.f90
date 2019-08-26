@@ -773,9 +773,9 @@ module modbulkmicro
                      if (ispec == 1 ) then ! Mode number
                          mod_numb(imod) = aer_conc(i,j,k,iaer)
                      else
-                         mod_mass(imod) = mod_rho(imod) + aer_conc(i,j,k,iaer)
-                         mod_vol (imod) = mod_vol(imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)
-                         mod_k   (imod) = mod_k  (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)*spec_k(ispec-1)
+                         mod_mass(imod) = mod_mass(imod) + aer_conc(i,j,k,iaer)
+                         mod_vol (imod) = mod_vol (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)
+                         mod_k   (imod) = mod_k   (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)*spec_k(ispec-1)
 
 !                         mod_mass(imod) = mod_mass(imod) + aer_conc(i,j,k,iaer)
 !                         mod_rho (imod) = mod_rho (imod) + aer_conc(i,j,k,iaer)/spec_rho(ispec-1)
