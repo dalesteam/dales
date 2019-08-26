@@ -573,7 +573,7 @@ contains
       use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
       use modfields, only: thl0,ql0,qt0,exnf
       use modsurfdata, only: thls,ps
-      use modmicrodata, only : Nc_0,sig_g
+      use modmicrodata, only : Nc_0,sig_g,qcmin
       use modmpi, only: myid
 
       implicit none
@@ -615,7 +615,7 @@ contains
       im=i-1
       do k=1,kmax
          qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
-         qcl_slice (im,k) = ql0(i,j,k)
+         if (ql0(i,j,k) > qcmin) qcl_slice (im,k) = ql0(i,j,k)
          qci_slice (im,k) = 0.
          o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
          tg_slice  (im)   = sst

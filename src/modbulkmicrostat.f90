@@ -37,7 +37,7 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend, bulkaertend
 save
 !NetCDF variables
-  integer,parameter :: nvar = 74
+  integer,parameter :: nvar = 75
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
   real          :: dtav, timeav
@@ -69,16 +69,16 @@ save
                 qtpav,  qtpmn, &
                  ncav,   ncmn, &
                so4cav, so4cmn, &
-                bccav,  bccmn, &
+!                bccav,  bccmn, &
                pomcav, pomcmn, & 
-                sscav,  sscmn, &
-                ducav,  ducmn, &
+!                sscav,  sscmn, &
+!                ducav,  ducmn, &
                  nrav,   nrmn, &
                so4rav, so4rmn, &
-                bcrav,  bcrmn, &
-               pomrav, pomrmn, & 
-                ssrav,  ssrmn, &
-                durav,  durmn
+!                bcrav,  bcrmn, &
+               pomrav, pomrmn !, & 
+!                ssrav,  ssrmn, &
+!                durav,  durmn
  
   real, allocatable, dimension(:)    :: precavl  , &
                precav  , &
@@ -103,7 +103,10 @@ save
                qrmn    , &
                Dvravl  , &
                Dvrav  , &
-               Dvrmn
+               Dvrmn,   &
+               ssatavl, &
+               ssatav,  &
+               ssatmn   
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -161,16 +164,16 @@ subroutine initbulkmicrostat
 
          ncav (k1, aerfields),   ncmn (k1, aerfields), &
        so4cav (k1, aerfields), so4cmn (k1, aerfields), &
-        bccav (k1, aerfields),  bccmn (k1, aerfields), &
+!        bccav (k1, aerfields),  bccmn (k1, aerfields), &
        pomcav (k1, aerfields), pomcmn (k1, aerfields), &
-        sscav (k1, aerfields),  sscmn (k1, aerfields), &
-        ducav (k1, aerfields),  ducmn (k1, aerfields), &
+!        sscav (k1, aerfields),  sscmn (k1, aerfields), &
+!        ducav (k1, aerfields),  ducmn (k1, aerfields), &
          nrav (k1, aerfields),   nrmn (k1, aerfields), &
        so4rav (k1, aerfields), so4rmn (k1, aerfields), &
-        bcrav (k1, aerfields),  bcrmn (k1, aerfields), &
-       pomrav (k1, aerfields), pomrmn (k1, aerfields), &
-        ssrav (k1, aerfields),  ssrmn (k1, aerfields), &
-        durav (k1, aerfields),  durmn (k1, aerfields)  )
+!        bcrav (k1, aerfields),  bcrmn (k1, aerfields), &
+       pomrav (k1, aerfields), pomrmn (k1, aerfields))!, &
+!        ssrav (k1, aerfields),  ssrmn (k1, aerfields), &
+!        durav (k1, aerfields),  durmn (k1, aerfields)  )
 
     allocate(      precavl(k1),       precav(k1),       precmn(k1), &
               preccountavl(k1),  preccountav(k1),  preccountmn(k1), &
@@ -179,7 +182,8 @@ subroutine initbulkmicrostat
               raincountavl(k1),  raincountav(k1),  raincountmn(k1), &
                  Nrrainavl(k1),     Nrrainav(k1),     Nrrainmn(k1), &
                      qravl(k1),         qrav(k1),         qrmn(k1), &
-                    Dvravl(k1),        Dvrav(k1),        Dvrmn(k1)  )
+                    Dvravl(k1),        Dvrav(k1),        Dvrmn(k1), &
+                   ssatavl(k1),       ssatav(k1),       ssatmn(k1)  )
 
     Npmn   = 0.0
     qlpmn  = 0.0
@@ -187,16 +191,16 @@ subroutine initbulkmicrostat
 
     ncmn   = 0.0 
     so4cmn = 0.0
-    bccmn  = 0.0
+!    bccmn  = 0.0
     pomcmn = 0.0
-    sscmn  = 0.0
-    ducmn  = 0.0
+!    sscmn  = 0.0
+!    ducmn  = 0.0
     nrmn   = 0.0 
     so4rmn = 0.0
-    bcrmn  = 0.0
+!    bcrmn  = 0.0
     pomrmn = 0.0
-    ssrmn  = 0.0
-    durmn  = 0.0
+!    ssrmn  = 0.0
+!    durmn  = 0.0
 
     precmn       = 0.0
     preccountmn  = 0.0
@@ -206,6 +210,7 @@ subroutine initbulkmicrostat
     Nrrainmn     = 0.0
     qrmn         = 0.0
     Dvrmn        = 0.0
+    ssatmn       = 0.0
 
     if (myid == 0) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
@@ -317,7 +322,8 @@ subroutine initbulkmicrostat
         
         call ncinfo(ncname(73,:),  'ncscvc','In-cloud number scavenging tendency','#/kg/s','tt')        
         call ncinfo(ncname(74,:),  'nrscvr','In-rain  number scavenging tendency','#/kg/s','tt')        
-
+   
+        call ncinfo(ncname(75,:),    'ssat','Supersaturation','%','tt')
         call define_nc( ncid_prof, nvar, ncname)
       end if
    end if
@@ -353,7 +359,7 @@ subroutine initbulkmicrostat
     use modmpi,       only : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only : i1, j1, k1, ijtot
     use modmicrodata, only : qr, precep, Dvr, Nr, epscloud, epsqr, epsprec,imicro, imicro_bulk
-    use modfields,    only : ql0
+    use modfields,    only : ql0, S0
 
     implicit none
 
@@ -367,6 +373,7 @@ subroutine initbulkmicrostat
     Nrrainav     = 0.0
     qrav         = 0.0
     Dvrav        = 0.0
+    ssatav       = 0.0
 
     do k = 1,k1
       cloudcountavl(k)  = count(ql0   (2:i1,2:j1,k) > epscloud)
@@ -376,6 +383,7 @@ subroutine initbulkmicrostat
       Nrrainavl    (k)  = sum  (Nr    (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep(2:i1,2:j1,k))
       qravl        (k)  = sum  (qr    (2:i1,2:j1,k))
+      ssatavl      (k)  = sum  (S0    (2:i1,2:j1,k))
       if (imicro==imicro_bulk) then
         Dvravl     (k)  = sum  (Dvr   (2:i1,2:j1,k), qr    (2:i1,2:j1,k) > epsqr)
       end if
@@ -389,6 +397,7 @@ subroutine initbulkmicrostat
     call MPI_ALLREDUCE(Nrrainavl    , Nrrainav,     k1, MY_REAL, MPI_SUM, comm3d, mpierr)
     call MPI_ALLREDUCE(precavl      , precav,       k1, MY_REAL, MPI_SUM, comm3d, mpierr)
     call MPI_ALLREDUCE(qravl        , qrav,         k1, MY_REAL, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(ssatavl      , ssatav,       k1, MY_REAL, MPI_SUM, comm3d, mpierr)
 
     cloudcountmn = cloudcountmn + cloudcountav/ijtot
     raincountmn  = raincountmn  + raincountav /ijtot
@@ -398,6 +407,7 @@ subroutine initbulkmicrostat
     Nrrainmn     = Nrrainmn     + Nrrainav    /ijtot
     precmn       = precmn       + precav      /ijtot
     qrmn         = qrmn         + qrav        /ijtot
+    ssatmn       = ssatmn       + ssatav      /ijtot
 
   end subroutine dobulkmicrostat
 
@@ -454,9 +464,12 @@ subroutine initbulkmicrostat
      use modmpi,       only : slabsum
      use modglobal,    only : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot
      use modmicrodata, only : naer, &
-                              inus_n, iais_n, iacs_n, icos_n, iaii_n, iaci_n, icoi_n, &  
-                              inc, iso4cld, ibccld, ipomcld, isscld, iducld, &
-                              inr, iso4rai, ibcrai, ipomrai, issrai, idurai, & 
+                              inus_n, iais_n, iacs_n, & 
+                              inc, iso4cld, ipomcld,  &
+                              inr, iso4rai, ipomrai,  & 
+!default                              inus_n, iais_n, iacs_n, icos_n, iaii_n, iaci_n, icoi_n, &  
+!                              inc, iso4cld, ibccld, ipomcld, isscld, iducld, &
+!                              inr, iso4rai, ibcrai, ipomrai, issrai, idurai, & 
                               aer_acti, aer_scvc, aer_evpc, &
                               aer_scvr, aer_evpr, & 
                               aer_auto, aer_accr, &
@@ -497,9 +510,11 @@ subroutine initbulkmicrostat
         ! In-cloud --------------------------------- ------------------------------------------!
 
         if (ifield == jscvc) then
-           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n)+tend(:,:,:,icos_n)+ &
-                                     tend(:,:,:,iaii_n)+tend(:,:,:,iaci_n)+tend(:,:,:,icoi_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
            ncmn(:,ifield)   = ncmn(:,ifield)   + avfield/nsamples/ijtot
+!default           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n)+tend(:,:,:,icos_n)+ &
+!                                     tend(:,:,:,iaii_n)+tend(:,:,:,iaci_n)+tend(:,:,:,icoi_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!           ncmn(:,ifield)   = ncmn(:,ifield)   + avfield/nsamples/ijtot
         else
            call slabsum(avfield,1,k1,tend(:,:,:,inc    ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
            ncmn(:,ifield)   = ncmn(:,ifield)   + avfield/nsamples/ijtot
@@ -509,29 +524,31 @@ subroutine initbulkmicrostat
         call slabsum(avfield,1,k1,tend(:,:,:,iso4cld),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         so4cmn(:,ifield) = so4cmn(:,ifield) + avfield/nsamples/ijtot
     
-        avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,ibccld ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        bccmn(:,ifield)  = bccmn(:,ifield)  + avfield/nsamples/ijtot
+!        avfield = 0.0
+!        call slabsum(avfield,1,k1,tend(:,:,:,ibccld ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!        bccmn(:,ifield)  = bccmn(:,ifield)  + avfield/nsamples/ijtot
     
         avfield = 0.0
         call slabsum(avfield,1,k1,tend(:,:,:,ipomcld),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         pomcmn(:,ifield) = pomcmn(:,ifield) + avfield/nsamples/ijtot  
     
-        avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,isscld ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        sscmn(:,ifield)  = sscmn(:,ifield)  + avfield/nsamples/ijtot        
+!        avfield = 0.0
+!        call slabsum(avfield,1,k1,tend(:,:,:,isscld ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!        sscmn(:,ifield)  = sscmn(:,ifield)  + avfield/nsamples/ijtot        
 
-        avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,iducld ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        ducmn(:,ifield)  = ducmn(:,ifield)  + avfield/nsamples/ijtot
+!        avfield = 0.0
+!        call slabsum(avfield,1,k1,tend(:,:,:,iducld ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!        ducmn(:,ifield)  = ducmn(:,ifield)  + avfield/nsamples/ijtot
     
         ! In-rain ----------------------------------------------------------------------------!
         avfield = 0.0
         
         if (ifield == jscvr) then
-           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n)+tend(:,:,:,icos_n)+ & 
-                                     tend(:,:,:,iaii_n)+tend(:,:,:,iaci_n)+tend(:,:,:,icoi_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
            nrmn(:,ifield)   = nrmn(:,ifield)   + avfield/nsamples/ijtot
+!default           call slabsum(avfield,1,k1,tend(:,:,:,inus_n)+tend(:,:,:,iais_n)+tend(:,:,:,iacs_n)+tend(:,:,:,icos_n)+ & 
+!                                     tend(:,:,:,iaii_n)+tend(:,:,:,iaci_n)+tend(:,:,:,icoi_n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!           nrmn(:,ifield)   = nrmn(:,ifield)   + avfield/nsamples/ijtot
         else
            call slabsum(avfield,1,k1,tend(:,:,:,inr   ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
            nrmn(:,ifield)   = nrmn(:,ifield)   + avfield/nsamples/ijtot
@@ -541,21 +558,21 @@ subroutine initbulkmicrostat
         call slabsum(avfield,1,k1,tend(:,:,:,iso4rai),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         so4rmn(:,ifield) = so4rmn(:,ifield) + avfield/nsamples/ijtot
     
-        avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,ibcrai ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        bcrmn(:,ifield)  = bcrmn(:,ifield)  + avfield/nsamples/ijtot
+!        avfield = 0.0
+!        call slabsum(avfield,1,k1,tend(:,:,:,ibcrai ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!        bcrmn(:,ifield)  = bcrmn(:,ifield)  + avfield/nsamples/ijtot
     
         avfield = 0.0
         call slabsum(avfield,1,k1,tend(:,:,:,ipomrai),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
         pomrmn(:,ifield) = pomrmn(:,ifield) + avfield/nsamples/ijtot  
         
-        avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,issrai ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        ssrmn(:,ifield)  = ssrmn(:,ifield)  + avfield/nsamples/ijtot        
+!        avfield = 0.0
+!        call slabsum(avfield,1,k1,tend(:,:,:,issrai ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!        ssrmn(:,ifield)  = ssrmn(:,ifield)  + avfield/nsamples/ijtot        
 
-        avfield = 0.0
-        call slabsum(avfield,1,k1,tend(:,:,:,idurai ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        durmn(:,ifield)  = durmn(:,ifield)  + avfield/nsamples/ijtot
+!        avfield = 0.0
+!        call slabsum(avfield,1,k1,tend(:,:,:,idurai ),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+!        durmn(:,ifield)  = durmn(:,ifield)  + avfield/nsamples/ijtot
     
      enddo
        
@@ -592,6 +609,7 @@ subroutine initbulkmicrostat
     Nrrainmn      = Nrrainmn    /nsamples
     precmn        = precmn      /nsamples
     qrmn          = qrmn        /nsamples
+    ssatmn        = ssatmn      /nsamples
 
     where (raincountmn > 0.)
       Dvrmn        = Dvrmn / raincountmn
@@ -624,18 +642,18 @@ subroutine initbulkmicrostat
       ,'#-----------------------------------------------------------------'   &
       ,'---------------------------------------------------------------'
     write(ifoutput,'(I4,F10.2,F8.3,F7.1,8E13.5)') &
-      (k          , &
-      zf    (k)      , &
-      rhof    (k)      , &
-      presf    (k)/100.    , &
-      cloudcountmn  (k)      , &
-      prec_prcmn  (k)*rhof(k)*rlv  , &
-      preccountmn  (k)      , &
-      Nrrainmn  (k)      , &
-      raincountmn  (k)      , &
-      precmn    (k)*rhof(k)*rlv  , &
-      Dvrmn    (k)      , &
-      qrmn    (k)      , &
+      (k                          , &
+      zf          (k)             , &
+      rhof        (k)             , &
+      presf       (k)/100.        , &
+      cloudcountmn(k)             , &
+      prec_prcmn  (k)*rhof(k)*rlv , &
+      preccountmn (k)             , &
+      Nrrainmn    (k)             , &
+      raincountmn (k)             , &
+      precmn      (k)*rhof(k)*rlv , &
+      Dvrmn       (k)             , &
+      qrmn        (k)             , &
       k=1,kmax)
     close(ifoutput)
 
@@ -766,11 +784,11 @@ subroutine initbulkmicrostat
         vars(:,32) = so4cmn(:,jscvc)
         vars(:,33) = so4cmn(:,jevpc)
 
-        vars(:,34) =  bccmn(:,jacti)
-        vars(:,35) =  bccmn(:,jauto)
-        vars(:,36) =  bccmn(:,jaccr)
-        vars(:,37) =  bccmn(:,jscvc)
-        vars(:,38) =  bccmn(:,jevpc)
+!        vars(:,34) =  bccmn(:,jacti)
+!        vars(:,35) =  bccmn(:,jauto)
+!        vars(:,36) =  bccmn(:,jaccr)
+!        vars(:,37) =  bccmn(:,jscvc)
+!        vars(:,38) =  bccmn(:,jevpc)
 
         vars(:,39) = pomcmn(:,jacti)
         vars(:,40) = pomcmn(:,jauto)
@@ -778,17 +796,17 @@ subroutine initbulkmicrostat
         vars(:,42) = pomcmn(:,jscvc)
         vars(:,43) = pomcmn(:,jevpc)
 
-        vars(:,44) =  sscmn(:,jacti)
-        vars(:,45) =  sscmn(:,jauto)
-        vars(:,46) =  sscmn(:,jaccr)
-        vars(:,47) =  sscmn(:,jscvc)
-        vars(:,48) =  sscmn(:,jevpc)
+!        vars(:,44) =  sscmn(:,jacti)
+!        vars(:,45) =  sscmn(:,jauto)
+!        vars(:,46) =  sscmn(:,jaccr)
+!        vars(:,47) =  sscmn(:,jscvc)
+!        vars(:,48) =  sscmn(:,jevpc)
 
-        vars(:,49) =  ducmn(:,jacti)
-        vars(:,50) =  ducmn(:,jauto)
-        vars(:,51) =  ducmn(:,jaccr)
-        vars(:,52) =  ducmn(:,jscvc)
-        vars(:,53) =  ducmn(:,jevpc)
+!        vars(:,49) =  ducmn(:,jacti)
+!        vars(:,50) =  ducmn(:,jauto)
+!        vars(:,51) =  ducmn(:,jaccr)
+!        vars(:,52) =  ducmn(:,jscvc)
+!        vars(:,53) =  ducmn(:,jevpc)
 
         vars(:,54) =   nrmn(:,jauto)      
         vars(:,55) =   nrmn(:,jevpr)
@@ -799,25 +817,26 @@ subroutine initbulkmicrostat
         vars(:,59) = so4rmn(:,jevpr)
         vars(:,60) = so4rmn(:,jsedr)
                 
-        vars(:,61) =  bcrmn(:,jscvr)
-        vars(:,62) =  bcrmn(:,jevpr)
-        vars(:,63) =  bcrmn(:,jsedr)
+!        vars(:,61) =  bcrmn(:,jscvr)
+!        vars(:,62) =  bcrmn(:,jevpr)
+!        vars(:,63) =  bcrmn(:,jsedr)
         
         vars(:,64) = pomrmn(:,jscvr)
         vars(:,65) = pomrmn(:,jevpr)
         vars(:,66) = pomrmn(:,jsedr)
 
-        vars(:,67) =  ssrmn(:,jscvr)
-        vars(:,68) =  ssrmn(:,jevpr)
-        vars(:,69) =  ssrmn(:,jsedr)
+!        vars(:,67) =  ssrmn(:,jscvr)
+!        vars(:,68) =  ssrmn(:,jevpr)
+!        vars(:,69) =  ssrmn(:,jsedr)
         
-        vars(:,70) =  durmn(:,jscvr)
-        vars(:,71) =  durmn(:,jevpr)
-        vars(:,72) =  durmn(:,jsedr)
+!        vars(:,70) =  durmn(:,jscvr)
+!        vars(:,71) =  durmn(:,jevpr)
+!        vars(:,72) =  durmn(:,jsedr)
 
         vars(:,73) =   ncmn(:,jscvc)
         vars(:,74) =   nrmn(:,jscvr)
 
+        vars(:,75) = 100.*ssatmn(:)
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
 
@@ -831,6 +850,7 @@ subroutine initbulkmicrostat
     Nrrainmn     = 0.0
     precmn       = 0.0
     qrmn         = 0.0
+    ssatmn       = 0.0
 
     Npmn   = 0.0
     qlpmn  = 0.0
@@ -838,16 +858,16 @@ subroutine initbulkmicrostat
 
     ncmn   = 0.0
     so4cmn = 0.0
-    bccmn  = 0.0
+!    bccmn  = 0.0
     pomcmn = 0.0
-    sscmn  = 0.0
-    ducmn  = 0.0
+!    sscmn  = 0.0
+!    ducmn  = 0.0
     nrmn   = 0.0
     so4rmn = 0.0
-    bcrmn  = 0.0
+!    bcrmn  = 0.0
     pomrmn = 0.0
-    ssrmn  = 0.0
-    durmn  = 0.0
+!    ssrmn  = 0.0
+!    durmn  = 0.0
 
   end subroutine writebulkmicrostat
 
@@ -862,16 +882,16 @@ subroutine initbulkmicrostat
                 qtpav,  qtpmn, &
                  ncav,   ncmn, &
                so4cav, so4cmn, &
-                bccav,  bccmn, &
+!                bccav,  bccmn, &
                pomcav, pomcmn, &
-                sscav,  sscmn, &
-                ducav,  ducmn, &
+!                sscav,  sscmn, &
+!                ducav,  ducmn, &
                  nrav,   nrmn, &
                so4rav, so4rmn, &
-                bcrav,  bcrmn, &
-               pomrav, pomrmn, &
-                ssrav,  ssrmn, &
-                durav,  durmn  )
+!                bcrav,  bcrmn, &
+               pomrav, pomrmn)!, &
+!                ssrav,  ssrmn, &
+!                durav,  durmn  )
 
     deallocate(precavl, &
          precav       , &
@@ -896,7 +916,10 @@ subroutine initbulkmicrostat
          qrmn         , &
          Dvravl       , &
          Dvrav        , &
-         Dvrmn)
+         Dvrmn        , &
+         ssatavl        , &
+         ssatav         , &
+         ssatmn)
 
   end subroutine exitbulkmicrostat
 

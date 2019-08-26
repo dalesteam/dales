@@ -29,33 +29,37 @@ implicit none
 save
 
   ! Prognostic variables
+  real, allocatable :: um(:,:,:)        !<  x-component of velocity          at time step t-1
+  real, allocatable :: vm(:,:,:)        !<  y-component of velocity          at time step t-1
+  real, allocatable :: wm(:,:,:)        !<  z-component of velocity          at time step t-1
+  real, allocatable :: thlm(:,:,:)      !<  liq. water pot. temperature      at time step t-1
+  real, allocatable :: e12m(:,:,:)      !<  square root of turb. kin. energy at time step t-1
+  real, allocatable :: qtm(:,:,:)       !<  total specific humidity          at time step t-1
+  real, allocatable :: qlm(:,:,:)       !<  liquid water specific humidity   at time step t-1
+  real, allocatable :: svm(:,:,:,:)     !<  scalar sv(n)                     at time step t-1
 
-  real, allocatable :: um(:,:,:)        !<   x-component of velocity at time step t-1
-  real, allocatable :: vm(:,:,:)        !<   y-component of velocity at time step t-1
-  real, allocatable :: wm(:,:,:)        !<   z-component of velocity at time step t-1
-  real, allocatable :: thlm(:,:,:)      !<   liq. water pot. temperature at time step t-1
-  real, allocatable :: e12m(:,:,:)      !<   square root of turb. kin. energy at time step t-1
-  real, allocatable :: qtm(:,:,:)       !<   total specific humidity at time step t
-  real, allocatable :: u0(:,:,:)        !<   x-component of velocity at time step t
-  real, allocatable :: v0(:,:,:)        !<   y-component of velocity at time step t
-  real, allocatable :: w0(:,:,:)        !<   z-component of velocity at time step t
-  real, allocatable :: thl0(:,:,:)      !<   liq. water pot. temperature at time step t
+  real, allocatable :: u0(:,:,:)        !<  x-component of velocity          at time step t
+  real, allocatable :: v0(:,:,:)        !<  y-component of velocity          at time step t
+  real, allocatable :: w0(:,:,:)        !<  z-component of velocity          at time step t
+  real, allocatable :: thl0(:,:,:)      !<  liq. water pot. temperature      at time step t
+  real, allocatable :: e120(:,:,:)      !<  square root of turb. kin. energy at time step t
+  real, allocatable :: qt0(:,:,:)       !<  total specific humidity          at time step t
+  real, allocatable :: ql0(:,:,:)       !<  liquid water specific humidity   at time step t
+  real, allocatable :: sv0(:,:,:,:)     !<  scalar sv(n)                     at time step t
+
   real, allocatable :: thl0h(:,:,:)     !<  3d-field of theta_l at half levels for kappa scheme
   real, allocatable :: qt0h(:,:,:)      !<  3d-field of q_tot   at half levels for kappa scheme
-  real, allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
-  real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
+  real, allocatable :: ql0h(:,:,:)      !<  3d-field of q_l     at half levels for kappa scheme
 
-  real, allocatable :: up(:,:,:)        !<   tendency of um
-  real, allocatable :: vp(:,:,:)        !<   tendency of vm
-  real, allocatable :: wp(:,:,:)        !<   tendency of wm
-  real, allocatable :: wp_store(:,:,:)  !<   tendency of wm, dummy variable for w-budget sampling
-  real, allocatable :: thlp(:,:,:)      !<   tendency of thlm
-  real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
-  real, allocatable :: qtp(:,:,:)       !<   tendency of qtm
-
-  real, allocatable :: svm(:,:,:,:)   !<  scalar sv(n) at time step t-1
-  real, allocatable :: sv0(:,:,:,:)   !<  scalar sv(n) at time step t
-  real, allocatable :: svp(:,:,:,:)   !<  tendency of sv(n)
+  real, allocatable :: up(:,:,:)        !<  tendency of um
+  real, allocatable :: vp(:,:,:)        !<  tendency of vm
+  real, allocatable :: wp(:,:,:)        !<  tendency of wm
+  real, allocatable :: wp_store(:,:,:)  !<  tendency of wm, dummy variable for w-budget sampling
+  real, allocatable :: thlp(:,:,:)      !<  tendency of thlm
+  real, allocatable :: e12p(:,:,:)      !<  tendency of e12m
+  real, allocatable :: qtp(:,:,:)       !<  tendency of qtm
+  real, allocatable :: qlp(:,:,:)       !<  tendency of qlm
+  real, allocatable :: svp(:,:,:,:)     !<  tendency of sv(n)
 
   ! Base state variables
   real, allocatable :: rhobf(:)       !<   Base state density, full level
@@ -76,8 +80,6 @@ save
   real, allocatable :: distbuoy(:,:)
   real, allocatable :: distw(:,:)
 
-  real, allocatable :: ql0(:,:,:)  !<   liquid water content
-  real, allocatable :: qlm(:,:,:)  !<   liquid water content
   real, allocatable :: tmp0(:,:,:) !<   temperature at full level
   real, allocatable :: thv0h(:,:,:)!<   theta_v at half level
 
@@ -96,15 +98,15 @@ save
   real, allocatable :: thl0av(:)                     !<   slab averaged th_liq
   real, allocatable :: u0av(:)                       !<   slab averaged u
   real, allocatable :: v0av(:)                       !<   slab averaged v
-  real, allocatable :: ug(:)                       !<   geostrophic u-wind
-  real, allocatable :: vg(:)                       !<   geostrophic v-wind
+  real, allocatable :: ug(:)                         !<   geostrophic u-wind
+  real, allocatable :: vg(:)                         !<   geostrophic v-wind
 
   real, allocatable :: dpdxl(:)                      !<   large scale pressure x-gradient
   real, allocatable :: dpdyl(:)                      !<   large scale pressure y-gradient
 
   real, allocatable :: dthldxls(:)                   !<   large scale x-gradient of th_liq
   real, allocatable :: dthldyls(:)                   !<   large scale y-gradient of th_liq
-  real, allocatable :: dthldtls(:)                   !<   large scale tendency of thl
+  real, allocatable :: dthldtls(:)                   !<   large scale tendency of th_liq
 
   real, allocatable :: dqtdxls(:)                    !<   large scale x-gradient of q_tot
   real, allocatable :: dqtdyls(:)                    !<   large scale y-gradient of q_tot
@@ -119,22 +121,25 @@ save
   real, allocatable :: dvdtls(:)                     !<   large scale tendency of v
 
   real, allocatable :: wfls  (:)                     !<   large scale vertical velocity
-  real, allocatable :: ql0h(:,:,:)
-  real, allocatable :: dthvdz(:,:,:)!<   theta_v at half level
+  real, allocatable :: dthvdz(:,:,:                 )!<   theta_v at half level
 
   real, allocatable :: thlprof(:)                    !<   initial thl-profile
   real, allocatable :: qtprof(:)                     !<   initial qt-profile
   real, allocatable :: uprof(:)                      !<   initial u-profile
   real, allocatable :: vprof(:)                      !<   initial v-profile
   real, allocatable :: e12prof(:)                    !<   initial subgrid sqrt(TKE) profile
-  real, allocatable :: sv0av(:,:)                  !<   slab average of sv(n)
-  real, allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
+  real, allocatable :: sv0av(:,:)                    !<   slab average of sv(n)
+  real, allocatable :: svprof(:,:)                   !<   initial sv(n)-profile
 
   real, allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:)
+
   real, allocatable :: qvsl(:,:,:)
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
+
+  real, allocatable :: S0(:,:,:)                     !<   End-of-timestep  saturation value   
+  real, allocatable :: Sm(:,:,:)                     !<   Timestep average saturation value   
 
 contains
 !> Allocate and initialize the prognostic variables
@@ -144,41 +149,52 @@ subroutine initfields
     ! Allocation of prognostic variables
     implicit none
 
-    allocate(um(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wm(2-ih:i1+ih,2-jh:j1+jh,k1))
+    ! Previous timestep
+    allocate(  um(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(  vm(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(  wm(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thlm(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12m(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(u0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(v0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(w0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( qtm(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( qlm(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+
+    ! Current timestep
+    allocate(  u0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(  v0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(  w0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thl0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e120(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(up(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wp(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( qt0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+
+    ! Half-level
+    allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( qt0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( ql0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    ! Tendencies
+    allocate(  up(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(  vp(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(  wp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(wp_store(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thlp(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12p(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate( qtp(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( qlp(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate( svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
 
-    allocate(cloudarea(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(cloudarea (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(cloudnr   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(cloudnrold(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distbuoy(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distw(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distcld   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distcr    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(distqr    (2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distdiv   (2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distcon   (2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distbuoy  (2-ih:i1+ih,2-jh:j1+jh))
+    allocate(distw     (2-ih:i1+ih,2-jh:j1+jh))
 
     ! Allocation of base state variables
     allocate(rhobf(k1))
@@ -187,8 +203,6 @@ subroutine initfields
     allocate(drhobdzh(k1))
 
     ! Allocation of diagnostic variables
-    allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qlm(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(tmp0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(whls(k1))
@@ -226,35 +240,38 @@ subroutine initfields
     allocate(dvdtls(k1))
 
     allocate(wfls  (k1))
-    allocate(ql0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thlprof(k1))
-    allocate(qtprof(k1))
-    allocate(uprof(k1))
-    allocate(vprof(k1))
+    allocate( qtprof(k1))
+    allocate(  uprof(k1))
+    allocate(  vprof(k1))
     allocate(e12prof(k1))
-    allocate(sv0av(k1,nsv))
-    allocate(svprof(k1,nsv))
+    allocate(  sv0av(k1,nsv))
+    allocate( svprof(k1,nsv))
     allocate(thlpcar(k1))
     allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
-             ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
+             ,esl (2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
 
-    um=0.;u0=0.;up=0.
-    vm=0.;v0=0.;vp=0.
-    wm=0.;w0=0.;wp=0.;wp_store=0.
-    thlm=0.;thl0=0.;thlp=0.
-    qtm=0.;qt0=0.;qtp=0.
-    e12m=0.;e120=0.;e12p=0.
-    svm=0.;sv0=0.;svp=0.
+    allocate(S0   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(Sm   (2-ih:i1+ih,2-jh:j1+jh,k1))
+ 
+    um=0.  ;   u0=0.;   up=0.
+    vm=0.  ;   v0=0.;   vp=0.
+    wm=0.  ;   w0=0.;   wp=0.; wp_store=0.
+    thlm=0.; thl0=0.; thlp=0.
+    qtm=0. ;  qt0=0.;  qtp=0.
+    qlm=0. ;  ql0=0.;  qlp=0.
+    e12m=0.; e120=0.; e12p=0.
+    svm=0. ;  sv0=0.;  svp=0.
 
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
-    ql0=0.; qlm=0.; tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
+    tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
     qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
     thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
@@ -266,7 +283,7 @@ subroutine initfields
     dvdxls=0.;dvdyls=0.;dvdtls=0.
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
-    qvsl=0.;qvsi=0.;esl=0.
+    qvsl=0.;qvsi=0.;esl=0.;S0=0.;Sm=0.
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
@@ -275,12 +292,13 @@ subroutine initfields
 !> Deallocate the fields
   subroutine exitfields
   implicit none
-    deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
-    deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
-    deallocate(svm,sv0,svp)
+    deallocate(um,vm,wm,         thlm, qtm, qlm,e12m,svm)
+    deallocate(u0,v0,w0,         thl0, qt0, ql0,e120,sv0)
+    deallocate(up,vp,wp,wp_store,thlp, qtp, qlp,e12p,svp)
+    deallocate(                  thl0h,qt0h,ql0h)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
-    deallocate(ql0,qlm,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(tmp0,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
@@ -288,7 +306,7 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
-    deallocate(qvsl,qvsi,esl)
+    deallocate(qvsl,qvsi,esl,S0,Sm)
     end subroutine exitfields
 
 end module modfields

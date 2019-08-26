@@ -27,9 +27,9 @@
 !> Advection redirection function
 subroutine advection
 
-  use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
+  use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_ql,iadv_sv, &
                          iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq
-  use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
+  use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,ql0,qlp,sv0,svp
   use modsubgrid, only : lsmagorinsky
   use advec_hybrid, only : advecc_hybrid
   use advec_hybrid_f, only : advecc_hybrid_f
@@ -173,7 +173,40 @@ subroutine advection
       case default
         stop "Unknown advection scheme "
     end select
+
+    select case(iadv_ql)
+      case(iadv_cd2)
+        call advecc_2nd(ql0,qlp)
+      case(iadv_5th)
+        if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
+        call advecc_5th(ql0,qlp)
+      case(iadv_52)
+        call advecc_52(ql0,qlp)
+      case(iadv_cd6)
+        if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
+        call advecc_6th(ql0,qlp)
+      case(iadv_62)
+        call advecc_62(ql0,qlp)
+      case(iadv_kappa)
+        if (.not. leq) stop "advec_kappa does not support a non-uniform vertical grid."
+        call advecc_kappa(ql0,qlp)
+      case(iadv_upw)
+        if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
+        call advecc_upw(ql0,qlp)
+      case(iadv_hybrid)
+        if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
+        call advecc_hybrid(ql0,qlp)
+      case(iadv_hybrid_f)
+        if (.not. leq) stop "advec_hybrid_f does not support a non-uniform vertical grid."
+        call advecc_hybrid_f(ql0,qlp,1e-5)
+      case(iadv_null)
+        ! null advection scheme 
+        stop "Null advection scheme selected for iadv_ql - probably a bad idea."
+      case default
+        stop "Unknown advection scheme "
+    end select
   end if
+
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)

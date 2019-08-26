@@ -105,8 +105,8 @@ save
       real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real    :: om22                       !<    *2.*omega_earth*cos(lat)
       real    :: om23                       !<    *2.*omega_earth*sin(lat)
-      real    :: om22_gs                       !<    *2.*omega_earth*cos(lat)
-      real    :: om23_gs                       !<    *2.*omega_earth*sin(lat)
+      real    :: om22_gs                    !<    *2.*omega_earth*cos(lat)
+      real    :: om23_gs                    !<    *2.*omega_earth*sin(lat)
       real    :: xlat    = 52.              !<    *latitude  in degrees.
       real    :: xlon    = 0.               !<    *longitude in degrees.
       logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
@@ -121,7 +121,7 @@ save
       integer, parameter :: ibas_usr    = 5 !< User specified
 
       !Advection scheme
-      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
+      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_ql = -1,iadv_sv(100) = -1
       integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
@@ -171,7 +171,7 @@ save
       integer(kind=longint) :: btime             !<     * time of (re)start
       integer :: ntrun          !<     * number of timesteps since the start of the run
       integer(kind=longint) :: timeleft
-      logical :: ladaptive   = .false.    !<    * adaptive timestepping on or off
+      logical :: ladaptive   = .false. !<    * adaptive timestepping on or off
       logical :: ltotruntime = .false. !<    * Whether the runtime is counted since the last cold start (if true) or the last warm start (if false, default)
 
       real    :: courant = -1
@@ -227,7 +227,7 @@ contains
     use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
     implicit none
 
-    integer :: advarr(4)
+    integer :: advarr(5)
     real phi, colat, silat, omega, omega_gs
     integer :: k, n, m
     character(80) chmess
@@ -252,19 +252,19 @@ contains
       case default
         courant = 1.
       end select
-      if (any(iadv_sv(1:nsv)==iadv_cd6) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd6)) then
+      if (any(iadv_sv(1:nsv)==iadv_cd6)        .or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_cd6))    then
         courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_62) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_62)) then
+      elseif (any(iadv_sv(1:nsv)==iadv_62)     .or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_62))     then
         courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_kappa) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_kappa)) then
+      elseif (any(iadv_sv(1:nsv)==iadv_kappa)  .or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_kappa))  then
         courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_5th) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_5th)) then
+      elseif (any(iadv_sv(1:nsv)==iadv_5th)    .or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_5th))    then
         courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_52 ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_52)) then
+      elseif (any(iadv_sv(1:nsv)==iadv_52 )    .or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_52))     then
         courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_cd2) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
+      elseif (any(iadv_sv(1:nsv)==iadv_cd2)    .or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_cd2))    then
         courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_hybrid ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_hybrid)) then
+      elseif (any(iadv_sv(1:nsv)==iadv_hybrid ).or. any((/iadv_thl,iadv_qt,iadv_ql,iadv_tke/)==iadv_hybrid)) then
         courant = min(courant, 1.0)
       end if
 
@@ -280,7 +280,7 @@ contains
     i2=imax+2
     j2=jmax+2
     !set the number of ghost cells. NB: This switch has to run in order of required ghost cells
-    advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt/)
+    advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_ql/)
     if     (any(advarr==iadv_cd6).or.any(iadv_sv(1:nsv)==iadv_cd6)) then
       ih = 3
       jh = 3
@@ -328,8 +328,7 @@ contains
     do m=1,2000
     ttab(m)=150.+0.2*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
-         tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-    
+    tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m))) 
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
 
@@ -344,6 +343,7 @@ contains
     if (iadv_tke<0) iadv_tke = iadv_mom
     if (iadv_thl<0) iadv_thl = iadv_mom
     if (iadv_qt<0)  iadv_qt  = iadv_mom
+    if (iadv_ql<0)  iadv_ql  = iadv_mom
 
     !CvH remove where
     !where (iadv_sv<0)  iadv_sv  = iadv_mom

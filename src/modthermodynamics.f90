@@ -36,7 +36,7 @@ module modthermodynamics
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
-  real, allocatable :: thv0(:,:,:)
+  real, allocatable :: thv0(:,:,:), qsatur(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
 
 
@@ -50,6 +50,7 @@ contains
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qsatur(2-ih:i1+ih,2-jh:j1+jh,k1))
     th0av = 0.
 
   end subroutine initthermodynamics
@@ -63,17 +64,19 @@ contains
     use modmpi, only : slabsum
     implicit none
     integer:: k
+
     if (timee < 0.01) then
       call diagfld
     end if
     if (lmoist .and. (.not. lnoclouds)) then
       call icethermo0
+      call supersat0
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
     if (lmoist .and. (.not. lnoclouds)) then
-      call icethermoh
+!      call icethermoh
     end if
 
     ! recalculate thv and rho on the basis of results
@@ -99,6 +102,7 @@ contains
   implicit none
     deallocate(th0av)
     deallocate(thv0)
+    deallocate(qsatur)
   end subroutine exitthermodynamics
 
 !> Calculate thetav and dthvdz
@@ -459,11 +463,13 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,sv0
+  use modmicrodata, only: inc, iqr, inr
+
   implicit none
 
   integer i, j, k
-  real :: ilratio, esl1,esi1,qvsl1,qvsi1,qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: ilratio, esl1,esi1,qvsl1,qvsi1, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
   integer :: niter,nitert,tlonr,thinr
 
@@ -479,17 +485,18 @@ contains
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
             tlonr=int((Tnr-150.)*5.)
             thinr=tlonr+1
+            if (tlonr < 1) write(6,"(2F8.3, 2E10.3)") Tnr, thl0(i,j,k), qt0(i,j,k), ql0(i,j,k)     
             tlo=ttab(tlonr)
             thi=ttab(thinr)
             esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qvsl1=(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)
             qvsi1=(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0(i,j,k)>qsatur) then
+            qsatur(i,j,k) = ilratio*qvsl1+(1.-ilratio)*qvsi1
+            if(qt0(i,j,k)>qsatur(i,j,k)) then
               Tnr_old=0.
               niter = 0
-              thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+              thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur(i,j,k),0.)
               ttry=Tnr-0.002
               ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
               tlonr=int((ttry-150.)*5.)
@@ -498,8 +505,8 @@ contains
               thi=ttab(thinr)
               esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-              qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+              qsatur(i,j,k) = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+              thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur(i,j,k),0.)
 
               Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
               do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
@@ -508,16 +515,18 @@ contains
                 ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
                 tlonr=int((Tnr-150.)*5.)
                 if(tlonr<1 .or.tlonr>1999) then
-                  write(*,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
-                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
+!                  write(*,*) 'thermo crash: i, j, k, niter, thl0, qt0'
+!                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
+                  write(6,"(I24, I7, 5I10)") 'thermo crash: ijk, niter', 'thl0','qt0','ql0',      'nc',           'qr',           'nr'
+                  write(6,"(4I6, F7.2, 5E10.3)") i,j,k,niter, thl0(i,j,k), qt0(i,j,k), ql0(i,j,k), sv0(i,j,k,inc), sv0(i,j,k,iqr), sv0(i,j,k,inr)
                 endif
                 thinr=tlonr+1
                 tlo=ttab(tlonr)
                 thi=ttab(thinr)
                 esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
                 esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+                qsatur(i,j,k) = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur(i,j,k),0.)
 
                 ttry=Tnr-0.002
                 ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
@@ -527,8 +536,8 @@ contains
                 thi=ttab(thinr)
                 esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
                 esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
-                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+                qsatur(i,j,k) = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur(i,j,k),0.)
 
                 Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
               enddo
@@ -543,20 +552,23 @@ contains
               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
               qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
               qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
+              qsatur(i,j,k) = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
             else
-              tmp0(i,j,k)= Tnr
-              esl(i,j,k)=esl1
+!MdB              tmp0(i,j,k)= Tnr
+!MdB              esl(i,j,k)=esl1
               esi1=esi1
               qvsl(i,j,k)=qvsl1
               qvsi(i,j,k)=qvsi1
             endif
-            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+!MdB            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
       end do
       end do
       end do
       if(nitert>99) then
-      write(*,*) 'thermowarning'
+!      write(*,*) 'thermowarning: i,j,k,niter,thl, qt, ql, nc, qr, nr'
+!      write(6,"(4I3,6E10.2)") i,j,k,niter, thl0(i,j,k), qt0(i,j,k), ql0(i,j,k), sv0(i,j,k,inc), sv0(i,j,k,iqr), sv0(i,j,k,inr)
+        write(6,"(I24, I7, 5I10)") 'thermowarning: ijk,niter', 'thl0','qt0','ql0',      'nc',           'qr',           'nr'
+        write(6,"(4I6, F7.2, 5E10.3)") i,j,k,niter, thl0(i,j,k), qt0(i,j,k), ql0(i,j,k), sv0(i,j,k,inc), sv0(i,j,k,iqr), sv0(i,j,k,inr)
       endif
 
   end subroutine icethermo0
@@ -570,7 +582,7 @@ contains
   implicit none
 
   integer i, j, k
-  real :: ilratio, esl1, esi1, qvsl1,qvsi1, qsatur, thlguess, thlguessmin,tlo,thi,ttry
+  real :: ilratio, esl1, esi1, qvsl1,qvsi1,qsat, thlguess, thlguessmin,tlo,thi,ttry
   real :: Tnr,Tnr_old
   integer :: niter,nitert,tlonr,thinr
 
@@ -592,11 +604,11 @@ contains
             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
             qvsl1=(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)
             qvsi1=(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-            qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0h(i,j,k)>qsatur) then
+            qsat = ilratio*qvsl1+(1.-ilratio)*qvsi1
+            if(qt0h(i,j,k)>qsat) then
               Tnr_old=0.
               niter = 0
-              thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+              thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsat,0.)
               ttry=Tnr-0.002
               ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
               tlonr=int((ttry-150.)*5.)
@@ -605,8 +617,8 @@ contains
               thi=ttab(thinr)
               esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-              qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-              thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+              qsat = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+              thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsat,0.)
 
               Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
               do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
@@ -623,8 +635,8 @@ contains
                 thi=ttab(thinr)
                 esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
                 esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-                thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+                qsat = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+                thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsat,0.)
 
                 ttry=Tnr-0.002
                 ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
@@ -634,8 +646,8 @@ contains
                 thi=ttab(thinr)
                 esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
                 esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
-                qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
-                thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+                qsat = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+                thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsat,0.)
 
                 Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
               enddo
@@ -649,9 +661,9 @@ contains
               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
               qvsl1=rd/rv*esl1/(presh(k)-(1.-rd/rv)*esl1)
               qvsi1=rd/rv*esi1/(presh(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
+              qsat = ilratio*qvsl1+(1.-ilratio)*qvsi1
             endif
-            ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
+            ql0h(i,j,k) = max(qt0h(i,j,k)-qsat,0.)
       end do
       end do
       end do
@@ -664,9 +676,10 @@ contains
 !> Calculates the scalars at half levels.
 !! If the kappa advection scheme is active, interpolation needs to be done consistently.
   subroutine calc_halflev
-    use modglobal, only : i1,j1,k1,dzf,dzh,iadv_thl, iadv_qt, iadv_kappa
-    use modfields, only : thl0,thl0h,qt0,qt0h
-    use modsurfdata,only: qts,thls
+    use modglobal, only : i1, j1, k1, dzf, dzh, &
+                          iadv_thl, iadv_qt, iadv_ql, iadv_kappa
+    use modfields, only : thl0, thl0h, qt0, qt0h, ql0, ql0h
+    use modsurfdata,only: qts, thls, qls
     implicit none
 
     integer :: i,j,k
@@ -696,6 +709,77 @@ contains
       end do
       qt0h(2:i1,2:j1,1)  = qts
     end if
+ 
+    if (iadv_ql==iadv_kappa) then
+        call halflev_kappa(ql0,ql0h)
+    else
+      do  k=2,k1
+        do  j=2,j1
+          do  i=2,i1
+            ql0h(i,j,k)  = (ql0 (i,j,k)*dzf(k-1)+ql0 (i,j,k-1)*dzf(k))/(2*dzh(k))
+          end do
+        end do
+      end do
+      ql0h(2:i1,2:j1,1)  = qls
+    end if
   end subroutine calc_halflev
+
+  subroutine supersat0
+    use modglobal,    only : i1, j1, k1, &
+                             ep, rlvocp, rhow, rdt, rk3step
+    use modfields,    only : thl0, qt0, ql0, qlp, sv0, & !prognostic
+                             presf, exnf, tmp0, esl, S0, Sm
+    use modmicrodata, only : inc, iaer_offset, ncmin
+    implicit none
+  
+    integer         :: i, j, k
+    
+    real            :: T, es, dS, y, delt
+    real, parameter :: beta = 50.
+
+    delt = rdt/ (4. - dble(rk3step))
+    
+    do k=1,k1
+    do j=2,j1
+    do i=2,i1    
+
+      ! RATIONALE:
+      ! The rate of change of supersaturation in the timestep can be expressed as:
+      ! dSdt = (macro source) - (micro sink) = dS - y*S
+      ! Differential eq. can be easily solved assuming y does not change 
+      ! during the timestep:
+      !
+      ! S0(t+dt) = (1/y)*exp(-y*dt)*(dS*(exp(y*dt)-1)+S0(t)*y) 
+
+      if (qt0(i,j,k) > qsatur(i,j,k)) then  
+         ! Macro tendency supersaturation in % (equilibrium -> 0.)
+         dS = ((qt0(i,j,k)-ql0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k) - S0(i,j,k))/rdt
+         ! Micro sink strength
+         y = min(5e2,beta*4.58365*(ql0(i,j,k)/rhow+1e-8)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
+
+         if ( y > 0. ) then
+           ! End of timestep supersaturation S(t0+dt) and liquid water ql(t0+dt)
+           S0 (i,j,k) = (1./y)*exp(-y*delt)*(dS*(exp(y*delt)-1.)+S0(i,j,k)*y)
+           ! Note: too high value for y (> 700.) causes an underflow or overflow for exp(-y*delt) and exp(y*delt).
+           qlp(i,j,k) = qlp(i,j,k) + ( max(0.,qt0(i,j,k) - qsatur(i,j,k)*(1. + S0(i,j,k))) - ql0(i,j,k) )/rdt
+         else
+           S0 (i,j,k) = S0(i,j,k) + dS*rdt
+         endif
+      
+      else    
+         !Evaporation
+         S0(i,j,k) = (qt0(i,j,k)-ql0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k)
+         qlp(i,j,k) = qlp(i,j,k) + ( max(0.,(qt0(i,j,k)-qsatur(i,j,k))) - ql0(i,j,k) )/delt
+      endif
+
+      T = thl0(i,j,k) * exnf(k) + rlvocp * (ql0(i,j,k)+qlp(i,j,k)*delt)
+
+      tmp0(i,j,k) = T
+      esl(i,j,k)  = 610.78 * exp( 17.2694 * (T - 273.16) / (T - 35.86))
+
+    enddo
+    enddo
+    enddo
+  end subroutine supersat0
 
 end module modthermodynamics

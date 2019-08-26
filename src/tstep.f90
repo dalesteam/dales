@@ -165,8 +165,8 @@ subroutine tstep_integrate
 
   use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
-                        thl0,thlm,thlp,qt0,qtm,qtp,&
-                        e120,e12m,e12p,sv0,svm,svp,ql0,qlm
+                        thl0,thlm,thlp,qt0,qtm,qtp,ql0,qlm,qlp,&
+                        e120,e12m,e12p,sv0,svm,svp
   implicit none
 
   integer i,j,k,n
@@ -181,32 +181,38 @@ subroutine tstep_integrate
      w0   = wm   + rk3coef * wp
      thl0 = thlm + rk3coef * thlp
      qt0  = qtm  + rk3coef * qtp
+     ql0  = qlm  + rk3coef * qlp
+     where(ql0 < 0.) ql0 = 0.
      sv0  = svm  + rk3coef * svp
+     where(sv0 < 0.) sv0 = 0.
      e120 = max(e12min,e12m + rk3coef * e12p)
   else ! step 3 - store result in both ..0 and ..m
      um   = um   + rk3coef * up
-     u0 = um
+     u0   = um
      vm   = vm   + rk3coef * vp
-     v0 = vm
+     v0   = vm
      wm   = wm   + rk3coef * wp
-     w0 = wm
+     w0   = wm
      thlm = thlm + rk3coef * thlp
      thl0 = thlm
      qtm  = qtm  + rk3coef * qtp
      qt0  = qtm
+     qlm  = qlm  + rk3coef * qlp
+     where(qlm < 0.) qlm = 0.
+     ql0  = qlm
      svm  = svm  + rk3coef * svp
-     sv0 = svm
+     where(svm < 0.) svm = 0.   
+     sv0  = svm
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
-     
-     qlm =ql0
   end if
-
+ 
   up=0.
   vp=0.
   wp=0.
   thlp=0.
   qtp=0.
+  qlp=0.
   svp=0.
   e12p=0.
 

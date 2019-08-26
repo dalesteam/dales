@@ -37,42 +37,49 @@
   integer, parameter :: imicro_sice2   = 6
   integer, parameter :: imicro_user    = 10
 
+  integer :: ipohlker = 0     ! Switch for aerosol population characteristics        (in namelist NAMMICROPHYSICS)
+
   logical :: l_sb        = .true. , & ! SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & ! cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
              l_rain      = .true. , & ! rain formation / evolution flag              (in namelist NAMMICROPHYSICS)
              l_mur_cst   = .false., & ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
-             l_kohler    = .true. , & ! true =  Explicit k-Kohler aerosol activation (in namelist NAMMICROPHYSICS)
+             l_kohler    = .true. , & ! true  = Explicit k-Kohler aerosol activation (in namelist NAMMICROPHYSICS)
                                       ! false = updraft based following Pousse-Nottelman et al. (2015)
              l_aertend   = .true.     ! Writing of aerosol tendencies to nc file.    (in namelist NAMMICROPHYSICS)
-
+   
   real    :: mur_cst = 5,    & ! mur value if l_mur_cst=T                            (in namelist NAMMICROPHYSICS)
              Nc_0    = 70e6, & ! initial cloud droplet number (#/m3)                 (in namelist NAMMICROPHYSICS)
              sig_g   = 1.34, & ! geometric std dev of cloud droplet DSD
              sig_gr  = 1.5,  & ! geometric std dev of rain drop DSD
              Ssat    = 0.2     ! Supersaturation used in k-Kohler activation (%)     (in namelist NAMMICROPHYSICS)
-
+   
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
 
-  integer, parameter :: nmod        =  9, & ! M7 + cloud + rain
-                        nspec       =  6, & ! 5x mass + number
-                        naer        = 37, & ! 25 M7 + 12 cloud microphysics
+  integer, parameter :: nmod        =  5, & ! 2 + cloud + rain
+                        nspec       =  3, & ! 2x mass + number
+                        naer        = 13, & ! 7 + 6 cloud microphysics
                         iaer_offset =  2    ! Number of non-aerosol scalars, i.e. qr and qc
 
   integer, parameter :: iqc = 1, iqr = 2
 
   integer, parameter :: &
-  inus_n  = 1,  iais_n  = 2,  iacs_n  = 3,  icos_n  = 4,  iaii_n  = 5,  iaci_n  = 6,  icoi_n  = 7,  inc     = 8,  inr     = 9,  &
-  iso4nus = 10, iso4ais = 11, iso4acs = 12, iso4cos = 13,                                           iso4cld = 14, iso4rai = 15, &
-                ibcais  = 16, ibcacs  = 17, ibccos  = 18, ibcaii  = 19,                             ibccld  = 20, ibcrai  = 21, &
-                ipomais = 22, ipomacs = 23, ipomcos = 24, ipomaii = 25,                             ipomcld = 26, ipomrai = 27, &
-                              issacs  = 28, isscos  = 29,                                           isscld  = 30, issrai  = 31, &
-                              iduacs  = 32, iducos  = 33,               iduaci  = 34, iducoi = 35 , iducld  = 36, idurai  = 37  
+  inus_n  = 1,  iais_n  = 2,  iacs_n  = 3,  inc     = 4,  inr     = 5, &
+  iso4nus = 6,                iso4acs = 7,  iso4cld = 8,  iso4rai = 9, &
+                ipomais = 10, ipomacs = 11, ipomcld = 12, ipomrai = 13
 
-  real, dimension(nmod-2),  parameter :: sigma_lognormal = (/ 1.59, 1.59, 1.59, 2.00, 1.59, 1.59, 2.00 /)
-  real, dimension(nspec-1), parameter :: spec_rho  = (/ 1841,  1300, 1800, 2165, 2650 /) ! Densities [kg m-3]
-  real, dimension(nspec-1), parameter :: spec_k    = (/  0.88,   0.,  0.1, 1.28,   0. /) ! Hygroscopicity parameters [-]
+  real, allocatable, dimension(:) :: sigma_lognormal, spec_k, spec_rho
 
-  real, parameter :: scalefac = 1.e9 
+!  real, dimension(nmod-2),  parameter :: sigma_lognormal = (/ 1.584, 1.553, 1.5 /) ! Pohlker PR
+!  real, dimension(nmod-2),  parameter :: sigma_lognormal = (/ 1.822, 1.682, 1.5 /) ! Pohlker LRT
+!  real, dimension(nmod-2),  parameter :: sigma_lognormal = (/ 1.221, 1.786, 1.5 /) ! Pohlker BB
+!
+!  real, dimension(nspec-1), parameter :: spec_k    =       (/ 0.12,  0.18/)        ! Pohlker PR Hygroscopicity parameters [-]
+!  real, dimension(nspec-1), parameter :: spec_k    =       (/ 0.18,  0.35/)        ! Pohlker LRT Hygroscopicity parameters [-]
+!  real, dimension(nspec-1), parameter :: spec_k    =       (/ 0.14,  0.17/)        ! Pohlker BB Hygroscopicity parameters [-]
+!
+!  real, dimension(nspec-1), parameter :: spec_rho  =       (/ 1800., 1800./)       ! Densities [kg m-3]
+
+  real, parameter :: scalefac = 1.e9
 
   ! ====================================================================================
   ! nmod_type, defining mode type, including cloud & rain 'phases'
@@ -87,12 +94,9 @@
   ! 9: Rain
 
   integer, dimension(naer),parameter :: &
-  nmod_type   = (/   1, 2, 3, 4, 5, 6, 7, 8, 9, &  ! particle number
-                     1, 2, 3, 4,          8, 9, &  ! sulphate mass
-                        2, 3, 4, 5,       8, 9, &  ! BC mass
-                        2, 3, 4, 5,       8, 9, &  ! POM mass
-                           3, 4,          8, 9, &  ! SS mass
-                           3, 4,    6, 7, 8, 9  /) ! DUST mass
+  nmod_type   = (/   1, 2, 3, 4, 5, &  ! particle number
+                     1,    3, 4, 5, &  ! sulphate mass
+                        2, 3, 4, 5  /) ! POM mass
 
   ! ====================================================================================
   ! nspec_type, defining aerosol species
@@ -104,12 +108,9 @@
   ! 6: DU  Dust
 
   integer, dimension(naer),parameter :: &
-  nspec_type   = (/   1, 1, 1, 1, 1, 1, 1, 1, 1, & ! particle number
-                      2, 2, 2, 2,          2, 2, & ! sulphate mass
-                         3, 3, 3, 3,       3, 3, & ! BC mass
-                         4, 4, 4, 4,       4, 4, & ! POM mass
-                            5, 5,          5, 5, & ! SS mass
-                            6, 6,    6, 6, 6, 6 /) ! DUST mass
+  nspec_type   = (/   1, 1, 1, 1, 1, &  ! particle number
+                      2,    2, 2, 2, &  ! sulphate mass
+                         3, 3, 3, 3  /) ! POM mass
 
   real, parameter ::  &
     D0_kk = 50e-6     & !< Diameter sep. cloud and prec. in KK00 scheme
@@ -117,7 +118,8 @@
    ,qrmin = 1.0e-13   & !< Rain  specific mixing ratio treshold for calculations
    ,ncmin = 1.0e3     & !< Cloud droplet number concentration threshold for calculations
    ,mcmin = 1.0e-12   & !< In-cloud aerosol mass mixing ratio threshold for calculations
-
+   ,nrmin = 1.0       & !< Rain droplet number concentration threshold for calculations
+   ,mrmin = 1.0e-12   & !< In-rain aerosol mass mixing ratio threshold for calculations
    ,eps0     = 1e-20   & !< parameter used to avoid division by zero floating point exceptions
    ,epscloud = 0.01e-3 &
    ,epsprec  = 3.65e-5 & !<  RICO threshold
@@ -226,7 +228,7 @@
     D_eq = 1.1E-3,     & !<  Parameters for break-up
     k_br = 1000.
 
-  real, allocatable, dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
+  real, allocatable, dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr,qlpmcr
   real, allocatable, dimension(:,:,:) :: precep
 
   real :: delt
