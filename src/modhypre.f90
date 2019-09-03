@@ -107,7 +107,7 @@ contains
 
     ! NOTE: we assume kmax is larger than 7,
     ! when we make the stencil entries
-    real      values(kmax*imax*jmax)
+    real, allocatable ::  values(:)
     real      cx, cy, cz_down, cz_up, cc
 
     ! integer   num_ghost(6)
@@ -117,6 +117,8 @@ contains
     real wtime
 
     ! data num_ghost / 3, 3, 3, 3, 0, 0 /
+
+    allocate(values(imax*jmax*kmax))
 
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD
@@ -257,7 +259,7 @@ contains
     enddo
 
     call HYPRE_StructMatrixAssemble(matrixA, ierr)
-    call HYPRE_StructMatrixPrint(matrixA, zero, ierr)
+    ! call HYPRE_StructMatrixPrint(matrixA, zero, ierr)
 
     wtime = MPI_Wtime() - wtime
     if (myid == 0) then
@@ -396,6 +398,8 @@ contains
       endif
       call exit(-1)
     endif
+
+    deallocate(values)
 
   end subroutine
 
