@@ -123,9 +123,7 @@ else(NETCDF_FORTRAN_LIB)
 endif(NETCDF_FORTRAN_LIB)
 
 ### Find HYPRE files
-ADD_LIBRARY(HYPRE STATIC IMPORTED)
-SET_TARGET_PROPERTIES(HYPRE PROPERTIES IMPORTED_LOCATION ${HYPRE_LIB}/libHYPRE.a)
-include_directories(${HYPRE_INC})
+# TODO: For now, assume they are in current paths
 
 ### Documentation
 INCLUDE(FindDoxygen)
