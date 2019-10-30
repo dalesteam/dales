@@ -35,19 +35,18 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
-    use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
+    use modmpi,       only : cmyid,myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
-
+    
     integer :: ierr
-
+    character(80) :: radtimename =  'radtimes.xxxxyxxx.txt'
     namelist/NAMDE/ &
       SSA,iDE,laero
 
     namelist/NAMRADIATION/ &
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
-      ocean, usero3, co2factor, doperpetual, doseasons, iyear, &
-      lsmoothsurfrad
+      ocean, usero3, co2factor, doperpetual, doseasons, iyear, lsmthsurf
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -72,6 +71,13 @@ contains
       close(ifnamopt)
     end if
 
+    radtimename(10:17) = cmyid
+    open(666,file=radtimename,status='replace')
+    write(666,*) 'Radiaton_walltime' 
+
+
+
+    
     call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
     call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
@@ -92,7 +98,8 @@ contains
     call MPI_BCAST(doperpetual,1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(doseasons,  1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
-
+    call MPI_BCAST(lsmthsurf,  1,MPI_INTEGER,0,comm3d,ierr)
+    
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(thlprSW   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(thlprLW   (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -198,14 +205,17 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
-    use modglobal, only : timee, dt_lim,rk3step
+    use modglobal, only : timee, dt_lim,rk3step,ijtot
     use modfields, only : thlp,ql0,qlrad
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
     use modradtenstream, only : dales_tenstream
+    use modmpi, only : myid,MPI_Wtime,mpierr,comm3d,my_real,mpi_sum
     implicit none
-    
+    real :: radtime0,radtime,radtimeav,rrx,rry
+    radtime0 = MPI_Wtime()   
+
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
         
@@ -247,6 +257,8 @@ contains
       if (rad_ls) then
         call radprof
       endif
+      radtime = MPI_Wtime()
+      write(666,*) radtime-radtime0
     end if
     thlp = thlp + thlprad
     qlrad = ql0
@@ -260,7 +272,7 @@ contains
 
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
-
+    close(666)
   end subroutine exitradiation
 
 

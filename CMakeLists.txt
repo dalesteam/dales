@@ -1,4 +1,4 @@
-### Choose CMAKE Type
+## Choose CMAKE Type
 if(NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE RELEASE CACHE STRING
       "Choose the type of build, options are: None Debug Release."
@@ -13,9 +13,9 @@ if("$ENV{SYST}" STREQUAL "HUYGENS")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "CARTESIUS")
   set(CMAKE_Fortran_COMPILER "mpiifort")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
-  set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
-  set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source -mkl" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_RELEASE "-Ofast -xCORE-AVX2 -nostandard-realloc-lhs -L/sw/arch/RedHatEnterpriseServer7/EB_production/2019/software/ifort/2018.3.222-GCC-7.3.0-2.30/lib/intel64_lin -lsvml" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all -L/sw/arch/RedHatEnterpriseServer7/EB_production/2019/software/ifort/2018.3.222-GCC-7.3.0-2.30/lib/intel64_lin -lsvml" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "localpc_ifort")
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
@@ -102,6 +102,7 @@ FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   $ENV{SARA_NETCDF_LIB}
   $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
+  $ENV{SURFSARA_LIBRARY_PATH}
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64
   /usr/lib
@@ -120,7 +121,7 @@ endif(NETCDF_INCLUDE_DIR)
 if(NETCDF_C_LIB)
   set(NETCDF_LIBS ${NETCDF_C_LIB})
 else(NETCDF_C_LIB)
-  MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
+  MESSAGE(STATUS "WARNING: No C-NETCDF bindings are found.")
 endif(NETCDF_C_LIB)
 
 if(NETCDF_FORTRAN_LIB)

@@ -127,7 +127,7 @@ call open_nc(fname,  ncid3,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
   subroutine threedheating
     use modraddata,only : thlprad,thlprLW,thlprSW,swd,swu,lwd,lwu,swdir,swdif,iradiation,irad_tenstr
     use modsurfdata,only : thls,qts,thvs
-    use modfields,only : ql0,qt0,thl0,qlrad
+    use modfields,only : ql0,qt0,w0,thl0,qlrad
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyidx, cmyidy
@@ -151,8 +151,6 @@ call open_nc(fname,  ncid3,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
       dt_lim = min(dt_lim,tnext-timee)
       return
     end if
-    !write(*,*) 'wqtth',wqtthrad
-    !deallocate(wqtthrad) 
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 

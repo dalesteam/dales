@@ -153,7 +153,7 @@ SAVE
   real, allocatable :: PARdifField  (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
-  logical           :: lCHon      = .true.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
+  logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
   integer           :: indCO2     = -1     !<  Index of CO2 in the scalars
   integer           :: CO2loc     = -1     !<  Index of CO2 in the scalars
   real, allocatable :: CO2flux(:,:)        !<  Surface flux of CO2 as calculated by AGS

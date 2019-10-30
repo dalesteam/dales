@@ -75,12 +75,11 @@ contains
     integer(mpiint) :: inp_comm,mpierr
     integer(iintegers) :: i, j, k, kk
     integer(iintegers), allocatable :: nxproc(:), nyproc(:)
-
+    
     real(ireals), parameter :: solar_min_sza=85 ! minimum solar zenith angle -- below, dont compute solar rad
-    real(ireals), parameter :: rho_liq = 1000
-  
+    real(ireals), parameter :: rho_liq = 1000  
     type(t_tenstr_atm) :: atm
-  
+     
     mu = real(zenith(xtime*3600 + rtimee, xday, xlat, xlon), ireals)
     theta0 = rad2deg(acos(mu))
   
@@ -181,7 +180,6 @@ contains
       k = ubound(edn,1)
       print *,k,'ediff',edn(k,1,1), eup(k,1,1)
     endif
-
     do k=1,k1
       kk = ubound(edn,1) - (k-1) ! TenStream providing fluxes from TOA to Srfc and on the bigger grid...
       lwd(2:i1, 2:j1, k) = -edn(kk, :, :)
@@ -252,6 +250,9 @@ contains
       SW_dn_TOA(2:i1, 2:j1) = 0
       SW_up_TOA(2:i1, 2:j1) = 0
     endif
+
+!    call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
+!    call destroy_tenstr_atm(atm)
 
   end subroutine
 #endif

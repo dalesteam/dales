@@ -196,7 +196,6 @@ contains
 
          end if
       end if
-
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
       lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
       if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
@@ -205,9 +204,9 @@ contains
           lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
         end do
       end if
-
+       
       swu(2:i1,j,1:k1) =  swUp_slice  (1:imax,1:k1)
-      swd(2:i1,j,1:k1) = -swDown_slice(1:imax,1:k1)
+      swd(2:i1,j,1:k1) = -swDown_slice(1:imax,1:k1) 
 
       swdir(2:i1,j,1:k1) = -swDownDir_slice(1:imax,1:k1)
       swdif(2:i1,j,1:k1) = -swDownDif_slice(1:imax,1:k1)
@@ -251,12 +250,12 @@ contains
         end do
       end do
     end do
-  if (lsmoothsurfrad == .true.) then
+  if (lsmthsurf == .true.) then
       ! surface smoothing
       swdif_surfavl = sum(swdif(2:i1,2:j1,1))
       swu_surfavl   = sum(swu(2:i1,2:j1,1))
-      lwd_surfavl   = sum(swd(2:i1,2:j1,1))
-      lwu_surfavl   = sum(swu(2:i1,2:j1,1))
+      lwd_surfavl   = sum(lwd(2:i1,2:j1,1))
+      lwu_surfavl   = sum(lwu(2:i1,2:j1,1))
       
       call MPI_ALLREDUCE(swdif_surfavl,  swdif_surfav,   1, MY_REAL, MPI_SUM, comm3d, mpierr)     
       call MPI_ALLREDUCE(swu_surfavl,    swu_surfav,     1, MY_REAL, MPI_SUM, comm3d, mpierr)

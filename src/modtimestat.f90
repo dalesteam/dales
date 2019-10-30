@@ -337,7 +337,7 @@ contains
 !>Run timestat. Calculate and write the statistics
   subroutine timestat
 
-    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
+    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,printzenith,&
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
 !
     use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
@@ -766,7 +766,7 @@ contains
       CPU_prog_men0 = MPI_Wtime() 
        !tmser1
       open (ifoutput,file='tmser1.'//cexpnr,position='append')
-      write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3,f12.3)') &
+      write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3,2f12.3)') &
           rtimee, &
           cc, &
           zbaseav, &
@@ -779,7 +779,9 @@ contains
           wmax, &
           tke_tot*dzf(1), &
           qlmax*1000., &
-          CPU_prog_men
+          CPU_prog_men,&
+          printzenith
+                     
       close(ifoutput)
 
       !tmsurf
