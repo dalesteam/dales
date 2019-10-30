@@ -1,0 +1,14 @@
+#!/bin/bash
+#SBATCH -t 03:00:00
+#SBATCH -n 24
+#SBATCH -e errorfile.700
+#SBATCH -o errorfile.700
+#SBATCH --constraint=haswell
+iexpnr=000
+
+ulimit -s unlimited
+
+srun ./dales4 namoptions.$iexpnr -max_solution_time 299  -lut_basename /home/mveerman/LUT/LUT >output.$iexpnr
+
+
+
