@@ -1,7 +1,7 @@
 &RUN
 iexpnr        =  000
 lwarmstart    = .false.
-runtime       = 3600
+runtime       = 300
 trestart      =  7200
 ladaptive     =  .true.
 irandom       =  43

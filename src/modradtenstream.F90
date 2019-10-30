@@ -251,7 +251,7 @@ contains
       SW_up_TOA(2:i1, 2:j1) = 0
     endif
 
-!    call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
+    call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
 !    call destroy_tenstr_atm(atm)
 
   end subroutine

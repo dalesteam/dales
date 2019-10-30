@@ -72,7 +72,7 @@ SAVE
   integer :: irad    = -1                !< Deprecated selection parameter for the type of radiation scheme
   logical :: lCnstZenith = .false.       !< Switch to disable the diurnal cycle and use diurnally averaged SW radiation (e.g. CGILS)
   logical :: lCnstAlbedo = .false.       !< Switch to disable the surface albedo parameterization in RRTMG
-  logical :: lsmoothsurfrad = .false.    !< Switch to use smoothening of diffuse radiative fluxes at the surface in RRTMG (diffuse swd, swu, lwd, lwu)
+  logical :: lsmthsurf = .false.    !< Switch to use smoothening of diffuse radiative fluxes at the surface in RRTMG (diffuse swd, swu, lwd, lwu)
   real :: cnstZenith=0.                  !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
   ! Options in NAMRADIATION that apply to the rrtmg script
