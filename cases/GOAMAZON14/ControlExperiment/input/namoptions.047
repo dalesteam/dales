@@ -1,0 +1,224 @@
+&RUN
+iexpnr     = 047
+nprocx     = 36
+nprocy     = 36 
+lwarmstart =  .false.
+startfile  =  'initd06h00m000.001'
+runtime    =  43200  
+trestart   =  50000
+dtmax      =  1
+ladaptive  = .true.
+courant    =  1.
+irandom    =  43
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  21 
+timeav_glob=300
+/
+
+&DOMAIN
+itot       =  360 
+jtot       =  360 
+kmax       =  200
+
+xsize      = 19080.
+ysize      = 19080.
+
+xlat       =  -2.6091 
+xlon       =  -60.2093 
+xday       =  253
+xtime      =  10.00
+/
+
+&NAMSURFACE
+tsoilav(1)   = 294.00
+tsoilav(2)   = 294.50
+tsoilav(3)   = 295.00
+tsoilav(4)   = 296.00
+tsoildeepav  = 297.00
+
+phiwav(1)    = 0.300
+phiwav(2)    = 0.300
+phiwav(3)    = 0.300
+phiwav(4)    = 0.300
+
+rootfav(1)   = 0.35
+rootfav(2)   = 0.38
+rootfav(3)   = 0.23
+rootfav(4)   = 0.04
+
+phi          = 0.500
+phifc        = 0.400
+phiwp        = 0.171
+
+lmostlocal   = .true.
+lsmoothflux  = .false.
+rsisurf2     = 50.
+
+z0mav        = 0.5 
+z0hav        = 0.1 
+Cskinav      = 0.
+lambdaskinav = 40
+albedoav     = 0.15
+Qnetav       = -99999
+
+rsminav      = 175.
+rssoilminav  = 50.
+cvegav       = 0.9
+LAIav        = 5.
+gDav         = 0.03
+Wlav         = 0.0e-4
+
+lrsAgs       = .true.
+lCO2Ags      = .true.
+lsplitleaf   = .true.
+
+lrelaxgc     = .false.
+kgc          = 0.00
+/
+
+&NAMRADSTAT
+lstat      = .true.
+dtav       = 60
+timeav     = 60
+/
+
+&NAMAGScross
+lAGScross   = .false.
+dtav        = 60.
+/
+
+&PHYSICS
+z0         =  0.035
+ustin      =  0.1
+ps         =  100000.00
+thls       =  299.00
+wtsurf     =  0.1
+wqsurf     =  0.0
+wsvsurf(1) =  1.e-02
+wsvsurf(2) =  0.0
+wsvsurf(3) =  0.0
+wsvsurf(4) =  0.0005
+wsvsurf(5) =  0.0
+wsvsurf(6) =  0.0
+wsvsurf(7) =  0.0
+wsvsurf(8) =  0.0
+wsvsurf(9) =  0.0
+wsvsurf(10) = 0.325
+wsvsurf(11) = 0.0
+wsvsurf(12) = 0.0
+wsvsurf(13) = 0.0
+wsvsurf(14) = 0.0
+wsvsurf(15) = 0.0
+wsvsurf(16) = 0.0
+wsvsurf(17) = 0.0
+wsvsurf(18) = 0.0
+wsvsurf(19) = 0.0
+wsvsurf(20) = 0.0
+wsvsurf(21) = 0.0
+
+lmoist     =  .true.
+isurf      =  1
+iradiation =  4
+
+lcoriol    =  .true.
+rad_shortw    = .true.
+rad_longw     = .true.
+sw0           = 1367.
+lcloudshading = .true.
+/
+
+&NAMMICROPHYSICS
+imicro = 0
+Nc_0 = 100e6
+/
+
+&NAMBULKMICROSTAT
+lmicrostat = .false.
+dtav = 60
+timeav = 60
+/
+
+&NAMCROSSSECTION
+lcross      = .false.
+dtav        = 60
+crossheight(1) = 1
+/
+
+&NAMHETEROSTATS
+lheterostats = .false.
+dtav = 60.
+/
+
+&DYNAMICS
+llsadv     =  .false.
+lqlnr      =  .false.
+cu         =  -7.
+cv         =  -1.
+
+iadv_mom    =  52
+iadv_tke    =  52
+iadv_thl    =  52
+iadv_qt     =  52
+iadv_sv     =  100*7
+/
+&NAMRADIATION
+lCnstAlbedo = .true.
+/
+
+&NAMCHECKSIM
+tcheck      =  60
+/
+
+&NAMSAMPLING
+lsampup     = .false.
+dtav        = 60
+timeav      = 60
+lsampcl     = .true.
+/
+
+&NAMTIMESTAT
+ltimestat   = .true.
+iblh_meth   = 1
+iblh_var    = -1
+dtav        =300
+/
+&NAMGENSTAT
+lstat       = .true.
+dtav        = 60
+/
+&NAMFIELDDUMP
+lfielddump  = .false.
+dtav        = 60
+ldiracc     = .true.
+/
+&NAMSTATTEND
+dtav        = 60
+ltend       = .false.
+/
+&NAMNETCDFSTATS
+lnetcdf     = .True.
+/
+&NAMNETCDFMOVIE
+lnetcdfmovie = .false.
+dtmovie      = 5
+ncklimit     = 60
+lmoviez      = .true.
+slicex       = 5
+slicez       = 5
+/
+&NAMCHEM
+lchem       = .true.
+tnor        = 25 
+firstchem   = 1
+lastchem    = 20 
+ldiuvar     = .true. 
+lchconst    = .false.
+h_ref       = 12.0
+lcloudKconst= .false.
+t_ref	    = 298.
+p_ref	    = 100000.
+q_ref	    = 10.0e-3
+lchmovie    = .false.
+dtchmovie   = 60.
+/
