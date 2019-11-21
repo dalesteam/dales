@@ -1,6 +1,39 @@
 Changes in DALES
 ================
 
+This version introduces a library interface to DALES, defined in `daleslib.f90.` With this interface,
+DALES can be used with the [OMUSE](https://omuse.readthedocs.io/en/latest/) framework, which provides
+a Python interface to DALES.
+
+
+### Improvements
+
+* Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support.
+  Commit 4ab9a7571b
+* Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
+* Add qsat field for statistics, and  statistics for accumulated surface rain flux in simpleice2.  Commit 6036c1a93b
+* Add a library interface to DALES, to enable interfacing with OMUSE. Commits 6e0e39f2, 9f91f2d, 4b97aca, 640977e
+
+
+### Optimization
+
+* modpois: don't exchange the pwp field, ghost cells in it are not needed. Commit c7f72b1b
+* If lcoriol is .false., skip coriolis calculations. Commit c343772
+* advec_5th: move i,j loops inside if k. Advection calls ~3 times faster. Commit 0badd3a124
+* Asynchronous MPI halo exchanges. E,W in parallel, then N,S. By J. Attema. Commits a54b9f8e, 6951323, 0c08a262
+
+
+### Bugs fixed
+
+* Fix ibas_prf=3 initialization when zf(k) is exactly 11000 (1st value in the lapse rate table).
+  [Issue #41](https://github.com/dalesteam/dales/issues/41), Commit ee6230bc00
+* modradstat: handle sign conventions of different radiation schemes (S. de Roode). Commit f43012
+* radiation: initialize {sw,lw}{Up,Down}_slice arrays before rrtmg calls, since the calls are not always performed (S. de Roode). Commit d4e979de7d
+* netCDF staistics: fix for determining the index where writing is resumed at warm start.
+  [Issue #42](https://github.com/dalesteam/dales/issues/42), Commit 8ff2cced3
+* Fix closing of crosssection netcdf files. Commit e72701e08
+
+
 Version 4.2 - 2019-06-05
 ------------------------
 

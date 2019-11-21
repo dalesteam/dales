@@ -6,7 +6,7 @@ The following documents are included in the DALES repository (but are not fully 
 * [User manual](https://github.com/dalesteam/dales/blob/master/utils/doc/input/dales-manual.pdf)
 * Documentation of the configuration options [Namoptions.pdf](https://github.com/dalesteam/dales/blob/master/utils/doc/input/Namoptions.pdf)
 * [readme.pdf](https://github.com/dalesteam/dales/blob/master/utils/doc/input/readme.pdf)
-* [INSTALL](https://github.com/dalesteam/dales/blob/master/INSTALL) contains installation instructions
+* [INSTALL.md](https://github.com/dalesteam/dales/blob/master/INSTALL.md) contains installation instructions
 * The [DALES Wiki](https://github.com/dalesteam/dales/wiki/) contains [Installation instructions](https://github.com/dalesteam/dales/wiki/Installation-notes) for various systems and notes for [visualizing and processing](https://github.com/dalesteam/dales/wiki/Visualizing-and-processing-output) the model output
 
 ## License
