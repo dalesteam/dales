@@ -148,8 +148,7 @@ program DALES      !Version 4.0.0alpha
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
-
-
+  use modemission,     only : emission
   implicit none
 
 !----------------------------------------------------------------
@@ -233,6 +232,7 @@ program DALES      !Version 4.0.0alpha
     call samptend(tend_ls)
     call microsources !Drizzle etc.
     call samptend(tend_micro)
+    call emission
 
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS

@@ -62,6 +62,7 @@ contains
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
+    use modemission,       only : initemis
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -254,6 +255,7 @@ contains
     call initthermodynamics
     call initradiation
     call initsurface
+    call initemis
     call initsubgrid
     call initpois
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
@@ -1052,6 +1054,7 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modthermodynamics, only : exitthermodynamics
+    use modemission,       only : exitemission
 
     call exittimedep
     call exitthermodynamics
@@ -1060,6 +1063,7 @@ contains
     call exitradiation
     call exitpois
     call exitmicrophysics
+    call exitemission
     call exitboundary
     call exitfields
     call exitglobal
