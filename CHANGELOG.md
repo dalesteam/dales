@@ -184,7 +184,7 @@ According to Chiel, microHH does the same.
 
 * Don't do halo exchange of the m-fields
 The m-fields ghost cells are seldom needed.  Saves maybe 1 % for a
-single process run, and a large amount of MPI cvommunication in a multi-process run.
+single process run, and a large amount of MPI communication in a multi-process run.
 This was tried but reverted since it interfered with chemistry, which *does* use the m-field halos.
 (Commit 0c2cf59)
 

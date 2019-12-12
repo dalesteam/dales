@@ -122,6 +122,9 @@ else(NETCDF_FORTRAN_LIB)
   MESSAGE(STATUS "WARNING: No Fortran NETCDF bindings are found.")
 endif(NETCDF_FORTRAN_LIB)
 
+### Find HYPRE files
+# TODO: For now, assume they are in current paths
+
 ### Documentation
 INCLUDE(FindDoxygen)
 if(DOXYGEN)
