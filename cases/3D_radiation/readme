@@ -1,0 +1,11 @@
+For instructions on installing and using the tenstream solver, see https://github.com/tenstream/tenstream 
+
+After downloading Look-Up-Tables, replace <path_to_LUT> in the job script by the location of the Look-Up_tables
+
+To run the simulations with domain averaged diffuse radiative fluxes at the surface, set 'lsmthsurf=.true.' in the namoptions file and (for the tenstream experiments) add '-pprts_smooth_srfc_flx -1' to the command line options.
+
+To have transparent clouds in the radiation scheme (RRTMG), change the line 'qcl_slice (im,k) = ql0(i,j,k)' in "/src/modradrrtmg.f90" to 'qcl_slice (im,k) = 0. !ql0(i,j,k)' and recompile
+
+To use more streams, change the line 'type(t_solver_3_10) :: pprts_solver' in "/src/modradtenstream" to 'type(t_solver_8_16) :: pprts_solver' and recompile. 
+
+
