@@ -64,8 +64,8 @@ contains
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput
-    use modstat_nc, only : lnetcdf,define_nc,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
+                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart
+    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
@@ -197,7 +197,7 @@ contains
     subphavl    = 0.0
     nrtsamphav  = 0
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart) then
       do isamp = 1,isamptot
         open (ifoutput,file=trim(samplname(isamp))//'wbudg.'//cexpnr,status='replace')
         close (ifoutput)

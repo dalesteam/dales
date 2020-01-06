@@ -85,7 +85,7 @@ contains
 subroutine initsimpleicestat
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
-              dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres
+              dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart
     use modstat_nc, only : lnetcdf, open_nc,define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata,only: imicro, imicro_sice
@@ -171,7 +171,7 @@ subroutine initsimpleicestat
     qrmn    = 0.0
     Dvrmn    = 0.0
 
-    if (myid == 0) then
+    if (myid == 0 .and. .not. lwarmstart) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
       close(ifoutput)
       open (ifoutput,file = 'nptend.'//cexpnr ,status = 'replace')

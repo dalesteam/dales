@@ -64,7 +64,7 @@ contains
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical,mpi_integer
     use modglobal, only : ladaptive, dtmax,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,btime,tres,cexpnr,ifoutput,nsv
+                           dtav_glob,btime,tres,cexpnr,ifoutput,nsv,lwarmstart
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_q_nc
     implicit none
 
@@ -187,7 +187,7 @@ contains
     thlqtcovl = 0.0
 
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart)then
       do isamp = 1,isamptot
         open (ifoutput,file=trim(samplname(isamp))//'quadrant.'//cexpnr,status='replace')
         close (ifoutput)

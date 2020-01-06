@@ -238,7 +238,7 @@ save
 contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
-  use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
+  use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart
   use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
   use modsurfdata, only : lCHon
   implicit none
@@ -335,7 +335,7 @@ SUBROUTINE initchem
     pl_scheme(i)=pl_scheme(1)
   enddo
 
-  if(myid==0)then
+  if(myid==0 .and. .not. lwarmstart) then
     open (ifoutput,file='cloudstat.'//cexpnr,status='replace')
     write(ifoutput,'(A)') "#  time   UTC #zbase #cloud zbaseavg max_ztop cld_hght max_hght qlintmax qlintavg allqlmax allqlavg"
     close (ifoutput)

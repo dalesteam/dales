@@ -77,7 +77,7 @@ contains
   subroutine initbudget
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
-    ladaptive,dt_lim,btime,tres
+    ladaptive,dt_lim,btime,tres,lwarmstart
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
@@ -142,7 +142,7 @@ contains
     ltkeb=.false. ; lsbtkeb=.false.
 
    !Preparing output files
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart) then
        open (ifoutput,file='budget.'//cexpnr,status='replace')
        close (ifoutput)
        open (ifoutput,file='sbbudget.'//cexpnr,status='replace')

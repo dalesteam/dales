@@ -54,7 +54,7 @@ contains
 subroutine initstattend
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
     use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
-    ladaptive, dt_lim,btime,tres,ifoutput
+    ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : ncid_prof=>ncid
 
@@ -112,7 +112,7 @@ subroutine initstattend
     thlpav = 0
     qtpav = 0
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart) then
       open (ifoutput,file='utend.'//cexpnr,status='replace')
       close (ifoutput)
       open (ifoutput,file='vtend.'//cexpnr,status='replace')
