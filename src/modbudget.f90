@@ -841,28 +841,30 @@ end subroutine do_genbudget
             khkmmn    (k), &
             k=1,kmax)
        close(ifoutput)
+
+       if (lnetcdf) then
+          vars(:, 1) =tkemn
+          vars(:, 2) =shrmn
+          vars(:, 3) =buomn
+          vars(:, 4) =trspmn
+          vars(:, 5) =ptrspmn
+          vars(:, 6) =dissmn
+          vars(:, 7) =budgmn
+          vars(:, 8) =stormn
+          vars(:, 9) =residmn
+          vars(:,10) =sbtkemn
+          vars(:,11) =sbshrmn
+          vars(:,12) =sbbuomn
+          vars(:,13) =sbdissmn
+          vars(:,14) =sbstormn
+          vars(:,15) =sbbudgmn
+          vars(:,16) =sbresidmn
+          vars(:,17) =ekmmn
+          vars(:,18) =khkmmn
+          call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
+       end if
     endif !endif myid==0
-      if (lnetcdf) then
-        vars(:, 1) =tkemn
-        vars(:, 2) =shrmn
-        vars(:, 3) =buomn
-        vars(:, 4) =trspmn
-        vars(:, 5) =ptrspmn
-        vars(:, 6) =dissmn
-        vars(:, 7) =budgmn
-        vars(:, 8) =stormn
-        vars(:, 9) =residmn
-        vars(:,10) =sbtkemn
-        vars(:,11) =sbshrmn
-        vars(:,12) =sbbuomn
-        vars(:,13) =sbdissmn
-        vars(:,14) =sbstormn
-        vars(:,15) =sbbudgmn
-        vars(:,16) =sbresidmn
-        vars(:,17) =ekmmn
-        vars(:,18) =khkmmn
-        call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
-      end if
+    
       !Reset time mean variables; resolved TKE
       tkemn=0.;tkeb=0.;shrmn=0.;buomn=0.;trspmn=0.;ptrspmn=0.;
       dissmn=0.;stormn=0.;budgmn=0.;residmn=0.
