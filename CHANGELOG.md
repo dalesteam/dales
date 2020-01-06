@@ -8,6 +8,8 @@ a Python interface to DALES.
 
 ### Improvements
 
+* don't overwrite ascii output files on warm start. Commit 25fae048
+* Warn when moduser routines are invoked from a case, when a custom moduser.f90 has not been compiled in. Commit ae148a3bd3
 * Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support.
   Commit 4ab9a7571b
 * Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
@@ -24,7 +26,7 @@ a Python interface to DALES.
 
 
 ### Bugs fixed
-
+* modbudget: add if(myid==0) around netcdf profile writing. Commit b7afc418c5
 * Fix ibas_prf=3 initialization when zf(k) is exactly 11000 (1st value in the lapse rate table).
   [Issue #41](https://github.com/dalesteam/dales/issues/41), Commit ee6230bc00
 * modradstat: handle sign conventions of different radiation schemes (S. de Roode). Commit f43012
