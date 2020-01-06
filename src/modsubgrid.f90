@@ -106,7 +106,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1,ch2,cm,ce1,ce2
+        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -131,9 +131,6 @@ contains
     call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ch1        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ch2        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ce1         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ce2         ,1,MY_REAL   ,0,comm3d,mpierr)
 
   end subroutine subgridnamelist
 
