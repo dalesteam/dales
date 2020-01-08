@@ -75,6 +75,7 @@ contains
 !
   subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq)
     use modglobal, only : author,version,rtimee
+    use modversion, only : git_version
     implicit none
     integer, intent (out) :: ncid,nrec
     integer, optional, intent (in) :: n1, n2, n3, ns, nq
@@ -94,7 +95,7 @@ contains
       iret = nf90_create(fname,NF90_NETCDF4,ncid)
       iret = nf90_put_att(ncid,NF90_GLOBAL,'title',fname)
       iret = nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time))
-      iret = nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version))
+      iret = nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version))
       iret = nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author))
       iret = nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID)
       if (present(n1)) then

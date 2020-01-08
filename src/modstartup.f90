@@ -54,7 +54,7 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
+    use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
@@ -78,7 +78,8 @@ contains
     use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
     use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr
     use modchem,           only : initchem
-
+    use modversion,        only : git_version
+    
     implicit none
     integer :: ierr
     character(256), optional, intent(in) :: path
@@ -102,6 +103,7 @@ contains
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     
+    write (*, *) trim(version)//' git: '//trim(git_version)
     
     ! get myid
     ! call MPI_INIT(mpierr)
