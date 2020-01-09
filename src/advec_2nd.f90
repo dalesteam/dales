@@ -40,7 +40,7 @@ subroutine advecc_2nd(putin,putout)
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
-  integer :: i,j,k,ip,im,jp,jm,kp,km
+  integer :: i,j,k
 
 !  do k=1,k1
 !    do j=2-jh,j1+jh

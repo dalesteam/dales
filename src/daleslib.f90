@@ -242,7 +242,7 @@ module daleslib
 
 
         subroutine daleslib_nudge
-           use modfields,   only : up,vp,thlp,qtp, u0,v0,thl0,qt0, u0av,v0av,thl0av,qt0av
+           use modfields,   only : up,vp,thlp,qtp, u0av,v0av,thl0av,qt0av
            use modglobal,   only : i1,j1,kmax
            integer k
            do k=1,kmax
@@ -258,13 +258,12 @@ module daleslib
           
         
         subroutine force_tendencies
-          use modmpi,      only : mpierr
           use modglobal,   only : i1,j1,imax,jmax,kmax,rdt
-          use modfields,   only : up,vp,thlp,qtp,qt0,qt0av,ql0,ql0av         
+          use modfields,   only : up,vp,thlp,qtp,qt0,ql0,ql0av,qt0av         
 
           implicit none
           integer k
-          real qt_avg, alpha, qlt, qvt
+          real alpha, qlt, qvt
           real qtp_local (2:i1, 2:j1), qtp_local_lim (2:i1, 2:j1), qtp_lost, al(1:kmax)
 
           write(*,*) "force_tendencies() : qt_forcing_type =", qt_forcing_type
@@ -379,7 +378,7 @@ module daleslib
         ! find min and max value of all tendencies. Check that they are within reasonable boundaries.
         ! if not, print a message including 'msg' and the min/max values of all the tendencies.
         subroutine check_tend(msg)
-          use modfields,   only : up,vp,wp,thlp,qtp,qt0,qt0av,e12p
+          use modfields,   only : up,vp,wp,thlp,qtp,e12p
           use modglobal,   only : i1,j1,kmax,rk3step,rtimee
           implicit none
           real thlp_l, qtp_l, e12p_l, up_l, vp_l, wp_l, thlp_h, qtp_h, e12p_h, up_h, vp_h, wp_h
@@ -776,7 +775,7 @@ module daleslib
     ! NOTE averages the FULL input array - if less is wanted, pass a slice !
     function gatherlayeravg(Al,Ag) result(ret)
       use mpi
-      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      use modmpi, only: comm3d, my_real,  myid, nprocs
       real, intent(in)      :: Al(:,:,:)
       real, intent(out)     :: Ag(:)
       integer               :: k, nk, ret
@@ -820,12 +819,12 @@ module daleslib
     ! note: assumes the qi array is large enough (kmax elements)
     function gather_ice(qi) result(ret)
       use mpi
-      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      use modmpi, only: comm3d, my_real, myid, nprocs
       use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn
       use modfields, only: ql0, tmp0
       
       real, intent(out)     :: qi(:)
-      integer               :: i,j,k, nk, ret
+      integer               :: i,j,k, ret
       real                  :: ilratio
 
       do k=1,kmax
@@ -886,7 +885,7 @@ module daleslib
     ! the array should be sliced to contain ONLY the physical cells before calling,
     ! so the data arrays are 1-based
     function gathervol(g_i,g_j,g_k,a,n,field) result(ret)
-      use modglobal, only: imax, jmax, kmax, i1, j1
+      use modglobal, only: imax, jmax
       use mpi
       use modmpi, only: myidx, myidy, comm3d, my_real, myid
       
@@ -933,7 +932,7 @@ module daleslib
     ! the array should be sliced to contain ONLY the physical cells before calling,
     ! so the data arrays are 1-based
     function gatherlayer(g_i,g_j,a,n,field) result(ret)
-      use modglobal, only: imax, jmax, i1, j1
+      use modglobal, only: imax, jmax
       use mpi
       use modmpi, only: myidx, myidy, comm3d, my_real, myid
 
@@ -979,7 +978,7 @@ module daleslib
     ! the array should be sliced to contain ONLY the physical cells before calling,
     ! so the data arrays are 1-based
     function gatherLWP(g_i,g_j,a,n,field) result(ret)
-      use modglobal, only: imax, jmax, kmax, i1, j1, dzf
+      use modglobal, only: imax, jmax, kmax, dzf
       use modfields, only: rhobf
       use mpi
       use modmpi, only: myidx, myidy, comm3d, my_real, myid
@@ -988,7 +987,7 @@ module daleslib
       integer, dimension(n), intent(in)   :: g_i,g_j
       real,    dimension(n), intent(out)  :: a
       real,    intent(in)                 :: field (:,:,:)
-      integer                             :: r, i, j, k, is, js, ks, ret
+      integer                             :: r, i, j, is, js, ks, ret
 
       is = size(field, 1)
       js = size(field, 2)
@@ -1032,11 +1031,11 @@ module daleslib
     ! NOTE averages the FULL input array - if less is wanted, pass a slice !
     function gatherCloudFrac(ql,I,A) result(ret)
       use mpi
-      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      use modmpi, only: comm3d, my_real, myid, nprocs
       real,    intent(in)     :: ql(:,:,:)
       integer, intent(in)     :: I(:)
       real,    intent(out)    :: A(:)
-      integer                 :: ii, k, k1, k2, ret
+      integer                 :: ii, k1, k2, ret
 
       k1 = 1                    ! start of k-range
       do ii = 1, size(I)

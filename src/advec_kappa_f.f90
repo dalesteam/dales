@@ -53,7 +53,7 @@
 
   subroutine advecc_kappa_f(putin,putout)
 
-  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzi,dzf
+  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
   real,external :: rlim_f

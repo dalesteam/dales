@@ -75,7 +75,7 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
+    use mpi,               only : MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
     use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr
     use modchem,           only : initchem
     use modversion,        only : git_version
@@ -83,7 +83,6 @@ contains
     implicit none
     integer :: ierr
     character(256), optional, intent(in) :: path
-    character(256) :: extension
     
     !declare namelists
     namelist/RUN/ &
@@ -918,7 +917,7 @@ contains
   ! determines when to write a restart file, then calls do_writerestartfiles to do the work
   !  if trestart = 0, no periodic restart files will be written.
   subroutine writerestartfiles
-    use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,rtimee,timee,timeleft,tres,rk3step
+    use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
     implicit none
 
     if (timee == 0) return
@@ -943,7 +942,7 @@ contains
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,timeleft,dtheta,dqt,dt
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
 

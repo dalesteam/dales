@@ -364,7 +364,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav,cu,cv,deltai
+  use modglobal,   only : i1,j1,kmax,dx,dy,dxi,dyi,dzf,dzh,grav,cu,cv,deltai
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
   use modsurfdata,  only : dudz,dvdz,ustar,thlflux
   use modsubgriddata, only: sgs_surface_fix

@@ -195,7 +195,7 @@ contains
   integer status(MPI_STATUS_SIZE)
   integer ii, i, j, k
   integer reqn, reqs, reqe, reqw
-  integer nssize, ewsize, bsize
+  integer nssize, ewsize
   real,allocatable, dimension(:) :: sendn,recvn
   real,allocatable, dimension(:) :: sends,recvs
   real,allocatable, dimension(:) :: sende,recve

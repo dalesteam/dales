@@ -232,7 +232,7 @@ contains
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
-    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
+    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad
 
     implicit none
     integer :: k
