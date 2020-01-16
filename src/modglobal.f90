@@ -147,6 +147,14 @@ save
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
 
+      ! Poisson solver: modpois / modhypre
+      integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
+                                     !                                     FFT  SMG PFMG BiCGSTAB GMRES
+      integer :: maxiter = 10000     ! Number of iterations                 .    X   X     X       X
+      real    :: tolerance = 1E-8    ! Convergence threshold                .    X   X     X       X
+      integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
+      integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
+      integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
 
       ! Global variables (modvar.f90)
       integer :: xyear  = 0     !<     * year, only for time units in netcdf
@@ -322,7 +330,7 @@ contains
 
     ! Global constants
 
-    
+
 
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice
@@ -332,7 +340,7 @@ contains
     ttab(m)=150.+0.2*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
          tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-    
+
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
 
