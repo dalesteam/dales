@@ -1,17 +1,21 @@
 Changes in DALES
 ================
 
+Version 4.3 - 2020
+------------------
+
 This version introduces a library interface to DALES, defined in `daleslib.f90.` With this interface,
 DALES can be used with the [OMUSE](https://omuse.readthedocs.io/en/latest/) framework, which provides
-a Python interface to DALES.
+a Python interface to DALES. Another new feature is the support of iterative Poisson solvers, see
+the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver)
 
 
 ### Improvements
 
+* Iterative Poisson solver support with the HYPRE library (by J. Attema).
 * don't overwrite ascii output files on warm start. Commit 25fae048
 * Warn when moduser routines are invoked from a case, when a custom moduser.f90 has not been compiled in. Commit ae148a3bd3
-* Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support.
-  Commit 4ab9a7571b
+* Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support. Commit 4ab9a7571b
 * Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
 * Add qsat field for statistics, and  statistics for accumulated surface rain flux in simpleice2.  Commit 6036c1a93b
 * Add a library interface to DALES, to enable interfacing with OMUSE. Commits 6e0e39f2, 9f91f2d, 4b97aca, 640977e
