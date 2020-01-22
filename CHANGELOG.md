@@ -26,6 +26,8 @@ a Python interface to DALES.
 
 
 ### Bugs fixed
+
+* modbudget: remove extra factor rhobf in calculation of sbtke average. From S. de Roode.
 * modbudget: add if(myid==0) around netcdf profile writing. Commit b7afc418c5
 * Fix ibas_prf=3 initialization when zf(k) is exactly 11000 (1st value in the lapse rate table).
   [Issue #41](https://github.com/dalesteam/dales/issues/41), Commit ee6230bc00
