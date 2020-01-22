@@ -8,6 +8,7 @@ a Python interface to DALES.
 
 ### Improvements
 
+* Iterative Poisson solver support with the HYPRE library (by J. Attema).
 * Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support.
   Commit 4ab9a7571b
 * Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
