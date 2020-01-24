@@ -50,9 +50,9 @@ contains
   subroutine error_and_exit
     implicit none
 
-    write (*,*) 'Dales was compiled without HYPE.'
+    write (*,*) 'DALES was compiled without HYPRE.'
     write (*,*) 'Use the poisson solver (solver_id=0),'
-    write (*,*) 'or recompile Dales with the option USE_HYPRE.'
+    write (*,*) 'or recompile DALES with the option USE_HYPRE.'
 
     call exit(-1)
   end subroutine
