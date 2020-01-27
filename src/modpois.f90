@@ -82,7 +82,7 @@ contains
 
     wtime = MPI_Wtime() - wtime
     if (myid == 0) then
-      write (*,*) 'Time spend in poisson', wtime
+       !write (*,*) 'Time spend in poisson', wtime
     endif
 
     call tderive
