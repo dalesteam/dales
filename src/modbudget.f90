@@ -697,7 +697,7 @@ end subroutine do_genbudget
     do k=1,k1
        do j=2,j1
        do i=2,i1
-          sbtkeavl(k) = sbtkeavl(k) + rhobf(k)*e120(i,j,k)*e120(i,j,k)
+          sbtkeavl(k) = sbtkeavl(k) + e120(i,j,k)*e120(i,j,k)
           khkmavl(k)  = khkmavl(k)  + ekh(i,j,k)/ekm(i,j,k)
        enddo
        enddo
