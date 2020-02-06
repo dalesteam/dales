@@ -51,6 +51,11 @@ elseif("$ENV{SYST}" STREQUAL "gnu-fast")
   set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -march=native -g -fbacktrace" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "lisa-intel")
+   set(CMAKE_Fortran_COMPILER "mpiifort")
+   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none " CACHE STRING "")
@@ -65,12 +70,19 @@ set(VERSION_MAJOR "4")
 set(VERSION_MINOR "2")
 set(VERSION_PATCH "1")
 
+# use nf-config to find paths to netcdf. Broken on Fedora due to module path missing.
+execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+# execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NFCONFIG_FORTRAN_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
+# not used at the moment - not just a path but several compiler flags
+
 ### If necessary, resort to BASH-methods to find netcdf-directory
 EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
 
 ### Find NetCDF files
 FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   PATHS
+  ${NFCONFIG_INCLUDE_DIR}
   $ENV{SARA_NETCDF_INCLUDE}
   $ENV{SURFSARA_NETCDF_INCLUDE}
   $ENV{NETCDF_INCLUDE}
@@ -97,6 +109,7 @@ FIND_LIBRARY(NETCDF_C_LIB netcdf
 
 FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   PATHS
+  ${NFCONFIG_PREFIX}/lib
   $ENV{SARA_NETCDF_LIB}
   $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
@@ -118,7 +131,7 @@ endif(NETCDF_INCLUDE_DIR)
 if(NETCDF_C_LIB)
   set(NETCDF_LIBS ${NETCDF_C_LIB})
 else(NETCDF_C_LIB)
-  MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
+  MESSAGE(STATUS "WARNING: No NETCDF C bindings are found - may be OK.")
 endif(NETCDF_C_LIB)
 
 if(NETCDF_FORTRAN_LIB)
