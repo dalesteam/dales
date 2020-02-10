@@ -780,6 +780,7 @@ module daleslib
       real, intent(out)     :: Ag(:)
       integer               :: k, nk, ret
 
+      ret = 0
       nk = size(Al, 3)
       Ag = (/ (sum(Al(:,:,k)), k=1,nk) /)     ! sum layers of Al
       
@@ -805,6 +806,7 @@ module daleslib
       real,    intent(out)    :: Ag(:)
       integer                 :: k, nk, ret
 
+      ret = 0
       nk = size(ql0, 3)
       Ag = (/ (sum(merge(1., 0., ql0(2:i1,2:j1,k) > 0.)), k=1,nk) /)     ! sum layers of ql
 
@@ -817,7 +819,7 @@ module daleslib
     ! Retrieves the z-layer average of the ice fraction of the condensed water ql
     ! ilratio is calculated from the temperature, as in simpleice and icethermo routines.
     ! note: assumes the qi array is large enough (kmax elements)
-    function gather_ice(qi) result(ret)
+    function gatherlayericeavg(qi) result(ret)
       use mpi
       use modmpi, only: comm3d, my_real, myid, nprocs
       use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn
@@ -827,6 +829,7 @@ module daleslib
       integer               :: i,j,k, ret
       real                  :: ilratio
 
+      ret = 0
       do k=1,kmax
          qi(k) = 0
          do j = 2,j1
@@ -847,8 +850,32 @@ module daleslib
       if (myid == 0) then
          qi = qi / (imax * jmax * nprocs)
       endif
-    end function gather_ice
-    
+    end function gatherlayericeavg
+
+    ! Retrieves the ice fraction of the condensed water ql
+    ! ilratio is calculated from the temperature, as in simpleice and icethermo routines.
+    ! note: assumes the qi array is large enough (kmax elements)
+    function geticecontent(qi) result(ret)
+      use mpi
+      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
+      use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn
+      use modfields, only: ql0, tmp0
+
+      real, intent(out)     :: qi(2:i1,2:j1,kmax)
+      integer               :: i,j,k, nk, ret
+      real                  :: ilratio
+
+      ret = 0
+      do k=1,kmax
+         do j = 2,j1
+            do i = 2,i1
+               ilratio = max(0., min(1., (tmp0(i,j,k) - tdn) / (tup - tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
+               qi(i,j,k) = (1.0 - ilratio) * ql0(i,j,k)              ! amount of ice
+            enddo
+         enddo
+      enddo
+    end function geticecontent
+
 
     ! map global indices to local
     ! gi = 1...itot  <-- one-based global indices
@@ -895,6 +922,7 @@ module daleslib
       real,    intent(in)                 :: field (:,:,:)
       integer                             :: r, i, j, k, is, js, ks, ret
 
+      ret = 0
       is = size(field, 1)
       js = size(field, 2)
       ks = size(field, 3)
@@ -942,6 +970,7 @@ module daleslib
       real,    intent(in)                 :: field (:,:)
       integer                             :: r, i, j, is, js, ret
 
+      ret = 0
       is = size(field, 1)
       js = size(field, 2)
 
@@ -977,7 +1006,7 @@ module daleslib
     !              the data is stored in field(1:imax,1:jmax,1:kmax)
     ! the array should be sliced to contain ONLY the physical cells before calling,
     ! so the data arrays are 1-based
-    function gatherLWP(g_i,g_j,a,n,field) result(ret)
+    function gatherlwp(g_i,g_j,a,n,field) result(ret)
       use modglobal, only: imax, jmax, kmax, dzf
       use modfields, only: rhobf
       use mpi
@@ -989,6 +1018,7 @@ module daleslib
       real,    intent(in)                 :: field (:,:,:)
       integer                             :: r, i, j, is, js, ks, ret
 
+      ret = 0
       is = size(field, 1)
       js = size(field, 2)
       ks = size(field, 3)
@@ -1012,7 +1042,7 @@ module daleslib
          CALL mpi_reduce(           a, a, n, MY_REAL, MPI_SUM, 0, comm3d, ret)
       endif
       
-    end function gatherLWP
+    end function gatherlwp
 
     ! Compute cloud fraction for a slabs of ql
     ! for every slab, count how many columns contain non-zero ql
@@ -1029,7 +1059,7 @@ module daleslib
     ! then this cloud fraction is the fraction of opaque columns.
     
     ! NOTE averages the FULL input array - if less is wanted, pass a slice !
-    function gatherCloudFrac(ql,I,A) result(ret)
+    function gathercloudfrac(ql,I,A) result(ret)
       use mpi
       use modmpi, only: comm3d, my_real, myid, nprocs
       real,    intent(in)     :: ql(:,:,:)
@@ -1037,6 +1067,7 @@ module daleslib
       real,    intent(out)    :: A(:)
       integer                 :: ii, k1, k2, ret
 
+      ret = 0
       k1 = 1                    ! start of k-range
       do ii = 1, size(I)
          k2 = I(ii)             ! end of k-range
@@ -1057,7 +1088,7 @@ module daleslib
          A = A / (size(ql,1) * size(ql,2) * nprocs)
          write(*,*) 'gatherCloudFrac final:', A
       endif
-    end function gatherCloudFrac
+    end function gathercloudfrac
 
     subroutine set_start_time(year,month,day,hour,minute,second)
         use modstat_nc, only : get_date, leap_year
