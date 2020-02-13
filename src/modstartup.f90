@@ -414,6 +414,8 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+    use modraddata,        only : itimerad, tnext_radiation => tnext
+
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
 
@@ -715,7 +717,7 @@ contains
       if(ladaptive .eqv. .false.) rdt=dtmax
       call baseprofs !call baseprofs
 
-    end if
+    end if  ! end if (.not. warmstart)
 
 !-----------------------------------------------------------------
 !    2.1 read and initialise fields
@@ -833,9 +835,11 @@ contains
     rtimee  = real(timee)*tres
     itrestart = floor(trestart/tres,longint)
     tnextrestart = btime + itrestart
+
+    ! update tnext for radiation. A radiation call is needed at the first step for both at cold and warm starts.
+    tnext_radiation = btime
+
     deallocate (height,th0av,thv0)
-
-
   end subroutine readinitfiles
 
   subroutine readrestartfiles
@@ -1017,7 +1021,6 @@ contains
         write(ifoutput)  ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
         write(ifoutput)  ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
       endif
-
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
