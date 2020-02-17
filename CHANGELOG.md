@@ -12,8 +12,9 @@ the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver)
 
 ### Improvements
 
+* Add a namelist option lsync in NAMNETCDFSTATS to synchronize netCDF output files after writing
 * Iterative Poisson solver support with the HYPRE library (by J. Attema).
-* don't overwrite ascii output files on warm start. Commit 25fae048
+* Don't overwrite ascii output files on warm start. Commit 25fae048
 * Warn when moduser routines are invoked from a case, when a custom moduser.f90 has not been compiled in. Commit ae148a3bd3
 * Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support. Commit 4ab9a7571b
 * Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
@@ -31,6 +32,9 @@ the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver)
 
 ### Bugs fixed
 
+* radiation and restarts : https://github.com/dalesteam/dales/issues/40
+* modsimpleice2 and initialization order, https://github.com/dalesteam/dales/issues/49 . Commit be3f9711bb6
+* timedependent forcings, finding the correct interval for interpolation with time dependent surface variables. https://github.com/dalesteam/dales/issues/48 . Commit d6f2225
 * modbudget: remove extra factor rhobf in calculation of sbtke average. From S. de Roode.
 * modbudget: add if(myid==0) around netcdf profile writing. Commit b7afc418c5
 * Fix ibas_prf=3 initialization when zf(k) is exactly 11000 (1st value in the lapse rate table).

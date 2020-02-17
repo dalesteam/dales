@@ -6,7 +6,7 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 4.0.1alpha
+!! @version 4.3
 !!
 !! @author
 !! Steef Boing
@@ -95,7 +95,7 @@
 !!  Copyright 1993-2009 Delft University of Technology, Wageningen University,
 !! Utrecht University, KNMI
 !!
-program DALES      !Version 4.0.0alpha
+program DALES
 
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES

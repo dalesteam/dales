@@ -105,7 +105,6 @@ contains
     namelist/SOLVER/ &
         solver_id, maxiter, tolerance, n_pre, n_post, precond
 
-    write (*, *) trim(version)//' git: '//trim(git_version)
 
     ! get myid
     ! call MPI_INIT(mpierr)
@@ -113,6 +112,7 @@ contains
 
     !read namelists
     if(myid==0)then
+      write (*, *) trim(version)//' git: '//trim(git_version)
       if(present(path)) then
           fname_options=path
       else
