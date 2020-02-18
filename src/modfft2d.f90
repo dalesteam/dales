@@ -124,6 +124,266 @@ contains
 !
 !
 
+! Starting point                 P012    D(itot/px, jtot/py, ktot)
+! Rotation A1: transpose 0 <=> 2 P210    D(ktot/px, jtot/py, itot) on commrow
+! Rotation A2: transpose 1 <=> 2 P201    D(ktot/px, itot/py, jtot) on commcol
+! Rotation A3: transpose 0 <=> 2 P102    D(jtot/px, itot/py, ktot) on commrow
+!
+  subroutine transpose_a1(p012,p210,ih,jh)
+    use mpi
+    use modmpi, only : commrow, mpierr, my_real, nprocx
+    use modglobal, only : i1,j1, itot, imax,jmax, kmax
+    implicit none
+
+    integer, intent(in) :: ih,jh
+    real, intent(in)    :: p012(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real, intent(out)   :: p210(itot,jmax,nkonx)
+
+    integer :: n, i,j,k, ii
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=n*nkonx + 1, (n+1)*nkonx
+    do j=2,j1
+    do i=2,i1
+      ii = ii + 1
+      if( k <= kmax ) then
+        bufin(ii) = p012(i,j,k)
+      endif
+    enddo
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
+                      bufout,  (imax*jmax*nkonx),my_real, &
+                      commrow,mpierr)
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=1,nkonx
+    do j=1,jmax
+    do i=n*imax + 1, (n+1)*imax
+        ii = ii + 1
+        p210(i,j,k) = bufout(ii)
+    enddo
+    enddo
+    enddo
+    enddo
+
+  end subroutine
+
+  subroutine transpose_a1inv(p012,p210,ih,jh)
+    use mpi
+    use modmpi, only : commcol, mpierr, my_real, nprocx
+    use modglobal, only : i1,j1, itot, imax,jmax, kmax
+    implicit none
+
+    integer, intent(in) :: ih,jh
+    real, intent(in)    :: p210(itot,jmax,nkonx)
+    real, intent(out)   :: p012(2-ih:i1+ih,2-jh:j1+jh,kmax)
+
+    integer :: n, i,j,k, ii
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=1,nkonx
+    do j=1,jmax
+    do i=n*imax + 1, (n+1)*imax
+      ii = ii + 1
+      if( k <= kmax ) then
+        bufin(ii) = p210(i,j,k)
+      endif
+    enddo
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
+                      bufout,  (imax*jmax*nkonx),my_real, &
+                      commrow,mpierr)
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=n*nkonx + 1,(n+1)*nkonx
+    do j=2,j1
+    do i=2,i1
+        ii = ii + 1
+        p012(i,j,k) = bufout(ii)
+    enddo
+    enddo
+    enddo
+    enddo
+
+  end subroutine
+
+  subroutine transpose_a2(p210, p201)
+    use mpi
+    use modmpi, only : commcol, mpierr, my_real, nprocx
+    use modglobal, only : itot, jtot, jmax, konx, iony
+    implicit none
+
+    real, intent(in)    :: p210(itot,jmax,konx)
+    real, intent(out)   :: p201(jtot,konx,iony)
+
+    integer :: n, i,j,k, ii
+
+    ii = 0
+    do n=0,nprocy-1
+    do k=1,konx
+    do j=1,jmax
+    do i=n*iony + 1,(n+1)*iony
+      ii = ii + 1
+      if( i <= itot ) then
+        bufin(ii) = p210(i,j,k)
+      endif
+    enddo
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
+                      bufout,  (imax*jmax*nkonx),my_real, &
+                      commcol,mpierr)
+
+    ii = 0
+    do n=0,nprocy-1
+    do k=1,konx
+    do j=n*jmax+1,(n+1)*jmax
+    do i=1,iony
+        ii = ii + 1
+        p201(j,k,i) = bufout(ii)
+    enddo
+    enddo
+    enddo
+    enddo
+
+  end subroutine
+
+  subroutine transpose_a2inv(p210, p201)
+    use mpi
+    use modmpi, only : commcol, mpierr, my_real, nprocx
+    use modglobal, only : itot, jtot, jmax, konx, iony
+    implicit none
+
+    real, intent(in)   :: p201(jtot,konx,iony)
+    real, intent(out)  :: p210(itot,jmax,konx)
+
+    integer :: n, i,j,k, ii
+
+    ii = 0
+    do n=0,nprocy-1
+    do k=1,konx
+    do j=n*jmax + 1,(n+1)*jmax
+    do i=1,iony
+      ii = ii + 1
+      bufin(ii) = p201(j,k,i)
+    enddo
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
+                      bufout,  (imax*jmax*nkonx),my_real, &
+                      commcol,mpierr)
+
+    ii = 0
+    do n=0,nprocy-1
+    do k=1,konx
+    do j=1,jmax
+    do i=n*iony+1,(n+1)*iony
+      ii = ii + 1
+      if (i <= itot) then
+        p210(i,j,k) = bufout(ii)
+      endif
+    enddo
+    enddo
+    enddo
+    enddo
+
+  end subroutine
+
+  subroutine transpose_a3(p201, p102)
+    use mpi
+    use modmpi, only : commrow, mpierr, my_real, nprocx
+    use modglobal, only : itot, jtot, jmax, konx, iony
+    implicit none
+
+    real, intent(in)    :: p201(jtot,konx,iony)
+    real, intent(out)   :: p210(ktot,jonx,iony)
+
+    integer :: n, i,j,k, ii
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=1,konx
+    do j=n*jonx+1,n*jonx
+    do i=1,iony
+      ii = ii + 1
+      bufin(ii) = p201(j,k,i)
+    enddo
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLTOALL(bufin,   (iony*jonx*nkonx),my_real, &
+                      bufout,  (iony*jonx*nkonx),my_real, &
+                      commcol,mpierr)
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=n*konx+1,n*konx
+    do j=1,jonx
+    do i=1,iony
+        ii = ii + 1
+        p210(k,j,i) = bufout(ii)
+    enddo
+    enddo
+    enddo
+    enddo
+
+  end subroutine
+
+  subroutine transpose_a3inv(p201, p102)
+    use mpi
+    use modmpi, only : commrow, mpierr, my_real, nprocx
+    use modglobal, only : itot, jtot, jmax, konx, iony
+    implicit none
+
+    real, intent(in)    :: p210(ktot,jonx,iony)
+    real, intent(out)   :: p201(jtot,konx,iony)
+
+    integer :: n, i,j,k, ii
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=n*konx+1,n*konx
+    do j=1,jonx
+    do i=1,iony
+      ii = ii + 1
+      bufin(ii) = p210(k,j,i)
+    enddo
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLTOALL(bufin,   (iony*jonx*nkonx),my_real, &
+                      bufout,  (iony*jonx*nkonx),my_real, &
+                      commcol,mpierr)
+
+    ii = 0
+    do n=0,nprocx-1
+    do k=1,konx
+    do j=n*jonx+1,n*jonx
+    do i=1,iony
+        ii = ii + 1
+        p210(k,j,i) = bufout(ii)
+    enddo
+    enddo
+    enddo
+    enddo
+
+  end subroutine
 
   subroutine transpose_a(p,ptrans,ih,jh)
 ! data are on a single processor in the k-direction for p
