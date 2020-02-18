@@ -27,7 +27,8 @@ module modfft2d
 implicit none
 
 save
-  integer                             :: nkonx, nkony
+  integer                             :: konx, kony
+  integer                             :: iony, jonx
   real, dimension(:),     allocatable :: winew, wjnew
   real, dimension(:,:,:), allocatable :: worka, workb
   real, dimension(:),     allocatable :: bufin, bufout
@@ -42,30 +43,42 @@ contains
     integer :: sz
 
 ! setup the matrix rotation.
-! nkonx and nkony are the number of vertical (k) points per processor in the x and y direction.
+! konx and kony are the number of vertical (k) points per processor in the x and y direction.
 ! it is of course best if the kmax points can be distributed equally, but if not
 ! just let one row or column of processors do less points (controlled by 'ke' in the transpose functions)
 
-    nkonx = kmax / nprocx
+    konx = kmax / nprocx
     if ( mod(kmax, nprocx) > 0 ) then
-      nkonx = nkonx + 1
+      konx = konx + 1
     endif
 
-    nkony = kmax / nprocy
+    kony = kmax / nprocy
     if ( mod(kmax, nprocy) > 0 ) then
-      nkony = nkony + 1
+      kony = kony + 1
+    endif
+
+    iony = itot / nprocy
+    if ( mod(itot, nprocy) > 0 ) then
+      iony = iony + 1
+    endif
+
+    jonx = jtot / nprocx
+    if ( mod(jtot, nprocx) > 0 ) then
+      jonx = jonx + 1
     endif
 
 ! Allocate communication buffers for the transpose functions
-    sz = max( imax * jmax * nkonx * nprocx, &
-              imax * jmax * nkony * nprocy  )
+    sz = max( imax * jmax * konx * nprocx, & ! transpose a1
+              iony * jmax * konx * nprocy, & ! transpose a2
+              iony * jonx * konx * nprocx, & ! transpose a3
+              imax * jmax * kony * nprocy  )
 
     allocate(bufin (sz))
     allocate(bufout(sz))
 
 ! Allocate temporary arrays to hold the rotated matrix
-    allocate(worka(itot,jmax,nkonx))
-    allocate(workb(jtot,imax,nkony))
+    allocate(worka(itot,jmax,konx))
+    allocate(workb(jtot,imax,kony))
 
 ! Prepare 1d FFT transforms
     allocate(winew(2*itot+15),wjnew(2*jtot+15))
@@ -94,14 +107,14 @@ contains
 !
 !
 !
-! Rotation a:  p(imax,jmax,kmax)                      ptrans(itot,jmax,nkonx)
+! Rotation a:  p(imax,jmax,kmax)                      ptrans(itot,jmax,konx)
 !                  x     y  full                              full  y     x
 !
 !         /-------------/|                                /-------------/|
 !        /../          / |                               /             / |
 !  kmax  |------------|  |                               |------------|  |
 !        |..|         |  |            ==>                |            |  |
-!        |..|         |  |                        nkonx  |____________|. |
+!        |..|         |  |                         konx  |____________|. |
 !        |..|         | /    jmax                        |............|./    jmax
 !   1    |--|--|--|---|/   1                        1    |------------|/   1
 !
@@ -137,13 +150,13 @@ contains
 
     integer, intent(in) :: ih,jh
     real, intent(in)    :: p012(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out)   :: p210(itot,jmax,nkonx)
+    real, intent(out)   :: p210(itot,jmax,konx)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*nkonx + 1, (n+1)*nkonx
+    do k=n*konx + 1, (n+1)*konx
     do j=2,j1
     do i=2,i1
       ii = ii + 1
@@ -155,13 +168,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
+                      bufout,  (imax*jmax*konx),my_real, &
                       commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
-    do k=1,nkonx
+    do k=1,konx
     do j=1,jmax
     do i=n*imax + 1, (n+1)*imax
         ii = ii + 1
@@ -180,14 +193,14 @@ contains
     implicit none
 
     integer, intent(in) :: ih,jh
-    real, intent(in)    :: p210(itot,jmax,nkonx)
+    real, intent(in)    :: p210(itot,jmax,konx)
     real, intent(out)   :: p012(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocx-1
-    do k=1,nkonx
+    do k=1,konx
     do j=1,jmax
     do i=n*imax + 1, (n+1)*imax
       ii = ii + 1
@@ -199,13 +212,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
+                      bufout,  (imax*jmax*konx),my_real, &
                       commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*nkonx + 1,(n+1)*nkonx
+    do k=n*konx + 1,(n+1)*konx
     do j=2,j1
     do i=2,i1
         ii = ii + 1
@@ -242,8 +255,8 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (iony*jmax*konx),my_real, &
+                      bufout,  (iony*jmax*konx),my_real, &
                       commcol,mpierr)
 
     ii = 0
@@ -283,8 +296,8 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (iony*jmax*konx),my_real, &
+                      bufout,  (iony*jmax*konx),my_real, &
                       commcol,mpierr)
 
     ii = 0
@@ -326,8 +339,8 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (iony*jonx*nkonx),my_real, &
-                      bufout,  (iony*jonx*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (iony*jonx*konx),my_real, &
+                      bufout,  (iony*jonx*konx),my_real, &
                       commcol,mpierr)
 
     ii = 0
@@ -367,8 +380,8 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (iony*jonx*nkonx),my_real, &
-                      bufout,  (iony*jonx*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (iony*jonx*konx),my_real, &
+                      bufout,  (iony*jonx*konx),my_real, &
                       commcol,mpierr)
 
     ii = 0
@@ -396,13 +409,13 @@ contains
 
     integer, intent(in)  :: ih,jh
     real, intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out) ::   ptrans(itot,jmax,nkonx)
+    real, intent(out) ::   ptrans(itot,jmax,konx)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*nkonx + 1, (n+1)*nkonx
+    do k=n*konx + 1, (n+1)*konx
     do j=2,j1
     do i=2,i1
       ii = ii + 1
@@ -414,13 +427,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
+                      bufout,  (imax*jmax*konx),my_real, &
                       commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
-    do k=1,nkonx
+    do k=1,konx
     do j=1,jmax
     do i=n*imax + 1, (n+1)*imax
         ii = ii + 1
@@ -443,13 +456,13 @@ contains
 
     integer, intent(in)  :: ih,jh
     real, intent(inout)  :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(in)     :: ptrans(itot,jmax,nkonx)
+    real, intent(in)     :: ptrans(itot,jmax,konx)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocx-1
-    do k=1,nkonx
+    do k=1,konx
     do j=1,jmax
     do i=n*imax + 1, (n+1)*imax
       ii = ii + 1
@@ -459,13 +472,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
+                      bufout,  (imax*jmax*konx),my_real, &
                       commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*nkonx + 1, (n+1)*nkonx
+    do k=n*konx + 1, (n+1)*konx
     do j=2,j1
     do i=2,i1
       ii = ii + 1
@@ -490,13 +503,13 @@ contains
 
     integer, intent(in)  :: ih,jh
     real, intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out) ::   ptrans(jtot,imax,nkony)
+    real, intent(out) ::   ptrans(jtot,imax,kony)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocy-1
-    do k=n*nkony + 1, (n+1)*nkony
+    do k=n*kony + 1, (n+1)*kony
     do i=2,i1
     do j=2,j1
       ii = ii + 1
@@ -508,14 +521,14 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkony),my_real, &
-                      bufout,  (imax*jmax*nkony),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*kony),my_real, &
+                      bufout,  (imax*jmax*kony),my_real, &
                       commcol,mpierr)
 
 
     ii = 0
     do n=0,nprocy-1
-    do k=1,nkony
+    do k=1,kony
     do i=1,imax
     do j=n*jmax + 1, (n+1)*jmax
       ii = ii + 1
@@ -538,13 +551,13 @@ contains
 
     integer, intent(in)  :: ih,jh
     real, intent(inout)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(in)     ::   ptrans(jtot,imax,nkony)
+    real, intent(in)     ::   ptrans(jtot,imax,kony)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocy-1
-    do k=1,nkony
+    do k=1,kony
     do i=1,imax
     do j=n*jmax + 1, (n+1)*jmax
       ii = ii + 1
@@ -554,13 +567,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkony),my_real, &
-                      bufout,  (imax*jmax*nkony),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*kony),my_real, &
+                      bufout,  (imax*jmax*kony),my_real, &
                       commcol,mpierr)
 
     ii = 0
     do n=0,nprocy-1
-    do k=n*nkony + 1, (n+1)*nkony
+    do k=n*kony + 1, (n+1)*kony
     do i=2,i1
     do j=2,j1
       ii = ii + 1
@@ -587,7 +600,7 @@ contains
 
 ! fft over i
 
-    ke = min(kmax - myidx * nkonx, nkonx)
+    ke = min(kmax - myidx * konx, konx)
 
     if(nprocx .gt. 1) then
       call transpose_a(p, worka, ih, jh)
@@ -607,7 +620,7 @@ contains
 
 ! fft over j
 
-    ke = min(kmax - myidy * nkony, nkony)
+    ke = min(kmax - myidy * kony, kony)
 
     call transpose_b(p, workb, ih, jh)
     do k=1,ke
@@ -633,7 +646,7 @@ contains
 
 ! inverse fft over j
 
-    ke = min(kmax - myidy * nkony, nkony)
+    ke = min(kmax - myidy * kony, kony)
 
     call transpose_b(p, workb, ih, jh)
     do k=1,ke
@@ -645,7 +658,7 @@ contains
 
 ! inverse fft over i
 
-    ke = min(kmax - myidx * nkonx, nkonx)
+    ke = min(kmax - myidx * konx, konx)
 
     if(nprocx .gt. 1) then
       call transpose_a(p, worka, ih, jh)
