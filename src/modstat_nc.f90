@@ -31,6 +31,8 @@ module modstat_nc
     use netcdf
     implicit none
     logical :: lnetcdf = .true.
+    logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
+    
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
     real(kind=4) :: nc_fillvalue = -999.
 !> The only interface necessary to write data to netcdf, regardless of the dimensions.
@@ -52,7 +54,7 @@ contains
     integer             :: ierr
 
     namelist/NAMNETCDFSTATS/ &
-    lnetcdf
+    lnetcdf, lsync
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -67,7 +69,8 @@ contains
     end if
 
     call MPI_BCAST(lnetcdf    ,1,MPI_LOGICAL, 0,comm3d,mpierr)
-
+    call MPI_BCAST(lsync      ,1,MPI_LOGICAL, 0,comm3d,mpierr)
+    
   end subroutine initstat_nc
 !
 ! ----------------------------------------------------------------------
@@ -429,7 +432,7 @@ contains
        iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
        iret = nf90_put_var(ncid, VarID, vars(n), start=(/nrec/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc
 
   subroutine writestat_1D_nc(ncid,nvar,ncname,vars,nrec,dim1)
@@ -444,7 +447,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
 
   subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2)
@@ -459,7 +462,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
   subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
@@ -473,7 +476,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc
   subroutine writestat_3D_short_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
@@ -487,7 +490,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
 
 
@@ -515,6 +518,14 @@ contains
 
   end subroutine nchandle_error
 
+  subroutine sync_nc(ncid)
+    implicit none
+    integer, intent(in) :: ncid
+    integer :: iret
+
+    iret = nf90_sync(ncid)
+    if (iret /= nf90_noerr) call nchandle_error(iret)
+  end subroutine sync_nc
 
   subroutine nctiminfo(info)
     use modglobal, only: xyear, xday, xtime

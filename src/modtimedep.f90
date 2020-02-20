@@ -208,6 +208,10 @@ contains
         ierr = 0
         do while (timeflux(t) < runtime)
           t=t+1
+          if (t > kflux) then
+             write (*,*) "Too many time points in file ", 'ls_flux.inp.'//cexpnr, ", the limit is kflux = ", kflux 
+             stop
+          end if
           read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           if (ierr < 0) then
@@ -230,6 +234,10 @@ contains
         t = 0
         do while (timels(t) < runtime)
           t = t + 1
+          if (t > kls) then
+             write (*,*) "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is kls = ", kls
+             stop
+          end if
           chmess1 = "#"
           ierr = 1 ! not zero
           do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read

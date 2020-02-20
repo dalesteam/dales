@@ -39,7 +39,7 @@ SAVE
   real, dimension(:)  , allocatable :: timenudge
   real :: tnudgefac = 1.
   logical :: lnudge = .false.,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
-  integer :: ntnudge = 100
+  integer :: ntnudge = 10000
 
 contains
   subroutine initnudge
@@ -83,16 +83,23 @@ contains
 
       do while (timenudge(t) < runtime)
         t = t + 1
+        if (t > ntnudge) then
+           write (*,*) "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is ntnudge = ", ntnudge 
+           stop
+        end if
+
+
         chmess1 = "#"
         ierr = 1 ! not zero
         !search for the next line consisting of "# time", from there onwards the profiles will be read
         do while (.not.(chmess1 == "#" .and. ierr ==0))
-          read(ifinput,*,iostat=ierr) chmess1,timenudge(t)
+          read(ifinput,*,iostat=ierr) chmess1, timenudge(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend nudging data for end of run'
           end if
 
         end do
+        write(6,*) 'time', timenudge(t)
         write(6,*) ' height    t_nudge    u_nudge    v_nudge    w_nudge    thl_nudge    qt_nudge'
         do  k=1,kmax
           read (ifinput,*) &

@@ -91,7 +91,7 @@ contains
     real :: gradient = 0.0
     real, allocatable,dimension(:) :: profile
     integer :: i,j
-
+    character(len=1000) :: line
 
     namelist/NAMTIMESTAT/ & !< namelist
     dtav,ltimestat,blh_thres,iblh_meth,iblh_var,blh_nsamp !! namelist contents
@@ -103,6 +103,9 @@ contains
       if (ierr > 0) then
         print *, 'Problem in namoptions NAMTIMESTAT'
         print *, 'iostat error: ', ierr
+        backspace(ifnamopt)
+        read(ifnamopt,fmt='(A)') line
+        print *, 'Invalid line: '//trim(line)
         stop 'ERROR: Problem in namoptions NAMTIMESTAT'
       endif
       write(6 ,NAMTIMESTAT)
