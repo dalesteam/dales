@@ -34,11 +34,12 @@ module modtimedep
 
 implicit none
 private
-public :: inittimedep, timedep,ltimedep,exittimedep
+public :: inittimedep, timedep,ltimedep,ltimedepuv,exittimedep
 
 save
 ! switches for timedependent surface fluxes and large scale forcings
   logical       :: ltimedep     = .false. !< Overall switch, input in namoptions
+  logical       :: ltimedepuv   = .false. !< Switch for time-dependent u,v forcings from ls_flux.inp
   logical       :: ltimedepz    = .true.  !< Switch for large scale forcings
   logical       :: ltimedepsurf = .true.  !< Switch for surface fluxes
 
@@ -95,8 +96,8 @@ contains
       kflux = ntnudge
       kls   = ntnudge
     else
-      kflux = 100
-      kls   = 100
+      kflux = 10000
+      kls   = 10000
     end if
 
     allocate(height   (k1))
@@ -238,18 +239,36 @@ contains
             end if
           end do
           write (*,*) 'timels = ',timels(t)
-          do k=1,kmax
-            read (ifinput,*) &
-              height  (k)  , &
-              ugt     (k,t), &
-              vgt     (k,t), &
-              wflst   (k,t), &
-              dqtdxlst(k,t), &
-              dqtdylst(k,t), &
-              dqtdtlst(k,t), &
-              thlpcart(k,t)
-          end do
-        end do
+          if (ltimedepuv) then
+             ! new, optional format with u,v in ls_flux.inp.*
+             do k=1,kmax
+                read (ifinput,*) &
+                     height  (k)  , &
+                     ugt     (k,t), &
+                     vgt     (k,t), &
+                     wflst   (k,t), &
+                     dqtdxlst(k,t), &
+                     dqtdylst(k,t), &
+                     dqtdtlst(k,t), &
+                     thlpcart(k,t), &
+                     dudtlst (k,t), &
+                     dvdtlst (k,t)
+             end do
+          else
+             ! old format without u,v in ls_flux.inp.*  (default)
+             do k=1,kmax
+                read (ifinput,*) &
+                     height  (k)  , &
+                     ugt     (k,t), &
+                     vgt     (k,t), &
+                     wflst   (k,t), &
+                     dqtdxlst(k,t), &
+                     dqtdylst(k,t), &
+                     dqtdtlst(k,t), &
+                     thlpcart(k,t)
+             end do
+          end if
+       end do
 
         close(ifinput)
 
