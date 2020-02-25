@@ -12,7 +12,7 @@ contains
                               imax,jmax,kmax,i1,j1,k1,&
                               kind_rb,SHR_KIND_R4,boltz
     use modmpi,        only : myid
-    use modfields,     only : presh,presf,rhof,exnf,thl0
+    use modfields,     only : initial_presh,initial_presf,rhof,exnf,thl0
     use modsurfdata ,  only : tskin
     use rrtmg_lw_init, only : rrtmg_lw_ini
     use rrtmg_lw_rad,  only : rrtmg_lw
@@ -46,7 +46,7 @@ contains
 
 
     if(.not.isReadSounding) then
-      call readSounding(presh(k1)/100.,npatch_start,npatch_end)
+      call readSounding(initial_presh(k1)/100.,npatch_start,npatch_end)
 
       if(npatch_end.ne.npatch_start) then
         npatch = npatch_end - npatch_start + 1
@@ -130,8 +130,8 @@ contains
 
     if(.not.isReadTraceProfiles) then
       ! Patch sounding profile pressures above domain pressures (convert to hPa!)
-      presf_input(1:kmax)   = presf(1:kmax)  /100.
-      presh_input(1:k1)     = presh(1:k1)/100.
+      presf_input(1:kmax)   = initial_presf(1:kmax)  /100.
+      presh_input(1:k1)     = initial_presh(1:k1)/100.
 
       if(npatch>0) then
         presf_input(k1  :kradmax) = psnd(npatch_start:npatch_end)

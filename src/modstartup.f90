@@ -396,7 +396,7 @@ contains
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
-                                  v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
+                                  v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
@@ -415,7 +415,6 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
-    use modraddata,        only : itimerad, tnext_radiation => tnext
 
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
@@ -644,6 +643,11 @@ contains
       call boundary
       call thermodynamics
 
+      ! save initial pressure profiles
+      ! used for initialising radiation scheme at restart, to reproduce the same state
+      initial_presf = presf
+      initial_presh = presh
+
     else !if lwarmstart
 
       call readrestartfiles
@@ -837,9 +841,6 @@ contains
     itrestart = floor(trestart/tres,longint)
     tnextrestart = btime + itrestart
 
-    ! update tnext for radiation. A radiation call is needed at the first step for both at cold and warm starts.
-    tnext_radiation = btime
-
     deallocate (height,th0av,thv0)
   end subroutine readinitfiles
 
@@ -848,8 +849,11 @@ contains
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                            obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation, useMcICA
-    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
+    use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
+                          thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
+                          SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
+                          SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
+    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
@@ -892,11 +896,39 @@ contains
       read(ifinput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)  (  presf (    k)                            ,k=1,k1)
       read(ifinput)  (  presh (    k)                            ,k=1,k1)
+      read(ifinput)  (  initial_presf (    k)                            ,k=1,k1)
+      read(ifinput)  (  initial_presh (    k)                            ,k=1,k1)
       read(ifinput)  ps,thls,qts,thvs,oblav
       read(ifinput)  dtheta,dqt,timee,dt,tres
       read(ifinput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+
+!!!!! radiation quantities
+      read(ifinput)  tnext_radiation
+      read(ifinput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+
+      read(ifinput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+!!!!! end of radiation quantities
+
       if(lhetero) then
         read(ifinput)   ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
         read(ifinput)   ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
@@ -935,7 +967,6 @@ contains
       read(ifinput)  timee
       close(ifinput)
     end if
-
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -967,8 +998,11 @@ contains
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                           tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation, useMcICA
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
+    use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
+                          thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
+                          SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
+                          SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
@@ -1010,11 +1044,39 @@ contains
       write(ifoutput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)  (  presf (    k)                            ,k=1,k1)
       write(ifoutput)  (  presh (    k)                            ,k=1,k1)
+      write(ifoutput)  (  initial_presf (    k)                            ,k=1,k1)
+      write(ifoutput)  (  initial_presh (    k)                            ,k=1,k1)
       write(ifoutput)  ps,thls,qts,thvs,oblav
       write(ifoutput)  dtheta,dqt,timee,  dt,tres
       write(ifoutput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+
+!!!!! radiation quantities
+      write(ifoutput)  tnext_radiation
+      write(ifoutput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+
+      write(ifoutput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+!!!!! end of radiation quantities
+
       if(lhetero) then
         write(ifoutput)  ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
         write(ifoutput)  ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
