@@ -148,7 +148,9 @@ program DALES      !Version 4.0.0alpha
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
+  use moddatetime,     only : datetime
   use modemission,     only : emission
+
   implicit none
 
 !----------------------------------------------------------------
@@ -199,6 +201,7 @@ program DALES      !Version 4.0.0alpha
     call tstep_update                           ! Calculate new timestep
     call timedep
     call samptend(tend_start,firstterm=.true.)
+    call datetime
 
 !-----------------------------------------------------
 !   3.1   RADIATION

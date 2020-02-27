@@ -30,36 +30,80 @@ implicit none
 
 contains
 
-  subroutine initemis
+  subroutine initemission
 
-  ! ----------------------------------------------------------------------
-  ! Reading of emission files
-  ! EXPAND
-  ! ----------------------------------------------------------------------
-
-    use mpi
-    use netcdf
-    use modmpi,      only : myidx, myidy
-    use modglobal,   only : i1, j1, i2, j2, imax, jmax, nsv
+    use modglobal,    only : i2, j2, nsv
+    use moddatetime,  only : datex, prevday, nextday
 
     implicit none
 
-    character (len = *), parameter :: fname = "emission_input.nc"
+    allocate(svemis_a(i2,j2,nsv))
+    allocate(svemis_b(i2,j2,nsv))
 
-    integer, parameter :: ndim = 3 
-    integer            :: start(ndim), count(ndim)
-    integer            :: ncid, varid
-    integer            :: n
+    if (datex(5) >= 30) then
+      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), svemis_a)
+      
+      if (datex(4) == 23) then  
+        call reademission(nextday(1), nextday(2), nextday(3),          0, svemis_b)
+      else
+        call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, svemis_b)
+      endif
 
-    allocate(svemis(i2,j2,nsv))
+    else
+      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), svemis_b) 
+     
+      if (datex(4) == 0) then
+        call reademission(prevday(1), prevday(2), prevday(3),         23, svemis_a)
+      else
+        call reademission(  datex(1),   datex(2),   datex(3), datex(4)-1, svemis_a)
+      endif
 
-    call check( nf90_open     ( fname, IOR(NF90_NOWRITE, NF90_MPIIO), ncid, &
-                                comm = MPI_COMM_WORLD, info = MPI_INFO_NULL) )
-    call check( nf90_inq_varid( ncid, "emission", varid) )
-    call check( nf90_get_var  ( ncid, varid, svemis(2:i1,2:i1,1), & 
-                                start = (/1 + myidx * imax, 1 + myidy * jmax, 1/), &
-                                count = (/imax, jmax, 1/) ) )
-    call check( nf90_close    ( ncid ) )
+    endif 
+  end subroutine initemission
+
+  subroutine reademission(iyear, imonth, iday, ihour, emisfield)
+
+  ! ----------------------------------------------------------------------
+  ! Reading of emission files
+  ! Multiple/all tracers
+  ! ----------------------------------------------------------------------
+
+    use mpi,         only : MPI_INFO_NULL
+    use netcdf
+    use modmpi,      only : myid, myidx, myidy, comm3d
+    use modglobal,   only : i1, j1, i2, j2, imax, jmax, nsv
+    use moddatetime, only : datex
+
+    implicit none
+
+    integer, intent(in)  :: iyear, imonth, iday, ihour     
+    real, intent(out)    :: emisfield(i2,j2,nsv)
+
+    integer, parameter   :: ndim = 3 
+    integer              :: start(ndim), count(ndim)
+    integer              :: ncid, varid
+    integer              :: isv
+ 
+    character(len=12)    :: sdatetime
+
+    ! Create string from given date
+    write(sdatetime, "(I0.4,2I0.2,2I0.2)") iyear, imonth, iday, ihour, 0 
+
+    write(6,"(A18, A12)") "Reading emission: ", sdatetime
+
+    do isv = 1, nsv
+
+      if (emislist(isv)) then
+        call check( nf90_open( svlist(isv)//'_emis_'//sdatetime//'.nc', IOR(NF90_NOWRITE, NF90_MPIIO), &
+                                ncid, comm = comm3d, info = MPI_INFO_NULL) )
+        call check( nf90_inq_varid( ncid, svlist(isv), varid) )
+        call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,isv), & 
+                                    start = (/1 + myidx * imax, 1 + myidy * jmax, 1/), &
+                                    count = (/imax, jmax, 1/) ) )
+        call check( nf90_close( ncid ) )
+      endif
+
+    end do
 
   contains
 
@@ -68,35 +112,73 @@ contains
     
       if(status /= nf90_noerr) then 
         print *, trim(nf90_strerror(status))
-        stop 2
+        stop 'NetCDF error in modemission. See outputfile for more information.'
       end if
     end subroutine check
 
-  end subroutine initemis
+  end subroutine reademission
 
-  ! ----
-  ! Do calculations on emission data and transfer to svp array
-  ! ----
   subroutine emission
+  ! ----------------------------------------------------------------------
+  ! Read appropriate emission fields, interpolate and transfer to svp
+  !
+  ! NOTES
+  ! 1. MDB TODO Align properly with non-chem tracers, i.e. cloud scalars from e.g.
+  ! microphysics.
+  ! ----------------------------------------------------------------------
 
-  use modfields, only : svp
-  use modglobal, only : i1, j1, ih, jh, nsv
-  use modfields, only : rhof
-
+    use modfields,   only : svp
+    use modglobal,   only : i1, j1, ih, jh, nsv, &
+                            rdt, rtimee, rk3step 
+    use modfields,   only : rhof
+    use moddatetime, only : datex, nextday
+    
     implicit none
 
-    svp(2:i1,2:j1,1,1:nsv) = svp(2:i1,2:j1,1,1:nsv) + svemis(2:i1,2:j1,1:nsv)/rhof(1) 
+    real            :: emistime_s, emistime_e ! Emission timers
+    real, parameter :: div3600 = 1./3600.     ! Quick division
+
+    ! --------------------------------------------------------------------------
+    ! Interpolate and apply emission
+    ! --------------------------------------------------------------------------
+    emistime_s = mod(rtimee +       1800., 3600.)*div3600
+
+    svp(2:i1,2:j1,1,1:nsv) = svp(2:i1,2:j1,1,1:nsv) + &
+                             ((1. - emistime_s)*svemis_a(2:i1, 2:j1, 1:nsv) + &
+                                    emistime_s *svemis_b(2:i1, 2:j1, 1:nsv))/(3600.*rhof(1)) 
+
+    ! --------------------------------------------------------------------------
+    ! Read emission files when neccesary, i.e. simulation reaches half hour mark
+    ! after current timestep
+    ! --------------------------------------------------------------------------
+
+    if ( rk3step == 3 ) then
+      emistime_e = mod(rtimee + rdt + 1800., 3600.)*div3600
+
+      if ( emistime_e < emistime_s ) then
+        ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
+        svemis_a = svemis_b
+        
+        ! Read new 'ahead-of-modeltime' emission field
+        if ( datex(4) == 23 ) then
+          call reademission(nextday(1), nextday(2), nextday(3),          0, svemis_b)
+        else
+          call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, svemis_b)
+        endif
+      endif
+
+    endif
 
   end subroutine emission
 
-  ! ----
+  ! --------------------------------------------------------------------------
   ! Cleanup after run.
-  ! ----
+  ! --------------------------------------------------------------------------
   subroutine exitemission
   
     implicit none
 
-    deallocate(svemis)
+    deallocate(svemis_a, svemis_b)
 
   end subroutine exitemission
 

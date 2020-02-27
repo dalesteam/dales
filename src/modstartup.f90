@@ -62,7 +62,8 @@ contains
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
-    use modemission,       only : initemis
+    use moddatetime,       only : initdatetime
+    use modemission,       only : initemission
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -255,7 +256,8 @@ contains
     call initthermodynamics
     call initradiation
     call initsurface
-    call initemis
+    call initdatetime
+    call initemission
     call initsubgrid
     call initpois
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
