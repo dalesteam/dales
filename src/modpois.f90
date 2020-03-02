@@ -90,18 +90,14 @@ contains
 
   subroutine poisson
     use modglobal, only : solver_id
-    use mpi, only : MPI_Wtime
     use modmpi, only : myid
     use modhypre, only : solve_hypre
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
 
     implicit none
-    real :: t0, t1
 
     call fillps
-
-    t0 = MPI_Wtime()
 
     if (solver_id == 0) then
       ! Forward FFT
@@ -121,11 +117,6 @@ contains
       call fftwb(p, Fp)
     else
       call solve_hypre(p)
-    endif
-
-    t1 = MPI_Wtime()
-    if (myid == 0) then
-      write (*,*) 'Poisson took', t1 - t0
     endif
 
     call tderive
