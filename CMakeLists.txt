@@ -177,6 +177,9 @@ endif(NETCDF_FORTRAN_LIB)
 ### Iterative solver (HYPRE)
 OPTION(USE_HYPRE "Also build iterative solver (optional, needs HYPRE)" OFF)
 
+### FFTW based poisson solver (FFTW)
+OPTION(USE_FFTW "Also build FFTW based poisson solver (optional, needs FFTW3)" OFF)
+
 ### Documentation
 INCLUDE(FindDoxygen)
 if(DOXYGEN)

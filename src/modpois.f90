@@ -60,7 +60,12 @@ contains
       call fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     else
       ! HYPRE based solver
-      allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+
+      ! using FFT based solver as fallback
+      call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+
+      !NOTE: If you dont want to do that, you will need the line below
+      !allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
       call inithypre
     endif
@@ -82,8 +87,7 @@ contains
       call fftwexit(p,Fp,d,xyrt)
     else
       ! HYPRE based solver
-      deallocate(p)
-
+      call fft2dexit(p,Fp,d,xyrt)
       call exithypre
     endif
   end subroutine exitpois
@@ -91,11 +95,13 @@ contains
   subroutine poisson
     use modglobal, only : solver_id
     use modmpi, only : myid
-    use modhypre, only : solve_hypre
+    use modhypre, only : solve_hypre, set_initial_guess
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
 
     implicit none
+
+    logical converged
 
     call fillps
 
@@ -116,7 +122,23 @@ contains
       ! Backward FFT
       call fftwb(p, Fp)
     else
-      call solve_hypre(p)
+      call solve_hypre(p, converged)
+      if (.not. converged) then
+        if (myid == 0) then
+          write (*,*) 'Falling back to fft2d solver.'
+        endif
+        call fillps
+        ! Forward FFT
+        call fft2df(p, Fp)
+
+        call solmpj
+
+        ! Backward FFT
+        call fft2db(p, Fp)
+
+        ! Re-use our current solution as the next initial guess
+        call set_initial_guess(p)
+      endif
     endif
 
     call tderive

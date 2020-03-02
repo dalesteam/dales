@@ -415,7 +415,7 @@ contains
     do k=1,kmax
       do j=1,jmax
         do i=1,imax
-          values(i,j) = 1e-5
+          values(i,j) = p(i,j,k)
         enddo
       enddo
       ilower(3) = k - 1
@@ -425,13 +425,14 @@ contains
     call HYPRE_StructVectorAssemble(vectorX, ierr)
   end subroutine
 
-  subroutine solve_hypre(p)
+  subroutine solve_hypre(p, converged)
     use modmpi, only : myid
-    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax, solver_id
+    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax, solver_id, maxiter
 
     implicit none
 
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    logical, intent(out) :: converged
     real values(imax,jmax)
 
     real final_res_norm
@@ -514,10 +515,18 @@ contains
         write (*,*) 'HYPRE solver status (ierr)', stat, 'argument error'
       else if (stat == 256) then
         write (*,*) 'HYPRE solver status (ierr)', stat, 'method did not converge as expected'
+        converged = .false.
+        return
       endif
       call exit(-1)
     endif
 
+    if (num_iterations >= maxiter) then
+      converged = .false.
+      return
+    else
+      converged = .true.
+    endif
 
     !-----------------------------------------------------------------------
     !     3. Copy solution

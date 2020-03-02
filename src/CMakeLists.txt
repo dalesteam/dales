@@ -17,31 +17,30 @@ add_custom_target(tag_git_version ALL
 if(USE_HYPRE)
   # Build the iterative solver
   list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modnohypre.f90)
-
-  # Stand-alone DALES program
-  add_executable(${target_name} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90) 
-  target_link_libraries(${target_name} ${NETCDF_LIBS} ${HYPRE_LIB} ${FFTW_LIB})
-
+  list(APPEND OPTIONAL_LIBS ${HYPRE_LIB})
 else(USE_HYPRE)
   # Do not build the iterative solver, but use (empty) fallback functions
   list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modhypre.f90)
-
-  # Stand-alone DALES program
-  add_executable(${target_name} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90) 
-  target_link_libraries(${target_name} ${NETCDF_LIBS} ${FFTW_LIB})
-
 endif(USE_HYPRE)
+
+if(USE_FFTW)
+  # Build the iterative solver
+  list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modnofftw.f90)
+  list(APPEND OPTIONAL_LIBS ${FFTW_LIB})
+else(USE_FFTW)
+  # Do not build the iterative solver, but use (empty) fallback functions
+  list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modfftw.f90)
+endif(USE_FFTW)
+
+# Stand-alone DALES program
+add_executable(${target_name} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90)
+target_link_libraries(${target_name} ${NETCDF_LIBS} ${OPTIONAL_LIBS})
 
 # DALES library, e.g. for use with OMUSE
 add_library(${target_lib} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90)
-
 
 # set separate module directories for the program and library targets, to avoid problems during parallel builds (make -j 8)
 set_target_properties(${target_name} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/program_modules")
 set_target_properties(${target_lib} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/library_modules")
 
-target_link_libraries(${target_name} ${NETCDF_LIBS})
-
 install(TARGETS dales4 dales DESTINATION ${CMAKE_BINARY_DIR})
-
-
