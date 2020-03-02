@@ -31,84 +31,107 @@ module modpois
 
 implicit none
 private
-public :: initpois,poisson,exitpois,p
+public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
 
 save
 
-  real,allocatable :: p(:,:,:)                            ! pressure fluctuations
-  real,allocatable :: xyrt(:,:)                           ! constant factors in poisson equation
+  real, pointer     :: p(:,:,:)    ! pressure fluctuations in real space
+  real, pointer     :: Fp(:,:,:)   ! pressure fluctuations in fourier space
+  real, allocatable :: d(:,:,:)    ! work array for tridiagonal solver
+  real, allocatable :: xyrt(:,:)   ! constant factors in the poisson equation
+
+  integer :: ps,pe,qs,qe           ! start and end index of fourier space matrices
 
 contains
 
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initpois
     use modglobal, only : solver_id,i1,j1,ih,jh,kmax
+    use modfft2d, only : fft2dinit
+    use modfftw, only : fftwinit
     use modhypre, only : inithypre
 
     implicit none
 
-    allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax)) ! TODO: move to modfields
-
     if (solver_id == 0) then
       ! FFT based solver
-      call initsolmpj
+      call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+    else if (solver_id == 100) then
+      ! FFTW based solver
+      call fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     else
       ! HYPRE based solver
+      allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+
       call inithypre
     endif
   end subroutine initpois
 
-
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine poisson
-    use mpi
+  subroutine exitpois
     use modglobal, only : solver_id
-    use modhypre, only : solve_hypre
-    use modmpi, only : myid
+    use modfft2d, only : fft2dexit
+    use modhypre, only : exithypre
+    use modfftw, only : fftwexit
 
     implicit none
 
-    real wtime
+    if (solver_id == 0) then
+      ! FFT based solver
+      call fft2dexit(p,Fp,d,xyrt)
+    else if (solver_id == 100) then
+      ! FFTW based solver
+      call fftwexit(p,Fp,d,xyrt)
+    else
+      ! HYPRE based solver
+      deallocate(p)
+
+      call exithypre
+    endif
+  end subroutine exitpois
+
+  subroutine poisson
+    use modglobal, only : solver_id
+    use mpi, only : MPI_Wtime
+    use modmpi, only : myid
+    use modhypre, only : solve_hypre
+    use modfftw, only : fftwf, fftwb
+    use modfft2d,  only : fft2df, fft2db
+
+    implicit none
+    real :: t0, t1
 
     call fillps
 
-    wtime = MPI_Wtime()
+    t0 = MPI_Wtime()
 
     if (solver_id == 0) then
+      ! Forward FFT
+      call fft2df(p, Fp)
+
       call solmpj
+
+      ! Backward FFT
+      call fft2db(p, Fp)
+    else if (solver_id == 100) then
+      ! Forward FFT
+      call fftwf(p, Fp)
+
+      call solmpj
+
+      ! Backward FFT
+      call fftwb(p, Fp)
     else
       call solve_hypre(p)
     endif
 
-    wtime = MPI_Wtime() - wtime
+    t1 = MPI_Wtime()
     if (myid == 0) then
-       !write (*,*) 'Time spend in poisson', wtime
+      write (*,*) 'Poisson took', t1 - t0
     endif
 
     call tderive
 
   end subroutine poisson
 
-
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine exitpois
-    use modglobal, only : solver_id
-    use modfft2d, only : fft2dexit
-    use modhypre, only : exithypre
-
-    implicit none
-
-    if (solver_id == 0) then
-      deallocate(p,xyrt)
-      call fft2dexit()
-    else
-      call exithypre
-    endif
-  end subroutine exitpois
-
-
-
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine fillps
 ! **************************************************************
 ! Fill the right hand for the poisson solver.
@@ -120,16 +143,16 @@ contains
   ! Adapted fillps for RK3 time loop
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt
+    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt,ih,jh
     use modmpi,    only : excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
     real rk3coef
 
-    allocate(pup(2-1:i1+1,2-1:j1+1,k1))
-    allocate(pvp(2-1:i1+1,2-1:j1+1,k1))
-    allocate(pwp(2-1:i1+1,2-1:j1+1,k1))
+    allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
 
     rk3coef = rdt / (4. - dble(rk3step))
 
@@ -160,10 +183,8 @@ contains
       end do
     end do
 
-    call excjs(pup,2,i1,2,j1,1,k1,1,1)
-    call excjs(pvp,2,i1,2,j1,1,k1,1,1)
-    ! call excjs(pwp,2,i1,2,j1,1,k1,ih,jh)
-    ! note pup, pvp, pwp are declared with only 1 layer of halo cells, not ih, jh
+    call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
+    call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
 
     do k=1,kmax
       do j=2,j1
@@ -179,8 +200,6 @@ contains
 
   end subroutine fillps
 
-!
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine tderive
 !-----------------------------------------------------------------|
 !                                                                 |
@@ -238,60 +257,6 @@ contains
     return
   end subroutine tderive
 
-!
-! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine initsolmpj
-    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh
-    use modfft2d,  only : fft2dinit
-    use modmpi, only    : myidx, myidy
-
-    implicit none
-
-    integer :: i,j,iv,jv
-    real    :: fac
-    real    :: xrt(itot), yrt(jtot)
-
-    allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh)     )
-
-  ! Generate Eigenvalues xrt and yrt
-
-  !  I --> direction
-
-    fac = 1./(2.*itot)
-    do i=3,itot,2
-      xrt(i-1)=-4.*dxi*dxi*(sin(float((i-1))*pi*fac))**2
-      xrt(i)  = xrt(i-1)
-    end do
-    xrt(1    ) = 0.
-    xrt(itot ) = -4.*dxi*dxi
-
-  !  J --> direction
-
-    fac = 1./(2.*jtot)
-    do j=3,jtot,2
-      yrt(j-1)=-4.*dyi*dyi*(sin(float((j-1))*pi*fac))**2
-      yrt(j  )= yrt(j-1)
-    end do
-    yrt(1    ) = 0.
-    yrt(jtot ) = -4.*dyi*dyi
-
-  ! Combine I and J directions
-  ! Note that:
-  ! 1. MPI starts counting at 0 so it should be myidy * jmax
-  ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
-
-    do j=2,j1
-      jv = j + myidy*jmax - 1
-      do i=2,i1
-        iv = i + myidx*imax - 1
-        xyrt(i,j)=(xrt(iv)+yrt(jv)) !!! LH
-      end do
-    end do
-
-    call fft2dinit()
-  end subroutine initsolmpj
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
   subroutine solmpj
 ! version: working version, barrou's removed,
 !          correct timing fft's
@@ -323,42 +288,15 @@ contains
 !   [P_{i,j,k+1}-(2+ a^2 + b^2) P_{i,j,k} + P_{i,j,k-1}]/(dz*dz)=F(x,y,z)
 
 !   The equation above results in a tridiagonal system in k which
-!   can be solved with Gaussian elemination --> P
-!   The P we have found with the Gaussian elemination is still in
-!   the Fourier Space and 2 backward FFTS are necessary to compute
-!   the physical P
-!******************************************************************
-!******************************************************************
-!******************************************************************
-!****   Programmer: Bendiks Jan Boersma                      ******
-!****               email : b.j.boersma@wbmt.tudelft.nl      ******
-!****                                                        ******
-!****   USES      :  VFFTPACK   (netlib)                     ******
-!****             :  FFTPACK    (netlib)                     ******
-!****                (B.J. Boersma & L.J.P. Timmermans)      ******
-!****                                                        ******
-!******************************************************************
-!******************************************************************
+!   can be solved with Gaussian elemination
 
-! mpi-version, no master region for timing
-!              copy times all included
-
-    use modfft2d,  only : fft2df, fft2db
-    use modglobal, only : kmax,dzf,dzh,i1,j1,ih,jh
+    use modglobal, only : kmax,dzf,dzh
     use modfields, only : rhobf, rhobh
     implicit none
 
-    real :: a(kmax),b(kmax),c(kmax)
-
-  ! allocate d in the same shape as p and xyrt
-    real, allocatable :: d(:,:,:)
-
-    real    z,ak,bk,bbk
-    integer i, j, k
-    allocate(d(2-ih:i1+ih,2-jh:j1+jh,kmax))
-
-  ! Forward FFT
-    call fft2df(p,ih,jh)
+    real    :: a(kmax),b(kmax),c(kmax)
+    real    :: z,ak,bk,bbk
+    integer :: i, j, k
 
   ! Generate tridiagonal matrix
 
@@ -386,11 +324,11 @@ contains
     ! Upward sweep i=1
     ! c'(1) = c(1) / b(1)
     ! d'(1) = d(1) / b(1)
-    do j=2,j1
-      do i=2,i1
+    do j=qs,qe
+      do i=ps,pe
         z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
         d(i,j,1) = c(1)*z
-        p(i,j,1) = p(i,j,1)*z
+        Fp(i,j,1) = Fp(i,j,1)*z
       end do
     end do
 
@@ -398,12 +336,12 @@ contains
     ! c'(i) = c(i) / [ b(i) - c'(i-1) a(i) ]
     ! d'(i) = [ d(i) - d'(i-1) a(i) ] / [ b(i) - c'(i-1) a(i) ]
     do k=2,kmax-1
-      do  j=2,j1
-        do  i=2,i1
+      do  j=qs,qe
+        do  i=ps,pe
           bbk      = b(k)+rhobf(k)*xyrt(i,j)
           z        = 1./(bbk-a(k)*d(i,j,k-1))
           d(i,j,k) = c(k)*z
-          p(i,j,k) = (p(i,j,k)-a(k)*p(i,j,k-1))*z
+          Fp(i,j,k) = (Fp(i,j,k)-a(k)*Fp(i,j,k-1))*z
         end do
       end do
     end do
@@ -412,14 +350,14 @@ contains
     ! x(n) = d'(n)
     ak = a(kmax)
     bk = b(kmax)
-    do j=2,j1
-      do i=2,i1
+    do j=qs,qe
+      do i=ps,pe
         bbk = bk + rhobf(kmax)*xyrt(i,j)
         z        = bbk-ak*d(i,j,kmax-1)
         if(z/=0.) then
-          p(i,j,kmax) = (p(i,j,kmax)-ak*p(i,j,kmax-1))/z
+          Fp(i,j,kmax) = (Fp(i,j,kmax)-ak*Fp(i,j,kmax-1))/z
         else
-          p(i,j,kmax) =0.
+          Fp(i,j,kmax) =0.
         end if
       end do
     end do
@@ -427,18 +365,12 @@ contains
     ! Backsubstitution i=n-1..1
     ! x(i) = d'(i) - c'(i) x(i+1)
     do k=kmax-1,1,-1
-      do j=2,j1
-        do i=2,i1
-          p(i,j,k) = p(i,j,k)-d(i,j,k)*p(i,j,k+1)
+      do j=qs,qe
+        do i=ps,pe
+          Fp(i,j,k) = Fp(i,j,k)-d(i,j,k)*Fp(i,j,k+1)
         end do
       end do
     end do
-
-    ! Backward FFT
-    call fft2db(p,ih,jh)
-
-    deallocate(d)
-    return
   end subroutine solmpj
 
 end module modpois

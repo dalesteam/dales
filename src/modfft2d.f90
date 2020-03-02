@@ -27,58 +27,52 @@ module modfft2d
 implicit none
 
 save
-  integer                             :: konx, kony
-  integer                             :: iony, jonx
+  integer                             :: nkonx, nkony
   real, dimension(:),     allocatable :: winew, wjnew
   real, dimension(:,:,:), allocatable :: worka, workb
   real, dimension(:),     allocatable :: bufin, bufout
+  real, allocatable, target           :: fptr(:)
 
 contains
 
-  subroutine fft2dinit()
-
+  subroutine fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     use modmpi, only   : nprocx, nprocy
-    use modglobal, only: itot, jtot, imax, jmax, kmax
+    use modglobal, only: itot, jtot, imax, jmax, kmax, i1, j1, ih, jh
+    implicit none
+
+    real, pointer        :: p(:,:,:)
+    real, pointer        :: Fp(:,:,:)
+    real, allocatable    :: d(:,:,:)
+    real, allocatable    :: xyrt(:,:)
+    integer, intent(out) :: ps,pe,qs,qe
 
     integer :: sz
 
 ! setup the matrix rotation.
-! konx and kony are the number of vertical (k) points per processor in the x and y direction.
+! nkonx and nkony are the number of vertical (k) points per processor in the x and y direction.
 ! it is of course best if the kmax points can be distributed equally, but if not
 ! just let one row or column of processors do less points (controlled by 'ke' in the transpose functions)
 
-    konx = kmax / nprocx
+    nkonx = kmax / nprocx
     if ( mod(kmax, nprocx) > 0 ) then
-      konx = konx + 1
+      nkonx = nkonx + 1
     endif
 
-    kony = kmax / nprocy
+    nkony = kmax / nprocy
     if ( mod(kmax, nprocy) > 0 ) then
-      kony = kony + 1
-    endif
-
-    iony = itot / nprocy
-    if ( mod(itot, nprocy) > 0 ) then
-      iony = iony + 1
-    endif
-
-    jonx = jtot / nprocx
-    if ( mod(jtot, nprocx) > 0 ) then
-      jonx = jonx + 1
+      nkony = nkony + 1
     endif
 
 ! Allocate communication buffers for the transpose functions
-    sz = max( imax * jmax * konx * nprocx, & ! transpose a1
-              iony * jmax * konx * nprocy, & ! transpose a2
-              iony * jonx * konx * nprocx, & ! transpose a3
-              imax * jmax * kony * nprocy  )
+    sz = max( imax * jmax * nkonx * nprocx, &
+              imax * jmax * nkony * nprocy  )
 
     allocate(bufin (sz))
     allocate(bufout(sz))
 
 ! Allocate temporary arrays to hold the rotated matrix
-    allocate(worka(itot,jmax,konx))
-    allocate(workb(jtot,imax,kony))
+    allocate(worka(itot,jmax,nkonx))
+    allocate(workb(jtot,imax,nkony))
 
 ! Prepare 1d FFT transforms
     allocate(winew(2*itot+15),wjnew(2*jtot+15))
@@ -86,14 +80,90 @@ contains
     CALL rffti(itot,winew)
     CALL rffti(jtot,wjnew)
 
+    allocate(fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax))
+    allocate(   d(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
+
+    p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+    Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+    ps = 2
+    pe = i1
+    qs = 2
+    qe = j1
+
+    call fft2dinit_factors(xyrt)
+
   end subroutine
 
+  subroutine fft2dinit_factors(xyrt)
+    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh
+    use modmpi, only    : myidx, myidy
 
-  subroutine fft2dexit()
+    implicit none
+
+    real, allocatable :: xyrt(:,:)
+
+    integer :: i,j,iv,jv
+    real    :: fac
+    real    :: xrt(itot), yrt(jtot)
+
+  ! Generate Eigenvalues xrt and yrt
+  ! NOTE / BUG: the code below seems incorrect for odd-itot and
+  ! odd jtot at and just before the Nyquist frequency
+
+  !  I --> direction
+
+    fac = 1./(2.*itot)
+    do i=3,itot,2
+      xrt(i-1)=-4.*dxi*dxi*(sin(float((i-1))*pi*fac))**2
+      xrt(i)  = xrt(i-1)
+    end do
+    xrt(1    ) = 0.
+    xrt(itot ) = -4.*dxi*dxi
+
+  !  J --> direction
+
+    fac = 1./(2.*jtot)
+    do j=3,jtot,2
+      yrt(j-1)=-4.*dyi*dyi*(sin(float((j-1))*pi*fac))**2
+      yrt(j  )= yrt(j-1)
+    end do
+    yrt(1    ) = 0.
+    yrt(jtot ) = -4.*dyi*dyi
+
+  ! Combine I and J directions
+  ! Note that:
+  ! 1. MPI starts counting at 0 so it should be myidy * jmax
+  ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
+
+    xyrt = 0.
+    do j=2,j1
+      jv = j + myidy*jmax - 1
+      do i=2,i1
+        iv = i + myidx*imax - 1
+        xyrt(i,j)=(xrt(iv)+yrt(jv)) !!! LH
+      end do
+    end do
+
+  end subroutine
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
+  subroutine fft2dexit(p, Fp, d, xyrt)
+    implicit none
+
+    real, pointer     :: p(:,:,:)
+    real, pointer     :: Fp(:,:,:)
+    real, allocatable :: d(:,:,:)
+    real, allocatable :: xyrt(:,:)
 
     deallocate(bufin,bufout)
     deallocate(worka,workb)
     deallocate(winew,wjnew)
+
+    deallocate(fptr)
+    deallocate(d)
+    deallocate(xyrt)
 
   end subroutine
 
@@ -107,14 +177,14 @@ contains
 !
 !
 !
-! Rotation a:  p(imax,jmax,kmax)                      ptrans(itot,jmax,konx)
+! Rotation a:  p(imax,jmax,kmax)                      ptrans(itot,jmax,nkonx)
 !                  x     y  full                              full  y     x
 !
 !         /-------------/|                                /-------------/|
 !        /../          / |                               /             / |
 !  kmax  |------------|  |                               |------------|  |
 !        |..|         |  |            ==>                |            |  |
-!        |..|         |  |                         konx  |____________|. |
+!        |..|         |  |                        nkonx  |____________|. |
 !        |..|         | /    jmax                        |............|./    jmax
 !   1    |--|--|--|---|/   1                        1    |------------|/   1
 !
@@ -137,285 +207,24 @@ contains
 !
 !
 
-! Starting point                 P012    D(itot/px, jtot/py, ktot)
-! Rotation A1: transpose 0 <=> 2 P210    D(ktot/px, jtot/py, itot) on commrow
-! Rotation A2: transpose 1 <=> 2 P201    D(ktot/px, itot/py, jtot) on commcol
-! Rotation A3: transpose 0 <=> 2 P102    D(jtot/px, itot/py, ktot) on commrow
-!
-  subroutine transpose_a1(p012,p210,ih,jh)
-    use mpi
-    use modmpi, only : commrow, mpierr, my_real, nprocx
-    use modglobal, only : i1,j1, itot, imax,jmax, kmax
-    implicit none
 
-    integer, intent(in) :: ih,jh
-    real, intent(in)    :: p012(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out)   :: p210(itot,jmax,konx)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx + 1, (n+1)*konx
-    do j=2,j1
-    do i=2,i1
-      ii = ii + 1
-      if( k <= kmax ) then
-        bufin(ii) = p012(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
-                      bufout,  (imax*jmax*konx),my_real, &
-                      commrow,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*imax + 1, (n+1)*imax
-        ii = ii + 1
-        p210(i,j,k) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a1inv(p012,p210,ih,jh)
-    use mpi
-    use modmpi, only : commcol, mpierr, my_real, nprocx
-    use modglobal, only : i1,j1, itot, imax,jmax, kmax
-    implicit none
-
-    integer, intent(in) :: ih,jh
-    real, intent(in)    :: p210(itot,jmax,konx)
-    real, intent(out)   :: p012(2-ih:i1+ih,2-jh:j1+jh,kmax)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*imax + 1, (n+1)*imax
-      ii = ii + 1
-      if( k <= kmax ) then
-        bufin(ii) = p210(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
-                      bufout,  (imax*jmax*konx),my_real, &
-                      commrow,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx + 1,(n+1)*konx
-    do j=2,j1
-    do i=2,i1
-        ii = ii + 1
-        p012(i,j,k) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a2(p210, p201)
-    use mpi
-    use modmpi, only : commcol, mpierr, my_real, nprocx
-    use modglobal, only : itot, jtot, jmax, konx, iony
-    implicit none
-
-    real, intent(in)    :: p210(itot,jmax,konx)
-    real, intent(out)   :: p201(jtot,konx,iony)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*iony + 1,(n+1)*iony
-      ii = ii + 1
-      if( i <= itot ) then
-        bufin(ii) = p210(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call MPI_ALLTOALL(bufin,   (iony*jmax*konx),my_real, &
-                      bufout,  (iony*jmax*konx),my_real, &
-                      commcol,mpierr)
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=n*jmax+1,(n+1)*jmax
-    do i=1,iony
-        ii = ii + 1
-        p201(j,k,i) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a2inv(p210, p201)
-    use mpi
-    use modmpi, only : commcol, mpierr, my_real, nprocx
-    use modglobal, only : itot, jtot, jmax, konx, iony
-    implicit none
-
-    real, intent(in)   :: p201(jtot,konx,iony)
-    real, intent(out)  :: p210(itot,jmax,konx)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=n*jmax + 1,(n+1)*jmax
-    do i=1,iony
-      ii = ii + 1
-      bufin(ii) = p201(j,k,i)
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call MPI_ALLTOALL(bufin,   (iony*jmax*konx),my_real, &
-                      bufout,  (iony*jmax*konx),my_real, &
-                      commcol,mpierr)
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*iony+1,(n+1)*iony
-      ii = ii + 1
-      if (i <= itot) then
-        p210(i,j,k) = bufout(ii)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a3(p201, p102)
-    use mpi
-    use modmpi, only : commrow, mpierr, my_real, nprocx
-    use modglobal, only : itot, jtot, jmax, konx, iony
-    implicit none
-
-    real, intent(in)    :: p201(jtot,konx,iony)
-    real, intent(out)   :: p210(ktot,jonx,iony)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=n*jonx+1,n*jonx
-    do i=1,iony
-      ii = ii + 1
-      bufin(ii) = p201(j,k,i)
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call MPI_ALLTOALL(bufin,   (iony*jonx*konx),my_real, &
-                      bufout,  (iony*jonx*konx),my_real, &
-                      commcol,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx+1,n*konx
-    do j=1,jonx
-    do i=1,iony
-        ii = ii + 1
-        p210(k,j,i) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a3inv(p201, p102)
-    use mpi
-    use modmpi, only : commrow, mpierr, my_real, nprocx
-    use modglobal, only : itot, jtot, jmax, konx, iony
-    implicit none
-
-    real, intent(in)    :: p210(ktot,jonx,iony)
-    real, intent(out)   :: p201(jtot,konx,iony)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx+1,n*konx
-    do j=1,jonx
-    do i=1,iony
-      ii = ii + 1
-      bufin(ii) = p210(k,j,i)
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call MPI_ALLTOALL(bufin,   (iony*jonx*konx),my_real, &
-                      bufout,  (iony*jonx*konx),my_real, &
-                      commcol,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=n*jonx+1,n*jonx
-    do i=1,iony
-        ii = ii + 1
-        p210(k,j,i) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a(p,ptrans,ih,jh)
+  subroutine transpose_a(p,ptrans)
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
     use mpi
     use modmpi, only : commrow, mpierr, my_real, nprocx
-    use modglobal, only : i1,j1, itot, imax,jmax, kmax
+    use modglobal, only : i1,j1, itot, imax,jmax, kmax, ih, jh
     implicit none
 
-    integer, intent(in)  :: ih,jh
     real, intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out) ::   ptrans(itot,jmax,konx)
+    real, intent(out) ::   ptrans(itot,jmax,nkonx)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*konx + 1, (n+1)*konx
+    do k=n*nkonx + 1, (n+1)*nkonx
     do j=2,j1
     do i=2,i1
       ii = ii + 1
@@ -427,13 +236,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
-                      bufout,  (imax*jmax*konx),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
+                      bufout,  (imax*jmax*nkonx),my_real, &
                       commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
-    do k=1,konx
+    do k=1,nkonx
     do j=1,jmax
     do i=n*imax + 1, (n+1)*imax
         ii = ii + 1
@@ -445,24 +254,23 @@ contains
 
   end subroutine
 
-  subroutine transpose_ainv(p,ptrans,ih,jh)
+  subroutine transpose_ainv(p,ptrans)
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
     use mpi
     use modmpi, only : commrow, mpierr, my_real, nprocx
-    use modglobal, only : i1,j1, itot, imax,jmax, kmax
+    use modglobal, only : i1,j1, itot, imax,jmax, kmax, ih, jh
     implicit none
 
-    integer, intent(in)  :: ih,jh
     real, intent(inout)  :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(in)     :: ptrans(itot,jmax,konx)
+    real, intent(in)     :: ptrans(itot,jmax,nkonx)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocx-1
-    do k=1,konx
+    do k=1,nkonx
     do j=1,jmax
     do i=n*imax + 1, (n+1)*imax
       ii = ii + 1
@@ -472,13 +280,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*konx),my_real, &
-                      bufout,  (imax*jmax*konx),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
+                      bufout,  (imax*jmax*nkonx),my_real, &
                       commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*konx + 1, (n+1)*konx
+    do k=n*nkonx + 1, (n+1)*nkonx
     do j=2,j1
     do i=2,i1
       ii = ii + 1
@@ -492,24 +300,23 @@ contains
 
   end subroutine
 
-  subroutine transpose_b(p,ptrans,ih,jh)
+  subroutine transpose_b(p,ptrans)
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
     use mpi
     use modmpi, only : commcol, mpierr, nprocy, my_real
-    use modglobal, only : i1,j1, jtot, imax,jmax, kmax
+    use modglobal, only : i1,j1, jtot, imax,jmax, kmax, ih, jh
     implicit none
 
-    integer, intent(in)  :: ih,jh
     real, intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out) ::   ptrans(jtot,imax,kony)
+    real, intent(out) ::   ptrans(jtot,imax,nkony)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocy-1
-    do k=n*kony + 1, (n+1)*kony
+    do k=n*nkony + 1, (n+1)*nkony
     do i=2,i1
     do j=2,j1
       ii = ii + 1
@@ -521,14 +328,14 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*kony),my_real, &
-                      bufout,  (imax*jmax*kony),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkony),my_real, &
+                      bufout,  (imax*jmax*nkony),my_real, &
                       commcol,mpierr)
 
 
     ii = 0
     do n=0,nprocy-1
-    do k=1,kony
+    do k=1,nkony
     do i=1,imax
     do j=n*jmax + 1, (n+1)*jmax
       ii = ii + 1
@@ -540,24 +347,23 @@ contains
 
   end subroutine
 
-  subroutine transpose_binv(p,ptrans,ih,jh)
+  subroutine transpose_binv(p,ptrans)
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
     use mpi
     use modmpi, only : commcol, mpierr, nprocy, my_real
-    use modglobal, only : i1,j1, jtot, imax,jmax, kmax
+    use modglobal, only : i1,j1, jtot, imax,jmax, kmax, ih, jh
     implicit none
 
-    integer, intent(in)  :: ih,jh
     real, intent(inout)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(in)     ::   ptrans(jtot,imax,kony)
+    real, intent(in)     ::   ptrans(jtot,imax,nkony)
 
     integer :: n, i,j,k, ii
 
     ii = 0
     do n=0,nprocy-1
-    do k=1,kony
+    do k=1,nkony
     do i=1,imax
     do j=n*jmax + 1, (n+1)*jmax
       ii = ii + 1
@@ -567,13 +373,13 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*kony),my_real, &
-                      bufout,  (imax*jmax*kony),my_real, &
+    call MPI_ALLTOALL(bufin,   (imax*jmax*nkony),my_real, &
+                      bufout,  (imax*jmax*nkony),my_real, &
                       commcol,mpierr)
 
     ii = 0
     do n=0,nprocy-1
-    do k=n*kony + 1, (n+1)*kony
+    do k=n*nkony + 1, (n+1)*nkony
     do i=2,i1
     do j=2,j1
       ii = ii + 1
@@ -588,28 +394,30 @@ contains
   end subroutine
 
 
-  subroutine fft2df(p,ih,jh)
+  subroutine fft2df(p, Fp)
 
-    use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1
+    use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
 
-    integer, intent(in) :: ih,jh
-    real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    implicit none
+
+    real, intent(inout) ::  p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real, intent(inout) :: Fp(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: i,j,k, ke
 
 ! fft over i
 
-    ke = min(kmax - myidx * konx, konx)
+    ke = min(kmax - myidx * nkonx, nkonx)
 
     if(nprocx .gt. 1) then
-      call transpose_a(p, worka, ih, jh)
+      call transpose_a(p, worka)
       do k=1,ke
       do j=1,jmax
         call rfftf(itot,worka(1,j,k),winew)
       enddo
       enddo
-      call transpose_ainv(p, worka, ih, jh)
+      call transpose_ainv(p, worka)
     else
       do k=1,kmax
       do j=2,j1
@@ -620,54 +428,56 @@ contains
 
 ! fft over j
 
-    ke = min(kmax - myidy * kony, kony)
+    ke = min(kmax - myidy * nkony, nkony)
 
-    call transpose_b(p, workb, ih, jh)
+    call transpose_b(p, workb)
     do k=1,ke
     do i=1,imax
       call rfftf(jtot,workb(1,i,k),wjnew)
     enddo
     enddo
-    call transpose_binv(p, workb, ih, jh)
+    call transpose_binv(p, workb)
 
     p(:,:,:) = p(:,:,:) / sqrt(ijtot)
   end subroutine
 
 
-  subroutine fft2db(p,ih,jh)
+  subroutine fft2db(p, Fp)
 
-    use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1
+    use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
 
-    integer, intent(in) :: ih,jh
-    real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    implicit none
+
+    real, intent(inout) ::  p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real, intent(inout) :: Fp(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: i,j,k, ke
 
 ! inverse fft over j
 
-    ke = min(kmax - myidy * kony, kony)
+    ke = min(kmax - myidy * nkony, nkony)
 
-    call transpose_b(p, workb, ih, jh)
+    call transpose_b(p, workb)
     do k=1,ke
     do i=1,imax
       call rfftb(jtot,workb(1,i,k),wjnew)
     enddo
     enddo
-    call transpose_binv(p, workb, ih, jh)
+    call transpose_binv(p, workb)
 
 ! inverse fft over i
 
-    ke = min(kmax - myidx * konx, konx)
+    ke = min(kmax - myidx * nkonx, nkonx)
 
     if(nprocx .gt. 1) then
-      call transpose_a(p, worka, ih, jh)
+      call transpose_a(p, worka)
       do k=1,ke
       do j=1,jmax
         call rfftb(itot,worka(1,j,k),winew)
       enddo
       enddo
-      call transpose_ainv(p, worka, ih, jh)
+      call transpose_ainv(p, worka)
     else
       do k=1,kmax
       do j=2,j1

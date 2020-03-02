@@ -154,7 +154,6 @@ contains
 
     if(myid==0)then
       CPU_program0 = MPI_Wtime()
-      write(*,*) 'MPI Communicators comm3d, commrow, commcol: ', comm3d, commrow, commcol
       write(*,*) 'MPI mesh nprocx, nprocy: ', nprocx, nprocy
     end if
 
@@ -180,13 +179,6 @@ contains
     call MPI_Comm_free( comm3d, mpierr )
     call MPI_FINALIZE(mpierr)
   end subroutine exitmpi
-
-  subroutine barrou()
-    implicit none
-    call MPI_BARRIER(comm3d,mpierr)
-
-  return
-  end subroutine barrou
 
   subroutine excjs(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none

@@ -5,6 +5,8 @@ set(target_lib dales)
 # This will also add some unwated files, which we will remove again below
 FILE(GLOB sourcefiles "*.f90")
 
+list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/test_transposes.f90)
+
 # Use git-version.cmake to create modversion.f90, containing a version string from git, e.g. "4.2-34-g62b85a-dirty"
 add_custom_target(tag_git_version ALL
   COMMAND ${CMAKE_COMMAND} -D TARGET_DIR=${CMAKE_CURRENT_BINARY_DIR} -P ${CMAKE_CURRENT_SOURCE_DIR}/git-version.cmake
@@ -18,7 +20,7 @@ if(USE_HYPRE)
 
   # Stand-alone DALES program
   add_executable(${target_name} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90) 
-  target_link_libraries(${target_name} ${NETCDF_LIBS} ${HYPRE_LIB})
+  target_link_libraries(${target_name} ${NETCDF_LIBS} ${HYPRE_LIB} ${FFTW_LIB})
 
 else(USE_HYPRE)
   # Do not build the iterative solver, but use (empty) fallback functions
@@ -26,7 +28,7 @@ else(USE_HYPRE)
 
   # Stand-alone DALES program
   add_executable(${target_name} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90) 
-  target_link_libraries(${target_name} ${NETCDF_LIBS})
+  target_link_libraries(${target_name} ${NETCDF_LIBS} ${FFTW_LIB})
 
 endif(USE_HYPRE)
 
