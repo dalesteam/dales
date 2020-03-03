@@ -29,7 +29,7 @@ ysize      =  100800.
 xlat       =  34
 xlon       = 0 
 xday       =  165
-xtime      =  43200
+xtime      =  12
 /
 
 &PHYSICS
