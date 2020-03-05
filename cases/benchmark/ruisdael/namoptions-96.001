@@ -11,7 +11,7 @@ peclet = 0.1
 irandom = 1
 randthl = 0.01
 randqt = 2.5e-5
-nsv = 2
+nsv = 3
 ! nprocx = 3
 ! nprocy = 8
 /
@@ -21,13 +21,13 @@ itot = 96
 jtot = 96
 kmax  = 160
 
-xsize = 15000
-ysize = 15000
+xsize = 9600
+ysize = 9600
 
 xlat  = 51.970001220703125
 xlon  = 4.900000095367432
 xday  = 147
-xtime  = 0
+xtime  = 12
 /
 
 &PHYSICS
@@ -85,7 +85,7 @@ iadv_mom = 52
 iadv_tke = 52
 iadv_thl = 52
 iadv_qt  = 52
-iadv_sv  = 52
+iadv_sv  = 52,52,77
 
 lqlnr = .false.
 /
@@ -107,7 +107,7 @@ ch1 = 1.
 /
 
 &NAMMICROPHYSICS
-imicro = 2          ! 2 = warm, 5=simpleice
+imicro = 6          ! 2 = warm, 5=simpleice
 l_sb = .true.       ! true = Seiffert/Beheng, false = KK00
 Nc_0 = 200e6        ! cloud droplet conventration
 /

@@ -9,16 +9,18 @@ irandom    =  43
 randthl    =  0.1
 randqt     =  2.5e-5
 nsv        =  2
+nprocx     = 0
+nprocy     = 0
 /
 
 &DOMAIN
-itot       =  144
-jtot       =  144
+itot       =  1728
+jtot       =  672
 kmax       =  126
 
 
-xsize      =  14400
-ysize      =  14400
+xsize      =  172800
+ysize      =   67200
 
 xlat       =  18.0
 xlon       =  298.5
