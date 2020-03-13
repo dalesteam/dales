@@ -6,7 +6,9 @@ module modradtenstream
     subroutine dales_tenstream
       stop 'Your build does not support the TenStream solver for 3D Radiative Transfer... please reconfigure with -DWITH_TENSTREAM=ON'
     end subroutine
-
+    subroutine dales_tenstream_destroy()
+      stop 'your build does not sypport the tenstream solver for 3D RT, please reconfigure'
+    end subroutine
 #else
   use m_data_parameters, only: ireals, iintegers, mpiint, one, zero,  init_mpi_data_parameters, pi, default_str_len
   use m_dyn_atm_to_rrtmg, only: t_tenstr_atm, setup_tenstr_atm, destroy_tenstr_atm
@@ -31,6 +33,7 @@ module modradtenstream
       mwdry, mwh2o, & !< molecular weights
       lCnstAlbedo,  & !< use of a constant albedo
       zenith , & !<   computes the cosine of the solar zenith angle
+      azimuth, & !<   computes the solar azimuth angle
       thlprad,thlprSW,thlprLW, & !<   the radiative tendencies
       swd    , & !<   shortwave downward radiative flux
       swdir  , & !<   Direct shortwave downward radiative flux
@@ -44,7 +47,7 @@ module modradtenstream
   save
 
   private
-  public :: dales_tenstream
+  public :: dales_tenstream,dales_tenstream_destroy
 
   logical,parameter :: ldebug=.False.
 !  logical,parameter :: ldebug=.True.
@@ -70,9 +73,9 @@ contains
     real(ireals),dimension(1:kmax,2:i1, 2:j1),target :: d_tlay, d_h2ovmr
     real(ireals),dimension(1:kmax,2:i1, 2:j1),target :: d_lwc, d_reliq ! [g/kg], [micron]
     real(ireals), pointer, dimension(:,:) :: pplev, ptlev, ptlay,plwc,ph2ovmr, preliq
-
+    real(ireals),parameter :: solconc = 1368.22
     real(ireals) :: mu, modeltime
-    integer(mpiint) :: inp_comm,mpierr
+    integer(mpiint) :: inp_comm
     integer(iintegers) :: i, j, k, kk
     integer(iintegers), allocatable :: nxproc(:), nyproc(:)
     
@@ -82,8 +85,8 @@ contains
      
     mu = real(zenith(xtime*3600 + rtimee, xday, xlat, xlon), ireals)
     theta0 = rad2deg(acos(mu))
-  
-    albedo_thermal = 0
+    phi0 = real(azimuth(xtime*3600 + rtimee, xday, xlat, xlon, real(mu)), ireals) 
+    albedo_thermal = 0.05
     if (lCnstAlbedo) then
       albedo_solar = real(albedoav, ireals)
     else
@@ -107,20 +110,19 @@ contains
 
     !inp_comm = comm3d
     call reorder_mpi_comm(comm3d, nprocx,nprocy, inp_comm)
-    allocate(nxproc(nprocx), source=imax)
-    allocate(nyproc(nprocy), source=jmax)
+    allocate(nxproc(nprocx), source=int(imax, iintegers))
+    allocate(nyproc(nprocy), source=int(jmax, iintegers))
     
     modeltime = real(rtimee, ireals)
 
     do j=2,j1
       do i=2,i1
-        d_plev(:, i, j) = real(presf(:), ireals)/100
+        d_plev(:, i, j) = real(presh(:), ireals)/100
         do k=1,kmax
           d_tlay(k,i,j) = real(thl0(i,j,k) * exnf(k) + (rlv / cp) * ql0(i,j,k), ireals)
           d_h2ovmr(k,i,j) = real(mwdry/mwh2o * max((qt0(i,j,k) - ql0(i,j,k)),1e-18), ireals)
 
           d_lwc(k,i,j) = real(ql0(i,j,k) * 1e3, ireals)
-
           d_reliq(k,i,j) = real(1.e6*( 3.*( 1e-3 * d_lwc(k,i,j) ) &
                             /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 ), ireals)
           d_reliq(k,i,j) = min(max(d_reliq(k,i,j), 2.5_ireals), 60._ireals)
@@ -128,12 +130,13 @@ contains
         enddo
       enddo
     enddo
+    
+    
     do k=2,kmax
       d_tlev(k,:,:) = real(d_tlay(k-1,:,:) + d_tlay(k,:,:), ireals)*.5_ireals
     enddo
     d_tlev(k1,:,:) = 2*d_tlay(kmax,:,:) - d_tlev(kmax,:,:) ! linear extrapolation towards top
-    !d_tlev(1,:,:) = 2*d_tlay(1,:,:) - d_tlev(2,:,:) ! same for bottom layer TODO: this needs something better, at least when we have an interactive surface
-    d_tlev(1,:,:) = tskin(2:i1,2:j1) * (ps/pref0) ** (rd/cp) !use skin temperature from surface scheme
+    d_tlev(1,:,:) = real(tskin(2:i1,2:j1) * (ps/pref0) ** (rd/cp),ireals) !use skin temperature from surface scheme
     if(ldebug .and. myid.eq.0) then
       print *,'shape for d_plev', shape(d_plev)
       print *,'shape for d_tlay', shape(d_tlay)
@@ -161,15 +164,13 @@ contains
 
 
     ! Thermal RT
-    call pprts_rrtmg(inp_comm, pprts_solver,atm,imax,jmax, &
+    call pprts_rrtmg(inp_comm, pprts_solver,atm,          &
+            int(imax,iintegers),int(jmax, iintegers),     &
             real(dx, ireals), real(dy, ireals),           &
             phi0, theta0,                                 &
-            albedo_thermal, albedo_solar,   &
+            albedo_thermal, albedo_solar,                 &
             .true., .false.,                              &
             edir,edn,eup,abso,                            &
-            !d_plev=d_plev, d_tlev=d_tlev,                 &
-           ! d_h2ovmr=d_h2ovmr,                            &
-            !d_lwc=d_lwc, d_reliq=d_reliq,                 &
             nxproc=nxproc, nyproc=nyproc, opt_time=modeltime)
 
     if(ldebug .and. myid.eq.0) then
@@ -200,15 +201,13 @@ contains
 
     if(mu.gt.cos(deg2rad(solar_min_sza))) then
       ! Solar RT
-      call pprts_rrtmg(inp_comm, pprts_solver,atm,imax,jmax,&
+      call pprts_rrtmg(inp_comm, pprts_solver,atm,          &
+              int(imax,iintegers), int(jmax,iintegers),     &
               real(dx,ireals), real(dy,ireals),             &
               phi0, theta0,                                 &
-              albedo_thermal, albedo_solar,   &
+              albedo_thermal, albedo_solar,                 &
               .false., .true.,                              &
-              edir,edn,eup,abso,                            &
-          !    d_plev=d_plev, d_tlev=d_tlev,                 &
-          !    d_h2ovmr=d_h2ovmr,                            &
-          !    d_lwc=d_lwc, d_reliq=d_reliq,                 &
+              edir,edn,eup,abso,opt_solar_constant=solconc, &
               nxproc=nxproc, nyproc=nyproc, opt_time=modeltime)
 
       if(ldebug .and. myid.eq.0) then
@@ -219,8 +218,7 @@ contains
         k = ubound(edir,1)
         print *,k,'edir',edir(k,1,1),'ediff',edn(k,1,1), eup(k,1,1)
       endif
-      
-      do k=1,k1
+        do k=1,k1
         kk = ubound(edn,1) - (k-1) ! TenStream providing fluxes from TOA to Srfc and on the bigger grid...
         swdir(2:i1, 2:j1, k) = edir(kk, :, :)
         swdif(2:i1, 2:j1, k) = -edn(kk, :, :)
@@ -250,10 +248,10 @@ contains
       SW_dn_TOA(2:i1, 2:j1) = 0
       SW_up_TOA(2:i1, 2:j1) = 0
     endif
+  end subroutine
 
+  subroutine dales_tenstream_destroy()
     call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
-!    call destroy_tenstr_atm(atm)
-
   end subroutine
 #endif
 end module modradtenstream

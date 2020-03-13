@@ -73,10 +73,12 @@ EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPAT
 ### Find NetCDF files
 FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   PATHS
+  $ENV{EBROOTNETCDFMINFORTRAN}/include
+  $ENV{EBROOTNETCDF}/include
   $ENV{SARA_NETCDF_INCLUDE}
   $ENV{SURFSARA_NETCDF_INCLUDE}
   $ENV{NETCDF_INCLUDE}
-  ${ADDMODULEPATH}/include
+  {ADDMODULEPATH}/include
   /usr/include
   $ENV{HOME}/include
   /usr/lib64/gfortran/modules
@@ -88,6 +90,7 @@ FIND_LIBRARY(NETCDF_C_LIB netcdf
   $ENV{SARA_NETCDF_LIB}
   $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
+  $ENV{EBROOTNETCDF}/lib64
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64
   /usr/lib
@@ -99,10 +102,11 @@ FIND_LIBRARY(NETCDF_C_LIB netcdf
 
 FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   PATHS
-  $ENV{SARA_NETCDF_LIB}
+  $ENV{SARA_NETCDF_LIB}/
   $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
   $ENV{SURFSARA_LIBRARY_PATH}
+  $ENV{EBROOTNETCDFMINFORTRAN}/lib
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64
   /usr/lib
@@ -150,7 +154,8 @@ if(WITH_TENSTREAM)
   # Add Tenstream
   include_directories("${TENSTREAM_BUILD_DIR}/include/")
 
-  set (TENSTREAM_LIBS "pprts_rrtmg" "pprts_rrtm_lw" "pprts_rrtm_sw" "pprts" "pprts_base")
+  #set (TENSTREAM_LIBS "pprts_rrtmg" "pprts_rrtm_lw" "pprts_rrtm_sw" "pprts" "pprts_base")
+  set (TENSTREAM_LIBS "tenstream")
   foreach (LIB ${TENSTREAM_LIBS})
     FIND_LIBRARY(TENSTREAM_LIBRARY_${LIB} "${LIB}" "${TENSTREAM_BUILD_DIR}/lib/")
     list(APPEND LIBS "${TENSTREAM_LIBRARY_${LIB}}")

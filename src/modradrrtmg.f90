@@ -250,8 +250,8 @@ contains
         end do
       end do
     end do
-  if (lsmthsurf == .true.) then
-      ! surface smoothing
+  if (lsmthsurf) then
+      ! surface smoothing (diffuse radiation)
       swdif_surfavl = sum(swdif(2:i1,2:j1,1))
       swu_surfavl   = sum(swu(2:i1,2:j1,1))
       lwd_surfavl   = sum(lwd(2:i1,2:j1,1))

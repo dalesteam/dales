@@ -60,7 +60,7 @@ save
   real   :: zbaseav, ztopav, ztopmax,zbasemin
   real   :: qlintav, qlintmax, tke_tot
   real   :: cc, wmax, qlmax
-  real   :: qlint,CPU_prog_men,CPU_prog_men0
+  real   :: qlint,CPU_prog_step,CPU_prog_step0
   logical:: store_zi = .false.
 
   !Variables for heterogeneity
@@ -98,7 +98,7 @@ contains
 
     dtav=dtav_glob
     if(myid==0)then
-      CPU_prog_men0 = MPI_Wtime()
+      CPU_prog_step0 = MPI_Wtime()
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTIMESTAT,iostat=ierr)
       if (ierr > 0) then
@@ -166,7 +166,7 @@ contains
       open (ifoutput,file='tmser1.'//cexpnr,status='replace',position='append')
       write(ifoutput,'(2a)') &
              '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
-             '   <<ql>>  <<ql>>_max   w_max   tke     ql_max   WALLtime'
+             '   <<ql>>  <<ql>>_max   w_max   tke     ql_max   WALLtime       zenithangle'
       close(ifoutput)
       !tmsurf
       open (ifoutput,file='tmsurf.'//cexpnr,status='replace',position='append')
@@ -762,8 +762,8 @@ contains
   !     ---------------------------------------
 
     if(myid==0)then
-      CPU_prog_men = MPI_Wtime() - CPU_prog_men0
-      CPU_prog_men0 = MPI_Wtime() 
+      CPU_prog_step = MPI_Wtime() - CPU_prog_step0
+      CPU_prog_step0 = MPI_Wtime() 
        !tmser1
       open (ifoutput,file='tmser1.'//cexpnr,position='append')
       write( ifoutput,'(f10.2,f6.3,4f12.3,f10.4,5f9.3,2f12.3)') &
@@ -779,7 +779,7 @@ contains
           wmax, &
           tke_tot*dzf(1), &
           qlmax*1000., &
-          CPU_prog_men,&
+          CPU_prog_step,&
           printzenith
                      
       close(ifoutput)

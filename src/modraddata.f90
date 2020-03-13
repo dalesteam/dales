@@ -223,4 +223,29 @@ contains
     end if
   end function zenith
 
+!calculate azimuth angle (for 3D radiation)
+  real function azimuth(time, xday, xlat,xlon,mu)
+    use modglobal, only : pi
+!     implicit none
+    real, intent(in) :: time, xday, xlat, xlon, mu
+    real :: phi,el,obliq,xlam,declin,hora
+    real :: day,daytime
+
+    day    = xday + floor(time/86400.)
+    daytime= mod(time,86400.)
+
+    phi    = xlat * pi/180.
+    el     = xlon * pi/180.
+    obliq  = 23.45 * pi/180.
+    xlam   = 4.88 + 0.0172 * day
+    declin = asin(sin(obliq)*sin(xlam))
+    hora   = el-pi + 2.*pi*(daytime/86400.)
+    azimuth = acos((sin(declin)-mu*sin(phi))/(sin(acos(mu))*cos(phi))) / pi * 180.
+    if (hora > 0) then
+        azimuth = 360-azimuth
+    endif 
+  end function azimuth
+
+
+
 end module modraddata
