@@ -735,4 +735,22 @@ IF (fact /= one) fn_val = fact / fn_val
 ! ---------- Last line of GAMMA ----------
 END FUNCTION LACZ_GAMMA
 
+! Subroutine for detecting and reporting namelist errors.
+! Prints the last line read before failiure, as debugging help.
+subroutine checknamelisterror (ierr, ifnamopt, namelist)
+  implicit none
+  integer, intent(in) :: ierr, ifnamopt
+  character(*), intent(in) :: namelist
+  character(len=1000) :: line
+
+  if (ierr > 0) then
+     print *, 'Problem in namoptions ', namelist
+     print *, 'iostat error: ', ierr
+     backspace(ifnamopt)
+     read(ifnamopt,fmt='(A)') line
+     print *, 'Invalid line: '//trim(line)
+     stop 'ERROR: Problem in namelist.'
+  endif
+end subroutine checknamelisterror
+
 end module modglobal

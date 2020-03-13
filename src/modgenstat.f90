@@ -167,7 +167,7 @@ contains
   subroutine initgenstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
-    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart
+    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
 
@@ -184,11 +184,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMGENSTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMGENSTAT'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMGENSTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMGENSTAT')
       write(6 ,NAMGENSTAT)
       close(ifnamopt)
     end if

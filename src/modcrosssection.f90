@@ -68,8 +68,9 @@ contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+
    implicit none
 
     integer :: ierr,k
@@ -88,11 +89,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCROSSSECTION,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCROSSSECTION'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMCROSSSECTION'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMCROSSSECTION')
       write(6 ,NAMCROSSSECTION)
       close(ifnamopt)
     end if

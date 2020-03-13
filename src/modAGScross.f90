@@ -52,7 +52,7 @@ contains
 !> Initializing AGScross. Read out the namelist, initializing the variables
   subroutine initAGScross
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc,nctiminfo
     use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf
     use modraddata,only   : irad_par,irad_rrtmg,iradiation
@@ -67,11 +67,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMAGScross,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMAGScross'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMAGScross'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMAGScross')
       write(6 ,NAMAGScross)
       close(ifnamopt)
     end if

@@ -51,7 +51,7 @@ contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
     use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres
+    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
     integer :: ierr, n
@@ -69,11 +69,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMFIELDDUMP'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMFIELDDUMP'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMFIELDDUMP')
       write(6 ,NAMFIELDDUMP)
       close(ifnamopt)
     end if

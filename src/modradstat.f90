@@ -81,7 +81,7 @@ contains
   subroutine initradstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax, k1, ifnamopt,fname_options, ifoutput,&
-                          cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart
+                          cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
@@ -97,11 +97,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMRADSTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMRADSTAT'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMRADSTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMRADSTAT')
       write(6 ,NAMRADSTAT)
       close(ifnamopt)
     end if

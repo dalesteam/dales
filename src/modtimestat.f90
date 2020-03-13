@@ -82,7 +82,7 @@ contains
   subroutine inittimestat
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
-                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart
+                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
@@ -100,14 +100,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTIMESTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMTIMESTAT'
-        print *, 'iostat error: ', ierr
-        backspace(ifnamopt)
-        read(ifnamopt,fmt='(A)') line
-        print *, 'Invalid line: '//trim(line)
-        stop 'ERROR: Problem in namoptions NAMTIMESTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMTIMESTAT')
       write(6 ,NAMTIMESTAT)
       close(ifnamopt)
     end if

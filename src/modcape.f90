@@ -48,7 +48,7 @@ contains
 !> Initializing cape crossections. Read out the namelist, initializing the variables
   subroutine initcape
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
    implicit none
 
@@ -61,11 +61,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCAPE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCAPE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMCAPE'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMCAPE')
       write(6 ,NAMCAPE)
       close(ifnamopt)
     end if

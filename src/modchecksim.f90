@@ -44,7 +44,7 @@ module modchecksim
 contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
   subroutine initchecksim
-    use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres
+    use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres,checknamelisterror
     use modmpi,    only : myid,my_real,comm3d,mpierr
     implicit none
     integer :: ierr
@@ -54,11 +54,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCHECKSIM,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCHECKSIM'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMCHECKSIM'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMCHECKSIM')
       write(6 ,NAMCHECKSIM)
       close(ifnamopt)
 

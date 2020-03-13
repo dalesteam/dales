@@ -71,7 +71,7 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
@@ -109,11 +109,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSURFACE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSURFACE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSURFACE'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMSURFACE')
       write(6 ,NAMSURFACE)
       close(ifnamopt)
     end if

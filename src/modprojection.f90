@@ -66,7 +66,7 @@ contains
 
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf,checknamelisterror
     use modstat_nc, only : open_nc,define_nc,ncinfo, writestat_dims_nc,lnetcdf,nctiminfo
     implicit none
 
@@ -79,11 +79,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMprojection,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMprojection'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMprojection'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMprojection')
       write(6 ,NAMprojection)
       close(ifnamopt)
     end if

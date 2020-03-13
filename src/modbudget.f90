@@ -77,7 +77,7 @@ contains
   subroutine initbudget
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
-    ladaptive,dt_lim,btime,tres,lwarmstart
+    ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
@@ -93,11 +93,7 @@ contains
     if(myid==0)then
        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
        read (ifnamopt,NAMBUDGET,iostat=ierr)
-       if (ierr > 0) then
-         print *, 'Problem in namoptions NAMBUDGET'
-         print *, 'iostat error: ', ierr
-         stop 'ERROR: Problem in namoptions NAMBUDGET'
-       endif
+       call checknamelisterror(ierr, ifnamopt, 'NAMBUDGET')
        write(6 ,NAMBUDGET)
        close(ifnamopt)
     end if

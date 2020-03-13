@@ -44,7 +44,7 @@ SAVE
 contains
   subroutine initnudge
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax
+    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax,checknamelisterror
     implicit none
 
     integer :: ierr,k,t
@@ -66,11 +66,7 @@ contains
 
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNUDGE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMNUDGE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMNUDGE'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMNUDGE')
       write(6 ,NAMNUDGE)
       close(ifnamopt)
     end if

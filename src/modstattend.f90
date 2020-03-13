@@ -54,7 +54,7 @@ contains
 subroutine initstattend
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
     use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
-    ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart
+    ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : ncid_prof=>ncid
 
@@ -70,11 +70,7 @@ subroutine initstattend
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSTATTEND,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSTATTEND'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSTATTEND'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMSTATTEND')
       write(6 ,NAMSTATTEND)
       close(ifnamopt)
     end if

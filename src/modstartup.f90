@@ -59,7 +59,7 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
-                                  solver_id, maxiter, tolerance, n_pre, n_post, precond
+                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -127,43 +127,23 @@ contains
         stop 'ERROR:Namoptions does not exist'
       end if
       read (ifnamopt,RUN,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions RUN'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions RUN'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'RUN')
       write(6 ,RUN)
       rewind(ifnamopt)
       read (ifnamopt,DOMAIN,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions DOMAIN'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions DOMAIN'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'DOMAIN')
       write(6 ,DOMAIN)
       rewind(ifnamopt)
       read (ifnamopt,PHYSICS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions PHYSICS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions PHYSICS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'PHYSICS')
       write(6 ,PHYSICS)
       rewind(ifnamopt)
       read (ifnamopt,DYNAMICS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions DYNAMICS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions DYNAMICS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'DYNAMICS')
       write(6 ,DYNAMICS)
       rewind(ifnamopt)
       read (ifnamopt,SOLVER,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions SOLVER'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions SOLVER'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'SOLVER')
       write(6 ,SOLVER)
       close(ifnamopt)
     end if

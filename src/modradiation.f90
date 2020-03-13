@@ -34,7 +34,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
-    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
+    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options,checknamelisterror
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
 
@@ -51,21 +51,13 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMDE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMDE'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMDE')
       write(6 ,NAMDE)
 
       rewind(ifnamopt)
 
       read (ifnamopt,NAMRADIATION,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMRADIATION'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMRADIATION'
-      end if
+      call checknamelisterror(ierr, ifnamopt, 'NAMRADIATION')
       write(6 ,NAMRADIATION)
 
       close(ifnamopt)

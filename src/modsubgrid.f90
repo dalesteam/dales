@@ -98,7 +98,7 @@ contains
   end subroutine initsubgrid
 
   subroutine subgridnamelist
-    use modglobal, only : ifnamopt,fname_options
+    use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
 
     implicit none
@@ -111,11 +111,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSUBGRID,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSUBGRID'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSUBGRID'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMSUBGRID')
       write(6 ,NAMSUBGRID)
       close(ifnamopt)
     end if

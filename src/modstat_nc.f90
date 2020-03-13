@@ -47,7 +47,7 @@ contains
 
 
   subroutine initstat_nc
-    use modglobal, only : ifnamopt,fname_options
+    use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : mpierr,mpi_logical,comm3d,myid
     implicit none
 
@@ -59,11 +59,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNETCDFSTATS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMNETCDFSTATS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMNETCDFSTATS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMNETCDFSTATS')
       write(6, NAMNETCDFSTATS)
       close(ifnamopt)
     end if

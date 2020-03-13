@@ -38,7 +38,7 @@ implicit none
 contains
   subroutine initmicrophysics
     use modmpi,   only :myid,my_real,comm3d,mpi_integer,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,nsv
+    use modglobal,only :ifnamopt,fname_options,nsv,checknamelisterror
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     use modsimpleice2, only : initsimpleice2
@@ -52,11 +52,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMMICROPHYSICS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMMICROPHYSICS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMMICROPHYSICS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMMICROPHYSICS')
       write(6 ,NAMMICROPHYSICS)
       close(ifnamopt)
     end if

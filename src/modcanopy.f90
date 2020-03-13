@@ -56,7 +56,7 @@ contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf
+    use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf, checknamelisterror
 
     implicit none
 
@@ -70,11 +70,7 @@ contains
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCANOPY,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCANOPY'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMCANOPY'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMCANOPY')
       write(6 ,NAMCANOPY)
       close(ifnamopt)
 

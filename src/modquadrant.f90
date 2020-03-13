@@ -64,7 +64,7 @@ contains
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical,mpi_integer
     use modglobal, only : ladaptive, dtmax,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,btime,tres,cexpnr,ifoutput,nsv,lwarmstart
+                           dtav_glob,btime,tres,cexpnr,ifoutput,nsv,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_q_nc
     implicit none
 
@@ -81,11 +81,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMquadrant,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMquadrant'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMquadrant'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMquadrant')
       write(6 ,NAMquadrant)
       close(ifnamopt)
 
