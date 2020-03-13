@@ -39,7 +39,7 @@ private
 PUBLIC :: initthreedheating, threedheating,exitthreedheating
 save
 !NetCDF variables
-  integer,parameter :: nvar = 13
+  integer,parameter :: nvar = 14
   integer :: ncid3,nrec = 0
   character(80) :: fname = 'threedheating.xxx.xxx.xxx.nc'
   character(80),dimension(nvar,4) :: ncname
@@ -111,6 +111,7 @@ contains
       call ncinfo(ncname( 11,:),'lwd','shortwave radiatio downward','W/m2','tttt')
       call ncinfo(ncname( 12,:),'lwu','shortwave radiatio downward','W/m2','tttt')
       call ncinfo(ncname( 13,:),'qlrad','liquid water specific humidity','kg/kg','tttt')
+      call ncinfo(ncname( 14,:),'w0','vertical wind velocity','m/s','tttt')
     
 
 call open_nc(fname,  ncid3,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
@@ -323,6 +324,19 @@ call open_nc(fname,  ncid3,nrec,n1=imax,n2=jmax,n3=khigh-klow+1)
         write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
       else
         open  (ifoutput,file='wbrad3swdswd.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+ 
+ field = w0
+ if (lnetcdf) vars(:,:,:,14) = field(2:i1,2:j1,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbw0d3swdswd.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1,2:j1,klow:khigh)
+      else
+        open  (ifoutput,file='wbw0d3swdswd.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
         write (ifoutput) (((field(i,j,k),i=2,i1),j=2,j1),k=klow,khigh)
       end if
       close (ifoutput)
