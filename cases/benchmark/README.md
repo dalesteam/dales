@@ -15,13 +15,14 @@ Bulk microphysics, no radiation.
 * sampling statistics off
 * cross section output on
 * horizontal extent changed from 128^2 to 144^2, for flexible paralellizing options
-* TODO: try experimental, optimized 77 scheme instead of 7
 
 ### Variants
 
 ```
-namoptions.001        300 seconds 1 core                  120.4 s on laptop
+namoptions-144.001    300 seconds 1 core                  120.4 s on laptop
 namoptions-fixed.001  100 seconds 1 core   fixed dt=2.5 s 133.4 s on laptop
+namoptions-432.001    300
+namoptions-864.001    300 
 ```
 
 ### Notes
@@ -100,3 +101,24 @@ See above for obtaining RRTMG data.
 Requires DALES 4.3 or above, due to a change in large scale forcing, ltimedepuv flag.
 
 
+cao
+---
+
+A cold air outbreak case from Stephan de Roode et al.
+Uses RRTMG radiation. Special for this case is that it
+generates clouds and precipitation from the start, so
+it can be used to measure how these impact the run time and
+distribution over the subroutines.
+
+
+GOAMAZON14
+----------
+
+A case with atmospheric chemistry and RRTMG radiation, from Jordi Vila et al.
+Also included in cases/GOAMAZON14 with reference results.
+
+### Variants
+
+```
+namoptions.047    36x36x200    300 s
+```
