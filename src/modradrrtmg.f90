@@ -764,7 +764,6 @@ contains
             if (liquidRe(i,k).gt.60.) then
                 liquidRe(i,k) = 60.
             endif
-
           endif
 
           if (IWP_slice(i,k).gt.0) then
@@ -776,7 +775,6 @@ contains
              cloudFrac(i,k) = 1.
              B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * alog10(qci_slice(i,k)/IWC0)
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998
-          endif
 
              if (iceRe(i,k).lt.5.) then
                 iceRe(i,k) = 5.
@@ -786,8 +784,6 @@ contains
                 iceRe(i,k) = 140.
              endif
           endif
-
-
         enddo
       enddo
 
