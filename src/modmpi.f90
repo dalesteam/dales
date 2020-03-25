@@ -167,10 +167,9 @@ contains
 
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-  subroutine exitmpi
-    implicit none
-
+ subroutine exitmpi
+   implicit none
+    logical :: mpifin
 
     if(myid==0)then
       CPU_program = MPI_Wtime() - CPU_program0
@@ -178,9 +177,18 @@ contains
     end if
 
     call MPI_Comm_free( comm3d, mpierr )
-    call MPI_FINALIZE(mpierr)
+
+    if(commwrld/=MPI_COMM_WORLD .and. myid==0) then
+        call MPI_COMM_FREE(commwrld,mpierr)
+    endif
+
+    call MPI_FINALIZED(mpifin,mpierr)
+    if(.not.mpifin .and. .not.libmode) then
+        call MPI_FINALIZE(mpierr)
+    endif
   end subroutine exitmpi
 
+  
   subroutine barrou()
     implicit none
     call MPI_BARRIER(comm3d,mpierr)
