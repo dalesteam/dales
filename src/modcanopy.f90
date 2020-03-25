@@ -23,6 +23,7 @@ module modcanopy
 
   ! Namoptions
   logical :: lcanopy   = .false.       !< Switch to enable canopy representation
+  logical :: lcanopyseb   = .false.       !< Switch to enable canopy surface energy balance per vertical level
   integer :: ncanopy   = 10            !< Amount of layers to represent the canopy
   real    :: cd        = 0.15          !< Drag coefficient in the canopy
   real    :: lai       = 2             !< Leaf Area Index (or actually plant area index) of the canopy

@@ -97,7 +97,7 @@ contains
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
-      lsplitleaf
+      lsplitleaf,l3leaves
 
 
     ! 1    -   Initialize soil
@@ -166,6 +166,7 @@ contains
     call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(l3leaves                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
@@ -1620,6 +1621,14 @@ contains
       Wl         = Wlav
     endif
     cliq       = 0.
+    
+    if (lsplitleaf) then
+      allocate(PARleaf_shad(nz_gauss))
+      allocate(PARleaf_allsun(nz_gauss))
+      allocate(PARleaf_sun(nz_gauss,nangle_gauss))
+      allocate(fSL(nz_gauss))
+    endif  
+
   end subroutine initlsm
 
 
@@ -1642,20 +1651,19 @@ contains
     real     :: fH, fLE, fLEveg, fLEsoil, fLEliq, LEveg, LEsoil, LEliq
     real     :: Wlmx
 
-    real     :: CO2ags, CO2comp, gm, fmin0, fmin, esatsurf, Ds, D0, cfrac, co2abs, ci !Variables for AGS
-    real     :: Ammax, betaw, fstr, Am, Rdark, PAR, alphac, tempy, An, AGSa1, Dstar, gcco2 !Variables for AGS
-    real     :: rsAgs, rsCO2, fw, Resp, wco2 !Variables for AGS
-    real     :: Ag, PARdir, PARdif !Variables for 2leaf AGS
+    real     :: CO2comp, fmin, Ds, D0, co2abs, ci, fstr, Am, Rdark, alphac !Variables for AGS
+    real     :: PAR, tempy, AGSa1, Dstar !Variables for AGS 1-leaf upscaling
+    real     :: An, gcco2,rsAgs, rsCO2 !Variables for AGS
+    real     :: fw, Resp, wco2 !Variables for AGS
     real     :: MW_Air = 28.97
     real     :: MW_CO2 = 44
  
-    real     :: sinbeta, kdrbl, kdf, kdr, ref, ref_dir
-    real     :: iLAI, fSL
-    real     :: PARdfU, PARdfD, PARdfT, PARdrU, PARdrD, PARdrT, dirPAR, difPAR
-    real     :: HdfT, HdrT, dirH, Hshad, Hsun(nr_gauss), Fshad, Fsun, gshad, gsun
-    real     :: Hleaf(nr_gauss+1), Fleaf(nr_gauss+1), gleaf(nr_gauss+1), Agl(nr_gauss+1)
-    real     :: Fnet(nr_gauss), gnet(nr_gauss)
-    real     :: minsinbeta = 1.e-10
+    real     :: Fshad, gshad
+    real     :: Fsun , gsun
+    real     :: Fleaf(nangle_gauss), gleaf(nangle_gauss)
+    real     :: Fnet(nz_gauss), gnet(nz_gauss)
+    real     :: sinbeta,minsinbeta = 1.e-10
+    integer  :: angle
 
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
@@ -1664,7 +1672,56 @@ contains
     real     :: local_Anav
     real     :: local_gcco2av
     real     :: local_Respav
+    
+!    #####to allocate#####XPB
+  ! if (lcanopyeb)
+  !   PARleaf_shad(nz_can)
+  !   allocate(PARleaf_shad(nz_can))
+  !   allocate(PARleaf_allsun(nz_can))
+  !   allocate(PARleaf_sun(nz_can,nangle_gauss))
+  !   allocate(fSL(nz_can))
+  !   
+  !   allocate(iLAI_can(nz_can))
+  !   allocate(tairk(nz_can))
+  !   allocate(humidairpa(nz_can))
+  !   allocate(PAD(nz_can))
+  !   allocate(windsp(nz_can))
+ 
+  !   allocate(LWin_leafshad(nz_can))
+  !   allocate(LWout_leafshad(nz_can))
+  !   allocate(LWnet_leafshad(nz_can))
+  !   allocate(tleaf_shad(nz_can))
+  !   allocate(rs_leafshad(nz_can))
+  !   allocate(rb_leafshad(nz_can))
+  !   allocate(sh_leafshad(nz_can))
+  !   allocate(lh_leafshad(nz_can))
+  !   allocate(An_leafshad(nz_can))
+  !  ! I decided no 3 leaf LEB, otherwise here we shoud add one extra dim for the angles
+  !   allocate(LWin_leafsun(nz_can))
+  !   allocate(LWout_leafsun(nz_can))
+  !   allocate(LWnet_leafsun(nz_can) )
+  !   allocate(tleaf_sun(nz_can))
+  !   allocate(rs_leafsun(nz_can))
+  !   allocate(rb_leafsun(nz_can))
+  !   allocate(sh_leafsun(nz_can))
+  !   allocate(lh_leafsun(nz_can))
+  !   allocate(An_leafsun(nz_can))
+ 
+  !   allocate(sh_can(nz_can))
+  !   allocate(lh_can(nz_can))
+  !   allocate(Fco2_can(nz_can))
+  !   allocate(S_theta(1,1,nz_can))
+  !   allocate(S_qt(1,1,nz_can))
+  !   allocate(S_co2(1,1,nz_can))
 
+  ! if (lsplitleaf)
+  !   allocate(PARleaf_shad(nz_gauss))
+  !   allocate(PARleaf_allsun(nz_gauss))
+  !   allocate(PARleaf_sun(nz_gauss,nangle_gauss))
+  !   allocate(fSL(nz_gauss))
+
+
+    
     patchx = 0
     patchy = 0
 
@@ -1759,40 +1816,41 @@ contains
         end if
 
         ! 2.1   -   Calculate the surface resistance
-        ! Stomatal opening as a function of incoming short wave radiation
-        if (iradiation > 0) then
-          f1  = 1. / min(1., (0.004 * max(0.,-swdav) + 0.05) / (0.81 * (0.004 * max(0.,-swdav) + 1.)))
-        else
-          f1  = 1.
-        end if
-
-        ! Soil moisture availability
-        f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
-        ! Prevent f2 becoming less than 1
-        f2  = max(f2, 1.)
-        ! Put upper boundary on f2 for cases with very dry soils
-        f2  = min(1.e8, f2)
-
-        ! Response of stomata to vapor deficit of atmosphere
-        esat = 0.611e3 * exp(17.2694 * (thl0(i,j,1) - 273.16) / (thl0(i,j,1) - 35.86))
-        if(lhetero) then
-          e    = qt0(i,j,1) * ps_patch(patchx,patchy) / 0.622
-        else
-          e    = qt0(i,j,1) * ps / 0.622
-        endif
-
-        f3   = 1. / exp(-gD(i,j) * (esat - e) / 100.)
-
-        ! Response to temperature
-        exnera  = (presf(1) / pref0) ** (rd/cp)
-        Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
-        f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
-
-        rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
-
-        ! 2.1a  - Recalculate vegetation resistance using AGS
-
-        if (lrsAgs) then
+        if (.not. lrsAgs) then
+           ! Stomatal opening as a function of incoming short wave radiation
+           if (iradiation > 0) then
+             f1  = 1. / min(1., (0.004 * max(0.,-swdav) + 0.05) / (0.81 * (0.004 * max(0.,-swdav) + 1.)))
+           else
+             f1  = 1.
+           end if
+ 
+           ! Soil moisture availability
+           f2  = (phifc - phiwp) / (phitot(i,j) - phiwp)
+           ! Prevent f2 becoming less than 1
+           f2  = max(f2, 1.)
+           ! Put upper boundary on f2 for cases with very dry soils
+           f2  = min(1.e8, f2)
+ 
+           ! Response of stomata to vapor deficit of atmosphere
+           esat = 0.611e3 * exp(17.2694 * (thl0(i,j,1) - 273.16) / (thl0(i,j,1) - 35.86))
+           if(lhetero) then
+             e    = qt0(i,j,1) * ps_patch(patchx,patchy) / 0.622
+           else
+             e    = qt0(i,j,1) * ps / 0.622
+           endif
+ 
+           f3   = 1. / exp(-gD(i,j) * (esat - e) / 100.)
+ 
+           ! Response to temperature
+           exnera  = (presf(1) / pref0) ** (rd/cp)
+           Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
+           f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
+ 
+           rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
+ 
+ 
+        else !(lrsAgs) then
+         ! 2.1a  - Recalculate vegetation resistance using AGS
           if (.not. linags) then !initialize AGS
             if(nsv .le. 0) then
               if (myid == 0) then
@@ -1828,152 +1886,91 @@ contains
             endif !Is chemistry or bulk_micro on?
             linags = .true.
           endif !linags
+          !if (lcanopyeb) then
+          if (.False.) then
+            !we move to the canopy module  
+            !callcanopyeb(&,
+            !             rsAgs,An) !returns lowest grid only to be used by modsurface
+            !lowest grid:
+            !rsAgs = rs_leafsun(1)*fSL(1) + rs_leafshad(1)*(1-fSL(1))
+            !rsCO2 = 1.6 * rsAgs
+            !An = FCo2_can(1)
+            write(*,*)'not ready lcanopy'
 
-          CO2ags  = svm(i,j,1,indCO2)/1000.0  !From ppb (usual DALES standard) to ppm
-
-          ! Calculate surface resistances using the plant physiological (A-gs) model
-          ! Calculate the CO2 compensation concentration
-          CO2comp = rhof(1) * CO2comp298 * Q10CO2 ** (0.1 * ( thl0(i,j,1) - 298.0 ) )
-
-          ! Calculate the mesophyll conductance
-          gm       = gm298 * Q10gm ** (0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1. + exp(0.3 * ( T1gm - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2gm))))
-          gm       = gm / 1000   ! conversion from mm s-1 to m s-1
-
-          ! calculate CO2 concentration inside the leaf (ci)
-          fmin0    = gmin/nuco2q - (1.0/9.0) * gm
-          fmin     = (-fmin0 + ( fmin0 ** 2.0 + 4 * gmin/nuco2q * gm ) ** (0.5)) / (2. * gm)
-
-          esatsurf = 0.611e3 * exp(17.2694 * (tskin(i,j) - 273.16) / (tskin(i,j) - 35.86))
-          Ds       = (esatsurf - e) / 1000.0 ! In kPa
-          D0       = (f0 - fmin) / ad
-
-          cfrac    = f0 * (1.0 - Ds/D0) + fmin * (Ds/D0)
-          co2abs   = CO2ags * (MW_CO2/MW_Air) * rhof(1)
-
-          if (lrelaxci) then
-            if (ci_old_set) then
-              ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
-              ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
-              if (rk3step  == 3) then
-                ci_old(i,j) = ci
-              endif
-            else
-              ci            = cfrac * (co2abs - CO2comp) + CO2comp
-              ci_old(i,j)   = ci
-            endif
           else
-            ci              = cfrac * (co2abs - CO2comp) + CO2comp
-          endif
-
-          ! Calculate maximal gross primary production in high light conditions (Ag)
-          Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( thl0(i,j,1) - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - thl0(i,j,1) ))) * (1. + exp(0.3 * (thl0(i,j,1) - T2Am))) )
-
-          ! Calculate the effect of soil moisture stress on gross assimilation rate
-          betaw    = max(1.0e-3,min(1.0,(phitot(i,j)-phiwp)/(phifc-phiwp)))
-
-          ! Calculate stress function
-          fstr     = betaw
-
-          ! Calculate gross assimilation rate (Am)
-          Am       = Ammax * (1 - exp( -(gm * (ci - CO2comp) / Ammax) ) )
-
-          Rdark    = (1.0/9) * Am
-
-          !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
-          PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
-          if (lsplitleaf) then
-            PARdir   = 0.50 * max(0.1,abs(swdir(i,j,1)))
-            PARdif   = 0.50 * max(0.1,abs(swdif(i,j,1)))
-          endif
-
-          ! Calculate the light use efficiency
-          alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
-
-          if(lsplitleaf) then
-            sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
-            kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black leaves
-            kdf      = kdfbl * sqrt(1.0-sigma)
-            kdr      = kdrbl * sqrt(1.0-sigma)
-            ref      = (1.0 - sqrt(1.0-sigma)) / (1.0 + sqrt(1.0-sigma)) ! Reflection coefficient
-            ref_dir  = 2 * ref / (1.0 + 1.6 * sinbeta)
-
-            do itg = 1, nr_gauss ! loop over the different LAI locations
-              iLAI   = LAI(i,j) * LAI_g(itg)   ! Integrated LAI between here and canopy top; Gaussian distributed
-              fSL    = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
-
-              PARdfD = PARdif * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at canopy top
-              PARdrD = PARdir * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at canopy top
-              PARdfU = PARdif * (1.0-ref)     * exp(-kdf * LAI(i,j)) * albedo(i,j) * (1.0-ref) * exp(-kdf * (LAI(i,j)-iLAI)) ! Total upward (reflected) PAR that originates as diffuse radiation
-              PARdrU = PARdir * (1.0-ref_dir) * exp(-kdr * LAI(i,j)) * albedo(i,j) * (1.0-ref) * exp(-kdf * (LAI(i,j)-iLAI)) ! Total upward (reflected) PAR that originates as direct radiation
-              PARdfT = PARdfD + PARdfU                                   ! Total PAR due to diffuse radiation at canopy top
-              PARdrT = PARdrD + PARdrU                                   ! Total PAR due to direct radiation at canopy top
-
-              dirPAR = (1.0-sigma) * PARdir * fSL                        ! Purely direct PAR (can only be downward)
-              difPAR = PARdfT + PARdrT - dirPAR                          ! Total diffuse radiation
-
-              HdfT   = kdf * PARdfD + kdf * PARdfU
-              HdrT   = kdr * PARdrD + kdf * PARdrU
-              dirH   = kdrbl * dirPAR
-              Hshad  = HdfT + HdrT - dirH
-
-              Hsun   = Hshad + angle_g * (1.0-sigma) * kdrbl * PARdir / sum(angle_g * weight_g)
-
-              Hleaf(1)              = Hshad
-              Hleaf(2:(nr_gauss+1)) = Hsun
-
-              Agl    = fstr * (Am + Rdark) * (1 - exp(-alphac*Hleaf/(Am + Rdark)))
-              gleaf  = gmin/nuco2q +  Agl/(co2abs-ci)
-              !Fleaf  = -(co2abs - ci) / (ra(i,j) + 1.0 / gleaf)
-              Fleaf  = Agl - Rdark
-
-              Fshad  = Fleaf(1)
-              Fsun   = sum(weight_g * Fleaf(2:(nr_gauss+1)))
-              gshad  = gleaf(1)
-              gsun   = sum(weight_g * gleaf(2:(nr_gauss+1)))
-
-              Fnet(itg) = Fsun * fSL + Fshad * (1 - fSL)
-              gnet(itg) = gsun * fSL + gshad * (1 - fSL)
-
-            end do !itg
-
-            An       = LAI(i,j) * sum(weight_g * Fnet)
-            gc_inf   = LAI(i,j) * sum(weight_g * gnet)
-
-          else !lsplitleaf
-          
-          ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-          AGSa1    = 1.0 / (1 - f0)
-          Dstar    = D0 / (AGSa1 * (f0 - fmin))
-
-          tempy    = alphac * Kx * PAR / (Am + Rdark)
-          An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
-          gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
-
-          endif !lsplitleaf
-
-
-          if (lrelaxgc) then
-            if (gc_old_set) then
-              gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
-              if (rk3step ==3) then
+            if (lsplitleaf) then
+              sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
+              call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo(i,j),sinbeta,& ! in! sth for zenith fu
+                   PARleaf_shad,PARleaf_sun,fSL)
+              do itg = 1,nz_gauss
+                !shaded
+                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PARleaf_shad(itg), & ! in
+                           gshad,Fshad,ci,&                                  !out
+                           fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)   !out
+                !sunny
+                if (l3leaves) then      ! 3 angles for sunny leaves
+                  do angle=1,nangle_gauss
+                    call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PARleaf_sun(itg,angle), & ! in
+                               gleaf(angle),Fleaf(angle),ci,&   !out
+                               fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) !out, not needed here
+                  end do
+                  Fsun   = sum(weight_g * Fleaf(1:nangle_gauss))
+                  gsun   = sum(weight_g * gleaf(1:nangle_gauss))
+                else ! angles PAR are averaged
+                  PARleaf_allsun   = sum(weight_g * PARleaf_sun(itg,1:nangle_gauss))
+                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PARleaf_allsun(itg), & !
+                             gsun,Fsun,ci,&
+                             fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)
+                end if
+                Fnet(itg) = Fsun * fSL(itg) + Fshad * (1 - fSL(itg))
+                gnet(itg) = gsun * fSL(itg) + gshad * (1 - fSL(itg))
+              end do
+            
+              An       = LAI(i,j) * sum(weight_g * Fnet)
+              gc_inf   = LAI(i,j) * sum(weight_g * gnet)
+            else! if (.not. lsplitleaf)
+              !upscaling following Ronda et al
+              PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
+         
+              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PAR, & ! in
+                         gshad,Fshad,ci, & ! these 3 are irrelevant here
+                         fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! out
+         
+              ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
+              AGSa1    = 1.0 / (1 - f0)
+              Dstar    = D0 / (AGSa1 * (f0 - fmin))
+         
+              tempy    = alphac * Kx * PAR / (Am + Rdark)
+              An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
+              gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+        
+            end if ! splitleaf
+         
+            if (lrelaxgc) then
+              if (gc_old_set) then
+                gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+                if (rk3step ==3) then
+                  gc_old(i,j) = gcco2
+                endif
+              else
+                gcco2 = gc_inf
                 gc_old(i,j) = gcco2
               endif
             else
               gcco2 = gc_inf
-              gc_old(i,j) = gcco2
             endif
-          else
-            gcco2 = gc_inf
-          endif
 
           ! Calculate surface resistances for moisture and carbon dioxide
-          rsAgs    = 1.0 / (1.6 * gcco2)
-          rsCO2    = 1.0 / gcco2
+            rsAgs    = 1.0 / (1.6 * gcco2)
+            rsCO2    = 1.0 / gcco2
+          
+          
+            ! Calculate net flux of CO2 into the plant (An)
+            An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
 
+          endif !canopyeb
+            
           rsveg(i,j) = rsAgs
-
-          ! Calculate net flux of CO2 into the plant (An)
-          An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
 
           ! CO2 soil respiraion surface flux
           fw       = Cw * wsmax / (phitot(i,j) + wsmin)
@@ -1999,10 +1996,6 @@ contains
           fstrField (i,j) = fstr
           ciField   (i,j) = ci
           PARField  (i,j) = PAR
-          if (lsplitleaf)then
-            PARdirField(i,j) = PARdir
-            PARdifField(i,j) = PARdif
-          endif
 
         endif !lrsAgs
 
@@ -2201,5 +2194,187 @@ contains
     call qtsurf
 
   end subroutine do_lsm
+  subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,sinbeta,&    ! in
+                        Hshad,Hsun,fSL)                             !out
+    use modraddata  , only : zenith
+    use modsurfdata , only : LAI_g,nangle_gauss,weight_g,angle_g,sigma,kdfbl
+    
+    implicit none
+    integer,intent(in) :: layers
+    real, intent(in) :: LAI ! total Leaf Area Index of the whole column
+    real, intent(in),dimension(layers) ::LAI_can  ! array with accumulated LAI from canopy top down to evaluated height
+    real, intent(in)  :: sw_dir ! 
+    real, intent(in)  :: sw_dif !
+    real, intent(in)  :: alb !
+    real, intent(in)  :: sinbeta ! 
+    real, intent(out),dimension(layers) :: Hshad              ! SW intercepted by shaded leaves at each layer
+    real, intent(out),dimension(layers,nangle_gauss) :: Hsun  ! SW intercepted by sunlit leaves per layer and per leaf orientation 
+    real, intent(out),dimension(layers) :: fSL  ! fraction of sunlit leaves per layer
+    real    ::     PARdir_TOC,PARdif_TOC,kdrbl,kdf,kdr,ref,ref_dir,iLAI
+    real    ::     PARdfD,PARdrD,PARdfU,PARdrU,PARdfT,PARdrT,dirPAR,difPAR,HdfT,HdrT,dirH
+    integer :: k_can
+
+    PARdir_TOC   = 0.50 * max(0.1,abs(sw_dir))
+    PARdif_TOC   = 0.50 * max(0.1,abs(sw_dif))
+    
+    !sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
+    
+    kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black lea
+    kdf      = kdfbl * sqrt(1.0-sigma)
+    kdr      = kdrbl * sqrt(1.0-sigma)
+    ref      = (1.0 - sqrt(1.0-sigma)) / (1.0 + sqrt(1.0-sigma)) ! Reflection coefficient
+    ref_dir  = 2 * ref / (1.0 + 1.6 * sinbeta)
+    do k_can = 1, layers! loop over the different LAI locations, from top to bottom
+      iLAI         = LAI_can(k_can)   ! Integrated LAI between here and canopy top
+      fSL(k_can)   = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
+      PARdfD = PARdif_TOC * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at ca
+      PARdrD = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at can
+      PARdfU = PARdif_TOC * (1.0-ref)     * exp(-kdf * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward
+      PARdrU = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward
+      PARdfT = PARdfD + PARdfU                                   ! Total PAR due to diffuse radiation at canopy top
+      PARdrT = PARdrD + PARdrU                                   ! Total PAR due to direct radiation at canopy top
+
+      dirPAR = (1.0-sigma) * PARdir_TOC * fSL(k_can)                        ! Purely direct PAR (can only be downward)
+      difPAR = PARdfT + PARdrT - dirPAR                          ! Total diffuse radiation
+
+      HdfT   = kdf * PARdfD + kdf * PARdfU
+      HdrT   = kdr * PARdrD + kdf * PARdrU
+      dirH   = kdrbl * dirPAR
+      Hshad(k_can)  = HdfT + HdrT - dirH
+
+      Hsun(k_can,:)   = Hshad(k_can) + (angle_g * (1.0-sigma) * kdrbl * PARdir_TOC / sum(angle_g * weight_g))
+     end do
+  return
+  end subroutine ! canopyrad
+subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
+                 gleaf,Fleaf,ci,&
+                 fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)                       ! additional out for 1leaf upscaling
+
+      implicit none
+      real, intent(in) ::  CO2air     ! CO2 air concentration [ppb]
+      real, intent(in) ::  qtair      ! air specific humidity [kg/kg]
+      real, intent(in) ::  pair       ! air pressure          [Pa]
+      real, intent(in) ::  dens       ! air density           [kg/m3]
+      real, intent(in) ::  tairk       ! air temperature (K)
+      real, intent(in) ::  t_skin     ! surface or leaf skin temperature (K)
+      real, intent(in) ::  phitot     ! Total soil water content [-]
+      real, intent(in) ::  Hleaf     ! surface or leaf skin temperature (K)
+      real, intent (out) :: gleaf
+      real, intent (out) :: Fleaf
+      real, intent (out) :: ci
+      !following variable may not be necessaryl defined when final implemenation
+      real, intent (out) :: fstr
+      real, intent (out) :: Am
+      real, intent (out) :: Rdark
+      real, intent (out) :: alphac
+      real, intent (out) :: co2abs
+      real, intent (out) :: CO2comp
+      real, intent (out) :: Ds
+      real, intent (out) :: D0
+      real, intent (out) :: fmin
+     ! other vars needed by AGS
+      !AGS variables
+      real              :: CO2comp298 =   68.5 !<  CO2 compensation concentration
+      real              :: Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
+      real              :: gm298      =    7.0 !<  Mesophyll conductance at 298 K
+      real              :: Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
+      real              :: T1gm       =  278.0 !<  Reference temperature to calculate the mesophyll conductance
+      real              :: T2gm       =  301.0 !<  Reference temperature to calculate the mesophyll conductance
+      real              :: gmin       = 2.5e-4 !<  Cuticular (minimum) conductance
+      real              :: nuco2q     =    1.6 !<  Ratio molecular viscosity water to carbon dioxide
+      real              :: f0         =   0.89 !<  Maximum value Cfrac
+      real              :: ad         =   0.07 !<  Regression coefficient to calculate Cfrac
+      real              :: Ammax298   =    2.2 !<  CO2 maximal primary productivity
+      real              :: Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
+      real              :: T1Am       =    281 !<  Reference temperature to calculate maximal primary productivity
+      real              :: T2Am       =    311 !<  Reference temperature to calculate maximal primary productivity
+      real              :: alpha0     =  0.017 !<  Initial low light conditions
+
+      real     :: CO2ags, gm, fmin0, esatsurf, cfrac !Variables for AGS
+      real     :: Ammax, betaw!Variables for AGS
+      real     :: Agl
+      ! variables below ma not be necessaruly defined when implemented properly
+      real     :: e! needed here as well
+      real     :: MW_Air = 28.97
+      real     :: MW_CO2 = 44
+      real     :: phifc        = 0.491
+      real     :: phiwp        = 0.314
+      !this line is done in do_lsm, but we put it here because it will change per vert level
+      e    = qtair * pair / 0.622
+
+      CO2ags  = CO2air/1000.0  !From ppb (usual DALES standard) to ppm
+
+      ! Calculate surface resistances using the plant physiological (A-gs) model
+      ! Calculate the CO2 compensation concentration
+      CO2comp = dens * CO2comp298 * Q10CO2 ** (0.1 * ( tairk - 298.0 ) )
+      !CO2comp = dens * CO2comp298 * Q10CO2 ** (0.1 * ( t_skin - 298.0 ) ) !!proposal pending
+
+      ! Calculate the mesophyll conductance
+      gm       = gm298 * Q10gm ** (0.1 * ( tairk - 298.0) ) / ( (1. + exp(0.3 * ( T1gm - tairk ))) * (1. + exp(0.3 * (tairk- T2gm))))
+      gm       = gm / 1000   ! conversion from mm s-1 to m s-1
+
+      ! calculate CO2 concentration inside the leaf (ci)
+      fmin0    = gmin/nuco2q - (1.0/9.0) * gm
+      fmin     = (-fmin0 + ( fmin0 ** 2.0 + 4 * gmin/nuco2q * gm ) ** (0.5)) / (2. * gm)
+
+      esatsurf = 0.611e3 * exp(17.2694 * (t_skin - 273.16) / (t_skin - 35.86))
+      Ds       = (esatsurf - e) / 1000.0 ! In kPa
+      D0       = (f0 - fmin) / ad
+
+      cfrac    = f0 * (1.0 - Ds/D0) + fmin * (Ds/D0)
+      co2abs   = CO2ags * (MW_CO2/MW_Air) * dens
+
+    ! if (lrelaxci) then
+    !   if (ci_old_set) then
+    !     ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
+    !     ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
+    !     if (rk3step  == 3) then
+    !       ci_old(i,j) = ci
+    !     endif
+    !   else
+    !     ci            = cfrac * (co2abs - CO2comp) + CO2comp
+    !     ci_old(i,j)   = ci
+    !   endif
+    !  else
+      ci              = cfrac * (co2abs - CO2comp) + CO2comp
+    !  endif
+
+      ! Calculate maximal gross primary production in high light conditions (Ag)
+      Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( tairk - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - tairk ))) * (1. + exp(0.3 * ( tairk - T2Am))) )
+
+      ! Calculate the effect of soil moisture stress on gross assimilation rate
+      betaw    = max(1.0e-3,min(1.0,(phitot-phiwp)/(phifc-phiwp)))
+
+      ! Calculate stress function
+      fstr     = betaw
+
+      ! Calculate gross assimilation rate (Am)
+      Am       = Ammax * (1 - exp( -(gm * (ci - CO2comp) / Ammax) ) )
+
+      Rdark    = (1.0/9) * Am
+
+      ! Calculate the light use efficiency
+      alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
+
+      Agl    = fstr * (Am + Rdark) * (1 - exp(-alphac*Hleaf/(Am + Rdark)))
+      !gleaf  = gmin/nuco2q +  Agl/(co2abs-ci)
+      gleaf  = gmin/nuco2q +  max(Agl/(co2abs-ci),0.0)  ! put a floor on gleaf to avoid negative values  XPB
+
+     !if (lrelaxgc) then
+     !  if (gc_old_set) then
+     !    gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+     !    if (rk3step ==3) then
+     !      gc_old(i,j) = gcco2
+     !    endif
+     !  else
+     !    gcco2 = gc_inf
+     !    gc_old(i,j) = gcco2
+     !  endif
+     !else
+     ! gcco2 = gc_inf
+      Fleaf  = -(Agl - Rdark) ! we flip sign here to be consistent with An in old DALES
+   return
+ end subroutine !Ags
+                                                                                                                   
 
 end module modsurface
