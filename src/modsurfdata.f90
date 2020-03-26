@@ -183,7 +183,7 @@ SAVE
 
   !Variables for 2leaf AGS
   logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)
-  logical                   :: l3leaves   =                  .false. !<  Switch to keep 3 leaf orientation angles on sunny leaves 
+  logical                   :: l3leaves   =                  .true. !<  Switch to keep 3 leaf orientation angles on sunny leaves 
   integer,parameter         :: nz_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
   integer,parameter         :: nr_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
   real, dimension(nz_gauss)     :: LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration

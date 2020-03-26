@@ -1904,13 +1904,13 @@ contains
                    PARleaf_shad,PARleaf_sun,fSL)
               do itg = 1,nz_gauss
                 !shaded
-                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PARleaf_shad(itg), & ! in
+                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PARleaf_shad(itg), & ! in
                            gshad,Fshad,ci,&                                  !out
                            fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)   !out
                 !sunny
                 if (l3leaves) then      ! 3 angles for sunny leaves
                   do angle=1,nangle_gauss
-                    call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PARleaf_sun(itg,angle), & ! in
+                    call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PARleaf_sun(itg,angle), & ! in
                                gleaf(angle),Fleaf(angle),ci,&   !out
                                fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) !out, not needed here
                   end do
@@ -1918,7 +1918,7 @@ contains
                   gsun   = sum(weight_g * gleaf(1:nangle_gauss))
                 else ! angles PAR are averaged
                   PARleaf_allsun   = sum(weight_g * PARleaf_sun(itg,1:nangle_gauss))
-                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PARleaf_allsun(itg), & !
+                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PARleaf_allsun(itg), & !
                              gsun,Fsun,ci,&
                              fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)
                 end if
@@ -1932,7 +1932,7 @@ contains
               !upscaling following Ronda et al
               PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
          
-              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),presf(1),tskin(i,j),phitot(i,j),PAR, & ! in
+              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PAR, & ! in
                          gshad,Fshad,ci, & ! these 3 are irrelevant here
                          fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! out
          
@@ -2250,6 +2250,8 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
                  gleaf,Fleaf,ci,&
                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)                       ! additional out for 1leaf upscaling
 
+      use modsurfdata , only : phifc,phiwp
+      
       implicit none
       real, intent(in) ::  CO2air     ! CO2 air concentration [ppb]
       real, intent(in) ::  qtair      ! air specific humidity [kg/kg]
@@ -2297,8 +2299,6 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
       real     :: e! needed here as well
       real     :: MW_Air = 28.97
       real     :: MW_CO2 = 44
-      real     :: phifc        = 0.491
-      real     :: phiwp        = 0.314
       !this line is done in do_lsm, but we put it here because it will change per vert level
       e    = qtair * pair / 0.622
 
@@ -2340,7 +2340,7 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
     !  endif
 
       ! Calculate maximal gross primary production in high light conditions (Ag)
-      Ammax    = Ammax298 * Q10Am ** ( 0.1 * ( tairk - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - tairk ))) * (1. + exp(0.3 * ( tairk - T2Am))) )
+      Ammax    = Ammax298 * Q10am ** ( 0.1 * ( tairk - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - tairk ))) * (1. + exp(0.3 * ( tairk - T2Am))) )
 
       ! Calculate the effect of soil moisture stress on gross assimilation rate
       betaw    = max(1.0e-3,min(1.0,(phitot-phiwp)/(phifc-phiwp)))
@@ -2357,8 +2357,8 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
       alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
 
       Agl    = fstr * (Am + Rdark) * (1 - exp(-alphac*Hleaf/(Am + Rdark)))
-      !gleaf  = gmin/nuco2q +  Agl/(co2abs-ci)
-      gleaf  = gmin/nuco2q +  max(Agl/(co2abs-ci),0.0)  ! put a floor on gleaf to avoid negative values  XPB
+      gleaf  = gmin/nuco2q +  Agl/(co2abs-ci)
+      !gleaf  = gmin/nuco2q +  max(Agl/(co2abs-ci),0.0)  ! put a floor on gleaf to avoid negative values  XPB
 
      !if (lrelaxgc) then
      !  if (gc_old_set) then
