@@ -180,6 +180,8 @@ SAVE
   real              :: wsmin      =  0.005 !<  Lower reference value soil water
   real              :: R10        =   0.23 !<  Respiration at 10oC (Jacobs 2007)
   real              :: Eact0      = 53.3e3 !<  Activation energy
+  real              :: MW_Air     =  28.97 !<  Molecular weight of air
+  real              :: MW_CO2     =     44 !<  Molecular weight of CO2
 
   !Variables for 2leaf AGS
   logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)

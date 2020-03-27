@@ -1655,8 +1655,6 @@ contains
     real     :: PAR, tempy, AGSa1, Dstar !Variables for AGS 1-leaf upscaling
     real     :: An, gcco2,rsAgs, rsCO2 !Variables for AGS
     real     :: fw, Resp, wco2 !Variables for AGS
-    real     :: MW_Air = 28.97
-    real     :: MW_CO2 = 44
  
     real     :: Fshad, gshad
     real     :: Fsun , gsun
@@ -1899,8 +1897,7 @@ contains
 
           else
             if (lsplitleaf) then
-              sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
-              call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo(i,j),sinbeta,& ! in! sth for zenith fu
+              call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo(i,j),& ! in! 
                    PARleaf_shad,PARleaf_sun,fSL)
               do itg = 1,nz_gauss
                 !shaded
@@ -2194,11 +2191,11 @@ contains
     call qtsurf
 
   end subroutine do_lsm
-  subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,sinbeta,&    ! in
+  subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,&    ! in
                         Hshad,Hsun,fSL)                             !out
     use modraddata  , only : zenith
-    use modsurfdata , only : LAI_g,nangle_gauss,weight_g,angle_g,sigma,kdfbl
-    
+    use modglobal, only    : xtime,rtimee,xday,xlat,xlon
+    use modsurfdata , only : nangle_gauss,weight_g,angle_g,sigma,kdfbl
     implicit none
     integer,intent(in) :: layers
     real, intent(in) :: LAI ! total Leaf Area Index of the whole column
@@ -2206,18 +2203,18 @@ contains
     real, intent(in)  :: sw_dir ! 
     real, intent(in)  :: sw_dif !
     real, intent(in)  :: alb !
-    real, intent(in)  :: sinbeta ! 
     real, intent(out),dimension(layers) :: Hshad              ! SW intercepted by shaded leaves at each layer
     real, intent(out),dimension(layers,nangle_gauss) :: Hsun  ! SW intercepted by sunlit leaves per layer and per leaf orientation 
     real, intent(out),dimension(layers) :: fSL  ! fraction of sunlit leaves per layer
     real    ::     PARdir_TOC,PARdif_TOC,kdrbl,kdf,kdr,ref,ref_dir,iLAI
     real    ::     PARdfD,PARdrD,PARdfU,PARdrU,PARdfT,PARdrT,dirPAR,difPAR,HdfT,HdrT,dirH
     integer :: k_can
+    real    :: sinbeta,minsinbeta = 1.e-10
 
     PARdir_TOC   = 0.50 * max(0.1,abs(sw_dir))
     PARdif_TOC   = 0.50 * max(0.1,abs(sw_dif))
     
-    !sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
+    sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
     
     kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black lea
     kdf      = kdfbl * sqrt(1.0-sigma)
@@ -2246,11 +2243,11 @@ contains
      end do
   return
   end subroutine ! canopyrad
-subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
+subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phi_tot,Hleaf,   &   ! in
                  gleaf,Fleaf,ci,&
                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)                       ! additional out for 1leaf upscaling
 
-      use modsurfdata , only : phifc,phiwp
+      use modsurfdata 
       
       implicit none
       real, intent(in) ::  CO2air     ! CO2 air concentration [ppb]
@@ -2259,12 +2256,11 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
       real, intent(in) ::  dens       ! air density           [kg/m3]
       real, intent(in) ::  tairk       ! air temperature (K)
       real, intent(in) ::  t_skin     ! surface or leaf skin temperature (K)
-      real, intent(in) ::  phitot     ! Total soil water content [-]
+      real, intent(in) ::  phi_tot     ! Total soil water content [-]
       real, intent(in) ::  Hleaf     ! surface or leaf skin temperature (K)
       real, intent (out) :: gleaf
       real, intent (out) :: Fleaf
       real, intent (out) :: ci
-      !following variable may not be necessaryl defined when final implemenation
       real, intent (out) :: fstr
       real, intent (out) :: Am
       real, intent (out) :: Rdark
@@ -2274,31 +2270,12 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
       real, intent (out) :: Ds
       real, intent (out) :: D0
       real, intent (out) :: fmin
-     ! other vars needed by AGS
-      !AGS variables
-      real              :: CO2comp298 =   68.5 !<  CO2 compensation concentration
-      real              :: Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
-      real              :: gm298      =    7.0 !<  Mesophyll conductance at 298 K
-      real              :: Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
-      real              :: T1gm       =  278.0 !<  Reference temperature to calculate the mesophyll conductance
-      real              :: T2gm       =  301.0 !<  Reference temperature to calculate the mesophyll conductance
-      real              :: gmin       = 2.5e-4 !<  Cuticular (minimum) conductance
-      real              :: nuco2q     =    1.6 !<  Ratio molecular viscosity water to carbon dioxide
-      real              :: f0         =   0.89 !<  Maximum value Cfrac
-      real              :: ad         =   0.07 !<  Regression coefficient to calculate Cfrac
-      real              :: Ammax298   =    2.2 !<  CO2 maximal primary productivity
-      real              :: Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
-      real              :: T1Am       =    281 !<  Reference temperature to calculate maximal primary productivity
-      real              :: T2Am       =    311 !<  Reference temperature to calculate maximal primary productivity
-      real              :: alpha0     =  0.017 !<  Initial low light conditions
 
       real     :: CO2ags, gm, fmin0, esatsurf, cfrac !Variables for AGS
       real     :: Ammax, betaw!Variables for AGS
       real     :: Agl
       ! variables below ma not be necessaruly defined when implemented properly
       real     :: e! needed here as well
-      real     :: MW_Air = 28.97
-      real     :: MW_CO2 = 44
       !this line is done in do_lsm, but we put it here because it will change per vert level
       e    = qtair * pair / 0.622
 
@@ -2343,7 +2320,7 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phitot,Hleaf,   &   ! in
       Ammax    = Ammax298 * Q10am ** ( 0.1 * ( tairk - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - tairk ))) * (1. + exp(0.3 * ( tairk - T2Am))) )
 
       ! Calculate the effect of soil moisture stress on gross assimilation rate
-      betaw    = max(1.0e-3,min(1.0,(phitot-phiwp)/(phifc-phiwp)))
+      betaw    = max(1.0e-3,min(1.0,(phi_tot-phiwp)/(phifc-phiwp)))
 
       ! Calculate stress function
       fstr     = betaw
