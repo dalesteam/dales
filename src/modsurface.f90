@@ -1640,6 +1640,7 @@ contains
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
     use modmicrodata, only : imicro,imicro_bulk
+    use modcanopy, only : canopyeb,lcanopyeb
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k, itg
@@ -1662,6 +1663,8 @@ contains
     real     :: Fnet(nz_gauss), gnet(nz_gauss)
     real     :: sinbeta,minsinbeta = 1.e-10
     integer  :: angle
+    ! vars needed for canopyeb
+    real     :: fSL_bot, rs_leafshad_bot,rs_leafsun_bot,Fco2_can_bot
 
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
@@ -1671,54 +1674,6 @@ contains
     real     :: local_gcco2av
     real     :: local_Respav
     
-!    #####to allocate#####XPB
-  ! if (lcanopyeb)
-  !   PARleaf_shad(nz_can)
-  !   allocate(PARleaf_shad(nz_can))
-  !   allocate(PARleaf_allsun(nz_can))
-  !   allocate(PARleaf_sun(nz_can,nangle_gauss))
-  !   allocate(fSL(nz_can))
-  !   
-  !   allocate(iLAI_can(nz_can))
-  !   allocate(tairk(nz_can))
-  !   allocate(humidairpa(nz_can))
-  !   allocate(PAD(nz_can))
-  !   allocate(windsp(nz_can))
- 
-  !   allocate(LWin_leafshad(nz_can))
-  !   allocate(LWout_leafshad(nz_can))
-  !   allocate(LWnet_leafshad(nz_can))
-  !   allocate(tleaf_shad(nz_can))
-  !   allocate(rs_leafshad(nz_can))
-  !   allocate(rb_leafshad(nz_can))
-  !   allocate(sh_leafshad(nz_can))
-  !   allocate(lh_leafshad(nz_can))
-  !   allocate(An_leafshad(nz_can))
-  !  ! I decided no 3 leaf LEB, otherwise here we shoud add one extra dim for the angles
-  !   allocate(LWin_leafsun(nz_can))
-  !   allocate(LWout_leafsun(nz_can))
-  !   allocate(LWnet_leafsun(nz_can) )
-  !   allocate(tleaf_sun(nz_can))
-  !   allocate(rs_leafsun(nz_can))
-  !   allocate(rb_leafsun(nz_can))
-  !   allocate(sh_leafsun(nz_can))
-  !   allocate(lh_leafsun(nz_can))
-  !   allocate(An_leafsun(nz_can))
- 
-  !   allocate(sh_can(nz_can))
-  !   allocate(lh_can(nz_can))
-  !   allocate(Fco2_can(nz_can))
-  !   allocate(S_theta(1,1,nz_can))
-  !   allocate(S_qt(1,1,nz_can))
-  !   allocate(S_co2(1,1,nz_can))
-
-  ! if (lsplitleaf)
-  !   allocate(PARleaf_shad(nz_gauss))
-  !   allocate(PARleaf_allsun(nz_gauss))
-  !   allocate(PARleaf_sun(nz_gauss,nangle_gauss))
-  !   allocate(fSL(nz_gauss))
-
-
     
     patchx = 0
     patchy = 0
@@ -1884,16 +1839,23 @@ contains
             endif !Is chemistry or bulk_micro on?
             linags = .true.
           endif !linags
-          !if (lcanopyeb) then
-          if (.False.) then
-            !we move to the canopy module  
-            !callcanopyeb(&,
-            !             rsAgs,An) !returns lowest grid only to be used by modsurface
-            !lowest grid:
-            !rsAgs = rs_leafsun(1)*fSL(1) + rs_leafshad(1)*(1-fSL(1))
-            !rsCO2 = 1.6 * rsAgs
-            !An = FCo2_can(1)
-            write(*,*)'not ready lcanopy'
+          if (lcanopyeb) then
+         !  !we move to the canopy module  
+         !  !literally put verything into the function:
+         !  !assume already radaition at top of canopy is correct 
+         !  call canopyeb(nz_can,LAI(i,j),PAD_can,swdir(i,j,nz_can),swdif(i,j,nz_can),albedo(i,j),&,!vars needed for  radcanopy
+         !                svm(i,j,1:nz_can,indCO2),qt0(i,j,1:nz_can),rhof(i,j,1:nz_can),thl0(i,j,1:nz_can)!vars needed for f_Ags
+         !                rsAgs,An) !returns lowest grid only to be used by modsurface
+         !  !alternative: provide i and j, and take fileds from each module
+            call canopyeb(i,j,ps,                                            &  ! in
+                          rs_leafsun_bot,rs_leafshad_bot,fSL_bot,Fco2_can_bot)  ! out
+
+
+            rsAgs = rs_leafsun_bot*fSL_bot + rs_leafshad_bot*(1-fSL_bot)
+            gcco2 = 1.0 / (1.6 * rsAgs)
+            rsCO2 = 1.6 * rsAgs
+            An = Fco2_can_bot
+            print *,'not ready'
 
           else
             if (lsplitleaf) then

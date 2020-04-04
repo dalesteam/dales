@@ -187,7 +187,6 @@ SAVE
   logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)
   logical                   :: l3leaves   =                  .true. !<  Switch to keep 3 leaf orientation angles on sunny leaves 
   integer,parameter         :: nz_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
-  integer,parameter         :: nr_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
   real, dimension(nz_gauss)     :: LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
   integer,parameter         :: nangle_gauss =                      3 !< Amount of bins to use for Gaussian integrations on leaf angles
   real, dimension(nangle_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
@@ -199,7 +198,7 @@ SAVE
 ! variables for 2leaf AGS or canopyeb
   real,allocatable ::   PARleaf_shad   (:)    !< PAR at shaded leaves per vertical level [W/m2]
   real,allocatable ::   PARleaf_sun    (:,:)  !< PAR at sunny leaves per vertical level and leaf orientation [W/m2]
-  real,allocatable ::   PARleaf_allsun (:)    !< PAR at sunny leaves per evrtical level averaged over all leaf orientations [W/m2]
+  real,allocatable ::   PARleaf_allsun (:)    !< PAR at sunny leaves per vertical level averaged over all leaf orientations [W/m2]
   real,allocatable ::   fSL            (:)    !< Fraction of sunlit leaves per evrtical level [-]
  
 

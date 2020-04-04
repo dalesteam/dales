@@ -148,6 +148,7 @@ program DALES      !Version 4.0.0alpha
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
+  !use modcanstat,      only : initcanstat ,canstat, exitcanstat
 
 
   implicit none
@@ -186,6 +187,7 @@ program DALES      !Version 4.0.0alpha
   call initchem
   call initheterostats
   call initcanopy
+  !call initcanstat
 
   !call initspectra2
   call initcape
@@ -270,6 +272,7 @@ program DALES      !Version 4.0.0alpha
     call timestat  !Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
     call radstat
+    !call canstat
     call lsmstat
     call sampling
     call quadrant
@@ -320,6 +323,7 @@ program DALES      !Version 4.0.0alpha
   call exitfielddump
   call exitheterostats
   call exitcanopy
+  !call exitcanstat
   call exitmodules
 
 end program DALES
