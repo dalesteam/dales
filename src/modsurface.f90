@@ -1841,12 +1841,6 @@ contains
           endif !linags
           if (lcanopyeb) then
          !  !we move to the canopy module  
-         !  !literally put verything into the function:
-         !  !assume already radaition at top of canopy is correct 
-         !  call canopyeb(nz_can,LAI(i,j),PAD_can,swdir(i,j,nz_can),swdif(i,j,nz_can),albedo(i,j),&,!vars needed for  radcanopy
-         !                svm(i,j,1:nz_can,indCO2),qt0(i,j,1:nz_can),rhof(i,j,1:nz_can),thl0(i,j,1:nz_can)!vars needed for f_Ags
-         !                rsAgs,An) !returns lowest grid only to be used by modsurface
-         !  !alternative: provide i and j, and take fileds from each module
             call canopyeb(i,j,ps,                                            &  ! in
                           rs_leafsun_bot,rs_leafshad_bot,fSL_bot,Fco2_can_bot)  ! out
 
@@ -1855,7 +1849,6 @@ contains
             gcco2 = 1.0 / (1.6 * rsAgs)
             rsCO2 = 1.6 * rsAgs
             An = Fco2_can_bot
-            print *,'not ready'
 
           else
             if (lsplitleaf) then

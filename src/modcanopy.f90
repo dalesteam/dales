@@ -410,15 +410,13 @@ contains
       iLAI_can(:) = pai(1:ncanopy)
     call canopyrad(ncanopy,lai,iLAI_can,swdir(i,j,ncanopy),swdif(i,j,ncanopy),albedo(i,j),&    ! in! sth for zenith function?
                    cPARleaf_shad,cPARleaf_sun,cfSL)                    ! out
-    ! we do LW as well:
-    !obtain absolute termpature profile inside canopy:
-    !tairk(:) = thl0(i,j,:) * exnf(:) 
     ! tairk(:) = tmp0(i,j,:)
    ! convert humidity into vapor pressure
     do k_can=1,ncanopy
       humidairpa(k_can) =  watervappres(qt0(i,j,k_can),presf(k_can)) ! check that qt0 is in Kg/Kg
     enddo
 
+    ! we do LW as well:
     do k_can =1,ncanopy
       LWin = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps) ! shouldn we use air eps?
       LWin_leafshad(k_can) = 2. * LWin
@@ -451,7 +449,7 @@ contains
       !                  sh_leafsun(k_can,angle), le_leafsun(k_can,angle), LWout_leafsun(k_can,angle))
       !   LWnet_leafsun(k_can,angle) = LWin_leafsun(k_can,angle) - LWout_leafsun(k_can,angle)
       !end do
-      !!Fsun   = sum(weight_g * (2:(nangle_gauss+1)))
+      !Fsun   = sum(weight_g * (2:(nangle_gauss+1)))
       !gsun   = sum(weight_g * gleaf(2:(nangle_gauss+1)))
       else ! angles PAR are averaged following 3 point gaussian procedure
         cPARleaf_allsun   = sum(weight_g *  cPARleaf_sun(k_can,1:nangle_gauss))
@@ -473,11 +471,9 @@ contains
              ! --- calculate sources of heat, water by scaling
              !        from the leaf to the grid volume
     !we clauclate pad:
-    !PAD = LAI_can / dz_can  ! check if this works
+    !PAD = LAI_can / dz_can  ! 
 
-    !call canopysource(ncanopy,PAD,           &   ! send
-    call canopysource(ncanopy,padf,           &   ! send
-                      sh_leafsun, sh_leafshad,           &
+     call canopysource(sh_leafsun, sh_leafshad,           &
                       le_leafsun, le_leafshad,           &
                       An_leafsun, An_leafshad,           &
                       cfSL,                         &
@@ -646,8 +642,8 @@ contains
 
     return
   end subroutine canopyc
-subroutine canopysource(layers,pad,             & ! in
-                             sunleafsh, shadeleafsh,             &
+!subroutine canopysource(layers,pad,             & ! in
+subroutine canopysource(     sunleafsh, shadeleafsh,             &
                              sunleaflh, shadeleaflh,             &
                              sunleafAn, shadeleafAn,             &
                              sunfrac,                            &
@@ -668,12 +664,12 @@ subroutine canopysource(layers,pad,             & ! in
  !                                                       nclos,  &
  !                                                       nrows
 
-     integer, intent(in)                             :: layers
+     !integer, intent(in)                             :: layers
 
-     real, intent(in), dimension(layers)             :: pad            ! plant area density [m2 m-3]
+     !real, intent(in), dimension(layers)             :: pad            ! plant area density [m2 m-3]
 
  !   real, intent(in), dimension(nclos,nrows,layers) :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
-     real, intent(in), dimension(layers)             :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
+     real, intent(in), dimension(ncanopy)             :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
                                                         shadeleafsh, & ! sensible heat flux (shaded) [W m-2]
                                                         sunleaflh,   & ! latent heat flux (sunlit) [W m-2]
                                                         shadeleaflh, & ! latent heat flux (shaded) [W m-2]
@@ -684,8 +680,8 @@ subroutine canopysource(layers,pad,             & ! in
      ! --- outgoing variables
 
      !real, intent(out),dimension(nclos,nrows,layers) :: sh,lh          ! heat and moisture source [W m-3]
-     real, intent(out),dimension(layers) :: sh,lh        ! heat and moisture source [W m-3]
-     real, intent(out),dimension(layers) :: Fco2         ! CO2 source [mg CO2 m-3 s-1]
+     real, intent(out),dimension(ncanopy) :: sh,lh        ! heat and moisture source [W m-3]
+     real, intent(out),dimension(ncanopy) :: Fco2         ! CO2 source [mg CO2 m-3 s-1]
 
      ! --- local variables
 
@@ -697,7 +693,7 @@ subroutine canopysource(layers,pad,             & ! in
  !    do j = 1,nrows
  !    do i = 1,nclos
 
-         do ii = 1, layers
+         do ii = 1, ncanopy
             ! ---- sunleafsh,sunleaflh,shadeleafsh, and shadeleaflh are in [W m-2].
             !        multiplying by pad [m2 m-3], which represents the frontal
             !        leaf area occupying this grid volume (note that the sensible
@@ -710,11 +706,11 @@ subroutine canopysource(layers,pad,             & ! in
 
          !  lh(i,j,ii)  = (sunleaflh(i,j,ii)*sunfrac(i,j,ii)  &
          !               + shadeleaflh(i,j,ii)*(1.-sunfrac(i,j,ii))) * pad(ii)
-            sh(ii)  = (sunleafsh(ii)*sunfrac(ii) + shadeleafsh(ii)*(1.-sunfrac(ii))) * pad(ii)
+            sh(ii)  = (sunleafsh(ii)*sunfrac(ii) + shadeleafsh(ii)*(1.-sunfrac(ii))) * padf(ii)
 
-            lh(ii)  = (sunleaflh(ii)*sunfrac(ii) + shadeleaflh(ii)*(1.-sunfrac(ii))) * pad(ii)
+            lh(ii)  = (sunleaflh(ii)*sunfrac(ii) + shadeleaflh(ii)*(1.-sunfrac(ii))) * padf(ii)
 
-            Fco2(ii) = (sunleafAn(ii)*sunfrac(ii) + shadeleafAn(ii)*(1.-sunfrac(ii))) * pad(ii)
+            Fco2(ii) = (sunleafAn(ii)*sunfrac(ii) + shadeleafAn(ii)*(1.-sunfrac(ii))) * padf(ii)
          enddo
 
  !    enddo
