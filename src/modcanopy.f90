@@ -194,9 +194,8 @@ contains
                      0.3236220472440945, &
                      0.0000000000000000  /)
     endif
-
     f_lai_h = lai / zh(1+ncanopy) ! LAI of canopy divided by height of the top of the canopy
-
+   
     ppad    = f_lai_h * padfactor ! prescribed PAD-values
     do k=1,npaddistr
       zpad(k) = zh(1+ncanopy) * real(k-1)/real(npaddistr-1)
@@ -387,9 +386,9 @@ contains
    !                                                      Xabier Pedruzo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use modglobal, only  : j1, i1,cp,rlv
-    use modsurfdata,only : phitot,weight_g,indCO2,albedo,l3leaves,nangle_gauss,MW_CO2,MW_Air
+    use modsurfdata,only : phitot,weight_g,indCO2,albedo,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad
     use modfields, only  : thl0,rhof,qt0,exnf,u0,v0,presf,svm,tmp0
-    use modsurface, only : canopyrad
+    !use modsurface, only : canopyrad
     use modraddata, only : swdir,swdif
    
     implicit none
@@ -752,7 +751,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
       !modified by Xabi Pedruzo March 2020 to work with Ags and another
       !canopy radiative scheme (Pedruzo-Bagazgoitia et al. 2017)
-       use modsurface, only : f_Ags
+       use modsurfdata, only : f_Ags
        implicit none
 
        ! ---- incoming variables
