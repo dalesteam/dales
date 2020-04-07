@@ -167,8 +167,8 @@ contains
   subroutine initgenstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
-    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
+    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
+    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
 
     implicit none
@@ -184,11 +184,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMGENSTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMGENSTAT'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMGENSTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMGENSTAT')
       write(6 ,NAMGENSTAT)
       close(ifnamopt)
     end if
@@ -341,31 +337,34 @@ contains
       wthvtmnlast = 0.
 
       if(myid==0)then
-        open (ifoutput,file='field.'//cexpnr,status='replace')
-        close (ifoutput)
-        open (ifoutput,file='flux1.'//cexpnr,status='replace')
-        close (ifoutput)
-        open (ifoutput,file='flux2.'//cexpnr,status='replace')
-        close (ifoutput)
-        open (ifoutput,file='moments.'//cexpnr,status='replace')
-        close (ifoutput)
-        do n=1,nsv
-            name = 'svnnnfld.'//cexpnr
-            write (name(3:5),'(i3.3)') n
-            open (ifoutput,file=name,status='replace')
+         if (.not. lwarmstart) then
+            open (ifoutput,file='field.'//cexpnr,status='replace')
             close (ifoutput)
-        end do
-        do n=1,nsv
-            name = 'svnnnflx.'//cexpnr
-            write (name(3:5),'(i3.3)') n
-            open (ifoutput,file=name,status='replace')
+            open (ifoutput,file='flux1.'//cexpnr,status='replace')
             close (ifoutput)
-        end do
+            open (ifoutput,file='flux2.'//cexpnr,status='replace')
+            close (ifoutput)
+            open (ifoutput,file='moments.'//cexpnr,status='replace')
+            close (ifoutput)
+            do n=1,nsv
+               name = 'svnnnfld.'//cexpnr
+               write (name(3:5),'(i3.3)') n
+               open (ifoutput,file=name,status='replace')
+               close (ifoutput)
+            end do
+            do n=1,nsv
+               name = 'svnnnflx.'//cexpnr
+               write (name(3:5),'(i3.3)') n
+               open (ifoutput,file=name,status='replace')
+               close (ifoutput)
+            end do
+         end if
+         
       if (lnetcdf) then
         fname(10:12) = cexpnr
         nvar = nvar + 7*nsv
         allocate(ncname(nvar,4))
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         call ncinfo(ncname( 1,:),'rhof','Full level slab averaged density','kg/m^3','tt')
         call ncinfo(ncname( 2,:),'rhobf','Full level base-state density','kg/m^3','tt')
         call ncinfo(ncname( 3,:),'rhobh','Half level base-state density','kg/m^3','mt')

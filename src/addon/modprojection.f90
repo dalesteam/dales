@@ -66,8 +66,8 @@ contains
 
   subroutine initprojection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf
-    use modstat_nc, only : open_nc,define_nc,ncinfo, writestat_dims_nc
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,kmax,dt_lim,tres,btime,cexpnr,zf,checknamelisterror
+    use modstat_nc, only : open_nc,define_nc,ncinfo, writestat_dims_nc,lnetcdf,nctiminfo
     implicit none
 
     integer :: ierr
@@ -79,11 +79,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMprojection,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMprojection'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMprojection'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMprojection')
       write(6 ,NAMprojection)
       close(ifnamopt)
     end if
@@ -108,7 +104,7 @@ contains
     end if
     fname(6:13) = cmyid
     fname(15:17) = cexpnr
-    call ncinfo(tncname(1,:),'time','Time','s','time')
+    call nctiminfo(tncname(1,:))
     call ncinfo(ncname( 1,:),'thlxylow','Subcloud Integrated liquid water potential temperature path','K/m','tt0t')
     call ncinfo(ncname( 2,:),'thlxyhigh','Cloudlayer Integrated liquid water potential temperature path','K/m','tt0t')
     call ncinfo(ncname( 3,:),'thvxylow','Subcloud Integrated virtual potential temperature path','K/m','tt0t')

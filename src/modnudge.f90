@@ -39,12 +39,12 @@ SAVE
   real, dimension(:)  , allocatable :: timenudge
   real :: tnudgefac = 1.
   logical :: lnudge = .false.,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
-  integer :: ntnudge = 100
+  integer :: ntnudge = 10000
 
 contains
   subroutine initnudge
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax
+    use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax,checknamelisterror
     implicit none
 
     integer :: ierr,k,t
@@ -66,11 +66,7 @@ contains
 
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNUDGE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMNUDGE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMNUDGE'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMNUDGE')
       write(6 ,NAMNUDGE)
       close(ifnamopt)
     end if
@@ -83,16 +79,23 @@ contains
 
       do while (timenudge(t) < runtime)
         t = t + 1
+        if (t > ntnudge) then
+           write (*,*) "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is ntnudge = ", ntnudge 
+           stop
+        end if
+
+
         chmess1 = "#"
         ierr = 1 ! not zero
         !search for the next line consisting of "# time", from there onwards the profiles will be read
         do while (.not.(chmess1 == "#" .and. ierr ==0))
-          read(ifinput,*,iostat=ierr) chmess1,timenudge(t)
+          read(ifinput,*,iostat=ierr) chmess1, timenudge(t)
           if (ierr < 0) then
             stop 'STOP: No time dependend nudging data for end of run'
           end if
 
         end do
+        write(6,*) 'time', timenudge(t)
         write(6,*) ' height    t_nudge    u_nudge    v_nudge    w_nudge    thl_nudge    qt_nudge'
         do  k=1,kmax
           read (ifinput,*) &

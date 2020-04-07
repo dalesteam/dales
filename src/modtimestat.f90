@@ -82,16 +82,16 @@ contains
   subroutine inittimestat
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
-                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1
+                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo
+    use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     implicit none
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
     real, allocatable,dimension(:) :: profile
     integer :: i,j
-
+    character(len=1000) :: line
 
     namelist/NAMTIMESTAT/ & !< namelist
     dtav,ltimestat,blh_thres,iblh_meth,iblh_var,blh_nsamp !! namelist contents
@@ -100,11 +100,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTIMESTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMTIMESTAT'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMTIMESTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMTIMESTAT')
       write(6 ,NAMTIMESTAT)
       close(ifnamopt)
     end if
@@ -161,72 +157,74 @@ contains
     deallocate(profile)
 
     if(myid==0) then
-      !tmser1
-      open (ifoutput,file='tmser1.'//cexpnr,status='replace',position='append')
-      write(ifoutput,'(2a)') &
-             '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
-             '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
-      close(ifoutput)
-      !tmsurf
-      open (ifoutput,file='tmsurf.'//cexpnr,status='replace',position='append')
-      write(ifoutput,'(2a)') &
-             '#  time        ust        tst        qst         obukh', &
-             '      thls        z0        wthls      wthvs      wqls '
-      close(ifoutput)
-      if(isurf == 1) then
-        open (ifoutput,file='tmlsm.'//cexpnr,status='replace',position='append')
-        write(ifoutput,'(3a)') &
-               '#     time      Qnet        H          LE         G0  ', &
-               '   tendskin     rs         ra        tskin        cliq  ', &
-               '    Wl          rssoil     rsveg       Resp       wco2         An', &
-               '    gcco2'
-        write(ifoutput,'(3a)') &
-               '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
-               '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
-               '   [m]          [s/m]      [s/m]   [mgCm2/s]               [mgCm2/s]',&
-               '   [m/s]  '
-        close(ifoutput)
-      end if
-
-      if(lhetero) then
-        do i=1,xpatches
-          do j=1,ypatches
-            name = 'tmser1patchiiixjjj.'//cexpnr
-            write (name(12:14),'(i3.3)') i
-            write (name(16:18),'(i3.3)') j
-            open (ifoutput,file=name,status='replace',position='append')
-            write(ifoutput,'(2a)') &
+       if (.not. lwarmstart) then
+          !tmser1
+          open (ifoutput,file='tmser1.'//cexpnr,status='replace',position='append')
+          write(ifoutput,'(2a)') &
                '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
                '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
-            close(ifoutput)
-
-            name = 'tmsurfpatchiiixjjj.'//cexpnr
-            write (name(12:14),'(i3.3)') i
-            write (name(16:18),'(i3.3)') j
-            open (ifoutput,file=name,status='replace',position='append')
-            write(ifoutput,'(2a)') &
+          close(ifoutput)
+          !tmsurf
+          open (ifoutput,file='tmsurf.'//cexpnr,status='replace',position='append')
+          write(ifoutput,'(2a)') &
                '#  time        ust        tst        qst         obukh', &
                '      thls        z0        wthls      wthvs      wqls '
-            close(ifoutput)
-
-            if(isurf == 1) then
-              name = 'tmlsmpatchiiixjjj.'//cexpnr
-              write (name(11:13),'(i3.3)') i
-              write (name(15:17),'(i3.3)') j
-              open (ifoutput,file=name,status='replace',position='append')
-              write(ifoutput,'(3a)') &
-                 '#     time      Qnet        H          LE         G0  ', &
-                 '   tendskin     rs         ra        tskin        cliq  ', &
-                 '    Wl          rssoil     rsveg'
-              write(ifoutput,'(3a)') &
-                 '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
-                 '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
-                 '   [m]          [s/m]      [s/m]'
-              close(ifoutput)
-            endif
-          enddo
-        enddo
-      endif
+          close(ifoutput)
+          if(isurf == 1) then
+             open (ifoutput,file='tmlsm.'//cexpnr,status='replace',position='append')
+             write(ifoutput,'(3a)') &
+                  '#     time      Qnet        H          LE         G0  ', &
+                  '   tendskin     rs         ra        tskin        cliq  ', &
+                  '    Wl          rssoil     rsveg       Resp       wco2         An', &
+                  '    gcco2'
+             write(ifoutput,'(3a)') &
+                  '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
+                  '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
+                  '   [m]          [s/m]      [s/m]   [mgCm2/s]               [mgCm2/s]',&
+                  '   [m/s]  '
+             close(ifoutput)
+          end if
+          
+          if(lhetero) then
+             do i=1,xpatches
+                do j=1,ypatches
+                   name = 'tmser1patchiiixjjj.'//cexpnr
+                   write (name(12:14),'(i3.3)') i
+                   write (name(16:18),'(i3.3)') j
+                   open (ifoutput,file=name,status='replace',position='append')
+                   write(ifoutput,'(2a)') &
+                        '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
+                        '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
+                   close(ifoutput)
+                   
+                   name = 'tmsurfpatchiiixjjj.'//cexpnr
+                   write (name(12:14),'(i3.3)') i
+                   write (name(16:18),'(i3.3)') j
+                   open (ifoutput,file=name,status='replace',position='append')
+                   write(ifoutput,'(2a)') &
+                        '#  time        ust        tst        qst         obukh', &
+                        '      thls        z0        wthls      wthvs      wqls '
+                   close(ifoutput)
+                   
+                   if(isurf == 1) then
+                      name = 'tmlsmpatchiiixjjj.'//cexpnr
+                      write (name(11:13),'(i3.3)') i
+                      write (name(15:17),'(i3.3)') j
+                      open (ifoutput,file=name,status='replace',position='append')
+                      write(ifoutput,'(3a)') &
+                           '#     time      Qnet        H          LE         G0  ', &
+                           '   tendskin     rs         ra        tskin        cliq  ', &
+                           '    Wl          rssoil     rsveg'
+                      write(ifoutput,'(3a)') &
+                           '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
+                           '   [W/m2]      [s/m]       [s/m]     [K]          [-]   ', &
+                           '   [m]          [s/m]      [s/m]'
+                      close(ifoutput)
+                   endif
+                enddo
+             enddo
+          endif
+       endif
 
       if (lnetcdf) then
         if(isurf == 1) then
@@ -238,7 +236,7 @@ contains
         allocate(ncname(nvar,4))
 
         fname(7:9) = cexpnr
-        call ncinfo(ncname( 1,:),'time','Time','s','time')
+        call nctiminfo(ncname(1,:))
         call ncinfo(ncname( 2,:),'cfrac','Cloud fraction','-','time')
         call ncinfo(ncname( 3,:),'zb','Cloud-base height','m','time')
         call ncinfo(ncname( 4,:),'zc_av','Average Cloud-top height','m','time')

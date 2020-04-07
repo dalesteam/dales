@@ -37,11 +37,14 @@ module modchecksim
   integer(kind=longint) :: tnext = 3600.,itcheck
   real    :: dtmn =0.,ndt =0.
 
+  ! explanations for dt_limit, determined in tstep_update()
+  character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
+  
   save
 contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
   subroutine initchecksim
-    use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres
+    use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres,checknamelisterror
     use modmpi,    only : myid,my_real,comm3d,mpierr
     implicit none
     integer :: ierr
@@ -51,11 +54,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCHECKSIM,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCHECKSIM'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMCHECKSIM'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMCHECKSIM')
       write(6 ,NAMCHECKSIM)
       close(ifnamopt)
 
@@ -163,8 +162,8 @@ contains
 !> Checks local and total divergence
   subroutine chkdiv
 
-    use modglobal, only : i1,j1,kmax,dx,dy,dzf
-    use modfields, only : um,vm,wm
+    use modglobal, only : i1,j1,kmax,dx,dy,dzf,dt_reason
+    use modfields, only : u0,v0,w0,rhobf,rhobh
     use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,my_real,mpierr
     implicit none
 
@@ -182,10 +181,10 @@ contains
     do k=1,kmax
     do j=2,j1
     do i=2,i1
-      div = &
-                (um(i+1,j,k) - um(i,j,k) )/dx + &
-                (vm(i,j+1,k) - vm(i,j,k) )/dy + &
-                (wm(i,j,k+1) - wm(i,j,k) )/dzf(k)
+       div = &
+                rhobf(k) * (u0(i+1,j,k) - u0(i,j,k) )/dx + &
+                rhobf(k) * (v0(i,j+1,k) - v0(i,j,k) )/dy + &
+                (rhobh(k+1)*w0(i,j,k+1) - rhobh(k)*w0(i,j,k) )/dzf(k)
       divmaxl = max(divmaxl,abs(div))
       divtotl = divtotl + div*dx*dy*dzf(k)
     end do
@@ -198,10 +197,11 @@ contains
                           MPI_MAX, comm3d,mpierr)
 
     if(myid==0)then
-      write(6,'(A,2ES11.2)')'divmax, divtot = ', divmax, divtot
-    end if
+      write(6 ,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  '       dt limited by ', dt_reasons(dt_reason)
+   end if
 
-    return
+   return    
+    
   end subroutine chkdiv
 
 end module modchecksim

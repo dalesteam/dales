@@ -216,6 +216,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   wsvsurf(1:nsv)& 0		& $x \in \mathbb{R}$	& Flux of scalar n at the surface		& ppb m s$^{-1}$\\
   &&&&\\
   ltimedep	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes and large scale forcings	& -\\
+  ltimedepuv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Also inlude u,v forcings in ls\_flux.inp & -\\
     ltimedepsv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes of scalars	& -\\
   lcoriol	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for coriolis force			& -\\
     &&&&\\
@@ -360,10 +361,6 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   nmason	& 2	& $x \in \mathbb{R}, \quad x>0$ & Exponent in Mason correction function & -\\
 %  sgs\_surface\_fix & .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
   ch1		& 1.0		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
-  ch2		& 2.0		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
-  cm		& 0.12		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
-  ce1		& 0.19		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
-  ce2		& 0.51		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
 \end{supertabular}
 \end{center}
 
@@ -903,6 +900,7 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
 \begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
 %dtav	& dtav\_glob & $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
 lnetcdf	& .true. & $x\in\{\text{.false.},\text{.true.}\}$	& Switch to write NetCDF output	& -\\
+lsync	& .false. & $x\in\{\text{.false.},\text{.true.}\}$	& Switch to synchronize NetCDF files after writing & -\\
 %ncklimit& 60	&  $x \in \mathbb{N}^*, \quad x \le \text{kmax}$ & Maximum height index for which $x$-averages are calculated and written & -\\ 
 \end{supertabular}
 \end{center}
@@ -1440,6 +1438,72 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
   timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
 \end{supertabular}
 \end{center}
+
+\subsection{Namelist SOLVER}\label{par:solver}
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  solver\_id    & 0        &  $x\in\{ 0,...,6 \}$    & Poisson solver. & -\\
+  	& & & 0 = FFT (default) & \\
+  	& & & 1 = SMG & \\
+  	& & & 2 = PFMG  & \\
+  	& & & 3 = BiCGSTAB & \\
+        & & & 4 = GMRES & \\
+        & & & 5 = PCG & \\
+    	& & & 6 = LGMRES & \\
+  	&&&&\\
+  precond       &          &  $x \in \{0,1,2,7,8,9\}$  & Preconditioner.& -\\
+  & & & When solver\_id $\in \{ 4,5,6,7 \}$: & \\ 
+  & & & 0 - SMG preconditioner (n\_pre, n\_post) & \\
+  & & & 1 - PFMG preconditioner (n\_pre, n\_post) & \\
+  & & & 7 - Jacobi preconditioner  (solver\_id=5) & \\
+  & & & 8 - DS preconditioner  & \\
+  & & & 9 - no preconditioner & \\
+  & & & When solver\_id $\in \{ 2 \}$: & \\ 
+  & & & 1 - wighted Jacobi  & \\ % (uses n\_pre, n\_post)
+  & & & 2 - red-black GS & \\  % (uses n\_pre, n\_post)
+  &&&&\\
+  n\_pre        & 1        &  $x \in \mathbb{N}$     & Number of pre relaxation steps. When solver\_id $\in \{1,2\}$ or precond $\in \{0,1,2 \}$ & -\\
+  n\_post       & 1        &  $x \in \mathbb{N}$     & Number of post relaxation steps. When solver\_id $\in \{1,2\}$ or precond $\in \{0,1,2 \}$ & -\\
+  tolerance     & $10^{-8}$ &  $x > 0 $               & Tolerance threshold for stopping the iterative solver& -\\
+  & & & &\\
+ 
+\end{supertabular}
+\end{center}
+
+In the SOLVER namelist the method for solving the Poisson equation can be selected. The traditional method is FFT.
+The other methods use iterative linear algebra methods from the HYPRE library. These can only be used if
+DALES has been compiled with HYPRE support, which is optional. The iterative methods were introduced in DALES
+version 4.3, and are still considered experimental. In general, FFT is faster on a single or a few cores,
+but the iterative methods may scale better. As a starting point, the following parameters can be used:
+\begin{verbatim}
+&SOLVER
+solver_id = 2
+precond = 2
+n_pre = 2
+n_post = 2
+tolerance = 1E-12
+/
+\end{verbatim}
+
+
 
 \bibliographystyle{plainnat}
 \bibliography{literaturenam}

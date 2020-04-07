@@ -81,7 +81,7 @@ contains
   subroutine initradstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax, k1, ifnamopt,fname_options, ifoutput,&
-                          cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
+                          cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
@@ -97,11 +97,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMRADSTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMRADSTAT'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMRADSTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMRADSTAT')
       write(6 ,NAMRADSTAT)
       close(ifnamopt)
     end if
@@ -172,7 +168,7 @@ contains
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart)then
       open (ifoutput,file='radstat.'//cexpnr,status='replace')
       close (ifoutput)
     end if
@@ -232,7 +228,7 @@ contains
     use modmpi,    only :  slabsum
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
-    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
+    use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad
 
     implicit none
     integer :: k
@@ -255,18 +251,12 @@ contains
     call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    if (iradiation==irad_par) then !irad_par=Delta eddington keeps all fluxes(upwards and downwards) positive
-      do k=1,kmax
-        thllwtendav(k) = -((lwdav(k+1) - lwuav(k+1)) - (lwdav(k) - lwuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k))
-        thlswtendav(k) = -((swdav(k+1) - swuav(k+1)) - (swdav(k) - swuav(k)))/(rhof(k)*exnf(k)*cp*dzf(k)) !
-      end do
-    else !upward fluxes positive, downwards negative
-      do k=1,kmax
-        thllwtendav(k) = (-lwdav(k+1) - lwuav(k+1) + lwdav(k) + lwuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
-        thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
-      end do
-    endif
 
+    do k=1,kmax
+       thllwtendav(k) = (abs(lwdav(k+1)) - abs(lwuav(k+1)) - abs(lwdav(k)) + abs(lwuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
+       thlswtendav(k) = (abs(swdav(k+1)) - abs(swuav(k+1)) - abs(swdav(k)) + abs(swuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
+       ! absolute values here to handle the different sign conventions in different radiation schemes.
+    end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 

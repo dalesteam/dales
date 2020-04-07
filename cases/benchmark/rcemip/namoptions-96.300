@@ -1,0 +1,153 @@
+&RUN
+iexpnr     =  300
+lwarmstart = .false.
+startfile  = 'initd1080h00mx001y012.300'              
+runtime    = 300
+trestart   = 300
+dtmax      = 5.
+ladaptive  = .true.
+irandom    =  43
+krand      =  5
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  2
+courant    = .5
+peclet     = .1
+nprocx     = 0
+nprocy     = 0
+/
+
+&DOMAIN
+itot       =  96
+jtot       =  96
+kmax       =  146
+ksp        =  110
+
+xsize      =  19200.
+ysize      =  19200.
+
+xlat       =  34
+xlon       = 0 
+xday       =  165
+xtime      =  12
+/
+
+&PHYSICS
+igrw_damp  =  2
+isurf      =  2
+
+timerad    =  60
+iradiation =  4
+ps         =  101480
+thls       =  298.743
+
+rad_ls     = .false.
+rad_longw  = .true.
+rad_shortw = .true.
+rad_smoke  = .false.
+lcoriol    = .false.
+ltimedep   = .false.
+
+sw0        = 551.58
+/
+&NAMRADIATION
+!lCnstZenith = .true.
+!lCnstAlbedo = .true.
+!cnstZenith = 42.05
+!usero3     = .true.
+!co2factor  = 0.98028169
+!ch4factor  = 1650e-9
+!n2ofactor  = 306e-9
+/
+&NAMSURFACE
+z0         =  2e-4
+z0mav      =  2e-4
+z0hav      =  2e-4
+albedoav   =  0.07
+/
+&DYNAMICS
+cu         =  0
+cv         =  0
+
+ibas_prf   =  3
+
+iadv_mom   =  5
+iadv_tke   =  5
+iadv_thl   =  5
+iadv_qt    =  77
+iadv_sv    =  0 5
+lambda_crit = 20.
+/
+&NAMMICROPHYSICS
+imicro     = 6
+l_sb       = .true.
+l_sedc     = .true.
+l_rain     = .true.
+l_mur_cst  =.false.
+mur_cst    = 0
+Nc_0       = 100e6
+sig_g      = 1.2
+courantp   = 0.7
+/
+&NAMNUDGE
+lnudge   = .false.
+/
+&NAMCHECKSIM
+tcheck     = 60
+/
+&NAMBULKMICROSTAT
+lmicrostat = .true.
+timeav     = 3600
+dtav       = 60.
+/
+&NAMSIMPLEICESTAT
+lmicrostat = .true.
+timeav     = 3600
+dtav       = 60.
+/
+
+&NAMTIMESTAT
+ltimestat  = .true.
+dtav       = 3600.
+/
+&NAMCROSSSECTION
+lcross     = .true.
+dtav       = 300
+crossheight = 1
+/
+&NAMCAPE
+lcape      = .true.
+dtav       = 300
+/
+&NAMGENSTAT
+lstat      = .true.
+dtav       = 60
+timeav     = 3600
+/
+&NAMSTATTEND
+dtav       = 30
+ltend      = .false.
+/
+&NAMRADSTAT
+lstat = .false.
+dtav = 60
+timeav = 3600
+lradclearair = .true.
+/
+&NAMBUDGET
+lbudget = .true.
+dtav    = 60
+timeav  = 600.
+/
+&NAMNETCDFSTATS
+lnetcdf     = .true.
+/
+
+&NAMFIELDDUMP
+lfielddump  = .false.
+dtav        = 21600
+/
+&NAMFIELDDUMP2
+lfielddump  = .false.
+dtav        = 3600
+/

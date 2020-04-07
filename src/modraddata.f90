@@ -84,6 +84,8 @@ SAVE
   logical :: ocean  = .false.            ! if true, run is over ocean.
   logical :: usero3 = .false.            ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
   real    :: co2factor = 1.              ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
+  real    :: ch4factor = 1.              ! The CH4 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor  (RCEMIP)
+  real    :: n2ofactor = 1.              ! The N2O concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor  (RCEMIP)
   logical :: doperpetual = .false.       ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
   logical :: doseasons = .true.          ! if false, the same day will be repeated, otherwise, next day is taken
   integer(SHR_KIND_IN) :: iyear = 1992   ! The year of the simulation
@@ -100,6 +102,7 @@ SAVE
                                                    qcl_slice,      &    ! Liquid water content (2D slice)
                                                    qci_slice,      &    ! Ice content          (2D slice)
                                                    o3_slice,       &    ! Ozon content         (2D slice)
+                                                   rho_slice,      &    ! Density              (2D slice)
                                                    lwUp_slice,     &    ! Upwelling longwave rad                    (2D slice)
                                                    lwDown_slice,   &    ! Downwelling longwave rad                  (2D slice)
                                                    lwUpCS_slice,   &    ! Upwelling longwave rad, clear sky value   (2D slice)

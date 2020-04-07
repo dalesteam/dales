@@ -44,7 +44,7 @@ save
   real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
 
 contains
-  subroutine startup
+  subroutine startup(path)
 
       !-----------------------------------------------------------------|
       !                                                                 |
@@ -54,11 +54,12 @@ contains
       !      Thijs Heus                   15/06/2007                    |
       !-----------------------------------------------------------------|
 
-    use modglobal,         only : initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
+    use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
-                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
+                                  nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
-                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
+                                  ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
+                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -68,19 +69,22 @@ contains
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
-    use modtimedep,        only : inittimedep,ltimedep
+    use modtimedep,        only : inittimedep,ltimedep,ltimedepuv
     use modtimedepsv,      only : inittimedepsv,ltimedepsv
     use modtestbed,        only : inittestbed
     use modboundary,       only : initboundary,ksp
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
-    use modmpi,            only : initmpi,my_real,myid,nprocx,nprocy,mpierr
-
+    use mpi,               only : MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
+    use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr
+    use modchem,           only : initchem
+    use modversion,        only : git_version
+    
     implicit none
     integer :: ierr
-
+    character(256), optional, intent(in) :: path
+    
     !declare namelists
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
@@ -90,23 +94,31 @@ contains
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
-        xlat,xlon,xday,xtime,ksp
+        xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+    namelist/SOLVER/ &
+        solver_id, maxiter, tolerance, n_pre, n_post, precond
+
 
     ! get myid
-    call MPI_INIT(mpierr)
-    call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
+    ! call MPI_INIT(mpierr)
+    ! call MPI_COMM_RANK( MPI_COMM_WORLD, myid, mpierr )
 
     !read namelists
     if(myid==0)then
-      if (command_argument_count() >=1) then
-        call get_command_argument(1,fname_options)
+      write (*, *) trim(version)//' git: '//trim(git_version)
+      if(present(path)) then
+          fname_options=path
+      else
+         if (command_argument_count() >=1) then
+            call get_command_argument(1,fname_options)
+         end if
       end if
       write (*,*) fname_options
 
@@ -115,135 +127,136 @@ contains
         stop 'ERROR:Namoptions does not exist'
       end if
       read (ifnamopt,RUN,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions RUN'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions RUN'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'RUN')
       write(6 ,RUN)
       rewind(ifnamopt)
       read (ifnamopt,DOMAIN,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions DOMAIN'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions DOMAIN'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'DOMAIN')
       write(6 ,DOMAIN)
       rewind(ifnamopt)
       read (ifnamopt,PHYSICS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions PHYSICS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions PHYSICS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'PHYSICS')
       write(6 ,PHYSICS)
       rewind(ifnamopt)
       read (ifnamopt,DYNAMICS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions DYNAMICS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions DYNAMICS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'DYNAMICS')
       write(6 ,DYNAMICS)
+      rewind(ifnamopt)
+      read (ifnamopt,SOLVER,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'SOLVER')
+      write(6 ,SOLVER)
       close(ifnamopt)
     end if
 
-  !broadcast namelists
-    call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(author     ,80,MPI_CHARACTER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(runtime    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(trestart   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ltotruntime,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(wctime     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(nprocx     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(nprocy     ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
 
-    call MPI_BCAST(itot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(xsize      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ysize      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(xlat       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(xlon       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(xday       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(xtime      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-
-    call MPI_BCAST(z0         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    !call MPI_BCAST(lneutraldrag ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ps         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(thls       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lpressgrad ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(geodamptime,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ltimedepsv ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(unudge     ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
-
-    call MPI_BCAST(irad       ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(timerad    ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(iradiation ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(rad_ls     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(rad_longw  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(rad_shortw ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(rka        ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(sw0        ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(gc         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(reff       ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-
-    call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(cu         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(cv         ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(krand      ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(krandumax  ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(randthl    ,1,MY_REAL    ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(randqt     ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(randu      ,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-
-    call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(courant,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(peclet,1,MY_REAL   ,0,MPI_COMM_WORLD,mpierr)
-
-    call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-    call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
-
-    call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+    ! these must be shared before initmpi sets up the cartesian grid
+    ! commwrld is already set up
+    call MPI_BCAST(nprocx ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(nprocy ,1,MPI_INTEGER,0,commwrld,mpierr)
 
     ! Initialize MPI
     call initmpi
+    
+  !broadcast namelists
+    call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(startfile  ,50,MPI_CHARACTER,0,commwrld,mpierr)
+    call MPI_BCAST(author     ,80,MPI_CHARACTER,0,commwrld,mpierr)
+    call MPI_BCAST(runtime    ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(trestart   ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(dtmax      ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(dtav_glob  ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(ltotruntime,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(wctime     ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(timeav_glob,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(nsv        ,1,MPI_INTEGER,0,commwrld,mpierr)
 
+    call MPI_BCAST(itot       ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(xsize      ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(ysize      ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(xlat       ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(xlon       ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(xyear      ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(xday       ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(xtime      ,1,MY_REAL   ,0,commwrld,mpierr)
+
+    call MPI_BCAST(z0         ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(ustin      ,1,MY_REAL   ,0,commwrld,mpierr)
+    !call MPI_BCAST(lneutraldrag ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(wtsurf     ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(wqsurf     ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(wsvsurf(1:nsv),nsv,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(ps         ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(thls       ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(chi_half   ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(lmoist     ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lcoriol    ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lpressgrad ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(igrw_damp  ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(geodamptime,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(lforce_user,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lmomsubs   ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(ltimedep   ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(ltimedepuv ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(ltimedepsv ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lrigidlid  ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(unudge     ,1,MY_REAL    ,0,commwrld,mpierr)
+
+    call MPI_BCAST(irad       ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(timerad    ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(iradiation ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(rad_ls     ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(rad_longw  ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(rad_shortw ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(rad_smoke  ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(useMcIca   ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(rka        ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(dlwtop     ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(dlwbot     ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(sw0        ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(gc         ,1,MY_REAL   ,0,commwrld,mpierr)
+    ! CvH call MPI_BCAST(sfc_albedo ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(reff       ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(isvsmoke   ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(lcloudshading,1,MPI_LOGICAL,0,commwrld,mpierr)
+
+    call MPI_BCAST(llsadv     ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lqlnr      ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lambda_crit,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(cu         ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(cv         ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(ksp        ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(irandom    ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(krand      ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(krandumin  ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(krandumax  ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(randthl    ,1,MY_REAL    ,0,commwrld,mpierr)
+    call MPI_BCAST(randqt     ,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(randu      ,1,MY_REAL   ,0,commwrld,mpierr)
+
+    call MPI_BCAST(ladaptive  ,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(courant,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(peclet,1,MY_REAL   ,0,commwrld,mpierr)
+
+    call MPI_BCAST(isurf   ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(ibas_prf,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(iadv_mom,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(iadv_tke,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(iadv_thl,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(iadv_qt ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,commwrld,mpierr)
+
+    call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,commwrld,mpierr)
+
+    call MPI_BCAST(solver_id,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(maxiter,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(n_pre,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(n_post,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(tolerance,1,MY_REAL,0,commwrld,mpierr)
+    call MPI_BCAST(precond,1,MPI_INTEGER,0,commwrld,mpierr)
+    
     call testwctime
     ! Allocate and initialize core modules
     call initglobal
@@ -253,13 +266,15 @@ contains
     call initboundary
     call initthermodynamics
     call initradiation
+    call initchem
     call initsurface
     call initsubgrid
-    call initpois
-    call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
-    call initmicrophysics
-    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
+    call initmicrophysics
+    call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
+    call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
+    call initpois ! hypre solver needs grid and baseprofiles
+    
     call checkinitvalues
 
 
@@ -361,7 +376,7 @@ contains
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
-                                  v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,rhof,&
+                                  v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
                                   thlpcar,thvh,thvf
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
@@ -380,6 +395,7 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
 
@@ -607,6 +623,11 @@ contains
       call boundary
       call thermodynamics
 
+      ! save initial pressure profiles
+      ! used for initialising radiation scheme at restart, to reproduce the same state
+      initial_presf = presf
+      initial_presh = presh
+
     else !if lwarmstart
 
       call readrestartfiles
@@ -681,7 +702,7 @@ contains
       if(ladaptive .eqv. .false.) rdt=dtmax
       call baseprofs !call baseprofs
 
-    end if
+    end if  ! end if (.not. warmstart)
 
 !-----------------------------------------------------------------
 !    2.1 read and initialise fields
@@ -799,9 +820,8 @@ contains
     rtimee  = real(timee)*tres
     itrestart = floor(trestart/tres,longint)
     tnextrestart = btime + itrestart
+
     deallocate (height,th0av,thv0)
-
-
   end subroutine readinitfiles
 
   subroutine readrestartfiles
@@ -809,8 +829,11 @@ contains
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
                            obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation, useMcICA
-    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
+    use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
+                          thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
+                          SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
+                          SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
+    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
@@ -853,11 +876,39 @@ contains
       read(ifinput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)  (  presf (    k)                            ,k=1,k1)
       read(ifinput)  (  presh (    k)                            ,k=1,k1)
+      read(ifinput)  (  initial_presf (    k)                            ,k=1,k1)
+      read(ifinput)  (  initial_presh (    k)                            ,k=1,k1)
       read(ifinput)  ps,thls,qts,thvs,oblav
       read(ifinput)  dtheta,dqt,timee,dt,tres
       read(ifinput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+
+!!!!! radiation quantities
+      read(ifinput)  tnext_radiation
+      read(ifinput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      read(ifinput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+
+      read(ifinput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      read(ifinput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+!!!!! end of radiation quantities
+
       if(lhetero) then
         read(ifinput)   ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
         read(ifinput)   ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
@@ -896,24 +947,16 @@ contains
       read(ifinput)  timee
       close(ifinput)
     end if
-
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  subroutine writerestartfiles
-    use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                          tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation, useMcICA
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,trestart,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
-                          rtimee,rk3step,ifoutput,nsv,timeleft,dtheta,dqt,dt
-    use modmpi,    only : cmyid,myid
-    use modsubgriddata, only : ekm,ekh
 
+
+  ! this function is called from time stepping,
+  ! determines when to write a restart file, then calls do_writerestartfiles to do the work
+  !  if trestart = 0, no periodic restart files will be written.
+  subroutine writerestartfiles
+    use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
     implicit none
-    integer imin,ihour
-    integer i,j,k,n
-    character(50) name,linkname
 
     if (timee == 0) return
     if (rk3Step/=3) return
@@ -924,7 +967,32 @@ contains
     ! if trestart = 0, write restart files only at the end of the simulation
     ! if trestart < 0, don't write any restart files
     if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
-      tnextrestart = tnextrestart+itrestart
+       tnextrestart = tnextrestart+itrestart
+       call do_writerestartfiles
+    end if
+  end subroutine writerestartfiles
+
+  ! this function writes a restart file
+  ! separated from writerestartfiles to be callable from the library interface
+  subroutine do_writerestartfiles
+    use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
+                          tsoil,phiw,tskin,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
+                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
+    use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
+                          thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
+                          SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
+                          SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
+    use modmpi,    only : cmyid,myid
+    use modsubgriddata, only : ekm,ekh
+
+    implicit none
+    integer imin,ihour
+    integer i,j,k,n
+    character(50) name,linkname
+
+    
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
       name = 'initdXXXhXXmXXXXXXXX.XXX'
@@ -956,11 +1024,39 @@ contains
       write(ifoutput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)  (  presf (    k)                            ,k=1,k1)
       write(ifoutput)  (  presh (    k)                            ,k=1,k1)
+      write(ifoutput)  (  initial_presf (    k)                            ,k=1,k1)
+      write(ifoutput)  (  initial_presh (    k)                            ,k=1,k1)
       write(ifoutput)  ps,thls,qts,thvs,oblav
       write(ifoutput)  dtheta,dqt,timee,  dt,tres
       write(ifoutput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+
+!!!!! radiation quantities
+      write(ifoutput)  tnext_radiation
+      write(ifoutput)  (((thlprad (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwd     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwu     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwdca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwuca   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+      write(ifoutput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
+
+      write(ifoutput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((SW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((SW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_up_ca_TOA (i,j ),i=1,i2),j=1,j2)
+      write(ifoutput)  ((LW_dn_ca_TOA (i,j ),i=1,i2),j=1,j2)
+!!!!! end of radiation quantities
+
       if(lhetero) then
         write(ifoutput)  ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
         write(ifoutput)  ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
@@ -968,7 +1064,6 @@ contains
         write(ifoutput)  ((thvs_patch(i,j),i=1,xpatches),j=1,ypatches)
         write(ifoutput)  ((oblpatch  (i,j),i=1,xpatches),j=1,ypatches)
       endif
-
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
@@ -1016,10 +1111,7 @@ contains
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
       end if
 
-    end if
-
-
-  end subroutine writerestartfiles
+  end subroutine do_writerestartfiles
 
   subroutine testwctime
     use modmpi,    only : mpi_get_time
@@ -1192,7 +1284,7 @@ contains
             tb(k)=tsurf+lapserate(1)*(zf(k)-zsurf)
           else
             j=1
-            do while(zf(k)>zmat(j))
+            do while(zf(k)>=zmat(j))
               j=j+1
             end do
             tb(k)=tmat(j-1)+lapserate(j)*(zf(k)-zmat(j-1))

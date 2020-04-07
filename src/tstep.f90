@@ -40,10 +40,14 @@
 !! \end{equation}
 !! and the diffusion number $d$. The timestep is further limited by the needs of other modules, e.g. the statistics.
 !! \endlatexonly
+module tstep
+implicit none
+
+contains
 subroutine tstep_update
 
 
-  use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,&
+  use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm
   use modsubgrid,only : ekm,ekh
@@ -85,7 +89,8 @@ subroutine tstep_update
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
-          dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+           dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+           dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
           if (abs(courtotmax-courold)/courold<0.1 .and. (abs(peclettot-pecletold)/pecletold<0.1)) then
             spinup = .false.
           end if
@@ -124,6 +129,7 @@ subroutine tstep_update
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+        dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
         rdt = dble(dt)*tres
         timeleft=timeleft-dt
         dt_lim = timeleft
@@ -163,13 +169,12 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : i1,j1,kmax,nsv,rdt,rk3step,e12min
+  use modglobal, only : rdt,rk3step,e12min
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
 
-  integer i,j,k,n
   real rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
@@ -198,6 +203,7 @@ subroutine tstep_integrate
      sv0 = svm
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
+
   end if
 
   up=0.
@@ -209,3 +215,4 @@ subroutine tstep_integrate
   e12p=0.
 
 end subroutine tstep_integrate
+end module tstep
