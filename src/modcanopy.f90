@@ -1006,9 +1006,10 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
 100    continue
 
+       !An    = Fleaf
+       An    = leafco2f(co2abs,ci, gb, rs, transpiretype)
        tleaf = t_g    ! return final guess t_g as tleaf [K]
-       rb    = 1./gb  ! boundary layer resistance [s m-1]
-       An    = Fleaf
+       rb    = 1./gb  ! boundary layer heat resistance [s m-1]
        return
  end subroutine leafeb_ags
   
@@ -1076,6 +1077,27 @@ real function leafle(tleaf, ambvap, gb, rs, transpiretype, rho)
 
     return
 end function leafle
+real function leafco2f(co2abs, ci, gb, rs, transpiretype)
+   ! ---- calculate the co2 flux including leaf boundary layer effects
+
+   implicit none
+
+   real, intent(in) :: co2abs,        &    ! atmospheric co2 concentration [mg C m-3]
+                       ci,            &    ! leaf internal co2 concentration [mg C m-3]
+                       gb,            &    ! leaf boundary layer heat conductance [m s-1]
+                       rs,            &    ! stomatal resistance to water vapor transfer [s m-1]
+                       transpiretype       ! type of transpirer (1=hypostomatous, 2=amphistomatous,
+                                           !    1.25=hypostomatous but with some transpiration through cuticle)
+
+   real          :: gbv ! boundary layer water vapor conductance [m s-1]
+   real          :: co2f ! net assimilation rate [mg C m-2 s-1]
+
+   gbv =  1.075 * gb ! Goudriaan and van laar 1994
+   co2f = (co2abs-ci) / ( 1.6*rs + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
+   
+   leafco2f = transpiretype * co2f ! if it transpires, it also absorbs co2
+ 
+end function leafco2f
 
 real function leafblc(tleaf,tairk,wind,lwidth,llength)
 ! ======================================================================
