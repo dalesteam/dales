@@ -361,6 +361,7 @@ contains
     do n = 1, nsv
       if(iadv_sv(n) < 0) then
         iadv_sv(n) = iadv_mom
+        write (*,*) "Warning: iadv_sv(", n, ") not specified, defaulting to iadv_mom = ", iadv_mom
       end if
     end do
 
