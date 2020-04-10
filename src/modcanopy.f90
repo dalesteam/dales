@@ -94,6 +94,10 @@ module modcanopy
   real, allocatable :: S_theta         (:,:,:) !< Temperature source/sink due to canopy[K s-1]
   real, allocatable :: S_qt            (:,:,:) !< Moisture source/sink due to canopy[Kg_w Kg_a-1 s-1]
   real, allocatable :: S_co2           (:,:,:) !< CO2 source/sink due to canopy [ppb s-1]
+  real, allocatable :: gcc_leafshad    (:,:,:) !< carbon stomatal conductance at shaded leaves [m s-1]
+  real, allocatable :: gcc_leafsun     (:,:,:) !< carbon stomatal conductance at sunny leaves [m s-1]
+  real, allocatable :: ci_leafshad     (:,:,:) !< internal carbon concentration at shaded leaves [mg m-3]
+  real, allocatable :: ci_leafsun      (:,:,:) !< internal carbon concentration at sunny leaves  [mg m-3]
 
 contains
 !-----------------------------------------------------------------------------------------
@@ -259,6 +263,10 @@ contains
     allocate(S_theta(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(S_qt(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(S_co2(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(gcc_leafshad(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(gcc_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(ci_leafshad(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(ci_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
 
     return
     
@@ -378,17 +386,13 @@ contains
    ! independently, as well as the resultant co2 absorption and heat and
    ! moisture fluxes per leaf area
    ! 3-Calculates the resultant heat, co2 and moisture sources at each gridbox
-   ! 4- returns the stomatal resistance, fraction of sunlit leaves and sink of
-   ! Co2 of the lowest level back to modsurface to calculate the standard SEB in
-   ! DALES.
    ! A big part of the subroutines used in canopyeb were originally developed by Ned
    ! Patton and have been adapted, modified or extended where needed.
    !                                                      Xabier Pedruzo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use modglobal, only  : j1, i1,cp,rlv
-    use modsurfdata,only : phitot,weight_g,indCO2,albedo,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad
+    use modsurfdata,only : phitot,weight_g,indCO2,albedo,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad,nuco2q
     use modfields, only  : thl0,rhof,qt0,exnf,u0,v0,presf,svm,tmp0
-    !use modsurface, only : canopyrad
     use modraddata, only : swdir,swdif
    
     implicit none
@@ -434,7 +438,7 @@ contains
       call leafeb_ags(cPARleaf_shad(k_can), LWin_leafshad(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
                       tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),       & ! in
                       rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                                      & ! in
-                      tleaf_shad(k_can), rs_leafshad(k_can), rb_leafshad(k_can),                            & ! out
+                      tleaf_shad(k_can), gcc_leafshad(i,j,k_can), rb_leafshad(k_can),ci_leafshad(i,j,k_can),& ! inout
                       sh_leafshad(k_can), le_leafshad(k_can), LWout_leafshad(k_can),An_leafshad(k_can))       ! out
       LWnet_leafshad(k_can) = LWin_leafshad(k_can) - LWout_leafshad(k_can)
       !sunny
@@ -445,18 +449,20 @@ contains
       !  call leafeb_ags(PARleaf_sun(k_can,angle), LWin_leafsun(k_can,angle), leaf_eps, transpiretype, lwidth, llength, &
       !                  tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),           & ! in
       !                  rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                & ! additonal variables needed (Xabi)
-      !                  tleaf_sun(k_can,angle), rs_leafsun(k_can,angle), rb_leafsun(k_can,angle),& !
+      !                  tleaf_sun(k_can,angle), gcc_leafsun(i,j,k_can,angle), rb_leafsun(k_can,angle),ci_leafshad(i,j,k_can,angle),& !
       !                  sh_leafsun(k_can,angle), le_leafsun(k_can,angle), LWout_leafsun(k_can,angle))
       !   LWnet_leafsun(k_can,angle) = LWin_leafsun(k_can,angle) - LWout_leafsun(k_can,angle)
       !end do
-      !Fsun   = sum(weight_g * (2:(nangle_gauss+1)))
-      !gsun   = sum(weight_g * gleaf(2:(nangle_gauss+1)))
+      !An_leafsunaver      = sum(weight_g * An_leafsun(i,j,k_can,1:nangle_gauss))
+      !gcc_leafsunaver     = sum(weight_g * gcc_leafsun(i,j,k_can,1:(nangle_gauss)))
+      !sh_leafsunaver      = sum(weight_g * sh_leafsun(i,j,k_can,1:nangle_gauss))
+      !le_leafsunaver      = sum(weight_g * le_leafsun(i,j,k_can,1:(nangle_gauss)))
       else ! angles PAR are averaged following 3 point gaussian procedure
         cPARleaf_allsun   = sum(weight_g *  cPARleaf_sun(k_can,1:nangle_gauss))
         call leafeb_ags(cPARleaf_allsun(k_can), LWin_leafsun(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
                         tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),                       & ! i
                         rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                          & ! additonal variables needed
-                        tleaf_sun(k_can), rs_leafsun(k_can), rb_leafsun(k_can),& !
+                        tleaf_sun(k_can), gcc_leafsun(i,j,k_can), rb_leafsun(k_can),ci_leafsun(i,j,k_can),& !
                         sh_leafsun(k_can), le_leafsun(k_can), LWout_leafsun(k_can),An_leafsun(k_can))                   !
         LWnet_leafsun(k_can) = LWin_leafsun(k_can) - LWout_leafsun(k_can)
       endif !l3leaves
@@ -464,10 +470,8 @@ contains
     end do !k_can
    
    !                                                                                                ! 
-   !######### STEP 3 - Leaf energy balance per level for sunlit and shaded leaves ####################
+   !######### STEP 3 - determining source terms for LES ####################
    !                                                                                                !
-         !determining source terms for LES******************
-
              ! --- calculate sources of heat, water by scaling
              !        from the leaf to the grid volume
     !we clauclate pad:
@@ -723,7 +727,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
                           tairk, humidairpa,qtair, ws, pres,         & ! in     
                           !, cantype, vegtyp,                    &
                           rho, CO2air, phi_tot,                    &  ! additonal in variables needed (XPB)
-                          tleaf, rs, rb,                             & ! in/out
+                          tleaf, gccleaf,rb,ci,                         & ! in/out
                           sh, le, LWout,                             & ! out
                           An)                                        ! out extra by XPB
 ! ======================================================================
@@ -747,7 +751,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
       !modified by Xabi Pedruzo March 2020 to work with Ags and another
       !canopy radiative scheme (Pedruzo-Bagazgoitia et al. 2017)
-       use modsurfdata, only : f_Ags
+       use modsurfdata, only : f_Ags,nuco2q
        implicit none
 
        ! ---- incoming variables
@@ -780,7 +784,11 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        real, intent(inout) :: tleaf                    ! leaf temperature from last timestep [K]
                                                        !   updated in this routine
 
-       real, intent(inout) :: rs                       ! stomatal resistance from last timestep [s m-1]
+       !real, intent(inout) :: rs                       ! stomatal resistance from last timestep [s m-1]
+                                                       !   updated in this routine
+       real, intent(inout) :: gccleaf                  ! carbon stomatal conductance from last timestep [s m-1]
+                                                       !   updated in this routine
+       real, intent(inout) :: ci                       ! leaf internal carbon concentration 
                                                        !   updated in this routine
        real, intent(inout) :: rb                       ! boundary layer resistance from last timestep [s m-1]
                                                        !   updated in this routine
@@ -796,9 +804,9 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
        !integer, parameter :: wet = 0   ! EGP fix for rainy conditions
        integer :: ii
-       real    :: gb,gs
+       real    :: gb
        real    :: wind
-       real    :: gs_old
+       real    :: gcc_old,ci_old
        real    :: tdelt
        real    :: tleaf_l, tleaf_r
        real    :: rr_l, rr_r
@@ -806,9 +814,8 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !DOUBLE PRECISION :: f_n, f_g, f_p
        real :: t_n, t_g, t_p
        real :: f_n, f_g, f_p
-       !real    :: leafblc,leafh,leafle,leafLWout  ! all needed function outputs
 
-       real    :: gleaf,Fleaf,ci
+       real    :: Fleaf
        real    :: fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin
 
        real :: humidairkgm3
@@ -826,7 +833,9 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !rho = (pres / (r_d * tairk)) + (humidairpa / (r_v * tairk))
 
        ! --- make sure gs_old has last timestep's value (mainly for restart)
-       gs_old = 1. / rs
+       !gs_old = 1. /  rs
+       gcc_old = gccleaf
+       ci_old  = ci
 
        ! --- convert air vapor pressure from  [Pa] to [kg m-3]
 
@@ -869,9 +878,9 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
       !          gb,rs)                                            ! recv
        !xabi edit
        call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_l,phi_tot,i_s,   &   ! in
-                  gleaf,Fleaf,ci,&                                 !out
-                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out only needed for 1leaf upscale
-      !if we want to add delay(but thsi should affect Fleaf, not gleaf only):
+                  gccleaf,Fleaf,ci,&                                 !out
+                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out
+      !if we want to add delay(but thsi should affect Fleaf, not gccleaf only):
       !if (lrelaxgc) then
       !  if (gc_old_set) then
       !      gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
@@ -886,14 +895,14 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
       !    gcco2 = gc_inf
       ! endif
 
-       !get the stomatal resistance to water from stomatal CO2 conductance:
-       rs = 1.0/(1.6*gleaf)
+       !get the water  stomatal resistancer from stomatal CO2 conductance:
+       !rs = 1.0/(nuco2q*gccleaf)
        !get leaf boundary layer
        gb = leafblc(tleaf_l,tairk,wind,lwidth,llength)
        !end xabi edit
 
        sh      = leafh(tdelt,gb,rho)                                   ! sensible heat flux at this tleaf [W m-2]
-       le      = leafle(tleaf_l,humidairkgm3,gb,rs,transpiretype,rho)  ! latent heat flux at this tleaf  [W m-2]
+       le      = leafle(tleaf_l,humidairkgm3,gb,gccleaf,transpiretype)  ! latent heat flux at this tleaf  [W m-2]
        LWout   = leafLWout(tleaf_l, eps)                               ! outgoing long wave out at this tleaf [W m-2]
 
        rr_l = i_s + i_r - LWout - sh - le                              ! leaf energy balance at this tleaf [W m-2]
@@ -908,16 +917,16 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !          gs_old,                                       &   ! send/recv
        !          gb,rs)                                            ! recv
        call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_r,phi_tot,i_s,   &   ! in
-                  gleaf,Fleaf,ci,&                                 !out
-                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out only needed for 1leaf upscale
+                  gccleaf,Fleaf,ci,&                                 !out
+                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out 
 
        !get the stomatal resistance to water from stomatal CO2 conductance:
-       rs = 1.0/(1.6*gleaf)
+       !rs = 1.0/(nuco2q*gccleaf)
        !get leaf boundary layer
        gb = leafblc(tleaf_r,tairk,wind,lwidth,llength)
        
        sh      = leafh(tdelt,gb,rho)                                   ! sensible heat flux at this tleaf [W m-2]
-       le      = leafle(tleaf_r,humidairkgm3,gb,rs,transpiretype,rho)  ! latent heat flux at this tleaf  [W m-2]
+       le      = leafle(tleaf_r,humidairkgm3,gb,gccleaf,transpiretype)  ! latent heat flux at this tleaf  [W m-2]
        LWout   = leafLWout(tleaf_r, eps)                               ! outgoing long wave out at this tleaf [W m-2]
 
        rr_r = i_s + i_r - LWout - sh - le                              ! leaf energy balance at this tleaf [W m-2]
@@ -963,16 +972,16 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
           !          gs_old,                                   &   ! send/recv
           !          gb,rs)                                        ! recv
           call f_Ags(CO2air,qtair,rho,tairk,pres,t_g,phi_tot,i_s,   &   ! in
-                     gleaf,Fleaf,ci,&                                 !out
-                     fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out only needed for 1leaf upscale
+                     gccleaf,Fleaf,ci,&                                 !out
+                     fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out
 
           !get the stomatal resistance to water from stomatal CO2 conductance:
-          rs = 1.0/(1.6*gleaf)
+          !rs = 1.0/(nuco2q*gccleaf)
           !get leaf boundary layer
           gb = leafblc(t_g,tairk,wind,lwidth,llength)
 
           sh      = leafh(tdelt,gb,rho)                               ! sensible heat flux at this t_g [W m-2]
-          le      = leafle(t_g,humidairkgm3,gb,rs,transpiretype,rho)  ! latent heat flux at this t_g  [W m-2]
+          le      = leafle(t_g,humidairkgm3,gb,gccleaf,transpiretype)  ! latent heat flux at this t_g  [W m-2]
           LWout   = leafLWout(t_g, eps)                               ! outgoing long wave out at this t_g [W m-2]
 
           f_g = i_s+ i_r - LWout - sh - le                           ! leaf energy balance at this t_g [W m-2]
@@ -1007,7 +1016,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 100    continue
 
        !An    = Fleaf
-       An    = leafco2f(co2abs,ci, gb, rs, transpiretype)
+       An    = leafco2f(co2abs,ci, gb, gccleaf, transpiretype)
        tleaf = t_g    ! return final guess t_g as tleaf [K]
        rb    = 1./gb  ! boundary layer heat resistance [s m-1]
        return
@@ -1026,40 +1035,31 @@ real function leafh(tdelt,gb,rho)
    use modglobal, only: cp
    implicit none
    real, intent(in) :: tdelt, gb, rho
-   !real,parameter :: cp    = 1004.
    leafh = 2. * gb * tdelt * rho * cp
 
    return
 end function leafh
-real function leafle(tleaf, ambvap, gb, rs, transpiretype, rho)
+real function leafle(tleaf, ambvap, gb, gcc, transpiretype)
 ! ======================================================================
 ! subroutine from Ned Patton ~ adapted where obvious
 ! ======================================================================
 
    ! ---- calculate the latent energy term in leaf energy balance
-
+   use modsurfdata,only : nuco2q
    implicit none
 
    real, intent(in) :: tleaf,         &    ! leaf temperature [K]
                        ambvap,        &    ! atmospheric vapor density [kg m-3]
-                       !qtair,           &   ! water vapor specific humidity [kg kg-1]
-                       gb,            &    ! boundary layer conductance [m s-1]
-                       rs,            &    ! stomatal resistance to water vapor transfer [s m-1]
-                       transpiretype, &    ! type of transpirer (1=hypostomatous, 2=amphistomatous,
+                       gb,            &    ! leaf boundary layer heat conductance [m s-1]
+                       gcc,            &    ! stomatal carbon conductance [s m-1]
+                       transpiretype       ! type of transpirer (1=hypostomatous, 2=amphistomatous,
                                            !    1.25=hypostomatous but with some transpiration through cuticle)
-                       rho               ! air density [kg m-3]
-                       !pres                ! air pressure [Pa]
 
-   real             :: leafres, vapdeficit, le
-   real             :: lathv               ! latent heat of vaporization at this temp [J kg-1]
-   !real :: esat,  & ! saturation vapor pressure at temp T [Pa]
-   !        qsat     ! saturaion mixing ratio at esat and pressure p
-
-    !real :: lhv,svdtk
-    leafres    = 1./(1.075*gb) + rs        ! [s m-1]
-    !alternative simpler way for vapor deficit:
-    !qsat    = 0.622 * esat(tleaf) / pres
-    !vapdeficit = (qsat-qtair)*rho
+   real        :: leafres, vapdeficit, le,rs
+   real        :: lathv               ! latent heat of vaporization at this temp [J kg-1]
+   
+    rs         = 1.0/(nuco2q*gcc)          ! stomatal resistance to water
+    leafres    = 1./(1.075*gb) + rs        ! [s m-1] ! 1.075 factor to account for different between heat and water conductance (Goudriaan and van laar 1994)
     vapdeficit = svdtk(tleaf) - ambvap     ! [kg m-3]
     lathv      = lhv(tleaf)                ! [J kg-1]
 
@@ -1077,7 +1077,7 @@ real function leafle(tleaf, ambvap, gb, rs, transpiretype, rho)
 
     return
 end function leafle
-real function leafco2f(co2abs, ci, gb, rs, transpiretype)
+real function leafco2f(co2abs, ci, gb, gcc, transpiretype)
    ! ---- calculate the co2 flux including leaf boundary layer effects
 
    implicit none
@@ -1085,15 +1085,15 @@ real function leafco2f(co2abs, ci, gb, rs, transpiretype)
    real, intent(in) :: co2abs,        &    ! atmospheric co2 concentration [mg C m-3]
                        ci,            &    ! leaf internal co2 concentration [mg C m-3]
                        gb,            &    ! leaf boundary layer heat conductance [m s-1]
-                       rs,            &    ! stomatal resistance to water vapor transfer [s m-1]
+                       gcc,           &    ! stomatal carbon conductance [s m-1]
                        transpiretype       ! type of transpirer (1=hypostomatous, 2=amphistomatous,
                                            !    1.25=hypostomatous but with some transpiration through cuticle)
 
    real          :: gbv ! boundary layer water vapor conductance [m s-1]
    real          :: co2f ! net assimilation rate [mg C m-2 s-1]
-
    gbv =  1.075 * gb ! Goudriaan and van laar 1994
-   co2f = (co2abs-ci) / ( 1.6*rs + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
+   co2f = (co2abs-ci) / ( (1./gcc) + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
+   !co2f = (co2abs-ci) / ( 1.6*rs + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
    
    leafco2f = transpiretype * co2f ! if it transpires, it also absorbs co2
  

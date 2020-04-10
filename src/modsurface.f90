@@ -1912,8 +1912,8 @@ contains
               gcco2 = gc_inf
             endif
 
-          ! Calculate surface resistances for moisture and carbon dioxide
-            rsAgs    = 1.0 / (1.6 * gcco2)
+            ! Calculate surface resistances for moisture and carbon dioxide
+            rsAgs    = 1.0 / (nuco2q * gcco2)
             rsCO2    = 1.0 / gcco2
           
           

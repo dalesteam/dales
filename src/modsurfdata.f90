@@ -383,9 +383,9 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phi_tot,Hleaf,   &   !in
       real, intent(in) ::  t_skin   ! surface or leaf skin temperature (K)
       real, intent(in) ::  phi_tot  ! Total soil water content [-]
       real, intent(in) ::  Hleaf    ! surface or leaf skin temperature (K)
-      real, intent (out) :: gleaf
-      real, intent (out) :: Fleaf
-      real, intent (out) :: ci
+      real, intent (out) :: gleaf   ! leaf stomatal conductance for carbon(m/s)
+      real, intent (out) :: Fleaf    
+      real, intent (out) :: ci     
       real, intent (out) :: fstr
       real, intent (out) :: Am
       real, intent (out) :: Rdark

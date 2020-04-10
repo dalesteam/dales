@@ -149,6 +149,7 @@ program DALES      !Version 4.0.0alpha
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use modcanstat,      only : initcanstat ,canstat, exitcanstat
+  use modcandump,      only : initcandump, candump,exitcandump
 
 
   implicit none
@@ -188,6 +189,7 @@ program DALES      !Version 4.0.0alpha
   call initheterostats
   call initcanopy
   call initcanstat
+  call initcandump
 
   !call initspectra2
   call initcape
@@ -284,6 +286,7 @@ program DALES      !Version 4.0.0alpha
     !call projection
     call cloudfield
     call fielddump
+    call candump
     !call particles
 
     call bulkmicrostat
@@ -324,6 +327,7 @@ program DALES      !Version 4.0.0alpha
   call exitheterostats
   call exitcanopy
   call exitcanstat
+  call exitcandump
   call exitmodules
 
 end program DALES
