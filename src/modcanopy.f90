@@ -229,8 +229,6 @@ contains
     allocate(cPARleaf_allsun(ncanopy))
     allocate(cPARleaf_sun(ncanopy,nangle_gauss))
     allocate(cfSL(ncanopy))
-    if (myid==0) print *,'alocating iLAI_can XPB'
-    if (myid==0) print *,' XPB lcanopyeb',lcanopyeb
     allocate(iLAI_can(ncanopy))
     !allocate(tairk(ncanopy))
     allocate(humidairpa(ncanopy))
@@ -375,9 +373,8 @@ contains
     deallocate(S_co2)
     return
   end subroutine exitcanopy
-  subroutine canopyeb(i,j,ps,&                                       ! in
-                      rsleafsun_bot,rsleafshad_bot,fsl_bot,fco2can_bot)  ! out
-   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine canopyeb(i,j,ps,rk3coef)                                       ! in
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
    ! This is the main routine for the calculation of a canopy energy balance,
    ! taking into account canopy vertical levels and sunlit and shaded leaves.
    ! Steps in this routine are:
@@ -399,7 +396,6 @@ contains
     
      integer, intent(in) :: i,j
      real, intent(in) :: ps
-     real, intent(out) ::rsleafsun_bot,rsleafshad_bot,fsl_bot,fco2can_bot 
      integer :: k_can
      real    :: LWin
 
@@ -484,30 +480,13 @@ contains
                       sh_can(i,j,1:ncanopy),le_can(i,j,1:ncanopy),Fco2_can(i,j,1:ncanopy))                                ! recv
 
     !convert sources to tendencies
-    S_theta(i,j,2:ncanopy)   = sh_can(i,j,2:ncanopy)/(rhof(2:ncanopy)*cp)
-    S_qt(i,j,2:ncanopy)      = le_can(i,j,2:ncanopy)/(rhof(2:ncanopy)*rlv)
-    S_co2(i,j,2:ncanopy)     = Fco2_can(i,j,2:ncanopy)*(MW_Air/MW_CO2) * (1.0/rhof(2:ncanopy))* 1000 !In  ppb/s
-
-    !lowest grid:
+    S_theta(i,j,1:ncanopy)   = sh_can(i,j,1:ncanopy)/(rhof(1:ncanopy)*cp)
+    S_qt(i,j,1:ncanopy)      = le_can(i,j,1:ncanopy)/(rhof(1:ncanopy)*rlv)
+    S_co2(i,j,1:ncanopy)     = Fco2_can(i,j,1:ncanopy)*(MW_Air/MW_CO2) * (1.0/rhof(1:ncanopy))* 1000 !In  ppb/s
     
-    !keep lowest level empty not to double count with DALES SEB:
-    S_theta(i,j,1) = 0.0
-    S_qt(i,j,1)    = 0.0
-    S_co2(i,j,1)   = 0.0
-   
    !                                                                                                ! 
-   !######### STEP 4 - Return lowest level necessary variables for regular SEB in DALES ####################
    !                                                                                                !
-    
-    !output that goes to modsurface
-    rsleafsun_bot = rs_leafsun(1)
-    fsl_bot = cfSL(1)
-    rsleafshad_bot = rs_leafshad(1)
-    fco2can_bot = Fco2_can(i,j,1)
 
-    !rsAgs = rs_leafsun(1)*fSL(1) + rs_leafshad(1)*(1-fSL(1))
-    !rsCO2 = 1.6 * rsAgs
-    !An = Fco2_can(1)
 
   end subroutine canopyeb
   subroutine canopyu (putout)
