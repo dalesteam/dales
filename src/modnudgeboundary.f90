@@ -112,7 +112,7 @@ contains
     subroutine initnudgeboundary
 
         use modmpi,      only : myid, mpierr, comm3d, mpi_logical, mpi_int, my_real
-        use modglobal,   only : ifnamopt, fname_options, i1, j1, k1, ih, jh, lwarmstart, kmax, zf, checknamelisterror
+        use modglobal,   only : ifnamopt, fname_options, imax, jmax, dx, dy, i1, j1, k1, ih, jh, lwarmstart, kmax, zf, checknamelisterror
         use modboundary, only : boundary
         implicit none
 
@@ -152,6 +152,12 @@ contains
         call MPI_BCAST(dt_input_lbc,      1, my_real,     0, comm3d, mpierr)
 
         if (lnudge_boundary) then
+            if (myid==0) then
+               ! Require offset + 2 standard deviations of the nudging profile to fit inside one tile
+               if (imax * dx < (nudge_offset+2*nudge_width) .or. jmax * dy < (nudge_offset+2*nudge_width) ) then
+                  STOP "Tile size is too small compared to boundary nudging range."
+               end if
+            end if
 
             ! Init and calculate nudge and perturb factors
             allocate( nudge_factor(2:i1, 2:j1) )
