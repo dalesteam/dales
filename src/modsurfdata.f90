@@ -110,7 +110,7 @@ SAVE
   real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
   real, allocatable :: albedo     (:,:) !<  Surface albedo [-]
   real              :: albedoav = -1
-  real, allocatable :: LAI        (:,:) !<  Leaf area index vegetation [-]
+  real, allocatable :: LAI        (:,:) !<  Leaf area index understory vegetation [-]
   real              :: LAIav    = -1
   real, allocatable :: cveg       (:,:) !<  Vegetation cover [-]
   real              :: cvegav   = -1
@@ -126,12 +126,12 @@ SAVE
   logical           :: lrsAgs     = .false.!<  Switch to apply AGS to calculate resistances
   logical           :: lCO2Ags    = .false.!<  Switch to calculate CO2 fluxes with AGS
   integer           :: planttype  = 3      !<  Integer to switch between (C)3 and (C)4 plants
-  logical           :: lrelaxgc   = .false.!<  Switch to delay plant response. Timescale is equal to 1/kgc
-  real              :: kgc        = 0.00113!<  Standard stomatal response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  logical           :: lrelaxgc_surf = .false.!<  Switch to delay plant response at surface. Timescale is equal to 1/kgc_surf
+  real              :: kgc_surf   = 0.00113!<  Standard stomatal response rate at surface(corresponding to a time scale of 14.75 min.) [1/s]
   real              :: kci        = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
   real, allocatable :: gc_old       (:,:)  !<  Old value for gc
   real              :: gc_inf              !<  Attractor for stomatal response rate
-  logical           :: gc_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once
+  logical           :: gcsurf_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once for surface
   logical           :: lrelaxci   = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
   real, allocatable :: ci_old       (:,:)  !<  Old value for ci
   real              :: ci_inf              !<  Attractor for ci
@@ -140,17 +140,6 @@ SAVE
   real              :: Anav       = 0.0
   real              :: gcco2av    = 0.0
   real              :: Respav     = 0.0
-  real, allocatable :: wco2Field    (:,:)
-  real, allocatable :: AnField      (:,:)
-  real, allocatable :: gcco2Field   (:,:)
-  real, allocatable :: rsco2Field   (:,:)
-  real, allocatable :: RespField    (:,:)
-  real, allocatable :: fstrField    (:,:)
-  real, allocatable :: tauField     (:,:)
-  real, allocatable :: ciField      (:,:)
-  real, allocatable :: PARField     (:,:)
-  real, allocatable :: PARdirField  (:,:)
-  real, allocatable :: PARdifField  (:,:)
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
   logical           :: lCHon      = .false.!<  Equal to lchem, but due to compilation has to be outside modchem.f90
@@ -182,6 +171,17 @@ SAVE
   real              :: Eact0      = 53.3e3 !<  Activation energy
   real              :: MW_Air     =  28.97 !<  Molecular weight of air
   real              :: MW_CO2     =     44 !<  Molecular weight of CO2
+  real, allocatable :: wco2Field    (:,:)
+  real, allocatable :: AnField      (:,:)
+  real, allocatable :: gcco2Field   (:,:)
+  real, allocatable :: rsco2Field   (:,:)
+  real, allocatable :: RespField    (:,:)
+  real, allocatable :: fstrField    (:,:)
+  real, allocatable :: tauField     (:,:)
+  real, allocatable :: ciField      (:,:)
+  real, allocatable :: PARField     (:,:)
+  real, allocatable :: PARdirField  (:,:)
+  real, allocatable :: PARdifField  (:,:)
 
   !Variables for 2leaf AGS
   logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)
@@ -193,7 +193,9 @@ SAVE
   real, dimension(nangle_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
   real                      :: sigma      =                      0.2 !<  Scattering coefficient
   real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
-
+  real, allocatable         :: gshad_old    (:,:,:)
+  real, allocatable         :: gleafsun_old (:,:,:,:)
+  real, allocatable         :: gsun_old     (:,:,:)
  
 ! variables for 2leaf AGS or canopyeb
   real,allocatable ::   PARleaf_shad   (:)    !< PAR at shaded leaves per vertical level [W/m2]
@@ -368,7 +370,9 @@ subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,&    ! in
 return
 end subroutine ! canopyrad
 
-subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phi_tot,Hleaf,   &   !in
+subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
+                 phi_tot,Hleaf,& ! in
+                 lrelaxgc,gc_old_set,kgc,gleaf_old,rk3coef,   &   !in
                  gleaf,Fleaf,ci,&
                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! additional out for 1leaf upscaling
 
@@ -383,6 +387,12 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phi_tot,Hleaf,   &   !in
       real, intent(in) ::  t_skin   ! surface or leaf skin temperature (K)
       real, intent(in) ::  phi_tot  ! Total soil water content [-]
       real, intent(in) ::  Hleaf    ! surface or leaf skin temperature (K)
+      logical, intent(in) ::  lrelaxgc ! if true, lag in plant response
+      logical, intent(in) ::  gc_old_set !false at first timestep, true at any  other
+      real, intent(in) ::  kgc      ! Standard stomatal response rate
+      real, intent(in) ::  gleaf_old ! gleaf at previous timestep
+      real, intent(in) ::  rk3coef    ! runge kutta step
+      
       real, intent (out) :: gleaf   ! leaf stomatal conductance for carbon(m/s)
       real, intent (out) :: Fleaf    
       real, intent (out) :: ci     
@@ -398,7 +408,7 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phi_tot,Hleaf,   &   !in
 
       real     :: CO2ags, gm, fmin0, esatsurf, cfrac !Variables for AGS
       real     :: Ammax, betaw!Variables for AGS
-      real     :: Agl
+      real     :: Agl,gleaf_inf
       ! variables below ma not be necessaruly defined when implemented properly
       real     :: e! needed here as well
       !this line is done in do_lsm, but we put it here because it will change per vert level
@@ -459,22 +469,20 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,phi_tot,Hleaf,   &   !in
       alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
 
       Agl    = fstr * (Am + Rdark) * (1 - exp(-alphac*Hleaf/(Am + Rdark)))
-      gleaf  = gmin/nuco2q +  Agl/(co2abs-ci)
+      gleaf_inf  = gmin/nuco2q +  Agl/(co2abs-ci)
       !gleaf  = gmin/nuco2q +  max(Agl/(co2abs-ci),0.0)  ! put a floor on gleaf to avoid negative values  XPB
+      
+      Fleaf  = -(Agl - Rdark) ! we flip sign here to be consistent with An in old DALES 
 
-     !if (lrelaxgc) then
-     !  if (gc_old_set) then
-     !    gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
-     !    if (rk3step ==3) then
-     !      gc_old(i,j) = gcco2
-     !    endif
-     !  else
-     !    gcco2 = gc_inf
-     !    gc_old(i,j) = gcco2
-     !  endif
-     !else
-     ! gcco2 = gc_inf
-      Fleaf  = -(Agl - Rdark) ! we flip sign here to be consistent with An in old DALES
+      if (lrelaxgc) then
+        if (gc_old_set) then
+          gleaf       = gleaf_old + min(kgc*rk3coef, 1.0) * (gleaf_inf - gleaf_old)
+        else
+          gleaf = gleaf_inf
+        endif
+      else
+        gleaf = gleaf_inf
+      endif 
    return
 end subroutine !Ags
 

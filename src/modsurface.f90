@@ -93,7 +93,7 @@ contains
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
-      lrelaxgc, kgc, lrelaxci, kci, &
+      lrelaxgc_surf, kgc_surf, lrelaxci, kci, &
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
@@ -157,9 +157,9 @@ contains
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
-    call MPI_BCAST(lrelaxgc                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxgc_surf                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(kgc                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(kgc_surf                   ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(kci                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phi                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phifc                      ,            1, MY_REAL    , 0, comm3d, mpierr)
@@ -685,6 +685,16 @@ contains
       if (lsplitleaf) then
         allocate(PARdirField   (2:i1,2:j1))
         allocate(PARdifField   (2:i1,2:j1))
+        allocate(PARleaf_shad(nz_gauss))
+        allocate(PARleaf_allsun(nz_gauss))
+        allocate(PARleaf_sun(nz_gauss,nangle_gauss))
+        allocate(fSL(nz_gauss))
+        allocate(gshad_old(2:i1,2:j1,nz_gauss))
+        if (l3leaves) then
+          allocate(gleafsun_old(2:i1,2:j1,nz_gauss,nangle_gauss))
+        else
+          allocate(gsun_old(2:i1,2:j1,nz_gauss))
+        endif
       endif  
     endif
     return
@@ -1622,12 +1632,6 @@ contains
     endif
     cliq       = 0.
     
-    if (lsplitleaf) then
-      allocate(PARleaf_shad(nz_gauss))
-      allocate(PARleaf_allsun(nz_gauss))
-      allocate(PARleaf_sun(nz_gauss,nangle_gauss))
-      allocate(fSL(nz_gauss))
-    endif  
 
   end subroutine initlsm
 
@@ -1659,7 +1663,7 @@ contains
  
     real     :: Fshad, gshad
     real     :: Fsun , gsun
-    real     :: Fleaf(nangle_gauss), gleaf(nangle_gauss)
+    real     :: Fleafsun(nangle_gauss), gleafsun(nangle_gauss)
     real     :: Fnet(nz_gauss), gnet(nz_gauss)
     real     :: sinbeta,minsinbeta = 1.e-10
     integer  :: angle
@@ -1839,68 +1843,83 @@ contains
             endif !Is chemistry or bulk_micro on?
             linags = .true.
           endif !linags
-          if (lcanopyeb) then
-         !  !we move to the canopy module  
-            call canopyeb(i,j,ps,                                            &  ! in
-                          rs_leafsun_bot,rs_leafshad_bot,fSL_bot,Fco2_can_bot)  ! out
-
-
-            rsAgs = rs_leafsun_bot*fSL_bot + rs_leafshad_bot*(1-fSL_bot)
-            gcco2 = 1.0 / (1.6 * rsAgs)
-            rsCO2 = 1.6 * rsAgs
-            An = Fco2_can_bot
-
-          else
-            if (lsplitleaf) then
-              call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo(i,j),& ! in! 
-                   PARleaf_shad,PARleaf_sun,fSL)
-              do itg = 1,nz_gauss
-                !shaded
-                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PARleaf_shad(itg), & ! in
-                           gshad,Fshad,ci,&                                  !out
-                           fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)   !out
-                !sunny
-                if (l3leaves) then      ! 3 angles for sunny leaves
-                  do angle=1,nangle_gauss
-                    call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PARleaf_sun(itg,angle), & ! in
-                               gleaf(angle),Fleaf(angle),ci,&   !out
-                               fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) !out, not needed here
-                  end do
-                  Fsun   = sum(weight_g * Fleaf(1:nangle_gauss))
-                  gsun   = sum(weight_g * gleaf(1:nangle_gauss))
-                else ! angles PAR are averaged
-                  PARleaf_allsun   = sum(weight_g * PARleaf_sun(itg,1:nangle_gauss))
-                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PARleaf_allsun(itg), & !
-                             gsun,Fsun,ci,&
-                             fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)
-                end if
-                Fnet(itg) = Fsun * fSL(itg) + Fshad * (1 - fSL(itg))
-                gnet(itg) = gsun * fSL(itg) + gshad * (1 - fSL(itg))
-              end do
+          if (lsplitleaf) then
+            call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo(i,j),& ! in! 
+                 PARleaf_shad,PARleaf_sun,fSL)
+            do itg = 1,nz_gauss
+              !shaded
+              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),  & ! in
+                         phitot(i,j),PARleaf_shad(itg), & ! in 
+                         lrelaxgc_surf,gcsurf_old_set,kgc_surf,gshad_old(i,j,itg),rk3coef, & ! in
+                         gshad,Fshad,ci,&                                  !out
+                         fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)   !out
+              !sunny
+              if (l3leaves) then      ! 3 angles for sunny leaves
+                do angle=1,nangle_gauss
+                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j), & ! in
+                             phitot(i,j),PARleaf_sun(itg,angle),  & ! in
+                             lrelaxgc_surf,gcsurf_old_set,kgc_surf,gleafsun_old(i,j,itg,angle),rk3coef, & ! in
+                             gleafsun(angle),Fleafsun(angle),ci,&   !out
+                             fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) !out, not needed here
+                end do
+                if (lrelaxgc_surf) then
+                  if (gcsurf_old_set .and. rk3step ==3) then
+                    gshad_old(i,j,itg) = gshad
+                    gleafsun_old(i,j,itg,:) = gleafsun(:)
+                  else if (.not. gcsurf_old_set)then
+                    gshad_old(i,j,itg) = gshad
+                    gleafsun_old(i,j,itg,:) = gleafsun(:)
+                  endif
+                endif
+                Fsun   = sum(weight_g * Fleafsun(1:nangle_gauss))
+                gsun   = sum(weight_g * gleafsun(1:nangle_gauss))
+              else ! angles PAR are averaged
+                PARleaf_allsun   = sum(weight_g * PARleaf_sun(itg,1:nangle_gauss))
+                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j), & ! in
+                           phitot(i,j),PARleaf_allsun(itg), & ! in
+                           lrelaxgc_surf,gcsurf_old_set,kgc_surf,gsun_old(i,j,itg),rk3coef,& !
+                           gsun,Fsun,ci,&
+                           fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)
+                if (lrelaxgc_surf) then
+                  if (gcsurf_old_set .and. rk3step ==3) then
+                    gshad_old(i,j,itg) = gshad
+                    gsun_old(i,j,itg) = gsun
+                  else if (.not. gcsurf_old_set) then
+                    gshad_old(i,j,itg) = gshad
+                    gsun_old(i,j,itg) = gsun
+                  endif
+                endif
+              end if
+              Fnet(itg) = Fsun * fSL(itg) + Fshad * (1 - fSL(itg))
+              gnet(itg) = gsun * fSL(itg) + gshad * (1 - fSL(itg))
+            end do
+          
+            An       = LAI(i,j) * sum(weight_g * Fnet) ! temporary An
+            gcco2    = LAI(i,j) * sum(weight_g * gnet)
+          else ! lsplitleaf
+            if (lcanopyeb) then
+            ! move to the canopy module  
+              call canopyeb(i,j,ps,rk3coef)           ! in
+            endif ! lcanopyeb  
+             ! and for understory vegetation:
             
-              An       = LAI(i,j) * sum(weight_g * Fnet)
-              gc_inf   = LAI(i,j) * sum(weight_g * gnet)
-            else! if (.not. lsplitleaf)
-              !upscaling following Ronda et al
-              PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
-         
-              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),phitot(i,j),PAR, & ! in
-                         gshad,Fshad,ci, & ! these 3 are irrelevant here
-                         fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! out
-         
-              ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-              AGSa1    = 1.0 / (1 - f0)
-              Dstar    = D0 / (AGSa1 * (f0 - fmin))
-         
-              tempy    = alphac * Kx * PAR / (Am + Rdark)
-              An       = (Am + Rdark) * (1 - 1.0 / (Kx * LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
-              gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
-        
-            end if ! splitleaf
-         
-            if (lrelaxgc) then
-              if (gc_old_set) then
-                gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+            !upscaling following Ronda et al
+            PAR      = 0.50 * max(0.1,abs(swd(i,j,1))) !
+            call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),& ! in
+                       phitot(i,j),PAR, & ! in
+                       lrelaxgc_surf,gcsurf_old_set,kgc_surf,gc_old(i,j),rk3coef,   & ! in
+                       gshad,Fshad,ci, & ! these 3 are irrelevant here
+                       fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! out
+          ! Calculate upscaling from leaf to canopy: net flow  CO2 into the plant (An)
+            AGSa1    = 1.0 / (1 - f0)
+            Dstar    = D0 / (AGSa1 * (f0 - fmin))
+            
+            tempy    = alphac * Kx * PAR / (Am + Rdark)
+            An       = (Am + Rdark) * (1 - 1.0 / (Kx *  LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
+            gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+            if (lrelaxgc_surf) then
+              if (gcsurf_old_set) then
+                gcco2       = gc_old(i,j) + min(kgc_surf*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
                 if (rk3step ==3) then
                   gc_old(i,j) = gcco2
                 endif
@@ -1911,17 +1930,17 @@ contains
             else
               gcco2 = gc_inf
             endif
+          end if ! splitleaf
+         
 
-            ! Calculate surface resistances for moisture and carbon dioxide
-            rsAgs    = 1.0 / (nuco2q * gcco2)
-            rsCO2    = 1.0 / gcco2
+          ! Calculate surface resistances for moisture and carbon dioxide
+          rsAgs    = 1.0 / (nuco2q * gcco2)
+          rsCO2    = 1.0 / gcco2
           
           
-            ! Calculate net flux of CO2 into the plant (An)
-            An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
+          ! Calculate net flux of CO2 into the plant (An)
+          An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
 
-          endif !canopyeb
-            
           rsveg(i,j) = rsAgs
 
           ! CO2 soil respiraion surface flux
@@ -2110,9 +2129,9 @@ contains
       end do
     end do
 
-    if (lrelaxgc .and. (.not. gc_old_set) ) then
+    if (lrelaxgc_surf .and. (.not. gcsurf_old_set) ) then
       if (rk3step == 3) then
-        gc_old_set = .true.
+        gcsurf_old_set = .true.
       endif
     endif
 
