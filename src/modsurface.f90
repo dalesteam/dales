@@ -93,7 +93,7 @@ contains
       ! AGS variables
       lrsAgs, lCO2Ags,planttype, &
       ! Delay plant response in Ags
-      lrelaxgc_surf, kgc_surf, lrelaxci, kci, &
+      lrelaxgc_surf, kgc_surf, lrelaxci_surf, kci_surf, &
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
@@ -157,10 +157,10 @@ contains
     call MPI_BCAST(xpatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(ypatches                   ,            1, MPI_INTEGER, 0, comm3d, mpierr)
     call MPI_BCAST(planttype                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
-    call MPI_BCAST(lrelaxgc_surf                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
-    call MPI_BCAST(lrelaxci                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxgc_surf              ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxci_surf              ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(kgc_surf                   ,            1, MY_REAL    , 0, comm3d, mpierr)
-    call MPI_BCAST(kci                        ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(kci_surf                   ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phi                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phifc                      ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
@@ -1663,7 +1663,7 @@ contains
  
     real     :: Fshad, gshad
     real     :: Fsun , gsun
-    real     :: Fleafsun(nangle_gauss), gleafsun(nangle_gauss)
+    real     :: Fleafsun(nangle_gauss),gleafsun(nangle_gauss)
     real     :: Fnet(nz_gauss), gnet(nz_gauss)
     real     :: sinbeta,minsinbeta = 1.e-10
     integer  :: angle
@@ -1851,6 +1851,7 @@ contains
               call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),  & ! in
                          phitot(i,j),PARleaf_shad(itg), & ! in 
                          lrelaxgc_surf,gcsurf_old_set,kgc_surf,gshad_old(i,j,itg),rk3coef, & ! in
+                         lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j), & ! in
                          gshad,Fshad,ci,&                                  !out
                          fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)   !out
               !sunny
@@ -1859,6 +1860,7 @@ contains
                   call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j), & ! in
                              phitot(i,j),PARleaf_sun(itg,angle),  & ! in
                              lrelaxgc_surf,gcsurf_old_set,kgc_surf,gleafsun_old(i,j,itg,angle),rk3coef, & ! in
+                             lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j), & ! in
                              gleafsun(angle),Fleafsun(angle),ci,&   !out
                              fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) !out, not needed here
                 end do
@@ -1878,6 +1880,7 @@ contains
                 call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j), & ! in
                            phitot(i,j),PARleaf_allsun(itg), & ! in
                            lrelaxgc_surf,gcsurf_old_set,kgc_surf,gsun_old(i,j,itg),rk3coef,& !
+                           lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j),& !
                            gsun,Fsun,ci,&
                            fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)
                 if (lrelaxgc_surf) then
@@ -1889,13 +1892,20 @@ contains
                     gsun_old(i,j,itg) = gsun
                   endif
                 endif
-              end if
-              Fnet(itg) = Fsun * fSL(itg) + Fshad * (1 - fSL(itg))
-              gnet(itg) = gsun * fSL(itg) + gshad * (1 - fSL(itg))
+              end if ! l3leaves
+              Fnet(itg)  = Fsun * fSL(itg) + Fshad * (1 - fSL(itg))
+              gnet(itg)  = gsun * fSL(itg) + gshad * (1 - fSL(itg))
             end do
           
             An       = LAI(i,j) * sum(weight_g * Fnet) ! temporary An
             gcco2    = LAI(i,j) * sum(weight_g * gnet)
+            if (lrelaxci_surf) then
+              if (cisurf_old_set .and. rk3step ==3) then
+                ci_old(i,j) = ci
+              else if (.not. gcsurf_old_set)then
+                ci_old(i,j) = ci
+              endif
+            endif
           else ! lsplitleaf
             if (lcanopyeb) then
             ! move to the canopy module  
@@ -1908,7 +1918,8 @@ contains
             call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),& ! in
                        phitot(i,j),PAR, & ! in
                        lrelaxgc_surf,gcsurf_old_set,kgc_surf,gc_old(i,j),rk3coef,   & ! in
-                       gshad,Fshad,ci, & ! these 3 are irrelevant here
+                       lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j),           & ! in
+                       gshad,Fshad,ci, & ! first 2 are irrelevant here
                        fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! out
           ! Calculate upscaling from leaf to canopy: net flow  CO2 into the plant (An)
             AGSa1    = 1.0 / (1 - f0)
@@ -1930,13 +1941,21 @@ contains
             else
               gcco2 = gc_inf
             endif
+
+            if (lrelaxci_surf) then
+              if (cisurf_old_set .and. rk3step ==3) then
+                ci_old(i,j) = ci
+              else if (.not. cisurf_old_set) then
+                ci_old(i,j) = ci
+              endif
+            endif !lrelaxci_surf  
+
           end if ! splitleaf
          
 
           ! Calculate surface resistances for moisture and carbon dioxide
           rsAgs    = 1.0 / (nuco2q * gcco2)
           rsCO2    = 1.0 / gcco2
-          
           
           ! Calculate net flux of CO2 into the plant (An)
           An       = - (co2abs - ci) / (ra(i,j) + rsCO2)
@@ -2135,9 +2154,9 @@ contains
       endif
     endif
 
-    if (lrelaxci .and. (.not. ci_old_set) ) then
+    if (lrelaxci_surf .and. (.not. cisurf_old_set) ) then
       if (rk3step == 3) then
-        ci_old_set = .true.
+        cisurf_old_set = .true.
       endif
     endif
 

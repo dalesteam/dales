@@ -63,8 +63,11 @@ module modcanopy
   real     :: lwidth       = 0.02      !< !leaf width/shoot diameter [m]                              
   real     :: llength      = 0.1       !< leaf/shoot length [m]                                      
   logical  :: lrelaxgc_can = .false.   !< Switch to delay plant response at canopy.Timescale is equal to 1/kgc_can
-  real     :: kgc_can      = 0.00113   !< Standard stomatal response rate at surface(corresponding to a time scale of 14.75 m min.) [1/s]
-  logical  :: gccan_old_set = .false.  !<  Only apply relaxing function to canopy after initial gc is calculated once for surface
+  real     :: kgc_can      = 0.00113   !< Standard stomatal response rate at canopy (corresponding to a time scale of 14.75 m min.) [1/s]
+  logical  :: gccan_old_set = .false.  !< Only apply relaxing function to canopy after initial gc is calculated once for surface
+  logical  :: lrelaxci_can = .false.   !< Switch to delay internal CO2 concentration in canopy leafs.Timescale is equal to 1/kgc_can
+  real     :: kci_can      = 0.00113   !< Standard internal CO2 concentration response rate at canopy (corresponding to a time scale of 14.75 m min.) [1/s]
+  logical  :: cican_old_set = .false.  !< Only apply relaxing function to canopy after initial ci is calculated once for surface
 
   real, allocatable :: cPARleaf_shad   (:)     !< PAR at shaded leaves per canopy vertical level [W m-2]
   real, allocatable :: cPARleaf_sun    (:,:)   !< PAR at sunny leaves per vertical level and leaf orientation [W m-2]
@@ -98,11 +101,13 @@ module modcanopy
   real, allocatable :: S_qt            (:,:,:) !< Moisture source/sink due to canopy[Kg_w Kg_a-1 s-1]
   real, allocatable :: S_co2           (:,:,:) !< CO2 source/sink due to canopy [ppb s-1]
   real, allocatable :: gcc_leafshad    (:,:,:) !< carbon stomatal conductance at shaded leaves [m s-1]
-  real, allocatable :: gcc_leafshad_old (:,:,:) !< carbon stomatal conductance at shaded leaves in previous timestep[m s-1]
+  real, allocatable :: gcc_leafshad_old(:,:,:) !< carbon stomatal conductance at shaded leaves in previous timestep[m s-1]
   real, allocatable :: gcc_leafsun     (:,:,:) !< carbon stomatal conductance at sunny leaves [m s-1]
-  real, allocatable :: gcc_leafsun_old  (:,:,:) !< carbon stomatal conductance at sunny leaves in previous timestep[m s-1]
+  real, allocatable :: gcc_leafsun_old (:,:,:) !< carbon stomatal conductance at sunny leaves in previous timestep[m s-1]
   real, allocatable :: ci_leafshad     (:,:,:) !< internal carbon concentration at shaded leaves [mg m-3]
+  real, allocatable :: ci_leafshad_old (:,:,:) !< internal carbon concentration at shaded leaves in previous timestep[mg m-3]
   real, allocatable :: ci_leafsun      (:,:,:) !< internal carbon concentration at sunny leaves  [mg m-3]
+  real, allocatable :: ci_leafsun_old  (:,:,:) !< internal carbon concentration at sunny leaves in previous timestep[ [mg m-3]
 
 contains
 !-----------------------------------------------------------------------------------------
@@ -118,7 +123,8 @@ contains
     namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai_can, lpaddistr, npaddistr, &
                         wth_total, wqt_total, wsv_total, wth_can, wqt_can, wsv_can, &
                         wth_alph, wqt_alph, wsv_alph, &
-                        lcanopyeb,lwidth,llength,transpiretype,leaf_eps,lrelaxgc_can,kgc_can
+                        lcanopyeb,lwidth,llength,transpiretype,leaf_eps,&
+                        lrelaxgc_can,kgc_can,lrelaxci_can,kci_can
 
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -156,6 +162,8 @@ contains
     call MPI_BCAST(leaf_eps     ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxgc_can ,   1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(kgc_can      ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lrelaxci_can ,   1, mpi_logical , 0, comm3d, mpierr)
+    call MPI_BCAST(kci_can      ,   1, my_real     , 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
 
@@ -278,7 +286,9 @@ contains
     allocate(gcc_leafshad_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(gcc_leafsun_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(ci_leafshad(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(ci_leafshad_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(ci_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(ci_leafsun_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
 
     return
     
@@ -390,7 +400,9 @@ contains
     deallocate(gcc_leafshad_old)
     deallocate(gcc_leafsun_old)
     deallocate(ci_leafshad)
+    deallocate(ci_leafshad_old)
     deallocate(ci_leafsun)
+    deallocate(ci_leafsun_old)
     return
   end subroutine exitcanopy
   subroutine canopyeb(i,j,ps,rk3coef)                                       ! in
@@ -453,7 +465,8 @@ contains
      !shaded
       call leafeb_ags(cPARleaf_shad(k_can), LWin_leafshad(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
                       tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),       & ! in
-                      rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),gcc_leafshad_old(i,j,k_can),rk3coef,                                      & ! in
+                      rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                                      & ! in
+                      gcc_leafshad_old(i,j,k_can),ci_leafshad_old(i,j,k_can),rk3coef,                       & ! in
                       tleaf_shad(k_can), gcc_leafshad(i,j,k_can), rb_leafshad(k_can),ci_leafshad(i,j,k_can),& ! inout
                       sh_leafshad(k_can), le_leafshad(k_can), LWout_leafshad(k_can),An_leafshad(k_can))       ! out
       LWnet_leafshad(k_can) = LWin_leafshad(k_can) - LWout_leafshad(k_can)
@@ -464,6 +477,13 @@ contains
           gcc_leafshad_old(i,j,k_can) = gcc_leafshad(i,j,k_can)
         endif
       endif
+      if (lrelaxci_can) then
+        if (cican_old_set .and. rk3step ==3) then
+            ci_leafshad_old(i,j,k_can) = ci_leafshad(i,j,k_can)
+        else if (.not. cican_old_set) then
+          ci_leafshad_old(i,j,k_can) = ci_leafshad(i,j,k_can)
+        endif
+      endif
 
       !sunny
       if (l3leaves) then
@@ -472,7 +492,8 @@ contains
       !do angle=1,nangle_gauss
       !  call leafeb_ags(PARleaf_sun(k_can,angle), LWin_leafsun(k_can,angle), leaf_eps, transpiretype, lwidth, llength, &
       !                  tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),           & ! in
-      !                  rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),gcc_leafsun_old(i,j,k_can,angle) ,rk3coef,               & ! additonal variables needed (Xabi)
+      !                  rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j), & 
+      !                  gcc_leafsun_old(i,j,k_can,angle),ci_leafsun_old(i,j,k_can,angle),rk3coef, & ! additonal variables needed (Xabi)
       !                  tleaf_sun(k_can,angle), gcc_leafsun(i,j,k_can,angle), rb_leafsun(k_can,angle),ci_leafshad(i,j,k_can,angle),& !
       !                  sh_leafsun(k_can,angle), le_leafsun(k_can,angle), LWout_leafsun(k_can,angle))
       !   LWnet_leafsun(k_can,angle) = LWin_leafsun(k_can,angle) - LWout_leafsun(k_can,angle)
@@ -481,6 +502,13 @@ contains
       !      gcc_leafsun_old(i,j,k_can,angle) = gcc_leafshad(i,j,k_can,angle)
       !     else if (.not. gccan_old_set) then
       !      gcc_leafsun_old(i,j,k_can,angle) = gcc_leafshad(i,j,k_can,angle)
+      !    endif
+      !  endif
+      !  if (lrelaxci_can) then
+      !    if (cican_old_set .and. rk3step ==3) then
+      !      ci_leafsun_old(i,j,k_can,angle) = ci_leafshad(i,j,k_can,angle)
+      !     else if (.not. cican_old_set) then
+      !      ci_leafsun_old(i,j,k_can,angle) = ci_leafshad(i,j,k_can,angle)
       !    endif
       !  endif
       !
@@ -493,7 +521,8 @@ contains
         cPARleaf_allsun   = sum(weight_g *  cPARleaf_sun(k_can,1:nangle_gauss))
         call leafeb_ags(cPARleaf_allsun(k_can), LWin_leafsun(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
                         tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),                       & ! i
-                        rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),gcc_leafsun_old(i,j,k_can),rk3coef,                       & ! additonal variables needed
+                        rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j), &
+                        gcc_leafsun_old(i,j,k_can),ci_leafsun_old(i,j,k_can),rk3coef,                     & ! additonal variables needed
                         tleaf_sun(k_can), gcc_leafsun(i,j,k_can), rb_leafsun(k_can),ci_leafsun(i,j,k_can),& !
                         sh_leafsun(k_can), le_leafsun(k_can), LWout_leafsun(k_can),An_leafsun(k_can))                   !
         LWnet_leafsun(k_can) = LWin_leafsun(k_can) - LWout_leafsun(k_can)
@@ -502,6 +531,13 @@ contains
               gcc_leafsun_old(i,j,k_can) = gcc_leafsun(i,j,k_can)
           else if (.not. gccan_old_set) then
             gcc_leafsun_old(i,j,k_can) = gcc_leafsun(i,j,k_can)
+          endif
+        endif
+        if (lrelaxci_can) then
+          if (cican_old_set .and. rk3step ==3) then
+              ci_leafsun_old(i,j,k_can) = ci_leafsun(i,j,k_can)
+          else if (.not. cican_old_set) then
+            ci_leafsun_old(i,j,k_can) = ci_leafsun(i,j,k_can)
           endif
         endif
       endif !l3leaves
@@ -537,6 +573,11 @@ contains
        gccan_old_set = .true.
      endif
    endif
+   if (lrelaxci_can .and. (.not. cican_old_set) ) then
+     if (rk3step == 3) then
+       cican_old_set = .true.
+     endif
+   endif  
 
   end subroutine canopyeb
   subroutine canopyu (putout)
@@ -755,7 +796,7 @@ subroutine canopysource(     sunleafsh, shadeleafsh,             &
 subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incoming
                           tairk, humidairpa,qtair, ws, pres,         & ! in     
                           !, cantype, vegtyp,                    &
-                          rho, CO2air, phi_tot,gcc_old,rk3coef,      &  ! additonal in variables needed (XPB)
+                          rho, CO2air, phi_tot,gcc_old,ci_old,rk3coef,      &  ! additonal in variables needed (XPB)
                           tleaf, gccleaf,rb,ci,                         & ! in/out
                           sh, le, LWout,                             & ! out
                           An)                                        ! out extra by XPB
@@ -801,6 +842,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
                               CO2air,           &      ! atmospheric CO2 concentration [ppb]
                               phi_tot,          &      ! Total soil water content [-]
                               gcc_old,          &      ! gc in previous timestep
+                              ci_old,           &      ! ci in previous timestep
                               rk3coef                  ! runge-kutta timestep
                               !dt,               &      ! time-step duration [s]
                               !psir,             &      ! root-zone soil water potential [m]
@@ -837,7 +879,6 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        integer :: ii
        real    :: gb
        real    :: wind
-       real    :: ci_old
        real    :: tdelt
        real    :: tleaf_l, tleaf_r
        real    :: rr_l, rr_r
@@ -865,7 +906,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
        ! --- make sure gs_old has last timestep's value (mainly for restart)
        !gs_old = 1. /  rs
-       ci_old  = ci
+       !ci_old  = ci
 
        ! --- convert air vapor pressure from  [Pa] to [kg m-3]
 
@@ -909,7 +950,8 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !xabi edit
        call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_l,&           ! in
                   phi_tot,i_s, &  ! in
-                  lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   &   ! in
+                  lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   & ! in
+                  lrelaxci_can,cican_old_set,kci_can,ci_old, &            ! in
                   gccleaf,Fleaf,ci,&                                 !out
                   fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out
 
@@ -937,6 +979,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_r,&           !in
                   phi_tot,i_s, & ! in
                   lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   &   ! in
+                  lrelaxci_can,cican_old_set,kci_can,ci_old, &            ! in
                   gccleaf,Fleaf,ci,&                                 !out
                   fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out 
 
@@ -994,6 +1037,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
           call f_Ags(CO2air,qtair,rho,tairk,pres,t_g,&             !in
                      phi_tot,i_s, & ! in
                      lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   &   ! in
+                     lrelaxci_can,cican_old_set,kci_can,ci_old, &              ! in
                      gccleaf,Fleaf,ci,&                                 !out
                      fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out
 
@@ -1114,10 +1158,10 @@ real function leafco2f(co2abs, ci, gb, gcc, transpiretype)
    real          :: gbv ! boundary layer water vapor conductance [m s-1]
    real          :: co2f ! net assimilation rate [mg C m-2 s-1]
    gbv =  1.075 * gb ! Goudriaan and van laar 1994
-   co2f = (co2abs-ci) / ( (1./gcc) + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
+   co2f = -(co2abs-ci) / ( (1./gcc) + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
    !co2f = (co2abs-ci) / ( 1.6*rs + 1.4* (1./gbv))! Eq 8.13,"Modelling potential growth processes",Goudriaan and van Laar 1994.
    
-   leafco2f = transpiretype * co2f ! if it transpires, it also absorbs co2
+   leafco2f = transpiretype * co2f ! if it transpires water vapor, it also absorbs co2
  
 end function leafco2f
 

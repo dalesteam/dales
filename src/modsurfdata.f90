@@ -123,19 +123,19 @@ SAVE
 
   ! AGS options (require interactive landsurface: isurf=2)
   !<Namelist options
-  logical           :: lrsAgs     = .false.!<  Switch to apply AGS to calculate resistances
-  logical           :: lCO2Ags    = .false.!<  Switch to calculate CO2 fluxes with AGS
-  integer           :: planttype  = 3      !<  Integer to switch between (C)3 and (C)4 plants
+  logical           :: lrsAgs        = .false.!<  Switch to apply AGS to calculate resistances
+  logical           :: lCO2Ags       = .false.!<  Switch to calculate CO2 fluxes with AGS
+  integer           :: planttype     = 3      !<  Integer to switch between (C)3 and (C)4 plants
   logical           :: lrelaxgc_surf = .false.!<  Switch to delay plant response at surface. Timescale is equal to 1/kgc_surf
-  real              :: kgc_surf   = 0.00113!<  Standard stomatal response rate at surface(corresponding to a time scale of 14.75 min.) [1/s]
-  real              :: kci        = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  real              :: kgc_surf      = 0.00113!<  Standard stomatal response rate at surface(corresponding to a time scale of 14.75 min.) [1/s]
+  logical           :: gcsurf_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once for surface
+  logical           :: lrelaxci_surf  = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
+  real              :: kci_surf       = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
+  logical           :: cisurf_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
   real, allocatable :: gc_old       (:,:)  !<  Old value for gc
   real              :: gc_inf              !<  Attractor for stomatal response rate
-  logical           :: gcsurf_old_set = .false.!<  Only apply relaxing function after initial gc is calculated once for surface
-  logical           :: lrelaxci   = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
   real, allocatable :: ci_old       (:,:)  !<  Old value for ci
   real              :: ci_inf              !<  Attractor for ci
-  logical           :: ci_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
   real              :: wco2av     = 0.0
   real              :: Anav       = 0.0
   real              :: gcco2av    = 0.0
@@ -373,6 +373,7 @@ end subroutine ! canopyrad
 subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
                  phi_tot,Hleaf,& ! in
                  lrelaxgc,gc_old_set,kgc,gleaf_old,rk3coef,   &   !in
+                 lrelaxci,ci_old_set,kci,ci_old,              &   !in
                  gleaf,Fleaf,ci,&
                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! additional out for 1leaf upscaling
 
@@ -387,11 +388,16 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
       real, intent(in) ::  t_skin   ! surface or leaf skin temperature (K)
       real, intent(in) ::  phi_tot  ! Total soil water content [-]
       real, intent(in) ::  Hleaf    ! surface or leaf skin temperature (K)
-      logical, intent(in) ::  lrelaxgc ! if true, lag in plant response
+      logical, intent(in) ::  lrelaxgc ! if true, lag in plant stomatal response
       logical, intent(in) ::  gc_old_set !false at first timestep, true at any  other
       real, intent(in) ::  kgc      ! Standard stomatal response rate
       real, intent(in) ::  gleaf_old ! gleaf at previous timestep
       real, intent(in) ::  rk3coef    ! runge kutta step
+      logical, intent(in) ::  lrelaxci ! if true, lag in plant internal carbon response
+      logical, intent(in) ::  ci_old_set !false at first timestep, true at any  other
+      real, intent(in) ::  kci           ! Standard internal co2 concentration response rate
+      real, intent(in) ::  ci_old        ! ci at previous timestep
+      
       
       real, intent (out) :: gleaf   ! leaf stomatal conductance for carbon(m/s)
       real, intent (out) :: Fleaf    
@@ -436,20 +442,12 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
       cfrac    = f0 * (1.0 - Ds/D0) + fmin * (Ds/D0)
       co2abs   = CO2ags * (MW_CO2/MW_Air) * dens
 
-    ! if (lrelaxci) then
-    !   if (ci_old_set) then
-    !     ci_inf        = cfrac * (co2abs - CO2comp) + CO2comp
-    !     ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
-    !     if (rk3step  == 3) then
-    !       ci_old(i,j) = ci
-    !     endif
-    !   else
-    !     ci            = cfrac * (co2abs - CO2comp) + CO2comp
-    !     ci_old(i,j)   = ci
-    !   endif
-    !  else
-      ci              = cfrac * (co2abs - CO2comp) + CO2comp
-    !  endif
+      ci_inf   = cfrac * (co2abs - CO2comp) + CO2comp
+      if (lrelaxci .and. ci_old_set) then
+        ci            = ci_old + min(kci*rk3coef, 1.0) * (ci_inf - ci_old)
+      else
+        ci            = ci_inf
+      endif
 
       ! Calculate maximal gross primary production in high light conditions (Ag)
       Ammax    = Ammax298 * Q10am ** ( 0.1 * ( tairk - 298.0) ) / ( (1.0 + exp(0.3 * ( T1Am - tairk ))) * (1. + exp(0.3 * ( tairk - T2Am))) )
@@ -474,14 +472,10 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
       
       Fleaf  = -(Agl - Rdark) ! we flip sign here to be consistent with An in old DALES 
 
-      if (lrelaxgc) then
-        if (gc_old_set) then
+      if (lrelaxgc .and. gc_old_set) then
           gleaf       = gleaf_old + min(kgc*rk3coef, 1.0) * (gleaf_inf - gleaf_old)
         else
           gleaf = gleaf_inf
-        endif
-      else
-        gleaf = gleaf_inf
       endif 
    return
 end subroutine !Ags
