@@ -34,7 +34,7 @@ implicit none
 PUBLIC :: initcanstat, canstat, exitcanstat
 save
 !NetCDF variables
-  integer,parameter :: nvar = 8
+  integer,parameter :: nvar = 9
   character(80),dimension(nvar,4) :: ncname
 
   real    :: dtav, timeav
@@ -51,6 +51,7 @@ save
   real, allocatable :: sthetaav (:)  
   real, allocatable :: sqtav    (:) 
   real, allocatable :: sco2av   (:)  
+  real, allocatable :: cfSLav   (:)  
   
   real, allocatable :: shcanmn  (:)   
   real, allocatable :: lecanmn  (:)  
@@ -58,6 +59,7 @@ save
   real, allocatable :: sthetamn (:)  
   real, allocatable :: sqtmn    (:) 
   real, allocatable :: sco2mn   (:)  
+  real, allocatable :: cfSLmn   (:)  
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -117,6 +119,7 @@ contains
     allocate(sthetaav (ncanopy))
     allocate(sqtav    (ncanopy))
     allocate(sco2av   (ncanopy))
+    allocate(cfSLav   (ncanopy))
 
     allocate(shcanmn  (ncanopy))
     allocate(lecanmn  (ncanopy))
@@ -124,6 +127,7 @@ contains
     allocate(sthetamn (ncanopy))
     allocate(sqtmn    (ncanopy))
     allocate(sco2mn   (ncanopy))
+    allocate(cfSLmn   (ncanopy))
 
     shcanmn   = 0.0
     lecanmn   = 0.0
@@ -131,6 +135,7 @@ contains
     sthetamn  = 0.0
     sqtmn     = 0.0
     sco2mn    = 0.0
+    cfSLmn    = 0.0
 
     if(myid==0)then
       open (ifoutput,file='canstat.'//cexpnr,status='replace')
@@ -146,12 +151,13 @@ contains
       if (myid==0) then
         call ncinfo(ncname( 1,:),'padf','Plant area density at full level','m^2/m^3','tt')
         call ncinfo(ncname( 2,:),'pai','Plant area index','m^2/m^2','tt')
-        call ncinfo(ncname( 3,:),'shcan','Canopy sensible heat source','W/m^3','tt')
-        call ncinfo(ncname( 4,:),'lecan','Canopy latent heat source','W/m^3','tt')
-        call ncinfo(ncname( 5,:),'fco2can','Canopy CO2 source','mg C/(s m^3)','tt')
-        call ncinfo(ncname( 6,:),'sthetamn','Canopy temperature tendency','K/s','tt')
-        call ncinfo(ncname( 7,:),'sqtmn','Canopy specific humidity tendency','Kg_w/Kg_a/s','tt')
-        call ncinfo(ncname( 8,:),'sco2mn','Canopy CO2 tendency','ppb/s','tt')
+        call ncinfo(ncname( 3,:),'cfSL','Fraction of sunlit leaves in canopy','-','tt')
+        call ncinfo(ncname( 4,:),'shcan','Canopy sensible heat source','W/m^3','tt')
+        call ncinfo(ncname( 5,:),'lecan','Canopy latent heat source','W/m^3','tt')
+        call ncinfo(ncname( 6,:),'fco2can','Canopy CO2 source','mg C/(s m^3)','tt')
+        call ncinfo(ncname( 7,:),'sthetamn','Canopy temperature tendency','K/s','tt')
+        call ncinfo(ncname( 8,:),'sqtmn','Canopy specific humidity tendency','Kg_w/Kg_a/s','tt')
+        call ncinfo(ncname( 9,:),'sco2mn','Canopy CO2 tendency','ppb/s','tt')
 
         call define_nc( ncid_prof, NVar, ncname)
       end if
@@ -186,7 +192,7 @@ contains
 
     use modmpi,    only : slabsum
     use modglobal, only : ijtot,i1,j1,ih,jh
-    use modcanopy, only : S_theta,S_qt,S_co2,sh_can,le_can,Fco2_can,ncanopy
+    use modcanopy, only :    S_theta,S_qt,S_co2,sh_can,le_can,Fco2_can,ncanopy,cfSL
     implicit none
 
     shcanav   = 0.
@@ -195,6 +201,7 @@ contains
     sthetaav  = 0.
     sqtav     = 0.
     sco2av    = 0.
+    cfSLav    = 0.
 
     call slabsum(shcanav  ,1,ncanopy, sh_can  ,2-ih,i1+ih,2-jh,j1+jh,1,ncanopy,2,i1,2,j1,1,ncanopy)
     call slabsum(lecanav  ,1,ncanopy, le_can  ,2-ih,i1+ih,2-jh,j1+jh,1,ncanopy,2,i1,2,j1,1,ncanopy)
@@ -203,6 +210,7 @@ contains
     call slabsum(sqtav    ,1,ncanopy, S_qt    ,2-ih,i1+ih,2-jh,j1+jh,1,ncanopy,2,i1,2,j1,1,ncanopy)
     call slabsum(sco2av   ,1,ncanopy, S_co2   ,2-ih,i1+ih,2-jh,j1+jh,1,ncanopy,2,i1,2,j1,1,ncanopy)
 
+    cfSLav = cfSL  ! no slab average needed as it only depends on time, not on space
  !    ADD SLAB AVERAGES TO TIME MEAN
 
     shcanmn      = shcanmn     + shcanav     / ijtot
@@ -211,6 +219,7 @@ contains
     sthetamn     = sthetamn    + sthetaav    / ijtot
     sqtmn        = sqtmn       + sqtav       / ijtot
     sco2mn       = sco2mn      + sco2av      / ijtot
+    cfSLmn       = cfSLmn      + cfSLav
 
   end subroutine do_canstat
 
@@ -237,6 +246,7 @@ contains
       shcanmn    = shcanmn    /nsamples
       lecanmn    = lecanmn    /nsamples
       fco2canmn  = fco2canmn  /nsamples
+      cfSLmn     = cfSLmn     /nsamples
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -250,13 +260,14 @@ contains
       ,'   HRS:MIN:SEC AFTER INITIALIZATION '
       write (ifoutput,'(A/2A/2A)') &
           '#--------------------------------------------------------------------------' &
-          ,'#LEV     HEIGHT      PAD         PAI       SH_CAN       LE_CAN       ' & 
+          ,'#LEV     HEIGHT      PAD         PAI      cfSL       SH_CAN       LE_CAN       ' & 
           ,'FCO2_CAN      S_THETA       S_QT        S_CO2' &
-          ,'#          (M)   (M^2/M^3)     (M^2/M^2)   (W/M^3)       ' &
+          ,'#          (M)   (M^2/M^3)     (M^2/M^2)   (-)      (W/M^3)       ' &
           ,'(W/M^3)  (mg C / S / M^3)  (K/S)      (KG/(KG S)   (PPB/S)'
       do k=1,ncanopy
-        write(ifoutput,'(I4,F10.2,8E13.4)') &
-            k,zf(k),padf(k),pai(k), & 
+        write(ifoutput,'(I4,F10.2,9E13.4)') &
+            k,zf(k),padf(k),pai(k),&
+            cfSLmn(k), & 
             shcanmn(k),  &
             lecanmn(k),  &
             fco2canmn(k),&
@@ -269,17 +280,19 @@ contains
       if (lnetcdf) then
         vars(:, 1) = padf
         vars(:, 2) = pai
-        vars(:, 3) = shcanmn
-        vars(:, 4) = lecanmn
-        vars(:, 5) = fco2canmn
-        vars(:, 6) = sthetamn
-        vars(:, 7) = sqtmn
-        vars(:, 8) = sco2mn
+        vars(:, 3) = cfSLmn
+        vars(:, 4) = shcanmn
+        vars(:, 5) = lecanmn
+        vars(:, 6) = fco2canmn
+        vars(:, 7) = sthetamn
+        vars(:, 8) = sqtmn
+        vars(:, 9) = sco2mn
        call writestat_nc(ncid_prof,nvar,ncname,vars(1:ncanopy,:),nrec_prof,ncanopy)
       end if
     end if !
 
     shcanmn   = 0.0
+    cfSLmn    = 0.0
     lecanmn   = 0.0
     fco2canmn = 0.0
     sthetamn  = 0.0
@@ -297,7 +310,7 @@ contains
     if(.not.(lstat)) return
 
     deallocate(shcanav,lecanav,fco2canav,sthetaav,sqtav,sco2av)
-    deallocate(shcanmn,lecanmn,fco2canmn,sthetamn,sqtmn,sco2mn)
+    deallocate(shcanmn,lecanmn,fco2canmn,sthetamn,sqtmn,sco2mn,cfSLmn)
 
   end subroutine exitcanstat
 
