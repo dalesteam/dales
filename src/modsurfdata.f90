@@ -191,13 +191,13 @@ SAVE
   integer,parameter         :: nangle_gauss =                      3 !< Amount of bins to use for Gaussian integrations on leaf angles
   real, dimension(nangle_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
   real, dimension(nangle_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
-  real                      :: sigma      =                      0.2 !<  Scattering coefficient
+  real                      :: sigma      =                      0.2 !<  Scattering coefficient of leaves
   real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
   real, allocatable         :: gshad_old    (:,:,:)
   real, allocatable         :: gleafsun_old (:,:,:,:)
   real, allocatable         :: gsun_old     (:,:,:)
  
-! variables for 2leaf AGS or canopyeb
+! variables for 2leaf AGS
   real,allocatable ::   PARleaf_shad   (:)    !< PAR at shaded leaves per vertical level [W/m2]
   real,allocatable ::   PARleaf_sun    (:,:)  !< PAR at sunny leaves per vertical level and leaf orientation [W/m2]
   real,allocatable ::   PARleaf_allsun (:)    !< PAR at sunny leaves per vertical level averaged over all leaf orientations [W/m2]
@@ -370,14 +370,12 @@ subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,&    ! in
 return
 end subroutine ! canopyrad
 
-subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
-                 phi_tot,Hleaf,& ! in
-                 lrelaxgc,gc_old_set,kgc,gleaf_old,rk3coef,   &   !in
-                 lrelaxci,ci_old_set,kci,ci_old,              &   !in
-                 gleaf,Fleaf,ci,&
-                 fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! additional out for 1leaf upscaling
-
-      !use modsurfdata
+subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,          & ! in
+                 phi_tot,Hleaf,                                & ! in
+                 lrelaxgc,gc_old_set,kgc,gleaf_old,rk3coef,    & ! in
+                 lrelaxci,ci_old_set,kci,ci_old,               & ! in
+                 gleaf,Fleaf,ci,                               & ! out
+                 fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) ! additional out for 1leaf upscaling 
 
       implicit none
       real, intent(in) ::  CO2air   ! CO2 air concentration [ppb]
@@ -387,7 +385,7 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
       real, intent(in) ::  tairk    ! air temperature (K)
       real, intent(in) ::  t_skin   ! surface or leaf skin temperature (K)
       real, intent(in) ::  phi_tot  ! Total soil water content [-]
-      real, intent(in) ::  Hleaf    ! surface or leaf skin temperature (K)
+      real, intent(in) ::  Hleaf    ! absorbed PAR [W/m2]
       logical, intent(in) ::  lrelaxgc ! if true, lag in plant stomatal response
       logical, intent(in) ::  gc_old_set !false at first timestep, true at any  other
       real, intent(in) ::  kgc      ! Standard stomatal response rate
@@ -402,6 +400,7 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,   & ! in
       real, intent (out) :: gleaf   ! leaf stomatal conductance for carbon(m/s)
       real, intent (out) :: Fleaf    
       real, intent (out) :: ci     
+      
       real, intent (out) :: fstr
       real, intent (out) :: Am
       real, intent (out) :: Rdark

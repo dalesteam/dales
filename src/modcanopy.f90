@@ -426,10 +426,10 @@ contains
    
     implicit none
     
-     integer, intent(in) :: i,j
-     real, intent(in) :: ps,rk3coef
-     integer :: k_can
-     real    :: LWin
+    integer, intent(in) :: i,j
+    real, intent(in) :: ps,rk3coef
+    integer :: k_can
+    real    :: LWin
 
    !                                                                  !
    !######### STEP 1 - Radiation inside the canopy #################### 
@@ -467,7 +467,7 @@ contains
                       tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),       & ! in
                       rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                                      & ! in
                       gcc_leafshad_old(i,j,k_can),ci_leafshad_old(i,j,k_can),rk3coef,                       & ! in
-                      tleaf_shad(k_can), gcc_leafshad(i,j,k_can), rb_leafshad(k_can),ci_leafshad(i,j,k_can),& ! inout
+                      tleaf_shad(k_can), gcc_leafshad(i,j,k_can), rb_leafshad(k_can),ci_leafshad(i,j,k_can),& ! out
                       sh_leafshad(k_can), le_leafshad(k_can), LWout_leafshad(k_can),An_leafshad(k_can))       ! out
       LWnet_leafshad(k_can) = LWin_leafshad(k_can) - LWout_leafshad(k_can)
       if (lrelaxgc_can) then
@@ -520,11 +520,11 @@ contains
       else ! angle-dependent PAR are averaged following 3 point gaussian procedure
         cPARleaf_allsun   = sum(weight_g *  cPARleaf_sun(k_can,1:nangle_gauss))
         call leafeb_ags(cPARleaf_allsun(k_can), LWin_leafsun(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
-                        tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),                       & ! i
-                        rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j), &
-                        gcc_leafsun_old(i,j,k_can),ci_leafsun_old(i,j,k_can),rk3coef,                     & ! additonal variables needed
-                        tleaf_sun(k_can), gcc_leafsun(i,j,k_can), rb_leafsun(k_can),ci_leafsun(i,j,k_can),& !
-                        sh_leafsun(k_can), le_leafsun(k_can), LWout_leafsun(k_can),An_leafsun(k_can))                   !
+                        tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),        & ! in
+                        rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                                       & ! in
+                        gcc_leafsun_old(i,j,k_can),ci_leafsun_old(i,j,k_can),rk3coef,                          & ! in 
+                        tleaf_sun(k_can), gcc_leafsun(i,j,k_can), rb_leafsun(k_can),ci_leafsun(i,j,k_can),     & ! out
+                        sh_leafsun(k_can), le_leafsun(k_can), LWout_leafsun(k_can),An_leafsun(k_can))            ! out
         LWnet_leafsun(k_can) = LWin_leafsun(k_can) - LWout_leafsun(k_can)
         if (lrelaxgc_can) then
           if (gccan_old_set .and. rk3step ==3) then
@@ -552,7 +552,7 @@ contains
     !we clauclate pad:
     !PAD = LAI_can / dz_can  ! 
 
-     call canopysource(sh_leafsun, sh_leafshad,           &
+    call canopysource(sh_leafsun, sh_leafshad,           &
                       le_leafsun, le_leafshad,           &
                       An_leafsun, An_leafshad,           &
                       cfSL,                         &
@@ -948,12 +948,12 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
       !          gs_old,                                       &   ! send/recv
       !          gb,rs)                                            ! recv
        !xabi edit
-       call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_l,&           ! in
-                  phi_tot,i_s, &  ! in
-                  lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   & ! in
-                  lrelaxci_can,cican_old_set,kci_can,ci_old, &            ! in
-                  gccleaf,Fleaf,ci,&                                 !out
-                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out
+       call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_l,                & ! in
+                  phi_tot,i_s,                                        & ! in
+                  lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef, & ! in
+                  lrelaxci_can,cican_old_set,kci_can,ci_old,          & ! in
+                  gccleaf,Fleaf,ci,                                   & ! out
+                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)       ! out
 
        !get the water  stomatal resistancer from stomatal CO2 conductance:
        !rs = 1.0/(nuco2q*gccleaf)
@@ -976,12 +976,12 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !          psir,xw2,xwc4,                                &
        !          gs_old,                                       &   ! send/recv
        !          gb,rs)                                            ! recv
-       call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_r,&           !in
-                  phi_tot,i_s, & ! in
-                  lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   &   ! in
-                  lrelaxci_can,cican_old_set,kci_can,ci_old, &            ! in
-                  gccleaf,Fleaf,ci,&                                 !out
-                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out 
+       call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_r,                & ! in
+                  phi_tot,i_s,                                        & ! in
+                  lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef, & ! in
+                  lrelaxci_can,cican_old_set,kci_can,ci_old,          & ! in
+                  gccleaf,Fleaf,ci,                                   & ! out
+                  fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)       ! out
 
        !get the stomatal resistance to water from stomatal CO2 conductance:
        !rs = 1.0/(nuco2q*gccleaf)
@@ -1034,12 +1034,12 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
           !          psir,xw2,xwc4,                            &
           !          gs_old,                                   &   ! send/recv
           !          gb,rs)                                        ! recv
-          call f_Ags(CO2air,qtair,rho,tairk,pres,t_g,&             !in
-                     phi_tot,i_s, & ! in
-                     lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef,   &   ! in
-                     lrelaxci_can,cican_old_set,kci_can,ci_old, &              ! in
-                     gccleaf,Fleaf,ci,&                                 !out
-                     fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)  ! out
+          call f_Ags(CO2air,qtair,rho,tairk,pres,t_g,                    & ! in
+                     phi_tot,i_s,                                        & ! in
+                     lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef, & ! in
+                     lrelaxci_can,cican_old_set,kci_can,ci_old,          & ! in
+                     gccleaf,Fleaf,ci,                                   & ! out
+                     fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)       ! out
 
           !get the stomatal resistance to water from stomatal CO2 conductance:
           !rs = 1.0/(nuco2q*gccleaf)
@@ -1117,7 +1117,7 @@ real function leafle(tleaf, ambvap, gb, gcc, transpiretype)
    real, intent(in) :: tleaf,         &    ! leaf temperature [K]
                        ambvap,        &    ! atmospheric vapor density [kg m-3]
                        gb,            &    ! leaf boundary layer heat conductance [m s-1]
-                       gcc,            &    ! stomatal carbon conductance [s m-1]
+                       gcc,           &    ! stomatal carbon conductance [s m-1]
                        transpiretype       ! type of transpirer (1=hypostomatous, 2=amphistomatous,
                                            !    1.25=hypostomatous but with some transpiration through cuticle)
 
@@ -1179,7 +1179,7 @@ real function leafblc(tleaf,tairk,wind,lwidth,llength)
     implicit none
  
     real,    intent(in) :: tleaf,   &       ! leaf temperature [K] (leaf is assumed isothermal)
-                           tairk,    &      ! air temperature [K]
+                           tairk    &       ! air temperature [K]
                            wind,    &       ! local wind speed [m s-1]
                            lwidth,  &       ! leaf width / shoot diameter [m]
                            llength          ! leaf length / needle length [m]
