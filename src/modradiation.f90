@@ -34,7 +34,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
-    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
+    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options,i2,j2
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
 
@@ -106,6 +106,8 @@ contains
     allocate(swdir     (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swdif     (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwc       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    allocate(albedo_rad(i2,j2)) ! same dims as surface variables
+    allocate(tskin_rad (i2,j2)) ! same dims as surface variables
 
     allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
     allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
@@ -132,6 +134,8 @@ contains
     swdir = 0.
     swdif = 0.
     lwc   = 0.
+    albedo_rad = 0.
+    tskin_rad  = 0.
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
     SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
@@ -241,6 +245,7 @@ contains
     deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
+    deallocate(albedo_rad,tskin_rad)           
 
   end subroutine exitradiation
 
@@ -367,8 +372,8 @@ subroutine radpar
   subroutine sunray(tau,tauc,i,j)
 
   use modglobal, only :  k1,boltz
-  use modsurfdata,  only : albedo,tskin
   use modfields,   only : thl0
+  use modmpi, only : myid
 
   implicit none
 
@@ -432,12 +437,11 @@ subroutine radpar
   xm23p=1.0-rtt*rp
   ap23b=alpha+rtt*beta
 
-  t1=1-albedo(i,j)-rtt*(1.+albedo(i,j))*rp
-  t2=1-albedo(i,j)+rtt*(1.+albedo(i,j))*rp
-  t3=(1-albedo(i,j))*alpha-rtt*(1+albedo(i,j))*beta+albedo(i,j)*mu
+  t1=1-albedo_rad(i,j)-rtt*(1.+albedo_rad(i,j))*rp
+  t2=1-albedo_rad(i,j)+rtt*(1.+albedo_rad(i,j))*rp
+  t3=(1-albedo_rad(i,j))*alpha-rtt*(1+albedo_rad(i,j))*beta+albedo_rad(i,j)*mu
   c2=(xp23p*t3*exmu0-t1*ap23b*exmk)/(xp23p*t2*expk-xm23p*t1*exmk)
   c1=(ap23b-c2*xm23p)/xp23p
-
   do k = k1,1,-1
       taupath = taupath + taude(k)
 
@@ -449,7 +453,7 @@ subroutine radpar
       swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
       swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
       lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.
-      lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
+      lwu(i,j,1) =  1.0 * boltz * tskin_rad(i,j) ** 4.
   end do
 
   deallocate(taude)
@@ -478,7 +482,6 @@ subroutine radpar
 
 
   subroutine radlsm
-    use modsurfdata, only : albedo, tskin
     use modglobal,   only : i1, j1, rtimee, xtime, xday, xlat, xlon, boltz, dzf
     use modfields,   only : thl0, ql0, rhof
     implicit none
@@ -501,9 +504,9 @@ subroutine radpar
         else
           swd(i,j,1) = - S0 * Tr * sinlea
         endif
-        swu(i,j,1) = - albedo(i,j) * swd(i,j,1)
+        swu(i,j,1) = - albedo_rad(i,j) * swd(i,j,1)
         lwd(i,j,1) = - 0.8 * boltz * thl0(i,j,1) ** 4.
-        lwu(i,j,1) = boltz * tskin(i,j) ** 4.
+        lwu(i,j,1) = boltz * tskin_rad(i,j) ** 4.
       end do
     end do
 

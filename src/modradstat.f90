@@ -288,8 +288,9 @@ contains
     use modradfull,    only : d4stream
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,rlv,rd,pref0,ijtot
     use modfields,    only : rhof, exnf, thl0,qt0,ql0
-    use modsurfdata,  only : albedo, tskin, qskin, thvs, ps
+    use modsurfdata,  only : qskin, thvs, ps
     use modmicrodata, only : Nc_0
+    use modraddata,   only : tskin_rad,albedo_rad
     use modmpi,    only :  slabsum
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
@@ -328,11 +329,11 @@ contains
         do i=2,i1
           ql_b(i,j,1)   = 0.! CvH, no ql at surface
           qv_b(i,j,1)   = qskin(i,j) !CvH, no ql at surface thus qv = qt
-          temp_b(i,j,1) = tskin(i,j)*exnersurf
+          temp_b(i,j,1) = tskin_rad(i,j)*exnersurf
         end do
       end do
 
-      call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
+      call d4stream(i1,ih,j1,jh,k1,tskin_rad,albedo_rad,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
 
 
     call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)

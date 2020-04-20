@@ -116,8 +116,8 @@ contains
     call ncinfo(ncnameAGS(12,:),'phiw3 ', 'xy AGScross of phiw level 3','-      ','tt0t')
     call ncinfo(ncnameAGS(13,:),'phiw4 ', 'xy AGScross of phiw level 4','-      ','tt0t')
     call ncinfo(ncnameAGS(14,:),'CO2   ', 'xy AGScross of CO2 (grid 1)','ppm    ','tt0t')
-    call ncinfo(ncnameAGS(15,:),'tskin ', 'xy AGScross of curr. tskin ','K      ','tt0t')
-    call ncinfo(ncnameAGS(16,:),'tskinm', 'xy AGScross of prev. tskin ','K      ','tt0t')
+    call ncinfo(ncnameAGS(15,:),'tskin_surf ', 'xy AGScross of curr. tskin_surf ','K      ','tt0t')
+    call ncinfo(ncnameAGS(16,:),'tskinm_surf', 'xy AGScross of prev. tskin ','K      ','tt0t')
     call ncinfo(ncnameAGS(17,:),'tsoil1', 'xy AGScross of tsoil top   ','K      ','tt0t')
     call ncinfo(ncnameAGS(18,:),'tsoil2', 'xy AGScross of tsoil lvl 2 ','K      ','tt0t')
     call ncinfo(ncnameAGS(19,:),'tsoil3', 'xy AGScross of tsoil lvl 3 ','K      ','tt0t')
@@ -180,7 +180,7 @@ contains
     use modglobal, only : imax,jmax,i1,j1,rtimee,dzf
     use modstat_nc, only : writestat_nc
     use modsurfdata, only : AnField, RespField, wco2Field,phiw,fstrField, rs, ra, rsco2Field, rsveg, rssoil, &
-                            indCO2, tskin, tskinm, tsoil, thlflux, qtflux, tauField, ciField, gcco2Field, &
+                            indCO2, tskin_surf, tskinm_surf, tsoil, thlflux, qtflux, tauField, ciField, gcco2Field, &
                             PARField,Qnet,LE,H,G0,PARdirField,PARdifField,lsplitleaf
     use modfields, only   : svm, rhof, ql0
     use modraddata,only   : swd, swu, lwd, lwu,swdir,swdif,irad_par,iradiation,irad_rrtmg,lwc
@@ -218,8 +218,8 @@ contains
       vars(:,:,12) = phiw      (2:i1,2:j1,3)
       vars(:,:,13) = phiw      (2:i1,2:j1,4)
       vars(:,:,14) = svm       (2:i1,2:j1,1,indCO2) / 1000.0
-      vars(:,:,15) = tskin     (2:i1,2:j1)
-      vars(:,:,16) = tskinm    (2:i1,2:j1)
+      vars(:,:,15) = tskin_surf     (2:i1,2:j1)
+      vars(:,:,16) = tskinm_surf    (2:i1,2:j1)
       vars(:,:,17) = tsoil     (2:i1,2:j1,1)
       vars(:,:,18) = tsoil     (2:i1,2:j1,2)
       vars(:,:,19) = tsoil     (2:i1,2:j1,3)

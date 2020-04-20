@@ -148,8 +148,8 @@ contains
         call ncinfo(ncname3( 2,:),'H','Sensible heat flux','W/m^2','tt0t')
         call ncinfo(ncname3( 3,:),'LE','Latent heat flux','W/m^2','tt0t')
         call ncinfo(ncname3( 4,:),'G0','Ground heat flux','W/m^2','tt0t')
-        call ncinfo(ncname3( 5,:),'tskin','Skin temperature','K','tt0t')
-        call ncinfo(ncname3( 6,:),'tendskin','Skin tendency','W/m^2','tt0t')
+        call ncinfo(ncname3( 5,:),'tskin_surf','Skin temperature','K','tt0t')
+        call ncinfo(ncname3( 6,:),'tendskin_surf','Skin tendency','W/m^2','tt0t')
         call ncinfo(ncname3( 7,:),'rs','Surface resistance','s/m','tt0t')
         call ncinfo(ncname3( 8,:),'ra','Aerodynamic resistance','s/m','tt0t')
         call ncinfo(ncname3( 9,:),'cliq','Fraction of vegetated surface covered with liquid water','-','tt0t')
@@ -259,7 +259,7 @@ contains
   !> Do the xy lsmcrosssections and dump them to file
   subroutine wrtsurf
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
-    use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
+    use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin_surf, tendskin_surf, &
                            cliq,rsveg,rssoil,Wl
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
@@ -296,12 +296,12 @@ contains
     write(ifoutput,'(es12.5)') ((ra(i,j),i=2,i1),j=2,j1)
     close(ifoutput)
 
-    open(ifoutput,file='movh_tskin.'//cexpnr,position='append',action='write')
-    write(ifoutput,'(es12.5)') ((tskin(i,j),i=2,i1),j=2,j1)
+    open(ifoutput,file='movh_tskin_surf.'//cexpnr,position='append',action='write')
+    write(ifoutput,'(es12.5)') ((tskin_surf(i,j),i=2,i1),j=2,j1)
     close(ifoutput)
 
-    open(ifoutput,file='movh_tendskin.'//cexpnr,position='append',action='write')
-    write(ifoutput,'(es12.5)') ((tendskin(i,j),i=2,i1),j=2,j1)
+    open(ifoutput,file='movh_tendskin_surf.'//cexpnr,position='append',action='write')
+    write(ifoutput,'(es12.5)') ((tendskin_surf(i,j),i=2,i1),j=2,j1)
     close(ifoutput)
 
     open(ifoutput,file='movh_cliq.'//cexpnr,position='append',action='write')
@@ -327,8 +327,8 @@ contains
         vars(:,:,2) = h(2:i1,2:j1)
         vars(:,:,3) = le(2:i1,2:j1)
         vars(:,:,4) = g0(2:i1,2:j1)
-        vars(:,:,5) = tskin(2:i1,2:j1)
-        vars(:,:,6) = tendskin(2:i1,2:j1)
+        vars(:,:,5) = tskin_surf(2:i1,2:j1)
+        vars(:,:,6) = tendskin_surf(2:i1,2:j1)
         vars(:,:,7) = rs(2:i1,2:j1)
         vars(:,:,8) = ra(2:i1,2:j1)
         vars(:,:,9) = cliq(2:i1,2:j1)

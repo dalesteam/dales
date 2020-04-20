@@ -13,7 +13,7 @@ contains
                               kind_rb,SHR_KIND_R4,boltz
     use modmpi,        only : myid
     use modfields,     only : presh,presf,rhof,exnf,thl0
-    use modsurfdata ,  only : tskin
+    !use modsurfdata ,  only : tskin_surf
     use rrtmg_lw_init, only : rrtmg_lw_ini
     use rrtmg_lw_rad,  only : rrtmg_lw
     use shr_orb_mod,   only : shr_orb_params
@@ -173,7 +173,7 @@ contains
         !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
-         call setupSW(sunUp)
+         call setupSW(j,sunUp)
          if (sunUp) then
            call rrtmg_sw &
                 ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )
@@ -185,7 +185,7 @@ contains
       if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
         do i=2,i1
           lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
-          lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
+          lwu(i,j,1) =  1.0 * boltz * tskin_rad(i,j) ** 4.
         end do
       end if
 
@@ -742,15 +742,16 @@ contains
 ! ==============================================================================;
 ! ==============================================================================;
 
-  subroutine setupSW(sunUp)
+  subroutine setupSW(j,sunUp)
 
-    use modglobal,   only : xday,xlat,xlon,imax,xtime,rtimee
+    use modglobal,   only : xday,xlat,xlon,imax,xtime,rtimee,i1
     use shr_orb_mod, only : shr_orb_decl
     use modmpi,      only : myid
-    use modsurfdata, only : albedoav
+    use modsurfdata, only : albedoav_surf,albedo_surf
+    use modcanopy,   only : lcanopyeb
 
     implicit none
-
+    integer, intent(in) :: j
     logical,intent(out) :: sunUp
     real                :: dayForSW
 
@@ -788,10 +789,15 @@ contains
     if (all(solarZenithAngleCos(:) >= tiny(solarZenithAngleCos))) then
       sunUp = .true.
       if (lCnstAlbedo) then
-        aldir = albedoav
-        asdir = albedoav
-        aldif = albedoav        ! Specification of the diffuse albedo is also important for the
-        asdif = albedoav        ! total surface albedo
+        aldir = albedoav_surf
+        asdir = albedoav_surf
+        aldif = albedoav_surf        ! Specification of the diffuse albedo is also important for the
+        asdif = albedoav_surf        ! total surface albedo
+      else if(lcanopyeb) then ! albedo is provided by canopy radiation subroutine of previous timestep
+        aldir(1:imax) = albedo_rad(2:i1,j) !albdir_can(2:i1,j)
+        asdir(1:imax) = albedo_rad(2:i1,j) !albdir_can(2:i1,j)
+        aldif(1:imax) = albedo_rad(2:i1,j) !albdif_can(2:i1,j)
+        asdif(1:imax) = albedo_rad(2:i1,j) !albdif_can(2:i1,j)
       else
         call albedo             ! calculate albedo for the solarZenithAngleCos
       end if

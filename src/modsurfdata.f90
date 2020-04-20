@@ -101,15 +101,15 @@ SAVE
   real              :: z0mav    = -1
   real, allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
   real              :: z0hav    = -1
-  real, allocatable :: tskin      (:,:) !<  Skin temperature [K]
-  real, allocatable :: tskinm     (:,:) !<  Skin temperature previous timestep [K]
+  real, allocatable :: tskin_surf      (:,:) !<  Skin temperature [K]
+  real, allocatable :: tskinm_surf     (:,:) !<  Skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
   real              :: Wlav     = -1
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
   real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
-  real, allocatable :: albedo     (:,:) !<  Surface albedo [-]
-  real              :: albedoav = -1
+  real, allocatable :: albedo_surf(:,:) !<  Surface albedo [-]
+  real              :: albedoav_surf = -1
   real, allocatable :: LAI        (:,:) !<  Leaf area index understory vegetation [-]
   real              :: LAIav    = -1
   real, allocatable :: cveg       (:,:) !<  Vegetation cover [-]
@@ -187,11 +187,11 @@ SAVE
   logical                   :: lsplitleaf =                  .false. !<  Switch to split AGS calculations over different parts of the leaf (direct & diffuse at different layers)
   logical                   :: l3leaves   =                  .true. !<  Switch to keep 3 leaf orientation angles on sunny leaves 
   integer,parameter         :: nz_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
-  real, dimension(nz_gauss)     :: LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
+  real, dimension(nz_gauss)     ::  LAI_g      = (/0.8873,   0.5,0.1127/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
   integer,parameter         :: nangle_gauss =                      3 !< Amount of bins to use for Gaussian integrations on leaf angles
   real, dimension(nangle_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
   real, dimension(nangle_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
-  real                      :: sigma      =                      0.2 !<  Scattering coefficient of leaves
+  real                      :: sigma      =                      0.2 !<  Scattering coefficient of leaves-controls the effective albedo
   real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
   real, allocatable         :: gshad_old    (:,:,:)
   real, allocatable         :: gleafsun_old (:,:,:,:)
@@ -202,7 +202,12 @@ SAVE
   real,allocatable ::   PARleaf_sun    (:,:)  !< PAR at sunny leaves per vertical level and leaf orientation [W/m2]
   real,allocatable ::   PARleaf_allsun (:)    !< PAR at sunny leaves per vertical level averaged over all leaf orientations [W/m2]
   real,allocatable ::   fSL            (:)    !< Fraction of sunlit leaves per evrtical level [-]
- 
+  real,allocatable ::   albdir_lsplit   (:,:)  !< effective direct SW albedo at vegetation top according to canopyrad
+  real,allocatable ::   albdif_lsplit   (:,:)  !< effective diffuse SW albedo at vegetation top according to canopyrad
+  real,allocatable ::   albswd_lsplit   (:,:)  !< effective global SW albedo at vegetation top according to canopyrad
+  real,allocatable ::   swdir_lsplit   (:,:,:)!< swdir profile along vegetation
+  real,allocatable ::   swdif_lsplit   (:,:,:)!< swdir profile along vegetation
+  real,allocatable ::   swu_lsplit     (:,:,:)!< swu profile along vegetation
 
 
   ! Surface energy balance
@@ -220,7 +225,7 @@ SAVE
   real              :: rsminav = -1
   real, allocatable :: rssoilmin(:,:)   !<  Minimum soil evaporation resistance [s/m]
   real              :: rssoilminav = -1
-  real, allocatable :: tendskin (:,:)   !<  Tendency of skin [W/m2]
+  real, allocatable :: tendskin_surf (:,:)   !<  Tendency of skin [W/m2]
   real, allocatable :: gD       (:,:)   !<  Response factor vegetation to vapor pressure deficit [-]
   real              :: gDav
 
@@ -317,23 +322,39 @@ SAVE
 
 contains
 
-subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,&    ! in
-                      Hshad,Hsun,fSL)                             !out
-  use modraddata  , only : zenith
-  use modglobal, only    : xtime,rtimee,xday,xlat,xlon
-  !use modsurfdata , only : nangle_gauss,weight_g,angle_g,sigma,kdfbl
+subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,               & ! in
+                      Hshad,Hsun,fracSL,                                 & ! out needed for vegetation
+                      effalb_dir,effalb_dif,effalb_sw,swdircan,swdifcan,swucan) ! out needed for radiation if lcanopyeb
+  use modraddata , only : zenith
+  use modglobal  , only : xtime,rtimee,xday,xlat,xlon
   implicit none
+  
   integer,intent(in) :: layers
-  real, intent(in) :: LAI ! total Leaf Area Index of the whole column
-  real, intent(in),dimension(layers) ::LAI_can  ! array with accumulated LAI from canopy top down to evaluated height
-  real, intent(in)  :: sw_dir !
-  real, intent(in)  :: sw_dif !
-  real, intent(in)  :: alb !
-  real, intent(out),dimension(layers) :: Hshad              ! SW intercepted by shaded leaves at each layer
-  real, intent(out),dimension(layers,nangle_gauss) :: Hsun  ! SW intercepted by sunlit leaves per layer and per leaf orientation
-  real, intent(out),dimension(layers) :: fSL  ! fraction of sunlit leaves per layer
-  real    ::     PARdir_TOC,PARdif_TOC,kdrbl,kdf,kdr,ref,ref_dir,iLAI
-  real    :: PARdfD,PARdrD,PARdfU,PARdrU,PARdfT,PARdrT,dirPAR,difPAR,HdfT,HdrT,dirH
+  real, intent(in)   :: LAI                     ! total Leaf Area Index of the whole column
+  real, intent(in),dimension(layers) :: LAI_can ! array with accumulated LAI from canopy top down to evaluated height
+  real, intent(in)   :: sw_dir                  ! SW direct  radition at vegetation top
+  real, intent(in)   :: sw_dif                  ! SW diffuse radition at vegetation top
+  real, intent(in)   :: alb                     ! ground albedo
+  
+  real, intent(out),dimension(layers)              :: Hshad  ! SW intercepted by shaded leaves at each layer
+  real, intent(out),dimension(layers,nangle_gauss) :: Hsun   ! SW intercepted by sunlit leaves per layer and per leaf orientation
+  real, intent(out),dimension(layers)              :: fracSL ! fraction of sunlit leaves per layer
+  real, intent(out) ::  effalb_dir                           ! effective albedo of canopy top for direct radiation
+  real, intent(out) ::  effalb_dif                           ! effective albedo of canopy top for diffuse radiation
+  real, intent(out) ::  effalb_sw                            ! effective albedo of canopy top for total SW radiation
+  real, intent(out), dimension(layers) :: swdircan          ! downwards direct sw inside canopy
+  real, intent(out), dimension(layers) :: swdifcan          ! downwards diffuse sw inside canopy
+  real, intent(out), dimension(layers) :: swucan            ! upwards (diffuse) SW inside canopy
+  
+  real :: PARdir_TOC,PARdif_TOC,kdrbl,kdf,kdr,iLAI
+  real :: ref                    ! global PAR albedo of leave layer (smaller than sigma since some radiation is absorbed after the scattering by leaves as diffuse)
+  real :: ref_dir                ! direct PAR albedo of leave layer
+  real :: PARdirprof             ! profile of direct PAR inside canopy
+  real :: PARdifprof             ! profile of diffuse PAR inside canopy
+  real :: PARdirref_TOC          ! upwards PAR at canopy top after reflection on ground of original dir PAR
+  real :: PARdifref_TOC          ! upwards PAR at canopy top after reflection on ground of original dif PAR
+  
+  real    :: PARdfD,PARdrD,PARdfU,PARdrU,PARdfT,PARdrT,dirPAR,difPAR,HdfT,HdrT,dirH ! see Pedruzo-Bagazgoitia et al. (2017)
   integer :: k_can
   real    :: sinbeta,minsinbeta = 1.e-10
 
@@ -347,26 +368,43 @@ subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,&    ! in
   kdr      = kdrbl * sqrt(1.0-sigma)
   ref      = (1.0 - sqrt(1.0-sigma)) / (1.0 + sqrt(1.0-sigma)) ! Reflection coefficient
   ref_dir  = 2 * ref / (1.0 + 1.6 * sinbeta)
-  do k_can = 1, layers! loop over the different LAI locations, from top to bottom
+  do k_can = 1, layers! loop over the different LAI locations
     iLAI         = LAI_can(k_can)   ! Integrated LAI between here and canopy top
-    fSL(k_can)   = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
-    PARdfD = PARdif_TOC * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at ca
-    PARdrD = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at can
-    PARdfU = PARdif_TOC * (1.0-ref)     * exp(-kdf * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward
-    PARdrU = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward
+    fracSL(k_can)   = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
+    PARdfD = PARdif_TOC * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at canopy top
+    PARdrD = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at canopy top
+    PARdfU = PARdif_TOC * (1.0-ref)     * exp(-kdf * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward (reflected) PAR due to original diffuse radiation
+    PARdrU = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward (reflected) PAR due to original direct radiation
     PARdfT = PARdfD + PARdfU                                   ! Total PAR due to diffuse radiation at canopy top
     PARdrT = PARdrD + PARdrU                                   ! Total PAR due to direct radiation at canopy top
-
-    dirPAR = (1.0-sigma) * PARdir_TOC * fSL(k_can)! Purely direct PAR (can only be downward)
-    difPAR = PARdfT + PARdrT - dirPAR                          ! Total diffuse radiation
+    PARdirprof = (1.0-sigma) * PARdir_TOC * fracSL(k_can)              ! Purely direct PAR (can only be downward) reaching leaves
+    PARdifprof = PARdfT + PARdrT - PARdirprof                          ! Total diffuse radiation reaching leaves
 
     HdfT   = kdf * PARdfD + kdf * PARdfU
     HdrT   = kdr * PARdrD + kdf * PARdrU
-    dirH   = kdrbl * dirPAR
+    dirH   = kdrbl * PARdirprof
     Hshad(k_can)  = HdfT + HdrT - dirH
 
     Hsun(k_can,:)   = Hshad(k_can) + (angle_g * (1.0-sigma) * kdrbl * PARdir_TOC / sum(angle_g * weight_g))
-   end do
+ 
+  ! store up swdircan (downwards), swdifcan (downwards) and swucan assuming any reflected radiation by leaves goes upwards 
+  ! notice that swucan+swdifcan = 2.0 * PARdifprof neglecting leave reflection/scattering coefficients
+    swdircan(k_can)  = -(2.0 * PARdir_TOC * fracSL(k_can))         ! =  PARdirprof without scattering coefficient
+    swdifcan(k_can)  = -(2.0 * PARdif_TOC * exp(-kdfbl * iLAI)) ! 
+    !swucan = (diff and dir reflected by ground) + + (dir converted to diff) + (diff reflected upwards)
+    swucan  (k_can)  = 2.0 * ((PARdfU/(1.0-ref) + PARdrU/(1.0-ref_dir)) + (PARdrD/(1.0-ref_dir) - 0.5 * swdircan(k_can)) &
+                         +(PARdfD/(1.0-ref) - 0.5*swdifcan(k_can))) 
+  end do
+
+! calculate amount of upward light at canopy top coming from surface reflection (PARdrU and PARdfU with iLAI=0)
+  PARdirref_TOC = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * LAI) * alb *  exp(-kdf * (LAI-0)) ! Total dir upward at canopy top
+  PARdifref_TOC = PARdif_TOC * (1.0-ref)     * exp(-kdf * LAI) * alb *  exp(-kdf * (LAI-0)) ! Total dif upward at canopy top
+  !calculate effective albedos for direct, diffuse and total SW radiation assuming PAR and sw albedos are identical
+  effalb_dir =  1-(((PARdir_TOC * (1.0-ref_dir))- PARdirref_TOC) / PARdir_TOC)
+  effalb_dif =  1-(((PARdif_TOC * (1.0-ref))    - PARdifref_TOC) / PARdif_TOC)
+  effalb_sw  =  1-(( ((PARdir_TOC*(1.0-ref_dir))-PARdirref_TOC) + ((PARdif_TOC*(1.0-ref))-PARdifref_TOC)) &
+                /(PARdir_TOC + PARdif_TOC))
+   
 return
 end subroutine ! canopyrad
 

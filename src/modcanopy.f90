@@ -108,12 +108,20 @@ module modcanopy
   real, allocatable :: ci_leafshad_old (:,:,:) !< internal carbon concentration at shaded leaves in previous timestep[mg m-3]
   real, allocatable :: ci_leafsun      (:,:,:) !< internal carbon concentration at sunny leaves  [mg m-3]
   real, allocatable :: ci_leafsun_old  (:,:,:) !< internal carbon concentration at sunny leaves in previous timestep[ [mg m-3]
-
+  real, allocatable :: tskin_can       (:,:) !< tskin at canopy top
+  real, allocatable :: albdir_can      (:,:) !< effective direct SW albedo by canopy
+  real, allocatable :: albdif_can      (:,:) !< effective diffuse SW albedo by canopy
+  real, allocatable :: albsw_can       (:,:) !< effective global SW albedo by canopy
+  real, allocatable :: swdir_can       (:) !< direct SW through canopy
+  real, allocatable :: swdif_can       (:) !< diffuse SW through canopy
+  real, allocatable :: swu_can         (:) !< upwards SW through canopy
+  real, allocatable :: lwd_can         (:) !< diffuse SW through canopy
+  real, allocatable :: lwu_can         (:) !< diffuse SW through canopy
 contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal,   only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf,ih,i1,jh,j1
+    use modglobal,   only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf,ih,i1,jh,j1,i2,j2
     use modsurfdata, only : nangle_gauss
     implicit none
 
@@ -289,6 +297,15 @@ contains
     allocate(ci_leafshad_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(ci_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(ci_leafsun_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(tskin_can (i2,j2)) ! same dims as surface variables
+    allocate(albdir_can(i2,j2))
+    allocate(albdif_can(i2,j2))
+    allocate(albsw_can (i2,j2))
+    allocate(swdir_can(ncanopy))
+    allocate(swdif_can(ncanopy))
+    allocate(swu_can(ncanopy))
+    allocate(lwd_can(ncanopy))
+    allocate(lwu_can(ncanopy))
 
     return
     
@@ -403,6 +420,15 @@ contains
     deallocate(ci_leafshad_old)
     deallocate(ci_leafsun)
     deallocate(ci_leafsun_old)
+    deallocate(tskin_can)
+    deallocate(albdir_can)
+    deallocate(albdif_can)
+    deallocate(albsw_can)
+    deallocate(swdir_can)
+    deallocate(swdif_can)
+    deallocate(swu_can)
+    deallocate(lwd_can)
+    deallocate(lwu_can)
     return
   end subroutine exitcanopy
   subroutine canopyeb(i,j,ps,rk3coef)                                       ! in
@@ -420,9 +446,9 @@ contains
    !                                                      Xabier Pedruzo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     use modglobal, only  : j1, i1,cp,rlv,rk3step
-    use modsurfdata,only : phitot,weight_g,indCO2,albedo,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad,nuco2q
+    use modsurfdata,only : phitot,weight_g,indCO2,albedo_surf,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad,nuco2q
     use modfields, only  : thl0,rhof,qt0,exnf,u0,v0,presf,svm,tmp0
-    use modraddata, only : swdir,swdif
+    use modraddata, only : swdir,swdif,swd,swu,lwu,lwd,tskin_rad,albedo_rad,iradiation,irad_par
    
     implicit none
     
@@ -430,9 +456,11 @@ contains
     real, intent(in) :: ps,rk3coef
     integer :: k_can
     real    :: LWin
+    real    :: pa ! plant area
+    real    :: lw_air,lw_leaflayer 
 
    !                                                                  !
-   !######### STEP 1 - Radiation inside the canopy #################### 
+   !######### STEP 1 - Radiation inside the canopy keeping DALES sign convention#################### 
    !                                                                  !
    
    ! rewrite LAI from LAI per vert layer to integrated LAI from top down to that level
@@ -440,8 +468,10 @@ contains
    !  iLAI_can(k_can) = sum(LAI_can(1:k_can))
    !end do
       iLAI_can(:) = pai(1:ncanopy)
-    call canopyrad(ncanopy,lai_can,iLAI_can,swdir(i,j,ncanopy),swdif(i,j,ncanopy),albedo(i,j),&    ! in! sth for zenith function?
-                   cPARleaf_shad,cPARleaf_sun,cfSL)                    ! out
+    call canopyrad(ncanopy,lai_can,iLAI_can,swdir(i,j,ncanopy),swdif(i,j,ncanopy),albedo_surf(i,j),& ! in
+                   cPARleaf_shad,cPARleaf_sun,cfSL,                                                & ! out for vegetation
+                   albdir_can(i,j),albdif_can(i,j),albsw_can(i,j),                                 & ! out for radiation                         
+                   swdir_can(:ncanopy),swdif_can(:ncanopy),swu_can(:ncanopy))                        ! out for radiation
     ! tairk(:) = tmp0(i,j,:)
    ! convert humidity into vapor pressure
     do k_can=1,ncanopy
@@ -451,15 +481,31 @@ contains
     ! we do LW as well:
     do k_can =1,ncanopy
       LWin = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps) ! shouldn we use air eps?
-      LWin_leafshad(k_can) = 2. * LWin
-      LWin_leafsun(k_can)   = 0.5 * exposedleafLWin(humidairpa(k_can),tmp0(i,j,k_can)) + 1.5 * LWin ! why not -.5-1.5, not1-
+      LWin_leafshad(k_can)  = 2. * LWin
+      LWin_leafsun(k_can)   = 0.5 * exposedleafLWin(humidairpa(k_can),tmp0(i,j,k_can)) + 1.5 * LWin ! why .5-1.5, and not1-1
     end do
 
-    windsp(:) = sqrt(u0(i,j,1:ncanopy)**2+v0(i,j,1:ncanopy)**2)
    
+    ! assume for LW that leaves/plants form one horizontal layer in each grid and LW only moves upwards and downwards
+    do k_can = 1,ncanopy
+      !get plant area (m2leaf per m2 ground in a grid)
+      pa = pai(k_can)-pai(k_can+1)
+      lw_air = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps)
+      !area-weighted average between sunlit and shaded leaves
+      lw_leaflayer = (LWout_leafsun(k_can)*cfSL(k_can) + LWout_leafshad(k_can)*(1.-cfSL(k_can)))
+      if (pa <= 1.0) then ! area-weighted average between air and leaf
+        lwu_can(k_can) = lw_air * (1.0-pa) + lw_leaflayer * pa
+      else
+        lwu_can(k_can) = lw_leaflayer
+      endif  
+
+      ! since we assume that both sides of the leaf are at the same temperature
+      lwd_can(k_can) =  -lwu_can(k_can)
+    end do  
    !                                                                                                ! 
    !######### STEP 2 - Leaf energy balance per level for sunlit and shaded leaves ####################
    !                                                                                                !
+    windsp(:) = sqrt(u0(i,j,1:ncanopy)**2+v0(i,j,1:ncanopy)**2)
    
     do k_can =1,ncanopy
      !shaded
@@ -564,7 +610,33 @@ contains
     S_co2(i,j,1:ncanopy)     = Fco2_can(i,j,1:ncanopy)*(MW_Air/MW_CO2) * (1.0/rhof(1:ncanopy))* 1000 !In  ppb/s
     
    !                                                                                                ! 
-   !######### STEP 4 - check switches about lags in plant response ####################
+   !######### STEP 4 - pass on tskin_can, effective canopy albedo and in-canopy radiation profiles####################
+   !   
+    
+    ! tskin_can as weighted average similar to sources in canopysource
+    tskin_can(i,j) = tleaf_sun(ncanopy)*cfSL(ncanopy) + tleaf_shad(ncanopy)*(1.-cfSL(ncanopy))
+    tskin_rad(i,j)  = tskin_can(i,j)
+    albedo_rad(i,j) = albsw_can(i,j)
+                      !albdir_can(i,j),albdif_can(i,j)
+    
+    if (iradiation==irad_par) then ! all terms must be positive
+      swdir(i,j,:ncanopy) = -swdir_can(:)                 
+      swdif(i,j,:ncanopy) = -swdif_can(:)               
+      swd  (i,j,:ncanopy) = -(swdir_can(:) + swdif_can(:))
+      swu  (i,j,:ncanopy) =  swu_can(:)               
+      lwd  (i,j,:ncanopy) = -lwd_can(:)
+      lwu  (i,j,:ncanopy) =  lwu_can(:)
+    else
+      swdir(i,j,:ncanopy) = swdir_can(:)                 
+      swdif(i,j,:ncanopy) = swdif_can(:)               
+      swd  (i,j,:ncanopy) = (swdir_can(:) + swdif_can(:))
+      swu  (i,j,:ncanopy) = swu_can(:)               
+      lwd  (i,j,:ncanopy) = lwd_can(:)
+      lwu  (i,j,:ncanopy) = lwu_can(:)
+    endif
+    
+   !                                                                                                ! 
+   !######### STEP 5 - check switches about lags in plant response ####################
    !                                                                                                !
 
 
@@ -1179,7 +1251,7 @@ real function leafblc(tleaf,tairk,wind,lwidth,llength)
     implicit none
  
     real,    intent(in) :: tleaf,   &       ! leaf temperature [K] (leaf is assumed isothermal)
-                           tairk    &       ! air temperature [K]
+                           tairk,   &       ! air temperature [K]
                            wind,    &       ! local wind speed [m s-1]
                            lwidth,  &       ! leaf width / shoot diameter [m]
                            llength          ! leaf length / needle length [m]

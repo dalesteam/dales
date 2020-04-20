@@ -177,7 +177,7 @@ contains
         open (ifoutput,file='tmlsm.'//cexpnr,status='replace',position='append')
         write(ifoutput,'(3a)') &
                '#     time      Qnet        H          LE         G0  ', &
-               '   tendskin     rs         ra        tskin        cliq  ', &
+               '  tendskin_surf rs         ra        tskin_surf   cliq  ', &
                '    Wl          rssoil     rsveg       Resp       wco2         An', &
                '    gcco2'
         write(ifoutput,'(3a)') &
@@ -216,7 +216,7 @@ contains
               open (ifoutput,file=name,status='replace',position='append')
               write(ifoutput,'(3a)') &
                  '#     time      Qnet        H          LE         G0  ', &
-                 '   tendskin     rs         ra        tskin        cliq  ', &
+                 '  tendskin_surf rs         ra        tskin_surf   cliq  ', &
                  '    Wl          rssoil     rsveg'
               write(ifoutput,'(3a)') &
                  '#      [s]     [W/m2]     [W/m2]     [W/m2]     [W/m2]', &
@@ -265,7 +265,7 @@ contains
           call ncinfo(ncname(23,:),'H','Sensible heat flux','W/m^2','time')
           call ncinfo(ncname(24,:),'LE','Latent heat flux','W/m^2','time')
           call ncinfo(ncname(25,:),'G0','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(26,:),'tendskin','Skin tendency','W/m^2','time')
+          call ncinfo(ncname(26,:),'tendskin_surf','Skin tendency','W/m^2','time')
           call ncinfo(ncname(27,:),'rs','Surface resistance','s/m','time')
           call ncinfo(ncname(28,:),'ra','Aerodynamic resistance','s/m','time')
           call ncinfo(ncname(29,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
@@ -343,7 +343,7 @@ contains
 !
     use modfields,  only : um,vm,wm,e12m,ql0,u0av,v0av,rhof,u0,v0,w0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
-                           Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
+                           Qnet, H, LE, G0, rs, ra, tskin_surf, tendskin_surf, &
                            cliq,rsveg,rssoil,Wl, &
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
@@ -361,8 +361,8 @@ contains
     real,dimension(nvar) :: vars
 
     ! lsm variables
-    real   :: Qnetavl, Havl, LEavl, G0avl, tendskinavl, rsavl, raavl, tskinavl,Wlavl,cliqavl,rsvegavl,rssoilavl
-    real   :: Qnetav, Hav, LEav, G0av, tendskinav, rsav, raav, tskinav,Wlav,cliqav,rsvegav,rssoilav
+    real   :: Qnetavl, Havl, LEavl, G0avl, tendskin_surfavl, rsavl, raavl, tskin_surfavl,Wlavl,cliqavl,rsvegavl,rssoilavl
+    real   :: Qnetav, Hav, LEav, G0av, tendskin_surfav, rsav, raav, tskin_surfav,Wlav,cliqav,rsvegav,rssoilav
     integer:: i, j, k
 
     ! heterogeneity variables
@@ -708,54 +708,54 @@ contains
       Havl         = sum(H(2:i1,2:j1))
       LEavl        = sum(LE(2:i1,2:j1))
       G0avl        = sum(G0(2:i1,2:j1))
-      tendskinavl  = sum(tendskin(2:i1,2:j1))
+      tendskin_surfavl  = sum(tendskin_surf(2:i1,2:j1))
       rsavl        = sum(rs(2:i1,2:j1))
       raavl        = sum(ra(2:i1,2:j1))
       cliqavl      = sum(cliq(2:i1,2:j1))
       Wlavl        = sum(wl(2:i1,2:j1))
       rsvegavl     = sum(rsveg(2:i1,2:j1))
       rssoilavl    = sum(rssoil(2:i1,2:j1))
-      tskinavl     = sum(tskin(2:i1,2:j1))
+      tskin_surfavl     = sum(tskin_surf(2:i1,2:j1))
 
       call MPI_ALLREDUCE(Qnetavl,     Qnetav,     1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(Havl,        Hav,        1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(LEavl,       LEav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(G0avl,       G0av,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(tendskinavl, tendskinav, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(tendskin_surfavl, tendskin_surfav, 1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(rsavl,       rsav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(raavl,       raav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(cliqavl,     cliqav,     1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(wlavl,       wlav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(rsvegavl,    rsvegav,    1,  MY_REAL,MPI_SUM, comm3d,mpierr)
       call MPI_ALLREDUCE(rssoilavl,   rssoilav,   1,  MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(tskinavl,    tskinav,    1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(tskin_surfavl,    tskin_surfav,    1,  MY_REAL,MPI_SUM, comm3d,mpierr)
 
       Qnetav        = Qnetav      / ijtot
       Hav           = Hav         / ijtot
       LEav          = LEav        / ijtot
       G0av          = G0av        / ijtot
-      tendskinav    = tendskinav  / ijtot
+      tendskin_surfav    = tendskin_surfav  / ijtot
       rsav          = rsav        / ijtot
       raav          = raav        / ijtot
       cliqav        = cliqav      / ijtot
       wlav          = wlav        / ijtot
       rsvegav       = rsvegav     / ijtot
       rssoilav      = rssoilav    / ijtot
-      tskinav       = tskinav     / ijtot
+      tskin_surfav       = tskin_surfav     / ijtot
 
       if (lhetero) then
         Qnet_patch     = patchsum_1level(Qnet    (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         H_patch        = patchsum_1level(H       (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         LE_patch       = patchsum_1level(LE      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         G0_patch       = patchsum_1level(G0      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        tendskin_patch = patchsum_1level(tendskin(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        tendskin_patch = patchsum_1level(tendskin_surf(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         rs_patch       = patchsum_1level(rs      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         ra_patch       = patchsum_1level(ra      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         cliq_patch     = patchsum_1level(cliq    (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         wl_patch       = patchsum_1level(wl      (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         rsveg_patch    = patchsum_1level(rsveg   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
-        tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
+        tskin_patch    = patchsum_1level(tskin_surf   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
     end if
 
@@ -804,10 +804,10 @@ contains
             Hav         ,&
             LEav        ,&
             G0av        ,&
-            tendskinav  ,&
+            tendskin_surfav  ,&
             rsav        ,&
             raav        ,&
-            tskinav     ,&
+            tskin_surfav     ,&
             cliqav      ,&
             wlav        ,&
             rssoilav    ,&
@@ -849,7 +849,7 @@ contains
           vars(23) = Hav
           vars(24) = LEav
           vars(25) = G0av
-          vars(26) = tendskinav
+          vars(26) = tendskin_surfav
           vars(27) = rsav
           vars(28) = raav
           vars(29) = cliqav

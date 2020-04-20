@@ -72,7 +72,7 @@ contains
   subroutine initsurface
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,albedo_rad
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
@@ -83,7 +83,7 @@ contains
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
-      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
+      lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav_surf, Qnetav, cvegav, Wlav, &
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
@@ -97,7 +97,7 @@ contains
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
-      lsplitleaf,l3leaves
+      lsplitleaf,l3leaves,sigma
 
 
     ! 1    -   Initialize soil
@@ -132,7 +132,7 @@ contains
     call MPI_BCAST(rsisurf2     , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Cskinav      , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(lambdaskinav , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(albedoav     , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(albedoav_surf, 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Qnetav       , 1, MY_REAL, 0, comm3d, mpierr)
 
     call MPI_BCAST(rsminav      , 1, MY_REAL, 0, comm3d, mpierr)
@@ -167,6 +167,7 @@ contains
     call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(l3leaves                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(sigma                      ,            1, MY_REAL    , 0, comm3d, mpierr)
     
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
@@ -416,7 +417,7 @@ contains
           rootfav      = 0
           Cskinav      = 0
           lambdaskinav = 0
-          albedoav     = 0
+          albedoav_surf     = 0
           Qnetav       = 0
           cvegav       = 0
           rsminav      = 0
@@ -464,7 +465,7 @@ contains
               rootfav(:)    = rootfav(:)   +  ( rootf_patch(:,i,j)    / ( xpatches * ypatches ) )
               Cskinav       = Cskinav      +  ( Cskin_patch(i,j)      / ( xpatches * ypatches ) )
               lambdaskinav  = lambdaskinav +  ( lambdaskin_patch(i,j) / ( xpatches * ypatches ) )
-              albedoav      = albedoav     +  ( albedo_patch(i,j)     / ( xpatches * ypatches ) )
+              albedoav_surf      = albedoav_surf     +  ( albedo_patch(i,j)     / ( xpatches * ypatches ) )
               Qnetav        = Qnetav       +  ( Qnet_patch(i,j)       / ( xpatches * ypatches ) )
               cvegav        = cvegav       +  ( cveg_patch(i,j)       / ( xpatches * ypatches ) )
               rsminav       = rsminav      +  ( rsmin_patch(i,j)      / ( xpatches * ypatches ) )
@@ -485,7 +486,7 @@ contains
           wqsurf = 0
           wsvsurf(1:nsv) = 0
           if (.not. loldtable) then
-            albedoav  = 0
+            albedoav_surf  = 0
           endif
 
           z0mav        = 0
@@ -520,7 +521,7 @@ contains
               wqsurf = wqsurf + ( wq_patch(i,j)    / ( xpatches * ypatches ) )
               wsvsurf(1:nsv) = wsvsurf(1:nsv) + ( wsv_patch(1:nsv,i,j) / ( xpatches * ypatches ) )
               if (.not. loldtable) then
-                albedoav  = albedoav + ( albedo_patch(i,j) / ( xpatches * ypatches ) )
+                albedoav_surf  = albedoav_surf + ( albedo_patch(i,j) / ( xpatches * ypatches ) )
               endif
 
               z0mav  = z0mav  + ( z0mav_patch(i,j) / ( xpatches * ypatches ) )
@@ -566,8 +567,8 @@ contains
       if(lambdaskinav == -1) then
         stop "NAMSURFACE: lambdaskinav is not set"
       end if
-      if(albedoav == -1) then
-        stop "NAMSURFACE: albedoav is not set"
+      if(albedoav_surf == -1) then
+        stop "NAMSURFACE: albedoav_surf is not set"
       end if
       if(Qnetav == -1) then
         stop "NAMSURFACE: Qnetav is not set"
@@ -610,21 +611,21 @@ contains
       end if
     end if
 
-    allocate(albedo(i2,j2))
+    allocate(albedo_surf(i2,j2))
     allocate(z0m(i2,j2))
     allocate(z0h(i2,j2))
     allocate(obl(i2,j2))
-    allocate(tskin(i2,j2))
+    allocate(tskin_surf(i2,j2))
     allocate(qskin(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
 
-    if(rad_shortw .and. albedoav == -1) then
-      stop "NAMSURFACE: albedoav is not set"
+    if(rad_shortw .and. albedoav_surf == -1) then
+      stop "NAMSURFACE: albedoav_surf is not set"
     end if
     if(iradiation == 1) then
-      if(albedoav == -1) then
-        stop "NAMSURFACE: albedoav is not set"
+      if(albedoav_surf == -1) then
+        stop "NAMSURFACE: albedoav_surf is not set"
       end if
       allocate(swdavn(i2,j2,nradtime))
       allocate(swuavn(i2,j2,nradtime))
@@ -636,7 +637,7 @@ contains
       lwuavn =  0.
     end if
 
-    albedo     = albedoav
+    albedo_surf     = albedoav_surf
     if(lhetero) then
       do j=1,j2
         tempy=patchynr(j)
@@ -645,7 +646,7 @@ contains
           z0m(i,j)   = z0mav_patch(tempx,tempy)
           z0h(i,j)   = z0hav_patch(tempx,tempy)
           if (.not. loldtable) then
-            albedo(i,j) = albedo_patch(tempx,tempy)
+            albedo_surf(i,j) = albedo_patch(tempx,tempy)
             if(isurf .ne. 1) then
               rs(i,j)     = rsisurf2_patch(tempx,tempy)
             endif
@@ -656,7 +657,10 @@ contains
       z0m        = z0mav
       z0h        = z0hav
     endif
-
+    
+    !XPB Use surface albedo for radiation, unless lcanopyeb=true. 
+    !    If so, albedo_rad is overwritten by albedo_can
+    albedo_rad(:,:) = albedo_surf(:,:)
     ! 3. Initialize surface layer
     allocate(ustar   (i2,j2))
 
@@ -690,6 +694,12 @@ contains
         allocate(PARleaf_sun(nz_gauss,nangle_gauss))
         allocate(fSL(nz_gauss))
         allocate(gshad_old(2:i1,2:j1,nz_gauss))
+        allocate(albdir_lsplit(2:i1,2:j1))
+        allocate(albdif_lsplit(2:i1,2:j1))
+        allocate(albswd_lsplit(2:i1,2:j1))
+        allocate(swdir_lsplit(2:i1,2:j1,nz_gauss))
+        allocate(swdif_lsplit(2:i1,2:j1,nz_gauss))
+        allocate(swu_lsplit(2:i1,2:j1,nz_gauss))
         if (l3leaves) then
           allocate(gleafsun_old(2:i1,2:j1,nz_gauss,nangle_gauss))
         else
@@ -704,8 +714,9 @@ contains
   subroutine surface
     use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
-    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
+    use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer,myid
     use moduser,    only : surf_user
+    use modraddata, only : tskin_rad,albedo_rad
     implicit none
 
     integer  :: i, j, n, patchx, patchy
@@ -808,9 +819,9 @@ contains
       do j = 2, j1
         do i = 2, i1
           if(lhetero) then
-            tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
+            tskin_surf(i,j) = thls_patch(patchxnr(i),patchynr(j))
           else
-            tskin(i,j) = thls
+            tskin_surf(i,j) = thls
           endif
         end do
       end do
@@ -845,7 +856,7 @@ contains
             endif
           end if
 
-          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j)
+          thlflux(i,j) = - ( thl0(i,j,1) - tskin_surf(i,j) ) / ra(i,j)
           qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
 
           if(lhetero) then
@@ -990,13 +1001,13 @@ contains
           Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
           (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
-          tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
+          tskin_surf(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
           qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
 
-          thlsl      = thlsl + tskin(i,j)
+          thlsl      = thlsl + tskin_surf(i,j)
           qtsl       = qtsl  + qskin(i,j)
           if (lhetero) then
-            lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
+            lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin_surf(i,j)
             lqts_patch(patchx,patchy)  = lqts_patch(patchx,patchy)  + qskin(i,j)
             Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
           endif
@@ -1031,6 +1042,10 @@ contains
 
     ! Transfer ustar to neighbouring cells
     call excj( ustar  , 1, i2, 1, j2, 1,1)
+    
+    !XPB Use surface tskin for radiation, unless lcanopyeb=true. 
+    !    If so, tskin_rad is overwritten by tskin_can
+    tskin_rad (:,:) = tskin_surf (:,:)
 
     return
 
@@ -1057,7 +1072,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           exner      = (ps / pref0)**(rd/cp)
-          tsurf      = tskin(i,j) * exner
+          tsurf      = tskin_surf(i,j) * exner
           es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
           qsatsurf   = rd / rv * es / ps
           surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
@@ -1079,7 +1094,7 @@ contains
             patchx     = patchxnr(i)
             patchy     = patchynr(j)
             exner      = (ps_patch(patchx,patchy) / pref0)**(rd/cp)
-            tsurf      = tskin(i,j) * exner
+            tsurf      = tskin_surf(i,j) * exner
             es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
             qsatsurf   = rd / rv * es / ps_patch(patchx,patchy)
             surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
@@ -1127,7 +1142,7 @@ contains
       do i=2,i1
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
-          thvsl   =   tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
+          thvsl   =   tskin_surf(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
@@ -1551,8 +1566,8 @@ contains
     allocate(rssoilmin(i2,j2))
     allocate(cveg(i2,j2))
     allocate(cliq(i2,j2))
-    allocate(tendskin(i2,j2))
-    allocate(tskinm(i2,j2))
+    allocate(tendskin_surf(i2,j2))
+    allocate(tskinm_surf(i2,j2))
     allocate(Cskin(i2,j2))
     allocate(lambdaskin(i2,j2))
     allocate(LAI(i2,j2))
@@ -1641,7 +1656,7 @@ contains
 
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
-    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
+    use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith,albedo_rad,tskin_rad
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
     use modmicrodata, only : imicro,imicro_bulk
     use modcanopy, only : canopyeb,lcanopyeb
@@ -1844,11 +1859,13 @@ contains
             linags = .true.
           endif !linags
           if (lsplitleaf) then
-            call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo(i,j),& ! in! 
-                 PARleaf_shad,PARleaf_sun,fSL)
+            call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo_surf(i,j),& ! in! 
+                 PARleaf_shad,PARleaf_sun,fSL,& 
+                 albdir_lsplit(i,j),albdif_lsplit(i,j),albswd_lsplit(i,j),&
+                 swdir_lsplit(i,j,:nz_gauss),swdif_lsplit(i,j,:nz_gauss),swu_lsplit(i,j,:nz_gauss))! couldbe used for radiation
             do itg = 1,nz_gauss
               !shaded
-              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),  & ! in
+              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j),  & ! in
                          phitot(i,j),PARleaf_shad(itg), & ! in 
                          lrelaxgc_surf,gcsurf_old_set,kgc_surf,gshad_old(i,j,itg),rk3coef, & ! in
                          lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j), & ! in
@@ -1857,11 +1874,11 @@ contains
               !sunny
               if (l3leaves) then      ! 3 angles for sunny leaves
                 do angle=1,nangle_gauss
-                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j), & ! in
+                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j), & ! in
                              phitot(i,j),PARleaf_sun(itg,angle),  & ! in
                              lrelaxgc_surf,gcsurf_old_set,kgc_surf,gleafsun_old(i,j,itg,angle),rk3coef, & ! in
                              lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j), & ! in
-                             gleafsun(angle),Fleafsun(angle),ci,&   !out
+                             gleafsun(angle),Fleafsun(angle),ci,                &   !out
                              fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin) !out, not needed here
                 end do
                 if (lrelaxgc_surf) then
@@ -1877,11 +1894,11 @@ contains
                 gsun   = sum(weight_g * gleafsun(1:nangle_gauss))
               else ! angles PAR are averaged
                 PARleaf_allsun   = sum(weight_g * PARleaf_sun(itg,1:nangle_gauss))
-                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j), & ! in
+                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j), & ! in
                            phitot(i,j),PARleaf_allsun(itg), & ! in
                            lrelaxgc_surf,gcsurf_old_set,kgc_surf,gsun_old(i,j,itg),rk3coef,& !
                            lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j),& !
-                           gsun,Fsun,ci,&
+                           gsun,Fsun,ci, &
                            fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin)
                 if (lrelaxgc_surf) then
                   if (gcsurf_old_set .and. rk3step ==3) then
@@ -1915,7 +1932,7 @@ contains
             
             !upscaling following Ronda et al
             PAR      = 0.50 * max(0.1,abs(swd(i,j,1))) !
-            call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin(i,j),& ! in
+            call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j),& ! in
                        phitot(i,j),PAR, & ! in
                        lrelaxgc_surf,gcsurf_old_set,kgc_surf,gc_old(i,j),rk3coef,   & ! in
                        lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j),           & ! in
@@ -2000,7 +2017,7 @@ contains
 
         ! CvH solve the surface temperature implicitly including variations in LWout
         if(rk3step == 1) then
-          tskinm(i,j) = tskin(i,j)
+          tskinm_surf(i,j) = tskin_surf(i,j)
           Wlm(i,j)    = Wl(i,j)
         end if
 
@@ -2009,7 +2026,7 @@ contains
         else
           exner   = (ps / pref0) ** (rd/cp)
         endif
-        tsurfm  = tskinm(i,j) * exner
+        tsurfm  = tskinm_surf(i,j) * exner
 
         esat    = 0.611e3 * exp(17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86))
         if(lhetero) then
@@ -2052,32 +2069,32 @@ contains
         Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
 !\todo  Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
-!       (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)- fRs[t]*(1.0 - albedoav(i,j))*swdown
+!       (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)- fRs[t]*(1.0 - albedoav_surf(i,j))*swdown
         Bcoef   = 4. * boltz * tsurfm ** 3. + fH + fLE * dqsatdT + lambdaskin(i,j)
 
         if (Cskin(i,j) == 0.) then
-          tskin(i,j) = Acoef * Bcoef ** (-1.) / exner
+          tskin_surf(i,j) = Acoef * Bcoef ** (-1.) / exner
         else
-          tskin(i,j) = (1. + rk3coef / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + rk3coef / Cskin(i,j) * Acoef) / exner
+          tskin_surf(i,j) = (1. + rk3coef / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + rk3coef / Cskin(i,j) * Acoef) / exner
         end if
 
-        Qnet(i,j)     = Qnet(i,j) - (boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 3. * (tskin(i,j) * exner - tsurfm))
-        G0(i,j)       = lambdaskin(i,j) * ( tskin(i,j) * exner - tsoil(i,j,1) )
-        LE(i,j)       = - fLE * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
+        Qnet(i,j)     = Qnet(i,j) - (boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 3. * (tskin_surf(i,j) * exner - tsurfm))
+        G0(i,j)       = lambdaskin(i,j) * ( tskin_surf(i,j) * exner - tsoil(i,j,1) )
+        LE(i,j)       = - fLE * ( qt0(i,j,1) - (dqsatdT * (tskin_surf(i,j) * exner - tsurfm) + qsat))
 
-        LEveg         = - fLEveg  * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
-        LEsoil        = - fLEsoil * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
-        LEliq         = - fLEliq  * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
+        LEveg         = - fLEveg  * ( qt0(i,j,1) - (dqsatdT * (tskin_surf(i,j) * exner - tsurfm) + qsat))
+        LEsoil        = - fLEsoil * ( qt0(i,j,1) - (dqsatdT * (tskin_surf(i,j) * exner - tsurfm) + qsat))
+        LEliq         = - fLEliq  * ( qt0(i,j,1) - (dqsatdT * (tskin_surf(i,j) * exner - tsurfm) + qsat))
 
         if(LE(i,j) == 0.) then
           rs(i,j)     = 1.e8
         else
-          rs(i,j)     = - rhof(1) * rlv * (qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat)) / LE(i,j) - ra(i,j)
+          rs(i,j)     = - rhof(1) * rlv * (qt0(i,j,1) - (dqsatdT * (tskin_surf(i,j) * exner - tsurfm) + qsat)) / LE(i,j) - ra(i,j)
         end if
 
-        H(i,j)        = - fH  * ( Tatm - tskin(i,j) * exner )
-        tskin(i,j)    = max(min(tskin(i,j),tskinm(i,j)+10.),tskinm(i,j)-10.)
-        tendskin(i,j) = Cskin(i,j) * (tskin(i,j) - tskinm(i,j)) * exner / rk3coef
+        H(i,j)        = - fH  * ( Tatm - tskin_surf(i,j) * exner )
+        tskin_surf(i,j)    = max(min(tskin_surf(i,j),tskinm_surf(i,j)+10.),tskinm_surf(i,j)-10.)
+        tendskin_surf(i,j) = Cskin(i,j) * (tskin_surf(i,j) - tskinm_surf(i,j)) * exner / rk3coef
 
         ! In case of dew formation, allow all water to enter skin reservoir Wl
         if(qsat - qt0(i,j,1) < 0.) then
@@ -2086,9 +2103,9 @@ contains
           Wl(i,j)       =  Wlm(i,j) - rk3coef * (LEliq / (rhow * rlv))
         end if
 
-        thlsl = thlsl + tskin(i,j)
+        thlsl = thlsl + tskin_surf(i,j)
         if (lhetero) then
-          lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
+          lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin_surf(i,j)
           Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
         endif
 
@@ -2145,6 +2162,7 @@ contains
         phiw(i,j,ksoilmax) = phiwm(i,j,ksoilmax) + rk3coef * (- lambdash(i,j,ksoilmax-1) * &
         (phiw(i,j,ksoilmax) - phiw(i,j,ksoilmax-1)) / dzsoil(ksoilmax-1) + gammash(i,j,ksoilmax-1) &
         - (phifrac(i,j,ksoilmax) * LEveg) / (rhow*rlv) ) / dzsoil(ksoilmax)
+   
       end do
     end do
 
