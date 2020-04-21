@@ -77,6 +77,7 @@ contains
     use modsubgrid,        only : initsubgrid
     use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
     use modmpi,            only : initmpi,my_real,myid,nprocx,nprocy,mpierr
+    use modchem,           only : initchem
 
     implicit none
     integer :: ierr
@@ -253,11 +254,12 @@ contains
     call initboundary
     call initthermodynamics
     call initradiation
+    call initchem
     call initsurface
     call initsubgrid
     call initpois
-    call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call initmicrophysics
+    call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
 
     call checkinitvalues

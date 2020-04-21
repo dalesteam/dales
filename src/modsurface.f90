@@ -95,7 +95,7 @@ contains
       ! Delay plant response in Ags
       lrelaxgc, kgc, lrelaxci, kci, &
       ! Soil properties
-      phi, phifc, phiwp, R10, &
+      phi, phifc, phiwp, R10, T2gm, Q10gm, &
       !2leaf AGS, sunlit/shaded
       lsplitleaf
 
@@ -181,25 +181,38 @@ contains
     endif
 
     if(lrsAgs) then
-      if(planttype==4) then !C4 plants, so standard settings for C3 plants are replaced
-        CO2comp298 =    4.3 !<  CO2 compensation concentration
-        Q10CO2     =    1.5 !<  Parameter to calculate the CO2 compensation concentration
-        gm298      =   17.5 !<  Mesophyll conductance at 298 K
-        Q10gm      =    2.0 !<  Parameter to calculate the mesophyll conductance
-        T1gm       =  286.0 !<  Reference temperature to calculate the mesophyll conductance
-        T2gm       =  309.0 !<  Reference temperature to calculate the mesophyll conductance
-        f0         =   0.85 !<  Maximum value Cfrac
-        ad         =   0.15 !<  Regression coefficient to calculate Cfrac
-        Ammax298   =    1.7 !<  CO2 maximal primary productivity
-        Q10am      =    2.0 !<  Parameter to calculate maximal primary productivity
-        T1Am       =    286 !<  Reference temperature to calculate maximal primary productivity
-        T2Am       =    311 !<  Reference temperature to calculate maximal primary productivity
-        alpha0     =  0.014 !<  Initial low light conditions
-      else
-        if(planttype/=3) then
+      select case (planttype)
+        case (3)              !<  C3 plants based on standard settings; R10, T2gm and Q10gm can be altered in the namelist
+        case (4)              !<  C4 plants with standard settings; relevant standard settings for C3 plants are replaced; R10, T2gm and Q10gm cannot be altered in the namelist
+          CO2comp298 =    4.3 !<    CO2 compensation concentration
+          Q10CO2     =    1.5 !<    Parameter to calculate the CO2 compensation concentration
+          gm298      =   17.5 !<    Mesophyll conductance at 298 K
+          Q10gm      =    2.0 !<    Parameter to calculate the mesophyll conductance
+          T1gm       =  286.0 !<    Reference temperature to calculate the mesophyll conductance
+          T2gm       =  309.0 !<    Reference temperature to calculate the mesophyll conductance
+          f0         =   0.85 !<    Maximum value Cfrac
+          ad         =   0.15 !<    Regression coefficient to calculate Cfrac
+          Ammax298   =    1.7 !<    CO2 maximal primary productivity
+          Q10am      =    2.0 !<    Parameter to calculate maximal primary productivity
+          T1Am       =    286 !<    Reference temperature to calculate maximal primary productivity
+          T2Am       =    311 !<    Reference temperature to calculate maximal primary productivity
+          alpha0     =  0.014 !<    Initial low light conditions
+        case (5)              !<  C4 plants with altered settings; relevant standard settings for C3 plants are replaced, except for T2gm and Q10gm; T2gm and Q10gm should be altered in the namelist; R10 can be altered in the namelist
+          CO2comp298 =    4.3 !<    CO2 compensation concentration
+          Q10CO2     =    1.5 !<    Parameter to calculate the CO2 compensation concentration
+          gm298      =   17.5 !<    Mesophyll conductance at 298 K
+          T1gm       =  286.0 !<    Reference temperature to calculate the mesophyll conductance
+          f0         =   0.85 !<    Maximum value Cfrac
+          ad         =   0.15 !<    Regression coefficient to calculate Cfrac
+          Ammax298   =    1.7 !<    CO2 maximal primary productivity
+          Q10am      =    2.0 !<    Parameter to calculate maximal primary productivity
+          T1Am       =    286 !<    Reference temperature to calculate maximal primary productivity
+          T2Am       =    311 !<    Reference temperature to calculate maximal primary productivity
+          alpha0     =  0.014 !<    Initial low light conditions
+        case default          !<  Plant type is set to a scheme that is not (yet) supported
           if(myid==0) print *,"WARNING::: planttype should be either 3 or 4, corresponding to C3 or C4 plants. It now defaulted to 3."
-        endif
-      endif
+          planttype = 3
+      end select
     endif
 
     if(lhetero) then
