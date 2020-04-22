@@ -108,6 +108,7 @@ contains
     allocate(lwc       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(albedo_rad(i2,j2)) ! same dims as surface variables
     allocate(tskin_rad (i2,j2)) ! same dims as surface variables
+    allocate(qskin_rad (i2,j2)) ! same dims as surface variables
 
     allocate(SW_up_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
     allocate(SW_dn_TOA (2-ih:i1+ih,2-jh:j1+jh)    )
@@ -136,6 +137,7 @@ contains
     lwc   = 0.
     albedo_rad = 0.
     tskin_rad  = 0.
+    qskin_rad  = 0.
 
     SW_up_TOA=0;SW_dn_TOA=0;LW_up_TOA=0;LW_dn_TOA=0
     SW_up_ca_TOA = 0. ;SW_dn_ca_TOA=0    ;LW_up_ca_TOA=0    ;LW_dn_ca_TOA=0
@@ -245,7 +247,7 @@ contains
     deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
-    deallocate(albedo_rad,tskin_rad)           
+    deallocate(albedo_rad,tskin_rad,qskin_rad)           
 
   end subroutine exitradiation
 

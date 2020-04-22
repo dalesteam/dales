@@ -101,13 +101,13 @@ SAVE
   real              :: z0mav    = -1
   real, allocatable :: z0h        (:,:) !<  Roughness length for heat [m]
   real              :: z0hav    = -1
-  real, allocatable :: tskin_surf      (:,:) !<  Skin temperature [K]
-  real, allocatable :: tskinm_surf     (:,:) !<  Skin temperature previous timestep [K]
+  real, allocatable :: tskin_surf      (:,:) !< Surface  skin temperature [K]
+  real, allocatable :: tskinm_surf     (:,:) !< Surface skin temperature previous timestep [K]
   real, allocatable :: Wl         (:,:) !<  Liquid water reservoir [m]
   real              :: Wlav     = -1
   real, parameter   :: Wmax     = 0.0002 !<  Maximum layer of liquid water on surface [m]
   real, allocatable :: Wlm        (:,:) !<  Liquid water reservoir previous timestep [m]
-  real, allocatable :: qskin      (:,:) !<  Skin specific humidity [kg/kg]
+  real, allocatable :: qskin_surf (:,:) !<  Surface skin specific humidity [kg/kg]
   real, allocatable :: albedo_surf(:,:) !<  Surface albedo [-]
   real              :: albedoav_surf = -1
   real, allocatable :: LAI        (:,:) !<  Leaf area index understory vegetation [-]

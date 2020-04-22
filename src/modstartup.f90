@@ -371,7 +371,7 @@ contains
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin_surf,tskinm_surf,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
-                                  thvs_patch,lhetero,qskin
+                                  thvs_patch,lhetero,qskin_surf
     use modsurface,        only : surface,qtsurf,dthldz,ps
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
@@ -573,7 +573,7 @@ contains
         thls = thlprof(1)
         qts  = qtprof(1)
         tskin_surf  = thls
-        qskin  = qts
+        qskin_surf  = qts
       case(10)
         call initsurf_user
       end select
@@ -808,7 +808,7 @@ contains
 
     use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                            tsoil,phiw,tskin_surf,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
+                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin_surf
     use modraddata, only: iradiation, useMcICA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
@@ -857,7 +857,7 @@ contains
       read(ifinput)  dtheta,dqt,timee,dt,tres
       read(ifinput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
       read(ifinput)   ((tskin_surf(i,j ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+      read(ifinput)   ((qskin_surf(i,j ),i=1,i2      ),j=1,j2      )
       if(lhetero) then
         read(ifinput)   ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
         read(ifinput)   ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)
@@ -902,7 +902,7 @@ contains
   subroutine writerestartfiles
     use modsurfdata,only: ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
                           tsoil,phiw,tskin_surf,Wl,ksoilmax,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
+                          obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin_surf
     use modraddata, only: iradiation, useMcICA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,trestart,itrestart,tnextrestart,dt_lim,rtimee,timee,tres,cexpnr,&
@@ -960,7 +960,7 @@ contains
       write(ifoutput)  dtheta,dqt,timee,  dt,tres
       write(ifoutput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
       write(ifoutput)   ((tskin_surf(i,j ),i=1,i2      ),j=1,j2      )
-      write(ifoutput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+      write(ifoutput)   ((qskin_surf(i,j ),i=1,i2      ),j=1,j2      )
       if(lhetero) then
         write(ifoutput)  ((ps_patch  (i,j),i=1,xpatches),j=1,ypatches)
         write(ifoutput)  ((thls_patch(i,j),i=1,xpatches),j=1,ypatches)

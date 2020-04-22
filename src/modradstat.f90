@@ -288,7 +288,7 @@ contains
     use modradfull,    only : d4stream
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,rlv,rd,pref0,ijtot
     use modfields,    only : rhof, exnf, thl0,qt0,ql0
-    use modsurfdata,  only : qskin, thvs, ps
+    use modraddata,  only : qskin_rad, thvs, ps
     use modmicrodata, only : Nc_0
     use modraddata,   only : tskin_rad,albedo_rad
     use modmpi,    only :  slabsum
@@ -328,7 +328,7 @@ contains
       do j=2,j1
         do i=2,i1
           ql_b(i,j,1)   = 0.! CvH, no ql at surface
-          qv_b(i,j,1)   = qskin(i,j) !CvH, no ql at surface thus qv = qt
+          qv_b(i,j,1)   = qskin_rad(i,j) !CvH, no ql at surface thus qv = qt
           temp_b(i,j,1) = tskin_rad(i,j)*exnersurf
         end do
       end do

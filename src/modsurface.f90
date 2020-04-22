@@ -602,7 +602,7 @@ contains
     if(isurf <= 2) then
       allocate(ra(i2,j2))
 
-      ! CvH set initial values for rs and ra to be able to compute qskin
+      ! CvH set initial values for rs and ra to be able to compute qskin_surf
       ra = 50.
       if(isurf == 1) then
         rs = 100.
@@ -616,7 +616,7 @@ contains
     allocate(z0h(i2,j2))
     allocate(obl(i2,j2))
     allocate(tskin_surf(i2,j2))
-    allocate(qskin(i2,j2))
+    allocate(qskin_surf(i2,j2))
     allocate(Cm(i2,j2))
     allocate(Cs(i2,j2))
 
@@ -716,7 +716,7 @@ contains
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer,myid
     use moduser,    only : surf_user
-    use modraddata, only : tskin_rad,albedo_rad
+    use modraddata, only : tskin_rad,albedo_rad,qskin_rad
     implicit none
 
     integer  :: i, j, n, patchx, patchy
@@ -857,7 +857,7 @@ contains
           end if
 
           thlflux(i,j) = - ( thl0(i,j,1) - tskin_surf(i,j) ) / ra(i,j)
-          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+          qtflux(i,j) = - (qt0(i,j,1)  - qskin_surf(i,j)) / ra(i,j)
 
           if(lhetero) then
             do n=1,nsv
@@ -1002,13 +1002,13 @@ contains
           (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
 
           tskin_surf(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
-          qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
+          qskin_surf(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
 
           thlsl      = thlsl + tskin_surf(i,j)
-          qtsl       = qtsl  + qskin(i,j)
+          qtsl       = qtsl  + qskin_surf(i,j)
           if (lhetero) then
             lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin_surf(i,j)
-            lqts_patch(patchx,patchy)  = lqts_patch(patchx,patchy)  + qskin(i,j)
+            lqts_patch(patchx,patchy)  = lqts_patch(patchx,patchy)  + qskin_surf(i,j)
             Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
           endif
         end do
@@ -1046,6 +1046,7 @@ contains
     !XPB Use surface tskin for radiation, unless lcanopyeb=true. 
     !    If so, tskin_rad is overwritten by tskin_can
     tskin_rad (:,:) = tskin_surf (:,:)
+    qskin_rad (:,:) = qskin_surf (:,:)
 
     return
 
@@ -1076,8 +1077,8 @@ contains
           es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
           qsatsurf   = rd / rv * es / ps
           surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
-          qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
-          qtsl       = qtsl + qskin(i,j)
+          qskin_surf(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
+          qtsl       = qtsl + qskin_surf(i,j)
         end do
       end do
 
@@ -1098,9 +1099,9 @@ contains
             es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
             qsatsurf   = rd / rv * es / ps_patch(patchx,patchy)
             surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
-            qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
+            qskin_surf(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
 
-            lqts_patch(patchx,patchy) = lqts_patch(patchx,patchy) + qskin(i,j)
+            lqts_patch(patchx,patchy) = lqts_patch(patchx,patchy) + qskin_surf(i,j)
             Npatch(patchx,patchy)     = Npatch(patchx,patchy)     + 1
           enddo
         enddo
@@ -1142,7 +1143,7 @@ contains
       do i=2,i1
         do j=2,j1
           thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
-          thvsl   =   tskin_surf(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
+          thvsl   =   tskin_surf(i,j)   * (1. + (rv/rd - 1.) * qskin_surf(i,j))
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
