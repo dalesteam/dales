@@ -660,20 +660,18 @@ contains
       do i=2,i1
         im=i-1
         !tg_slice  (im)   = sst
-        tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
-
+        tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...    
         do k=1,kmax
            qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
            qcl_slice (im,k) = ql0(i,j,k)
            qci_slice (im,k) = 0.
            o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
-
            h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
 !           h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
            layerT    (im,k) = tabs_slice(im,k)
            layerP    (im,k) = presf_input(k)
         enddo
-
+        
       enddo
 
      ! Patch sounding on top (no qcl or qci above domain; hard coded)

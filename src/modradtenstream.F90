@@ -114,7 +114,7 @@ contains
     allocate(nyproc(nprocy), source=int(jmax, iintegers))
     
     modeltime = real(rtimee, ireals)
-
+        
     do j=2,j1
       do i=2,i1
         d_plev(:, i, j) = real(presh(:), ireals)/100
