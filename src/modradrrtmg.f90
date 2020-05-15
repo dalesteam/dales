@@ -674,6 +674,10 @@ contains
         
       enddo
 
+      if (donoclouds) then
+        qcl_slice(:,:) = 0.
+      end if
+    
      ! Patch sounding on top (no qcl or qci above domain; hard coded)
       do i=1,imax
       ksounding=npatch_start

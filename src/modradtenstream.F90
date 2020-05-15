@@ -32,6 +32,7 @@ module modradtenstream
   use modraddata, only : &
       mwdry, mwh2o, & !< molecular weights
       lCnstAlbedo,  & !< use of a constant albedo
+      donoclouds,   & !<ignore clouds
       zenith , & !<   computes the cosine of the solar zenith angle
       azimuth, & !<   computes the solar azimuth angle
       thlprad,thlprSW,thlprLW, & !<   the radiative tendencies
@@ -131,6 +132,9 @@ contains
       enddo
     enddo
     
+    if (donoclouds) then
+      d_lwc(:,:,:) = 0.
+    end if
     
     do k=2,kmax
       d_tlev(k,:,:) = real(d_tlay(k-1,:,:) + d_tlay(k,:,:), ireals)*.5_ireals
