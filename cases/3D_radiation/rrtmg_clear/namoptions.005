@@ -1,0 +1,186 @@
+&RUN
+iexpnr        =  005
+lwarmstart    =  .false.
+runtime       =  36000
+trestart      =  7200
+ladaptive     =  .true.
+irandom       =  43
+randthl       =  0.1
+randqt        =  2.5e-5
+nsv           =  1
+nprocx        = 16
+nprocy        = 16
+/
+
+&DOMAIN
+itot          =  192
+jtot          =  192
+kmax          =  294
+
+xsize         = 19200.
+ysize         = 19200.
+
+xlat          =  51.97
+xlon          =  4.926244
+xday          =  268.
+xtime         =  7.0
+/
+
+&PHYSICS 
+isurf         =  1
+iradiation    =  4
+ps            =  101300.00
+thls          =  284.00
+lcoriol       = .true.
+rad_shortw    = .true.
+rad_longw     = .true.
+lcloudshading = .true.
+sw0           = 1367.
+timerad       = 30
+wsvsurf(1) = 0.0e-4
+wsvsurf(2) = 0.0e-4
+/
+
+&NAMSUBGRID
+sgs_surface_fix = .false.
+/
+
+&DYNAMICS
+lqlnr      =  .true.
+lnoclouds  =  .false.
+cu         =  0
+cv         =  0
+
+iadv_mom      =  52
+iadv_tke      =  52
+iadv_thl      =  52
+iadv_qt       =  52
+iadv_sv       =  52
+/
+
+&NAMCHECKSIM
+tcheck      =  60
+/
+&NAMSAMPLING
+lsampcl     = .true. !< switch for conditional sampling cloud (on/off)
+lsampco     = .true. !< switch for conditional sampling core (on/off)
+lsampup     = .true. !< switch for conditional sampling updraft (on/off)
+lsampbuup   = .true. !< switch for conditional sampling buoyant updraft (on/off)
+lsampcldup  = .true. !<switch for condtional sampling cloudy updraft (on/off)
+dtav        = 60
+timeav      = 60
+/
+&NAMSAMPLINGsurf
+lsampclsurf        = .false. !< switch for conditional sampling cloud (on/off)
+lsampupsurf        = .false. !< switch for conditional sampling updraft (on/off)
+lsampbuupsurf      = .false. !< switch for conditional sampling buoyant updraft (on/off)
+lsampclearsurf     = .false. !< switch for conditional sampling cloud (on/off)
+lsampclO20surf     = .false. !< switch for conditional sampling deep cloud    (tau>20)  (on/off)
+lsampcl0o0_0o5surf    = .false. !< switch for conditional sampling cloud         (0.0<tau<0.5)(on/off)
+dtav        = 60
+timeav      = 60
+/
+&NAMTHREEDHEATING
+dtav = 60
+lthreedheating = .true.
+/
+&NAMTIMESTAT
+ltimestat   = .true.
+iblh_meth   = 2
+iblh_var    = -1
+dtav        = 60
+/
+&NAMCROSSSECTION
+lcross      = .false.
+dtav        = 60
+crossheight(1) = 1
+/
+&NAMAGScross
+lAGScross   = .true.
+dtav        = 60.
+/
+&NAMNETCDFSTATS
+lnetcdf      = .true.
+/
+&NAMGENSTAT
+lstat       = .true. 
+dtav        = 60
+timeav      = 60
+/
+
+&NAMCHEM
+lchem       = .false.
+tnor        = 25
+firstchem   = 1
+lastchem    = 8
+ldiuvar     = .true.
+lchmovie    = .false.
+lsegr       = .true.
+/
+
+
+&NAMRADIATION
+lCnstAlbedo = .true.
+lsmthsurf   = .false.
+donoclouds  = .true.
+/
+
+
+&NAMRADSTAT
+lstat       = .true.
+dtav        = 60
+timeav      = 60
+/
+
+&NAMHETEROSTATS
+lheterostats = .true.
+dtav = 60
+/
+
+&NAMSURFACE
+tsoilav(1)   = 282.00
+tsoilav(2)   = 282.50
+tsoilav(3)   = 283.00
+tsoilav(4)   = 284.00
+tsoildeepav  = 285.00
+
+phiwav(1)    = 0.455
+phiwav(2)    = 0.455
+phiwav(3)    = 0.455
+phiwav(4)    = 0.455
+
+rootfav(1)   = 0.35
+rootfav(2)   = 0.38
+rootfav(3)   = 0.23
+rootfav(4)   = 0.04
+
+phi          = 0.600
+phifc        = 0.491
+phiwp        = 0.314
+
+lmostlocal   = .true.
+lsmoothflux  = .false.
+rsisurf2     = 50.
+
+z0mav        = 0.05
+z0hav        = 0.01
+Cskinav      = 10000.
+lambdaskinav = 3.0 
+albedoav     = 0.25
+Qnetav       = -99999
+
+rsminav      = 110.
+rssoilminav  = 50.
+cvegav       = 0.9
+LAIav        = 2.
+gDav         = 0.
+Wlav         = 1.4e-4
+
+lrsAgs       = .true.
+lCO2Ags      = .true.
+lsplitleaf   = .true.
+lchon        = .false.
+R10          = 0.13
+lrelaxgc     = .false.
+kgc          = 0.00
+/

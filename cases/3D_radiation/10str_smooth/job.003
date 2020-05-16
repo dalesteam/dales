@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH -t 20:00:00
+#SBATCH -n 256
+#SBATCH -e errorfile.003
+#SBATCH -o errorfile.003
+#SBATCH --constraint=haswell
+iexpnr=003
+
+srun ./dales4 namoptions.$iexpnr -max_solution_time 300 -pprts_smooth_srfc_flx -1 >output.$iexpnr
+
+
+

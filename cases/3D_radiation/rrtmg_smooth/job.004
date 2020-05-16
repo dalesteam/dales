@@ -1,0 +1,12 @@
+#!/bin/bash
+#SBATCH -t 02:00:00
+#SBATCH -n 256
+#SBATCH -e errorfile.004
+#SBATCH -o errorfile.004
+#SBATCH --constraint=haswell
+iexpnr=004
+
+srun ./dales4 namoptions.$iexpnr >output.$iexpnr
+
+
+
