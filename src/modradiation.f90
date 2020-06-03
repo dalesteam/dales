@@ -253,7 +253,7 @@ subroutine radpar
 
   use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
   use modfields,    only : ql0, sv0, rhof,exnf
-  use modsurfdata,  only : tauField
+  use modsurfdata,  only : tauField, lrsAgs
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
   real, allocatable :: tau(:)
@@ -342,7 +342,7 @@ subroutine radpar
             tauc=tauc+tau(k)
           end do
         endif
-        tauField(i,j) = tauc
+        if (lrsAgs) tauField(i,j) = tauc
         call sunray(tau,tauc,i,j)
       end if
 

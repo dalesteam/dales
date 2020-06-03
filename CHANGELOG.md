@@ -222,3 +222,5 @@ Handle chemicals sv fields. Add namelist options, maybe a vector for all sv - ac
 * Merged netCDF writing. It is tedious to stitch together the separate netCDF files produced - one file per MPI task. There are scripts in the Dales repository, but they are from the time of slab parallelization and only stitch in one direction. Consider the parallel netCDF API where many MPI tasks can write together into a single file.
 
 * Synchronize netCDF files periodically. When switching to compressed netCDF v4, the files can be unreadable while DALES is running or after DALES crashes or is stopped in the middle of the run.
+
+
