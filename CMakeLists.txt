@@ -31,6 +31,7 @@ elseif("$ENV{SYST}" STREQUAL "FEDORA")
   set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEV     "-fbounds-check -fbacktrace -fno-f2c -march=native -O3 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF")
   set(CMAKE_Fortran_COMPILER "ftn")
   set(CMAKE_Fortran_FLAGS "-s real64" CACHE STRING "")
@@ -134,11 +135,32 @@ FIND_LIBRARY(HYPRE_LIB libHYPRE.a
   DOC "Iterative solver library"
 )
 
+FIND_PATH(FFTW_INCLUDE_DIR fftw3.f03
+  PATHS
+  $ENV{FFTW_INCLUDE_DIR}
+  /usr/include
+  DOC "FFTW include files (fftw3.f03)"
+)
+
+FIND_LIBRARY(FFTW_LIB libfftw3.a
+  PATHS
+  $ENV{FFTW_LIB}
+  /usr/lib
+  /usr/lib64
+  DOC "FFTW static library"
+)
+
 if(NETCDF_INCLUDE_DIR)
   include_directories(${NETCDF_INCLUDE_DIR})
 else(NETCDF_INCLUDE_DIR)
   MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
 endif(NETCDF_INCLUDE_DIR)
+
+if(FFTW_INCLUDE_DIR)
+  include_directories(${FFTW_INCLUDE_DIR})
+else(FFTW_INCLUDE_DIR)
+  MESSAGE(STATUS "WARNING: No FFTW3 bindings are found (fftw3.f03).")
+endif(FFTW_INCLUDE_DIR)
 
 if(NETCDF_C_LIB)
   set(NETCDF_LIBS ${NETCDF_C_LIB})
@@ -154,6 +176,9 @@ endif(NETCDF_FORTRAN_LIB)
 
 ### Iterative solver (HYPRE)
 OPTION(USE_HYPRE "Also build iterative solver (optional, needs HYPRE)" OFF)
+
+### FFTW based poisson solver (FFTW)
+OPTION(USE_FFTW "Also build FFTW based poisson solver (optional, needs FFTW3)" OFF)
 
 ### Documentation
 INCLUDE(FindDoxygen)
