@@ -184,7 +184,7 @@ program DALES      !Version 4.0.0alpha
   call initbulkmicrostat
   call initbudget
   !call initstressbudget
-  call initchem
+! call initchem
   call initheterostats
   call initcanopy
 

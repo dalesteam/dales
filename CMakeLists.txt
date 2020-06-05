@@ -70,12 +70,6 @@ set(VERSION_MAJOR "4")
 set(VERSION_MINOR "2")
 set(VERSION_PATCH "1")
 
-# use nf-config to find paths to netcdf. Broken on Fedora due to module path missing.
-execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
-execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
-# execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NFCONFIG_FORTRAN_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
-# not used at the moment - not just a path but several compiler flags
-
 ### If necessary, resort to BASH-methods to find netcdf-directory
 EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
 
