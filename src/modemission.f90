@@ -123,13 +123,19 @@ contains
   ! Read appropriate emission fields, interpolate and transfer to svp
   !
   ! NOTES
-  ! 1. MDB TODO Align properly with non-chem tracers, i.e. cloud scalars from e.g.
+  ! 1. Emission files (currently) in kg per gridbox per hour!
+  !    What results from this routine now is ug/g, i.e. we scale for time,
+  !    gridbx size and air density AND apply a factor of 1e6.
+  ! 
+  ! TODO
+  ! 1. MDB Align properly with non-chem tracers, i.e. cloud scalars from e.g.
   ! microphysics.
   ! ----------------------------------------------------------------------
 
     use modfields,   only : svp
     use modglobal,   only : i1, j1, ih, jh, nsv, &
-                            rdt, rtimee, rk3step 
+                            rdt, rtimee, rk3step, &
+                            dzf, dx, dy    
     use modfields,   only : rhof
     use moddatetime, only : datex, nextday
     
@@ -145,7 +151,7 @@ contains
 
     svp(2:i1,2:j1,1,1:nsv) = svp(2:i1,2:j1,1,1:nsv) + &
                              ((1. - emistime_s)*svemis_a(2:i1, 2:j1, 1:nsv) + &
-                                    emistime_s *svemis_b(2:i1, 2:j1, 1:nsv))/(3600.*rhof(1)) 
+                                    emistime_s *svemis_b(2:i1, 2:j1, 1:nsv))/(3600.*rhof(1)*dzf(1)*dx*dy*1e-6) 
 
     ! --------------------------------------------------------------------------
     ! Read emission files when neccesary, i.e. simulation reaches half hour mark

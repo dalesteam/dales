@@ -474,4 +474,30 @@ contains
 
   end subroutine gatherrow
 
+  subroutine closeboundaries(field, sx,ex,hx, sy,ey,hy, sz,ez, fillvalue_in)
+
+    ! Clears halo cells of domain edges
+    ! Author: Marco de Bruine (VU), 2020
+
+    implicit none
+    integer sx,ex,hx, sy,ey,hy, sz,ez,hz 
+    real :: field(sx-hx:ex+hx,sy-hy:ey+hy,sz:ez)
+    real :: fillvalue = 0
+    real,optional :: fillvalue_in
+    if(present(fillvalue_in)) fillvalue=fillvalue_in
+
+    if      (myidx == 0) then      ! WEST boundary
+      field(sx-hx:sx-1,  sy-hy:ey+hy, sz:ez) = fillvalue
+    else if (myidx == nprocx) then ! EAST boundary
+      field(ex+1 :ex+hx, sy-hy:ey+hy, sz:ez) = fillvalue
+    end if
+
+    if      (myidy == 0) then      ! SOUTH boundary
+      field(sx-hx:ex+hx, sy-hy:sy-1,  sz:ez) = fillvalue
+    else if (myidy == nprocy) then ! NORTH boundary
+      field(sx-hx:ex+hx, ey+1 :ey+hy, sz:ez) = fillvalue
+    end if
+
+  end subroutine closeboundaries
+
 end module
