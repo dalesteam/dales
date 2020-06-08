@@ -96,20 +96,6 @@ module modsimpleice2
      gammadds3=lacz_gamma(3.+dds)
      gammaddg3=lacz_gamma(3.+ddg)
 
-     
-     ! Density corrected fall speed parameters, see Tomita 2008
-     ! rhobf is constant in time
-     do k=1,k1
-        ccrz(k)=ccr*(1.29/rhobf(k))**0.5
-        ccsz(k)=ccs*(1.29/rhobf(k))**0.5
-        ccgz(k)=ccg*(1.29/rhobf(k))**0.5
-
-        ! these coefficients are used in evapdep - tabulated because of sqrt
-        ccrz2(k) = gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)
-        ccsz2(k) = gam2ds*.39*n0rs*sqrt(ccsz(k)/2.e-5) ! NOTE: .27 here is suspect -> .39
-        ccgz2(k) = gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)
-     end do
-
     nrp=0. ! not used in this scheme 
     nr=0.  ! set to 0 here in case the statistics use them
      
@@ -130,7 +116,7 @@ module modsimpleice2
 !> Calculates the microphysical source term.
   subroutine simpleice2
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
     
     use modsimpleicestat, only : simpleicetend
     implicit none
@@ -158,15 +144,20 @@ module modsimpleice2
     ! sed_qr = 0. ! reset sedimentation fluxes
     sed_qr(:,:,kmax+1) = 0 ! initialize ghost cells, other cells are initialized before use
   
-    
      ! Density corrected fall speed parameters, see Tomita 2008
-     ! rhobf is constant in time
-     ! do k=1,k1
-     !   ccrz(k)=ccr*(1.29/rhobf(k))**0.5
-     !   ccsz(k)=ccs*(1.29/rhobf(k))**0.5
-     !   ccgz(k)=ccg*(1.29/rhobf(k))**0.5
-     ! end do
-   
+     ! rhobf is constant in time. could initialize tables in initsimpleice2, but that would requires that
+     ! microphysics is initialized AFTER readinitfiles (for rhobf def), which breaks chemistry or surface
+     do k=1,k1
+        ccrz(k)=ccr*(1.29/rhobf(k))**0.5
+        ccsz(k)=ccs*(1.29/rhobf(k))**0.5
+        ccgz(k)=ccg*(1.29/rhobf(k))**0.5
+     
+        ! these coefficients are used in evapdep - tabulated because of sqrt
+        ccrz2(k) = gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)
+        ccsz2(k) = gam2ds*.39*n0rs*sqrt(ccsz(k)/2.e-5) ! NOTE: .27 here is suspect -> .39
+        ccgz2(k) = gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)
+     end do
+    
     ! used to check on negative qr and nr
     qrsum=0.
     qrsmall=0.
@@ -175,7 +166,7 @@ module modsimpleice2
 
     !nrp=0. ! not used in this scheme
     !nr=0.
-    
+
     thlpmcr=0.
     qtpmcr=0.
 
@@ -442,8 +433,9 @@ module modsimpleice2
           enddo
        enddo
     enddo
+    surf_rain = surf_rain + sed_qr(:,:,1)*dt_spl
 
-
+    
     ! precipitate part 2
     
 !    write (*,*) 'any_qr:', any_qr
@@ -501,7 +493,7 @@ module modsimpleice2
                    enddo
                 enddo
              enddo
-
+             
           else ! alternative loops when there is only rain
              do k=kmax,1,-1
                 do j=2,j1
@@ -525,6 +517,8 @@ module modsimpleice2
              enddo
           endif
 
+          surf_rain = surf_rain + sed_qr(:,:,1)*dt_spl
+          
           ! end time splitting loop and if n>1
        ENDDO
     ENDIF

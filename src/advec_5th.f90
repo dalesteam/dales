@@ -48,11 +48,9 @@ subroutine advecc_5th(putin, putout)
 
 
   do k=1,kmax
-    do j=2,j1
-      do i=2,i1
-
-        if(k==1) then
-
+     if(k==1) then
+        do j=2,j1
+           do i=2,i1
           putout(i,j,k)  = putout(i,j,k)- ( &
                 ( &
                   u0(i+1,j,k)/60.&
@@ -78,8 +76,11 @@ subroutine advecc_5th(putin, putout)
                 w0(i,j,k+1) * (rhobf(k+1)*putin(i,j,k+1) + rhobf(k)*putin(i,j,k)) &
                 ) / ( 2. * dzf(k) ) &
                 )
-
-        elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
+       end do
+    end do
+ elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
+    do j=2,j1
+       do i=2,i1
         !CvH do 2nd order for bottom and top
 
             putout(i,j,k)  = putout(i,j,k)- (  &
@@ -108,9 +109,13 @@ subroutine advecc_5th(putin, putout)
                   -w0(i,j,k)  * (rhobf(k-1)*putin(i,j,k-1)+rhobf(k)*putin(i,j,k)) &
                   ) / ( 2. * dzf(k) ) &
                   )
-
-        elseif(k == 3) then
+         end do
+      end do
+      
+   elseif(k == 3) then
         !CvH do 2nd order for bottom and top
+      do j=2,j1
+         do i=2,i1
 
             putout(i,j,k)  = putout(i,j,k)- (  &
                   ( &
@@ -143,8 +148,12 @@ subroutine advecc_5th(putin, putout)
                       -w0(i,j,k)  * (rhobf(k-1)*putin(i,j,k-1)+rhobf(k)*putin(i,j,k))/2. &
                   ) / ( dzf(k) ) &
                   )
-        elseif(k==kmax-2) then
-
+         end do
+      end do
+      
+   elseif(k==kmax-2) then
+      do j=2,j1
+         do i=2,i1
             putout(i,j,k)  = putout(i,j,k)- (  &
                   ( &
                       u0(i+1,j,k)/60.&
@@ -176,7 +185,13 @@ subroutine advecc_5th(putin, putout)
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / dzf(k) &
                   )
-        else
+         end do
+      end do
+      
+   else
+      do j=2,j1
+         do i=2,i1
+
 
             putout(i,j,k)  = putout(i,j,k)- (  &
                   ( &
@@ -215,10 +230,10 @@ subroutine advecc_5th(putin, putout)
                   ) / dzf(k) &
                   )
 
-        end if
-
+         end do
       end do
-    end do
+      
+   end if
   end do
 
   !end if
@@ -239,12 +254,10 @@ subroutine advecu_5th(putin,putout)
 
   !if (leq) then
 
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-
-        if(k==1) then
-
+  do k=1,kmax
+     if(k==1) then
+        do j=2,j1
+           do i=2,i1
           putout(i,j,k)  = putout(i,j,k)- ( &
                 (&
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -270,9 +283,12 @@ subroutine advecu_5th(putin,putout)
                 ( rhobf(k+1)*putin(i,j,k+1) + rhobf(k)*putin(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
                 ) / (4.*dzf(k)) &
                 )
-
-        elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
-
+       end do
+    end do
+ elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
+    do j=2,j1
+       do i=2,i1
+          
           putout(i,j,k)  = putout(i,j,k)-( &
                 ( &
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -299,8 +315,11 @@ subroutine advecu_5th(putin,putout)
               -(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  )) &
                 ) / (4. * dzf(k)) &
                 )
-
-        elseif(k==3) then
+       end do
+    end do
+ elseif(k==3) then
+    do j=2,j1
+       do i=2,i1
 
           putout(i,j,k)  = putout(i,j,k)- ( &
                 ( &
@@ -333,7 +352,12 @@ subroutine advecu_5th(putin,putout)
                       -(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  ))/2. &
                 ) / (2. * dzf(k)) &
                 )
-        elseif(k==kmax-2) then
+       end do
+    end do
+ elseif(k==kmax-2) then
+    do j=2,j1
+       do i=2,i1
+
           putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
                       (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -365,9 +389,11 @@ subroutine advecu_5th(putin,putout)
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
                   )
-
-        else
-
+       end do
+    end do
+ else
+    do j=2,j1
+       do i=2,i1
           putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
                       (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -405,11 +431,11 @@ subroutine advecu_5th(putin,putout)
                   ) / (2. * dzf(k)) &
                   )
 
-        end if
-
-        end do
-      end do
+       end do
     end do
+ end if
+ 
+end do
 
   !end if
 
@@ -431,12 +457,12 @@ subroutine advecv_5th(putin, putout)
 
   !if (leq) then
 
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-
-        if(k==1) then
-
+  do k=1,kmax
+     
+     if(k==1) then
+        do j=2,j1
+           do i=2,i1
+              
           putout(i,j,k)  = putout(i,j,k)- ( &
                 ( &
                     (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
@@ -462,8 +488,12 @@ subroutine advecv_5th(putin, putout)
                   (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k)) &
                   ) / (4. * dzf(k)) &
                   )
-
-        elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
+       end do
+    end do
+    
+ elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
+    do j=2,j1
+       do i=2,i1
 
           putout(i,j,k)  = putout(i,j,k)- ( &
                 ( &
@@ -491,8 +521,14 @@ subroutine advecv_5th(putin, putout)
                 -(w0(i,j,k)  +w0(i,j-1,k))  *(rhobf(k-1)*putin(i,j,k-1)+rhobf(k)*putin(i,j,k)) &
                   ) / (4. * dzf(k)) &
                   )
-        elseif(k==kmax-2) then
-          putout(i,j,k)  = putout(i,j,k)- ( &
+       end do
+    end do
+
+ elseif(k==kmax-2) then
+    do j=2,j1
+       do i=2,i1
+
+           putout(i,j,k)  = putout(i,j,k)- ( &
                   ( &
                       (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
@@ -523,7 +559,13 @@ subroutine advecv_5th(putin, putout)
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
                   )
-        elseif(k==3) then
+        end do
+     end do
+     
+  elseif(k==3) then
+     
+     do j=2,j1
+        do i=2,i1
 
           putout(i,j,k)  = putout(i,j,k)- ( &
                 ( &
@@ -556,8 +598,11 @@ subroutine advecv_5th(putin, putout)
                       -(w0(i,j,k)  +w0(i,j-1,k))  *(rhobf(k-1)*putin(i,j,k-1)+rhobf(k)*putin(i,j,k))/2. &
                   ) / (2. * dzf(k)) &
                   )
-
-        else
+       end do
+    end do
+ else
+    do j=2,j1
+       do i=2,i1
 
           putout(i,j,k)  = putout(i,j,k)- ( &
                   ( &
@@ -595,12 +640,10 @@ subroutine advecv_5th(putin, putout)
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
                   )
-
-        end if
-
-        end do
-      end do
+       end do
     end do
+ end if
+end do
 
   !end if
 
@@ -619,11 +662,11 @@ subroutine advecw_5th(putin, putout)
   integer :: i,j,k
 
 
-    do k=2,kmax
-      do j=2,j1
-        do i=2,i1
+  do k=2,kmax
+     if(k==2 .or. k==kmax-1 .or. k==kmax) then
+        do j=2,j1
+           do i=2,i1
 
-          if(k==2 .or. k==kmax-1 .or. k==kmax) then
             putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
                       (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
@@ -650,8 +693,12 @@ subroutine advecw_5th(putin, putout)
                 -(rhobh(k)*putin(i,j,k)+rhobh(k-1)*putin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
                   )/ (4. * dzh(k)) &
                   )
-
-          elseif(k==3) then
+         end do
+      end do
+   elseif(k==3) then
+      do j=2,j1
+         do i=2,i1
+            
             putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
                       (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
@@ -683,7 +730,12 @@ subroutine advecw_5th(putin, putout)
                       -(rhobh(k)*putin(i,j,k)+rhobh(k-1)*putin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1))/2. &
                   )/ (2. * dzh(k)) &
                   )
-         elseif(k==kmax-2) then
+         end do
+      end do
+   elseif(k==kmax-2) then
+      do j=2,j1
+         do i=2,i1
+
             putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
                   (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
@@ -715,7 +767,11 @@ subroutine advecw_5th(putin, putout)
                       +(rhobh(k+2)*putin(i,j,k+2)-rhobh(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzh(k)) &
                   )
-         else
+         end do
+      end do
+   else
+      do j=2,j1
+         do i=2,i1
 
             putout(i,j,k)  = putout(i,j,k)- ( &
                   (&
@@ -754,10 +810,10 @@ subroutine advecw_5th(putin, putout)
                   ) / (2. * dzh(k)) &
                   )
 
-          end if
-        end do
+         end do
       end do
-     end do
+   end if
+end do
 
   !end if
 

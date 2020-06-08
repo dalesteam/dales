@@ -1,0 +1,133 @@
+&RUN
+lwarmstart =  .false.
+startfile  =  'inits004h00mx000y003.196'
+iexpnr     =  196
+runtime    =  52200. 
+trestart   =  3600
+dtmax      =  1.
+ladaptive  = .true.
+irandom    =  43
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  2
+courant    = .5
+peclet     = .2
+/
+
+&DOMAIN
+itot       =  144
+jtot       =  144
+kmax       =  196
+
+xsize      =  28800.
+ysize      =  28800.
+
+xlat       =  65.
+xlon       =  -10.
+xday       =  31.
+xtime      =  0.
+/
+
+&PHYSICS
+z0         =  6.6e-4
+ps         =  100900.
+thls       = 275.495697
+lmoist     =  .true.
+iradiation =  4
+timerad    =  60.
+lcoriol    =  .true.
+ltimedep   =  .true.
+useMcICA   = .false.
+/
+
+&NAMSURFACE
+isurf      = 2
+z0mav      = 6.6e-4
+z0hav      = 3.7e-6
+ps         = 100900.
+ustin      = 0.3
+albedoav   = 0.07
+/
+
+&NAMSUBGRID
+Prandtl    = 1.
+/
+
+&NAMMICROPHYSICS
+imicro          =  2
+l_sb            =  .true.
+l_rain          =  .true.
+l_sedc          =  .true.
+l_mur_cst       =  .false.
+mur_cst         =  0
+Nc_0            = 50e6
+sig_g           = 1.2
+/
+&NAMBULKMICROSTAT
+lmicrostat      =  .true.
+dtav            =  60
+timeav          =  600
+/
+
+&DYNAMICS
+llsadv     =  .false.
+lqlnr      =  .false.
+cu         =  2
+cv         =  -18
+
+iadv_mom    =  2
+iadv_tke    =  52
+iadv_thl    =  52
+iadv_qt     =  52
+iadv_sv     =  52 52
+/
+&NAMCHECKSIM
+tcheck      = 0
+/
+&NAMTIMESTAT
+ltimestat   = .true.
+dtav        = 60 
+/
+&NAMGENSTAT
+lstat       = .true.
+dtav        = 60
+timeav      = 600
+/
+&NAMSTATTEND
+dtav        = 60
+timeav      = 600
+ltend       = .true.
+/
+&SUBGRID
+ldelta      = .true.
+/
+&NAMBUDGET
+lbudget     = .true.
+dtav        = 60.
+timeav      = 600. 
+/
+&NAMRADSTAT
+dtav        = 60
+timeav      = 600.
+lstat       = .true.
+/
+
+&NAMNETCDFSTATS
+lnetcdf = .true.
+lsync = .true.
+/
+
+&NAMFIELDDUMP
+ DTAV        =   1800.0
+ LFIELDDUMP  = .true.
+! LDIRACC     = .false.
+! LBINARY     = .false.
+ KLOW        =   1
+ KHIGH       =   167
+/
+
+&NAMCROSSSECTION
+lcross = .true.
+dtav = 60
+crossheight = 2,40
+/

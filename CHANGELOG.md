@@ -45,6 +45,7 @@ the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver)
   [Issue #42](https://github.com/dalesteam/dales/issues/42), Commit 8ff2cced3
 * Fix closing of crosssection netcdf files. Commit e72701e08
 
+
 Version 4.2 - 2019-06-05
 ------------------------
 
@@ -195,11 +196,7 @@ According to Chiel, microHH does the same.
 
 * Don't do halo exchange of the m-fields
 The m-fields ghost cells are seldom needed.  Saves maybe 1 % for a
-<<<<<<< HEAD
-single process run, and a large amount of MPI cvommunication in a multi-process run.
-=======
 single process run, and a large amount of MPI communication in a multi-process run.
->>>>>>> to4.3_Fredrik
 This was tried but reverted since it interfered with chemistry, which *does* use the m-field halos.
 (Commit 0c2cf59)
 
@@ -224,8 +221,6 @@ Handle chemicals sv fields. Add namelist options, maybe a vector for all sv - ac
 
 * Merged netCDF writing. It is tedious to stitch together the separate netCDF files produced - one file per MPI task. There are scripts in the Dales repository, but they are from the time of slab parallelization and only stitch in one direction. Consider the parallel netCDF API where many MPI tasks can write together into a single file.
 
-<<<<<<< HEAD
 * Synchronize netCDF files periodically. When switching to compressed netCDF v4, the files can be unreadable while DALES is running or after DALES crashes or is stopped in the middle of the run.
-=======
-* Synchronize netCDF files periodically. When switching to compressed netCDF v4, the files can be unreadable while DALES is running or after DALES crashes or is stopped in the middle of the run.
->>>>>>> to4.3_Fredrik
+
+

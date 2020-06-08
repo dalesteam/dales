@@ -77,7 +77,7 @@ contains
   subroutine initbudget
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
-    ladaptive,dt_lim,btime,tres
+    ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
 
@@ -93,11 +93,7 @@ contains
     if(myid==0)then
        open(ifnamopt,file=fname_options,status='old',iostat=ierr)
        read (ifnamopt,NAMBUDGET,iostat=ierr)
-       if (ierr > 0) then
-         print *, 'Problem in namoptions NAMBUDGET'
-         print *, 'iostat error: ', ierr
-         stop 'ERROR: Problem in namoptions NAMBUDGET'
-       endif
+       call checknamelisterror(ierr, ifnamopt, 'NAMBUDGET')
        write(6 ,NAMBUDGET)
        close(ifnamopt)
     end if
@@ -142,7 +138,7 @@ contains
     ltkeb=.false. ; lsbtkeb=.false.
 
    !Preparing output files
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart) then
        open (ifoutput,file='budget.'//cexpnr,status='replace')
        close (ifoutput)
        open (ifoutput,file='sbbudget.'//cexpnr,status='replace')
@@ -697,7 +693,7 @@ end subroutine do_genbudget
     do k=1,k1
        do j=2,j1
        do i=2,i1
-          sbtkeavl(k) = sbtkeavl(k) + rhobf(k)*e120(i,j,k)*e120(i,j,k)
+          sbtkeavl(k) = sbtkeavl(k) + e120(i,j,k)*e120(i,j,k)
           khkmavl(k)  = khkmavl(k)  + ekh(i,j,k)/ekm(i,j,k)
        enddo
        enddo
@@ -841,28 +837,30 @@ end subroutine do_genbudget
             khkmmn    (k), &
             k=1,kmax)
        close(ifoutput)
+
+       if (lnetcdf) then
+          vars(:, 1) =tkemn
+          vars(:, 2) =shrmn
+          vars(:, 3) =buomn
+          vars(:, 4) =trspmn
+          vars(:, 5) =ptrspmn
+          vars(:, 6) =dissmn
+          vars(:, 7) =budgmn
+          vars(:, 8) =stormn
+          vars(:, 9) =residmn
+          vars(:,10) =sbtkemn
+          vars(:,11) =sbshrmn
+          vars(:,12) =sbbuomn
+          vars(:,13) =sbdissmn
+          vars(:,14) =sbstormn
+          vars(:,15) =sbbudgmn
+          vars(:,16) =sbresidmn
+          vars(:,17) =ekmmn
+          vars(:,18) =khkmmn
+          call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
+       end if
     endif !endif myid==0
-      if (lnetcdf) then
-        vars(:, 1) =tkemn
-        vars(:, 2) =shrmn
-        vars(:, 3) =buomn
-        vars(:, 4) =trspmn
-        vars(:, 5) =ptrspmn
-        vars(:, 6) =dissmn
-        vars(:, 7) =budgmn
-        vars(:, 8) =stormn
-        vars(:, 9) =residmn
-        vars(:,10) =sbtkemn
-        vars(:,11) =sbshrmn
-        vars(:,12) =sbbuomn
-        vars(:,13) =sbdissmn
-        vars(:,14) =sbstormn
-        vars(:,15) =sbbudgmn
-        vars(:,16) =sbresidmn
-        vars(:,17) =ekmmn
-        vars(:,18) =khkmmn
-        call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
-      end if
+    
       !Reset time mean variables; resolved TKE
       tkemn=0.;tkeb=0.;shrmn=0.;buomn=0.;trspmn=0.;ptrspmn=0.;
       dissmn=0.;stormn=0.;budgmn=0.;residmn=0.

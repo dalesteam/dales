@@ -62,7 +62,7 @@ contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initlsmstat
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
-    use modglobal, only : dtmax, ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres
+    use modglobal, only : dtmax, ifnamopt,fname_options, ifoutput, cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modsurfdata,only : ksoilmax,isurf
@@ -78,11 +78,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMLSMSTAT,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMLSMSTAT'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMLSMSTAT'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMLSMSTAT')
       write(6 ,NAMLSMSTAT)
       close(ifnamopt)
     end if
@@ -126,7 +122,7 @@ contains
     lambdasmn = 0.0
     gammasmn = 0.0
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart)then
       open (ifoutput,file='lsmstat.'//cexpnr,status='replace')
       close (ifoutput)
     end if

@@ -34,7 +34,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
-    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options
+    use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options,checknamelisterror
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
 
@@ -51,21 +51,13 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMDE'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMDE'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMDE')
       write(6 ,NAMDE)
 
       rewind(ifnamopt)
 
       read (ifnamopt,NAMRADIATION,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMRADIATION'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMRADIATION'
-      end if
+      call checknamelisterror(ierr, ifnamopt, 'NAMRADIATION')
       write(6 ,NAMRADIATION)
 
       close(ifnamopt)
@@ -176,9 +168,11 @@ contains
     end if
 
     if (iradiation == 0) return
+
     itimerad = floor(timerad/tres)
-    tnext = itimerad+btime
-    dt_lim = min(dt_lim,tnext)
+    !setting tnext is done in modstartup, after btime has been set
+    !tnext = itimerad+btime
+    !dt_lim = min(dt_lim,tnext)
 
     if (rad_smoke.and.isvsmoke>nsv) then
       if (rad_shortw) then
@@ -193,18 +187,23 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
+    use mpi
+    use modmpi, only: myid
     use modglobal, only : timee, dt_lim,rk3step
     use modfields, only : thlp
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
     implicit none
+    real wtime
 
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
-    if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
+    if((itimerad==0 .or. timee>=tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
+
+      wtime = MPI_Wtime()
       thlprad = 0.0
       select case (iradiation)
           case (irad_none)
@@ -230,10 +229,14 @@ contains
       if (rad_ls) then
         call radprof
       endif
+
+      if (myid == 0 .and. iradiation /= irad_none) then
+         wtime = MPI_Wtime() - wtime
+         write (*,*) 'Radiation', timee, 'Time spent:', wtime, 's'
+      end if
     end if
+
     thlp = thlp + thlprad
-
-
   end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation

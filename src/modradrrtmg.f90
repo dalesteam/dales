@@ -12,7 +12,7 @@ contains
                               imax,jmax,kmax,i1,j1,k1,&
                               kind_rb,SHR_KIND_R4,boltz
     use modmpi,        only : myid
-    use modfields,     only : presh,presf,rhof,exnf,thl0
+    use modfields,     only : initial_presh,initial_presf,rhof,exnf,thl0
     use modsurfdata ,  only : tskin
     use rrtmg_lw_init, only : rrtmg_lw_ini
     use rrtmg_lw_rad,  only : rrtmg_lw
@@ -46,7 +46,7 @@ contains
 
 
     if(.not.isReadSounding) then
-      call readSounding(presh(k1)/100.,npatch_start,npatch_end)
+      call readSounding(initial_presh(k1)/100.,npatch_start,npatch_end)
 
       if(npatch_end.ne.npatch_start) then
         npatch = npatch_end - npatch_start + 1
@@ -94,6 +94,7 @@ contains
                qcl_slice   (imax,kradmax),         &
                qci_slice   (imax,kradmax),         &
                o3_slice    (imax,kradmax),         &
+               rho_slice   (imax,kradmax),       &
                tg_slice    (imax),               &
                presf_input      (kradmax),         &
 !
@@ -130,8 +131,8 @@ contains
 
     if(.not.isReadTraceProfiles) then
       ! Patch sounding profile pressures above domain pressures (convert to hPa!)
-      presf_input(1:kmax)   = presf(1:kmax)  /100.
-      presh_input(1:k1)     = presh(1:k1)/100.
+      presf_input(1:kmax)   = initial_presf(1:kmax)  /100.
+      presh_input(1:k1)     = initial_presh(1:k1)/100.
 
       if(npatch>0) then
         presf_input(k1  :kradmax) = psnd(npatch_start:npatch_end)
@@ -160,6 +161,18 @@ contains
     end if
 
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
+
+    ! zero the RRTMG output arrays here, in case rrtmg_lw or rrtmg_sw is not executed
+    swUp_slice = 0
+    swDown_slice = 0
+    swDownDir_slice = 0
+    swDownDif_slice = 0
+    swUpCS_slice = 0
+    swDownCS_slice = 0
+    lwUp_slice = 0
+    lwDown_slice = 0
+    lwUpCS_slice = 0
+    lwDownCS_slice = 0
 
    ! Loop over the slices in the model, in the y direction
     do j=2,j1
@@ -520,9 +533,9 @@ contains
       elseif(TRIM(traceGasNameOrder(m))=='CO2')   then
         co2(:) = REAL(co2factor,KIND=kind_rb)*tmpTrace(:)
       elseif(TRIM(traceGasNameOrder(m))=='CH4')   then
-        ch4(:) = tmpTrace(:)
+        ch4(:) = tmpTrace(:)  !cstep ch4(:) = ch4factor for RCE
       elseif(TRIM(traceGasNameOrder(m))=='N2O')   then
-        n2o(:) = tmpTrace(:)
+        n2o(:) = tmpTrace(:)  !cstep n2o(:) = n2ofactor for RCE
       elseif(TRIM(traceGasNameOrder(m))=='O2')    then
         o2(:) = tmpTrace(:)
       elseif(TRIM(traceGasNameOrder(m))=='CFC11') then
@@ -570,8 +583,9 @@ contains
   ! JvdDussen, 24-6-2010                                                        !
   ! ============================================================================!
 
-      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
-      use modfields, only: thl0,ql0,qt0,exnf
+      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0,&
+                           tup,tdn,tmelt
+      use modfields, only: thl0,ql0,qt0,exnf,rhof
       use modsurfdata, only: thls,ps
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
@@ -592,11 +606,20 @@ contains
       real   (SHR_KIND_R4), parameter :: pi = 3.14159265358979
       real , parameter :: rho_liq = 1000.
 
+      real :: reff_factor
+      real :: ilratio
+      real :: tempC  !temperature in celsius
+      real :: IWC0 ,B_function !cstep needed for ice effective radius following Eqs. (14) and (35) from Wyser 1998
+
+      IWC0 = 50e-3  !kg/m3, Wyser 1998 Eq. 14 (he gives 50 g/m3)
+      reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
+
       ! Compute absolute temperature and water contents (without border points)
 
      ! tabs(:,:) = 0.;
       sstxy(:,:) = 0.
       tabs_slice(:,:) = 0.; qv_slice(:,:) = 0.; qcl_slice(:,:) = 0.; qci_slice(:,:) = 0.;
+      rho_slice(:,:) = 0.
 
       sst = thls*(ps/pref0) ** (rd/cp)
 
@@ -614,10 +637,12 @@ contains
       do i=2,i1
       im=i-1
       do k=1,kmax
+         ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
          qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
-         qcl_slice (im,k) = ql0(i,j,k)
-         qci_slice (im,k) = 0.
+         qcl_slice (im,k) = ql0(i,j,k) * ilratio
+         qci_slice (im,k) = ql0(i,j,k) - qcl_slice(im,k) 
          o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
+         rho_slice (im,k) = rhof(k)
          tg_slice  (im)   = sst
 
          h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
@@ -635,6 +660,7 @@ contains
          qv_slice  (i,k) =  qsnd(ksounding)
          qcl_slice (i,k) = 0.
          qci_slice (i,k) = 0.
+         rho_slice (i,k) = 100*presf_input(k)/(Rd*tabs_slice(i,k)) !cstep factor 100 because pressure in hPa
          ksounding=ksounding+1
       enddo
       enddo
@@ -702,6 +728,7 @@ contains
           layerMass(i,k) = 100.*( interfaceP(i,k) - interfaceP(i,k+1) ) / grav  !of full level
           LWP_slice(i,k) = qcl_slice(i,k)*layerMass(i,k)*1e3
           IWP_slice(i,k) = qci_slice(i,k)*layerMass(i,k)*1e3
+          qci_slice(i,k) = qci_slice(i,k)*rho_slice(i,k)   !cstep, qci is now in kg/m3 needed for ice effective radius
         enddo
         layerMass(i,krad1) = 100.*( interfaceP(i,krad1) - interfaceP(i,krad2) ) / grav
         LWP_slice(i,krad1) = 0.
@@ -721,19 +748,42 @@ contains
 !            liquidRe(i,k) = 14.   ! cstep temporary solution, ocean value computeRe_Liquid(real(layerT),merge(0.,1.,ocean))
             cloudFrac(i,k) = 1.
 
-            liquidRe(i, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(i,k)/layerMass(i,k) ) &
-                              /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
+            !cstep liquidRe(i, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(i,k)/layerMass(i,k) ) &
+            !cstep                  /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
+            !cstep: equation above contains function of many constants, are now absorbed in reff_factor
+
+            liquidRe(i, k) = reff_factor  * qcl_slice(i,k)**(1./3.)
+
 !  cstep, 1e6*Nc_0 assumes Nc_0 in cm^-3             /(4.*pi*1.e6*Nc_0*rho_liq) )**(1./3.) * exp(log(sigmag)**2 )
 !  cstep              write (6,*) 'reff = ',i,k,qcl_slice(i,k),liquidRe(i,k)
+
+            if (liquidRe(i,k).lt.2.5) then
+                liquidRe(i,k) = 2.5
+            endif
+
+            if (liquidRe(i,k).gt.60.) then
+                liquidRe(i,k) = 60.
+            endif
           endif
 
-          if ( (LWP_slice(i,k).gt.0.) .AND. (liquidRe(i,k).lt.2.5)) then
-            liquidRe(i,k) = 2.5
-          endif
-          if ( (LWP_slice(i,k).gt.0.) .AND. (liquidRe(i,k).gt.60.)) then
-            liquidRe(i,k) = 60.
-          endif
+          if (IWP_slice(i,k).gt.0) then
+             cloudFrac(i,k) = 1.
+             !cstep Ou Liou: tempC = layerT(i,k)--tmelt
+             !cstep Ou Liou  iceRe(i,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
+             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * alog10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
+             iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
+             cloudFrac(i,k) = 1.
+             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * alog10(qci_slice(i,k)/IWC0)
+             iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998
 
+             if (iceRe(i,k).lt.5.) then
+                iceRe(i,k) = 5.
+             endif
+
+             if (iceRe(i,k).gt.140.) then
+                iceRe(i,k) = 140.
+             endif
+          endif
         enddo
       enddo
 

@@ -31,6 +31,8 @@ module modstat_nc
     use netcdf
     implicit none
     logical :: lnetcdf = .true.
+    logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
+    
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
     real(kind=4) :: nc_fillvalue = -999.
 !> The only interface necessary to write data to netcdf, regardless of the dimensions.
@@ -45,29 +47,26 @@ contains
 
 
   subroutine initstat_nc
-    use modglobal, only : ifnamopt,fname_options
+    use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : mpierr,mpi_logical,comm3d,myid
     implicit none
 
     integer             :: ierr
 
     namelist/NAMNETCDFSTATS/ &
-    lnetcdf
+    lnetcdf, lsync
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMNETCDFSTATS,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMNETCDFSTATS'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMNETCDFSTATS'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMNETCDFSTATS')
       write(6, NAMNETCDFSTATS)
       close(ifnamopt)
     end if
 
     call MPI_BCAST(lnetcdf    ,1,MPI_LOGICAL, 0,comm3d,mpierr)
-
+    call MPI_BCAST(lsync      ,1,MPI_LOGICAL, 0,comm3d,mpierr)
+    
   end subroutine initstat_nc
 !
 ! ----------------------------------------------------------------------
@@ -75,6 +74,7 @@ contains
 !
   subroutine open_nc (fname, ncid,nrec,n1, n2, n3, ns,nq)
     use modglobal, only : author,version,rtimee
+    use modversion, only : git_version
     implicit none
     integer, intent (out) :: ncid,nrec
     integer, optional, intent (in) :: n1, n2, n3, ns, nq
@@ -94,7 +94,7 @@ contains
       iret = nf90_create(fname,NF90_NETCDF4,ncid)
       iret = nf90_put_att(ncid,NF90_GLOBAL,'title',fname)
       iret = nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time))
-      iret = nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version))
+      iret = nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version))
       iret = nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author))
       iret = nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID)
       if (present(n1)) then
@@ -151,7 +151,11 @@ contains
         allocate (xtimes(nrec))
         iret = nf90_get_var(ncid, timeId, xtimes(1:nrec))
 
-        do while(xtimes(ncall+1) < rtimee - spacing(1.))
+        ! Find the index where writing should continue.
+        ! The next record to be written is ncall+1
+        ! A warm start run does not write statistics immediately, thus
+        ! fields up to and including the current time should be preserved.
+        do while(xtimes(ncall+1)  <= rtimee)
             ncall=ncall+1
             if (ncall >= nrec) exit
         end do
@@ -424,7 +428,7 @@ contains
        iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
        iret = nf90_put_var(ncid, VarID, vars(n), start=(/nrec/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc
 
   subroutine writestat_1D_nc(ncid,nvar,ncname,vars,nrec,dim1)
@@ -439,7 +443,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
 
   subroutine writestat_2D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2)
@@ -454,7 +458,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
   subroutine writestat_3D_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
@@ -468,7 +472,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc
   subroutine writestat_3D_short_nc(ncid,nvar,ncname,vars,nrec,dim1,dim2,dim3)
     implicit none
@@ -482,7 +486,7 @@ contains
       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
       iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
     end do
-
+    if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
 
 
@@ -509,5 +513,103 @@ contains
     end if
 
   end subroutine nchandle_error
+
+  subroutine sync_nc(ncid)
+    implicit none
+    integer, intent(in) :: ncid
+    integer :: iret
+
+    iret = nf90_sync(ncid)
+    if (iret /= nf90_noerr) call nchandle_error(iret)
+  end subroutine sync_nc
+
+  subroutine nctiminfo(info)
+    use modglobal, only: xyear, xday, xtime
+    implicit none
+    character(*), dimension(4), intent(out) :: info
+    character(len=33)                       :: unitstr
+    integer                                 :: dt(6)
+
+    if (xyear > 0 .and. xday > 0) then
+      call get_date_time(xyear,xday,xtime,dt)
+      write(unitstr,'(A14,I4.4,A1,I2.2,A1,I2.2,A1,I2.2,A1,I2.2,A1,I2.2)') 'seconds since ',dt(1),'-',dt(2),'-',dt(3),'T',dt(4),':',dt(5),':',dt(6)
+      call ncinfo(info(:),'time','Time',unitstr,'time')
+    else
+      call ncinfo(info(:),'time','Time','s','time')
+    end if
+  end subroutine nctiminfo
+
+  ! Utility converting year + day to full date
+  subroutine get_date_time(year, day, hours, datetime)
+    implicit none
+    integer, intent(in)     :: year
+    real, intent(in)        :: day
+    real, intent(in)        :: hours
+    integer, intent(out)    :: datetime(6)
+    real                    :: rh
+    integer                 :: dd,hh,mm,ss,date(3)
+
+    rh = (day - floor(day)) * 24 + hours
+    hh = floor(rh)
+    mm = floor((rh - hh) * 60)
+    ss = floor((rh - hh - mm/60.) * 3600)
+    dd = hh / 24
+    hh = hh - 24 * dd
+    call get_date(year,floor(day) + dd + 1, date)
+    datetime(1:3) = date(1:3)
+    datetime(4) = hh
+    datetime(5) = mm
+    datetime(6) = ss
+  end subroutine get_date_time
+
+  ! Utility converting year + day to full date
+  subroutine get_date(year, day, date)
+    implicit none
+    integer, intent(in)     :: year
+    integer, intent(in)     :: day
+    integer, intent(out)    :: date(3)
+    integer                 :: i,yy,mm,dd,dsum,ndays
+    integer                 :: mdays(12)
+
+    yy = year
+    dsum = 0
+    do
+      ndays = 365
+      if (leap_year(yy)) then
+        ndays = 366
+      endif
+      if (dsum + ndays >= day) then
+        exit
+      endif
+      dsum = dsum + ndays
+      yy = yy + 1
+    enddo
+    dd = day - dsum
+    mdays = (/ 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 /)
+    if (leap_year(yy)) then
+      mdays(2) = 29
+    endif
+    dsum = 0
+    mm = 0
+    do i=1,12
+      mm = i
+      if (dsum + mdays(i) >= dd) then
+        exit
+      endif
+      dd = dd - mdays(i)
+    enddo
+    date(1) = yy
+    date(2) = mm
+    date(3) = dd
+  end subroutine get_date
+
+  ! Utility checking whether the input year is a leap year
+  function leap_year(year) result(isleap)
+    implicit none
+    integer, intent(in) :: year
+    logical             :: isleap
+
+    isleap = ((mod(year, 4) == 0) .and. (mod(year, 100) /= 0)) .or. (mod(year, 400) == 0)
+  end function leap_year
 
 end module modstat_nc

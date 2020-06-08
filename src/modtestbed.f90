@@ -59,7 +59,7 @@ contains
 
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer
     use modglobal,only :ifnamopt,fname_options,k1,&
-                        grav,rd,cp,pref0,rlv,zf
+                        grav,rd,cp,pref0,rlv,zf,checknamelisterror
     use modsurfdata,only : ksoilmax
     use modforces, only : lforce_user
 
@@ -90,11 +90,7 @@ contains
 
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMTESTBED,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMTESTBED'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMTESTBED'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMTESTBED')
       write(6 ,NAMTESTBED)
       close(ifnamopt)
 

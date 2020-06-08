@@ -61,7 +61,7 @@ subroutine initsamptend
     use modmpi,   only : myid
     use modglobal,only : cexpnr,dtmax,kmax,k1,ladaptive,&
                          btime,kmax,tres,cexpnr,j1,jh,i1,ih,kmax
-    use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc,lnetcdf
+    use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc,lnetcdf
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
 
     implicit none
@@ -169,7 +169,7 @@ subroutine initsamptend
       nsamples = itimeav/idtav
       if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         fname(10:12) = cexpnr
         call open_nc(fname,ncid,nrec,n3=kmax)
         call define_nc( ncid,1,tncname)

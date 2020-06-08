@@ -64,8 +64,8 @@ contains
 
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical,mpi_integer
     use modglobal, only : ladaptive, dtmax,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,btime,tres,cexpnr,ifoutput,nsv
-    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_q_nc
+                           dtav_glob,btime,tres,cexpnr,ifoutput,nsv,lwarmstart,checknamelisterror
+    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_q_nc
     implicit none
 
     integer      :: ierr,n
@@ -81,11 +81,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMquadrant,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMquadrant'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMquadrant'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMquadrant')
       write(6 ,NAMquadrant)
       close(ifnamopt)
 
@@ -187,7 +183,7 @@ contains
     thlqtcovl = 0.0
 
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart)then
       do isamp = 1,isamptot
         open (ifoutput,file=trim(samplname(isamp))//'quadrant.'//cexpnr,status='replace')
         close (ifoutput)
@@ -196,7 +192,7 @@ contains
 
     if (lnetcdf) then
       if (myid==0) then
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         fname(10:12) = cexpnr
         call open_nc(fname,ncid,nrec,nq=knr)
         call define_nc(ncid,1,tncname)

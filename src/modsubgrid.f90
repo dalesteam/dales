@@ -98,7 +98,7 @@ contains
   end subroutine initsubgrid
 
   subroutine subgridnamelist
-    use modglobal, only : ifnamopt,fname_options
+    use modglobal, only : ifnamopt,fname_options,checknamelisterror
     use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
 
     implicit none
@@ -106,16 +106,12 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1,ch2,cm,ce1,ce2
+        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSUBGRID,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSUBGRID'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSUBGRID'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMSUBGRID')
       write(6 ,NAMSUBGRID)
       close(ifnamopt)
     end if
@@ -131,9 +127,6 @@ contains
     call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
     call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
     call MPI_BCAST(ch1        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ch2        ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ce1         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ce2         ,1,MY_REAL   ,0,comm3d,mpierr)
 
   end subroutine subgridnamelist
 
@@ -367,7 +360,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,delta,dx,dy,dxi,dyi,dzf,dzh,grav,cu,cv,deltai
+  use modglobal,   only : i1,j1,kmax,dx,dy,dxi,dyi,dzf,dzh,grav,cu,cv,deltai
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
   use modsurfdata,  only : dudz,dvdz,ustar,thlflux
   use modsubgriddata, only: sgs_surface_fix

@@ -68,8 +68,9 @@ contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+
    implicit none
 
     integer :: ierr,k
@@ -88,11 +89,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCROSSSECTION,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMCROSSSECTION'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMCROSSSECTION'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMCROSSSECTION')
       write(6 ,NAMCROSSSECTION)
       close(ifnamopt)
     end if
@@ -128,7 +125,7 @@ contains
     if (myidy==0) then
       fname1(9:16) = cmyid
       fname1(18:20) = cexpnr
-      call ncinfo(tncname1(1,:),'time','Time','s','time')
+      call nctiminfo(tncname1(1,:))
       call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
       call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
       call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
@@ -153,7 +150,7 @@ contains
       fname2(9:12) = cheight
       fname2(14:21) = cmyid
       fname2(23:25) = cexpnr
-      call ncinfo(tncname2(1,:),'time','Time','s','time')
+      call nctiminfo(tncname2(1,:))
       call ncinfo(ncname2( 1,:),'uxy','xy crosssections of the West-East velocity','m/s','mt0t')
       call ncinfo(ncname2( 2,:),'vxy','xy crosssections of the South-North velocity','m/s','tm0t')
       call ncinfo(ncname2( 3,:),'wxy','xy crosssections of the Vertical velocity','m/s','tt0t')
@@ -176,7 +173,7 @@ contains
    if (myidx==0) then
     fname3(9:16) = cmyid
     fname3(18:20) = cexpnr
-    call ncinfo(tncname3(1,:),'time','Time','s','time')
+    call nctiminfo(tncname3(1,:))
     call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
     call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
     call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
@@ -530,17 +527,19 @@ contains
 !> Clean up when leaving the run
   subroutine exitcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modmpi, only : myid
+    use modmpi, only : myidx, myidy
     implicit none
 
     if(lcross .and. lnetcdf) then
-    if (myid==0) then
-    call exitstat_nc(ncid1)
+    if (myidy==0) then
+       call exitstat_nc(ncid1)
     end if
     do cross=1,nxy
     call exitstat_nc(ncid2(cross))
     end do
-    call exitstat_nc(ncid3)
+    if (myidx==0) then
+       call exitstat_nc(ncid3)
+    end if    
     end if
 
   end subroutine exitcrosssection
