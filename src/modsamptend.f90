@@ -653,6 +653,7 @@ subroutine initsamptend
 !> Write the statistics to file
   subroutine writesamptend
     use modglobal, only : kmax,k1,rtimee
+    use mpi
     use modmpi,    only : mpi_integer,myid,comm3d,mpierr,my_real,mpi_sum
     use modstat_nc, only: lnetcdf,writestat_nc
     implicit none

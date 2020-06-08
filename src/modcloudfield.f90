@@ -42,7 +42,7 @@ save
 contains
 !> Initializing Cloudfield. Read out the namelist, initializing the variables
   subroutine initcloudfield
-
+    use mpi
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
     use modglobal,only :ifnamopt,fname_options,dtmax,dtav_glob,btime,ladaptive,tres,checknamelisterror
     implicit none

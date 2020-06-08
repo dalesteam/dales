@@ -165,6 +165,7 @@ save
 contains
 
   subroutine initgenstat
+    use mpi
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
