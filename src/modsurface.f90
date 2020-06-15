@@ -320,6 +320,8 @@ contains
         close(ifinput)
       else
         select case (isurf)
+          case (-1)
+            return
           case (1) ! Interactive land surface
             open (ifinput,file='surface.interactive.inp.'//cexpnr)
             ierr = 0
@@ -723,6 +725,10 @@ contains
 
     patchx = 0
     patchy = 0
+
+    if (isurf==-1) then
+       return
+    end if
 
     if (isurf==10) then
       call surf_user

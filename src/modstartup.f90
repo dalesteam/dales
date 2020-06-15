@@ -63,6 +63,7 @@ contains
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
+    use modlsm,            only : initlsm
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -268,6 +269,7 @@ contains
     call initradiation
     call initchem
     call initsurface
+    call initlsm
     call initsubgrid
 
     call initmicrophysics
@@ -348,6 +350,7 @@ contains
   !isurf
     if (myid == 0) then
       select case (isurf)
+      case(-1)
       case(1)
       case(2,10)
       case(3:4)
@@ -1143,11 +1146,13 @@ contains
     use modradiation,      only : exitradiation
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
+    use modlsm,            only : exitlsm
     use modthermodynamics, only : exitthermodynamics
 
     call exittimedep
     call exitthermodynamics
     call exitsurface
+    call exitlsm
     call exitsubgrid
     call exitradiation
     call exitpois
