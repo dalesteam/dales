@@ -28,7 +28,7 @@ elseif("$ENV{SYST}" STREQUAL "HYDRA")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FEDORA")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/ -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF")
@@ -48,7 +48,7 @@ elseif("$ENV{SYST}" STREQUAL "ECMWF-gnu")
   set(CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "gnu-fast")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -march=native -g -fbacktrace" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "lisa-intel")
@@ -58,10 +58,15 @@ elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none " CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 endif()
+
+# On compiler options
+# June 2020: added -std=legacy to gfortran for compatibility with gfortran 10, which introduced stricter type checking
+# the old FFT code from Netlib/FFTPACK does not compile with gfortran 10 without this flag.
+
 
 ## Project parameters
 PROJECT(DALES Fortran)
