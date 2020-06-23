@@ -37,12 +37,13 @@ contains
     call error_and_exit()
   end subroutine
 
-  subroutine solve_hypre(p)
+  subroutine solve_hypre(p, converged)
     use modglobal, only : i1, j1, ih, jh, kmax
 
     implicit none
 
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    logical, intent(out) :: converged
 
     call error_and_exit()
   end subroutine
