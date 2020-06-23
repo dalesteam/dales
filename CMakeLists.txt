@@ -128,7 +128,8 @@ FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   DOC "NetCDF Fortran library"
 )
 
-FIND_LIBRARY(HYPRE_LIB libHYPRE.a
+# libHYPRE.a for static library
+FIND_LIBRARY(HYPRE_LIB HYPRE
   PATHS
   $ENV{HYPRE_LIB}
   ${ADDMODULEPATH}/lib
@@ -147,7 +148,8 @@ FIND_PATH(FFTW_INCLUDE_DIR fftw3.f03
   DOC "FFTW include files (fftw3.f03)"
 )
 
-FIND_LIBRARY(FFTW_LIB libfftw3.a
+#libfftw3.a for static library
+FIND_LIBRARY(FFTW_LIB fftw3
   PATHS
   $ENV{FFTW_LIB}
   /usr/lib
