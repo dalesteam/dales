@@ -55,6 +55,7 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedepsv
+    use mpi
     use modmpi,   only :myid,my_real,mpi_logical,mpierr,comm3d
     use modglobal,only :cexpnr,kmax,k1,ifinput,runtime,nsv
     implicit none

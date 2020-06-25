@@ -48,6 +48,7 @@ contains
 
   subroutine initstat_nc
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
+    use mpi
     use modmpi,    only : mpierr,mpi_logical,comm3d,myid
     implicit none
 

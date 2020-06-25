@@ -35,6 +35,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options,checknamelisterror
+    use mpi
     use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
     implicit none
 

@@ -37,6 +37,7 @@ save
 contains
   subroutine initsubgrid
     use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar,pi
+    use mpi
     use modmpi, only : myid
 
     implicit none
@@ -99,6 +100,7 @@ contains
 
   subroutine subgridnamelist
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
+    use mpi
     use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
 
     implicit none

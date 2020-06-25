@@ -7,7 +7,8 @@ Version 4.3 - 2020
 This version introduces a library interface to DALES, defined in `daleslib.f90.` With this interface,
 DALES can be used with the [OMUSE](https://omuse.readthedocs.io/en/latest/) framework, which provides
 a Python interface to DALES. Another new feature is the support of iterative Poisson solvers, see
-the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver)
+the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver) and also an
+alternative FFT-based solver using the FFTW library.
 
 
 ### Improvements

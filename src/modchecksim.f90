@@ -45,6 +45,7 @@ contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
   subroutine initchecksim
     use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres,checknamelisterror
+    use mpi
     use modmpi,    only : myid,my_real,comm3d,mpierr
     implicit none
     integer :: ierr
@@ -97,6 +98,7 @@ contains
   subroutine calccourant
     use modglobal, only : i1,j1,kmax,dx,dy,dzh
     use modfields, only : u0,v0,w0
+    use mpi
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
 
@@ -136,6 +138,7 @@ contains
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
     use modsubgrid,only : ekm
+    use mpi
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
     implicit none
 
@@ -164,6 +167,7 @@ contains
 
     use modglobal, only : i1,j1,kmax,dx,dy,dzf,dt_reason
     use modfields, only : u0,v0,w0,rhobf,rhobh
+    use mpi
     use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,my_real,mpierr
     implicit none
 
