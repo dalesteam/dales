@@ -63,6 +63,8 @@ contains
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
+    use moddatetime,       only : initdatetime
+    use modemission,       only : initemission
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -268,6 +270,8 @@ contains
     call initradiation
     call initchem
     call initsurface
+    call initdatetime
+    call initemission
     call initsubgrid
 
     call initmicrophysics
@@ -1144,6 +1148,7 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modthermodynamics, only : exitthermodynamics
+    use modemission,       only : exitemission
 
     call exittimedep
     call exitthermodynamics
@@ -1152,6 +1157,7 @@ contains
     call exitradiation
     call exitpois
     call exitmicrophysics
+    call exitemission
     call exitboundary
     call exitfields
     call exitglobal
