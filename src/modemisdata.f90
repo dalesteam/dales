@@ -42,7 +42,7 @@ module modemisdata
   ! For example, nchem, firstchem etc, but also structure for species
   ! 'location', i.e. switch scalar field represents which species?
   
-  character (len = 3), dimension(2) :: svlist   = (/'nr',    'qr',    'co2',  'ch4'  /)
-  logical,             dimension(2) :: emislist = (/.false., .false., .true., .false./)
+  character (len = 3), dimension(4) :: svlist   = (/'nr',    'qr',    'co2',  'ch4'  /)
+  logical,             dimension(4) :: emislist = (/.false., .false., .true., .false./)
 
 end module modemisdata
