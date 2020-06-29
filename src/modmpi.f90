@@ -406,15 +406,15 @@ contains
     real,optional :: fillvalue_in
     if(present(fillvalue_in)) fillvalue=fillvalue_in
 
-    if      (myidx == 0) then      ! WEST boundary
+    if      (myidx == 0) then        ! WEST boundary
       field(sx-hx:sx,  sy-hy:ey+hy, sz:ez) = fillvalue
-    else if (myidx == nprocx) then ! EAST boundary
+    else if (myidx == nprocx-1) then ! EAST boundary
       field(ex :ex+hx, sy-hy:ey+hy, sz:ez) = fillvalue
     end if
 
-    if      (myidy == 0) then      ! SOUTH boundary
+    if      (myidy == 0) then        ! SOUTH boundary
       field(sx-hx:ex+hx, sy-hy:sy,  sz:ez) = fillvalue
-    else if (myidy == nprocy) then ! NORTH boundary
+    else if (myidy == nprocy-1) then ! NORTH boundary
       field(sx-hx:ex+hx, ey :ey+hy, sz:ez) = fillvalue
     end if
 
