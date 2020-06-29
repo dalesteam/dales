@@ -20,26 +20,77 @@
 module modlsm
     use netcdf
     implicit none
+
     public :: initlsm, lsm, exitlsm
 
     ! Land-surface / van Genuchten parameters from NetCDF input table.
     real, allocatable :: &
         theta_res(:), theta_wp(:), theta_fc(:), theta_sat(:), gamma_sat(:), vg_a(:), vg_l(:), vg_n(:)
+
+    logical :: sw_lsm
+    logical :: sw_homogeneous
+
+    ! Data structure for sub-grid tiles
+    type lsm_tile
+        ! Static properties:
+        real, allocatable :: z0m(:,:), z0h(:,:)
+        ! Dynamic tile fraction:
+        real, allocatable :: frac(:,:)
+        ! Monin-obukhov / surface layer:
+        real, allocatable :: obuk(:,:), ustar(:,:), ra(:,:)
+        ! Conductivity skin layer:
+        real, allocatable :: lambda_stable(:,:), lamda_unstable(:,:)
+        ! Surface fluxes:
+        real, allocatable :: H(:,:), LE(:,:), G(:,:), wthl(:,:), wqt(:,:)
+        ! Surface temperature and humidity
+        real, allocatable :: tskin(:,:), qskin(:,:)
+    end type lsm_tile
+
+    type(lsm_tile) low_veg, high_veg, bare_soil, wet_skin
+
 contains
+
+subroutine lsm
+    implicit none
+end subroutine lsm
 
 !
 ! Initialise the land-surface model
 !
 subroutine initlsm
+    use modglobal,   only : ifnamopt, fname_options, checknamelisterror
+    use modmpi,      only : myid, comm3d, mpierr, mpi_logical
+    use modsurfdata, only : isurf
     implicit none
 
-    ! Read the soil parameter table
-    call read_soil_table
+    integer :: ierr
+
+    ! Read namelist
+    namelist /NAMLSM/ &
+        sw_lsm, sw_homogeneous
+
+    if (myid == 0) then
+        open(ifnamopt, file=fname_options, status='old', iostat=ierr)
+        read(ifnamopt, NAMLSM, iostat=ierr)
+        write(6, NAMLSM)
+        close(ifnamopt)
+    end if
+
+    ! Broadcast namelist values to all MPI tasks
+    call MPI_BCAST(sw_lsm, 1, mpi_logical, 0, comm3d, mpierr)
+    call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
+
+    if (sw_lsm) then
+        ! Allocate required fields in modsurfacedata,
+        ! and arrays / tiles from this module
+        call allocate_fields
+
+        ! Read the soil parameter table
+        call read_soil_table
+
+    end if
+
 end subroutine initlsm
-
-subroutine lsm
-    implicit none
-end subroutine lsm
 
 !
 ! Cleanup (deallocate) the land-surface model
@@ -49,6 +100,50 @@ subroutine exitlsm
 
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_sat, vg_a, vg_l, vg_n )
 end subroutine exitlsm
+
+!
+! Allocate all LSM fields
+!
+subroutine allocate_fields
+    use modglobal, only : i2, j2
+    implicit none
+
+    ! Allocate the tiled variables
+    call allocate_tile(low_veg)
+    call allocate_tile(high_veg)
+    call allocate_tile(bare_soil)
+    call allocate_tile(wet_skin)
+
+end subroutine allocate_fields
+
+!
+! Allocate all fields of a LSM tile
+!
+subroutine allocate_tile(tile)
+    use modglobal, only : i2, j2
+    implicit none
+    type(lsm_tile), intent(inout) :: tile
+
+    ! Static properties:
+    allocate(tile%z0m  (i2, j2))
+    allocate(tile%z0h  (i2, j2))
+    ! Dynamic tile fraction:
+    allocate(tile%frac (i2, j2))
+    ! Monin-obukhov / surface layer:
+    allocate(tile%obuk (i2, j2))
+    allocate(tile%ustar(i2, j2))
+    allocate(tile%ra   (i2, j2))
+    ! Surface fluxes:
+    allocate(tile%H    (i2, j2))
+    allocate(tile%LE   (i2, j2))
+    allocate(tile%G    (i2, j2))
+    allocate(tile%wthl (i2, j2))
+    allocate(tile%wqt  (i2, j2))
+    ! Surface temperature and humidity
+    allocate(tile%tskin(i2, j2))
+    allocate(tile%qskin(i2, j2))
+
+end subroutine allocate_tile
 
 !
 ! Read the input table with the (van Genuchten) soil parameters
