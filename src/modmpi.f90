@@ -87,7 +87,7 @@ contains
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
   end subroutine initmpicomm
 
-  
+
 ! This routine does the setup of the MPI mesh
 ! NPROCS
 !        is the number of processors, this is set at run time, ie. mpirun -np 10
@@ -188,13 +188,129 @@ contains
     endif
   end subroutine exitmpi
 
-  
+
   subroutine barrou()
     implicit none
     call MPI_BARRIER(comm3d,mpierr)
 
   return
   end subroutine barrou
+  subroutine excj( a, sx, ex, sy, ey, sz,ez)
+    implicit none
+
+  integer sx, ex, sy, ey, sz, ez
+  real a(sx:ex, sy:ey, sz:ez)
+  integer status(MPI_STATUS_SIZE)
+  integer ii, i, k
+  integer nssize, ewsize, bsize
+  real,allocatable, dimension(:) :: sendb, recvb
+
+!   Calculate buffer size
+  nssize = (ex - sx + 1)*(ez - sz + 1)
+  ewsize = (ey - sy + 1)*(ez - sz + 1)
+  bsize = max( nssize, ewsize )
+
+  allocate( sendb(bsize), recvb(bsize) )
+
+!   communicate north/south
+
+  if(nprocy .gt. 1)then
+    ii = 0
+    do k=sz,ez
+    do i=sx,ex
+      ii = ii + 1
+      sendb(ii) = a(i,ey-1,k)
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrnorth, 4, &
+                        recvb,  nssize, MY_REAL, nbrsouth, 4, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do k=sz,ez
+    do i=sx,ex
+      ii = ii + 1
+      a(i,sy,k) = recvb(ii)
+
+      sendb(ii) = a(i,sy+1,k)
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrsouth, 5, &
+                        recvb,  nssize, MY_REAL, nbrnorth, 5, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do k=sz,ez
+    do i=sx,ex
+      ii = ii + 1
+      a(i,ey,k) = recvb(ii)
+    enddo
+    enddo
+  else
+    ii = 0 !XPB added this line, otherwise crash if nprocy=0,nprocx=1 (may be unnecessary after commenting lines 217 and 263)
+    do k=sz,ez
+    do i=sx,ex
+!      ii = ii + 1
+      a(i,sy,k) = a(i,ey-1,k)
+      a(i,ey,k) = a(i,sy+1,k)
+    enddo
+    enddo
+  endif
+
+!   communicate east/west
+
+  if(nprocx .gt. 1)then
+    ii = 0
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      sendb(ii) = a(ex-1,i,k)
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbreast, 6, &
+                        recvb,  ewsize, MY_REAL, nbrwest, 6, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      a(sx,i,k) = recvb(ii)
+
+      sendb(ii) = a(sx+1,i,k)
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbrwest, 7, &
+                        recvb,  ewsize, MY_REAL, nbreast, 7, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do k=sz,ez
+    do i=sy,ey
+      ii = ii + 1
+      a(ex,i,k) = recvb(ii)
+    enddo
+    enddo
+  else
+    do k=sz,ez
+    do i=sy,ey
+!      ii = ii + 1
+      a(sx,i,k) = a(ex-1,i,k)
+      a(ex,i,k) = a(sx+1,i,k)
+    enddo
+    enddo
+  endif
+
+
+  deallocate (sendb,recvb)
+
+  return
+  end subroutine excj
+
 
   subroutine excjs(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none
@@ -345,10 +461,10 @@ contains
 
     return
   end subroutine slabsum
-  
+
   subroutine mpi_get_time(val)
    real, intent(out) :: val
- 
+
    val = MPI_Wtime()
    call MPI_BCAST(val,1,MY_REAL   ,0,comm3d,mpierr)
 
