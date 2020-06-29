@@ -256,8 +256,8 @@ contains
        thldefm(2-m,2:j1,1:k1)   = thldefm(i2-m,2:j1,1:k1)
        thldefm(i1+m,2:j1,1:k1)  = thldefm(1+m,2:j1,1:k1)
     enddo
-    call excjs( thldef0           , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( thldefm           , 2,i1,2,j1,1,k1,ih,jh)
+    call excjs( thldef0           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs( thldefm           , 2,i1,2,j1,1,k1,ih,jh,.true.)
     thldef0(2:i1,2:j1,k1) = thldef0(2:i1,2:j1,kmax)
     thldefm(2:i1,2:j1,k1) = thldefm(2:i1,2:j1,kmax)
     call deltatotheta !Revert back to pot temp.

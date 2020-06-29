@@ -385,7 +385,7 @@ contains
     !(see routine 'forces' for how term in w-momentum equation is treated)
     !**************************************************************
 
-    call cyclicx(thv0h)
+    call excjs(thv0h, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     do k=1,kmax
        thv0h_avl(k) =  sum(thv0h(2:i1,2:j1,k))/ijtot
@@ -400,7 +400,7 @@ contains
 
     ! Lateral BC; we don't need lower BC
 
-    call cyclicx(w_term)
+    call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     dumfield(2:i1,2:j1,2:k1) =  0.25*(u0_dev(2:i1,2:j1,1:kmax)+u0_dev(2:i1,2:j1,2:k1))*  &
                                      (w_term(2:i1,2:j1,2:k1)+w_term(1:imax,2:j1,2:k1))
@@ -472,9 +472,9 @@ contains
     v0 = v0_stor
     w0 = w0_stor
 
-    call cyclicx(u_term)
-    call cyclicx(v_term)
-    call cyclicx(w_term)
+    call excjs(u_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(v_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     dumfield = 2.*u0_dev*u_term
 
@@ -573,9 +573,9 @@ contains
    v0 = v0_stor
    w0 = w0_stor
 
-   call cyclicx(u_term)
-   call cyclicx(v_term)
-   call cyclicx(w_term)
+   call excjs(u_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+   call excjs(v_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+   call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
    dumfield = 2.*u0_dev*u_term
 
@@ -674,9 +674,9 @@ contains
     v0 = v0_stor
     w0 = w0_stor
 
-    call cyclicx(u_term)
-    call cyclicx(v_term)
-    call cyclicx(w_term)
+    call excjs(u_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(v_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     dumfield = 2.*u0_dev*u_term
 
@@ -760,9 +760,9 @@ contains
 
     w_term(:,:,1) = 0.
 
-    call cyclicx(u_term)
-    call cyclicx(v_term)
-    call cyclicx(w_term)
+    call excjs(u_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(v_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     dumfield = 2.* u0_dev * u_term
 
@@ -834,9 +834,9 @@ contains
        w_term(2:i1,2:j1,k) = -(p(2:i1,2:j1,k)-p(2:i1,2:j1,k-1))/dzh(k)
     enddo
 
-    call cyclicx(u_term)
-    call cyclicx(v_term)
-    call cyclicx(w_term)
+    call excjs(u_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(v_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     w_term(:,:,1) = 0.
 
@@ -902,9 +902,9 @@ contains
     call diffv(v_term)
     call diffw(w_term)
 
-    call cyclicx(u_term)
-    call cyclicx(v_term)
-    call cyclicx(w_term)
+    call excjs(u_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(v_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
+    call excjs(w_term, 2,i1,2,j1,1,k1,ih,jh,.true.)
 
     do k=1,k1
        uterm_avl(k) = sum(u_term(2:i1,2:j1,k))/ijtot
@@ -1187,49 +1187,5 @@ contains
     deallocate(rstre,rstrb)
 
   end subroutine exitstressbudget
-
-
-  subroutine cyclicx(field)
-
-!-----------------------------------------------------------------|
-!                                                                 |
-!*** *cyclicx*  set lateral boundary conditions                  |
-!      Based on cyclich                                           |
-!                                                                 |
-!      Hans Cuijpers   I.M.A.U.                                   |
-!      Pier Siebesma   K.N.M.I.     22/02/1995                    |
-!                                                                 |
-!     purpose.                                                    |
-!     --------                                                    |
-!                                                                 |
-!     Set cyclic boundary condition                               |
-!                                                                 |
-!**   interface.                                                  |
-!     ----------                                                  |
-!                                                                 |
-!             *cyclicx* is called from *modstress*               |
-!                                                                 |
-!-----------------------------------------------------------------|
-
-  use modglobal, only : i1,i2,j1,j2,k1,ih,jh
-  use modmpi,    only : excjs 
- 
-  implicit none
-
-  real field(2-ih:i1+ih,2-jh:j1+jh,k1)
-  integer m
-
-  do m = 1, ih
-
-  field(2-m,:,:)  = field(i2-m,:,:)
-  field(i1+m,:,:) = field(1+m,:,:)
-
-  end do
-
-  call excjs( field          , 2,i1,2,j1,1,k1,ih,jh)
-
-  return
-
-  end subroutine cyclicx
 
   end module modstress

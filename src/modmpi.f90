@@ -155,185 +155,76 @@ contains
   return
   end subroutine barrou
 
-
-
-  subroutine excj( a, sx, ex, sy, ey, sz,ez)
-    implicit none
-
-  integer sx, ex, sy, ey, sz, ez
-  real a(sx:ex, sy:ey, sz:ez)
-  integer status(MPI_STATUS_SIZE)
-  integer ii, i, k
-  integer nssize, ewsize, bsize
-  real,allocatable, dimension(:) :: sendb, recvb
-
-!   Calculate buffer size
-  nssize = (ex - sx + 1)*(ez - sz + 1)
-  ewsize = (ey - sy + 1)*(ez - sz + 1)
-  bsize = max( nssize, ewsize )
-
-  allocate( sendb(bsize), recvb(bsize) )
-
-!   communicate north/south
-
-  if(nprocy .gt. 1)then
-    ii = 0
-    do k=sz,ez
-    do i=sx,ex
-      ii = ii + 1
-      sendb(ii) = a(i,ey-1,k)
-    enddo
-    enddo
-
-    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrnorth, 4, &
-                        recvb,  nssize, MY_REAL, nbrsouth, 4, &
-                        comm3d,  status, mpierr )
-
-    ii = 0
-    do k=sz,ez
-    do i=sx,ex
-      ii = ii + 1
-      a(i,sy,k) = recvb(ii)
-
-      sendb(ii) = a(i,sy+1,k)
-    enddo
-    enddo
-
-    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrsouth, 5, &
-                        recvb,  nssize, MY_REAL, nbrnorth, 5, &
-                        comm3d,  status, mpierr )
-
-    ii = 0
-    do k=sz,ez
-    do i=sx,ex
-      ii = ii + 1
-      a(i,ey,k) = recvb(ii)
-    enddo
-    enddo
-  else
-    ii = 0 !XPB added this line, otherwise crash if nprocy=0,nprocx=1 (may be unnecessary after commenting lines 217 and 263)
-    do k=sz,ez
-    do i=sx,ex
-!      ii = ii + 1
-      a(i,sy,k) = a(i,ey-1,k)
-      a(i,ey,k) = a(i,sy+1,k)
-    enddo
-    enddo
-  endif
-
-!   communicate east/west
-
-  if(nprocx .gt. 1)then
-    ii = 0
-    do k=sz,ez
-    do i=sy,ey
-      ii = ii + 1
-      sendb(ii) = a(ex-1,i,k)
-    enddo
-    enddo
-
-    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbreast, 6, &
-                        recvb,  ewsize, MY_REAL, nbrwest, 6, &
-                        comm3d,  status, mpierr )
-
-    ii = 0
-    do k=sz,ez
-    do i=sy,ey
-      ii = ii + 1
-      a(sx,i,k) = recvb(ii)
-
-      sendb(ii) = a(sx+1,i,k)
-    enddo
-    enddo
-
-    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbrwest, 7, &
-                        recvb,  ewsize, MY_REAL, nbreast, 7, &
-                        comm3d,  status, mpierr )
-
-    ii = 0
-    do k=sz,ez
-    do i=sy,ey
-      ii = ii + 1
-      a(ex,i,k) = recvb(ii)
-    enddo
-    enddo
-  else
-    do k=sz,ez
-    do i=sy,ey
-!      ii = ii + 1
-      a(sx,i,k) = a(ex-1,i,k)
-      a(ex,i,k) = a(sx+1,i,k)
-    enddo
-    enddo
-  endif
-
-
-  deallocate (sendb,recvb)
-
-  return
-  end subroutine excj
-
-  subroutine excjs( a, sx, ex, sy, ey, sz,ez,ih,jh)
+  ! fullexc : logical
+  !            .true.: exchange with all neighbors
+  !            .false.: send only to south and west; ie. when calculating f(i) - f(i+1)
+  subroutine excjs(a,sx,ex,sy,ey,sz,ez,ih,jh,fullexc)
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  logical fullexc
   integer status(MPI_STATUS_SIZE)
   integer ii, i, j, k
+  integer reqn, reqs, reqe, reqw
   integer nssize, ewsize, bsize
-  real,allocatable, dimension(:) :: sendb,recvb
+  real,allocatable, dimension(:) :: sendn,recvn
+  real,allocatable, dimension(:) :: sends,recvs
+  real,allocatable, dimension(:) :: sende,recve
+  real,allocatable, dimension(:) :: sendw,recvw
 
 !   Calculate buffer size
   nssize = jh*(ex - sx + 1 + 2*ih)*(ez - sz + 1)
   ewsize = ih*(ey - sy + 1 + 2*jh)*(ez - sz + 1)
-  bsize = max( nssize, ewsize )
 
-  allocate( sendb(bsize),recvb(bsize) )
+!   Allocate send / receive buffers
+  allocate(sendn(nssize),sends(nssize))
+  allocate(sende(ewsize),sendw(ewsize))
 
-!   Communicate north/south
+  allocate(recvn(nssize),recvs(nssize))
+  allocate(recve(ewsize),recvw(ewsize))
+
   if(nprocy .gt. 1)then
+    !   Send north/south
     ii = 0
     do j=1,jh
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      sendb(ii) = a(i,ey-j+1,k)
+      if (fullexc) then
+        sendn(ii) = a(i,ey-j+1,k)
+      endif
+      sends(ii) = a(i,sy+j-1,k)
     enddo
     enddo
     enddo
 
-    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrnorth, 4, &
-                        recvb,  nssize, MY_REAL, nbrsouth, 4, &
-                        comm3d,  status, mpierr )
+    if (fullexc) then
+      call MPI_ISEND(sendn, nssize, MY_REAL, nbrnorth, 4, comm3d, reqn, mpierr)
+    endif
+    call MPI_ISEND(sends, nssize, MY_REAL, nbrsouth, 5, comm3d, reqs, mpierr)
 
-    ii = 0
-    do j=1,jh
-    do k=sz,ez
-    do i=sx-ih,ex+ih
-      ii = ii + 1
-      a(i,sy-j,k) = recvb(ii)
-
-      sendb(ii) = a(i,sy+j-1,k)
-    enddo
-    enddo
-    enddo
-
-    call MPI_SENDRECV(  sendb,  nssize, MY_REAL, nbrsouth, 5, &
-                        recvb,  nssize, MY_REAL, nbrnorth, 5, &
-                        comm3d,  status, mpierr )
+    !   Receive south/north
+    if (fullexc) then
+      call MPI_RECV(recvs, nssize, MY_REAL, nbrsouth, 4, comm3d, status, mpierr)
+    endif
+    call MPI_RECV(recvn, nssize, MY_REAL, nbrnorth, 5, comm3d, status, mpierr)
 
     ii = 0
     do j=1,jh
     do k=sz,ez
     do i=sx-ih,ex+ih
       ii = ii + 1
-      a(i,ey+j,k) = recvb(ii)
+      if (fullexc) then
+        a(i,sy-j,k) = recvs(ii)
+      endif
+      a(i,ey+j,k) = recvn(ii)
     enddo
     enddo
     enddo
   else
-! Single processor, make sure the field is periodic
-    do j=1,jh
+    ! Single processor, make sure the field is periodic
     do k=sz,ez
+    do j=1,jh
     do i=sx-ih,ex+ih
       a(i,sy-j,k) = a(i,ey-j+1,k)
       a(i,ey+j,k) = a(i,sy+j-1,k)
@@ -342,52 +233,49 @@ contains
     enddo
   endif
 
-!   Communicate east/west
   if(nprocx .gt. 1)then
+    !   Send east/west
     ii = 0
     do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
       ii = ii + 1
-      sendb(ii) = a(ex-i+1,j,k)
+      if (fullexc) then
+        sende(ii) = a(ex-i+1,j,k)
+      endif
+      sendw(ii) = a(sx+i-1,j,k)
     enddo
     enddo
     enddo
 
-    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbreast, 6, &
-                        recvb,  ewsize, MY_REAL, nbrwest, 6, &
-                        comm3d,  status, mpierr )
+    if (fullexc) then
+      call MPI_ISEND(sende, ewsize, MY_REAL, nbreast, 6, comm3d, reqe, mpierr)
+    endif
+    call MPI_ISEND(sendw, ewsize, MY_REAL, nbrwest, 7, comm3d, reqw, mpierr)
 
-    ii = 0
-    do i=1,ih
-    do k=sz,ez
-    do j=sy-jh,ey+jh
-      ii = ii + 1
-      a(sx-i,j,k) = recvb(ii)
-
-      sendb(ii) = a(sx+i-1,j,k)
-    enddo
-    enddo
-    enddo
-
-    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL, nbrwest, 7, &
-                        recvb,  ewsize, MY_REAL, nbreast, 7, &
-                        comm3d,  status, mpierr )
+    !   Receive west/east
+    if (fullexc) then
+      call MPI_RECV(recvw, ewsize, MY_REAL, nbrwest, 6, comm3d, status, mpierr)
+    endif
+    call MPI_RECV(recve, ewsize, MY_REAL, nbreast, 7, comm3d, status, mpierr)
 
     ii = 0
     do i=1,ih
     do k=sz,ez
     do j=sy-jh,ey+jh
       ii = ii + 1
-      a(ex+i,j,k) = recvb(ii)
+      if (fullexc) then
+        a(sx-i,j,k) = recvw(ii)
+      endif
+      a(ex+i,j,k) = recve(ii)
     enddo
     enddo
     enddo
   else
-! Single processor, make sure the field is periodic
-    do i=1,ih
+    ! Single processor, make sure the field is periodic
     do k=sz,ez
     do j=sy-jh,ey+jh
+    do i=1,ih
       a(sx-i,j,k) = a(ex-i+1,j,k)
       a(ex+i,j,k) = a(sx+i-1,j,k)
     enddo
@@ -395,7 +283,22 @@ contains
     enddo
   endif
 
-  deallocate (sendb,recvb)
+  if(nprocx.gt.1)then
+    if (fullexc) then
+      call MPI_WAIT(reqe, status, mpierr)
+    endif
+    call MPI_WAIT(reqw, status, mpierr)
+  endif
+
+  if(nprocy.gt.1)then
+    if (fullexc) then
+      call MPI_WAIT(reqn, status, mpierr)
+    endif
+    call MPI_WAIT(reqs, status, mpierr)
+  endif
+
+  deallocate (sendn, sends, sende, sendw)
+  deallocate (recvn, recvs, recve, recvw)
 
   return
   end subroutine excjs
@@ -425,10 +328,10 @@ contains
 
     return
   end subroutine slabsum
-  
+
   subroutine mpi_get_time(val)
    real, intent(out) :: val
- 
+
    val = MPI_Wtime()
    call MPI_BCAST(val,1,MY_REAL   ,0,comm3d,mpierr)
 

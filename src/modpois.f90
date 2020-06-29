@@ -118,16 +118,21 @@ contains
 
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step, i1,j1,kmax,k1, dx,dy,dzf,rdt
-    use modmpi,    only : excj
+    use modglobal, only : rk3step,i1,j1,ih,jh,kmax,k1,dx,dy,dzf,rdt
+    use modmpi,    only : excjs
     implicit none
-    real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
+    real,allocatable,target :: stackpuvwp(:,:,:)
+    real,pointer :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
     real rk3coef
 
-    allocate(pup(2-1:i1+1,2-1:j1+1,k1))
-    allocate(pvp(2-1:i1+1,2-1:j1+1,k1))
-    allocate(pwp(2-1:i1+1,2-1:j1+1,k1))
+    ! add a 1 point halo size (ie ih==jh==1)
+    ! NB: the pointer trick works here because we start the original array at 1
+    !     other arrays can start at 2-ih = -1, but the pointer will start with index 1
+    allocate(stackpuvwp(2-1:i1+1,2-1:j1+1,3*k1))
+    pup => stackpuvwp(1:i1+1,1:j1+1,0*k1+1:1*k1)
+    pvp => stackpuvwp(1:i1+1,1:j1+1,1*k1+1:2*k1)
+    pwp => stackpuvwp(1:i1+1,1:j1+1,2*k1+1:3*k1)
 
     rk3coef = rdt / (4. - dble(rk3step))
 
@@ -145,7 +150,7 @@ contains
   !****************************************************************
 
   !     Fill the right hand for the poisson solver.
-  !     Call excj to set the values in the halo zone.
+  !     Call excjs to set the values in the halo zone.
   !     Also we take wp(i,j,1) and wp(i,j,k1) equal to zero.
 
   !**************************************************************
@@ -157,9 +162,15 @@ contains
       end do
     end do
 
-    call excj( pup, 2-1, i1+1, 2-1, j1+1, 1, k1 )
-    call excj( pvp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
-    call excj( pwp, 2-1, i1+1, 2-1, j1+1, 1, k1 )
+    ! Remember the hardcoded 1 point halo size
+    ! ih==jh==1
+    ! Also, we only need half the halo, no full exchange
+    ! call excjs(pup,2,i1,2,j1,1,k1,1,1,.false.)
+    ! call excjs(pvp,2,i1,2,j1,1,k1,1,1,.false.)
+    call excjs(stackpuvwp,2,i1,2,j1,1,2*k1,1,1,.false.)
+
+    ! Not used on the halo, so no need to exchange
+    ! call excjs(pwp,2,i1,2,j1,1,k1,1,1,.false.)
 
     do k=1,kmax
       do j=2,j1
@@ -171,7 +182,8 @@ contains
       end do
     end do
 
-    deallocate( pup,pvp,pwp )
+    !deallocate( pup,pvp,pwp )
+    deallocate( stackpuvwp )
 
   end subroutine fillps
 
@@ -338,9 +350,9 @@ contains
     implicit none
     integer i,j,k
 
-  ! **  Cyclic boundary conditions **************
-  ! **  set by the commcart communication in excj
-  call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  ! **  Cyclic boundary conditions ***************
+  ! **  set by the commcart communication in excjs
+  call excjs(p,2,i1,2,j1,1,kmax,ih,jh,.true.)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
