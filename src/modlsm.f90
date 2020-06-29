@@ -25,6 +25,16 @@ module modlsm
 
     logical :: sw_lsm   ! On/off switch LSM
 
+    ! Soil grid
+    integer :: kmax_soil
+    real :: z_size_soil
+    real, allocatable :: z_soil(:), zh_soil(:)
+    real, allocatable :: dz_soil(:), dzh_soil(:)
+    real, allocatable :: dzi_soil(:), dzhi_soil(:)
+
+    ! Soil properties
+    integer, allocatable :: soil_index(:,:,:)
+
     ! Data structure for sub-grid tiles
     type lsm_tile
         ! Static properties:
@@ -70,7 +80,9 @@ subroutine initlsm
 
     ! Read namelist
     namelist /NAMLSM/ &
-        sw_lsm, sw_homogeneous
+        sw_lsm, sw_homogeneous, z_soil, z_size_soil
+
+    allocate(z_soil(kmax_soil))
 
     if (myid == 0) then
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -85,6 +97,9 @@ subroutine initlsm
     call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
 
     if (sw_lsm) then
+        ! Create/calculate soil grid properties
+        call create_soil_grid
+
         ! Allocate required fields in modsurfacedata, and arrays / tiles from this module:
         call allocate_fields
 
@@ -93,8 +108,7 @@ subroutine initlsm
             call init_homogeneous
         else
             ! Initialise heterogeneous LSM from external input
-            print*,'ERROR: heterogeneous LSM not (yet) implemented!'
-            stop
+            stop 'Heterogeneous LSM not (yet) implemented!'
         end if
 
         ! Read the soil parameter table
@@ -114,11 +128,56 @@ subroutine exitlsm
 end subroutine exitlsm
 
 !
+! Calculate soil grid properties
+!
+subroutine create_soil_grid
+    implicit none
+    integer :: k
+
+    allocate(dz_soil  (kmax_soil  ))
+    allocate(dzi_soil (kmax_soil  ))
+    allocate(zh_soil  (kmax_soil+1))
+    allocate(dzh_soil (kmax_soil+1))
+    allocate(dzhi_soil(kmax_soil+1))
+
+    ! Half level heights
+    zh_soil(1) = z_size_soil
+    zh_soil(kmax_soil+1) = 0.
+
+    do k=2, kmax_soil
+        zh_soil(k) = 0.5*(z_soil(k) + z_soil(k-1))
+    end do
+
+    ! Grid spacing full and half levels
+    do k=1, kmax_soil
+        dz_soil(k) = zh_soil(k+1) - zh_soil(k)
+    end do
+
+    do k=2, kmax_soil
+        dzh_soil(k) = z_soil(k) - z_soil(k-1)
+    end do
+
+    dzh_soil(1) = 2*(z_soil(1) - zh_soil(1))
+    dzh_soil(kmax_soil+1) = 2*(-z_soil(kmax_soil))
+
+    ! Inverse grid spacings
+    dzi_soil(:) = 1./dz_soil(:)
+    dzhi_soil(:) = 1./dzh_soil(:)
+
+end subroutine create_soil_grid
+
+!
 ! Allocate all LSM fields
 !
 subroutine allocate_fields
     use modglobal, only : i2, j2
+    use modsurfdata, only : tsoil, phiw
     implicit none
+
+    ! Allocate soil variables
+    allocate(soil_index(i2, j2, kmax_soil))
+    allocate(tsoil     (i2, j2, kmax_soil))
+    allocate(phiw      (i2, j2, kmax_soil))
 
     ! Allocate the tiled variables
     call allocate_tile(low_veg)
@@ -175,15 +234,18 @@ end subroutine allocate_tile
 subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real
+    use modsurfdata, only : tsoil, phiw
     implicit none
 
-    integer :: ierr
+    integer :: ierr, k
     real :: z0m_low, z0m_high, z0m_bare
     real :: z0h_low, z0h_high, z0h_bare
     real :: lambda_s_low, lambda_s_high, lambda_s_bare
     real :: lambda_us_low, lambda_us_high, lambda_us_bare
     real :: lai_low, lai_high
     real :: rs_min_low, rs_min_high
+
+    real, allocatable :: t_soil_p(:), theta_soil_p(:)
 
     ! Read namelist
     namelist /NAMLSM_HOMOGENEOUS/ &
@@ -192,7 +254,10 @@ subroutine init_homogeneous
         lambda_s_low, lambda_s_high, lambda_s_bare, &
         lambda_us_low, lambda_us_high, lambda_us_bare, &
         lai_low, lai_high, &
-        rs_min_low, rs_min_high
+        rs_min_low, rs_min_high, &
+        t_soil_p, theta_soil_p
+
+    allocate(t_soil_p(kmax_soil), theta_soil_p(kmax_soil))
 
     if (myid == 0) then
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -225,6 +290,9 @@ subroutine init_homogeneous
     call MPI_BCAST(rs_min_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(rs_min_high, 1, my_real, 0, comm3d, mpierr)
 
+    call MPI_BCAST(t_soil_p,     kmax_soil, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(theta_soil_p, kmax_soil, my_real, 0, comm3d, mpierr)
+
     ! Set values
     low_veg  %z0m(:,:) = z0m_low
     high_veg %z0m(:,:) = z0m_high
@@ -247,6 +315,14 @@ subroutine init_homogeneous
 
     low_veg %rs_min(:,:) = rs_min_low
     high_veg%rs_min(:,:) = rs_min_high
+
+    do k=1, kmax_soil
+        tsoil(:,:,k) = t_soil_p(k)
+        phiw (:,:,k) = theta_soil_p(k)
+    end do
+
+    ! Cleanup!
+    deallocate(t_soil_p, theta_soil_p)
 
 end subroutine init_homogeneous
 

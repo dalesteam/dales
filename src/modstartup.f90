@@ -63,7 +63,7 @@ contains
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
-    use modlsm,            only : initlsm
+    use modlsm,            only : initlsm, kmax_soil
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -93,7 +93,7 @@ contains
         krandumin, krandumax, randu,&
         nprocx,nprocy
     namelist/DOMAIN/ &
-        itot,jtot,kmax,&
+        itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
         xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
