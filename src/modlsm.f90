@@ -23,12 +23,7 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm
 
-    ! Land-surface / van Genuchten parameters from NetCDF input table.
-    real, allocatable :: &
-        theta_res(:), theta_wp(:), theta_fc(:), theta_sat(:), gamma_sat(:), vg_a(:), vg_l(:), vg_n(:)
-
-    logical :: sw_lsm
-    logical :: sw_homogeneous
+    logical :: sw_lsm   ! On/off switch LSM
 
     ! Data structure for sub-grid tiles
     type lsm_tile
@@ -39,14 +34,21 @@ module modlsm
         ! Monin-obukhov / surface layer:
         real, allocatable :: obuk(:,:), ustar(:,:), ra(:,:)
         ! Conductivity skin layer:
-        real, allocatable :: lambda_stable(:,:), lamda_unstable(:,:)
+        real, allocatable :: lambda_stable(:,:), lambda_unstable(:,:)
         ! Surface fluxes:
         real, allocatable :: H(:,:), LE(:,:), G(:,:), wthl(:,:), wqt(:,:)
-        ! Surface temperature and humidity
+        ! Surface temperature and humidity:
         real, allocatable :: tskin(:,:), qskin(:,:)
+        ! Vegetation properties:
+        real, allocatable :: lai(:,:), rs_min(:,:)
     end type lsm_tile
 
     type(lsm_tile) low_veg, high_veg, bare_soil, wet_skin
+
+    ! Land-surface / van Genuchten parameters from NetCDF input table.
+    real, allocatable :: &
+        theta_res(:), theta_wp(:), theta_fc(:), theta_sat(:), &
+        gamma_sat(:), vg_a(:), vg_l(:), vg_n(:)
 
 contains
 
@@ -64,6 +66,7 @@ subroutine initlsm
     implicit none
 
     integer :: ierr
+    logical :: sw_homogeneous
 
     ! Read namelist
     namelist /NAMLSM/ &
@@ -72,6 +75,7 @@ subroutine initlsm
     if (myid == 0) then
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
         read(ifnamopt, NAMLSM, iostat=ierr)
+        call checknamelisterror(ierr, ifnamopt, 'NAMLSM')
         write(6, NAMLSM)
         close(ifnamopt)
     end if
@@ -81,9 +85,17 @@ subroutine initlsm
     call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
 
     if (sw_lsm) then
-        ! Allocate required fields in modsurfacedata,
-        ! and arrays / tiles from this module
+        ! Allocate required fields in modsurfacedata, and arrays / tiles from this module:
         call allocate_fields
+
+        if (sw_homogeneous) then
+            ! Initialise homogeneous LSM from namelist input
+            call init_homogeneous
+        else
+            ! Initialise heterogeneous LSM from external input
+            print*,'ERROR: heterogeneous LSM not (yet) implemented!'
+            stop
+        end if
 
         ! Read the soil parameter table
         call read_soil_table
@@ -125,25 +137,118 @@ subroutine allocate_tile(tile)
     type(lsm_tile), intent(inout) :: tile
 
     ! Static properties:
-    allocate(tile%z0m  (i2, j2))
-    allocate(tile%z0h  (i2, j2))
+    allocate(tile%z0m(i2, j2))
+    allocate(tile%z0h(i2, j2))
+
     ! Dynamic tile fraction:
-    allocate(tile%frac (i2, j2))
+    allocate(tile%frac(i2, j2))
+
     ! Monin-obukhov / surface layer:
-    allocate(tile%obuk (i2, j2))
+    allocate(tile%obuk(i2, j2))
     allocate(tile%ustar(i2, j2))
-    allocate(tile%ra   (i2, j2))
+    allocate(tile%ra(i2, j2))
+
+    ! Conductivity skin layer:
+    allocate(tile%lambda_stable(i2, j2))
+    allocate(tile%lambda_unstable(i2, j2))
+
     ! Surface fluxes:
-    allocate(tile%H    (i2, j2))
-    allocate(tile%LE   (i2, j2))
-    allocate(tile%G    (i2, j2))
-    allocate(tile%wthl (i2, j2))
-    allocate(tile%wqt  (i2, j2))
-    ! Surface temperature and humidity
+    allocate(tile%H(i2, j2))
+    allocate(tile%LE(i2, j2))
+    allocate(tile%G(i2, j2))
+    allocate(tile%wthl(i2, j2))
+    allocate(tile%wqt(i2, j2))
+
+    ! Surface temperature and humidity:
     allocate(tile%tskin(i2, j2))
     allocate(tile%qskin(i2, j2))
 
+    ! Vegetation properties:
+    allocate(tile%lai(i2, j2))
+    allocate(tile%rs_min(i2, j2))
+
 end subroutine allocate_tile
+
+!
+! Initialise the LSM homogeneous from namelist input
+!
+subroutine init_homogeneous
+    use modglobal,   only : ifnamopt, fname_options, checknamelisterror
+    use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real
+    implicit none
+
+    integer :: ierr
+    real :: z0m_low, z0m_high, z0m_bare
+    real :: z0h_low, z0h_high, z0h_bare
+    real :: lambda_s_low, lambda_s_high, lambda_s_bare
+    real :: lambda_us_low, lambda_us_high, lambda_us_bare
+    real :: lai_low, lai_high
+    real :: rs_min_low, rs_min_high
+
+    ! Read namelist
+    namelist /NAMLSM_HOMOGENEOUS/ &
+        z0m_low, z0m_high, z0m_bare, &
+        z0h_low, z0h_high, z0h_bare, &
+        lambda_s_low, lambda_s_high, lambda_s_bare, &
+        lambda_us_low, lambda_us_high, lambda_us_bare, &
+        lai_low, lai_high, &
+        rs_min_low, rs_min_high
+
+    if (myid == 0) then
+        open(ifnamopt, file=fname_options, status='old', iostat=ierr)
+        read(ifnamopt, NAMLSM_HOMOGENEOUS, iostat=ierr)
+        call checknamelisterror(ierr, ifnamopt, 'NAMLSM_HOMOGENEOUS')
+        write(6, NAMLSM_HOMOGENEOUS)
+        close(ifnamopt)
+    end if
+
+    ! Broadcast to all MPI tasks
+    call MPI_BCAST(z0m_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_bare, 1, my_real, 0, comm3d, mpierr)
+
+    call MPI_BCAST(z0h_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_bare, 1, my_real, 0, comm3d, mpierr)
+
+    call MPI_BCAST(lambda_s_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lambda_s_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lambda_s_bare, 1, my_real, 0, comm3d, mpierr)
+
+    call MPI_BCAST(lambda_us_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lambda_us_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lambda_us_bare, 1, my_real, 0, comm3d, mpierr)
+
+    call MPI_BCAST(lai_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lai_high, 1, my_real, 0, comm3d, mpierr)
+
+    call MPI_BCAST(rs_min_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(rs_min_high, 1, my_real, 0, comm3d, mpierr)
+
+    ! Set values
+    low_veg  %z0m(:,:) = z0m_low
+    high_veg %z0m(:,:) = z0m_high
+    bare_soil%z0m(:,:) = z0m_bare
+
+    low_veg  %z0h(:,:) = z0h_low
+    high_veg %z0h(:,:) = z0h_high
+    bare_soil%z0h(:,:) = z0h_bare
+
+    low_veg  %lambda_stable(:,:) = lambda_s_low
+    high_veg %lambda_stable(:,:) = lambda_s_high
+    bare_soil%lambda_stable(:,:) = lambda_s_bare
+
+    low_veg  %lambda_unstable(:,:) = lambda_us_low
+    high_veg %lambda_unstable(:,:) = lambda_us_high
+    bare_soil%lambda_unstable(:,:) = lambda_us_bare
+
+    low_veg %lai(:,:) = lai_low
+    high_veg%lai(:,:) = lai_high
+
+    low_veg %rs_min(:,:) = rs_min_low
+    high_veg%rs_min(:,:) = rs_min_high
+
+end subroutine init_homogeneous
 
 !
 ! Read the input table with the (van Genuchten) soil parameters
