@@ -73,6 +73,7 @@ contains
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use mpi
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
@@ -702,6 +703,7 @@ contains
   subroutine surface
     use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use mpi
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
@@ -1039,6 +1041,7 @@ contains
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,ijtot,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
+    use mpi
     use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
 
     implicit none
@@ -1104,6 +1107,7 @@ contains
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
+    use mpi
     use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
     implicit none
 
@@ -1638,6 +1642,7 @@ contains
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
+    use mpi
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
     use modmicrodata, only : imicro,imicro_bulk
 

@@ -80,6 +80,7 @@ save
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
+    use mpi
     use modmpi,    only : my_real,myid,comm3d,mpi_logical,mpierr,mpi_integer
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
@@ -345,6 +346,7 @@ contains
                            cliq,rsveg,rssoil,Wl, &
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
+    use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
     implicit none
@@ -939,6 +941,7 @@ contains
     use modfields,  only : w0,qt0,qt0h,ql0,thl0,thl0h,thv0h,sv0,exnf,whls
     use modsurfdata,only : svs, lhetero, xpatches, ypatches
     use modsurface, only : patchxnr,patchynr
+    use mpi
     use modmpi,     only : mpierr, comm3d,mpi_sum,my_real
     implicit none
     real    :: zil, dhdt,locval,oldlocval
@@ -1210,6 +1213,7 @@ contains
    use modglobal,  only : imax,jmax
    use modsurface, only : patchxnr, patchynr
    use modsurfdata,only : xpatches,ypatches
+   use mpi
    use modmpi,     only : mpierr,comm3d,my_real,mpi_sum
    implicit none
    real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)

@@ -76,7 +76,7 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use mpi,               only : MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
+    use mpi
     use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr
     use modchem,           only : initchem
     use modversion,        only : git_version

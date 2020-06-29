@@ -28,9 +28,10 @@ elseif("$ENV{SYST}" STREQUAL "HYDRA")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FEDORA")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/ -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEV     "-fbounds-check -fbacktrace -fno-f2c -march=native -O3 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF")
   set(CMAKE_Fortran_COMPILER "ftn")
   set(CMAKE_Fortran_FLAGS "-s real64" CACHE STRING "")
@@ -48,7 +49,7 @@ elseif("$ENV{SYST}" STREQUAL "ECMWF-gnu")
   set(CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "gnu-fast")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -march=native -g -fbacktrace" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "lisa-intel")
@@ -58,10 +59,15 @@ elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none " CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 endif()
+
+# On compiler options
+# June 2020: added -std=legacy to gfortran for compatibility with gfortran 10, which introduced stricter type checking
+# the old FFT code from Netlib/FFTPACK does not compile with gfortran 10 without this flag.
+
 
 ## Project parameters
 PROJECT(DALES Fortran)
@@ -122,7 +128,8 @@ FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   DOC "NetCDF Fortran library"
 )
 
-FIND_LIBRARY(HYPRE_LIB libHYPRE.a
+# libHYPRE.a for static library
+FIND_LIBRARY(HYPRE_LIB HYPRE
   PATHS
   $ENV{HYPRE_LIB}
   ${ADDMODULEPATH}/lib
@@ -134,11 +141,33 @@ FIND_LIBRARY(HYPRE_LIB libHYPRE.a
   DOC "Iterative solver library"
 )
 
+FIND_PATH(FFTW_INCLUDE_DIR fftw3.f03
+  PATHS
+  $ENV{FFTW_INCLUDE_DIR}
+  /usr/include
+  DOC "FFTW include files (fftw3.f03)"
+)
+
+#libfftw3.a for static library
+FIND_LIBRARY(FFTW_LIB fftw3
+  PATHS
+  $ENV{FFTW_LIB}
+  /usr/lib
+  /usr/lib64
+  DOC "FFTW static library"
+)
+
 if(NETCDF_INCLUDE_DIR)
   include_directories(${NETCDF_INCLUDE_DIR})
 else(NETCDF_INCLUDE_DIR)
   MESSAGE(STATUS "WARNING: No NETCDF bindings are found.")
 endif(NETCDF_INCLUDE_DIR)
+
+if(FFTW_INCLUDE_DIR)
+  include_directories(${FFTW_INCLUDE_DIR})
+else(FFTW_INCLUDE_DIR)
+  MESSAGE(STATUS "WARNING: No FFTW3 bindings are found (fftw3.f03).")
+endif(FFTW_INCLUDE_DIR)
 
 if(NETCDF_C_LIB)
   set(NETCDF_LIBS ${NETCDF_C_LIB})
@@ -154,6 +183,9 @@ endif(NETCDF_FORTRAN_LIB)
 
 ### Iterative solver (HYPRE)
 OPTION(USE_HYPRE "Also build iterative solver (optional, needs HYPRE)" OFF)
+
+### FFTW based poisson solver (FFTW)
+OPTION(USE_FFTW "Also build FFTW based poisson solver (optional, needs FFTW3)" OFF)
 
 ### Documentation
 INCLUDE(FindDoxygen)
