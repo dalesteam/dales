@@ -72,22 +72,114 @@ module modlsm
 contains
 
 subroutine lsm
-    use modsurfdata, only : thlflux, qtflux
+    use modsurfdata, only : thlflux, qtflux, G0
     implicit none
 
     ! tmp...
     thlflux(:,:) = 0.
     qtflux(:,:) = 0.
+    G0(:,:) = 0.
 
     !
     ! 1. Calculate soil tendencies
     !
-    ! 1.1 Diffusivity heat
-
-
+    ! 1.1 Calc diffusivity heat, interpolated to half levels:
+    call calc_thermal_properties
+    ! 1.2 Solve diffusion equation
+    call diffusion_t
 
 
 end subroutine lsm
+
+!
+! Calculate temperature diffusivity soil at full and half levels
+!
+subroutine calc_thermal_properties
+    use modglobal, only : i1, j1, gamma_t_matrix, gamma_t_water
+    use modsurfdata, only : lambda, lambdah, phiw
+    implicit none
+
+    integer :: i, j, k, si
+    real :: lambda_t_sat, kersten, gamma_t
+
+    ! Calculate diffusivity heat
+    do k=1,kmax_soil
+        do j=2,j1
+            do i=2,i1
+                si = soil_index(i,j,k)
+                ! Heat conductivity at saturation (from IFS code..)
+                lambda_T_sat =   gamma_T_matrix**(1.-theta_sat(si)) &
+                               * gamma_T_water**phiw(i,j,k) &
+                               * 2.2**(theta_sat(si) - phiw(i,j,k))
+                ! Kersten number for fine soils [IFS eq 8.64] (-)
+                kersten = log10(max(0.1, phiw(i,j,k) / theta_sat(si))) + 1.
+                ! Heat conductivity soil [IFS eq 8.62] (W m-1 K-1)
+                gamma_t = kersten * (lambda_T_sat - gamma_t_dry(si)) + gamma_t_dry(si)
+                ! Heat diffusivity (m2 s-1)
+                lambda(i,j,k) = gamma_t / rho_C(si)
+            end do
+        end do
+    end do
+
+    ! Interpolate to half levels
+    do k=2,kmax_soil
+        do j=2,j1
+            do i=2,i1
+                lambdah(i,j,k) = 0.5*(lambda(i,j,k-1) + lambda(i,j,k))
+            end do
+        end do
+    end do
+
+end subroutine calc_thermal_properties
+
+!
+! Solve diffusion equation (explicit) for soil temperature.
+! Top flux = G0/rho_C, bottom flux = zero.
+!
+subroutine diffusion_t
+    use modglobal, only : rk3step, rdt, i1, j1
+    use modsurfdata, only : tsoil, tsoilm, lambdah, G0
+
+    implicit none
+    integer :: i, j, k, si
+    real :: tend, rk3coef, flux_top
+
+    rk3coef = rdt / (4. - dble(rk3step))
+    if(rk3step == 1) tsoilm(:,:,:) = tsoil(:,:,:)
+
+    ! Top soil layer
+    k = kmax_soil
+    do j=2,j1
+        do i=2,i1
+            si = soil_index(i,j,k)
+            flux_top = G0(i,j) / rho_C(si)
+            tend = (-flux_top - (lambdah(i,j,k) * (tsoil(i,j,k) - tsoil(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k)
+            tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef * tend
+        end do
+    end do
+
+    ! Bottom soil layer
+    k = 1
+    do j=2,j1
+        do i=2,i1
+            tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k)
+            tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef * tend
+        end do
+    end do
+
+    ! Interior
+    do k=2,kmax_soil-1
+        do j=2,j1
+            do i=2,i1
+                tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k  )) * dzhi_soil(k+1)) &
+                      - (lambdah(i,j,k  ) * (tsoil(i,j,k  ) - tsoil(i,j,k-1)) * dzhi_soil(k  ))) * dzi_soil(k)
+                tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef * tend
+            end do
+        end do
+    end do
+
+end subroutine diffusion_t
+
 
 !
 ! Initialise the land-surface model
@@ -200,19 +292,32 @@ end subroutine create_soil_grid
 subroutine allocate_fields
     use modglobal, only : i2, j2
     use modsurfdata, only : &
-        tsoil, phiw, lambda, lambdas, gammas, &
+        tsoil, tsoilm, phiw, phiwm, &
+        lambda, lambdah, lambdas, lambdash, gammas, gammash, &
         H, LE, G0, Qnet
     implicit none
 
     ! Allocate soil variables
     allocate(soil_index(i2, j2, kmax_soil))
-    allocate(tsoil     (i2, j2, kmax_soil))
-    allocate(phiw      (i2, j2, kmax_soil))
 
-    ! Soil conductivity and diffusivity
-    allocate(lambda (i2, j2, kmax_soil))
-    allocate(lambdas(i2, j2, kmax_soil))
+    allocate(tsoil     (i2, j2, kmax_soil))
+    allocate(tsoilm    (i2, j2, kmax_soil))
+
+    allocate(phiw      (i2, j2, kmax_soil))
+    allocate(phiwm     (i2, j2, kmax_soil))
+
+    ! NOTE: names differ from what is described in modsurfdata!
+    ! Diffusivity temperature:
+    allocate(lambda (i2, j2, kmax_soil  ))
+    allocate(lambdah(i2, j2, kmax_soil+1))
+
+    ! Diffusivity theta:
+    allocate(lambdas (i2, j2, kmax_soil))
+    allocate(lambdash(i2, j2, kmax_soil+1))
+
+    ! Conductivity theta:
     allocate(gammas (i2, j2, kmax_soil))
+    allocate(gammash(i2, j2, kmax_soil+1))
 
     ! Tile averaged surface fluxes
     allocate(Qnet (i2, j2))
@@ -275,7 +380,7 @@ end subroutine allocate_tile
 subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real, mpi_integer
-    use modsurfdata, only : tsoil, phiw
+    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm
     implicit none
 
     integer :: ierr, k
@@ -365,6 +470,9 @@ subroutine init_homogeneous
         phiw (:,:,k) = theta_soil_p(k)
         soil_index(:,:,k) = soil_index_p(k)
     end do
+
+    tsoilm(:,:,:) = tsoil(:,:,:)
+    phiwm (:,:,:) = phiw (:,:,:)
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p)
