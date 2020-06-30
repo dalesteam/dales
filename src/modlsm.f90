@@ -180,7 +180,8 @@ end subroutine create_soil_grid
 subroutine allocate_fields
     use modglobal, only : i2, j2
     use modsurfdata, only : &
-        tsoil, phiw, lambda, lambdas, gammas
+        tsoil, phiw, lambda, lambdas, gammas, &
+        H, LE, G0, Qnet
     implicit none
 
     ! Allocate soil variables
@@ -188,9 +189,16 @@ subroutine allocate_fields
     allocate(tsoil     (i2, j2, kmax_soil))
     allocate(phiw      (i2, j2, kmax_soil))
 
-    allocate(lambda    (i2, j2, kmax_soil))
-    allocate(lambdas   (i2, j2, kmax_soil))
-    allocate(gammas    (i2, j2, kmax_soil))
+    ! Soil conductivity and diffusivity
+    allocate(lambda (i2, j2, kmax_soil))
+    allocate(lambdas(i2, j2, kmax_soil))
+    allocate(gammas (i2, j2, kmax_soil))
+
+    ! Tile averaged surface fluxes
+    allocate(Qnet (i2, j2))
+    allocate(H    (i2, j2))
+    allocate(LE   (i2, j2))
+    allocate(G0   (i2, j2))
 
     ! Allocate the tiled variables
     call allocate_tile(tile_lv)

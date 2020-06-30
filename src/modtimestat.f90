@@ -228,8 +228,10 @@ contains
        endif
 
       if (lnetcdf) then
-        if(isurf == 1) then
+        if (isurf == 1) then
           nvar = 32
+        else if (isurf == 11) then
+          nvar = 25
         else
           nvar = 21
         end if
@@ -271,7 +273,13 @@ contains
           call ncinfo(ncname(30,:),'Wl','Liquid water reservoir','m','time')
           call ncinfo(ncname(31,:),'rssoil','Soil evaporation resistance','s/m','time')
           call ncinfo(ncname(32,:),'rsveg','Vegitation resistance','s/m','time')
+        else if (isurf==11) then
+          call ncinfo(ncname(22,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(23,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(24,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(25,:),'G','Ground heat flux','W/m^2','time')
         end if
+
         call open_nc(fname,  ncid,nrec)
         if(nrec==0) call define_nc( ncid, NVar, ncname)
       end if
@@ -344,7 +352,8 @@ contains
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
+                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
+                           thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
@@ -757,6 +766,22 @@ contains
         rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
+
+    else if(isurf == 11) then
+      Qnetavl      = sum(Qnet(2:i1,2:j1))
+      Havl         = sum(H(2:i1,2:j1))
+      LEavl        = sum(LE(2:i1,2:j1))
+      G0avl        = sum(G0(2:i1,2:j1))
+
+      call MPI_ALLREDUCE(Qnetavl,     Qnetav,     1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(Havl,        Hav,        1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(LEavl,       LEav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+      call MPI_ALLREDUCE(G0avl,       G0av,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+
+      Qnetav        = Qnetav      / ijtot
+      Hav           = Hav         / ijtot
+      LEav          = LEav        / ijtot
+      G0av          = G0av        / ijtot
     end if
 
   !  9.8  write the results to output file
@@ -818,6 +843,7 @@ contains
             gcco2av
         close(ifoutput)
       end if
+
       if (lnetcdf) then
         vars( 1) = rtimee
         vars( 2) = cc
@@ -856,6 +882,11 @@ contains
           vars(30) = wlav
           vars(31) = rssoilav
           vars(32) = rsvegav
+        else if (isurf == 11) then
+          vars(22) = Qnetav
+          vars(23) = Hav
+          vars(24) = LEav
+          vars(25) = G0av
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
