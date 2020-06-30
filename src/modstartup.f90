@@ -350,12 +350,12 @@ contains
   !isurf
     if (myid == 0) then
       select case (isurf)
-      case(-1)
       case(1)
       case(2,10)
       case(3:4)
         if (wtsurf <-1e10)  stop 'wtsurf not set'
         if (wqsurf <-1e10)  stop 'wqsurf not set'
+      case(11)
       case default
         stop 'isurf out of range/not set'
       end select
@@ -588,7 +588,7 @@ contains
         Wlm    = Wl
       case(2)
         tskin  = thls
-      case(3,4)
+      case(3,4,11)
         thls = thlprof(1)
         qts  = qtprof(1)
         tskin  = thls

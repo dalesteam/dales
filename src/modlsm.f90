@@ -53,7 +53,8 @@ module modlsm
         real, allocatable :: lai(:,:), rs_min(:,:)
     end type lsm_tile
 
-    type(lsm_tile) low_veg, high_veg, bare_soil, wet_skin
+    ! Tiles for low veg (lv), high veg (hv), bare soil (bs), wet skin (ws):
+    type(lsm_tile) tile_lv, tile_hv, tile_bs, tile_ws
 
     ! Land-surface / van Genuchten parameters from NetCDF input table.
     real, allocatable :: &
@@ -63,7 +64,12 @@ module modlsm
 contains
 
 subroutine lsm
+    use modsurfdata, only : thlflux, qtflux
     implicit none
+
+    thlflux(:,:) = 0.
+    qtflux(:,:) = 0.
+
 end subroutine lsm
 
 !
@@ -71,8 +77,8 @@ end subroutine lsm
 !
 subroutine initlsm
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror
-    use modmpi,      only : myid, comm3d, mpierr, mpi_logical
-    use modsurfdata, only : isurf
+    use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real
+    use modsurfdata, only : isurf, zsoil
     implicit none
 
     integer :: ierr
@@ -80,9 +86,9 @@ subroutine initlsm
 
     ! Read namelist
     namelist /NAMLSM/ &
-        sw_lsm, sw_homogeneous, z_soil, z_size_soil
+        sw_lsm, sw_homogeneous, zsoil, z_size_soil
 
-    allocate(z_soil(kmax_soil))
+    allocate(zsoil(kmax_soil))
 
     if (myid == 0) then
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -95,6 +101,9 @@ subroutine initlsm
     ! Broadcast namelist values to all MPI tasks
     call MPI_BCAST(sw_lsm, 1, mpi_logical, 0, comm3d, mpierr)
     call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
+
+    call MPI_BCAST(z_soil, kmax_soil, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z_size_soil, 1, my_real, 0, comm3d, mpierr)
 
     if (sw_lsm) then
         ! Create/calculate soil grid properties
@@ -113,7 +122,6 @@ subroutine initlsm
 
         ! Read the soil parameter table
         call read_soil_table
-
     end if
 
 end subroutine initlsm
@@ -171,7 +179,8 @@ end subroutine create_soil_grid
 !
 subroutine allocate_fields
     use modglobal, only : i2, j2
-    use modsurfdata, only : tsoil, phiw
+    use modsurfdata, only : &
+        tsoil, phiw
     implicit none
 
     ! Allocate soil variables
@@ -180,10 +189,10 @@ subroutine allocate_fields
     allocate(phiw      (i2, j2, kmax_soil))
 
     ! Allocate the tiled variables
-    call allocate_tile(low_veg)
-    call allocate_tile(high_veg)
-    call allocate_tile(bare_soil)
-    call allocate_tile(wet_skin)
+    call allocate_tile(tile_lv)
+    call allocate_tile(tile_hv)
+    call allocate_tile(tile_bs)
+    call allocate_tile(tile_ws)
 
 end subroutine allocate_fields
 
@@ -196,35 +205,35 @@ subroutine allocate_tile(tile)
     type(lsm_tile), intent(inout) :: tile
 
     ! Static properties:
-    allocate(tile%z0m(i2, j2))
-    allocate(tile%z0h(i2, j2))
+    allocate(tile % z0m(i2, j2))
+    allocate(tile % z0h(i2, j2))
 
     ! Dynamic tile fraction:
-    allocate(tile%frac(i2, j2))
+    allocate(tile % frac(i2, j2))
 
     ! Monin-obukhov / surface layer:
-    allocate(tile%obuk(i2, j2))
-    allocate(tile%ustar(i2, j2))
-    allocate(tile%ra(i2, j2))
+    allocate(tile % obuk(i2, j2))
+    allocate(tile % ustar(i2, j2))
+    allocate(tile % ra(i2, j2))
 
     ! Conductivity skin layer:
-    allocate(tile%lambda_stable(i2, j2))
-    allocate(tile%lambda_unstable(i2, j2))
+    allocate(tile % lambda_stable(i2, j2))
+    allocate(tile % lambda_unstable(i2, j2))
 
     ! Surface fluxes:
-    allocate(tile%H(i2, j2))
-    allocate(tile%LE(i2, j2))
-    allocate(tile%G(i2, j2))
-    allocate(tile%wthl(i2, j2))
-    allocate(tile%wqt(i2, j2))
+    allocate(tile % H(i2, j2))
+    allocate(tile % LE(i2, j2))
+    allocate(tile % G(i2, j2))
+    allocate(tile % wthl(i2, j2))
+    allocate(tile % wqt(i2, j2))
 
     ! Surface temperature and humidity:
-    allocate(tile%tskin(i2, j2))
-    allocate(tile%qskin(i2, j2))
+    allocate(tile % tskin(i2, j2))
+    allocate(tile % qskin(i2, j2))
 
     ! Vegetation properties:
-    allocate(tile%lai(i2, j2))
-    allocate(tile%rs_min(i2, j2))
+    allocate(tile % lai(i2, j2))
+    allocate(tile % rs_min(i2, j2))
 
 end subroutine allocate_tile
 
@@ -294,27 +303,27 @@ subroutine init_homogeneous
     call MPI_BCAST(theta_soil_p, kmax_soil, my_real, 0, comm3d, mpierr)
 
     ! Set values
-    low_veg  %z0m(:,:) = z0m_low
-    high_veg %z0m(:,:) = z0m_high
-    bare_soil%z0m(:,:) = z0m_bare
+    tile_lv % z0m(:,:) = z0m_low
+    tile_hv % z0m(:,:) = z0m_high
+    tile_bs % z0m(:,:) = z0m_bare
 
-    low_veg  %z0h(:,:) = z0h_low
-    high_veg %z0h(:,:) = z0h_high
-    bare_soil%z0h(:,:) = z0h_bare
+    tile_lv % z0h(:,:) = z0h_low
+    tile_hv % z0h(:,:) = z0h_high
+    tile_bs % z0h(:,:) = z0h_bare
 
-    low_veg  %lambda_stable(:,:) = lambda_s_low
-    high_veg %lambda_stable(:,:) = lambda_s_high
-    bare_soil%lambda_stable(:,:) = lambda_s_bare
+    tile_lv % lambda_stable(:,:) = lambda_s_low
+    tile_hv % lambda_stable(:,:) = lambda_s_high
+    tile_bs % lambda_stable(:,:) = lambda_s_bare
 
-    low_veg  %lambda_unstable(:,:) = lambda_us_low
-    high_veg %lambda_unstable(:,:) = lambda_us_high
-    bare_soil%lambda_unstable(:,:) = lambda_us_bare
+    tile_lv % lambda_unstable(:,:) = lambda_us_low
+    tile_hv % lambda_unstable(:,:) = lambda_us_high
+    tile_bs % lambda_unstable(:,:) = lambda_us_bare
 
-    low_veg %lai(:,:) = lai_low
-    high_veg%lai(:,:) = lai_high
+    tile_lv % lai(:,:) = lai_low
+    tile_hv % lai(:,:) = lai_high
 
-    low_veg %rs_min(:,:) = rs_min_low
-    high_veg%rs_min(:,:) = rs_min_high
+    tile_lv % rs_min(:,:) = rs_min_low
+    tile_hv % rs_min(:,:) = rs_min_high
 
     do k=1, kmax_soil
         tsoil(:,:,k) = t_soil_p(k)

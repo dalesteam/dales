@@ -538,7 +538,7 @@ contains
             enddo
           enddo
       end select
-    else
+    else  ! not lhetero:
       if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
         z0mav = z0
         z0hav = z0
@@ -725,7 +725,8 @@ contains
     patchx = 0
     patchy = 0
 
-    if (isurf==-1) then
+    if (isurf==11) then
+       ! New LSM, handled by modlsm
        return
     end if
 
