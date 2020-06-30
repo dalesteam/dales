@@ -67,15 +67,16 @@ contains
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modsurfdata,only : ksoilmax,isurf
+    use modlsm, only : kmax_soil
     implicit none
 
-    integer ierr
+    integer ierr, kdim_soil
     namelist/NAMLSMSTAT/ &
     dtav,timeav,lstat
 
     dtav=dtav_glob;timeav=timeav_glob
     lstat = .false.
-    if (isurf /=1) return
+    if (.not. (isurf ==1 .or. isurf==11)) return
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMLSMSTAT,iostat=ierr)
@@ -105,17 +106,23 @@ contains
       stop 'dtav should be a integer multiple of dtmax'
     end if
 
-    allocate(phiwav(ksoilmax))
-    allocate(tsoilav(ksoilmax))
-    allocate(lambdaav(ksoilmax))
-    allocate(lambdasav(ksoilmax))
-    allocate(gammasav(ksoilmax))
+    if (isurf == 1) then
+        kdim_soil = ksoilmax
+    else if (isurf == 11) then
+        kdim_soil = kmax_soil
+    end if
 
-    allocate(phiwmn(ksoilmax))
-    allocate(tsoilmn(ksoilmax))
-    allocate(lambdamn(ksoilmax))
-    allocate(lambdasmn(ksoilmax))
-    allocate(gammasmn(ksoilmax))
+    allocate(phiwav(kdim_soil))
+    allocate(tsoilav(kdim_soil))
+    allocate(lambdaav(kdim_soil))
+    allocate(lambdasav(kdim_soil))
+    allocate(gammasav(kdim_soil))
+
+    allocate(phiwmn(kdim_soil))
+    allocate(tsoilmn(kdim_soil))
+    allocate(lambdamn(kdim_soil))
+    allocate(lambdasmn(kdim_soil))
+    allocate(gammasmn(kdim_soil))
 
     phiwmn = 0.0
     tsoilmn = 0.0
@@ -127,6 +134,7 @@ contains
       open (ifoutput,file='lsmstat.'//cexpnr,status='replace')
       close (ifoutput)
     end if
+
     if (lnetcdf) then
       idtav = idtav_prof
       itimeav = itimeav_prof
@@ -174,9 +182,17 @@ contains
 
     use modmpi,    only :  slabsum
     use modglobal, only : ijtot,i1,j1,i2,j2
-    use modsurfdata, only : ksoilmax,tsoil,phiw,lambda,lambdas,gammas
+    use modsurfdata, only : isurf,ksoilmax,tsoil,phiw,lambda,lambdas,gammas
+    use modlsm, only : kmax_soil
 
     implicit none
+
+    integer kdim_soil
+    if (isurf == 1) then
+        kdim_soil = ksoilmax
+    else if (isurf == 11) then
+        kdim_soil = kmax_soil
+    end if
 
     tsoilav  = 0.
     phiwav  = 0.
@@ -184,11 +200,11 @@ contains
     lambdasav  = 0.
     gammasav = 0.
 
-    call slabsum(tsoilav ,1,ksoilmax,tsoil ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(phiwav ,1,ksoilmax,phiw ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(lambdaav ,1,ksoilmax,lambda ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(lambdasav ,1,ksoilmax,lambdas ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(gammasav ,1,ksoilmax,gammas ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
+    call slabsum(tsoilav ,1,kdim_soil,tsoil ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
+    call slabsum(phiwav ,1,kdim_soil,phiw ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
+    call slabsum(lambdaav ,1,kdim_soil,lambda ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
+    call slabsum(lambdasav ,1,kdim_soil,lambdas ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
+    call slabsum(gammasav ,1,kdim_soil,gammas ,1,i2,1,j2,1,kdim_soil,2,i1,2,j1,1,kdim_soil)
  !    ADD SLAB AVERAGES TO TIME MEAN
 
     phiwmn = phiwmn + phiwav/ijtot
@@ -206,11 +222,20 @@ contains
       use modglobal, only : cexpnr,ifoutput,rtimee
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
-      use modsurfdata,only : ksoilmax,zsoilc
-      implicit none
-      real,dimension(ksoilmax,nvar) :: vars
-      integer nsecs, nhrs, nminut,k
+      use modsurfdata,only : isurf, ksoilmax, zsoilc
+      use modlsm, only : kmax_soil, z_soil
 
+      implicit none
+      real, allocatable :: vars(:,:)
+      integer nsecs, nhrs, nminut,k, kdim_soil
+
+      if (isurf == 1) then
+          kdim_soil = ksoilmax
+      else if (isurf == 11) then
+          kdim_soil = kmax_soil
+      end if
+
+      allocate(vars(kdim_soil, nvar))
 
       nsecs   = nint(rtimee)
       nhrs    = int(nsecs/3600)
@@ -237,15 +262,27 @@ contains
           '#--------------------------------------------------------------------------' &
           ,'#LEV HEIGHT  T_SOIL      SOIL MOIST   HEAT COND.   MOIST DIFF.  MOIST COND.' &
           ,'#    (M)    (K)          (M^3/M^3)    (W/M/K)      (M^2/S)       (M/S)      '
-      do k=1,ksoilmax
-        write(ifoutput,'(I3,F8.4,F10.4,4E13.4)') &
-            k, zsoilc(k),&
-            tsoilmn(k),&
-            phiwmn(k),&
-            lambdamn(k),&
-            lambdasmn(k),&
-            gammasmn(k)
-      end do
+      if (isurf == 1) then
+        do k=1,kdim_soil
+          write(ifoutput,'(I3,F8.4,F10.4,4E13.4)') &
+              k, zsoilc(k),&
+              tsoilmn(k),&
+              phiwmn(k),&
+              lambdamn(k),&
+              lambdasmn(k),&
+              gammasmn(k)
+        end do
+      else if (isurf == 11) then
+        do k=1,kdim_soil
+          write(ifoutput,'(I3,F8.4,F10.4,4E13.4)') &
+              k, z_soil(k),&
+              tsoilmn(k),&
+              phiwmn(k),&
+              lambdamn(k),&
+              lambdasmn(k),&
+              gammasmn(k)
+        end do
+      end if
       close (ifoutput)
       if (lnetcdf) then
         vars(:, 1) = tsoilmn
@@ -253,7 +290,7 @@ contains
         vars(:, 3) = lambdamn
         vars(:, 4) = lambdasmn
         vars(:, 5) = gammasmn
-       call writestat_nc(ncid_prof,nvar,ncname,vars(1:ksoilmax,:),nrec_prof,ksoilmax)
+       call writestat_nc(ncid_prof,nvar,ncname,vars(1:kdim_soil,:),nrec_prof,kdim_soil)
       end if
     end if ! end if(myid==0)
 
@@ -262,6 +299,8 @@ contains
     lambdamn = 0.0
     lambdasmn = 0.0
     gammasmn  = 0.0
+
+    deallocate(vars)
 
 
   end subroutine writelsmstat

@@ -78,7 +78,7 @@ end subroutine lsm
 subroutine initlsm
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real
-    use modsurfdata, only : isurf, zsoil
+    use modsurfdata, only : isurf
     implicit none
 
     integer :: ierr
@@ -86,9 +86,9 @@ subroutine initlsm
 
     ! Read namelist
     namelist /NAMLSM/ &
-        sw_lsm, sw_homogeneous, zsoil, z_size_soil
+        sw_lsm, sw_homogeneous, z_soil, z_size_soil
 
-    allocate(zsoil(kmax_soil))
+    allocate(z_soil(kmax_soil))
 
     if (myid == 0) then
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -180,13 +180,17 @@ end subroutine create_soil_grid
 subroutine allocate_fields
     use modglobal, only : i2, j2
     use modsurfdata, only : &
-        tsoil, phiw
+        tsoil, phiw, lambda, lambdas, gammas
     implicit none
 
     ! Allocate soil variables
     allocate(soil_index(i2, j2, kmax_soil))
     allocate(tsoil     (i2, j2, kmax_soil))
     allocate(phiw      (i2, j2, kmax_soil))
+
+    allocate(lambda    (i2, j2, kmax_soil))
+    allocate(lambdas   (i2, j2, kmax_soil))
+    allocate(gammas    (i2, j2, kmax_soil))
 
     ! Allocate the tiled variables
     call allocate_tile(tile_lv)
