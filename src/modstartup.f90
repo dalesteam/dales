@@ -391,6 +391,7 @@ contains
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz,ps
+    use modlsm,            only : init_lsm_tiles
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
@@ -588,11 +589,13 @@ contains
         Wlm    = Wl
       case(2)
         tskin  = thls
-      case(3,4,11)
-        thls = thlprof(1)
-        qts  = qtprof(1)
+      case(3,4)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
         tskin  = thls
         qskin  = qts
+      case(11)
+        call init_lsm_tiles
       case(10)
         call initsurf_user
       end select

@@ -1335,7 +1335,7 @@ contains
 
   end subroutine getobl
 
-  function psim(zeta)
+  pure function psim(zeta)
     implicit none
 
     real             :: psim
@@ -1355,7 +1355,7 @@ contains
     return
   end function psim
 
-  function psih(zeta)
+  pure function psih(zeta)
 
     implicit none
 
@@ -1381,7 +1381,7 @@ contains
   ! Phi and Psi above are related by an integral and should in principle match,
   ! currently they do not.
   ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
- function phim(zeta)
+  pure function phim(zeta)
     implicit none
     real             :: phim
     real, intent(in) :: zeta
@@ -1399,7 +1399,7 @@ contains
   end function phim
 
    ! stability function Phi for heat.
- function phih(zeta)
+ pure function phih(zeta)
     implicit none
     real             :: phih
     real, intent(in) :: zeta

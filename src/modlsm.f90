@@ -21,7 +21,7 @@ module modlsm
     use netcdf
     implicit none
 
-    public :: initlsm, lsm, exitlsm
+    public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
     logical :: sw_lsm   ! On/off switch LSM
     logical :: sw_free_drainage   ! Free drainage bottom BC for soil moisture
@@ -52,8 +52,8 @@ module modlsm
         real, allocatable :: lambda_stable(:,:), lambda_unstable(:,:)
         ! Surface fluxes:
         real, allocatable :: H(:,:), LE(:,:), G(:,:), wthl(:,:), wqt(:,:)
-        ! Surface temperature and humidity:
-        real, allocatable :: tskin(:,:), qskin(:,:)
+        ! Surface (potential) temperature and humidity:
+        real, allocatable :: tskin(:,:), thlskin(:,:), qtskin(:,:)
         ! Vegetation properties:
         real, allocatable :: lai(:,:), rs_min(:,:)
     end type lsm_tile
@@ -84,33 +84,46 @@ subroutine lsm
     thlflux(:,:) = 0.
     qtflux(:,:) = 0.
     G0(:,:) = 0.
-
-    !
-    ! 2. Calculate soil tendencies
-    !
-    ! Calc diffusivity heat
-    call calc_thermal_properties
-    ! Solve diffusion equation
-    call diffusion_t
-
-    ! Calc diffusivity and conductivity soil moisture
-    call calc_hydraulic_properties
-
-    ! TMP TMP
     phiw_source(:,:,:) = 0.
     throughfall(:,:) = 0.
     tile_bs%frac(:,:) = 0.
     tile_bs%LE(:,:) = 0.
 
-    ! Solve diffusion equation
-    call diffusion_theta
+    !
+    ! 1. Surface layer
+    !
+    call stability
 
 
+
+
+    !
+    ! 2. Calculate soil tendencies
+    !
+    ! Calc diffusivity heat:
+    call calc_thermal_properties
+    ! Solve diffusion equation:
+    call integrate_t_soil
+
+    ! Calc diffusivity and conductivity soil moisture:
+    call calc_hydraulic_properties
+    ! Solve diffusion equation:
+    call integrate_theta_soil
 
 
 
 
 end subroutine lsm
+
+!
+! Calculate Obukhov length, ustar, .. for all tiles
+!
+subroutine stability
+    implicit none
+
+end subroutine stability
+
+
 
 !
 ! Calculate temperature diffusivity soil at full and half levels
@@ -169,7 +182,7 @@ subroutine calc_hydraulic_properties
     integer :: i, j, k, si
     real :: theta_lim, theta_norm
 
-    ! Calculate diffusivity heat
+    ! Calculate diffusivity and conductivity soil moisture
     do k=1,kmax_soil
         do j=2,j1
             do i=2,i1
@@ -190,7 +203,7 @@ subroutine calc_hydraulic_properties
                 ! Calculate & limit the conductivity
                 gammas(i,j,k) = calc_conductivity_vg( &
                         theta_norm, vg_l(si), vg_m(si), gamma_theta_sat(si))
-                gammas(i,j,k) = max(min(lambdas(i,j,k), gamma_theta_max(si)), gamma_theta_min(si))
+                gammas(i,j,k) = max(min(gammas(i,j,k), gamma_theta_max(si)), gamma_theta_min(si))
             end do
         end do
     end do
@@ -220,7 +233,7 @@ end subroutine calc_hydraulic_properties
 ! Solve diffusion equation (explicit) for soil temperature.
 ! Top flux = G0/rho_C, bottom flux = zero.
 !
-subroutine diffusion_t
+subroutine integrate_t_soil
     use modglobal, only : rk3step, rdt, i1, j1
     use modsurfdata, only : tsoil, tsoilm, lambdah, G0
 
@@ -265,13 +278,13 @@ subroutine diffusion_t
         end do
     end do
 
-end subroutine diffusion_t
+end subroutine integrate_t_soil
 
 !
 ! Solve diffusion equation (explicit) for soil moisture,
 ! including a source term for root water extraction.
 !
-subroutine diffusion_theta
+subroutine integrate_theta_soil
     use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
 
@@ -320,15 +333,13 @@ subroutine diffusion_theta
         end do
     end do
 
-end subroutine diffusion_theta
-
-
+end subroutine integrate_theta_soil
 
 !
 ! Initialise the land-surface model
 !
 subroutine initlsm
-    use modglobal,   only : ifnamopt, fname_options, checknamelisterror
+    use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real
     use modsurfdata, only : isurf
     implicit none
@@ -387,7 +398,6 @@ end subroutine initlsm
 !
 subroutine exitlsm
     implicit none
-
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_theta_sat, vg_a, vg_l, vg_n )
 end subroutine exitlsm
 
@@ -513,13 +523,40 @@ subroutine allocate_tile(tile)
 
     ! Surface temperature and humidity:
     allocate(tile % tskin(i2, j2))
-    allocate(tile % qskin(i2, j2))
+    allocate(tile % thlskin(i2, j2))
+    allocate(tile % qtskin(i2, j2))
 
     ! Vegetation properties:
     allocate(tile % lai(i2, j2))
     allocate(tile % rs_min(i2, j2))
 
 end subroutine allocate_tile
+
+!
+! Init some of the tiled variables, in case of cold start.
+! Called from modstartup -> readinitfiles()
+!
+subroutine init_lsm_tiles
+    use modfields, only : thlprof, qtprof
+    implicit none
+
+    tile_lv % thlskin(:,:) = thlprof(1)
+    tile_lv % qtskin (:,:) = qtprof(1)
+    tile_lv % obuk   (:,:) = -0.1
+
+    tile_hv % thlskin(:,:) = thlprof(1)
+    tile_hv % qtskin (:,:) = qtprof(1)
+    tile_hv % obuk   (:,:) = -0.1
+
+    tile_bs % thlskin(:,:) = thlprof(1)
+    tile_bs % qtskin (:,:) = qtprof(1)
+    tile_bs % obuk   (:,:) = -0.1
+
+    tile_ws % thlskin(:,:) = thlprof(1)
+    tile_ws % qtskin (:,:) = qtprof(1)
+    tile_ws % obuk   (:,:) = -0.1
+
+end subroutine init_lsm_tiles
 
 !
 ! Initialise the LSM homogeneous from namelist input
@@ -719,6 +756,124 @@ subroutine calc_soil_properties
     end do
 
 end subroutine calc_soil_properties
+
+!
+! Iterative Rib -> Obukhov length solver
+!
+function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
+    use modglobal, only : fkar
+    implicit none
+    real, intent(in) :: L_in, du, db_in, zsl, z0m, z0h
+
+    integer :: m, n, nlim
+    real :: res, L, db, Lmax, Ri, L0, Lstart, Lend, fx0, fxdif
+
+    m = 0
+    nlim = 10
+    Lmax = 1e10
+    L = L_in
+    db = db_in
+
+    ! The solver does not have a solution for large Ri numbers,
+    ! i.e. the `fx` equation below has no zero crossing.
+    ! The limit of 0.13 typically results in a minimum (positive) L of ~1.
+    ! IFS caps z/L at 5, so for a typical zsl at ~L=2.
+    Ri = fkar * db * zsl / du**2
+    if (Ri > 0.13) then
+        print*,'WARNING: Ri out of range, returning L=1'
+        res = 1
+        return
+    end if
+
+    ! Avoid buoyancy difference of zero:
+    if (db >= 0) then
+        db = max(db, 1e-9)
+    else
+        db = min(db, -1e-9)
+    end if
+
+    ! Allow for one restart of iterative procedure:
+    do while (m <= 1)
+        ! if L and db are of different sign, or the last calculation did not converge,
+        ! the stability has changed and the procedure needs to be reset
+        if (L*db <= 0) then
+            nlim = 200
+            if (db >= 0) then
+                L = 1e-9
+            else
+                L = -1e-9
+            end if
+        end if
+
+        ! Make sure the iteration starts
+        if (db >= 0) then
+            L0 = 1e30
+        else
+            L0 = -1e30
+        end if
+
+        ! Exit on convergence or on iteration count
+        n = 0
+        fxdif = 1
+        do while (abs((L - L0) / L0) > 0.001 .and. n < nlim .and. abs(L) < Lmax)
+            L0     = L
+            Lstart = L - 0.001*L
+            Lend   = L + 0.001*L
+
+            fx0    = fx(zsl, L0, du, db, z0h, z0m)
+            fxdif  = (fx(zsl, Lend, du, db, z0h, z0m) - fx(zsl, Lstart, du, db, z0h, z0m)) / (Lend - Lstart)
+            L      = L - fx0/fxdif
+            n      = n+1
+        end do
+
+        if (n < nlim .and. abs(L) < Lmax) then
+            ! Convergence has been reached
+            res = L
+            return
+        else
+            ! Convergence has not been reached, procedure restarted once
+            L = 1e-9
+            m = m+1
+            nlim = 200
+        end if
+    end do
+
+    if (m > 1) then
+        print*,'WARNING: convergence has not been reached in Obukhov length iteration'
+        res = 1e-9
+        return
+    end if
+
+end function calc_obuk_dirichlet
+
+pure function fx(zsl, L, du, db, z0h, z0m) result(res)
+    implicit none
+    real, intent(in) :: zsl, L, du, db, z0h, z0m
+    real :: res, fkar
+    fkar = 0.4
+
+    res = zsl/L - fkar * zsl * db * fh(zsl, z0h, L) / (du * fm(zsl, z0m, L))**2
+end function fx
+
+pure function fm(zsl, z0m, L) result(res)
+    use modglobal, only : fkar
+    use modsurface, only : psim
+    implicit none
+    real, intent(in) :: zsl, z0m, L
+    real :: res
+
+    res = fkar / (log(zsl/z0m) - psim(zsl/L) + psim(z0m/L))
+end function fm
+
+pure function fh(zsl, z0h, L) result(res)
+    use modglobal, only : fkar
+    use modsurface, only : psih
+    implicit none
+    real, intent(in) :: zsl, z0h, L
+    real :: res
+
+    res = fkar / (log(zsl/z0h) - psih(zsl/L) + psih(z0h/L))
+end function fh
 
 !
 ! Convert soil hydraulic head to soil water content, using van Genuchten parameterisation.
