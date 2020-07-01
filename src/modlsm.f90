@@ -24,6 +24,7 @@ module modlsm
     public :: initlsm, lsm, exitlsm
 
     logical :: sw_lsm   ! On/off switch LSM
+    logical :: sw_free_drainage   ! Free drainage bottom BC for soil moisture
 
     ! Soil grid
     integer :: kmax_soil
@@ -34,6 +35,10 @@ module modlsm
 
     ! Soil properties
     integer, allocatable :: soil_index(:,:,:)
+    real, allocatable :: phiw_source(:,:,:)
+
+    ! Precipitation interception et al.
+    real, allocatable :: throughfall(:,:)
 
     ! Data structure for sub-grid tiles
     type lsm_tile
@@ -63,7 +68,7 @@ module modlsm
     ! Derived soil parameters
     real, allocatable :: &
         vg_m(:), &
-        kappa_theta_min(:), kappa_theta_max(:), &
+        lambda_theta_min(:), lambda_theta_max(:), &
         gamma_theta_min(:), gamma_theta_max(:), &
         gamma_t_dry(:), rho_C(:)
 
@@ -81,12 +86,28 @@ subroutine lsm
     G0(:,:) = 0.
 
     !
-    ! 1. Calculate soil tendencies
+    ! 2. Calculate soil tendencies
     !
-    ! 1.1 Calc diffusivity heat, interpolated to half levels:
+    ! Calc diffusivity heat
     call calc_thermal_properties
-    ! 1.2 Solve diffusion equation
+    ! Solve diffusion equation
     call diffusion_t
+
+    ! Calc diffusivity and conductivity soil moisture
+    call calc_hydraulic_properties
+
+    ! TMP TMP
+    phiw_source(:,:,:) = 0.
+    throughfall(:,:) = 0.
+    tile_bs%frac(:,:) = 0.
+    tile_bs%LE(:,:) = 0.
+
+    ! Solve diffusion equation
+    call diffusion_theta
+
+
+
+
 
 
 end subroutine lsm
@@ -107,14 +128,18 @@ subroutine calc_thermal_properties
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
+
                 ! Heat conductivity at saturation (from IFS code..)
                 lambda_T_sat =   gamma_T_matrix**(1.-theta_sat(si)) &
                                * gamma_T_water**phiw(i,j,k) &
                                * 2.2**(theta_sat(si) - phiw(i,j,k))
+
                 ! Kersten number for fine soils [IFS eq 8.64] (-)
                 kersten = log10(max(0.1, phiw(i,j,k) / theta_sat(si))) + 1.
+
                 ! Heat conductivity soil [IFS eq 8.62] (W m-1 K-1)
                 gamma_t = kersten * (lambda_T_sat - gamma_t_dry(si)) + gamma_t_dry(si)
+
                 ! Heat diffusivity (m2 s-1)
                 lambda(i,j,k) = gamma_t / rho_C(si)
             end do
@@ -131,6 +156,65 @@ subroutine calc_thermal_properties
     end do
 
 end subroutine calc_thermal_properties
+
+!
+! Calculate soil moisture diffusivity and conductivity,
+! using van Genuchten parameterisation.
+!
+subroutine calc_hydraulic_properties
+    use modglobal, only : i1, j1
+    use modsurfdata, only : phiw, lambdas, lambdash, gammas, gammash
+    implicit none
+
+    integer :: i, j, k, si
+    real :: theta_lim, theta_norm
+
+    ! Calculate diffusivity heat
+    do k=1,kmax_soil
+        do j=2,j1
+            do i=2,i1
+                si = soil_index(i,j,k)
+
+                ! Limit soil moisture just above the residual soil moisture content
+                theta_lim = max(phiw(i,j,k), 1.001*theta_res(si))
+
+                ! Dimensionless soil water content
+                theta_norm = (theta_lim - theta_res(si)) / (theta_sat(si) - theta_res(si))
+
+                ! Calculate & limit the diffusivity
+                lambdas(i,j,k) = calc_diffusivity_vg( &
+                        theta_norm, vg_a(si), vg_l(si), vg_m(si), &
+                        gamma_theta_sat(si), theta_sat(si), theta_res(si))
+                lambdas(i,j,k) = max(min(lambdas(i,j,k), lambda_theta_max(si)), lambda_theta_min(si))
+
+                ! Calculate & limit the conductivity
+                gammas(i,j,k) = calc_conductivity_vg( &
+                        theta_norm, vg_l(si), vg_m(si), gamma_theta_sat(si))
+                gammas(i,j,k) = max(min(lambdas(i,j,k), gamma_theta_max(si)), gamma_theta_min(si))
+            end do
+        end do
+    end do
+
+    ! Interpolate to half levels
+    ! NOTE: this is the very conservative method used by IFS,
+    !       using the maximum value of two grid points at the interface.
+    do k=2,kmax_soil
+        do j=2,j1
+            do i=2,i1
+                lambdash(i,j,k) = max(lambdas(i,j,k-1), lambdas(i,j,k))
+                gammash(i,j,k)  = max(gammas (i,j,k-1), gammas (i,j,k))
+            end do
+        end do
+    end do
+
+    ! Optionally, set free drainage bottom BC
+    if (sw_free_drainage) then
+        gammash(:,:,1) = gammash(:,:,2)
+    else
+        gammash(:,:,1) = 0.
+    end if
+
+end subroutine calc_hydraulic_properties
 
 !
 ! Solve diffusion equation (explicit) for soil temperature.
@@ -154,6 +238,7 @@ subroutine diffusion_t
             si = soil_index(i,j,k)
             flux_top = G0(i,j) / rho_C(si)
             tend = (-flux_top - (lambdah(i,j,k) * (tsoil(i,j,k) - tsoil(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k)
+
             tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef * tend
         end do
     end do
@@ -163,6 +248,7 @@ subroutine diffusion_t
     do j=2,j1
         do i=2,i1
             tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k)
+
             tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef * tend
         end do
     end do
@@ -173,12 +259,69 @@ subroutine diffusion_t
             do i=2,i1
                 tend = ((lambdah(i,j,k+1) * (tsoil(i,j,k+1) - tsoil(i,j,k  )) * dzhi_soil(k+1)) &
                       - (lambdah(i,j,k  ) * (tsoil(i,j,k  ) - tsoil(i,j,k-1)) * dzhi_soil(k  ))) * dzi_soil(k)
+
                 tsoil(i,j,k) = tsoilm(i,j,k) + rk3coef * tend
             end do
         end do
     end do
 
 end subroutine diffusion_t
+
+!
+! Solve diffusion equation (explicit) for soil moisture,
+! including a source term for root water extraction.
+!
+subroutine diffusion_theta
+    use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
+    use modsurfdata, only : phiw, phiwm, lambdash, gammash
+
+    implicit none
+    integer :: i, j, k, si
+    real :: tend, rk3coef, flux_top, fac
+
+    rk3coef = rdt / (4. - dble(rk3step))
+    if(rk3step == 1) phiwm(:,:,:) = phiw(:,:,:)
+
+    fac = 1./(rhow * rlv)
+
+    ! Top soil layer
+    k = kmax_soil
+    do j=2,j1
+        do i=2,i1
+            flux_top = tile_bs%frac(i,j) * tile_bs%LE(i,j) * fac + throughfall(i,j)
+            tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
+                   - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
+
+            phiw(i,j,k) = phiwm(i,j,k) + rk3coef * tend
+        end do
+    end do
+
+    ! Bottom soil layer
+    k = 1
+    do j=2,j1
+        do i=2,i1
+            tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k)) * dzhi_soil(k+1)))*dzi_soil(k) &
+                   + (gammash(i,j,k+1) - gammash(i,j,k)) * dzi_soil(k) + phiw_source(i,j,k)
+
+            phiw(i,j,k) = phiwm(i,j,k) + rk3coef * tend
+        end do
+    end do
+
+    ! Interior
+    do k=2,kmax_soil-1
+        do j=2,j1
+            do i=2,i1
+                tend = ((lambdash(i,j,k+1) * (phiw(i,j,k+1) - phiw(i,j,k  )) * dzhi_soil(k+1)) &
+                      - (lambdash(i,j,k  ) * (phiw(i,j,k  ) - phiw(i,j,k-1)) * dzhi_soil(k  ))) * dzi_soil(k) &
+                      + (gammash(i,j,k+1) - gammash(i,j,k)) * dzi_soil(k) + phiw_source(i,j,k)
+
+                phiw(i,j,k) = phiwm(i,j,k) + rk3coef * tend
+            end do
+        end do
+    end do
+
+end subroutine diffusion_theta
+
 
 
 !
@@ -195,7 +338,7 @@ subroutine initlsm
 
     ! Read namelist
     namelist /NAMLSM/ &
-        sw_lsm, sw_homogeneous, z_soil, z_size_soil
+        sw_lsm, sw_homogeneous, sw_free_drainage, z_soil, z_size_soil
 
     allocate(z_soil(kmax_soil))
 
@@ -210,6 +353,7 @@ subroutine initlsm
     ! Broadcast namelist values to all MPI tasks
     call MPI_BCAST(sw_lsm, 1, mpi_logical, 0, comm3d, mpierr)
     call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
+    call MPI_BCAST(sw_free_drainage, 1, mpi_logical, 0, comm3d, mpierr)
 
     call MPI_BCAST(z_soil, kmax_soil, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z_size_soil, 1, my_real, 0, comm3d, mpierr)
@@ -300,11 +444,14 @@ subroutine allocate_fields
     ! Allocate soil variables
     allocate(soil_index(i2, j2, kmax_soil))
 
-    allocate(tsoil     (i2, j2, kmax_soil))
-    allocate(tsoilm    (i2, j2, kmax_soil))
+    allocate(tsoil (i2, j2, kmax_soil))
+    allocate(tsoilm(i2, j2, kmax_soil))
 
-    allocate(phiw      (i2, j2, kmax_soil))
-    allocate(phiwm     (i2, j2, kmax_soil))
+    allocate(phiw       (i2, j2, kmax_soil))
+    allocate(phiwm      (i2, j2, kmax_soil))
+    allocate(phiw_source(i2, j2, kmax_soil))
+
+    allocate(throughfall(i2, j2))
 
     ! NOTE: names differ from what is described in modsurfdata!
     ! Diffusivity temperature:
@@ -539,8 +686,8 @@ subroutine calc_soil_properties
 
     table_size = size(vg_n)
     allocate(vg_m(table_size))
-    allocate(kappa_theta_min(table_size))
-    allocate(kappa_theta_max(table_size))
+    allocate(lambda_theta_min(table_size))
+    allocate(lambda_theta_max(table_size))
     allocate(gamma_theta_min(table_size))
     allocate(gamma_theta_max(table_size))
     allocate(gamma_t_dry(table_size))
@@ -554,10 +701,10 @@ subroutine calc_soil_properties
         theta_norm_min = (1.001 * theta_res(i) - theta_res(i)) / (theta_sat(i) - theta_res(i)) + eps1
         theta_norm_max = (0.999 * theta_sat(i) - theta_res(i)) / (theta_sat(i) - theta_res(i))
 
-        kappa_theta_min(i) = calc_diffusivity_vg( &
+        lambda_theta_min(i) = calc_diffusivity_vg( &
                 theta_norm_min, vg_a(i), vg_l(i), vg_m(i), gamma_theta_sat(i), &
                 theta_sat(i), theta_res(i))
-        kappa_theta_max(i) = calc_diffusivity_vg( &
+        lambda_theta_max(i) = calc_diffusivity_vg( &
                 theta_norm_max, vg_a(i), vg_l(i), vg_m(i), gamma_theta_sat(i), &
                 theta_sat(i), theta_res(i))
 
@@ -598,7 +745,7 @@ end function theta_to_psi
 !
 ! Calculate hydraulic diffusivity using van Genuchten parameterisation.
 !
-function calc_diffusivity_vg( &
+pure function calc_diffusivity_vg( &
         theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res) result(res)
     implicit none
     real, intent(in) :: theta_norm, vg_a, vg_l, vg_m, lambda_sat, theta_sat, theta_res
@@ -611,12 +758,12 @@ end function calc_diffusivity_vg
 !
 ! Calculate hydraulic conductivity using van Genuchten parameterisation.
 !
-pure function calc_conductivity_vg(theta_norm, vg_l, vg_m, lambda_sat) result(res)
+pure function calc_conductivity_vg(theta_norm, vg_l, vg_m, gamma_sat) result(res)
     implicit none
-    real, intent(in) :: theta_norm, vg_l, vg_m, lambda_sat
+    real, intent(in) :: theta_norm, vg_l, vg_m, gamma_sat
     real :: res
 
-    res = lambda_sat * theta_norm**vg_l * ( 1.- (1.-theta_norm**(1./vg_m))**vg_m )**2.
+    res = gamma_sat * theta_norm**vg_l * ( 1.- (1.-theta_norm**(1./vg_m))**vg_m )**2.
 
 end function calc_conductivity_vg
 
