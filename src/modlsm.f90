@@ -23,7 +23,7 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
-    logical :: sw_lsm   ! On/off switch LSM
+    logical :: sw_lsm             ! On/off switch LSM
     logical :: sw_free_drainage   ! Free drainage bottom BC for soil moisture
 
     ! Soil grid
@@ -33,12 +33,20 @@ module modlsm
     real, allocatable :: dz_soil(:), dzh_soil(:)
     real, allocatable :: dzi_soil(:), dzhi_soil(:)
 
-    ! Soil properties
+    ! Soil index in `van_genuchten_parameters.nc` lookup table:
     integer, allocatable :: soil_index(:,:,:)
+
+    ! Source term in soil water budget
     real, allocatable :: phiw_source(:,:,:)
 
-    ! Precipitation interception et al.
+    ! Precipitation, interception et al.
     real, allocatable :: throughfall(:,:)
+
+    ! Dependency factor canopy resistance on VPD (high veg only)
+    real, allocatable :: gD(:,:)
+
+    ! Reduction functions canopy resistance
+    real, allocatable :: f1(:,:), f2_lv(:,:), f2_hv(:,:), f2b(:,:), f3(:,:)
 
     ! Random
     real, allocatable :: du_tot(:,:), thv_1(:,:)
@@ -60,7 +68,12 @@ module modlsm
         ! Surface (potential) temperature and humidity:
         real, allocatable :: tskin(:,:), thlskin(:,:), qtskin(:,:)
         ! Vegetation properties:
-        real, allocatable :: lai(:,:), rs_min(:,:)
+        real, allocatable :: lai(:,:), rs_min(:,:), rs(:,:)
+        ! Root fraction in soil
+        real, allocatable :: a_r(:,:), b_r(:,:)
+        real, allocatable :: root_frac(:,:,:)
+        ! Root fraction weighted mean soil water content
+        real, allocatable :: phiw_mean(:,:)
     end type lsm_tile
 
     ! Tiles for low veg (lv), high veg (hv), bare soil (bs), wet skin (ws):
@@ -77,13 +90,13 @@ module modlsm
         gamma_theta_min(:), gamma_theta_max(:), &
         gamma_t_dry(:), rho_C(:)
 
-
-
 contains
 
 subroutine lsm
     use modsurfdata, only : thlflux, qtflux, G0
     implicit none
+
+    if (.not. sw_lsm) return
 
     ! tmp...
     thlflux(:,:) = 0.1
@@ -94,15 +107,25 @@ subroutine lsm
     tile_bs%frac(:,:) = 0.
     tile_bs%LE(:,:) = 0.
 
-    !
-    ! 1. Surface layer
-    !
+    ! Calculate dynamic tile fractions,
+    ! based on the amount of liquid water on vegetation.
+    call calc_tile_fractions
+
+    ! Calculate root fraction weighted mean soil water content
+    call calc_theta_mean(tile_lv)
+    call calc_theta_mean(tile_hv)
+
+    ! Calculate canopy/soil resistances
+    call calc_canopy_resistances
+
+    ! Calculate Obukhov length, ustar,
+    ! and aerodynamic resistance, for all tiles:
     call stability
 
 
-    !
-    ! 2. Calculate soil tendencies
-    !
+
+
+    ! Calculate soil tendencies
     ! Calc diffusivity heat:
     call calc_thermal_properties
     ! Solve diffusion equation:
@@ -113,10 +136,105 @@ subroutine lsm
     ! Solve diffusion equation:
     call integrate_theta_soil
 
-
-
-
 end subroutine lsm
+
+!
+! Calculate dynamic tile fractions, based on liquid water on vegetation
+!
+subroutine calc_tile_fractions
+    implicit none
+
+    ! Not so dynamic right now.....
+    tile_lv%frac(:,:) = tile_lv%base_frac(:,:)
+    tile_hv%frac(:,:) = tile_hv%base_frac(:,:)
+    tile_bs%frac(:,:) = tile_bs%base_frac(:,:)
+    tile_ws%frac(:,:) = tile_ws%base_frac(:,:)
+
+end subroutine calc_tile_fractions
+
+!
+! Calculate root fraction weighted mean soil water content
+!
+subroutine calc_theta_mean(tile)
+    use modglobal,   only : i1, j1
+    use modsurfdata, only : phiw
+    implicit none
+
+    type(lsm_tile), intent(inout) :: tile
+    integer :: i, j, k, si
+    real :: theta_lim
+
+    tile%phiw_mean(:,:) = 0.
+
+    do k=1, kmax_soil
+        do j=2,j1
+            do i=2,i1
+                si = soil_index(i,j,k)
+
+                theta_lim = max(phiw(i,j,k), theta_wp(si))
+                tile%phiw_mean(i,j) = tile%phiw_mean(i,j) + tile%root_frac(i,j,k) * &
+                    (theta_lim - theta_wp(si)) / (theta_fc(si) - theta_wp(si))
+            end do
+        end do
+    end do
+
+end subroutine calc_theta_mean
+
+!
+! Calculate canopy and soil resistances
+!
+subroutine calc_canopy_resistances
+    use modglobal,   only : i1, j1
+    use modfields,   only : thl0, qt0, exnf, presf
+    use modsurface,  only : ps
+    use modraddata,  only : swd
+    use modsurfdata, only : phiw
+    implicit none
+
+    integer :: i, j, k, si
+    real :: swd_pos, T, esat, e, theta_min, theta_rel, c_veg
+
+    ! Constants f1 calculation:
+    real, parameter :: a_f1 = 0.81
+    real, parameter :: b_f1 = 0.004
+    real, parameter :: c_f1 = 0.05
+
+    k = kmax_soil
+    do j=2,j1
+        do i=2,i1
+            si = soil_index(i,j,k)
+
+            ! f1: reduction vegetation resistance as f(sw_in):
+            swd_pos = max(0., -swd(i,j,1))
+            f1(i,j) = 1./min(1., (b_f1*swd_pos + c_f1) / (a_f1 * (b_f1*swd_pos + 1.)))
+
+            ! f2: reduction vegetation resistance as f(theta):
+            f2_lv(i,j) = 1./min(1., max(1.e-9, tile_lv%phiw_mean(i,j)))
+            f2_hv(i,j) = 1./min(1., max(1.e-9, tile_hv%phiw_mean(i,j)))
+
+            ! f3: reduction vegetation resistance as f(VPD) (high veg only):
+            T    = thl0(i,j,1) * exnf(1)
+            esat = 0.611e3 * exp(17.2694 * (T - 273.16) / (T - 35.86))
+            e    = qt0(i,j,1) * presf(1) / 0.622
+
+            f3(i,j) = 1./exp(-gD(i,j) * (esat-e))
+
+            ! f2b: reduction soil resistance as f(theta)
+            c_veg     = tile_lv%base_frac(i,j) + tile_hv%base_frac(i,j)
+            theta_min = c_veg * theta_wp(si) + (1.-c_veg) * theta_res(si);
+            theta_rel = (phiw(i,j,k) - theta_min) / (theta_fc(si) - theta_min);
+            f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
+
+            ! Calculate canopy and soil resistance
+            tile_lv%rs(i,j) = tile_lv%rs_min(i,j) / (tile_lv%lai(i,j) * f1(i,j) * f2_lv(i,j))
+            tile_hv%rs(i,j) = tile_hv%rs_min(i,j) / (tile_hv%lai(i,j) * f1(i,j) * f2_hv(i,j) * f3(i,j))
+            tile_bs%rs(i,j) = tile_hv%rs_min(i,j) / f2b(i,j)
+            tile_ws%rs(i,j) = 0.
+
+        end do
+    end do
+
+end subroutine calc_canopy_resistances
 
 !
 ! Calculate Obukhov length, ustar, and aerodynamic resistance, for all tiles
@@ -126,9 +244,9 @@ subroutine stability
     use modfields, only : u0, v0, thl0, qt0
     implicit none
 
+    real, parameter :: du_min = 0.1
     real :: du, dv
     integer :: i, j
-    real, parameter :: du_min = 0.1
 
     ! Calculate properties shared by all tiles:
     ! Absolute wind speed difference, and virtual potential temperature atmosphere
@@ -408,29 +526,33 @@ subroutine initlsm
     integer :: ierr
     logical :: sw_homogeneous
 
-    ! Read namelist
+    ! Namelist definition
     namelist /NAMLSM/ &
-        sw_lsm, sw_homogeneous, sw_free_drainage, z_soil, z_size_soil
+        sw_homogeneous, sw_free_drainage, z_soil, z_size_soil
 
-    allocate(z_soil(kmax_soil))
-
-    if (myid == 0) then
-        open(ifnamopt, file=fname_options, status='old', iostat=ierr)
-        read(ifnamopt, NAMLSM, iostat=ierr)
-        call checknamelisterror(ierr, ifnamopt, 'NAMLSM')
-        write(6, NAMLSM)
-        close(ifnamopt)
-    end if
-
-    ! Broadcast namelist values to all MPI tasks
-    call MPI_BCAST(sw_lsm, 1, mpi_logical, 0, comm3d, mpierr)
-    call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
-    call MPI_BCAST(sw_free_drainage, 1, mpi_logical, 0, comm3d, mpierr)
-
-    call MPI_BCAST(z_soil, kmax_soil, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(z_size_soil, 1, my_real, 0, comm3d, mpierr)
+    sw_lsm = (isurf == 11)
 
     if (sw_lsm) then
+
+        allocate(z_soil(kmax_soil))
+
+        ! Read namelist
+        if (myid == 0) then
+            open(ifnamopt, file=fname_options, status='old', iostat=ierr)
+            read(ifnamopt, NAMLSM, iostat=ierr)
+            call checknamelisterror(ierr, ifnamopt, 'NAMLSM')
+            write(6, NAMLSM)
+            close(ifnamopt)
+        end if
+
+        ! Broadcast namelist values to all MPI tasks
+        call MPI_BCAST(sw_lsm, 1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(sw_free_drainage, 1, mpi_logical, 0, comm3d, mpierr)
+
+        call MPI_BCAST(z_soil, kmax_soil, my_real, 0, comm3d, mpierr)
+        call MPI_BCAST(z_size_soil, 1, my_real, 0, comm3d, mpierr)
+
         ! Create/calculate soil grid properties
         call create_soil_grid
 
@@ -450,6 +572,9 @@ subroutine initlsm
 
         ! Calculate derived soil properties
         call calc_soil_properties
+
+        ! Calculate root fractions soil (low and high veg)
+        call calc_root_fractions
     end if
 
 end subroutine initlsm
@@ -517,12 +642,19 @@ subroutine allocate_fields
 
     allocate(tsoil (i2, j2, kmax_soil))
     allocate(tsoilm(i2, j2, kmax_soil))
+    allocate(phiw  (i2, j2, kmax_soil))
+    allocate(phiwm (i2, j2, kmax_soil))
 
-    allocate(phiw       (i2, j2, kmax_soil))
-    allocate(phiwm      (i2, j2, kmax_soil))
     allocate(phiw_source(i2, j2, kmax_soil))
 
     allocate(throughfall(i2, j2))
+
+    allocate(gD(i2, j2))
+    allocate(f1(i2, j2))
+    allocate(f2_lv(i2, j2))
+    allocate(f2_hv(i2, j2))
+    allocate(f2b(i2, j2))
+    allocate(f3(i2, j2))
 
     allocate(du_tot(i2, j2))
     allocate(thv_1(i2, j2))
@@ -594,6 +726,15 @@ subroutine allocate_tile(tile)
     ! Vegetation properties:
     allocate(tile % lai(i2, j2))
     allocate(tile % rs_min(i2, j2))
+    allocate(tile % rs(i2, j2))
+
+    ! Root fraction in soil:
+    allocate(tile % a_r(i2, j2))
+    allocate(tile % b_r(i2, j2))
+    allocate(tile % root_frac(i2, j2, kmax_soil))
+
+    ! Root fraction weigthed mean soil water content
+    allocate(tile % phiw_mean(i2, j2))
 
 end subroutine allocate_tile
 
@@ -639,7 +780,9 @@ subroutine init_homogeneous
     real :: lambda_s_low, lambda_s_high, lambda_s_bare
     real :: lambda_us_low, lambda_us_high, lambda_us_bare
     real :: lai_low, lai_high
-    real :: rs_min_low, rs_min_high
+    real :: rs_min_low, rs_min_high, rs_min_bare
+    real :: ar_low, br_low, ar_high, br_high
+    real :: gD_high
 
     real, allocatable :: t_soil_p(:), theta_soil_p(:)
     integer, allocatable :: soil_index_p(:)
@@ -652,8 +795,10 @@ subroutine init_homogeneous
         lambda_s_low, lambda_s_high, lambda_s_bare, &
         lambda_us_low, lambda_us_high, lambda_us_bare, &
         lai_low, lai_high, &
-        rs_min_low, rs_min_high, &
-        t_soil_p, theta_soil_p, soil_index_p
+        rs_min_low, rs_min_high, rs_min_bare, &
+        t_soil_p, theta_soil_p, soil_index_p, &
+        ar_low, br_low, ar_high, br_high, &
+        gD_high
 
     allocate(t_soil_p(kmax_soil), theta_soil_p(kmax_soil))
     allocate(soil_index_p(kmax_soil))
@@ -691,10 +836,18 @@ subroutine init_homogeneous
 
     call MPI_BCAST(rs_min_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(rs_min_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(rs_min_bare, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(t_soil_p,     kmax_soil, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(theta_soil_p, kmax_soil, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(soil_index_p, kmax_soil, mpi_integer, 0, comm3d, mpierr)
+
+    call MPI_BCAST(ar_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(br_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(ar_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(br_high, 1, my_real, 0, comm3d, mpierr)
+
+    call MPI_BCAST(gD_high, 1, my_real, 0, comm3d, mpierr)
 
     ! Set values
     c_bare = 1.-c_low-c_high
@@ -724,6 +877,14 @@ subroutine init_homogeneous
 
     tile_lv % rs_min(:,:) = rs_min_low
     tile_hv % rs_min(:,:) = rs_min_high
+    tile_bs % rs_min(:,:) = rs_min_bare
+
+    tile_lv % a_r(:,:) = ar_low
+    tile_lv % b_r(:,:) = br_low
+    tile_hv % a_r(:,:) = ar_high
+    tile_hv % b_r(:,:) = br_high
+
+    gD(:,:) = gD_high
 
     do k=1, kmax_soil
         tsoil(:,:,k) = t_soil_p(k)
@@ -839,6 +1000,45 @@ subroutine calc_soil_properties
     end do
 
 end subroutine calc_soil_properties
+
+!
+! Calculate root fraction for the low and high vegetation tiles
+!
+subroutine calc_root_fractions
+    use modglobal, only : i1, j1
+    implicit none
+    real :: root_sum_lv, root_sum_hv
+    integer i, j, k
+
+    do j=2,j1
+        do i=2,i1
+            root_sum_lv = 0
+            root_sum_hv = 0
+            do k=2, kmax_soil
+
+                tile_lv%root_frac(i,j,k) = 0.5 * (&
+                    exp(tile_lv%a_r(i,j) * zh_soil(k+1)) + &
+                    exp(tile_lv%b_r(i,j) * zh_soil(k+1)) - &
+                    exp(tile_lv%a_r(i,j) * zh_soil(k  )) - &
+                    exp(tile_lv%b_r(i,j) * zh_soil(k  )))
+
+                tile_hv%root_frac(i,j,k) = 0.5 * (&
+                    exp(tile_hv%a_r(i,j) * zh_soil(k+1)) + &
+                    exp(tile_hv%b_r(i,j) * zh_soil(k+1)) - &
+                    exp(tile_hv%a_r(i,j) * zh_soil(k  )) - &
+                    exp(tile_hv%b_r(i,j) * zh_soil(k  )))
+
+                root_sum_lv = root_sum_lv + tile_lv%root_frac(i,j,k)
+                root_sum_hv = root_sum_hv + tile_hv%root_frac(i,j,k)
+            end do
+
+            ! Make sure that the fractions sum to one.
+            tile_lv%root_frac(i,j,1) = 1. - root_sum_lv
+            tile_hv%root_frac(i,j,1) = 1. - root_sum_hv
+        end do
+    end do
+
+end subroutine calc_root_fractions
 
 !
 ! Iterative Rib -> Obukhov length solver

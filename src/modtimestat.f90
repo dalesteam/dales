@@ -233,7 +233,7 @@ contains
         if (isurf == 1) then
           nvar = 32
         else if (isurf == 11) then
-          nvar = 34
+          nvar = 42
         else
           nvar = 21
         end if
@@ -293,6 +293,17 @@ contains
           call ncinfo(ncname(32,:),'ra_lv','Aerodynamic resistance low veg','s m-1','time')
           call ncinfo(ncname(33,:),'ra_hv','Aerodynamic resistance high veg','s m-1','time')
           call ncinfo(ncname(34,:),'ra_bs','Aerodynamic resistance bare soil','s m-1','time')
+
+          call ncinfo(ncname(35,:),'f1','Reduction canopy resistance f(swd)','-','time')
+          call ncinfo(ncname(36,:),'f2_lv','Reduction canopy resistance low veg f(theta)','-','time')
+          call ncinfo(ncname(37,:),'f2_hv','Reduction canopy resistance low veg f(theta)','-','time')
+          call ncinfo(ncname(38,:),'f3','Reduction canopy resistance f(VPD)','-','time')
+          call ncinfo(ncname(39,:),'f2b','Reduction soil resistance f(theta)','-','time')
+
+          call ncinfo(ncname(40,:),'rs_lv','Canopy resistance low veg','s m-1','time')
+          call ncinfo(ncname(41,:),'rs_hv','Canopy resistance low veg','s m-1','time')
+          call ncinfo(ncname(42,:),'rs_bs','Soil resistance','s m-1','time')
+
         end if
 
         call open_nc(fname,  ncid,nrec)
@@ -370,7 +381,7 @@ contains
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
                            thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
-    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws
+    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws, f1, f2_lv, f2_hv, f3, f2b
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc, only : lnetcdf, writestat_nc,nc_fillvalue
@@ -393,6 +404,8 @@ contains
     real   :: obuk_lv_av, obuk_hv_av, obuk_bs_av
     real   :: ustar_lv_av, ustar_hv_av, ustar_bs_av
     real   :: ra_lv_av, ra_hv_av, ra_bs_av
+    real   :: f1_av, f2_lv_av, f2_hv_av, f3_av, f2b_av
+    real   :: rs_lv_av, rs_hv_av, rs_bs_av
 
     integer:: i, j, k
 
@@ -809,6 +822,16 @@ contains
       ra_hv_av = mean_2d(tile_hv%ra)
       ra_bs_av = mean_2d(tile_bs%ra)
 
+      f1_av    = mean_2d(f1)
+      f2_lv_av = mean_2d(f2_lv)
+      f2_hv_av = mean_2d(f2_hv)
+      f3_av    = mean_2d(f3)
+      f2b_av   = mean_2d(f2b)
+
+      rs_lv_av = mean_2d(tile_lv%rs)
+      rs_hv_av = mean_2d(tile_hv%rs)
+      rs_bs_av = mean_2d(tile_bs%rs)
+
     end if
 
   !  9.8  write the results to output file
@@ -914,15 +937,29 @@ contains
           vars(23) = Hav
           vars(24) = LEav
           vars(25) = G0av
+
           vars(26) = obuk_lv_av
           vars(27) = obuk_hv_av
           vars(28) = obuk_bs_av
+
           vars(29) = ustar_lv_av
           vars(30) = ustar_hv_av
           vars(31) = ustar_bs_av
+
           vars(32) = ra_lv_av
           vars(33) = ra_hv_av
           vars(34) = ra_bs_av
+
+          vars(35) = f1_av
+          vars(36) = f2_lv_av
+          vars(37) = f2_hv_av
+          vars(38) = f3_av
+          vars(39) = f2b_av
+
+          vars(40) = rs_lv_av
+          vars(41) = rs_hv_av
+          vars(42) = rs_bs_av
+
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
