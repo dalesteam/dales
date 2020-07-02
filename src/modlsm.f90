@@ -226,8 +226,8 @@ subroutine calc_canopy_resistances
             f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
 
             ! Calculate canopy and soil resistance
-            tile_lv%rs(i,j) = tile_lv%rs_min(i,j) / (tile_lv%lai(i,j) * f1(i,j) * f2_lv(i,j))
-            tile_hv%rs(i,j) = tile_hv%rs_min(i,j) / (tile_hv%lai(i,j) * f1(i,j) * f2_hv(i,j) * f3(i,j))
+            tile_lv%rs(i,j) = tile_lv%rs_min(i,j) / tile_lv%lai(i,j) * f1(i,j) * f2_lv(i,j)
+            tile_hv%rs(i,j) = tile_hv%rs_min(i,j) / tile_hv%lai(i,j) * f1(i,j) * f2_hv(i,j) * f3(i,j)
             tile_bs%rs(i,j) = tile_hv%rs_min(i,j) / f2b(i,j)
             tile_ws%rs(i,j) = 0.
 
