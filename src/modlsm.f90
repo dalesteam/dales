@@ -40,10 +40,15 @@ module modlsm
     ! Precipitation interception et al.
     real, allocatable :: throughfall(:,:)
 
+    ! Random
+    real, allocatable :: du_tot(:,:), thv_1(:,:)
+
     ! Data structure for sub-grid tiles
     type lsm_tile
         ! Static properties:
         real, allocatable :: z0m(:,:), z0h(:,:)
+        ! Base tile fraction (i.e. without liquid water)
+        real, allocatable :: base_frac(:,:)
         ! Dynamic tile fraction:
         real, allocatable :: frac(:,:)
         ! Monin-obukhov / surface layer:
@@ -81,8 +86,8 @@ subroutine lsm
     implicit none
 
     ! tmp...
-    thlflux(:,:) = 0.
-    qtflux(:,:) = 0.
+    thlflux(:,:) = 0.1
+    qtflux(:,:) = 0.1e-3
     G0(:,:) = 0.
     phiw_source(:,:,:) = 0.
     throughfall(:,:) = 0.
@@ -93,8 +98,6 @@ subroutine lsm
     ! 1. Surface layer
     !
     call stability
-
-
 
 
     !
@@ -116,12 +119,70 @@ subroutine lsm
 end subroutine lsm
 
 !
-! Calculate Obukhov length, ustar, .. for all tiles
+! Calculate Obukhov length, ustar, and aerodynamic resistance, for all tiles
 !
 subroutine stability
+    use modglobal, only : i1, j1, cu, cv, rv, rd
+    use modfields, only : u0, v0, thl0, qt0
     implicit none
 
+    real :: du, dv
+    integer :: i, j
+    real, parameter :: du_min = 0.1
+
+    ! Calculate properties shared by all tiles:
+    ! Absolute wind speed difference, and virtual potential temperature atmosphere
+    do j=2,j1
+        do i=2,i1
+            du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
+            dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
+            du_tot(i,j) = sqrt(du**2 + dv**2)
+
+            thv_1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
+        end do
+    end do
+
+    call calc_obuk_ustar_ra(tile_lv)
+    call calc_obuk_ustar_ra(tile_hv)
+    call calc_obuk_ustar_ra(tile_bs)
+    call calc_obuk_ustar_ra(tile_ws)
+
 end subroutine stability
+
+!
+! Calculate Obukhov length and ustar, for single tile
+!
+subroutine calc_obuk_ustar_ra(tile)
+    use modglobal, only : i1, j1, rd, rv, grav, zf
+    implicit none
+
+    type(lsm_tile), intent(inout) :: tile
+    integer :: i, j
+    real :: thvs, db
+
+    do j=2,j1
+        do i=2,i1
+            ! Buoyancy difference surface - atmosphere
+            thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
+            db   = grav/thvs * (thvs - thv_1(i,j))
+
+            ! Iteratively find Obukhov length
+            tile%obuk(i,j) = calc_obuk_dirichlet( &
+                tile%obuk(i,j), du_tot(i,j), db, zf(1), tile%z0m(i,j), tile%z0h(i,j))
+        end do
+    end do
+
+    do j=2,j1
+        do i=2,i1
+            ! Calculate friction velocity and aerodynamic resistance
+            tile%ustar(i,j) = du_tot(i,j) * fm(zf(1), tile%z0m(i,j), tile%obuk(i,j))
+            tile%ra(i,j)    = 1./tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j))
+        end do
+    end do
+
+end subroutine calc_obuk_ustar_ra
+
+
 
 
 
@@ -463,6 +524,9 @@ subroutine allocate_fields
 
     allocate(throughfall(i2, j2))
 
+    allocate(du_tot(i2, j2))
+    allocate(thv_1(i2, j2))
+
     ! NOTE: names differ from what is described in modsurfdata!
     ! Diffusivity temperature:
     allocate(lambda (i2, j2, kmax_soil  ))
@@ -502,7 +566,8 @@ subroutine allocate_tile(tile)
     allocate(tile % z0m(i2, j2))
     allocate(tile % z0h(i2, j2))
 
-    ! Dynamic tile fraction:
+    ! Base and dynamic tile fraction:
+    allocate(tile % base_frac(i2, j2))
     allocate(tile % frac(i2, j2))
 
     ! Monin-obukhov / surface layer:
@@ -568,6 +633,7 @@ subroutine init_homogeneous
     implicit none
 
     integer :: ierr, k
+    real :: c_low, c_high, c_bare
     real :: z0m_low, z0m_high, z0m_bare
     real :: z0h_low, z0h_high, z0h_bare
     real :: lambda_s_low, lambda_s_high, lambda_s_bare
@@ -580,6 +646,7 @@ subroutine init_homogeneous
 
     ! Read namelist
     namelist /NAMLSM_HOMOGENEOUS/ &
+        c_low, c_high, &
         z0m_low, z0m_high, z0m_bare, &
         z0h_low, z0h_high, z0h_bare, &
         lambda_s_low, lambda_s_high, lambda_s_bare, &
@@ -600,6 +667,9 @@ subroutine init_homogeneous
     end if
 
     ! Broadcast to all MPI tasks
+    call MPI_BCAST(c_low,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(c_high, 1, my_real, 0, comm3d, mpierr)
+
     call MPI_BCAST(z0m_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0m_high, 1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0m_bare, 1, my_real, 0, comm3d, mpierr)
@@ -627,6 +697,12 @@ subroutine init_homogeneous
     call MPI_BCAST(soil_index_p, kmax_soil, mpi_integer, 0, comm3d, mpierr)
 
     ! Set values
+    c_bare = 1.-c_low-c_high
+    tile_lv % base_frac(:,:) = c_low
+    tile_hv % base_frac(:,:) = c_high
+    tile_bs % base_frac(:,:) = c_bare
+    tile_ws % base_frac(:,:) = 0.
+
     tile_lv % z0m(:,:) = z0m_low
     tile_hv % z0m(:,:) = z0m_high
     tile_bs % z0m(:,:) = z0m_bare
@@ -657,6 +733,13 @@ subroutine init_homogeneous
 
     tsoilm(:,:,:) = tsoil(:,:,:)
     phiwm (:,:,:) = phiw (:,:,:)
+
+    ! Set properties wet skin tile
+    tile_ws % z0m(:,:) = c_low*z0m_low + c_high*z0m_high + c_bare*z0m_bare
+    tile_ws % z0h(:,:) = c_low*z0h_low + c_high*z0h_high + c_bare*z0h_bare
+
+    tile_ws % lambda_stable(:,:) = c_low*lambda_s_low + c_high*lambda_s_high + c_bare*lambda_s_bare
+    tile_ws % lambda_unstable(:,:) = c_low*lambda_us_low + c_high*lambda_us_high + c_bare*lambda_us_bare
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p)
@@ -840,6 +923,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
 
     if (m > 1) then
         print*,'WARNING: convergence has not been reached in Obukhov length iteration'
+        print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
         res = 1e-9
         return
     end if

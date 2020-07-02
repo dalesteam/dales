@@ -595,6 +595,10 @@ contains
         tskin  = thls
         qskin  = qts
       case(11)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
+        tskin  = thls
+        qskin  = qts
         call init_lsm_tiles
       case(10)
         call initsurf_user

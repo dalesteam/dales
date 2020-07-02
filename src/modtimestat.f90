@@ -63,7 +63,7 @@ save
   real   :: qlint
   logical:: store_zi = .false.
 
-  !Variables for heterogeneity
+  ! Variables for heterogeneity
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
   real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
   real, allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
@@ -72,10 +72,12 @@ save
   real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
   real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
   real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
-  !In combination with isurf = 1
+
+  ! In combination with isurf = 1
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
+
 
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
@@ -185,7 +187,7 @@ contains
                   '   [m/s]  '
              close(ifoutput)
           end if
-          
+
           if(lhetero) then
              do i=1,xpatches
                 do j=1,ypatches
@@ -197,7 +199,7 @@ contains
                         '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
                         '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
                    close(ifoutput)
-                   
+
                    name = 'tmsurfpatchiiixjjj.'//cexpnr
                    write (name(12:14),'(i3.3)') i
                    write (name(16:18),'(i3.3)') j
@@ -206,7 +208,7 @@ contains
                         '#  time        ust        tst        qst         obukh', &
                         '      thls        z0        wthls      wthvs      wqls '
                    close(ifoutput)
-                   
+
                    if(isurf == 1) then
                       name = 'tmlsmpatchiiixjjj.'//cexpnr
                       write (name(11:13),'(i3.3)') i
@@ -231,7 +233,7 @@ contains
         if (isurf == 1) then
           nvar = 32
         else if (isurf == 11) then
-          nvar = 25
+          nvar = 34
         else
           nvar = 21
         end if
@@ -273,11 +275,24 @@ contains
           call ncinfo(ncname(30,:),'Wl','Liquid water reservoir','m','time')
           call ncinfo(ncname(31,:),'rssoil','Soil evaporation resistance','s/m','time')
           call ncinfo(ncname(32,:),'rsveg','Vegitation resistance','s/m','time')
+
         else if (isurf==11) then
           call ncinfo(ncname(22,:),'Qnet','Net radiation','W/m^2','time')
           call ncinfo(ncname(23,:),'H','Sensible heat flux','W/m^2','time')
           call ncinfo(ncname(24,:),'LE','Latent heat flux','W/m^2','time')
           call ncinfo(ncname(25,:),'G','Ground heat flux','W/m^2','time')
+
+          call ncinfo(ncname(26,:),'obuk_lv','Obukhov length low veg','m','time')
+          call ncinfo(ncname(27,:),'obuk_hv','Obukhov length high veg','m','time')
+          call ncinfo(ncname(28,:),'obuk_bs','Obukhov length bare soil','m','time')
+
+          call ncinfo(ncname(29,:),'ustar_lv','Friction velocity low veg','m s-1','time')
+          call ncinfo(ncname(30,:),'ustar_hv','Friction velocity high veg','m s-1','time')
+          call ncinfo(ncname(31,:),'ustar_bs','Friction velocity bare soil','m s-1','time')
+
+          call ncinfo(ncname(32,:),'ra_lv','Aerodynamic resistance low veg','s m-1','time')
+          call ncinfo(ncname(33,:),'ra_hv','Aerodynamic resistance high veg','s m-1','time')
+          call ncinfo(ncname(34,:),'ra_bs','Aerodynamic resistance bare soil','s m-1','time')
         end if
 
         call open_nc(fname,  ncid,nrec)
@@ -355,9 +370,10 @@ contains
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
                            thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
+    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
-    use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+    use modstat_nc, only : lnetcdf, writestat_nc,nc_fillvalue
     implicit none
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
@@ -372,6 +388,12 @@ contains
     ! lsm variables
     real   :: Qnetavl, Havl, LEavl, G0avl, tendskinavl, rsavl, raavl, tskinavl,Wlavl,cliqavl,rsvegavl,rssoilavl
     real   :: Qnetav, Hav, LEav, G0av, tendskinav, rsav, raav, tskinav,Wlav,cliqav,rsvegav,rssoilav
+
+    ! LSM tiled variables
+    real   :: obuk_lv_av, obuk_hv_av, obuk_bs_av
+    real   :: ustar_lv_av, ustar_hv_av, ustar_bs_av
+    real   :: ra_lv_av, ra_hv_av, ra_bs_av
+
     integer:: i, j, k
 
     ! heterogeneity variables
@@ -768,20 +790,25 @@ contains
       endif
 
     else if(isurf == 11) then
-      Qnetavl      = sum(Qnet(2:i1,2:j1))
-      Havl         = sum(H(2:i1,2:j1))
-      LEavl        = sum(LE(2:i1,2:j1))
-      G0avl        = sum(G0(2:i1,2:j1))
 
-      call MPI_ALLREDUCE(Qnetavl,     Qnetav,     1,  MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(Havl,        Hav,        1,  MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(LEavl,       LEav,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
-      call MPI_ALLREDUCE(G0avl,       G0av,       1,  MY_REAL,MPI_SUM, comm3d,mpierr)
+      Qnetav = mean_2d(Qnet)
+      Hav    = mean_2d(H)
+      LEav   = mean_2d(LE)
+      G0av   = mean_2d(G0)
 
-      Qnetav        = Qnetav      / ijtot
-      Hav           = Hav         / ijtot
-      LEav          = LEav        / ijtot
-      G0av          = G0av        / ijtot
+      ! Tiled variables
+      obuk_lv_av = mean_2d(tile_lv%obuk)
+      obuk_hv_av = mean_2d(tile_hv%obuk)
+      obuk_bs_av = mean_2d(tile_bs%obuk)
+
+      ustar_lv_av = mean_2d(tile_lv%ustar)
+      ustar_hv_av = mean_2d(tile_hv%ustar)
+      ustar_bs_av = mean_2d(tile_bs%ustar)
+
+      ra_lv_av = mean_2d(tile_lv%ra)
+      ra_hv_av = mean_2d(tile_hv%ra)
+      ra_bs_av = mean_2d(tile_bs%ra)
+
     end if
 
   !  9.8  write the results to output file
@@ -887,6 +914,15 @@ contains
           vars(23) = Hav
           vars(24) = LEav
           vars(25) = G0av
+          vars(26) = obuk_lv_av
+          vars(27) = obuk_hv_av
+          vars(28) = obuk_bs_av
+          vars(29) = ustar_lv_av
+          vars(30) = ustar_hv_av
+          vars(31) = ustar_bs_av
+          vars(32) = ra_lv_av
+          vars(33) = ra_hv_av
+          vars(34) = ra_bs_av
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
@@ -959,6 +995,19 @@ contains
     end if
 
   end subroutine timestat
+
+  function mean_2d(var_2d) result(res)
+      use modglobal, only : i1, j1, ijtot
+      use modmpi,    only : my_real, mpi_sum, comm3d, mpierr
+      implicit none
+      real, intent(in) :: var_2d(:,:)
+      real :: res, var_sum_l, var_sum
+
+      var_sum_l = sum(var_2d(2:i1,2:j1))
+      call mpi_allreduce(var_sum_l, var_sum, 1, my_real, mpi_sum, comm3d, mpierr)
+      res = var_sum / ijtot
+
+  end function mean_2d
 
 !>Calculate the boundary layer height
 !!
