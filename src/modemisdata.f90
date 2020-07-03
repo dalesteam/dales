@@ -34,15 +34,23 @@ module modemisdata
   implicit none
   save
 
-  real, allocatable :: &
-    svemis_a  (:,:,:), & 
-    svemis_b  (:,:,:) 
+  ! Namelist variables
+  
+  logical           :: l_emission = .false.
+  integer           :: kemis = -1
 
+  ! Main variables
+
+  real, allocatable :: svemis (:,:,:,:,:)
+   
   ! TODO INTEGRATION WITH MODCHEM, possibly switch?
   ! For example, nchem, firstchem etc, but also structure for species
   ! 'location', i.e. switch scalar field represents which species?
   
-  character (len = 3), dimension(4) :: svlist   = (/'nr',    'qr',    'co2',  'ch4'  /)
-  logical,             dimension(4) :: emislist = (/.false., .false., .true., .false./)
+  character (len = 3), dimension(1) :: svlist   = (/'co2' /)
+  logical,             dimension(1) :: emislist = (/.true./)
+
+!  character (len = 3), dimension(4) :: svlist   = (/'nr',    'qr',    'co2',  'ch4'  /)
+!  logical,             dimension(4) :: emislist = (/.false., .false., .true., .false./)
 
 end module modemisdata
