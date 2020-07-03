@@ -67,6 +67,8 @@ module modlsm
         real, allocatable :: H(:,:), LE(:,:), G(:,:), wthl(:,:), wqt(:,:)
         ! Surface (potential) temperature and humidity:
         real, allocatable :: tskin(:,:), thlskin(:,:), qtskin(:,:)
+        ! Buoyancy difference surface - atmosphere
+        real, allocatable :: db(:,:)
         ! Vegetation properties:
         real, allocatable :: lai(:,:), rs_min(:,:), rs(:,:)
         ! Root fraction in soil
@@ -111,18 +113,22 @@ subroutine lsm
     ! based on the amount of liquid water on vegetation.
     call calc_tile_fractions
 
-    ! Calculate root fraction weighted mean soil water content
+    ! Calculate root fraction weighted mean soil water content.
     call calc_theta_mean(tile_lv)
     call calc_theta_mean(tile_hv)
 
-    ! Calculate canopy/soil resistances
-    call calc_canopy_resistances
+    ! Calculate canopy/soil resistances.
+    call calc_canopy_resistance
 
-    ! Calculate Obukhov length, ustar,
-    ! and aerodynamic resistance, for all tiles:
-    call stability
+    ! Calculate aerodynamic resistance (and u*, obuk).
+    call calc_stability
 
-
+    ! Solve the surface energy balance and calculate
+    ! surface fluxes (H, LE, G0, wthl, wqt)
+    call calc_fluxes(tile_lv)
+    call calc_fluxes(tile_hv)
+    call calc_fluxes(tile_bs)
+    !call calc_fluxes(tile_ws)
 
 
     ! Calculate soil tendencies
@@ -183,7 +189,7 @@ end subroutine calc_theta_mean
 !
 ! Calculate canopy and soil resistances
 !
-subroutine calc_canopy_resistances
+subroutine calc_canopy_resistance
     use modglobal,   only : i1, j1
     use modfields,   only : thl0, qt0, exnf, presf
     use modsurface,  only : ps
@@ -234,12 +240,12 @@ subroutine calc_canopy_resistances
         end do
     end do
 
-end subroutine calc_canopy_resistances
+end subroutine calc_canopy_resistance
 
 !
 ! Calculate Obukhov length, ustar, and aerodynamic resistance, for all tiles
 !
-subroutine stability
+subroutine calc_stability
     use modglobal, only : i1, j1, cu, cv, rv, rd
     use modfields, only : u0, v0, thl0, qt0
     implicit none
@@ -265,7 +271,7 @@ subroutine stability
     call calc_obuk_ustar_ra(tile_bs)
     call calc_obuk_ustar_ra(tile_ws)
 
-end subroutine stability
+end subroutine calc_stability
 
 !
 ! Calculate Obukhov length and ustar, for single tile
@@ -276,17 +282,17 @@ subroutine calc_obuk_ustar_ra(tile)
 
     type(lsm_tile), intent(inout) :: tile
     integer :: i, j
-    real :: thvs, db
+    real :: thvs
 
     do j=2,j1
         do i=2,i1
             ! Buoyancy difference surface - atmosphere
             thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
-            db   = grav/thvs * (thvs - thv_1(i,j))
+            tile%db(i,j) = grav/thvs * (thvs - thv_1(i,j))
 
             ! Iteratively find Obukhov length
             tile%obuk(i,j) = calc_obuk_dirichlet( &
-                tile%obuk(i,j), du_tot(i,j), db, zf(1), tile%z0m(i,j), tile%z0h(i,j))
+                tile%obuk(i,j), du_tot(i,j), tile%db(i,j), zf(1), tile%z0m(i,j), tile%z0h(i,j))
         end do
     end do
 
@@ -300,8 +306,85 @@ subroutine calc_obuk_ustar_ra(tile)
 
 end subroutine calc_obuk_ustar_ra
 
+!
+! Solve SEB, calculating the new surface fluxes per tile
+!
+subroutine calc_fluxes(tile)
+    use modglobal,   only : i1, j1, cp, rlv, boltz
+    use modfields,   only : exnh, exnf, presh, thl0, qt0, rhof
+    use modraddata,  only : swd, swu, lwd, lwu
+    use modsurfdata, only : ps, tsoil, Qnet
+    implicit none
 
+    type(lsm_tile), intent(inout) :: tile
+    integer :: i, j
+    real :: Ts, thvs, esats, qsats, desatdTs, dqsatdTs, &
+        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new
 
+    ! tmp
+    !real :: HLEG, lwu_new, Qnet_new
+
+    do j=2, j1
+        do i=2, i1
+
+            ! Disable canopy resistance in case of dew fall
+            Ts    = tile%thlskin(i,j) * exnh(1)
+            esats = 0.611e3 * exp(17.2694 * (Ts - 273.16) / (Ts - 35.86))
+            qsats = 0.622 * esats / ps
+
+            if (qsats < qt0(i,j,1)) then
+                rs_lim = 0.
+            else
+                rs_lim = tile%rs(i,j)
+            end if
+
+            ! Calculate recuring terms
+            ! NOTE: this should use the surface density, not rhof(1).
+            !       Not sure if rhoh is available somewhere...
+            fH  = rhof(1) * cp  / tile%ra(i,j)
+            fLE = rhof(1) * rlv / (tile%rs(i,j) + rs_lim)
+
+            if (tile%db(i,j) > 0) then
+                fG = tile%lambda_stable(i,j)
+            else
+                fG = tile%lambda_unstable(i,j)
+            end if
+
+            ! Net radiation; negative sign = net input of radiation at surface
+            Qnet(i,j) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
+
+            ! Solve new skin temperature from SEB
+            desatdTs = esats * (17.2694 / (Ts - 35.86) - 17.2694 * (Ts - 273.16) / (Ts - 35.86)**2.)
+            dqsatdTs = 0.622 * desatdTs / ps
+            Ta = thl0(i,j,1) * exnf(1)
+
+            num = -(Qnet(i,j) - lwu(i,j,1) &
+                  - fH * Ta + (qsats - dqsatdTs * Ts - qt0(i,j,1)) * fLE &
+                  - fG * tsoil(i,j,kmax_soil) - 3.*boltz * Ts**4)
+            denom = (fH + fLE * dqsatdTs + fG + 4.*boltz * Ts**3)
+            tile%tskin(i,j) = num / denom
+
+            ! Update qsat with linearised relation, to make sure that the SEB closes
+            qsat_new = qsats + dqsatdTs * (tile%tskin(i,j) - Ts)
+
+            ! Calculate surface fluxes
+            tile%H (i,j) = fH  * (tile%tskin(i,j) - Ta)
+            tile%LE(i,j) = fLE * (qsat_new - qt0(i,j,1))
+            tile%G (i,j) = fG  * (tsoil(i,j,kmax_soil) - tile%tskin(i,j))
+
+            !HLEG = tile%H(i,j) + tile%LE(i,j) - tile%G(i,j)
+            !lwu_new = 1. * boltz * tile%tskin(i,j)**4.
+            !Qnet_new = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu_new
+
+            !print*,'---------'
+            !print*,'tskin_old=', Ts, 'tskin_new=', tile%tskin(i,j)
+            !print*,'Qnet (old)=', -Qnet(i,j), 'H=', tile%H(i,j), 'LE=', tile%LE(i,j), 'G=', tile%G(i,j)
+            !print*,'Qnet (new)=', -Qnet_new, 'H+LE+G=', HLEG
+
+        end do
+    end do
+
+end subroutine calc_fluxes
 
 
 !
@@ -722,6 +805,9 @@ subroutine allocate_tile(tile)
     allocate(tile % tskin(i2, j2))
     allocate(tile % thlskin(i2, j2))
     allocate(tile % qtskin(i2, j2))
+
+    ! Buoyancy difference surface-atmosphere
+    allocate(tile % db(i2, j2))
 
     ! Vegetation properties:
     allocate(tile % lai(i2, j2))
