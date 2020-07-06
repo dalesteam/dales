@@ -233,7 +233,7 @@ contains
         if (isurf == 1) then
           nvar = 32
         else if (isurf == 11) then
-          nvar = 42
+          nvar = 67
         else
           nvar = 21
         end if
@@ -303,6 +303,38 @@ contains
           call ncinfo(ncname(40,:),'rs_lv','Canopy resistance low veg','s m-1','time')
           call ncinfo(ncname(41,:),'rs_hv','Canopy resistance low veg','s m-1','time')
           call ncinfo(ncname(42,:),'rs_bs','Soil resistance','s m-1','time')
+
+          call ncinfo(ncname(43,:),'c_lv','Tile fraction low vegetation','-','time')
+          call ncinfo(ncname(44,:),'c_hv','Tile fraction high vegetation','-','time')
+          call ncinfo(ncname(45,:),'c_bs','Tile fraction bare soil','-','time')
+          call ncinfo(ncname(46,:),'c_ws','Tile fraction wet skin','-','time')
+
+          call ncinfo(ncname(47,:),'wl','Liquid water reservoir','m','time')
+
+          call ncinfo(ncname(48,:),'H_lv','Sensible heat flux low vegetation','W m-2','time')
+          call ncinfo(ncname(49,:),'H_hv','Sensible heat flux high vegetation','W m-2','time')
+          call ncinfo(ncname(50,:),'H_bs','Sensible heat flux bare soil','W m-2','time')
+          call ncinfo(ncname(51,:),'H_ws','Sensible heat flux wet skin','W m-2','time')
+
+          call ncinfo(ncname(52,:),'LE_lv','Latent heat flux low vegetation','W m-2','time')
+          call ncinfo(ncname(53,:),'LE_hv','Latent heat flux high vegetation','W m-2','time')
+          call ncinfo(ncname(54,:),'LE_bs','Latent heat flux bare soil','W m-2','time')
+          call ncinfo(ncname(55,:),'LE_ws','Latent heat flux wet skin','W m-2','time')
+
+          call ncinfo(ncname(56,:),'G_lv','Soil heat flux low vegetation','W m-2','time')
+          call ncinfo(ncname(57,:),'G_hv','Soil heat flux high vegetation','W m-2','time')
+          call ncinfo(ncname(58,:),'G_bs','Soil heat flux bare soil','W m-2','time')
+          call ncinfo(ncname(59,:),'G_ws','Soil heat flux wet skin','W m-2','time')
+
+          call ncinfo(ncname(60,:),'thlskin_lv','Skin potential temperature low vegetation','K','time')
+          call ncinfo(ncname(61,:),'thlskin_hv','Skin potential temperature high vegetation','K','time')
+          call ncinfo(ncname(62,:),'thlskin_bs','Skin potential temperature bare soil','K','time')
+          call ncinfo(ncname(63,:),'thlskin_ws','Skin potential temperature wet skin','K','time')
+
+          call ncinfo(ncname(64,:),'qtskin_lv','Skin specific humidity low vegetation','kg kg-1','time')
+          call ncinfo(ncname(65,:),'qtskin_hv','Skin specific humidity high vegetation','kg kg-1','time')
+          call ncinfo(ncname(66,:),'qtskin_bs','Skin specific humidity bare soil','kg kg-1','time')
+          call ncinfo(ncname(67,:),'qtskin_ws','Skin specific humidity wet skin','kg kg-1','time')
 
         end if
 
@@ -406,6 +438,12 @@ contains
     real   :: ra_lv_av, ra_hv_av, ra_bs_av
     real   :: f1_av, f2_lv_av, f2_hv_av, f3_av, f2b_av
     real   :: rs_lv_av, rs_hv_av, rs_bs_av
+    real   :: c_lv_av, c_hv_av, c_bs_av, c_ws_av
+    real   :: H_lv_av, H_hv_av, H_bs_av, H_ws_av
+    real   :: LE_lv_av, LE_hv_av, LE_bs_av, LE_ws_av
+    real   :: G_lv_av, G_hv_av, G_bs_av, G_ws_av
+    real   :: thlskin_lv_av, thlskin_hv_av, thlskin_bs_av, thlskin_ws_av
+    real   :: qtskin_lv_av, qtskin_hv_av, qtskin_bs_av, qtskin_ws_av
 
     integer:: i, j, k
 
@@ -832,6 +870,38 @@ contains
       rs_hv_av = mean_2d(tile_hv%rs)
       rs_bs_av = mean_2d(tile_bs%rs)
 
+      c_lv_av = mean_2d(tile_lv%frac)
+      c_hv_av = mean_2d(tile_hv%frac)
+      c_bs_av = mean_2d(tile_bs%frac)
+      c_ws_av = mean_2d(tile_ws%frac)
+
+      wlav = mean_2d(wl)
+
+      H_lv_av = mean_2d(tile_lv%H)
+      H_hv_av = mean_2d(tile_hv%H)
+      H_bs_av = mean_2d(tile_bs%H)
+      H_ws_av = mean_2d(tile_ws%H)
+
+      LE_lv_av = mean_2d(tile_lv%LE)
+      LE_hv_av = mean_2d(tile_hv%LE)
+      LE_bs_av = mean_2d(tile_bs%LE)
+      LE_ws_av = mean_2d(tile_ws%LE)
+
+      G_lv_av = mean_2d(tile_lv%G)
+      G_hv_av = mean_2d(tile_hv%G)
+      G_bs_av = mean_2d(tile_bs%G)
+      G_ws_av = mean_2d(tile_ws%G)
+
+      thlskin_lv_av = mean_2d(tile_lv%thlskin)
+      thlskin_hv_av = mean_2d(tile_hv%thlskin)
+      thlskin_bs_av = mean_2d(tile_bs%thlskin)
+      thlskin_ws_av = mean_2d(tile_ws%thlskin)
+
+      qtskin_lv_av = mean_2d(tile_lv%qtskin)
+      qtskin_hv_av = mean_2d(tile_hv%qtskin)
+      qtskin_bs_av = mean_2d(tile_bs%qtskin)
+      qtskin_ws_av = mean_2d(tile_ws%qtskin)
+
     end if
 
   !  9.8  write the results to output file
@@ -959,6 +1029,38 @@ contains
           vars(40) = rs_lv_av
           vars(41) = rs_hv_av
           vars(42) = rs_bs_av
+
+          vars(43) = c_lv_av
+          vars(44) = c_hv_av
+          vars(45) = c_bs_av
+          vars(46) = c_ws_av
+
+          vars(47) = wlav
+
+          vars(48) = H_lv_av
+          vars(49) = H_hv_av
+          vars(50) = H_bs_av
+          vars(51) = H_ws_av
+
+          vars(52) = LE_lv_av
+          vars(53) = LE_hv_av
+          vars(54) = LE_bs_av
+          vars(55) = LE_ws_av
+
+          vars(56) = G_lv_av
+          vars(57) = G_hv_av
+          vars(58) = G_bs_av
+          vars(59) = G_ws_av
+
+          vars(60) = thlskin_lv_av
+          vars(61) = thlskin_hv_av
+          vars(62) = thlskin_bs_av
+          vars(63) = thlskin_ws_av
+
+          vars(64) = qtskin_lv_av
+          vars(65) = qtskin_hv_av
+          vars(66) = qtskin_bs_av
+          vars(67) = qtskin_ws_av
 
         end if
 

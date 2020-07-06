@@ -41,6 +41,8 @@ module modlsm
 
     ! Precipitation, interception et al.
     real, allocatable :: throughfall(:,:)
+    real, allocatable :: interception(:,:)
+    real, allocatable :: wl_max(:,:)
 
     ! Dependency factor canopy resistance on VPD (high veg only)
     real, allocatable :: gD(:,:)
@@ -101,8 +103,6 @@ subroutine lsm
 
     if (.not. sw_lsm) return
 
-    throughfall(:,:) = 0.
-
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
     call calc_tile_fractions
@@ -140,21 +140,96 @@ subroutine lsm
     ! Solve diffusion equation:
     call integrate_theta_soil
 
+    ! Update liquid water reservoir
+    call calc_liquid_reservoir
+
 end subroutine lsm
 
 !
 ! Calculate dynamic tile fractions, based on liquid water on vegetation
 !
 subroutine calc_tile_fractions
+    use modglobal, only : i1, j1
+    use modsurfdata, only : wl, wmax
     implicit none
 
-    ! Not so dynamic right now.....
-    tile_lv%frac(:,:) = tile_lv%base_frac(:,:)
-    tile_hv%frac(:,:) = tile_hv%base_frac(:,:)
-    tile_bs%frac(:,:) = tile_bs%base_frac(:,:)
-    tile_ws%frac(:,:) = tile_ws%base_frac(:,:)
+    integer :: i, j
+
+    do j=2, j1
+        do i=2, i1
+            tile_ws%frac(i,j) = min(1., wl(i,j) / wl_max(i,j))
+            tile_lv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_lv%base_frac(i,j)
+            tile_hv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_hv%base_frac(i,j)
+            tile_bs%frac(i,j) = (1.-tile_ws%frac(i,j)) * (1. - tile_lv%base_frac(i,j) - tile_hv%base_frac(i,j))
+        end do
+    end do
 
 end subroutine calc_tile_fractions
+
+!
+! Calculate changes in the liquid water reservoir
+!
+subroutine calc_liquid_reservoir
+    use modglobal,    only : rk3step, rdt, i1, j1, rhow, rlv
+    use modsurfdata,  only : wl, wlm
+    use modmicrodata, only : imicro, sed_qr
+    implicit none
+
+    integer :: i, j
+    real :: tend, rk3coef, rainrate, c_veg, wl_tend_max, wl_tend_min
+    real :: wl_tend_liq, wl_tend_dew, wl_tend_precip, wl_tend_sum, wl_tend_lim
+
+    real, parameter :: intercept_eff = 0.5
+    real, parameter :: to_ms  = 1./(rhow*rlv)
+
+    rk3coef = rdt / (4. - dble(rk3step))
+    if(rk3step == 1) wlm(:,:) = wl(:,:)
+
+    do j=2, j1
+        do i=2, i1
+            c_veg = tile_lv%base_frac(i,j)+tile_hv%base_frac(i,j)
+
+            ! Max and min possible tendencies
+            wl_tend_min = -wlm(i,j) / rk3coef
+            wl_tend_max = (wl_max(i,j) - wlm(i,j)) / rk3coef
+
+            ! Tendency due to evaporation from liquid water reservoir/tile.
+            wl_tend_liq = -max(0., tile_ws%frac(i,j) * tile_ws%LE(i,j) * to_ms)
+
+            ! Tendency due to dewfall into vegetation/soil/liquid water tiles
+            wl_tend_dew = &
+                -( min(0., tile_lv%frac(i,j) * tile_lv%LE(i,j) * to_ms) + &
+                   min(0., tile_hv%frac(i,j) * tile_hv%LE(i,j) * to_ms) + &
+                   min(0., tile_bs%frac(i,j) * tile_bs%LE(i,j) * to_ms) + &
+                   min(0., tile_ws%frac(i,j) * tile_ws%LE(i,j) * to_ms) )
+
+            ! Tendency due to interception of precipitation by vegetation
+            if (imicro == 0) then
+                rainrate = 0.
+            else
+                rainrate = -sed_qr(i,j,1)/rhow
+            end if
+            wl_tend_precip = intercept_eff * c_veg * rainrate
+
+            ! Total and limited tendencies
+            wl_tend_sum = wl_tend_liq + wl_tend_dew + wl_tend_precip;
+            wl_tend_lim = min(wl_tend_max, max(wl_tend_min,  wl_tend_sum));
+
+            ! Diagnose interception and throughfall
+            throughfall(i,j) = &
+                -(1.-c_veg) * rainrate &
+                -(1.-intercept_eff) * c_veg * rainrate &
+                + min(0., wl_tend_lim - wl_tend_sum)
+            interception(i,j) = max(0., wl_tend_lim)
+
+            ! Integrate
+            wl(i,j) = wlm(i,j) + rk3coef * wl_tend_lim
+
+        end do
+    end do
+
+end subroutine calc_liquid_reservoir
+
 
 !
 ! Calculate root fraction weighted mean soil water content
@@ -299,7 +374,7 @@ subroutine calc_obuk_ustar_ra(tile)
         do i=2,i1
             ! Calculate friction velocity and aerodynamic resistance
             tile%ustar(i,j) = du_tot(i,j) * fm(zf(1), tile%z0m(i,j), tile%obuk(i,j))
-            tile%ra(i,j)    = 1./tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j))
+            tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j)))
         end do
     end do
 
@@ -831,7 +906,7 @@ subroutine allocate_fields
     use modsurfdata, only : &
         tsoil, tsoilm, phiw, phiwm, &
         lambda, lambdah, lambdas, lambdash, gammas, gammash, &
-        H, LE, G0, Qnet
+        H, LE, G0, Qnet, wl, wlm
     implicit none
 
     ! Allocate soil variables
@@ -842,9 +917,15 @@ subroutine allocate_fields
     allocate(phiw  (i2, j2, kmax_soil))
     allocate(phiwm (i2, j2, kmax_soil))
 
+    allocate(wl (i2, j2))
+    allocate(wlm(i2, j2))
+
+    allocate(wl_max(i2, j2))
+
     allocate(phiw_source(i2, j2, kmax_soil))
 
     allocate(throughfall(i2, j2))
+    allocate(interception(i2, j2))
 
     allocate(gD(i2, j2))
     allocate(f1(i2, j2))
@@ -970,7 +1051,7 @@ end subroutine init_lsm_tiles
 subroutine init_homogeneous
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real, mpi_integer
-    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm
+    use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax
     implicit none
 
     integer :: ierr, k
@@ -1096,11 +1177,20 @@ subroutine init_homogeneous
     phiwm (:,:,:) = phiw (:,:,:)
 
     ! Set properties wet skin tile
+    wl(:,:)  = 0.2-3
+    wlm(:,:) = 0.2-3
+
     tile_ws % z0m(:,:) = c_low*z0m_low + c_high*z0m_high + c_bare*z0m_bare
     tile_ws % z0h(:,:) = c_low*z0h_low + c_high*z0h_high + c_bare*z0h_bare
 
     tile_ws % lambda_stable(:,:) = c_low*lambda_s_low + c_high*lambda_s_high + c_bare*lambda_s_bare
     tile_ws % lambda_unstable(:,:) = c_low*lambda_us_low + c_high*lambda_us_high + c_bare*lambda_us_bare
+
+    ! Max liquid water per grid point, accounting for LAI
+    wl_max(:,:) = wmax * ( &
+            tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
+            tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
+            tile_bs%base_frac(:,:))
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p)
