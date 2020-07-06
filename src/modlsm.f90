@@ -101,7 +101,6 @@ subroutine lsm
 
     if (.not. sw_lsm) return
 
-    phiw_source(:,:,:) = 0.
     throughfall(:,:) = 0.
 
     ! Calculate dynamic tile fractions,
@@ -136,6 +135,8 @@ subroutine lsm
 
     ! Calc diffusivity and conductivity soil moisture:
     call calc_hydraulic_properties
+    ! Calculate tendency due to root water extraction
+    call calc_root_water_extraction
     ! Solve diffusion equation:
     call integrate_theta_soil
 
@@ -566,6 +567,43 @@ subroutine calc_hydraulic_properties
     end if
 
 end subroutine calc_hydraulic_properties
+
+!
+! Calculate soil moisture tendency from root water extraction
+!
+subroutine calc_root_water_extraction
+    use modglobal, only : i1, j1, rhow, rlv
+    use modsurfdata, only : phiw
+    implicit none
+
+    integer :: i, j, k
+    real :: phiw_rf_lv, phiw_rf_hv, phi_frac_lv, phi_frac_hv, LE_lv, LE_hv
+    real, parameter :: fac = 1./(rhow * rlv)
+
+    do j=2, j1
+        do i=2, i1
+
+            LE_lv = tile_lv%frac(i,j) * tile_lv%LE(i,j)
+            LE_hv = tile_hv%frac(i,j) * tile_hv%LE(i,j)
+
+            phiw_rf_lv = 0.
+            phiw_rf_hv = 0.
+            do k=1, kmax_soil
+                phiw_rf_lv = phiw_rf_lv + tile_lv%root_frac(i,j,k) * phiw(i,j,k)
+                phiw_rf_hv = phiw_rf_hv + tile_hv%root_frac(i,j,k) * phiw(i,j,k)
+            end do
+
+            do k=1, kmax_soil
+                phi_frac_lv = tile_lv%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf_lv
+                phi_frac_hv = tile_hv%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf_hv
+
+                phiw_source(i,j,k) = -max(0., LE_lv) * fac * dzi_soil(k) * phi_frac_lv &
+                                     -max(0., LE_hv) * fac * dzi_soil(k) * phi_frac_hv
+            end do
+        end do
+    end do
+
+end subroutine calc_root_water_extraction
 
 !
 ! Solve diffusion equation (explicit) for soil temperature.
