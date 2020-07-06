@@ -100,14 +100,8 @@ subroutine lsm
 
     if (.not. sw_lsm) return
 
-    ! tmp...
-    thlflux(:,:) = 0.1
-    qtflux(:,:) = 0.1e-3
-    G0(:,:) = 0.
     phiw_source(:,:,:) = 0.
     throughfall(:,:) = 0.
-    tile_bs%frac(:,:) = 0.
-    tile_bs%LE(:,:) = 0.
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
@@ -123,13 +117,15 @@ subroutine lsm
     ! Calculate aerodynamic resistance (and u*, obuk).
     call calc_stability
 
-    ! Solve the surface energy balance and calculate
-    ! surface fluxes (H, LE, G0, wthl, wqt)
-    call calc_fluxes(tile_lv)
-    call calc_fluxes(tile_hv)
-    call calc_fluxes(tile_bs)
-    !call calc_fluxes(tile_ws)
+    ! Calculate surface temperature for each tile, and calculate
+    ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
+    call calc_tile_bcs(tile_lv)
+    call calc_tile_bcs(tile_hv)
+    call calc_tile_bcs(tile_bs)
+    call calc_tile_bcs(tile_ws)
 
+    ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
+    call calc_bulk_bcs
 
     ! Calculate soil tendencies
     ! Calc diffusivity heat:
@@ -307,19 +303,24 @@ subroutine calc_obuk_ustar_ra(tile)
 end subroutine calc_obuk_ustar_ra
 
 !
-! Solve SEB, calculating the new surface fluxes per tile
+! Calculate surface temperature for each tile, and calculate
+! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
 !
-subroutine calc_fluxes(tile)
+subroutine calc_tile_bcs(tile)
     use modglobal,   only : i1, j1, cp, rlv, boltz
     use modfields,   only : exnh, exnf, presh, thl0, qt0, rhof
     use modraddata,  only : swd, swu, lwd, lwu
-    use modsurfdata, only : ps, tsoil, Qnet
+    use modsurfdata, only : ps, tsoil
     implicit none
 
     type(lsm_tile), intent(inout) :: tile
     integer :: i, j
     real :: Ts, thvs, esats, qsats, desatdTs, dqsatdTs, &
-        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new
+        rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, &
+        rhocp_i, rholv_i, Qnet
+
+    rhocp_i = 1. / (rhof(1) * cp)
+    rholv_i = 1. / (rhof(1) * rlv)
 
     ! tmp
     !real :: HLEG, lwu_new, Qnet_new
@@ -342,7 +343,7 @@ subroutine calc_fluxes(tile)
             ! NOTE: this should use the surface density, not rhof(1).
             !       Not sure if rhoh is available somewhere...
             fH  = rhof(1) * cp  / tile%ra(i,j)
-            fLE = rhof(1) * rlv / (tile%rs(i,j) + rs_lim)
+            fLE = rhof(1) * rlv / (tile%ra(i,j) + rs_lim)
 
             if (tile%db(i,j) > 0) then
                 fG = tile%lambda_stable(i,j)
@@ -351,14 +352,14 @@ subroutine calc_fluxes(tile)
             end if
 
             ! Net radiation; negative sign = net input of radiation at surface
-            Qnet(i,j) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
+            Qnet = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
 
             ! Solve new skin temperature from SEB
             desatdTs = esats * (17.2694 / (Ts - 35.86) - 17.2694 * (Ts - 273.16) / (Ts - 35.86)**2.)
             dqsatdTs = 0.622 * desatdTs / ps
             Ta = thl0(i,j,1) * exnf(1)
 
-            num = -(Qnet(i,j) - lwu(i,j,1) &
+            num = -(Qnet - lwu(i,j,1) &
                   - fH * Ta + (qsats - dqsatdTs * Ts - qt0(i,j,1)) * fLE &
                   - fG * tsoil(i,j,kmax_soil) - 3.*boltz * Ts**4)
             denom = (fH + fLE * dqsatdTs + fG + 4.*boltz * Ts**3)
@@ -367,24 +368,78 @@ subroutine calc_fluxes(tile)
             ! Update qsat with linearised relation, to make sure that the SEB closes
             qsat_new = qsats + dqsatdTs * (tile%tskin(i,j) - Ts)
 
-            ! Calculate surface fluxes
+            ! Calculate energetic surface fluxes
             tile%H (i,j) = fH  * (tile%tskin(i,j) - Ta)
             tile%LE(i,j) = fLE * (qsat_new - qt0(i,j,1))
             tile%G (i,j) = fG  * (tsoil(i,j,kmax_soil) - tile%tskin(i,j))
 
-            !HLEG = tile%H(i,j) + tile%LE(i,j) - tile%G(i,j)
-            !lwu_new = 1. * boltz * tile%tskin(i,j)**4.
-            !Qnet_new = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu_new
+            ! Calculate kinematic surface fluxes
+            tile%wthl(i,j) = tile%H (i,j) * rhocp_i
+            tile%wqt (i,j) = tile%LE(i,j) * rholv_i
 
-            !print*,'---------'
-            !print*,'tskin_old=', Ts, 'tskin_new=', tile%tskin(i,j)
-            !print*,'Qnet (old)=', -Qnet(i,j), 'H=', tile%H(i,j), 'LE=', tile%LE(i,j), 'G=', tile%G(i,j)
-            !print*,'Qnet (new)=', -Qnet_new, 'H+LE+G=', HLEG
+            ! Calculate surface values
+            tile%thlskin(i,j) = thl0(i,j,1) + tile%wthl(i,j) * tile%ra(i,j)
+            tile%qtskin (i,j) = qt0 (i,j,1) + tile%wqt (i,j) * tile%ra(i,j)
 
         end do
     end do
 
-end subroutine calc_fluxes
+end subroutine calc_tile_bcs
+
+!
+! Set grid point mean boundary conditions, as used by
+! the diffusion scheme, thermodynamics, ...
+!
+subroutine calc_bulk_bcs
+    use modglobal,   only : i1, j1, cp, rlv, zf
+    use modfields,   only : rhof, thl0, qt0
+    use modsurfdata, only : H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz
+    implicit none
+
+    integer :: i, j
+    real :: rhocp_i, rholv_i, ra
+
+    rhocp_i = 1. / (rhof(1) * cp)
+    rholv_i = 1. / (rhof(1) * rlv)
+
+    do j=2,j1
+        do i=2,i1
+            ! Calc grid point averaged quantities
+            H(i,j) = tile_lv%frac(i,j) * tile_lv%H(i,j) + &
+                     tile_hv%frac(i,j) * tile_hv%H(i,j) + &
+                     tile_bs%frac(i,j) * tile_bs%H(i,j) + &
+                     tile_ws%frac(i,j) * tile_ws%H(i,j)
+
+            LE(i,j) = tile_lv%frac(i,j) * tile_lv%LE(i,j) + &
+                      tile_hv%frac(i,j) * tile_hv%LE(i,j) + &
+                      tile_bs%frac(i,j) * tile_bs%LE(i,j) + &
+                      tile_ws%frac(i,j) * tile_ws%LE(i,j)
+
+            G0(i,j) = tile_lv%frac(i,j) * tile_lv%G(i,j) + &
+                      tile_hv%frac(i,j) * tile_hv%G(i,j) + &
+                      tile_bs%frac(i,j) * tile_bs%G(i,j) + &
+                      tile_ws%frac(i,j) * tile_ws%G(i,j)
+
+            tskin(i,j) = tile_lv%frac(i,j) * tile_lv%thlskin(i,j) + &
+                         tile_hv%frac(i,j) * tile_hv%thlskin(i,j) + &
+                         tile_bs%frac(i,j) * tile_bs%thlskin(i,j) + &
+                         tile_ws%frac(i,j) * tile_ws%thlskin(i,j)
+
+            qskin(i,j) = tile_lv%frac(i,j) * tile_lv%qtskin(i,j) + &
+                         tile_hv%frac(i,j) * tile_hv%qtskin(i,j) + &
+                         tile_bs%frac(i,j) * tile_bs%qtskin(i,j) + &
+                         tile_ws%frac(i,j) * tile_ws%qtskin(i,j)
+
+            thlflux(i,j) =  H(i,j)  * rhocp_i
+            qtflux (i,j) =  LE(i,j) * rholv_i
+
+            dthldz(i,j) = (thl0(i,j,1) - tskin(i,j)) / zf(1)
+            dqtdz (i,j) = (qt0 (i,j,1) - qskin(i,j)) / zf(1)
+
+        end do
+    end do
+
+end subroutine calc_bulk_bcs
 
 
 !
