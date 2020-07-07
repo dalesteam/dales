@@ -848,6 +848,7 @@ contains
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
     use modsubgriddata, only : ekm,ekh
+    use modlsm, only : kmax_soil, tile_lv, tile_hv, tile_bs, tile_ws
 
 
     character(50) :: name
@@ -956,7 +957,35 @@ contains
       end if
       read(ifinput)  timee
       close(ifinput)
+
+    else if (isurf == 11) then
+      name(5:5) = 'l'
+      write(6,*) 'loading ',name
+      open(unit=ifinput,file=name,form='unformatted')
+      read(ifinput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+      read(ifinput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+      read(ifinput) ((tskin (i,j),   i=1,i2), j=1,j2)
+      read(ifinput) ((Wl    (i,j),   i=1,i2), j=1,j2)
+
+      read(ifinput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
+
+      read(ifinput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
+
+      read(ifinput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
+
+      read(ifinput) timee
+      close(ifinput)
     end if
+
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -996,13 +1025,13 @@ contains
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
+    use modlsm,    only : kmax_soil, tile_lv, tile_hv, tile_bs, tile_ws
 
     implicit none
     integer imin,ihour
     integer i,j,k,n
     character(50) name,linkname
 
-    
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
       name = 'initdXXXhXXmXXXXXXXX.XXX'
@@ -1114,8 +1143,37 @@ contains
         linkname = name
         linkname(6:11) = "latest"
         call system("cp "//name //" "//linkname)
-      end if
 
+      else if (isurf == 11) then
+        name(5:5)='l'
+        open  (ifoutput,file=name,form='unformatted')
+        write(ifoutput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+        write(ifoutput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+        write(ifoutput) ((tskin (i,j),   i=1,i2), j=1,j2)
+        write(ifoutput) ((Wl    (i,j),   i=1,i2), j=1,j2)
+
+        ! Sub-grid tiles
+        write(ifoutput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
+
+        write(ifoutput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
+
+        write(ifoutput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
+
+        write(ifoutput)  timee
+        close (ifoutput)
+        linkname = name
+        linkname(6:11) = "latest"
+        call system("cp "//name //" "//linkname)
+      end if
 
       if (myid==0) then
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput

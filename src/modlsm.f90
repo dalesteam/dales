@@ -105,7 +105,6 @@ module modlsm
 contains
 
 subroutine lsm
-    use modsurfdata, only : thlflux, qtflux, G0
     implicit none
 
     if (.not. llsm) return
@@ -1130,7 +1129,7 @@ end subroutine init_lsm_tiles
 ! Initialise the LSM homogeneous from namelist input
 !
 subroutine init_homogeneous
-    use modglobal,   only : ifnamopt, fname_options, checknamelisterror
+    use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real, mpi_integer
     use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax
     implicit none
@@ -1248,23 +1247,31 @@ subroutine init_homogeneous
 
     gD(:,:) = gD_high
 
+    if (.not. lwarmstart) then
+        ! Init prognostic variables in case of cold start.
+        ! For a warm start, these are read from restartfiles
+        ! in modstartup.
+        do k=1, kmax_soil
+            tsoil(:,:,k) = t_soil_p(k)
+            phiw (:,:,k) = theta_soil_p(k)
+        end do
+
+        tsoilm(:,:,:) = tsoil(:,:,:)
+        phiwm (:,:,:) = phiw (:,:,:)
+
+        wl(:,:)  = 0.
+        wlm(:,:) = 0.
+    end if
+
     do k=1, kmax_soil
-        tsoil(:,:,k) = t_soil_p(k)
-        phiw (:,:,k) = theta_soil_p(k)
         soil_index(:,:,k) = soil_index_p(k)
     end do
 
-    tsoilm(:,:,:) = tsoil(:,:,:)
-    phiwm (:,:,:) = phiw (:,:,:)
-
     ! Set properties wet skin tile
-    wl(:,:)  = 0
-    wlm(:,:) = 0
-
     tile_ws % z0m(:,:) = c_low*z0m_low + c_high*z0m_high + c_bare*z0m_bare
     tile_ws % z0h(:,:) = c_low*z0h_low + c_high*z0h_high + c_bare*z0h_bare
 
-    tile_ws % lambda_stable(:,:) = c_low*lambda_s_low + c_high*lambda_s_high + c_bare*lambda_s_bare
+    tile_ws % lambda_stable(:,:)   = c_low*lambda_s_low  + c_high*lambda_s_high  + c_bare*lambda_s_bare
     tile_ws % lambda_unstable(:,:) = c_low*lambda_us_low + c_high*lambda_us_high + c_bare*lambda_us_bare
 
     ! Max liquid water per grid point, accounting for LAI
