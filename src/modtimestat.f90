@@ -417,6 +417,7 @@ contains
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc, only : lnetcdf, writestat_nc,nc_fillvalue
+    use modraddata, only : swd, swu, lwd, lwu
     implicit none
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
@@ -841,6 +842,8 @@ contains
       endif
 
     else if(isurf == 11) then
+
+      Qnet(:,:) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
 
       Qnetav = mean_2d(Qnet)
       Hav    = mean_2d(H)

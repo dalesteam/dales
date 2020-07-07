@@ -23,8 +23,15 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
-    logical :: sw_lsm             ! On/off switch LSM
-    logical :: sw_free_drainage   ! Free drainage bottom BC for soil moisture
+    logical :: llsm             ! On/off switch LSM
+    logical :: lfreedrainage   ! Free drainage bottom BC for soil moisture
+
+    ! Interpolation types soil from full to half level
+    integer :: iinterp_t, iinterp_theta
+    integer, parameter :: iinterp_amean = 1  ! val = 0.5*(v1+v2)
+    integer, parameter :: iinterp_gmean = 2  ! val = sqrt(v1*v2)
+    integer, parameter :: iinterp_hmean = 3  ! val = ((dz1+dz2)*v1*v2)/(dz1*v1+dz2*v2)
+    integer, parameter :: iinterp_max   = 4  ! val = max(a,b)
 
     ! Soil grid
     integer :: kmax_soil
@@ -101,7 +108,7 @@ subroutine lsm
     use modsurfdata, only : thlflux, qtflux, G0
     implicit none
 
-    if (.not. sw_lsm) return
+    if (.not. llsm) return
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
@@ -362,7 +369,8 @@ subroutine calc_obuk_ustar_ra(tile)
         do i=2,i1
             ! Buoyancy difference surface - atmosphere
             thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
-            tile%db(i,j) = grav/thvs * (thvs - thv_1(i,j))
+            !tile%db(i,j) = grav/thvs * (thvs - thv_1(i,j))
+            tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
 
             ! Iteratively find Obukhov length
             tile%obuk(i,j) = calc_obuk_dirichlet( &
@@ -540,6 +548,58 @@ subroutine calc_bulk_bcs
 end subroutine calc_bulk_bcs
 
 !
+! Interpolation soil from full to half levels,
+! using various interpolation methods
+!
+subroutine interpolate_soil(fieldh, field, iinterp)
+    use modglobal, only : i1, j1
+    implicit none
+    real, intent(inout) :: fieldh(:,:,:)
+    real, intent(in)    :: field(:,:,:)
+    integer, intent(in) :: iinterp
+    integer i, j, k
+
+    if (iinterp == iinterp_amean) then
+        do k=2,kmax_soil
+            do j=2,j1
+                do i=2,i1
+                    fieldh(i,j,k) = 0.5*(field(i,j,k-1) + field(i,j,k))
+                end do
+            end do
+        end do
+    else if (iinterp == iinterp_gmean) then
+        do k=2,kmax_soil
+            do j=2,j1
+                do i=2,i1
+                    fieldh(i,j,k) = sqrt(field(i,j,k-1) * field(i,j,k))
+                end do
+            end do
+        end do
+    else if (iinterp == iinterp_hmean) then
+        do k=2,kmax_soil
+            do j=2,j1
+                do i=2,i1
+                    fieldh(i,j,k) = ((dz_soil(k-1)+dz_soil(k))*field(i,j,k-1)*field(i,j,k)) / &
+                            (dz_soil(k)*field(i,j,k) + dz_soil(k-1)*field(i,j,k-1))
+                end do
+            end do
+        end do
+    else if (iinterp == iinterp_max) then
+        do k=2,kmax_soil
+            do j=2,j1
+                do i=2,i1
+                    fieldh(i,j,k) = max(field(i,j,k-1), field(i,j,k))
+                end do
+            end do
+        end do
+    else
+        print*,'ERROR: invalid soil interpolation type iinterp=',iinterp
+        stop
+    end if
+
+end subroutine interpolate_soil
+
+!
 ! Calculate temperature diffusivity soil at full and half levels
 !
 subroutine calc_thermal_properties
@@ -574,13 +634,7 @@ subroutine calc_thermal_properties
     end do
 
     ! Interpolate to half levels
-    do k=2,kmax_soil
-        do j=2,j1
-            do i=2,i1
-                lambdah(i,j,k) = 0.5*(lambda(i,j,k-1) + lambda(i,j,k))
-            end do
-        end do
-    end do
+    call interpolate_soil(lambdah, lambda, iinterp_t)
 
 end subroutine calc_thermal_properties
 
@@ -623,19 +677,11 @@ subroutine calc_hydraulic_properties
     end do
 
     ! Interpolate to half levels
-    ! NOTE: this is the very conservative method used by IFS,
-    !       using the maximum value of two grid points at the interface.
-    do k=2,kmax_soil
-        do j=2,j1
-            do i=2,i1
-                lambdash(i,j,k) = max(lambdas(i,j,k-1), lambdas(i,j,k))
-                gammash(i,j,k)  = max(gammas (i,j,k-1), gammas (i,j,k))
-            end do
-        end do
-    end do
+    call interpolate_soil(lambdash, lambdas, iinterp_theta)
+    call interpolate_soil(gammash,  gammas,  iinterp_theta)
 
     ! Optionally, set free drainage bottom BC
-    if (sw_free_drainage) then
+    if (lfreedrainage) then
         gammash(:,:,1) = gammash(:,:,2)
     else
         gammash(:,:,1) = 0.
@@ -791,22 +837,22 @@ end subroutine integrate_theta_soil
 !
 subroutine initlsm
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart
-    use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real
+    use modmpi,      only : myid, comm3d, mpierr, mpi_logical, mpi_integer, my_real
     use modsurfdata, only : isurf
     implicit none
 
     integer :: ierr
-    logical :: sw_homogeneous
+    logical :: lheterogeneous
 
     ! Namelist definition
     namelist /NAMLSM/ &
-        sw_homogeneous, sw_free_drainage, z_soil, z_size_soil
+        lheterogeneous, lfreedrainage, dz_soil, iinterp_t, iinterp_theta
 
-    sw_lsm = (isurf == 11)
+    llsm = (isurf == 11)
 
-    if (sw_lsm) then
+    if (llsm) then
 
-        allocate(z_soil(kmax_soil))
+        allocate(dz_soil(kmax_soil))
 
         ! Read namelist
         if (myid == 0) then
@@ -818,12 +864,13 @@ subroutine initlsm
         end if
 
         ! Broadcast namelist values to all MPI tasks
-        call MPI_BCAST(sw_lsm, 1, mpi_logical, 0, comm3d, mpierr)
-        call MPI_BCAST(sw_homogeneous, 1, mpi_logical, 0, comm3d, mpierr)
-        call MPI_BCAST(sw_free_drainage, 1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(lheterogeneous, 1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(lfreedrainage,  1, mpi_logical, 0, comm3d, mpierr)
 
-        call MPI_BCAST(z_soil, kmax_soil, my_real, 0, comm3d, mpierr)
-        call MPI_BCAST(z_size_soil, 1, my_real, 0, comm3d, mpierr)
+        call MPI_BCAST(iinterp_t,     1, mpi_integer, 0, comm3d, mpierr)
+        call MPI_BCAST(iinterp_theta, 1, mpi_integer, 0, comm3d, mpierr)
+
+        call MPI_BCAST(dz_soil, kmax_soil, my_real, 0, comm3d, mpierr)
 
         ! Create/calculate soil grid properties
         call create_soil_grid
@@ -831,12 +878,12 @@ subroutine initlsm
         ! Allocate required fields in modsurfacedata, and arrays / tiles from this module:
         call allocate_fields
 
-        if (sw_homogeneous) then
-            ! Initialise homogeneous LSM from namelist input
-            call init_homogeneous
-        else
+        if (lheterogeneous) then
             ! Initialise heterogeneous LSM from external input
             stop 'Heterogeneous LSM not (yet) implemented!'
+        else
+            ! Initialise homogeneous LSM from namelist input
+            call init_homogeneous
         end if
 
         ! Read the soil parameter table
@@ -856,6 +903,9 @@ end subroutine initlsm
 !
 subroutine exitlsm
     implicit none
+
+    if (.not. llsm) return
+
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_theta_sat, vg_a, vg_l, vg_n )
 end subroutine exitlsm
 
@@ -866,23 +916,27 @@ subroutine create_soil_grid
     implicit none
     integer :: k
 
-    allocate(dz_soil  (kmax_soil  ))
+    allocate(z_soil   (kmax_soil  ))
     allocate(dzi_soil (kmax_soil  ))
     allocate(zh_soil  (kmax_soil+1))
     allocate(dzh_soil (kmax_soil+1))
     allocate(dzhi_soil(kmax_soil+1))
 
-    ! Half level heights
+    !
+    ! Full level is in the middle of two half levels
+    !
+    z_size_soil = -sum(dz_soil)
+
+    ! Half level height
     zh_soil(1) = z_size_soil
     zh_soil(kmax_soil+1) = 0.
-
     do k=2, kmax_soil
-        zh_soil(k) = 0.5*(z_soil(k) + z_soil(k-1))
+        zh_soil(k) = zh_soil(k-1) + dz_soil(k-1)
     end do
 
-    ! Grid spacing full and half levels
+    ! Full level height
     do k=1, kmax_soil
-        dz_soil(k) = zh_soil(k+1) - zh_soil(k)
+        z_soil(k) = 0.5*(zh_soil(k) + zh_soil(k+1))
     end do
 
     do k=2, kmax_soil
@@ -895,6 +949,33 @@ subroutine create_soil_grid
     ! Inverse grid spacings
     dzi_soil(:) = 1./dz_soil(:)
     dzhi_soil(:) = 1./dzh_soil(:)
+
+    !
+    ! Half level is in the middle of two full levels
+    !
+    !! Half level heights
+    !zh_soil(1) = z_size_soil
+    !zh_soil(kmax_soil+1) = 0.
+
+    !do k=2, kmax_soil
+    !    zh_soil(k) = 0.5*(z_soil(k) + z_soil(k-1))
+    !end do
+
+    !! Grid spacing full and half levels
+    !do k=1, kmax_soil
+    !    dz_soil(k) = zh_soil(k+1) - zh_soil(k)
+    !end do
+
+    !do k=2, kmax_soil
+    !    dzh_soil(k) = z_soil(k) - z_soil(k-1)
+    !end do
+
+    !dzh_soil(1) = 2*(z_soil(1) - zh_soil(1))
+    !dzh_soil(kmax_soil+1) = 2*(-z_soil(kmax_soil))
+
+    !! Inverse grid spacings
+    !dzi_soil(:) = 1./dz_soil(:)
+    !dzhi_soil(:) = 1./dzh_soil(:)
 
 end subroutine create_soil_grid
 
@@ -1177,8 +1258,8 @@ subroutine init_homogeneous
     phiwm (:,:,:) = phiw (:,:,:)
 
     ! Set properties wet skin tile
-    wl(:,:)  = 0.2-3
-    wlm(:,:) = 0.2-3
+    wl(:,:)  = 0
+    wlm(:,:) = 0
 
     tile_ws % z0m(:,:) = c_low*z0m_low + c_high*z0m_high + c_bare*z0m_bare
     tile_ws % z0h(:,:) = c_low*z0h_low + c_high*z0h_high + c_bare*z0h_bare
@@ -1351,12 +1432,12 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     ! i.e. the `fx` equation below has no zero crossing.
     ! The limit of 0.13 typically results in a minimum (positive) L of ~1.
     ! IFS caps z/L at 5, so for a typical zsl at ~L=2.
-    Ri = fkar * db * zsl / du**2
-    if (Ri > 0.13) then
-        print*,'WARNING: Ri out of range, returning L=1'
-        res = 1
-        return
-    end if
+    !Ri = fkar * db * zsl / du**2
+    !if (Ri > 0.13) then
+    !    print*,'WARNING: Ri out of range, returning L=1'
+    !    res = 1
+    !    return
+    !end if
 
     ! Avoid buoyancy difference of zero:
     if (db >= 0) then
