@@ -479,6 +479,7 @@ subroutine calc_bulk_bcs
     use modglobal,   only : i1, j1, cp, rlv, fkar, zf, cu, cv
     use modfields,   only : rhof, thl0, qt0, u0, v0
     use modsurface,  only : phim, phih
+    use modmpi,      only : excjs
     use modsurfdata, only : &
         H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl
     implicit none
@@ -541,6 +542,10 @@ subroutine calc_bulk_bcs
 
             dudz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (ucu/du_tot(i,j))
             dvdz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (vcv/du_tot(i,j))
+
+            ! Cyclic BCs where needed.
+            call excjs(ustar,2,i1,2,j1,1,1,1,1)
+
         end do
     end do
 
@@ -879,7 +884,7 @@ subroutine initlsm
 
         if (lheterogeneous) then
             ! Initialise heterogeneous LSM from external input
-            stop 'Heterogeneous LSM not (yet) implemented!'
+            call init_heterogeneous
         else
             ! Initialise homogeneous LSM from namelist input
             call init_homogeneous
@@ -1284,6 +1289,102 @@ subroutine init_homogeneous
     deallocate(t_soil_p, theta_soil_p)
 
 end subroutine init_homogeneous
+
+!
+! Init LSM properties from external input
+!
+subroutine init_heterogeneous
+    use modglobal,   only : i1, j1, lwarmstart, iexpnr
+    use modmpi,      only : myidx, myidy
+    use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
+    implicit none
+
+    character(20) :: input_file = 'lsm.inp.x___y___.___'
+    write(input_file(10:12), '(i3.3)') myidx
+    write(input_file(14:16), '(i3.3)') myidy
+    write(input_file(18:20), '(i3.3)') iexpnr
+
+    open(666, file=input_file, form='unformatted', status='unknown', action='read', access='stream')
+
+    ! 2D surface fields
+    read(666) tile_lv%base_frac(2:i1, 2:j1)
+    read(666) tile_hv%base_frac(2:i1, 2:j1)
+
+    read(666) tile_lv%z0m(2:i1, 2:j1)
+    read(666) tile_hv%z0m(2:i1, 2:j1)
+    read(666) tile_bs%z0m(2:i1, 2:j1)
+
+    read(666) tile_lv%z0h(2:i1, 2:j1)
+    read(666) tile_hv%z0h(2:i1, 2:j1)
+    read(666) tile_bs%z0h(2:i1, 2:j1)
+
+    read(666) tile_lv%lambda_stable(2:i1, 2:j1)
+    read(666) tile_hv%lambda_stable(2:i1, 2:j1)
+    read(666) tile_bs%lambda_stable(2:i1, 2:j1)
+
+    read(666) tile_lv%lambda_unstable(2:i1, 2:j1)
+    read(666) tile_hv%lambda_unstable(2:i1, 2:j1)
+    read(666) tile_bs%lambda_unstable(2:i1, 2:j1)
+
+    read(666) tile_lv%lai(2:i1, 2:j1)
+    read(666) tile_hv%lai(2:i1, 2:j1)
+
+    read(666) tile_lv%rs_min(2:i1, 2:j1)
+    read(666) tile_hv%rs_min(2:i1, 2:j1)
+    read(666) tile_bs%rs_min(2:i1, 2:j1)
+
+    read(666) tile_lv%a_r(2:i1, 2:j1)
+    read(666) tile_lv%b_r(2:i1, 2:j1)
+    read(666) tile_hv%a_r(2:i1, 2:j1)
+    read(666) tile_hv%b_r(2:i1, 2:j1)
+
+    read(666) gD(2:i1, 2:j1)
+
+    ! 3D soil fields
+    read(666) soil_index(2:i1, 2:j1, 1:kmax_soil)
+
+    if (.not. lwarmstart) then
+        read(666) tsoil     (2:i1, 2:j1, 1:kmax_soil)
+        read(666) phiw      (2:i1, 2:j1, 1:kmax_soil)
+
+        wl(:,:)  = 0.
+        wlm(:,:) = 0.
+    end if
+
+    close(666)
+
+    ! Derived quantities
+    tile_bs%base_frac(:,:) = 1.-tile_lv%base_frac(:,:)-tile_hv%base_frac(:,:)
+    tile_ws%base_frac(:,:) = 0.
+
+    ! Set properties wet skin tile
+    tile_ws%z0m(:,:) = &
+        tile_lv%base_frac(:,:)*tile_lv%z0m(:,:) + &
+        tile_hv%base_frac(:,:)*tile_lv%z0m(:,:) + &
+        tile_bs%base_frac(:,:)*tile_bs%z0m(:,:)
+
+    tile_ws%z0h(:,:) = &
+        tile_lv%base_frac(:,:)*tile_lv%z0h(:,:) + &
+        tile_hv%base_frac(:,:)*tile_lv%z0h(:,:) + &
+        tile_bs%base_frac(:,:)*tile_bs%z0h(:,:)
+
+    tile_ws%lambda_stable(:,:) = &
+        tile_lv%base_frac(:,:)*tile_lv%lambda_stable(:,:) + &
+        tile_hv%base_frac(:,:)*tile_lv%lambda_stable(:,:) + &
+        tile_bs%base_frac(:,:)*tile_bs%lambda_stable(:,:)
+
+    tile_ws%lambda_unstable(:,:) = &
+        tile_lv%base_frac(:,:)*tile_lv%lambda_unstable(:,:) + &
+        tile_hv%base_frac(:,:)*tile_lv%lambda_unstable(:,:) + &
+        tile_bs%base_frac(:,:)*tile_bs%lambda_unstable(:,:)
+
+    ! Max liquid water per grid point, accounting for LAI
+    wl_max(:,:) = wmax * ( &
+            tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
+            tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
+            tile_bs%base_frac(:,:))
+
+end subroutine init_heterogeneous
 
 !
 ! Read the input table with the (van Genuchten) soil parameters
