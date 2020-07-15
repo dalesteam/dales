@@ -164,7 +164,7 @@ contains
   subroutine chkdiv
 
     use modglobal, only : i1,j1,kmax,dx,dy,dzf
-    use modfields, only : um,vm,wm
+    use modfields, only : um,vm,wm,rhobf,rhobh
     use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,my_real,mpierr
     implicit none
 
@@ -185,7 +185,7 @@ contains
       div = &
                 (um(i+1,j,k) - um(i,j,k) )/dx + &
                 (vm(i,j+1,k) - vm(i,j,k) )/dy + &
-                (wm(i,j,k+1) - wm(i,j,k) )/dzf(k)
+                (rhobh(k+1)*wm(i,j,k+1) - rhobh(k)*wm(i,j,k) )/(rhobf(k)*dzf(k))
       divmaxl = max(divmaxl,abs(div))
       divtotl = divtotl + div*dx*dy*dzf(k)
     end do
