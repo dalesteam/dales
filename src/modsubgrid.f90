@@ -36,7 +36,7 @@ save
 
 contains
   subroutine initsubgrid
-    use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar,pi
+    use modglobal, only : ih,i1,jh,j1,k1,delta,zh,zf,fkar,pi
     use modmpi, only : myid
 
     implicit none
@@ -200,7 +200,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
+  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zh,zf,fkar,deltai, &
                           dxi,dyi,dzf,dzh
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
@@ -307,12 +307,12 @@ contains
             ekm(i,j,k) = max(ekm(i,j,k),ekmin)
             ekh(i,j,k) = max(ekh(i,j,k),ekmin)
           else
-             ! zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+             zlt(i,j,k) = 1/(1/(0.4*zh(k))+1/(cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))))
              ! faster calculation: evaluate sqrt only if the second argument is actually smaller
-             zlt(i,j,k) = delta(k)
-             if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
-                zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
-             end if
+             ! zlt(i,j,k) = delta(k)
+             ! if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
+             !    zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
+             ! end if
              
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
 

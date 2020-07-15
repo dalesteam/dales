@@ -432,7 +432,7 @@ contains
     do while(rtimee>timeflux(t))
       t=t+1
     end do
-    if (rtimee>timeflux(t)) then
+    if (rtimee>timeflux(t-1)) then
       t=t-1
     endif
 

@@ -33,7 +33,7 @@ module modbudget
   PUBLIC :: initbudget,budgetstat,exitbudget
   save
 !NetCDF variables
-  integer,parameter :: nvar = 18
+  integer,parameter :: nvar = 19
   character(80),dimension(nvar,4) :: ncname
 
   real    :: dtav, timeav
@@ -67,6 +67,7 @@ module modbudget
   real, allocatable :: sbtkeav(:)   ! Must be module global to calculate dE/dt in combination with tkeb
   real, allocatable :: ekmmn(:)     !< Turbulent exchange coefficient momentum
   real, allocatable :: khkmmn(:)    !< Kh / Km, in post-processing used to determine filter-grid ratio
+  real, allocatable :: zltmn(:)     !< length scale parameter ouput
 
 
   logical :: ltkeb     !Switch to tell if the tke   at beg of av periode has been stored
@@ -128,7 +129,7 @@ contains
     !time averaged fields, subgrid TKE
     allocate(sbtkemn(k1),sbtkeb(k1),sbtkeav(k1),sbshrmn(k1),sbbuomn(k1))
     allocate(sbstormn(k1),sbbudgmn(k1),sbresidmn(k1),&
-         sbdissmn(k1),ekmmn(k1),khkmmn(k1))
+         sbdissmn(k1),ekmmn(k1),khkmmn(k1),zltmn(k1))
 
 
     !Setting time mean variables to zero
@@ -137,7 +138,7 @@ contains
     tkeb=0. !tke at start of averaging period
     sbtkemn=0.;sbshrmn=0.;sbbuomn=0.;sbstormn=0.;
     sbbudgmn=0.;sbresidmn=0.;sbdissmn=0.;
-       ekmmn=0.;khkmmn=0.
+       ekmmn=0.;khkmmn=0.;zltmn=0.;
     sbtkeb=0.;
     ltkeb=.false. ; lsbtkeb=.false.
 
@@ -173,6 +174,7 @@ contains
         call ncinfo(ncname(16,:),'sbresid','Subgrid Residual = budget - storage','m/s^2','tt')
         call ncinfo(ncname(17,:),'ekm','Turbulent exchange coefficient momentum','m/s^2','tt')
         call ncinfo(ncname(18,:),'khkm   ','Kh / Km, in post-processing used to determine filter-grid ratio','m/s^2','tt')
+        call ncinfo(ncname(19,:),'zlt','length scale parameter','m','tt')
         call define_nc( ncid_prof, NVar, ncname)
      end if
 
@@ -668,7 +670,7 @@ end subroutine do_genbudget
 !> Performs the SFS - budget calculations
   subroutine do_gensbbudget
     use modglobal,  only : i1,j1,ih,jh,k1,ijtot
-    use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
+    use modsubgriddata, only : ekm,ekh,zlt,sbdiss,sbshr,sbbuo
     use modfields,  only : e120,rhobf
     use modmpi,     only : slabsum,comm3d,my_real, mpi_sum,mpierr
     !----------------------------
@@ -676,19 +678,19 @@ end subroutine do_genbudget
     !----------------------------
     integer i,j,k
     real, allocatable :: sbshrav(:),sbbuoav(:) ,sbdissav(:),&
-         ekmav(:),khkmav(:)
+         ekmav(:),khkmav(:),zltav(:)
     real, allocatable :: sbtkeavl(:),khkmavl(:)
 
     !----------------------------
     ! 1.2 Allocate variables
     !----------------------------
-    allocate(sbshrav(k1),sbbuoav(k1),sbdissav(k1),ekmav(k1),khkmav(k1))
+    allocate(sbshrav(k1),sbbuoav(k1),sbdissav(k1),ekmav(k1),khkmav(k1),zltav(k1))
     allocate(sbtkeavl(k1),khkmavl(k1))
 
     !----------------------------
     ! 2. Reset variables
     !----------------------------
-    sbtkeav=0.;sbshrav=0.;sbbuoav=0.;sbdissav=0;ekmav=0.;khkmav=0.
+    sbtkeav=0.;sbshrav=0.;sbbuoav=0.;sbdissav=0;ekmav=0.;khkmav=0.;zltav=0.
     sbtkeavl=0.;khkmavl=0.
 
     !----------------------------
@@ -710,6 +712,8 @@ end subroutine do_genbudget
     call slabsum(sbbuoav ,1,k1,sbbuo ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(sbdissav,1,k1,sbdiss,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(ekmav   ,1,k1,ekm   ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    ! changed
+    call slabsum(zltav   ,1,k1,zlt   ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call MPI_ALLREDUCE(khkmavl, khkmav, k1, MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(sbtkeavl,sbtkeav,k1, MY_REAL, MPI_SUM, comm3d,mpierr)
     sbshrav  = sbshrav  / ijtot
@@ -717,6 +721,8 @@ end subroutine do_genbudget
     sbdissav = sbdissav/ ijtot
     sbtkeav  = sbtkeav  / ijtot
     ekmav    = ekmav    / ijtot
+    ! changed
+    zltav    = zltav    / ijtot
     khkmav   = khkmav   / ijtot
     !storage: tke at beginning of averaging period
     if (.not.(lsbtkeb)) then
@@ -735,10 +741,12 @@ end subroutine do_genbudget
      sbtkemn(k)   = sbtkemn(k)   + rhobf(k)*sbtkeav(k)
      ekmmn(k)     = ekmmn(k)     + ekmav(k)
      khkmmn(k)    = khkmmn(k)    + khkmav(k)
+     ! changed
+     zltmn(k)     = zltmn(k)     + zltav(k)
   enddo
 
     !Deallocate
-    deallocate(sbshrav,sbbuoav,sbdissav,ekmav,khkmav)
+    deallocate(sbshrav,sbbuoav,sbdissav,ekmav,khkmav,zltav)
     deallocate(sbtkeavl,khkmavl)
   end subroutine do_gensbbudget
 
@@ -773,6 +781,8 @@ end subroutine do_genbudget
     sbbuomn   = sbbuomn   /nsamples
     sbdissmn  = sbdissmn  /nsamples
     ekmmn     = ekmmn     /nsamples
+    ! changed
+    zltmn     = zltmn     /nsamples
     khkmmn    = khkmmn    /nsamples
     sbstormn  = (sbtkeav-sbtkeb)/timeav
     sbbudgmn  = sbshrmn+sbbuomn+sbdissmn
@@ -827,7 +837,7 @@ end subroutine do_genbudget
           ,'-----------------------------------)'
 
 
-       write(ifoutput,'(I3,F9.3,9E12.4)') &
+       write(ifoutput,'(I3,F9.3,10E12.4)') &
             (k, &
             zf      (k), &
             sbtkemn  (k), &
@@ -839,6 +849,7 @@ end subroutine do_genbudget
             sbresidmn (k), &
             ekmmn     (k), & !!!
             khkmmn    (k), &
+            zltmn     (k), &
             k=1,kmax)
        close(ifoutput)
     endif !endif myid==0
@@ -861,6 +872,7 @@ end subroutine do_genbudget
         vars(:,16) =sbresidmn
         vars(:,17) =ekmmn
         vars(:,18) =khkmmn
+        vars(:,19) =zltmn
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
       !Reset time mean variables; resolved TKE
@@ -869,7 +881,7 @@ end subroutine do_genbudget
       ltkeb=.false.
       !Reset time mean variables; subgrid TKE
       sbtkemn=0.;sbtkeb=0.;sbshrmn=0.;sbbuomn=0.;sbdissmn=0.;sbtkeb=0.
-      sbstormn=0.;sbbudgmn=0.;sbresidmn=0.;ekmmn=0.;khkmmn=0.;
+      sbstormn=0.;sbbudgmn=0.;sbresidmn=0.;ekmmn=0.;khkmmn=0.;zltmn=0.;
       lsbtkeb=.false.
   end subroutine writebudget
 
@@ -882,7 +894,7 @@ end subroutine do_genbudget
 
     deallocate(tkemn,tkeb,tkeav,shrmn,buomn,trspmn,ptrspmn,stormn,budgmn,residmn,dissmn)
     deallocate(sbtkemn,sbshrmn,sbbuomn,sbstormn,sbbudgmn,sbresidmn,sbdissmn,sbtkeb,sbtkeav)
-    deallocate(ekmmn,khkmmn)
+    deallocate(ekmmn,khkmmn,zltmn)
   end subroutine exitbudget
 
 end module modbudget
