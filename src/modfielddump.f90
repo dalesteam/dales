@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer :: nvar = 7
+  integer :: nvar = 9
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(:,:), allocatable :: ncname
@@ -106,18 +106,19 @@ contains
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
       allocate(ncname(nvar,4))
-      call ncinfo(tncname(1,:),'time','Time','s','time')
-      call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
-      call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
-      call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-!       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
+      call ncinfo(tncname(1,:), 'time',                                       'Time',    's','time')
+      call ncinfo(ncname( 1,:),    'u',                         'West-East velocity',  'm/s','mttt')
+      call ncinfo(ncname( 2,:),    'v',                       'South-North velocity',  'm/s','tmtt')
+      call ncinfo(ncname( 3,:),    'w',                          'Vertical velocity',  'm/s','ttmt')
+      call ncinfo(ncname( 4,:),   'qt',              'Total water specific humidity','kg/kg','tttt')
+      call ncinfo(ncname( 5,:),   'ql',             'Liquid water specific humidity','kg/kg','tttt')
+      call ncinfo(ncname( 6,:),  'thl',         'Liquid water potential temperature',    'K','tttt')
+      call ncinfo(ncname( 7,:), 'thvh','Virtual potential temperature at half level',    'K','ttmt')
+      call ncinfo(ncname( 8,:),    'T',                       'Absolute temperature',    'K','tttt')
+      call ncinfo(ncname( 9,:),    'P',                                   'Pressure',   'Pa','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
+        call ncinfo(ncname(9+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
       end do
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
@@ -131,10 +132,10 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,exnf, presf
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
-                          timee,dt_lim,cexpnr,ifoutput,rtimee
+                          timee,dt_lim,cexpnr,ifoutput,rtimee,cp,rlv
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr, imicro, imicro_none
@@ -274,9 +275,6 @@ contains
     
     if (lnetcdf) then 
       vars(:,:,:,7) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      do k=klow,khigh
-        vars(:,:,k,7) = vars(:,:,k,7) - thvh(k)
-      end do
     end if
     do i=2-ih,i1+ih, ncoarse
     do j=2-jh,j1+jh, ncoarse
@@ -297,7 +295,16 @@ contains
       close (ifoutput)
     endif
 
-    if (lnetcdf) vars(:,:,:,8:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+
+    if (lnetcdf) then
+      do k=klow,khigh
+        vars(:,:,k,8) = thl0(2:i1:ncoarse,2:j1:ncoarse,k) * exnf(k) + (rlv/cp) * ql0(2:i1:ncoarse,2:j1:ncoarse,k)
+        vars(:,:,k,9) = presf(k)
+      end do
+    endif
+
+
+    if (lnetcdf) vars(:,:,:,10:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)

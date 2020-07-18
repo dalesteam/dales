@@ -131,6 +131,7 @@ program DALES      !Version 4.0.0alpha
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
+  use modtowerdump,    only : inittowerdump, towerdump,exittowerdump
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,leibniztend
 
@@ -175,6 +176,7 @@ program DALES      !Version 4.0.0alpha
   !call initprojection
   call initcloudfield
   call initfielddump
+  call inittowerdump
   call initsamptend
   call initradstat
   call initlsmstat
@@ -281,6 +283,7 @@ program DALES      !Version 4.0.0alpha
     !call projection
     call cloudfield
     call fielddump
+    call towerdump
     !call particles
 
     call bulkmicrostat
@@ -318,6 +321,7 @@ program DALES      !Version 4.0.0alpha
   call exitlsmcrosssection
   call exitcape
   call exitfielddump
+  call exittowerdump
   call exitheterostats
   call exitcanopy
   call exitmodules
