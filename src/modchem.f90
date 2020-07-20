@@ -124,14 +124,14 @@ module modchem
 implicit none
 
 private
-PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2
+PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2, lchemreset, resettime
 save
 
   ! namoptions
   integer tnor, firstchem, lastchem
   real itermin,dtchmovie
-  real t_ref,q_ref,p_ref,h_ref
-  logical lchem, ldiuvar,lchconst,lchmovie,lcloudKconst,lsegr
+  real t_ref,q_ref,p_ref,h_ref, resettime
+  logical lchem, ldiuvar,lchconst,lchmovie,lcloudKconst,lsegr, lchemreset
   integer(kind=longint) ::     itimeav,tnextwrite,idtchmovie
 
   logical switch
@@ -245,7 +245,7 @@ SUBROUTINE initchem
 
   integer i, ierr
 
-  namelist/NAMCHEM/ lchem, lcloudKconst, tnor, firstchem,lastchem,ldiuvar,h_ref,lchconst, t_ref, q_ref, p_ref,lchmovie, dtchmovie,lsegr
+  namelist/NAMCHEM/ lchem, lcloudKconst, tnor, firstchem,lastchem,ldiuvar,h_ref,lchconst, t_ref, q_ref, p_ref,lchmovie, dtchmovie,lsegr,lchemreset, resettime
 
   itermin  = 1.e-6
 
@@ -264,6 +264,8 @@ SUBROUTINE initchem
   nchsp    = nsv
   lcloudKconst  = .false.
   lsegr    = .false.
+  lchemreset =.false.
+  resettime  = 0.0
 
   if(myid==0) then
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -293,6 +295,8 @@ SUBROUTINE initchem
   call MPI_BCAST(h_ref     ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(itermin   ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(dtchmovie ,1,MY_REAL     , 0,comm3d, mpierr)
+  call MPI_BCAST(lchemreset,1,mpi_logical , 0,comm3d, mpierr)
+  call MPI_BCAST(resettime ,1,mpi_logical , 0,comm3d, mpierr)
 
   lCHon = lchem
 
@@ -1085,11 +1089,13 @@ end subroutine read_chem
 
 
 SUBROUTINE twostep()     !(t,te,y)   (timee, timee+dt, sv0)
-use modglobal, only : rk3step,timee,i1,j1,kmax
+use modglobal, only : rk3step,timee,i1,j1,kmax,rtimee,zf
 use modfields, only: svm
 use modsurfdata, only: lrsAgs
 implicit none
 
+  integer k
+  
   if ((.not. lchem) .and. lrsAgs) then
     nr_raddep = 0
     if (.not. allocated(keff)) allocate (keff(2:i1,2:j1,0,kmax))
@@ -1105,6 +1111,78 @@ implicit none
   !!!! in twostep2 we use them as y(:,:,:,1:nchsp)
   !!!! they may be starting at XX but we acces them with index 1 to nchsp
   call twostep2(svm(:,:,:,firstchem:lastchem))
+
+  if (lchemreset) then
+     if (abs(rtimee - resettime) < 0.1) then
+        svm(:,:,:, 1) = 0.0
+        svm(:,:,:, 2) = 0.0
+        svm(:,:,:, 8) = 0.0
+        svm(:,:,:, 9) = 0.0
+        svm(:,:,:,11) = 0.0
+        svm(:,:,:,14) = 0.0
+        svm(:,:,:,15) = 0.0
+        svm(:,:,:,18) = 0.0
+
+        do k = 1,24  ! height 7.5 m -> 352.5 m
+           svm(:,:,k, 3) =  25.17 +  0.007437 * zf(k)
+           svm(:,:,k, 4) =  1.471 + 0.0001219 * zf(k)
+           svm(:,:,k, 5) = 107.05 -  0.006602 * zf(k)
+           svm(:,:,k, 6) = 0.1115 -   5.31e-5 * zf(k)
+           svm(:,:,k, 7) = 0.4545 - 0.0002618 * zf(k)
+           svm(:,:,k,10) = 1852.1 -    0.0374 * zf(k)
+           svm(:,:,k,12) =  2.209 -  0.000391 * zf(k)
+           svm(:,:,k,13) =   5.17 -    0.0101 * zf(k)
+           svm(:,:,k,16) = 0.1413 +  0.000101 * zf(k)
+           svm(:,:,k,17) = 0.4716 - 0.0001508 * zf(k)
+           svm(:,:,k,19) =  1.063 +  0.000299 * zf(k)
+        end do
+
+        do k = 25,64 ! height 367.5 m -> 952.5 m
+           svm(:,:,k, 3) =  26.26 +  0.004336 * zf(k)
+           svm(:,:,k, 4) =  1.475 + 0.0001114 * zf(k)
+           svm(:,:,k, 5) = 108.17 -  0.009788 * zf(k)
+           svm(:,:,k, 6) = 0.1273 -  9.784e-5 * zf(k)
+           svm(:,:,k, 7) = 0.5018 - 0.0003959 * zf(k)
+           svm(:,:,k,10) = 1847.4 -   0.02429 * zf(k)
+           svm(:,:,k,12) =  2.582 -  0.001449 * zf(k)
+           svm(:,:,k,13) =  2.434 -  0.002343 * zf(k)
+           svm(:,:,k,16) = 0.1894 -  3.537e-5 * zf(k)
+           svm(:,:,k,17) = 0.5873 - 0.0004793 * zf(k)
+           svm(:,:,k,19) = 1.3949 - 0.0006425 * zf(k)
+        end do
+
+        do k = 65,128 ! height 967.5 -> 1912.5 m
+           svm(:,:,k, 3) =  23.33 +  0.007413 * zf(k)
+           svm(:,:,k, 4) =  2.249 - 0.0007014 * zf(k)
+           svm(:,:,k, 5) = 107.47 -  0.009051 * zf(k)
+           svm(:,:,k, 6) = 0.0546 -  2.151e-5 * zf(k)
+           svm(:,:,k, 7) = 0.2176 -  9.756e-5 * zf(k)
+           svm(:,:,k,10) = 1845.2 -   0.02188 * zf(k)
+           svm(:,:,k,12) =   1.96 - 0.0007965 * zf(k)
+           svm(:,:,k,13) =  0.392 - 0.0001986 * zf(k)
+           svm(:,:,k,16) = 0.2898 - 0.0001408 * zf(k)
+           svm(:,:,k,17) = 0.2507 - 0.0001259 * zf(k)
+           svm(:,:,k,19) =  0.997 - 0.0002248 * zf(k)
+        end do
+
+        do k = 129,kmax ! height 1927.5 m -> top
+           svm(:,:,k, 3) =     28.43 +  0.004745 * zf(k)
+           svm(:,:,k, 4) =    0.2173 + 0.0003611 * zf(k)
+           svm(:,:,k, 5) =     85.97 +  0.002193 * zf(k)
+           svm(:,:,k, 6) = -0.001305 +  7.718e-6 * zf(k)
+           svm(:,:,k, 7) =   0.02078 +  5.376e-6 * zf(k)
+           svm(:,:,k,10) =    1797.2 +  0.003188 * zf(k)
+           svm(:,:,k,12) =    0.4118 +  1.295e-5 * zf(k)
+           svm(:,:,k,13) =   0.03557 -  1.219e-5 * zf(k)
+           svm(:,:,k,16) =   0.06351 -  2.247e-5 * zf(k)
+           svm(:,:,k,17) =   0.02991 -   1.04e-5 * zf(k)
+           svm(:,:,k,19) =     0.645 -   4.07e-5 * zf(k)
+        end do
+
+        svm(:,:,:,firstchem:lastchem) = max(svm(:,:,:,firstchem:lastchem),0.0)
+     endif
+  endif
+
   if (timee >= tnextwrite ) then
     tnextwrite = tnextwrite + itimeav
   endif

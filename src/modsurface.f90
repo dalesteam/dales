@@ -704,8 +704,8 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv
-    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use modglobal,  only : i1,i2,j1,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,pi,rtimee
+    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av, svm
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
@@ -979,6 +979,19 @@ contains
             do n=1,nsv
               svflux(i,j,n) = wsvsurf(n)
             enddo
+          endif
+
+          svflux(i,j, 3) = -0.0056 * svm(i,j,1, 3)
+          svflux(i,j, 4) = -0.0059 * svm(i,j,1, 4)
+          svflux(i,j, 6) = -0.0001 * svm(i,j,1, 6)
+          svflux(i,j, 7) = -0.0027 * svm(i,j,1, 7)
+          svflux(i,j,12) = -0.0027 * svm(i,j,1,12)
+          svflux(i,j,16) = -0.0250 * svm(i,j,1,16)
+          svflux(i,j,17) = -0.0032 * svm(i,j,1,17)
+
+          if ((rtimee > 10800) .and. (rtime < 50400)) then
+            svflux(i,j, 6) = svflux(i,j, 6) + 0.03 * sin(pi*(rtimee - 10800)/(50400- 10800))
+            svflux(i,j,13) =                  1.1  * sin(pi*(rtimee - 10800)/(50400- 10800))
           endif
          
           phimzf = phim(zf(1)/obl(i,j))
