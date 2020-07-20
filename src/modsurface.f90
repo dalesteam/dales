@@ -989,7 +989,7 @@ contains
           svflux(i,j,16) = -0.0250 * svm(i,j,1,16)
           svflux(i,j,17) = -0.0032 * svm(i,j,1,17)
 
-          if ((rtimee > 10800) .and. (rtime < 50400)) then
+          if ((rtimee > 10800) .and. (rtimee < 50400)) then
             svflux(i,j, 6) = svflux(i,j, 6) + 0.03 * sin(pi*(rtimee - 10800)/(50400- 10800))
             svflux(i,j,13) =                  1.1  * sin(pi*(rtimee - 10800)/(50400- 10800))
           endif
