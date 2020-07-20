@@ -608,8 +608,8 @@ contains
     end if
 
     allocate(rs(i2,j2))
+    allocate(ra(i2,j2))
     if(isurf <= 2) then
-      allocate(ra(i2,j2))
 
       ! CvH set initial values for rs and ra to be able to compute qskin
       ra = 50.

@@ -88,8 +88,8 @@ module modlsm
         real, allocatable :: phiw_mean(:,:)
     end type lsm_tile
 
-    ! Tiles for low veg (lv), high veg (hv), bare soil (bs), wet skin (ws):
-    type(lsm_tile) tile_lv, tile_hv, tile_bs, tile_ws
+    ! Tiles for low veg (lv), high veg (hv), bare soil (bs), wet skin (ws), water (aq):
+    type(lsm_tile) tile_lv, tile_hv, tile_bs, tile_ws, tile_aq
 
     ! Land-surface / van Genuchten parameters from NetCDF input table.
     real, allocatable :: &
@@ -123,13 +123,6 @@ subroutine lsm
     ! Calculate aerodynamic resistance (and u*, obuk).
     call calc_stability
 
-    ! Calculate surface temperature for each tile, and calculate
-    ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
-    call calc_tile_bcs(tile_lv)
-    call calc_tile_bcs(tile_hv)
-    call calc_tile_bcs(tile_bs)
-    call calc_tile_bcs(tile_ws)
-
     ! Set grid point averaged boundary conditions (thls, qts, gradients, ..)
     call calc_bulk_bcs
 
@@ -147,7 +140,7 @@ subroutine lsm
     call integrate_theta_soil
 
     ! Update liquid water reservoir
-    call calc_liquid_reservoir
+    !call calc_liquid_reservoir
 
 end subroutine lsm
 
@@ -161,14 +154,21 @@ subroutine calc_tile_fractions
 
     integer :: i, j
 
-    do j=2, j1
-        do i=2, i1
-            tile_ws%frac(i,j) = min(1., wl(i,j) / wl_max(i,j))
-            tile_lv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_lv%base_frac(i,j)
-            tile_hv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_hv%base_frac(i,j)
-            tile_bs%frac(i,j) = (1.-tile_ws%frac(i,j)) * (1. - tile_lv%base_frac(i,j) - tile_hv%base_frac(i,j))
-        end do
-    end do
+    ! BvS: tmp hack...
+    tile_ws%frac(:,:) = 0.
+    tile_lv%frac(:,:) = tile_lv%base_frac(:,:)
+    tile_hv%frac(:,:) = tile_hv%base_frac(:,:)
+    tile_bs%frac(:,:) = tile_bs%base_frac(:,:)
+    tile_aq%frac(:,:) = tile_aq%base_frac(:,:)
+
+    !do j=2, j1
+    !    do i=2, i1
+    !        tile_ws%frac(i,j) = min(1., wl(i,j) / wl_max(i,j))
+    !        tile_lv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_lv%base_frac(i,j)
+    !        tile_hv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_hv%base_frac(i,j)
+    !        tile_bs%frac(i,j) = (1.-tile_ws%frac(i,j)) * (1. - tile_lv%base_frac(i,j) - tile_hv%base_frac(i,j))
+    !    end do
+    !end do
 
 end subroutine calc_tile_fractions
 
@@ -349,6 +349,7 @@ subroutine calc_stability
     call calc_obuk_ustar_ra(tile_hv)
     call calc_obuk_ustar_ra(tile_bs)
     call calc_obuk_ustar_ra(tile_ws)
+    call calc_obuk_ustar_ra(tile_aq)
 
 end subroutine calc_stability
 
@@ -366,22 +367,27 @@ subroutine calc_obuk_ustar_ra(tile)
 
     do j=2,j1
         do i=2,i1
-            ! Buoyancy difference surface - atmosphere
-            thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
-            !tile%db(i,j) = grav/thvs * (thvs - thv_1(i,j))
-            tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
+            if (tile%frac(i,j) > 0) then
+                ! Buoyancy difference surface - atmosphere
+                thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
+                !tile%db(i,j) = grav/thvs * (thvs - thv_1(i,j))
+                tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
 
-            ! Iteratively find Obukhov length
-            tile%obuk(i,j) = calc_obuk_dirichlet( &
-                tile%obuk(i,j), du_tot(i,j), tile%db(i,j), zf(1), tile%z0m(i,j), tile%z0h(i,j))
+                ! Iteratively find Obukhov length
+                tile%obuk(i,j) = calc_obuk_dirichlet( &
+                    tile%obuk(i,j), du_tot(i,j), tile%db(i,j), zf(1), tile%z0m(i,j), tile%z0h(i,j))
+
+            end if
         end do
     end do
 
     do j=2,j1
         do i=2,i1
-            ! Calculate friction velocity and aerodynamic resistance
-            tile%ustar(i,j) = du_tot(i,j) * fm(zf(1), tile%z0m(i,j), tile%obuk(i,j))
-            tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j)))
+            if (tile%frac(i,j) > 0) then
+                ! Calculate friction velocity and aerodynamic resistance
+                tile%ustar(i,j) = du_tot(i,j) * fm(zf(1), tile%z0m(i,j), tile%obuk(i,j))
+                tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j)))
+            end if
         end do
     end do
 
@@ -412,64 +418,99 @@ subroutine calc_tile_bcs(tile)
 
     do j=2, j1
         do i=2, i1
+            if (tile%frac(i,j) > 0) then
 
-            ! Disable canopy resistance in case of dew fall
-            Ts    = tile%thlskin(i,j) * exnh(1)
-            esats = 0.611e3 * exp(17.2694 * (Ts - 273.16) / (Ts - 35.86))
-            qsats = 0.622 * esats / ps
+                ! Disable canopy resistance in case of dew fall
+                Ts    = tile%thlskin(i,j) * exnh(1)
+                esats = 0.611e3 * exp(17.2694 * (Ts - 273.16) / (Ts - 35.86))
+                qsats = 0.622 * esats / ps
 
-            if (qsats < qt0(i,j,1)) then
-                rs_lim = 0.
-            else
-                rs_lim = tile%rs(i,j)
+                if (qsats < qt0(i,j,1)) then
+                    rs_lim = 0.
+                else
+                    rs_lim = tile%rs(i,j)
+                end if
+
+                ! Calculate recuring terms
+                ! NOTE: this should use the surface density, not rhof(1).
+                !       Not sure if rhoh is available somewhere...
+                fH  = rhof(1) * cp  / tile%ra(i,j)
+                fLE = rhof(1) * rlv / (tile%ra(i,j) + rs_lim)
+
+                if (tile%db(i,j) > 0) then
+                    fG = tile%lambda_stable(i,j)
+                else
+                    fG = tile%lambda_unstable(i,j)
+                end if
+
+                ! Net radiation; negative sign = net input of radiation at surface
+                Qnet = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
+
+                ! Solve new skin temperature from SEB
+                desatdTs = esats * (17.2694 / (Ts - 35.86) - 17.2694 * (Ts - 273.16) / (Ts - 35.86)**2.)
+                dqsatdTs = 0.622 * desatdTs / ps
+                Ta = thl0(i,j,1) * exnf(1)
+
+                num = -(Qnet - lwu(i,j,1) &
+                      - fH * Ta + (qsats - dqsatdTs * Ts - qt0(i,j,1)) * fLE &
+                      - fG * tsoil(i,j,kmax_soil) - 3.*boltz * Ts**4)
+                denom = (fH + fLE * dqsatdTs + fG + 4.*boltz * Ts**3)
+                tile%tskin(i,j) = num / denom
+
+                ! Update qsat with linearised relation, to make sure that the SEB closes
+                qsat_new = qsats + dqsatdTs * (tile%tskin(i,j) - Ts)
+
+                ! Calculate energetic surface fluxes
+                tile%H (i,j) = fH  * (tile%tskin(i,j) - Ta)
+                tile%LE(i,j) = fLE * (qsat_new - qt0(i,j,1))
+                tile%G (i,j) = fG  * (tsoil(i,j,kmax_soil) - tile%tskin(i,j))
+
+                ! Calculate kinematic surface fluxes
+                tile%wthl(i,j) = tile%H (i,j) * rhocp_i
+                tile%wqt (i,j) = tile%LE(i,j) * rholv_i
+
+                ! Calculate surface values
+                tile%thlskin(i,j) = thl0(i,j,1) + tile%wthl(i,j) * tile%ra(i,j)
+                tile%qtskin (i,j) = qt0 (i,j,1) + tile%wqt (i,j) * tile%ra(i,j)
             end if
-
-            ! Calculate recuring terms
-            ! NOTE: this should use the surface density, not rhof(1).
-            !       Not sure if rhoh is available somewhere...
-            fH  = rhof(1) * cp  / tile%ra(i,j)
-            fLE = rhof(1) * rlv / (tile%ra(i,j) + rs_lim)
-
-            if (tile%db(i,j) > 0) then
-                fG = tile%lambda_stable(i,j)
-            else
-                fG = tile%lambda_unstable(i,j)
-            end if
-
-            ! Net radiation; negative sign = net input of radiation at surface
-            Qnet = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
-
-            ! Solve new skin temperature from SEB
-            desatdTs = esats * (17.2694 / (Ts - 35.86) - 17.2694 * (Ts - 273.16) / (Ts - 35.86)**2.)
-            dqsatdTs = 0.622 * desatdTs / ps
-            Ta = thl0(i,j,1) * exnf(1)
-
-            num = -(Qnet - lwu(i,j,1) &
-                  - fH * Ta + (qsats - dqsatdTs * Ts - qt0(i,j,1)) * fLE &
-                  - fG * tsoil(i,j,kmax_soil) - 3.*boltz * Ts**4)
-            denom = (fH + fLE * dqsatdTs + fG + 4.*boltz * Ts**3)
-            tile%tskin(i,j) = num / denom
-
-            ! Update qsat with linearised relation, to make sure that the SEB closes
-            qsat_new = qsats + dqsatdTs * (tile%tskin(i,j) - Ts)
-
-            ! Calculate energetic surface fluxes
-            tile%H (i,j) = fH  * (tile%tskin(i,j) - Ta)
-            tile%LE(i,j) = fLE * (qsat_new - qt0(i,j,1))
-            tile%G (i,j) = fG  * (tsoil(i,j,kmax_soil) - tile%tskin(i,j))
-
-            ! Calculate kinematic surface fluxes
-            tile%wthl(i,j) = tile%H (i,j) * rhocp_i
-            tile%wqt (i,j) = tile%LE(i,j) * rholv_i
-
-            ! Calculate surface values
-            tile%thlskin(i,j) = thl0(i,j,1) + tile%wthl(i,j) * tile%ra(i,j)
-            tile%qtskin (i,j) = qt0 (i,j,1) + tile%wqt (i,j) * tile%ra(i,j)
-
         end do
     end do
 
 end subroutine calc_tile_bcs
+
+!
+! Calculate BCs and fluxes for the water tile
+!
+subroutine calc_water_bcs
+    use modglobal,   only : i1, j1, cp, rlv
+    use modfields,   only : exnh, thl0, qt0, rhof
+    use modsurfdata, only : ps
+    implicit none
+
+    integer :: i, j
+    real :: esats
+
+    do j=2, j1
+        do i=2, i1
+            if (tile_aq%frac(i,j) > 0) then
+                ! Calculate BCs. `tile_aq%tskin` is fixed in time (for now...)
+                tile_aq%thlskin(i,j) = tile_aq%tskin(i,j) / exnh(1)
+                esats = 0.611e3 * exp(17.2694 * (tile_aq%tskin(i,j) - 273.16) / (tile_aq%tskin(i,j) - 35.86))
+                tile_aq%qtskin(i,j) = 0.622 * esats / ps
+
+                ! Calculate kinematic fluxes
+                tile_aq%wthl(i,j) = 1./tile_aq%ra(i,j) * (tile_aq%thlskin(i,j) - thl0(i,j,1))
+                tile_aq%wqt (i,j) = 1./tile_aq%ra(i,j) * (tile_aq%qtskin (i,j) - qt0 (i,j,1))
+
+                ! Calculate energetic fluxes
+                tile_aq%H (i,j) = tile_aq%wthl(i,j) * rhof(1) * cp
+                tile_aq%LE(i,j) = tile_aq%wqt (i,j) * rhof(1) * rlv
+                tile_aq%G (i,j) = 0.
+            end if
+        end do
+    end do
+
+end subroutine calc_water_bcs
 
 !
 ! Set grid point mean boundary conditions, as used by
@@ -490,43 +531,58 @@ subroutine calc_bulk_bcs
     rhocp_i = 1. / (rhof(1) * cp)
     rholv_i = 1. / (rhof(1) * rlv)
 
+    ! Calculate surface temperature for each tile, and calculate
+    ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
+    call calc_tile_bcs(tile_lv)
+    call calc_tile_bcs(tile_hv)
+    call calc_tile_bcs(tile_bs)
+    call calc_tile_bcs(tile_ws)
+    call calc_water_bcs
+
     do j=2,j1
         do i=2,i1
             ! Calc grid point averaged quantities
             H(i,j) = tile_lv%frac(i,j) * tile_lv%H(i,j) + &
                      tile_hv%frac(i,j) * tile_hv%H(i,j) + &
                      tile_bs%frac(i,j) * tile_bs%H(i,j) + &
-                     tile_ws%frac(i,j) * tile_ws%H(i,j)
+                     tile_ws%frac(i,j) * tile_ws%H(i,j) + &
+                     tile_aq%frac(i,j) * tile_aq%H(i,j)
 
             LE(i,j) = tile_lv%frac(i,j) * tile_lv%LE(i,j) + &
                       tile_hv%frac(i,j) * tile_hv%LE(i,j) + &
                       tile_bs%frac(i,j) * tile_bs%LE(i,j) + &
-                      tile_ws%frac(i,j) * tile_ws%LE(i,j)
+                      tile_ws%frac(i,j) * tile_ws%LE(i,j) + &
+                      tile_aq%frac(i,j) * tile_aq%LE(i,j)
 
             G0(i,j) = tile_lv%frac(i,j) * tile_lv%G(i,j) + &
                       tile_hv%frac(i,j) * tile_hv%G(i,j) + &
                       tile_bs%frac(i,j) * tile_bs%G(i,j) + &
-                      tile_ws%frac(i,j) * tile_ws%G(i,j)
+                      tile_ws%frac(i,j) * tile_ws%G(i,j) + &
+                      tile_aq%frac(i,j) * tile_aq%G(i,j)
 
             ustar(i,j) = tile_lv%frac(i,j) * tile_lv%ustar(i,j) + &
                          tile_hv%frac(i,j) * tile_hv%ustar(i,j) + &
                          tile_bs%frac(i,j) * tile_bs%ustar(i,j) + &
-                         tile_ws%frac(i,j) * tile_ws%ustar(i,j)
+                         tile_ws%frac(i,j) * tile_ws%ustar(i,j) + &
+                         tile_aq%frac(i,j) * tile_aq%ustar(i,j)
 
             obl(i,j) = tile_lv%frac(i,j) * tile_lv%obuk(i,j) + &
                        tile_hv%frac(i,j) * tile_hv%obuk(i,j) + &
                        tile_bs%frac(i,j) * tile_bs%obuk(i,j) + &
-                       tile_ws%frac(i,j) * tile_ws%obuk(i,j)
+                       tile_ws%frac(i,j) * tile_ws%obuk(i,j) + &
+                       tile_aq%frac(i,j) * tile_aq%obuk(i,j)
 
             tskin(i,j) = tile_lv%frac(i,j) * tile_lv%thlskin(i,j) + &
                          tile_hv%frac(i,j) * tile_hv%thlskin(i,j) + &
                          tile_bs%frac(i,j) * tile_bs%thlskin(i,j) + &
-                         tile_ws%frac(i,j) * tile_ws%thlskin(i,j)
+                         tile_ws%frac(i,j) * tile_ws%thlskin(i,j) + &
+                         tile_aq%frac(i,j) * tile_aq%thlskin(i,j)
 
             qskin(i,j) = tile_lv%frac(i,j) * tile_lv%qtskin(i,j) + &
                          tile_hv%frac(i,j) * tile_hv%qtskin(i,j) + &
                          tile_bs%frac(i,j) * tile_bs%qtskin(i,j) + &
-                         tile_ws%frac(i,j) * tile_ws%qtskin(i,j)
+                         tile_ws%frac(i,j) * tile_ws%qtskin(i,j) + &
+                         tile_aq%frac(i,j) * tile_aq%qtskin(i,j)
 
             ! Kinematic surface fluxes
             thlflux(i,j) =  H(i,j)  * rhocp_i
@@ -991,7 +1047,8 @@ subroutine allocate_fields
     use modsurfdata, only : &
         tsoil, tsoilm, phiw, phiwm, &
         lambda, lambdah, lambdas, lambdash, gammas, gammash, &
-        H, LE, G0, Qnet, wl, wlm
+        H, LE, G0, Qnet, wl, wlm, &
+        tendskin, cliq, rsveg, rssoil
     implicit none
 
     ! Allocate soil variables
@@ -1041,11 +1098,18 @@ subroutine allocate_fields
     allocate(LE   (i2, j2))
     allocate(G0   (i2, j2))
 
+    ! TMP, to prevent segfaults in modlsmcrosssection.f90
+    allocate(tendskin(i2, j2))
+    allocate(cliq(i2, j2))
+    allocate(rsveg(i2, j2))
+    allocate(rssoil(i2, j2))
+
     ! Allocate the tiled variables
     call allocate_tile(tile_lv)
     call allocate_tile(tile_hv)
     call allocate_tile(tile_bs)
     call allocate_tile(tile_ws)
+    call allocate_tile(tile_aq)
 
 end subroutine allocate_fields
 
@@ -1128,6 +1192,10 @@ subroutine init_lsm_tiles
     tile_ws % qtskin (:,:) = qtprof(1)
     tile_ws % obuk   (:,:) = -0.1
 
+    tile_aq % thlskin(:,:) = thlprof(1)
+    tile_aq % qtskin (:,:) = qtprof(1)
+    tile_aq % obuk   (:,:) = -0.1
+
 end subroutine init_lsm_tiles
 
 !
@@ -1140,31 +1208,32 @@ subroutine init_homogeneous
     implicit none
 
     integer :: ierr, k
-    real :: c_low, c_high, c_bare
-    real :: z0m_low, z0m_high, z0m_bare
-    real :: z0h_low, z0h_high, z0h_bare
+    real :: c_low, c_high, c_bare, c_water
+    real :: z0m_low, z0m_high, z0m_bare, z0m_water
+    real :: z0h_low, z0h_high, z0h_bare, z0h_water
     real :: lambda_s_low, lambda_s_high, lambda_s_bare
     real :: lambda_us_low, lambda_us_high, lambda_us_bare
     real :: lai_low, lai_high
     real :: rs_min_low, rs_min_high, rs_min_bare
     real :: ar_low, br_low, ar_high, br_high
     real :: gD_high
+    real :: tskin_water
 
     real, allocatable :: t_soil_p(:), theta_soil_p(:)
     integer, allocatable :: soil_index_p(:)
 
     ! Read namelist
     namelist /NAMLSM_HOMOGENEOUS/ &
-        c_low, c_high, &
-        z0m_low, z0m_high, z0m_bare, &
-        z0h_low, z0h_high, z0h_bare, &
+        c_low, c_high, c_bare, c_water, &
+        z0m_low, z0m_high, z0m_bare, z0m_water, &
+        z0h_low, z0h_high, z0h_bare, z0h_water, &
         lambda_s_low, lambda_s_high, lambda_s_bare, &
         lambda_us_low, lambda_us_high, lambda_us_bare, &
         lai_low, lai_high, &
         rs_min_low, rs_min_high, rs_min_bare, &
         t_soil_p, theta_soil_p, soil_index_p, &
         ar_low, br_low, ar_high, br_high, &
-        gD_high
+        gD_high, tskin_water
 
     allocate(t_soil_p(kmax_soil), theta_soil_p(kmax_soil))
     allocate(soil_index_p(kmax_soil))
@@ -1178,16 +1247,20 @@ subroutine init_homogeneous
     end if
 
     ! Broadcast to all MPI tasks
-    call MPI_BCAST(c_low,  1, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(c_high, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(c_low,   1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(c_high,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(c_bare,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(c_water, 1, my_real, 0, comm3d, mpierr)
 
-    call MPI_BCAST(z0m_low,  1, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(z0m_high, 1, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(z0m_bare, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_low,   1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_high,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_bare,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_water, 1, my_real, 0, comm3d, mpierr)
 
-    call MPI_BCAST(z0h_low,  1, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(z0h_high, 1, my_real, 0, comm3d, mpierr)
-    call MPI_BCAST(z0h_bare, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_low,   1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_high,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_bare,  1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_water, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(lambda_s_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(lambda_s_high, 1, my_real, 0, comm3d, mpierr)
@@ -1215,20 +1288,24 @@ subroutine init_homogeneous
 
     call MPI_BCAST(gD_high, 1, my_real, 0, comm3d, mpierr)
 
+    call MPI_BCAST(tskin_water, 1, my_real, 0, comm3d, mpierr)
+
     ! Set values
-    c_bare = 1.-c_low-c_high
     tile_lv % base_frac(:,:) = c_low
     tile_hv % base_frac(:,:) = c_high
     tile_bs % base_frac(:,:) = c_bare
+    tile_aq % base_frac(:,:) = c_water
     tile_ws % base_frac(:,:) = 0.
 
     tile_lv % z0m(:,:) = z0m_low
     tile_hv % z0m(:,:) = z0m_high
     tile_bs % z0m(:,:) = z0m_bare
+    tile_aq % z0m(:,:) = z0m_water
 
     tile_lv % z0h(:,:) = z0h_low
     tile_hv % z0h(:,:) = z0h_high
     tile_bs % z0h(:,:) = z0h_bare
+    tile_aq % z0h(:,:) = z0h_water
 
     tile_lv % lambda_stable(:,:) = lambda_s_low
     tile_hv % lambda_stable(:,:) = lambda_s_high
@@ -1251,6 +1328,8 @@ subroutine init_homogeneous
     tile_hv % b_r(:,:) = br_high
 
     gD(:,:) = gD_high
+
+    tile_aq % tskin(:,:) = tskin_water
 
     if (.not. lwarmstart) then
         ! Init prognostic variables in case of cold start.
@@ -1309,14 +1388,18 @@ subroutine init_heterogeneous
     ! 2D surface fields
     read(666) tile_lv%base_frac(2:i1, 2:j1)
     read(666) tile_hv%base_frac(2:i1, 2:j1)
+    read(666) tile_bs%base_frac(2:i1, 2:j1)
+    read(666) tile_aq%base_frac(2:i1, 2:j1)
 
     read(666) tile_lv%z0m(2:i1, 2:j1)
     read(666) tile_hv%z0m(2:i1, 2:j1)
     read(666) tile_bs%z0m(2:i1, 2:j1)
+    read(666) tile_aq%z0m(2:i1, 2:j1)
 
     read(666) tile_lv%z0h(2:i1, 2:j1)
     read(666) tile_hv%z0h(2:i1, 2:j1)
     read(666) tile_bs%z0h(2:i1, 2:j1)
+    read(666) tile_aq%z0h(2:i1, 2:j1)
 
     read(666) tile_lv%lambda_stable(2:i1, 2:j1)
     read(666) tile_hv%lambda_stable(2:i1, 2:j1)
@@ -1340,6 +1423,8 @@ subroutine init_heterogeneous
 
     read(666) gD(2:i1, 2:j1)
 
+    read(666) tile_aq%tskin(2:i1, 2:j1)
+
     ! 3D soil fields
     read(666) soil_index(2:i1, 2:j1, 1:kmax_soil)
 
@@ -1354,7 +1439,6 @@ subroutine init_heterogeneous
     close(666)
 
     ! Derived quantities
-    tile_bs%base_frac(:,:) = 1.-tile_lv%base_frac(:,:)-tile_hv%base_frac(:,:)
     tile_ws%base_frac(:,:) = 0.
 
     ! Set properties wet skin tile
@@ -1603,6 +1687,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     if (m > 1) then
         print*,'WARNING: convergence has not been reached in Obukhov length iteration'
         print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
+        stop
         res = 1e-9
         return
     end if
