@@ -522,11 +522,12 @@ subroutine calc_bulk_bcs
     use modsurface,  only : phim, phih
     use modmpi,      only : excjs
     use modsurfdata, only : &
-        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, dudz, dvdz, ustar, obl
+        H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
+        dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil
     implicit none
 
     integer :: i, j
-    real :: rhocp_i, rholv_i, ra, ucu, vcv
+    real :: rhocp_i, rholv_i, ucu, vcv, cveg
 
     rhocp_i = 1. / (rhof(1) * cp)
     rholv_i = 1. / (rhof(1) * rlv)
@@ -601,6 +602,29 @@ subroutine calc_bulk_bcs
 
             ! Cyclic BCs where needed.
             call excjs(ustar,2,i1,2,j1,1,1,1,1)
+
+            ! Just for diagnostics (modlsmcrosssection)
+            cliq(i,j) = tile_ws%frac(i,j)
+
+            ra(i,j) = tile_lv%frac(i,j) * tile_lv%ra(i,j) + &
+                      tile_hv%frac(i,j) * tile_hv%ra(i,j) + &
+                      tile_bs%frac(i,j) * tile_bs%ra(i,j) + &
+                      tile_ws%frac(i,j) * tile_ws%ra(i,j) + &
+                      tile_aq%frac(i,j) * tile_aq%ra(i,j)
+
+            cveg = tile_lv%frac(i,j) + tile_hv%frac(i,j)
+            if (cveg > 0) then
+                rsveg(i,j) = (tile_lv%frac(i,j) * tile_lv%rs(i,j) + &
+                              tile_hv%frac(i,j) * tile_hv%rs(i,j)) / cveg
+            else
+                rsveg(i,j) = 0.
+            end if
+
+            if (tile_bs%frac(i,j) > 0) then
+                rssoil(i,j) = tile_bs%rs(i,j)
+            else
+                rssoil(i,j) = 0.
+            end if
 
         end do
     end do
