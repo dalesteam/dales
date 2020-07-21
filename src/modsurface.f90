@@ -981,6 +981,14 @@ contains
             enddo
           endif
 
+          if ((rtimee > 3600) .and. (rtimee < 52200)) then
+            thlflux(i,j) =     0.1 * sin(pi*(rtimee - 3600)/(52200 - 3600))
+          endif
+
+          if ((rtimee > 7200) .and. (rtimee < 52200)) then
+            thlflux(i,j) = 0.15e-3 * sin(pi*(rtimee - 7200)/(52200 - 7200))
+          endif
+
           svflux(i,j, 3) = -0.0056 * svm(i,j,1, 3)
           svflux(i,j, 4) = -0.0059 * svm(i,j,1, 4)
           svflux(i,j, 6) = -0.0001 * svm(i,j,1, 6)
@@ -990,8 +998,8 @@ contains
           svflux(i,j,17) = -0.0032 * svm(i,j,1,17)
 
           if ((rtimee > 10800) .and. (rtimee < 50400)) then
-            svflux(i,j, 6) = svflux(i,j, 6) + 0.03 * sin(pi*(rtimee - 10800)/(50400- 10800))
-            svflux(i,j,13) =                  1.1  * sin(pi*(rtimee - 10800)/(50400- 10800))
+            svflux(i,j, 6) = svflux(i,j, 6) + 0.03 * sin(pi*(rtimee - 10800)/(50400 - 10800))
+            svflux(i,j,13) =                  1.1  * sin(pi*(rtimee - 10800)/(50400 - 10800))
           endif
          
           phimzf = phim(zf(1)/obl(i,j))
