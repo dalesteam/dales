@@ -175,6 +175,7 @@ contains
     call MPI_BCAST(itot       ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(kmax_soil  ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(xsize      ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(ysize      ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(xlat       ,1,MY_REAL   ,0,commwrld,mpierr)

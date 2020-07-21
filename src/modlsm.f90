@@ -1474,14 +1474,19 @@ end subroutine init_heterogeneous
 ! Read the input table with the (van Genuchten) soil parameters
 !
 subroutine read_soil_table
+    use modmpi, only : myid, comm3d, mpierr, mpi_logical, my_real, mpi_integer
     implicit none
     integer :: table_size, ncid, dimid, varid
 
-    ! Open the NetCDF file and read the table size
-    print*,'Reading "van_genuchten_parameters.nc"'
-    call check( nf90_open('van_genuchten_parameters.nc', nf90_nowrite, ncid) )
-    call check( nf90_inq_dimid(ncid, 'index', dimid) )
-    call check( nf90_inquire_dimension(ncid, dimid, len=table_size) )
+    if (myid == 0) then
+        ! Open the NetCDF file and read the table size
+        print*,'Reading "van_genuchten_parameters.nc"'
+        call check( nf90_open('van_genuchten_parameters.nc', nf90_nowrite, ncid) )
+        call check( nf90_inq_dimid(ncid, 'index', dimid) )
+        call check( nf90_inquire_dimension(ncid, dimid, len=table_size) )
+    end if
+
+    call MPI_BCAST(table_size, 1, mpi_integer, 0, comm3d, mpierr)
 
     ! Allocate variables
     allocate( &
@@ -1489,32 +1494,44 @@ subroutine read_soil_table
         theta_sat(table_size), gamma_theta_sat(table_size), &
         vg_a(table_size), vg_l(table_size), vg_n(table_size) )
 
-    ! Read variables
-    call check( nf90_inq_varid(ncid, 'theta_res', varid) )
-    call check( nf90_get_var(ncid, varid, theta_res) )
+    if (myid == 0) then
+        ! Read variables
+        call check( nf90_inq_varid(ncid, 'theta_res', varid) )
+        call check( nf90_get_var(ncid, varid, theta_res) )
 
-    call check( nf90_inq_varid(ncid, 'theta_wp', varid) )
-    call check( nf90_get_var(ncid, varid, theta_wp) )
+        call check( nf90_inq_varid(ncid, 'theta_wp', varid) )
+        call check( nf90_get_var(ncid, varid, theta_wp) )
 
-    call check( nf90_inq_varid(ncid, 'theta_fc', varid) )
-    call check( nf90_get_var(ncid, varid, theta_fc) )
+        call check( nf90_inq_varid(ncid, 'theta_fc', varid) )
+        call check( nf90_get_var(ncid, varid, theta_fc) )
 
-    call check( nf90_inq_varid(ncid, 'theta_sat', varid) )
-    call check( nf90_get_var(ncid, varid, theta_sat) )
+        call check( nf90_inq_varid(ncid, 'theta_sat', varid) )
+        call check( nf90_get_var(ncid, varid, theta_sat) )
 
-    call check( nf90_inq_varid(ncid, 'gamma_sat', varid) )
-    call check( nf90_get_var(ncid, varid, gamma_theta_sat) )
+        call check( nf90_inq_varid(ncid, 'gamma_sat', varid) )
+        call check( nf90_get_var(ncid, varid, gamma_theta_sat) )
 
-    call check( nf90_inq_varid(ncid, 'alpha', varid) )
-    call check( nf90_get_var(ncid, varid, vg_a) )
+        call check( nf90_inq_varid(ncid, 'alpha', varid) )
+        call check( nf90_get_var(ncid, varid, vg_a) )
 
-    call check( nf90_inq_varid(ncid, 'l', varid) )
-    call check( nf90_get_var(ncid, varid, vg_l) )
+        call check( nf90_inq_varid(ncid, 'l', varid) )
+        call check( nf90_get_var(ncid, varid, vg_l) )
 
-    call check( nf90_inq_varid(ncid, 'n', varid) )
-    call check( nf90_get_var(ncid, varid, vg_n) )
+        call check( nf90_inq_varid(ncid, 'n', varid) )
+        call check( nf90_get_var(ncid, varid, vg_n) )
 
-    call check( nf90_close(ncid) )
+        call check( nf90_close(ncid) )
+    end if
+
+    ! Broadcast to other MPI tasks
+    call MPI_BCAST(theta_res,       table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(theta_wp,        table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(theta_fc,        table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(theta_sat,       table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(gamma_theta_sat, table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(vg_a,            table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(vg_l,            table_size, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(vg_n,            table_size, my_real, 0, comm3d, mpierr)
 
 end subroutine read_soil_table
 
