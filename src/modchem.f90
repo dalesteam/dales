@@ -137,7 +137,7 @@ save
   logical switch
 
   integer   mrpcc
-  parameter (mrpcc = 20)
+  parameter (mrpcc = 40)
 
   integer,parameter :: NCCBA = 4   !Number Chemical Components Before Arrow !!!!!!!  4 is MAXIMUM !!!!!
   integer,parameter :: NCCAA = 8   !Number Chemical Components After Arrow  on change recompile !!!!!
@@ -485,9 +485,9 @@ subroutine inputchem
       read(line,*,end=300)reactconst,rname,raddep,func1,(fact(j),j=1,7),(spec(j),j=1,NNSPEC)
 300   j=j-1
 
-      if ((func1 == 6 .or. (raddep==1 .and. func1== 4)) .and. H2O%loc == 0) then
-        write(*,*) 'Function 6 or 4 needs H2O and this is not specified as a chemical component'
-      endif
+!      if ((func1 == 6 .or. (raddep==1 .and. func1== 4)) .and. H2O%loc == 0) then
+!        write(*,*) 'Function 6 or 4 needs H2O and this is not specified as a chemical component'
+!      endif
 
       !determine the number of chemical components
       i=1
