@@ -142,7 +142,6 @@ contains
 
 
     if (.not. ltowerdump) return
-    if (.not.  (myid==0)) return
     if (rk3step/=3) return
 
     if(timee<tnext) then
@@ -153,31 +152,35 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-    allocate(vars(khigh-klow+1,nvar))
+    if (myid==0) then
 
-    if (lnetcdf) then
-       vars(:,      1) =    u0(2,2,klow:khigh)
-       vars(:,      2) =    u0(3,2,klow:khigh)
-       vars(:,      3) =    v0(2,2,klow:khigh)
-       vars(:,      4) =    v0(2,3,klow:khigh)
-       vars(:,      5) =    w0(2,2,klow:khigh)
-       vars(:,      6) =   qt0(2,2,klow:khigh)
-       vars(:,      7) =   ql0(2,2,klow:khigh)
-       vars(:,      8) =  thl0(2,2,klow:khigh)
-       vars(:,      9) = thv0h(2,2,klow:khigh)
-       vars(:,     10) =  thl0(2,2,klow:khigh) * exnf(klow:khigh) + (rlv/cp) * ql0(2,2,klow:khigh) 
-       vars(:,     11) = presf(    klow:khigh)
-       vars(:,12:nvar) =   sv0(2,2,klow:khigh,:)
-    endif
+      allocate(vars(khigh-klow+1,nvar))
 
-    if(lnetcdf) then
-      call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-      call writestat_nc(ncid,nvar,ncname,vars,nrec,khigh-klow+1)
+      if (lnetcdf) then
+         vars(:,      1) =    u0(2,2,klow:khigh)
+         vars(:,      2) =    u0(3,2,klow:khigh)
+         vars(:,      3) =    v0(2,2,klow:khigh)
+         vars(:,      4) =    v0(2,3,klow:khigh)
+         vars(:,      5) =    w0(2,2,klow:khigh)
+         vars(:,      6) =   qt0(2,2,klow:khigh)
+         vars(:,      7) =   ql0(2,2,klow:khigh)
+         vars(:,      8) =  thl0(2,2,klow:khigh)
+         vars(:,      9) = thv0h(2,2,klow:khigh)
+         vars(:,     10) =  thl0(2,2,klow:khigh) * exnf(klow:khigh) + (rlv/cp) * ql0(2,2,klow:khigh) 
+         vars(:,     11) = presf(    klow:khigh)
+         vars(:,12:nvar) =   sv0(2,2,klow:khigh,:)
+      endif
+
+      if(lnetcdf) then
+        call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
+        call writestat_nc(ncid,nvar,ncname,vars,nrec,khigh-klow+1)
+      end if
+
+      writecounter=writecounter+1
+
+      deallocate(vars)
+
     end if
-
-    writecounter=writecounter+1
-
-    deallocate(vars)
 
   end subroutine towerdump
 !> Clean up when leaving the run
