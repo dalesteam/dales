@@ -113,7 +113,7 @@ contains
         call ncinfo(ncname(11,:),   'P',                          'Pressure',   'Pa',  'tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(11+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tt')
+          call ncinfo(ncname(11+n,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','ppb','tt')
         end do
         call open_nc(fname,  ncid,nrec,n3=khigh-klow+1)
         if (nrec==0) then
