@@ -191,17 +191,13 @@ subroutine  halflev_kappa(putin,putout)
 
 !> Determination of the limiter function
   real function rlim(d1,d2)
-    use modglobal, only : eps1
     implicit none
     real, intent(in) :: d1 !< Scalar flux at 1.5 cells upwind
     real, intent(in) :: d2 !< Scalar flux at 0.5 cells upwind
 
     real ri,phir
 
-    ri    = (d2+eps1)/(d1+eps1)
-    phir  = max(0.,min(2.*ri,min(1./3.+2./3.*ri,2.)))
-    rlim  = 0.5*phir*d1
+    rlim = min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+      (sign(0.5, d1) + sign(0.5, d2))
+
     end function rlim
-
-
-
