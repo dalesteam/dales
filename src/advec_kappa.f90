@@ -36,8 +36,8 @@
 
   subroutine advecc_kappa(putin,putout)
 
-  use modstub, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzi
-  use modstub, only : u0, v0, w0, rhobf
+  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzi
+  use modfields, only : u0, v0, w0, rhobf
   implicit none
   real,external :: rlim
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
