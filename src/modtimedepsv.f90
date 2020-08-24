@@ -58,7 +58,7 @@ contains
     use mpi
     use modmpi,     only :myid,my_real,mpi_logical,mpierr,comm3d
     use modglobal,  only :cexpnr,kmax,k1,ifinput,runtime,nsv
-    use modtestbed, only :ltestbed,ntnudge,tb_time
+    use modtestbed, only :ltestbed,ntnudge
     implicit none
 
     character (80):: chmess

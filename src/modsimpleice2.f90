@@ -57,8 +57,6 @@ module modsimpleice2
   subroutine initsimpleice2
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
     implicit none
-    integer:: k
-
 
     allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics

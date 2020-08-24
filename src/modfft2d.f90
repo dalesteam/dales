@@ -96,7 +96,7 @@ contains
   end subroutine
 
   subroutine fft2dinit_factors(xyrt)
-    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh
+    use modglobal, only : i1,j1,imax,jmax,itot,jtot,dxi,dyi,pi
     use modmpi, only    : myidx, myidy
 
     implicit none
