@@ -185,9 +185,9 @@ contains
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)*Nc_0**(-2./3.)
   sedc = 0.
 
-  do k = 1,kmax
-  do i=2,i1
+  do k=1,kmax
   do j=2,j1
+  do i=2,i1
   if (ql0(i,j,k)>0.0) then
     sedc= csed*((ql0(i,j,k+1)*rhof(k+1))**(5./3.)-(ql0(i,j,k)*rhof(k))**(5./3.))/(dzf(k)*rhof(k))
     qtp(i,j,k) = qtp(i,j,k) + sedc

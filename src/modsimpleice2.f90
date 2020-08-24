@@ -64,25 +64,25 @@ module modsimpleice2
     implicit none
     integer:: k
 
-    allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
-             ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,nr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
-             ,nrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,thlpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! thl tendency due to microphysics only, for statistics
-             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qt tendency due to microphysics only, for statistics
-             ,sed_qr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! sedimentation rain droplets mixing ratio
-             ,qr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! time-splitting substep qr
-             ,ilratio(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! partition ratio cloud water vs cloud ice
-             ,rsgratio(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! partition ratio rain vs. snow/graupel
-             ,sgratio(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! partition ratio snow vs graupel
-             ,lambdar(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for rain
-             ,lambdas(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for snow
-             ,lambdag(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for graupel
+    allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
+             ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
+             ,nr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
+             ,nrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
+             ,thlpmcr(2:i1,2:j1,k1)   & ! thl tendency due to microphysics only, for statistics
+             ,qtpmcr(2:i1,2:j1,k1)    & ! qt tendency due to microphysics only, for statistics
+             ,sed_qr(2:i1,2:j1,k1)    & ! sedimentation rain droplets mixing ratio
+             ,qr_spl(2:i1,2:j1,k1)    & ! time-splitting substep qr
+             ,ilratio(2:i1,2:j1,k1)   & ! partition ratio cloud water vs cloud ice
+             ,rsgratio(2:i1,2:j1,k1)  & ! partition ratio rain vs. snow/graupel
+             ,sgratio(2:i1,2:j1,k1)   & ! partition ratio snow vs graupel
+             ,lambdar(2:i1,2:j1,k1)   & ! slope parameter for rain
+             ,lambdas(2:i1,2:j1,k1)   & ! slope parameter for snow
+             ,lambdag(2:i1,2:j1,k1))    ! slope parameter for graupel
 
-    allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
-             ,qcmask(2-ih:i1+ih,2-jh:j1+jh,k1))     ! mask for cloud water
+    allocate (qrmask(2:i1,2:j1,k1)    & ! mask for rain water
+             ,qcmask(2:i1,2:j1,k1))     ! mask for cloud water
 
-    allocate(precep(2-ih:i1+ih,2-jh:j1+jh,k1))      ! precipitation for statistics
+    allocate(precep(2:i1,2:j1,k1))      ! precipitation for statistics
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
@@ -159,8 +159,7 @@ module modsimpleice2
     n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp)) ! number of sub-timesteps for precipitation 
     dt_spl = delt/real(n_spl)                              ! fixed time step for precipitation sub-stepping!
     
-    ! sed_qr = 0. ! reset sedimentation fluxes
-    sed_qr(:,:,kmax+1) = 0 ! initialize ghost cells, other cells are initialized before use
+    sed_qr = 0. ! reset sedimentation fluxes
   
      ! Density corrected fall speed parameters, see Tomita 2008
      ! rhobf is constant in time. could initialize tables in initsimpleice2, but that would requires that
