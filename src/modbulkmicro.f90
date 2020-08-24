@@ -45,8 +45,6 @@ module modbulkmicro
 !
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
-  use modmicrodata
-
   implicit none
   real :: gamma25
   real :: gamma3
@@ -56,6 +54,10 @@ module modbulkmicro
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
     use modglobal, only : ih,i1,jh,j1,k1
+    use modmicrodata, only : lacz_gamma, Nr, Nrp, qltot, qr, qrp, nuc, thlpmcr, &
+                             qtpmcr, sedc, sed_qr, sed_Nr, Dvc, xc, Dvr, xr, mur, &
+                             lbdr, au, phi, tau, ac, sc, br, evap, Nevap, qr_spl, &
+                             Nr_spl, wfall_qr, wfall_Nr, precep, qrmask, qcmask
     implicit none
 
     allocate(Nr       (2:i1,2:j1,k1)  &
@@ -102,6 +104,10 @@ module modbulkmicro
   !*********************************************************************
   ! subroutine exitbulkmicro
   !*********************************************************************
+    use modmicrodata, only : Nr,Nrp,qltot,qr,qrp,nuc,thlpmcr,qtpmcr, &
+                             sedc,sed_qr,sed_Nr,Dvc,xc,Dvr,xr,mur,lbdr, &
+                             au,phi,tau,ac,sc,br,evap,Nevap,qr_spl,Nr_spl, &
+                             wfall_qr,wfall_Nr,precep,qrmask,qcmask
     implicit none
 
     deallocate(Nr,Nrp,qltot,qr,qrp,nuc,thlpmcr,qtpmcr)
@@ -119,6 +125,12 @@ module modbulkmicro
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
+    use modmicrodata, only : Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, delt, &
+                             l_sb, l_sedc, l_mur_cst, l_lognormal, l_mur_cst, l_rain, &
+                             qrmask, qrmin, qcmask, qcmin, &
+                             xr, Dvr, mur, lbdr, qltot, qltot, &
+                             pirhow, eps0, inr, iqr, &
+                             xrmin, xrmax, xrmaxkk, mur_cst
     implicit none
     integer :: i,j,k
     real :: qrtest,nrtest
@@ -287,8 +299,13 @@ module modbulkmicro
     use modglobal, only : i1,j1,k1,kmax,rlv,cp
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
+    use modmicrodata, only : nuc, xc, au, tau, phi, qrp, Nrp, qtpmcr, thlpmcr, &
+                             qltot, qcmask, pirhow, x_s, eps0, inr, iqr, &
+                             d0_kk, delt, k_1, k_2, k_au, k_c, Nc_0, &
+                             l_sb
     implicit none
     integer i,j,k
+
     au = 0.
 
     if (l_sb ) then
@@ -353,6 +370,11 @@ module modbulkmicro
     use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
     use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
+    use modmicrodata, only : ac, tau, phi, sc, br, Nrp, lbdr, &
+                             qrmask, qcmask, qr, Nr, qrp, qtpmcr, thlpmcr, qltot, &
+                             D_eq, delt, Dvr, &
+                             k_br, k_l, k_r, k_rr, kappa_r, pirhow, &
+                             l_sb, l_lognormal
     implicit none
     real :: phi_br
     integer :: i,j,k
@@ -436,6 +458,8 @@ module modbulkmicro
   subroutine sedimentation_cloud
     use modglobal, only : i1,j1,k1,kmax,rlv,cp,dzf,pi
     use modfields, only : rhof,exnf,ql0
+    use modmicrodata, only : sedc,csed,c_St,rhow,sig_g,Nc_0, &
+                             qtpmcr,thlpmcr,qcmask
     implicit none
     integer :: i,j,k
 
@@ -475,6 +499,12 @@ module modbulkmicro
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf
     use modfields, only : rhof
     use modmpi,    only : myid
+    use modmicrodata, only : qr_spl, qr, qrmin, qrp, Nrp, Nr_spl, Nr, sed_qr, sed_Nr, &
+                             l_sb, l_lognormal, l_mur_cst, delt, &
+                             pirhow, sig_gr, &
+                             xrmax, xrmin, xrmaxkk, &
+                             D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0, &
+                             wfall_Nr, wfall_qr, precep
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
@@ -621,6 +651,14 @@ module modbulkmicro
 
     use modglobal, only : ih,i1,jh,j1,k1,rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
+    use modmicrodata, only : evap, Nevap, Nr, mur, Dv, &
+                             inr, iqr, Kt, &
+                             l_sb, &
+                             a_tvsb, b_tvsb, c_tvsb, &
+                             nu_a, Sc_num, avf, bvf, &
+                             c_Nevap, c_evapkk, delt, &
+                             qrmask, lbdr, xr, dvr, qrp, Nrp, &
+                             qtpmcr, thlpmcr
     implicit none
     integer :: i,j,k
     integer :: numel

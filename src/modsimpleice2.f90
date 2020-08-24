@@ -36,7 +36,6 @@
 
 
 module modsimpleice2
-  use modmicrodata
   use modfields, only : rhobf
   implicit none
   real :: gamb1r
@@ -56,9 +55,14 @@ module modsimpleice2
 !> Initializes and allocates the arrays
   subroutine initsimpleice2
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
+    use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+                             ilratio, rsgratio, sgratio, &
+                             lambdar, lambdas, lambdag, &
+                             qrmask, qcmask, precep, &
+                             ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
+                             bbg,bbr,bbs,ddg,ddr,dds
     implicit none
     integer:: k
-
 
     allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
@@ -83,18 +87,18 @@ module modsimpleice2
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
 
-     gamb1r=lacz_gamma(bbr+1)
-     gambd1r=lacz_gamma(bbr+ddr+1)
-     gamb1s=lacz_gamma(bbs+1)
-     gambd1s=lacz_gamma(bbs+dds+1)
-     gamb1g=lacz_gamma(bbg+1)
-     gambd1g=lacz_gamma(bbg+ddg+1)
-     gam2dr=lacz_gamma(2.5+0.5*ddr)
-     gam2ds=lacz_gamma(2.5+0.5*dds)
-     gam2dg=lacz_gamma(2.5+0.5*ddg)
-     gammaddr3=lacz_gamma(3.+ddr)
-     gammadds3=lacz_gamma(3.+dds)
-     gammaddg3=lacz_gamma(3.+ddg)
+    gamb1r=lacz_gamma(bbr+1)
+    gambd1r=lacz_gamma(bbr+ddr+1)
+    gamb1s=lacz_gamma(bbs+1)
+    gambd1s=lacz_gamma(bbs+dds+1)
+    gamb1g=lacz_gamma(bbg+1)
+    gambd1g=lacz_gamma(bbg+ddg+1)
+    gam2dr=lacz_gamma(2.5+0.5*ddr)
+    gam2ds=lacz_gamma(2.5+0.5*dds)
+    gam2dg=lacz_gamma(2.5+0.5*ddg)
+    gammaddr3=lacz_gamma(3.+ddr)
+    gammadds3=lacz_gamma(3.+dds)
+    gammaddg3=lacz_gamma(3.+ddg)
 
     nrp=0. ! not used in this scheme 
     nr=0.  ! set to 0 here in case the statistics use them
@@ -104,6 +108,10 @@ module modsimpleice2
 
 !> Cleaning up after the run
   subroutine exitsimpleice2
+    use modmicrodata, only : nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+                             ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
+                             qrmask,qcmask,precep, &
+                             ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2
     implicit none
     deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(qrmask,qcmask)
@@ -117,6 +125,16 @@ module modsimpleice2
   subroutine simpleice2
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
+    use modmicrodata, only : sed_qr,qrp,&
+                             aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
+                             ccgz2,ccrz2,ccsz2,ddg,ddr,dds,&
+                             ccgz,ccrz,ccsz,&
+                             n0rg,n0rr,n0rs,&
+                             betakessi,ceffgl,ceffri,ceffrl,ceffsi,ceffsl,ceffgi,courantp,delt,&
+                             qr,qtpmcr,thlpmcr,evapfactor,iqr,n0rg,n0rs,Nc_0,&
+                             qr_spl,precep,&
+                             qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
+                             l_berry,l_graupel,l_rain,l_warm,timekessl
     
     use modsimpleicestat, only : simpleicetend
     implicit none
