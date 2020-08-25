@@ -1,5 +1,7 @@
 # DALES - Dutch Atmospheric Large Eddy Simulation
 
+[![DOI](https://zenodo.org/badge/32735454.svg)](https://zenodo.org/badge/latestdoi/32735454)
+
 ## Documentation
 The following documents are included in the DALES repository (but are not fully up to date):
 
