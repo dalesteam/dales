@@ -168,8 +168,8 @@ module modbulkmicro
     ! cloud droplet number Nc is constant at Nc_0
     !*********************************************************************
 
-    qltot = ql0 + qr
-    qcmask = ql0.gt.qcmin
+    qltot = ql0(2:i1,2:j1,1:k1) + qr
+    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
 
     !*********************************************************************
     ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
@@ -181,14 +181,14 @@ module modbulkmicro
       mur = 30.
       lbdr = 0.
 
-      if (l_sb ) then
-
+      if (l_sb) then
         do k=1,k1
         do j=2,j1
         do i=2,i1
            if (qrmask(i,j,k)) then
-             ! JvdD Added eps0 to avoid floating point exception
-             xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
+             ! REMOVED: JvdD Added eps0 to avoid floating point exception
+             ! NOTE: Nr.gt.0 because of definition of qrmask above
+             xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
 
              ! to ensure xr is within borders
              xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
@@ -227,9 +227,10 @@ module modbulkmicro
          do k=1,k1
          do j=2,j1
          do i=2,i1
-            if (qrmask(i,j,k).and.Nr(i,j,k).gt.0.) then
-              ! JvdD Added eps0 to avoid floating point exception
-              xr(i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
+            if (qrmask(i,j,k)) then
+              ! REMOVED: JvdD Added eps0 to avoid floating point exception
+              ! NOTE: Nr.gt.0 because of definition of qrmask above
+              xr(i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
 
               ! to ensure x_pw is within borders
               xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
@@ -244,7 +245,9 @@ module modbulkmicro
     !*********************************************************************
     ! call microphysical processes subroutines
     !*********************************************************************
-    if (l_sedc)  call sedimentation_cloud
+    if (l_sedc) then
+      call sedimentation_cloud
+    endif
 
     if (l_rain) then
       call bulkmicrotend
@@ -258,8 +261,8 @@ module modbulkmicro
       call bulkmicrotend
     endif
 
-    sv0(2:i1,2:j1,1:k1,inr)=Nr(2:i1,2:j1,1:k1)
-    sv0(2:i1,2:j1,1:k1,iqr)=qr(2:i1,2:j1,1:k1)
+    sv0(2:i1,2:j1,1:k1,inr) = Nr
+    sv0(2:i1,2:j1,1:k1,iqr) = qr
 
     !*********************************************************************
     ! remove negative values and non physical low values
@@ -269,7 +272,7 @@ module modbulkmicro
     do i=2,i1
       qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
       nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+Nrp(i,j,k))*delt
-      if ((qrtest < qrmin) .or. (nrtest < 0.) ) then
+      if ((qrtest < qrmin) .or. (nrtest < 0.)) then
         ! correction, after Jerome's implementation in Gales
         qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
         thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
@@ -349,7 +352,6 @@ module modbulkmicro
       do i=2,i1
          if (qcmask(i,j,k)) then
             au     (i,j,k) = 1350.0 * ql0(i,j,k)**(2.47) * (Nc_0/1.0E6)**(-1.79)
-
          endif
       enddo
       enddo
@@ -538,6 +540,8 @@ module modbulkmicro
 
       if (l_sb) then
         if (l_lognormal) then
+          ! spread rhof(k)
+          ! pack rhof, qr_spl, Nr_spl
           do k = 1,kmax
           do j = 2,j1
           do i = 2,i1
@@ -551,7 +555,6 @@ module modbulkmicro
 
               ! correction for width of DSD
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
-              sed_qr(i,j,k) = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
               sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
 
               ! correction for the fact that pwcont .ne. qr_spl
@@ -559,6 +562,8 @@ module modbulkmicro
               pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
               if (pwcont > eps1) then
                 sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+              else
+                sed_qr(i,j,k) = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
               endif
             endif ! qr_spl threshold statement
           enddo
