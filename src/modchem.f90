@@ -307,7 +307,7 @@ SUBROUTINE initchem
   call MPI_BCAST(itermin   ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(dtchmovie ,1,MY_REAL     , 0,comm3d, mpierr)
   call MPI_BCAST(lchemreset,1,mpi_logical , 0,comm3d, mpierr)
-  call MPI_BCAST(resettime ,1,mpi_logical , 0,comm3d, mpierr)
+  call MPI_BCAST(resettime ,1,MY_REAL     , 0,comm3d, mpierr)
 
   lCHon = lchem
 
@@ -1282,7 +1282,7 @@ implicit none
     if (lchconst .EQV. .true.) then
       y(2:i1,2:j1,:,H2O%loc) = q_ref * MW_air / MW_h2o * ppb
     else
-      y(2:i1,2:j1,:,H2O%loc) = qt0(2:i1,2:j1,:) * MW_air / MW_h2o * ppb
+      y(2:i1,2:j1,:,H2O%loc) = max(qt0(2:i1,2:j1,:),0.0) * MW_air / MW_h2o * ppb
     endif
   endif
 
@@ -1830,12 +1830,12 @@ implicit none
         !first CBL
         rk1(:,:) = RC(i)%A * exp(RC(i)%B / T_abs(:,:)) * convppb(:,:)
         rk2(:,:) = RC(i)%C * exp(RC(i)%D / T_abs(:,:)) * convppb(:,:)**2 * 1e9
-        rk(:,:) =  RC(i)%E * exp(RC(i)%F / T_abs(:,:)) * qt0(2:i1,2:j1,k) * MW_air / MW_h2o * ppb * convppb(:,:)
+        rk(:,:) =  RC(i)%E * exp(RC(i)%F / T_abs(:,:)) * max(qt0(2:i1,2:j1,k),0.0) * MW_air / MW_h2o * ppb * convppb(:,:)
         keffT(:,:,RC(i)%Kindex) = (rk1(:,:) + rk2(:,:)) * (1. + rk(:,:))
       case(7) ! same as 3 but third order so conv_ppb to the power 2
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* (convppb(:,:)**2)
       case(8)
-        rk1(:,:)                = RC(i)%A * (qt0(2:i1,2:j1,k) * MW_air / MW_h2o * ppb) * convppb(:,:) * exp(RC(i)%B / T_abs(:,:))
+        rk1(:,:)                = RC(i)%A * (max(qt0(2:i1,2:j1,k),0.0) * MW_air / MW_h2o * ppb) * convppb(:,:) * exp(RC(i)%B / T_abs(:,:))
         rk2(:,:)                = 0.79 * RC(i)%C * ppb * exp(RC(i)%D / T_abs(:,:))
         rk3(:,:)                = 0.21 * RC(i)%E * ppb * exp(RC(i)%F / T_abs(:,:))
         keffT(:,:,RC(i)%Kindex) = (rk1 * jo31d) / (rk1 + rk2 + rk3)
@@ -1856,7 +1856,7 @@ implicit none
         rk3(:,:)                = rk1(:,:) / rk2(:,:)
         keffT(:,:,RC(i)%Kindex) = (rk1(:,:) / (1 + rk3(:,:))) * (RC(i)%E**(1 / (1 + (log10(rk3(:,:))**2.0)))) * RC(i)%F * exp(RC(i)%G / T_abs(:,:))
       case(14)
-        keffT(:,:,RC(i)%Kindex) = RC(i)%A * (qt0(2:i1,2:j1,k) * MW_air / MW_h2o) * ppb * convppb(:,:)
+        keffT(:,:,RC(i)%Kindex) = RC(i)%A * (max(qt0(2:i1,2:j1,k),0.0) * MW_air / MW_h2o) * ppb * convppb(:,:)
       case(15)
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (1 + RC(i)%B * 1.38044e-16 * ppb * convppb(:,:) * T_abs(:,:) ) * convppb(:,:)
       case(16)
@@ -2017,8 +2017,8 @@ subroutine ratech
          (RC(r)%D * q_ref * MW_air/MW_h2o + RC(r)%E * (1.- q_ref* MW_air/MW_h2o))
 !write(*,*)'func 4', keff(2,2,i,2),RC(r)%Keff,RC(r)%D *  (q_ref * MW_air/MW_h2o ),RC(r)%D * q_ref * MW_air/MW_h2o,RC(r)%E * (1.- q_ref* MW_air/MW_h2o)
       else
-        keff(:,:,i,:) = RC(r)%Keff * RC(r)%D * ( qt0(2:i1,2:j1,1:kmax) * MW_air/MW_h2o ) / &
-         (RC(r)%D * ( qt0(2:i1,2:j1,1:kmax) * MW_air/MW_h2o ) + RC(r)%E * (1.- qt0(2:i1,2:j1,1:kmax)* MW_air/MW_h2o))
+        keff(:,:,i,:) = RC(r)%Keff * RC(r)%D * ( max(qt0(2:i1,2:j1,1:kmax),0.0) * MW_air/MW_h2o ) / &
+         (RC(r)%D * ( max(qt0(2:i1,2:j1,1:kmax),0.0) * MW_air/MW_h2o ) + RC(r)%E * (1.- max(qt0(2:i1,2:j1,1:kmax),0.0)* MW_air/MW_h2o))
       endif
     case default ! for now for all other photolysis reactions
       keff(:,:,i,:) = RC(r)%Keff
