@@ -160,7 +160,7 @@ module modbulkmicro
     qrmask = qr.gt.qrmin.and.Nr.gt.0
 
     !*********************************************************************
-    ! calculate qltot 
+    ! calculate qltot
     !*********************************************************************
 
     qltot = ql0(2:i1,2:j1,1:k1) + qr
@@ -523,14 +523,7 @@ module modbulkmicro
                         ,Nr_spl(:) &
                         ,sed_qr(:) &
                         ,sed_Nr(:) &
-                        ,xr(:) &
-                        ,Dvr(:) &
-                        ,mur(:) &
-                        ,lbdr(:) &
-                        ,rhof_spl(:) &
-                        ,Dgr(:) &         !<  lognormal geometric diameter
-                        ,wfall_qr(:) &    !<  fall velocity for qr
-                        ,wfall_Nr(:)      !<  fall velocity for Nr
+                        ,rhof_spl(:)
 
 
     real, allocatable :: rhof_3d(:,:,:) &
@@ -538,6 +531,8 @@ module modbulkmicro
                         ,Nr_spl_3d(:,:,:) &
                         ,sed_qr_3d(:,:,:) &
                         ,sed_Nr_3d(:,:,:)
+
+    real :: xr, Dvr, mur, lbdr, Dgr, wfall_qr, wfall_Nr
 
     allocate(qr_spl_3d(2:i1,2:j1,1:k1))
     allocate(Nr_spl_3d(2:i1,2:j1,1:k1))
@@ -552,13 +547,6 @@ module modbulkmicro
     ! Allocate work variables
     allocate(sed_qr(nmasked))
     allocate(sed_Nr(nmasked))
-    allocate(xr(nmasked))
-    allocate(Dvr(nmasked))
-    allocate(mur(nmasked))
-    allocate(lbdr(nmasked))
-    allocate(Dgr(nmasked))
-    allocate(wfall_qr(nmasked))
-    allocate(wfall_Nr(nmasked))
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
@@ -581,28 +569,22 @@ module modbulkmicro
 
       if (l_sb) then
         if (l_lognormal) then
-          ! JvdD Added eps0 to avoid division by zero
-          xr = rhof_spl*qr_spl/(Nr_spl+eps0)
+          do i=1,nmasked
+            ! JvdD Added eps0 to avoid division by zero
+            ! to ensure xr is within borders
+            xr = rhof_spl(i)*qr_spl(i)/(Nr_spl(i)+eps0)
+            xr = min(max(xr,xrmin),xrmax)
+            Dvr = (xr/pirhow)**(1./3.)
 
-          ! to ensure xr is within borders
-          do i=1,nmasked
-            xr(i) = min(max(xr(i),xrmin),xrmax)
-          enddo
-          Dvr = (xr/pirhow)**(1./3.)
+            ! correction for width of DSD
+            Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr
+            sed_Nr(i) = 1./pirhow*sed_flux(Nr_spl(i),Dgr,log(sig_gr)**2,D_s,0)
 
-          ! correction for width of DSD
-          Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr
-          do i=1,nmasked
-            sed_Nr(i) = 1./pirhow*sed_flux(Nr_spl(i),Dgr(i),log(sig_gr)**2,D_s,0)
-          enddo
+            ! correction for the fact that pwcont .ne. qr_spl
+            ! actually in this way for every grid box a fall velocity is determined
 
-          ! correction for the fact that pwcont .ne. qr_spl
-          ! actually in this way for every grid box a fall velocity is determined
-          do i=1,nmasked
-            sed_qr(i) = 1.*sed_flux(Nr_spl(i),Dgr(i),log(sig_gr)**2,D_s,3)
-          enddo
-          do i=1,nmasked
-            pwcont = liq_cont(Nr_spl(i),Dgr(i),log(sig_gr)**2,D_s,3)       ! note : kg m-3
+            sed_qr(i) = 1.*sed_flux(Nr_spl(i),Dgr,log(sig_gr)**2,D_s,3)
+            pwcont = liq_cont(Nr_spl(i),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
             if (pwcont > eps1) then
               ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
               sed_qr(i) = (qr_spl(i)*rhof_spl(i)/pwcont)*sed_qr(i)
@@ -612,53 +594,45 @@ module modbulkmicro
           !
           ! SB rain sedimentation
           !
-          if (l_mur_cst) then
-            mur = mur_cst
-          else
-            do i=1,nmasked
-              mur(i) = min(30.,- 1. + 0.008/ (qr_spl(i)*rhof_spl(i))**0.6)  ! G09b
-            enddo
-          endif
-
-          ! JvdD Added eps0 to avoid division by zero
-          xr = rhof_spl*qr_spl/(Nr_spl+eps0)
-
-          ! to ensure xr is within borders
           do i=1,nmasked
-            xr(i) = min(max(xr(i),xrmin),xrmax)
+            ! TODO move out of loop
+            if (l_mur_cst) then
+              mur = mur_cst
+            else
+              mur = min(30.,- 1. + 0.008/ (qr_spl(i)*rhof_spl(i))**0.6)  ! G09b
+            endif
+
+            ! JvdD Added eps0 to avoid division by zero
+            xr = rhof_spl(i)*qr_spl(i)/(Nr_spl(i)+eps0)
+
+            ! to ensure xr is within borders
+            xr = min(max(xr,xrmin),xrmax)
+
+            Dvr = (xr/pirhow)**(1./3.)
+            lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
+            wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+4.))))
+            wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+1.))))
+
+            sed_qr(i) = wfall_qr*qr_spl(i)*rhof_spl(i)
+            sed_Nr(i) = wfall_Nr*Nr_spl(i)
           enddo
-
-          Dvr = (xr/pirhow)**(1./3.)
-
-          lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
-
-          do i=1,nmasked
-            wfall_qr(i) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i))**(-1.*(mur(i)+4.))))
-            wfall_Nr(i) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i))**(-1.*(mur(i)+1.))))
-          enddo
-          sed_qr   = wfall_qr*qr_spl*rhof_spl
-          sed_Nr   = wfall_Nr*Nr_spl
         endif ! l_lognormal
       else
         !
         ! KK00 rain sedimentation
         !
-
-        ! JvdD added eps0 to avoid division by zero
-        xr = rhof_spl*qr_spl/(Nr_spl+eps0)
-
-        ! to ensure xr is within borders
         do i=1,nmasked
-          xr(i) = min(xr(i),xrmaxkk)
-        enddo
+          ! JvdD added eps0 to avoid division by zero
+          xr = rhof_spl(i)*qr_spl(i)/(Nr_spl(i)+eps0)
 
-        Dvr = (xr/pirhow)**(1./3.)
+          ! to ensure xr is within borders
+          xr = min(xr,xrmaxkk)
 
-        do i=1,nmasked
-          sed_qr(i) = max(0., 0.006*1.0E6*Dvr(i) - 0.2) * qr_spl(i)*rhof_spl(i)
-          sed_Nr(i) = max(0.,0.0035*1.0E6*Dvr(i) - 0.1) * Nr_spl(i)
+          Dvr = (xr/pirhow)**(1./3.)
+          sed_qr(i) = max(0., 0.006*1.0E6*Dvr - 0.2) * qr_spl(i)*rhof_spl(i)
+          sed_Nr(i) = max(0.,0.0035*1.0E6*Dvr - 0.1) * Nr_spl(i)
         enddo
-      endif !l_sb
+      endif ! l_sb
 
       sed_Nr_3d = unpack(sed_Nr, mask, sed_Nr_3d)
       sed_qr_3d = unpack(sed_qr, mask, sed_qr_3d)
@@ -668,7 +642,6 @@ module modbulkmicro
         qr_spl_3d(:,:,k) = qr_spl_3d(:,:,k) + &
                  (sed_qr_3d(:,:,k+1) - sed_qr_3d(:,:,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
-      !write(*,*) 'qr_spl_3d', minval(qr_spl_3d), maxval(qr_spl_3d), maxloc(qr_spl_3d),minloc(qr_spl_3d)
 
       if (any(qr_spl_3d(:,:,1:kmax) .lt. 0.)) then
         write(6,*)'sed_qr too large', count(qr_spl_3d(:,:,1:kmax) .lt. 0.),myid
@@ -676,7 +649,7 @@ module modbulkmicro
 
       if (jn==1) then
         do k=1,kmax
-          precep(:,:,k) =  sed_qr_3d(:,:,k)/rhof(k)   ! kg kg-1 m s-1
+          precep(:,:,k) = sed_qr_3d(:,:,k)/rhof(k)   ! kg kg-1 m s-1
         enddo
       endif
 
@@ -689,7 +662,7 @@ module modbulkmicro
     qrp = qrp + (qr_spl_3d - qr)/delt
 
     ! Clean up 1D vars
-    deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr,Dgr,wfall_Nr,wfall_qr)
+    deallocate(sed_qr,sed_Nr)
 
     ! Clean up 3d vars
     deallocate(qr_spl_3d, Nr_spl_3d, sed_qr_3d, sed_Nr_3d, rhof_3d)
