@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer :: nvar = 9
+  integer :: nvar = 10
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(:,:), allocatable :: ncname
@@ -116,9 +116,10 @@ contains
       call ncinfo(ncname( 7,:), 'thvh','Virtual potential temperature at half level',    'K','ttmt')
       call ncinfo(ncname( 8,:),    'T',                       'Absolute temperature',    'K','tttt')
       call ncinfo(ncname( 9,:),    'P',                                   'Pressure',   'Pa','tttt')
+      call ncinfo(ncname(10,:),    'e',                          'Subgrid scale TKE','m2/s2','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(9+n,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','ppb','tttt')
+        call ncinfo(ncname(10+n,:),'sv'//csvname,'Scalar '//csvname//' mixing ratio','ppb','tttt')
       end do
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
@@ -132,7 +133,7 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,exnf, presf
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,exnf, presf, e120
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,rlv
@@ -298,13 +299,14 @@ contains
 
     if (lnetcdf) then
       do k=klow,khigh
-        vars(:,:,k,8) = thl0(2:i1:ncoarse,2:j1:ncoarse,k) * exnf(k) + (rlv/cp) * ql0(2:i1:ncoarse,2:j1:ncoarse,k)
-        vars(:,:,k,9) = presf(k)
+        vars(:,:,k,8)  = thl0(2:i1:ncoarse,2:j1:ncoarse,k) * exnf(k) + (rlv/cp) * ql0(2:i1:ncoarse,2:j1:ncoarse,k)
+        vars(:,:,k,9)  = presf(k)
+        vars(:,:,k,10) = e120(2:i1:ncoarse,2:j1:ncoarse,k)**2
       end do
     endif
 
 
-    if (lnetcdf) vars(:,:,:,10:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+    if (lnetcdf) vars(:,:,:,11:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
