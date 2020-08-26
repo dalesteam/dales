@@ -53,7 +53,7 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
-    use modglobal, only : ih,i1,jh,j1,k1
+    use modglobal, only : i1,j1,k1
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qltot, qr, qrp, thlpmcr, &
                              qtpmcr, sedc, Dvr, xr, mur, &
                              lbdr, au, ac, sc, br, evap, Nevap, &
@@ -119,7 +119,7 @@ module modbulkmicro
                              l_sb, l_sedc, l_mur_cst, l_lognormal, l_mur_cst, l_rain, &
                              qrmask, qrmin, qcmask, qcmin, &
                              xr, Dvr, mur, lbdr, qltot, &
-                             pirhow, eps0, inr, iqr, &
+                             pirhow, inr, iqr, &
                              xrmin, xrmax, xrmaxkk, mur_cst
     implicit none
     integer :: i,j,k
@@ -297,7 +297,7 @@ module modbulkmicro
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
     use modmicrodata, only : au, qrp, Nrp, qtpmcr, thlpmcr, &
-                             qltot, qcmask, pirhow, x_s, eps0, inr, iqr, &
+                             qltot, qcmask, pirhow, x_s, &
                              d0_kk, delt, k_1, k_2, k_au, k_c, Nc_0, &
                              l_sb
     implicit none
@@ -370,14 +370,14 @@ module modbulkmicro
   ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
   ! accordingly. Break-up : Seifert (2007)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
+    use modglobal, only : i1,j1,k1,kmax,rlv,cp
     use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
     use modmicrodata, only : ac, sc, br, Nrp, lbdr, &
                              qrmask, qcmask, qr, Nr, qrp, qtpmcr, thlpmcr, qltot, &
                              D_eq, delt, Dvr, &
                              k_br, k_l, k_r, k_rr, kappa_r, pirhow, &
-                             l_sb, l_lognormal
+                             l_sb
     implicit none
     integer :: i,j,k
 
@@ -444,8 +444,8 @@ module modbulkmicro
       enddo
       enddo
 
-      qrp = qrp + ac(i,j,k)
-      qtpmcr = qtpmcr - ac(i,j,k)
+      qrp = qrp + ac
+      qtpmcr = qtpmcr - ac
       do k=1,k1
         thlpmcr(:,:,k) = thlpmcr(:,:,k) + (rlv/(cp*exnf(k)))*ac(:,:,k)
       enddo
@@ -501,7 +501,7 @@ module modbulkmicro
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
   subroutine sedimentation_rain
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf
+    use modglobal, only : i1,j1,k1,kmax,eps1,dzf
     use modfields, only : rhof
     use modmpi,    only : myid
     use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
@@ -511,13 +511,14 @@ module modbulkmicro
                              D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0
 
     implicit none
-    integer :: i,j,k,jn
+    integer :: i,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
 
     real,save :: dt_spl,wfallmax
 
     logical,allocatable,dimension(:,:,:) :: mask
     integer :: nmasked
+    real :: pwcont
     real, allocatable :: qr_spl(:) &
                         ,Nr_spl(:) &
                         ,sed_qr(:) &
@@ -527,14 +528,12 @@ module modbulkmicro
                         ,mur(:) &
                         ,lbdr(:) &
                         ,rhof_spl(:) &
-                        ,pwcont(:) &
                         ,Dgr(:) &         !<  lognormal geometric diameter
                         ,wfall_qr(:) &    !<  fall velocity for qr
                         ,wfall_Nr(:)      !<  fall velocity for Nr
 
 
-    real, allocatable :: dfz_3d(:,:,:) &
-                        ,rhof_3d(:,:,:) &
+    real, allocatable :: rhof_3d(:,:,:) &
                         ,qr_spl_3d(:,:,:) &
                         ,Nr_spl_3d(:,:,:) &
                         ,sed_qr_3d(:,:,:) &
@@ -553,13 +552,16 @@ module modbulkmicro
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
+    qr_spl_3d = qr
+    Nr_spl_3d = Nr
+
     do jn=1,n_spl ! time splitting loop
-      mask = qr .gt. qrmin
+      mask = qr_spl_3d .gt. qrmin
       nmasked = count(mask)
 
       ! Pack the input variables to a 1D array
-      Nr_spl = pack(Nr, mask)
-      qr_spl = pack(qr, mask)
+      qr_spl = pack(qr_spl_3d, mask)
+      Nr_spl = pack(Nr_spl_3d, mask)
       rhof_spl = pack(rhof_3d, mask)
 
       ! Allocate work variables
@@ -569,13 +571,9 @@ module modbulkmicro
       allocate(Dvr(nmasked))
       allocate(mur(nmasked))
       allocate(lbdr(nmasked))
-      allocate(pwcont(nmasked))
       allocate(Dgr(nmasked))
       allocate(wfall_qr(nmasked))
       allocate(wfall_Nr(nmasked))
-
-      sed_qr = 0.
-      sed_Nr = 0.
 
       if (l_sb) then
         if (l_lognormal) then
@@ -588,16 +586,22 @@ module modbulkmicro
 
           ! correction for width of DSD
           Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr
-          sed_Nr = 1./pirhow*sed_flux(Nr_spl,Dgr,log(sig_gr)**2,D_s,0)
+          do i=1,nmasked
+            sed_Nr(i) = 1./pirhow*sed_flux(Nr_spl(i),Dgr(i),log(sig_gr)**2,D_s,0)
+          enddo
 
           ! correction for the fact that pwcont .ne. qr_spl
           ! actually in this way for every grid box a fall velocity is determined
-          pwcont = liq_cont(Nr_spl,Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
-          where (pwcont > eps1)
-            sed_qr = (qr_spl*rhof_spl/pwcont)*sed_qr ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
-          elsewhere
-            sed_qr = 1.*sed_flux(Nr_spl,Dgr,log(sig_gr)**2,D_s,3)
-          endwhere
+          do i=1,nmasked
+            sed_qr(i) = 1.*sed_flux(Nr_spl(i),Dgr(i),log(sig_gr)**2,D_s,3)
+          enddo
+          do i=1,nmasked
+            pwcont = liq_cont(Nr_spl(i),Dgr(i),log(sig_gr)**2,D_s,3)       ! note : kg m-3
+            if (pwcont > eps1) then
+              ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+              sed_qr(i) = (qr_spl(i)*rhof_spl(i)/pwcont)*sed_qr(i)
+            endif
+          enddo
         else
           !
           ! SB rain sedimentation
@@ -608,13 +612,20 @@ module modbulkmicro
             mur = min(30.,- 1. + 0.008/ (qr_spl*rhof_spl)**0.6)  ! G09b
           endif
 
-          xr = rhof_spl*qr_spl/(Nr_spl+eps0) ! JvdD Added eps0 to avoid division by zero
-          xr = min(max(xr,xrmin),xrmax) ! to ensure xr is within borders
+          ! JvdD Added eps0 to avoid division by zero
+          xr = rhof_spl*qr_spl/(Nr_spl+eps0)
+
+          ! to ensure xr is within borders
+          xr = min(max(xr,xrmin),xrmax)
+
           Dvr = (xr/pirhow)**(1./3.)
 
           lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
-          wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+4.))))
-          wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+1.))))
+
+          do i=1,nmasked
+            wfall_qr(i) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i))**(-1.*(mur(i)+4.))))
+            wfall_Nr(i) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i))**(-1.*(mur(i)+1.))))
+          enddo
           sed_qr   = wfall_qr*qr_spl*rhof_spl
           sed_Nr   = wfall_Nr*Nr_spl
         endif ! l_lognormal
@@ -630,6 +641,8 @@ module modbulkmicro
         sed_Nr = max(0.,0.0035*1.0E6*Dvr - 0.1) * Nr_spl
       endif !l_sb
 
+      !write(*,*) myid, 'sed_Nr', minval(sed_Nr), maxval(sed_Nr), maxloc(sed_Nr),minloc(sed_Nr)
+      !write(*,*) myid, 'sed_qr',  minval(sed_qr), maxval(sed_qr), maxloc(sed_qr),minloc(sed_qr)
       sed_Nr_3d = unpack(sed_Nr, mask, sed_Nr_3d)
       sed_qr_3d = unpack(sed_qr, mask, sed_qr_3d)
       do k=1,kmax
@@ -638,6 +651,7 @@ module modbulkmicro
         qr_spl_3d(:,:,k) = qr_spl_3d(:,:,k) + &
                  (sed_qr_3d(:,:,k+1) - sed_qr_3d(:,:,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
+      !write(*,*) 'qr_spl_3d', minval(qr_spl_3d), maxval(qr_spl_3d), maxloc(qr_spl_3d),minloc(qr_spl_3d)
 
       if (any(qr_spl_3d(:,:,1:kmax) .lt. 0.)) then
         write(6,*)'sed_qr too large', count(qr_spl_3d(:,:,1:kmax) .lt. 0.),myid
@@ -650,7 +664,7 @@ module modbulkmicro
       endif
 
       ! Clean up 1D vars
-      deallocate(Nr_spl,qr_spl,rhof_spl,pwcont,Dgr,wfall_Nr,wfall_qr)
+      deallocate(Nr_spl,qr_spl,rhof_spl,Dgr,wfall_Nr,wfall_qr)
       deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr)
 
     enddo ! time splitting loop
@@ -753,7 +767,7 @@ module modbulkmicro
   !*********************************************************************
   !*********************************************************************
 
-  elemental real function sed_flux(Nin,Din,sig2,Ddiv,nnn)
+  real function sed_flux(Nin,Din,sig2,Ddiv,nnn)
   !*********************************************************************
   ! Function to calculate numerically the analytical solution of the
   ! sedimentation flux between Dmin and Dmax based on
@@ -783,8 +797,6 @@ module modbulkmicro
             ,D_min        & ! min integration limit
             ,D_max        & ! max integration limit
             ,flux           ![kg m^-2 s^-1]
-
-    integer :: k
 
     flux = 0.0
 
@@ -822,7 +834,7 @@ module modbulkmicro
   !*********************************************************************
   !*********************************************************************
 
-  elemental real function liq_cont(Nin,Din,sig2,Ddiv,nnn)
+  real function liq_cont(Nin,Din,sig2,Ddiv,nnn)
   !*********************************************************************
   ! Function to calculate numerically the analytical solution of the
   ! liq. water content between Dmin and Dmax based on
@@ -860,7 +872,7 @@ module modbulkmicro
   !*********************************************************************
   !*********************************************************************
 
-  elemental real function erfint(beta, D, D_min, D_max, sig2,nnn )
+  real function erfint(beta, D, D_min, D_max, sig2,nnn )
 
   !*********************************************************************
   ! Function to calculate erf(x) approximated by a polynomial as
