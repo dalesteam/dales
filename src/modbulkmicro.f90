@@ -548,6 +548,18 @@ module modbulkmicro
       rhof_3d(:,:,k) = rhof(k)
     enddo
 
+    nmasked = i1 * j1 * k1 / 5
+    ! Allocate work variables
+    allocate(sed_qr(nmasked))
+    allocate(sed_Nr(nmasked))
+    allocate(xr(nmasked))
+    allocate(Dvr(nmasked))
+    allocate(mur(nmasked))
+    allocate(lbdr(nmasked))
+    allocate(Dgr(nmasked))
+    allocate(wfall_qr(nmasked))
+    allocate(wfall_Nr(nmasked))
+
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
@@ -558,22 +570,14 @@ module modbulkmicro
     do jn=1,n_spl ! time splitting loop
       mask = qr_spl_3d .gt. qrmin
       nmasked = count(mask)
+      if (nmasked > i1 * j1 * k1 / 5) then
+        write(*,*) 'Too many masked points'
+      endif
 
       ! Pack the input variables to a 1D array
       qr_spl = pack(qr_spl_3d, mask)
       Nr_spl = pack(Nr_spl_3d, mask)
       rhof_spl = pack(rhof_3d, mask)
-
-      ! Allocate work variables
-      allocate(sed_qr(nmasked))
-      allocate(sed_Nr(nmasked))
-      allocate(xr(nmasked))
-      allocate(Dvr(nmasked))
-      allocate(mur(nmasked))
-      allocate(lbdr(nmasked))
-      allocate(Dgr(nmasked))
-      allocate(wfall_qr(nmasked))
-      allocate(wfall_Nr(nmasked))
 
       if (l_sb) then
         if (l_lognormal) then
@@ -581,7 +585,9 @@ module modbulkmicro
           xr = rhof_spl*qr_spl/(Nr_spl+eps0)
 
           ! to ensure xr is within borders
-          xr = min(max(xr,xrmin),xrmax)
+          do i=1,nmasked
+            xr(i) = min(max(xr(i),xrmin),xrmax)
+          enddo
           Dvr = (xr/pirhow)**(1./3.)
 
           ! correction for width of DSD
@@ -616,7 +622,9 @@ module modbulkmicro
           xr = rhof_spl*qr_spl/(Nr_spl+eps0)
 
           ! to ensure xr is within borders
-          xr = min(max(xr,xrmin),xrmax)
+          do i=1,nmasked
+            xr(i) = min(max(xr(i),xrmin),xrmax)
+          enddo
 
           Dvr = (xr/pirhow)**(1./3.)
 
@@ -633,16 +641,23 @@ module modbulkmicro
         !
         ! KK00 rain sedimentation
         !
-        xr = rhof_spl*qr_spl/(Nr_spl+eps0) !JvdD added eps0 to avoid division by zero
-        xr = min(xr,xrmaxkk) ! to ensure xr is within borders
+
+        ! JvdD added eps0 to avoid division by zero
+        xr = rhof_spl*qr_spl/(Nr_spl+eps0)
+
+        ! to ensure xr is within borders
+        do i=1,nmasked
+          xr(i) = min(xr(i),xrmaxkk)
+        enddo
+
         Dvr = (xr/pirhow)**(1./3.)
 
-        sed_qr = max(0., 0.006*1.0E6*Dvr - 0.2) * qr_spl*rhof_spl
-        sed_Nr = max(0.,0.0035*1.0E6*Dvr - 0.1) * Nr_spl
+        do i=1,nmasked
+          sed_qr(i) = max(0., 0.006*1.0E6*Dvr(i) - 0.2) * qr_spl(i)*rhof_spl(i)
+          sed_Nr(i) = max(0.,0.0035*1.0E6*Dvr(i) - 0.1) * Nr_spl(i)
+        enddo
       endif !l_sb
 
-      !write(*,*) myid, 'sed_Nr', minval(sed_Nr), maxval(sed_Nr), maxloc(sed_Nr),minloc(sed_Nr)
-      !write(*,*) myid, 'sed_qr',  minval(sed_qr), maxval(sed_qr), maxloc(sed_qr),minloc(sed_qr)
       sed_Nr_3d = unpack(sed_Nr, mask, sed_Nr_3d)
       sed_qr_3d = unpack(sed_qr, mask, sed_qr_3d)
       do k=1,kmax
@@ -663,14 +678,14 @@ module modbulkmicro
         enddo
       endif
 
-      ! Clean up 1D vars
-      deallocate(Nr_spl,qr_spl,rhof_spl,Dgr,wfall_Nr,wfall_qr)
-      deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr)
-
     enddo ! time splitting loop
 
     Nrp = Nrp + (Nr_spl_3d - Nr)/delt
     qrp = qrp + (qr_spl_3d - qr)/delt
+
+    ! Clean up 1D vars
+    deallocate(Nr_spl,qr_spl,rhof_spl,Dgr,wfall_Nr,wfall_qr)
+    deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr)
 
     ! Clean up 3d vars
     deallocate(qr_spl_3d, Nr_spl_3d, sed_qr_3d, sed_Nr_3d, rhof_3d)
