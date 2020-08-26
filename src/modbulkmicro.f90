@@ -615,7 +615,9 @@ module modbulkmicro
           if (l_mur_cst) then
             mur = mur_cst
           else
-            mur = min(30.,- 1. + 0.008/ (qr_spl*rhof_spl)**0.6)  ! G09b
+            do i=1,nmasked
+              mur(i) = min(30.,- 1. + 0.008/ (qr_spl(i)*rhof_spl(i))**0.6)  ! G09b
+            enddo
           endif
 
           ! JvdD Added eps0 to avoid division by zero
@@ -678,14 +680,16 @@ module modbulkmicro
         enddo
       endif
 
+      ! Clean up 1D vars
+      deallocate(qr_spl,Nr_spl,rhof_spl)
+
     enddo ! time splitting loop
 
     Nrp = Nrp + (Nr_spl_3d - Nr)/delt
     qrp = qrp + (qr_spl_3d - qr)/delt
 
     ! Clean up 1D vars
-    deallocate(Nr_spl,qr_spl,rhof_spl,Dgr,wfall_Nr,wfall_qr)
-    deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr)
+    deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr,Dgr,wfall_Nr,wfall_qr)
 
     ! Clean up 3d vars
     deallocate(qr_spl_3d, Nr_spl_3d, sed_qr_3d, sed_Nr_3d, rhof_3d)
