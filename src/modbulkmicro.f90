@@ -55,38 +55,34 @@ module modbulkmicro
   subroutine initbulkmicro
     use modglobal, only : ih,i1,jh,j1,k1
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qltot, qr, qrp, thlpmcr, &
-                             qtpmcr, sedc, sed_qr, sed_Nr, Dvr, xr, mur, &
-                             lbdr, au, ac, sc, br, evap, Nevap, qr_spl, &
-                             Nr_spl, precep, qrmask, qcmask
+                             qtpmcr, sedc, Dvr, xr, mur, &
+                             lbdr, au, ac, sc, br, evap, Nevap, &
+                             precep, qrmask, qcmask
     implicit none
 
                                         ! Fields accessed by:
     allocate(Nr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
-            ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
-            ,qltot    (2:i1,2:j1,k1)  & !
             ,qr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
+            ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
             ,qrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
+            ,Dvr      (2:i1,2:j1,k1)  & ! dobulkmicrostat
+            ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
+
+    allocate(qltot    (2:i1,2:j1,k1)  & !
             ,thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr   (2:i1,2:j1,k1)  & !
             ,sedc     (2:i1,2:j1,k1)  & !
-            ,sed_qr   (2:i1,2:j1,k1)  & !
-            ,sed_Nr   (2:i1,2:j1,k1)  & !
-            ,Dvr      (2:i1,2:j1,k1)  & ! dobulkmicrostat
             ,xr       (2:i1,2:j1,k1)  & !
             ,mur      (2:i1,2:j1,k1)  & !
             ,lbdr     (2:i1,2:j1,k1)  & !
-            ,au       (2:i1,2:j1,k1)  & ! used in sanity check
-            ,ac       (2:i1,2:j1,k1)  & ! used in sanity check
+            ,au       (2:i1,2:j1,k1)  & !
+            ,ac       (2:i1,2:j1,k1)  & !
             ,sc       (2:i1,2:j1,k1)  & !
             ,br       (2:i1,2:j1,k1)  & !
             ,evap     (2:i1,2:j1,k1)  & !
             ,Nevap    (2:i1,2:j1,k1)  & !
-            ,qr_spl   (2:i1,2:j1,k1)  & !
-            ,Nr_spl   (2:i1,2:j1,k1)  ) !
-
-    allocate(precep   (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat, docape
-            ,qrmask   (2:i1,2:j1,k1)  &
-            ,qcmask   (2:i1,2:j1,k1))
+            ,qrmask   (2:i1,2:j1,k1)  & !
+            ,qcmask   (2:i1,2:j1,k1)  )
 
     gamma25=lacz_gamma(2.5)
     gamma3=2.
@@ -99,15 +95,15 @@ module modbulkmicro
   ! subroutine exitbulkmicro
   !*********************************************************************
     use modmicrodata, only : Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr, &
-                             sedc,sed_qr,sed_Nr,Dvr,xr,mur,lbdr, &
-                             au,ac,sc,br,evap,Nevap,qr_spl,Nr_spl, &
+                             sedc,Dvr,xr,mur,lbdr, &
+                             au,ac,sc,br,evap,Nevap, &
                              precep,qrmask,qcmask
     implicit none
 
     deallocate(Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr)
 
-    deallocate(sedc,sed_qr,sed_Nr,Dvr,xr,mur,lbdr, &
-               au,ac,sc,br,evap,Nevap,qr_spl,Nr_spl)
+    deallocate(sedc,Dvr,xr,mur,lbdr, &
+               au,ac,sc,br,evap,Nevap)
 
     deallocate(precep,qrmask,qcmask)
 
@@ -165,7 +161,6 @@ module modbulkmicro
 
     !*********************************************************************
     ! calculate qltot 
-    ! cloud droplet number Nc is constant at Nc_0
     !*********************************************************************
 
     qltot = ql0(2:i1,2:j1,1:k1) + qr
@@ -509,137 +504,162 @@ module modbulkmicro
     use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf
     use modfields, only : rhof
     use modmpi,    only : myid
-    use modmicrodata, only : qr_spl, qr, qrmin, qrp, Nrp, Nr_spl, Nr, sed_qr, sed_Nr, &
+    use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
                              l_sb, l_lognormal, l_mur_cst, delt, &
-                             pirhow, sig_gr, &
+                             qrmin, pirhow, sig_gr, &
                              xrmax, xrmin, xrmaxkk, &
-                             D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0, &
-                             precep
+                             D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0
+
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
-    real    :: pwcont
-    real :: xr_spl, Dvr_spl, mur_spl, lbdr_spl
-    real :: Dgr           !<  lognormal geometric diameter
-    real :: wfall_qr      !<  fall velocity for qr
-    real :: wfall_Nr      !<  fall velocity for Nr
 
     real,save :: dt_spl,wfallmax
 
-    qr_spl = qr
-    Nr_spl = Nr
+    logical,allocatable,dimension(:,:,:) :: mask
+    integer :: nmasked
+    real, allocatable :: qr_spl(:) &
+                        ,Nr_spl(:) &
+                        ,sed_qr(:) &
+                        ,sed_Nr(:) &
+                        ,xr(:) &
+                        ,Dvr(:) &
+                        ,mur(:) &
+                        ,lbdr(:) &
+                        ,rhof_spl(:) &
+                        ,pwcont(:) &
+                        ,Dgr(:) &         !<  lognormal geometric diameter
+                        ,wfall_qr(:) &    !<  fall velocity for qr
+                        ,wfall_Nr(:)      !<  fall velocity for Nr
+
+
+    real, allocatable :: dfz_3d(:,:,:) &
+                        ,rhof_3d(:,:,:) &
+                        ,qr_spl_3d(:,:,:) &
+                        ,Nr_spl_3d(:,:,:) &
+                        ,sed_qr_3d(:,:,:) &
+                        ,sed_Nr_3d(:,:,:)
+
+    allocate(qr_spl_3d(2:i1,2:j1,1:k1))
+    allocate(Nr_spl_3d(2:i1,2:j1,1:k1))
+    allocate(sed_qr_3d(2:i1,2:j1,1:k1))
+    allocate(sed_Nr_3d(2:i1,2:j1,1:k1))
+    allocate(rhof_3d(2:i1,2:j1,1:k1))
+    do k=1,k1
+      rhof_3d(:,:,k) = rhof(k)
+    enddo
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
     do jn=1,n_spl ! time splitting loop
+      mask = qr .gt. qrmin
+      nmasked = count(mask)
+
+      ! Pack the input variables to a 1D array
+      Nr_spl = pack(Nr, mask)
+      qr_spl = pack(qr, mask)
+      rhof_spl = pack(rhof_3d, mask)
+
+      ! Allocate work variables
+      allocate(sed_qr(nmasked))
+      allocate(sed_Nr(nmasked))
+      allocate(xr(nmasked))
+      allocate(Dvr(nmasked))
+      allocate(mur(nmasked))
+      allocate(lbdr(nmasked))
+      allocate(pwcont(nmasked))
+      allocate(Dgr(nmasked))
+      allocate(wfall_qr(nmasked))
+      allocate(wfall_Nr(nmasked))
 
       sed_qr = 0.
       sed_Nr = 0.
 
       if (l_sb) then
         if (l_lognormal) then
-          ! spread rhof(k)
-          ! pack rhof, qr_spl, Nr_spl
-          do k = 1,kmax
-          do j = 2,j1
-          do i = 2,i1
-            if (qr_spl(i,j,k) > qrmin) then
-              ! JvdD Added eps0 to avoid division by zero
-              xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
+          ! JvdD Added eps0 to avoid division by zero
+          xr = rhof_spl*qr_spl/(Nr_spl+eps0)
 
-              ! to ensure xr is within borders
-              xr_spl = min(max(xr_spl,xrmin),xrmax)
-              Dvr_spl = (xr_spl/pirhow)**(1./3.)
+          ! to ensure xr is within borders
+          xr = min(max(xr,xrmin),xrmax)
+          Dvr = (xr/pirhow)**(1./3.)
 
-              ! correction for width of DSD
-              Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
-              sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
+          ! correction for width of DSD
+          Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr
+          sed_Nr = 1./pirhow*sed_flux(Nr_spl,Dgr,log(sig_gr)**2,D_s,0)
 
-              ! correction for the fact that pwcont .ne. qr_spl
-              ! actually in this way for every grid box a fall velocity is determined
-              pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
-              if (pwcont > eps1) then
-                sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
-              else
-                sed_qr(i,j,k) = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
-              endif
-            endif ! qr_spl threshold statement
-          enddo
-          enddo
-          enddo
+          ! correction for the fact that pwcont .ne. qr_spl
+          ! actually in this way for every grid box a fall velocity is determined
+          pwcont = liq_cont(Nr_spl,Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
+          where (pwcont > eps1)
+            sed_qr = (qr_spl*rhof_spl/pwcont)*sed_qr ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+          elsewhere
+            sed_qr = 1.*sed_flux(Nr_spl,Dgr,log(sig_gr)**2,D_s,3)
+          endwhere
         else
           !
           ! SB rain sedimentation
           !
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if (qr_spl(i,j,k) > qrmin) then
-              if (l_mur_cst) then
-                mur_spl = mur_cst
-              else
-                mur_spl = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
-              endif
+          if (l_mur_cst) then
+            mur = mur_cst
+          else
+            mur = min(30.,- 1. + 0.008/ (qr_spl*rhof_spl)**0.6)  ! G09b
+          endif
 
-              xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
-              xr_spl = min(max(xr_spl,xrmin),xrmax) ! to ensure xr is within borders
-              Dvr_spl = (xr_spl/pirhow)**(1./3.)
+          xr = rhof_spl*qr_spl/(Nr_spl+eps0) ! JvdD Added eps0 to avoid division by zero
+          xr = min(max(xr,xrmin),xrmax) ! to ensure xr is within borders
+          Dvr = (xr/pirhow)**(1./3.)
 
-              lbdr_spl = ((mur_spl+3.)*(mur_spl+2.)*(mur_spl+1.))**(1./3.)/Dvr_spl
-              wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
-              wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
-              sed_qr  (i,j,k) = wfall_qr*qr_spl(i,j,k)*rhof(k)
-              sed_Nr  (i,j,k) = wfall_Nr*Nr_spl(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
+          lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
+          wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+4.))))
+          wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+1.))))
+          sed_qr   = wfall_qr*qr_spl*rhof_spl
+          sed_Nr   = wfall_Nr*Nr_spl
         endif ! l_lognormal
-
       else
         !
         ! KK00 rain sedimentation
         !
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-          if (qr_spl(i,j,k) > qrmin) then
-            xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
-            xr_spl = min(xr_spl,xrmaxkk) ! to ensure xr is within borders
-            Dvr_spl = (xr_spl/pirhow)**(1./3.)
+        xr = rhof_spl*qr_spl/(Nr_spl+eps0) !JvdD added eps0 to avoid division by zero
+        xr = min(xr,xrmaxkk) ! to ensure xr is within borders
+        Dvr = (xr/pirhow)**(1./3.)
 
-            sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl - 0.2) * qr_spl(i,j,k)*rhof(k)
-            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl - 0.1) * Nr_spl(i,j,k)
-          endif
-        enddo
-        enddo
-        enddo
-
+        sed_qr = max(0., 0.006*1.0E6*Dvr - 0.2) * qr_spl*rhof_spl
+        sed_Nr = max(0.,0.0035*1.0E6*Dvr - 0.1) * Nr_spl
       endif !l_sb
 
+      sed_Nr_3d = unpack(sed_Nr, mask, sed_Nr_3d)
+      sed_qr_3d = unpack(sed_qr, mask, sed_qr_3d)
       do k=1,kmax
-        Nr_spl(:,:,k) = Nr_spl(:,:,k) + &
-                        (sed_Nr(:,:,k+1) - sed_Nr(:,:,k))*dt_spl/dzf(k)
-        qr_spl(:,:,k) = qr_spl(:,:,k) + &
-                        (sed_qr(:,:,k+1) - sed_qr(:,:,k))*dt_spl/(dzf(k)*rhof(k))
+        Nr_spl_3d(:,:,k) = Nr_spl_3d(:,:,k) + &
+                 (sed_Nr_3d(:,:,k+1) - sed_Nr_3d(:,:,k))*dt_spl/dzf(k)
+        qr_spl_3d(:,:,k) = qr_spl_3d(:,:,k) + &
+                 (sed_qr_3d(:,:,k+1) - sed_qr_3d(:,:,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
 
-      if (any(qr_spl(:,:,1:kmax) .lt. 0.)) then
-        write(6,*)'sed_qr too large', count(qr_spl(:,:,1:kmax) .lt. 0.),myid
+      if (any(qr_spl_3d(:,:,1:kmax) .lt. 0.)) then
+        write(6,*)'sed_qr too large', count(qr_spl_3d(:,:,1:kmax) .lt. 0.),myid
       endif
 
       if (jn==1) then
         do k=1,kmax
-          precep(:,:,k) =  sed_qr(:,:,k)/rhof(k)   ! kg kg-1 m s-1
+          precep(:,:,k) =  sed_qr_3d(:,:,k)/rhof(k)   ! kg kg-1 m s-1
         enddo
       endif
 
+      ! Clean up 1D vars
+      deallocate(Nr_spl,qr_spl,rhof_spl,pwcont,Dgr,wfall_Nr,wfall_qr)
+      deallocate(sed_qr, sed_Nr, xr, Dvr, mur, lbdr)
+
     enddo ! time splitting loop
 
-    Nrp = Nrp + (Nr_spl - Nr)/delt
-    qrp = qrp + (qr_spl - qr)/delt
+    Nrp = Nrp + (Nr_spl_3d - Nr)/delt
+    qrp = qrp + (qr_spl_3d - qr)/delt
+
+    ! Clean up 3d vars
+    deallocate(qr_spl_3d, Nr_spl_3d, sed_qr_3d, sed_Nr_3d, rhof_3d)
   end subroutine sedimentation_rain
 
   !*********************************************************************
@@ -733,7 +753,7 @@ module modbulkmicro
   !*********************************************************************
   !*********************************************************************
 
-  real function sed_flux(Nin,Din,sig2,Ddiv,nnn)
+  elemental real function sed_flux(Nin,Din,sig2,Ddiv,nnn)
   !*********************************************************************
   ! Function to calculate numerically the analytical solution of the
   ! sedimentation flux between Dmin and Dmax based on
@@ -802,7 +822,7 @@ module modbulkmicro
   !*********************************************************************
   !*********************************************************************
 
-  real function liq_cont(Nin,Din,sig2,Ddiv,nnn)
+  elemental real function liq_cont(Nin,Din,sig2,Ddiv,nnn)
   !*********************************************************************
   ! Function to calculate numerically the analytical solution of the
   ! liq. water content between Dmin and Dmax based on
@@ -840,7 +860,7 @@ module modbulkmicro
   !*********************************************************************
   !*********************************************************************
 
-  real function erfint(beta, D, D_min, D_max, sig2,nnn )
+  elemental real function erfint(beta, D, D_min, D_max, sig2,nnn )
 
   !*********************************************************************
   ! Function to calculate erf(x) approximated by a polynomial as
