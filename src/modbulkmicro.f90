@@ -844,7 +844,7 @@ module modbulkmicro
                       ,D_intmax = 3e-3         !4.3e-3    !  value is now max value for sqrt fall speed rel.
 
     real ::  D_min        & ! min integration limit
-            ,D_max          ! max integration limit
+            ,D_max        & ! max integration limit
             ,sn
 
     sn = sign(0.5, Din - Ddiv)
