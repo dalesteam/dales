@@ -525,6 +525,11 @@ module modbulkmicro
 
     real,save :: dt_spl,wfallmax
 
+    allocate(sed_qr(2:i1,2:j1,1:k1))
+    allocate(sed_Nr(2:i1,2:j1,1:k1))
+    allocate(qr_spl(2:i1,2:j1,1:k1))
+    allocate(Nr_spl(2:i1,2:j1,1:k1))
+
     qr_spl = qr
     Nr_spl = Nr
 
@@ -636,6 +641,9 @@ module modbulkmicro
 
     Nrp = Nrp + (Nr_spl - Nr)/delt
     qrp = qrp + (qr_spl - qr)/delt
+
+    deallocate(sed_qr sed_Nr, qr_spl, Nr_spl)
+
   end subroutine sedimentation_rain
 
   !*********************************************************************
