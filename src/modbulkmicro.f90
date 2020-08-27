@@ -543,10 +543,9 @@ module modbulkmicro
       rhof_3d(:,:,k) = rhof(k)
     enddo
 
-    nmasked = i1 * j1 * k1 / 5
     ! Allocate work variables
-    allocate(sed_qr(nmasked))
-    allocate(sed_Nr(nmasked))
+    allocate(sed_qr(size(qr_spl_3d)))
+    allocate(sed_Nr(size(qr_spl_3d)))
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
@@ -557,15 +556,12 @@ module modbulkmicro
 
     do jn=1,n_spl ! time splitting loop
       mask = qr_spl_3d .gt. qrmin
-      nmasked = count(mask)
-      if (nmasked > i1 * j1 * k1 / 5) then
-        write(*,*) 'Too many masked points'
-      endif
 
       ! Pack the input variables to a 1D array
       qr_spl = pack(qr_spl_3d, mask)
       Nr_spl = pack(Nr_spl_3d, mask)
       rhof_spl = pack(rhof_3d, mask)
+      nmasked = size(qr_spl)
 
       if (l_sb) then
         if (l_lognormal) then
@@ -850,13 +846,9 @@ module modbulkmicro
     real ::  D_min        & ! min integration limit
             ,D_max          ! max integration limit
 
-    if (Din < Ddiv) then
-      D_min = D_intmin
-      D_max = Ddiv
-    else
-      D_min = Ddiv
-      D_max = D_intmax
-    end if
+    sn = sign(0.5, Din - Ddiv)
+    D_min = (0.5 - sn) * D_intmin + (0.5 + sn) * Ddiv
+    D_max = (0.5 - sn) * Ddiv     + (0.5 + sn) * D_intmin
 
     liq_cont = C*Nin*erfint(beta,Din,D_min,D_max,sig2,nnn)
   end function liq_cont
@@ -891,14 +883,10 @@ module modbulkmicro
 
     erfymin = 1.-1./((1.+a1*abs(ymin) + a2*abs(ymin)**2 + a3*abs(ymin)**3 +a4*abs(ymin)**4)**4)
     erfymax = 1.-1./((1.+a1*abs(ymax) + a2*abs(ymax)**2 + a3*abs(ymax)**3 +a4*abs(ymax)**4)**4)
-    if (ymin < 0.) then
-      erfymin = -1.*erfymin
-    end if
-    if (ymax < 0.) then
-      erfymax = -1.*erfymax
-    end if
-    erfint = D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin)
-  !  if (erfint < 0.) write(*,*)'erfint neg'
-    if (erfint < 0.) erfint = 0.
+
+    erfymin = sign(erfymin, ymin)
+    erfymax = sign(erfymax, ymax)
+
+    erfint = max(0., D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin))
   end function erfint
 end module modbulkmicro
