@@ -109,6 +109,83 @@ module modbulkmicro
 
   end subroutine exitbulkmicro
 
+!> Calculates rain DSD integral properties & parameters xr, Dvr, lbdr, mur
+  subroutine calculate_rain_parameters(Nr, qr, mask)
+    use modmicrodata, only : xr, Dvr, lbdr, mur, &
+                             l_sb, l_mur_cst, mur_cst, &
+                             qrmask, pirhow, &
+                             xrmin, xrmax, xrmaxkk, eps0
+    use modglobal, only : i1,j1,k1
+    use modfields, only : rhof
+    implicit none
+    logical, intent(in) :: mask(2:i1, 2:j1, 1:k1)
+    real, intent(in)    :: Nr  (2:i1, 2:j1, 1:k1) &
+                          ,qr  (2:i1, 2:j1, 1:k1)
+    integer :: i,j,k
+
+    xr = 0.
+    Dvr = 0.
+    mur = 30.
+    lbdr = 0.
+
+    if (l_sb) then
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+         if (mask(i,j,k)) then
+           ! JvdD Added eps0 to avoid floating point exception
+           xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
+
+           ! to ensure xr is within borders
+           xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
+           Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+         endif
+      enddo
+      enddo
+      enddo
+
+      if (l_mur_cst) then
+        mur = mur_cst
+        do k=1,k1
+        do j=2,j1
+        do i=2,i1
+          if (mask(i,j,k)) then
+             lbdr(i,j,k) = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr(i,j,k)
+          endif
+        enddo
+        enddo
+        enddo
+      else
+        ! mur = f(Dv)
+        do k=1,k1
+        do j=2,j1
+        do i=2,i1
+          if (mask(i,j,k)) then
+            mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
+            lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
+          endif
+        enddo
+        enddo
+        enddo
+      endif
+    else ! l_sb
+       do k=1,k1
+       do j=2,j1
+       do i=2,i1
+          if (mask(i,j,k)) then
+            ! JvdD Added eps0 to avoid floating point exception
+            xr(i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k) + eps0)
+
+            ! to ensure x_pw is within borders
+            xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
+            Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+          endif
+       enddo
+       enddo
+       enddo
+    endif ! l_sb
+  end subroutine calculate_rain_parameters
+
 !> Calculates the microphysical source term.
   subroutine bulkmicro
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp
@@ -116,11 +193,9 @@ module modbulkmicro
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modmicrodata, only : Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, delt, &
-                             l_sb, l_sedc, l_mur_cst, l_lognormal, l_mur_cst, l_rain, &
+                             l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmask, qrmin, qcmask, qcmin, &
-                             xr, Dvr, mur, lbdr, qltot, &
-                             pirhow, inr, iqr, &
-                             xrmin, xrmax, xrmaxkk, mur_cst
+                             mur_cst, qltot, inr, iqr
     implicit none
     integer :: i,j,k
     real :: qrtest,nrtest
@@ -160,82 +235,18 @@ module modbulkmicro
     qrmask = qr.gt.qrmin.and.Nr.gt.0
 
     !*********************************************************************
+    ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
+    !*********************************************************************
+    if (l_rain) then
+      call calculate_rain_parameters(Nr, qr, qrmask)
+    end if   ! l_rain
+
+    !*********************************************************************
     ! calculate qltot
     !*********************************************************************
 
     qltot = ql0(2:i1,2:j1,1:k1) + qr
     qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
-
-    !*********************************************************************
-    ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
-    !*********************************************************************
-    if (l_rain) then
-
-      xr = 0.
-      Dvr = 0.
-      mur = 30.
-      lbdr = 0.
-
-      if (l_sb) then
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-           if (qrmask(i,j,k)) then
-             ! REMOVED: JvdD Added eps0 to avoid floating point exception
-             ! NOTE: Nr.gt.0 because of definition of qrmask above
-             xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
-
-             ! to ensure xr is within borders
-             xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
-             Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-           endif
-        enddo
-        enddo
-        enddo
-
-        if (l_mur_cst) then
-          ! mur = cst
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if (qrmask(i,j,k)) then
-               mur(i,j,k) = mur_cst
-               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-        else
-          ! mur = f(Dv)
-          do k=1,k1
-          do j=2,j1
-          do i=2,i1
-            if (qrmask(i,j,k)) then
-              mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
-              lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-        endif
-      else ! l_sb
-         do k=1,k1
-         do j=2,j1
-         do i=2,i1
-            if (qrmask(i,j,k)) then
-              ! REMOVED: JvdD Added eps0 to avoid floating point exception
-              ! NOTE: Nr.gt.0 because of definition of qrmask above
-              xr(i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
-
-              ! to ensure x_pw is within borders
-              xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
-              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-            endif
-         enddo
-         enddo
-         enddo
-      endif ! l_sb
-    endif ! l_rain
 
     !*********************************************************************
     ! call microphysical processes subroutines
@@ -506,7 +517,7 @@ module modbulkmicro
     use modmpi,    only : myid
     use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
                              l_sb, l_lognormal, l_mur_cst, delt, &
-                             qrmin, pirhow, sig_gr, &
+                             qrmask, qrmin, pirhow, sig_gr, &
                              xrmax, xrmin, xrmaxkk, &
                              D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0
 
@@ -518,10 +529,11 @@ module modbulkmicro
     real :: Dgr           !<  lognormal geometric diameter
     real :: wfall_qr      !<  fall velocity for qr
     real :: wfall_Nr      !<  fall velocity for Nr
-    real, allocatable :: sed_qr(:,:,:) &
-                        ,sed_Nr(:,:,:) &
-                        ,qr_spl(:,:,:) &
-                        ,Nr_spl(:,:,:)
+    real, allocatable    :: sed_qr(:,:,:) &
+                           ,sed_Nr(:,:,:) &
+                           ,qr_spl(:,:,:) &
+                           ,Nr_spl(:,:,:)
+    logical, allocatable :: qrmask_spl(:,:,:)
 
     real,save :: dt_spl,wfallmax
 
@@ -529,6 +541,7 @@ module modbulkmicro
     allocate(sed_Nr(2:i1,2:j1,1:k1))
     allocate(qr_spl(2:i1,2:j1,1:k1))
     allocate(Nr_spl(2:i1,2:j1,1:k1))
+    allocate(qrmask_spl(2:i1,2:j1,1:k1))
 
     qr_spl = qr
     Nr_spl = Nr
@@ -542,19 +555,20 @@ module modbulkmicro
       sed_qr = 0.
       sed_Nr = 0.
 
+      ! update parameters after the first iteration
+      if (jn .ge. 1) then
+        qrmask_spl = qr_spl .gt. qrmin
+        call calculate_rain_parameters(Nr_spl, qr_spl, qrmask_spl)
+      else
+        qrmask_spl = qrmask
+      endif
+
       if (l_sb) then
         if (l_lognormal) then
           do k = 1,kmax
           do j = 2,j1
           do i = 2,i1
             if (qr_spl(i,j,k) > qrmin) then
-              ! JvdD Added eps0 to avoid division by zero
-              xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
-
-              ! to ensure xr is within borders
-              xr_spl = min(max(xr_spl,xrmin),xrmax)
-              Dvr_spl = (xr_spl/pirhow)**(1./3.)
-
               ! correction for width of DSD
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
               sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
@@ -579,17 +593,6 @@ module modbulkmicro
           do j=2,j1
           do i=2,i1
             if (qr_spl(i,j,k) > qrmin) then
-              if (l_mur_cst) then
-                mur_spl = mur_cst
-              else
-                mur_spl = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
-              endif
-
-              xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
-              xr_spl = min(max(xr_spl,xrmin),xrmax) ! to ensure xr is within borders
-              Dvr_spl = (xr_spl/pirhow)**(1./3.)
-
-              lbdr_spl = ((mur_spl+3.)*(mur_spl+2.)*(mur_spl+1.))**(1./3.)/Dvr_spl
               wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
               wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
               sed_qr  (i,j,k) = wfall_qr*qr_spl(i,j,k)*rhof(k)
@@ -607,17 +610,12 @@ module modbulkmicro
         do j=2,j1
         do i=2,i1
           if (qr_spl(i,j,k) > qrmin) then
-            xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
-            xr_spl = min(xr_spl,xrmaxkk) ! to ensure xr is within borders
-            Dvr_spl = (xr_spl/pirhow)**(1./3.)
-
             sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl - 0.2) * qr_spl(i,j,k)*rhof(k)
             sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl - 0.1) * Nr_spl(i,j,k)
           endif
         enddo
         enddo
         enddo
-
       endif ! l_sb
 
       do k=1,kmax
@@ -642,7 +640,7 @@ module modbulkmicro
     Nrp = Nrp + (Nr_spl - Nr)/delt
     qrp = qrp + (qr_spl - qr)/delt
 
-    deallocate(sed_qr sed_Nr, qr_spl, Nr_spl)
+    deallocate(sed_qr, sed_Nr, qr_spl, Nr_spl, qrmask_spl)
 
   end subroutine sedimentation_rain
 
