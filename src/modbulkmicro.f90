@@ -122,65 +122,53 @@ module modbulkmicro
                           ,qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
-    xr = 0.
-    Dvr = 0.
-    mur = 30.
-    lbdr = 0.
-
     if (l_sb) then
       do k=1,k1
-      do j=2,j1
-      do i=2,i1
-         if (mask(i,j,k)) then
-           ! JvdD Added eps0 to avoid floating point exception
-           xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
+        where (mask(:,:,k))
+          ! JvdD Added eps0 to avoid floating point exception
+          xr (:,:,k) = rhof(k)*qr(:,:,k)/(Nr(:,:,k)+eps0)
 
-           ! to ensure xr is within borders
-           xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
-           Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-         endif
-      enddo
-      enddo
+          ! to ensure xr is within borders
+          xr (:,:,k) = min(max(xr(:,:,k),xrmin),xrmax)
+          Dvr(:,:,k) = (xr(:,:,k)/pirhow)**(1./3.)
+        elsewhere
+          xr (:,:,k) = 0.
+          Dvr(:,:,k) = 0.
+        endwhere
       enddo
 
       if (l_mur_cst) then
         mur = mur_cst
-        do k=1,k1
-        do j=2,j1
-        do i=2,i1
-          if (mask(i,j,k)) then
-             lbdr(i,j,k) = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr(i,j,k)
-          endif
-        enddo
-        enddo
-        enddo
+        where(mask)
+          lbdr = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr
+        elsewhere
+          lbdr = 0.
+        endwhere
       else
         ! mur = f(Dv)
         do k=1,k1
-        do j=2,j1
-        do i=2,i1
-          if (mask(i,j,k)) then
-            mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
-            lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-          endif
-        enddo
-        enddo
+          where(mask(:,:,k))
+            mur(:,:,k) = min(30.,- 1. + 0.008/ (qr(:,:,k)*rhof(k))**0.6)  ! G09b
+            lbdr(:,:,k) = ((mur(:,:,k)+3.)*(mur(:,:,k)+2.)*(mur(:,:,k)+1.))**(1./3.)/Dvr(:,:,k)
+          elsewhere
+            mur (:,:,k) = 0.
+            lbdr(:,:,k) = 0.
+          endwhere
         enddo
       endif
     else ! l_sb
        do k=1,k1
-       do j=2,j1
-       do i=2,i1
-          if (mask(i,j,k)) then
-            ! JvdD Added eps0 to avoid floating point exception
-            xr(i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k) + eps0)
+         where(mask(:,:,k))
+           ! JvdD Added eps0 to avoid floating point exception
+           xr(:,:,k) = rhof(k)*qr(:,:,k)/(Nr(:,:,k) + eps0)
 
-            ! to ensure x_pw is within borders
-            xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
-            Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-          endif
-       enddo
-       enddo
+           ! to ensure x_pw is within borders
+           xr(:,:,k) = min(xr(:,:,k),xrmaxkk)
+           Dvr(:,:,k) = (xr(:,:,k)/pirhow)**(1./3.)
+         elsewhere
+           xr(:,:,k) = 0.
+           Dvr(:,:,k) = 0.
+         endwhere
        enddo
     endif ! l_sb
   end subroutine calculate_rain_parameters
@@ -220,12 +208,12 @@ module modbulkmicro
     ! remove neg. values of Nr and qr
     !*********************************************************************
     if (l_rain) then
-       if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-       if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
+       !if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
+       !  write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
+       !if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
+       !   write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
 
        Nr = max(0.,Nr)
        qr = max(0.,qr)
@@ -370,9 +358,9 @@ module modbulkmicro
       enddo
     end if !l_sb
 
-    if (any(ql0(2:i1,2:j1,1:kmax) .lt. au(:,:,1:kmax)*delt)) then
-      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
-    end if
+    !if (any(ql0(2:i1,2:j1,1:kmax) .lt. au(:,:,1:kmax)*delt)) then
+    !  write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
+    !end if
   end subroutine autoconversion
 
   subroutine accretion
@@ -461,9 +449,9 @@ module modbulkmicro
       enddo
     end if !l_sb
 
-    if (any(ql0(2:i1,2:j1,1:kmax) .lt. ac(2:i1,2:j1,1:kmax) * delt)) then
-      write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
-    end if
+    !if (any(ql0(2:i1,2:j1,1:kmax) .lt. ac(2:i1,2:j1,1:kmax) * delt)) then
+    !  write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
+    !end if
   end subroutine accretion
 
 !> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
@@ -623,9 +611,9 @@ module modbulkmicro
                         (sed_qr(:,:,k+1) - sed_qr(:,:,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
 
-      if (any(qr_spl(:,:,1:kmax) .lt. 0.)) then
-        write(6,*)'sed_qr too large', count(qr_spl(:,:,1:kmax) .lt. 0.),myid
-      endif
+      !if (any(qr_spl(:,:,1:kmax) .lt. 0.)) then
+      !  write(6,*)'sed_qr too large', count(qr_spl(:,:,1:kmax) .lt. 0.),myid
+      !endif
 
       if (jn==1) then
         do k=1,kmax
