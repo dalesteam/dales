@@ -849,7 +849,7 @@ module modbulkmicro
 
     sn = sign(0.5, Din - Ddiv)
     D_min = (0.5 - sn) * D_intmin + (0.5 + sn) * Ddiv
-    D_max = (0.5 - sn) * Ddiv     + (0.5 + sn) * D_intmin
+    D_max = (0.5 - sn) * Ddiv     + (0.5 + sn) * D_intmax
 
     liq_cont = C*Nin*erfint(beta,Din,D_min,D_max,sig2,nnn)
   end function liq_cont
