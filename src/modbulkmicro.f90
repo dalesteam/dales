@@ -511,157 +511,131 @@ module modbulkmicro
                              D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0
 
     implicit none
-    integer :: i,k,jn
+    integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
+    real    :: pwcont
+    real :: xr_spl, Dvr_spl, mur_spl, lbdr_spl
+    real :: Dgr           !<  lognormal geometric diameter
+    real :: wfall_qr      !<  fall velocity for qr
+    real :: wfall_Nr      !<  fall velocity for Nr
+    real, allocatable :: sed_qr(:,:,:) &
+                        ,sed_Nr(:,:,:) &
+                        ,qr_spl(:,:,:) &
+                        ,Nr_spl(:,:,:)
 
     real,save :: dt_spl,wfallmax
 
-    logical,allocatable,dimension(:,:,:) :: mask
-    integer :: nmasked
-    real :: pwcont
-    real, allocatable :: qr_spl(:) &
-                        ,Nr_spl(:) &
-                        ,sed_qr(:) &
-                        ,sed_Nr(:) &
-                        ,rhof_spl(:)
-
-
-    real, allocatable :: rhof_3d(:,:,:) &
-                        ,qr_spl_3d(:,:,:) &
-                        ,Nr_spl_3d(:,:,:) &
-                        ,sed_qr_3d(:,:,:) &
-                        ,sed_Nr_3d(:,:,:)
-
-    real :: xr, Dvr, mur, lbdr, Dgr, wfall_qr, wfall_Nr
-
-    allocate(qr_spl_3d(2:i1,2:j1,1:k1))
-    allocate(Nr_spl_3d(2:i1,2:j1,1:k1))
-    allocate(sed_qr_3d(2:i1,2:j1,1:k1))
-    allocate(sed_Nr_3d(2:i1,2:j1,1:k1))
-    allocate(rhof_3d(2:i1,2:j1,1:k1))
-    do k=1,k1
-      rhof_3d(:,:,k) = rhof(k)
-    enddo
-
-    ! Allocate work variables
-    allocate(sed_qr(size(qr_spl_3d)))
-    allocate(sed_Nr(size(qr_spl_3d)))
+    qr_spl = qr
+    Nr_spl = Nr
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
-    qr_spl_3d = qr
-    Nr_spl_3d = Nr
-
     do jn=1,n_spl ! time splitting loop
-      mask = qr_spl_3d .gt. qrmin
 
-      ! Pack the input variables to a 1D array
-      qr_spl = pack(qr_spl_3d, mask)
-      Nr_spl = pack(Nr_spl_3d, mask)
-      rhof_spl = pack(rhof_3d, mask)
-      nmasked = size(qr_spl)
+      sed_qr = 0.
+      sed_Nr = 0.
 
       if (l_sb) then
         if (l_lognormal) then
-          do i=1,nmasked
-            ! JvdD Added eps0 to avoid division by zero
-            ! to ensure xr is within borders
-            xr = rhof_spl(i)*qr_spl(i)/(Nr_spl(i)+eps0)
-            xr = min(max(xr,xrmin),xrmax)
-            Dvr = (xr/pirhow)**(1./3.)
+          do k = 1,kmax
+          do j = 2,j1
+          do i = 2,i1
+            if (qr_spl(i,j,k) > qrmin) then
+              ! JvdD Added eps0 to avoid division by zero
+              xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0)
 
-            ! correction for width of DSD
-            Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr
-            sed_Nr(i) = 1./pirhow*sed_flux(Nr_spl(i),Dgr,log(sig_gr)**2,D_s,0)
+              ! to ensure xr is within borders
+              xr_spl = min(max(xr_spl,xrmin),xrmax)
+              Dvr_spl = (xr_spl/pirhow)**(1./3.)
 
-            ! correction for the fact that pwcont .ne. qr_spl
-            ! actually in this way for every grid box a fall velocity is determined
+              ! correction for width of DSD
+              Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
+              sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
 
-            sed_qr(i) = 1.*sed_flux(Nr_spl(i),Dgr,log(sig_gr)**2,D_s,3)
-            pwcont = liq_cont(Nr_spl(i),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
-            if (pwcont > eps1) then
-              ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
-              sed_qr(i) = (qr_spl(i)*rhof_spl(i)/pwcont)*sed_qr(i)
-            endif
+              ! correction for the fact that pwcont .ne. qr_spl
+              ! actually in this way for every grid box a fall velocity is determined
+              pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
+              if (pwcont > eps1) then
+                sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+              else
+                sed_qr(i,j,k) = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+              endif
+            endif ! qr_spl threshold statement
+          enddo
+          enddo
           enddo
         else
           !
           ! SB rain sedimentation
           !
-          do i=1,nmasked
-            ! TODO move out of loop
-            if (l_mur_cst) then
-              mur = mur_cst
-            else
-              mur = min(30.,- 1. + 0.008/ (qr_spl(i)*rhof_spl(i))**0.6)  ! G09b
+          do k=1,k1
+          do j=2,j1
+          do i=2,i1
+            if (qr_spl(i,j,k) > qrmin) then
+              if (l_mur_cst) then
+                mur_spl = mur_cst
+              else
+                mur_spl = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
+              endif
+
+              xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
+              xr_spl = min(max(xr_spl,xrmin),xrmax) ! to ensure xr is within borders
+              Dvr_spl = (xr_spl/pirhow)**(1./3.)
+
+              lbdr_spl = ((mur_spl+3.)*(mur_spl+2.)*(mur_spl+1.))**(1./3.)/Dvr_spl
+              wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
+              wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
+              sed_qr  (i,j,k) = wfall_qr*qr_spl(i,j,k)*rhof(k)
+              sed_Nr  (i,j,k) = wfall_Nr*Nr_spl(i,j,k)
             endif
-
-            ! JvdD Added eps0 to avoid division by zero
-            xr = rhof_spl(i)*qr_spl(i)/(Nr_spl(i)+eps0)
-
-            ! to ensure xr is within borders
-            xr = min(max(xr,xrmin),xrmax)
-
-            Dvr = (xr/pirhow)**(1./3.)
-            lbdr = ((mur+3.)*(mur+2.)*(mur+1.))**(1./3.)/Dvr
-            wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+4.))))
-            wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr)**(-1.*(mur+1.))))
-
-            sed_qr(i) = wfall_qr*qr_spl(i)*rhof_spl(i)
-            sed_Nr(i) = wfall_Nr*Nr_spl(i)
+          enddo
+          enddo
           enddo
         endif ! l_lognormal
       else
         !
         ! KK00 rain sedimentation
         !
-        do i=1,nmasked
-          ! JvdD added eps0 to avoid division by zero
-          xr = rhof_spl(i)*qr_spl(i)/(Nr_spl(i)+eps0)
+        do k=1,k1
+        do j=2,j1
+        do i=2,i1
+          if (qr_spl(i,j,k) > qrmin) then
+            xr_spl = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
+            xr_spl = min(xr_spl,xrmaxkk) ! to ensure xr is within borders
+            Dvr_spl = (xr_spl/pirhow)**(1./3.)
 
-          ! to ensure xr is within borders
-          xr = min(xr,xrmaxkk)
-
-          Dvr = (xr/pirhow)**(1./3.)
-          sed_qr(i) = max(0., 0.006*1.0E6*Dvr - 0.2) * qr_spl(i)*rhof_spl(i)
-          sed_Nr(i) = max(0.,0.0035*1.0E6*Dvr - 0.1) * Nr_spl(i)
+            sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl - 0.2) * qr_spl(i,j,k)*rhof(k)
+            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl - 0.1) * Nr_spl(i,j,k)
+          endif
         enddo
+        enddo
+        enddo
+
       endif ! l_sb
 
-      sed_Nr_3d = unpack(sed_Nr, mask, sed_Nr_3d)
-      sed_qr_3d = unpack(sed_qr, mask, sed_qr_3d)
       do k=1,kmax
-        Nr_spl_3d(:,:,k) = Nr_spl_3d(:,:,k) + &
-                 (sed_Nr_3d(:,:,k+1) - sed_Nr_3d(:,:,k))*dt_spl/dzf(k)
-        qr_spl_3d(:,:,k) = qr_spl_3d(:,:,k) + &
-                 (sed_qr_3d(:,:,k+1) - sed_qr_3d(:,:,k))*dt_spl/(dzf(k)*rhof(k))
+        Nr_spl(:,:,k) = Nr_spl(:,:,k) + &
+                        (sed_Nr(:,:,k+1) - sed_Nr(:,:,k))*dt_spl/dzf(k)
+        qr_spl(:,:,k) = qr_spl(:,:,k) + &
+                        (sed_qr(:,:,k+1) - sed_qr(:,:,k))*dt_spl/(dzf(k)*rhof(k))
       enddo
 
-      if (any(qr_spl_3d(:,:,1:kmax) .lt. 0.)) then
-        write(6,*)'sed_qr too large', count(qr_spl_3d(:,:,1:kmax) .lt. 0.),myid
+      if (any(qr_spl(:,:,1:kmax) .lt. 0.)) then
+        write(6,*)'sed_qr too large', count(qr_spl(:,:,1:kmax) .lt. 0.),myid
       endif
 
       if (jn==1) then
         do k=1,kmax
-          precep(:,:,k) = sed_qr_3d(:,:,k)/rhof(k)   ! kg kg-1 m s-1
+          precep(:,:,k) = sed_qr(:,:,k)/rhof(k)   ! kg kg-1 m s-1
         enddo
       endif
 
-      ! Clean up 1D vars
-      deallocate(qr_spl,Nr_spl,rhof_spl)
-
     enddo ! time splitting loop
 
-    Nrp = Nrp + (Nr_spl_3d - Nr)/delt
-    qrp = qrp + (qr_spl_3d - qr)/delt
-
-    ! Clean up 1D vars
-    deallocate(sed_qr,sed_Nr)
-
-    ! Clean up 3d vars
-    deallocate(qr_spl_3d, Nr_spl_3d, sed_qr_3d, sed_Nr_3d, rhof_3d)
+    Nrp = Nrp + (Nr_spl - Nr)/delt
+    qrp = qrp + (qr_spl - qr)/delt
   end subroutine sedimentation_rain
 
   !*********************************************************************
