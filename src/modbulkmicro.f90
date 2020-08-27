@@ -845,6 +845,7 @@ module modbulkmicro
 
     real ::  D_min        & ! min integration limit
             ,D_max          ! max integration limit
+            ,sn
 
     sn = sign(0.5, Din - Ddiv)
     D_min = (0.5 - sn) * D_intmin + (0.5 + sn) * Ddiv
