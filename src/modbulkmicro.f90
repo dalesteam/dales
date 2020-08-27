@@ -112,8 +112,7 @@ module modbulkmicro
 !> Calculates rain DSD integral properties & parameters xr, Dvr, lbdr, mur
   subroutine calculate_rain_parameters(Nr, qr, mask)
     use modmicrodata, only : xr, Dvr, lbdr, mur, &
-                             l_sb, l_mur_cst, mur_cst, &
-                             qrmask, pirhow, &
+                             l_sb, l_mur_cst, mur_cst, pirhow, &
                              xrmin, xrmax, xrmaxkk, eps0
     use modglobal, only : i1,j1,k1
     use modfields, only : rhof
@@ -516,16 +515,15 @@ module modbulkmicro
     use modfields, only : rhof
     use modmpi,    only : myid
     use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
-                             l_sb, l_lognormal, l_mur_cst, delt, &
+                             l_sb, l_lognormal, delt, &
                              qrmask, qrmin, pirhow, sig_gr, &
-                             xrmax, xrmin, xrmaxkk, &
-                             D_s, a_tvsb, b_tvsb, c_tvsb, mur_cst, eps0
+                             D_s, a_tvsb, b_tvsb, c_tvsb, &
+                             Dvr, mur, lbdr
 
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
     real    :: pwcont
-    real :: xr_spl, Dvr_spl, mur_spl, lbdr_spl
     real :: Dgr           !<  lognormal geometric diameter
     real :: wfall_qr      !<  fall velocity for qr
     real :: wfall_Nr      !<  fall velocity for Nr
@@ -568,9 +566,9 @@ module modbulkmicro
           do k = 1,kmax
           do j = 2,j1
           do i = 2,i1
-            if (qr_spl(i,j,k) > qrmin) then
+            if (qrmask_spl(i,j,k)) then
               ! correction for width of DSD
-              Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl
+              Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
               sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
 
               ! correction for the fact that pwcont .ne. qr_spl
@@ -592,9 +590,9 @@ module modbulkmicro
           do k=1,k1
           do j=2,j1
           do i=2,i1
-            if (qr_spl(i,j,k) > qrmin) then
-              wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+4.))))
-              wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl)**(-1.*(mur_spl+1.))))
+            if (qrmask_spl(i,j,k)) then
+              wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+              wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
               sed_qr  (i,j,k) = wfall_qr*qr_spl(i,j,k)*rhof(k)
               sed_Nr  (i,j,k) = wfall_Nr*Nr_spl(i,j,k)
             endif
@@ -609,9 +607,9 @@ module modbulkmicro
         do k=1,k1
         do j=2,j1
         do i=2,i1
-          if (qr_spl(i,j,k) > qrmin) then
-            sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl - 0.2) * qr_spl(i,j,k)*rhof(k)
-            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl - 0.1) * Nr_spl(i,j,k)
+          if (qrmask_spl(i,j,k)) then
+            sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
+            sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
           endif
         enddo
         enddo
@@ -661,7 +659,7 @@ module modbulkmicro
                              a_tvsb, b_tvsb, c_tvsb, &
                              nu_a, Sc_num, avf, bvf, &
                              c_Nevap, c_evapkk, delt, &
-                             qrmask, lbdr, xr, dvr, qrp, Nrp, &
+                             qrmask, lbdr, xr, Dvr, qrp, Nrp, &
                              qtpmcr, thlpmcr
     implicit none
     integer :: i,j,k
