@@ -986,7 +986,7 @@ contains
           endif
 
           if ((rtimee > 7200) .and. (rtimee < 52200)) then
-            thlflux(i,j) = 0.15e-3 * sin(pi*(rtimee - 7200)/(52200 - 7200))
+            qtflux(i,j)  = 0.15e-3 * sin(pi*(rtimee - 7200)/(52200 - 7200))
           endif
 
           svflux(i,j, 3) = -0.0056 * svm(i,j,1, 3)
