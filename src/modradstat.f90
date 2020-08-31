@@ -5,9 +5,11 @@
 !>
 !!  Calculates the radiative statistics
 !>
-!! Profiles of the radiative statistics. Written to radstat.expnr
-!! If netcdf is true, this module also writes in the profiles.expnr.nc output
+!! This module is activated by setting lstat=.true. in the NAMRADSTAT namelist.
+!! Profiles of the radiative statistics are written to radstat.expnr
+!! If lnetcdf is true, this module also writes in the profiles.expnr.nc output.
 !!  \author Stephan de Roode, TU Delft
+!
 !  This file is part of DALES.
 !
 ! DALES is free software; you can redistribute it and/or modify
@@ -93,7 +95,6 @@ contains
     dtav,timeav,lstat,lradclearair
 
     dtav=dtav_glob;timeav=timeav_glob
-    lstat = .false.
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
