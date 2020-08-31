@@ -49,7 +49,7 @@ module modbulkmicro
   real :: gamma25
   real :: gamma3
   real :: gamma35
-  integer :: roof
+  integer :: qrroof, qcroof
   contains
 
 !> Initializes and allocates the arrays
@@ -111,16 +111,15 @@ module modbulkmicro
                           ,qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
-    k = k1
     do k=k1,2,-1
       if (any(mask(:,:,k))) then
-        roof = max(roof, min(k1, k+1))
+        qrroof = max(qrroof, min(k1, k+1))
         exit
       endif
     enddo
 
     if (l_sb) then
-      do k=1,roof
+      do k=1,qrroof
         do j=2,j1
           do i=2,i1
             if (mask(i,j,k)) then
@@ -140,7 +139,7 @@ module modbulkmicro
 
       if (l_mur_cst) then
         mur = mur_cst
-        do k=1,roof
+        do k=1,qrroof
           do j=2,j1
             do i=2,i1
               if (mask(i,j,k)) then
@@ -153,7 +152,7 @@ module modbulkmicro
         enddo
       else
         ! mur = f(Dv)
-        do k=1,roof
+        do k=1,qrroof
           do j=2,j1
             do i=2,i1
               if (mask(i,j,k)) then
@@ -168,7 +167,7 @@ module modbulkmicro
         enddo
       endif
     else ! l_sb
-       do k=1,roof
+       do k=1,qrroof
          do j=2,j1
            do i=2,i1
              if (mask(i,j,k)) then
@@ -239,11 +238,20 @@ module modbulkmicro
     !*********************************************************************
     qrmask = qr.gt.qrmin.and.Nr.gt.0
     if (l_rain) then
-      roof = 0
+      ! the calculate_rain_parameters will only raise the roof,
+      ! so on the first call, set it to 0
+      qrroof = 0
       call calculate_rain_parameters(Nr, qr, qrmask)
     end if   ! l_rain
 
+    ! there is no timestepping using qcmask, so just set the qcroof here
     qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
+    do k=k1,2,-1
+      if (any(qcmask(:,:,k))) then
+        qcroof = min(k1, k+1)
+        exit
+      endif
+    enddo
 
     !*********************************************************************
     ! call microphysical processes subroutines
@@ -270,7 +278,7 @@ module modbulkmicro
     !*********************************************************************
     ! remove negative values and non physical low values
     !*********************************************************************
-    do k=1,k1
+    do k=1,max(qrroof, qcroof)
     do j=2,j1
     do i=2,i1
       qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
@@ -320,7 +328,7 @@ module modbulkmicro
       !
       k_au = k_c/(20*x_s)
 
-      do k=1,k1
+      do k=1,qcroof
       do j=2,j1
       do i=2,i1
          if (qcmask(i,j,k)) then
@@ -349,7 +357,7 @@ module modbulkmicro
       !
       ! KK00 autoconversion
       !
-      do k=1,k1
+      do k=1,qcroof
       do j=2,j1
       do i=2,i1
          if (qcmask(i,j,k)) then
@@ -395,7 +403,7 @@ module modbulkmicro
       !
       ! SB accretion
       !
-      do k=1,roof
+      do k=1,min(qrroof, qcroof)
       do j=2,j1
       do i=2,i1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
@@ -418,7 +426,7 @@ module modbulkmicro
       !
       ! SB self-collection & Break-up
       !
-      do k=1,roof
+      do k=1,qrroof
       do j=2,j1
       do i=2,i1
         if (qrmask(i,j,k)) then
@@ -440,7 +448,7 @@ module modbulkmicro
       !
       ! KK00 accretion
       !
-      do k=1,roof
+      do k=1,min(qcroof, qrroof)
       do j=2,j1
       do i=2,i1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
@@ -479,7 +487,7 @@ module modbulkmicro
 
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
-    do k=1,k1
+    do k=1,qcroof
     do j=2,j1
     do i=2,i1
       if (qcmask(i,j,k)) then
@@ -551,7 +559,7 @@ module modbulkmicro
 
       if (l_sb) then
         if (l_lognormal) then
-          do k = 1,roof
+          do k = 1,qrroof
           do j = 2,j1
           do i = 2,i1
             if (qrmask_spl(i,j,k)) then
@@ -587,7 +595,7 @@ module modbulkmicro
           !
           ! SB rain sedimentation
           !
-          do k=1,roof
+          do k=1,qrroof
           do j=2,j1
           do i=2,i1
             if (qrmask_spl(i,j,k)) then
@@ -616,7 +624,7 @@ module modbulkmicro
         !
         ! KK00 rain sedimentation
         !
-        do k=1,roof
+        do k=1,qrroof
         do j=2,j1
         do i=2,i1
           if (qrmask_spl(i,j,k)) then
@@ -683,7 +691,7 @@ module modbulkmicro
     real :: evap, Nevap
 
     if (l_sb) then
-       do k=1,roof
+       do k=1,qrroof
        do j=2,j1
        do i=2,i1
          if (qrmask(i,j,k)) then
@@ -715,7 +723,7 @@ module modbulkmicro
        enddo
        enddo
     else ! l_sb
-       do k=1,roof
+       do k=1,qrroof
        do j=2,j1
        do i=2,i1
          if (qrmask(i,j,k)) then
