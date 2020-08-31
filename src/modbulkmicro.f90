@@ -129,9 +129,9 @@ module modbulkmicro
               ! to ensure xr is within borders
               xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
               Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-            else
-              xr (i,j,k) = 0.
-              Dvr(i,j,k) = 0.
+            !else
+            !  xr (i,j,k) = 0.
+            !  Dvr(i,j,k) = 0.
             endif
           enddo
         enddo
@@ -144,8 +144,8 @@ module modbulkmicro
             do i=2,i1
               if (mask(i,j,k)) then
                 lbdr = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr
-              else
-                lbdr = 0.
+              !else
+              !  lbdr = 0.
               endif
             enddo
           enddo
@@ -158,9 +158,9 @@ module modbulkmicro
               if (mask(i,j,k)) then
                 mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
                 lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-              else
-                mur (i,j,k) = 0.
-                lbdr(i,j,k) = 0.
+              !else
+              !  mur (i,j,k) = 0.
+              !  lbdr(i,j,k) = 0.
               endif
             enddo
           enddo
@@ -177,9 +177,9 @@ module modbulkmicro
                ! to ensure x_pw is within borders
                xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
                Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-             else
-               xr(i,j,k) = 0.
-               Dvr(i,j,k) = 0.
+             !else
+             !  xr(i,j,k) = 0.
+             !  Dvr(i,j,k) = 0.
              endif
            enddo
          enddo
@@ -306,7 +306,7 @@ module modbulkmicro
   !!   by chosing mu=1/3 one would get a gamma distribution in drop diameter
   !!   -> faster rain formation. (Seifert)
   subroutine autoconversion
-    use modglobal, only : i1,j1,k1,kmax,rlv,cp
+    use modglobal, only : i1,j1,rlv,cp
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
     use modmicrodata, only : qrp, Nrp, qtpmcr, thlpmcr, &
@@ -383,7 +383,7 @@ module modbulkmicro
   ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
   ! accordingly. Break-up : Seifert (2007)
   !*********************************************************************
-    use modglobal, only : i1,j1,k1,kmax,rlv,cp
+    use modglobal, only : i1,j1,rlv,cp
     use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
     use modmicrodata, only : qr, Nr, qrp, Nrp, &
@@ -477,7 +477,7 @@ module modbulkmicro
 !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
 !! flux is calc. anal.
   subroutine sedimentation_cloud
-    use modglobal, only : i1,j1,k1,kmax,rlv,cp,dzf,pi
+    use modglobal, only : i1,j1,rlv,cp,dzf,pi
     use modfields, only : rhof,exnf,ql0
     use modmicrodata, only : csed,c_St,rhow,sig_g,Nc_0, &
                              qtpmcr,thlpmcr,qcmask
@@ -514,7 +514,7 @@ module modbulkmicro
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
   subroutine sedimentation_rain
-    use modglobal, only : i1,j1,k1,kmax,eps1,dzf
+    use modglobal, only : i1,j1,k1,eps1,dzf
     use modfields, only : rhof
     use modmpi,    only : myid
     use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
@@ -582,6 +582,13 @@ module modbulkmicro
               if (k .gt. 1) then
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
                 Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+
+                if (qr_spl(i,j,k-1) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
+                endif
+              endif
+              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
               endif
 
               if (jn==1) then
@@ -610,6 +617,13 @@ module modbulkmicro
               if (k .gt. 1) then
                 qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
                 Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+
+                if (qr_spl(i,j,k-1) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
+                endif
+              endif
+              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
               endif
 
               if (jn==1) then
@@ -637,6 +651,13 @@ module modbulkmicro
             if (k .gt. 1) then
               qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
               Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+
+              if (qr_spl(i,j,k-1) .lt. 0.) then
+                write(6,*)'sed_qr too large', myid,i,j,k
+              endif
+            endif
+            if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+                write(6,*)'sed_qr too large', myid,i,j,k
             endif
 
             if (jn==1) then
@@ -648,14 +669,10 @@ module modbulkmicro
         enddo
       endif ! l_sb
 
-      if (any(qr_spl(:,:,1:kmax) .lt. 0.)) then
-        write(6,*)'sed_qr too large', count(qr_spl(:,:,1:kmax) .lt. 0.),myid
-      endif
-
     enddo ! time splitting loop
 
-    Nrp = Nrp + (Nr_spl - Nr)/delt
-    qrp = qrp + (qr_spl - qr)/delt
+    Nrp(:,:,1:qrroof) = Nrp(:,:,1:qrroof) + (Nr_spl(:,:,1:qrroof) - Nr(:,:,1:qrroof))/delt
+    qrp(:,:,1:qrroof) = qrp(:,:,1:qrroof) + (qr_spl(:,:,1:qrroof) - qr(:,:,1:qrroof))/delt
 
     deallocate(qr_spl, Nr_spl, qrmask_spl)
 
@@ -670,7 +687,7 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : i1,j1,k1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
     use modmicrodata, only : Nr, mur, Dv, &
                              inr, iqr, Kt, &
