@@ -23,7 +23,7 @@ module modlsm
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles
 
-    logical :: llsm             ! On/off switch LSM
+    logical :: llsm            ! On/off switch LSM
     logical :: lfreedrainage   ! Free drainage bottom BC for soil moisture
 
     ! Interpolation types soil from full to half level
@@ -58,7 +58,7 @@ module modlsm
     real, allocatable :: f1(:,:), f2_lv(:,:), f2_hv(:,:), f2b(:,:), f3(:,:)
 
     ! Random
-    real, allocatable :: du_tot(:,:), thv_1(:,:)
+    real, allocatable :: du_tot(:,:), thv_1(:,:), land_frac(:,:)
 
     ! Data structure for sub-grid tiles
     type lsm_tile
@@ -140,7 +140,7 @@ subroutine lsm
     call integrate_theta_soil
 
     ! Update liquid water reservoir
-    !call calc_liquid_reservoir
+    call calc_liquid_reservoir
 
 end subroutine lsm
 
@@ -153,22 +153,20 @@ subroutine calc_tile_fractions
     implicit none
 
     integer :: i, j
+    real :: c_liq
 
-    ! BvS: tmp hack...
-    tile_ws%frac(:,:) = 0.
-    tile_lv%frac(:,:) = tile_lv%base_frac(:,:)
-    tile_hv%frac(:,:) = tile_hv%base_frac(:,:)
-    tile_bs%frac(:,:) = tile_bs%base_frac(:,:)
+    ! Water tile fraction is not variable
     tile_aq%frac(:,:) = tile_aq%base_frac(:,:)
 
-    !do j=2, j1
-    !    do i=2, i1
-    !        tile_ws%frac(i,j) = min(1., wl(i,j) / wl_max(i,j))
-    !        tile_lv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_lv%base_frac(i,j)
-    !        tile_hv%frac(i,j) = (1.-tile_ws%frac(i,j)) * tile_hv%base_frac(i,j)
-    !        tile_bs%frac(i,j) = (1.-tile_ws%frac(i,j)) * (1. - tile_lv%base_frac(i,j) - tile_hv%base_frac(i,j))
-    !    end do
-    !end do
+    do j=2, j1
+        do i=2, i1
+            c_liq = min(1., wl(i,j)/wl_max(i,j))
+            tile_ws%frac(i,j) = land_frac(i,j) * c_liq
+            tile_lv%frac(i,j) = (1.-c_liq) * tile_lv%base_frac(i,j)
+            tile_hv%frac(i,j) = (1.-c_liq) * tile_hv%base_frac(i,j)
+            tile_bs%frac(i,j) = (1.-c_liq) * (1.-tile_lv%base_frac(i,j)-tile_hv%base_frac(i,j)-tile_aq%base_frac(i,j))
+        end do
+    end do
 
 end subroutine calc_tile_fractions
 
@@ -215,6 +213,7 @@ subroutine calc_liquid_reservoir
             else
                 rainrate = -sed_qr(i,j,1)/rhow
             end if
+
             wl_tend_precip = intercept_eff * c_veg * rainrate
 
             ! Total and limited tendencies
@@ -1102,6 +1101,7 @@ subroutine allocate_fields
 
     allocate(du_tot(i2, j2))
     allocate(thv_1(i2, j2))
+    allocate(land_frac(i2, j2))
 
     ! NOTE: names differ from what is described in modsurfdata!
     ! Diffusivity temperature:
@@ -1226,7 +1226,7 @@ end subroutine init_lsm_tiles
 ! Initialise the LSM homogeneous from namelist input
 !
 subroutine init_homogeneous
-    use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart
+    use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart, eps1
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, my_real, mpi_integer
     use modsurfdata, only : tsoil, tsoilm, phiw, phiwm, wl, wlm, wmax
     implicit none
@@ -1355,6 +1355,7 @@ subroutine init_homogeneous
 
     tile_aq % tskin(:,:) = tskin_water
 
+
     if (.not. lwarmstart) then
         ! Init prognostic variables in case of cold start.
         ! For a warm start, these are read from restartfiles
@@ -1382,11 +1383,16 @@ subroutine init_homogeneous
     tile_ws % lambda_stable(:,:)   = c_low*lambda_s_low  + c_high*lambda_s_high  + c_bare*lambda_s_bare
     tile_ws % lambda_unstable(:,:) = c_low*lambda_us_low + c_high*lambda_us_high + c_bare*lambda_us_bare
 
+    ! Calculate land fraction, and limit to prevent div/0's
+    land_frac(:,:) = 1.-c_water
+    where (land_frac == 0) land_frac = eps1
+
     ! Max liquid water per grid point, accounting for LAI
     wl_max(:,:) = wmax * ( &
             tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
             tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
             tile_bs%base_frac(:,:))
+    where (wl_max == 0) wl_max = eps1
 
     ! Cleanup!
     deallocate(t_soil_p, theta_soil_p)
@@ -1397,7 +1403,7 @@ end subroutine init_homogeneous
 ! Init LSM properties from external input
 !
 subroutine init_heterogeneous
-    use modglobal,   only : i1, j1, lwarmstart, iexpnr
+    use modglobal,   only : i1, j1, lwarmstart, iexpnr, eps1
     use modmpi,      only : myidx, myidy
     use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
     implicit none
@@ -1453,8 +1459,8 @@ subroutine init_heterogeneous
     read(666) soil_index(2:i1, 2:j1, 1:kmax_soil)
 
     if (.not. lwarmstart) then
-        read(666) tsoil     (2:i1, 2:j1, 1:kmax_soil)
-        read(666) phiw      (2:i1, 2:j1, 1:kmax_soil)
+        read(666) tsoil(2:i1, 2:j1, 1:kmax_soil)
+        read(666) phiw (2:i1, 2:j1, 1:kmax_soil)
 
         wl(:,:)  = 0.
         wlm(:,:) = 0.
@@ -1486,11 +1492,16 @@ subroutine init_heterogeneous
         tile_hv%base_frac(:,:)*tile_lv%lambda_unstable(:,:) + &
         tile_bs%base_frac(:,:)*tile_bs%lambda_unstable(:,:)
 
+    ! Calculate land fraction, and limit to prevent div/0's
+    land_frac(:,:) = 1.-tile_aq%base_frac(:,:)
+    where (land_frac == 0) land_frac = eps1
+
     ! Max liquid water per grid point, accounting for LAI
     wl_max(:,:) = wmax * ( &
             tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
             tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
-            tile_bs%base_frac(:,:))
+            tile_bs%base_frac(:,:)) / land_frac(:,:)
+    where (wl_max == 0) wl_max = eps1
 
 end subroutine init_heterogeneous
 
@@ -1728,7 +1739,7 @@ function calc_obuk_dirichlet(L_in, du, db_in, zsl, z0m, z0h) result(res)
     if (m > 1) then
         print*,'WARNING: convergence has not been reached in Obukhov length iteration'
         print*,'Input: ', L_in, du, db_in, zsl, z0m, z0h
-        stop
+        !stop
         res = 1e-9
         return
     end if
