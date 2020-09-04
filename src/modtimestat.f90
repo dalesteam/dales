@@ -93,7 +93,7 @@ contains
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
     real, allocatable,dimension(:) :: profile
-    integer :: i,j
+    integer :: i,j,vi
     character(len=1000) :: line
 
     namelist/NAMTIMESTAT/ & !< namelist
@@ -233,7 +233,7 @@ contains
         if (isurf == 1) then
           nvar = 32
         else if (isurf == 11) then
-          nvar = 67
+          nvar = 75
         else
           nvar = 21
         end if
@@ -277,64 +277,127 @@ contains
           call ncinfo(ncname(32,:),'rsveg','Vegitation resistance','s/m','time')
 
         else if (isurf==11) then
-          call ncinfo(ncname(22,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(23,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(24,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(25,:),'G','Ground heat flux','W/m^2','time')
+          vi = 22
+          call ncinfo(ncname(vi,:),'Qnet','Net radiation','W/m^2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'H','Sensible heat flux','W/m^2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'LE','Latent heat flux','W/m^2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'G','Ground heat flux','W/m^2','time')
+          vi = vi+1
 
-          call ncinfo(ncname(26,:),'obuk_lv','Obukhov length low veg','m','time')
-          call ncinfo(ncname(27,:),'obuk_hv','Obukhov length high veg','m','time')
-          call ncinfo(ncname(28,:),'obuk_bs','Obukhov length bare soil','m','time')
+          call ncinfo(ncname(vi,:),'obuk_lv','Obukhov length low veg','m','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'obuk_hv','Obukhov length high veg','m','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'obuk_bs','Obukhov length bare soil','m','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'obuk_aq','Obukhov length water','m','time')
+          vi = vi+1
 
-          call ncinfo(ncname(29,:),'ustar_lv','Friction velocity low veg','m s-1','time')
-          call ncinfo(ncname(30,:),'ustar_hv','Friction velocity high veg','m s-1','time')
-          call ncinfo(ncname(31,:),'ustar_bs','Friction velocity bare soil','m s-1','time')
+          call ncinfo(ncname(vi,:),'ustar_lv','Friction velocity low veg','m s-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'ustar_hv','Friction velocity high veg','m s-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'ustar_bs','Friction velocity bare soil','m s-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'ustar_aq','Friction velocity water','m s-1','time')
+          vi = vi+1
 
-          call ncinfo(ncname(32,:),'ra_lv','Aerodynamic resistance low veg','s m-1','time')
-          call ncinfo(ncname(33,:),'ra_hv','Aerodynamic resistance high veg','s m-1','time')
-          call ncinfo(ncname(34,:),'ra_bs','Aerodynamic resistance bare soil','s m-1','time')
+          call ncinfo(ncname(vi,:),'ra_lv','Aerodynamic resistance low veg','s m-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'ra_hv','Aerodynamic resistance high veg','s m-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'ra_bs','Aerodynamic resistance bare soil','s m-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'ra_aq','Aerodynamic resistance water','s m-1','time')
+          vi = vi+1
 
-          call ncinfo(ncname(35,:),'f1','Reduction canopy resistance f(swd)','-','time')
-          call ncinfo(ncname(36,:),'f2_lv','Reduction canopy resistance low veg f(theta)','-','time')
-          call ncinfo(ncname(37,:),'f2_hv','Reduction canopy resistance low veg f(theta)','-','time')
-          call ncinfo(ncname(38,:),'f3','Reduction canopy resistance f(VPD)','-','time')
-          call ncinfo(ncname(39,:),'f2b','Reduction soil resistance f(theta)','-','time')
+          call ncinfo(ncname(vi,:),'f1','Reduction canopy resistance f(swd)','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'f2_lv','Reduction canopy resistance low veg f(theta)','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'f2_hv','Reduction canopy resistance low veg f(theta)','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'f3','Reduction canopy resistance f(VPD)','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'f2b','Reduction soil resistance f(theta)','-','time')
+          vi = vi+1
 
-          call ncinfo(ncname(40,:),'rs_lv','Canopy resistance low veg','s m-1','time')
-          call ncinfo(ncname(41,:),'rs_hv','Canopy resistance low veg','s m-1','time')
-          call ncinfo(ncname(42,:),'rs_bs','Soil resistance','s m-1','time')
+          call ncinfo(ncname(vi,:),'rs_lv','Canopy resistance low veg','s m-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'rs_hv','Canopy resistance low veg','s m-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'rs_bs','Soil resistance','s m-1','time')
+          vi = vi+1
 
-          call ncinfo(ncname(43,:),'c_lv','Tile fraction low vegetation','-','time')
-          call ncinfo(ncname(44,:),'c_hv','Tile fraction high vegetation','-','time')
-          call ncinfo(ncname(45,:),'c_bs','Tile fraction bare soil','-','time')
-          call ncinfo(ncname(46,:),'c_ws','Tile fraction wet skin','-','time')
+          call ncinfo(ncname(vi,:),'c_lv','Tile fraction low vegetation','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'c_hv','Tile fraction high vegetation','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'c_bs','Tile fraction bare soil','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'c_ws','Tile fraction wet skin','-','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'c_aq','Tile fraction water','-','time')
+          vi = vi+1
 
-          call ncinfo(ncname(47,:),'wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(vi,:),'wl','Liquid water reservoir','m','time')
+          vi = vi+1
 
-          call ncinfo(ncname(48,:),'H_lv','Sensible heat flux low vegetation','W m-2','time')
-          call ncinfo(ncname(49,:),'H_hv','Sensible heat flux high vegetation','W m-2','time')
-          call ncinfo(ncname(50,:),'H_bs','Sensible heat flux bare soil','W m-2','time')
-          call ncinfo(ncname(51,:),'H_ws','Sensible heat flux wet skin','W m-2','time')
+          call ncinfo(ncname(vi,:),'H_lv','Sensible heat flux low vegetation','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'H_hv','Sensible heat flux high vegetation','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'H_bs','Sensible heat flux bare soil','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'H_ws','Sensible heat flux wet skin','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'H_aq','Sensible heat flux water','W m-2','time')
+          vi = vi+1
 
-          call ncinfo(ncname(52,:),'LE_lv','Latent heat flux low vegetation','W m-2','time')
-          call ncinfo(ncname(53,:),'LE_hv','Latent heat flux high vegetation','W m-2','time')
-          call ncinfo(ncname(54,:),'LE_bs','Latent heat flux bare soil','W m-2','time')
-          call ncinfo(ncname(55,:),'LE_ws','Latent heat flux wet skin','W m-2','time')
+          call ncinfo(ncname(vi,:),'LE_lv','Latent heat flux low vegetation','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'LE_hv','Latent heat flux high vegetation','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'LE_bs','Latent heat flux bare soil','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'LE_ws','Latent heat flux wet skin','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'LE_aq','Latent heat flux water','W m-2','time')
+          vi = vi+1
 
-          call ncinfo(ncname(56,:),'G_lv','Soil heat flux low vegetation','W m-2','time')
-          call ncinfo(ncname(57,:),'G_hv','Soil heat flux high vegetation','W m-2','time')
-          call ncinfo(ncname(58,:),'G_bs','Soil heat flux bare soil','W m-2','time')
-          call ncinfo(ncname(59,:),'G_ws','Soil heat flux wet skin','W m-2','time')
+          call ncinfo(ncname(vi,:),'G_lv','Soil heat flux low vegetation','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'G_hv','Soil heat flux high vegetation','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'G_bs','Soil heat flux bare soil','W m-2','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'G_ws','Soil heat flux wet skin','W m-2','time')
+          vi = vi+1
 
-          call ncinfo(ncname(60,:),'thlskin_lv','Skin potential temperature low vegetation','K','time')
-          call ncinfo(ncname(61,:),'thlskin_hv','Skin potential temperature high vegetation','K','time')
-          call ncinfo(ncname(62,:),'thlskin_bs','Skin potential temperature bare soil','K','time')
-          call ncinfo(ncname(63,:),'thlskin_ws','Skin potential temperature wet skin','K','time')
+          call ncinfo(ncname(vi,:),'thlskin_lv','Skin potential temperature low vegetation','K','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'thlskin_hv','Skin potential temperature high vegetation','K','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'thlskin_bs','Skin potential temperature bare soil','K','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'thlskin_ws','Skin potential temperature wet skin','K','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'thlskin_aq','Skin potential temperature water','K','time')
+          vi = vi+1
 
-          call ncinfo(ncname(64,:),'qtskin_lv','Skin specific humidity low vegetation','kg kg-1','time')
-          call ncinfo(ncname(65,:),'qtskin_hv','Skin specific humidity high vegetation','kg kg-1','time')
-          call ncinfo(ncname(66,:),'qtskin_bs','Skin specific humidity bare soil','kg kg-1','time')
-          call ncinfo(ncname(67,:),'qtskin_ws','Skin specific humidity wet skin','kg kg-1','time')
+          call ncinfo(ncname(vi,:),'qtskin_lv','Skin specific humidity low vegetation','kg kg-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'qtskin_hv','Skin specific humidity high vegetation','kg kg-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'qtskin_bs','Skin specific humidity bare soil','kg kg-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'qtskin_ws','Skin specific humidity wet skin','kg kg-1','time')
+          vi = vi+1
+          call ncinfo(ncname(vi,:),'qtskin_ws','Skin specific humidity water','kg kg-1','time')
+          vi = vi+1
 
         end if
 
@@ -413,7 +476,7 @@ contains
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
                            thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
-    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws, f1, f2_lv, f2_hv, f3, f2b
+    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws, tile_aq, f1, f2_lv, f2_hv, f3, f2b
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc, only : lnetcdf, writestat_nc,nc_fillvalue
@@ -434,19 +497,19 @@ contains
     real   :: Qnetav, Hav, LEav, G0av, tendskinav, rsav, raav, tskinav,Wlav,cliqav,rsvegav,rssoilav
 
     ! LSM tiled variables
-    real   :: obuk_lv_av, obuk_hv_av, obuk_bs_av
-    real   :: ustar_lv_av, ustar_hv_av, ustar_bs_av
-    real   :: ra_lv_av, ra_hv_av, ra_bs_av
+    real   :: obuk_lv_av, obuk_hv_av, obuk_bs_av, obuk_aq_av
+    real   :: ustar_lv_av, ustar_hv_av, ustar_bs_av, ustar_aq_av
+    real   :: ra_lv_av, ra_hv_av, ra_bs_av, ra_aq_av
     real   :: f1_av, f2_lv_av, f2_hv_av, f3_av, f2b_av
     real   :: rs_lv_av, rs_hv_av, rs_bs_av
-    real   :: c_lv_av, c_hv_av, c_bs_av, c_ws_av
-    real   :: H_lv_av, H_hv_av, H_bs_av, H_ws_av
-    real   :: LE_lv_av, LE_hv_av, LE_bs_av, LE_ws_av
+    real   :: c_lv_av, c_hv_av, c_bs_av, c_ws_av, c_aq_av
+    real   :: H_lv_av, H_hv_av, H_bs_av, H_ws_av, H_aq_av
+    real   :: LE_lv_av, LE_hv_av, LE_bs_av, LE_ws_av, LE_aq_av
     real   :: G_lv_av, G_hv_av, G_bs_av, G_ws_av
-    real   :: thlskin_lv_av, thlskin_hv_av, thlskin_bs_av, thlskin_ws_av
-    real   :: qtskin_lv_av, qtskin_hv_av, qtskin_bs_av, qtskin_ws_av
+    real   :: thlskin_lv_av, thlskin_hv_av, thlskin_bs_av, thlskin_ws_av, thlskin_aq_av
+    real   :: qtskin_lv_av, qtskin_hv_av, qtskin_bs_av, qtskin_ws_av, qtskin_aq_av
 
-    integer:: i, j, k
+    integer:: i, j, k, vi
 
     ! heterogeneity variables
     integer:: patchx, patchy
@@ -854,14 +917,17 @@ contains
       obuk_lv_av = mean_2d(tile_lv%obuk)
       obuk_hv_av = mean_2d(tile_hv%obuk)
       obuk_bs_av = mean_2d(tile_bs%obuk)
+      obuk_aq_av = mean_2d(tile_aq%obuk)
 
       ustar_lv_av = mean_2d(tile_lv%ustar)
       ustar_hv_av = mean_2d(tile_hv%ustar)
       ustar_bs_av = mean_2d(tile_bs%ustar)
+      ustar_aq_av = mean_2d(tile_aq%ustar)
 
       ra_lv_av = mean_2d(tile_lv%ra)
       ra_hv_av = mean_2d(tile_hv%ra)
       ra_bs_av = mean_2d(tile_bs%ra)
+      ra_aq_av = mean_2d(tile_aq%ra)
 
       f1_av    = mean_2d(f1)
       f2_lv_av = mean_2d(f2_lv)
@@ -877,6 +943,7 @@ contains
       c_hv_av = mean_2d(tile_hv%frac)
       c_bs_av = mean_2d(tile_bs%frac)
       c_ws_av = mean_2d(tile_ws%frac)
+      c_aq_av = mean_2d(tile_aq%frac)
 
       wlav = mean_2d(wl)
 
@@ -884,11 +951,13 @@ contains
       H_hv_av = mean_2d(tile_hv%H)
       H_bs_av = mean_2d(tile_bs%H)
       H_ws_av = mean_2d(tile_ws%H)
+      H_aq_av = mean_2d(tile_aq%H)
 
       LE_lv_av = mean_2d(tile_lv%LE)
       LE_hv_av = mean_2d(tile_hv%LE)
       LE_bs_av = mean_2d(tile_bs%LE)
       LE_ws_av = mean_2d(tile_ws%LE)
+      LE_aq_av = mean_2d(tile_aq%LE)
 
       G_lv_av = mean_2d(tile_lv%G)
       G_hv_av = mean_2d(tile_hv%G)
@@ -899,11 +968,13 @@ contains
       thlskin_hv_av = mean_2d(tile_hv%thlskin)
       thlskin_bs_av = mean_2d(tile_bs%thlskin)
       thlskin_ws_av = mean_2d(tile_ws%thlskin)
+      thlskin_aq_av = mean_2d(tile_aq%thlskin)
 
       qtskin_lv_av = mean_2d(tile_lv%qtskin)
       qtskin_hv_av = mean_2d(tile_hv%qtskin)
       qtskin_bs_av = mean_2d(tile_bs%qtskin)
       qtskin_ws_av = mean_2d(tile_ws%qtskin)
+      qtskin_aq_av = mean_2d(tile_aq%qtskin)
 
     end if
 
@@ -1006,64 +1077,73 @@ contains
           vars(31) = rssoilav
           vars(32) = rsvegav
         else if (isurf == 11) then
-          vars(22) = Qnetav
-          vars(23) = Hav
-          vars(24) = LEav
-          vars(25) = G0av
+          vi = 22
+          vars(vi) = Qnetav; vi = vi+1
+          vars(vi) = Hav; vi = vi+1
+          vars(vi) = LEav; vi = vi+1
+          vars(vi) = G0av; vi = vi+1
 
-          vars(26) = obuk_lv_av
-          vars(27) = obuk_hv_av
-          vars(28) = obuk_bs_av
+          vars(vi) = obuk_lv_av; vi = vi+1
+          vars(vi) = obuk_hv_av; vi = vi+1
+          vars(vi) = obuk_bs_av; vi = vi+1
+          vars(vi) = obuk_aq_av; vi = vi+1
 
-          vars(29) = ustar_lv_av
-          vars(30) = ustar_hv_av
-          vars(31) = ustar_bs_av
+          vars(vi) = ustar_lv_av; vi = vi+1
+          vars(vi) = ustar_hv_av; vi = vi+1
+          vars(vi) = ustar_bs_av; vi = vi+1
+          vars(vi) = ustar_aq_av; vi = vi+1
 
-          vars(32) = ra_lv_av
-          vars(33) = ra_hv_av
-          vars(34) = ra_bs_av
+          vars(vi) = ra_lv_av; vi = vi+1
+          vars(vi) = ra_hv_av; vi = vi+1
+          vars(vi) = ra_bs_av; vi = vi+1
+          vars(vi) = ra_aq_av; vi = vi+1
 
-          vars(35) = f1_av
-          vars(36) = f2_lv_av
-          vars(37) = f2_hv_av
-          vars(38) = f3_av
-          vars(39) = f2b_av
+          vars(vi) = f1_av; vi = vi+1
+          vars(vi) = f2_lv_av; vi = vi+1
+          vars(vi) = f2_hv_av; vi = vi+1
+          vars(vi) = f3_av; vi = vi+1
+          vars(vi) = f2b_av; vi = vi+1
 
-          vars(40) = rs_lv_av
-          vars(41) = rs_hv_av
-          vars(42) = rs_bs_av
+          vars(vi) = rs_lv_av; vi = vi+1
+          vars(vi) = rs_hv_av; vi = vi+1
+          vars(vi) = rs_bs_av; vi = vi+1
 
-          vars(43) = c_lv_av
-          vars(44) = c_hv_av
-          vars(45) = c_bs_av
-          vars(46) = c_ws_av
+          vars(vi) = c_lv_av; vi = vi+1
+          vars(vi) = c_hv_av; vi = vi+1
+          vars(vi) = c_bs_av; vi = vi+1
+          vars(vi) = c_ws_av; vi = vi+1
+          vars(vi) = c_aq_av; vi = vi+1
 
-          vars(47) = wlav
+          vars(vi) = wlav; vi = vi+1
 
-          vars(48) = H_lv_av
-          vars(49) = H_hv_av
-          vars(50) = H_bs_av
-          vars(51) = H_ws_av
+          vars(vi) = H_lv_av; vi = vi+1
+          vars(vi) = H_hv_av; vi = vi+1
+          vars(vi) = H_bs_av; vi = vi+1
+          vars(vi) = H_ws_av; vi = vi+1
+          vars(vi) = H_aq_av; vi = vi+1
 
-          vars(52) = LE_lv_av
-          vars(53) = LE_hv_av
-          vars(54) = LE_bs_av
-          vars(55) = LE_ws_av
+          vars(vi) = LE_lv_av; vi = vi+1
+          vars(vi) = LE_hv_av; vi = vi+1
+          vars(vi) = LE_bs_av; vi = vi+1
+          vars(vi) = LE_ws_av; vi = vi+1
+          vars(vi) = LE_aq_av; vi = vi+1
 
-          vars(56) = G_lv_av
-          vars(57) = G_hv_av
-          vars(58) = G_bs_av
-          vars(59) = G_ws_av
+          vars(vi) = G_lv_av; vi = vi+1
+          vars(vi) = G_hv_av; vi = vi+1
+          vars(vi) = G_bs_av; vi = vi+1
+          vars(vi) = G_ws_av; vi = vi+1
 
-          vars(60) = thlskin_lv_av
-          vars(61) = thlskin_hv_av
-          vars(62) = thlskin_bs_av
-          vars(63) = thlskin_ws_av
+          vars(vi) = thlskin_lv_av; vi = vi+1
+          vars(vi) = thlskin_hv_av; vi = vi+1
+          vars(vi) = thlskin_bs_av; vi = vi+1
+          vars(vi) = thlskin_ws_av; vi = vi+1
+          vars(vi) = thlskin_aq_av; vi = vi+1
 
-          vars(64) = qtskin_lv_av
-          vars(65) = qtskin_hv_av
-          vars(66) = qtskin_bs_av
-          vars(67) = qtskin_ws_av
+          vars(vi) = qtskin_lv_av; vi = vi+1
+          vars(vi) = qtskin_hv_av; vi = vi+1
+          vars(vi) = qtskin_bs_av; vi = vi+1
+          vars(vi) = qtskin_ws_av; vi = vi+1
+          vars(vi) = qtskin_aq_av; vi = vi+1
 
         end if
 
