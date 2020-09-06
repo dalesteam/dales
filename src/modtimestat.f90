@@ -77,6 +77,10 @@ save
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
 
+  interface patchsum_1level
+     module procedure patchsum_1level_f
+     module procedure patchsum_1level_d
+  end interface
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
@@ -1208,17 +1212,17 @@ contains
     endif
   end subroutine exittimestat
 
- function patchsum_1level(x)
+ function patchsum_1level_f(x)
    use modglobal,  only : imax,jmax
    use modsurface, only : patchxnr, patchynr
    use modsurfdata,only : xpatches,ypatches
    use modmpi,     only : mpierr,comm3d,my_real,mpi_sum
    implicit none
-   real                :: patchsum_1level(xpatches,ypatches),xl(xpatches,ypatches)
-   real, intent(in)    :: x(imax,jmax)
+   real                :: patchsum_1level_f(xpatches,ypatches),xl(xpatches,ypatches)
+   real(4), intent(in) :: x(imax,jmax)
    integer             :: i,j,iind,jind
 
-   patchsum_1level = 0
+   patchsum_1level_f = 0
    xl              = 0
 
    do j=1,jmax
@@ -1231,7 +1235,34 @@ contains
      enddo
    enddo
 
-  call MPI_ALLREDUCE(xl,patchsum_1level, xpatches*ypatches,MY_REAL,MPI_SUM, comm3d,mpierr)
+  call MPI_ALLREDUCE(xl,patchsum_1level_f, xpatches*ypatches,MY_REAL,MPI_SUM, comm3d,mpierr)
+
+  end function
+
+ function patchsum_1level_d(x)
+   use modglobal,  only : imax,jmax
+   use modsurface, only : patchxnr, patchynr
+   use modsurfdata,only : xpatches,ypatches
+   use modmpi,     only : mpierr,comm3d,my_real,mpi_sum
+   implicit none
+   real                :: patchsum_1level_d(xpatches,ypatches),xl(xpatches,ypatches)
+   real, intent(in)    :: x(imax,jmax)
+   integer             :: i,j,iind,jind
+
+   patchsum_1level_d = 0
+   xl              = 0
+
+   do j=1,jmax
+     jind  = patchynr(j)
+
+     do i=1,imax
+       iind  = patchxnr(i)
+
+       xl(iind,jind) = xl(iind,jind) + x(i,j)
+     enddo
+   enddo
+
+  call MPI_ALLREDUCE(xl,patchsum_1level_d, xpatches*ypatches,MY_REAL,MPI_SUM, comm3d,mpierr)
 
   end function
 

@@ -46,12 +46,21 @@ save
   integer  :: nprocy = 0
   integer  :: mpierr
   integer  :: my_real = MPI_DOUBLE_PRECISION
+  integer  :: my_real_f = MPI_FLOAT
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
 
   character(8) :: cmyid
   character(3) :: cmyidx, cmyidy
+
+  interface slabsum
+    module procedure slabsum_f, slabsum_d
+  end interface 
+  interface excjs
+    module procedure excjs_f
+    module procedure excjs_d
+  end interface
 
 contains
 
@@ -273,7 +282,134 @@ contains
   return
   end subroutine excj
 
-  subroutine excjs( a, sx, ex, sy, ey, sz,ez,ih,jh)
+  subroutine excjs_f( a, sx, ex, sy, ey, sz,ez,ih,jh)
+  implicit none
+  integer sx, ex, sy, ey, sz, ez, ih, jh
+  real(4) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  integer status(MPI_STATUS_SIZE)
+  integer ii, i, j, k
+  integer nssize, ewsize, bsize
+  real,allocatable, dimension(:) :: sendb,recvb
+
+!   Calculate buffer size
+  nssize = jh*(ex - sx + 1 + 2*ih)*(ez - sz + 1)
+  ewsize = ih*(ey - sy + 1 + 2*jh)*(ez - sz + 1)
+  bsize = max( nssize, ewsize )
+
+  allocate( sendb(bsize),recvb(bsize) )
+
+!   Communicate north/south
+  if(nprocy .gt. 1)then
+    ii = 0
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      sendb(ii) = a(i,ey-j+1,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL_F, nbrnorth, 4, &
+                        recvb,  nssize, MY_REAL_F, nbrsouth, 4, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      a(i,sy-j,k) = recvb(ii)
+
+      sendb(ii) = a(i,sy+j-1,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  nssize, MY_REAL_F, nbrsouth, 5, &
+                        recvb,  nssize, MY_REAL_F, nbrnorth, 5, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      a(i,ey+j,k) = recvb(ii)
+    enddo
+    enddo
+    enddo
+  else
+! Single processor, make sure the field is periodic
+    do j=1,jh
+    do k=sz,ez
+    do i=sx-ih,ex+ih
+      a(i,sy-j,k) = a(i,ey-j+1,k)
+      a(i,ey+j,k) = a(i,sy+j-1,k)
+    enddo
+    enddo
+    enddo
+  endif
+
+!   Communicate east/west
+  if(nprocx .gt. 1)then
+    ii = 0
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      sendb(ii) = a(ex-i+1,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL_F, nbreast, 6, &
+                        recvb,  ewsize, MY_REAL_F, nbrwest, 6, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      a(sx-i,j,k) = recvb(ii)
+
+      sendb(ii) = a(sx+i-1,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_SENDRECV(  sendb,  ewsize, MY_REAL_F, nbrwest, 7, &
+                        recvb,  ewsize, MY_REAL_F, nbreast, 7, &
+                        comm3d,  status, mpierr )
+
+    ii = 0
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      a(ex+i,j,k) = recvb(ii)
+    enddo
+    enddo
+    enddo
+  else
+! Single processor, make sure the field is periodic
+    do i=1,ih
+    do k=sz,ez
+    do j=sy-jh,ey+jh
+      a(sx-i,j,k) = a(ex-i+1,j,k)
+      a(ex+i,j,k) = a(sx+i-1,j,k)
+    enddo
+    enddo
+    enddo
+  endif
+
+  deallocate (sendb,recvb)
+
+  return
+  end subroutine excjs_f
+
+  subroutine excjs_d( a, sx, ex, sy, ey, sz,ez,ih,jh)
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -398,15 +534,41 @@ contains
   deallocate (sendb,recvb)
 
   return
-  end subroutine excjs
+  end subroutine excjs_d
 
-  subroutine slabsum(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_f(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
     implicit none
 
     integer :: ks,kf
     integer :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
     real    :: aver(ks:kf)
-    real    :: var (ib:ie,jb:je,kb:ke)
+    real(4) :: var (ib:ie,jb:je,kb:ke)
+    real    :: averl(ks:kf)
+    real    :: avers(ks:kf)
+    integer :: k
+
+    averl       = 0.
+    avers       = 0.
+
+    do k=kbs,kes
+      averl(k) = sum(var(ibs:ies,jbs:jes,k))
+    enddo
+
+    call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MY_REAL_F, &
+                       MPI_SUM, comm3d,mpierr)
+
+    aver = aver + avers
+
+    return
+  end subroutine slabsum_f
+
+  subroutine slabsum_d(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+    implicit none
+
+    integer :: ks,kf
+    integer :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
+    real    :: aver(ks:kf)
+    real(8) :: var (ib:ie,jb:je,kb:ke)
     real    :: averl(ks:kf)
     real    :: avers(ks:kf)
     integer :: k
@@ -424,8 +586,8 @@ contains
     aver = aver + avers
 
     return
-  end subroutine slabsum
-  
+  end subroutine slabsum_d
+
   subroutine mpi_get_time(val)
    real, intent(out) :: val
  

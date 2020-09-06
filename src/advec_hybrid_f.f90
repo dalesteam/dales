@@ -107,7 +107,7 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
            ! advection in x
            vin(-3:2) = pin(i-3:i+2,j,k)
            if (lsmx) then ! field around this location is smooth -> use regular 5th order (upwind)
-              sgn = sign(1.0,u0(i,j,k))  ! set sgn, to account for different wind directions
+              sgn = sign(1.0_4,u0(i,j,k))  ! set sgn, to account for different wind directions
               pfacex(i,j,k) = (37.*(vin(0)+vin(-1))-8.*(vin(1)+vin(-2))+(vin(2)+vin(-3)) &
                    -sgn*(10.*(vin(0)-vin(-1))-5.*(vin(1)-vin(-2))+(vin(2)-vin(-3))))/60.
            else ! field around this location is non-smooth -> use weno
@@ -146,7 +146,7 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
             ! advection in y
            vin(-3:2) = pin(i,j-3:j+2,k)
            if (lsmy) then ! field around this location is smooth -> use regular 5th order (upwind)
-              sgn = sign(1.0,v0(i,j,k))  ! set sgn, to account for different wind directions
+              sgn = sign(1.0_4,v0(i,j,k))  ! set sgn, to account for different wind directions
               pfacey(i,j,k) = (37.*(vin(0)+vin(-1))-8.*(vin(1)+vin(-2))+(vin(2)+vin(-3)) &
                    -sgn*(10.*(vin(0)-vin(-1))-5.*(vin(1)-vin(-2))+(vin(2)-vin(-3))))/60.
            else ! field around this location is non-smooth -> use weno
@@ -206,7 +206,7 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
               
               vin(-3:2) = pin(i,j,k-3:k+2) * rhobf(k-3:k+2)
               if (lsmz) then ! field around this location is smooth -> use regular 5th order (upwind)
-                 sgn = sign(1.0,w0(i,j,k))  ! set sgn, to account for different wind directions
+                 sgn = sign(1.0_4,w0(i,j,k))  ! set sgn, to account for different wind directions
                  pfacez(i,j,k) = (37.*(vin(0)+vin(-1))-8.*(vin(1)+vin(-2))+(vin(2)+vin(-3)) &
                       -sgn*(10.*(vin(0)-vin(-1))-5.*(vin(1)-vin(-2))+(vin(2)-vin(-3))))/60.
               else ! field around this location is non-smooth -> use weno
