@@ -128,7 +128,7 @@ contains
 
 !> Do towerdump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine towerdump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,exnf, presf
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,svm,thv0h,exnf, presf
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,rlv
@@ -168,7 +168,7 @@ contains
          vars(:,      9) = thv0h(2,2,klow:khigh)
          vars(:,     10) =  thl0(2,2,klow:khigh) * exnf(klow:khigh) + (rlv/cp) * ql0(2,2,klow:khigh) 
          vars(:,     11) = presf(    klow:khigh)
-         vars(:,12:nvar) =   sv0(2,2,klow:khigh,:)
+         vars(:,12:nvar) =   svm(2,2,klow:khigh,:)
       endif
 
       if(lnetcdf) then

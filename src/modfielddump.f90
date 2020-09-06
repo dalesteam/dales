@@ -133,7 +133,7 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,exnf, presf, e120
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,svm,thv0h,thvh,exnf, presf, e120
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,rlv
@@ -247,7 +247,7 @@ contains
       do i=2-ih,i1+ih
       do j=2-jh,j1+jh
       do k=1,k1
-        field(i,j,k) = NINT(1.0E5*sv0(i,j,k,iqr),2)
+        field(i,j,k) = NINT(1.0E5*svm(i,j,k,iqr),2)
       enddo
       enddo
       enddo
@@ -306,7 +306,7 @@ contains
     endif
 
 
-    if (lnetcdf) vars(:,:,:,11:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+    if (lnetcdf) vars(:,:,:,11:nvar) = svm(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
