@@ -603,7 +603,7 @@ subroutine calc_bulk_bcs
             call excjs(ustar,2,i1,2,j1,1,1,1,1)
 
             ! Just for diagnostics (modlsmcrosssection)
-            cliq(i,j) = tile_ws%frac(i,j)
+            cliq(i,j) = tile_ws%frac(i,j) / land_frac(i,j)
 
             ra(i,j) = tile_lv%frac(i,j) * tile_lv%ra(i,j) + &
                       tile_hv%frac(i,j) * tile_hv%ra(i,j) + &
@@ -985,11 +985,38 @@ end subroutine initlsm
 ! Cleanup (deallocate) the land-surface model
 !
 subroutine exitlsm
+    use modsurfdata, only : &
+        tsoil, tsoilm, phiw, phiwm, &
+        lambda, lambdah, lambdas, lambdash, gammas, gammash, &
+        H, LE, G0, Qnet, wl, wlm, &
+        tendskin, cliq, rsveg, rssoil
     implicit none
 
     if (.not. llsm) return
 
+    ! Allocated from `read_soil_table`:
     deallocate( theta_res, theta_wp, theta_fc, theta_sat, gamma_theta_sat, vg_a, vg_l, vg_n )
+
+    ! Allocated from `allocate_fields`:
+    deallocate( soil_index, tsoil, tsoilm, phiw, phiwm, phiw_source )
+    deallocate( wl, wlm, wl_max )
+    deallocate( throughfall, interception )
+    deallocate( gD, f1, f2_lv, f2_hv, f2b, f3 )
+    deallocate( du_tot, thv_1, land_frac )
+    deallocate( lambda, lambdah, lambdas, lambdash, gammas, gammash )
+    deallocate( Qnet, H, LE, G0 )
+    deallocate( tendskin, cliq, rsveg, rssoil )
+
+    ! Allocated from `create_soil_grid`:
+    deallocate( z_soil, dz_soil, dzi_soil, zh_soil, dzh_soil, dzhi_soil )
+
+    ! Tiles, allocated from `allocate_tile`:
+    call deallocate_tile(tile_lv)
+    call deallocate_tile(tile_hv)
+    call deallocate_tile(tile_bs)
+    call deallocate_tile(tile_ws)
+    call deallocate_tile(tile_aq)
+
 end subroutine exitlsm
 
 !
@@ -1193,6 +1220,23 @@ subroutine allocate_tile(tile)
 end subroutine allocate_tile
 
 !
+! Deallocate all fields of a LSM tile
+!
+subroutine deallocate_tile(tile)
+    implicit none
+    type(lsm_tile), intent(inout) :: tile
+
+    deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
+    deallocate( tile%obuk, tile%ustar, tile%ra )
+    deallocate( tile%lambda_stable, tile%lambda_unstable )
+    deallocate( tile%H, tile%LE, tile%G, tile%wthl, tile%wqt)
+    deallocate( tile%tskin, tile%thlskin, tile%qtskin)
+    deallocate( tile%db, tile%lai, tile%rs_min, tile%rs )
+    deallocate( tile%a_r, tile%b_r, tile%root_frac, tile%phiw_mean )
+
+end subroutine deallocate_tile
+
+!
 ! Init some of the tiled variables, in case of cold start.
 ! Called from modstartup -> readinitfiles()
 !
@@ -1391,11 +1435,11 @@ subroutine init_homogeneous
     wl_max(:,:) = wmax * ( &
             tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
             tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
-            tile_bs%base_frac(:,:))
+            tile_bs%base_frac(:,:)) / land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
 
     ! Cleanup!
-    deallocate(t_soil_p, theta_soil_p)
+    deallocate(t_soil_p, theta_soil_p, soil_index_p)
 
 end subroutine init_homogeneous
 
@@ -1524,10 +1568,9 @@ subroutine read_soil_table
     call MPI_BCAST(table_size, 1, mpi_integer, 0, comm3d, mpierr)
 
     ! Allocate variables
-    allocate( &
-        theta_res(table_size), theta_wp(table_size), theta_fc(table_size), &
-        theta_sat(table_size), gamma_theta_sat(table_size), &
-        vg_a(table_size), vg_l(table_size), vg_n(table_size) )
+    allocate( theta_res(table_size), theta_wp(table_size), theta_fc(table_size) )
+    allocate( theta_sat(table_size), gamma_theta_sat(table_size) )
+    allocate( vg_a(table_size), vg_l(table_size), vg_n(table_size) )
 
     if (myid == 0) then
         ! Read variables
