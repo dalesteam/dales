@@ -48,6 +48,7 @@ contains
 
   subroutine initstat_nc
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
+    use mpi
     use modmpi,    only : mpierr,mpi_logical,comm3d,myid
     implicit none
 
@@ -327,6 +328,7 @@ contains
   subroutine writestat_dims_nc(ncid, ncoarse)
     use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
+    use modlsm, only : z_soil
     use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid
@@ -359,10 +361,15 @@ contains
     iret = nf90_inq_varid(ncid, 'zm', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, zmID, len=length)
     if (iret==0) iret = nf90_put_var(ncid, varID, zh(1:length),(/1/))
+
     if (isurf==1) then
       iret = nf90_inq_varid(ncid, 'zts', VarID)
       if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)
       if (iret==0) iret = nf90_put_var(ncid, varID, zsoilc(1:length),(/1/))
+    else if (isurf==11) then
+      iret = nf90_inq_varid(ncid, 'zts', VarID)
+      if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, z_soil(1:length),(/1/))
     end if
 
   end subroutine writestat_dims_nc
@@ -370,6 +377,7 @@ contains
   subroutine writestat_dims_q_nc(ncid,k1,k2)
     use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
+    use modlsm, only : z_soil
     use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid,k1,k2
@@ -398,6 +406,10 @@ contains
       iret = nf90_inq_varid(ncid, 'zts', VarID)
       if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)
       if (iret==0) iret = nf90_put_var(ncid, varID, zsoilc(1:length),(/1/))
+  else if (isurf==11) then
+      iret = nf90_inq_varid(ncid, 'zts', VarID)
+      if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, z_soil(1:length),(/1/))
     end if
 
     iret = nf90_inq_varid(ncid, 'zq', VarID)

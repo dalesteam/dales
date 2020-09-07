@@ -83,6 +83,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat
+    use mpi
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror

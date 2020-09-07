@@ -165,11 +165,13 @@ save
 contains
 
   subroutine initgenstat
+    use mpi
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
+    use modlsm, only : kmax_soil
 
     implicit none
 
@@ -418,6 +420,8 @@ contains
 
         if (isurf==1) then
           call open_nc(fname,  ncid,nrec,n3=kmax,ns=ksoilmax)
+        else if (isurf==11) then
+          call open_nc(fname,  ncid,nrec,n3=kmax,ns=kmax_soil)
         else
           call open_nc(fname,  ncid,nrec,n3=kmax)
         endif

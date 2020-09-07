@@ -63,6 +63,7 @@ contains
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
+    use modlsm,            only : initlsm, kmax_soil
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -76,7 +77,7 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use mpi,               only : MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
+    use mpi
     use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr
     use modchem,           only : initchem
     use modversion,        only : git_version
@@ -92,7 +93,7 @@ contains
         krandumin, krandumax, randu,&
         nprocx,nprocy
     namelist/DOMAIN/ &
-        itot,jtot,kmax,&
+        itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
         xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
@@ -174,6 +175,7 @@ contains
     call MPI_BCAST(itot       ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(jtot       ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(kmax       ,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(kmax_soil  ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(xsize      ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(ysize      ,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(xlat       ,1,MY_REAL   ,0,commwrld,mpierr)
@@ -268,6 +270,7 @@ contains
     call initradiation
     call initchem
     call initsurface
+    call initlsm
     call initsubgrid
 
     call initmicrophysics
@@ -353,6 +356,7 @@ contains
       case(3:4)
         if (wtsurf <-1e10)  stop 'wtsurf not set'
         if (wqsurf <-1e10)  stop 'wqsurf not set'
+      case(11)
       case default
         stop 'isurf out of range/not set'
       end select
@@ -388,6 +392,7 @@ contains
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz,ps
+    use modlsm,            only : init_lsm_tiles
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
     use modthermodynamics, only : thermodynamics,calc_halflev
@@ -586,10 +591,16 @@ contains
       case(2)
         tskin  = thls
       case(3,4)
-        thls = thlprof(1)
-        qts  = qtprof(1)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
         tskin  = thls
         qskin  = qts
+      case(11)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
+        tskin  = thls
+        qskin  = qts
+        call init_lsm_tiles
       case(10)
         call initsurf_user
       end select
@@ -838,6 +849,7 @@ contains
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
     use modsubgriddata, only : ekm,ekh
+    use modlsm, only : kmax_soil, tile_lv, tile_hv, tile_bs, tile_ws, tile_aq
 
 
     character(50) :: name
@@ -946,7 +958,38 @@ contains
       end if
       read(ifinput)  timee
       close(ifinput)
+
+    else if (isurf == 11) then
+      name(5:5) = 'l'
+      write(6,*) 'loading ',name
+      open(unit=ifinput,file=name,form='unformatted')
+      read(ifinput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+      read(ifinput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+      read(ifinput) ((tskin (i,j),   i=1,i2), j=1,j2)
+      read(ifinput) ((Wl    (i,j),   i=1,i2), j=1,j2)
+
+      read(ifinput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_aq%thlskin(i,j), i=1,i2), j=1,j2)
+
+      read(ifinput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_aq%qtskin(i,j), i=1,i2), j=1,j2)
+
+      read(ifinput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tile_aq%obuk(i,j), i=1,i2), j=1,j2)
+
+      read(ifinput) timee
+      close(ifinput)
     end if
+
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -986,13 +1029,13 @@ contains
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
+    use modlsm,    only : kmax_soil, tile_lv, tile_hv, tile_bs, tile_ws, tile_aq
 
     implicit none
     integer imin,ihour
     integer i,j,k,n
     character(50) name,linkname
 
-    
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
       name = 'initdXXXhXXmXXXXXXXX.XXX'
@@ -1104,8 +1147,40 @@ contains
         linkname = name
         linkname(6:11) = "latest"
         call system("cp "//name //" "//linkname)
-      end if
 
+      else if (isurf == 11) then
+        name(5:5)='l'
+        open  (ifoutput,file=name,form='unformatted')
+        write(ifoutput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+        write(ifoutput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+        write(ifoutput) ((tskin (i,j),   i=1,i2), j=1,j2)
+        write(ifoutput) ((Wl    (i,j),   i=1,i2), j=1,j2)
+
+        ! Sub-grid tiles
+        write(ifoutput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_aq%thlskin(i,j), i=1,i2), j=1,j2)
+
+        write(ifoutput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_aq%qtskin(i,j), i=1,i2), j=1,j2)
+
+        write(ifoutput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
+        write(ifoutput) ((tile_aq%obuk(i,j), i=1,i2), j=1,j2)
+
+        write(ifoutput)  timee
+        close (ifoutput)
+        linkname = name
+        linkname(6:11) = "latest"
+        call system("cp "//name //" "//linkname)
+      end if
 
       if (myid==0) then
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
@@ -1143,11 +1218,13 @@ contains
     use modradiation,      only : exitradiation
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
+    use modlsm,            only : exitlsm
     use modthermodynamics, only : exitthermodynamics
 
     call exittimedep
     call exitthermodynamics
     call exitsurface
+    call exitlsm
     call exitsubgrid
     call exitradiation
     call exitpois

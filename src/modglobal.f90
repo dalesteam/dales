@@ -98,6 +98,14 @@ save
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
+      ! Land-surface
+      real,parameter :: rho_solid_soil = 2700       !< Density of dry solid soil (kg m-3)
+      real,parameter :: rho_C_matrix   = 1.6e6      !< Volumetric soil heat capacity [J m-3 K-1]
+      real,parameter :: rho_C_water    = 4.18e6     !< Volumetric water heat capacity [J m-3 K-1]
+      real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
+      real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
+
+
       logical :: lcoriol  = .true.  !<  switch for coriolis force
       logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
 
@@ -235,6 +243,7 @@ contains
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
+    use mpi
     use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
     implicit none
 

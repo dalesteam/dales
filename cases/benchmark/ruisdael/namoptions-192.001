@@ -11,7 +11,7 @@ peclet = 0.1
 irandom = 1
 randthl = 0.01
 randqt = 2.5e-5
-nsv = 3
+nsv = 2
 ! nprocx = 3
 ! nprocy = 8
 /

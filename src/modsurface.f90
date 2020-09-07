@@ -73,15 +73,17 @@ contains
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use mpi
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
- character(len=1500) :: readbuffer
+    character(len=1500) :: readbuffer
+
     namelist/NAMSURFACE/ & !< Soil related variables
-      isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
+      isurf, tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
       lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
       ! Jarvis-Steward related variables
@@ -162,7 +164,7 @@ contains
     call MPI_BCAST(phiwp                      ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(R10                        ,            1, MY_REAL    , 0, comm3d, mpierr)
     call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
-    
+
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
@@ -536,7 +538,7 @@ contains
             enddo
           enddo
       end select
-    else
+    else  ! not lhetero:
       if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
         z0mav = z0
         z0hav = z0
@@ -606,8 +608,8 @@ contains
     end if
 
     allocate(rs(i2,j2))
+    allocate(ra(i2,j2))
     if(isurf <= 2) then
-      allocate(ra(i2,j2))
 
       ! CvH set initial values for rs and ra to be able to compute qskin
       ra = 50.
@@ -693,7 +695,7 @@ contains
       if (lsplitleaf) then
         allocate(PARdirField   (2:i1,2:j1))
         allocate(PARdifField   (2:i1,2:j1))
-      endif  
+      endif
     endif
     return
   end subroutine initsurface
@@ -702,6 +704,7 @@ contains
   subroutine surface
     use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use mpi
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excjs, mpi_integer
     use moduser,    only : surf_user
     implicit none
@@ -721,6 +724,11 @@ contains
 
     patchx = 0
     patchy = 0
+
+    if (isurf==11) then
+       ! New LSM, handled by modlsm
+       return
+    end if
 
     if (isurf==10) then
       call surf_user
@@ -860,11 +868,12 @@ contains
 
           phimzf = phim(zf(1)/obl(i,j))
           phihzf = phih(zf(1)/obl(i,j))
-          
+
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
           dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+
         end do
       end do
 
@@ -893,7 +902,7 @@ contains
 
             phimzf = phim(zf(1)/obl(i,j))
             phihzf = phih(zf(1)/obl(i,j))
-            
+
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
@@ -976,10 +985,10 @@ contains
               svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
-         
+
           phimzf = phim(zf(1)/obl(i,j))
           phihzf = phih(zf(1)/obl(i,j))
-          
+
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -1039,6 +1048,7 @@ contains
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,ijtot,i1,j1
     use modfields,   only : qt0
     !use modsurfdata, only : rs, ra
+    use mpi
     use modmpi,      only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
 
     implicit none
@@ -1104,6 +1114,7 @@ contains
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
+    use mpi
     use modmpi,    only : my_real,mpierr,comm3d,mpi_sum,mpi_integer
     implicit none
 
@@ -1152,7 +1163,7 @@ contains
                 if(Rib > 0) L = 0.01
                 if(Rib < 0) L = -0.01
              end if
-             
+
              do while (.true.)
                 iter    = iter + 1
                 Lold    = L
@@ -1291,7 +1302,7 @@ contains
           if(Rib > 0) L = 0.01
           if(Rib < 0) L = -0.01
        end if
-       
+
        do while (.true.)
           iter    = iter + 1
           Lold    = L
@@ -1325,7 +1336,7 @@ contains
 
   end subroutine getobl
 
-  function psim(zeta)
+  pure function psim(zeta)
     implicit none
 
     real             :: psim
@@ -1345,7 +1356,7 @@ contains
     return
   end function psim
 
-  function psih(zeta)
+  pure function psih(zeta)
 
     implicit none
 
@@ -1368,10 +1379,10 @@ contains
 
   ! stability function Phi for momentum.
   ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
-  ! Phi and Psi above are related by an integral and should in principle match, 
+  ! Phi and Psi above are related by an integral and should in principle match,
   ! currently they do not.
   ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
- function phim(zeta)
+  pure function phim(zeta)
     implicit none
     real             :: phim
     real, intent(in) :: zeta
@@ -1388,8 +1399,8 @@ contains
     return
   end function phim
 
-   ! stability function Phi for heat.  
- function phih(zeta)
+   ! stability function Phi for heat.
+ pure function phih(zeta)
     implicit none
     real             :: phih
     real, intent(in) :: zeta
@@ -1406,7 +1417,7 @@ contains
     return
   end function phih
 
-  
+
   function E1(x)
   implicit none
     real             :: E1
@@ -1418,7 +1429,7 @@ contains
     do k=1,99
       !E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
        E1sum = E1sum + (-1.0 * x) ** k / ( k * factorial(k) )  ! FJ changed this for compilation with cray fortran
-                                                          
+
     end do
     E1 = -0.57721566490153286060 - log(x) - E1sum
 
@@ -1638,6 +1649,7 @@ contains
     use modglobal, only : pref0,boltz,cp,rd,rhow,rlv,i1,j1,rdt,ijtot,rk3step,nsv,xtime,rtimee,xday,xlat,xlon
     use modfields, only : ql0,qt0,thl0,rhof,presf,svm
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith
+    use mpi
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
     use modmicrodata, only : imicro,imicro_bulk
 
@@ -1657,7 +1669,7 @@ contains
     real     :: Ag, PARdir, PARdif !Variables for 2leaf AGS
     real     :: MW_Air = 28.97
     real     :: MW_CO2 = 44
- 
+
     real     :: sinbeta, kdrbl, kdf, kdr, ref, ref_dir
     real     :: iLAI, fSL
     real     :: PARdfU, PARdfD, PARdfT, PARdrU, PARdrD, PARdrT, dirPAR, difPAR
@@ -1949,7 +1961,7 @@ contains
             gc_inf   = LAI(i,j) * sum(weight_g * gnet)
 
           else !lsplitleaf
-          
+
           ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
           AGSa1    = 1.0 / (1 - f0)
           Dstar    = D0 / (AGSa1 * (f0 - fmin))
