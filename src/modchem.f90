@@ -1123,13 +1123,13 @@ implicit none
   rowdown = floor(  row)
   rowup   = ceiling(row)
 
-  jo31d   = j_o31d(  rowdown) + (row - rowdown) * j_o31d(  rowup) 
-  jh2o2   = j_h2o2(  rowdown) + (row - rowdown) * j_h2o2(  rowup) 
-  jno2    = j_no2(   rowdown) + (row - rowdown) * j_no2(   rowup) 
-  jno3    = j_no3a(  rowdown) + (row - rowdown) * j_no3a(  rowup) + j_no3b(rowdown) + (row - rowdown) * j_no3b(rowup)
-  jch2or  = j_ch2or( rowdown) + (row - rowdown) * j_ch2or( rowup) 
-  jch2om  = j_ch2om( rowdown) + (row - rowdown) * j_ch2om( rowup) 
-  jch3o2h = j_ch3o2h(rowdown) + (row - rowdown) * j_ch3o2h(rowup) 
+  jo31d   = j_o31d(  rowdown) + (row - rowdown) * (j_o31d(  rowup) - j_o31d(  rowdown)) 
+  jh2o2   = j_h2o2(  rowdown) + (row - rowdown) * (j_h2o2(  rowup) - j_h2o2(  rowdown)) 
+  jno2    = j_no2(   rowdown) + (row - rowdown) * (j_no2(   rowup) - j_no2(   rowdown)) 
+  jno3    = j_no3a(  rowdown) + (row - rowdown) * (j_no3a(  rowup) - j_no3a(  rowdown)) + j_no3b(rowdown) + (row - rowdown) * (j_no3b(rowup) - j_no3b(rowdown))
+  jch2or  = j_ch2or( rowdown) + (row - rowdown) * (j_ch2or( rowup) - j_ch2or( rowdown)) 
+  jch2om  = j_ch2om( rowdown) + (row - rowdown) * (j_ch2om( rowup) - j_ch2om( rowdown)) 
+  jch3o2h = j_ch3o2h(rowdown) + (row - rowdown) * (j_ch3o2h(rowup) - j_ch3o2h(rowdown)) 
 
   !!!! We only use the chemistry scalars in svm,
   !!!! in twostep2 we use them as y(:,:,:,1:nchsp)
