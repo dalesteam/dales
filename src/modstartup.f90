@@ -43,10 +43,6 @@ save
   real :: randu = 0.5
   real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
 
-  interface randomnize
-    module procedure randomnize_f
-    module procedure randomnize_d
-  end interface
 contains
   subroutine startup
 
@@ -667,7 +663,7 @@ contains
       call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       do n=1,nsv
-        call slabsum(sv0av(1:1,n),1,k1,sv0(1:1,1:1,1:1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum_d(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       end do
 
       u0av  = u0av  /ijtot + cu
@@ -1073,48 +1069,7 @@ contains
 
  end subroutine exitmodules
 !----------------------------------------------------------------
-  subroutine randomnize_f(field,klev,ampl,ir,ihl,jhl,negval)
-    ! Adds (pseudo) random noise with given amplitude to the field at level k
-    ! Use our own pseudo random function so results are reproducibly the same,
-    ! independent of parallization.
-
-    use modmpi,    only : myidx, myidy
-    use modglobal, only : itot,jtot,imax,jmax,i1,j1,k1
-    integer (KIND=selected_int_kind(6)):: imm, ia, ic,ir
-    integer ihl, jhl
-    integer i,j,klev
-    integer is,ie,js,je
-    real ran,ampl
-    real(4) field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
-    parameter (imm = 134456, ia = 8121, ic = 28411)
-    logical negval
-
-    is = myidx * imax + 1
-    ie = is + imax - 1
-
-    js = myidy * jmax + 1
-    je = js + jmax - 1
-
-    do j=1,jtot
-    do i=1,itot
-        ir=mod((ir)*ia+ic,imm)
-        ran=real(ir)/real(imm)
-        if (i >= is .and. i <= ie .and. &
-            j >= js .and. j <= je) then
-            if (.not. negval) then ! Avoid non-physical negative values
-              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
-            else 
-              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
-            endif
-
-        endif
-    enddo
-    enddo
-
-    return
-  end subroutine randomnize_f
-
-  subroutine randomnize_d(field,klev,ampl,ir,ihl,jhl,negval)
+  subroutine randomnize(field,klev,ampl,ir,ihl,jhl,negval)
     ! Adds (pseudo) random noise with given amplitude to the field at level k
     ! Use our own pseudo random function so results are reproducibly the same,
     ! independent of parallization.
@@ -1153,7 +1108,7 @@ contains
     enddo
 
     return
-  end subroutine randomnize_d
+  end subroutine randomnize
 
   subroutine baseprofs
     ! Calculates the profiles corresponding to the base state
