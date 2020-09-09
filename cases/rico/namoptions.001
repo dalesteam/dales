@@ -2,13 +2,15 @@
 iexpnr     =  001
 lwarmstart =  .false.
 startfile  =  'initd001h00mx000y000.001'
-runtime    =  86400
+runtime    =  3600
 trestart   =  3600
 ladaptive  =  .true.
 irandom    =  43
 randthl    =  0.1
 randqt     =  2.5e-5
 nsv        =  2
+dtav_glob  =  60
+timeav_glob=  60
 /
 
 &DOMAIN
@@ -63,44 +65,28 @@ iadv_sv    =  7
 imicro     = 2
 /
 &NAMBULKMICROSTAT
-lmicrostat = .true.
-timeav     = 21600
-dtav       = 60
+lmicrostat = .false.
 /
 &NAMCHECKSIM
 tcheck     = 0
 /
-&NAMSAMPLING
-lsampcl    = .true.
-lsampco    = .true.
-dtav       = 60
-timeav     = 21600
-/
 &NAMTIMESTAT
 ltimestat  = .true.
-dtav       = 60
 /
 &NAMCROSSSECTION
 lcross     = .false.
-dtav       = 60
 /
 &NAMGENSTAT
 lstat      = .true.
-dtav       = 1440
-timeav     = 1440
 /
 
 &NAMFIELDDUMP
 lfielddump = .false.
-dtav       = 60
-ldiracc    = .true.
+ldiracc    = .false.
 /
 &NAMSTATTEND
-dtav       = 60
-timeav     = 21600
-ltend      = .true.
+ltend      = .false.
 /
 &NAMCLOUDFIELD
-dtav=1440
-lcloudfield = .true.
+lcloudfield = .false.
 /
