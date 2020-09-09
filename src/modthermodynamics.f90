@@ -227,7 +227,7 @@ contains
   use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
-  use modmpi,    only : slabsum
+  use modmpi,    only : slabsum, slabsum_d
   implicit none
 
   integer :: k,n
@@ -262,7 +262,7 @@ contains
    exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
    do n=1,nsv
-      call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum_d(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
    end do
    sv0av = sv0av/ijtot
 !***********************************************************

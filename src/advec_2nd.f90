@@ -122,7 +122,7 @@ subroutine advecu_2nd(putin, putout)
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+  real(4), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
@@ -238,7 +238,7 @@ subroutine advecv_2nd(putin, putout)
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v-field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(4), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
@@ -352,7 +352,7 @@ subroutine advecw_2nd(putin,putout)
   implicit none
 
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w-field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(4), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
