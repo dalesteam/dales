@@ -1836,8 +1836,8 @@ implicit none
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* (convppb(:,:)**2)
       case(8)
         rk1(:,:)                = RC(i)%A * (max(qt0(2:i1,2:j1,k),0.0) * MW_air / MW_h2o * ppb) * convppb(:,:) * exp(RC(i)%B / T_abs(:,:))
-        rk2(:,:)                = 0.79 * RC(i)%C * ppb * exp(RC(i)%D / T_abs(:,:))
-        rk3(:,:)                = 0.21 * RC(i)%E * ppb * exp(RC(i)%F / T_abs(:,:))
+        rk2(:,:)                = 0.79 * RC(i)%C * ppb * convppb(:,:) * exp(RC(i)%D / T_abs(:,:))
+        rk3(:,:)                = 0.21 * RC(i)%E * ppb * convppb(:,:) * exp(RC(i)%F / T_abs(:,:))
         keffT(:,:,RC(i)%Kindex) = (rk1 * jo31d) / (rk1 + rk2 + rk3)
       case(9)
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * jno2

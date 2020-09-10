@@ -993,7 +993,7 @@ contains
           svflux(i,j, 4) = -0.0059 * svm(i,j,1, 4)
           svflux(i,j, 6) = -0.0001 * svm(i,j,1, 6)
           svflux(i,j, 7) = -0.0027 * svm(i,j,1, 7)
-          svflux(i,j,12) = -0.0027 * svm(i,j,1,12)
+          svflux(i,j,12) = -0.0032 * svm(i,j,1,12)
           svflux(i,j,16) = -0.0250 * svm(i,j,1,16)
           svflux(i,j,17) = -0.0032 * svm(i,j,1,17)
 
