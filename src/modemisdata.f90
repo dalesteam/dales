@@ -37,7 +37,10 @@ module modemisdata
   ! Namelist variables
   
   logical           :: l_emission = .false.
-  integer           :: kemis = -1
+  integer           :: kemis   = -1, &
+                       sv_skip =  0 
+  integer           :: i
+  character(len = 6), dimension(100) :: svlist = (/ ('abcdef', i=1, 100) /)
 
   ! Main variables
 
@@ -47,10 +50,6 @@ module modemisdata
   ! For example, nchem, firstchem etc, but also structure for species
   ! 'location', i.e. switch scalar field represents which species?
   
-  character (len = 3), dimension(1) :: svlist   = (/'co2' /)
-  logical,             dimension(1) :: emislist = (/.true./)
-
-!  character (len = 3), dimension(4) :: svlist   = (/'nr',    'qr',    'co2',  'ch4'  /)
-!  logical,             dimension(4) :: emislist = (/.false., .false., .true., .false./)
+!  character(len = 3), dimension(1) :: svlist = (/'co2' /)
 
 end module modemisdata
