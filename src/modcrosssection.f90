@@ -28,15 +28,14 @@
 !
 module modcrosssection
 
-
-  use modglobal, only : longint,kmax
+  use modglobal, only : longint, kmax, nsv
 
 implicit none
 private
 PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
-  integer,parameter :: nvar = 12
+  integer :: nvar = 10 
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -46,16 +45,13 @@ save
   integer :: crossheight(100)
   integer :: nxy = 0
   integer :: cross
+
   character(4) :: cheight
   character(80) :: fname1 = 'crossxz.xxxxyxxx.xxx.nc'
   character(80) :: fname2 = 'crossxy.xxxx.xxxxyxxx.xxx.nc'
   character(80) :: fname3 = 'crossyz.xxxxyxxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname1
-  character(80),dimension(1,4) :: tncname1
-  character(80),dimension(nvar,4) :: ncname2
-  character(80),dimension(1,4) :: tncname2
-  character(80),dimension(nvar,4) :: ncname3
-  character(80),dimension(1,4) :: tncname3
+  character(80),dimension(:,:),allocatable :: ncname1,  ncname2,  ncname3
+  character(80),dimension(1,4) ::            tncname1, tncname2, tncname3
 
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
@@ -73,7 +69,8 @@ contains
 
    implicit none
 
-    integer :: ierr,k
+    integer :: ierr, k, n
+    character(3) :: csvname
 
     namelist/NAMCROSSSECTION/ &
     lcross, lbinary, dtav, crossheight, crossplane, crossortho
@@ -94,24 +91,24 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lcross     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lbinary    ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(crossheight(1:100),100,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(crossplane ,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(crossortho ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call MPI_BCAST(dtav              ,   1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(lcross            ,   1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lbinary           ,   1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(crossheight(1:100), 100, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(crossplane        ,   1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(crossortho        ,   1, MPI_INTEGER, 0, comm3d, mpierr)
 
     nxy=0
     k=1
     do while (crossheight(k) > 0)
-    nxy=nxy+1
-    ncid2(k)=k+1
-    nrec2(k)=0
-    k=k+1
+      nxy = nxy + 1
+      ncid2(k) = k + 1
+      nrec2(k) = 0
+      k = k + 1
     end do
 
     idtav = dtav/tres
-    tnext   = idtav+btime
+    tnext = idtav+btime
     if(.not.(lcross)) return
     dt_lim = min(dt_lim,tnext)
 
@@ -121,82 +118,117 @@ contains
     if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
       stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
     end if
+
+    nvar = nvar + nsv
     if (lnetcdf) then
     if (myidy==0) then
       fname1(9:16) = cmyid
       fname1(18:20) = cexpnr
+
+      allocate(ncname1(nvar,4))
+  
       call nctiminfo(tncname1(1,:))
-      call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
-      call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
-      call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
-      call ncinfo(ncname1( 4,:),'thlxz','xz crosssection of the Liquid water potential temperature','K','t0tt')
-      call ncinfo(ncname1( 5,:),'thvxz','xz crosssection of the Virtual potential temperature','K','t0tt')
-      call ncinfo(ncname1( 6,:),'qtxz','xz crosssection of the Total water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 8,:),'buoyxz','xz crosssection of the Buoyancy','K','t0tt')
-      call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
-      call ncinfo(ncname1( 11,:),'cloudnrxz','xz crosssection of the cloud number','-','t0tt')
-      call ncinfo(ncname1( 12,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
-      call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
+      call ncinfo(ncname1( 1,:),      'uxz', 'xz crosssection of the west-east velocity',                'm/s',     'm0tt')
+      call ncinfo(ncname1( 2,:),      'vxz', 'xz crosssection of the south-north velocity',              'm/s',     't0tt')
+      call ncinfo(ncname1( 3,:),      'wxz', 'xz crosssection of the vertical velocity',                 'm/s',     't0mt')
+      call ncinfo(ncname1( 4,:),    'thlxz', 'xz crosssection of the liquid water potential temperature','K',       't0tt')
+      call ncinfo(ncname1( 5,:),    'thvxz', 'xz crosssection of the virtual potential temperature',     'K',       't0tt')
+      call ncinfo(ncname1( 6,:),     'qtxz', 'xz crosssection of the total water specific humidity',     'kg/kg',   't0tt')
+      call ncinfo(ncname1( 7,:),     'qlxz', 'xz crosssection of the liquid water specific humidity',    'kg/kg',   't0tt')
+      call ncinfo(ncname1( 8,:),   'buoyxz', 'xz crosssection of the buoyancy',                          'K',       't0tt')
+      call ncinfo(ncname1( 9,:),   'e120xz', 'xz crosssection of sqrt(turbulent kinetic energy)',        'm^2/s^2', 't0tt')
+      call ncinfo(ncname1(10,:),'cloudnrxz', 'xz crosssection of the cloud number',                      '-',       't0tt')
+      do n = 1,nsv
+        write(csvname(1:3), '(i3.3)') n
+        call ncinfo(ncname1(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',          'kg/kg',   't0tt')
+      enddo
+
+!      call ncinfo(ncname1( ?,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
+!      call ncinfo(ncname1( ?,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
+
+      call open_nc(fname1, ncid1, nrec1, n1=imax, n3=kmax)
       if (nrec1 == 0) then
-        call define_nc( ncid1, 1, tncname1)
+        call define_nc(ncid1, 1, tncname1)
         call writestat_dims_nc(ncid1)
       end if
-      call define_nc( ncid1, NVar, ncname1)
+
+      call define_nc( ncid1, nvar, ncname1)
+
     end if
+
+    allocate(ncname2(nvar,4))  
+
     do cross=1,nxy
       write(cheight,'(i4.4)') crossheight(cross)
       fname2(9:12) = cheight
       fname2(14:21) = cmyid
       fname2(23:25) = cexpnr
+
       call nctiminfo(tncname2(1,:))
-      call ncinfo(ncname2( 1,:),'uxy','xy crosssections of the West-East velocity','m/s','mt0t')
-      call ncinfo(ncname2( 2,:),'vxy','xy crosssections of the South-North velocity','m/s','tm0t')
-      call ncinfo(ncname2( 3,:),'wxy','xy crosssections of the Vertical velocity','m/s','tt0t')
-      call ncinfo(ncname2( 4,:),'thlxy','xy crosssections of the Liquid water potential temperature','K','tt0t')
-      call ncinfo(ncname2( 5,:),'thvxy','xy crosssections of the Virtual potential temperature','K','tt0t')
-      call ncinfo(ncname2( 6,:),'qtxy','xy crosssections of the Total water specific humidity','kg/kg','tt0t')
-      call ncinfo(ncname2( 7,:),'qlxy','xy crosssections of the Liquid water specific humidity','kg/kg','tt0t')
-      call ncinfo(ncname2( 8,:),'buoyxy','xy crosssection of the Buoyancy','K','tt0t')
-      call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
-      call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
-      call ncinfo(ncname2(11,:),'cloudnrxy','xy crosssection of the cloud number','-','tt0t')
-      call ncinfo(ncname2(12,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','tt0t')
-      call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
+      call ncinfo(ncname2( 1,:),       'uxy', 'xy crosssection of the west-east velocity',                 'm/s',     'mt0t')
+      call ncinfo(ncname2( 2,:),       'vxy', 'xy crosssection of the south-north velocity',               'm/s',     'tm0t')
+      call ncinfo(ncname2( 3,:),       'wxy', 'xy crosssection of the vertical velocity',                  'm/s',     'tt0t')
+      call ncinfo(ncname2( 4,:),     'thlxy', 'xy crosssection of the liquid water potential temperature', 'K',       'tt0t')
+      call ncinfo(ncname2( 5,:),     'thvxy', 'xy crosssection of the virtual potential temperature',      'K',       'tt0t')
+      call ncinfo(ncname2( 6,:),      'qtxy', 'xy crosssection of the total water specific humidity',      'kg/kg',   'tt0t')
+      call ncinfo(ncname2( 7,:),      'qlxy', 'xy crosssection of the liquid water specific humidity',     'kg/kg',   'tt0t')
+      call ncinfo(ncname2( 8,:),    'buoyxy', 'xy crosssection of the buoyancy',                           'K',       'tt0t')
+      call ncinfo(ncname2( 9,:),    'e120xy', 'xy crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2', 'tt0t')
+      call ncinfo(ncname2(10,:), 'cloudnrxy', 'xy crosssection of the cloud number',                       '-',       'tt0t')
+      do n = 1,nsv
+        write(csvname(1:3), '(i3.3)') n
+        call ncinfo(ncname2(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',           'kg/kg',   'tt0t')
+      enddo
+
+!      call ncinfo(ncname2( ?,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
+!      call ncinfo(ncname2( ?,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
+
+      call open_nc(fname2,  ncid2(cross), nrec2(cross), n1=imax, n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
         call writestat_dims_nc(ncid2(cross))
       end if
-      call define_nc( ncid2(cross), NVar, ncname2)
+      call define_nc( ncid2(cross), nvar, ncname2)
    end do
+
    if (myidx==0) then
     fname3(9:16) = cmyid
     fname3(18:20) = cexpnr
+
+    allocate(ncname3(nvar,4))
+
     call nctiminfo(tncname3(1,:))
-    call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
-    call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
-    call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
-    call ncinfo(ncname3( 4,:),'thlyz','yz crosssection of the Liquid water potential temperature','K','0ttt')
-    call ncinfo(ncname3( 5,:),'thvyz','yz crosssection of the Virtual potential temperature','K','0ttt')
-    call ncinfo(ncname3( 6,:),'qtyz','yz crosssection of the Total water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3( 8,:),'buoyyz','yz crosssection of the Buoyancy','K','0ttt')
-    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
-    call ncinfo(ncname3(11,:),'cloudnryz','yz crosssection of the cloud number','-','0ttt')
-    call ncinfo(ncname3(12,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
-    call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
+    call ncinfo(ncname3( 1,:),       'uyz', 'yz crosssection of the west-east velocity',                 'm/s',    '0ttt')
+    call ncinfo(ncname3( 2,:),       'vyz', 'yz crosssection of the south-north velocity',               'm/s',    '0mtt')
+    call ncinfo(ncname3( 3,:),       'wyz', 'yz crosssection of the vertical velocity',                  'm/s',    '0tmt')
+    call ncinfo(ncname3( 4,:),     'thlyz', 'yz crosssection of the liquid water potential temperature', 'K',      '0ttt')
+    call ncinfo(ncname3( 5,:),     'thvyz', 'yz crosssection of the virtual potential temperature',      'K',      '0ttt')
+    call ncinfo(ncname3( 6,:),      'qtyz', 'yz crosssection of the total water specific humidity',      'kg/kg',  '0ttt')
+    call ncinfo(ncname3( 7,:),      'qlyz', 'yz crosssection of the liquid water specific humidity',     'kg/kg',  '0ttt')
+    call ncinfo(ncname3( 8,:),    'buoyyz', 'yz crosssection of the buoyancy',                           'K',      '0ttt')
+    call ncinfo(ncname3( 9,:),    'e120yz', 'yz crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2','0ttt')
+    call ncinfo(ncname3(10,:), 'cloudnryz','yz crosssection of the cloud number',                        '-',      '0ttt')
+    do n = 1,nsv
+      write(csvname(1:3), '(i3.3)') n
+      call ncinfo(ncname3(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',         'kg/kg',  '0ttt')
+    enddo
+
+!    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
+!    call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
+
+    call open_nc(fname3, ncid3, nrec3, n2=jmax, n3=kmax)
     if (nrec3==0) then
       call define_nc( ncid3, 1, tncname3)
       call writestat_dims_nc(ncid3)
     end if
-    call define_nc( ncid3, NVar, ncname3)
+    call define_nc( ncid3, nvar, ncname3)
     end if
  end if
 
+  write(6,*) 'Init complete'
 
   end subroutine initcrosssection
+
 !>Run crosssection. Mainly timekeeping
   subroutine crosssection
     use modglobal, only : rk3step,timee,dt_lim
@@ -222,7 +254,7 @@ contains
 
 !> Do the xz crosssections and dump them to file
   subroutine wrtvert
-  use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+  use modglobal, only : imax,i1,kmax,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
   use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
   use modmpi,    only : myidy
   use modstat_nc, only : lnetcdf, writestat_nc
@@ -236,7 +268,6 @@ contains
   if( myidy /= 0 ) return 
 
   allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
-
 
     do  i=2,i1
     do  k=1,kmax
@@ -289,24 +320,29 @@ contains
     end if
 
     if (lnetcdf) then
+
       allocate(vars(1:imax,1:kmax,nvar))
-      vars(:,:,1) = um(2:i1,crossplane,1:kmax)+cu
-      vars(:,:,2) = vm(2:i1,crossplane,1:kmax)+cv
-      vars(:,:,3) = wm(2:i1,crossplane,1:kmax)
-      vars(:,:,4) = thlm(2:i1,crossplane,1:kmax)
-      vars(:,:,5) = thv0(2:i1,1:kmax)
-      vars(:,:,6) = qtm(2:i1,crossplane,1:kmax)
-      vars(:,:,7) = ql0(2:i1,crossplane,1:kmax)
-      vars(:,:,8) = buoy(2:i1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,crossplane,1:kmax,2)
-      vars(:,:,10) = svm(2:i1,crossplane,1:kmax,1)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = cloudnr(2:i1,crossplane,1:kmax)
-      vars(:,:,12) = e120(2:i1,crossplane,1:kmax)
+
+      vars(:,:, 1)  =      um(2:i1, crossplane, 1:kmax) + cu
+      vars(:,:, 2)  =      vm(2:i1, crossplane, 1:kmax) + cv
+      vars(:,:, 3)  =      wm(2:i1, crossplane, 1:kmax)
+      vars(:,:, 4)  =    thlm(2:i1, crossplane, 1:kmax)
+      vars(:,:, 5)  =    thv0(2:i1,             1:kmax)
+      vars(:,:, 6)  =     qtm(2:i1, crossplane, 1:kmax)
+      vars(:,:, 7)  =     ql0(2:i1, crossplane, 1:kmax)
+      vars(:,:, 8)  =    buoy(2:i1,             1:kmax)
+      vars(:,:, 9)  =    e120(2:i1, crossplane, 1:kmax)
+      vars(:,:,10)  = cloudnr(2:i1, crossplane, 1:kmax)
+      vars(:,:,11:nvar) = svm(2:i1, crossplane, 1:kmax, :)
+
+!      if(nsv>1) then
+!      vars(:,:,?) = svm(2:i1,crossplane,1:kmax,2)
+!      vars(:,:,?) = svm(2:i1,crossplane,1:kmax,1)
+!      else
+!      vars(:,:,?) = 0.
+!      vars(:,:,?) = 0.
+!      end if
+
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
       call writestat_nc(ncid1,nvar,ncname1(1:nvar,:),vars,nrec1,imax,kmax)
       deallocate(vars)
@@ -317,7 +353,7 @@ contains
 
 !> Do the xy crosssections and dump them to file
   subroutine wrthorz
-    use modglobal, only : imax,jmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+    use modglobal, only : imax,jmax,i1,j1,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
     use modmpi,    only : cmyid
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -395,23 +431,26 @@ contains
       do cross=1,nxy
       allocate(vars(1:imax,1:jmax,nvar))
       vars=0.
-      vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
-      vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
-      vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,4) = thlm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,5) = thv0(2:i1,2:j1,cross)
-      vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
-      vars(:,:,8) = buoy(2:i1,2:j1,cross)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
-      vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = cloudnr(2:i1,2:j1,crossheight(cross))
-      vars(:,:,12) = e120(2:i1,2:j1,crossheight(cross))
+      vars(:,:, 1) =       um(2:i1,2:j1, crossheight(cross)) + cu
+      vars(:,:, 2) =       vm(2:i1,2:j1, crossheight(cross)) + cv
+      vars(:,:, 3) =       wm(2:i1,2:j1, crossheight(cross))
+      vars(:,:, 4) =     thlm(2:i1,2:j1, crossheight(cross))
+      vars(:,:, 5) =     thv0(2:i1,2:j1, cross)
+      vars(:,:, 6) =      qtm(2:i1,2:j1, crossheight(cross))
+      vars(:,:, 7) =      ql0(2:i1,2:j1, crossheight(cross))
+      vars(:,:, 8) =     buoy(2:i1,2:j1, cross)
+      vars(:,:, 9) =     e120(2:i1,2:j1, crossheight(cross))
+      vars(:,:,10) =  cloudnr(2:i1,2:j1, crossheight(cross))
+      vars(:,:,11:nvar) = svm(2:i1,2:j1, crossheight(cross), :)
+
+!      if(nsv>1) then
+!      vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
+!      vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
+!      else
+!      vars(:,:,9) = 0.
+!      vars(:,:,10) = 0.
+!      end if
+
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
       call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
@@ -424,7 +463,7 @@ contains
 
   ! yz cross section
   subroutine wrtorth
-    use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+    use modglobal, only : jmax,kmax,j1,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf,cloudnr
     use modmpi,    only : cmyid, myidx
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -498,23 +537,27 @@ contains
 
     if (lnetcdf) then
       allocate(vars(1:jmax,1:kmax,nvar))
-      vars(:,:,1) = um(crossortho,2:j1,1:kmax)+cu
-      vars(:,:,2) = vm(crossortho,2:j1,1:kmax)+cv
-      vars(:,:,3) = wm(crossortho,2:j1,1:kmax)
-      vars(:,:,4) = thlm(crossortho,2:j1,1:kmax)
-      vars(:,:,5) = thv0(2:j1,1:kmax)
-      vars(:,:,6) = qtm(crossortho,2:j1,1:kmax)
-      vars(:,:,7) = ql0(crossortho,2:j1,1:kmax)
-      vars(:,:,8) = buoy(2:j1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(crossortho,2:j1,1:kmax,2)
-      vars(:,:,10) = svm(crossortho,2:j1,1:kmax,1)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = cloudnr(crossortho,2:j1,1:kmax)
-      vars(:,:,12) = e120(crossortho,2:j1,1:kmax)
+      vars = 0.
+      vars(:,:, 1) =      um(crossortho, 2:j1, 1:kmax) + cu
+      vars(:,:, 2) =      vm(crossortho, 2:j1, 1:kmax) + cv
+      vars(:,:, 3) =      wm(crossortho, 2:j1, 1:kmax)
+      vars(:,:, 4) =    thlm(crossortho, 2:j1, 1:kmax)
+      vars(:,:, 5) =    thv0(            2:j1, 1:kmax)
+      vars(:,:, 6) =     qtm(crossortho, 2:j1, 1:kmax)
+      vars(:,:, 7) =     ql0(crossortho, 2:j1, 1:kmax)
+      vars(:,:, 8) =    buoy(            2:j1, 1:kmax)
+      vars(:,:, 9) =    e120(crossortho, 2:j1, 1:kmax)
+      vars(:,:,10) = cloudnr(crossortho, 2:j1, 1:kmax)
+      vars(:,:,11:nvar)= svm(crossortho, 2:j1, 1:kmax, :)
+
+!      if(nsv>1) then
+!      vars(:,:,9) = svm(crossortho,2:j1,1:kmax,2)
+!      vars(:,:,10) = svm(crossortho,2:j1,1:kmax,1)
+!      else
+!      vars(:,:,9) = 0.
+!      vars(:,:,10) = 0.
+!      end if
+
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
       call writestat_nc(ncid3,nvar,ncname3(1:nvar,:),vars,nrec3,jmax,kmax)
       deallocate(vars)
@@ -530,16 +573,16 @@ contains
     use modmpi, only : myidx, myidy
     implicit none
 
-    if(lcross .and. lnetcdf) then
-    if (myidy==0) then
-       call exitstat_nc(ncid1)
-    end if
-    do cross=1,nxy
-    call exitstat_nc(ncid2(cross))
-    end do
-    if (myidx==0) then
-       call exitstat_nc(ncid3)
-    end if    
+    if (lcross .and. lnetcdf) then
+      if (myidy==0) then
+         call exitstat_nc(ncid1)
+      end if
+      do cross=1,nxy
+        call exitstat_nc(ncid2(cross))
+      end do
+      if (myidx==0) then
+        call exitstat_nc(ncid3)
+      end if    
     end if
 
   end subroutine exitcrosssection
