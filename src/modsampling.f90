@@ -61,7 +61,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
-
+    use mpi
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
                            dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
@@ -340,6 +340,7 @@ contains
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp_store
     use modsubgriddata,only : ekh,ekm
+    use mpi
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
     use modpois,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
@@ -747,6 +748,7 @@ contains
 
     use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,ijtot
     use modfields, only : presf,presh
+    use mpi
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
 

@@ -75,6 +75,7 @@ module modbudget
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initbudget
+    use mpi
     use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
     use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
     ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror

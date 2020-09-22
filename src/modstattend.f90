@@ -52,6 +52,7 @@ module modstattend
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initstattend
+    use mpi
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
     use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
     ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror

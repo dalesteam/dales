@@ -56,7 +56,7 @@ SAVE
 
 contains
   subroutine inittestbed
-
+    use mpi
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer
     use modglobal,only :ifnamopt,fname_options,k1,&
                         grav,rd,cp,pref0,rlv,zf,checknamelisterror

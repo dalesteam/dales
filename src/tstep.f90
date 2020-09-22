@@ -51,6 +51,7 @@ subroutine tstep_update
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm
   use modsubgrid,only : ekm,ekh
+  use mpi
   use modmpi,    only : comm3d,mpierr,mpi_max,my_real
   implicit none
 

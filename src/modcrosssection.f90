@@ -63,6 +63,7 @@ save
 contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
+    use mpi
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
