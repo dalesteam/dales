@@ -84,12 +84,15 @@
         d2m = putin(i,j  ,k)-putin(i,j-1,k)
         d2p = putin(i,j-1,k)-putin(i,j  ,k)
 
+        cfm = putin(i,j-1,k)
+        cfp = putin(i,j  ,k)
 
         d1 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d1p
-        d2 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d2p
-
-        cf = 0.5 *     v0(i,j,k) *(putin(i,j-1,k)+putin(i,j,k)) &
-           + 0.5 * abs(v0(i,j,k))*(putin(i,j-1,k)-putin(i,j,k))
+        d2 = (0.5 + sign(0.5, v0(i,j,k))) * d2m + (0.5 - sign(0.5, v0(i,j,k))) * d2p
+        cf = (0.5 + sign(0.5, v0(i,j,k))) * cfm + (0.5 - sign(0.5, v0(i,j,k))) * cfp
+        
+        !cf = 0.5 *     v0(i,j,k) *(putin(i,j-1,k)+putin(i,j,k)) &
+        !   + 0.5 * abs(v0(i,j,k))*(putin(i,j-1,k)-putin(i,j,k))
 
         work = cf + &
          min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
@@ -115,7 +118,7 @@
         cfp = rhobf(k)   * putin(i,j,k  )
 
         d1 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d1p
-        d2 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d2p
+        d2 = (0.5 + sign(0.5, w0(i,j,k))) * d2m + (0.5 - sign(0.5, w0(i,j,k))) * d2p
         cf = (0.5 + sign(0.5, w0(i,j,k))) * cfm + (0.5 - sign(0.5, w0(i,j,k))) * cfp
 
         work = cf + &
