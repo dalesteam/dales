@@ -46,6 +46,8 @@ contains
     logical, intent(out) :: converged
 
     call error_and_exit()
+    converged = .false. ! suppress warnings about intent(out) variable
+                        ! not being assigned
   end subroutine
 
   subroutine error_and_exit

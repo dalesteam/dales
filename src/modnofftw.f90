@@ -33,6 +33,10 @@ contains
     real(kind=8), allocatable  :: xyrt(:,:)
     integer,intent(out)        :: ps,pe,qs,qe
     call error_and_exit()
+    ps=0 ! suppress warnings about intent(out) variables not being assigned
+    pe=0
+    qs=0
+    qe=0
  end subroutine
 
  subroutine fftwexit(p,Fp,d,xyrt)
