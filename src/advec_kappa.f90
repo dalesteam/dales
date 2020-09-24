@@ -42,96 +42,117 @@
   real,external :: rlim
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
    real      d1,d2,cf
 
   integer   i,j,k
 
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
+  real :: d1m, d2m, d1p, d2p, cfm, cfp, work
 
   do k=1,kmax
     do j=2,j1
-      do i=2,i2
-        if (u0(i,j,k)>0) then
-          d1 = putin(i-1,j,k)-putin(i-2,j,k)
-          d2 = putin(i  ,j,k)-putin(i-1,j,k)
-          cf = putin(i-1,j,k)
-        else
-          d1 = putin(i  ,j,k)-putin(i+1,j,k)
-          d2 = putin(i-1,j,k)-putin(i  ,j,k)
-          cf = putin(i  ,j,k)
-        end if
-        cf = cf + rlim(d1,d2)
-        putout(i-1,j,k) = putout(i-1,j,k) - cf * u0(i,j,k) * dxi
-        putout(i,j,k)   = putout(i,j,k)   + cf * u0(i,j,k) * dxi
+      do i=2,i2 ! YES
+        d2m =  putin(i  ,j,k) -putin(i-1,j,k)
+        d2p = -putin(i  ,j,k) +putin(i-1,j,k) 
+
+        d1m = putin(i-1,j,k)-putin(i-2,j,k)
+        d1p = putin(i  ,j,k)-putin(i+1,j,k)
+
+        cfm = putin(i-1,j,k)
+        cfp = putin(i  ,j,k)
+
+        d1 = (0.5 + sign(0.5, u0(i,j,k))) * d1m + (0.5 - sign(0.5, u0(i,j,k))) * d1p
+        d2 = (0.5 + sign(0.5, u0(i,j,k))) * d2m + (0.5 - sign(0.5, u0(i,j,k))) * d2p
+        cf = (0.5 + sign(0.5, u0(i,j,k))) * cfm + (0.5 - sign(0.5, u0(i,j,k))) * cfp
+
+        work = cf + &
+         min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+         (sign(0.5, d1) + sign(0.5, d2))
+
+        work = work * u0(i,j,k) * dxi
+        putout(i,j-1,k) = putout(i,j-1,k) - work
+        putout(i,j,k)   = putout(i,j,k)   + work
       end do
     end do
   end do
 
   do k=1,kmax
     do j=2,j2
-      do i=2,i1
-        if (v0(i,j,k)>0) then
-          d1 = putin(i,j-1,k)-putin(i,j-2,k)
-          d2 = putin(i,j  ,k)-putin(i,j-1,k)
-          cf = putin(i,j-1,k)
-        else
-          d1 = putin(i,j  ,k)-putin(i,j+1,k)
-          d2 = putin(i,j-1,k)-putin(i,j  ,k)
-          cf = putin(i,j  ,k)
-        end if
-        cf = cf + rlim(d1,d2)
-        putout(i,j-1,k) = putout(i,j-1,k) - cf * v0(i,j,k) * dyi
-        putout(i,j,k)   = putout(i,j,k)   + cf * v0(i,j,k) * dyi
+      do i=2,i1 ! YES
+        d1m = putin(i,j-1,k)-putin(i,j-2,k)
+        d1p = putin(i,j  ,k)-putin(i,j+1,k)
+
+        d2m = putin(i,j  ,k)-putin(i,j-1,k)
+        d2p = putin(i,j-1,k)-putin(i,j  ,k)
+
+
+        d1 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d1p
+        d2 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d2p
+
+        cf = 0.5 *     v0(i,j,k) *(putin(i,j-1,k)+putin(i,j,k)) &
+           + 0.5 * abs(v0(i,j,k))*(putin(i,j-1,k)-putin(i,j,k))
+
+        work = cf + &
+         min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+         (sign(0.5, d1) + sign(0.5, d2))
+
+        work = work * v0(i,j,k) * dyi
+        putout(i,j-1,k) = putout(i,j-1,k) - work
+        putout(i,j,k)   = putout(i,j,k)   + work
       end do
     end do
   end do
 
   do k=3,kmax
     do j=2,j1
-      do i=2,i1
-        if (w0(i,j,k)>0) then
-          d1 = rhobf(k-1) * putin(i,j,k-1) - rhobf(k-2) * putin(i,j,k-2)
-          d2 = rhobf(k)   * putin(i,j,k  ) - rhobf(k-1) * putin(i,j,k-1)
-          cf = rhobf(k-1) * putin(i,j,k-1)
-        else
-          d1 = rhobf(k)   * putin(i,j,k  ) - rhobf(k+1) * putin(i,j,k+1)
-          d2 = rhobf(k-1) * putin(i,j,k-1) - rhobf(k)   * putin(i,j,k  )
-          cf = rhobf(k)   * putin(i,j,k  )
-        end if
-        cf = cf + rlim(d1,d2)
-        putout(i,j,k-1) = putout(i,j,k-1) - (1./rhobf(k-1))*cf * w0(i,j,k) * dzi
-        putout(i,j,k)   = putout(i,j,k)   + (1./rhobf(k))*cf * w0(i,j,k) * dzi
+      do i=2,i1 ! YES
+        d1m = rhobf(k-1) * putin(i,j,k-1) - rhobf(k-2) * putin(i,j,k-2)
+        d2m = rhobf(k)   * putin(i,j,k  ) - rhobf(k-1) * putin(i,j,k-1)
+
+        d1p = rhobf(k)   * putin(i,j,k  ) - rhobf(k+1) * putin(i,j,k+1)
+        d2p = rhobf(k-1) * putin(i,j,k-1) - rhobf(k)   * putin(i,j,k  )
+
+        cfm = rhobf(k-1) * putin(i,j,k-1)
+        cfp = rhobf(k)   * putin(i,j,k  )
+
+        d1 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d1p
+        d2 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d2p
+        cf = (0.5 + sign(0.5, w0(i,j,k))) * cfm + (0.5 - sign(0.5, w0(i,j,k))) * cfp
+
+        work = cf + &
+         min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+         (sign(0.5, d1) + sign(0.5, d2))
+
+        work = work * w0(i,j,k) * dzi
+        putout(i,j,k-1) = putout(i,j,k-1) - (1./rhobf(k-1))*work
+        putout(i,j,k)   = putout(i,j,k)   + (1./rhobf(k))*work
       end do
     end do
   end do
 
   do j=2,j1
-    do i=2,i1
-      if (w0(i,j,2)>0) then
-        d1 = 0
-        d2 = rhobf(1) * putin(i,j,1)   - rhobf(2) * putin(i,j,2)
-        cf = rhobf(1) * putin(i,j,1)
-      else
-        d1 = rhobf(2) * putin(i,j,2)   - rhobf(3) * putin(i,j,3)
-        d2 = rhobf(1) * putin(i-1,j,1) - rhobf(2) * putin(i,j,2)
-        cf = rhobf(2) * putin(i,j,2)
-      end if
-      cf = cf + rlim(d1,d2)
-      putout(i,j,1) = putout(i,j,1) - (1./rhobf(1))*cf * w0(i,j,2) * dzi
-      putout(i,j,2) = putout(i,j,2) + (1./rhobf(2))*cf * w0(i,j,2) * dzi
+    do i=2,i1 ! YES
+      d1m = 0
+      d2m = rhobf(1) * putin(i,j,1)   - rhobf(2) * putin(i,j,2)
+      cfm = rhobf(1) * putin(i,j,1)
+      
+      d1p = rhobf(2) * putin(i,j,2)   - rhobf(3) * putin(i,j,3)
+      d2p = rhobf(1) * putin(i-1,j,1) - rhobf(2) * putin(i,j,2)
+      cfp = rhobf(2) * putin(i,j,2)
+
+      d1 = (0.5 - sign(0.5, w0(i,j,2))) * d1p
+      d2 = (0.5 + sign(0.5, w0(i,j,2))) * d1m + (0.5 - sign(0.5, w0(i,j,2))) * d2p
+      cf = (0.5 + sign(0.5, w0(i,j,2))) * cfm + (0.5 - sign(0.5, w0(i,j,2))) * cfp
+
+      work = cf + &
+         min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+         (sign(0.5, d1) + sign(0.5, d2))
+
+      work = work * w0(i,j,2) * dzi
+      putout(i,j,1) = putout(i,j,1) - (1./rhobf(1))*work
+      putout(i,j,2) = putout(i,j,2) + (1./rhobf(2))*work
     end do
   end do
 
-
-  return
   end subroutine advecc_kappa
 
 subroutine  halflev_kappa(putin,putout)
@@ -191,17 +212,11 @@ subroutine  halflev_kappa(putin,putout)
 
 !> Determination of the limiter function
   real function rlim(d1,d2)
-    use modglobal, only : eps1
     implicit none
     real, intent(in) :: d1 !< Scalar flux at 1.5 cells upwind
     real, intent(in) :: d2 !< Scalar flux at 0.5 cells upwind
 
-    real ri,phir
+    rlim = min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+      (sign(0.5, d1) + sign(0.5, d2))
 
-    ri    = (d2+eps1)/(d1+eps1)
-    phir  = max(0.,min(2.*ri,min(1./3.+2./3.*ri,2.)))
-    rlim  = 0.5*phir*d1
     end function rlim
-
-
-
