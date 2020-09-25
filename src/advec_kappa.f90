@@ -46,13 +46,13 @@
 
   integer   i,j,k
 
-  real :: d1m, d2m, d1p, d2p, cfm, cfp, work
+  real :: d1m, d2m, d1p, cfm, cfp, work
 
   do k=1,kmax
     do j=2,j1
       do i=2,i2 ! YES
         d2m =  putin(i  ,j,k) -putin(i-1,j,k)
-        d2p = -putin(i  ,j,k) +putin(i-1,j,k) 
+        ! d2p = -putin(i  ,j,k) +putin(i-1,j,k) ! d2p = -d2m
 
         d1m = putin(i-1,j,k)-putin(i-2,j,k)
         d1p = putin(i  ,j,k)-putin(i+1,j,k)
@@ -61,7 +61,8 @@
         cfp = putin(i  ,j,k)
 
         d1 = (0.5 + sign(0.5, u0(i,j,k))) * d1m + (0.5 - sign(0.5, u0(i,j,k))) * d1p
-        d2 = (0.5 + sign(0.5, u0(i,j,k))) * d2m + (0.5 - sign(0.5, u0(i,j,k))) * d2p
+        !d2 = (0.5 + sign(0.5, u0(i,j,k))) * d2m + (0.5 - sign(0.5, u0(i,j,k))) * d2p
+        d2 = d2m * sign(1.0, u0(i,j,k))
         cf = (0.5 + sign(0.5, u0(i,j,k))) * cfm + (0.5 - sign(0.5, u0(i,j,k))) * cfp
 
         work = cf + &
@@ -82,13 +83,14 @@
         d1p = putin(i,j  ,k)-putin(i,j+1,k)
 
         d2m = putin(i,j  ,k)-putin(i,j-1,k)
-        d2p = putin(i,j-1,k)-putin(i,j  ,k)
+        ! d2p = putin(i,j-1,k)-putin(i,j  ,k) ! d2p = -d2m
 
         cfm = putin(i,j-1,k)
         cfp = putin(i,j  ,k)
 
         d1 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d1p
-        d2 = (0.5 + sign(0.5, v0(i,j,k))) * d2m + (0.5 - sign(0.5, v0(i,j,k))) * d2p
+        ! d2 = (0.5 + sign(0.5, v0(i,j,k))) * d2m + (0.5 - sign(0.5, v0(i,j,k))) * d2p
+        d2 = d2m * sign(1.0, v0(i,j,k))
         cf = (0.5 + sign(0.5, v0(i,j,k))) * cfm + (0.5 - sign(0.5, v0(i,j,k))) * cfp
         
         !cf = 0.5 *     v0(i,j,k) *(putin(i,j-1,k)+putin(i,j,k)) &
@@ -112,13 +114,14 @@
         d2m = rhobf(k)   * putin(i,j,k  ) - rhobf(k-1) * putin(i,j,k-1)
 
         d1p = rhobf(k)   * putin(i,j,k  ) - rhobf(k+1) * putin(i,j,k+1)
-        d2p = rhobf(k-1) * putin(i,j,k-1) - rhobf(k)   * putin(i,j,k  )
+        ! d2p = rhobf(k-1) * putin(i,j,k-1) - rhobf(k)   * putin(i,j,k  ) ! d2p = -d2m
 
         cfm = rhobf(k-1) * putin(i,j,k-1)
         cfp = rhobf(k)   * putin(i,j,k  )
 
         d1 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d1p
-        d2 = (0.5 + sign(0.5, w0(i,j,k))) * d2m + (0.5 - sign(0.5, w0(i,j,k))) * d2p
+        ! d2 = (0.5 + sign(0.5, w0(i,j,k))) * d2m + (0.5 - sign(0.5, w0(i,j,k))) * d2p
+        d2 = d2m * sign(1.0, w0(i,j,k))
         cf = (0.5 + sign(0.5, w0(i,j,k))) * cfm + (0.5 - sign(0.5, w0(i,j,k))) * cfp
 
         work = cf + &
@@ -132,18 +135,20 @@
     end do
   end do
 
+  ! from layer 1 to 2, special case. k=2
   do j=2,j1
     do i=2,i1 ! YES
       d1m = 0
-      d2m = rhobf(1) * putin(i,j,1)   - rhobf(2) * putin(i,j,2)
+      d2m = rhobf(2) * putin(i,j,2) - rhobf(1) * putin(i,j,1)
       cfm = rhobf(1) * putin(i,j,1)
       
-      d1p = rhobf(2) * putin(i,j,2)   - rhobf(3) * putin(i,j,3)
-      d2p = rhobf(1) * putin(i-1,j,1) - rhobf(2) * putin(i,j,2)
+      d1p = rhobf(2) * putin(i,j,2) - rhobf(3) * putin(i,j,3)
+     !d2p = rhobf(1) * putin(i,j,1) - rhobf(2) * putin(i,j,2  ) ! d2p = -d2m
       cfp = rhobf(2) * putin(i,j,2)
 
       d1 = (0.5 - sign(0.5, w0(i,j,2))) * d1p
-      d2 = (0.5 + sign(0.5, w0(i,j,2))) * d2m + (0.5 - sign(0.5, w0(i,j,2))) * d2p
+      ! d2 = (0.5 + sign(0.5, w0(i,j,2))) * d2m + (0.5 - sign(0.5, w0(i,j,2))) * d2p
+      d2 = d2m * sign(1.0, w0(i,j,2))
       cf = (0.5 + sign(0.5, w0(i,j,2))) * cfm + (0.5 - sign(0.5, w0(i,j,2))) * cfp
 
       work = cf + &
