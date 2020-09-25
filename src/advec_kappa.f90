@@ -143,7 +143,7 @@
       cfp = rhobf(2) * putin(i,j,2)
 
       d1 = (0.5 - sign(0.5, w0(i,j,2))) * d1p
-      d2 = (0.5 + sign(0.5, w0(i,j,2))) * d1m + (0.5 - sign(0.5, w0(i,j,2))) * d2p
+      d2 = (0.5 + sign(0.5, w0(i,j,2))) * d2m + (0.5 - sign(0.5, w0(i,j,2))) * d2p
       cf = (0.5 + sign(0.5, w0(i,j,2))) * cfm + (0.5 - sign(0.5, w0(i,j,2))) * cfp
 
       work = cf + &
