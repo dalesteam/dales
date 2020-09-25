@@ -70,7 +70,7 @@
          (sign(0.5, d1) + sign(0.5, d2))
 
         work = work * u0(i,j,k) * dxi
-        putout(i,j-1,k) = putout(i,j-1,k) - work
+        putout(i-1,j,k) = putout(i-1,j,k) - work
         putout(i,j,k)   = putout(i,j,k)   + work
       end do
     end do
