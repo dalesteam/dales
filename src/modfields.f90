@@ -45,10 +45,10 @@ save
   real, allocatable :: e120(:,:,:)      !<   square root of turb. kin. energy at time step t
   real, allocatable :: qt0(:,:,:)       !<   total specific humidity at time step t
 
-  real, allocatable :: up(:,:,:)        !<   tendency of um
-  real, allocatable :: vp(:,:,:)        !<   tendency of vm
-  real, allocatable :: wp(:,:,:)        !<   tendency of wm
-  real, allocatable :: wp_store(:,:,:)  !<   tendency of wm, dummy variable for w-budget sampling
+  real(4), allocatable :: up(:,:,:)        !<   tendency of um
+  real(4), allocatable :: vp(:,:,:)        !<   tendency of vm
+  real(4), allocatable :: wp(:,:,:)        !<   tendency of wm
+  real(4), allocatable :: wp_store(:,:,:)  !<   tendency of wm, dummy variable for w-budget sampling
   real, allocatable :: thlp(:,:,:)      !<   tendency of thlm
   real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real, allocatable :: qtp(:,:,:)       !<   tendency of qtm

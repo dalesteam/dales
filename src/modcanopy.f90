@@ -241,11 +241,11 @@ contains
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: ftau  (imax,jmax)
-    integer             :: k, kp
+    real(4), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: ftau  (imax,jmax)
+    integer                :: k, kp
 
     ucor = u0 + cu
     vcor = v0 + cv
@@ -268,9 +268,9 @@ contains
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(4), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
     integer             :: k, kp
 
@@ -295,10 +295,10 @@ contains
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: ftau  (imax,jmax)
+    real(4), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: ftau  (imax,jmax)
     integer             :: k, km
 
     ucor = u0 + cu

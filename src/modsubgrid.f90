@@ -651,11 +651,11 @@ contains
     use modsurfdata,only : ustar
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emmo,emom,emop,empo
-    real                :: fu
-    real                :: ucu, upcu
-    integer             :: i,j,k,jm,jp,km,kp
+    real(4), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: emmo,emom,emop,empo
+    real                   :: fu
+    real                   :: ucu, upcu
+    integer                :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
       kp=k+1
@@ -763,10 +763,10 @@ contains
 
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emmo, eomm,eomp,epmo
-    real                :: fv, vcv,vpcv
-    integer             :: i,j,k,jm,jp,km,kp
+    real(4), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: emmo, eomm,eomp,epmo
+    real                   :: fv, vcv,vpcv
+    integer                :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
       kp=k+1
@@ -872,9 +872,9 @@ contains
 
   !*****************************************************************
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emom, eomm, eopm, epom
-    integer             :: i,j,k,jm,jp,km,kp
+    real(4), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real                   :: emom, eomm, eopm, epom
+    integer                :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
       kp=k+1
