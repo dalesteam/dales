@@ -314,10 +314,11 @@ contains
   subroutine slabsum(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
     implicit none
 
-    integer :: ks,kf
-    integer :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
-    real    :: aver(ks:kf)
-    real    :: var (ib:ie,jb:je,kb:ke)
+    real, intent(inout)  :: aver(ks:kf)
+    integer, intent(in)  :: ks,kf
+    integer, intent(in)  :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
+    real, intent(in)     :: var(ib:ie,jb:je,kb:ke)
+
     real    :: averl(ks:kf)
     real    :: avers(ks:kf)
     integer :: k
@@ -329,12 +330,10 @@ contains
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
 
-    call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MY_REAL, &
-                       MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(averl, avers, kf-ks+1, MY_REAL, MPI_SUM, comm3d, mpierr)
 
     aver = aver + avers
 
-    return
   end subroutine slabsum
   
   subroutine mpi_get_time(val)
