@@ -28,14 +28,18 @@
 subroutine advection
 
   use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_kappa_f,iadv_null,leq
+                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_kappa_f,iadv_null,leq,ih,jh,i1,j1,k1,itot,jtot,kmax
   use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid, only : lsmagorinsky
   use advec_hybrid, only : advecc_hybrid
   use advec_hybrid_f, only : advecc_hybrid_f
+  use mpi
   implicit none
   integer :: n
-
+  real :: t0, t1, t2
+  real, save :: t_original = 0, t_fast = 0
+  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: tmp1, tmp2
+    
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
   
@@ -192,7 +196,25 @@ subroutine advection
     case(iadv_62)
       call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_kappa)
-      call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
+       call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
+
+       tmp1 = 0
+       tmp2 = 0
+       t0 = MPI_Wtime()
+       call advecc_kappa(sv0(:,:,:,n),tmp1)
+       t1 = MPI_Wtime()
+       call advecc_kappa_fast(sv0(:,:,:,n),tmp2)
+       t2 = MPI_Wtime()
+       tmp1 = (tmp1 - tmp2)
+       t_original = t_original + t1-t0
+       t_fast = t_fast + t2-t1
+       
+       write(*,*) 'advecc_kappa     ', t1-t0
+       write(*,*) 'advecc_kappa_fast', t2-t1
+       write(*,*) 'rms difference   ', (sum(tmp1(:,:,:)**2) / (itot*jtot*kmax)) ** .5
+       write(*,*) 'max difference   ', maxval(abs(tmp1))
+       write(*,*) 'speedup', (t_original - t_fast) / t_original
+       
     case(iadv_kappa_f)
       call advecc_kappa_f(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)
