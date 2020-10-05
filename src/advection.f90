@@ -94,7 +94,6 @@ subroutine advection
       case(iadv_62)
         call advecc_62(e120,e12p)
       case(iadv_kappa)
-        if (.not. leq) stop "advec_kappa does not support a non-uniform vertical grid."
         call advecc_kappa(e120,e12p)
       case(iadv_kappa_f)
         call advecc_kappa_f(e120,e12p)
@@ -126,7 +125,6 @@ subroutine advection
     case(iadv_62)
       call advecc_62(thl0,thlp)
     case(iadv_kappa)
-      if (.not. leq) stop "advec_kappa does not support a non-uniform vertical grid."
       call advecc_kappa(thl0,thlp)
     case(iadv_kappa_f)
       call advecc_kappa_f(thl0,thlp)
@@ -160,7 +158,6 @@ subroutine advection
       case(iadv_62)
         call advecc_62(qt0,qtp)
       case(iadv_kappa)
-        if (.not. leq) stop "advec_kappa does not support a non-uniform vertical grid."
         call advecc_kappa(qt0,qtp)
       case(iadv_kappa_f)
          call advecc_kappa_f(qt0,qtp)
@@ -195,7 +192,6 @@ subroutine advection
     case(iadv_62)
       call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_kappa)
-      if (.not. leq) stop "advec_kappa does not support a non-uniform vertical grid."
       call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_kappa_f)
       call advecc_kappa_f(sv0(:,:,:,n),svp(:,:,:,n))

@@ -36,7 +36,7 @@
 
   subroutine advecc_kappa(putin,putout)
 
-  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzi
+  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
   real,external :: rlim
@@ -97,8 +97,8 @@
           cf = rhobf(k)   * putin(i,j,k  )
         end if
         cf = cf + rlim(d1,d2)
-        putout(i,j,k-1) = putout(i,j,k-1) - (1./rhobf(k-1))*cf * w0(i,j,k) * dzi
-        putout(i,j,k)   = putout(i,j,k)   + (1./rhobf(k))*cf   * w0(i,j,k) * dzi
+        putout(i,j,k-1) = putout(i,j,k-1) - (1./rhobf(k-1))*cf * w0(i,j,k) * (1.0 / dzf(k-1))
+        putout(i,j,k)   = putout(i,j,k)   + (1./rhobf(k))*cf   * w0(i,j,k) * (1.0 / dzf(k))
       end do
     end do
   end do
@@ -116,8 +116,8 @@
         cf = rhobf(2) * putin(i,j,2)
       end if
       cf = cf + rlim(d1,d2)
-      putout(i,j,1) = putout(i,j,1) - (1./rhobf(1))*cf * w0(i,j,2) * dzi
-      putout(i,j,2) = putout(i,j,2) + (1./rhobf(2))*cf * w0(i,j,2) * dzi
+      putout(i,j,1) = putout(i,j,1) - (1./rhobf(1))*cf * w0(i,j,2) * (1.0 / dzf(1))
+      putout(i,j,2) = putout(i,j,2) + (1./rhobf(2))*cf * w0(i,j,2) * (1.0 / dzf(2))
     end do
   end do
 
