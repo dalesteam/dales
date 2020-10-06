@@ -149,11 +149,22 @@ end subroutine advecc_kappa
         cfm = putin(i-1,j,k)
         cfp = putin(i  ,j,k)
 
-        d1 = (0.5 + sign(0.5, u0(i,j,k))) * d1m + (0.5 - sign(0.5, u0(i,j,k))) * d1p
+        !d1 = (0.5 + sign(0.5, u0(i,j,k))) * d1m + (0.5 - sign(0.5, u0(i,j,k))) * d1p
         !d2 = (0.5 + sign(0.5, u0(i,j,k))) * d2m + (0.5 - sign(0.5, u0(i,j,k))) * d2p
-        d2 = d2m * sign(1.0, u0(i,j,k))
-        cf = (0.5 + sign(0.5, u0(i,j,k))) * cfm + (0.5 - sign(0.5, u0(i,j,k))) * cfp
+        !d2 = d2m * sign(1.0, u0(i,j,k))
+        !cf = (0.5 + sign(0.5, u0(i,j,k))) * cfm + (0.5 - sign(0.5, u0(i,j,k))) * cfp
 
+        if (u0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
+        
+        
         work = cf + &
          min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
          (sign(0.5, d1) + sign(0.5, d2))
@@ -163,28 +174,40 @@ end subroutine advecc_kappa
         putout(i,j,k)   = putout(i,j,k)   + work
       end do
     end do
-  end do
+!  end do
 
-  do k=1,kmax
+!  do k=1,kmax
     do j=2,j2
       do i=2,i1 ! YES
-        d1m = putin(i,j-1,k)-putin(i,j-2,k)
-        d1p = putin(i,j  ,k)-putin(i,j+1,k)
+        !d1m = putin(i,j-1,k)-putin(i,j-2,k)
+        !d1p = putin(i,j  ,k)-putin(i,j+1,k)
 
-        d2m = putin(i,j  ,k)-putin(i,j-1,k)
+        !d2m = putin(i,j  ,k)-putin(i,j-1,k)
         ! d2p = putin(i,j-1,k)-putin(i,j  ,k) ! d2p = -d2m
 
-        cfm = putin(i,j-1,k)
-        cfp = putin(i,j  ,k)
+        !cfm = putin(i,j-1,k)
+        !cfp = putin(i,j  ,k)
 
-        d1 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d1p
+        !d1 = (0.5 + sign(0.5, v0(i,j,k))) * d1m + (0.5 - sign(0.5, v0(i,j,k))) * d1p
         ! d2 = (0.5 + sign(0.5, v0(i,j,k))) * d2m + (0.5 - sign(0.5, v0(i,j,k))) * d2p
-        d2 = d2m * sign(1.0, v0(i,j,k))
-        cf = (0.5 + sign(0.5, v0(i,j,k))) * cfm + (0.5 - sign(0.5, v0(i,j,k))) * cfp
+        !d2 = d2m * sign(1.0, v0(i,j,k))
+        !cf = (0.5 + sign(0.5, v0(i,j,k))) * cfm + (0.5 - sign(0.5, v0(i,j,k))) * cfp
+        if (v0(i,j,k) > 0) then
+           d1 = putin(i,j-1,k)-putin(i,j-2,k)
+           d2 = putin(i,j  ,k)-putin(i,j-1,k)
+           cf = putin(i,j-1,k)
+        else
+           d1 = putin(i,j  ,k)-putin(i,j+1,k)
+           d2 = -(putin(i,j  ,k)-putin(i,j-1,k))
+           cf = putin(i,j  ,k)
+        end if
+        
         
         !cf = 0.5 *     v0(i,j,k) *(putin(i,j-1,k)+putin(i,j,k)) &
         !   + 0.5 * abs(v0(i,j,k))*(putin(i,j-1,k)-putin(i,j,k))
 
+
+        
         work = cf + &
          min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
          (sign(0.5, d1) + sign(0.5, d2))
@@ -194,9 +217,10 @@ end subroutine advecc_kappa
         putout(i,j,k)   = putout(i,j,k)   + work
       end do
     end do
-  end do
+!  end do
 
-  do k=3,kmax
+!  do k=3,kmax
+    if (k >= 3) then
     do j=2,j1
       do i=2,i1 ! YES
         d1m = rhobf(k-1) * putin(i,j,k-1) - rhobf(k-2) * putin(i,j,k-2)
@@ -208,11 +232,21 @@ end subroutine advecc_kappa
         cfm = rhobf(k-1) * putin(i,j,k-1)
         cfp = rhobf(k)   * putin(i,j,k  )
 
-        d1 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d1p
+        !d1 = (0.5 + sign(0.5, w0(i,j,k))) * d1m + (0.5 - sign(0.5, w0(i,j,k))) * d1p
         ! d2 = (0.5 + sign(0.5, w0(i,j,k))) * d2m + (0.5 - sign(0.5, w0(i,j,k))) * d2p
-        d2 = d2m * sign(1.0, w0(i,j,k))
-        cf = (0.5 + sign(0.5, w0(i,j,k))) * cfm + (0.5 - sign(0.5, w0(i,j,k))) * cfp
+        !d2 = d2m * sign(1.0, w0(i,j,k))
+        !cf = (0.5 + sign(0.5, w0(i,j,k))) * cfm + (0.5 - sign(0.5, w0(i,j,k))) * cfp
 
+        if (w0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
+        
         work = cf + &
          min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
          (sign(0.5, d1) + sign(0.5, d2))
@@ -221,7 +255,8 @@ end subroutine advecc_kappa
         putout(i,j,k-1) = putout(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
         putout(i,j,k)   = putout(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
       end do
-    end do
+   end do
+   end if
   end do
 
   ! from layer 1 to 2, special case. k=2
