@@ -74,7 +74,7 @@ ibas_prf   =  3
 iadv_mom   =  5
 iadv_tke   =  5
 iadv_thl   =  5
-iadv_qt    =  77
+iadv_qt    =  7
 iadv_sv    =  0 5
 lambda_crit = 20.
 /
