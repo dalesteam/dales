@@ -397,11 +397,11 @@ contains
 
     !---- interpolate ----
     t=1
-    do while(rtimee>timeflux(t+1))
+    do while(rtimee>timels(t+1))
        t=t+1
     end do
-    ! timeflux(t) <= rtimee <= timeflux(t+1)
-    ! or t = 1 if rtimee < timeflux(1)
+    ! timels(t) < rtimee <= timels(t+1)
+    ! or t = 1 if rtimee < timels(1)
 
     fac = ( rtimee-timels(t) ) / ( timels(t+1)-timels(t) )
     ug       = ugt      (:,t) + fac * ( ugt      (:,t+1) - ugt      (:,t) )
