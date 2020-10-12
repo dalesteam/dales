@@ -55,39 +55,65 @@ subroutine advecc_kappa(putin,putout)
   
   real      d1,d2,cf
   real :: d1m, d2m, d1p, cfm, cfp, work
-  integer   i,j,k
-  
-  ! from layer 1 to 2, special case. k=2
-  do j=2,j1
-     do i=2,i1 ! YES
-        d1m = 0
-        d2m = rhobf(2) * putin(i,j,2) - rhobf(1) * putin(i,j,1)
-        cfm = rhobf(1) * putin(i,j,1)
-        d1p = rhobf(2) * putin(i,j,2) - rhobf(3) * putin(i,j,3)
-        !d2p = rhobf(1) * putin(i,j,1) - rhobf(2) * putin(i,j,2  ) ! d2p = -d2m
-        cfp = rhobf(2) * putin(i,j,2)
+  integer   i,j,k,k_low,k_high
 
-        if (w0(i,j,2) > 0) then
-           d1 = d1m
-           d2 = d2m
-           cf = cfm
-        else
-           d1 = d1p
-           d2 = -d2m
-           cf = cfp
-        end if
-        
-        work = cf + &
-             min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-             (sign(0.5, d1) + sign(0.5, d2))
+  ! find the lowest and highest k level with a non-zero value in putin 
+  k_low = -1
+  do k=1,k1
+     if (any(putin(:,:,k).ne.0.)) then
+        k_low = k
+        exit
+     endif
+  enddo
+  if (k_low == -1) then
+     ! putin == zero
+     return
+  endif
 
-        work = work * w0(i,j,2)
-        putout(i,j,1) = putout(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
-        putout(i,j,2) = putout(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
+  k_high = kmax
+  do k=k1,1,-1
+     if (any(putin(:,:,k).ne.0.)) then
+        k_high = k
+        exit
+     endif
+  enddo
+
+  write(*,*) 'k_low, k_high', k_low, k_high
+
+  if (k_low <= 3) then
+     ! from layer 1 to 2, special case. k=2
+     do j=2,j1
+        do i=2,i1 ! YES
+           d1m = 0
+           d2m = rhobf(2) * putin(i,j,2) - rhobf(1) * putin(i,j,1)
+           cfm = rhobf(1) * putin(i,j,1)
+           d1p = rhobf(2) * putin(i,j,2) - rhobf(3) * putin(i,j,3)
+           !d2p = rhobf(1) * putin(i,j,1) - rhobf(2) * putin(i,j,2  ) ! d2p = -d2m
+           cfp = rhobf(2) * putin(i,j,2)
+
+           if (w0(i,j,2) > 0) then
+              d1 = d1m
+              d2 = d2m
+              cf = cfm
+           else
+              d1 = d1p
+              d2 = -d2m
+              cf = cfp
+           end if
+
+           work = cf + &
+                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+                (sign(0.5, d1) + sign(0.5, d2))
+
+           work = work * w0(i,j,2)
+           putout(i,j,1) = putout(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
+           putout(i,j,2) = putout(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
+        end do
      end do
-  end do
+  end if
 
-  do k=1,kmax
+  !do k=1,kmax
+  do k= max(k_low-1,1), min(k_high+2, kmax) ! loop accesses k-2, k-1, k, k+1
      do j=2,j1
         do i=2,i2 ! YES
            d2m =  putin(i  ,j,k) -putin(i-1,j,k)
