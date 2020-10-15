@@ -57,6 +57,7 @@ elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -std=legacy" CACHE STRING "")
@@ -71,7 +72,7 @@ endif()
 
 ## Project parameters
 PROJECT(DALES Fortran)
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR "4")
 set(VERSION_MINOR "2")
 set(VERSION_PATCH "1")
@@ -202,7 +203,7 @@ if(NOT CASE)
       FORCE)
 endif()
 
-### Add case specific file 
+### Add case specific file
 FILE(GLOB usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/${CASE}/moduser.f90")
 if(usrfile STREQUAL "")
   set(usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/standard/moduser.f90")
