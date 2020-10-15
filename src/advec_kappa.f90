@@ -78,8 +78,6 @@ subroutine advecc_kappa(putin,putout)
      endif
   enddo
 
-  write(*,*) 'k_low, k_high', k_low, k_high
-
   if (k_low <= 3) then
      ! from layer 1 to 2, special case. k=2
      do j=2,j1
