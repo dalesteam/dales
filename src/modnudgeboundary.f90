@@ -362,13 +362,10 @@ contains
         use modmpi,      only : myidx, myidy, nprocx, nprocy
         use modemisdata, only : svskip
 
-!#ifdef __INTEL_COMPILER
-use ifport
-!#endif
         implicit none
 
         integer :: i, j, k, blocki, blockj, subi, subj, isv
-        real :: tau_i, perturbation, t0, t1, tfac, tfac_sv
+        real :: tau_i, perturbation, t0, t1, tfac, tfac_sv, rnd
         real :: lbc_u_int, lbc_v_int, lbc_w_int, lbc_t_int, lbc_q_int, lbc_sv_int
 
         if (lnudge_boundary) then
@@ -446,7 +443,8 @@ use ifport
 
                     do blockj=0, jmax/perturb_blocksize-1
                         do blocki=0, imax/perturb_blocksize-1
-                            perturbation = perturb_ampl*(rand(0)-0.5)
+                            call random_number(rnd)
+                            perturbation = perturb_ampl*(rnd-0.5)
 
                             do subj=0, perturb_blocksize-1
                                 do subi=0, perturb_blocksize-1
