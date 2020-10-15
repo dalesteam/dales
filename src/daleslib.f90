@@ -862,13 +862,11 @@ module daleslib
     ! ilratio is calculated from the temperature, as in simpleice and icethermo routines.
     ! note: assumes the qi array is large enough (kmax elements)
     function geticecontent(qi) result(ret)
-      use mpi
-      use modmpi, only: comm3d, my_real, mpierr, myid, nprocs
-      use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn
+      use modglobal, only: kmax, i1, j1, tup, tdn
       use modfields, only: ql0, tmp0
 
       real, intent(out)     :: qi(2:i1,2:j1,kmax)
-      integer               :: i,j,k, nk, ret
+      integer               :: i,j,k,ret
       real                  :: ilratio
 
       ret = 0

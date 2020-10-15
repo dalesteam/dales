@@ -72,6 +72,7 @@ contains
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modsurfdata, only : isurf
    implicit none
 
     integer :: ierr
@@ -91,6 +92,11 @@ contains
       write(6 ,NAMLSMCROSSSECTION)
       close(ifnamopt)
     end if
+
+    if (lcross .and. (isurf .ne. 1)) then
+       lcross = .FALSE.
+       write (6,*) "Ignoring lcross, lsmcrossection currently implemented only for isurf==1."
+    endif
 
     call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(lcross     ,1,MPI_LOGICAL,0,comm3d,mpierr)

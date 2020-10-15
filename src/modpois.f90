@@ -45,7 +45,7 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,kmax
+    use modglobal, only : solver_id
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre

@@ -85,7 +85,7 @@ iadv_mom = 52
 iadv_tke = 52
 iadv_thl = 52
 iadv_qt  = 52
-iadv_sv  = 52,52,77
+iadv_sv  = 52,52,7
 
 lqlnr = .false.
 /
