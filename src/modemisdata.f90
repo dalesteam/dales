@@ -25,31 +25,34 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
 !  Copyright 1993-2020 Delft University of Technology, Wageningen
-!  University, Utrecht University, KNMI
+!  University, Utrecht University, KNMI, Vrije Universiteit Amsterdam
 !
-
+! TODO INTEGRATION WITH MODCHEM, possibly switch?
+! For example, nchem, firstchem etc, but also structure for species
+! 'location', i.e. switch scalar field represents which species?
 
 module modemisdata
   
   implicit none
   save
 
-  ! Namelist variables
-  
-  logical           :: l_emission = .false.
-  integer           :: kemis   = -1, &
-                       sv_skip =  0 
-  integer           :: i
-  character(len = 6), dimension(100) :: svlist = (/ ('abcdef', i=1, 100) /)
-
-  ! Main variables
-
-  real, allocatable :: svemis (:,:,:,:,:)
+  integer  :: iname
+  ! ---------------------------------------------------------------------!
+  ! Namelist variables                                                   !
+  ! ---------------------------------------------------------------------!
    
-  ! TODO INTEGRATION WITH MODCHEM, possibly switch?
-  ! For example, nchem, firstchem etc, but also structure for species
-  ! 'location', i.e. switch scalar field represents which species?
-  
-!  character(len = 3), dimension(1) :: svlist = (/'co2' /)
+  logical  :: l_emission = .false. ! scalar emission switch
+  integer  :: kemis    = -1, &     ! no. of layers to include for emission
+              svskip   =  0        ! no. scalars to exclude for emission
+
+  character(len = 6), dimension(100) :: & 
+              emisnames = (/ ('      ', iname=1, 100) /) ! list with scalar names,
+                          ! each name must(!) be 6 characters long for now  
+
+  ! ---------------------------------------------------------------------!
+  ! Main variables                                                       !
+  ! ---------------------------------------------------------------------!
+
+  real, allocatable :: emisfield(:,:,:,:,:) !array for emission fields
 
 end module modemisdata

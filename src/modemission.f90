@@ -42,7 +42,7 @@ contains
     integer :: ierr
 
     ! --- Read & broadcast namelist EMISSION -----------------------------------
-    namelist/NAMEMISSION/ l_emission, kemis, sv_skip, svlist 
+    namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames 
 
     if (myid == 0) then
 
@@ -61,8 +61,8 @@ contains
 
     call mpi_bcast(l_emission,    1,   mpi_logical,   0, comm3d, ierr)
     call mpi_bcast(kemis,         1,   mpi_integer,   0, comm3d, ierr)
-    call mpi_bcast(sv_skip,       1,   mpi_integer,   0, comm3d, ierr)
-    call mpi_bcast(svlist(1:100), 100, mpi_character, 0, comm3d, ierr)
+    call mpi_bcast(svskip,       1,   mpi_integer,   0, comm3d, ierr)
+    call mpi_bcast(emisnames(1:100), 100, mpi_character, 0, comm3d, ierr)
 
     ! --- Local pre-calculations and settings
     if (.not. (l_emission)) return
@@ -74,24 +74,24 @@ contains
     ! Two hourly emission fields are loaded at all times: 
     ! (1) before model time,   t_field < t_model, "in-the-past"
     ! (2) ahead of model time, t_field > t_model, "in-the-future"
-    allocate(svemis(i2, j2, kemis, sv_skip+1:nsv, 2))
+    allocate(emisfield(i2, j2, kemis, svskip+1:nsv, 2))
 
     if (datex(5) >= 30) then
-      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), svemis(:,:,:,:,1))
+      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), emisfield(:,:,:,:,1))
       
       if (datex(4) == 23) then  
-        call reademission(nextday(1), nextday(2), nextday(3),          0, svemis(:,:,:,:,2))
+        call reademission(nextday(1), nextday(2), nextday(3),          0, emisfield(:,:,:,:,2))
       else
-        call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, svemis(:,:,:,:,2))
+        call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, emisfield(:,:,:,:,2))
       endif
 
     else
-      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), svemis(:,:,:,:,2)) 
+      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), emisfield(:,:,:,:,2)) 
      
       if (datex(4) == 0) then
-        call reademission(prevday(1), prevday(2), prevday(3),         23, svemis(:,:,:,:,1))
+        call reademission(prevday(1), prevday(2), prevday(3),         23, emisfield(:,:,:,:,1))
       else
-        call reademission(  datex(1),   datex(2),   datex(3), datex(4)-1, svemis(:,:,:,:,1))
+        call reademission(  datex(1),   datex(2),   datex(3), datex(4)-1, emisfield(:,:,:,:,1))
       endif
 
     endif 
@@ -113,7 +113,7 @@ contains
     implicit none
 
     integer, intent(in)  :: iyear, imonth, iday, ihour     
-    real, intent(out)    :: emisfield(i2, j2, kemis, 1+sv_skip:nsv)
+    real, intent(out)    :: emisfield(i2, j2, kemis, 1+svskip:nsv)
 
     integer, parameter   :: ndim = 3 
     integer              :: start(ndim), count(ndim)
@@ -127,11 +127,11 @@ contains
 
     write(6,"(A18, A12)") "Reading emission: ", sdatetime
 
-    do isv = 1+sv_skip, nsv
+    do isv = 1+svskip, nsv
 
-      call check( nf90_open( trim(svlist(isv-sv_skip))//'_emis_'//sdatetime//'_3d.nc', IOR(NF90_NOWRITE, NF90_MPIIO), &
+      call check( nf90_open( trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', IOR(NF90_NOWRITE, NF90_MPIIO), &
                               ncid, comm = comm3d, info = MPI_INFO_NULL) )
-      call check( nf90_inq_varid( ncid, svlist(isv-sv_skip), varid) )
+      call check( nf90_inq_varid( ncid, emisnames(isv-svskip), varid) )
       call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), & 
                                   start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
                                   count = (/imax, jmax, kemis, 1/) ) )
@@ -188,12 +188,12 @@ contains
     emistime_s = mod(rtimee +       1800., 3600.)*div3600
 
     ! MdB NOTE : Better way to do this? Problem is the broadcasting of 1D arrays
-    ! rhof and dzf to svemis. For now, loop over k.
+    ! rhof and dzf to emisfield. For now, loop over k.
 
     do k = 1,kemis
-      svp(2:i1, 2:j1, k, sv_skip+1:nsv) = svp(2:i1, 2:j1, k, sv_skip+1:nsv)    + &
-            ((1. - emistime_s)*svemis(2:i1, 2:j1, k, sv_skip+1:nsv, 1) + &
-                   emistime_s *svemis(2:i1, 2:j1, k, sv_skip+1:nsv, 2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6) 
+      svp(2:i1, 2:j1, k, svskip+1:nsv) = svp(2:i1, 2:j1, k, svskip+1:nsv)    + &
+            ((1. - emistime_s)*emisfield(2:i1, 2:j1, k, svskip+1:nsv, 1) + &
+                   emistime_s *emisfield(2:i1, 2:j1, k, svskip+1:nsv, 2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6) 
     end do
 
     ! --------------------------------------------------------------------------
@@ -206,13 +206,13 @@ contains
 
       if ( emistime_e < emistime_s ) then
         ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
-        svemis(:,:,:,:,1) = svemis(:,:,:,:,2)
+        emisfield(:,:,:,:,1) = emisfield(:,:,:,:,2)
         
         ! Read new 'ahead-of-modeltime' emission field
         if ( datex(4) == 23 ) then
-          call reademission(nextday(1), nextday(2), nextday(3),          0, svemis(:,:,:,:,2))
+          call reademission(nextday(1), nextday(2), nextday(3),          0, emisfield(:,:,:,:,2))
         else
-          call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, svemis(:,:,:,:,2))
+          call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, emisfield(:,:,:,:,2))
         endif
       endif
 
@@ -229,7 +229,7 @@ contains
 
     if (.not. (l_emission)) return
 
-    deallocate(svemis)
+    deallocate(emisfield)
 
   end subroutine exitemission
 

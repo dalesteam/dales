@@ -119,7 +119,7 @@ contains
         use modmpi,      only : myid, mpierr, comm3d, mpi_logical, mpi_int, my_real
         use modglobal,   only : ifnamopt, fname_options, imax, jmax, dx, dy, i1, j1, k1, ih, jh, lwarmstart, kmax, zf, checknamelisterror, nsv
         use modboundary, only : boundary
-        use modemisdata, only : sv_skip
+        use modemisdata, only : svskip
 
         implicit none
 
@@ -177,7 +177,7 @@ contains
             allocate( lbc_v  (2-ih:i1+ih, 2-jh:j1+jh, k1, 2) )
             allocate( lbc_thl(2-ih:i1+ih, 2-jh:j1+jh, k1, 2) )
             allocate( lbc_qt (2-ih:i1+ih, 2-jh:j1+jh, k1, 2) )
-            if (lnudge_boundary_sv) allocate( lbc_sv (2-ih:i1+ih, 2-jh:j1+jh, k1, 1+sv_skip:nsv, 2) )
+            if (lnudge_boundary_sv) allocate( lbc_sv (2-ih:i1+ih, 2-jh:j1+jh, k1, 1+svskip:nsv, 2) )
 
             ! Read the first two input times
             call read_new_LBCs(0.)
@@ -226,7 +226,7 @@ contains
         use modsurfdata, only : tskin
         use modglobal,   only : i1, j1, iexpnr, kmax, nsv
         use modmpi,      only : myidx, myidy
-        use modemisdata, only : sv_skip
+        use modemisdata, only : svskip
 
         implicit none
 
@@ -263,12 +263,12 @@ contains
             print*,'Reading initial field: ', input_file_sv
 
             open(777, file=input_file_sv, form='unformatted', status='unknown', action='read', access='stream')
-            do isv = sv_skip+1,nsv
+            do isv = svskip+1,nsv
                 read(777) sv0(2:i1,2:j1,1:kmax,isv)
             end do
             close(777)
 
-            svm (2:i1,2:j1,1:kmax,sv_skip+1:nsv) = sv0(2:i1,2:j1,1:kmax,sv_skip+1:nsv)
+            svm (2:i1,2:j1,1:kmax,svskip+1:nsv) = sv0(2:i1,2:j1,1:kmax,svskip+1:nsv)
         endif
 
     end subroutine read_initial_fields
@@ -320,7 +320,7 @@ contains
 
         use modglobal,   only : i1, j1, iexpnr, kmax, nsv
         use modmpi,      only : myidx, myidy, nprocx, nprocy
-        use modemisdata, only : sv_skip
+        use modemisdata, only : svskip
         implicit none
         real, intent(in) :: time !< Input: time to read (seconds)
         integer :: ihour, imin, isv
@@ -346,7 +346,7 @@ contains
 
             ! Read new LBC for next time
             open(777, file=input_file, form='unformatted', status='unknown', action='read', access='stream')
-            do isv = sv_skip+1,nsv    
+            do isv = svskip+1,nsv    
                 read(777) lbc_sv  (2:i1,2:j1,1:kmax,isv,2)
             end do    
             close(777)
@@ -360,7 +360,7 @@ contains
         use modglobal,   only : i1, j1, imax, jmax, kmax, rdt, cu, cv, eps1, rtimee, nsv
         use modfields,   only : u0, up, v0, vp, w0, wp, thl0, thlp, qt0, qtp, sv0, svp
         use modmpi,      only : myidx, myidy, nprocx, nprocy
-        use modemisdata, only : sv_skip
+        use modemisdata, only : svskip
 
 !#ifdef __INTEL_COMPILER
 use ifport
@@ -417,7 +417,7 @@ use ifport
                             lbc_w_int = 0.
 
                             if (lnudge_boundary_sv) then
-                                do isv = 1+sv_skip, nsv
+                                do isv = 1+svskip, nsv
                                     lbc_sv_int = tfac_sv * lbc_sv (i,j,k,isv,1) + (1.-tfac_sv) * lbc_sv (i,j,k,isv,2)
                                     svp(i,j,k,isv) = svp(i,j,k,isv) + nudge_factor(i,j) * tau_i * (lbc_sv_int - sv0(i,j,k,isv))    
                                 end do
