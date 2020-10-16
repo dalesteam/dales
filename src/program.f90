@@ -107,7 +107,8 @@ program DALES
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microsources
-  use modsurface,        only : surface
+  use modsurface,        only : surface 
+  use modlsm,            only : lsm
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
@@ -215,8 +216,9 @@ program DALES
     call samptend(tend_rad)
 
 !-----------------------------------------------------
-!   3.2   THE SURFACE LAYER
+!   3.2   THE SURFACE LAYER / LAND-SURFACE
 !-----------------------------------------------------
+    call lsm
     call surface
 
 !-----------------------------------------------------

@@ -37,7 +37,8 @@ private
 PUBLIC :: initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
 save
 !NetCDF variables
-  integer,parameter :: nvar = 2,nvar3=12
+  integer,parameter :: nvar=2
+  integer :: nvar3
   integer :: ncid1 = 0
   integer :: ncid2 = 0
   integer :: ncid3 = 0
@@ -45,23 +46,19 @@ save
   integer :: nrec2 = 0
   integer :: nrec3 = 0
   integer :: crossheight
-!   integer :: nxy = 0
-!   integer :: cross
-!   integer :: nrc
   character(4) :: cheight
   character(80) :: fname1 = 'lsmcrossxz.xxxxyxxx.xxx.nc'
   character(80) :: fname2 = 'lsmcrossxy.xxxx.xxxxyxxx.xxx.nc'
   character(80) :: fname3 = 'surfcross.xxxxyxxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname1
-  character(80),dimension(1,4) :: tncname1
-  character(80),dimension(nvar,4) :: ncname2
-  character(80),dimension(1,4) :: tncname2
-  character(80),dimension(nvar3,4) :: ncname3
-  character(80),dimension(1,4) :: tncname3
-
+  character(80), dimension(nvar,4) :: ncname1
+  character(80), dimension(1,4) :: tncname1
+  character(80), dimension(nvar,4) :: ncname2
+  character(80), dimension(1,4) :: tncname2
+  character(80), allocatable, dimension(:,:) :: ncname3
+  character(80), dimension(1,4) :: tncname3
 
   real    :: dtav
-  integer(kind=longint) :: idtav,tnext
+  integer(kind=longint) :: idtav, tnext
   logical :: lcross = .false. !< switch for doing the lsmcrosssection (on/off)
   integer :: crossplane = 2 !< Location of the xz lsmcrosssection
 
@@ -69,13 +66,13 @@ contains
 !> Initializing lsmcrosssection. Read out the namelist, initializing the variables
   subroutine initlsmcrosssection
     use mpi
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modmpi,      only : myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
+    use modglobal,   only : imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modstat_nc,  only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf
-   implicit none
+    implicit none
 
-    integer :: ierr
+    integer :: ierr, ii
 
     namelist/NAMLSMCROSSSECTION/ &
     lcross, dtav, crossheight, crossplane
@@ -102,7 +99,6 @@ contains
     call MPI_BCAST(lcross     ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(crossheight,1,MPI_INTEGER,0,comm3d,mpierr)
     call MPI_BCAST(crossplane ,1,MPI_INTEGER,0,comm3d,mpierr)
-
 
     idtav = dtav/tres
     tnext   = idtav+btime
@@ -143,28 +139,63 @@ contains
           call define_nc( ncid2, NVar, ncname2)
         end if
 !
-! !Surface values
+!       ! Surface values
         fname3(11:18) = cmyid
         fname3(20:22) = cexpnr
-        call nctiminfo(tncname3(1,:))
-        call ncinfo(ncname3( 1,:),'Qnet','Net radiation','W/m^2','tt0t')
-        call ncinfo(ncname3( 2,:),'H','Sensible heat flux','W/m^2','tt0t')
-        call ncinfo(ncname3( 3,:),'LE','Latent heat flux','W/m^2','tt0t')
-        call ncinfo(ncname3( 4,:),'G0','Ground heat flux','W/m^2','tt0t')
-        call ncinfo(ncname3( 5,:),'tskin','Skin temperature','K','tt0t')
-        call ncinfo(ncname3( 6,:),'tendskin','Skin tendency','W/m^2','tt0t')
-        call ncinfo(ncname3( 7,:),'rs','Surface resistance','s/m','tt0t')
-        call ncinfo(ncname3( 8,:),'ra','Aerodynamic resistance','s/m','tt0t')
-        call ncinfo(ncname3( 9,:),'cliq','Fraction of vegetated surface covered with liquid water','-','tt0t')
-        call ncinfo(ncname3(10,:),'Wl','Liquid water reservoir','m','tt0t')
-        call ncinfo(ncname3(11,:),'rssoil','Soil evaporation resistance','s/m','tt0t')
-        call ncinfo(ncname3(12,:),'rsveg','Vegitation resistance','s/m','tt0t')
-        call open_nc(fname3,  ncid3,nrec3,n1=imax,n2=jmax)
-        if (nrec3==0) then
-          call define_nc( ncid3, 1, tncname3)
-          call writestat_dims_nc(ncid3)
+
+        if (isurf == 1) then
+            nvar3 = 12
+        else if (isurf == 11) then
+            nvar3 = 16
         end if
-        call define_nc( ncid3, NVar3, ncname3)
+
+        allocate(ncname3(nvar3,4))
+
+        if (isurf == 1) then
+            call nctiminfo(tncname3(1,:))
+            call ncinfo(ncname3( 1,:),'Qnet','Net radiation','W/m^2','tt0t')
+            call ncinfo(ncname3( 2,:),'H','Sensible heat flux','W/m^2','tt0t')
+            call ncinfo(ncname3( 3,:),'LE','Latent heat flux','W/m^2','tt0t')
+            call ncinfo(ncname3( 4,:),'G0','Ground heat flux','W/m^2','tt0t')
+            call ncinfo(ncname3( 5,:),'tskin','Skin temperature','K','tt0t')
+            call ncinfo(ncname3( 6,:),'tendskin','Skin tendency','W/m^2','tt0t')
+            call ncinfo(ncname3( 7,:),'rs','Surface resistance','s/m','tt0t')
+            call ncinfo(ncname3( 8,:),'ra','Aerodynamic resistance','s/m','tt0t')
+            call ncinfo(ncname3( 9,:),'cliq','Fraction of vegetated surface covered with liquid water','-','tt0t')
+            call ncinfo(ncname3(10,:),'Wl','Liquid water reservoir','m','tt0t')
+            call ncinfo(ncname3(11,:),'rssoil','Soil evaporation resistance','s/m','tt0t')
+            call ncinfo(ncname3(12,:),'rsveg','Vegetation resistance','s/m','tt0t')
+            call open_nc(fname3, ncid3, nrec3, n1=imax, n2=jmax)
+            if (nrec3==0) then
+              call define_nc(ncid3, 1, tncname3)
+              call writestat_dims_nc(ncid3)
+            end if
+            call define_nc(ncid3, nvar3, ncname3)
+        else if (isurf == 11) then
+            call nctiminfo(tncname3(1,:))
+            call ncinfo(ncname3( 1,:),'H', 'Sensible heat flux', 'W/m^2', 'tt0t')
+            call ncinfo(ncname3( 2,:),'LE', 'Latent heat flux', 'W/m^2', 'tt0t')
+            call ncinfo(ncname3( 3,:),'G0', 'Ground heat flux', 'W/m^2', 'tt0t')
+            call ncinfo(ncname3( 4,:),'tskin', 'Skin temperature', 'K', 'tt0t')
+            call ncinfo(ncname3( 5,:),'obuk', 'Obukhov length', 'm', 'tt0t')
+            call ncinfo(ncname3( 6,:),'ustar', 'Friction velocity', 'm/s^-1', 'tt0t')
+            call ncinfo(ncname3( 7,:),'cliq', 'Fraction of vegetated surface covered with liquid water', '-', 'tt0t')
+            call ncinfo(ncname3( 8,:),'wl', 'Liquid water reservoir', 'm', 'tt0t')
+            call ncinfo(ncname3( 9,:),'ra', 'Aerodynamic resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(10,:),'rssoil', 'Soil evaporation resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(11,:),'rsveg', 'Vegetation resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(12,:),'f1', 'f1(SWD) function vegetation resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(13,:),'f2_lv', 'f2(theta) function low vegetation resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(14,:),'f2_hv', 'f2(theta) function high vegetation resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(15,:),'f2_b', 'f2(theta) function soil resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(16,:),'f3', 'f3(VPD) function vegetation resistance', 's/m', 'tt0t')
+            call open_nc(fname3, ncid3, nrec3, n1=imax, n2=jmax)
+            if (nrec3==0) then
+              call define_nc(ncid3, 1, tncname3)
+              call writestat_dims_nc(ncid3)
+            end if
+            call define_nc( ncid3, nvar3, ncname3)
+        end if
     end if
 
 
@@ -230,13 +261,9 @@ contains
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
-
     ! LOCAL
     integer i,j
     real, allocatable :: vars(:,:,:)
-
-
-
 
     write(cheight,'(i4.4)') crossheight
     open(ifoutput,file='movh_tsoil.'//cexpnr,position='append',action='write')
@@ -247,7 +274,6 @@ contains
     write(ifoutput,'(es12.5)') ((phiw(i,j,crossheight),i=2,i1),j=2,j1)
     close(ifoutput)
 
-
     if (lnetcdf) then
         allocate(vars(1:imax,1:jmax,2))
         vars(:,:,1) = tsoil(2:i1,2:j1,crossheight)
@@ -257,23 +283,20 @@ contains
         deallocate(vars)
     end if
 
-
   end subroutine wrthorz
+
   !> Do the xy lsmcrosssections and dump them to file
   subroutine wrtsurf
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
     use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
-                           cliq,rsveg,rssoil,Wl
+                           cliq, rsveg, rssoil, Wl, isurf, obl, ustar
+    use modlsm, only : f1, f2_lv, f2_hv, f2b, f3
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
-
 
     ! LOCAL
     integer i,j
     real, allocatable :: vars(:,:,:)
-
-
-
 
     open(ifoutput,file='movh_qnet.'//cexpnr,position='append',action='write')
     write(ifoutput,'(es12.5)') ((qnet(i,j),i=2,i1),j=2,j1)
@@ -323,23 +346,44 @@ contains
     write(ifoutput,'(es12.5)') ((wl(i,j),i=2,i1),j=2,j1)
     close(ifoutput)
 
-
     if (lnetcdf) then
         allocate(vars(1:imax,1:jmax,nvar3))
-        vars(:,:,1) = qnet(2:i1,2:j1)
-        vars(:,:,2) = h(2:i1,2:j1)
-        vars(:,:,3) = le(2:i1,2:j1)
-        vars(:,:,4) = g0(2:i1,2:j1)
-        vars(:,:,5) = tskin(2:i1,2:j1)
-        vars(:,:,6) = tendskin(2:i1,2:j1)
-        vars(:,:,7) = rs(2:i1,2:j1)
-        vars(:,:,8) = ra(2:i1,2:j1)
-        vars(:,:,9) = cliq(2:i1,2:j1)
-        vars(:,:,10) = Wl(2:i1,2:j1)
-        vars(:,:,11) = rssoil(2:i1,2:j1)
-        vars(:,:,12) = rsveg(2:i1,2:j1)
-        call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
-        call writestat_nc(ncid3,nvar3,ncname3(1:nvar3,:),vars,nrec3,imax,jmax)
+
+        if (isurf == 1) then
+            vars(:,:,1) = qnet(2:i1,2:j1)
+            vars(:,:,2) = h(2:i1,2:j1)
+            vars(:,:,3) = le(2:i1,2:j1)
+            vars(:,:,4) = g0(2:i1,2:j1)
+            vars(:,:,5) = tskin(2:i1,2:j1)
+            vars(:,:,6) = tendskin(2:i1,2:j1)
+            vars(:,:,7) = rs(2:i1,2:j1)
+            vars(:,:,8) = ra(2:i1,2:j1)
+            vars(:,:,9) = cliq(2:i1,2:j1)
+            vars(:,:,10) = Wl(2:i1,2:j1)
+            vars(:,:,11) = rssoil(2:i1,2:j1)
+            vars(:,:,12) = rsveg(2:i1,2:j1)
+        else if (isurf == 11) then
+            vars(:,:, 1) = H(2:i1,2:j1)
+            vars(:,:, 2) = LE(2:i1,2:j1)
+            vars(:,:, 3) = G0(2:i1,2:j1)
+            vars(:,:, 4) = tskin(2:i1,2:j1)
+            vars(:,:, 5) = obl(2:i1,2:j1)
+            vars(:,:, 6) = ustar(2:i1,2:j1)
+            vars(:,:, 7) = cliq(2:i1,2:j1)
+            vars(:,:, 8) = Wl(2:i1,2:j1)
+            vars(:,:, 9) = ra(2:i1,2:j1)
+            vars(:,:,10) = rssoil(2:i1,2:j1)
+            vars(:,:,11) = rsveg(2:i1,2:j1)
+            vars(:,:,12) = f1(2:i1,2:j1)
+            vars(:,:,13) = f2_lv(2:i1,2:j1)
+            vars(:,:,14) = f2_hv(2:i1,2:j1)
+            vars(:,:,15) = f2b(2:i1,2:j1)
+            vars(:,:,16) = f3(2:i1,2:j1)
+        end if
+
+        call writestat_nc(ncid3, 1, tncname3, (/rtimee/), nrec3, .true.)
+        call writestat_nc(ncid3, nvar3, ncname3(1:nvar3,:), vars, nrec3, imax, jmax)
+
         deallocate(vars)
     end if
 
@@ -352,10 +396,12 @@ contains
     implicit none
 
     if(lcross .and. lnetcdf) then
-    if (myid==0) then
-      call exitstat_nc(ncid1)
-    end if
-        call exitstat_nc(ncid2)
+      if (myid==0) then
+        call exitstat_nc(ncid1)
+      end if
+      call exitstat_nc(ncid2)
+      call exitstat_nc(ncid3)
+      deallocate(ncname3)
     end if
 
   end subroutine exitlsmcrosssection
