@@ -248,26 +248,26 @@ subroutine initsimpleicestat
     use modfields, only :ql0
     implicit none
 
-    integer      :: k
+    integer :: k
 
-    precav      = 0.0
-    preccountav    = 0.0
-    prec_prcav    = 0.0
-    cloudcountav    = 0.0
-    raincountav    = 0.0
-    Nrrainav    = 0.0
-    qrav      = 0.0
-    Dvrav      = 0.0
+    precav = 0.0
+    preccountav = 0.0
+    prec_prcav = 0.0
+    cloudcountav = 0.0
+    raincountav = 0.0
+    Nrrainav = 0.0
+    qrav = 0.0
+    Dvrav = 0.0
 
     do k = 1,k1
-      cloudcountavl(k)  = count(ql0      (2:i1,2:j1,k) > epscloud)
+      cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)
       raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr)
       preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec)
-      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k)  , precep(2:i1,2:j1,k) > epsprec)
+      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep(2:i1,2:j1,k) > epsprec)
       Dvravl       (k)  = 0.
-      Nrrainavl    (k)  = sum  (Nr  (2:i1,2:j1,k))
+      Nrrainavl    (k)  = sum  (Nr      (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
-      qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
+      qravl        (k)  = sum  (qr      (2:i1,2:j1,k))
     end do
 
     call MPI_ALLREDUCE(cloudcountavl,cloudcountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
@@ -316,11 +316,11 @@ subroutine initsimpleicestat
     ifield    = mod(ifield, nrfields) + 1
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,Nrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
     Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,qrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,1,k1,qrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
     qlpav(:,ifield) = avfield - sum(qlpav  (:,1:ifield-1),2)
 
     avfield    = 0.0
@@ -342,15 +342,14 @@ subroutine initsimpleicestat
 !------------------------------------------------------------------------------!
 !> Write the stats to file
   subroutine writesimpleicestat
-    use modmpi,    only  : myid
-    use modglobal,    only  : rtimee, ifoutput, cexpnr, k1,kmax, &
-              rlv, zf
-    use modfields,    only  : presf,rhof
-      use modstat_nc, only: lnetcdf, writestat_nc
-      use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
+    use modmpi, only  : myid
+    use modglobal, only  : rtimee, ifoutput, cexpnr, k1,kmax, rlv, zf
+    use modfields, only  : presf,rhof
+    use modstat_nc, only: lnetcdf, writestat_nc
+    use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
 
-      implicit none
-      real,dimension(k1,nvar) :: vars
+    implicit none
+    real,dimension(k1,nvar) :: vars
 
     integer    :: nsecs, nhrs, nminut
     integer    :: k

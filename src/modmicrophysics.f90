@@ -31,7 +31,6 @@
 
 
 module modmicrophysics
-use modmicrodata
 
 implicit none
 
@@ -43,6 +42,10 @@ contains
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     use modsimpleice2, only : initsimpleice2
+    use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
+                             imicro_sice, imicro_sice2, imicro_none, &
+                             l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
+                             Nc_0, sig_g, sig_gr, courantp
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
@@ -92,9 +95,7 @@ contains
 
 
   subroutine microphysics
-!     module currently obsolete
-!     use modbulkmicro, only : bulkmicro
-!     use modbinmicro,  only : binmicro
+    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user
     implicit none
     select case (imicro)
     case(imicro_none)
@@ -112,7 +113,8 @@ contains
    use modbulkmicro, only : bulkmicro
    use modsimpleice, only : simpleice
    use modsimpleice2, only : simpleice2
-!     use modbinmicro,  only : binmicrosources
+   use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, &
+                            imicro_sice, imicro_sice2, imicro_user, imicro_none
     implicit none
 
     select case (imicro)
@@ -137,7 +139,8 @@ contains
     use modbulkmicro, only : exitbulkmicro
     use modsimpleice, only : exitsimpleice
     use modsimpleice2, only : exitsimpleice2
- !     use modbinmicro,  only : exitbinmicro
+    use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bin, &
+                             imicro_user, imicro_bulk, imicro_sice, imicro_sice2
     implicit none
 
      select case (imicro)
@@ -175,15 +178,16 @@ contains
 
   use modglobal, only : i1,j1,kmax,rlv,cp,dzf,pi
   use modfields, only : qtp,ql0,thlp,rhof,exnf
+  use modmicrodata, only : c_st, Nc_0, rhow, sig_g
   implicit none
   real :: sedc,csed
   integer :: i, j, k
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)*Nc_0**(-2./3.)
   sedc = 0.
 
-  do k = 1,kmax
-  do i=2,i1
+  do k=1,kmax
   do j=2,j1
+  do i=2,i1
   if (ql0(i,j,k)>0.0) then
     sedc= csed*((ql0(i,j,k+1)*rhof(k+1))**(5./3.)-(ql0(i,j,k)*rhof(k))**(5./3.))/(dzf(k)*rhof(k))
     qtp(i,j,k) = qtp(i,j,k) + sedc

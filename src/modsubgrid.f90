@@ -202,7 +202,7 @@ contains
   use modmpi,      only : excjs
   implicit none
 
-  real    :: strain2,mlen
+  real    :: strain2,mlen,sn,fac
   integer :: i,j,k,kp,km,jp,jm
 
   if(lsmagorinsky) then
@@ -290,36 +290,68 @@ contains
 
   ! do TKE scheme
   else
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          if (ldelta .or. (dthvdz(i,j,k)<=0)) then
-            zlt(i,j,k) = delta(k)
-            if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
-            ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
-            ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
+    if (lmason) then
+      do k=1,kmax
+        do j=2,j1
+          do i=2,i1
+            if (ldelta .or. (dthvdz(i,j,k)<=0)) then
+              zlt(i,j,k) = delta(k)
+              zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+              ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+              ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
 
-            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
-            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-          else
-             ! zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
-             ! faster calculation: evaluate sqrt only if the second argument is actually smaller
-             zlt(i,j,k) = delta(k)
-             if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
-                zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
-             end if
-             
-            if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+              ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+              ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+            else
+              zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+              zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
 
-            ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
-            ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
+              ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+              ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
 
-            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
-            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-          endif
+              ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+              ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+            endif
+          end do
         end do
       end do
-    end do
+
+    else ! lmason = .false.
+
+      if (ldelta) then
+        do k=1,kmax
+          do j=2,j1
+            do i=2,i1
+              zlt(i,j,k) = delta(k)
+              ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+              ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
+              ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+              ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+            end do
+          end do
+        end do
+      else ! ldelta = .false.
+        do k=1,kmax
+          do j=2,j1
+            do i=2,i1
+              sn = sign(0.5, dthvdz(i,j,k))
+              zlt(i,j,k) = (0.5 - sn) * delta(k) & ! sn == -0.5 when dthvdz < 0.0
+                          +(0.5 + sn) * min(     & ! sn == +0.5 when dthvdz > 0.0
+                             delta(k), &
+                             cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+
+              fac = (0.5 - sn) + (sn + 0.5) * zlt(i,j,k)*deltai(k)
+
+              ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+              ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+
+              ekh(i,j,k) = (ch1 + ch2 * fac) * ekm(i,j,k)
+              ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+            end do
+          end do
+        end do
+      endif ! ldelta
+    endif ! lmason
   end if
 
 !*************************************************************
@@ -422,11 +454,11 @@ contains
 !    sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
 
 !     e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1)+ &
-!            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+!            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
                 - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
-    
+
   end do
   end do
   end do
@@ -436,82 +468,95 @@ contains
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
 
-
-  do j=2,j1
+  if (sgs_surface_fix) then
+    do j=2,j1
     jp=j+1
     jm=j-1
-  do i=2,i1
+    do i=2,i1
+
+  ! **  Calculate "shear" production term: tdef2  ****************
+
+      tdef2 =  2. * ( &
+              ((u0(i+1,j,1)-u0(i,j,1))*dxi)**2 &
+            + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
+            + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
+
+      ! Use known surface flux and exchange coefficient to derive
+      ! consistent gradient (such that correct flux will occur in
+      ! shear production term)
+      ! Make sure that no division by zero occurs in determination of the
+      ! directional component; ekm should already be >= ekmin
+      ! Replace the dudz by surface flux -uw / ekm
+      horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
+      uwflux = -ustar(i,j)*ustar(i,j)* ((u0(i,j,1)+cu)/horv)
+      local_dudz = -uwflux / ekm(i,j,1)
+      tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + local_dudz )**2
+
+      tdef2 = tdef2 +   0.25 *( &
+            ((u0(i,jp,1)-u0(i,j,1))*dyi+(v0(i,jp,1)-v0(i-1,jp,1))*dxi)**2 &
+           +((u0(i,j,1)-u0(i,jm,1))*dyi+(v0(i,j,1)-v0(i-1,j,1))*dxi)**2 &
+           +((u0(i+1,j,1)-u0(i+1,jm,1))*dyi+(v0(i+1,j,1)-v0(i,j,1))*dxi)**2 &
+           +((u0(i+1,jp,1)-u0(i+1,j,1))*dyi+ &
+                                   (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
+
+      ! Use known surface flux and exchange coefficient to derive
+      ! consistent gradient (such that correct flux will occur in
+      ! shear production term)
+      ! Make sure that no division by zero occurs in determination of the
+      ! directional component; ekm should already be >= ekmin
+      ! Replace the dvdz by surface flux -vw / ekm
+      horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
+      vwflux = -ustar(i,j)*ustar(i,j)* ((v0(i,j,1)+cv)/horv)
+      local_dvdz = -vwflux / ekm(i,j,1)
+      tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + local_dvdz  )**2
+
+  ! **  Include shear and buoyancy production terms and dissipation **
+
+      sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
+      ! Replace the -ekh *  dthvdz by the surface flux of thv
+      ! (but we only have the thlflux , which seems at the surface to be
+      ! equivalent
+      local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
+      sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
+      sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
+    end do
+    end do
+  else ! sgs_surface_fix = .false.
+    do j=2,j1
+    jp=j+1
+    jm=j-1
+    do i=2,i1
+
+  ! **  Calculate "shear" production term: tdef2  ****************
+
+      tdef2 =  2. * ( &
+              ((u0(i+1,j,1)-u0(i,j,1))*dxi)**2 &
+            + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
+            + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
+
+      tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + dudz(i,j)   )**2
+
+      tdef2 = tdef2 +   0.25 *( &
+            ((u0(i,jp,1)-u0(i,j,1))*dyi+(v0(i,jp,1)-v0(i-1,jp,1))*dxi)**2 &
+           +((u0(i,j,1)-u0(i,jm,1))*dyi+(v0(i,j,1)-v0(i-1,j,1))*dxi)**2 &
+           +((u0(i+1,j,1)-u0(i+1,jm,1))*dyi+(v0(i+1,j,1)-v0(i,j,1))*dxi)**2 &
+           +((u0(i+1,jp,1)-u0(i+1,j,1))*dyi+ &
+                                   (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
+
+      tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + dvdz(i,j)   )**2
+
+  ! **  Include shear and buoyancy production terms and dissipation **
+
+      sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
+      sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
+      sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
+    end do
+    end do
+  endif
 
 
-
-! **  Calculate "shear" production term: tdef2  ****************
-
-    tdef2 =  2. * ( &
-            ((u0(i+1,j,1)-u0(i,j,1))*dxi)**2 &
-          + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
-          + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
-
-    if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
-          ! shear production term)
-          ! Make sure that no division by zero occurs in determination of the
-          ! directional component; ekm should already be >= ekmin
-          ! Replace the dudz by surface flux -uw / ekm
-          horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
-          uwflux = -ustar(i,j)*ustar(i,j)* ((u0(i,j,1)+cu)/horv)
-          local_dudz = -uwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
-               local_dudz )**2
-    else
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
-                                  dudz(i,j)   )**2
-    endif
-
-    tdef2 = tdef2 +   0.25 *( &
-          ((u0(i,jp,1)-u0(i,j,1))*dyi+(v0(i,jp,1)-v0(i-1,jp,1))*dxi)**2 &
-         +((u0(i,j,1)-u0(i,jm,1))*dyi+(v0(i,j,1)-v0(i-1,j,1))*dxi)**2 &
-         +((u0(i+1,j,1)-u0(i+1,jm,1))*dyi+(v0(i+1,j,1)-v0(i,j,1))*dxi)**2 &
-         +((u0(i+1,jp,1)-u0(i+1,j,1))*dyi+ &
-                                 (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
-
-    if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
-          ! shear production term)
-          ! Make sure that no division by zero occurs in determination of the
-          ! directional component; ekm should already be >= ekmin
-          ! Replace the dvdz by surface flux -vw / ekm
-          horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
-          vwflux = -ustar(i,j)*ustar(i,j)* ((v0(i,j,1)+cv)/horv)
-          local_dvdz = -vwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
-                        local_dvdz  )**2
-    else
-         tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
-                                dvdz(i,j)   )**2
-    endif
-
-! **  Include shear and buoyancy production terms and dissipation **
-
-    sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
-    if (sgs_surface_fix) then
-          ! Replace the -ekh *  dthvdz by the surface flux of thv
-          ! (but we only have the thlflux , which seems at the surface to be
-          ! equivalent
-          local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
-          sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
-    else
-          sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
-    endif
-    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
-  end do
-  end do
-
-!  e12p(2:i1,2:j1,1:kmax) = e12p(2:i1,2:j1,1:kmax)+ &
-!            sbshr(2:i1,2:j1,1:kmax)+sbbuo(2:i1,2:j1,1:kmax)+sbdiss(2:i1,2:j1,1:kmax)
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
-            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)
 
   return
   end subroutine sources

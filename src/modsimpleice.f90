@@ -28,8 +28,6 @@
 
 
 module modsimpleice
-  use modmicrodata
-
   implicit none
   real :: gamb1r
   real :: gambd1r
@@ -47,29 +45,35 @@ module modsimpleice
 
 !> Initializes and allocates the arrays
   subroutine initsimpleice
+    use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
+                             ilratio, rsgratio, sgratio, &
+                             lambdar, lambdas, lambdag, &
+                             qrmask, qcmask, precep, &
+                             ccrz, ccsz, ccgz, bbg, bbr, bbs, ddg, ddr, dds
+
     use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
 
     implicit none
 
-    allocate (qr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
-             ,qrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,nr(2-ih:i1+ih,2-jh:j1+jh,k1)        & ! qr (total precipitation!) converted from a scalar variable
-             ,nrp(2-ih:i1+ih,2-jh:j1+jh,k1)       & ! qr tendency due to microphysics only, for statistics
-             ,thlpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! thl tendency due to microphysics only, for statistics
-             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qt tendency due to microphysics only, for statistics
-             ,sed_qr(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! sedimentation rain droplets mixing ratio
-             ,qr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! time-splitting substep qr
-             ,ilratio(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! partition ratio cloud water vs cloud ice
-             ,rsgratio(2-ih:i1+ih,2-jh:j1+jh,k1)  & ! partition ratio rain vs. snow/graupel
-             ,sgratio(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! partition ratio snow vs graupel
-             ,lambdar(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for rain
-             ,lambdas(2-ih:i1+ih,2-jh:j1+jh,k1)   & ! slope parameter for snow
-             ,lambdag(2-ih:i1+ih,2-jh:j1+jh,k1))    ! slope parameter for graupel
+    allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
+             ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
+             ,nr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
+             ,nrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
+             ,thlpmcr(2:i1,2:j1,k1)   & ! thl tendency due to microphysics only, for statistics
+             ,qtpmcr(2:i1,2:j1,k1)    & ! qt tendency due to microphysics only, for statistics
+             ,sed_qr(2:i1,2:j1,k1)    & ! sedimentation rain droplets mixing ratio
+             ,qr_spl(2:i1,2:j1,k1)    & ! time-splitting substep qr
+             ,ilratio(2:i1,2:j1,k1)   & ! partition ratio cloud water vs cloud ice
+             ,rsgratio(2:i1,2:j1,k1)  & ! partition ratio rain vs. snow/graupel
+             ,sgratio(2:i1,2:j1,k1)   & ! partition ratio snow vs graupel
+             ,lambdar(2:i1,2:j1,k1)   & ! slope parameter for rain
+             ,lambdas(2:i1,2:j1,k1)   & ! slope parameter for snow
+             ,lambdag(2:i1,2:j1,k1))    ! slope parameter for graupel
 
-    allocate (qrmask(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! mask for rain water
-             ,qcmask(2-ih:i1+ih,2-jh:j1+jh,k1))     ! mask for cloud water
+    allocate (qrmask(2:i1,2:j1,k1)    & ! mask for rain water
+             ,qcmask(2:i1,2:j1,k1))     ! mask for cloud water
 
-    allocate(precep(2-ih:i1+ih,2-jh:j1+jh,k1))      ! precipitation for statistics
+    allocate(precep(2:i1,2:j1,k1))      ! precipitation for statistics
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
 
@@ -90,6 +94,11 @@ module modsimpleice
 
 !> Cleaning up after the run
   subroutine exitsimpleice
+    use modmicrodata, only : nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
+                             ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
+                             qrmask,qcmask, &
+                             precep, &
+                             ccrz,ccsz,ccgz
     implicit none
     deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
     deallocate(qrmask,qcmask)
@@ -102,6 +111,15 @@ module modsimpleice
     use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,tmp0,rhobf
     use modsimpleicestat, only : simpleicetend
+    use modmicrodata, only : nr, nrp, iqr, qrp, sed_qr, qr_spl, qtpmcr, thlpmcr, delt, &
+                             qcmask, qcmin, qrmask, qrmin, qr, &
+                             ilratio, rsgratio, sgratio, &
+                             aag, aar, aas, bbg, bbr, bbs, ccg, ccr, ccs, &
+                             n0rg, n0rr, n0rs, &
+                             tuprsg, tupsg, tdnrsg, tdnsg, &
+                             ccgz, ccrz, ccsz, &
+                             lambdag, lambdar, lambdas, &
+                             l_graupel, l_rain, l_warm
     implicit none
     integer:: i,j,k
     real:: qrsmall, qrsum,qrtest
@@ -257,6 +275,8 @@ module modsimpleice
   subroutine autoconvert
     use modglobal, only : i1,j1,k1,rlv,cp,tmelt
     use modfields, only : ql0,exnf,rhof,tmp0
+    use modmicrodata, only : betakessi, delt, l_berry, Nc_0, qli0, qll0, timekessl, &
+                             qcmask, qrp, qtpmcr, thlpmcr, ilratio
     implicit none
     real :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
     integer:: i,j,k
@@ -309,6 +329,11 @@ module modsimpleice
   subroutine accrete
     use modglobal, only : i1,j1,k1,rlv,cp,pi
     use modfields, only : ql0,exnf,rhof
+    use modmicrodata, only : ddg, ddr, dds, aag, aar, aas, bbg, bbr, bbs, delt, &
+                             lambdag, lambdar, lambdas, ccgz, ccrz, ccsz, &
+                             ceffgi, ceffgl, ceffri, ceffrl, ceffsi, ceffsl, betakessi, &
+                             qrmask, qcmask, qr, qrp, qtpmcr, thlpmcr, &
+                             ilratio, rsgratio, sgratio
     implicit none
     real :: qll,qli,qrr,qrs,qrg,&
             gaccrl,gaccsl,gaccgl,gaccri,gaccsi,gaccgi,accr,accs,accg,acc
@@ -351,6 +376,11 @@ module modsimpleice
   subroutine evapdep
     use modglobal, only : i1,j1,k1,rlv,cp,pi
     use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
+    use modmicrodata, only : betag, betar, betas, ddg, ddr, dds, delt, &
+                             n0rg, n0rr, n0rs, aag, aar, aas, &
+                             ccgz, ccrz, ccsz, lambdag, lambdar, lambdas, &
+                             evapfactor, qrmask, qr, qrp, qtpmcr, thlpmcr, &
+                             qrmask, qcmask
     implicit none
 
     real :: ssl,ssi,ventr,vents,ventg,&
@@ -388,6 +418,13 @@ module modsimpleice
   subroutine precipitate
     use modglobal, only : i1,j1,k1,kmax,dzf,dzh
     use modfields, only : rhof,rhobf
+    use modmicrodata, only : qr_spl, sed_qr, precep, qr, qrp, &
+                             aag, aas, aar, bbg, bbs, bbr, ddg, dds, ddr, n0rg, n0rs, n0rr, &
+                             betag, betar, betas, qrmin, &
+                             lambdag, lambdar, lambdas, &
+                             ccgz, ccrz, ccsz, &
+                             sgratio, rsgratio, &
+                             courantp, delt, qrmask
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop

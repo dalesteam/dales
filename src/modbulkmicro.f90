@@ -4,7 +4,7 @@
 !!  Bulk microphysics.
 !>
 !! Calculates bulk microphysics using a two moment scheme.
-!! \see   Seifert and Beheng (Atm. Res., 2001)
+!! \see  Seifert and Beheng (Atm. Res., 2001)
 !! \see  Seifert and Beheng (Met Atm Phys, 2006)
 !! \see  Stevens and Seifert (J. Meteorol. Soc. Japan, 2008)  (rain sedim, mur param)
 !! \see  Seifert (J. Atm Sc., 2008) (rain evap)
@@ -34,10 +34,6 @@
 
 
 module modbulkmicro
-
-!
-!
-!
 !   Amount of liquid water is splitted into cloud water and precipitable
 !   water (as such it is a two moment scheme). Cloud droplet number conc. is
 !   fixed in place and time.
@@ -48,62 +44,42 @@ module modbulkmicro
 !   similarly as is done in sampling.f90
 !
 !   bulkmicro is called from *modmicrophysics*
-!
 !*********************************************************************
-  use modmicrodata
-
   implicit none
   real :: gamma25
   real :: gamma3
   real :: gamma35
+  integer :: qrroof, qcroof
   contains
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
-    use modglobal, only : ih,i1,jh,j1,k1
+    use modglobal, only : i1,j1,k1
+    use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
+                             qtpmcr, Dvr, xr, mur, &
+                             lbdr, &
+                             precep, qrmask, qcmask
     implicit none
 
+                                        ! Fields accessed by:
+    allocate(Nr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
+            ,qr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
+            ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
+            ,qrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
+            ,Dvr      (2:i1,2:j1,k1)  & ! dobulkmicrostat
+            ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
 
-    allocate( Nr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Nrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qltot    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qrp      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Nc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,nuc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,thlpmcr  (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qtpmcr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,sedc     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,sed_qr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,sed_Nr   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Dvc      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,xc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Dvr      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,xr       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,mur      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,lbdr     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,au       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,phi      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,tau      (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,ac       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,sc       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,br       (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,evap     (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Nevap    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,qr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,Nr_spl   (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,wfall_qr (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-             ,wfall_Nr (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlpmcr  (2:i1,2:j1,k1)  & !
+            ,qtpmcr   (2:i1,2:j1,k1)  & !
+            ,xr       (2:i1,2:j1,k1)  & !
+            ,mur      (2:i1,2:j1,k1)  & !
+            ,lbdr     (2:i1,2:j1,k1)  & !
+            ,qrmask   (2:i1,2:j1,k1)  & !
+            ,qcmask   (2:i1,2:j1,k1)  )
 
-    allocate(precep    (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qrmask    (2-ih:i1+ih,2-jh:j1+jh,k1)  &
-            ,qcmask    (2-ih:i1+ih,2-jh:j1+jh,k1))
-
-!
-  gamma25=lacz_gamma(2.5)
-  gamma3=2.
-  gamma35=lacz_gamma(3.5)
-
+    gamma25=lacz_gamma(2.5)
+    gamma3=2.
+    gamma35=lacz_gamma(3.5)
   end subroutine initbulkmicro
 
 !> Cleaning up after the run
@@ -111,16 +87,105 @@ module modbulkmicro
   !*********************************************************************
   ! subroutine exitbulkmicro
   !*********************************************************************
+    use modmicrodata, only : Nr,Nrp,qr,qrp,thlpmcr,qtpmcr, &
+                             Dvr,xr,mur,lbdr, &
+                             precep,qrmask,qcmask
     implicit none
 
-    deallocate(Nr,Nrp,qltot,qr,qrp,Nc,nuc,thlpmcr,qtpmcr)
-
-    deallocate(sedc,sed_qr,sed_Nr,Dvc,xc,Dvr,xr,mur,lbdr, &
-               au,phi,tau,ac,sc,br,evap,Nevap,qr_spl,Nr_spl,wfall_qr,wfall_Nr)
-
-    deallocate(precep)
+    deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
+    deallocate(Dvr,xr,mur,lbdr)
+    deallocate(precep,qrmask,qcmask)
 
   end subroutine exitbulkmicro
+
+!> Calculates rain DSD integral properties & parameters xr, Dvr, lbdr, mur
+  subroutine calculate_rain_parameters(Nr, qr, mask)
+    use modmicrodata, only : xr, Dvr, lbdr, mur, &
+                             l_sb, l_mur_cst, mur_cst, pirhow, &
+                             xrmin, xrmax, xrmaxkk, eps0
+    use modglobal, only : i1,j1,k1
+    use modfields, only : rhof
+    implicit none
+    logical, intent(in) :: mask(2:i1, 2:j1, 1:k1)
+    real, intent(in)    :: Nr  (2:i1, 2:j1, 1:k1) &
+                          ,qr  (2:i1, 2:j1, 1:k1)
+    integer :: i,j,k
+
+    do k=k1,2,-1
+      if (any(mask(:,:,k))) then
+        qrroof = max(qrroof, min(k1, k+1))
+        exit
+      endif
+    enddo
+
+    if (l_sb) then
+      do k=1,qrroof
+        do j=2,j1
+          do i=2,i1
+            if (mask(i,j,k)) then
+              ! JvdD Added eps0 to avoid floating point exception
+              xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0)
+
+              ! to ensure xr is within borders
+              xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
+              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+            !else
+            !  xr (i,j,k) = 0.
+            !  Dvr(i,j,k) = 0.
+            endif
+          enddo
+        enddo
+      enddo
+
+      if (l_mur_cst) then
+        mur = mur_cst
+        do k=1,qrroof
+          do j=2,j1
+            do i=2,i1
+              if (mask(i,j,k)) then
+                lbdr = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr
+              !else
+              !  lbdr = 0.
+              endif
+            enddo
+          enddo
+        enddo
+      else
+        ! mur = f(Dv)
+        do k=1,qrroof
+          do j=2,j1
+            do i=2,i1
+              if (mask(i,j,k)) then
+                mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
+                lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
+              !else
+              !  mur (i,j,k) = 0.
+              !  lbdr(i,j,k) = 0.
+              endif
+            enddo
+          enddo
+        enddo
+      endif
+    else ! l_sb
+       do k=1,qrroof
+         do j=2,j1
+           do i=2,i1
+             if (mask(i,j,k)) then
+               ! JvdD Added eps0 to avoid floating point exception
+               xr(i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k) + eps0)
+
+               ! to ensure x_pw is within borders
+               xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
+               Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+             !else
+             !  xr(i,j,k) = 0.
+             !  Dvr(i,j,k) = 0.
+             endif
+           enddo
+         enddo
+       enddo
+    endif ! l_sb
+  end subroutine calculate_rain_parameters
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
@@ -128,37 +193,34 @@ module modbulkmicro
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
+    use modmicrodata, only : Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, delt, &
+                             l_sedc, l_mur_cst, l_lognormal, l_rain, &
+                             qrmask, qrmin, qcmask, qcmin, &
+                             mur_cst, inr, iqr
     implicit none
     integer :: i,j,k
-    real :: qrtest,nrtest
+    real :: qrtest,nrtest,qr_cor
 
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-      !write (6,*) myid,i,j,k,sv0(i,j,k,inr),sv0(i,j,k,iqr)
-      Nr  (i,j,k) = sv0(i,j,k,inr)
-      qr  (i,j,k) = sv0(i,j,k,iqr)
-    enddo
-    enddo
-    enddo
+    Nr = sv0(2:i1,2:j1,1:k1,inr)
+    qr = sv0(2:i1,2:j1,1:k1,iqr)
+
     Nrp    = 0.0
     qrp    = 0.0
     thlpmcr = 0.0
     qtpmcr  = 0.0
-    Nc     = 0.0
 
     delt = rdt/ (4. - dble(rk3step))
 
-    if ( timee .eq. 0 .and. rk3step .eq. 1 .and. myid .eq. 0) then
+    if (timee.eq.0 .and. rk3step.eq.1 .and. myid.eq.0) then
       write(*,*) 'l_lognormal',l_lognormal
       write(*,*) 'rhof(1)', rhof(1),' rhof(10)', rhof(10)
       write(*,*) 'l_mur_cst',l_mur_cst,' mur_cst',mur_cst
       write(*,*) 'nuc = param'
     endif
 
-  !*********************************************************************
-  ! remove neg. values of Nr and qr
-  !*********************************************************************
+    !*********************************************************************
+    ! remove neg. values of Nr and qr
+    !*********************************************************************
     if (l_rain) then
        if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
@@ -167,129 +229,36 @@ module modbulkmicro
           write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
        end if
 
-       do j=2,j1
-       do i=2,i1
-       do k=1,k1
-          if (Nr(i,j,k) < 0.)  then
-            Nr(i,j,k) = 0.
-          endif
-          if (qr(i,j,k) < 0.)  then
-            qr(i,j,k) = 0.
-          endif
-       enddo
-       enddo
-       enddo
+       Nr = max(0.,Nr)
+       qr = max(0.,qr)
     end if   ! l_rain
 
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-       if (qr(i,j,k) .gt. qrmin.and.Nr(i,j,k).gt.0)  then
-          qrmask (i,j,k) = .true.
-       else
-          qrmask (i,j,k) = .false.
-       endif
-    enddo
-    enddo
-    enddo
-   !write (6,*) 'second part done'
-
-  !*********************************************************************
-  ! calculate qltot and initialize cloud droplet number Nc
-  !*********************************************************************
-
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-       ql0    (i,j,k) = ql0 (i,j,k)
-       qltot (i,j,k) = ql0  (i,j,k) + qr (i,j,k)
-       if (ql0(i,j,k) > qcmin)  then
-          Nc     (i,j,k) = Nc_0
-          qcmask (i,j,k) = .true.
-       else
-          qcmask (i,j,k) = .false.
-       end if
-    enddo
-    enddo
-    enddo
-
-  !*********************************************************************
-  ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
-  !*********************************************************************
+    !*********************************************************************
+    ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
+    !*********************************************************************
+    qrmask = qr.gt.qrmin.and.Nr.gt.0
     if (l_rain) then
+      ! the calculate_rain_parameters will only raise the roof,
+      ! so on the first call, set it to 0
+      qrroof = 0
+      call calculate_rain_parameters(Nr, qr, qrmask)
+    end if   ! l_rain
 
-      xr   (2:i1,2:j1,1:k1) = 0.
-      Dvr  (2:i1,2:j1,1:k1) = 0.
-      mur  (2:i1,2:j1,1:k1) = 30.
-      lbdr (2:i1,2:j1,1:k1) = 0.
+    ! there is no timestepping using qcmask, so just set the qcroof here
+    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
+    do k=k1,2,-1
+      if (any(qcmask(:,:,k))) then
+        qcroof = min(k1, k+1)
+        exit
+      endif
+    enddo
 
-      if (l_sb ) then
-
-        do j=2,j1
-        do i=2,i1
-        do k=1,k1
-           if (qrmask(i,j,k)) then
-             xr (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
-             xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
-             Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-           endif
-        enddo
-        enddo
-        enddo
-
-
-        if (l_mur_cst) then
-        ! mur = cst
-          do j=2,j1
-          do i=2,i1
-          do k=1,k1
-            if (qrmask(i,j,k)) then
-               mur(i,j,k) = mur_cst
-               lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-        else
-        ! mur = f(Dv)
-          do j=2,j1
-          do i=2,i1
-          do k=1,k1
-            if (qrmask(i,j,k)) then
-!
-!             mur(2:i1,2:j1,1:k1) = 10. * (1+tanh(1200.*(Dvr(2:i1,2:j1,1:k1)-0.0014)))
-!             Stevens & Seifert (2008) param
-!
-              mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
-              lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-            endif
-          enddo
-          enddo
-          enddo
-
-        endif
-
-      else
-         do j=2,j1
-         do i=2,i1
-         do k=1,k1
-            if (qrmask(i,j,k).and.Nr(i,j,k).gt.0.) then
-              xr  (i,j,k) = rhof(k)*qr(i,j,k)/(Nr(i,j,k)+eps0) ! JvdD Added eps0 to avoid floating point exception
-              xr  (i,j,k) = min(xr(i,j,k),xrmaxkk) ! to ensure x_pw is within borders
-              Dvr (i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-            endif
-         enddo
-         enddo
-         enddo
-
-      endif ! l_sb
-    endif   ! l_rain
-    !write (6,*) 'parameters calculated'
-
-  !*********************************************************************
-  ! call microphysical processes subroutines
-  !*********************************************************************
-    if (l_sedc)  call sedimentation_cloud
+    !*********************************************************************
+    ! call microphysical processes subroutines
+    !*********************************************************************
+    if (l_sedc) then
+      call sedimentation_cloud
+    endif
 
     if (l_rain) then
       call bulkmicrotend
@@ -303,34 +272,32 @@ module modbulkmicro
       call bulkmicrotend
     endif
 
-    sv0(2:i1,2:j1,1:k1,inr)=Nr(2:i1,2:j1,1:k1)
-    sv0(2:i1,2:j1,1:k1,iqr)=qr(2:i1,2:j1,1:k1)
+    sv0(2:i1,2:j1,1:k1,inr) = Nr
+    sv0(2:i1,2:j1,1:k1,iqr) = qr
 
-  !*********************************************************************
-  ! remove negative values and non physical low values
-  !*********************************************************************
-    do k=1,k1
+    !*********************************************************************
+    ! remove negative values and non physical low values
+    !*********************************************************************
+    do k=1,max(qrroof, qcroof)
     do j=2,j1
     do i=2,i1
-      qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
-      nrtest=svm(i,j,k,inr)+(svp(i,j,k,inr)+nrp(i,j,k))*delt
-      if ((qrtest < qrmin) .or. (nrtest < 0.) ) then ! correction, after Jerome's implementation in Gales
-        qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
-        thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
-        svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-        svp(i,j,k,inr) = - svm(i,j,k,inr)/delt
-      else
-      svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-      svp(i,j,k,inr) =svp(i,j,k,inr)+nrp(i,j,k)
-      thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-      qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-      ! adjust negative qr tendencies at the end of the time-step
-     end if
-    enddo
-    enddo
-    enddo
+      qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
+      qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
 
+      nrtest=min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
+
+      ! correction, after Jerome's implementation in Gales
+      qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) + qr_cor
+      thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - qr_cor * (rlv/(cp*exnf(k)))
+
+      svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) - qr_cor
+      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nrtest
+      ! adjust negative qr tendencies at the end of the time-step
+    enddo
+    enddo
+    enddo
   end subroutine bulkmicro
+
   !> Determine autoconversion rate and adjust qrp and Nrp accordingly
   !!
   !!   The autoconversion rate is formulated for f(x)=A*x**(nuc)*exp(-Bx),
@@ -339,72 +306,75 @@ module modbulkmicro
   !!   by chosing mu=1/3 one would get a gamma distribution in drop diameter
   !!   -> faster rain formation. (Seifert)
   subroutine autoconversion
-    use modglobal, only : i1,j1,k1,kmax,rlv,cp
+    use modglobal, only : i1,j1,rlv,cp
     use modmpi,    only : myid
     use modfields, only : exnf,rhof,ql0
+    use modmicrodata, only : qrp, Nrp, qtpmcr, thlpmcr, &
+                             qr, qcmask, pirhow, x_s, &
+                             d0_kk, delt, k_1, k_2, k_au, k_c, Nc_0, &
+                             l_sb
     implicit none
     integer i,j,k
-    au = 0.
+    real :: au
+    real :: tau  !  internal time scale
+    real :: phi  !  correction function (see SB2001)
+    real :: xc   !  mean mass of cloud water droplets
+    real :: nuc  !  width parameter of cloud DSD
 
-    if (l_sb ) then
-    !
-    ! SB autoconversion
-    !
-      tau(2:i1,2:j1,1:k1) = 0.
-      phi(2:i1,2:j1,1:k1) = 0.
-      nuc(2:i1,2:j1,1:k1) = 0.
+
+    if (l_sb) then
+      !
+      ! SB autoconversion
+      !
       k_au = k_c/(20*x_s)
 
+      do k=1,qcroof
       do j=2,j1
       do i=2,i1
-      do k=1,k1
          if (qcmask(i,j,k)) then
-            nuc    (i,j,k) = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
-!           nuc    (i,j,k) = 0. !
-            xc     (i,j,k) = rhof(k) * ql0(i,j,k) / Nc(i,j,k) ! No eps0 necessary
-            au     (i,j,k) = k_au * (nuc(i,j,k)+2.) * (nuc(i,j,k)+4.) / (nuc(i,j,k)+1.)**2.    &
-                    * (ql0(i,j,k) * xc(i,j,k))**2. * 1.225 ! *rho**2/rho/rho (= 1)
-            tau    (i,j,k) = 1.0 - ql0(i,j,k) / qltot(i,j,k)
-            phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3
-            au     (i,j,k) = au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)
+            nuc = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
+            xc  = rhof(k) * ql0(i,j,k) / Nc_0 ! No eps0 necessary
+            au = k_au * (nuc+2.) * (nuc+4.) / (nuc+1.)**2.    &
+                        * (ql0(i,j,k) * xc)**2. * 1.225 ! *rho**2/rho/rho (= 1)
 
-            qrp    (i,j,k) = qrp    (i,j,k) + au (i,j,k)
-            Nrp    (i,j,k) = Nrp    (i,j,k) + au (i,j,k)/x_s
-            qtpmcr (i,j,k) = qtpmcr (i,j,k) - au (i,j,k)
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au(i,j,k)
+            tau = qr(i,j,k)/(ql0(i,j,k)+qr(i,j,k))
+            phi = k_1 * tau**k_2 * (1.0 - tau**k_2)**3
+            au = au * (1.0 + phi/(1.0 - tau)**2)
 
+            qrp(i,j,k) = qrp(i,j,k) + au
+            Nrp(i,j,k) = Nrp(i,j,k) + au/x_s
+            qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
+            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k))) * au
+
+            if (ql0(i,j,k) .lt. au*delt) then
+              write(6,*)'au too large', au*delt, ql0(i,j,k), i, j, k, myid
+            end if
          endif
       enddo
       enddo
       enddo
-
     else
-    !
-    ! KK00 autoconversion
-    !
+      !
+      ! KK00 autoconversion
+      !
+      do k=1,qcroof
       do j=2,j1
       do i=2,i1
-      do k=1,k1
-
          if (qcmask(i,j,k)) then
-            au     (i,j,k) = 1350.0 * ql0(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
+            au = 1350.0 * ql0(i,j,k)**(2.47) * (Nc_0/1.0E6)**(-1.79)
+            qrp(i,j,k) = qrp(i,j,k) + au
+            qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
+            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au
+            Nrp(i,j,k) = Nrp(i,j,k) + au * rhof(k)/(pirhow*D0_kk**3.)
 
-            qrp    (i,j,k) = qrp    (i,j,k) + au(i,j,k)
-            Nrp    (i,j,k) = Nrp    (i,j,k) + au(i,j,k) * rhof(k)/(pirhow*D0_kk**3.)
-            qtpmcr (i,j,k) = qtpmcr (i,j,k) - au(i,j,k)
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au(i,j,k)
+            if (ql0(i,j,k) .lt. au*delt) then
+              write(6,*)'au too large', au*delt, ql0(i,j,k), i, j, k, myid
+            end if
          endif
-
       enddo
       enddo
       enddo
-
     end if !l_sb
-
-
-    if (any(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
-      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
-    end if
 
   end subroutine autoconversion
 
@@ -413,88 +383,89 @@ module modbulkmicro
   ! determine accr. + self coll. + br-up rate and adjust qrp and Nrp
   ! accordingly. Break-up : Seifert (2007)
   !*********************************************************************
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,rlv,cp
+    use modglobal, only : i1,j1,rlv,cp
     use modfields, only : exnf,rhof,ql0
     use modmpi,    only : myid
+    use modmicrodata, only : qr, Nr, qrp, Nrp, &
+                             qrmask, qcmask, qtpmcr, thlpmcr, &
+                             D_eq, delt, lbdr, Dvr, &
+                             k_br, k_l, k_r, k_rr, kappa_r, pirhow, &
+                             l_sb
     implicit none
-    real , allocatable :: phi_br(:,:,:)
     integer :: i,j,k
-    allocate (phi_br(2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    ac(2:i1,2:j1,1:k1)=0
+    real :: ac, sc, br
+    real :: phi     !  correction function (see SB2001)
+    real :: phi_br
+    real :: tau     !  internal time scale
 
-    if (l_sb ) then
-    !
-    ! SB accretion
-    !
-
-     do j=2,j1
-     do i=2,i1
-     do k=1,k1
+    if (l_sb) then
+      !
+      ! SB accretion
+      !
+      do k=1,min(qrroof, qcroof)
+      do j=2,j1
+      do i=2,i1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-           tau    (i,j,k) = 1.0 - ql0(i,j,k)/(qltot(i,j,k))
-           phi    (i,j,k) = (tau(i,j,k)/(tau(i,j,k) + k_l))**4.
-           ac     (i,j,k) = k_r *rhof(k)*ql0(i,j,k) * qr(i,j,k) * phi(i,j,k) * &
-                            (1.225/rhof(k))**0.5
-           qrp    (i,j,k) = qrp    (i,j,k) + ac(i,j,k)
-           qtpmcr (i,j,k) = qtpmcr (i,j,k) - ac(i,j,k)
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac(i,j,k)
+           tau = qr(i,j,k)/(ql0(i,j,k)+qr(i,j,k))
+           phi = (tau/(tau + k_l))**4.
+           ac  = k_r * rhof(k) * ql0(i,j,k) * qr(i,j,k) * phi * (1.225/rhof(k))**0.5
+
+           qrp(i,j,k) = qrp(i,j,k) + ac
+           qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
+           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac
+
+           if (ql0(i,j,k) .lt. ac * delt) then
+             write(6,*)'ac too large', ac*delt, ql0(i,j,k), i, j, k, myid
+           end if
         endif
-     enddo
-     enddo
-     enddo
+      enddo
+      enddo
+      enddo
 
-    !
-    ! SB self-collection & Break-up
-    !
-     sc(2:i1,2:j1,1:k1)=0
-     br(2:i1,2:j1,1:k1)=0
-
-     do j=2,j1
-     do i=2,i1
-     do k=1,k1
+      !
+      ! SB self-collection & Break-up
+      !
+      do k=1,qrroof
+      do j=2,j1
+      do i=2,i1
         if (qrmask(i,j,k)) then
-           sc(i,j,k) = k_rr *rhof(k)* qr(i,j,k) * Nr(i,j,k)  &
-                       * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhof(k))**0.5
-        endif
-        if (Dvr(i,j,k) .gt. 0.30E-3 .and. qrmask(i,j,k)) then
-           phi_br(i,j,k) = k_br * (Dvr(i,j,k)-D_eq)
-           br(i,j,k) = (phi_br(i,j,k) + 1.) * sc(i,j,k)
-        else
-           br(i,j,k) = 0. ! (phi_br = -1)
-        endif
-     enddo
-     enddo
-     enddo
+           sc = k_rr *rhof(k)* qr(i,j,k) * Nr(i,j,k)  &
+                * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhof(k))**0.5
+           if (Dvr(i,j,k) .gt. 0.30E-3) then
+             phi_br = k_br * (Dvr(i,j,k)-D_eq)
+             br = (phi_br + 1.) * sc
+           else
+             br = 0.
+           endif
 
-     Nrp(2:i1,2:j1,1:k1) = Nrp(2:i1,2:j1,1:k1) - sc(2:i1,2:j1,1:k1) + br(2:i1,2:j1,1:k1)
-
+           Nrp(i,j,k) = Nrp(i,j,k) - sc + br
+        endif
+      enddo
+      enddo
+      enddo
     else
-    !
-    ! KK00 accretion
-    !
-     do j=2,j1
-     do i=2,i1
-     do k=1,k1
+      !
+      ! KK00 accretion
+      !
+      do k=1,min(qcroof, qrroof)
+      do j=2,j1
+      do i=2,i1
         if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-           ac     (i,j,k) = 67.0 * ( ql0(i,j,k) * qr(i,j,k) )**1.15
-           qrp    (i,j,k) = qrp     (i,j,k) + ac(i,j,k)
-           qtpmcr (i,j,k) = qtpmcr  (i,j,k) - ac(i,j,k)
-           thlpmcr(i,j,k) = thlpmcr (i,j,k) + (rlv/(cp*exnf(k)))*ac(i,j,k)
+          ac = 67.0 * (ql0(i,j,k) * qr(i,j,k))**1.15
+
+          qrp(i,j,k) = qrp(i,j,k) + ac
+          qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
+          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac
+
+          if (ql0(i,j,k) .lt. ac * delt) then
+            write(6,*)'ac too large', ac*delt, ql0(i,j,k), i, j, k, myid
+          end if
         endif
-     enddo
-     enddo
-     enddo
-
+      enddo
+      enddo
+      enddo
     end if !l_sb
-
-
-   if (any(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.)) then
-     write(6,*)'ac too large', count(ql0(2:i1,2:j1,1:kmax)/delt - ac(2:i1,2:j1,1:kmax) .lt. 0.),myid
-   end if
-
-   deallocate (phi_br)
-
   end subroutine accretion
 
 !> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
@@ -506,49 +477,34 @@ module modbulkmicro
 !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
 !! flux is calc. anal.
   subroutine sedimentation_cloud
-    use modglobal, only : i1,j1,k1,kmax,rlv,cp,dzf,pi
+    use modglobal, only : i1,j1,rlv,cp,dzf,pi
     use modfields, only : rhof,exnf,ql0
+    use modmicrodata, only : csed,c_St,rhow,sig_g,Nc_0, &
+                             qtpmcr,thlpmcr,qcmask
     implicit none
     integer :: i,j,k
+    real :: sedc
 
-!    real    :: ql0_spl(2-ih:i1+ih,2-jh:j1+jh,k1)       &! work variable
-!              ,Nc_spl(2-ih:i1+ih,2-jh:j1+jh,k1)
-!    real,save :: dt_spl,wfallmax
-!
-!    ql0_spl(2:i1,2:j1,1:k1) = ql0(2:i1,2:j1,1:k1)
-!    Nc_spl(2:i1,2:j1,1:k1)  = Nc(2:i1,2:j1,1:k1)
-!
-!    wfallmax = 9.9
-!    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
-!    dt_spl = delt/real(n_spl)
-!
-!    do jn = 1 , n_spl  ! time splitting loop
-
-    sedc(2:i1,2:j1,1:k1) = 0.
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
+    do k=1,qcroof
     do j=2,j1
     do i=2,i1
-    do k=1,k1
-       if (qcmask(i,j,k)) then
-          sedc(i,j,k) = csed*(Nc(i,j,k))**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
-       endif
-    enddo
-    enddo
-    enddo
+      if (qcmask(i,j,k)) then
+        sedc = csed*Nc_0**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
 
-    do k=1,kmax
-    do j=2,j1
-    do i=2,i1
+        qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
+        thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
 
-      qtpmcr(i,j,k) = qtpmcr(i,j,k) + (sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
-      thlpmcr(i,j,k) = thlpmcr(i,j,k) - (rlv/(cp*exnf(k))) &
-                       *(sedc(i,j,k+1)-sedc(i,j,k))/(dzf(k)*rhof(k))
+        if (k>1) then
+          qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
+          thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
+        endif
+      endif
     enddo
     enddo
     enddo
   end subroutine sedimentation_cloud
-
 
 !> Sedimentaion of rain
 !! sedimentation of drizzle water
@@ -558,161 +514,168 @@ module modbulkmicro
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
   subroutine sedimentation_rain
-    use modglobal, only : ih,i1,jh,j1,k1,kmax,eps1,dzf
+    use modglobal, only : i1,j1,k1,eps1,dzf
     use modfields, only : rhof
     use modmpi,    only : myid
+    use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
+                             l_sb, l_lognormal, delt, &
+                             qrmask, qrmin, pirhow, sig_gr, &
+                             D_s, a_tvsb, b_tvsb, c_tvsb, &
+                             Dvr, mur, lbdr
+
     implicit none
     integer :: i,j,k,jn
     integer :: n_spl      !<  sedimentation time splitting loop
     real    :: pwcont
-    real, allocatable :: wvar(:,:,:), xr_spl(:,:,:),Dvr_spl(:,:,:),&
-                        mur_spl(:,:,:),lbdr_spl(:,:,:),Dgr(:,:,:)
+    real :: Dgr           !<  lognormal geometric diameter
+    real :: wfall_qr      !<  fall velocity for qr
+    real :: wfall_Nr      !<  fall velocity for Nr
+    real :: sed_qr
+    real :: sed_Nr
+    real, allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
+    logical, allocatable  :: qrmask_spl(:,:,:)
+
     real,save :: dt_spl,wfallmax
 
-    allocate( wvar(2-ih:i1+ih,2-jh:j1+jh,k1)       &!<  work variable
-              ,xr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)     &!<  for time splitting
-              ,Dvr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    &!<     -
-              ,mur_spl(2-ih:i1+ih,2-jh:j1+jh,k1)    &!<     -
-              ,lbdr_spl(2-ih:i1+ih,2-jh:j1+jh,k1)   &!<     -
-              ,Dgr(2-ih:i1+ih,2-jh:j1+jh,k1))        !<  lognormal geometric diameter
-
-    qr_spl(2:i1,2:j1,1:k1) = qr(2:i1,2:j1,1:k1)
-    Nr_spl(2:i1,2:j1,1:k1)  = Nr(2:i1,2:j1,1:k1)
+    allocate(qr_spl(2:i1,2:j1,1:k1))
+    allocate(Nr_spl(2:i1,2:j1,1:k1))
+    allocate(qrmask_spl(2:i1,2:j1,1:k1))
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
     dt_spl = delt/real(n_spl)
 
-    do jn = 1 , n_spl ! time splitting loop
+    do jn=1,n_spl ! time splitting loop
 
-      sed_qr(2:i1,2:j1,1:k1) = 0.
-      sed_Nr(2:i1,2:j1,1:k1) = 0.
-
-      if (l_sb ) then
-
-       do j=2,j1
-       do i=2,i1
-       do k=1,k1
-        if (qr_spl(i,j,k) > qrmin) then
-          xr_spl (i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) ! JvdD Added eps0 to avoid division by zero
-          xr_spl (i,j,k) = min(max(xr_spl(i,j,k),xrmin),xrmax) ! to ensure xr is within borders
-          Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
-        endif
-       enddo
-       enddo
-       enddo
-
-
-      if (l_lognormal) then
-        do j = 2,j1
-        do i = 2,i1
-        do k = 1,kmax
-          if (qr_spl(i,j,k) > qrmin) then
-            Dgr(i,j,k) = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr_spl(i,j,k) ! correction for width of DSD
-            sed_qr(i,j,k) = 1.*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)
-            sed_Nr(i,j,k) = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr(i,j,k) ,log(sig_gr)**2,D_s,0)
-!        correction for the fact that pwcont .ne. qr_spl
-!        actually in this way for every grid box a fall velocity is determined
-            pwcont = liq_cont(Nr_spl(i,j,k),Dgr(i,j,k),log(sig_gr)**2,D_s,3)         ! note : kg m-3
-            if (pwcont > eps1) then
-              sed_qr(i,j,k) = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr(i,j,k)  ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
-            end if
-          end if ! qr_spl threshold statement
-        end do
-        end do
-        end do
-
+      if (jn .eq. 1) then
+        qrmask_spl = qrmask
+        qr_spl = qr
+        Nr_spl = Nr
       else
-    !
-    ! SB rain sedimentation
-    !
-        if (l_mur_cst) then
-          mur_spl(2:i1,2:j1,1:k1) = mur_cst
+        ! update parameters after the first iteration
+        qrmask_spl = qr_spl .gt. qrmin
+        call calculate_rain_parameters(Nr_spl, qr_spl, qrmask_spl)
+      endif
+
+      if (l_sb) then
+        if (l_lognormal) then
+          do k = 1,qrroof
+          do j = 2,j1
+          do i = 2,i1
+            if (qrmask_spl(i,j,k)) then
+              ! correction for width of DSD
+              Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
+              sed_Nr = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
+
+              ! correction for the fact that pwcont .ne. qr_spl
+              ! actually in this way for every grid box a fall velocity is determined
+              pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
+              if (pwcont > eps1) then
+                sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr ! or qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+              else
+                sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+              endif
+
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+              Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+              if (k .gt. 1) then
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+
+                if (qr_spl(i,j,k-1) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
+                endif
+              endif
+              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
+              endif
+
+              if (jn==1) then
+                precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+              endif
+            endif ! qr_spl threshold statement
+          enddo
+          enddo
+          enddo
         else
+          !
+          ! SB rain sedimentation
+          !
+          do k=1,qrroof
           do j=2,j1
           do i=2,i1
-          do k=1,k1
-            if (qr_spl(i,j,k) > qrmin) then
-!             mur_spl(i,j,k) = 10. * (1+tanh(1200.*(Dvr_spl(i,j,k)-0.0014))) ! SS08
-              mur_spl(i,j,k) = min(30.,- 1. + 0.008/ (qr_spl(i,j,k)*rhof(k))**0.6)  ! G09b
+            if (qrmask_spl(i,j,k)) then
+              wfall_qr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+              wfall_Nr        = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
+              sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
+              sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
+
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+              Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+              if (k .gt. 1) then
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+
+                if (qr_spl(i,j,k-1) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
+                endif
+              endif
+              if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+                  write(6,*)'sed_qr too large', myid,i,j,k
+              endif
+
+              if (jn==1) then
+                precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+              endif
             endif
           enddo
           enddo
           enddo
-
-        endif
-
+        endif ! l_lognormal
+      else
+        !
+        ! KK00 rain sedimentation
+        !
+        do k=1,qrroof
         do j=2,j1
         do i=2,i1
-        do k=1,k1
-          if (qr_spl(i,j,k) > qrmin) then
-              lbdr_spl(i,j,k) = ((mur_spl(i,j,k)+3.)*(mur_spl(i,j,k)+2.)* &
-                                 (mur_spl(i,j,k)+1.))**(1./3.)/Dvr_spl(i,j,k)
-              wfall_qr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+4.))))
-              wfall_Nr(i,j,k) = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr_spl(i,j,k))**(-1.*(mur_spl(i,j,k)+1.))))
-              sed_qr  (i,j,k) = wfall_qr(i,j,k)*qr_spl(i,j,k)*rhof(k)
-              sed_Nr  (i,j,k) = wfall_Nr(i,j,k)*Nr_spl(i,j,k)
+          if (qrmask_spl(i,j,k)) then
+            sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
+            sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
+
+            qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+            Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+            if (k .gt. 1) then
+              qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+              Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+
+              if (qr_spl(i,j,k-1) .lt. 0.) then
+                write(6,*)'sed_qr too large', myid,i,j,k
+              endif
+            endif
+            if (k .eq. qrroof .and. qr_spl(i,j,k) .lt. 0.) then
+                write(6,*)'sed_qr too large', myid,i,j,k
+            endif
+
+            if (jn==1) then
+              precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+            endif
           endif
         enddo
         enddo
         enddo
+      endif ! l_sb
 
-      endif !l_lognormal
-
-    else
-    !
-    ! KK00 rain sedimentation
-    !
-      do j=2,j1
-      do i=2,i1
-      do k=1,k1
-        if (qr_spl(i,j,k) > qrmin) then
-           xr_spl(i,j,k) = rhof(k)*qr_spl(i,j,k)/(Nr_spl(i,j,k)+eps0) !JvdD added eps0 to avoid division by zero
-           xr_spl(i,j,k) = min(xr_spl(i,j,k),xrmaxkk) ! to ensure xr is within borders
-           Dvr_spl(i,j,k) = (xr_spl(i,j,k)/pirhow)**(1./3.)
-           sed_qr(i,j,k) = max(0., 0.006*1.0E6*Dvr_spl(i,j,k)- 0.2) * qr_spl(i,j,k)*rhof(k)
-           sed_Nr(i,j,k) = max(0.,0.0035*1.0E6*Dvr_spl(i,j,k)- 0.1) * Nr_spl(i,j,k)
-        endif
-      enddo
-      enddo
-      enddo
-
-    end if !l_sb
-!
-    do k = 1,kmax
-      do j=2,j1
-      do i=2,i1
-        wvar(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-      enddo
-      enddo
-      if (any(wvar(2:i1,2:j1,k) .lt. 0.)) then
-        write(6,*)'sed qr too large', count(wvar(2:i1,2:j1,k) .lt. 0.),myid, minval(wvar), minloc(wvar)
-      end if
-      do j=2,j1
-      do i=2,i1
-        Nr_spl(i,j,k) = Nr_spl(i,j,k) + &
-                (sed_Nr(i,j,k+1) - sed_Nr(i,j,k))*dt_spl/dzf(k)
-        qr_spl(i,j,k) = qr_spl(i,j,k) + &
-                (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
-      enddo
-      enddo
-
-      if ( jn == 1 ) then
-      do j=2,j1
-      do i=2,i1
-        precep(i,j,k) =  sed_qr(i,j,k)/rhof(k)   ! kg kg-1 m s-1
-      enddo
-      enddo
-      endif
-
-    end do  ! second k loop
-!
     enddo ! time splitting loop
 
-    Nrp(2:i1,2:j1,1:k1)= Nrp(2:i1,2:j1,1:k1) + (Nr_spl(2:i1,2:j1,1:k1) - Nr(2:i1,2:j1,1:k1))/delt
-    qrp(2:i1,2:j1,1:k1)= qrp(2:i1,2:j1,1:k1) + (qr_spl(2:i1,2:j1,1:k1) - qr(2:i1,2:j1,1:k1))/delt
+    Nrp(:,:,1:qrroof) = Nrp(:,:,1:qrroof) + (Nr_spl(:,:,1:qrroof) - Nr(:,:,1:qrroof))/delt
+    qrp(:,:,1:qrroof) = qrp(:,:,1:qrroof) + (qr_spl(:,:,1:qrroof) - qr(:,:,1:qrroof))/delt
 
-    deallocate (wvar, xr_spl,Dvr_spl,mur_spl,lbdr_spl,Dgr)
+    deallocate(qr_spl, Nr_spl, qrmask_spl)
+
   end subroutine sedimentation_rain
 
   !*********************************************************************
@@ -724,100 +687,90 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : ih,i1,jh,j1,k1,rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,qvsl,rhof,exnf
+    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
+    use modmicrodata, only : Nr, mur, Dv, &
+                             inr, iqr, Kt, &
+                             l_sb, &
+                             a_tvsb, b_tvsb, c_tvsb, &
+                             nu_a, Sc_num, avf, bvf, &
+                             c_Nevap, c_evapkk, delt, &
+                             qrmask, lbdr, xr, Dvr, qrp, Nrp, &
+                             qtpmcr, thlpmcr
     implicit none
     integer :: i,j,k
-    real, allocatable :: F(:,:,:),S(:,:,:),G(:,:,:)
     integer :: numel
 
-    allocate( F(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! ventilation factor
-              ,S(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! super or undersaturation
-              ,G(2-ih:i1+ih,2-jh:j1+jh,k1)     & ! cond/evap rate of a drop
-             )
+    real :: F !< ventilation factor
+    real :: S !< super or undersaturation
+    real :: G !< cond/evap rate of a drop
 
-    evap(2:i1,2:j1,1:k1) = 0.
-    Nevap(2:i1,2:j1,1:k1) = 0.
+    real :: evap, Nevap
 
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-      if (qrmask(i,j,k)) then
-        S   (i,j,k) = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-        G   (i,j,k) = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-        G   (i,j,k) = 1./G(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-
-
-    if (l_sb ) then
+    if (l_sb) then
+       do k=1,qrroof
        do j=2,j1
        do i=2,i1
-       do k=1,k1
          if (qrmask(i,j,k)) then
            numel=nint(mur(i,j,k)*100.)
-           F(i,j,k) = avf * mygamma21(numel)*Dvr(i,j,k) +  &
+           F = avf * mygamma21(numel)*Dvr(i,j,k) +  &
               bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
               (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
                  -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
-! *lbdr(i,j,k)**(mur(i,j,k)+1.)/f_gamma_1(i,j,k) factor moved to F
-            evap(i,j,k) = 2*pi*Nr(i,j,k)*G(i,j,k)*F(i,j,k)*S(i,j,k)/rhof(k)
-            Nevap(i,j,k) = c_Nevap*evap(i,j,k)*rhof(k)/xr(i,j,k)
+           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+           G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+           G = 1./G
+
+           evap = 2*pi*Nr(i,j,k)*G*F*S/rhof(k)
+           Nevap = c_Nevap*evap*rhof(k)/xr(i,j,k)
+
+           if (evap < -svm(i,j,k,iqr)/delt) then
+             Nevap = - svm(i,j,k,inr)/delt
+             evap  = - svm(i,j,k,iqr)/delt
+           endif
+       
+           qrp(i,j,k) = qrp(i,j,k) + evap
+           Nrp(i,j,k) = Nrp(i,j,k) + Nevap
+           qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
+           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
          endif
        enddo
        enddo
        enddo
-
-    else
+    else ! l_sb
+       do k=1,qrroof
        do j=2,j1
        do i=2,i1
-       do k=1,k1
-        if (qrmask(i,j,k)) then
-           evap(i,j,k) = c_evapkk*2*pi*Dvr(i,j,k)*G(i,j,k)*S(i,j,k)*Nr(i,j,k)/rhof(k)
-           Nevap(i,j,k) = evap(i,j,k)*rhof(k)/xr(i,j,k)
-        endif
+         if (qrmask(i,j,k)) then
+           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+           G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+           G = 1./G
+
+           evap = c_evapkk*2*pi*Dvr(i,j,k)*G*S*Nr(i,j,k)/rhof(k)
+           Nevap = evap*rhof(k)/xr(i,j,k)
+
+           if (evap < -svm(i,j,k,iqr)/delt) then
+             Nevap = - svm(i,j,k,inr)/delt
+             evap  = - svm(i,j,k,iqr)/delt
+           endif
+       
+           qrp(i,j,k) = qrp(i,j,k) + evap
+           Nrp(i,j,k) = Nrp(i,j,k) + Nevap
+           qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
+           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
+         endif
        enddo
        enddo
        enddo
-
-    endif
-
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-       if (evap(i,j,k) < -svm(i,j,k,iqr)/delt .and. qrmask(i,j,k)) then
-          Nevap(i,j,k) = - svm(i,j,k,inr)/delt
-          evap (i,j,k) = - svm(i,j,k,iqr)/delt
-       endif
-    enddo
-    enddo
-    enddo
-
-    do j=2,j1
-    do i=2,i1
-    do k=1,k1
-    qrp(i,j,k) = qrp(i,j,k) + evap(i,j,k)
-    Nrp(i,j,k) = Nrp(i,j,k) + Nevap(i,j,k)
-    qtpmcr(i,j,k) = qtpmcr(i,j,k) -evap(i,j,k)
-    thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap(i,j,k)
-    enddo
-    enddo
-    enddo
-
-    deallocate (F,S,G)
-
-
+     endif
   end subroutine evaporation
 
   !*********************************************************************
   !*********************************************************************
 
   real function sed_flux(Nin,Din,sig2,Ddiv,nnn)
-
   !*********************************************************************
   ! Function to calculate numerically the analytical solution of the
   ! sedimentation flux between Dmin and Dmax based on
@@ -848,8 +801,6 @@ module modbulkmicro
             ,D_max        & ! max integration limit
             ,flux           ![kg m^-2 s^-1]
 
-    integer :: k
-
     flux = 0.0
 
     if (Din < Ddiv) then
@@ -859,35 +810,34 @@ module modbulkmicro
       D_max = Ddiv
       flux = C*Nin*alfa*erfint(beta,Din,D_min,D_max,sig2,nnn)
     else
-      do k = 1,3
-        select case(k)
-        case(1)        ! fall speed ~ D^2
-          alfa = 3.e5*100 ![1/m 1/s]
-          beta = 2
-          D_min = Ddiv
-          D_max = 133e-6
-        case(2)        ! fall speed ~ D
-          alfa = 4e3     ![1/s]
-          beta = 1
-          D_min = 133e-6
-          D_max = 1.25e-3
-        case default         ! fall speed ~ sqrt(D)
-          alfa = 1.4e3 *0.1  ![m^.5 1/s]
-          beta = .5
-          D_min = 1.25e-3
-          D_max = D_intmax
-        end select
-        flux = flux + C*Nin*alfa*erfint(beta,Din,D_min,D_max,sig2,nnn)
-      end do
-    end if
-      sed_flux = flux
+      ! fall speed ~ D^2
+      alfa = 3.e5*100 ![1/m 1/s]
+      beta = 2
+      D_min = Ddiv
+      D_max = 133e-6
+      flux = flux + C*Nin*alfa*erfint(beta,Din,D_min,D_max,sig2,nnn)
+
+      ! fall speed ~ D
+      alfa = 4e3     ![1/s]
+      beta = 1
+      D_min = 133e-6
+      D_max = 1.25e-3
+      flux = flux + C*Nin*alfa*erfint(beta,Din,D_min,D_max,sig2,nnn)
+
+      ! fall speed ~ sqrt(D)
+      alfa = 1.4e3 *0.1  ![m^.5 1/s]
+      beta = .5
+      D_min = 1.25e-3
+      D_max = D_intmax
+      flux = flux + C*Nin*alfa*erfint(beta,Din,D_min,D_max,sig2,nnn)
+    endif
+    sed_flux = flux
   end function sed_flux
 
   !*********************************************************************
   !*********************************************************************
 
   real function liq_cont(Nin,Din,sig2,Ddiv,nnn)
-
   !*********************************************************************
   ! Function to calculate numerically the analytical solution of the
   ! liq. water content between Dmin and Dmax based on
@@ -909,18 +859,14 @@ module modbulkmicro
                       ,D_intmax = 3e-3         !4.3e-3    !  value is now max value for sqrt fall speed rel.
 
     real ::  D_min        & ! min integration limit
-            ,D_max          ! max integration limit
+            ,D_max        & ! max integration limit
+            ,sn
 
-    if (Din < Ddiv) then
-    D_min = D_intmin
-    D_max = Ddiv
-    else
-    D_min = Ddiv
-    D_max = D_intmax
-    end if
+    sn = sign(0.5, Din - Ddiv)
+    D_min = (0.5 - sn) * D_intmin + (0.5 + sn) * Ddiv
+    D_max = (0.5 - sn) * Ddiv     + (0.5 + sn) * D_intmax
 
     liq_cont = C*Nin*erfint(beta,Din,D_min,D_max,sig2,nnn)
-
   end function liq_cont
 
   !*********************************************************************
@@ -953,19 +899,10 @@ module modbulkmicro
 
     erfymin = 1.-1./((1.+a1*abs(ymin) + a2*abs(ymin)**2 + a3*abs(ymin)**3 +a4*abs(ymin)**4)**4)
     erfymax = 1.-1./((1.+a1*abs(ymax) + a2*abs(ymax)**2 + a3*abs(ymax)**3 +a4*abs(ymax)**4)**4)
-    if (ymin < 0.) then
-      erfymin = -1.*erfymin
-    end if
-    if (ymax < 0.) then
-      erfymax = -1.*erfymax
-    end if
-    erfint = D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin)
-  !  if (erfint < 0.) write(*,*)'erfint neg'
-    if (erfint < 0.) erfint = 0.
+
+    erfymin = sign(erfymin, ymin)
+    erfymax = sign(erfymax, ymax)
+
+    erfint = max(0., D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin))
   end function erfint
-
-
-
 end module modbulkmicro
-
-
