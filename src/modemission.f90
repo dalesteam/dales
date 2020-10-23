@@ -32,7 +32,7 @@ contains
 
   subroutine initemission
 
-    use modglobal,    only : i2, j2,kmax, nsv, ifnamopt, fname_options
+    use modglobal,    only : i2, j2,kmax, nsv, ifnamopt, fname_options, checknamelisterror
     use modmpi,       only : myid, comm3d, mpi_logical, mpi_integer, mpi_character
     use moddatetime,  only : datex, prevday, nextday
 
@@ -46,14 +46,9 @@ contains
 
     if (myid == 0) then
 
-      open(ifnamopt, file=fname_options, status='old', iostat=ierr)
-      read(ifnamopt, NAMEMISSION, iostat=ierr)
-
-      if (ierr > 0) then
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMEMISSION'
-      endif
-
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,NAMEMISSION,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMEMISSION')
       write(6, NAMEMISSION)
       close(ifnamopt)
 
@@ -129,8 +124,8 @@ contains
 
     do isv = 1+svskip, nsv
 
-      call check( nf90_open( trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', IOR(NF90_NOWRITE, NF90_MPIIO), &
-                              ncid, comm = comm3d, info = MPI_INFO_NULL) )
+      call check( nf90_open( trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
+
       call check( nf90_inq_varid( ncid, emisnames(isv-svskip), varid) )
       call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), & 
                                   start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
