@@ -90,9 +90,9 @@ contains
       close(ifnamopt)
     end if
 
-    if (lcross .and. (isurf .ne. 1)) then
+    if (lcross .and. .not. (isurf == 1 .or. isurf == 11)) then
        lcross = .FALSE.
-       write (6,*) "Ignoring lcross, lsmcrossection currently implemented only for isurf==1."
+       write (6,*) "Ignoring lcross, lsmcrossection currently implemented only for isurf==1 or 11."
     endif
 
     call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
