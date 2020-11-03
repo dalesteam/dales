@@ -30,7 +30,7 @@ module modlsm
     integer :: iinterp_t, iinterp_theta
     integer, parameter :: iinterp_amean = 1  ! val = 0.5*(v1+v2)
     integer, parameter :: iinterp_gmean = 2  ! val = sqrt(v1*v2)
-    integer, parameter :: iinterp_hmean = 3  ! val = ((dz1+dz2)*v1*v2)/(dz1*v1+dz2*v2)
+    integer, parameter :: iinterp_hmean = 3  ! val = ((dz1+dz2)*v1*v2)/(dz1*v2+dz2*v1)
     integer, parameter :: iinterp_max   = 4  ! val = max(a,b)
 
     ! Soil grid
@@ -663,7 +663,7 @@ subroutine interpolate_soil(fieldh, field, iinterp)
             do j=2,j1
                 do i=2,i1
                     fieldh(i,j,k) = ((dz_soil(k-1)+dz_soil(k))*field(i,j,k-1)*field(i,j,k)) / &
-                            (dz_soil(k)*field(i,j,k) + dz_soil(k-1)*field(i,j,k-1))
+                            (dz_soil(k-1)*field(i,j,k) + dz_soil(k)*field(i,j,k-1))
                 end do
             end do
         end do
