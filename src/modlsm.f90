@@ -375,7 +375,6 @@ subroutine calc_obuk_ustar_ra(tile)
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
                     tile%obuk(i,j), du_tot(i,j), tile%db(i,j), zf(1), tile%z0m(i,j), tile%z0h(i,j))
-
             end if
         end do
     end do
@@ -516,8 +515,8 @@ end subroutine calc_water_bcs
 ! the diffusion scheme, thermodynamics, ...
 !
 subroutine calc_bulk_bcs
-    use modglobal,   only : i1, j1, cp, rlv, fkar, zf, cu, cv
-    use modfields,   only : rhof, thl0, qt0, u0, v0
+    use modglobal,   only : i1, j1, cp, rlv, fkar, zf, cu, cv, grav, rv, rd
+    use modfields,   only : rhof, thl0, qt0, u0, v0, thvh
     use modsurface,  only : phim, phih
     use modmpi,      only : excjs
     use modsurfdata, only : &
@@ -526,7 +525,7 @@ subroutine calc_bulk_bcs
     implicit none
 
     integer :: i, j
-    real :: rhocp_i, rholv_i, ucu, vcv, cveg
+    real :: rhocp_i, rholv_i, ucu, vcv, cveg, bflux
 
     rhocp_i = 1. / (rhof(1) * cp)
     rholv_i = 1. / (rhof(1) * rlv)
@@ -566,12 +565,6 @@ subroutine calc_bulk_bcs
                          tile_ws%frac(i,j) * tile_ws%ustar(i,j) + &
                          tile_aq%frac(i,j) * tile_aq%ustar(i,j)
 
-            obl(i,j) = tile_lv%frac(i,j) * tile_lv%obuk(i,j) + &
-                       tile_hv%frac(i,j) * tile_hv%obuk(i,j) + &
-                       tile_bs%frac(i,j) * tile_bs%obuk(i,j) + &
-                       tile_ws%frac(i,j) * tile_ws%obuk(i,j) + &
-                       tile_aq%frac(i,j) * tile_aq%obuk(i,j)
-
             tskin(i,j) = tile_lv%frac(i,j) * tile_lv%thlskin(i,j) + &
                          tile_hv%frac(i,j) * tile_hv%thlskin(i,j) + &
                          tile_bs%frac(i,j) * tile_bs%thlskin(i,j) + &
@@ -587,6 +580,11 @@ subroutine calc_bulk_bcs
             ! Kinematic surface fluxes
             thlflux(i,j) =  H(i,j)  * rhocp_i
             qtflux (i,j) =  LE(i,j) * rholv_i
+
+            ! Calculate mean Obukhov length from mean fluxes
+            bflux = grav/thvh(1) * (thlflux(i,j) * (1.-(1.-rv/rd)*qskin(i,j)) - &
+                (1.-rv/rd)*tskin(i,j)*qtflux(i,j))
+            obl(i,j) = -ustar(i,j)**3 / (fkar * bflux)
 
             ! MO gradients
             dthldz(i,j) = -thlflux(i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
@@ -605,11 +603,8 @@ subroutine calc_bulk_bcs
             ! Just for diagnostics (modlsmcrosssection)
             cliq(i,j) = tile_ws%frac(i,j) / land_frac(i,j)
 
-            ra(i,j) = tile_lv%frac(i,j) * tile_lv%ra(i,j) + &
-                      tile_hv%frac(i,j) * tile_hv%ra(i,j) + &
-                      tile_bs%frac(i,j) * tile_bs%ra(i,j) + &
-                      tile_ws%frac(i,j) * tile_ws%ra(i,j) + &
-                      tile_aq%frac(i,j) * tile_aq%ra(i,j)
+            ! Calculate ra consistent with mean flux and temperature difference:
+            ra(i,j) = (tskin(i,j) - thl0(i,j,1)) / thlflux(i,j)
 
             cveg = tile_lv%frac(i,j) + tile_hv%frac(i,j)
             if (cveg > 0) then

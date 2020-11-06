@@ -912,6 +912,7 @@ contains
       Hav    = mean_2d(H)
       LEav   = mean_2d(LE)
       G0av   = mean_2d(G0)
+      oblav  = mean_2d(obl)
 
       ! Tiled variables
       obuk_lv_av = mean_2d(tile_lv%obuk)
