@@ -33,11 +33,12 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 20
+  integer :: nvar = 20
   integer :: ncid4 = 0
   integer :: nrec = 0
   character(80) :: fname = 'cape.xxxxyxxx.xxx.nc'
-  character(80),dimension(nvar,4) :: ncname
+  character(80), allocatable, dimension(:,:) :: ncname
+
   character(80),dimension(1,4) :: tncname
   real    :: dtav
   integer(kind=longint) :: idtav,tnext
@@ -49,11 +50,13 @@ contains
   subroutine initcape
     use mpi
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,&
+                        btime,checknamelisterror,nsv
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
    implicit none
 
-    integer :: ierr
+    integer :: ierr, n
+    character(3) :: csvname
 
     namelist/NAMCAPE/ &
     lcape, dtav
@@ -79,6 +82,9 @@ contains
       stop 'cape: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
+
+    nvar = 20 + max(nsv-2, 0) ! add vertical integrals of scalars beyond the two for rain
+    allocate(ncname(nvar,4))
     fname(6:13) = cmyid
     fname(15:17) = cexpnr
     call nctiminfo(tncname(1,:))
@@ -102,6 +108,11 @@ contains
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
     call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','-','tt0t')
+    do n = 3, nsv
+       write (csvname(1:3),'(i3.3)') n
+       call ncinfo(ncname( 20 + n-2,:),'isv'//csvname,'vertically integrated sv'//csvname,'kg/m^2','tt0t')
+    end do
+
     call open_nc(fname,  ncid4,nrec,n1=imax,n2=jmax)
     if (nrec==0) then
       call define_nc( ncid4, 1, tncname)
@@ -122,6 +133,7 @@ contains
     use modmicrodata, only : iqr, precep, imicro
     use modmpi
     implicit none
+    integer :: n
 
     real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
     cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
@@ -445,6 +457,16 @@ contains
       vars(:,:,18) = twp(2:i1,2:j1)
       vars(:,:,19) = cldtop(2:i1,2:j1)
       vars(:,:,20)= sprec(2:i1,2:j1)
+
+      ! Vertical integrals of scalar variables
+      do n = 3,nsv  ! vars(:,:,21) = integral of sv003 ... etc
+         do j=1,jmax
+            do i=1,imax
+               vars(i,j,20+n-2) = sum(rhobf(1:kmax)*sv0(i+1,j+1,1:kmax,n)*dzf(1:kmax))
+            end do
+         end do
+      end do
+
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
       deallocate(vars)
@@ -461,9 +483,10 @@ contains
     implicit none
 
     if(lcape .and. lnetcdf) then
-    call exitstat_nc(ncid4)
+       call exitstat_nc(ncid4)
+       deallocate(ncname)
     end if
-
+ 
   end subroutine exitcape
 
 end module modcape
