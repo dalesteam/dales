@@ -323,7 +323,7 @@ contains
       aver(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
 
-    call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kes-kbs+1, MY_REAL, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, aver(kbs:kes), kes-kbs+1, MY_REAL, MPI_SUM, comm3d, mpierr)
 
   end subroutine slabsum
   
