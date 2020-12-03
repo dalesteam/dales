@@ -45,7 +45,7 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id
+    use modglobal, only : solver_id !,i1,j1,ih,jh,kmax
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre
@@ -64,7 +64,7 @@ contains
       ! using FFT based solver as fallback
       call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
 
-      !NOTE: If you dont want to do that, you will need the line below
+      !NOTE: If you don't want to do that, you will need the line below
       !allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
       call inithypre
