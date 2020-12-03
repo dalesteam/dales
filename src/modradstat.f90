@@ -246,13 +246,13 @@ contains
     thlswtendav = 0.
     thltendav = 0.
 
-    call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swdirav ,1,k1,swdir ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(lwdav, lwd, 2,i1,2,j1,1,k1)
+    call slabsum(lwuav, lwu, 2,i1,2,j1,1,k1)
+    call slabsum(swdav, swd, 2,i1,2,j1,1,k1)
+    call slabsum(swdirav, swdir, 2,i1,2,j1,1,k1)
+    call slabsum(swdifav, swdif, 2,i1,2,j1,1,k1)
+    call slabsum(swuav, swu, 2,i1,2,j1,1,k1)
+    call slabsum(thltendav, thlprad, 2,i1,2,j1,1,k1)
 
     do k=1,kmax
        thllwtendav(k) = (abs(lwdav(k+1)) - abs(lwuav(k+1)) - abs(lwdav(k)) + abs(lwuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
@@ -327,10 +327,10 @@ contains
       call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
 
 
-    call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(lwucaav ,1,k1,lwuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swdcaav ,1,k1,swdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swucaav ,1,k1,swuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(lwdcaav, lwdca, 2,i1,2,j1,1,k1)
+    call slabsum(lwucaav, lwuca, 2,i1,2,j1,1,k1)
+    call slabsum(swdcaav, swdca, 2,i1,2,j1,1,k1)
+    call slabsum(swucaav, swuca, 2,i1,2,j1,1,k1)
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 

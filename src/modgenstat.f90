@@ -669,12 +669,12 @@ contains
 
     call MPI_ALLREDUCE(cfracavl,cfracav,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
 
-    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(umav  ,um  ,2,i1,2,j1,1,k1)
+    call slabsum(vmav  ,vm  ,2,i1,2,j1,1,k1)
+    call slabsum(thlmav,thlm,2,i1,2,j1,1,k1)
+    call slabsum(qtmav ,qtm ,2,i1,2,j1,1,k1)
+    call slabsum(qlmav ,ql0 ,2,i1,2,j1,1,k1)
+    call slabsum(thvmav,thv0,2,i1,2,j1,1,k1)
 
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
@@ -689,7 +689,7 @@ contains
   !
 
     do n=1,nsv
-      call slabsum(svmav(1,n),1,k1,svm(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(svmav(:,n),svm(:,:,:,n),2,i1,2,j1,1,k1)
     enddo
     svmav = svmav/ijtot
   !------------------------------------------------------------------

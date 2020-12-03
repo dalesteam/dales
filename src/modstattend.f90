@@ -202,27 +202,27 @@ subroutine initstattend
     allocate(avfield(k1))
 
     avfield = 0.0
-    call slabsum(avfield  ,1,k1,up  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,up  ,2,i1,2,j1,1,k1)
     upav(:,tendterm) = avfield  - upav(:,tend_tot)
     upav(:,tend_tot)  = avfield
 
     avfield = 0.0
-    call slabsum(avfield  ,1,k1,vp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,vp  ,2,i1,2,j1,1,k1)
     vpav(:,tendterm) = avfield  - vpav(:,tend_tot)
     vpav(:,tend_tot)  = avfield
 
     avfield = 0.0
-    call slabsum(avfield  ,1,k1,wp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,wp  ,2,i1,2,j1,1,k1)
     wpav(:,tendterm) = avfield  - wpav(:,tend_tot)
     wpav(:,tend_tot)  = avfield
 
     avfield = 0.0
-    call slabsum(avfield  ,1,k1,thlp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,thlp  ,2,i1,2,j1,1,k1)
     thlpav(:,tendterm) = avfield  - thlpav(:,tend_tot)
     thlpav(:,tend_tot)  = avfield
 
     avfield = 0.0
-    call slabsum(avfield  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,qtp  ,2,i1,2,j1,1,k1)
     qtpav(:,tendterm) = avfield  - qtpav(:,tend_tot)
     qtpav(:,tend_tot)  = avfield
 

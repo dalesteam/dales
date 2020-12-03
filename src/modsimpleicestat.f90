@@ -316,15 +316,15 @@ subroutine initsimpleicestat
     ifield    = mod(ifield, nrfields) + 1
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,Nrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield, Nrp, 2,i1,2,j1,1,k1)
     Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,qrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield, qrp, 2,i1,2,j1,1,k1)
     qlpav(:,ifield) = avfield - sum(qlpav  (:,1:ifield-1),2)
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield, qtp, 2,i1,2,j1,1,k1)
     qtpav(:,ifield) = avfield - sum(qtpav  (:,1:ifield-1),2)
 
     if (ifield == nrfields) then

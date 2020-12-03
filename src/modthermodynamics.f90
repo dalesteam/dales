@@ -79,7 +79,7 @@ contains
     ! recalculate thv and rho on the basis of results
     call calthv
     thvh=0.
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+    call slabsum(thvh,thv0h,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
     do k=1,k1
@@ -87,7 +87,7 @@ contains
                  *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
     enddo
     thvf = 0.0
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thvf, thv0, 2,i1,2,j1,1,k1)
     thvf = thvf/ijtot
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
@@ -248,11 +248,11 @@ contains
     sv0av = 0.
 
 !  !CvH changed momentum array dimensions to same value as scalars!
-  call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+  call slabsum(u0av  ,u0  ,2,i1,2,j1,1,k1)
+  call slabsum(v0av  ,v0  ,2,i1,2,j1,1,k1)
+  call slabsum(thl0av,thl0,2,i1,2,j1,1,k1)
+  call slabsum(qt0av ,qt0 ,2,i1,2,j1,1,k1)
+  call slabsum(ql0av ,ql0 ,2,i1,2,j1,1,k1)
    u0av  = u0av  /ijtot + cu
    v0av  = v0av  /ijtot + cv
    thl0av = thl0av/ijtot
@@ -262,7 +262,7 @@ contains
    exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
    do n=1,nsv
-      call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(sv0av(:,n),sv0(:,:,:,n),2,i1,2,j1,1,k1)
    end do
    sv0av = sv0av/ijtot
 !***********************************************************

@@ -311,30 +311,20 @@ contains
   return
   end subroutine excjs
 
-  subroutine slabsum(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum(aver,var,ibs,ies,jbs,jes,kbs,kes)
     implicit none
+    integer, intent(in)  :: ibs,ies,jbs,jes,kbs,kes
+    real, intent(out)    :: aver(:)
+    real, intent(in)     :: var(:,:,:)
 
-    integer :: ks,kf
-    integer :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
-    real    :: aver(ks:kf)
-    real    :: var (ib:ie,jb:je,kb:ke)
-    real    :: averl(ks:kf)
-    real    :: avers(ks:kf)
     integer :: k
 
-    averl       = 0.
-    avers       = 0.
-
     do k=kbs,kes
-      averl(k) = sum(var(ibs:ies,jbs:jes,k))
+      aver(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
 
-    call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MY_REAL, &
-                       MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kes-kbs+1, MY_REAL, MPI_SUM, comm3d, mpierr)
 
-    aver = aver + avers
-
-    return
   end subroutine slabsum
   
   subroutine mpi_get_time(val)

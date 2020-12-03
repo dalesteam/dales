@@ -409,11 +409,11 @@ contains
     maskh= .false.
 
     thvav = 0.0
-    call slabsum(thvav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thvav, thv0, 2,i1,2,j1,1,k1)
     thvav = thvav/ijtot
 
     thvhav = 0.0
-    call slabsum(thvhav,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thvhav, thv0h, 2,i1,2,j1,1,k1)
     thvhav = thvhav/ijtot
 
 

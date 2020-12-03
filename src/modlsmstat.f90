@@ -184,11 +184,11 @@ contains
     lambdasav  = 0.
     gammasav = 0.
 
-    call slabsum(tsoilav ,1,ksoilmax,tsoil ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(phiwav ,1,ksoilmax,phiw ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(lambdaav ,1,ksoilmax,lambda ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(lambdasav ,1,ksoilmax,lambdas ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
-    call slabsum(gammasav ,1,ksoilmax,gammas ,1,i2,1,j2,1,ksoilmax,2,i1,2,j1,1,ksoilmax)
+    call slabsum(tsoilav, tsoil, 2,i1,2,j1,1,ksoilmax)
+    call slabsum(phiwav, phiw, 2,i1,2,j1,1,ksoilmax)
+    call slabsum(lambdaav, lambda, 2,i1,2,j1,1,ksoilmax)
+    call slabsum(lambdasav, lambdas, 2,i1,2,j1,1,ksoilmax)
+    call slabsum(gammasav, gammas, 2,i1,2,j1,1,ksoilmax)
  !    ADD SLAB AVERAGES TO TIME MEAN
 
     phiwmn = phiwmn + phiwav/ijtot

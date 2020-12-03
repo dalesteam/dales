@@ -463,7 +463,7 @@ contains
         windfield = utot
     end select
 
-    call slabsum(windfav,klow,khigh,windfield,2,i1,2,j1,klow,khigh,2,i1,2,j1,klow,khigh)
+    call slabsum(windfav,windfield,2,i1,2,j1,klow,khigh)
     windfav   = windfav / ijtot
 
 !!  Quadrant 1: u' > 0, w' > 0
@@ -493,7 +493,7 @@ contains
       do k=klow,khigh
         uwhole(:,:,k) = w0(2:i1,2:j1,k)*(windfield(2:i1,2:j1,k) - windfav(k))
       end do
-      call slabsum(uwholeav,klow,khigh,uwhole,2,i1,2,j1,klow,khigh,2,i1,2,j1,klow,khigh)
+      call slabsum(uwholeav,uwhole,2,i1,2,j1,klow,khigh)
       uwholeav        = uwholeav / ijtot
       do k=klow,khigh
         mask(:,:,k)   = mask(:,:,k) .and. ( abs(uwhole(:,:,k)).gt.(hole*abs(uwholeav(k))) )

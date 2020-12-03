@@ -661,11 +661,11 @@ contains
       end do
 
       thvh=0.
-      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+      call slabsum(thvh,thv0h,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
       thvh = thvh/ijtot
 
       thvf = 0.0
-      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(thvf,thv0,2,i1,2,j1,1,k1)
       thvf = thvf/ijtot
 
       u0av = 0.0
@@ -676,13 +676,13 @@ contains
       ql0av  = 0.0
       sv0av = 0.
 
-      call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(u0av  ,u0  ,2,i1,2,j1,1,k1)
+      call slabsum(v0av  ,v0  ,2,i1,2,j1,1,k1)
+      call slabsum(thl0av,thl0,2,i1,2,j1,1,k1)
+      call slabsum(qt0av ,qt0 ,2,i1,2,j1,1,k1)
+      call slabsum(ql0av ,ql0 ,2,i1,2,j1,1,k1)
       do n=1,nsv
-        call slabsum(sv0av(1,n),1,k1,sv0(1,1,1,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(sv0av(:,n),sv0(:,:,:,n),2,i1,2,j1,1,k1)
       end do
 
       u0av  = u0av  /ijtot + cu
