@@ -408,14 +408,11 @@ contains
     maskf = .false.
     maskh= .false.
 
-    thvav = 0.0
     call slabsum(thvav, thv0, 2,i1,2,j1,1,k1)
     thvav = thvav/ijtot
 
-    thvhav = 0.0
     call slabsum(thvhav, thv0h, 2,i1,2,j1,1,k1)
     thvhav = thvhav/ijtot
-
 
     select case (samplname(isamp))
     case ('upd')

@@ -639,18 +639,11 @@ contains
     thv2avl   = 0.0
     th2avl    = 0.0
     ql2avl    = 0.0
-    thvmav    = 0.0
 
     sv2av   = 0.0
 
-    umav = 0.0
-    vmav = 0.0
-    thlmav = 0.0
     thmav  = 0.0
-    qtmav  = 0.0
-    qlmav  = 0.0
     cfracav= 0.0
-    svmav = 0.
 
     cszav = 0.
 

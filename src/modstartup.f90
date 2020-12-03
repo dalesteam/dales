@@ -660,21 +660,12 @@ contains
       end do
       end do
 
-      thvh=0.
       call slabsum(thvh,thv0h,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
       thvh = thvh/ijtot
 
-      thvf = 0.0
       call slabsum(thvf,thv0,2,i1,2,j1,1,k1)
       thvf = thvf/ijtot
 
-      u0av = 0.0
-      v0av = 0.0
-      thl0av = 0.0
-      th0av  = 0.0
-      qt0av  = 0.0
-      ql0av  = 0.0
-      sv0av = 0.
 
       call slabsum(u0av  ,u0  ,2,i1,2,j1,1,k1)
       call slabsum(v0av  ,v0  ,2,i1,2,j1,1,k1)

@@ -178,12 +178,6 @@ contains
 
     implicit none
 
-    tsoilav  = 0.
-    phiwav  = 0.
-    lambdaav  = 0.
-    lambdasav  = 0.
-    gammasav = 0.
-
     call slabsum(tsoilav, tsoil, 2,i1,2,j1,1,ksoilmax)
     call slabsum(phiwav, phiw, 2,i1,2,j1,1,ksoilmax)
     call slabsum(lambdaav, lambda, 2,i1,2,j1,1,ksoilmax)

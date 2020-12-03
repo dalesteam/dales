@@ -371,7 +371,6 @@ subroutine initsamptend
         w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
       end do
 
-      thvav = 0.0
       call slabsum(thvav, thv0, 2,i1,2,j1,1,k1)
       thvav = thvav/ijtot
 
@@ -553,7 +552,6 @@ subroutine initsamptend
         w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
       end do
 
-      thvav = 0.0
       call slabsum(thvav, thv0, 2,i1,2,j1,1,k1)
       thvav = thvav/ijtot
 

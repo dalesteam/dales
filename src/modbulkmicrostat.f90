@@ -318,15 +318,12 @@ subroutine initbulkmicrostat
 
     ifield    = mod(ifield, nrfields) + 1
 
-    avfield    = 0.0
     call slabsum(avfield, Nrp, 2,i1,2,j1,1,k1)
     Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
 
-    avfield    = 0.0
     call slabsum(avfield, qrp, 2,i1,2,j1,1,k1)
     qlpav(:,ifield) = avfield - sum(qlpav  (:,1:ifield-1),2)
 
-    avfield    = 0.0
     call slabsum(avfield, qtp, 2,i1,2,j1,1,k1)
     qtpav(:,ifield) = avfield - sum(qtpav  (:,1:ifield-1),2)
 

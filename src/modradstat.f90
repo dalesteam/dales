@@ -289,10 +289,6 @@ contains
     integer :: i,j,k
 
     real :: exnersurf
-    lwdcaav  = 0.
-    lwucaav  = 0.
-    swdcaav  = 0.
-    swucaav  = 0.
 
 !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax

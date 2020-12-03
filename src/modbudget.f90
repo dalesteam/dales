@@ -685,7 +685,7 @@ end subroutine do_genbudget
     !----------------------------
     ! 2. Reset variables
     !----------------------------
-    sbtkeav=0.;sbshrav=0.;sbbuoav=0.;sbdissav=0;ekmav=0.;khkmav=0.
+    sbtkeav=0.;khkmav=0.
     sbtkeavl=0.;khkmavl=0.
 
     !----------------------------
