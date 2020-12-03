@@ -42,7 +42,6 @@ save
   logical       :: ltimedepuv   = .false. !< Switch for time-dependent u,v forcings from ls_flux.inp
   logical       :: ltimedepz    = .true.  !< Switch for large scale forcings
   logical       :: ltimedepsurf = .true.  !< Switch for surface fluxes
-
   integer    :: kflux
   integer    :: kls
 
@@ -75,7 +74,7 @@ contains
   subroutine inittimedep
     use mpi
     use modmpi,    only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf
+    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
 
@@ -97,8 +96,8 @@ contains
       kflux = ntnudge
       kls   = ntnudge
     else
-      kflux = 10000
-      kls   = 10000
+      kflux = ntimedep
+      kls   = ntimedep
     end if
 
     allocate(height   (k1))

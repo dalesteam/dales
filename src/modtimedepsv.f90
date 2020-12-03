@@ -57,8 +57,9 @@ contains
   subroutine inittimedepsv
     use mpi
     use modmpi,     only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal,  only :cexpnr,kmax,k1,ifinput,runtime,nsv
+    use modglobal,  only :cexpnr,kmax,k1,ifinput,runtime,nsv,ntimedep
     use modtestbed, only :ltestbed,ntnudge
+    
     implicit none
 
     character (80):: chmess
@@ -74,8 +75,8 @@ contains
       kflux = ntnudge
       kls   = ntnudge
     else
-      kflux = 10000
-      kls   = 10000
+      kflux = ntimedep
+      kls   = ntimedep
     end if
 
     allocate(height(k1))

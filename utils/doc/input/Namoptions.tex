@@ -217,7 +217,8 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   &&&&\\
   ltimedep	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes and large scale forcings	& -\\
   ltimedepuv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Also inlude u,v forcings in ls\_flux.inp & -\\
-    ltimedepsv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes of scalars	& -\\
+  ltimedepsv	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for timedependent fluxes of scalars	& -\\
+  ntimedep	& 100   	& $x\in \mathbb{N} $	                        & Maximum number of time points for time-dependent forcings & -\\
   lcoriol	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for coriolis force			& -\\
     &&&&\\
   \hypertarget{igrw}{igrw\_damp} & 2         & $x \in \{-1,0,1,2,3\}$	&	\begin{tabular}{@{\hspace{0cm}}p{6cm}}Flag for gravity wave damping\\0 = no damping \\1 = fast damping of wind to average wind \& slow damping of average to geowind \\2 = fast damping of wind to geowind  \\3 = fast damping of wind to average wind \\ -1 = nudging grid averaged wind to wind field provided by lscale.inp\\\end{tabular} & -\\

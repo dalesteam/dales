@@ -55,7 +55,9 @@ save
       character(50) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
+      integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
 
+      
       !< Parameter kinds, for rrtmg radiation scheme
       integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
       integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
