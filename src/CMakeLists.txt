@@ -15,21 +15,21 @@ add_custom_target(tag_git_version ALL
   )
 
 if(USE_HYPRE)
-  # Build the iterative solver
-  list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modnohypre.f90)
+  # Build the iterative Poisson solver
   list(APPEND OPTIONAL_LIBS ${HYPRE_LIB})
 else(USE_HYPRE)
   # Do not build the iterative solver, but use (empty) fallback functions
   list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modhypre.f90)
+  list(APPEND     sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/addon/modnohypre.f90)
 endif(USE_HYPRE)
 
 if(USE_FFTW)
-  # Build the iterative solver
-  list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modnofftw.f90)
+  # Build the FFTW-based Poisson solver
   list(APPEND OPTIONAL_LIBS ${FFTW_LIB})
 else(USE_FFTW)
   # Do not build the iterative solver, but use (empty) fallback functions
   list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modfftw.f90)
+  list(APPEND      sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/addon/modnofftw.f90)
 endif(USE_FFTW)
 
 # Stand-alone DALES program
