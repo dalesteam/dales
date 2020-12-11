@@ -49,6 +49,7 @@ module modcanopy
   real, allocatable :: padf(:)         !< plant area density field full level
   real, allocatable :: padh(:)         !< plant area density field half level
   real, allocatable :: pai(:)          !< plant area index of the column starting in this grid cell up to the canopy top
+  real, allocatable :: paih(:)         !< plant area index of the column starting in this grid cell up to the canopy top
 
   real              :: f_lai_h         !< average plant area density [m2/m2 / m]
   
@@ -58,28 +59,36 @@ module modcanopy
   logical :: lcanopyeb     = .false.   !< Switch to enable canopy surface energy balance per vertical level
   
   real    :: leaf_eps      = 0.95      !< Emissivity of leaves in the LW
-  real    :: transpiretype = 1         !< type of transpirer(1=hypostomatous, 2=amphistomatous,
+  real    :: transpiretype = 1.0       !< type of transpirer(1=hypostomatous, 2=amphistomatous,
                                        !< 1.25=hypostomatous with some transpiration through cuticle)
   real     :: lwidth       = 0.02      !< !leaf width/shoot diameter [m]                              
   real     :: llength      = 0.1       !< leaf/shoot length [m]                                      
+  real     :: lclump       = 1.0       !< effect of clumping / clustering of canopy leaves on radiation, no effect by default.                                      
+  !real     :: lthick       = 0.001     !< average leaf thickness[m]                                      
   logical  :: lrelaxgc_can = .false.   !< Switch to delay plant response at canopy.Timescale is equal to 1/kgc_can
   real     :: kgc_can      = 0.00113   !< Standard stomatal response rate at canopy (corresponding to a time scale of 14.75 m min.) [1/s]
   logical  :: gccan_old_set = .false.  !< Only apply relaxing function to canopy after initial gc is calculated once for surface
   logical  :: lrelaxci_can = .false.   !< Switch to delay internal CO2 concentration in canopy leafs.Timescale is equal to 1/kgc_can
   real     :: kci_can      = 0.00113   !< Standard internal CO2 concentration response rate at canopy (corresponding to a time scale of 14.75 m min.) [1/s]
   logical  :: cican_old_set = .false.  !< Only apply relaxing function to canopy after initial ci is calculated once for surface
-
-  real, allocatable :: cPARleaf_shad   (:)     !< PAR at shaded leaves per canopy vertical level [W m-2]
-  real, allocatable :: cPARleaf_sun    (:,:)   !< PAR at sunny leaves per vertical level and leaf orientation [W m-2]
-  real, allocatable :: cPARleaf_allsun (:)     !< PAR at sunny leaves per vertical level averaged over all leaf orientations [W m-2]
-  real, allocatable :: cfSL            (:)     !< Fraction of sunlit leaves per evrtical level [-]
+  logical  :: tleaf_old_set = .false.  !< 
+!  real, allocatable :: absPARleaf_shad   (:,:,:)     !< PAR at shaded leaves per canopy vertical level [W m-2]
+!  real, allocatable :: absPARleaf_sun    (:,:)   !< PAR at sunny leaves per vertical level and leaf orientation [W m-2]
+!  real, allocatable :: absPARleaf_allsun (:,:,:)     !< PAR at sunny leaves per vertical level averaged over all leaf orientations [W m-2]
+  real, allocatable :: absSWleaf_shad   (:,:,:) !< SW at shaded leaves per canopy vertical level [W m-2 leaf]
+  real, allocatable :: absSWleaf_sun    (:,:)   !< SW at sunny leaves per vertical level and leaf orientation [W m-2 leaf]
+  real, allocatable :: temp_absSWleaf_shad    (:)   !< SW at sunny leaves per vertical level and leaf orientation [W m-2 leaf]
+  real, allocatable :: absSWleaf_allsun (:,:,:) !< SW at sunny leaves per vertical level averaged over all leaf orientations [W m-2leaf]
+  real, allocatable :: absSWlayer       (:,:,:) !< SW abosrbed per vertical level [W m-2 ground]
+  real, allocatable :: cfSL_h          (:)     !< Fraction of sunlit leaves at half levels [-]
+  real, allocatable :: cfSL            (:)     !< Fraction of sunlit leaves at full levels [-]
   real, allocatable :: iLAI_can        (:)     !< LAI from that vertical level up to canopy top [m2_leaf m-2_ground]
   real, allocatable :: humidairpa      (:)     !< Atmospheric vapor pressure inside the canopy [Pa]
   real, allocatable :: windsp          (:)     !< Horizontal windspeed inside the canopy  [m s-1]
   real, allocatable :: LWin_leafshad   (:)     !< Inwards LW radiation at shaded leaves [W m-2]
   real, allocatable :: LWout_leafshad  (:)     !< Outwards LW radiation at shaded leaves [W m-2]
   real, allocatable :: LWnet_leafshad  (:)     !< Net LW radiation at shaded leaves [W m-2]
-  real, allocatable :: tleaf_shad      (:)     !< Leaf temperature of shaded leaves [K]
+  real, allocatable :: t_leafshad      (:,:,:) !< Leaf temperature of shaded leaves [K]
   real, allocatable :: rs_leafshad     (:)     !< Stomatal resistance of shaded leaves [s m-1]
   real, allocatable :: rb_leafshad     (:)     !< Leaf boundary layer resistance for shaded leaves[s m-1]
   real, allocatable :: sh_leafshad     (:)     !< Sensible heat flux at shaded leaves [W m-2_leaf]
@@ -88,18 +97,22 @@ module modcanopy
   real, allocatable :: LWin_leafsun    (:)     !< Inwards LW radiation at sunny leaves [W m-2]   
   real, allocatable :: LWout_leafsun   (:)     !< Outwards LW radiation at sunny leaves [W m-2_leaf]
   real, allocatable :: LWnet_leafsun   (:)     !< Net LW radiation at sunny leaves [W m-2]
-  real, allocatable :: tleaf_sun       (:)     !< Leaf temperature of sunny leaves [K]
+  real, allocatable :: t_leafsun       (:,:,:) !< Leaf temperature of sunny leaves [K]
   real, allocatable :: rs_leafsun      (:)     !< Stomatal resistance of shaded leaves [s m-1]
   real, allocatable :: rb_leafsun      (:)     !< Leaf boundary layer resistance for shaded leaves[s m-1]
   real, allocatable :: sh_leafsun      (:)     !< Sensible heat flux at shaded leaves [W m-2_leaf]
   real, allocatable :: le_leafsun      (:)     !< Latent heat flux at shaded leaves [W m-2_leaf]
   real, allocatable :: An_leafsun      (:)     !< Net carbon uptake at shaded leaves [mg C s-1 m-2_leaf)]
+  real, allocatable :: dSveg           (:)     !< Net carbon uptake at shaded leaves [mg C s-1 m-2_leaf)]
+  real              :: dTleaf_sun              !< Temperature change in sunlit leaves
+  real              :: dTleaf_shad             !< Temperature change in shaded leaves
   real, allocatable :: sh_can          (:,:,:) !< Total sensible heat flux per canopy vertical level [W m-3]
   real, allocatable :: le_can          (:,:,:) !< Total latent heat flux per canopy vertical level[W m-3]
   real, allocatable :: Fco2_can        (:,:,:) !< Total CO2 flux per canopy vertical level [mg CO2 m-3 s-1]
   real, allocatable :: S_theta         (:,:,:) !< Temperature source/sink due to canopy[K s-1]
   real, allocatable :: S_qt            (:,:,:) !< Moisture source/sink due to canopy[Kg_w Kg_a-1 s-1]
   real, allocatable :: S_co2           (:,:,:) !< CO2 source/sink due to canopy [ppb s-1]
+  real, allocatable :: thlprad_can     (:,:,:) !< thl tendency due to in-canopy radiative propfiles [K s-1]
   real, allocatable :: gcc_leafshad    (:,:,:) !< carbon stomatal conductance at shaded leaves [m s-1]
   real, allocatable :: gcc_leafshad_old(:,:,:) !< carbon stomatal conductance at shaded leaves in previous timestep[m s-1]
   real, allocatable :: gcc_leafsun     (:,:,:) !< carbon stomatal conductance at sunny leaves [m s-1]
@@ -108,6 +121,17 @@ module modcanopy
   real, allocatable :: ci_leafshad_old (:,:,:) !< internal carbon concentration at shaded leaves in previous timestep[mg m-3]
   real, allocatable :: ci_leafsun      (:,:,:) !< internal carbon concentration at sunny leaves  [mg m-3]
   real, allocatable :: ci_leafsun_old  (:,:,:) !< internal carbon concentration at sunny leaves in previous timestep[ [mg m-3]
+  real, allocatable :: t_leafsun_old   (:,:,:) !< temperature of sunny leaves in previous timestep[m s-1]
+  real, allocatable :: t_leafshad_old  (:,:,:) !< temperature of shaded leaves in previous timestep[m s-1]
+  real, allocatable :: cfSL_old        (:)     !< fraction of sunlit leaves in previous timestep
+  real, allocatable :: PA              (:)     !< Plant Area at full level [m2 leaf/m2] = projection of PAD into horizontal assuming minimum leaf overlap per layer
+  real, allocatable :: PVFup           (:)     !< Plant view factor at each vertical level looking up  (= 1-sky_view_factor)
+  real, allocatable :: PVFdn           (:)     !< Plant view factor at each vertical level looking down
+  real, allocatable :: LLVFup          (:,:)   !< Leaf level view factor at each vertical level (1st index) looking up to superior levels (2nd index)
+  real, allocatable :: LLVFdn          (:,:)   !< Leaf level view factor at each vertical level (1st index) looking down to inferior levels (2nd index)
+  real, allocatable :: LWin_leaftop    (:)     !< LW reaching upperside of leave
+  real, allocatable :: LWin_leafbot    (:)     !< LW reaching lower side of leave
+
   real, allocatable :: tskin_can       (:,:) !< tskin at canopy top
   real, allocatable :: albdir_can      (:,:) !< effective direct SW albedo by canopy
   real, allocatable :: albdif_can      (:,:) !< effective diffuse SW albedo by canopy
@@ -115,14 +139,19 @@ module modcanopy
   real, allocatable :: swdir_can       (:) !< direct SW through canopy
   real, allocatable :: swdif_can       (:) !< diffuse SW through canopy
   real, allocatable :: swu_can         (:) !< upwards SW through canopy
+  real, allocatable :: PARdir_can       (:) !< direct PAR through canopy
+  real, allocatable :: PARdif_can       (:) !< diffuse PAR through canopy
+  real, allocatable :: PARu_can         (:) !< upwards PAR through canopy
   real, allocatable :: lwd_can         (:) !< diffuse SW through canopy
   real, allocatable :: lwu_can         (:) !< diffuse SW through canopy
 contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
     use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal,   only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf,ih,i1,jh,j1,i2,j2
-    use modsurfdata, only : nangle_gauss
+    use modglobal,   only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf,ih,i1,jh,j1,i2,j2,dzh
+    use modsurfdata, only : nangle_gauss,ldiscr,canrad_meth
+    use modraddata , only : kmin_rad
+    use modfields,   only : tmp0
     implicit none
 
     integer ierr, k, kp
@@ -131,8 +160,8 @@ contains
     namelist/NAMCANOPY/ lcanopy, ncanopy, cd, lai_can, lpaddistr, npaddistr, &
                         wth_total, wqt_total, wsv_total, wth_can, wqt_can, wsv_can, &
                         wth_alph, wqt_alph, wsv_alph, &
-                        lcanopyeb,lwidth,llength,transpiretype,leaf_eps,&
-                        lrelaxgc_can,kgc_can,lrelaxci_can,kci_can
+                        lcanopyeb,lwidth,llength,transpiretype,leaf_eps,lclump,&
+                        lrelaxgc_can,kgc_can,lrelaxci_can,kci_can,canrad_meth
 
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -147,6 +176,12 @@ contains
 
       ncanopy = min(ncanopy,kmax)
     endif
+   !if ((kmin_rad-ncanopy)/=1) then
+   !  print *,'kmin_rad should be 1 level above ncanopy'
+   !  print *,'kmin_rad=',kmin_rad
+   !  print *,'ncanopy',ncanopy
+   !  stop 
+   !endif  
 
     call MPI_BCAST(lcanopy      ,   1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(ncanopy      ,   1, mpi_integer , 0, comm3d, mpierr)
@@ -168,10 +203,12 @@ contains
     call MPI_BCAST(llength      ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(transpiretype,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(leaf_eps     ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(lclump       ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxgc_can ,   1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(kgc_can      ,   1, my_real     , 0, comm3d, mpierr)
     call MPI_BCAST(lrelaxci_can ,   1, mpi_logical , 0, comm3d, mpierr)
     call MPI_BCAST(kci_can      ,   1, my_real     , 0, comm3d, mpierr)
+    call MPI_BCAST(canrad_meth  ,   1, mpi_integer , 0, comm3d, mpierr)
 
     if (.not. (lcanopy)) return
 
@@ -184,6 +221,7 @@ contains
     allocate(padf      (ncanopy  ))
     allocate(padh      (ncanopy+1))
     allocate(pai       (ncanopy+1))
+    allocate(paih      (ncanopy+2))
 
     ! Determination of padfactor: relative weighing of plant area distribution inside canopy; equidistant from surface to canopy top
     if (lpaddistr) then  !< Profile prescribed by user in the file paddistr.inp.<expnr>
@@ -250,23 +288,36 @@ contains
     do k=ncanopy,1,-1
       pai(k) = pai(k+1) + dzf(k) * padf(k)
     end do
+    paih = 0.0
+    do k=ncanopy+1,1,-1
+      if (k==1 .or. k==ncanopy+1) then !!top and bottom canopy half levels only have half of the pad(staggered)
+        paih(k) = paih(k+1) + dzh(k) * 0.5 * padh(k)
+      else
+        paih(k) = paih(k+1) + dzh(k) * padh(k)
+      endif  
+    end do
 
     if (.not. (lcanopyeb)) return
     
-    allocate(cPARleaf_shad(ncanopy))
-    allocate(cPARleaf_allsun(ncanopy))
-    allocate(cPARleaf_sun(ncanopy,nangle_gauss))
+    ldiscr = .true.
+!    allocate(absPARleaf_shad(2-ih:i1+ih,2-jh:j1+jh,ncanopy+1))
+!    allocate(absPARleaf_allsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy+1))
+!    allocate(absPARleaf_sun(ncanopy+1,nangle_gauss))
+    allocate(absSWleaf_shad(2-ih:i1+ih,2-jh:j1+jh,ncanopy+1))
+    allocate(absSWleaf_allsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy+1))
+    allocate(temp_absSWleaf_shad(ncanopy+1))
+    allocate(absSWleaf_sun(ncanopy+1,nangle_gauss))
+    allocate(absSWlayer(2-ih:i1+ih,2-jh:j1+jh,ncanopy+1))
+    allocate(iLAI_can(ncanopy+1))
+    allocate(cfSL_h(ncanopy+1))
     allocate(cfSL(ncanopy))
-    allocate(iLAI_can(ncanopy))
-    !allocate(tairk(ncanopy))
-    allocate(humidairpa(ncanopy))
-    !allocate(PAD(ncanopy))
+    allocate(humidairpa(ncanopy+50))
     allocate(windsp(ncanopy))
  
     allocate(LWin_leafshad(ncanopy))
     allocate(LWout_leafshad(ncanopy))
     allocate(LWnet_leafshad(ncanopy))
-    allocate(tleaf_shad(ncanopy))
+    allocate(t_leafshad(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(rs_leafshad(ncanopy))
     allocate(rb_leafshad(ncanopy))
     allocate(sh_leafshad(ncanopy))
@@ -276,19 +327,21 @@ contains
     allocate(LWin_leafsun(ncanopy))
     allocate(LWout_leafsun(ncanopy))
     allocate(LWnet_leafsun(ncanopy))
-    allocate(tleaf_sun(ncanopy))
+    allocate(t_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(rs_leafsun(ncanopy))
     allocate(rb_leafsun(ncanopy))
     allocate(sh_leafsun(ncanopy))
     allocate(le_leafsun(ncanopy))
     allocate(An_leafsun(ncanopy))
- 
+    allocate(dSveg(ncanopy))
+    
     allocate(sh_can(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(le_can(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(Fco2_can(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(S_theta(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(S_qt(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(S_co2(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(thlprad_can(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(gcc_leafshad(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(gcc_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(gcc_leafshad_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
@@ -297,25 +350,88 @@ contains
     allocate(ci_leafshad_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(ci_leafsun(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
     allocate(ci_leafsun_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(t_leafsun_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(t_leafshad_old(2-ih:i1+ih,2-jh:j1+jh,ncanopy))
+    allocate(cfSL_old(ncanopy))
+    allocate(PA(ncanopy))
+    allocate(PVFup(ncanopy)) 
+    allocate(PVFdn(ncanopy))
+    allocate(LLVFup(ncanopy,ncanopy)) 
+    allocate(LLVFdn(ncanopy,ncanopy))
+    allocate(LWin_leaftop(ncanopy))
+    allocate(LWin_leafbot(ncanopy))
     allocate(tskin_can (i2,j2)) ! same dims as surface variables
     allocate(albdir_can(i2,j2))
     allocate(albdif_can(i2,j2))
     allocate(albsw_can (i2,j2))
-    allocate(swdir_can(ncanopy))
-    allocate(swdif_can(ncanopy))
-    allocate(swu_can(ncanopy))
-    allocate(lwd_can(ncanopy))
-    allocate(lwu_can(ncanopy))
-
+    allocate(swdir_can(ncanopy+1))
+    allocate(swdif_can(ncanopy+1))
+    allocate(swu_can(ncanopy+1))
+    allocate(PARdir_can(ncanopy+1))
+    allocate(PARdif_can(ncanopy+1))
+    allocate(PARu_can  (ncanopy+1))
+    allocate(lwd_can(ncanopy+1))
+    allocate(lwu_can(ncanopy+1))
+   !allocate(swdir_can(ncanopy))
+   !allocate(swdif_can(ncanopy))
+   !allocate(swu_can(ncanopy))
+   !allocate(lwd_can(ncanopy))
+   !allocate(lwu_can(ncanopy))
+    
+    do k=1,ncanopy
+       !PA(k) = padf(k) * dzf(k)!  Plant Area at full levels[m2 leaf/m2]
+       PA(k) = padh(k) * dzh(k)!  Plant Area at full levels[m2!PA2
+    enddo  
+    PVFup(:) = 0
+    LLVFup(:,:)= 0.0
+    do k = 1,ncanopy
+!     print *,'k',k
+      do kp = k+1,ncanopy
+!       print *, 'kp',kp
+        if ((PVFup(k)+ min(PA(kp),1.0)) <= 1.0) then
+          LLVFup(k,kp) = min(PA(kp),1.0)
+          PVFup(k) = PVFup(k) + LLVFup(k,kp)
+        else ! all visible hemisphere is covered by leaves
+          LLVFup(k,kp) = 1.0 - PVFup(k)  ! leaf layer view factor
+          PVFup(k) = 1.0
+          exit
+        endif
+        !LWin_leaftop(k_can) = LWin_leaftop(k_can) + (LLVFup * eps_leaf * boltz * eff_Tleaf(kp)**4 )
+        !print *, 'PVFup(k)',PVFup(k)
+      enddo
+    enddo
+    do k =1,ncanopy
+      !print *,'k',k 
+      do kp = k-1,1,-1
+        !print *, 'kp',kp
+        if ((PVFdn(k)+ min(PA(kp),1.0)) <= 1.0) then
+          LLVFdn(k,kp) = min(PA(kp),1.0)
+          PVFdn(k) = PVFdn(k) + LLVFdn(k,kp)
+        else ! all visible hemisphere is covered by leaves
+          LLVFdn(k,kp) = 1.0 - PVFdn(k)  ! leaf layer view factor
+          PVFdn(k) = 1.0
+          exit
+        endif  
+        !print *, 'PVFdn(k)',PVFdn(k)
+      enddo
+    enddo
+    !initialize tleaf with tair temps
+    do k=1,ncanopy
+      t_leafsun_old(:,:,k)  = tmp0(:,:,k)
+      t_leafshad_old(:,:,k) = tmp0(:,:,k)
+    enddo
+    cfSL_old(:) = 0.5
     return
     
   end subroutine initcanopy
 
   subroutine canopy
-    use modfields,   only : up,vp,wp,e12p,thlp,qtp,svp
+    use modfields,   only : up,vp,wp,e12p,thlp,qtp,svp,thl0
     use modsurfdata, only : thlflux, qtflux, svflux,indCO2
     use modglobal,   only : nsv,i2,j2
-
+    use modraddata,  only: thlprad
+    use modglobal, only : rtimee !xabi
+    use modmpi, only : myid !xabi
     implicit none
 
     integer n
@@ -335,10 +451,10 @@ contains
     
     if (lcanopyeb) then
     
-    !rename the values already calculated in canopyeb when called at modsurface
-      
-      thlp(:,:,:ncanopy) = thlp(:,:,:ncanopy) + S_theta(:,:,:)    
-      qtp(:,:,:ncanopy) = qtp(:,:,:ncanopy) + S_qt(:,:,:)    
+    !add the tendencies already calculated in canopyeb when called at modsurface
+      !thlprad(:,:,:ncanopy) = thlprad_can(:,:,:)
+      thlp(:,:,:ncanopy) = thlp(:,:,:ncanopy) + S_theta(:,:,:)! !+ thlprad_can(:,:,:)! tend due to canopy SH + tend due to rad inside canopy    
+      qtp(:,:,:ncanopy)  = qtp(:,:,:ncanopy) + S_qt(:,:,:)    
       svp(:,:,:ncanopy,indCO2) = svp(:,:,:ncanopy,indCO2) + S_co2(:,:,:)    
     endif
 
@@ -372,25 +488,32 @@ contains
     deallocate(ppad     )
     deallocate(zpad     )
     deallocate(padtemp  )
-    deallocate(padf     )
+    deallocate(padf     )! XPB padf at level gives pad between level k and k+1
     deallocate(padh     )
-    deallocate(pai      )
+    deallocate(pai      ) 
+    deallocate(paih     )
     if (.not. (lcanopyeb)) return
 
-    deallocate(cPARleaf_shad)
-    deallocate(cPARleaf_allsun)
-    deallocate(cPARleaf_sun)
+!    deallocate(absPARleaf_shad)
+!    deallocate(absPARleaf_allsun)
+!    deallocate(absPARleaf_sun)
+    deallocate(absSWleaf_shad)
+    deallocate(absSWleaf_allsun)
+    deallocate(temp_absSWleaf_shad)
+    deallocate(absSWleaf_sun)
+    deallocate(absSWlayer)
+    deallocate(cfSL_h)
     deallocate(cfSL)
     deallocate(iLAI_can)
       !deallocate(tairk)
     deallocate(humidairpa)
-      !deallocate(PAD)
     deallocate(windsp)
  
     deallocate(LWin_leafshad)
     deallocate(LWout_leafshad)
     deallocate(LWnet_leafshad)
-    deallocate(tleaf_shad)
+    deallocate(t_leafshad)
+    deallocate(t_leafshad_old)
     deallocate(rs_leafshad)
     deallocate(rb_leafshad)
     deallocate(sh_leafshad)
@@ -399,12 +522,22 @@ contains
     deallocate(LWin_leafsun)
     deallocate(LWout_leafsun)
     deallocate(LWnet_leafsun)
-    deallocate(tleaf_sun)
+    deallocate(t_leafsun)
+    deallocate(t_leafsun_old)
+    deallocate(cfSL_old)
+    deallocate(PA)
+    deallocate(PVFup)
+    deallocate(PVFdn)
+    deallocate(LLVFup)
+    deallocate(LLVFdn)
+    deallocate(LWin_leaftop)
+    deallocate(LWin_leafbot)
     deallocate(rs_leafsun)
     deallocate(rb_leafsun)
     deallocate(sh_leafsun)
     deallocate(le_leafsun)
     deallocate(An_leafsun)
+    deallocate(dSveg)
  
     deallocate(sh_can)
     deallocate(le_can)
@@ -412,6 +545,7 @@ contains
     deallocate(S_theta)
     deallocate(S_qt)
     deallocate(S_co2)
+    deallocate(thlprad_can)
     deallocate(gcc_leafshad)
     deallocate(gcc_leafsun)
     deallocate(gcc_leafshad_old)
@@ -427,6 +561,9 @@ contains
     deallocate(swdir_can)
     deallocate(swdif_can)
     deallocate(swu_can)
+    deallocate(PARdir_can)
+    deallocate(PARdif_can)
+    deallocate(PARu_can)
     deallocate(lwd_can)
     deallocate(lwu_can)
     return
@@ -445,75 +582,149 @@ contains
    ! Patton and have been adapted, modified or extended where needed.
    !                                                      Xabier Pedruzo
    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    use modglobal, only  : j1, i1,cp,rlv,rk3step
-    use modsurfdata,only : phitot,weight_g,indCO2,albedo_surf,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad,nuco2q
+    use modglobal, only  : j1,i1,cp,rlv,rk3step,dzf,dzh,rhow,xtime,rtimee,xday,xlat,xlon,boltz
+    use modsurfdata,only : phitot,weight_g,indCO2,albedo_surf,l3leaves,nangle_gauss,MW_CO2,MW_Air,canopyrad,nuco2q,pCw
     use modfields, only  : thl0,rhof,qt0,exnf,u0,v0,presf,svm,tmp0
-    use modraddata, only : swdir,swdif,swd,swu,lwu,lwd,tskin_rad,albedo_rad,iradiation,irad_par
-   
+    use modraddata, only : swdir,swdif,swd,swu,lwu,lwd,tskin_rad,albedo_rad,iradiation,irad_par,irad_rrtmg,irad_lsm,rad_longw,zenith
+    use modmpi,     only : myid 
     implicit none
     
     integer, intent(in) :: i,j
     real, intent(in) :: ps,rk3coef
-    integer :: k_can
-    real    :: LWin
-    real    :: pa ! plant area
-    real    :: lw_air,lw_leaflayer 
+    integer :: k_can,k
+    real    :: LWin,paf
+!    real    ::PARdirTOC,PARdifTOC
+    real    :: SWdirTOC,SWdifTOC
+    real    :: lwu_air,lwd_air,lw_leaflayer,kdrbl,sinbeta
+    real    :: tisoil,tirefl 
 
    !                                                                  !
-   !######### STEP 1 - Radiation inside the canopy keeping DALES sign convention#################### 
+   !######### STEP 1 - Radiation inside the canopy, part1  #################### 
    !                                                                  !
    
+   !                #############  SW  #################               !
    ! rewrite LAI from LAI per vert layer to integrated LAI from top down to that level
    !do k_can = ncanopy,1,(-1)
    !  iLAI_can(k_can) = sum(LAI_can(1:k_can))
    !end do
-      iLAI_can(:) = pai(1:ncanopy)
-    call canopyrad(ncanopy,lai_can,iLAI_can,swdir(i,j,ncanopy),swdif(i,j,ncanopy),albedo_surf(i,j),& ! in
-                   cPARleaf_shad,cPARleaf_sun,cfSL,                                                & ! out for vegetation
-                   albdir_can(i,j),albdif_can(i,j),albsw_can(i,j),                                 & ! out for radiation                         
-                   swdir_can(:ncanopy),swdif_can(:ncanopy),swu_can(:ncanopy))                        ! out for radiation
-    ! tairk(:) = tmp0(i,j,:)
+      iLAI_can(:) = paih(1:ncanopy+1)
+      !iLAI_can(:) = pai(1:ncanopy)
+    sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon),1.e-10)
+    !print *,'sinbeta',sinbeta
+    if (sinbeta>0.035) then ! day, same threshold as radpar
+      !assume SW=2.0*PAR
+      !PARdirTOC = 0.5*max(0.1,abs(swdir(i,j,ncanopy+1)))
+      !PARdifTOC = 0.5*max(0.1,abs(swdif(i,j,ncanopy+1)))
+      !call canopyrad(ncanopy+1,lai_can,iLAI_can,PARdirTOC,PARdifTOC,albedo_surf(i,j),& ! in
+      !              absPARleaf_shad(i,j,:),absPARleaf_sun,cfSL_h,                                         & ! out for vegetation
+      !assume scattering/reflections prperites of leaves is the same for PAR and SW, becauswe canopyrad uses coefficients for PAR
+      SWdirTOC = max(0.1,abs(swdir(i,j,ncanopy+1)))
+      SWdifTOC = max(0.1,abs(swdif(i,j,ncanopy+1)))
+      call canopyrad(ncanopy+1,lai_can,iLAI_can,SWdirTOC,SWdifTOC,albedo_surf(i,j),lclump,& ! in
+                     !absSWleaf_shad(i,j,:),absSWleaf_sun,cfSL_h,                                         & ! out for vegetation
+                     temp_absSWleaf_shad,absSWleaf_sun,cfSL_h,                                         & ! out for vegetation
+                     albdir_can(i,j),albdif_can(i,j),albsw_can(i,j),                                 & ! out for radiation                         
+                     swdir_can(:ncanopy+1),swdif_can(:ncanopy+1),swu_can(:ncanopy+1),tisoil,tirefl)    ! out for radiation
+     !assume SW=2.0*PAR
+     !  swdir_can(:ncanopy+1) = 2.0 * PARdir_can(:ncanopy+1)
+     !  swdif_can(:ncanopy+1) = 2.0 * PARdif_can(:ncanopy+1)
+     !  swu_can  (:ncanopy+1) = 2.0 * PARu_can  (:ncanopy+1)
+     ! cfSL at full levels is calculated here, necssary later. analogous to fracSL in canopyrad
+      kdrbl    = lclump * 0.5 / sinbeta        
+      do k_can=1,ncanopy
+        cfSL(k_can)   = exp(-kdrbl * pai(k_can))
+      enddo
+    else ! night
+      !absPARleaf_shad(i,j,:)   = 0.0
+      !absPARleaf_sun(:,:)      = 0.0
+      !absPARleaf_allsun(i,j,:) = 0.0
+      absSWleaf_shad(i,j,:)   = 0.0
+      temp_absSWleaf_shad(:)   = 0.0
+      absSWleaf_sun(:,:)      = 0.0
+      absSWleaf_allsun(i,j,:) = 0.0
+      absSWlayer(i,j,:) = 0.0
+      cfSL_h(:)         = 0.0
+      cfSL  (:)         = 0.0
+      albdir_can(i,j)   = albedo_surf(i,j) 
+      albdif_can(i,j)   = albedo_surf(i,j) 
+      albsw_can (i,j)   = albedo_surf(i,j) 
+      swdir_can(:ncanopy+1)  = swdir(i,j,:ncanopy+1)
+      swdif_can(:ncanopy+1)  = swdif(i,j,:ncanopy+1)
+      swu_can  (:ncanopy+1)  = swu  (i,j,:ncanopy+1)
+    endif
+    absSWleaf_shad(i,j,:) = temp_absSWleaf_shad(:)
+    
+   !                #############  LW  into leaf #################               !
+   
+   !other necessary terms 
    ! convert humidity into vapor pressure
-    do k_can=1,ncanopy
-      humidairpa(k_can) =  watervappres(qt0(i,j,k_can),presf(k_can)) ! check that qt0 is in Kg/Kg
+    do k_can=1,ncanopy+50
+      humidairpa(k_can) =  watervappres(qt0(i,j,k_can),presf(k_can)) ! 
     enddo
 
-    ! we do LW as well:
-    do k_can =1,ncanopy
-      LWin = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps) ! shouldn we use air eps?
-      LWin_leafshad(k_can)  = 2. * LWin
-      LWin_leafsun(k_can)   = 0.5 * exposedleafLWin(humidairpa(k_can),tmp0(i,j,k_can)) + 1.5 * LWin ! why .5-1.5, and not1-1
-    end do
-
+    if(.False.) then ! we need to build a LW profile according to air characteristics
+      do k_can =1,ncanopy
+        LWin = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps) ! shouldn we use air eps?
+        LWin_leafshad(k_can)  = 2. * LWin
+        ! we take valus above canopy, not from k_can
+        !LWin_leafsun(k_can)   = 0.5 * exposedleafLWin_cor(humidairpa(k_can:k_can+50),tmp0(i,j,k_can:k_can+50)) + 1.5 * LWin ! why .5-1.5, and not1-1
+        LWin_leafsun(k_can)   = 0.5 * exposedleafLWin_cor2(humidairpa(k_can:k_can+50),i,j,k_can) + 1.5 * LWin ! why .5-1.5, and not1-1
+        !LWin_leafsun(k_can)   = 0.5 * exposedleafLWin(humidairpa(k_can),tmp0(i,j,k_can)) + 1.5 * LWin ! why .5-1.5, and not1-1
+      end do
+    else
+      LWin_leaftop(:) = 0.0
+      LWin_leafbot(:) = 0.0
+      do k_can = 1,ncanopy-1
+        do k= k_can+1,ncanopy !from first level above k_can to canopy top
+          !contribution by sunlit leaves of level k:
+          LWin_leaftop(k_can) = LWin_leaftop(k_can) + (LLVFup(k_can,k) * leaf_eps * boltz * cfSL_old(k)*t_leafsun_old(i,j,k)**4)
+          !contribution by shaded leaves of level k:
+          LWin_leaftop(k_can) = LWin_leaftop(k_can) + (LLVFup(k_can,k) * leaf_eps * boltz * (1-cfSL_old(k))*t_leafshad_old(i,j,k)**4)
+        enddo
+        if (PVFup(k_can)<1.0) then !if full hemisphere is not covered, the remaining is sky
+          LWin_leaftop(k_can) = LWin_leaftop(k_can) + (1-PVFup(k_can))*abs(lwd(i,j,k_can))
+        endif 
+      enddo
+      LWin_leaftop(ncanopy) = abs(lwd(i,j,ncanopy))
+      !now looking down:
+      do k_can = 2,ncanopy
+        do k= k_can-1,0 !from first level below k_can to canopy bottom/surface
+          LWin_leafbot(k_can) = LWin_leafbot(k_can) + (LLVFdn(k_can,k) * leaf_eps * boltz * cfSL_old(k)*t_leafsun_old(i,j,k)**4)
+          LWin_leafbot(k_can) = LWin_leafbot(k_can) + (LLVFdn(k_can,k) * leaf_eps * boltz * (1-cfSL_old(k))*t_leafshad_old(i,j,k)**4)
+        enddo
+        if (PVFdn(k_can)<1.0) then !if full hemisphere is not covered, the remaining is ground
+          LWin_leafbot(k_can) = LWin_leafbot(k_can) + (1-PVFdn(k_can))*abs(lwu(i,j,k_can))
+        endif 
+      enddo
+      LWin_leafbot(1) = abs(lwu(i,j,1))
+      !whats differnecein incoming LW  between sunlit and shaded?
+      !assume 0.5 of every LLVF, meaning it would get (at least) 0.5 of sky in sunny ones
+      do k_can =1,ncanopy
+        LWin_leafshad(k_can)  = LWin_leaftop(k_can) + LWin_leafbot(k_can)
+        LWin_leafsun(k_can)   = (0.5*LWin_leaftop(k_can) + 0.5* abs(lwd(i,j,k_can)))+ LWin_leafbot(k_can)
+        !LWin_leafsun(k_can)   = (LWin_leaftop(k_can))+ LWin_leafbot(k_can)
+      end do
+    endif
+   !if (i==2 .and. j==2)then
+   !  print *,'*******'
+   !  print *,'LWin_leafshad in i=2,j=2',LWin_leafshad
+   !  print *,'LWin_leafsun in i=2,j=2',LWin_leafsun
+   !  print *,'*******'
+   !endif
    
-    ! assume for LW that leaves/plants form one horizontal layer in each grid and LW only moves upwards and downwards
-    do k_can = 1,ncanopy
-      !get plant area (m2leaf per m2 ground in a grid)
-      pa = pai(k_can)-pai(k_can+1)
-      lw_air = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps)
-      !area-weighted average between sunlit and shaded leaves
-      lw_leaflayer = (LWout_leafsun(k_can)*cfSL(k_can) + LWout_leafshad(k_can)*(1.-cfSL(k_can)))
-      if (pa <= 1.0) then ! area-weighted average between air and leaf
-        lwu_can(k_can) = lw_air * (1.0-pa) + lw_leaflayer * pa
-      else
-        lwu_can(k_can) = lw_leaflayer
-      endif  
-
-      ! since we assume that both sides of the leaf are at the same temperature
-      lwd_can(k_can) =  -lwu_can(k_can)
-    end do  
+  
    !                                                                                                ! 
    !######### STEP 2 - Leaf energy balance per level for sunlit and shaded leaves ####################
    !                                                                                                !
     windsp(:) = sqrt(u0(i,j,1:ncanopy)**2+v0(i,j,1:ncanopy)**2)
-   
     do k_can =1,ncanopy
      !shaded
-      call leafeb_ags(cPARleaf_shad(k_can), LWin_leafshad(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
+      !call leafeb_ags(absPARleaf_shad(i,j,k_can), LWin_leafshad(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
+      call leafeb_ags(absSWleaf_shad(i,j,k_can), LWin_leafshad(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
                       tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),       & ! in
                       rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                                      & ! in
                       gcc_leafshad_old(i,j,k_can),ci_leafshad_old(i,j,k_can),rk3coef,                       & ! in
-                      tleaf_shad(k_can), gcc_leafshad(i,j,k_can), rb_leafshad(k_can),ci_leafshad(i,j,k_can),& ! out
+                      t_leafshad(i,j,k_can), gcc_leafshad(i,j,k_can), rb_leafshad(k_can),ci_leafshad(i,j,k_can),& ! out
                       sh_leafshad(k_can), le_leafshad(k_can), LWout_leafshad(k_can),An_leafshad(k_can))       ! out
       LWnet_leafshad(k_can) = LWin_leafshad(k_can) - LWout_leafshad(k_can)
       if (lrelaxgc_can) then
@@ -533,14 +744,14 @@ contains
 
       !sunny
       if (l3leaves) then
-        write(*,*)'trying to d 3 sunny leaves, not available'
+        write(*,*)'trying to do 3 sunny leaves, not available'
         stop
       !do angle=1,nangle_gauss
-      !  call leafeb_ags(PARleaf_sun(k_can,angle), LWin_leafsun(k_can,angle), leaf_eps, transpiretype, lwidth, llength, &
+      !  call leafeb_ags(SWleaf_sun(k_can,angle), LWin_leafsun(k_can,angle), leaf_eps, transpiretype, lwidth, llength, &
       !                  tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),           & ! in
       !                  rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j), & 
       !                  gcc_leafsun_old(i,j,k_can,angle),ci_leafsun_old(i,j,k_can,angle),rk3coef, & ! additonal variables needed (Xabi)
-      !                  tleaf_sun(k_can,angle), gcc_leafsun(i,j,k_can,angle), rb_leafsun(k_can,angle),ci_leafshad(i,j,k_can,angle),& !
+      !                  t_leafsun(i,j,k_can,angle), gcc_leafsun(i,j,k_can,angle), rb_leafsun(k_can,angle),ci_leafshad(i,j,k_can,angle),& !
       !                  sh_leafsun(k_can,angle), le_leafsun(k_can,angle), LWout_leafsun(k_can,angle))
       !   LWnet_leafsun(k_can,angle) = LWin_leafsun(k_can,angle) - LWout_leafsun(k_can,angle)
       !  if (lrelaxgc_can) then
@@ -563,15 +774,23 @@ contains
       !gcc_leafsunaver     = sum(weight_g * gcc_leafsun(i,j,k_can,1:(nangle_gauss)))
       !sh_leafsunaver      = sum(weight_g * sh_leafsun(i,j,k_can,1:nangle_gauss))
       !le_leafsunaver      = sum(weight_g * le_leafsun(i,j,k_can,1:(nangle_gauss)))
-      else ! angle-dependent PAR are averaged following 3 point gaussian procedure
-        cPARleaf_allsun   = sum(weight_g *  cPARleaf_sun(k_can,1:nangle_gauss))
-        call leafeb_ags(cPARleaf_allsun(k_can), LWin_leafsun(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
+      else ! angle-dependent SW are averaged following 3 point gaussian procedure (Goudriaan and van Laar 1996)
+        !absPARleaf_allsun(i,j,k_can)   = sum(weight_g *  absPARleaf_sun(k_can,1:nangle_gauss))
+        !call leafeb_ags(absPARleaf_allsun(i,j,k_can), LWin_leafsun(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
+        absSWleaf_allsun(i,j,k_can)   = sum(weight_g *  absSWleaf_sun(k_can,1:nangle_gauss))
+        call leafeb_ags(absSWleaf_allsun(i,j,k_can), LWin_leafsun(k_can), leaf_eps, transpiretype, lwidth, llength, & ! in
                         tmp0(i,j,k_can), humidairpa(k_can),qt0(i,j,k_can), windsp(k_can), presf(k_can),        & ! in
                         rhof(k_can), svm(i,j,k_can,indCO2), phitot(i,j),                                       & ! in
                         gcc_leafsun_old(i,j,k_can),ci_leafsun_old(i,j,k_can),rk3coef,                          & ! in 
-                        tleaf_sun(k_can), gcc_leafsun(i,j,k_can), rb_leafsun(k_can),ci_leafsun(i,j,k_can),     & ! out
+                        t_leafsun(i,j,k_can), gcc_leafsun(i,j,k_can), rb_leafsun(k_can),ci_leafsun(i,j,k_can),     & ! out
                         sh_leafsun(k_can), le_leafsun(k_can), LWout_leafsun(k_can),An_leafsun(k_can))            ! out
         LWnet_leafsun(k_can) = LWin_leafsun(k_can) - LWout_leafsun(k_can)
+        !absSWlayer(i,j,k_can) = pai(k_can) * (cfSL(k_can) * absSWleaf_allsun(i,j,k_can) + (1-cfSL(k_can) * absSWleaf_shad(i,j,k_can)))
+        absSWlayer(i,j,k_can) = dzh(k_can) * padh(k_can) * (cfSL(k_can) * absSWleaf_allsun(i,j,k_can) + (1-cfSL(k_can)) * absSWleaf_shad(i,j,k_can))
+    !   print *,'k_can',k_can
+    !   print *,'PA(k_can',PA(k_can)
+    !   print *,'iLAI_can diff',iLAI_can(k_can)-iLAI_can(k_can+1)
+        
         if (lrelaxgc_can) then
           if (gccan_old_set .and. rk3step ==3) then
               gcc_leafsun_old(i,j,k_can) = gcc_leafsun(i,j,k_can)
@@ -589,66 +808,151 @@ contains
       endif !l3leaves
 
     end do !k_can
+    !   !pprint clouse info:
+    !   print *,'swdir',swdir(i,j,ncanopy+1)
+    !   print *,'swdif',swdif(i,j,ncanopy+1)
+    !   print *,'isoil',tisoil
+    !   print *,'irefl',tirefl
+    !   print *,'absSWlayer',absSWlayer(i,j,:)
+    !   print *,'sumabsSWlayer',sum(absSWlayer(i,j,:))
+    !   print *,'sum(PA)',sum(PA)
+
    
    !                                                                                                ! 
    !######### STEP 3 - determining source terms for LES ####################
    !                                                                                                !
              ! --- calculate sources of heat, water by scaling
              !        from the leaf to the grid volume
-    !we clauclate pad:
-    !PAD = LAI_can / dz_can  ! 
 
-    call canopysource(sh_leafsun, sh_leafshad,           &
-                      le_leafsun, le_leafshad,           &
-                      An_leafsun, An_leafshad,           &
-                      cfSL,                         &
-                      sh_can(i,j,1:ncanopy),le_can(i,j,1:ncanopy),Fco2_can(i,j,1:ncanopy))                                ! recv
-
+   !call canopysource(sh_leafsun, sh_leafshad,           &
+   !                  le_leafsun, le_leafshad,           &
+   !                  An_leafsun, An_leafshad,           &
+   !                  cfSL,                         &
+   !                  !cfSL_h,                         &
+   !                  sh_can(i,j,1:ncanopy),le_can(i,j,1:ncanopy),Fco2_can(i,j,1:ncanopy))                                ! recv
+    do k_can = 1,ncanopy
+      sh_can(i,j,k_can)     = (sh_leafsun(k_can)  * cfSL(k_can) + sh_leafshad(k_can)  * (1.-cfSL(k_can)))*  padf(k_can)
+      le_can(i,j,k_can)     = (le_leafsun(k_can)  * cfSL(k_can) + le_leafshad(k_can)  * (1.-cfSL(k_can)))*  padf(k_can)
+      Fco2_can(i,j,k_can)   = (An_leafsun(k_can)  * cfSL(k_can) + An_leafshad(k_can)  * (1.-cfSL(k_can)))*  padf(k_can)
+    end do  
     !convert sources to tendencies
-    S_theta(i,j,1:ncanopy)   = sh_can(i,j,1:ncanopy)/(rhof(1:ncanopy)*cp)
+    S_theta(i,j,1:ncanopy)   = sh_can(i,j,1:ncanopy)/(rhof(1:ncanopy)*cp*exnf) ! 
     S_qt(i,j,1:ncanopy)      = le_can(i,j,1:ncanopy)/(rhof(1:ncanopy)*rlv)
     S_co2(i,j,1:ncanopy)     = Fco2_can(i,j,1:ncanopy)*(MW_Air/MW_CO2) * (1.0/rhof(1:ncanopy))* 1000 !In  ppb/s
     
    !                                                                                                ! 
-   !######### STEP 4 - pass on tskin_can, effective canopy albedo and in-canopy radiation profiles####################
+   !######### STEP 4 -Radiation inside the canopy, part2: calculate LW profiles ####################
+   !   
+    
+    ! assume for LW that leaves/plants form one horizontal layer (minimum overlap) in each grid and LW only moves upwards and downwards
+    do k_can = 1,ncanopy
+      !get plant area (m2leaf per m2 ground) in a grid at half levels)
+      if (iradiation==irad_lsm .or.((iradiation==irad_par .or. iradiation==irad_rrtmg ).and. rad_longw==.false.)) then ! there is no LW calculated by radiation
+        lwd_air = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps)
+        lwu_air = lwd_air
+      else ! get LW calculated by rad scheme, here positive for any rad scheme
+        lwd_air = abs(lwd(i,j,k_can)) 
+        lwu_air = abs(lwu(i,j,k_can+1)) ! of the half level  above
+      endif  
+     
+! half level k_can+1  -------^-- lwu
+!                            |
+! full level k_can    ********** lw_leaflayer,LWout_leafsun,cfSL
+!                            |
+! half level k_can    -------v-- lwd
+!
+      !  area-weighted average between sunlit and shaded leaves
+
+      !lw_leaflayer = LWout_leafsun(k_can)*cfSL_h(k_can) + LWout_leafshad(k_can)*(1.-cfSL_h(k_can)) !
+      lw_leaflayer = LWout_leafsun(k_can)*cfSL(k_can) + LWout_leafshad(k_can)*(1.-cfSL(k_can)) ! at full level
+      if (PA(k_can) < 1.0) then ! area-weighted average between background lw and leaf
+        lwd_can(k_can) = lwd_air * (1.0-PA(k_can)) + lw_leaflayer * PA(k_can)
+        lwu_can(k_can+1) = lwu_air * (1.0-PA(k_can)) + lw_leaflayer * PA(k_can) ! of the level above
+      else
+      ! since we assume that both sides of the leaf are at the same temperature
+        lwd_can(k_can)   = lw_leaflayer 
+        lwu_can(k_can+1) = lw_leaflayer
+      endif 
+      !above we assumed that LW comes from leve right below or air, we neglected
+      !other leaf layers, unlike in step2
+    end do  
+   !                                                                                                ! 
+   !######### STEP 5 - Pass on variables needed to radiation ####################
    !   
     
     ! tskin_can as weighted average similar to sources in canopysource
-    tskin_can(i,j) = tleaf_sun(ncanopy)*cfSL(ncanopy) + tleaf_shad(ncanopy)*(1.-cfSL(ncanopy))
-    tskin_rad(i,j)  = tskin_can(i,j)
+    tskin_can(i,j) = t_leafsun(i,j,ncanopy)*cfSL(ncanopy) + t_leafshad(i,j,ncanopy)*(1.-cfSL(ncanopy))
+    !tskin_can(i,j) = t_leafsun(i,j,ncanopy)*cfSL_h(ncanopy) + t_leafshad(i,j,ncanopy)*(1.-cfSL_h(ncanopy))
+    !if(i==2 .and. j==2)print *,'tskin_rad modcan797',tskin_rad(2,2)
+    !if(i==2 .and. j==2)print *,'albedo_rad modcan797',albedo_rad(2,2)
+    !tskin_rad(i,j)  = tskin_can(i,j)*2.0
     albedo_rad(i,j) = albsw_can(i,j)
                       !albdir_can(i,j),albdif_can(i,j)
-    
+    !if(i==2 .and. j==2)print *,'tskin_rad modcan799',tskin_rad(2,2)
+    !if(i==2 .and. j==2)print *,'albedo_rad modcan799',albedo_rad(2,2)
+   !if (i==2 .and. j==2) then
+   !print*, 'runge kutta is',rk3step 
+   !print*, 'swdir(i,j,:ncanopy+1)',swdir(i,j,:ncanopy+1) 
+   !print*, 'swdir_can(:ncanopy+1)',swdir_can(:ncanopy+1) 
+   !endif
     if (iradiation==irad_par) then ! all terms must be positive
-      swdir(i,j,:ncanopy) = -swdir_can(:)                 
-      swdif(i,j,:ncanopy) = -swdif_can(:)               
-      swd  (i,j,:ncanopy) = -(swdir_can(:) + swdif_can(:))
-      swu  (i,j,:ncanopy) =  swu_can(:)               
-      lwd  (i,j,:ncanopy) = -lwd_can(:)
-      lwu  (i,j,:ncanopy) =  lwu_can(:)
+      swdir(i,j,:ncanopy) = swdir_can(:ncanopy)                 
+      swdif(i,j,:ncanopy) = swdif_can(:ncanopy)               
+      swd  (i,j,:ncanopy) = swdir_can(:ncanopy) + swdif_can(:ncanopy)
+      swu  (i,j,:ncanopy) = swu_can(:ncanopy)               
+      lwd  (i,j,:ncanopy) = lwd_can(:ncanopy) 
+      lwu  (i,j,2:ncanopy+1) = lwu_can(2:ncanopy+1)
     else
-      swdir(i,j,:ncanopy) = swdir_can(:)                 
-      swdif(i,j,:ncanopy) = swdif_can(:)               
-      swd  (i,j,:ncanopy) = (swdir_can(:) + swdif_can(:))
-      swu  (i,j,:ncanopy) = swu_can(:)               
-      lwd  (i,j,:ncanopy) = lwd_can(:)
-      lwu  (i,j,:ncanopy) = lwu_can(:)
+      swdir(i,j,:ncanopy) = -swdir_can(:ncanopy)                 
+      swdif(i,j,:ncanopy) = -swdif_can(:ncanopy)               
+      swd  (i,j,:ncanopy) = -(swdir_can(:ncanopy) + swdif_can(:ncanopy))
+      !swu  (i,j,2:ncanopy+1) = swu_can(:ncanopy)               !shold be off
+      swu  (i,j,:ncanopy) = swu_can(:ncanopy)               !should be on
+      lwd  (i,j,:ncanopy) = -lwd_can(:ncanopy)
+      lwu  (i,j,2:ncanopy+1) = lwu_can(2:ncanopy+1)  !should be on
+     ! lwu  (i,j,:ncanopy) = lwu_can(:ncanopy)     ! should be off
     endif
-    
+    !calculate energy stored in leafs/biomass
+   !do k_can =1,ncanopy
+   !  dTleaf_sun   = t_leafsun (i,j,ncanopy) - t_leafsun_old (i,j,ncanopy) 
+   !  dTleaf_shad  = t_leafshad(i,j,ncanopy) - t_leafshad_old(i,j,ncanopy) 
+   !  dSveg(k_can) = rhow * pCw * padf(k_can) * lthick &
+   !                * (cfSL_h(k_can)*dTleaf_sun+(1-cfSL_h(k_can)*dTleaf_shad))
+   !end do
+   ! we do not account for absortion, scattering or other processes by air particles inside
+   !canopy, so air temperature tendency needs to be exactly 0 inside canopy
+   thlprad_can(i,j,:) = 0.0
+   !if (iradiation==irad_par) then
+   ! !do k_can =1,ncanopy
+   ! !  thlprad_can(i,j,k_can) = (-lwd(i,j,k_can)+lwd(i,j,k_can+1)+lwu(i,j,k_can)-lwu(i,j,k_can+1) &
+   ! !                            -swd(i,j,k_can)+swd(i,j,k_can+1)+swu(i,j,k_can)-swu(i,j,k_can+1) &
+   ! !                            -((sh_can(i,j,k_can)+le_can(i,j,k_can))*dzf(k_can))) &  ! LE and SH at canopy layer are sinks of thl
+   ! !                           /(rhof(k_can)*cp*exnf(k_can)*dzf(k_can))
+   ! !end do
+   !else
+   ! !do k_can =1,ncanopy
+   ! !   thlprad_can(i,j,k_can) = (lwd(i,j,k_can)-lwd(i,j,k_can+1)+lwu(i,j,k_can)-lwu(i,j,k_can+1)  &
+   ! !                           + swd(i,j,k_can)-swd(i,j,k_can+1)+swu(i,j,k_can)-swu(i,j,k_can+1)  &
+   ! !                            -((sh_can(i,j,k_can)+le_can(i,j,k_can))*dzf(k_can))) &
+   ! !                            /(rhof(k_can)*cp*exnf(k_can)*dzf(k_can))
+   ! !end do
+   !endif 
+
    !                                                                                                ! 
    !######### STEP 5 - check switches about lags in plant response ####################
    !                                                                                                !
 
 
-   if (lrelaxgc_can .and. (.not. gccan_old_set) ) then
-     if (rk3step == 3) then
-       gccan_old_set = .true.
-     endif
-   endif
-   if (lrelaxci_can .and. (.not. cican_old_set) ) then
-     if (rk3step == 3) then
-       cican_old_set = .true.
-     endif
+   if (tleaf_old_set .and. rk3step ==3) then
+     t_leafsun_old (i,j,:) = t_leafsun(i,j,:)
+     t_leafshad_old(i,j,:) = t_leafshad(i,j,:)
+     if (i==i1 .and. j==j1) cfSL_old(:) = cfSL(:) ! not necessary every i,j
+   else if (.not. tleaf_old_set) then
+     t_leafsun_old (i,j,:) = t_leafsun(i,j,:)
+     t_leafshad_old(i,j,:) = t_leafshad(i,j,:)
+     !t_leafsun_old (i,j,:) = thl0(i,j,:ncanopy)
+     !t_leafshad_old(i,j,:) = thl0(i,j,:ncanopy)
+     if (i==i1 .and. j==j1) cfSL_old(:) = cfSL(:) ! not necessary every i,
    endif  
 
   end subroutine canopyeb
@@ -814,8 +1118,8 @@ subroutine canopysource(     sunleafsh, shadeleafsh,             &
 
      !real, intent(in), dimension(layers)             :: pad            ! plant area density [m2 m-3]
 
- !   real, intent(in), dimension(nclos,nrows,layers) :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
-     real, intent(in), dimension(ncanopy)             :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
+     !real, intent(in), dimension(nclos,nrows,layers) :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
+     real, intent(in),dimension(ncanopy)               :: sunleafsh,   & ! sensible heat flux (sunlit) [W m-2]
                                                         shadeleafsh, & ! sensible heat flux (shaded) [W m-2]
                                                         sunleaflh,   & ! latent heat flux (sunlit) [W m-2]
                                                         shadeleaflh, & ! latent heat flux (shaded) [W m-2]
@@ -866,7 +1170,7 @@ subroutine canopysource(     sunleafsh, shadeleafsh,             &
  end subroutine canopysource
 
 subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incoming
-                          tairk, humidairpa,qtair, ws, pres,         & ! in     
+                          tairk, humairpa,qtair, ws, pres,         & ! in     
                           !, cantype, vegtyp,                    &
                           rho, CO2air, phi_tot,gcc_old,ci_old,rk3coef,      &  ! additonal in variables needed (XPB)
                           tleaf, gccleaf,rb,ci,                         & ! in/out
@@ -894,6 +1198,8 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
       !modified by Xabi Pedruzo March 2020 to work with Ags and another
       !canopy radiative scheme (Pedruzo-Bagazgoitia et al. 2017)
        use modsurfdata, only : f_Ags,nuco2q
+       use modmpi, only: myid ! xabi
+       use modglobal, only: rtimee ! xabi
        implicit none
 
        ! ---- incoming variables
@@ -906,7 +1212,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
                               lwidth,           &      ! leaf width/shoot diameter [m]
                               llength,          &      ! leaf/shoot length [m]
                               tairk,            &      ! air temperature [K]
-                              humidairpa,       &      ! atmospheric vapor pressure [Pa]
+                              humairpa,       &      ! atmospheric vapor pressure [Pa]
                               qtair,            &      ! atmospheric water mixing ratio [kg kg-1]
                               ws,               &      ! wind speed [m s-1]
                               pres,             &      ! surface pressure [Pa]
@@ -958,23 +1264,27 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !DOUBLE PRECISION :: f_n, f_g, f_p
        real :: t_n, t_g, t_p
        real :: f_n, f_g, f_p
-
+       
+       ! ---- ags variables
+       
        real    :: Fleaf
        real    :: fstr,Am,Rdark,alphac,co2abs,CO2comp,Ds,D0,fmin
+       real    :: i_PAR   ! absorbed PAR [W m-2] (so far, assumed PAR = 0.5 SW)
+       ! --- others
 
        real :: humidairkgm3
        integer, parameter :: num_iterations = 50
        real,    parameter :: wind_mn = 1.e-6     ! minimum wind speed [m s-1]
        real,    parameter :: tiny = 1.e-9
-
+       
        ! --- check for negative windspeed and force minimum windspeed (wind_mn)
-
+     
        wind = max(abs(ws), wind_mn)
 
        ! --- calculate current air density [kg m-3]
        !     where, rho(air) = rho(dry_air) + rho(vapor)
 
-       !rho = (pres / (r_d * tairk)) + (humidairpa / (r_v * tairk))
+       !rho = (pres / (r_d * tairk)) + (humairpa / (r_v * tairk))
 
        ! --- make sure gs_old has last timestep's value (mainly for restart)
        !gs_old = 1. /  rs
@@ -982,7 +1292,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
        ! --- convert air vapor pressure from  [Pa] to [kg m-3]
 
-       humidairkgm3 = converthumiditypa2kgm3(humidairpa, tairk)
+       humidairkgm3 = converthumiditypa2kgm3(humairpa, tairk)
 
        ! ---- iterate using a bisection method where we assume that
        !      the function is linear between the current two guesses
@@ -1007,8 +1317,8 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
        ! --- since we know that the leaves will be close to the air
        !     temp, bracket the air temp to bound the root.
-       tleaf_l = tairk - 10.
-       tleaf_r = tairk + 10.
+       tleaf_l = tairk - 15.
+       tleaf_r = tairk + 15.
 
        ! --- evaluate function at the left e``nd point 'a', where
        !     'a' = 'tleaf_l' and 'f(a)' = 'rr_l'
@@ -1020,8 +1330,10 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
       !          gs_old,                                       &   ! send/recv
       !          gb,rs)                                            ! recv
        !xabi edit
+       !assume SW=2.0*PAR
+       i_PAR = 0.5*max(0.1,abs(i_s))
        call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_l,                & ! in
-                  phi_tot,i_s,                                        & ! in
+                  phi_tot,i_PAR,                                      & ! in
                   lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef, & ! in
                   lrelaxci_can,cican_old_set,kci_can,ci_old,          & ! in
                   gccleaf,Fleaf,ci,                                   & ! out
@@ -1049,7 +1361,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        !          gs_old,                                       &   ! send/recv
        !          gb,rs)                                            ! recv
        call f_Ags(CO2air,qtair,rho,tairk,pres,tleaf_r,                & ! in
-                  phi_tot,i_s,                                        & ! in
+                  phi_tot,i_PAR,                                      & ! in
                   lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef, & ! in
                   lrelaxci_can,cican_old_set,kci_can,ci_old,          & ! in
                   gccleaf,Fleaf,ci,                                   & ! out
@@ -1065,7 +1377,6 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
        LWout   = leafLWout(tleaf_r, eps)                               ! outgoing long wave out at this tleaf [W m-2]
 
        rr_r = i_s + i_r - LWout - sh - le                              ! leaf energy balance at this tleaf [W m-2]
-
        ! ---- to simplify the iterations (and eliminate an if-statement)
        !      decide which of the bracketing end points provides
        !      the positive or negative side of the root
@@ -1098,7 +1409,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
           t_g = t_n - (f_n * (t_p - t_n) / (f_p - f_n))
           ! --- current delta_T = T_leaf - T_air [K]
-
+          
           tdelt = t_g - tairk
 
           !call gem (t_g,tairk,humidairkgm3,wind,ppfd,pres,dt, &   ! send
@@ -1107,7 +1418,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
           !          gs_old,                                   &   ! send/recv
           !          gb,rs)                                        ! recv
           call f_Ags(CO2air,qtair,rho,tairk,pres,t_g,                    & ! in
-                     phi_tot,i_s,                                        & ! in
+                     phi_tot,i_PAR,                                      & ! in
                      lrelaxgc_can,gccan_old_set,kgc_can,gcc_old,rk3coef, & ! in
                      lrelaxci_can,cican_old_set,kci_can,ci_old,          & ! in
                      gccleaf,Fleaf,ci,                                   & ! out
@@ -1184,12 +1495,13 @@ real function leafle(tleaf, ambvap, gb, gcc, transpiretype)
 
    ! ---- calculate the latent energy term in leaf energy balance
    use modsurfdata,only : nuco2q
+   use modmpi, only: myid
    implicit none
 
    real, intent(in) :: tleaf,         &    ! leaf temperature [K]
                        ambvap,        &    ! atmospheric vapor density [kg m-3]
                        gb,            &    ! leaf boundary layer heat conductance [m s-1]
-                       gcc,           &    ! stomatal carbon conductance [s m-1]
+                       gcc,           &    ! stomatal carbon conductance [m s-1]
                        transpiretype       ! type of transpirer (1=hypostomatous, 2=amphistomatous,
                                            !    1.25=hypostomatous but with some transpiration through cuticle)
 
@@ -1399,6 +1711,68 @@ real function unexposedleafLWin(tk, eps)
 
    return
  end function exposedleafLWin
+ real function exposedleafLWin_cor(humidpa, tk)
+! ======================================================================
+! subroutine corrected by XPB
+! ======================================================================
+
+ ! ----  calculate ir into leaf that is exposed to the sky
+
+   implicit none
+   integer, parameter :: levs  = 50 ! number of levels to average over
+   real, intent(in), dimension(levs):: tk, humidpa
+   real :: tk_av, humidpa_av
+   real :: emissatm
+   real, parameter  :: boltz = 5.67e-8
+
+   ! apparent atmospheric emissivity for clear skies: function of water
+   ! vapor pressure [Pa] and ambient air temperature [K] based on
+   ! Brutsaert(1975) referenced in Leuning (1995)
+   ! we take lowest 50 levels to average over
+   tk_av = sum(tk(:))/levs
+   humidpa_av = sum(humidpa(:))/levs
+    
+   emissatm        = 0.642 * (humidpa_av / tk_av)**(1./7.)
+   
+   !exposedleafLWin = emissatm * boltz * (tk(1)**4)
+   exposedleafLWin_cor = emissatm * boltz * (tk_av**4)
+
+   return
+ end function exposedleafLWin_cor
+ real function exposedleafLWin_cor2(humidpa,ii,jj,kk)
+! ======================================================================
+! subroutine corrected by XPB
+! ======================================================================
+
+ ! ----  calculate ir into leaf that is exposed to the sky
+
+   use modfields, only : tmp0
+   implicit none
+   integer, parameter :: levs  = 50 ! number of levels to average over
+   real, intent(in), dimension(levs):: humidpa
+   integer, intent(in) ::ii,jj,kk
+   real :: tk_av, humidpa_av
+   real :: emissatm
+   real, dimension(levs):: tk
+   real, parameter  :: boltz = 5.67e-8
+
+   ! apparent atmospheric emissivity for clear skies: function of water
+   ! vapor pressure [Pa] and ambient air temperature [K] based on
+   ! Brutsaert(1975) referenced in Leuning (1995)
+   ! we take lowest 50 levels to average over
+   humidpa_av = sum(humidpa(:))/levs
+   !tk_av = sum(tk(:))/levs
+   tk_av = sum(tmp0(ii,jj,kk:kk+levs))/levs
+   !tk = tmp0(ii,jj,kk:kk+levs)
+   !tk_av = sum(tk(:))/levs
+    
+   emissatm        = 0.642 * (humidpa_av / tk_av)**(1./7.)
+   
+   !exposedleafLWin = emissatm * boltz * (tk(1)**4)
+   exposedleafLWin_cor2 = emissatm * boltz * (tk_av**4)
+
+   return
+ end function exposedleafLWin_cor2
 real function leafLWout(tleaf, eps)
 ! ======================================================================
 ! subroutine from Ned Patton - adapted where obvious
@@ -1434,7 +1808,7 @@ end function leafLWout
 
    return
  end function watervappres
-real function converthumiditypa2kgm3(pa, tk)
+real function converthumiditypa2kgm3(vpa, tk)
 ! ======================================================================
 ! subroutine from Ned Patton ~ adapted where obvious
 ! ======================================================================
@@ -1443,10 +1817,10 @@ real function converthumiditypa2kgm3(pa, tk)
    
    use modglobal, only : rv
    implicit none
-   real, intent(in) :: pa, tk
+   real, intent(in) :: vpa, tk
    !real:: r_v= 461.6
 
-   converthumiditypa2kgm3 = pa / (rv * tk)
+   converthumiditypa2kgm3 = vpa / (rv * tk)
 
    return
 end function converthumiditypa2kgm3

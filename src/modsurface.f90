@@ -85,7 +85,7 @@ contains
       ! Land surface related variables
       lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav_surf, Qnetav, cvegav, Wlav, &
       ! Jarvis-Steward related variables
-      rsminav, rssoilminav, LAIav, gDav, &
+      rsminav, rssoilminav, LAI_surfav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
       z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
       ! Heterogeneous variables
@@ -139,7 +139,7 @@ contains
     call MPI_BCAST(rssoilminav  , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(cvegav       , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(Wlav         , 1, MY_REAL, 0, comm3d, mpierr)
-    call MPI_BCAST(LAIav        , 1, MY_REAL, 0, comm3d, mpierr)
+    call MPI_BCAST(LAI_surfav        , 1, MY_REAL, 0, comm3d, mpierr)
     call MPI_BCAST(gDav         , 1, MY_REAL, 0, comm3d, mpierr)
 
     call MPI_BCAST(z0         ,1,MY_REAL   ,0,comm3d,mpierr)
@@ -421,7 +421,7 @@ contains
           Qnetav       = 0
           cvegav       = 0
           rsminav      = 0
-          LAIav        = 0
+          LAI_surfav        = 0
           gDav         = 0
           Wlav         = 0
 
@@ -469,7 +469,7 @@ contains
               Qnetav        = Qnetav       +  ( Qnet_patch(i,j)       / ( xpatches * ypatches ) )
               cvegav        = cvegav       +  ( cveg_patch(i,j)       / ( xpatches * ypatches ) )
               rsminav       = rsminav      +  ( rsmin_patch(i,j)      / ( xpatches * ypatches ) )
-              LAIav         = LAIav        +  ( LAI_patch(i,j)        / ( xpatches * ypatches ) )
+              LAI_surfav         = LAI_surfav        +  ( LAI_patch(i,j)        / ( xpatches * ypatches ) )
               gDav          = gDav         +  ( gD_patch(i,j)         / ( xpatches * ypatches ) )
               Wlav          = Wlav         +  ( Wl_patch(i,j)         / ( xpatches * ypatches ) )
 
@@ -583,8 +583,8 @@ contains
         print *,"WARNING: RSSOILMINAV is undefined... RSMINAV will be used as a proxy"
         rssoilminav = rsminav
       end if
-      if(LAIav == -1) then
-        stop "NAMSURFACE: LAIav is not set"
+      if(LAI_surfav == -1) then
+        stop "NAMSURFACE: LAI_surfav is not set"
       end if
       if(gDav == -1) then
         stop "NAMSURFACE: gDav is not set"
@@ -700,6 +700,9 @@ contains
         allocate(swdir_lsplit(2:i1,2:j1,nz_gauss))
         allocate(swdif_lsplit(2:i1,2:j1,nz_gauss))
         allocate(swu_lsplit(2:i1,2:j1,nz_gauss))
+        allocate(PARdir_lsplit(nz_gauss))
+        allocate(PARdif_lsplit(nz_gauss))
+        allocate(PARu_lsplit  (nz_gauss))
         if (l3leaves) then
           allocate(gleafsun_old(2:i1,2:j1,nz_gauss,nangle_gauss))
         else
@@ -717,6 +720,7 @@ contains
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer,myid
     use moduser,    only : surf_user
     use modraddata, only : tskin_rad,albedo_rad,qskin_rad
+    use modcanopy,  only : lcanopyeb
     implicit none
 
     integer  :: i, j, n, patchx, patchy
@@ -1045,8 +1049,21 @@ contains
     
     !XPB Use surface tskin for radiation, unless lcanopyeb=true. 
     !    If so, tskin_rad is overwritten by tskin_can
-    tskin_rad (:,:) = tskin_surf (:,:)
-    qskin_rad (:,:) = qskin_surf (:,:)
+    !print *,'tskin_rad modsurf1048',tskin_rad(2,2)
+    !print *,'albedo_rad modsurf1048',albedo_rad(2,2)
+    !if (lcanopyeb) then
+    if (.False.) then !Im not sure tskin from canopy top will help
+      if (.not. tskin_set) then ! in first call we use surface ppties because canopy needs rad and is not called yet. Afterwards, canopy top
+        tskin_rad (:,:) = tskin_surf (:,:)
+        qskin_rad (:,:) = qskin_surf (:,:)
+        tskin_set = .true.
+      endif
+    else ! no canopy, use always surface ppties
+        tskin_rad (:,:) = tskin_surf (:,:)
+        qskin_rad (:,:) = qskin_surf (:,:)
+    endif
+    !print *,'tskin_rad modsurf1051',tskin_rad(2,2)
+    !print *,'albedo_rad modsurf1051',albedo_rad(2,2)
 
     return
 
@@ -1571,7 +1588,7 @@ contains
     allocate(tskinm_surf(i2,j2))
     allocate(Cskin(i2,j2))
     allocate(lambdaskin(i2,j2))
-    allocate(LAI(i2,j2))
+    allocate(LAI_surf(i2,j2))
     allocate(gD(i2,j2))
     allocate(Wl(i2,j2))
     allocate(Wlm(i2,j2))
@@ -1592,7 +1609,7 @@ contains
           lambdaskin (i,j) = lambdaskin_patch(tempx,tempy)
           rsmin      (i,j) = rsmin_patch     (tempx,tempy)
           rssoilmin  (i,j) = rsmin_patch     (tempx,tempy)
-          LAI        (i,j) = LAI_patch       (tempx,tempy)
+          LAI_surf        (i,j) = LAI_patch       (tempx,tempy)
           gD         (i,j) = gD_patch        (tempx,tempy)
           cveg       (i,j) = cveg_patch      (tempx,tempy)
           Wl         (i,j) = Wl_patch        (tempx,tempy)
@@ -1641,7 +1658,7 @@ contains
       lambdaskin = lambdaskinav
       rsmin      = rsminav
       rssoilmin  = rssoilminav
-      LAI        = LAIav
+      LAI_surf        = LAI_surfav
       gD         = gDav
       cveg       = cvegav
       Wl         = Wlav
@@ -1660,7 +1677,7 @@ contains
     use modraddata,only : iradiation,useMcICA,swd,swu,lwd,lwu,irad_par,swdir,swdif,zenith,albedo_rad,tskin_rad
     use modmpi, only :comm3d,my_real,mpi_sum,mpierr,mpi_integer,myid
     use modmicrodata, only : imicro,imicro_bulk
-    use modcanopy, only : canopyeb,lcanopyeb
+    use modcanopy, only : canopyeb,lcanopyeb,tleaf_old_set,cican_old_set,gccan_old_set,lrelaxgc_can,lrelaxci_can
 
     real     :: f1, f2, f3, f4 ! Correction functions for Jarvis-Stewart
     integer  :: i, j, k, itg
@@ -1681,7 +1698,6 @@ contains
     real     :: Fsun , gsun
     real     :: Fleafsun(nangle_gauss),gleafsun(nangle_gauss)
     real     :: Fnet(nz_gauss), gnet(nz_gauss)
-    real     :: sinbeta,minsinbeta = 1.e-10
     integer  :: angle
     ! vars needed for canopyeb
     real     :: fSL_bot, rs_leafshad_bot,rs_leafsun_bot,Fco2_can_bot
@@ -1692,6 +1708,7 @@ contains
     real     :: local_wco2av
     real     :: local_Anav
     real     :: local_gcco2av
+    real     :: local_alb_canav
     real     :: local_Respav
     
     
@@ -1721,10 +1738,12 @@ contains
     wco2av       = 0.0
     Anav         = 0.0
     gcco2av      = 0.0
+    alb_canav    = 0.0
     Respav       = 0.0
     local_wco2av = 0.0
     local_Anav   = 0.0
     local_gcco2av= 0.0
+    local_alb_canav= 0.0
     local_Respav = 0.0
 
     if (lrsAgs) then
@@ -1819,7 +1838,7 @@ contains
            Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
            f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
  
-           rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
+           rsveg(i,j)  = rsmin(i,j) / LAI_surf(i,j) * f1 * f2 * f3! * f4 Not considered anymore
  
  
         else !(lrsAgs) then
@@ -1858,12 +1877,19 @@ contains
               indCO2 = 1
             endif !Is chemistry or bulk_micro on?
             linags = .true.
+          
           endif !linags
           if (lsplitleaf) then
-            call canopyrad(nz_gauss,LAI(i,j),LAI(i,j)*LAI_g,swdir(i,j,1),swdif(i,j,1),albedo_surf(i,j),& ! in! 
-                 PARleaf_shad,PARleaf_sun,fSL,& 
-                 albdir_lsplit(i,j),albdif_lsplit(i,j),albswd_lsplit(i,j),&
-                 swdir_lsplit(i,j,:nz_gauss),swdif_lsplit(i,j,:nz_gauss),swu_lsplit(i,j,:nz_gauss))! couldbe used for radiation
+            PARdir_TOV = 0.5 * max(0.1,abs(swdir(i,j,1)))
+            PARdif_TOV = 0.5 * max(0.1,abs(swdif(i,j,1)))
+           !call canopyrad(nz_gauss,LAI_surf(i,j),LAI_surf(i,j)*LAI_g,PARdir_TOV,PARdif_TOV,albedo_surf(i,j),1.0,& ! in! 
+           !     PARleaf_shad,PARleaf_sun,fSL,& 
+           !     albdir_lsplit(i,j),albdif_lsplit(i,j),albswd_lsplit(i,j),&
+           !     PARdir_lsplit(:nz_gauss),PARdif_lsplit(:nz_gauss),PARu_lsplit(:nz_gauss))! couldbe used for radiation
+            !assume SW = 2.0*PAR
+            swdir_lsplit(i,j,:nz_gauss) = 2.0 * PARdir_lsplit(:nz_gauss)
+            swdif_lsplit(i,j,:nz_gauss) = 2.0 * PARdif_lsplit(:nz_gauss)
+            swu_lsplit  (i,j,:nz_gauss) = 2.0 * PARu_lsplit  (:nz_gauss)
             do itg = 1,nz_gauss
               !shaded
               call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j),  & ! in
@@ -1915,8 +1941,8 @@ contains
               gnet(itg)  = gsun * fSL(itg) + gshad * (1 - fSL(itg))
             end do
           
-            An       = LAI(i,j) * sum(weight_g * Fnet) ! temporary An
-            gcco2    = LAI(i,j) * sum(weight_g * gnet)
+            An       = LAI_surf(i,j) * sum(weight_g * Fnet) ! temporary An
+            gcco2    = LAI_surf(i,j) * sum(weight_g * gnet)
             if (lrelaxci_surf) then
               if (cisurf_old_set .and. rk3step ==3) then
                 ci_old(i,j) = ci
@@ -1926,7 +1952,7 @@ contains
             endif
           else ! lsplitleaf
             if (lcanopyeb) then
-            ! move to the canopy module  
+            ! move to the canopy module and rewrite ,among others,swd modified by canopy and needed for surface
               call canopyeb(i,j,ps,rk3coef)           ! in
             endif ! lcanopyeb  
              ! and for understory vegetation:
@@ -1944,8 +1970,8 @@ contains
             Dstar    = D0 / (AGSa1 * (f0 - fmin))
             
             tempy    = alphac * Kx * PAR / (Am + Rdark)
-            An       = (Am + Rdark) * (1 - 1.0 / (Kx *  LAI(i,j)) * (E1(tempy * exp(-Kx*LAI(i,j))) - E1(tempy)))
-            gc_inf    = LAI(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
+            An       = (Am + Rdark) * (1 - 1.0 / (Kx *  LAI_surf(i,j)) * (E1(tempy * exp(-Kx*LAI_surf(i,j))) - E1(tempy)))
+            gc_inf    = LAI_surf(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2abs - CO2comp) * (1 + Ds / Dstar)))
             if (lrelaxgc_surf) then
               if (gcsurf_old_set) then
                 gcco2       = gc_old(i,j) + min(kgc_surf*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
@@ -1994,6 +2020,7 @@ contains
           local_wco2av = local_wco2av + wco2
           local_Anav   = local_Anav   + An
           local_gcco2av= local_gcco2av   + gcco2
+          local_alb_canav= local_alb_canav   + albedo_rad(i,j)
           local_Respav = local_Respav + Resp
 
           AnField   (i,j) = An
@@ -2006,6 +2033,44 @@ contains
           PARField  (i,j) = PAR
 
         endif !lrsAgs
+        
+        if (lcanopyeb) then ! update surface Qnet if canopy above is present
+          if(iradiation > 0) then
+            if(iradiation == 1 .and. useMcICA) then
+              if(rk3step == 1) then
+                swdavn(i,j,2:nradtime) = swdavn(i,j,1:nradtime-1)
+                swuavn(i,j,2:nradtime) = swuavn(i,j,1:nradtime-1)
+                lwdavn(i,j,2:nradtime) = lwdavn(i,j,1:nradtime-1)
+                lwuavn(i,j,2:nradtime) = lwuavn(i,j,1:nradtime-1)
+         
+                swdavn(i,j,1) = swd(i,j,1)
+                swuavn(i,j,1) = swu(i,j,1)
+                lwdavn(i,j,1) = lwd(i,j,1)
+                lwuavn(i,j,1) = lwu(i,j,1)
+         
+              end if
+         
+              swdav = sum(swdavn(i,j,:)) / nradtime
+              swuav = sum(swuavn(i,j,:)) / nradtime
+              lwdav = sum(lwdavn(i,j,:)) / nradtime
+              lwuav = sum(lwuavn(i,j,:)) / nradtime
+         
+              Qnet(i,j) = -(swdav + swuav + lwdav + lwuav)
+            elseif(iradiation == irad_par .or. iradiation == 10) then !  Delta-eddington approach (2)  .or. rad_user (10)
+              swdav      = -swd(i,j,1)
+              Qnet(i,j)  = (swd(i,j,1) - swu(i,j,1) + lwd(i,j,1) - lwu(i,j,1))
+            else ! simple radiation scheme and RRTMG
+              Qnet(i,j) = -(swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1))
+              swdav     = swd(i,j,1)
+            end if
+          else
+            if(lhetero) then
+              Qnet(i,j) = Qnet_patch(patchx,patchy)
+            else
+              Qnet(i,j) = Qnetav
+            endif
+          end if
+        endif
 
         ! 2.2   - Calculate soil resistance based on ECMWF method
 
@@ -2054,7 +2119,7 @@ contains
           rssoil(i,j) = 0.
         end if
 
-        Wlmx      = LAI(i,j) * Wmax
+        Wlmx      = LAI_surf(i,j) * Wmax
         Wl(i,j)   = min(Wl(i,j), Wlmx)
         cliq(i,j) = Wl(i,j) / Wlmx
 
@@ -2178,14 +2243,35 @@ contains
         cisurf_old_set = .true.
       endif
     endif
+    if (lcanopyeb) then
+       ! switches of canopyeb
+      if (lrelaxgc_can .and. (.not. gccan_old_set) ) then
+        if (rk3step == 3) then
+          gccan_old_set = .true.
+        endif
+      endif
+      if (lrelaxci_can .and. (.not. cican_old_set) ) then
+        if (rk3step == 3) then
+          cican_old_set = .true.
+        endif
+      endif
+      if (.not. tleaf_old_set) then
+        if (rk3step == 3) then
+          tleaf_old_set = .true.
+          if (myid==0)print *,'XPB, tleaf_old_set to true'
+        endif
+      endif
+    endif
 
     call MPI_ALLREDUCE(local_wco2av, wco2av, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_Anav  , Anav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_gcco2av  , gcco2av  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
+    call MPI_ALLREDUCE(local_alb_canav  , alb_canav  , 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(local_Respav, Respav, 1,    MY_REAL, MPI_SUM, comm3d,mpierr)
 
     Anav   = Anav/ijtot
     gcco2av= gcco2av/ijtot
+    alb_canav= alb_canav/ijtot
     wco2av = wco2av/ijtot
     Respav = Respav/ijtot
 

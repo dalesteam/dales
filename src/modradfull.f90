@@ -116,7 +116,7 @@ contains
     use modfields,    only : rhof, exnf,exnh, thl0,qt0,ql0,sv0
     use modsurfdata,  only : ps
     use modmicrodata, only : imicro, imicro_bulk, Nc_0,iqr
-    use modraddata,   only : thlprad, lwd,lwu,swd,swu,albedo_rad
+    use modraddata,   only : thlprad, lwd,lwu,swd,swu,albedo_rad,kmin_rad
       implicit none
     real :: thlpld,thlplu,thlpsd,thlpsu
     integer :: i,j,k
@@ -174,14 +174,13 @@ contains
 !      swu(:,:,1) = swu(:,:,1)+0.3333333*(swu(:,:,1)-swu(:,:,2))
 
 !Add up thl tendency
-      do k=1,kmax
+      do k=kmin_rad,kmax
         do j=2,j1
           do i=2,i1
             thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k))
             thlplu          = -(lwu(i,j,k+1)-lwu(i,j,k))
             thlpsd          = -(swd(i,j,k+1)-swd(i,j,k))
             thlpsu          = -(swu(i,j,k+1)-swu(i,j,k))
-
             thlprad(i,j,k)  = thlprad(i,j,k) + (thlpld+thlplu+thlpsu+thlpsd)/(rhof(k)*cp*exnf(k)*dzf(k))
           end do
         end do

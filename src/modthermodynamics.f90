@@ -61,11 +61,15 @@ contains
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
     use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmpi, only : slabsum
+    use modmpi, only : myid !xabi
+    use modglobal, only: rtimee ! xabi
     implicit none
     integer:: k
     if (timee < 0.01) then
       call diagfld
     end if
+    !if (rtimee>6230 .and. myid==116) write(*,*)'in thermodyn,myid,thl0',myid,thl0(:,:,:5)
+!    if (myid==101) write(*,*)'in thermodyn,myid,thl0',myid,thl0(:,:,:5)
     if (lmoist .and. (.not. lnoclouds)) then
       call icethermo0
     end if
@@ -460,6 +464,9 @@ contains
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl
+  use modmpi,   only: myid ! xabi
+  use modglobal,only: rtimee !xabi
+  use modfields, only : thlp !xabi
   implicit none
 
   integer i, j, k
@@ -471,6 +478,10 @@ contains
 !     first guess is Tnr=tl
       nitert = 0
       niter = 0
+      !if (rtimee>6230 .and. myid==116) write(*,*)'in thermodyn,myid,thl0',myid,thl0(:,:,:5) !xabi
+      !if (rtimee>6230 .and. myid==116) write(*,*)'in thermodyn,myid,thlp',myid,thlp(:,:,:5) !xabi
+!      if (myid==101) write(*,*)'in thermodyn,myid,thl0',myid,thl0(:,:,:5) !xabi
+!      if (myid==101) write(*,*)'in thermodyn,myid,thlp',myid,thlp(:,:,:5) !xabi
       do k=1,k1
       do j=2,j1
       do i=2,i1
@@ -478,6 +489,10 @@ contains
             Tnr=exnf(k)*thl0(i,j,k)
             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
             tlonr=int((Tnr-150.)*5.)
+            if(tlonr<1 .or.tlonr>1999) then
+              write(*,*) 'first guess thermo crash: myid,i,j,k,thl0(i,j,k),qt0(i,j,k)'
+              write(*,*) myid,i,j,k,thl0(i,j,k),qt0(i,j,k)
+            endif
             thinr=tlonr+1
             tlo=ttab(tlonr)
             thi=ttab(thinr)

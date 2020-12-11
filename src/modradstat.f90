@@ -47,6 +47,7 @@ save
 
 !   --------------
   real, allocatable :: thltendav(:)
+  real, allocatable :: thltendav2(:)
   real, allocatable :: thllwtendav(:)
   real, allocatable :: thlswtendav(:)
   real, allocatable :: lwuav(:)
@@ -62,6 +63,7 @@ save
 
 !
   real, allocatable :: thltendmn(:)
+  real, allocatable :: thltendmn2(:)
   real, allocatable :: thllwtendmn(:)
   real, allocatable :: thlswtendmn(:)
   real, allocatable :: lwumn(:)
@@ -140,6 +142,7 @@ contains
     allocate(swucaav(k1))
     allocate(thllwtendav(k1))
     allocate(thltendav(k1))
+    allocate(thltendav2(k1))
     allocate(thlswtendav(k1))
 
     allocate(lwumn(k1))
@@ -154,6 +157,7 @@ contains
     allocate(swucamn(k1))
     allocate(thllwtendmn(k1))
     allocate(thltendmn(k1))
+    allocate(thltendmn2(k1))
     allocate(thlswtendmn(k1))
     allocate(thlradlsmn(k1))
 
@@ -168,6 +172,7 @@ contains
     swdcamn = 0.0
     swucamn = 0.0
     thltendmn = 0.0
+    thltendmn2 = 0.0
     thllwtendmn = 0.0
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
@@ -233,6 +238,7 @@ contains
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
     use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
+    use modcanopy, only : lcanopyeb,ncanopy
 
     implicit none
     integer :: k
@@ -244,9 +250,10 @@ contains
     swdifav = 0.
     swuav  = 0.
     thltendav = 0.
+    thltendav2 = 0.
     thllwtendav = 0.
     thlswtendav = 0.
-    thltendav = 0.
+    
 
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -266,6 +273,12 @@ contains
         thlswtendav(k) = (-swdav(k+1) - swuav(k+1) + swdav(k) + swuav(k))/(rhof(k)*exnf(k)*cp*dzf(k)) 
       end do
     endif
+    thltendav2= thllwtendav + thlswtendav
+    if (lcanopyeb) then ! sw-lw changes in canopy do not cause any change in air temp, but in canopy temp
+      thllwtendav(:ncanopy+1) = 0.0
+      thlswtendav(:ncanopy+1) = 0.0
+      thltendav2(:ncanopy+1) = 0.0
+    endif
 
 
  !    ADD SLAB AVERAGES TO TIME MEAN
@@ -277,6 +290,7 @@ contains
     swdifmn     = swdifmn     + swdifav     / ijtot
     swumn       = swumn       + swuav       / ijtot
     thltendmn   = thltendmn   + thltendav   / ijtot
+    thltendmn2  = thltendmn2   + thltendav2   / ijtot
     thllwtendmn = thllwtendmn + thllwtendav / ijtot
     thlswtendmn = thlswtendmn + thlswtendav / ijtot
     thlradlsmn  = thlradlsmn  + thlpcar
@@ -288,9 +302,9 @@ contains
     use modradfull,    only : d4stream
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,rlv,rd,pref0,ijtot
     use modfields,    only : rhof, exnf, thl0,qt0,ql0
-    use modraddata,  only : qskin_rad, thvs, ps
+    use modsurfdata,  only : thvs, ps
     use modmicrodata, only : Nc_0
-    use modraddata,   only : tskin_rad,albedo_rad
+    use modraddata,   only : tskin_rad,albedo_rad,qskin_rad
     use modmpi,    only :  slabsum
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
@@ -380,6 +394,7 @@ contains
       thlswtendmn = thlswtendmn /nsamples
       thlradlsmn  = thlradlsmn  /nsamples
       thltendmn   = thltendmn   /nsamples
+      thltendmn2   = thltendmn2   /nsamples
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -395,7 +410,7 @@ contains
           '#--------------------------------------------------------------------------' &
           ,'#LEV RAD_FLX_HGHT  THL_HGHT  LW_UP        LW_DN        SW_UP       SW_DN       ' &
           ,'TL_LW_TEND   TL_SW_TEND   TL_LS_TEND   TL_TEND' &
-          ,'#    (M)    (M)      (W/M^2)      (W/M^2)      (W/M^2)      (W/M^2)      ' &
+          ,'#           (M)    (M)      (W/M^2)      (W/M^2)      (W/M^2)      (W/M^2)      ' &
           ,'(K/H)         (K/H)        (K/H)        (K/H)'
       do k=1,kmax
         write(ifoutput,'(I4,2F10.2,12E13.4)') &
@@ -408,7 +423,8 @@ contains
             thlswtendmn(k)*3600,&
             thlradlsmn(k) *3600,&
             thltendmn(k)  *3600,&
-            lwucamn(k),&
+            thltendmn2(k)  *3600,&
+            !lwucamn(k),&
             lwdcamn(k),&
             swucamn(k),&
             swdcamn(k)
@@ -473,6 +489,7 @@ contains
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
     thltendmn  = 0.0
+    thltendmn2  = 0.0
 
   end subroutine writeradstat
 

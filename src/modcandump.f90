@@ -33,7 +33,7 @@ private
 PUBLIC :: initcandump, candump,exitcandump
 save
 !NetCDF variables
-  integer :: nvar = 11
+  integer :: nvar = 18
   integer :: ncid,nrec = 0
   character(80) :: fname = 'candump.xxx.xxx.xxx.nc'
   character(80),dimension(:,:), allocatable :: ncname
@@ -119,6 +119,19 @@ contains
       call ncinfo(ncname( 9,:), 'gcc_leafshad','Carbon stomatal conductance on shaded leaves','m s-1','tttt')
       call ncinfo(ncname( 10,:),'ci_leafsun',  'Carbon internal concentration on sunlit leaves','mg m-3','tttt')
       call ncinfo(ncname( 11,:),'ci_leafshad', 'Carbon internal concentration on shaded leaves','mg m-3','tttt')
+      call ncinfo(ncname( 12,:),'t_leafsun',  'Temperature on sunlit leaves','K','tttt')
+      call ncinfo(ncname( 13,:),'t_leafshad', 'Temperature on shaded leaves','K','tttt')
+      call ncinfo(ncname( 14,:),'absSWleaf_allsun','SW absorbed by sunlit leaves','W m-2','tttt')
+      call ncinfo(ncname( 15,:),'absSWleaf_shad'  ,'SW absorbed by shaded leaves','W m-2','tttt')
+      call ncinfo(ncname( 16,:),'u','West-East velocity','m/s','mttt')
+      call ncinfo(ncname( 17,:),'v','South-North velocity','m/s','tmtt')
+      call ncinfo(ncname( 18,:),'w','Vertical velocity','m/s','ttmt')
+      !call ncinfo(ncname( 19,:),'SWdir','Downwards direct SW','W m-2','ttmt')
+      !call ncinfo(ncname( 20,:),'SWdif','Downwards diffuse SW','W m-2','ttmt')
+      !call ncinfo(ncname( 21,:),'SWup'  ,'Upwards SW','W m-2','ttmt')
+      !call ncinfo(ncname( 22,:),'LWd','Downwards LW','W m-2','ttmt')
+      !call ncinfo(ncname( 23,:),'LWu','Upwards LW','W m-2','ttmt')
+
       !radiation vars still missing
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
@@ -132,13 +145,14 @@ contains
 
 !> Do candump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine candump
-    use modfields, only : thl0,qt0,thv0h,thvh,sv0
+    use modfields, only : thl0,qt0,thv0h,thvh,sv0,u0,v0,w0
     use modsurfdata,only : indCO2
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modcanopy, only : sh_can,le_can,Fco2_can,gcc_leafsun,gcc_leafshad,ci_leafsun,ci_leafshad
+    use modcanopy, only : sh_can,le_can,Fco2_can,gcc_leafsun,gcc_leafshad,ci_leafsun,ci_leafshad,t_leafsun,t_leafshad,&
+                          absSWleaf_shad,absSWleaf_allsun
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -277,7 +291,7 @@ contains
       close (ifoutput)
     endif
     
-    field = NINT(1.0e5*gcc_leafsun(:,:,:),2)
+    field = NINT(1.0e5*gcc_leafsun,2)
     if (lnetcdf) vars(:,:,:,8) = gcc_leafsun(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -290,7 +304,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0e5*gcc_leafshad(:,:,:),2)
+    field = NINT(1.0e5*gcc_leafshad,2)
     if (lnetcdf) vars(:,:,:,9) = gcc_leafshad(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -303,7 +317,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0e2*ci_leafsun(:,:,:),2)
+    field = NINT(1.0e2*ci_leafsun,2)
     if (lnetcdf) vars(:,:,:,10) = ci_leafsun(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -316,7 +330,7 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0e2*ci_leafshad(:,:,:),2)
+    field = NINT(1.0e2*ci_leafshad,2)
     if (lnetcdf) vars(:,:,:,11) = ci_leafshad(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
@@ -324,6 +338,96 @@ contains
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
       else
         open  (ifoutput,file='wbci_leafshad.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+    field = NINT(1.0e3*t_leafsun,2)
+    if (lnetcdf) vars(:,:,:,12) = t_leafsun(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbt_leafsun.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbt_leafsun.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    field = NINT(1.0e3*t_leafshad,2)
+    if (lnetcdf) vars(:,:,:,13) = t_leafshad(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbt_leafshad.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbt_leafshad.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+    
+    field = NINT(1.0e3*absSWleaf_allsun,2)
+    if (lnetcdf) vars(:,:,:,14) = absSWleaf_allsun(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbabsSWleaf_allsun.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbabsSWleaf_allsun.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    field = NINT(1.0e3*absSWleaf_shad,2)
+    if (lnetcdf) vars(:,:,:,15) = absSWleaf_shad(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbabsSWleaf_shad.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbabsSWleaf_shad.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    field = NINT(1.0E3*u0,2)
+    if (lnetcdf) vars(:,:,:,16) = u0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    field = NINT(1.0E3*v0,2)
+    if (lnetcdf) vars(:,:,:,17) = v0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
+    field = NINT(1.0E3*w0,2)
+    if (lnetcdf) vars(:,:,:,18) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
         write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
       end if
       close (ifoutput)

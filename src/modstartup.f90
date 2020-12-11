@@ -380,6 +380,7 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+    use modraddata,        only : tskin_rad                              
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
 
@@ -577,7 +578,7 @@ contains
       case(10)
         call initsurf_user
       end select
-
+      tskin_rad =  tskin_surf ! radiation also needs tskin initalized XPB2
       ! Set initial Obukhov length to -0.1 for iteration
       obl   = -0.1
       oblav = -0.1

@@ -110,8 +110,8 @@ SAVE
   real, allocatable :: qskin_surf (:,:) !<  Surface skin specific humidity [kg/kg]
   real, allocatable :: albedo_surf(:,:) !<  Surface albedo [-]
   real              :: albedoav_surf = -1
-  real, allocatable :: LAI        (:,:) !<  Leaf area index understory vegetation [-]
-  real              :: LAIav    = -1
+  real, allocatable :: LAI_surf     (:,:) !<  Leaf area index understory vegetation [-]
+  real              :: LAI_surfav    = -1
   real, allocatable :: cveg       (:,:) !<  Vegetation cover [-]
   real              :: cvegav   = -1
   real, allocatable :: cliq       (:,:) !<  Fraction of vegetated surface covered with liquid water [-]
@@ -132,6 +132,7 @@ SAVE
   logical           :: lrelaxci_surf  = .false.!<  Switch to delay internal CO2 concentration in plant leafs; Timescale equal to that for gc
   real              :: kci_surf       = 0.00113!<  Standard internal CO2 response rate (corresponding to a time scale of 14.75 min.) [1/s]
   logical           :: cisurf_old_set = .false.!<  Only apply relaxing function after initial ci is calculated once
+  logical           :: tskin_set      = .false.!< Switch needed if lcanopyeb, to use surface radiative ppties in initaliation 
   real, allocatable :: gc_old       (:,:)  !<  Old value for gc
   real              :: gc_inf              !<  Attractor for stomatal response rate
   real, allocatable :: ci_old       (:,:)  !<  Old value for ci
@@ -139,6 +140,7 @@ SAVE
   real              :: wco2av     = 0.0
   real              :: Anav       = 0.0
   real              :: gcco2av    = 0.0
+  real              :: alb_canav  = 0.0
   real              :: Respav     = 0.0
   !<Non namelist options
   logical           :: linags     = .false.!<  Switch to make additional initialization for AGS
@@ -188,11 +190,12 @@ SAVE
   logical                   :: l3leaves   =                  .true. !<  Switch to keep 3 leaf orientation angles on sunny leaves 
   integer,parameter         :: nz_gauss   =                        3 !<  Amount of bins to use for Gaussian integrations
   real, dimension(nz_gauss)     ::  LAI_g      = (/0.8873,   0.5,0.1127/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
+  !real, dimension(nz_gauss)     ::  LAI_g      = (/0.1127,   0.5,0.8873/) !<  Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
   integer,parameter         :: nangle_gauss =                      3 !< Amount of bins to use for Gaussian integrations on leaf angles
   real, dimension(nangle_gauss) :: weight_g   = (/0.2778,0.4444,0.2778/) !<  Weights of the Gaussian bins (must add up to 1)
   real, dimension(nangle_gauss) :: angle_g    = (/0.1127,   0.5,0.8873/) !<  Sines of the leaf angles compared to the sun in the first Gaussian integration
   real                      :: sigma      =                      0.2 !<  Scattering coefficient of leaves-controls the effective albedo
-  real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
+  !real                      :: kdfbl      =                      0.8 !<  Diffuse radiation extinction coefficient for black leaves
   real, allocatable         :: gshad_old    (:,:,:)
   real, allocatable         :: gleafsun_old (:,:,:,:)
   real, allocatable         :: gsun_old     (:,:,:)
@@ -208,6 +211,15 @@ SAVE
   real,allocatable ::   swdir_lsplit   (:,:,:)!< swdir profile along vegetation
   real,allocatable ::   swdif_lsplit   (:,:,:)!< swdir profile along vegetation
   real,allocatable ::   swu_lsplit     (:,:,:)!< swu profile along vegetation
+  real,allocatable ::   PARdir_lsplit   (:)!< PARdir profile along vegetation
+  real,allocatable ::   PARdif_lsplit   (:)!< PARdif profile along vegetation
+  real,allocatable ::   PARu_lsplit     (:)!< PAR profile along vegetation
+  
+  real         ::   PARdir_TOV        !< direct PAR at top of vegetation [W/m2]
+  real         ::   PARdif_TOV        !< diffuse PAR profile along vegetation [W/m2]
+  integer      ::   canrad_meth = 2   !< (method to calculate rad and absorbed  fluxes in canopy
+                                      !  =1  XPB2017, =2 Goudriaan and Van Laar 1996
+  logical      ::   ldiscr      = .false.  !< use discrete defintion of differentiation to calculate absorbed radiation 
 
 
   ! Surface energy balance
@@ -322,89 +334,237 @@ SAVE
 
 contains
 
-subroutine canopyrad(layers,LAI,LAI_can,sw_dir,sw_dif,alb,               & ! in
+subroutine canopyrad(layers,LAI,LAI_can,PHIdir_TOC,PHIdif_TOC,alb,clump, & ! in
                       Hshad,Hsun,fracSL,                                 & ! out needed for vegetation
-                      effalb_dir,effalb_dif,effalb_sw,swdircan,swdifcan,swucan) ! out needed for radiation if lcanopyeb
+                      effalb_dir,effalb_dif,effalb_sw,phidircan,phidifcan,phiucan,isoil,irefl) ! out needed for radiation if lcanopyeb
   use modraddata , only : zenith
   use modglobal  , only : xtime,rtimee,xday,xlat,xlon
   implicit none
   
   integer,intent(in) :: layers
   real, intent(in)   :: LAI                     ! total Leaf Area Index of the whole column
-  real, intent(in),dimension(layers) :: LAI_can ! array with accumulated LAI from canopy top down to evaluated height
-  real, intent(in)   :: sw_dir                  ! SW direct  radition at vegetation top
-  real, intent(in)   :: sw_dif                  ! SW diffuse radition at vegetation top
+  real, intent(in),dimension(layers) :: LAI_can ! array with LAI above the evaluated level. Array goes from canopy bottom to top.
+  real, intent(in)   :: PHIdir_TOC                  ! Direct  radiation at vegetation top, always >0
+  real, intent(in)   :: PHIdif_TOC                  ! Diffuse radition at vegetation top, always >0
   real, intent(in)   :: alb                     ! ground albedo
+  real, intent(in)   :: clump                     ! leaf clumping index
   
-  real, intent(out),dimension(layers)              :: Hshad  ! SW intercepted by shaded leaves at each layer
-  real, intent(out),dimension(layers,nangle_gauss) :: Hsun   ! SW intercepted by sunlit leaves per layer and per leaf orientation
+  real, intent(out),dimension(layers)              :: Hshad  ! Intercepted radiation by shaded leaves between the layer and the one below
+  real, intent(out),dimension(layers,nangle_gauss) :: Hsun   ! Intercepted radiation by sunlit leaves between the layer and the one below per layer and per leaf orientation
   real, intent(out),dimension(layers)              :: fracSL ! fraction of sunlit leaves per layer
   real, intent(out) ::  effalb_dir                           ! effective albedo of canopy top for direct radiation
   real, intent(out) ::  effalb_dif                           ! effective albedo of canopy top for diffuse radiation
   real, intent(out) ::  effalb_sw                            ! effective albedo of canopy top for total SW radiation
-  real, intent(out), dimension(layers) :: swdircan          ! downwards direct sw inside canopy
-  real, intent(out), dimension(layers) :: swdifcan          ! downwards diffuse sw inside canopy
-  real, intent(out), dimension(layers) :: swucan            ! upwards (diffuse) SW inside canopy
+  real, intent(out), dimension(layers) :: phidircan          ! downwards direct comp. of radiation inside canopy
+  real, intent(out), dimension(layers) :: phidifcan          ! downwards diffuse comp. of radiation inside canopy
+  real, intent(out), dimension(layers) :: phiucan            ! upwards (diffuse) comp. of radition inside canopy
+  real, intent(out) :: isoil
+  real, intent(out) :: irefl
   
-  real :: PARdir_TOC,PARdif_TOC,kdrbl,kdf,kdr,iLAI
-  real :: ref                    ! global PAR albedo of leave layer (smaller than sigma since some radiation is absorbed after the scattering by leaves as diffuse)
-  real :: ref_dir                ! direct PAR albedo of leave layer
-  real :: PARdirprof             ! profile of direct PAR inside canopy
-  real :: PARdifprof             ! profile of diffuse PAR inside canopy
-  real :: PARdirref_TOC          ! upwards PAR at canopy top after reflection on ground of original dir PAR
-  real :: PARdifref_TOC          ! upwards PAR at canopy top after reflection on ground of original dif PAR
+  real :: kdrbl,kdfbl,kdf,kdr,iLAI
+  real :: ref                    ! global PHI albedo of leave layer (smaller than sigma since some radiation is absorbed after the scattering by leaves as diffuse)
+  real :: ref_dir                ! direct PHI albedo of leave layer
+  real :: PHIdirprof             ! profile of direct PHI inside canopy
+  real :: PHIdifprof             ! profile of diffuse PHI inside canopy
+  real :: PHIdirref_TOC          ! upwards PHI at canopy top after reflection on ground of original dir PHI
+  real :: PHIdifref_TOC          ! upwards PHI at canopy top after reflection on ground of original dif PHI
   
-  real    :: PARdfD,PARdrD,PARdfU,PARdrU,PARdfT,PARdrT,dirPAR,difPAR,HdfT,HdrT,dirH ! see Pedruzo-Bagazgoitia et al. (2017)
-  integer :: k_can
+  real    :: PHIdfD,PHIdrD,PHIdfU,PHIdrU,PHIdfT,PHIdrT,dirPHI,difPHI,HdfT,HdrT,dirH ! see Pedruzo-Bagazgoitia et al. (2017)
+  integer :: k
   real    :: sinbeta,minsinbeta = 1.e-10
+  real :: PHIdfD_b,PHIdrD_b,PHIdfU_b,PHIdrU_b,PHIdirprof_b
+  !needed for approach by goudiraan and van laar  1996
+  real :: rho_s,eta_dir,eta_dif,reta1,reta2,corrv1,corrv2,denom1,denom2
+  real :: phid_10_dir,phid_20_dir,phiu_10_dir,phiu_20_dir
+  real :: phid_10_dif,phid_20_dif,phiu_10_dif,phiu_20_dif
+  real :: phidirup,phidirdown,phidifup,phidifdown
+  real :: phidirup_b,phidirdown_b,phidifup_b,phidifdown_b
+  real :: phidirnew,phidifnew,phiupnew
+  real :: irefl_dif,irefl_dir
 
-  PARdir_TOC   = 0.50 * max(0.1,abs(sw_dir))
-  PARdif_TOC   = 0.50 * max(0.1,abs(sw_dif))
-
+! PHIdirTOC = abs(max(0.1,aa))
+! PHIdifTOC = abs(max(0.1,bb))
+  
+  Hshad       = 0.0
+  Hsun        = 0.0
+ !fracSL      = 0.0
+ !effalb_dir  = alb
+ !effalb_dif  = alb
+ !effalb_sw   = alb
+ !swdircan    = 0.0
+ !swdifcan    = 0.0
+ !swucan      = 0.0
   sinbeta  = max(zenith(xtime*3600 + rtimee,xday,xlat,xlon), minsinbeta)
 
-  kdrbl    = 0.5 / sinbeta                                     ! Direct radiation extinction coefficient for black lea
+  kdfbl    = clump * 0.8                                     ! Diffuse radiation extinction coefficient for black leaves
+  kdrbl    = clump * 0.5 / sinbeta                           ! Direct radiation extinction coefficient for black leaves
   kdf      = kdfbl * sqrt(1.0-sigma)
   kdr      = kdrbl * sqrt(1.0-sigma)
   ref      = (1.0 - sqrt(1.0-sigma)) / (1.0 + sqrt(1.0-sigma)) ! Reflection coefficient
   ref_dir  = 2 * ref / (1.0 + 1.6 * sinbeta)
-  do k_can = 1, layers! loop over the different LAI locations
-    iLAI         = LAI_can(k_can)   ! Integrated LAI between here and canopy top
-    fracSL(k_can)   = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
-    PARdfD = PARdif_TOC * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PAR due to diffuse radiation at canopy top
-    PARdrD = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PAR due to direct radiation at canopy top
-    PARdfU = PARdif_TOC * (1.0-ref)     * exp(-kdf * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward (reflected) PAR due to original diffuse radiation
-    PARdrU = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * LAI) * alb * (1.0-ref) * exp(-kdf * (LAI-iLAI)) ! Total upward (reflected) PAR due to original direct radiation
-    PARdfT = PARdfD + PARdfU                                   ! Total PAR due to diffuse radiation at canopy top
-    PARdrT = PARdrD + PARdrU                                   ! Total PAR due to direct radiation at canopy top
-    PARdirprof = (1.0-sigma) * PARdir_TOC * fracSL(k_can)              ! Purely direct PAR (can only be downward) reaching leaves
-    PARdifprof = PARdfT + PARdrT - PARdirprof                          ! Total diffuse radiation reaching leaves
-
-    HdfT   = kdf * PARdfD + kdf * PARdfU
-    HdrT   = kdr * PARdrD + kdf * PARdrU
-    dirH   = kdrbl * PARdirprof
-    Hshad(k_can)  = HdfT + HdrT - dirH
-
-    Hsun(k_can,:)   = Hshad(k_can) + (angle_g * (1.0-sigma) * kdrbl * PARdir_TOC / sum(angle_g * weight_g))
+  if (canrad_meth==1) then ! XP2017
+    do k = 1, layers ! loop over the different LAI locations
+      iLAI         = LAI_can(k)   ! Integrated LAI between here and canopy top
+      fracSL(k)   = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
+      PHIdfD = PHIdif_TOC * (1.0-ref)     * exp(-kdf * iLAI    )     ! Total downward PHI due to diffuse radiation at canopy top
+      PHIdrD = PHIdir_TOC * (1.0-ref_dir) * exp(-kdr * iLAI    )     ! Total downward PHI due to direct radiation at canopy top
+      PHIdfU = PHIdif_TOC *  exp(-kdf * LAI) * alb * (1.0-ref)     * exp(-kdf * (LAI-iLAI)) ! Total upward (reflected) PHI due to original diffuse radiation
+      PHIdrU = PHIdir_TOC *  exp(-kdr * LAI) * alb * (1.0-ref)     * exp(-kdf * (LAI-iLAI)) ! Total upward (reflected) PHI due to original direct radiation
+      PHIdfT = PHIdfD + PHIdfU                                   ! Total PHI due to diffuse radiation at canopy top
+      PHIdrT = PHIdrD + PHIdrU                                   ! Total PHI due to direct radiation at canopy top
+      PHIdirprof = (1.0-sigma) * PHIdir_TOC * fracSL(k)              ! Purely direct PHI (can only be downward) reaching leaves
+      PHIdifprof = PHIdfT + PHIdrT - PHIdirprof                          ! Total diffuse radiation reaching leaves
+      if (ldiscr) then
+      !using the discrete definition of the differentiation
+        if (k>1) then
+        !shift one k level beacuse we move from half level to the full level below 
+          HdfT        = -( (PHIdfD-PHIdfD_b)/(LAI_can(k)-LAI_can(k-1)) &
+                          -(PHIdfU-PHIdfU_b)/(LAI_can(k)-LAI_can(k-1)) )
+          HdrT        = -( (PHIdrD-PHIdrD_b)/(LAI_can(k)-LAI_can(k-1)) &
+                          -(PHIdrU-PHIdrU_b)/(LAI_can(k)-LAI_can(k-1)) )
+          dirH = -(PHIdirprof    - PHIdirprof_b) / (  LAI_can(k)-LAI_can(k-1))
+          Hshad (k-1)   =  HdfT + HdrT - dirH
+          Hsun  (k-1,:) =  Hshad (k-1) + (angle_g * (1.0-sigma) * kdrbl * PHIdir_TOC / sum(angle_g * weight_g))
+          ! PHI absorbed in W/m2 ground!needs thinkin about levels and index, k or k-1 and eeds LAI at full levels
+          !Hsunav  = sum(weight_g * Hsun()) 
+          !PHIabs = ((1-fSL) * Hshad + fSL * Hsunav) * (LAI_can_f[kk]-LAI_can_f[kk-1]) 
+        endif
+        !save values needed for canopy level above
+        PHIdfD_b = PHIdfD
+        PHIdrD_b = PHIdrD
+        PHIdfU_b = PHIdfU
+        PHIdrU_b = PHIdrU
+        PHIdirprof_b = PHIdirprof
+      else
+      ! using analytical differentiation
+        HdfT   = kdf * PHIdfD + kdf * PHIdfU
+        HdrT   = kdr * PHIdrD + kdf * PHIdrU
+        dirH   = kdrbl * PHIdirprof !eq 6.31 applied for direct
+        Hshad(k)  = HdfT + HdrT - dirH ! eq 6.33 in book
+        Hsun(k,:) = Hshad(k) + (angle_g * (1.0-sigma) * kdrbl * PHIdir_TOC / sum(angle_g * weight_g))
+          
+      endif
  
-  ! store up swdircan (downwards), swdifcan (downwards) and swucan assuming any reflected radiation by leaves goes upwards 
-  ! notice that swucan+swdifcan = 2.0 * PARdifprof neglecting leave reflection/scattering coefficients
-    swdircan(k_can)  = -(2.0 * PARdir_TOC * fracSL(k_can))         ! =  PARdirprof without scattering coefficient
-    swdifcan(k_can)  = -(2.0 * PARdif_TOC * exp(-kdfbl * iLAI)) ! 
-    !swucan = (diff and dir reflected by ground) + + (dir converted to diff) + (diff reflected upwards)
-    swucan  (k_can)  = 2.0 * ((PARdfU/(1.0-ref) + PARdrU/(1.0-ref_dir)) + (PARdrD/(1.0-ref_dir) - 0.5 * swdircan(k_can)) &
-                         +(PARdfD/(1.0-ref) - 0.5*swdifcan(k_can))) 
-  end do
+      !store up swdircan (downwards), swdifcan (downwards) and swucan assuming any reflected radiation by leaves goes upwards 
+      !notice that swucan+swdifcan = 2.0 * PHIdifprof neglecting leave reflection/scattering coefficients
+      phidircan(k)  = PHIdir_TOC * fracSL(k)         ! =  PHIdirprof without scattering coefficient
+      phidifcan(k)  = PHIdif_TOC * exp(-kdfbl * iLAI) ! 
+      !phiucan = (diff and dir reflected by ground) + + (dir converted to diff) + (diff reflected upwards)
+      phiucan  (k)  = (PHIdfU/(1.0-ref) + PHIdrU/(1.0-ref_dir)) + (PHIdrD/(1.0-ref_dir) - phidircan(k)) &
+                           +(PHIdfD/(1.0-ref) - phidifcan(k)) 
+    end do
+ 
+!!  calculate amount of upward light at canopy top coming from surface reflection (PHIdrU and PHIdfU with iLAI=0)
+    PHIdirref_TOC = PHIdir_TOC *  exp(-kdr * LAI) * alb *  exp(-kdf * (LAI-0)) ! Total dir upward at canopy top
+    PHIdifref_TOC = PHIdif_TOC *  exp(-kdf * LAI) * alb *  exp(-kdf * (LAI-0)) ! Total dif upward at canopy top
+    !calculate effective albedos for direct, diffuse and total SW radiation assuming PHI and sw albedos are identical
+    effalb_dir =  (ref_dir * PHIdir_TOC + PHIdirref_TOC) / PHIdir_TOC
+    effalb_dif =  (ref * PHIdif_TOC + PHIdifref_TOC) / PHIdif_TOC
+    effalb_sw  =  (ref_dir * PHIdir_TOC + PHIdirref_TOC+ref * PHIdif_TOC + PHIdifref_TOC)/(PHIdir_TOC + PHIdif_TOC)
+    isoil = 0
+    irefl = 0
+  else if (canrad_meth==2) then ! Goud1996
+    !follow goudiraan and van laar  1996 
+    !DIR:
+    rho_s = alb
+    eta_dir = (ref_dir-rho_s) /(rho_s-(1./ref_dir))
+    phid_10_dir = PHIdir_TOC/(1+eta_dir*exp(-2*kdr*LAI))
+    phid_20_dir = PHIdir_TOC*eta_dir*exp(-2*kdr*LAI)/(1+eta_dir*exp(-2*kdr*LAI))
+    phiu_10_dir = PHIdir_TOC*ref_dir/(1+(eta_dir*exp(-2*kdr*LAI)))
+    phiu_20_dir = PHIdir_TOC*eta_dir*exp(-2*kdr*LAI)/(ref_dir*(1+eta_dir*exp(-2*kdr*LAI)))
+!   print *,'PHIdir_TOC',PHIdir_TOC
+!   print *,'ref_dir',ref_dir
+!   print *,'rho_s',rho_s
+!   print *,'eta_dir',eta_dir
+!   print *,'kdr',kdr
+!   print *,'LAI',LAI
+    !DIF
+    eta_dif = (ref-rho_s) /(rho_s-(1./ref))
+    phid_10_dif = PHIdif_TOC/(1+eta_dif*exp(-2*kdf*LAI))
+    phid_20_dif = PHIdif_TOC*eta_dif*exp(-2*kdf*LAI)/(1+eta_dif*exp(-2*kdf*LAI))
+    phiu_10_dif = PHIdif_TOC*ref/(1+(eta_dif*exp(-2*kdf*LAI)))
+    phiu_20_dif = PHIdif_TOC*eta_dif*exp(-2*kdf*LAI)/(ref*(1+eta_dif*exp(-2*kdf*LAI)))
+    !appendix 4 in Goud1996
+    reta1 = (ref-rho_s)/(rho_s*ref-1)
+    reta2 = (ref_dir-rho_s)/(rho_s*ref_dir-1)
+    corrv1 = reta1*exp(-2*kdf*LAI)*ref
+    corrv2 = reta2*exp(-2*kdr*LAI)*ref_dir
+    denom1 = 1+corrv1
+    denom2 = 1+corrv2
+!   print *,'phid_10_dir',phid_10_dir
+!   print *,'phid_20_dir',phid_20_dir
+!   print *,'phiu_10_dir',phiu_10_dir
+!   print *,'phiu_20_dir',phiu_20_dir
+!   print *,'denom2',denom2
+!   print *,'corrv2',corrv2
+!   print *,'reta2',reta2
+!   print *,'LAI_can',LAI_can
+    do k = 1, layers ! loop over the different LAI locations
+      iLAI        = LAI_can(k)   ! Integrated LAI between here and canopy top
+      fracSL(k)   = exp(-kdrbl * iLAI)      ! Fraction of sun-lit leaves
+      PHIdirprof = (1.0-sigma) * PHIdir_TOC * fracSL(k)              ! Purely direct PHI (can only be downward) reaching leaves
+      
+      phidirdown    = phid_10_dir * exp(-kdr * iLAI) + phid_20_dir * exp(kdr * iLAI)    ! PHI down due to PHIdirTOC
+      phidirup      = phiu_10_dir * exp(-kdr * iLAI) + phiu_20_dir * exp(kdr * iLAI) ! PHI up due to PHIdirTOC
+      phidifdown    = phid_10_dif * exp(-kdf * iLAI) + phid_20_dif * exp(kdf * iLAI)    ! PHI down due to PHIdifTOC
+      phidifup      = phiu_10_dif * exp(-kdf * iLAI) + phiu_20_dif * exp(kdf * iLAI)    ! PHI up due to PHIdifTOC
+      phidirnew     = PHIdir_TOC * fracSL(k)* (1.0-sigma)  ! PHI dir profile
+      phidifnew     = phidifdown + phidirdown-phidirnew  ! PHI dif profile
+      phiupnew      = phidirup + phidifup                        ! PHI up (dif) profile
+ 
+      if (ldiscr) then
+      !using the discrete definition of the differentiation
+        if (k>1) then
+        !shift one k level beacuse we move from half level to the full level below 
+        ! following goudriaan and taking discrete derivative
+          HdfT =( (phidifdown - phidifdown_b) / (-(LAI_can(k)-LAI_can(k-1))) + &
+                  (phidifup   - phidifup_b)   / (  LAI_can(k)-LAI_can(k-1)))
+          HdrT =( (phidirdown - phidirdown_b) / (-(LAI_can(k)-LAI_can(k-1))) + &
+                  (phidirup   - phidirup_b)   / (  LAI_can(k)-LAI_can(k-1)))
+          dirH = (PHIdirprof  - PHIdirprof_b) / (-(LAI_can(k)-LAI_can(k-1)))
+          
+          Hshad (k-1)   =  HdfT + HdrT - dirH
+          Hsun  (k-1,:) =  Hshad (k-1) + (angle_g * (1.0-sigma) * kdrbl * PHIdir_TOC / sum(angle_g * weight_g))
+          ! PHI absorbed in W/m2 ground!needs thinkin about levels and index, k or k-1 and eeds LAI at full levels
+          !Hsunav  = sum(weight_g * Hsun()) 
+          !PHIabs = ((1-fSL) * Hshad + fSL * Hsunav) * (LAI_can_f[kk]-LAI_can_f[kk-1]) 
+        endif
+        !save values needed for canopy level above
+        PHIdirprof_b = PHIdirprof
+        phidirdown_b = phidirdown
+        phidifdown_b = phidifdown
+        phidirup_b   = phidirup
+        phidifup_b   = phidifup
+      else
+      ! using analytical differentiation
+        HdfT = (1-ref)     * PHIdif_TOC * kdf *(exp(-kdf * iLAI) + exp(kdf * iLAI) * corrv1/ref)    /denom1 ! VISDF, p217 goudriaan 1996
+        HdrT = (1-ref_dir) * PHIdir_TOC * kdr *(exp(-kdr * iLAI) + exp(kdr * iLAI) * corrv2/ref_dir)/denom2 ! VIST, p217 goudriaan 1996
+        dirH   = kdrbl * PHIdirprof !eq 6.31 applied for direct
+        Hshad(k)  = HdfT + HdrT - dirH ! eq 6.33 
+        Hsun(k,:) = Hshad(k) + (angle_g * (1.0-sigma) * kdrbl * PHIdir_TOC / sum(angle_g * weight_g))
+      endif
+      phidircan(k) = phidirnew
+      phidifcan(k) = phidifnew
+      phiucan(k)   = phiupnew
+! print *,'k',k
+! print *,'phidirdown',phidirdown
+! print *,'phidirup',phidirup
+! print *,'phidifdown',phidifdown
+! print *,'phidifup',phidifup
+    end do
+ 
+    ! PHI reflected by canopy, see appendix4 in Goud 1996
+     irefl     = PHIdir_TOC*(ref_dir+corrv2/ref_dir)/denom2 + PHIdif_TOC*(ref+corrv1/ref)/denom1! Goudriaan 1996, p218
+     irefl_dif = PHIdif_TOC*(ref+corrv1/ref)/denom1
+     irefl_dir = PHIdir_TOC*(ref_dir+corrv2/ref_dir)/denom2
+     effalb_sw  = irefl/(PHIdir_TOC+PHIdif_TOC)
+     effalb_dir = irefl_dir/PHIdir_TOC
+     effalb_dif = irefl_dif/PHIdif_TOC
+    ! PHI absorbed soil:
+     isoil = ((1-ref_dir) * PHIdir_TOC * (exp(-kdr * LAI)- exp(kdr * LAI) * corrv2/ref_dir)/denom2 &  !Goudriaan 1996, p218
+            + (1-ref)     * PHIdif_TOC * (exp(-kdf * LAI)- exp(kdf * LAI) * corrv1/ref    )/denom1)
 
-! calculate amount of upward light at canopy top coming from surface reflection (PARdrU and PARdfU with iLAI=0)
-  PARdirref_TOC = PARdir_TOC * (1.0-ref_dir) * exp(-kdr * LAI) * alb *  exp(-kdf * (LAI-0)) ! Total dir upward at canopy top
-  PARdifref_TOC = PARdif_TOC * (1.0-ref)     * exp(-kdf * LAI) * alb *  exp(-kdf * (LAI-0)) ! Total dif upward at canopy top
-  !calculate effective albedos for direct, diffuse and total SW radiation assuming PAR and sw albedos are identical
-  effalb_dir =  1-(((PARdir_TOC * (1.0-ref_dir))- PARdirref_TOC) / PARdir_TOC)
-  effalb_dif =  1-(((PARdif_TOC * (1.0-ref))    - PARdifref_TOC) / PARdif_TOC)
-  effalb_sw  =  1-(( ((PARdir_TOC*(1.0-ref_dir))-PARdirref_TOC) + ((PARdif_TOC*(1.0-ref))-PARdifref_TOC)) &
-                /(PARdir_TOC + PARdif_TOC))
-   
+  endif
 return
 end subroutine ! canopyrad
 
@@ -504,8 +664,8 @@ subroutine f_Ags(CO2air,qtair,dens,tairk,pair,t_skin,          & ! in
       alphac   = alpha0 * (co2abs  - CO2comp) / (co2abs + 2 * CO2comp)
 
       Agl    = fstr * (Am + Rdark) * (1 - exp(-alphac*Hleaf/(Am + Rdark)))
-      gleaf_inf  = gmin/nuco2q +  Agl/(co2abs-ci)
-      !gleaf  = gmin/nuco2q +  max(Agl/(co2abs-ci),0.0)  ! put a floor on gleaf to avoid negative values  XPB
+      !gleaf_inf  = gmin/nuco2q +  Agl/(co2abs-ci)
+      gleaf_inf  = max(gmin/nuco2q, Agl/(co2abs-ci)) !Xabi test
       
       Fleaf  = -(Agl - Rdark) ! we flip sign here to be consistent with An in old DALES 
 

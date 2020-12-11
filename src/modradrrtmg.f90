@@ -213,7 +213,7 @@ contains
 
     end do ! Large loop over j=2,j1
 
-    do k=1,kmax
+    do k=kmin_rad,kmax
       do j=2,j1
         do i=2,i1
           thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k))
@@ -788,16 +788,16 @@ contains
     ! if all values in solarZenithAngleCos are >= its smallest positive, non-zero element
     if (all(solarZenithAngleCos(:) >= tiny(solarZenithAngleCos))) then
       sunUp = .true.
-      if (lCnstAlbedo) then
-        aldir = albedoav_surf
-        asdir = albedoav_surf
-        aldif = albedoav_surf        ! Specification of the diffuse albedo is also important for the
-        asdif = albedoav_surf        ! total surface albedo
-      else if(lcanopyeb) then ! albedo is provided by canopy radiation subroutine of previous timestep
+      if(lcanopyeb) then ! albedo is provided by canopy radiation subroutine of previous timestep
         aldir(1:imax) = albedo_rad(2:i1,j) !albdir_can(2:i1,j)
         asdir(1:imax) = albedo_rad(2:i1,j) !albdir_can(2:i1,j)
         aldif(1:imax) = albedo_rad(2:i1,j) !albdif_can(2:i1,j)
         asdif(1:imax) = albedo_rad(2:i1,j) !albdif_can(2:i1,j)
+      else if (lCnstAlbedo) then
+        aldir = albedoav_surf
+        asdir = albedoav_surf
+        aldif = albedoav_surf        ! Specification of the diffuse albedo is also important for the
+        asdif = albedoav_surf        ! total surface albedo
       else
         call albedo             ! calculate albedo for the solarZenithAngleCos
       end if

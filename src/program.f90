@@ -132,7 +132,8 @@ program DALES      !Version 4.0.0alpha
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
-                              tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,leibniztend
+                              tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,&
+                              leibniztend,tend_canopyeb
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
   use modbudget,       only : initbudget, budgetstat, exitbudget
@@ -150,8 +151,7 @@ program DALES      !Version 4.0.0alpha
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use modcanstat,      only : initcanstat ,canstat, exitcanstat
   use modcandump,      only : initcandump, candump,exitcandump
-
-
+  
   implicit none
 
 !----------------------------------------------------------------
@@ -194,7 +194,6 @@ program DALES      !Version 4.0.0alpha
   !call initspectra2
   call initcape
 
-
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
@@ -204,7 +203,6 @@ program DALES      !Version 4.0.0alpha
     call tstep_update                           ! Calculate new timestep
     call timedep
     call samptend(tend_start,firstterm=.true.)
-
 !-----------------------------------------------------
 !   3.1   RADIATION
 !-----------------------------------------------------
@@ -215,7 +213,7 @@ program DALES      !Version 4.0.0alpha
 !   3.2   THE SURFACE LAYER
 !-----------------------------------------------------
     call surface
-
+    call samptend(tend_canopyeb)
 !-----------------------------------------------------
 !   3.3   ADVECTION AND DIFFUSION
 !-----------------------------------------------------

@@ -46,7 +46,7 @@ contains
     namelist/NAMRADIATION/ &
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
-      ocean, usero3, co2factor, doperpetual, doseasons, iyear
+      ocean, usero3, co2factor, doperpetual, doseasons, iyear, kmin_rad
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -91,6 +91,7 @@ contains
     call MPI_BCAST(doperpetual,1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(doseasons,  1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
+    call MPI_BCAST(kmin_rad,   1,MPI_INTEGER,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -135,6 +136,7 @@ contains
     swdir = 0.
     swdif = 0.
     lwc   = 0.
+    
     albedo_rad = 0.
     tskin_rad  = 0.
     qskin_rad  = 0.
@@ -200,10 +202,11 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
     use modglobal, only : timee, dt_lim,rk3step
-    use modfields, only : thlp
+    use modfields, only : thlp,thl0
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
+    use modcanopy, only : ncanopy,lcanopyeb
     implicit none
 
     if(timee<tnext .and. rk3step==3) then
@@ -212,6 +215,7 @@ contains
     if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
       thlprad = 0.0
+      !print *,'tskin_rad modrad221',tskin_rad(2,2)
       select case (iradiation)
           case (irad_none)
           case (irad_full)
@@ -233,6 +237,9 @@ contains
             call rad_user
 
       end select
+     !if (lcanopyeb) then ! correct rad tencencies in canopy are written by canopyeb
+     !  thlprad(:,:,:ncanopy)= 0
+     !endif
       if (rad_ls) then
         call radprof
       endif
@@ -255,8 +262,8 @@ contains
 !> calculates tendency due to parameterized radiation
 subroutine radpar
 
-  use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon
-  use modfields,    only : ql0, sv0, rhof,exnf
+  use modglobal,    only : i1,j1,kmax, k1,ih,jh,dzf,cp,xtime,rtimee,xday,xlat,xlon,boltz
+  use modfields,    only : ql0, sv0, rhof,exnf,thl0
   use modsurfdata,  only : tauField
   implicit none
   real, allocatable :: lwpt(:),lwpb(:)
@@ -310,7 +317,7 @@ subroutine radpar
         lwu(i,j,k) = dlwbot*exp(-rka*lwpb(k))
       end do
 
-       do k=1,kmax
+       do k=kmin_rad,kmax
          thlpld         = -(lwd(i,j,k+1)-lwd(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
          thlplu         = -(lwu(i,j,k+1)-lwu(i,j,k))/(rhof(k)*cp*exnf(k)*dzf(k))
          thlprad(i,j,k) =   thlprad(i,j,k) + thlpld+thlplu
@@ -319,6 +326,13 @@ subroutine radpar
     end do
     end do  ! end i,j loop
 
+  else ! LW at surface 
+    do j=2,j1
+    do i=2,i1
+      lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.
+      lwu(i,j,1) =  1.0 * boltz * tskin_rad(i,j) ** 4.
+    enddo
+    enddo
   endif  !end longwave loop
 
 !----------------------------------------------------------------------
@@ -350,7 +364,7 @@ subroutine radpar
         call sunray(tau,tauc,i,j)
       end if
 
-      do k=1,kmax
+      do k=kmin_rad,kmax
         thlpsw          = ((swd(i,j,k+1)-swu(i,j,k+1))-(swd(i,j,k)-swu(i,j,k)))/(rhof(k)*cp*exnf(k)*dzf(k))
         thlprad(i,j,k)  = thlprad(i,j,k) + thlpsw
 
@@ -373,8 +387,7 @@ subroutine radpar
 
   subroutine sunray(tau,tauc,i,j)
 
-  use modglobal, only :  k1,boltz
-  use modfields,   only : thl0
+  use modglobal, only :  k1
   use modmpi, only : myid
 
   implicit none
@@ -454,8 +467,7 @@ subroutine radpar
       swu(i,j,k) = (Irr0 - (2./3.)*Irr1)                           ! diffuse up (lambertian)
       swdir(i,j,k) = mu*sw0*exp(-taupath/mu)
       swdif(i,j,k) = (Irr0 + (2./3.)*Irr1)
-      lwd(i,j,1) =  0.8 * boltz * thl0(i,j,1) ** 4.
-      lwu(i,j,1) =  1.0 * boltz * tskin_rad(i,j) ** 4.
+
   end do
 
   deallocate(taude)
