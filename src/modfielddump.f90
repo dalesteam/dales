@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer :: nvar = 8
+  integer :: nvar = 9
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(:,:), allocatable :: ncname
@@ -115,9 +115,10 @@ contains
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
       call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
       call ncinfo(ncname( 8,:),'ssat', 'Supersaturation','1e4','tttt')
+      call ncinfo(ncname( 9,:),'qlp', 'Liquid water specific humidity tendency','1e-5kg/kg','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(8+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
+        call ncinfo(ncname(9+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
       end do
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
@@ -131,7 +132,7 @@ contains
 
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
-    use modfields,    only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,S0
+    use modfields,    only : u0,v0,w0,thl0,qt0,ql0,qlp,sv0,thv0h,thvh,S0
     use modsurfdata,  only : thls,qts,thvs
     use modglobal,    only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                              timee,dt_lim,cexpnr,ifoutput,rtimee
@@ -320,8 +321,22 @@ contains
       close (ifoutput)
     endif
 
+    ! --- Liquid water tendency  ------------------------------------------------------
+    field = NINT(1.0E5*qlp,2)
+    if (lnetcdf) vars(:,:,:,9) = qlp(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lbinary) then
+      if (ldiracc) then
+        open (ifoutput,file='wbss.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
+        write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+      else
+        open  (ifoutput,file='wbss.'//cmyidx//'.'//cmyidy//'.'//cexpnr,form='unformatted',position='append')
+        write (ifoutput) (((field(i,j,k),i=2,i1, ncoarse),j=2,j1, ncoarse),k=klow,khigh)
+      end if
+      close (ifoutput)
+    endif
+
     ! --- Scalar fields --------------------------------------------------------
-    if (lnetcdf) vars(:,:,:,9:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+    if (lnetcdf) vars(:,:,:,10:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
