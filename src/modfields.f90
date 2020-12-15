@@ -264,7 +264,6 @@ subroutine initfields
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
              ,esl (2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
 
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
 
     allocate(S0   (2-ih:i1+ih,2-jh:j1+jh,k1))

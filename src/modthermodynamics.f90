@@ -395,7 +395,8 @@ contains
 !!
 !! \author Hans Cuijpers   I.M.A.U.
 !! \author Pier Siebesma   K.N.M.I.     06/01/1995
-  subroutine thermo (thl,qt,ql,pressure,exner)
+!MdB  subroutine thermo (thl,qt,ql,pressure,exner)
+  subroutine thermo (thl,qt,pressure,exner)
 
 
 
@@ -405,8 +406,8 @@ contains
   integer i, j, k
   real tl, es, qs, qsl, b1
   real, intent(in)  :: qt(2-ih:i1+ih,2-jh:j1+jh,k1),thl(2-ih:i1+ih,2-jh:j1+jh,k1),exner(k1),pressure(k1)
-  real, intent(out) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1)
-  real :: Tnr,qsatur,Tnr_old
+ !MdB real, intent(out) :: ql(2-ih:i1+ih,2-jh:j1+jh,k1)
+  real :: Tnr,Tnr_old
   integer :: niter,nitert
     if (lqlnr) then
 
@@ -425,15 +426,15 @@ contains
               niter = niter+1
               Tnr_old = Tnr
               es    = es0*exp(at*(Tnr-tmelt)/(Tnr-bt))
-              qsatur= rd/rv*es/(pressure(k)-(1-rd/rv)*es)
-              Tnr = Tnr - (Tnr+(rlv/cp)*qsatur-tl- &
-                      (rlv/cp)*qt(i,j,k))/(1+(rlv**2*qsatur)/ &
+              qsatur(i,j,k)= rd/rv*es/(pressure(k)-(1-rd/rv)*es)
+              Tnr = Tnr - (Tnr+(rlv/cp)*qsatur(i,j,k)-tl- &
+                      (rlv/cp)*qt(i,j,k))/(1+(rlv**2*qsatur(i,j,k))/ &
                       (rv*cp*Tnr**2))
             end do
             nitert =max(nitert,niter)
             niter = 0.0
 
-            ql(i,j,k) = dim(qt(i,j,k)-qsatur,0.)
+!MdB            ql(i,j,k) = dim(qt(i,j,k)-qsatur(i,j,k),0.)
 
           end do
         end do
@@ -449,7 +450,7 @@ contains
             qsl = rd/rv*es/(pressure(k)-(1-rd/rv)*es)
             b1  = rlv**2/(tl**2*cp*rv)
             qs  = qsl*(1.+b1*qt(i,j,k))/(1.+b1*qsl)
-            ql(i,j,k) = dim(qt(i,j,k)-qs,0.)
+!MdB            ql(i,j,k) = dim(qt(i,j,k)-qs,0.)
           end do
         end do
       end do
@@ -561,7 +562,7 @@ contains
             endif
 
 !MdB            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
-            qsat(i,j,k) = qsatur
+            qsat(i,j,k) = qsatur(i,j,k)
 
       end do
       end do
