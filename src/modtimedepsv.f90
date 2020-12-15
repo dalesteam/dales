@@ -42,8 +42,8 @@ save
   logical       :: ltimedepsvz    = .false. !< Switch for large scale forcings
   logical       :: ltimedepsvsurf = .true.  !< Switch for surface fluxes
 
-  integer, parameter    :: kflux = 100
-  integer, parameter    :: kls   = 100
+  integer :: kflux
+  integer :: kls
   real, allocatable     :: timesvsurf (:)
   real, allocatable     :: svst     (:,:) !< Time dependent surface scalar concentration
 
@@ -55,8 +55,11 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedepsv
-    use modmpi,   only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal,only :cexpnr,kmax,k1,ifinput,runtime,nsv
+    use mpi
+    use modmpi,     only :myid,my_real,mpi_logical,mpierr,comm3d
+    use modglobal,  only :cexpnr,kmax,k1,ifinput,runtime,nsv,ntimedep
+    use modtestbed, only :ltestbed,ntnudge
+    
     implicit none
 
     character (80):: chmess
@@ -67,6 +70,14 @@ contains
     real, allocatable, dimension (:) :: height
 
     if (nsv==0 .or. .not.ltimedepsv ) return
+
+    if (ltestbed) then
+      kflux = ntnudge
+      kls   = ntnudge
+    else
+      kflux = ntimedep
+      kls   = ntimedep
+    end if
 
     allocate(height(k1))
     allocate(timesvsurf (0:kflux))
@@ -149,7 +160,6 @@ contains
 
 
     call MPI_BCAST(timesvsurf(1:kflux),kflux,MY_REAL,0,comm3d,mpierr)
-    call MPI_BCAST(timesvz(1:kflux),kflux,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(svst             ,kflux*nsv,MY_REAL,0,comm3d,mpierr)
     call MPI_BCAST(timesvz(1:kls)    ,kls,MY_REAL  ,0,comm3d,mpierr)
     call MPI_BCAST(ltimedepsvsurf ,1,MPI_LOGICAL,0,comm3d,mpierr)

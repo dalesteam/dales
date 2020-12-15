@@ -36,25 +36,15 @@
 
   subroutine advecc_kappa(putin,putout)
 
-  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzi
+  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
   real,external :: rlim
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
-   real      d1,d2,cf
+  real      d1,d2,cf
 
   integer   i,j,k
-
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
 
   do k=1,kmax
     do j=2,j1
@@ -107,31 +97,30 @@
           cf = rhobf(k)   * putin(i,j,k  )
         end if
         cf = cf + rlim(d1,d2)
-        putout(i,j,k-1) = putout(i,j,k-1) - (1./rhobf(k-1))*cf * w0(i,j,k) * dzi
-        putout(i,j,k)   = putout(i,j,k)   + (1./rhobf(k))*cf * w0(i,j,k) * dzi
+        putout(i,j,k-1) = putout(i,j,k-1) - (1./rhobf(k-1))*cf * w0(i,j,k) * (1.0 / dzf(k-1))
+        putout(i,j,k)   = putout(i,j,k)   + (1./rhobf(k))*cf   * w0(i,j,k) * (1.0 / dzf(k))
       end do
     end do
   end do
 
+  !special case for vertical advection at k=2
   do j=2,j1
     do i=2,i1
       if (w0(i,j,2)>0) then
         d1 = 0
-        d2 = rhobf(1) * putin(i,j,1)   - rhobf(2) * putin(i,j,2)
+        d2 = rhobf(2) * putin(i,j,2)   - rhobf(1) * putin(i,j,1)
         cf = rhobf(1) * putin(i,j,1)
       else
         d1 = rhobf(2) * putin(i,j,2)   - rhobf(3) * putin(i,j,3)
-        d2 = rhobf(1) * putin(i-1,j,1) - rhobf(2) * putin(i,j,2)
+        d2 = rhobf(1) * putin(i,j,1)   - rhobf(2) * putin(i,j,2)
         cf = rhobf(2) * putin(i,j,2)
       end if
       cf = cf + rlim(d1,d2)
-      putout(i,j,1) = putout(i,j,1) - (1./rhobf(1))*cf * w0(i,j,2) * dzi
-      putout(i,j,2) = putout(i,j,2) + (1./rhobf(2))*cf * w0(i,j,2) * dzi
+      putout(i,j,1) = putout(i,j,1) - (1./rhobf(1))*cf * w0(i,j,2) * (1.0 / dzf(1))
+      putout(i,j,2) = putout(i,j,2) + (1./rhobf(2))*cf * w0(i,j,2) * (1.0 / dzf(2))
     end do
   end do
 
-
-  return
   end subroutine advecc_kappa
 
 subroutine  halflev_kappa(putin,putout)
@@ -142,18 +131,9 @@ subroutine  halflev_kappa(putin,putout)
     real,external :: rlim
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-    !real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
     real      d1,d2,cf
     integer   i,j,k
 
-
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rhoputin(i,j,k)=rhobf(k)*putin(i,j,k)
-!      end do
-!    end do
-!  end do
 
     do k=3,k1
       do j=2,j1

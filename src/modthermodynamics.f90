@@ -463,9 +463,8 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,sv0
+  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,sv0,qsat
   use modmicrodata, only: inc, iqr, inr
-
   implicit none
 
   integer i, j, k
@@ -560,7 +559,10 @@ contains
               qvsl(i,j,k)=qvsl1
               qvsi(i,j,k)=qvsi1
             endif
+
 !MdB            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+            qsat(i,j,k) = qsatur
+
       end do
       end do
       end do

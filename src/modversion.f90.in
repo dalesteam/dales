@@ -1,0 +1,10 @@
+! Variables in this file are filled in by CMake at build time,
+! used to record the git version and hash.
+
+module modversion
+
+  implicit none
+
+  character(80) :: git_version="@GIT_VERSION@"
+
+end module modversion

@@ -61,11 +61,11 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
-
+    use mpi
     use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput
-    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,writestat_dims_nc
+                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
+    use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
@@ -79,11 +79,7 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSAMPLING,iostat=ierr)
-      if (ierr > 0) then
-        print *, 'Problem in namoptions NAMSAMPLING'
-        print *, 'iostat error: ', ierr
-        stop 'ERROR: Problem in namoptions NAMSAMPLING'
-      endif
+      call checknamelisterror(ierr, ifnamopt, 'NAMSAMPLING')
       write(6 ,NAMSAMPLING)
       close(ifnamopt)
     end if
@@ -197,7 +193,7 @@ contains
     subphavl    = 0.0
     nrtsamphav  = 0
 
-    if(myid==0)then
+    if(myid==0 .and. .not. lwarmstart) then
       do isamp = 1,isamptot
         open (ifoutput,file=trim(samplname(isamp))//'wbudg.'//cexpnr,status='replace')
         close (ifoutput)
@@ -216,7 +212,7 @@ contains
       nsamples = itimeav/idtav
      if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
-        call ncinfo(tncname(1,:),'time','Time','s','time')
+        call nctiminfo(tncname(1,:))
         fname(10:12) = cexpnr
         call open_nc(fname,ncid,nrec,n3=kmax)
         call define_nc(ncid,1,tncname)
@@ -344,6 +340,7 @@ contains
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp_store
     use modsubgriddata,only : ekh,ekm
+    use mpi
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
     use modpois,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
@@ -751,6 +748,7 @@ contains
 
     use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,ijtot
     use modfields, only : presf,presh
+    use mpi
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
 

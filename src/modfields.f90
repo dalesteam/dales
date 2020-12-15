@@ -87,6 +87,8 @@ save
 
   real, allocatable :: presf(:)                      !<   hydrostatic pressure at full level
   real, allocatable :: presh(:)                      !<   hydrostatic pressure at half level
+  real, allocatable :: initial_presf(:)              !<   initial hydrostatic pressure at full level
+  real, allocatable :: initial_presh(:)              !<   initial hydrostatic pressure at half level
   real, allocatable :: exnf(:)                       !<   hydrostatic exner function at full level
   real, allocatable :: exnh(:)                       !<   hydrostatic exner function at half level
   real, allocatable :: thvf(:)                       !<   hydrostatic thetav at full level
@@ -140,6 +142,8 @@ save
 
   real, allocatable :: S0(:,:,:)                     !<   End-of-timestep  saturation value   
   real, allocatable :: Sm(:,:,:)                     !<   Timestep average saturation value   
+  real, allocatable :: qsat(:,:,:)
+  real, allocatable :: surf_rain(:,:)               !< integrated surface rain 
 
 contains
 !> Allocate and initialize the prognostic variables
@@ -208,6 +212,8 @@ subroutine initfields
     allocate(whls(k1))
     allocate(presf(k1))
     allocate(presh(k1))
+    allocate(initial_presf(k1))
+    allocate(initial_presh(k1))
     allocate(exnf(k1))
     allocate(exnh(k1))
     allocate(thvf(k1))
@@ -258,9 +264,14 @@ subroutine initfields
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
              ,esl (2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
 
+    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
+
     allocate(S0   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(Sm   (2-ih:i1+ih,2-jh:j1+jh,k1))
- 
+
+    allocate(surf_rain(2-ih:i1+ih,2-jh:j1+jh))
+
     um=0.  ;   u0=0.;   up=0.
     vm=0.  ;   v0=0.;   vp=0.
     wm=0.  ;   w0=0.;   wp=0.; wp_store=0.
@@ -287,6 +298,7 @@ subroutine initfields
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
+    surf_rain = 0
   end subroutine initfields
 
 !> Deallocate the fields
@@ -299,6 +311,7 @@ subroutine initfields
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
     deallocate(tmp0,thv0h,dthvdz,whls,presf,presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
+    deallocate(initial_presf,initial_presh)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
@@ -307,6 +320,8 @@ subroutine initfields
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl,S0,Sm)
+    deallocate(qsat)
+    deallocate(surf_rain)
     end subroutine exitfields
 
 end module modfields
