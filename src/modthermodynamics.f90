@@ -735,7 +735,7 @@ contains
     integer         :: i, j, k
     
     real            :: T, es, dS, y, delt
-    real, parameter :: beta = 500.
+    real, parameter :: beta = 100. !Amazon default = 500
 
     delt = rdt/ (4. - dble(rk3step))
     

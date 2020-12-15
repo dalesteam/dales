@@ -93,15 +93,17 @@ contains
  subroutine cyclich
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv
-  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
+  use modfields, only : thl0,thlm,qt0,qtm,ql0,qlm,sv0,svm
   use modmpi,    only : excjs
 
   integer n
 
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( ql0            , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( qlm            , 2,i1,2,j1,1,k1,ih,jh)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
@@ -147,8 +149,8 @@ contains
 !! \endlatexonly
  subroutine grwdamp
   use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
-  use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
-                        ,thl0av,qt0av,sv0av,u0av,v0av
+  use modfields, only : up,vp,wp,thlp,qtp,qlp,u0,v0,w0,thl0,qt0,ql0,sv0,ug,vg &
+                        ,thl0av,qt0av,ql0av,sv0av,u0av,v0av
   implicit none
 
   integer k,n
@@ -162,6 +164,7 @@ contains
       wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
+      qlp(:,:,k) = qlp(:,:,k)-(ql0(:,:,k)-ql0av(k))*tsc(k)
     end do
     if(lcoriol) then
     do k=ksp,kmax
@@ -176,6 +179,7 @@ contains
       wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
+      qlp(:,:,k) = qlp(:,:,k)-(ql0(:,:,k)-ql0av(k))*tsc(k)
     end do
   case(3)
     do k=ksp,kmax
@@ -184,6 +188,7 @@ contains
       wp(:,:,k)  = wp(:,:,k)-w0(:,:,k)*tsc(k)
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
+      qlp(:,:,k) = qlp(:,:,k)-(ql0(:,:,k)-ql0av(k))*tsc(k)
     end do
   case(-1)
     up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
@@ -198,6 +203,7 @@ contains
 
   thl0(2:i1,2:j1,kmax) = thl0av(kmax)
   qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
+  ql0 (2:i1,2:j1,kmax) = ql0av(kmax)
   do n=1,nsv
     sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
   end do
@@ -208,9 +214,9 @@ contains
 !> Sets top boundary conditions for scalars
   subroutine toph
 
-  use modglobal, only : kmax,k1,nsv,dtheta,dqt,dsv,dzh
-  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
-                       ,thl0av,qt0av,sv0av
+  use modglobal, only : kmax,k1,nsv,dtheta,dqt,dql,dsv,dzh
+  use modfields, only : thl0,thlm,qt0,qtm,ql0,qlm,sv0,svm &
+                       ,thl0av,qt0av,ql0av,sv0av
   implicit none
   integer :: n
   integer,parameter :: kav=5
@@ -222,6 +228,8 @@ contains
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
+  dql    = sum((ql0av (kmax-kav+1:kmax)-ql0av (kmax-kav:kmax-1))/ &
+             dzh(kmax-kav+1:kmax))/kav
   do n=1,nsv
     dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
                dzh(kmax-kav:kmax-1))/kav
@@ -229,9 +237,11 @@ contains
 
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
+  ql0(:,:,k1)  = ql0 (:,:,kmax) + dql*dzh(k1)
 
   thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
   qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
+  qlm(:,:,k1)  = qlm (:,:,kmax) + dql*dzh(k1)
   do n=1,nsv
     sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
     svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)

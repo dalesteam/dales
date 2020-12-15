@@ -160,6 +160,7 @@ save
       real :: tres     = 0.001
       real :: thres     = 5.e-3 !<     * threshold value for inversion height calculations
       real :: dqt               !<     * applied gradient of qt at top of model
+      real :: dql               !<     * applied gradient of ql at top of model
       real :: dtheta            !<     * applied gradient of theta at top of model
       real,allocatable :: dsv(:)          !<     * applied gradient of sv(n) at top of model
     !<     real :: dsv(nsv)          !<     * applied gradient of sv(n) at top of model
