@@ -13,13 +13,15 @@ alternative FFT-based solver using the FFTW library.
 
 ### Improvements
 
+* Add option ntimedep to PHYSICS namelist - max number of time points for timedependent forcings. Commit 14a84deb
+* Add support for non-uniform grid in the kappa advection scheme. Commit d8e6c68d
 * Add a namelist option lsync in NAMNETCDFSTATS to synchronize netCDF output files after writing
 * Iterative Poisson solver support with the HYPRE library (by J. Attema).
 * Don't overwrite ascii output files on warm start. Commit 25fae048
 * Warn when moduser routines are invoked from a case, when a custom moduser.f90 has not been compiled in. Commit ae148a3bd3
 * Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support. Commit 4ab9a7571b
 * Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
-* Add qsat field for statistics, and  statistics for accumulated surface rain flux in simpleice2.  Commit 6036c1a93b
+* Add qsat field for statistics, and statistics for accumulated surface rain flux in simpleice2.  Commit 6036c1a93b
 * Add a library interface to DALES, to enable interfacing with OMUSE. Commits 6e0e39f2, 9f91f2d, 4b97aca, 640977e
 
 
@@ -33,9 +35,13 @@ alternative FFT-based solver using the FFTW library.
 
 ### Bugs fixed
 
+* Use the 2D tskin field as input for RRTMG LW_out instead of the domain mean value of tskin. Commit 910fa438
+* [Issue #58](https://github.com/dalesteam/dales/issues/58) Disable lsmcrossection if isurf/=1
+* [Issue #52](https://github.com/dalesteam/dales/issues/52) making modtimedepsv allocations consistent with modtimedep and removing redundant broadcast. Commit e6dd89a3
+* kappa advection scheme: fix index error on lowest level. Commit 98d34d2e
 * radiation and restarts : https://github.com/dalesteam/dales/issues/40
 * modsimpleice2 and initialization order, https://github.com/dalesteam/dales/issues/49 . Commit be3f9711bb6
-* timedependent forcings, finding the correct interval for interpolation with time dependent surface variables. https://github.com/dalesteam/dales/issues/48 . Commit d6f2225
+* timedependent forcings, finding the correct interval for interpolation with time dependent surface variables. https://github.com/dalesteam/dales/issues/48 . Commit d6f2225, 1ed4357
 * modbudget: remove extra factor rhobf in calculation of sbtke average. From S. de Roode.
 * modbudget: add if(myid==0) around netcdf profile writing. Commit b7afc418c5
 * Fix ibas_prf=3 initialization when zf(k) is exactly 11000 (1st value in the lapse rate table).
