@@ -297,13 +297,15 @@ contains
       end select
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
-
         call nchandle_error(iret)
       end if
-      iret=nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2)
-      iret=nf90_put_att(ncID,VarID,'longname',sx(n,2))
-      iret=nf90_put_att(ncID,VarID,'units',sx(n,3))
-      iret = nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue)
+      
+      call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2))
+      call nchandle_error(nf90_put_att(ncID,VarID,'longname',sx(n,2)))
+      call nchandle_error(nf90_put_att(ncID,VarID,'units',sx(n,3)))
+      !call nchandle_error(nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))
+      !fails "NetCDF: Not a valid data type or _FillValue type mismatch"
+      !on Fugaku with netCDF-Fortran 4.5.2, netCDF 4.7.3
 
     end do
     iret= nf90_enddef(ncID)
@@ -454,10 +456,10 @@ contains
     real,dimension(:,:,:),intent(in)         :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
 
-    integer :: iret,n,varid
+    integer :: n,varid
     do n=1,nvar
-      iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
-      iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc

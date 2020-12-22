@@ -57,7 +57,17 @@ elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
+   set(CMAKE_Fortran_COMPILER "mpifrtpx")
+   set(CMAKE_Fortran_FLAGS "-Ad -g" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-Hsu" CACHE STRING "")
+   # Fujitsu fortran compiler
+   # -Ad default real is 64 bit
+   # -Kfast optimization and SVE vectorization
+   # -Hsu checking: s-subscript range, u-undefinied values
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
+   # don't set any compilation flags here, allows setting them outside CMake
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=legacy" CACHE STRING "")
