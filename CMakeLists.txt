@@ -61,11 +61,15 @@ elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    set(CMAKE_Fortran_COMPILER "mpifrtpx")
    set(CMAKE_Fortran_FLAGS "-Ad -g" CACHE STRING "")
    set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast" CACHE STRING "")
-   set (CMAKE_Fortran_FLAGS_DEBUG   "-Hsu" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O2" CACHE STRING "")
    # Fujitsu fortran compiler
    # -Ad default real is 64 bit
    # -Kfast optimization and SVE vectorization
-   # -Hsu checking: s-subscript range, u-undefinied values
+   # -Haefosux checking: s-subscript range, u-undefinied values
+   #                     a-argument mismatches, e-shape conformance
+   #                     f-simultaneousOPEN and I/O recursive calls
+   #                     o-overlapping dummy arguments and extend undefined
+   #                     x-module, submodule, common, and pointer undefined
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
    # don't set any compilation flags here, allows setting them outside CMake
 else()
