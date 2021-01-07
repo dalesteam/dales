@@ -89,15 +89,25 @@ subroutine initbulkmicrostat
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
-    use modmicrodata,only: imicro, imicro_bulk, imicro_sice
+    use modmicrodata,only: imicro, imicro_bulk, imicro_sice, imicro_bulk3 !#sb3
+    use modbulkmicrostat3,only:initbulkmicrostat3  ! #sb3
     implicit none
     integer      :: ierr
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
+    
+    ! #sb3 START
+    if (imicro.eq.imicro_bulk3) then
+       call initbulkmicrostat3
+       return
+    endif
+    ! #sb3 END
 
     if ((imicro /=imicro_bulk) .and. (imicro /= imicro_sice)) return
 
+    
+    
     dtav  = dtav_glob
     timeav  = timeav_glob
     if(myid==0)then
@@ -221,7 +231,10 @@ subroutine initbulkmicrostat
 !> General routine, does the timekeeping
   subroutine bulkmicrostat
     use modglobal,    only  : rk3step, timee, dt_lim
+    use modmicrodata,only: imicro, imicro_bulk3             ! #sb3
     implicit none
+    
+    if (imicro.eq.imicro_bulk3) return  ! #sb3 treated separately
     if (.not. lmicrostat)  return
     if (rk3step /= 3)  return
     if (timee == 0)    return
@@ -245,31 +258,31 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
     use modglobal,    only  : i1, j1, k1, ijtot
-    use modmicrodata,  only  : qr, precep, Dvr, Nr, epscloud, epsqr, epsprec,imicro, imicro_bulk
+    use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
     use modfields,  only  : ql0
     implicit none
 
-    integer      :: k
+    integer :: k
 
-    precav      = 0.0
-    preccountav    = 0.0
-    prec_prcav    = 0.0
-    cloudcountav    = 0.0
-    raincountav    = 0.0
-    Nrrainav    = 0.0
-    qrav      = 0.0
-    Dvrav      = 0.0
+    precav = 0.0
+    preccountav = 0.0
+    prec_prcav = 0.0
+    cloudcountav = 0.0
+    raincountav = 0.0
+    Nrrainav = 0.0
+    qrav = 0.0
+    Dvrav = 0.0
 
     do k = 1,k1
-      cloudcountavl(k)  = count(ql0      (2:i1,2:j1,k) > epscloud)
+      cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)
       raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr)
       preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec)
-      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k)  , precep(2:i1,2:j1,k) > epsprec)
-      Nrrainavl    (k)  = sum  (Nr  (2:i1,2:j1,k))
+      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep(2:i1,2:j1,k) > epsprec)
+      Nrrainavl    (k)  = sum  (Nr      (2:i1,2:j1,k))
       precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
-      qravl        (k)  = sum  (qr  (2:i1,2:j1,k))
+      qravl        (k)  = sum  (qr      (2:i1,2:j1,k))
       if (imicro==imicro_bulk) then
-        Dvravl     (k)  = sum  (Dvr  (2:i1,2:j1,k)  , qr  (2:i1,2:j1,k) > epsqr)
+        Dvravl     (k)  = sum  (Dvr     (2:i1,2:j1,k) , qr(2:i1,2:j1,k) > epsqr)
       end if
     end do
 
@@ -319,11 +332,11 @@ subroutine initbulkmicrostat
     ifield    = mod(ifield, nrfields) + 1
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,Nrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
     Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
 
     avfield    = 0.0
-    call slabsum(avfield  ,1,k1,qrp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(avfield  ,1,k1,qrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
     qlpav(:,ifield) = avfield - sum(qlpav  (:,1:ifield-1),2)
 
     avfield    = 0.0
@@ -553,7 +566,16 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 
   subroutine exitbulkmicrostat
+    use modmicrodata,only: imicro, imicro_bulk3     ! #sb3
+    use modbulkmicrostat3, only:exitbulkmicrostat3  ! #sb3
     implicit none
+    ! #sb3 START
+    if (imicro.eq.imicro_bulk3) then
+       call exitbulkmicrostat3
+       return
+    endif
+    ! #sb3 END
+    
     if (.not. lmicrostat)  return
 
     deallocate(Npav      , &
