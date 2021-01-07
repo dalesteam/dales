@@ -272,7 +272,7 @@ module modbulkmicro
     endif
 
     ! if there is nothing to do, we can return at this point
-    if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
+    ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
     !*********************************************************************
     ! calculate Rain DSD integral properties & parameters xr, Dvr, lbdr, mur
