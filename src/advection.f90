@@ -28,7 +28,7 @@
 subroutine advection
 
   use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_kappa_f,iadv_null,leq
+                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq
   use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid, only : lsmagorinsky
   use advec_hybrid, only : advecc_hybrid
@@ -95,8 +95,6 @@ subroutine advection
         call advecc_62(e120,e12p)
       case(iadv_kappa)
         call advecc_kappa(e120,e12p)
-      case(iadv_kappa_f)
-        call advecc_kappa_f(e120,e12p)
       case(iadv_hybrid)
         !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
         call advecc_hybrid(e120,e12p)
@@ -126,8 +124,6 @@ subroutine advection
       call advecc_62(thl0,thlp)
     case(iadv_kappa)
       call advecc_kappa(thl0,thlp)
-    case(iadv_kappa_f)
-      call advecc_kappa_f(thl0,thlp)
     case(iadv_upw)
       if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
       call advecc_upw(thl0,thlp)
@@ -159,8 +155,6 @@ subroutine advection
         call advecc_62(qt0,qtp)
       case(iadv_kappa)
         call advecc_kappa(qt0,qtp)
-      case(iadv_kappa_f)
-         call advecc_kappa_f(qt0,qtp)
       case(iadv_upw)
         if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
         call advecc_upw(qt0,qtp)
@@ -193,8 +187,6 @@ subroutine advection
       call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_kappa)
       call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
-    case(iadv_kappa_f)
-      call advecc_kappa_f(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)
       if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
       call advecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
