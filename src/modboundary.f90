@@ -100,12 +100,12 @@ contains
 
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh)
+  !call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
+  !call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
+    !call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
   enddo
 
   return
@@ -121,11 +121,14 @@ contains
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
+
+  ! um, vm halo is used in modgenstat, modtimestat.
   call excjs( um  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( vm  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( wm  , 2,i1,2,j1,1,k1,ih,jh)
+  !call excjs( wm  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( e12m  , 2,i1,2,j1,1,k1,ih,jh)
+  !call excjs( e12m  , 2,i1,2,j1,1,k1,ih,jh)
+
 
   return
   end subroutine cyclicm
