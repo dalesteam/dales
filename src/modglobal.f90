@@ -146,6 +146,7 @@ save
 
 
       ! Global variables (modvar.f90)
+      real :: xyear     = 2000. !<     * year
       real :: xday      = 1.    !<     * day number
       real :: xtime     = 0.    !<     * GMT time
       real :: cu        = 0.    !<     * translation velocity in x-direction

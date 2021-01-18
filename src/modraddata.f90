@@ -248,5 +248,52 @@ contains
   end function azimuth
 
 
+!< Improved calculation of the cosine of the zenith angle (IFS method)
+!< \param time UTC Time of the simulation
+!< \param xday Day at the start of the simulation
+!< \param xlat Latitude of the domain
+!< \param xlon Longitude of the domain
+  real function zenith_ifs(time, xday, xlat, xlon, year)
+    use modglobal, only : pi
+!     implicit none
+    real, intent(in) :: time, xday, xlat, xlon, year
+    real :: radlon, radlat, doy, doy_pi, declination_angle
+    real :: a1, a2, a3, days_per_year
+    real :: seconds_since_midnight, hour_solar_time, hour_angle
+
+    if (.not.lCnstZenith) then
+        if (mod(year,4)==0 .and. (mod(year,100) /= 0 or mod(year,400) == 0)) then
+            days_per_year = 366.
+        else
+            days_per_year = 365.
+        end if
+
+        doy    = xday + floor(time/86400.) - 1
+        radlat = lat * pi/180. 
+        radlon = lon * pi/180. 
+
+        ! DOY in range (0, 2*pi)
+        doy_pi = 2. * pi * doy / days_per_year
+        
+        ! Solar declination angle
+        declination_angle = 0.006918 - 0.399912 * cos(doy_pi) + 0.070257 * sin(doy_pi) & 
+                            -0.006758 * cos(2*doy_pi) + 0.000907 * sin(2*doy_pi) &
+                            -0.002697 * cos(3*doy_pi) + 0.00148  * sin(3*doy_pi)
+        
+        ! Hour angle in radians, using true solar time
+        a1 = (1.00554 * doy -  6.28306) * pi/180.
+        a2 = (1.93946 * doy + 23.35089) * pi/180.
+        a3 = (7.67825 * sin(a1) + 10.09176 * sin(a2)) / 60.
+        
+        seconds_since_midnight= mod(time,86400.)    
+        hour_solar_time = (seconds_since_midnight/3600.) - a3 + radlon * (180./pi/15.)
+        hour_angle = (hour_solar_time-12.) * 15. * (pi/180.)
+
+        zenith = max(0.,sin(radlat)*sin(declination_angle) + & 
+                        cos(radlat)*cos(declination_angle) * cos(hour_angle))
+    else
+        zenith = cos(cnstZenith*pi/180.)
+    end if
+  end function zenith_ifs
 
 end module modraddata

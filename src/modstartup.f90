@@ -90,7 +90,7 @@ contains
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
-        xlat,xlon,xday,xtime,ksp
+        xlat,xlon,xday,xtime,xyear,ksp
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
