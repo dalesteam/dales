@@ -48,7 +48,6 @@ save
   real, allocatable :: up(:,:,:)        !<   tendency of um
   real, allocatable :: vp(:,:,:)        !<   tendency of vm
   real, allocatable :: wp(:,:,:)        !<   tendency of wm
-  real, allocatable :: wp_store(:,:,:)  !<   tendency of wm, dummy variable for w-budget sampling
   real, allocatable :: thlp(:,:,:)      !<   tendency of thlm
   real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real, allocatable :: qtp(:,:,:)       !<   tendency of qtm
@@ -65,17 +64,6 @@ save
   real, allocatable :: drhobdzh(:)       !<   Base state density, derivative at half level
 
   ! Cloud edge variables
-  real, allocatable :: cloudarea(:,:,:)
-  real, allocatable :: cloudnr(:,:,:)
-  real, allocatable :: cloudnrold(:,:,:)
-  real, allocatable :: distcld(:,:,:)
-  real, allocatable :: distcr(:,:,:)
-  real, allocatable :: distqr(:,:)
-  real, allocatable :: distdiv(:,:)
-  real, allocatable :: distcon(:,:)
-  real, allocatable :: distbuoy(:,:)
-  real, allocatable :: distw(:,:)
-
   real, allocatable :: ql0(:,:,:)  !<   liquid water content
   real, allocatable :: tmp0(:,:,:) !<   temperature at full level
   real, allocatable :: thv0h(:,:,:)!<   theta_v at half level
@@ -148,71 +136,66 @@ subroutine initfields
     ! Allocation of prognostic variables
     implicit none
 
-    allocate(um(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e12m(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtm(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(u0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(v0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(w0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thl0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e120(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(up(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wp_store(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e12p(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtp(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(um   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(vm   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(wm   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlm (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e12m (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qtm  (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(cloudarea(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(cloudnr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(cloudnrold(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distcld(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distcr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(distqr(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distdiv(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distcon(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distbuoy(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(distw(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(u0   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(v0   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(w0   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thl0 (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e120 (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qt0  (2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate(up   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(vp   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(wp   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlp (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e12p (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qtp  (2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate(svm  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(sv0  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(svp  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+
+    allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qt0h (2-ih:i1+ih,2-jh:j1+jh,k1))
 
     ! Allocation of base state variables
-    allocate(rhobf(k1))
-    allocate(rhobh(k1))
+    allocate(rhobf   (k1))
+    allocate(rhobh   (k1))
     allocate(drhobdzf(k1))
     allocate(drhobdzh(k1))
 
     ! Allocation of diagnostic variables
-    allocate(ql0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(tmp0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(whls(k1))
-    allocate(presf(k1))
-    allocate(presh(k1))
+    allocate(ql0   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(ql0h  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(tmp0  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thv0h (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate(whls         (k1))
+    allocate(presf        (k1))
+    allocate(presh        (k1))
     allocate(initial_presf(k1))
     allocate(initial_presh(k1))
-    allocate(exnf(k1))
-    allocate(exnh(k1))
-    allocate(thvf(k1))
-    allocate(thvh(k1))
-    allocate(rhof(k1))
-    allocate(qt0av(k1))
-    allocate(ql0av(k1))
-    allocate(thl0av(k1))
-    allocate(u0av(k1))
-    allocate(v0av(k1))
-    allocate(ug(k1))
-    allocate(vg(k1))
-    allocate(dpdxl(k1))
-    allocate(dpdyl(k1))
+    allocate(exnf         (k1))
+    allocate(exnh         (k1))
+    allocate(thvf         (k1))
+    allocate(thvh         (k1))
+    allocate(rhof         (k1))
+    allocate(qt0av        (k1))
+    allocate(ql0av        (k1))
+    allocate(thl0av       (k1))
+    allocate(u0av         (k1))
+    allocate(v0av         (k1))
+    allocate(ug           (k1))
+    allocate(vg           (k1))
+    allocate(dpdxl        (k1))
+    allocate(dpdyl        (k1))
 
     allocate(dthldxls(k1))
     allocate(dthldyls(k1))
@@ -230,31 +213,31 @@ subroutine initfields
     allocate(dvdyls(k1))
     allocate(dvdtls(k1))
 
-    allocate(wfls  (k1))
-    allocate(ql0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(wfls   (k1))
     allocate(thlprof(k1))
-    allocate(qtprof(k1))
-    allocate(uprof(k1))
-    allocate(vprof(k1))
+    allocate(qtprof (k1))
+    allocate(uprof  (k1))
+    allocate(vprof  (k1))
     allocate(e12prof(k1))
-    allocate(sv0av(k1,nsv))
-    allocate(svprof(k1,nsv))
+    allocate(sv0av  (k1,nsv))
+    allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
+
     allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
-             ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
-             ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
+             ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-ice
+             ,esl (2-ih:i1+ih,2-jh:j1+jh,k1)    & ! es-liquid
+             ,qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
+
     allocate(surf_rain(2-ih:i1+ih,2-jh:j1+jh))
 
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.
-    wm=0.;w0=0.;wp=0.;wp_store=0.
+    wm=0.;w0=0.;wp=0.
     thlm=0.;thl0=0.;thlp=0.
     qtm=0.;qt0=0.;qtp=0.
     e12m=0.;e120=0.;e12p=0.
@@ -274,8 +257,7 @@ subroutine initfields
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
-
-    cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
+    qsat=0.
 
     surf_rain = 0
   end subroutine initfields
@@ -284,7 +266,7 @@ subroutine initfields
   subroutine exitfields
   implicit none
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
-    deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
+    deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
@@ -295,7 +277,6 @@ subroutine initfields
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
-    deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)
     deallocate(surf_rain)

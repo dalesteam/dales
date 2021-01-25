@@ -45,8 +45,6 @@ implicit none
 
 contains
 subroutine tstep_update
-
-
   use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm
@@ -150,6 +148,15 @@ subroutine tstep_update
 
   deallocate(courtotl,courtot)
 
+  ! set all tendencies to zero
+  up=0.
+  vp=0.
+  wp=0.
+  thlp=0.
+  qtp=0.
+  svp=0.
+  e12p=0.
+
 end subroutine tstep_update
 
 
@@ -171,7 +178,7 @@ subroutine tstep_integrate
 
 
   use modglobal, only : rdt,rk3step,e12min
-  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
+  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
@@ -179,7 +186,6 @@ subroutine tstep_integrate
   real rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
-  wp_store = wp
 
   if(rk3step /= 3) then
      u0   = um   + rk3coef * up
@@ -206,14 +212,5 @@ subroutine tstep_integrate
      e120 = e12m
 
   end if
-
-  up=0.
-  vp=0.
-  wp=0.
-  thlp=0.
-  qtp=0.
-  svp=0.
-  e12p=0.
-
 end subroutine tstep_integrate
 end module tstep

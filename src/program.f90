@@ -200,7 +200,8 @@ program DALES
   call testwctime
 
   do while (timeleft>0 .or. rk3step < 3)
-    call tstep_update                           ! Calculate new timestep
+    ! Calculate new timestep, and reset tendencies to 0.
+    call tstep_update
     call timedep
     call samptend(tend_start,firstterm=.true.)
 
@@ -256,7 +257,10 @@ program DALES
     call poisson
     call samptend(tend_pois,lastterm=.true.)
 
-    call tstep_integrate                        ! Apply tendencies to all variables
+    ! Apply tendencies to all variables
+    call tstep_integrate
+    ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
+    !       Do not change them below this point.
     call boundary
     !call tiltedboundary
 !-----------------------------------------------------

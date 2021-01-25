@@ -143,7 +143,7 @@ contains
 
     allocate( wfavl     (k1,isamptot),thlfavl  (k1,isamptot),thvfavl   (k1,isamptot), &
               qtfavl    (k1,isamptot),qlfavl   (k1,isamptot),nrsampfl  (k1,isamptot), &
-              wthlthavl  (k1,isamptot),wthvthavl (k1,isamptot),wqtthavl  (k1,isamptot), &
+              wthlthavl (k1,isamptot),wthvthavl(k1,isamptot),wqtthavl  (k1,isamptot), &
               wqlthavl  (k1,isamptot),uwthavl  (k1,isamptot),vwthavl   (k1,isamptot), &
               qrfavl    (k1,isamptot))
     allocate( nrsamphl  (k1,isamptot),wwrhavl  (k1,isamptot),wwsfavl   (k1,isamptot), &
@@ -312,33 +312,46 @@ contains
   subroutine sampling
     use modglobal, only : rk3step,timee,dt_lim
     implicit none
-   if (isamptot<2) return
+
+    if (isamptot<2) return
     if (rk3step/=3) return
+
+    ! for dynamic time stepping, limit the timestep so we
+    ! can sample at the right time
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
     end if
+
+    ! if we are at or past the sampling time,
+    ! sample and calculate the next sampling time
     if (timee>=tnext) then
       tnext = tnext+idtav
       do isamp = 1,isamptot
         call dosampling
       end do
     end if
+
+    ! if we are at or past the next write time,
+    ! write output and calculate the next write time
     if (timee>=tnextwrite) then
       tnextwrite = tnextwrite+itimeav
       call writesampling
     end if
-    dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
 
+    ! for dynamic time stepping, limit the timestep so we
+    ! can write output at the right time
+    dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
   return
   end subroutine sampling
+
 !> Performs the actual sampling
   subroutine dosampling
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,ijtot, &
                           grav,om22,cu,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
-                          sv0,wp_store
+                          sv0
     use modsubgriddata,only : ekh,ekm
     use mpi
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
@@ -374,7 +387,7 @@ contains
               vwth (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate( thv0 (2-ih:i1+ih,2-jh:j1+jh,k1),&
               w0f  (2-ih:i1+ih,2-jh:j1+jh,k1))      !Change to 3D array
-    allocate(maskh (2-ih:i1+ih,2-jh:j1+jh,k1))     !New
+    allocate(maskh (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(uwsh  (2-ih:i1+ih,2-jh:j1+jh,k1),&
              vwsh  (2-ih:i1+ih,2-jh:j1+jh,k1),&
              uwrh  (2-ih:i1+ih,2-jh:j1+jh,k1),&
@@ -652,8 +665,8 @@ contains
       uwthavl    (k,isamp) = uwthavl    (k,isamp) + sum(uwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       vwthavl    (k,isamp) = vwthavl    (k,isamp) + sum(vwth (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       wwrhavl    (k,isamp) = wwrhavl    (k,isamp) + sum(wwrh (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
-      ! there may be some numerical noise in wp_store due to the Runge Kutta time integration scheme
-      dwdthavl   (k,isamp) = dwdthavl   (k,isamp) + sum(wp_store(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
+      ! there may be some numerical noise in wp due to the Runge Kutta time integration scheme
+      dwdthavl   (k,isamp) = dwdthavl   (k,isamp) + sum(wp(2:i1,2:j1,k),maskh(2:i1,2:j1,k))
 
       wh_el      (k,isamp) =                        sum(w0 (2:i1,2:j1,k),maskh(2:i1,2:j1,k))
       sigh_el    (k,isamp) =                        count(maskh(2:i1,2:j1,k))
