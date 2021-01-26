@@ -52,9 +52,9 @@ contains
     allocate(ekm(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(ekh(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(zlt(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sbdiss(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(sbdiss(2-ih:i1+ih,2-jh:j1+jh,1))
+    allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,1))
+    allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(csz(k1))
     allocate(anis_fac(k1))
 
@@ -436,13 +436,6 @@ contains
               ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp) + &
                (w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2    )
 
-
-!    sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
-!    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
-!    sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
-
-!     e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1)+ &
-!            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
                 - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
@@ -528,8 +521,6 @@ contains
   end do
   end do
 
-!  e12p(2:i1,2:j1,1:kmax) = e12p(2:i1,2:j1,1:kmax)+ &
-!            sbshr(2:i1,2:j1,1:kmax)+sbbuo(2:i1,2:j1,1:kmax)+sbdiss(2:i1,2:j1,1:kmax)
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
             sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
 

@@ -703,9 +703,10 @@ end subroutine do_genbudget
     !----------------------------
     ! 4. Calculate slab-averaged values
     !----------------------------
-    call slabsum(sbshrav ,1,k1,sbshr ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(sbbuoav ,1,k1,sbbuo ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(sbdissav,1,k1,sbdiss,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    ! NOTE: sbshr, sbbuo, and sbdiss were only calculated for the surface, k=1
+    call slabsum(sbshrav ,1, 1,sbshr ,2-ih,i1+ih,2-jh,j1+jh,1, 1,2,i1,2,j1,1, 1)
+    call slabsum(sbbuoav ,1, 1,sbbuo ,2-ih,i1+ih,2-jh,j1+jh,1, 1,2,i1,2,j1,1, 1)
+    call slabsum(sbdissav,1, 1,sbdiss,2-ih,i1+ih,2-jh,j1+jh,1, 1,2,i1,2,j1,1, 1)
     call slabsum(ekmav   ,1,k1,ekm   ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call MPI_ALLREDUCE(khkmavl, khkmav, k1, MY_REAL, MPI_SUM, comm3d,mpierr)
     call MPI_ALLREDUCE(sbtkeavl,sbtkeav,k1, MY_REAL, MPI_SUM, comm3d,mpierr)
