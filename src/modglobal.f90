@@ -225,7 +225,7 @@ save
       real :: xsize    = -1 !<  domain size in x-direction
       real :: ysize    = -1 !<  domain size in y-direction
       real, allocatable :: delta(:)       !<  (dx*dy*dz)**(1/3)
-      real, allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)
+      real, allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)  or dzf**-1 for anisotropic diffusion
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
@@ -441,7 +441,7 @@ contains
     do k=1,k1
 
        delta(k) = (dx*dy*dzf(k))**(1./3.)
-       deltai(k) = 1./delta(k)
+       deltai(k) = 1./delta(k)     !can be overruled in modsubgrid in case anisotropic diffusion is applied
     end do
 
   !--------------------------------------------------

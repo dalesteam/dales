@@ -35,9 +35,11 @@ save
   logical :: ldelta       = .false. !<  switch for subgrid length formulation (on/off)
   logical :: lmason       = .false. !<  switch for decreased length scale near the surface
   logical :: lsmagorinsky = .false. !<  switch for smagorinsky subgrid scheme
+  logical :: lanisotrop   = .false. !<  switch for anisotropic diffusion
+
   real :: cf      = 2.5  !< filter constant
-  real :: Rigc    = 0.25 !< critical Richardson number
-  real :: Prandtl = (1.0/3.0)
+  real :: Rigc    = 1./3. !< critical Richardson number, effective critical Richardson number (see De Roode et al. 2017)
+  real :: Prandtl = (1.0/3.0) !< effective turbulent Prandtl number (see De Roode et al. 2017)
   real :: cm      = 0.12
   real :: cn      = 0.76
   real :: ch1     = 1.
@@ -59,6 +61,9 @@ save
   real, allocatable :: zlt(:,:,:)   !< filter width
 
   real, allocatable :: csz(:)       !< Smagorinsky constant
+
+  real, allocatable :: anis_fac(:)  !< grid anisotropy factor 
+
 
 end module modsubgriddata
 
