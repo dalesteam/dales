@@ -157,7 +157,7 @@ contains
       write(*,*) 'MPI mesh nprocx, nprocy: ', nprocx, nprocy
     end if
 
-    write(*,*)'myid, myidx, myidy, n, e, s, w = ', myid, myidx, myidy, nbrnorth, nbreast, nbrsouth, nbrwest
+    !write(*,*)'myid, myidx, myidy, n, e, s, w = ', myid, myidx, myidy, nbrnorth, nbreast, nbrsouth, nbrwest
     write(cmyid,'(a,i3.3,a,i3.3)') 'x', myidx, 'y', myidy
     write(cmyidx,'(i3.3)') myidx
     write(cmyidy,'(i3.3)') myidy
