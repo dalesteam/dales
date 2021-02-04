@@ -351,7 +351,7 @@ contains
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,ijtot, &
                           grav,om22,cu,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
-                          sv0
+                          sv0,wp
     use modsubgriddata,only : ekh,ekm
     use mpi
     use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
