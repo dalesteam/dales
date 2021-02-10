@@ -90,67 +90,66 @@ contains
 
     ncall = 0
     if (.not.exans) then
-
       call date_and_time(date,time)
-      iret = nf90_create(fname,NF90_NETCDF4,ncid)
-      iret = nf90_put_att(ncid,NF90_GLOBAL,'title',fname)
-      iret = nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time))
-      iret = nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version))
-      iret = nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author))
-      iret = nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID)
+      call nchandle_error(nf90_create(fname,NF90_NETCDF4,ncid))
+      call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'title',fname))
+      call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time)))
+      call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version)))
+      call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Author',trim(author)))
+      call nchandle_error(nf90_def_dim(ncID, 'time', NF90_UNLIMITED, timeID))
       if (present(n1)) then
-        iret = nf90_def_dim(ncID, 'xt', n1, xtID)
-        iret = nf90_def_dim(ncID, 'xm', n1, xmID)
-        iret = nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','West-East displacement of cell centers')
-        iret=nf90_put_att(ncID,VarID,'units','m')
-        iret = nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','West-East displacement of cell edges')
-        iret=nf90_put_att(ncID,VarID,'units','m')
+         call nchandle_error(nf90_def_dim(ncID, 'xt', n1, xtID))
+         call nchandle_error(nf90_def_dim(ncID, 'xm', n1, xmID))
+         call nchandle_error(nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','West-East displacement of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+         call nchandle_error(nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','West-East displacement of cell edges'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(n2)) then
-        iret = nf90_def_dim(ncID, 'yt', n2, ytID)
-        iret = nf90_def_dim(ncID, 'ym', n2, ymID)
-        iret = nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','South-North displacement of cell centers')
-        iret=nf90_put_att(ncID,VarID,'units','m')
-        iret = nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','South-North displacement of cell edges')
-        iret=nf90_put_att(ncID,VarID,'units','m')
+         call nchandle_error(nf90_def_dim(ncID, 'yt', n2, ytID))
+         call nchandle_error(nf90_def_dim(ncID, 'ym', n2, ymID))
+         call nchandle_error(nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','South-North displacement of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+         call nchandle_error(nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','South-North displacement of cell edges'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(n3)) then
-        iret = nf90_def_dim(ncID, 'zt', n3, ztID)
-        iret = nf90_def_dim(ncID, 'zm', n3, zmID)
-        iret = nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','Vertical displacement of cell centers')
-        iret=nf90_put_att(ncID,VarID,'units','m')
-        iret = nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','Vertical displacement of cell edges')
-        iret=nf90_put_att(ncID,VarID,'units','m')
+         call nchandle_error(nf90_def_dim(ncID, 'zt', n3, ztID))
+         call nchandle_error(nf90_def_dim(ncID, 'zm', n3, zmID))
+         call nchandle_error(nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Vertical displacement of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
+         call nchandle_error(nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Vertical displacement of cell edges'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(ns)) then
-        iret = nf90_def_dim(ncID, 'zts', ns, ztsID)
-        iret = nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','Soil level depth of cell centers')
-        iret=nf90_put_att(ncID,VarID,'units','m')
+         call nchandle_error(nf90_def_dim(ncID, 'zts', ns, ztsID))
+         call nchandle_error(nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Soil level depth of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(nq)) then
-        iret = nf90_def_dim(ncID, 'zq', nq, zqID)
-        iret = nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID)
-        iret=nf90_put_att(ncID,VarID,'longname','Heights of interface levels')
-        iret=nf90_put_att(ncID,VarID,'units','m')
+         call nchandle_error(nf90_def_dim(ncID, 'zq', nq, zqID))
+         call nchandle_error(nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID))
+         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Heights of interface levels'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
 
     else
        nrec = 0
        ncall= 0
-       iret = nf90_open (trim(fname), NF90_WRITE, ncid)
-       iret = nf90_inquire(ncid, unlimitedDimId = RecordDimID)
-       iret = nf90_inquire_dimension(ncid, RecordDimID, len=nrec)
+       call nchandle_error(nf90_open (trim(fname), NF90_WRITE, ncid))
+       call nchandle_error(nf90_inquire(ncid, unlimitedDimId = RecordDimID))
+       call nchandle_error(nf90_inquire_dimension(ncid, RecordDimID, len=nrec))
        if (nrec>0) then
-        iret = nf90_inq_varid(ncid,'time',timeID)
+        call nchandle_error(nf90_inq_varid(ncid,'time',timeID))
         allocate (xtimes(nrec))
-        iret = nf90_get_var(ncid, timeId, xtimes(1:nrec))
+        call nchandle_error(nf90_get_var(ncid, timeId, xtimes(1:nrec)))
 
         ! Find the index where writing should continue.
         ! The next record to be written is ncall+1
@@ -183,8 +182,10 @@ contains
     end if
     nrec = ncall
 
-    iret= nf90_enddef(ncID)
-
+    iret = nf90_enddef(ncID)
+    ! Fails with  NetCDF: Operation not allowed in data mode
+    ! when the netCDF files already exist
+    
   end subroutine open_nc
 
   !
@@ -203,6 +204,7 @@ contains
                       dim_tts(2)=0,dim_t0tts(3)=0,dim_0ttts(3)=0,dim_tttts(4)=0,dim_qt(2)=0
 
     integer :: iret, n, VarID
+    ! These calls are allowed to fail - not all files have all dimensions
     iret = nf90_inq_dimid(ncid,'time',timeId)
     iret = nf90_inq_dimid(ncid,'xt',xtId)
     iret = nf90_inq_dimid(ncid,'xm',xmId)
@@ -297,13 +299,15 @@ contains
       end select
       if (iret/=0) then
         write (*,*) 'nvar', nvar, sx(n,:)
-
         call nchandle_error(iret)
       end if
-      iret=nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2)
-      iret=nf90_put_att(ncID,VarID,'longname',sx(n,2))
-      iret=nf90_put_att(ncID,VarID,'units',sx(n,3))
-      iret = nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue)
+      
+      call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2))
+      call nchandle_error(nf90_put_att(ncID,VarID,'longname',sx(n,2)))
+      call nchandle_error(nf90_put_att(ncID,VarID,'units',sx(n,3)))
+      call nchandle_error(nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))
+      !fails "NetCDF: Not a valid data type or _FillValue type mismatch"
+      !on Fugaku with netCDF-Fortran 4.5.2, netCDF 4.7.3
 
     end do
     iret= nf90_enddef(ncID)
@@ -313,7 +317,7 @@ contains
   implicit none
     integer, intent(in) :: ncid
     integer :: iret
-    iret = nf90_redef(ncid)
+    call nchandle_error(nf90_redef(ncid))
   end subroutine redefine_nc
 
   subroutine exitstat_nc(ncid)
@@ -323,9 +327,10 @@ contains
    integer status
 
    status = nf90_close(ncid)
-   if (status /= nf90_noerr) call nchandle_error(status)
+   call nchandle_error(status)
  end subroutine exitstat_nc
-  subroutine writestat_dims_nc(ncid, ncoarse)
+
+ subroutine writestat_dims_nc(ncid, ncoarse)
     use modglobal, only : dx,dy,zf,zh,jmax,imax
     use modsurfdata, only : zsoilc,isurf
     use modmpi, only : myidx,myidy
@@ -426,8 +431,8 @@ contains
       nrec = nrec+1
     end if
     do n=1,nvar
-       iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
-       iret = nf90_put_var(ncid, VarID, vars(n), start=(/nrec/))
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(n), start=(/nrec/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_time_nc
@@ -441,8 +446,8 @@ contains
 
     integer :: iret,n,varid
     do n=1,nvar
-      iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
-      iret = nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/))
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,n),(/1,nrec/),(/dim1,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_1D_nc
@@ -454,10 +459,10 @@ contains
     real,dimension(:,:,:),intent(in)         :: vars
     character(*), dimension(:,:),intent(in)  :: ncname
 
-    integer :: iret,n,varid
+    integer :: n,varid
     do n=1,nvar
-      iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
-      iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/))
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,n),(/1,1,nrec/),(/dim1,dim2,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_2D_nc
@@ -470,8 +475,8 @@ contains
 
     integer :: iret,n,varid
     do n=1,nvar
-      iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
-      iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_nc
@@ -484,8 +489,8 @@ contains
 
     integer :: iret,n,varid
     do n=1,nvar
-      iret = nf90_inq_varid(ncid, ncname(n,1), VarID)
-      iret = nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/))
+       call nchandle_error(nf90_inq_varid(ncid, ncname(n,1), VarID))
+       call nchandle_error(nf90_put_var(ncid, VarID, vars(1:dim1,1:dim2,1:dim3,n),(/1,1,1,nrec/),(/dim1,dim2,dim3,1/)))
     end do
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
@@ -510,6 +515,7 @@ contains
 
     if(status /= nf90_noerr) then
       print *, trim(nf90_strerror(status))
+      call abort
       stop "Stopped"
     end if
 
@@ -521,7 +527,7 @@ contains
     integer :: iret
 
     iret = nf90_sync(ncid)
-    if (iret /= nf90_noerr) call nchandle_error(iret)
+    call nchandle_error(iret)
   end subroutine sync_nc
 
   subroutine nctiminfo(info)
