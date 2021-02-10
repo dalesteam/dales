@@ -32,6 +32,8 @@ module modstat_nc
     implicit none
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
+    logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
+    integer :: deflate = 2           ! Deflate level for netCDF files (only for NETCDF4 format)
     
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
     real(kind=4) :: nc_fillvalue = -999.
@@ -55,7 +57,7 @@ contains
     integer             :: ierr
 
     namelist/NAMNETCDFSTATS/ &
-    lnetcdf, lsync
+    lnetcdf, lsync, lclassic, deflate
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -67,6 +69,8 @@ contains
 
     call MPI_BCAST(lnetcdf    ,1,MPI_LOGICAL, 0,comm3d,mpierr)
     call MPI_BCAST(lsync      ,1,MPI_LOGICAL, 0,comm3d,mpierr)
+    call MPI_BCAST(lclassic   ,1,MPI_LOGICAL, 0,comm3d,mpierr)
+    call MPI_BCAST(deflate    ,1,MPI_INTEGER, 0,comm3d,mpierr)
     
   end subroutine initstat_nc
 !
@@ -91,7 +95,11 @@ contains
     ncall = 0
     if (.not.exans) then
       call date_and_time(date,time)
-      call nchandle_error(nf90_create(fname,NF90_NETCDF4,ncid))
+      if (lclassic) then
+         call nchandle_error(nf90_create(fname,NF90_CLASSIC_MODEL,ncid))
+      else
+         call nchandle_error(nf90_create(fname,NF90_NETCDF4,ncid))
+      end if
       call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'title',fname))
       call nchandle_error(nf90_put_att(ncid,NF90_GLOBAL,'history','Created on '//trim(date)//' at '//trim(time)))
       call nchandle_error(nf90_put_att(ncid, NF90_GLOBAL, 'Source',trim(version)//' git: '//trim(git_version)))
@@ -301,8 +309,11 @@ contains
         write (*,*) 'nvar', nvar, sx(n,:)
         call nchandle_error(iret)
       end if
-      
-      call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = 2))
+
+      if (deflate > 0 .and. .not. lclassic) then
+         call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
+         ! NETCDF4 only
+      end if
       call nchandle_error(nf90_put_att(ncID,VarID,'longname',sx(n,2)))
       call nchandle_error(nf90_put_att(ncID,VarID,'units',sx(n,3)))
       !call nchandle_error(nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))
