@@ -172,7 +172,7 @@ subroutine tstep_integrate
 
   use modglobal, only : rdt,rk3step,e12min
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
-                        thl0,thlm,thlp,qt0,qtm,qtp,ql0,qlm,qlp,&
+                        thl0,thlm,thlp,qt0,qtm,qtp,ql0,qlm,qlp,S0,Sm,Sp, &
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
 
@@ -188,6 +188,7 @@ subroutine tstep_integrate
      thl0 = thlm + rk3coef * thlp
      qt0  = qtm  + rk3coef * qtp
      ql0  = qlm  + rk3coef * qlp
+     S0   = Sm   + rk3coef * Sp
      where(ql0 < 0.) ql0 = 0.
      sv0  = svm  + rk3coef * svp
      where(sv0 < 0.) sv0 = 0.
@@ -203,6 +204,8 @@ subroutine tstep_integrate
      thl0 = thlm
      qtm  = qtm  + rk3coef * qtp
      qt0  = qtm
+     Sm   = Sm + rk3coef * Sp
+     S0   = Sm
      qlm  = qlm  + rk3coef * qlp
      where(qlm < 0.) qlm = 0.
      ql0  = qlm
@@ -222,6 +225,6 @@ subroutine tstep_integrate
   qlp=0.
   svp=0.
   e12p=0.
-
+  Sp = 0.
 end subroutine tstep_integrate
 end module tstep

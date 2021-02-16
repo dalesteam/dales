@@ -140,8 +140,9 @@ save
   real, allocatable :: qvsi(:,:,:)
   real, allocatable :: esl(:,:,:)
 
-  real, allocatable :: S0(:,:,:)                     !<   End-of-timestep  saturation value   
-  real, allocatable :: Sm(:,:,:)                     !<   Timestep average saturation value   
+  real, allocatable :: S0(:,:,:)                     !<   Saturation value   
+  real, allocatable :: Sm(:,:,:)                     !<   Saturation value   
+  real, allocatable :: Sp(:,:,:)                     !<   Saturation value tendency  
   real, allocatable :: qsat(:,:,:)
   real, allocatable :: surf_rain(:,:)               !< integrated surface rain 
 
@@ -268,6 +269,7 @@ subroutine initfields
 
     allocate(S0   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(Sm   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(Sp   (2-ih:i1+ih,2-jh:j1+jh,k1))
 
     allocate(surf_rain(2-ih:i1+ih,2-jh:j1+jh))
 
@@ -293,7 +295,7 @@ subroutine initfields
     dvdxls=0.;dvdyls=0.;dvdtls=0.
     dthvdz=0.
     SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
-    qvsl=0.;qvsi=0.;esl=0.;S0=0.;Sm=0.
+    qvsl=0.;qvsi=0.;esl=0.;S0=0.;Sm=0.; Sp=0.
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
 
@@ -318,7 +320,7 @@ subroutine initfields
     deallocate(thlpcar)
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
-    deallocate(qvsl,qvsi,esl,S0,Sm)
+    deallocate(qvsl,qvsi,esl,S0,Sm,Sp)
     deallocate(qsat)
     deallocate(surf_rain)
     end subroutine exitfields

@@ -731,13 +731,13 @@ contains
     use modglobal,    only : i1, j1, k1, &
                              ep, rlvocp, rhow, rdt, rk3step
     use modfields,    only : thl0, qt0, ql0, qlp, sv0, & !prognostic
-                             presf, exnf, tmp0, esl, S0, Sm
+                             presf, exnf, tmp0, esl, S0, Sm, Sp
     use modmicrodata, only : inc, iaer_offset, ncmin
     implicit none
   
     integer         :: i, j, k
     
-    real            :: T, es, dS, y, delt
+    real            :: T, es, y, delt, dS, Send, qlpsat
     real, parameter :: beta = 100. !Amazon default = 500
 
     delt = rdt/ (4. - dble(rk3step))
@@ -753,28 +753,40 @@ contains
       ! during the timestep:
       !
       ! S0(t+dt) = (1/y)*exp(-y*dt)*(dS*(exp(y*dt)-1)+S0(t)*y) 
-
-      if (qt0(i,j,k) > qsatur(i,j,k)) then  
-         ! Macro tendency supersaturation in % (equilibrium -> 0.)
-         dS = ((qt0(i,j,k)-ql0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k) - S0(i,j,k))/rdt
-         ! Micro sink strength
-         y = min(5e2,beta*4.58365*(ql0(i,j,k)/rhow+1e-8)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
-
-         if ( y > 0. ) then
-           ! End of timestep supersaturation S(t0+dt) and liquid water ql(t0+dt)
-           S0 (i,j,k) = (1./y)*exp(-y*delt)*(dS*(exp(y*delt)-1.)+S0(i,j,k)*y)
-           ! Note: too high value for y (> 700.) causes an underflow or overflow for exp(-y*delt) and exp(y*delt).
-           qlp(i,j,k) = qlp(i,j,k) + ( max(0.,qt0(i,j,k) - qsatur(i,j,k)*(1. + S0(i,j,k))) - ql0(i,j,k) )/rdt
-         else
-           S0 (i,j,k) = S0(i,j,k) + dS*rdt
-         endif
       
-      else    
-         !Evaporation
-         S0(i,j,k) = (qt0(i,j,k)-ql0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k)
-         qlp(i,j,k) = qlp(i,j,k) + ( max(0.,(qt0(i,j,k)-qsatur(i,j,k))) - ql0(i,j,k) )/delt
+      ! Macro tendency supersaturation in % (equilibrium -> 0.)
+      dS = ((qt0(i,j,k)-ql0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k) - S0(i,j,k))/rdt
+
+      if ( sv0(i,j,k,inc+iaer_offset) > ncmin ) then
+        ! There are droplets/particles
+
+        ! Determine micro sink strength (y)
+        ! Note: too high value for y (> 700.) causes an underflow or overflow for exp(-y*delt) and exp(y*delt).
+        y = min(5e2,beta*4.58365*(ql0(i,j,k)/rhow+1e-8)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
+
+        ! Local (in time) tendency of supersaturation
+        Send = (1./y)*exp(-y*rdt)*(dS*(exp(y*rdt)-1.)+S0(i,j,k)*y)
+        Sp (i,j,k) = (Send - S0(i,j,k))/rdt
+
+        ! Resulting tendency for liquid water
+        qlpsat = ( max(0.,qt0(i,j,k) - qsatur(i,j,k)*(1. + Send)) - ql0(i,j,k))/rdt
+
+        ! When the resulting tendency is positive, make sure is it never more
+        ! than the maximum amount of water available
+        if (qlpsat > 0) then
+          qlpsat = min(qlpsat, (qt0(i,j,k)-ql0(i,j,k)-qsatur(i,j,k))/rdt)
+        end if 
+ 
+      else
+        ! No particles/droplets
+        ! No water condensation, supersaturation changes with maximum amount
+        ! There should'nt be any water, evaporate everything.
+        Sp (i,j,k) = ((qt0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k) - S0(i,j,k))/rdt
+        qlpsat = - max(0.,ql0(i,j,k)/rdt)
       endif
 
+      qlp(i,j,k) = qlp(i,j,k) + qlpsat
+        
       T = thl0(i,j,k) * exnf(k) + rlvocp * (ql0(i,j,k)+qlp(i,j,k)*delt)
 
       tmp0(i,j,k) = T
