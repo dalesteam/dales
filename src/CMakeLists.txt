@@ -35,9 +35,11 @@ endif(USE_FFTW)
 # Stand-alone DALES program
 add_executable(${target_name} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90)
 target_link_libraries(${target_name} ${NETCDF_LIBS} ${OPTIONAL_LIBS})
+add_dependencies(${target_name} tag_git_version)
 
 # DALES library, e.g. for use with OMUSE
 add_library(${target_lib} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90)
+add_dependencies(${target_lib} tag_git_version)
 
 # set separate module directories for the program and library targets, to avoid problems during parallel builds (make -j 8)
 set_target_properties(${target_name} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/program_modules")
