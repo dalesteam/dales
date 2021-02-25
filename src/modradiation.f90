@@ -47,7 +47,7 @@ contains
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
       ocean, usero3, co2factor, doperpetual, doseasons, iyear, lsmthsurf, &
-      donoclouds
+      donoclouds,optional_twostream
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -101,6 +101,8 @@ contains
     call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
     call MPI_BCAST(lsmthsurf,  1,MPI_LOGICAL,0,comm3d,ierr)
     call MPI_BCAST(donoclouds, 1,MPI_LOGICAL,0,comm3d,ierr)
+
+    call MPI_BCAST(optional_twostream, 1,MPI_LOGICAL,0,comm3d,ierr)
     
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(thlprSW   (2-ih:i1+ih,2-jh:j1+jh,k1) )

@@ -34,6 +34,7 @@ module modradtenstream
       lCnstAlbedo,  & !< use of a constant albedo
       donoclouds,   & !<ignore clouds
       zenith , & !<   computes the cosine of the solar zenith angle
+      zenith_ifs , & !<   computes the cosine of the solar zenith angle
       azimuth, & !<   computes the solar azimuth angle
       thlprad,thlprSW,thlprLW, & !<   the radiative tendencies
       swd    , & !<   shortwave downward radiative flux
@@ -42,8 +43,8 @@ module modradtenstream
       swu    , & !<   shortwave upward radiative flux
       lwd    , & !<   longwave downward radiative flux
       lwu    , & !<   longwave upward radiative flux
-      SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA !< Top of the atmosphere radiative fluxes
-
+      SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA, & !< Top of the atmosphere radiative fluxes
+      optional_twostream, do_twostream, steps_until_twostream !to determine whether or not we use twostream solver
   implicit none
   save
 
@@ -58,11 +59,12 @@ module modradtenstream
 contains
 
   subroutine dales_tenstream
-    use modmpi, only : comm3d, myid, nprocx, nprocy
-    use modglobal, only : dx, dy, xday, xlat, xlon,cp,Rd, xtime, rtimee,pref0
+    use modmpi, only : comm3d, myid, nprocx, nprocy, my_real, mpierr,mpi_max
+    use modglobal, only : dx, dy, xday, xlat, xlon,xyear,cp,Rd, xtime, rtimee,pref0
     use modmicrodata, only : Nc_0,sig_g
     use mpi, only : mpi_barrier
     use modsurfdata, only : albedoav,tskin,ps
+    use modglobal, only : zf
 
     character(len=default_str_len),parameter :: atm_filename='afglus_100m.dat'
     real(ireals),allocatable, dimension(:,:,:) :: edir,edn,eup,abso ! [nlev_merged(-1), nxp, nyp]
@@ -79,12 +81,12 @@ contains
     integer(mpiint) :: inp_comm
     integer(iintegers) :: i, j, k, kk
     integer(iintegers), allocatable :: nxproc(:), nyproc(:)
-    
+    integer(iintegers) :: ztop, ztopmaxl, ztopmax
     real(ireals), parameter :: solar_min_sza=85 ! minimum solar zenith angle -- below, dont compute solar rad
     real(ireals), parameter :: rho_liq = 1000  
     type(t_tenstr_atm) :: atm
      
-    mu = real(zenith(xtime*3600 + rtimee, xday, xlat, xlon), ireals)
+    mu = real(zenith_ifs(xtime*3600 + rtimee, xday, xlat, xlon, xyear), ireals)
     theta0 = rad2deg(acos(mu))
     phi0 = real(azimuth(xtime*3600 + rtimee, xday, xlat, xlon, real(mu)), ireals) 
     albedo_thermal = 0.05
@@ -115,7 +117,6 @@ contains
     allocate(nyproc(nprocy), source=int(jmax, iintegers))
     
     modeltime = real(rtimee, ireals)
-        
     do j=2,j1
       do i=2,i1
         d_plev(:, i, j) = real(presh(:), ireals)/100
@@ -131,7 +132,7 @@ contains
         enddo
       enddo
     enddo
-    
+
     if (donoclouds) then
       d_lwc(:,:,:) = 0.
     end if
@@ -163,10 +164,36 @@ contains
     call setup_tenstr_atm(inp_comm,.False.,atm_filename, &
       pplev,ptlev,atm,ptlay,d_h2ovmr=ph2ovmr,d_lwc=plwc,d_reliq=preliq)
 
-
-
-
-
+    !! find maximum cloud top height
+    do  j=2,j1
+      do  i=2,i1
+        ztop  = 0.0
+        do  k=1,kmax
+         if (ql0(i,j,k) > 0) ztop = zf(k)
+        end do
+        if (ztop > ztopmaxl) ztopmaxl = ztop
+      end do
+    end do
+    call MPI_ALLREDUCE(ztopmaxl, ztopmax, 1,    MY_REAL, &
+                       MPI_MAX, comm3d,mpierr)
+    
+    atm%cloud_top = ztopmaxl
+    
+    if (optional_twostream) then
+      if (atm%cloud_top > 0) then
+        steps_until_twostream = 3
+        if (do_twostream) call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
+        do_twostream = .false.
+      else if ((atm%cloud_top == 0) .and. (steps_until_twostream > 0)) then
+        if (do_twostream) call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
+        do_twostream = .false.
+        steps_until_twostream = steps_until_twostream -1
+      else 
+        if (.not. do_twostream) call destroy_pprts_rrtmg(pprts_solver, lfinalizepetsc=.True.)
+        do_twostream = .true.
+      endif 
+    
+    endif
     ! Thermal RT
     call pprts_rrtmg(inp_comm, pprts_solver,atm,          &
             int(imax,iintegers),int(jmax, iintegers),     &
@@ -175,7 +202,8 @@ contains
             albedo_thermal, albedo_solar,                 &
             .true., .false.,                              &
             edir,edn,eup,abso,                            &
-            nxproc=nxproc, nyproc=nyproc, opt_time=modeltime)
+            nxproc=nxproc, nyproc=nyproc, opt_time=modeltime, &
+            do_twostream = do_twostream)
 
     if(ldebug .and. myid.eq.0) then
       print *,'shape abso', shape(abso)
@@ -212,7 +240,8 @@ contains
               albedo_thermal, albedo_solar,                 &
               .false., .true.,                              &
               edir,edn,eup,abso,opt_solar_constant=solconc, &
-              nxproc=nxproc, nyproc=nyproc, opt_time=modeltime)
+              nxproc=nxproc, nyproc=nyproc, opt_time=modeltime, &
+              do_twostream=do_twostream)
 
       if(ldebug .and. myid.eq.0) then
         print *,'shape abso', shape(abso)
@@ -259,3 +288,8 @@ contains
   end subroutine
 #endif
 end module modradtenstream
+
+
+
+
+

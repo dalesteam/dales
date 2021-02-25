@@ -795,7 +795,7 @@ contains
 
   subroutine setupSW(sunUp)
 
-    use modglobal,   only : xday,xlat,xlon,imax,xtime,xyear,rtimee
+    use modglobal,   only : xday,xlat,xlon,imax,xtime,xyear,rtimee,printzenith
     use shr_orb_mod, only : shr_orb_decl
     use modmpi,      only : myid
     use modsurfdata, only : albedoav
@@ -826,7 +826,10 @@ contains
       solarZenithAngleCos(:) =  &
            zenith_ifs(xtime*3600 + rtimee, xday, xlat, xlon, xyear) ! Used function in modraddata
       
-      ! " old zenith angle calculation" 
+      ! variable to print zenith angle to field.xxx output
+      printzenith = solarZenithAngleCos(1)
+
+      ! "old" zenith angle calculation 
       !solarZenithAngleCos(:) =  &
       !zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
 

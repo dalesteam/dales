@@ -147,7 +147,6 @@ contains
     if (.not.(lnudge)) return
 !     if (rk3step/=3) return
     if (timee==0) return
-
     t=1
     do while(rtimee>timenudge(t))
       t=t+1
