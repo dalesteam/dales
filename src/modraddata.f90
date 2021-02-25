@@ -193,7 +193,10 @@ SAVE
   real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
   real, allocatable :: SW_up_ca_TOA(:,:), SW_dn_ca_TOA(:,:), LW_up_ca_TOA(:,:), LW_dn_ca_TOA(:,:)
 
-
+   ! to determine whether or not we use twostream solver
+  logical :: optional_twostream = .false.
+  logical :: do_twostream = .false.
+  integer :: steps_until_twostream = 0
 contains
 !< Calculation of the cosine of the zenith angle
 !< \param time UTC Time of the simulation
@@ -262,15 +265,15 @@ contains
     real :: seconds_since_midnight, hour_solar_time, hour_angle
 
     if (.not.lCnstZenith) then
-        if (mod(year,4)==0 .and. (mod(year,100) /= 0 or mod(year,400) == 0)) then
+        if (mod(year,4.)==0 .and. (mod(year,100.) /= 0 .or. mod(year,400.) == 0)) then
             days_per_year = 366.
         else
             days_per_year = 365.
         end if
 
         doy    = xday + floor(time/86400.) - 1
-        radlat = lat * pi/180. 
-        radlon = lon * pi/180. 
+        radlat = xlat * pi/180. 
+        radlon = xlon * pi/180. 
 
         ! DOY in range (0, 2*pi)
         doy_pi = 2. * pi * doy / days_per_year
@@ -289,10 +292,10 @@ contains
         hour_solar_time = (seconds_since_midnight/3600.) - a3 + radlon * (180./pi/15.)
         hour_angle = (hour_solar_time-12.) * 15. * (pi/180.)
 
-        zenith = max(0.,sin(radlat)*sin(declination_angle) + & 
+        zenith_ifs = max(0.,sin(radlat)*sin(declination_angle) + & 
                         cos(radlat)*cos(declination_angle) * cos(hour_angle))
     else
-        zenith = cos(cnstZenith*pi/180.)
+        zenith_ifs = cos(cnstZenith*pi/180.)
     end if
   end function zenith_ifs
 
