@@ -34,6 +34,7 @@ save
 ! private
   logical :: ldelta       = .false. !<  switch for subgrid length formulation (on/off)
   logical :: lmason       = .false. !<  switch for decreased length scale near the surface
+  logical :: lD80R        = .false. !<  switch for D80-R scheme
   logical :: lsmagorinsky = .false. !<  switch for smagorinsky subgrid scheme
   real :: cf      = 2.5  !< filter constant
   real :: Rigc    = 0.25 !< critical Richardson number

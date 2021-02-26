@@ -36,7 +36,7 @@ save
 
 contains
   subroutine initsubgrid
-    use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar,pi
+    use modglobal, only : ih,i1,jh,j1,k1,delta,zh,zf,fkar,pi
     use modmpi, only : myid
 
     implicit none
@@ -106,7 +106,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1,ch2,cm,ce1,ce2
+        ldelta,lmason,lD80R, cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1,ch2,cm,ce1,ce2
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -122,6 +122,7 @@ contains
 
     call MPI_BCAST(ldelta     ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lmason     ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(lD80R      ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(nmason     ,1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(lsmagorinsky,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(cs         ,1,MY_REAL   ,0,comm3d,mpierr)
@@ -200,7 +201,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
+  use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zh,zf,fkar,deltai, &
                           dxi,dyi,dzf,dzh
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
@@ -315,6 +316,8 @@ contains
              end if
              
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+
+            if (lD80R) zlt(i,j,k) = 1/(1/(0.4*zh(k))+1/(cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))))
 
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
             ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)

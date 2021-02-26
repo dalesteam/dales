@@ -1740,6 +1740,7 @@ llimit	src/modradfull.f90	/^     real                 :: llimit,/;"	k	type:band_
 llimit	src/modradfull.f90	/^  elemental real function llimit(/;"	f	module:modradfull
 llsadv	src/modglobal.f90	/^      logical :: llsadv /;"	v	module:modglobal
 lmason	src/modsubgriddata.f90	/^  logical :: lmason /;"	v	module:modsubgriddata
+lD80R	src/modsubgriddata.f90	/^  logical :: lD80R /;"	v	module:modsubgriddata
 lmicrostat	src/modbulkmicrostat.f90	/^  logical          :: lmicrostat /;"	v	module:modbulkmicrostat
 lmicrostat	src/modsimpleicestat.f90	/^  logical          :: lmicrostat /;"	v	module:modsimpleicestat
 lmoist	src/modglobal.f90	/^      logical :: lmoist /;"	v	module:modglobal
