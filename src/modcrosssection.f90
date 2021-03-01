@@ -530,17 +530,19 @@ contains
 !> Clean up when leaving the run
   subroutine exitcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modmpi, only : myid
+    use modmpi, only : myid,myidx,myidy
     implicit none
 
     if(lcross .and. lnetcdf) then
-    if (myid==0) then
+    if (myidy==0) then
     call exitstat_nc(ncid1)
     end if
     do cross=1,nxy
     call exitstat_nc(ncid2(cross))
     end do
+    if (myidx==0) then
     call exitstat_nc(ncid3)
+    end if
     end if
 
   end subroutine exitcrosssection
