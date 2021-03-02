@@ -140,6 +140,8 @@ program DALES
   use modbudget,       only : initbudget, budgetstat, exitbudget
   use modheterostats,  only : initheterostats, heterostats, exitheterostats
 
+  use modvarbudget,    only : initvarbudget, varbudget, exitvarbudget
+
   ! modules below are disabled by default to improve compilation time
   !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
 
@@ -185,6 +187,7 @@ program DALES
   call initnudge
   call initbulkmicrostat
   call initbudget
+  call initvarbudget
   !call initstressbudget
 ! call initchem
   call initheterostats
@@ -292,6 +295,7 @@ program DALES
 
     call bulkmicrostat
     call budgetstat
+    call varbudget
     !call stressbudgetstat
     call heterostats
 
@@ -319,6 +323,7 @@ program DALES
   call exitsamptend
   call exitbulkmicrostat
   call exitbudget
+  call exitvarbudget
   !call exitstressbudget
   call exitcrosssection
   call exitAGScross
