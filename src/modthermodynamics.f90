@@ -732,13 +732,12 @@ contains
                              ep, rlvocp, rhow, rdt, rk3step
     use modfields,    only : thl0, qt0, ql0, qlp, sv0, & !prognostic
                              presf, exnf, tmp0, esl, S0, Sm, Sp
-    use modmicrodata, only : inc, iaer_offset, ncmin
+    use modmicrodata, only : inc, iaer_offset, ncmin, Sbeta
     implicit none
   
     integer         :: i, j, k
     
     real            :: T, es, y, delt, dS, Send, qlpsat
-    real, parameter :: beta = 100. !Amazon default = 500
 
     delt = rdt/ (4. - dble(rk3step))
     
@@ -762,7 +761,7 @@ contains
 
         ! Determine micro sink strength (y)
         ! Note: too high value for y (> 700.) causes an underflow or overflow for exp(-y*delt) and exp(y*delt).
-        y = min(5e2,beta*4.58365*((ql0(i,j,k)+1e-7)/rhow)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
+        y = min(5e2,Sbeta*4.58365*((ql0(i,j,k)+1e-7)/rhow)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
 
         ! Local (in time) tendency of supersaturation
         Send = (1./y)*exp(-y*rdt)*(dS*(exp(y*rdt)-1.)+S0(i,j,k)*y)

@@ -51,8 +51,9 @@
              Nc_0    = 70e6, & ! initial cloud droplet number (#/m3)                 (in namelist NAMMICROPHYSICS)
              sig_g   = 1.34, & ! geometric std dev of cloud droplet DSD
              sig_gr  = 1.5,  & ! geometric std dev of rain drop DSD
-             Ssat    = 0.2     ! Supersaturation used in k-Kohler activation (%)     (in namelist NAMMICROPHYSICS)
-   
+             Ssat    = 0.2,  & ! Supersaturation used in k-Kohler activation (%)     (in namelist NAMMICROPHYSICS)
+             Sbeta   = 50.     ! Parameter for microphysical sink for supersaturation(in namelist NAMMICROPHYSICS)
+
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
 
   integer, parameter :: nmod        =  5, & ! 2 + cloud + rain

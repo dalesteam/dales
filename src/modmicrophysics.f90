@@ -49,7 +49,7 @@ contains
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, & ! OG
     Nc_0, sig_g, sig_gr,                                                  & ! SdeR
     courantp,                                                             & ! FJ
-    l_kohler, l_aertend, Ssat, ipohlker                                    ! MdB 
+    l_kohler, l_aertend, ipohlker, Ssat, Sbeta                              ! MdB 
     
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -74,8 +74,9 @@ contains
     call MPI_BCAST(courantp, 1, MY_REAL     ,0,comm3d,ierr)
     call MPI_BCAST(l_kohler ,1, MPI_LOGICAL ,0,comm3d,ierr)     
     call MPI_BCAST(l_aertend,1, MPI_LOGICAL ,0,comm3d,ierr)     
-    call MPI_BCAST(Ssat,     1, MY_REAL     ,0,comm3d,ierr)
     call MPI_BCAST(ipohlker, 1, MPI_INTEGER ,0,comm3d,ierr)
+    call MPI_BCAST(Ssat,     1, MY_REAL     ,0,comm3d,ierr)
+    call MPI_BCAST(Sbeta,    1, MY_REAL     ,0,comm3d,ierr)
 
     select case (imicro)
     case(imicro_none)
