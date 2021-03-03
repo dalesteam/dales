@@ -762,7 +762,7 @@ contains
 
         ! Determine micro sink strength (y)
         ! Note: too high value for y (> 700.) causes an underflow or overflow for exp(-y*delt) and exp(y*delt).
-        y = min(5e2,beta*4.58365*(ql0(i,j,k)/rhow+1e-8)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
+        y = min(5e2,beta*4.58365*((ql0(i,j,k)+1e-7)/rhow)**(2./3.)*sv0(i,j,k,inc+iaer_offset)**(1./3.))
 
         ! Local (in time) tendency of supersaturation
         Send = (1./y)*exp(-y*rdt)*(dS*(exp(y*rdt)-1.)+S0(i,j,k)*y)
@@ -781,7 +781,7 @@ contains
         ! No particles/droplets
         ! No water condensation, supersaturation changes with maximum amount
         ! There should'nt be any water, evaporate everything.
-        Sp (i,j,k) = ((qt0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k) - S0(i,j,k))/rdt
+        Sp (i,j,k) = ((qt0(i,j,k)-qsatur(i,j,k))/qsatur(i,j,k) - Sm(i,j,k))/rdt
         qlpsat = - max(0.,ql0(i,j,k)/rdt)
       endif
 
