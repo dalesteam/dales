@@ -302,6 +302,7 @@ contains
     use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
     use modmpi,    only : myid,nprocx,nprocy,mpierr
     use modtimedep, only : ltimedep
+    use mpi
 
 
       if(mod(jtot,nprocy) /= 0) then
@@ -395,7 +396,7 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
-
+    use mpi
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
 
@@ -1208,6 +1209,7 @@ contains
     use modglobal,         only : k1,kmax,zf,zh,dzf,dzh,rv,rd,grav,cp,pref0,lwarmstart,ibas_prf,cexpnr,ifinput,ifoutput
     use modsurfdata,       only : thls,ps,qts
     use modmpi,            only : myid,comm3d,mpierr,my_real
+    use mpi
     implicit none
 
     real :: thvb,prsb ! for calculating moist adiabat

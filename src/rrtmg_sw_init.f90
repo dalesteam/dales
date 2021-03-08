@@ -41,6 +41,20 @@
       use parrrsw, only : mg, nbndsw, ngptsw
       use rrsw_tbl, only: ntbl, tblint, pade, bpade, tau_tbl, exp_tbl
       use rrsw_vsn, only: hvrini, hnamini
+      use rrtmg_sw_read_nc, only : sw_kgb16 & ! molecular absorption coefficients
+                                 , sw_kgb17 &
+                                 , sw_kgb18 &
+                                 , sw_kgb19 &
+                                 , sw_kgb20 &
+                                 , sw_kgb21 &
+                                 , sw_kgb22 &
+                                 , sw_kgb23 &
+                                 , sw_kgb24 &
+                                 , sw_kgb25 &
+                                 , sw_kgb26 &
+                                 , sw_kgb27 &
+                                 , sw_kgb28 &
+                                 , sw_kgb29 
 
       real(kind=rb), intent(in) :: cpdair     ! Specific heat capacity of dry air
                                               ! at constant pressure at 273 K

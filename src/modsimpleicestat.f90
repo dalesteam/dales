@@ -246,6 +246,7 @@ subroutine initsimpleicestat
     use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qr, precep, Nr, epscloud, epsqr, epsprec
     use modfields, only :ql0
+    use mpi
     implicit none
 
     integer :: k

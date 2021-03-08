@@ -61,6 +61,7 @@ module modbulkmicro3
   subroutine initbulkmicro3
     use modglobal, only : lwarmstart,ifnamopt,fname_options,i1,ih,j1,jh,k1
     use modmpi,    only : myid,my_real,comm3d,mpi_logical
+    use mpi
     implicit none
     integer :: ierr
 

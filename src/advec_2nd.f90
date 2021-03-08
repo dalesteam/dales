@@ -29,6 +29,8 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module advec_2nd
+contains
 !> Advection at cell center
 subroutine advecc_2nd(putin,putout)
 
@@ -438,3 +440,4 @@ subroutine advecw_2nd(putin,putout)
 
 
 end subroutine advecw_2nd
+end module advec_2nd

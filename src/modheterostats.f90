@@ -266,6 +266,7 @@ contains
     use modsubgrid, only : ekm, ekh
     use modglobal,  only : iadv_sv, iadv_kappa, dzf, dzh, rlv, cp, rv, &
                            rd, imax, jmax, i1, j1, k1, ih, jh, itot
+    use advec_kappa,only : halflev_kappa
 
     implicit none
 

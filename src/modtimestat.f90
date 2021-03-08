@@ -942,6 +942,7 @@ contains
     use modsurface, only : patchxnr,patchynr
     use mpi
     use modmpi,     only : mpierr, comm3d,mpi_sum,my_real
+    use advec_kappa,only : halflev_kappa
     implicit none
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
