@@ -383,6 +383,7 @@ subroutine initbulkmicrostat3
     use modgenstat, only : ncid_prof=>ncid,nrec_prof=>nrec
     use modmicrodata3
     use modmpi,    only  : myid, my_real, comm3d, mpierr
+    use mpi
 
     implicit none
     integer  :: nsecs, nhrs, nminut

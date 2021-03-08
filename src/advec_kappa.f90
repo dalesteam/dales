@@ -45,6 +45,8 @@
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
+module advec_kappa
+contains
 
 subroutine advecc_kappa(putin,putout)
   use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
@@ -207,7 +209,6 @@ subroutine  halflev_kappa(putin,putout)
   use modglobal, only : i1,ih,j1,jh,k1
     use modfields, only : w0, rhobf, rhobh
     implicit none
-    real,external :: rlim
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
     real      d1,d2,cf
@@ -264,3 +265,4 @@ subroutine  halflev_kappa(putin,putout)
 
 
 
+end module advec_kappa

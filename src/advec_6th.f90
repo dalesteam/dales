@@ -27,6 +27,8 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module advec_6th
+contains
 !> Advection at cell center
 subroutine advecc_6th(putin, putout)
 
@@ -704,3 +706,4 @@ subroutine advecw_6th(putin, putout)
     end do
 
 end subroutine advecw_6th
+end module advec_6th

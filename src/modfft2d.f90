@@ -38,6 +38,7 @@ contains
   subroutine fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     use modmpi, only   : nprocx, nprocy
     use modglobal, only: itot, jtot, imax, jmax, kmax, i1, j1, ih, jh
+    use fftnew, only   : rffti
     implicit none
 
     real, pointer        :: p(:,:,:)
@@ -398,6 +399,7 @@ contains
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
+    use fftnew, only    : rfftf
 
     implicit none
 
@@ -446,6 +448,7 @@ contains
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
+    use fftnew, only    : rfftb
 
     implicit none
 

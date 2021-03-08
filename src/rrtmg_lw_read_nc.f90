@@ -15,6 +15,8 @@
 ! Last Update: 1/23/2009
 !===============================================================================
 
+module rrtmg_lw_read_nc
+contains
 !*******************************************************************************
 subroutine lw_kgb01
     use rrlw_kg01, only : fracrefao, fracrefbo, kao, kbo, kao_mn2, kbo_mn2, &
@@ -1030,3 +1032,4 @@ subroutine lw_kgb16
 
 end subroutine lw_kgb16
 !*******************************************************************************
+end module rrtmg_lw_read_nc

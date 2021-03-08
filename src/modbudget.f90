@@ -213,6 +213,7 @@ contains
     use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
     use modmpi,     only : comm3d,my_real, mpi_sum,mpierr
+    use mpi
 
     implicit none
     integer :: i,j,k,km,kp,jm,jp
@@ -668,6 +669,7 @@ end subroutine do_genbudget
     use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
     use modfields,  only : e120,rhobf
     use modmpi,     only : slabsum,comm3d,my_real, mpi_sum,mpierr
+    use mpi
     !----------------------------
     ! 1.1 Declare allocatable
     !----------------------------

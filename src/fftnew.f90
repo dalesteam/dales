@@ -17,6 +17,8 @@
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
+module fftnew
+contains
 
   subroutine RADB2 (IDO,L1,CC,CH,WA1)
       DIMENSION       CC(IDO,2,L1)           ,CH(IDO,L1,2), WA1(IDO-1)
@@ -728,6 +730,7 @@
   end
 
   subroutine RFFTB1 (N,C,CH,WA,IFAC)
+    REAL ::  IFAC
       DIMENSION       CH(N)      ,C(N)       ,WA(N+1)      ,IFAC(2*N+1)
   NF = IFAC(2)
   NA = 0
@@ -806,6 +809,7 @@
   end
 
   subroutine RFFTF1 (N,C,CH,WA,IFAC)
+    real :: IFAC
       DIMENSION       CH(N)      ,C(N)       ,WA(N+1)      ,IFAC(2*N+1)
   NF = IFAC(2)
   NA = 1
@@ -883,6 +887,7 @@
   end
 
   subroutine RFFTI1 (N,WA,IFAC)
+  real :: IFAC
   logical firstloop
   DIMENSION       WA(N+1)      ,IFAC(2*N+1)    ,NTRYH(4)
   DATA NTRYH(1),NTRYH(2),NTRYH(3),NTRYH(4)/4,2,3,5/
@@ -955,3 +960,4 @@
   end do
   return
   end
+end module fftnew
