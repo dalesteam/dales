@@ -60,8 +60,7 @@ contains
 
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat3
-    use mpi
-    use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
+    use modmpi,    only  : myid, mpi_logical, comm3d, mpierr, D_MPI_BCAST
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror,kmax
     use modstat_nc, only : lnetcdf,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -86,9 +85,9 @@ subroutine initbulkmicrostat3
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(lmicrostat,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(dtav      ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(timeav    ,1,MY_REAL    ,0,comm3d,mpierr)
+    call D_MPI_BCAST(lmicrostat,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav      ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav    ,1,0,comm3d,mpierr)
     idtav = dtav/tres
     itimeav = timeav/tres
 
@@ -382,8 +381,7 @@ subroutine initbulkmicrostat3
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : ncid_prof=>ncid,nrec_prof=>nrec
     use modmicrodata3
-    use modmpi,    only  : myid, my_real, comm3d, mpierr
-    use mpi
+    use modmpi,    only  : comm3d, mpierr, D_MPI_REDUCE
 
     implicit none
     integer  :: nsecs, nhrs, nminut
@@ -396,12 +394,12 @@ subroutine initbulkmicrostat3
 
     ! gather all columns
     if (l_statistics) then
-      call MPI_REDUCE(MPI_IN_PLACE,statistic_mphys    ,size(statistic_mphys    ),MY_REAL,MPI_SUM,0,comm3d,mpierr)
-      call MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_count,size(statistic_sv0_count),MY_REAL,MPI_SUM,0,comm3d,mpierr)
-      call MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_fsum ,size(statistic_sv0_fsum ),MY_REAL,MPI_SUM,0,comm3d,mpierr)
-      call MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_csum ,size(statistic_sv0_csum ),MY_REAL,MPI_SUM,0,comm3d,mpierr)
-      call MPI_REDUCE(MPI_IN_PLACE,statistic_svp_fsum ,size(statistic_sv0_fsum ),MY_REAL,MPI_SUM,0,comm3d,mpierr)
-      call MPI_REDUCE(MPI_IN_PLACE,statistic_svp_csum ,size(statistic_sv0_csum ),MY_REAL,MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_mphys    ,size(statistic_mphys    ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_count,size(statistic_sv0_count),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_svp_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_svp_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
 
       ! normalize
       statistic_sv0_fsum = statistic_sv0_fsum / ijtot / nsamples
@@ -417,7 +415,7 @@ subroutine initbulkmicrostat3
     endif
 
     if (l_tendencies) then
-      call MPI_REDUCE(MPI_IN_PLACE,tend_fsum          ,size(tend_fsum          ),MY_REAL,MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(MPI_IN_PLACE,tend_fsum          ,size(tend_fsum          ),MPI_SUM,0,comm3d,mpierr)
 
       ! normalize
       tend_fsum = tend_fsum / ijtot / nsamples

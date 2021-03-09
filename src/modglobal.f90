@@ -236,8 +236,7 @@ contains
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
-    use mpi
-    use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
+    use modmpi, only : nprocx, nprocy, myid,comm3d, mpierr, D_MPI_BCAST
     implicit none
 
     integer :: advarr(4)
@@ -419,7 +418,7 @@ contains
 
   ! MPI broadcast kmax elements from zf
 
-    call MPI_BCAST(zf,kmax,MY_REAL   ,0,comm3d,mpierr)
+    call D_MPI_BCAST(zf, kmax, 0, comm3d, mpierr)
 
     zh(1) = 0.0
     do k=1,kmax

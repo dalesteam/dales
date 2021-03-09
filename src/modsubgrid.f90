@@ -37,7 +37,6 @@ save
 contains
   subroutine initsubgrid
     use modglobal, only : ih,i1,jh,j1,k1,delta,deltai,dx,dy,zf,dzf,fkar,pi
-    use mpi
     use modmpi, only : myid
 
     implicit none
@@ -116,8 +115,7 @@ contains
 
   subroutine subgridnamelist
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
-    use mpi
-    use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
+    use modmpi,    only : myid, comm3d, mpierr, mpi_logical, D_MPI_BCAST
 
     implicit none
 
@@ -136,18 +134,18 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(ldelta     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lmason     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(nmason     ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lsmagorinsky,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lanisotrop ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(cs         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cf         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cn         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(Rigc       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ch1        ,1,MY_REAL   ,0,comm3d,mpierr)
+    call D_MPI_BCAST(ldelta          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lmason          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lsmagorinsky    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lanisotrop      ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(sgs_surface_fix ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(nmason          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cs              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cf              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cn              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(Rigc            ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(Prandtl         ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(ch1             ,1, 0,comm3d,mpierr)
 
   end subroutine subgridnamelist
 

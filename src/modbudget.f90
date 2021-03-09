@@ -75,8 +75,7 @@ module modbudget
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initbudget
-    use mpi
-    use modmpi,    only : myid,mpierr, comm3d,my_real, mpi_logical
+    use modmpi,    only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
     use modglobal, only : dtmax,k1,ifnamopt,fname_options, ifoutput,cexpnr,dtav_glob,timeav_glob,&
     ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,writestat_dims_nc
@@ -99,9 +98,9 @@ contains
        close(ifnamopt)
     end if
 
-    call MPI_BCAST(timeav     ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lbudget    ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lbudget    ,1,0,comm3d,mpierr)
     idtav = dtav/tres
     itimeav = timeav/tres
 
@@ -212,8 +211,7 @@ contains
     use modpois,    only : p
     use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
-    use modmpi,     only : comm3d,my_real, mpi_sum,mpierr
-    use mpi
+    use modmpi,     only : comm3d,mpi_sum,mpierr, D_MPI_ALLREDUCE
 
     implicit none
     integer :: i,j,k,km,kp,jm,jp
@@ -285,7 +283,7 @@ contains
     buoavl(1) = 0.
     !If tilted surface, add buoyancy in x-dir.
 !    if(ltilted) call adjustbudget(buoavl)
-    call MPI_ALLREDUCE(buoavl, buoav, k1,    MY_REAL, &
+    call D_MPI_ALLREDUCE(buoavl, buoav, k1, &
          MPI_SUM, comm3d,mpierr)
 
 
@@ -309,7 +307,7 @@ contains
     !No shear at the surface
     shravl(1)=0.
     shravl(k1)=shravl(kmax)
-    call MPI_ALLREDUCE(shravl, shrav, k1,    MY_REAL, &
+    call D_MPI_ALLREDUCE(shravl, shrav, k1, &
          MPI_SUM, comm3d,mpierr)
 
     !-------------------------------------------------
@@ -333,9 +331,9 @@ contains
     weresl(k) = weresl(k)/ijtot
   end do
 
-  call MPI_ALLREDUCE(tkeavl, tkeav, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(tkeavl, tkeav, k1,  &
          MPI_SUM, comm3d,mpierr)
-  call MPI_ALLREDUCE(weresl, weres, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(weresl, weres, k1,  &
          MPI_SUM, comm3d,mpierr)
 
   do k=2,kmax
@@ -366,7 +364,7 @@ contains
   enddo
 
   ptrspavl(1)  = 0.
-  call MPI_ALLREDUCE(ptrspavl, ptrspav, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(ptrspavl, ptrspav, k1,  &
          MPI_SUM, comm3d,mpierr)
 
   ptrspav(k1) = ptrspav(kmax)
@@ -600,11 +598,11 @@ contains
   tau1ml(1) = tau1ml(1)/ijtot
   tau2ml(1) = tau2ml(1)/ijtot
 
-  call MPI_ALLREDUCE(tau1ml, tau1m, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(tau1ml, tau1m, k1, &
          MPI_SUM, comm3d,mpierr)
-  call MPI_ALLREDUCE(tau2ml, tau2m, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(tau2ml, tau2m, k1, &
          MPI_SUM, comm3d,mpierr)
-  call MPI_ALLREDUCE(tau3ml, tau3m, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(tau3ml, tau3m, k1, &
          MPI_SUM, comm3d,mpierr)
 
   do k=1,kmax
@@ -625,11 +623,11 @@ contains
     subyl(k) = subyl(k)/ijtot
     subzl(k) = subzl(k)/ijtot
   end do
-  call MPI_ALLREDUCE(subxl, subx, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(subxl, subx, k1,  &
          MPI_SUM, comm3d,mpierr)
-  call MPI_ALLREDUCE(subyl, suby, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(subyl, suby, k1,  &
          MPI_SUM, comm3d,mpierr)
-  call MPI_ALLREDUCE(subzl, subz, k1,    MY_REAL, &
+  call D_MPI_ALLREDUCE(subzl, subz, k1,  &
          MPI_SUM, comm3d,mpierr)
 
   subz(k1) = subz(kmax)
@@ -668,8 +666,7 @@ end subroutine do_genbudget
     use modglobal,  only : i1,j1,ih,jh,k1,ijtot
     use modsubgriddata, only : ekm,ekh,sbdiss,sbshr,sbbuo
     use modfields,  only : e120,rhobf
-    use modmpi,     only : slabsum,comm3d,my_real, mpi_sum,mpierr
-    use mpi
+    use modmpi,     only : slabsum,comm3d, mpi_sum,mpierr, D_MPI_ALLREDUCE
     !----------------------------
     ! 1.1 Declare allocatable
     !----------------------------
@@ -710,8 +707,8 @@ end subroutine do_genbudget
     call slabsum(sbbuoav ,1, 1,sbbuo ,2-ih,i1+ih,2-jh,j1+jh,1, 1,2,i1,2,j1,1, 1)
     call slabsum(sbdissav,1, 1,sbdiss,2-ih,i1+ih,2-jh,j1+jh,1, 1,2,i1,2,j1,1, 1)
     call slabsum(ekmav   ,1,k1,ekm   ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call MPI_ALLREDUCE(khkmavl, khkmav, k1, MY_REAL, MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(sbtkeavl,sbtkeav,k1, MY_REAL, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(khkmavl, khkmav, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(sbtkeavl,sbtkeav,k1, MPI_SUM, comm3d,mpierr)
     sbshrav  = sbshrav  / ijtot
     sbbuoav  = sbbuoav / ijtot
     sbdissav = sbdissav/ ijtot

@@ -44,8 +44,7 @@ module modvarbudget
 contains
 
   subroutine initvarbudget
-    use mpi
-    use modmpi,     only : myid,mpierr, comm3d,my_real, mpi_logical
+    use modmpi,     only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only : k1,ih,i1,jh,j1,ifnamopt,fname_options, ifoutput,&
                            cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,&
                            lwarmstart,checknamelisterror,ladaptive,dtmax
@@ -68,9 +67,9 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(timeav     ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lvarbudget ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lvarbudget ,1,0,comm3d,mpierr)
     idtav = dtav/tres
     itimeav = timeav/tres
 
@@ -248,9 +247,8 @@ contains
     use modsubgriddata, only : ekh
     use modsubgrid,     only : diffc
     use modfields,      only : u0,v0,w0,u0av,v0av
-    use modmpi,         only : comm3d,my_real,mpi_sum,mpierr, &
-                               slabsum
-    use mpi,             only : mpi_allreduce
+    use modmpi,         only : comm3d,mpi_sum,mpierr, &
+                               slabsum, D_MPI_ALLREDUCE
     use advec_2nd,      only : advecc_2nd
     use advec_52,       only : advecc_52
     use advec_5th,      only : advecc_5th
@@ -367,7 +365,7 @@ contains
     end do
     end do
 
-    call MPI_ALLREDUCE(varx2favl, varx2fav, k1, MY_REAL, &
+    call D_MPI_ALLREDUCE(varx2favl, varx2fav, k1, &
                        MPI_SUM, comm3d,mpierr)
     varx2fav = varx2fav / ijtot
 
@@ -478,7 +476,7 @@ contains
       varxfluxavl = varxfluxavl + varxflux(i,j)
     end do
     end do
-    call MPI_ALLREDUCE(varxfluxavl, varxfluxav, 1,    MY_REAL, &
+    call D_MPI_ALLREDUCE(varxfluxavl, varxfluxav, 1, &
                            MPI_SUM, comm3d,mpierr)
     varxfluxav = varxfluxav/ijtot
 

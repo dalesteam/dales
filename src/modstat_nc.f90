@@ -50,8 +50,7 @@ contains
 
   subroutine initstat_nc
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
-    use mpi
-    use modmpi,    only : mpierr,mpi_logical,comm3d,myid
+    use modmpi,    only : mpierr,mpi_logical,comm3d,myid,D_MPI_BCAST
     implicit none
 
     integer             :: ierr
@@ -67,10 +66,10 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(lnetcdf    ,1,MPI_LOGICAL, 0,comm3d,mpierr)
-    call MPI_BCAST(lsync      ,1,MPI_LOGICAL, 0,comm3d,mpierr)
-    call MPI_BCAST(lclassic   ,1,MPI_LOGICAL, 0,comm3d,mpierr)
-    call MPI_BCAST(deflate    ,1,MPI_INTEGER, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lnetcdf    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lsync      ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lclassic   ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(deflate    ,1, 0,comm3d,mpierr)
     
   end subroutine initstat_nc
 !
