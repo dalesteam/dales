@@ -61,8 +61,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
-    use mpi
-    use modmpi,    only : comm3d, my_real,mpierr,myid,mpi_logical
+    use modmpi,    only : comm3d,mpierr,myid,mpi_logical,D_MPI_BCAST
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
                            dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -85,15 +84,15 @@ contains
     end if
 
 
-    call MPI_BCAST(timeav    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav      ,1,MY_REAL   ,0,comm3d,mpierr)
-!    call MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampcl   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampco   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampup   ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampbuup ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsampcldup,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lsamptend, 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav    ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav      ,1,0,comm3d,mpierr)
+!    call D_MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsampcl   ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsampco   ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsampup   ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsampbuup ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsampcldup,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsamptend, 1,0,comm3d,mpierr)
 
     isamptot = 0
     if (lsampall) then
@@ -353,8 +352,7 @@ contains
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp
     use modsubgriddata,only : ekh,ekm
-    use mpi
-    use modmpi,    only : slabsum,my_real,mpi_integer,comm3d,mpierr,mpi_sum
+    use modmpi,    only : slabsum,mpi_integer,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
     use modpois,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
     implicit none
@@ -718,9 +716,9 @@ contains
       end if
     enddo
 
-    call MPI_ALLREDUCE(nrsamph0l   ,nrsamph0 ,k1,MPI_INTEGER,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(whav0l      ,whav0    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wwthav0l    ,wwthav0  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(nrsamph0l   ,nrsamph0 ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(whav0l      ,whav0    ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wwthav0l    ,wwthav0  ,k1,MPI_SUM,comm3d,mpierr)
 
     do k=1,kmax
         if (nrsamph0 (k).gt.0) then
@@ -761,8 +759,7 @@ contains
 
     use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,ijtot
     use modfields, only : presf,presh
-    use mpi
-    use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
+    use modmpi,    only : myid,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
 
     implicit none
@@ -809,39 +806,39 @@ contains
     nsecs   = mod(nsecs,60)
     inorm   = nint(ijtot*timeav/dtav)
 
-    call MPI_ALLREDUCE(nrsampfl   ,nrsampf    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wfavl      ,wfav       ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(thlfavl    ,thlfav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(thvfavl    ,thvfav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qtfavl     ,qtfav      ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qlfavl     ,qlfav      ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(massflxhavl,massflxhav ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wthlthavl   ,wthlthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wthvthavl   ,wthvthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wqtthavl   ,wqtthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wqlthavl   ,wqlthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(uwthavl    ,uwthav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(vwthavl    ,vwthav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qrfavl     ,qrfav      ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(nrsampfl   ,nrsampf    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wfavl      ,wfav       ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thlfavl    ,thlfav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thvfavl    ,thvfav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qtfavl     ,qtfav      ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qlfavl     ,qlfav      ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(massflxhavl,massflxhav ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wthlthavl  ,wthlthav   ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wthvthavl  ,wthvthav   ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wqtthavl   ,wqtthav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wqlthavl   ,wqlthav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(uwthavl    ,uwthav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(vwthavl    ,vwthav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qrfavl     ,qrfav      ,isamptot*k1,MPI_SUM,comm3d,mpierr)
 
-    call MPI_ALLREDUCE(nrsamphl   ,nrsamph    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wwrhavl    ,wwrhav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wwsfavl    ,wwsfav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(pfavl      ,pfav       ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(dwdthavl   ,dwdthav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(dwwdzhavl  ,dwwdzhav   ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(dpdzhavl   ,dpdzhav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(duwdxhavl  ,duwdxhav   ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(dtaudxhavl ,dtaudxhav  ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(dtaudzhavl ,dtaudzhav  ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(thvhavl    ,thvhav     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(fcorhavl   ,fcorhav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(nrsamphl   ,nrsamph    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wwrhavl    ,wwrhav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wwsfavl    ,wwsfav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(pfavl      ,pfav       ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(dwdthavl   ,dwdthav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(dwwdzhavl  ,dwwdzhav   ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(dpdzhavl   ,dpdzhav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(duwdxhavl  ,duwdxhav   ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(dtaudxhavl ,dtaudxhav  ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(dtaudzhavl ,dtaudzhav  ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thvhavl    ,thvhav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(fcorhavl   ,fcorhav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
 
-    call MPI_ALLREDUCE(wh_el      ,wh_e       ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(sigh_el    ,sigh_e     ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wh_el      ,wh_e       ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(sigh_el    ,sigh_e     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
 
-    call MPI_ALLREDUCE(wadvhavl   ,wadvhav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(subphavl   ,subphav    ,isamptot*k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wadvhavl   ,wadvhav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(subphavl   ,subphav    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
 !reset variables
     nrsampfl    = 0.0
     wfavl       = 0.0

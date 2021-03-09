@@ -239,8 +239,8 @@ contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
   use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
-  use mpi
-  use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
+  use modmpi,      only : myid, mpi_logical, mpi_integer,  comm3d, mpierr &
+                        , D_MPI_BCAST
   use modsurfdata, only : lCHon
   implicit none
 
@@ -275,21 +275,21 @@ SUBROUTINE initchem
   endif
 
 
-  call MPI_BCAST(lchem     ,1,mpi_logical , 0,comm3d, mpierr)
-  call MPI_BCAST(ldiuvar   ,1,mpi_logical , 0,comm3d, mpierr)
-  call MPI_BCAST(lchconst  ,1,mpi_logical , 0,comm3d, mpierr)
-  call MPI_BCAST(lchmovie  ,1,mpi_logical , 0,comm3d, mpierr)
-  call MPI_BCAST(lsegr     ,1,mpi_logical , 0,comm3d, mpierr)
-  call MPI_BCAST(lcloudKconst,1,mpi_logical ,0,comm3d,mpierr)
-  call MPI_BCAST(tnor      ,1,mpi_integer , 0,comm3d, mpierr)
-  call MPI_BCAST(firstchem ,1,mpi_integer , 0,comm3d, mpierr)
-  call MPI_BCAST(lastchem  ,1,mpi_integer , 0,comm3d, mpierr)
-  call MPI_BCAST(t_ref     ,1,MY_REAL     , 0,comm3d, mpierr)
-  call MPI_BCAST(q_ref     ,1,MY_REAL     , 0,comm3d, mpierr)
-  call MPI_BCAST(p_ref     ,1,MY_REAL     , 0,comm3d, mpierr)
-  call MPI_BCAST(h_ref     ,1,MY_REAL     , 0,comm3d, mpierr)
-  call MPI_BCAST(itermin   ,1,MY_REAL     , 0,comm3d, mpierr)
-  call MPI_BCAST(dtchmovie ,1,MY_REAL     , 0,comm3d, mpierr)
+  call D_MPI_BCAST(lchem       ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(ldiuvar     ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(lchconst    ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(lchmovie    ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(lsegr       ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(lcloudKconst,1, 0,comm3d,mpierr)
+  call D_MPI_BCAST(tnor        ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(firstchem   ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(lastchem    ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(t_ref       ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(q_ref       ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(p_ref       ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(h_ref       ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(itermin     ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(dtchmovie   ,1, 0,comm3d, mpierr)
 
   lCHon = lchem
 
@@ -1137,8 +1137,8 @@ SUBROUTINE twostep2(y)
 !c
 use modglobal, only : ih,i1,jh,j1,k1,kmax,rtimee,rdt,timee,timeav_glob,ifoutput,cexpnr,dz,ijtot
 use modfields, only : qt0
-use mpi
-use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,myid,nprocs
+use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,myid,nprocs &
+                , D_MPI_ALLREDUCE
 use modtimestat, only: we, zi, ziold, calcblheight
 
 implicit none
@@ -1227,7 +1227,7 @@ implicit none
       enddo
     enddo
 
-    call MPI_ALLREDUCE(kdtl, kdt, 1, MY_REAL,MPI_MIN,  comm3d, mpierr)
+    call D_MPI_ALLREDUCE(kdtl, kdt, 1, MPI_MIN,  comm3d, mpierr)
 
 25  nstart=nstart+1
 
@@ -1284,7 +1284,7 @@ implicit none
       enddo
     enddo
 
-    call MPI_ALLREDUCE(errltel, errlte, 1,MY_REAL,MPI_MAX, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(errltel, errlte, 1, MPI_MAX, comm3d, mpierr)
 
     errlte=2.0*errlte/(c+c*c)
     call NEWDT(t,te,kdt,dtold,ratio,errlte,accept,dtmin,kdtmax)
@@ -1360,9 +1360,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,1
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr))
@@ -1378,9 +1378,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,2
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)/ijtot
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
@@ -1395,9 +1395,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,1
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) / (ijtot ** (PL_scheme(n)%PL(j)%exp1 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
@@ -1415,9 +1415,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,2
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
@@ -1438,9 +1438,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,3
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)*seg_conc(3,:,Rnr)/(ijtot**2)
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
@@ -1461,9 +1461,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,3
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) &
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
@@ -1490,9 +1490,9 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,4
-                  call MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 enddo
-                call MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MY_REAL ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) &
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
@@ -1576,7 +1576,7 @@ implicit none
     allocate (writearrayg(k1,tnor+2))
     writearrayg = 0.
     do n=1,tnor+2
-      call MPI_ALLREDUCE(writearray(:,n), writearrayg(:,n) ,k1, MY_REAL, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(writearray(:,n), writearrayg(:,n) ,k1, MPI_SUM, comm3d, mpierr)
     enddo
     if(myid==0) then
       open(ifoutput,file='keffs.'//cexpnr,position='append')
@@ -1788,8 +1788,8 @@ subroutine ratech
   use modglobal, only : i1,j1,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
                         zf,dzf,ijtot,ifoutput,cexpnr
   use modfields, only : qt0, ql0 ,rhof
-  use mpi
-  use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum
+  use modmpi,    only : myid, comm3d, mpierr, mpi_max,  mpi_sum &
+                      , D_MPI_ALLREDUCE
   use modsurfdata,only: taufield, lrsAgs
   use modraddata,only: iradiation, irad_par
   implicit none
@@ -2002,20 +2002,20 @@ subroutine ratech
      qlintallsuml = qlintallsum
      qlintallmaxl = qlintallmax
 
-     call MPI_ALLREDUCE(zbasecountl   , zbasecount   , 1,    MY_REAL,  MPI_SUM, comm3d, mpierr)
-     call MPI_ALLREDUCE(cloudcountl   , cloudcount   , 1,    MY_REAL,  MPI_SUM, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(zbasecountl   , zbasecount   ,   1, MPI_SUM, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(cloudcountl   , cloudcount   ,   1, MPI_SUM, comm3d, mpierr)
 
-     call MPI_ALLREDUCE(zbasesuml, zbasesum, 1,    MY_REAL,  MPI_SUM, comm3d, mpierr)
-     call MPI_ALLREDUCE(ztopmaxl, ztopmax, 1,    MY_REAL,  MPI_MAX, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(zbasesuml, zbasesum,             1, MPI_SUM, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(ztopmaxl, ztopmax,               1, MPI_MAX, comm3d, mpierr)
 
-     call MPI_ALLREDUCE(cloudheightmaxl, cloudheightmax, 1,    MY_REAL,  MPI_MAX, comm3d, mpierr)
-     call MPI_ALLREDUCE(cloudheightsuml, cloudheightsum, 1,    MY_REAL,  MPI_SUM, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(cloudheightmaxl, cloudheightmax, 1, MPI_MAX, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(cloudheightsuml, cloudheightsum, 1, MPI_SUM, comm3d, mpierr)
 
-     call MPI_ALLREDUCE(qlintmaxl, qlintmax, 1,    MY_REAL,  MPI_MAX, comm3d, mpierr)
-     call MPI_ALLREDUCE(qlintsuml, qlintsum, 1,    MY_REAL,  MPI_SUM, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(qlintmaxl, qlintmax,             1, MPI_MAX, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(qlintsuml, qlintsum,             1, MPI_SUM, comm3d, mpierr)
 
-     call MPI_ALLREDUCE(qlintallmaxl, qlintallmax, 1,    MY_REAL,  MPI_MAX, comm3d, mpierr)
-     call MPI_ALLREDUCE(qlintallsuml, qlintallsum, 1,    MY_REAL,  MPI_SUM, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(qlintallmaxl, qlintallmax,       1, MPI_MAX, comm3d, mpierr)
+     call D_MPI_ALLREDUCE(qlintallsuml, qlintallsum,       1, MPI_SUM, comm3d, mpierr)
 
      if ( myid ==0 ) then
        open (ifoutput,file='cloudstat.'//cexpnr,position='append')

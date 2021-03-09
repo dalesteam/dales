@@ -772,8 +772,8 @@ contains
   end subroutine
 
   subroutine inithypre
-    use mpi
-    use modmpi, only : myid, myidx, myidy, nprocx, nprocy
+    use modmpi, only : myid, myidx, myidy, nprocx, nprocy, MPI_COMM_WORLD &
+                     , MPI_Wtime
     use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, itot, jtot, &
       solver_id, maxiter, n_pre, n_post, tolerance, precond
 
@@ -797,7 +797,7 @@ contains
     allocate(values(imax*jmax*kmax))
 
     ! Have hypre reuse the comm world
-    mpi_comm_hypre = MPI_COMM_WORLD
+    mpi_comm_hypre = MPI_COMM_WORLD%MPI_VAL
 
     !-----------------------------------------------------------------------
     !     1. Set up the grid.
