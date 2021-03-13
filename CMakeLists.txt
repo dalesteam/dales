@@ -79,8 +79,8 @@ endif()
 PROJECT(DALES Fortran)
 cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR "4")
-set(VERSION_MINOR "2")
-set(VERSION_PATCH "1")
+set(VERSION_MINOR "3")
+set(VERSION_PATCH "0")
 
 # use nf-config to find paths to netcdf. Broken on Fedora due to module path missing.
 execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
