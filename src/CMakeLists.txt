@@ -1,4 +1,4 @@
-set(target_name dales4)
+set(target_name dales4.3)
 set(target_lib dales)
 
 # Add all Fortran90 files from this directory
@@ -45,4 +45,4 @@ add_dependencies(${target_lib} tag_git_version)
 set_target_properties(${target_name} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/program_modules")
 set_target_properties(${target_lib} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/library_modules")
 
-install(TARGETS dales4 dales DESTINATION ${CMAKE_BINARY_DIR})
+install(TARGETS dales4.3 dales DESTINATION ${CMAKE_BINARY_DIR})
