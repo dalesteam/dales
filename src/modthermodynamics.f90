@@ -58,7 +58,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv
     use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmpi, only : slabsum
     implicit none
@@ -66,13 +66,13 @@ contains
     if (timee < 0.01) then
       call diagfld
     end if
-    if (lmoist .and. (.not. lnoclouds)) then
+    if (lmoist) then
       call icethermo0
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
-    if (lmoist .and. (.not. lnoclouds)) then
+    if (lmoist) then
       call icethermoh
     end if
 
@@ -458,7 +458,7 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab,lnoclouds
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
   implicit none
 
@@ -486,7 +486,7 @@ contains
             qvsl1=(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)
             qvsi1=(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
             qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0(i,j,k)>qsatur) then
+            if((.not. lnoclouds) .and. (qt0(i,j,k)>qsatur)) then
               Tnr_old=0.
               niter = 0
               thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
@@ -551,7 +551,11 @@ contains
               qvsl(i,j,k)=qvsl1
               qvsi(i,j,k)=qvsi1
             endif
-            ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+            if (.not. lnoclouds) then
+              ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+            else
+              ql0(i,j,k) = 0.
+            endif
             qsat(i,j,k) = qsatur
       end do
       end do
@@ -566,7 +570,7 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab,lnoclouds
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
   implicit none
 
@@ -594,7 +598,7 @@ contains
             qvsl1=(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)
             qvsi1=(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
             qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
-            if(qt0h(i,j,k)>qsatur) then
+            if((.not. lnoclouds) .and. (qt0h(i,j,k)>qsatur)) then
               Tnr_old=0.
               niter = 0
               thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
@@ -652,7 +656,11 @@ contains
               qvsi1=rd/rv*esi1/(presh(k)-(1.-rd/rv)*esi1)
               qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
             endif
-            ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
+            if (.not. lnoclouds) then
+              ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
+            else
+              ql0h(i,j,k) = 0.
+            endif
       end do
       end do
       end do
