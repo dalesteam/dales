@@ -1,8 +1,8 @@
 Changes in DALES
 ================
 
-Version 4.3 - 2020
-------------------
+Version 4.3 - 2021-03-15
+------------------------
 
 This version introduces a library interface to DALES, defined in `daleslib.f90.` With this interface,
 DALES can be used with the [OMUSE](https://omuse.readthedocs.io/en/latest/) framework, which provides
