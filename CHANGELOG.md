@@ -1,7 +1,7 @@
 Changes in DALES
 ================
 
-Version 4.3 - 2021-03-15
+Version 4.3 - 2021-03-13
 ------------------------
 
 This version introduces a library interface to DALES, defined in `daleslib.f90.` With this interface,
@@ -56,7 +56,7 @@ alternative FFT-based solver using the FFTW library.
 Version 4.2 - 2019-06-05
 ------------------------
 
-This is a summary of changes in DALES 4.2. More detials of the chanes follow below.
+This is a summary of changes in DALES 4.2. More details of the changes follow below.
 
 * Optimization of advection and subgrid schemes
 * Improvement surface scheme (phi functions) for stable conditions
