@@ -458,8 +458,9 @@ contains
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
-  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
+  use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab,zf ! #db
   use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
+  use modmicrodata, only: imicro, imicro_bulk3  ! #sb3
   implicit none
 
   integer i, j, k
@@ -469,8 +470,116 @@ contains
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
+     if(imicro.eq.imicro_bulk3) then  ! #sb3 START - separate treatment of buoyancy
       nitert = 0
       niter = 0
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1 
+            ! first guess for temperature
+            Tnr=exnf(k)*thl0(i,j,k)
+            ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+            tlonr=int((Tnr-150.)*5.)
+            thinr=tlonr+1      
+            tlo=ttab(tlonr)
+            thi=ttab(thinr)
+            esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+            esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+            qvsl1=(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)
+            qvsi1=(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+            ! qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1 
+            qsatur = qvsl1 ! #sb3
+            if(qt0(i,j,k)>qsatur) then
+              Tnr_old=0.
+              niter = 0
+              thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+              ttry=Tnr-0.002
+              ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+              tlonr=int((ttry-150.)*5.)
+              thinr=tlonr+1
+              ! #dbg START check if within bounds
+              ! if ((tlonr.lt.1).or.(tlonr.gt.1999)) then
+              !   write  (6,*) 'warning: out of bounds:','  (i,j,k) = ' ,i,j,k, '   tlonr = ' , tlonr
+              !   write  (6,*)  ' thl0 = ', thl0(i,j,k), ' Tnr = ',Tnr, ' qt0 = ', qt0(i,j,k)
+              !endif
+              !if ((thl0(i,j,k).lt.240.0).or.(thl0(i,j,k).gt.350.0)) then
+              !   write  (6,*) 'warning: weird values:','  (i,j,k) = ' ,i,j,k
+              !   write  (6,*)  ' thl0 = ', thl0(i,j,k), ' Tnr = ',Tnr, ' qt0 = ', qt0(i,j,k)
+              !endif   
+              !if ((qt0(i,j,k).lt.-0.01).or.(qt0(i,j,k).gt.0.1)) then
+              !   write  (6,*) 'warning: weird values:','  (i,j,k) = ' ,i,j,k
+              !   write  (6,*)  ' thl0 = ', thl0(i,j,k), ' Tnr = ',Tnr, ' qt0 = ', qt0(i,j,k)
+              !endif            
+              ! #dbg END               
+              tlo=ttab(tlonr)
+              thi=ttab(thinr)
+              esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+              esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+              ! qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+              qsatur = (rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1) ! #sb3
+              thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+              Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
+              do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
+                niter = niter+1
+                Tnr_old=Tnr
+                ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+                tlonr=int((Tnr-150.)*5.)
+                if(tlonr<1 .or.tlonr>1999) then
+                  write(*,*) 'thermo crash: i,j,k,niter,thl0(i,j,k),qt0(i,j,k)'
+                  write(*,*) i,j,k,niter,thl0(i,j,k),qt0(i,j,k)
+                endif
+                thinr=tlonr+1
+                tlo=ttab(tlonr)
+                thi=ttab(thinr)
+                esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+                esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+                ! qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+                qsatur = (rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1) ! #sb3
+                thlguess = Tnr/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+                ttry=Tnr-0.002
+                ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+                tlonr=int((ttry-150.)*5.)
+                thinr=tlonr+1
+                tlo=ttab(tlonr)
+                thi=ttab(thinr)
+                esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+                esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+                ! qsatur = ilratio*(rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presf(k)-(1.-rd/rv)*esi1)
+                qsatur = (rd/rv)*esl1/(presf(k)-(1.-rd/rv)*esl1) ! #sb3
+                thlguessmin = ttry/exnf(k)-(rlv/(cp*exnf(k)))*max(qt0(i,j,k)-qsatur,0.)
+                Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
+               enddo
+               nitert =max(nitert,niter)
+               tmp0(i,j,k)= Tnr
+               ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+               tlonr=int((Tnr-150.)*5.)
+               thinr=tlonr+1
+               tlo=ttab(tlonr)
+               thi=ttab(thinr)
+               esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+               qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
+               qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
+               ! o : ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
+               qsatur = qvsl(i,j,k) ! #sb3 only cloud droplet considered for 
+             else
+               tmp0(i,j,k)= Tnr
+               esl(i,j,k)=esl1
+               esi1=esi1
+               qvsl(i,j,k)=qvsl1
+               qvsi(i,j,k)=qvsi1
+             endif
+             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
+             qsat(i,j,k) = qsatur   
+      end do
+      end do
+      end do
+      if(nitert>99) then
+      write(*,*) 'thermowarning'
+      endif     
+     else ! imicro #sb3 END
+      nitert = 0
+      niter = 0     
       do k=1,k1
       do j=2,j1
       do i=2,i1
@@ -559,6 +668,7 @@ contains
       if(nitert>99) then
       write(*,*) 'thermowarning'
       endif
+     endif ! imicro #sb3
 
   end subroutine icethermo0
 
@@ -568,6 +678,7 @@ contains
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
   use modfields, only : qt0h,thl0h,exnh,presh,ql0h
+  use modmicrodata, only : imicro, imicro_bulk3   ! #sb3
   implicit none
 
   integer i, j, k
@@ -577,6 +688,92 @@ contains
 
 !     calculation of T with Newton-Raphson method
 !     first guess is Tnr=tl
+     if(imicro.eq.imicro_bulk3) then  ! #sb3 START separate treatment of buoyancy
+      nitert = 0
+      niter = 0
+      do k=1,k1
+      do j=2,j1
+      do i=2,i1
+             ! first guess for temperature
+             Tnr=exnh(k)*thl0h(i,j,k)
+             ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+             tlonr=int((Tnr-150.)*5.)
+             thinr=tlonr+1
+             tlo=ttab(tlonr)
+             thi=ttab(thinr)
+             esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+             esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+             qvsl1=(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)
+             qvsi1=(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+             ! qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
+             qsatur = qvsl1 ! #sb3
+             if(qt0h(i,j,k)>qsatur) then
+               Tnr_old=0.
+               niter = 0
+               thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+               ttry=Tnr-0.002
+               ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+               tlonr=int((ttry-150.)*5.)
+               thinr=tlonr+1
+               tlo=ttab(tlonr)
+               thi=ttab(thinr)
+               esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+               esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+               ! qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+               qsatur = (rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1) ! #sb3
+               thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.) 
+               Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
+               do while ((abs(Tnr-Tnr_old) > 0.002).and.(niter<100))
+                 niter = niter+1
+                 Tnr_old=Tnr
+                 ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+                 tlonr=int((Tnr-150.)*5.)
+                 if(tlonr<1 .or.tlonr>1999) then
+                   write(*,*) 'thermo crash: i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)'
+                   write(*,*) i,j,k,niter,thl0h(i,j,k),qt0h(i,j,k)
+                 endif
+                 thinr=tlonr+1
+                 tlo=ttab(tlonr)
+                 thi=ttab(thinr)
+                 esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+                 esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+                 ! qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+                 qsatur = (rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1) ! #sb3
+                 thlguess = Tnr/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+                 ttry=Tnr-0.002
+                 ilratio = max(0.,min(1.,(ttry-tdn)/(tup-tdn)))
+                 tlonr=int((ttry-150.)*5.)
+                 thinr=tlonr+1
+                 tlo=ttab(tlonr)
+                 thi=ttab(thinr)
+                 esl1=(thi-ttry)*5.*esatltab(tlonr)+(ttry-tlo)*5.*esatltab(thinr)
+                 esi1=(thi-ttry)*5.*esatitab(tlonr)+(ttry-tlo)*5.*esatitab(thinr)
+                 ! qsatur = ilratio*(rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1)+(1.-ilratio)*(rd/rv)*esi1/(presh(k)-(1.-rd/rv)*esi1)
+                 qsatur = (rd/rv)*esl1/(presh(k)-(1.-rd/rv)*esl1) !#sb3 
+                 thlguessmin = ttry/exnh(k)-(rlv/(cp*exnh(k)))*max(qt0h(i,j,k)-qsatur,0.)
+                 Tnr = Tnr - (thlguess-thl0h(i,j,k))/((thlguess-thlguessmin)*500.)
+               enddo
+               nitert =max(nitert,niter)
+               ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
+               tlonr=int((Tnr-150.)*5.)
+               thinr=tlonr+1
+               tlo=ttab(tlonr)
+               thi=ttab(thinr)
+               esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
+               qvsl1=rd/rv*esl1/(presh(k)-(1.-rd/rv)*esl1)
+               qvsi1=rd/rv*esi1/(presh(k)-(1.-rd/rv)*esi1)
+               qsatur = qvsl1   ! #sb3 - since only liquid water included in clouds
+               ! o: qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
+             endif
+             ql0h(i,j,k) = max(qt0h(i,j,k)-qsatur,0.)
+      end do
+      end do
+      end do
+      if(nitert>99) then
+      write(*,*) 'thermowarning'
+      endif
+     else !imicro   #sb3 END
       nitert = 0
       niter = 0
       do k=1,k1
@@ -659,6 +856,7 @@ contains
       if(nitert>99) then
       write(*,*) 'thermowarning'
       endif
+     endif ! imicro #sb3
 
   end subroutine icethermoh
 
