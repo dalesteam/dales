@@ -30,7 +30,7 @@
 !
 
 module modstartup
-
+use modprecision,      only : field_r
 
 implicit none
 ! private
@@ -400,7 +400,7 @@ contains
     logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
-    real, allocatable :: thv0(:,:,:)
+    real(field_r), allocatable :: thv0(:,:,:)
 
     character(80) chmess
 
@@ -1172,7 +1172,7 @@ contains
     integer i,j,klev
     integer is,ie,js,je
     real ran,ampl
-    real field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
+    real(field_r) field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
     parameter (imm = 134456, ia = 8121, ic = 28411)
     logical negval
 

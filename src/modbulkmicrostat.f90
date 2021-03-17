@@ -30,7 +30,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modbulkmicrostat
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
 
 implicit none
 private
@@ -314,7 +314,7 @@ subroutine initbulkmicrostat
     use modmicrodata,  only  : qrp, Nrp
     implicit none
 
-    real, dimension(:), allocatable  :: avfield
+    real(field_r), dimension(:), allocatable  :: avfield
     integer        :: ifield = 0
 
     if (.not. lmicrostat)  return

@@ -26,7 +26,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modstattend
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
 
   implicit none
 !   private
@@ -191,7 +191,7 @@ subroutine initstattend
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
     logical, intent(in), optional :: lastterm !< true if this is the last term of the equations; the write routine is entered.
-    real, dimension(:),allocatable :: avfield
+    real(field_r), dimension(:),allocatable :: avfield
     if (.not.(ltend)) return
     if (rk3step/=3) return
     if(timee<tnext) then

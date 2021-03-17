@@ -18,6 +18,7 @@
 !  Copyright 1993-2014 Delft University of Technology, Wageningen University, Utrecht University, KNMI, MPIC
 !
 module modcanopy
+  use modprecision, only : field_r
   implicit none
   save
 
@@ -237,7 +238,7 @@ contains
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -264,7 +265,7 @@ contains
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -291,7 +292,7 @@ contains
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -318,7 +319,7 @@ contains
     use modfields, only  : u0, v0, w0, e120
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -345,7 +346,7 @@ contains
     use modfields, only  : rhobh, rhobf
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in   ) :: flux_top
     real, intent(in   ) :: flux_surf(i2,j2)
     real, intent(in   ) :: alpha

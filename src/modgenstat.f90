@@ -66,7 +66,7 @@ module modgenstat
     !                                                                 |
     !    lstat      SWITCH TO ENABLE TIMESERIES                       |
     !-----------------------------------------------------------------|
-  use modglobal, only : longint
+  use modprecision
 
 implicit none
 ! private
@@ -110,14 +110,14 @@ save
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
 
- real, allocatable :: umav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: vmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: thmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: umav (:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: vmav (:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: thmav (:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
@@ -520,9 +520,9 @@ contains
               thv2av  , &
               th2av   , &
               ql2av
-    real,allocatable, dimension(:,:,:)::  thv0
-    real,allocatable, dimension(:)::   thvmav
-    real ,allocatable, dimension(:,:,:):: sv0h
+    real(field_r),allocatable, dimension(:,:,:)::  thv0
+    real(field_r),allocatable, dimension(:)::   thvmav
+    real(field_r),allocatable, dimension(:,:,:):: sv0h
 
     integer i, j, k, n, km
     real    tsurf, qsat, c1, c2

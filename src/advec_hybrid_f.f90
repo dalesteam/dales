@@ -27,6 +27,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module advec_hybrid_f
+use modprecision, only : field_r
 implicit none
 contains
 
@@ -36,8 +37,8 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
 
   implicit none
   
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
   real,optional,intent(in) :: phi_tilde_in   !< Order of magnitude of the field, used in the smoothness criterion. Optional. 
 
   real :: phi_tilde
@@ -107,7 +108,7 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
            ! advection in x
            vin(-3:2) = pin(i-3:i+2,j,k)
            if (lsmx) then ! field around this location is smooth -> use regular 5th order (upwind)
-              sgn = sign(1.0,u0(i,j,k))  ! set sgn, to account for different wind directions
+              sgn = sign(1.0_field_r,u0(i,j,k))  ! set sgn, to account for different wind directions
               pfacex(i,j,k) = (37.*(vin(0)+vin(-1))-8.*(vin(1)+vin(-2))+(vin(2)+vin(-3)) &
                    -sgn*(10.*(vin(0)-vin(-1))-5.*(vin(1)-vin(-2))+(vin(2)-vin(-3))))/60.
            else ! field around this location is non-smooth -> use weno
@@ -146,7 +147,7 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
             ! advection in y
            vin(-3:2) = pin(i,j-3:j+2,k)
            if (lsmy) then ! field around this location is smooth -> use regular 5th order (upwind)
-              sgn = sign(1.0,v0(i,j,k))  ! set sgn, to account for different wind directions
+              sgn = sign(1.0_field_r,v0(i,j,k))  ! set sgn, to account for different wind directions
               pfacey(i,j,k) = (37.*(vin(0)+vin(-1))-8.*(vin(1)+vin(-2))+(vin(2)+vin(-3)) &
                    -sgn*(10.*(vin(0)-vin(-1))-5.*(vin(1)-vin(-2))+(vin(2)-vin(-3))))/60.
            else ! field around this location is non-smooth -> use weno
@@ -206,7 +207,7 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
               
               vin(-3:2) = pin(i,j,k-3:k+2) * rhobf(k-3:k+2)
               if (lsmz) then ! field around this location is smooth -> use regular 5th order (upwind)
-                 sgn = sign(1.0,w0(i,j,k))  ! set sgn, to account for different wind directions
+                 sgn = sign(1.0_field_r,w0(i,j,k))  ! set sgn, to account for different wind directions
                  pfacez(i,j,k) = (37.*(vin(0)+vin(-1))-8.*(vin(1)+vin(-2))+(vin(2)+vin(-3)) &
                       -sgn*(10.*(vin(0)-vin(-1))-5.*(vin(1)-vin(-2))+(vin(2)-vin(-3))))/60.
               else ! field around this location is non-smooth -> use weno

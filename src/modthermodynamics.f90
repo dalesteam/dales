@@ -29,6 +29,7 @@
 !
 
 module modthermodynamics
+  use modprecision, only : field_r
 
   implicit none
 !   private
@@ -36,7 +37,7 @@ module modthermodynamics
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
-  real, allocatable :: thv0(:,:,:)
+  real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
 
 

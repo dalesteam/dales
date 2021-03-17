@@ -33,7 +33,7 @@
 !
 module modsampling
 
-use modglobal, only : longint
+use modglobal, only : longint, field_r
 use modsampdata
 
 implicit none
@@ -365,7 +365,7 @@ contains
 
     logical, allocatable, dimension(:,:,:) :: maskh
     real, allocatable, dimension(:,:,:) :: uwsh,vwsh,uwrh,vwrh,wwrh,wwsf
-    real, allocatable, dimension(:) :: thvhav
+    real(field_r), allocatable, dimension(:) :: thvhav
 
     real, allocatable, dimension(:) :: whav0l,wwthav0l    ! needed for instantaneous mean values
     real, allocatable, dimension(:) :: whav0 ,wwthav0  ,wwshav0 ,sigh0

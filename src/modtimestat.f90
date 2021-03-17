@@ -33,7 +33,7 @@
 module modtimestat
 
 
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
 
 implicit none
 ! private
@@ -602,9 +602,9 @@ contains
 
     do  k=1,kmax
       if (lhetero) then
-        u0av_patch = patchsum_1level(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        v0av_patch = patchsum_1level(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        w0av_patch = patchsum_1level(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        u0av_patch = patchsum_1level_field_r(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        v0av_patch = patchsum_1level_field_r(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        w0av_patch = patchsum_1level_field_r(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
       endif
       do  j=2,j1
         if (lhetero) then
@@ -943,7 +943,8 @@ contains
     implicit none
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
-    real, allocatable,dimension(:,:,:) :: blh_fld,  sv0h, blh_fld2
+    real, allocatable,dimension(:,:,:) :: blh_fld, blh_fld2
+    real(field_r), allocatable,dimension(:,:,:) :: sv0h
     real, allocatable, dimension(:) :: profile, gradient, dgrad
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(profile(k1),gradient(k1),dgrad(k1))
@@ -1230,6 +1231,34 @@ contains
    enddo
 
   call D_MPI_ALLREDUCE(xl,patchsum_1level, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
+
+  end function
+
+!> It might be the same as the normal one, it might have a different kind ...
+ function patchsum_1level_field_r(x)
+   use modglobal,  only : imax,jmax
+   use modsurface, only : patchxnr, patchynr
+   use modsurfdata,only : xpatches,ypatches
+   use modmpi,     only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
+   implicit none
+   real                :: patchsum_1level_field_r(xpatches,ypatches),xl(xpatches,ypatches)
+   real(field_r), intent(in) :: x(imax,jmax)
+   integer             :: i,j,iind,jind
+
+   patchsum_1level_field_r = 0
+   xl              = 0
+
+   do j=1,jmax
+     jind  = patchynr(j)
+
+     do i=1,imax
+       iind  = patchxnr(i)
+
+       xl(iind,jind) = xl(iind,jind) + x(i,j)
+     enddo
+   enddo
+
+  call D_MPI_ALLREDUCE(xl,patchsum_1level_field_r, xpatches*ypatches,MPI_SUM, comm3d,mpierr)
 
   end function
 

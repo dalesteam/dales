@@ -119,7 +119,7 @@ module modchem
 !
 !
 
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
 
 implicit none
 
@@ -1144,7 +1144,7 @@ use modtimestat, only: we, zi, ziold, calcblheight
 implicit none
 
 !!!!! we acces the chemicals from 1 to nchsp so we are independend of other scalars in svm
-  real    y(2-ih:i1+ih,2-jh:j1+jh,k1,1:nchsp)
+  real(field_r) y(2-ih:i1+ih,2-jh:j1+jh,k1,1:nchsp)
 
   real, allocatable :: ybegin(:,:,:,:)
   real, allocatable :: writearrayg(:,:)

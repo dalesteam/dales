@@ -30,6 +30,7 @@
 
 module modsubgrid
 use modsubgriddata
+use modprecision, only: field_r
 implicit none
 save
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
@@ -531,8 +532,8 @@ contains
     use modfields, only : rhobf,rhobh
     implicit none
 
-    real, intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in)    :: flux (i2,j2)
 
     integer i,j,k,jm,jp,km,kp
@@ -594,7 +595,7 @@ contains
     use modfields, only : e120,rhobf,rhobh
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -655,7 +656,7 @@ contains
     use modsurfdata,only : ustar
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
@@ -767,7 +768,7 @@ contains
 
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
@@ -876,7 +877,7 @@ contains
 
   !*****************************************************************
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
 
