@@ -98,7 +98,9 @@ contains
       ! Soil properties
       phi, phifc, phiwp, R10, T2gm, Q10gm, &
       !2leaf AGS, sunlit/shaded
-      lsplitleaf
+      lsplitleaf, &
+      ! Exponential emission function
+      i_expemis, expemis0, expemis1, expemis2
 
 
     ! 1    -   Initialize soil
@@ -165,6 +167,11 @@ contains
     call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
+    
+    call MPI_BCAST(i_expemis                  ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+    call MPI_BCAST(expemis0                   ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(expemis1                   ,            1, MY_REAL    , 0, comm3d, mpierr)
+    call MPI_BCAST(expemis2                   ,            1, MY_REAL    , 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
@@ -701,7 +708,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv
+    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use mpi
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excjs, mpi_integer
@@ -820,6 +827,11 @@ contains
     end if
 
     ! 2     -   Calculate the surface fluxes
+    if( (i_expemis .gt. 0) .and. (i_expemis .le. nsv) ) then
+      wsvsurf(i_expemis) = expemis0 * exp(-(0.5*((rtimee-expemis1)/expemis2)**2.))
+      if(lhetero) wsv_patch(i_expemis,:,:) = wsvsurf(i_expemis)
+    endif
+
     if(isurf <= 2) then
       do j = 2, j1
         do i = 2, i1

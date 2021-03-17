@@ -214,33 +214,37 @@ SAVE
   logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length
   logical           :: lsmoothflux = .false.  !<  Create uniform sensible and latent heat flux over domain
   logical           :: lneutral    = .false.  !<  Disable stability corrections
-  real, allocatable :: obl   (:,:)      !<  Obukhov length [m]
-  real              :: oblav            !<  Spatially averaged obukhov length [m]
-  real, allocatable :: Cm    (:,:)      !<  Drag coefficient for momentum [-]
-  real, allocatable :: Cs    (:,:)      !<  Drag coefficient for scalars [-]
-  real, allocatable :: ustar (:,:)      !<  Friction velocity [m/s]
-  real, allocatable :: thlflux (:,:)    !<  Kinematic temperature flux [K m/s]
-  real, allocatable :: qtflux  (:,:)    !<  Kinematic specific humidity flux [kg/kg m/s]
-  real, allocatable :: svflux  (:,:,:)  !<  Kinematic scalar flux [- m/s]
+  real, allocatable :: obl   (:,:)            !<  Obukhov length [m]
+  real              :: oblav                  !<  Spatially averaged obukhov length [m]
+  real, allocatable :: Cm    (:,:)            !<  Drag coefficient for momentum [-]
+  real, allocatable :: Cs    (:,:)            !<  Drag coefficient for scalars [-]
+  real, allocatable :: ustar (:,:)            !<  Friction velocity [m/s]
+  real, allocatable :: thlflux (:,:)          !<  Kinematic temperature flux [K m/s]
+  real, allocatable :: qtflux  (:,:)          !<  Kinematic specific humidity flux [kg/kg m/s]
+  real, allocatable :: svflux  (:,:,:)        !<  Kinematic scalar flux [- m/s]
 
   ! Surface gradients of prognostic variables
-  real, allocatable :: dudz  (:,:)      !<  U-wind gradient in surface layer [1/s]
-  real, allocatable :: dvdz  (:,:)      !<  V-wind gradient in surface layer [1/s]
-  real, allocatable :: dqtdz (:,:)      !<  Specific humidity gradient in surface layer [kg/kg/m]
-  real, allocatable :: dthldz(:,:)      !<  Liquid water potential temperature gradient in surface layer [K/m]
+  real, allocatable :: dudz  (:,:)            !<  U-wind gradient in surface layer [1/s]
+  real, allocatable :: dvdz  (:,:)            !<  V-wind gradient in surface layer [1/s]
+  real, allocatable :: dqtdz (:,:)            !<  Specific humidity gradient in surface layer [kg/kg/m]
+  real, allocatable :: dthldz(:,:)            !<  Liquid water potential temperature gradient in surface layer [K/m]
 
   ! Surface properties in case of prescribed conditions (previous isurf 2, 3 and 4)
-  real              :: thls  = -1       !<  Surface liquid water potential temperature [K]
-  real              :: qts              !<  Surface specific humidity [kg/kg]
-  real              :: thvs             !<  Surface virtual temperature [K]
-  real, allocatable :: svs   (:)        !<  Surface scalar concentration [-]
-  real              :: z0    = -1       !<  Surface roughness length [m]
+  real              :: thls  = -1             !<  Surface liquid water potential temperature [K]
+  real              :: qts                    !<  Surface specific humidity [kg/kg]
+  real              :: thvs                   !<  Surface virtual temperature [K]
+  real, allocatable :: svs   (:)              !<  Surface scalar concentration [-]
+  real              :: z0    = -1             !<  Surface roughness length [m]
 
   ! prescribed surface fluxes
-  real              :: ustin  = -1      !<  Prescribed friction velocity [m/s]
-  real              :: wtsurf = -1e20  !<  Prescribed kinematic temperature flux [K m/s]
-  real              :: wqsurf = -1e20  !<  Prescribed kinematic moisture flux [kg/kg m/s]
-  real              :: wsvsurf(100) = 0 !<  Prescribed surface scalar(n) flux [- m/s]
+  real              :: ustin  = -1            !<  Prescribed friction velocity [m/s]
+  real              :: wtsurf = -1e20         !<  Prescribed kinematic temperature flux [K m/s]
+  real              :: wqsurf = -1e20         !<  Prescribed kinematic moisture flux [kg/kg m/s]
+  real              :: wsvsurf(100) = 0       !<  Prescribed surface scalar(n) flux [- m/s]
+  integer           :: i_expemis = -1         !<  Scalar index for which the exponential emission should be applied [-]
+  real              :: expemis0 = 0.0         !<  Maximum exponential emission [ppb m/s]
+  real              :: expemis1 = 0.0         !<  Time of maximum exponential emission [s]
+  real              :: expemis2 = 10800.0     !<  Timescale of exponential emission [s]
 
   ! Heterogeneous surfaces
   integer, parameter:: max_lands                   = 10 !<  Amount of land types that can be defined
