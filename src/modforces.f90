@@ -63,21 +63,17 @@ contains
   use modglobal, only : i1,j1,kmax,dzh,dzf,grav, lpressgrad
   use modfields, only : sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
-  use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr, imicro_bulk3 !#sb3
+  use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice, imicro_sice2, iqr, imicro_bulk3 !#sb3
   use modmicrodata3,only :iq_hr,iq_ci,iq_hs,iq_hg   !#sb3
   implicit none
 
-  integer i, j, k, jm, jp, km, kp
+  integer i, j, k
   
   if (lforce_user) call force_user
 
-  if((imicro==imicro_sice).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+  if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
     do k=2,kmax
-      kp=k+1
-      km=k-1
     do j=2,j1
-      jp=j+1
-      jm=j-1
     do i=2,i1
     
     if (lpressgrad) then
@@ -91,11 +87,7 @@ contains
     end do
   elseif(imicro==imicro_bulk3) then !#sb3 START 
     do k=2,kmax
-     kp=k+1
-     km=k-1
     do j=2,j1
-     jp=j+1
-     jm=j-1
     do i=2,i1
     
     if (lpressgrad) then
@@ -113,14 +105,12 @@ contains
     end do
   else   !#sb3 END 
     do k=2,kmax
-      kp=k+1
-      km=k-1
     do j=2,j1
-      jp=j+1
-      jm=j-1
-    do i=2,i1
-      up(i,j,k) = up(i,j,k) - dpdxl(k)
-      vp(i,j,k) = vp(i,j,k) - dpdyl(k)
+       do i=2,i1
+          if (lpressgrad) then
+             up(i,j,k) = up(i,j,k) - dpdxl(k)
+             vp(i,j,k) = vp(i,j,k) - dpdyl(k)
+          end if
       wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
     end do
     end do
@@ -132,8 +122,6 @@ contains
 !     --------------------------------------------
 
   do j=2,j1
-    jp = j+1
-    jm = j-1
   do i=2,i1
 
     if (lpressgrad) then
