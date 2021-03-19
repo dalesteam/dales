@@ -18,9 +18,68 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module fftnew
+use iso_fortran_env, only : real64, int64
+implicit real(real64)   (a-h)
+implicit real(real64)   (o-z)
+implicit integer(int64) (i-n)
 contains
 
+
+  subroutine RFFTB (N,R,WSAVE)
+    interface 
+      subroutine RFFTB1 (N, C, CH, WA, WFAC)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+      DIMENSION       CH(N)      ,C(N)
+      end subroutine
+    end interface 
+      DIMENSION       R(1)       ,WSAVE(2*N+1)
+  if (N == 1) return
+  call RFFTB1 (N,R,WSAVE,WSAVE(N+1),WSAVE(2*N+1))
+  return
+  end
+
+
+  subroutine RFFTF (N,R,WSAVE)
+    interface 
+      subroutine RFFTF1 (N, C, CH, WA, WFAC)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+      DIMENSION       CH(N)      ,C(N)
+      end subroutine
+    end interface 
+      DIMENSION       R(1)       ,WSAVE(2*N+1)
+  if (N == 1) return
+  call RFFTF1 (N,R,WSAVE,WSAVE(N+1),WSAVE(2*N+1))
+  return
+  end
+
+
+  subroutine RFFTI (N,WSAVE)
+    interface 
+      subroutine RFFTI1 (N, WA, WFAC)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+      end subroutine
+    end interface 
+      DIMENSION       WSAVE(2*N+1)
+  if (N == 1) return
+  call RFFTI1 (N,WSAVE(N+1),WSAVE(2*N+1))
+  return
+  end
+
+end module fftnew
   subroutine RADB2 (IDO,L1,CC,CH,WA1)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CC(IDO,2,L1)           ,CH(IDO,L1,2), WA1(IDO-1)
   do K=1,L1
      CH(1,K,1) = CC(1,1,K)+CC(IDO,2,K)
@@ -52,6 +111,10 @@ contains
   end
 
   subroutine RADB3 (IDO,L1,CC,CH,WA1,WA2)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CC(IDO,3,L1) ,CH(IDO,L1,3) ,WA1(1)     ,WA2(1)
   DATA TAUR,TAUI /-.5,.866025403784439/
   do K=1,L1
@@ -89,6 +152,10 @@ contains
   end
 
   subroutine RADB4 (IDO,L1,CC,CH,WA1,WA2,WA3)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CC(IDO,4,L1),CH(IDO,L1,4),WA1(IDO-1),WA2(IDO-1),WA3(IDO-1)
   DATA SQRT2 /1.414213562373095/
   do K=1,L1
@@ -148,6 +215,10 @@ contains
   end
 
   subroutine RADB5 (IDO,L1,CC,CH,WA1,WA2,WA3,WA4)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION  CC(IDO,5,L1),CH(IDO,L1,5),WA1(1),WA2(1),WA3(1),WA4(1)
       DATA TR11,TI11,TR12,TI12 /.309016994374947,.951056516295154,-.809016994374947,.587785252292473/
   do K=1,L1
@@ -210,6 +281,10 @@ contains
   end
 
   subroutine RADBG (IDO,IP,L1,IDL1,CC,C1,C2,CH,CH2,WA)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION  CH(IDO,L1,IP),CC(IDO,IP,L1),C1(IDO,L1,IP),C2(IDL1,IP), CH2(IDL1,IP) ,WA(1)
   DATA TPI/6.28318530717959/
   ARG = TPI/IP
@@ -374,6 +449,10 @@ contains
   end
 
   subroutine RADF2 (IDO,L1,CC,CH,WA1)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CH(IDO,2,L1),CC(IDO,L1,2),WA1(IDO-1)
   do K=1,L1
      CH(1,1,K) = CC(1,K,1)+CC(1,K,2)
@@ -404,6 +483,10 @@ contains
   end
 
   subroutine RADF3 (IDO,L1,CC,CH,WA1,WA2)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CH(IDO,3,L1),CC(IDO,L1,3), WA1(1)     ,WA2(1)
   DATA TAUR,TAUI /-.5,.866025403784439/
   do K=1,L1
@@ -439,6 +522,10 @@ contains
   end
 
   subroutine RADF4 (IDO,L1,CC,CH,WA1,WA2,WA3)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CC(IDO,L1,4),CH(IDO,4,L1), WA1(IDO-1)     ,WA2(IDO-1)     ,WA3(IDO-1)
   DATA HSQT2 /.7071067811865475/
   do K=1,L1
@@ -494,6 +581,10 @@ contains
   end
 
   subroutine RADF5 (IDO,L1,CC,CH,WA1,WA2,WA3,WA4)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION       CC(IDO,L1,5),CH(IDO,5,L1),WA1(1)     ,WA2(1)     ,WA3(1)     ,WA4(1)
       DATA TR11,TI11,TR12,TI12 /.309016994374947,.951056516295154,-.809016994374947,.587785252292473/
   do K=1,L1
@@ -552,6 +643,10 @@ contains
   end
 
   subroutine RADFG (IDO,IP,L1,IDL1,CC,C1,C2,CH,CH2,WA)
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
       DIMENSION CH(IDO,L1,IP),CC(IDO,IP,L1),C1(IDO,L1,IP),C2(IDL1,IP),CH2(IDL1,IP),WA(1)
   DATA TPI/6.28318530717959/
   ARG = TPI/IP
@@ -722,15 +817,50 @@ contains
   return
   end
 
-  subroutine RFFTB (N,R,WSAVE)
-      DIMENSION       R(1)       ,WSAVE(2*N+1)
-  if (N == 1) return
-  call RFFTB1 (N,R,WSAVE,WSAVE(N+1),WSAVE(2*N+1))
-  return
-  end
+
 
   subroutine RFFTB1 (N,C,CH,WA,IFAC)
-    REAL ::  IFAC
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
+      interface
+        subroutine RADB2 (IDO,L1,CC,CH,WA1)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION       CC(IDO,2,L1),CH(IDO,L1,2), WA1(IDO-1)
+        end subroutine
+        subroutine RADB3 (IDO,L1,CC,CH,WA1,WA2)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION       CC(IDO,3,L1),CH(IDO,L1,3) ,WA1(1)     ,WA2(1)
+        end subroutine
+        subroutine RADB4 (IDO,L1,CC,CH,WA1,WA2,WA3)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION CC(IDO,4,L1),CH(IDO,L1,4),WA1(IDO-1),WA2(IDO-1),WA3(IDO-1)
+        end subroutine
+        subroutine RADB5 (IDO,L1,CC,CH,WA1,WA2,WA3,WA4)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION  CC(IDO,5,L1),CH(IDO,L1,5),WA1(1),WA2(1),WA3(1),WA4(1)
+        end subroutine
+        subroutine RADBG (IDO,IP,L1,IDL1,CC,C1,C2,CH,CH2,WA)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION CH(IDO,L1,IP),CC(IDO,IP,L1),C1(IDO,L1,IP),C2(IDL1,IP), CH2(IDL1,IP) ,WA(1)
+        end subroutine
+      end interface
       DIMENSION       CH(N)      ,C(N)       ,WA(N+1)      ,IFAC(2*N+1)
   NF = IFAC(2)
   NA = 0
@@ -800,16 +930,48 @@ contains
   end do
   return
   end
-
-  subroutine RFFTF (N,R,WSAVE)
-      DIMENSION       R(1)       ,WSAVE(2*N+1)
-  if (N == 1) return
-  call RFFTF1 (N,R,WSAVE,WSAVE(N+1),WSAVE(2*N+1))
-  return
-  end
-
   subroutine RFFTF1 (N,C,CH,WA,IFAC)
-    real :: IFAC
+      use iso_fortran_env, only : real64, int64
+      implicit real(real64)   (a-h)
+      implicit real(real64)   (o-z)
+      implicit integer(int64) (i-n)
+      interface
+        subroutine RADF2 (IDO,L1,CC,CH,WA1)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION       CH(IDO,2,L1),CC(IDO,L1,2),WA1(IDO-1)
+        end subroutine
+        subroutine RADF3 (IDO,L1,CC,CH,WA1,WA2)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION       CH(IDO,3,L1),CC(IDO,L1,3), WA1(1)     ,WA2(1)
+        end subroutine
+        subroutine RADF4 (IDO,L1,CC,CH,WA1,WA2,WA3)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION CC(IDO,L1,4),CH(IDO,4,L1), WA1(IDO-1), WA2(IDO-1), WA3(IDO-1)
+        end subroutine
+        subroutine RADF5 (IDO,L1,CC,CH,WA1,WA2,WA3,WA4)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION       CC(IDO,L1,5),CH(IDO,5,L1),WA1(1)     ,WA2(1)     ,WA3(1)     ,WA4(1)
+        end subroutine
+        subroutine RADFG (IDO,IP,L1,IDL1,CC,C1,C2,CH,CH2,WA)
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
+        DIMENSION CH(IDO,L1,IP),CC(IDO,IP,L1),C1(IDO,L1,IP),C2(IDL1,IP),CH2(IDL1,IP),WA(1)
+        end subroutine
+      end interface
       DIMENSION       CH(N)      ,C(N)       ,WA(N+1)      ,IFAC(2*N+1)
   NF = IFAC(2)
   NA = 1
@@ -879,15 +1041,11 @@ contains
   return
   end
 
-  subroutine RFFTI (N,WSAVE)
-      DIMENSION       WSAVE(2*N+1)
-  if (N == 1) return
-  call RFFTI1 (N,WSAVE(N+1),WSAVE(2*N+1))
-  return
-  end
-
   subroutine RFFTI1 (N,WA,IFAC)
-  real :: IFAC
+        use iso_fortran_env, only : real64, int64
+        implicit real(real64)   (a-h)
+        implicit real(real64)   (o-z)
+        implicit integer(int64) (i-n)
   logical firstloop
   DIMENSION       WA(N+1)      ,IFAC(2*N+1)    ,NTRYH(4)
   DATA NTRYH(1),NTRYH(2),NTRYH(3),NTRYH(4)/4,2,3,5/
@@ -960,4 +1118,3 @@ contains
   end do
   return
   end
-end module fftnew
