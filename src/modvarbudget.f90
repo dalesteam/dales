@@ -185,6 +185,7 @@ contains
     use modglobal     , only : i1,j1,ih,jh,k1,cp,ijtot, &
                                iadv_thl,iadv_qt
     use modmpi        , only : slabsum
+  
     implicit none
 
   ! Set av values to zero
@@ -249,6 +250,17 @@ contains
     use modfields,      only : u0,v0,w0,u0av,v0av
     use modmpi,         only : comm3d,my_real,mpi_sum,mpierr, &
                                slabsum
+    use mpi,             only : mpi_allreduce
+    use advec_2nd,      only : advecc_2nd
+    use advec_52,       only : advecc_52
+    use advec_5th,      only : advecc_5th
+    use advec_62,       only : advecc_62
+    use advec_6th,      only : advecc_6th
+    use advec_hybrid,   only : advecc_hybrid
+    use advec_hybrid_f, only : advecc_hybrid_f
+    use advec_kappa,    only : advecc_kappa
+    use advec_upw,      only : advecc_upw
+
     implicit none
 
     integer i,j,k,im,ip,jm,jp,km,kp       !counter variables
