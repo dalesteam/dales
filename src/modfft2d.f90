@@ -23,6 +23,7 @@
 !  Copyright 2014 Netherlands eScience Center
 !
 module modfft2d
+use iso_fortran_env, only : int64
 
 implicit none
 
@@ -38,6 +39,7 @@ contains
   subroutine fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     use modmpi, only   : nprocx, nprocy
     use modglobal, only: itot, jtot, imax, jmax, kmax, i1, j1, ih, jh
+    use fftnew, only   : rffti
     implicit none
 
     real, pointer        :: p(:,:,:)
@@ -77,8 +79,8 @@ contains
 ! Prepare 1d FFT transforms
     allocate(winew(2*itot+15),wjnew(2*jtot+15))
 
-    CALL rffti(itot,winew)
-    CALL rffti(jtot,wjnew)
+    CALL rffti(int(itot,int64),winew)
+    CALL rffti(int(jtot,int64),wjnew)
 
     allocate(fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax))
     allocate(   d(2-ih:i1+ih,2-jh:j1+jh,kmax))
@@ -398,6 +400,7 @@ contains
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
+    use fftnew, only    : rfftf
 
     implicit none
 
@@ -414,14 +417,14 @@ contains
       call transpose_a(p, worka)
       do k=1,ke
       do j=1,jmax
-        call rfftf(itot,worka(1,j,k),winew)
+        call rfftf(int(itot,int64),worka(1,j,k),winew)
       enddo
       enddo
       call transpose_ainv(p, worka)
     else
       do k=1,kmax
       do j=2,j1
-        call rfftf(itot,p(2,j,k),winew)
+        call rfftf(int(itot,int64),p(2,j,k),winew)
       enddo
       enddo
     endif
@@ -433,7 +436,7 @@ contains
     call transpose_b(p, workb)
     do k=1,ke
     do i=1,imax
-      call rfftf(jtot,workb(1,i,k),wjnew)
+      call rfftf(int(jtot,int64),workb(1,i,k),wjnew)
     enddo
     enddo
     call transpose_binv(p, workb)
@@ -446,6 +449,7 @@ contains
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
+    use fftnew, only    : rfftb
 
     implicit none
 
@@ -461,7 +465,7 @@ contains
     call transpose_b(p, workb)
     do k=1,ke
     do i=1,imax
-      call rfftb(jtot,workb(1,i,k),wjnew)
+      call rfftb(int(jtot,int64),workb(1,i,k),wjnew)
     enddo
     enddo
     call transpose_binv(p, workb)
@@ -474,14 +478,14 @@ contains
       call transpose_a(p, worka)
       do k=1,ke
       do j=1,jmax
-        call rfftb(itot,worka(1,j,k),winew)
+        call rfftb(int(itot,int64),worka(1,j,k),winew)
       enddo
       enddo
       call transpose_ainv(p, worka)
     else
       do k=1,kmax
       do j=2,j1
-        call rfftb(itot,p(2,j,k),winew)
+        call rfftb(int(itot,int64),p(2,j,k),winew)
       enddo
       enddo
     endif

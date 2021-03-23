@@ -555,6 +555,7 @@ contains
     use modfields, only : presh
     use modmpi,    only : myid,my_real,comm3d,mpierr,mpi_sum
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
+    use mpi
 
     implicit none
     real, allocatable, dimension(:,:)          :: vars

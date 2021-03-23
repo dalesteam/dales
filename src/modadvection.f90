@@ -24,15 +24,24 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module modadvection
+contains
 !> Advection redirection function
 subroutine advection
 
-  use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq
-  use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
-  use modsubgrid, only : lsmagorinsky
-  use advec_hybrid, only : advecc_hybrid
+  use modglobal,      only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
+                             iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq
+  use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
+  use modsubgrid,     only : lsmagorinsky
+  use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, advecc_2nd
+  use advec_52,       only : advecu_52, advecv_52, advecw_52, advecc_52
+  use advec_5th,      only : advecu_5th, advecv_5th, advecw_5th, advecc_5th
+  use advec_62,       only : advecu_62, advecv_62, advecw_62, advecc_62
+  use advec_6th,      only : advecu_6th, advecv_6th, advecw_6th, advecc_6th
+  use advec_hybrid,   only : advecc_hybrid
   use advec_hybrid_f, only : advecc_hybrid_f
+  use advec_kappa,    only : advecc_kappa
+  use advec_upw,      only : advecc_upw
   implicit none
   integer :: n
 
@@ -204,3 +213,4 @@ subroutine advection
   end do
 
 end subroutine advection
+end module modadvection

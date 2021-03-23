@@ -260,6 +260,7 @@ subroutine initbulkmicrostat
     use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
     use modfields,  only  : ql0
+    use mpi
     implicit none
 
     integer :: k

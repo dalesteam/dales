@@ -20,6 +20,8 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module advec_upw
+contains
 !> Advection at cell center
 subroutine advecc_upw(putin,putout)
 
@@ -107,4 +109,4 @@ subroutine advecc_upw(putin,putout)
   enddo
 
 end subroutine advecc_upw
-
+end module advec_upw

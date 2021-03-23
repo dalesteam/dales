@@ -668,6 +668,7 @@ contains
     use modglobal, only : i1,j1,k1,dzf,dzh,iadv_thl, iadv_qt, iadv_kappa
     use modfields, only : thl0,thl0h,qt0,qt0h
     use modsurfdata,only: qts,thls
+    use advec_kappa,only: halflev_kappa
     implicit none
 
     integer :: i,j,k
