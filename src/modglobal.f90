@@ -152,7 +152,7 @@ save
       integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
                                      !                                     FFT  SMG PFMG BiCGSTAB GMRES
       integer :: maxiter = 10000     ! Number of iterations                 .    X   X     X       X
-      real    :: tolerance = 1E-8    ! Convergence threshold                .    X   X     X       X
+      real(real64):: tolerance = 1E-8! Convergence threshold                .    X   X     X       X
       integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
