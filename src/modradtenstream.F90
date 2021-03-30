@@ -47,6 +47,8 @@ module modradtenstream
       optional_twostream, do_twostream, steps_until_twostream !to determine whether or not we use twostream solver
   implicit none
   save
+  real :: ztopmax
+
 
   private
   public :: dales_tenstream,dales_tenstream_destroy
@@ -54,7 +56,6 @@ module modradtenstream
   logical,parameter :: ldebug=.False.
 !  logical,parameter :: ldebug=.True.
   type(t_solver_3_10) :: pprts_solver
- 
 
 contains
 
@@ -81,7 +82,7 @@ contains
     integer(mpiint) :: inp_comm
     integer(iintegers) :: i, j, k, kk
     integer(iintegers), allocatable :: nxproc(:), nyproc(:)
-    integer(iintegers) :: ztop, ztopmaxl, ztopmax
+    real :: ztop, ztopmaxl
     real(ireals), parameter :: solar_min_sza=85 ! minimum solar zenith angle -- below, dont compute solar rad
     real(ireals), parameter :: rho_liq = 1000  
     type(t_tenstr_atm) :: atm
@@ -171,13 +172,14 @@ contains
         do  k=1,kmax
          if (ql0(i,j,k) > 0) ztop = zf(k)
         end do
-        if (ztop > ztopmaxl) ztopmaxl = ztop
+        ztopmaxl = max(ztopmaxl, ztop)
       end do
     end do
+    
     call MPI_ALLREDUCE(ztopmaxl, ztopmax, 1,    MY_REAL, &
                        MPI_MAX, comm3d,mpierr)
     
-    atm%cloud_top = ztopmaxl
+    atm%cloud_top = ztopmax
     
     if (optional_twostream) then
       if (atm%cloud_top > 0) then
