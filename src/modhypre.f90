@@ -109,13 +109,6 @@ interface
     type(c_ptr) :: solver
     integer(c_int) rel_change, ierr
   end subroutine
-  subroutine HYPRE_StructPCGSetRelChange ( solver, rel_change, ierr) &
-    bind(c, name="hypre_structpcgsetrelchange_")
-    use iso_c_binding
-    implicit none
-    type(c_ptr) :: solver
-    integer(c_int) rel_change, ierr
-  end subroutine
   subroutine HYPRE_StructBiCGSTABSetTol ( solver, tol, ierr) &
     bind(c, name="hypre_structbicgstabsettol_")
     use iso_c_binding
@@ -150,6 +143,14 @@ interface
   end subroutine
   subroutine HYPRE_StructLGMRESSetTol ( solver, tol, ierr) &
     bind(c, name="hypre_structlgmressettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructPCGSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structpcgsettol_")
     use iso_c_binding
     implicit none
     type(c_ptr) :: solver
@@ -1041,7 +1042,7 @@ contains
         write (*,*) 'Selected solver 5 (PCG) with parameters:', maxiter, tolerance, n_pre, n_post, precond
       endif
       call HYPRE_StructPCGCreate(mpi_comm_hypre, solver, ierr)
-      call HYPRE_StructPCGSetRelChange(solver, tolerance, ierr)
+      call HYPRE_StructPCGSetTol(solver, tolerance, ierr)
       call HYPRE_StructPCGSetTwoNorm(solver, 1, ierr)
       call HYPRE_StructPCGSetMaxIter(solver, maxiter, ierr)
       call initprecond
