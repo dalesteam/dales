@@ -367,7 +367,7 @@ contains
         write (*,*) 'Selected solver 5 (PCG) with parameters:', maxiter, tolerance, n_pre, n_post, precond
       endif
       call HYPRE_StructPCGCreate(mpi_comm_hypre, solver, ierr)
-      call HYPRE_StructPCGSetRelChange(solver, tolerance, ierr)
+      call HYPRE_StructPCGSetTol(solver, tolerance, ierr)
       call HYPRE_StructPCGSetTwoNorm(solver, 1, ierr)
       call HYPRE_StructPCGSetMaxIter(solver, maxiter, ierr)
       call initprecond
@@ -394,7 +394,7 @@ contains
 
     else
       if (myid == 0) then
-        write (*,*) 'Invalid solver in inithypre', solver
+        write (*,*) 'Invalid solver in inithypre', solver_id
       endif
       call exit(-1)
     endif
