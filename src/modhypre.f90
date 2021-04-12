@@ -1069,7 +1069,7 @@ contains
 
     else
       if (myid == 0) then
-        write (*,*) 'Invalid solver in inithypre', solver
+        write (*,*) 'Invalid solver in inithypre', solver_id
       endif
       call exit(-1)
     endif
