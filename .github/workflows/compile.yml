@@ -21,7 +21,7 @@ jobs:
       matrix:
         toolchain: ["gnu", "intel"]
         fftw:    ["", "-DUSE_FFTW=T"]
-        hypre:   ["" ]
+        hypre:   ["", "-DUSE_HYPRE=T"]
         
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
@@ -77,7 +77,7 @@ jobs:
           export F90=ifort
           export FFLAGS='-O3 -xHost -ip -no-prec-div -static-intel'
 
-          debuild --no-lintian --preserve-env --preserve-envvar PATH -b -uc -us -ui -j2
+          debuild --no-lintian --preserve-env --preserve-envvar PATH -b -uc -us -ui 
 
           cd ../
           sudo dpkg -i *.deb

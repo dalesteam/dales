@@ -19,22 +19,697 @@
 !  Based on hypre/src/test/f77_struct.f
 
 module modhypre
-
+use iso_c_binding
 implicit none
 private
 public :: inithypre, solve_hypre, exithypre, set_initial_guess
 save
 
-  integer   mpi_comm_hypre
+  integer(c_int) mpi_comm_hypre
 
-  integer   ierr
-  integer*8 grid, stencil, solver, precond_solver
-  integer*8 matrixA, vectorX, vectorB ! Solve Ax = b
+  integer(c_int) ierr
+  type(c_ptr) grid, stencil, solver, precond_solver
+  type(c_ptr) matrixA, vectorX, vectorB ! Solve Ax = b
   integer   ilower(3), iupper(3), periodic(3)
 
   integer   zero, one
   data zero / 0 /
   data one  / 1 /
+
+! We need to append the _ and add bind(c, name) to call the c interface defined
+! for fortran
+interface
+  subroutine HYPRE_StructBiCGSTABCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structbicgstabcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructSMGCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structsmgcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structpfmgcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructJacobiCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structjacobicreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPCGCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structpcgcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGMRESCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structgmrescreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructLGMRESCreate ( comm, solver, ierr) &
+    bind(c, name="hypre_structlgmrescreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) comm
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructSMGSetRelChange ( solver, rel_change, ierr) &
+    bind(c, name="hypre_structsmgsetrelchange_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) rel_change, ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGSetRelChange ( solver, rel_change, ierr) &
+    bind(c, name="hypre_structpfmgsetrelchange_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) rel_change, ierr
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structbicgstabsettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructSMGSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structsmgsettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructPFMGSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structpfmgsettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructGMRESSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structgmressettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructLGMRESSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structlgmressettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructPCGSetTol ( solver, tol, ierr) &
+    bind(c, name="hypre_structpcgsettol_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr
+    real(c_double) tol
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structbicgstabsetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructSMGSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structsmgsetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructPFMGSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structpfmgsetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructJacobiSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structjacobisetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructPCGSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structpcgsetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructGMRESSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structgmressetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructLGMRESSetMaxIter ( solver, max_iter, ierr) &
+    bind(c, name="hypre_structlgmressetmaxiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, max_iter
+  end subroutine
+  subroutine HYPRE_StructPCGSetPrecond ( solver, precond_id, precond_solver, ierr) &
+    bind(c, name="hypre_structpcgsetprecond_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, precond_solver
+    integer(c_int) ierr, precond_id
+  end subroutine
+  subroutine HYPRE_StructGMRESSetPrecond ( solver, precond_id, precond_solver, ierr) &
+    bind(c, name="hypre_structgmressetprecond_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, precond_solver
+    integer(c_int) ierr, precond_id
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABSetPrecond ( solver, precond_id, precond_solver, ierr) &
+    bind(c, name="hypre_structbicgstabsetprecond_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, precond_solver
+    integer(c_int) ierr, precond_id
+  end subroutine
+  subroutine HYPRE_StructLGMRESSetPrecond ( solver, precond_id, precond_solver, ierr) &
+    bind(c, name="hypre_structlgmressetprecond_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, precond_solver
+    integer(c_int) ierr, precond_id
+  end subroutine
+  subroutine HYPRE_StructSMGSetLogging ( solver, logging, ierr) &
+    bind(c, name="hypre_structsmgsetlogging_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, logging
+  end subroutine
+  subroutine HYPRE_StructPFMGSetLogging ( solver, logging, ierr) &
+    bind(c, name="hypre_structpfmgsetlogging_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, logging
+  end subroutine
+  subroutine HYPRE_StructPCGSetLogging ( solver, logging, ierr) &
+    bind(c, name="hypre_structpcgsetlogging_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, logging
+  end subroutine
+  subroutine HYPRE_StructGMRESSetLogging ( solver, logging, ierr) &
+    bind(c, name="hypre_structgmressetlogging_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, logging
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABSetLogging ( solver, logging, ierr) &
+    bind(c, name="hypre_structbicgstabsetlogging_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, logging
+  end subroutine
+  subroutine HYPRE_StructLGMRESSetLogging ( solver, logging, ierr) &
+    bind(c, name="hypre_structlgmressetlogging_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, logging
+  end subroutine
+  subroutine HYPRE_StructPCGSetPrintLevel ( solver, level, ierr) &
+    bind(c, name="hypre_structpcgsetprintlevel_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, level
+  end subroutine
+  subroutine HYPRE_StructLGMRESSetPrintLevel ( solver, level, ierr) &
+    bind(c, name="hypre_structlgmressetprintlevel_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) ierr, level
+  end subroutine
+  subroutine HYPRE_StructSMGSetup ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structsmgsetup_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGSetup ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structpfmgsetup_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPCGSetup ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structpcgsetup_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGMRESSetup ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structgmressetup_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABSetup ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structbicgstabsetup_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructLGMRESSetup ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structlgmressetup_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPCGSetTwoNorm ( solver, two_norm, ierr ) &
+    bind(c, name="hypre_structpcgsettwonorm_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) two_norm, ierr
+  end subroutine
+  subroutine HYPRE_StructSMGSetNumPostRelax ( solver, num_post_relax, ierr) &
+    bind(c, name="hypre_structsmgsetnumpostrelax_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_post_relax, ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGSetNumPostRelax ( solver, num_post_relax, ierr) &
+    bind(c, name="hypre_structpfmgsetnumpostrelax_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_post_relax, ierr
+  end subroutine
+  subroutine HYPRE_StructSMGSetNumPreRelax ( solver, num_pre_relax, ierr) &
+    bind(c, name="hypre_structsmgsetnumprerelax_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_pre_relax, ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGSetNumPreRelax ( solver, num_pre_relax, ierr) &
+    bind(c, name="hypre_structpfmgsetnumprerelax_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_pre_relax, ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGSetRelaxType ( solver, relax_type, ierr) &
+    bind(c, name="hypre_structpfmgsetrelaxtype_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) relax_type, ierr
+  end subroutine
+  subroutine HYPRE_StructSMGSetMemoryUse ( solver, memory_use, ierr) &
+    bind(c, name="hypre_structsmgsetmemoryuse_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) memory_use, ierr
+  end subroutine
+  subroutine HYPRE_StructLGMRESGetFinalRel ( solver, norm, ierr) &
+    bind(c, name="hypre_structlgmresgetfinalrel_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    real(c_double) :: norm
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABGetNumItera ( solver, num_iterations, ierr) &
+    bind(c, name="hypre_structbicgstabgetnumitera_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_iterations, ierr
+  end subroutine
+  subroutine HYPRE_StructGMRESGetNumIteratio ( solver, num_iterations, ierr) &
+    bind(c, name="hypre_structgmresgetnumiteratio_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_iterations, ierr
+  end subroutine
+  subroutine HYPRE_StructPCGGetNumIterations ( solver, num_iterations, ierr) &
+    bind(c, name="hypre_structpcggetnumiterations_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_iterations, ierr
+  end subroutine
+  subroutine HYPRE_StructSMGGetNumIterations ( solver, num_iterations, ierr) &
+    bind(c, name="hypre_structsmggetnumiterations_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_iterations, ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGGetNumIteration ( solver, num_iterations, ierr) &
+    bind(c, name="hypre_structpfmggetnumiteration_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_iterations, ierr
+  end subroutine
+  subroutine HYPRE_StructLGMRESGetNumIter ( solver, num_iterations, ierr) &
+    bind(c, name="hypre_structlgmresgetnumiter_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    integer(c_int) num_iterations, ierr
+  end subroutine
+  subroutine HYPRE_StructPCGSolve ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structpcgsolve_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABSolve ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structbicgstabsolve_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructSMGSolve ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structsmgsolve_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGSolve ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structpfmgsolve_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGMRESSolve ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structgmressolve_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructLGMRESSolve ( solver, matrixA, vectorB, vectorX, ierr) &
+    bind(c, name="hypre_structlgmressolve_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver, matrixA, vectorB, vectorX
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructVectorAssemble ( vector, ierr ) &
+    bind(c, name="hypre_structvectorassemble_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: vector
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructVectorSetBoxValues ( vector, ilower, iupper, values, ierr ) &
+    bind(c, name="hypre_structvectorsetboxvalues_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: vector
+    integer(c_int) :: ilower(*), iupper(*)
+    real(c_double) :: values(*)
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructVectorGetBoxValues ( vector, ilower, iupper, values, ierr ) &
+    bind(c, name="hypre_structvectorgetboxvalues_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: vector
+    integer(c_int) :: ilower(*), iupper(*)
+    real(c_double) :: values(*)
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructVectorInitialize ( vector, ierr ) &
+    bind(c, name="hypre_structvectorinitialize_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: vector
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructVectorCreate ( comm, grid, vector, ierr ) &
+    bind(c, name="hypre_structvectorcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) :: comm
+    type(c_ptr) :: grid, vector
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructMatrixAssemble ( matrix, ierr ) &
+    bind(c, name="hypre_structmatrixassemble_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: matrix
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructMatrixSetBoxValues ( matrix, ilower, iupper, &
+      num_stencil_indices, stencil_indices, values, ierr )            &
+    bind(c, name="hypre_structmatrixsetboxvalues_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: matrix
+    integer(c_int) :: ilower(*), iupper(*), stencil_indices(*)
+    real(c_double) :: values(*)
+    integer(c_int) num_stencil_indices, ierr
+  end subroutine
+  subroutine HYPRE_StructMatrixInitialize ( matrix, ierr ) &
+    bind(c, name="hypre_structmatrixinitialize_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: matrix
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructMatrixCreate ( comm, grid, stencil, matrix, ierr ) &
+    bind(c, name="hypre_structmatrixcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) :: comm
+    type(c_ptr) :: grid, stencil, matrix
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructStencilSetElement ( stencil, element_index, offset, ierr ) &
+    bind(c, name="hypre_structstencilsetelement_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: stencil
+    integer(c_int) :: offset(*)
+    integer(c_int) element_index, ierr
+  end subroutine
+  subroutine HYPRE_StructStencilCreate ( dim, size, stencil, ierr ) &
+    bind(c, name="hypre_structstencilcreate_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: stencil
+    integer(c_int) dim, size, ierr
+  end subroutine
+  subroutine HYPRE_StructGridAssemble ( grid, ierr ) &
+    bind(c, name="hypre_structgridassemble_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: grid
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGridSetPeriodic ( grid, periodic, ierr ) &
+    bind(c, name="hypre_structgridsetperiodic_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: grid
+    integer(c_int) :: periodic(*)
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGridSetExtents ( grid, ilower, iupper, ierr ) &
+    bind(c, name="hypre_structgridsetextents_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: grid
+    integer(c_int) :: ilower(*), iupper(*)
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGridCreate ( comm, dim, grid, ierr ) &
+    bind(c, name="hypre_structgridcreate_")
+    use iso_c_binding
+    implicit none
+    integer(c_int) :: comm, dim
+    type(c_ptr) :: grid
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGMRESGetFinalRelati ( solver, norm, ierr ) &
+    bind(c, name="hypre_structgmresgetfinalrelati_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    real(c_double) :: norm
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABGetFinalRel ( solver, norm, ierr ) &
+    bind(c, name="hypre_structbicgstabgetfinalrel_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    real(c_double) :: norm
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGGetFinalRelativ ( solver, norm, ierr ) &
+    bind(c, name="hypre_structpfmggetfinalrelativ_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    real(c_double) :: norm
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPCGGetFinalRelative ( solver, norm, ierr ) &
+    bind(c, name="hypre_structpcggetfinalrelative_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    real(c_double) :: norm
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructSMGGetFinalRelative ( solver, norm, ierr ) &
+    bind(c, name="hypre_structsmggetfinalrelative_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: solver
+    real(c_double) :: norm
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructVectorDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structvectordestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructMatrixDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structmatrixdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructStencilDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structstencildestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGridDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structgriddestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructLGMRESDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structlgmresdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructGMRESDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structgmresdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructJacobiDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structjacobidestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructBiCGSTABDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structbicgstabdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPFMGDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structpfmgdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructSMGDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structsmgdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+  subroutine HYPRE_StructPCGDestroy ( obj , ierr ) &
+    bind(c, name="hypre_structpcgdestroy_")
+    use iso_c_binding
+    implicit none
+    type(c_ptr) :: obj
+    integer(c_int) ierr
+  end subroutine
+
+end interface
 
 contains
   subroutine initprecond
@@ -71,9 +746,9 @@ contains
       call HYPRE_StructJacobiCreate(mpi_comm_hypre, precond_solver, ierr)
       call HYPRE_StructJacobiSetMaxIter(precond_solver, maxiter, ierr)
     else if (precond == 8) then
-      precond_solver = 0
+      precond_solver = c_null_ptr
     else if (precond == 9) then
-      precond_solver = 0
+      precond_solver = c_null_ptr
     else
       write (*,*) 'Invalid preconditioner in inithypre', precond
       write (*,*) 'Possbile values are (0) SMG (1) PFMG (8) DS (9) None'
@@ -367,7 +1042,7 @@ contains
         write (*,*) 'Selected solver 5 (PCG) with parameters:', maxiter, tolerance, n_pre, n_post, precond
       endif
       call HYPRE_StructPCGCreate(mpi_comm_hypre, solver, ierr)
-      call HYPRE_StructPCGSetRelChange(solver, tolerance, ierr)
+      call HYPRE_StructPCGSetTol(solver, tolerance, ierr)
       call HYPRE_StructPCGSetTwoNorm(solver, 1, ierr)
       call HYPRE_StructPCGSetMaxIter(solver, maxiter, ierr)
       call initprecond
