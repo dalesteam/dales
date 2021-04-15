@@ -30,4 +30,9 @@ integer, parameter :: SHR_KIND_IN = kind(1) ! native integer
 integer, parameter :: field_r = real32  ! Precision for the most common fields u, v, w
                                         ! And all other fields that do not have
                                         ! their own kind and need to interoperate
+integer, parameter :: pois_r  = real32  ! NOTE: only real64 works with FFTW
+                                        ! Precision for the poisson solver, p Fp fields
+                                        ! and all internal fields used in the module
+                                        ! also affects the old fftnew.f9
+
 end module
