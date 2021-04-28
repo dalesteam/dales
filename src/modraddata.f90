@@ -232,20 +232,34 @@ contains
     use modglobal, only : pi
 !     implicit none
     real, intent(in) :: time, xday, xlat, xlon, mu
-    real :: phi,el,obliq,xlam,declin,hora
-    real :: day,daytime
+    real :: phi,el,obliq,xlam,declination,hour_solar_time,hour_angle
+    real :: day,seconds_since_midnight,days_per_year
 
-    day    = xday + floor(time/86400.)
-    daytime= mod(time,86400.)
+    if (mod(year,4.)==0 .and. (mod(year,100.) /= 0 .or. mod(year,400.) == 0)) then
+        days_per_year = 366.
+    else
+        days_per_year = 365.
+    end if
 
+    doy    = xday + floor(time/86400.) - 1
     phi    = xlat * pi/180.
     el     = xlon * pi/180.
-    obliq  = 23.45 * pi/180.
-    xlam   = 4.88 + 0.0172 * day
-    declin = asin(sin(obliq)*sin(xlam))
-    hora   = el-pi + 2.*pi*(daytime/86400.)
-    azimuth = acos((sin(declin)-mu*sin(phi))/(sin(acos(mu))*cos(phi))) / pi * 180.
-    if (hora > 0) then
+
+    ! DOY in range (0, 2*pi)
+    doy_pi = 2. * pi * doy / days_per_year
+    
+    ! Solar declination angle
+    declination = 0.006918 - 0.399912 * cos(doy_pi) + 0.070257 * sin(doy_pi) & 
+            -0.006758 * cos(2*doy_pi) + 0.000907 * sin(2*doy_pi) &
+            -0.002697 * cos(3*doy_pi) + 0.00148  * sin(3*doy_pi)
+    
+    azimuth = acos(max(-1.,min(1.,(sin(declination)-mu*sin(phi))/(sin(acos(mu))*cos(phi))))) / pi * 180.
+    
+    seconds_since_midnight= mod(time,86400.)    
+    hour_solar_time = (seconds_since_midnight/3600.) - a3 + radlon * (180./pi/15.)
+    hour_angle = (hour_solar_time-12.) * 15. * (pi/180.)
+
+    if (hour_angle > 0) then
         azimuth = 360-azimuth
     endif 
   end function azimuth
