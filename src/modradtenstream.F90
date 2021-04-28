@@ -89,7 +89,7 @@ contains
      
     mu = real(zenith_ifs(xtime*3600 + rtimee, xday, xlat, xlon, xyear), ireals)
     theta0 = rad2deg(acos(mu))
-    phi0 = real(azimuth(xtime*3600 + rtimee, xday, xlat, xlon, real(mu)), ireals) 
+    phi0 = real(azimuth(xtime*3600 + rtimee, xday, xlat, xlon, real(mu), xyear), ireals) 
     albedo_thermal = 0.05
     if (lCnstAlbedo) then
       albedo_solar = real(albedoav, ireals)
