@@ -228,7 +228,7 @@ contains
   end function zenith
 
 !calculate azimuth angle (for 3D radiation)
-  real function azimuth(time, xday, xlat,xlon,mu)
+  real function azimuth(time, xday, xlat,xlon,mu, year)
     use modglobal, only : pi
 !     implicit none
     real, intent(in) :: time, xday, xlat, xlon, mu
@@ -255,8 +255,13 @@ contains
     
     azimuth = acos(max(-1.,min(1.,(sin(declination)-mu*sin(phi))/(sin(acos(mu))*cos(phi))))) / pi * 180.
     
+    ! Hour angle in radians, using true solar time
+    a1 = (1.00554 * doy -  6.28306) * pi/180.
+    a2 = (1.93946 * doy + 23.35089) * pi/180.
+    a3 = (7.67825 * sin(a1) + 10.09176 * sin(a2)) / 60.
+    
     seconds_since_midnight= mod(time,86400.)    
-    hour_solar_time = (seconds_since_midnight/3600.) - a3 + radlon * (180./pi/15.)
+    hour_solar_time = (seconds_since_midnight/3600.) - a3 + el * (180./pi/15.)
     hour_angle = (hour_solar_time-12.) * 15. * (pi/180.)
 
     if (hour_angle > 0) then
