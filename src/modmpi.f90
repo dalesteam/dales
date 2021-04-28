@@ -367,7 +367,7 @@ contains
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
-  real(real32),allocatable, dimension(:) :: sendn,recvn &
+  real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
@@ -409,8 +409,8 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    a(sx-ih:ex+ih,sy-jh:sy-1,sz:ez) = a(:,ey-jh+1:ey,:)
-    a(sx-ih:ex+ih,ey+1:ey+jh,sz:ez) = a(:,sy:sy+jh-1,:)
+    a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
+    a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     
   endif
 
@@ -441,8 +441,8 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-      a(sx-ih:sx-1,sy-jh:ey+jh,sz:ez) = a(ex-ih+1:ex,:,:)
-      a(ex+1:ex+ih,sy-jh:ey+jh,sz:ez) = a(sx:sx+ih-1,:,:)
+    a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
+    a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
 
   endif
 
