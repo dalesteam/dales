@@ -305,7 +305,7 @@ module modsimpleice2
                     ! qll=ql0(i,j,k)*ilratio(i,j,k)
                     ! qli=ql0(i,j,k)-qll
                     
-                    ddisp=0.146-5.964e-2*alog(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
+                    ddisp=0.146-5.964e-2*log(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
                     lwc=1.e3*rhof(k)*qll ! Liquid water content in g/kg
                     autl=1./rhof(k)*1.67e-5*lwc*lwc/(5. + .0366*Nc_0/(1.e6*ddisp*(lwc+1.e-6)))
                     tc=tmp0(i,j,k)-tmelt ! Temperature wrt melting point

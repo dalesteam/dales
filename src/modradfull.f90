@@ -1109,7 +1109,7 @@ contains
        tkm1 = 0.0
         do k = 1, nv
            f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
-           tmp    = alog( bf(k+1)/bf(k) )
+           tmp    = log( bf(k+1)/bf(k) )
            u0a(k) = -(t(k)-tkm1) / sign(max(abs(tmp),eps1),tmp)
            u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
            tkm1   = t(k)
@@ -1519,7 +1519,7 @@ contains
 
     do  i = 1, nv
        tv = pt(i)*(1+0. + ep2*ph(i) )
-       dz(i) = (rd/grav) * tv * alog( pp(i+1) / pp(i) )
+       dz(i) = (rd/grav) * tv * log( pp(i+1) / pp(i) )
     end do
 
   end subroutine thicks
