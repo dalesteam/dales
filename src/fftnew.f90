@@ -287,7 +287,7 @@ end module fftnew
       implicit integer(int64) (i-n)
       DIMENSION  CH(IDO,L1,IP),CC(IDO,IP,L1),C1(IDO,L1,IP),C2(IDL1,IP), CH2(IDL1,IP) ,WA(1)
   DATA TPI/6.28318530717959/
-  ARG = TPI/FLOAT(IP)
+  ARG = TPI/IP
   DCP = COS(ARG)
   DSP = SIN(ARG)
   IDP2 = IDO+2
@@ -649,7 +649,7 @@ end module fftnew
       implicit integer(int64) (i-n)
       DIMENSION CH(IDO,L1,IP),CC(IDO,IP,L1),C1(IDO,L1,IP),C2(IDL1,IP),CH2(IDL1,IP),WA(1)
   DATA TPI/6.28318530717959/
-  ARG = TPI/FLOAT(IP)
+  ARG = TPI/IP
   DCP = COS(ARG)
   DSP = SIN(ARG)
   IPPH = (IP+1)/2
@@ -1089,7 +1089,7 @@ end module fftnew
   IFAC(1) = N
   IFAC(2) = NF
   TPI = 6.28318530717959
-  ARGH = TPI/FLOAT(N)
+  ARGH = TPI/N
   IS = 0
   NFM1 = NF-1
   L1 = 1
@@ -1103,7 +1103,7 @@ end module fftnew
     do J=1,IPM
       LD = LD+L1
       I = IS
-      ARGLD = FLOAT(LD)*ARGH
+      ARGLD = LD*ARGH
       FI = 0.
       do II=3,IDO,2
         I = I+2
