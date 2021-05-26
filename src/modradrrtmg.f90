@@ -770,10 +770,10 @@ contains
              cloudFrac(i,k) = 1.
              !cstep Ou Liou: tempC = layerT(i,k)--tmelt
              !cstep Ou Liou  iceRe(i,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
-             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * alog10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
+             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
              cloudFrac(i,k) = 1.
-             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * alog10(qci_slice(i,k)/IWC0)
+             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0)
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998
 
              if (iceRe(i,k).lt.5.) then
