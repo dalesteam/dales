@@ -39,6 +39,10 @@ target_link_libraries(${target_name} ${NETCDF_LIBS} ${OPTIONAL_LIBS})
 # DALES library, e.g. for use with OMUSE
 add_library(${target_lib} ${sourcefiles} ${CMAKE_CURRENT_BINARY_DIR}/modversion.f90)
 
+# Make sure modversion is compiled
+add_dependencies(dales4 tag_git_version)
+add_dependencies(dales tag_git_version)
+
 # set separate module directories for the program and library targets, to avoid problems during parallel builds (make -j 8)
 set_target_properties(${target_name} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/program_modules")
 set_target_properties(${target_lib} PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/library_modules")

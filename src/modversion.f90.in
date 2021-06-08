@@ -5,6 +5,6 @@ module modversion
 
   implicit none
 
-  character(80) :: git_version="@GIT_VERSION@"
+  character(80), parameter :: git_version="@GIT_VERSION@"
 
 end module modversion
