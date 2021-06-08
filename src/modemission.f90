@@ -42,7 +42,7 @@ contains
     integer :: ierr
 
     ! --- Read & broadcast namelist EMISSION -----------------------------------
-    namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames 
+    namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames
 
     if (myid == 0) then
 
@@ -56,8 +56,22 @@ contains
 
     call mpi_bcast(l_emission,    1,   mpi_logical,   0, comm3d, ierr)
     call mpi_bcast(kemis,         1,   mpi_integer,   0, comm3d, ierr)
-    call mpi_bcast(svskip,       1,   mpi_integer,   0, comm3d, ierr)
+    call mpi_bcast(svskip,        1,   mpi_integer,   0, comm3d, ierr)
     call mpi_bcast(emisnames(1:100), 100, mpi_character, 0, comm3d, ierr)
+
+    ! -- Interaction with AGs   ----------------------------------------------------
+
+    allocate(co2fields(nsv-svskip))
+
+    svco2ags  = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
+    co2fields =   index(emisnames(1:nsv-svskip), "co2") 
+    
+    if (myid == 0) then
+      write(6,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
+      write(6,*) co2fields
+      write(6,*) 'modemission: svco2ags (scalar field number for AGS emissions)'
+      write(6,*) svco2ags
+    endif
 
     ! --- Local pre-calculations and settings
     if (.not. (l_emission)) return
@@ -101,7 +115,7 @@ contains
 
     use mpi,         only : MPI_INFO_NULL
     use netcdf
-    use modmpi,      only : myid, myidx, myidy, comm3d
+    use modmpi,      only : myid, myidx, myidy
     use modglobal,   only : i1, j1, i2, j2, imax, jmax, nsv
     use moddatetime, only : datex
 
@@ -225,6 +239,7 @@ contains
     if (.not. (l_emission)) return
 
     deallocate(emisfield)
+    deallocate(co2fields)
 
   end subroutine exitemission
 
