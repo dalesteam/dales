@@ -61,11 +61,14 @@ contains
 
     ! -- Interaction with AGs   ----------------------------------------------------
 
-    allocate(co2fields(nsv-svskip))
+     
+    allocate(co2fields(nsv))
+    co2fields = 0
+    co2fields(svskip+1:nsv) = index(emisnames(1:nsv-svskip), "co2") 
 
-    svco2ags  = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
-    co2fields =   index(emisnames(1:nsv-svskip), "co2") 
-    
+    svco2ags = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
+    svco2ags = svco2ags + svskip
+ 
     if (myid == 0) then
       write(6,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
       write(6,*) co2fields
