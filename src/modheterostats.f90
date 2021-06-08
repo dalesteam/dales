@@ -1124,7 +1124,7 @@ contains
           status = nf90_put_var(ncid, wsvcovid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
           if(status /= nf90_noerr) call nchandle_error(status)
        endif
-       call D_MPI_REDUCE(wsvcovs,buffer,ncklimit*jmax,MPI_SUM,0,commrow,mpierr)
+       call D_MPI_REDUCE(wsvcovs(1,:,:),buffer,ncklimit*jmax,MPI_SUM,0,commrow,mpierr)
        if(myidx == 0) then
           status = nf90_put_var(ncid, wsvcovsid(n), buffer, (/1,1,nccall/), (/jmax, ncklimit, 1/))
           if(status /= nf90_noerr) call nchandle_error(status)

@@ -375,7 +375,7 @@ subroutine initbulkmicrostat3
 !>  * write a text file
 !>  * write to a netcdf file using writestat_nc
   subroutine writebulkmicrostat3
-    use modmpi,     only : myid, MPI_SUM, MPI_IN_PLACE
+    use modmpi,     only : myid, MPI_SUM
     use modglobal,  only : rtimee, ifoutput, cexpnr, k1,kmax, rlv, zf, ijtot
     use modfields,  only : presf,rhof
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -394,12 +394,12 @@ subroutine initbulkmicrostat3
 
     ! gather all columns
     if (l_statistics) then
-      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_mphys    ,size(statistic_mphys    ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_count,size(statistic_sv0_count),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_sv0_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_svp_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
-      call D_MPI_REDUCE(MPI_IN_PLACE,statistic_svp_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(statistic_mphys    ,size(statistic_mphys    ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(statistic_sv0_count,size(statistic_sv0_count),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(statistic_sv0_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(statistic_sv0_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(statistic_svp_fsum ,size(statistic_sv0_fsum ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(statistic_svp_csum ,size(statistic_sv0_csum ),MPI_SUM,0,comm3d,mpierr)
 
       ! normalize
       statistic_sv0_fsum = statistic_sv0_fsum / ijtot / nsamples
@@ -415,7 +415,7 @@ subroutine initbulkmicrostat3
     endif
 
     if (l_tendencies) then
-      call D_MPI_REDUCE(MPI_IN_PLACE,tend_fsum          ,size(tend_fsum          ),MPI_SUM,0,comm3d,mpierr)
+      call D_MPI_REDUCE(tend_fsum          ,size(tend_fsum          ),MPI_SUM,0,comm3d,mpierr)
 
       ! normalize
       tend_fsum = tend_fsum / ijtot / nsamples

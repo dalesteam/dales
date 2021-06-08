@@ -1161,6 +1161,8 @@ implicit none
   integer k_zi,Rnr
   integer nsecs, nhrs, nminut
   real    rest_zi, zi_temp, we_temp
+  real, allocatable :: s_buf(:), r_buf(:)
+  allocate(s_buf(kmax),r_buf(kmax))
 
   !c Initialization of logical and counters
   t = rtimee
@@ -1360,9 +1362,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,1
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr))
@@ -1378,9 +1383,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,2
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)/ijtot
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
@@ -1395,9 +1403,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,1
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) / (ijtot ** (PL_scheme(n)%PL(j)%exp1 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = ((sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) ** PL_scheme(n)%PL(j)%exp1)&
@@ -1415,9 +1426,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,2
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           / (ijtot ** (PL_scheme(n)%PL(j)%exp1 + PL_scheme(n)%PL(j)%exp2 - 1))
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
@@ -1438,9 +1452,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,3
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = seg_conc(1,:,Rnr)*seg_conc(2,:,Rnr)*seg_conc(3,:,Rnr)/(ijtot**2)
                 seg_conc_prod(Rnr) = sum(seg_conc_prod_vert(Rnr,1:k_zi))+rest_zi*seg_conc_prod_vert(Rnr,k_zi+1)
                 seg_conc_mult(Rnr) = (sum(seg_conc(1,1:k_zi,Rnr)) + rest_zi*seg_conc(1,k_zi+1,Rnr)) &
@@ -1461,9 +1478,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,3
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) &
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
@@ -1490,9 +1510,12 @@ implicit none
                   enddo
                 enddo
                 do it_l=1,4
-                  call D_MPI_ALLREDUCE(seg_concl(it_l,:) ,seg_conc(it_l,:,Rnr) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  s_buf = reshape(seg_concl(it_l,:),(/kmax/))
+                  call D_MPI_ALLREDUCE(s_buf ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                  seg_conc(it_l,:,Rnr) = reshape(r_buf,(/kmax/))
                 enddo
-                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,seg_conc_prod_vert(Rnr,:) ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                call D_MPI_ALLREDUCE(seg_conc_prodl(:) ,r_buf ,kmax ,MPI_SUM ,comm3d ,mpierr)
+                seg_conc_prod_vert(Rnr,:) = r_buf
                 seg_conc_mult_vert(Rnr,:) = (seg_conc(1,:,Rnr) ** PL_scheme(n)%PL(j)%exp1) &
                                           * (seg_conc(2,:,Rnr) ** PL_scheme(n)%PL(j)%exp2) &
                                           * (seg_conc(3,:,Rnr) ** PL_scheme(n)%PL(j)%exp3) &
