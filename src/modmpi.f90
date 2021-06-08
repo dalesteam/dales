@@ -32,6 +32,7 @@
 
 module modmpi
 use iso_fortran_env, only : real32,real64,int32
+use iso_c_binding  , only : c_loc, c_f_pointer
 use mpi_f08
 implicit none
 save
@@ -575,36 +576,47 @@ contains
   !MPI interfaces instantations for the various types
   subroutine D_MPI_ISEND_REAL32(buf, count, dest, tag, comm, request, ierror)
     implicit none
-    real(real32), asynchronous ::   buf(..)
+    real(real32), target ::   buf(..)
     integer       ::   count, dest, tag, ierror
     type(MPI_COMM):: comm
     type(MPI_REQUEST) :: request
-    call MPI_ISEND(buf,count,MPI_REAL4,dest,tag,comm,request,ierror)
+    BYTE, pointer :: buf_b
+    ! This cast is necessary for the fujitsu fortran compiler, hopefully it
+    ! will not be neccessary anymore sometime in the future (then please remove the
+    ! cast and pass the buf directly!
+    call c_f_pointer(c_loc(buf),buf_b)
+    call MPI_ISEND(buf_b,count,MPI_REAL4,dest,tag,comm,request,ierror)
   end subroutine D_MPI_ISEND_REAL32
   subroutine D_MPI_ISEND_REAL64(buf, count, dest, tag, comm, request, ierror)
     implicit none
-    real(real64), asynchronous ::   buf(..)
+    real(real64), target ::   buf(..)
     integer       ::   count, dest, tag, ierror
     type(MPI_COMM):: comm
     type(MPI_REQUEST) :: request
-    call MPI_ISEND(buf,count,MPI_REAL8,dest,tag,comm,request,ierror)
+    BYTE, pointer :: buf_b
+    call c_f_pointer(c_loc(buf),buf_b)
+    call MPI_ISEND(buf_b,count,MPI_REAL8,dest,tag,comm,request,ierror)
   end subroutine D_MPI_ISEND_REAL64
 
   subroutine D_MPI_IRECV_REAL32(buf, count, source, tag, comm, request, ierror)
     implicit none
-    real(real32)  ::   buf(..)
+    real(real32), target  ::   buf(..)
     integer        :: count, source, tag, ierror
     type(MPI_COMM) :: comm
     type(MPI_REQUEST) :: request
-    call MPI_IRECV(buf,count,MPI_REAL4,source,tag,comm,request,ierror)
+    BYTE, pointer :: buf_b
+    call c_f_pointer(c_loc(buf),buf_b)
+    call MPI_IRECV(buf_b,count,MPI_REAL4,source,tag,comm,request,ierror)
   end subroutine D_MPI_IRECV_REAL32
   subroutine D_MPI_IRECV_REAL64(buf, count, source, tag, comm, request, ierror)
     implicit none
-    real(real64)   :: buf(..)
+    real(real64), target  ::   buf(..)
     integer        :: count, source, tag, ierror
     type(MPI_COMM) :: comm
     type(MPI_REQUEST) :: request
-    call MPI_IRECV(buf,count,MPI_REAL8,source,tag,comm,request,ierror)
+    BYTE, pointer :: buf_b
+    call c_f_pointer(c_loc(buf),buf_b)
+    call MPI_IRECV(buf_b,count,MPI_REAL8,source,tag,comm,request,ierror)
   end subroutine D_MPI_IRECV_REAL64
   
   subroutine D_MPI_BCAST_REAL32(buffer, count, root, comm, ierror)
