@@ -558,6 +558,8 @@ contains
   end subroutine nctiminfo
 
   ! Utility converting year + day to full date
+  ! day = 1 is first day of the year
+  ! hours > 24 advances the day, and day > 365 or 366 advances the year
   subroutine get_date_time(year, day, hours, datetime)
     implicit none
     integer, intent(in)     :: year
@@ -573,7 +575,7 @@ contains
     ss = floor((rh - hh - mm/60.) * 3600)
     dd = hh / 24
     hh = hh - 24 * dd
-    call get_date(year,floor(day) + dd + 1, date)
+    call get_date(year,floor(day) + dd, date)
     datetime(1:3) = date(1:3)
     datetime(4) = hh
     datetime(5) = mm
@@ -581,6 +583,7 @@ contains
   end subroutine get_date_time
 
   ! Utility converting year + day to full date
+  ! day = 1 is first day of the year
   subroutine get_date(year, day, date)
     implicit none
     integer, intent(in)     :: year
