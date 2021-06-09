@@ -1113,7 +1113,7 @@ module daleslib
         do i=1,mm - 1
             xday = xday + mdays(i)
         enddo
-        xday = xday + dd - 1
+        xday = xday + dd
         xtime = float(hour) + minute/60. + second/3600. 
     end subroutine set_start_time
     
