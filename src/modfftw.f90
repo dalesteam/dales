@@ -22,6 +22,7 @@
 !
 module modfftw
 use, intrinsic  :: iso_c_binding
+use modprecision, only : pois_r
 implicit none
 include 'fftw3.f03'
 
@@ -29,7 +30,19 @@ save
   integer                         :: method
   integer                         :: konx, kony
   integer                         :: iony, jonx
-  real, dimension(:), allocatable :: bufin, bufout
+  real(pois_r), dimension(:), allocatable :: bufin, bufout
+  interface fftw_plan_many_r2r_if
+    procedure :: d_fftw_plan_many_r2r
+    procedure :: d_fftwf_plan_many_r2r
+  end interface 
+  interface fftw_plan_guru_r2r_if
+    procedure :: d_fftw_plan_guru_r2r
+    procedure :: d_fftwf_plan_guru_r2r
+  end interface 
+  interface fftw_execute_r2r_if
+    procedure :: d_fftw_execute_r2r
+    procedure :: d_fftwf_execute_r2r
+  end interface
 
   ! C pointer to the actual (aligned) memory for FFTW
   type (C_ptr)                    :: ptr
@@ -47,7 +60,7 @@ save
   ! FFTW plan and memory pointers for 1D transforms
   ! NOTE: these pointers point to sub arrays of ptr
   type (C_ptr)                    :: planx, planxi, plany, planyi
-  real, pointer                   :: p210(:,:,:), p201(:,:,:)
+  real(pois_r), pointer                   :: p210(:,:,:), p201(:,:,:)
 
   ! Method 2:
   !   no domain decomposition nprocx = nprocy = 1
@@ -58,7 +71,7 @@ save
   ! FFTW plan and memory pointers for 2D transforms
   ! NOTE: these pointers point to sub arrays of ptr
   type (C_ptr)                    :: planxy, planxyi
-  real, pointer                   :: p_nohalo(:)
+  real(pois_r), pointer                   :: p_nohalo(:)
 
 contains
 
@@ -69,14 +82,14 @@ contains
     use, intrinsic  :: iso_c_binding
     implicit none
 
-    real, pointer              :: p(:,:,:)
-    real, pointer              :: Fp(:,:,:)
-    real, allocatable          :: d(:,:,:)
-    real, allocatable          :: xyrt(:,:)
+    real(pois_r), pointer              :: p(:,:,:)
+    real(pois_r), pointer              :: Fp(:,:,:)
+    real(pois_r), allocatable          :: d(:,:,:)
+    real(pois_r), allocatable          :: xyrt(:,:)
     integer,intent(out)        :: ps,pe,qs,qe
 
     integer(kind=8)     :: sz
-    real, pointer       :: fptr(:)
+    real(pois_r), pointer :: fptr(:)
     integer             :: embed(1), kinds(2)
     type (fftw_iodim)   :: dimij(2), dimk(1)
 
@@ -147,7 +160,7 @@ contains
     ! TODO: in plan_many, skip part where k > kmax
     embed(1) = itot
     kinds(1) = FFTW_R2HC
-    planx = fftw_plan_many_r2r( &
+    planx = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
       jmax*konx, &   ! howmany
@@ -165,7 +178,7 @@ contains
 
     embed(1) = itot
     kinds(1) = FFTW_HC2R
-    planxi = fftw_plan_many_r2r( &
+    planxi = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
       jmax*konx, &   ! howmany
@@ -183,7 +196,7 @@ contains
 
     embed(1) = jtot
     kinds(1) = FFTW_R2HC
-    plany = fftw_plan_many_r2r( &
+    plany = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
       konx*iony, &   ! howmany
@@ -201,7 +214,7 @@ contains
 
     embed(1) = jtot
     kinds(1) = FFTW_HC2R
-    planyi = fftw_plan_many_r2r( &
+    planyi = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
       konx*iony, &   ! howmany
@@ -246,7 +259,7 @@ contains
 
     kinds(1) = FFTW_R2HC
     kinds(2) = FFTW_R2HC
-    planxy = fftw_plan_guru_r2r(&
+    planxy = fftw_plan_guru_r2r_if(&
       2, &             ! rank
       dimij, &         ! dims
       1, &             ! howmany_rank
@@ -259,7 +272,7 @@ contains
 
     kinds(1) = FFTW_HC2R
     kinds(2) = FFTW_HC2R
-    planxyi = fftw_plan_guru_r2r(&
+    planxyi = fftw_plan_guru_r2r_if(&
       2, &             ! rank
       dimij, &         ! dims
       1, &             ! howmany_rank
@@ -289,10 +302,10 @@ contains
 
  subroutine fftwexit(p,Fp,d,xyrt)
    implicit none
-   real, pointer :: p(:,:,:)
-   real, pointer :: Fp(:,:,:)
-   real, allocatable :: d(:,:,:)
-   real, allocatable :: xyrt(:,:)
+   real(pois_r), pointer :: p(:,:,:)
+   real(pois_r), pointer :: Fp(:,:,:)
+   real(pois_r), allocatable :: d(:,:,:)
+   real(pois_r), allocatable :: xyrt(:,:)
 
    if (method == 1) then
      call fftw_destroy_plan(planx)
@@ -353,8 +366,8 @@ contains
 
     !real, intent(in)    :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
     !real, intent(out)   :: p210(itot,jmax,konx)
-    real, pointer :: p(:,:,:)
-    real, pointer :: p210(:,:,:)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: p210(:,:,:)
 
     integer :: n, i,j,k, ii
 
@@ -397,8 +410,8 @@ contains
 
     !real, intent(out)   :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
     !real, intent(in)    :: p210(itot,jmax,konx)
-    real, pointer :: p(:,:,:)
-    real, pointer :: p210(:,:,:)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: p210(:,:,:)
 
     integer :: n, i,j,k, ii
 
@@ -441,8 +454,8 @@ contains
 
     !real, intent(in)    :: p210(itot,jmax,konx)
     !real, intent(out)   :: p201(jtot,konx,iony)
-    real, pointer :: p210(:,:,:)
-    real, pointer :: p201(:,:,:)
+    real(pois_r), pointer :: p210(:,:,:)
+    real(pois_r), pointer :: p201(:,:,:)
 
     integer :: n, i,j,k, ii
 
@@ -485,8 +498,8 @@ contains
 
     !real, intent(out)  :: p210(itot,jmax,konx)
     !real, intent(in)   :: p201(jtot,konx,iony)
-    real, pointer :: p210(:,:,:)
-    real, pointer :: p201(:,:,:)
+    real(pois_r), pointer :: p210(:,:,:)
+    real(pois_r), pointer :: p201(:,:,:)
 
     integer :: n, i,j,k, ii
 
@@ -529,8 +542,8 @@ contains
 
     !real, intent(in)    :: p201(jtot,konx,iony)
     !real, intent(out)   :: Fp(iony,jonx,kmax)
-    real, pointer :: p201(:,:,:)
-    real, pointer :: Fp(:,:,:)
+    real(pois_r), pointer :: p201(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
 
     integer :: n, i,j,k, ii
 
@@ -575,8 +588,8 @@ contains
 
     !real, intent(out)   :: p201(jtot,konx,iony)
     !real, intent(in)    :: Fp(iony,jonx,kmax)
-    real, pointer :: p201(:,:,:)
-    real, pointer :: Fp(:,:,:)
+    real(pois_r), pointer :: p201(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
 
     integer :: n, i,j,k, ii
 
@@ -621,19 +634,19 @@ contains
 
     implicit none
 
-    real, pointer :: p(:,:,:)
-    real, pointer :: Fp(:,:,:)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
 
     if (method == 1) then
       call transpose_a1(p, p210)
-      call fftw_execute_r2r(planx, p210, p210)
+      call fftw_execute_r2r_if(planx, p210, p210)
 
       call transpose_a2(p210, p201)
-      call fftw_execute_r2r(plany, p201, p201)
+      call fftw_execute_r2r_if(plany, p201, p201)
 
       call transpose_a3(p201, Fp)
     else if (method == 2) then
-      call fftw_execute_r2r(planxy, p_nohalo, p_nohalo)
+      call fftw_execute_r2r_if(planxy, p_nohalo, p_nohalo)
     else
       stop 'Illegal method in fftwsolver.'
     endif
@@ -648,22 +661,22 @@ contains
 
     implicit none
 
-    real, pointer :: p(:,:,:)
-    real, pointer :: Fp(:,:,:)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
 
     Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
 
     if (method == 1) then
       call transpose_a3inv(p201, Fp)
 
-      call fftw_execute_r2r(planyi, p201, p201)
+      call fftw_execute_r2r_if(planyi, p201, p201)
       call transpose_a2inv(p210, p201)
 
-      call fftw_execute_r2r(planxi, p210, p210)
+      call fftw_execute_r2r_if(planxi, p210, p210)
       call transpose_a1inv(p, p210)
 
     else if (method == 2) then
-      call fftw_execute_r2r(planxyi, p_nohalo, p_nohalo)
+      call fftw_execute_r2r_if(planxyi, p_nohalo, p_nohalo)
     else
       stop 'Illegal method in fftwsolver.'
     endif
@@ -677,11 +690,11 @@ contains
 
     implicit none
 
-    real, allocatable :: xyrt(:,:)
+    real(pois_r), allocatable :: xyrt(:,:)
 
     integer :: i,j,iv,jv
-    real    :: fac
-    real    :: xrt(itot), yrt(jtot)
+    real(pois_r)    :: fac
+    real(pois_r)    :: xrt(itot), yrt(jtot)
 
   ! Generate Eigenvalues xrt and yrt resulting from d**2/dx**2 F = a**2 F
 
@@ -753,5 +766,90 @@ contains
       stop 'Illegal method in fftwinit_factors.'
     endif
   end subroutine fftwinit_factors
+  
+  subroutine D_fftw_execute_r2r(p, in, out)
+      implicit none
+      type(C_PTR) :: p
+      real(C_DOUBLE), pointer, intent(inout) :: in(..)
+      real(C_DOUBLE), pointer, intent(out) :: out(..)
+      call fftw_execute_r2r(p, in, out)
+  end subroutine
+
+  subroutine D_fftwf_execute_r2r(p, in, out)
+      implicit none
+      type(C_PTR) :: p
+      real(C_FLOAT), pointer, intent(inout) :: in(..)
+      real(C_FLOAT), pointer, intent(out) :: out(..)
+      call fftwf_execute_r2r(p, in, out)
+  end subroutine
+
+  type(c_ptr) function D_fftw_plan_many_r2r(rank,n,howmany,in,inembed,istride,idist,out,onembed,ostride,odist,kind,flags)
+      implicit none
+      integer(C_INT) :: rank
+      integer(C_INT), intent(in) :: n(:)
+      integer(C_INT) :: howmany
+      real(C_DOUBLE), pointer, intent(out) :: in(..)
+      integer(C_INT), intent(in) :: inembed(:)
+      integer(C_INT) :: istride
+      integer(C_INT) :: idist
+      real(C_DOUBLE), pointer, intent(out) :: out(..)
+      integer(C_INT), intent(in) :: onembed(:)
+      integer(C_INT) :: ostride
+      integer(C_INT) :: odist
+      integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
+      integer(C_INT) :: flags
+
+      D_fftw_plan_many_r2r = fftw_plan_many_r2r(rank,n,howmany,in,inembed,istride,idist,out,onembed,ostride,odist,kind,flags)
+  end function
+
+  type(c_ptr) function D_fftwf_plan_many_r2r(rank,n,howmany,in,inembed,istride,idist,out,onembed,ostride,odist,kind,flags)
+      implicit none
+      integer(C_INT) :: rank
+      integer(C_INT), intent(in) :: n(:)
+      integer(C_INT) :: howmany
+      real(C_FLOAT), pointer, intent(out) :: in(..)
+      integer(C_INT), intent(in) :: inembed(:)
+      integer(C_INT) :: istride
+      integer(C_INT) :: idist
+      real(C_FLOAT), pointer, intent(out) :: out(..)
+      integer(C_INT), intent(in) :: onembed(:)
+      integer(C_INT) :: ostride
+      integer(C_INT) :: odist
+      integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
+      integer(C_INT) :: flags
+
+      D_fftwf_plan_many_r2r = fftwf_plan_many_r2r(rank,n,howmany,in,inembed,istride,idist,out,onembed,ostride,odist,kind,flags)
+  end function
+
+    type(C_PTR) function d_fftw_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
+      integer(C_INT) :: rank
+      type(fftw_iodim), intent(in) :: dims(:)
+      integer(C_INT) :: howmany_rank
+      type(fftw_iodim), intent(in) :: howmany_dims(:)
+      real(C_DOUBLE), intent(out) :: in(..)
+      real(C_DOUBLE), intent(out) :: out(..)
+      integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
+      integer(C_INT) :: flags
+      d_fftw_plan_guru_r2r = fftw_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
+    end function 
+
+    type(C_PTR) function d_fftwf_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
+      integer(C_INT) :: rank
+      type(fftw_iodim), intent(in) :: dims(:)
+      integer(C_INT) :: howmany_rank
+      type(fftw_iodim), intent(in) :: howmany_dims(:)
+      real(C_FLOAT), intent(out) :: in(..)
+      real(C_FLOAT), intent(out) :: out(..)
+      integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
+      integer(C_INT) :: flags
+      
+      !fftw_iodim and fftwf_iodim are exactly the same, fortran needs some convincing
+      type(fftwf_iodim) :: dimsf(size(dims))
+      type(fftwf_iodim) :: howmany_dimsf(size(howmany_dims))
+      dimsf = transfer(dims,dimsf)
+      howmany_dimsf = transfer(howmany_dims,dimsf)
+
+      d_fftwf_plan_guru_r2r = fftwf_plan_guru_r2r(rank,dimsf,howmany_rank,howmany_dimsf,in,out,kind,flags)
+    end function 
 
 end module modfftw
