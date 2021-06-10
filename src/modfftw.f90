@@ -167,11 +167,11 @@ contains
       1, &           ! rank
       embed, &       ! n (size)  [array]
       jmax*konx, &   ! howmany
-      p210,  &       ! array; location of transform k is: in + k * idist
+      p210_flat,  &       ! array; location of transform k is: in + k * idist
       embed, &       ! inembed: subrank (halo) [array]
       1, &           ! istride
       itot, &        ! idist
-      p210, &        ! fftw_double *out
+      p210_flat, &        ! fftw_double *out
       embed, &       ! onembed [array]
       1, &           ! ostride
       itot, &        ! odist
@@ -185,11 +185,11 @@ contains
       1, &           ! rank
       embed, &       ! n (size)  [array]
       jmax*konx, &   ! howmany
-      p210,  &       ! array; location of transform k is: in + k * idist
+      p210_flat,  &       ! array; location of transform k is: in + k * idist
       embed, &       ! inembed: subrank (halo) [array]
       1, &           ! istride
       itot, &        ! idist
-      p210, &        ! fftw_double *out
+      p210_flat, &        ! fftw_double *out
       embed, &       ! onembed [array]
       1, &           ! ostride
       itot, &        ! odist
@@ -203,11 +203,11 @@ contains
       1, &           ! rank
       embed, &       ! n (size)  [array]
       konx*iony, &   ! howmany
-      p201,  &       ! array; location of transform k is: in + k * idist
+      p201_flat,  &       ! array; location of transform k is: in + k * idist
       embed, &       ! inembed: subrank (halo) [array]
       1, &           ! istride
       jtot, &        ! idist
-      p201, &        ! fftw_double *out
+      p201_flat, &        ! fftw_double *out
       embed, &       ! onembed [array]
       1, &           ! ostride
       jtot, &        ! odist
@@ -221,11 +221,11 @@ contains
       1, &           ! rank
       embed, &       ! n (size)  [array]
       konx*iony, &   ! howmany
-      p201,  &       ! array; location of transform k is: in + k * idist
+      p201_flat,  &       ! array; location of transform k is: in + k * idist
       embed, &       ! inembed: subrank (halo) [array]
       1, &           ! istride
       jtot, &        ! idist
-      p201, &        ! fftw_double *out
+      p201_flat, &        ! fftw_double *out
       embed, &       ! onembed [array]
       1, &           ! ostride
       jtot, &        ! odist
@@ -791,11 +791,11 @@ contains
       integer(C_INT) :: rank
       integer(C_INT), intent(in) :: n(:)
       integer(C_INT) :: howmany
-      real(C_DOUBLE), pointer, intent(out) :: in(..)
+      real(C_DOUBLE), pointer, intent(out) :: in(:)
       integer(C_INT), intent(in) :: inembed(:)
       integer(C_INT) :: istride
       integer(C_INT) :: idist
-      real(C_DOUBLE), pointer, intent(out) :: out(..)
+      real(C_DOUBLE), pointer, intent(out) :: out(:)
       integer(C_INT), intent(in) :: onembed(:)
       integer(C_INT) :: ostride
       integer(C_INT) :: odist
@@ -810,11 +810,11 @@ contains
       integer(C_INT) :: rank
       integer(C_INT), intent(in) :: n(:)
       integer(C_INT) :: howmany
-      real(C_FLOAT), pointer, intent(out) :: in(..)
+      real(C_FLOAT), pointer, intent(out) :: in(:)
       integer(C_INT), intent(in) :: inembed(:)
       integer(C_INT) :: istride
       integer(C_INT) :: idist
-      real(C_FLOAT), pointer, intent(out) :: out(..)
+      real(C_FLOAT), pointer, intent(out) :: out(:)
       integer(C_INT), intent(in) :: onembed(:)
       integer(C_INT) :: ostride
       integer(C_INT) :: odist
@@ -829,8 +829,8 @@ contains
       type(fftw_iodim), intent(in) :: dims(:)
       integer(C_INT) :: howmany_rank
       type(fftw_iodim), intent(in) :: howmany_dims(:)
-      real(C_DOUBLE), intent(out) :: in(..)
-      real(C_DOUBLE), intent(out) :: out(..)
+      real(C_DOUBLE), intent(out) :: in(:)
+      real(C_DOUBLE), intent(out) :: out(:)
       integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
       integer(C_INT) :: flags
       d_fftw_plan_guru_r2r = fftw_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
@@ -841,8 +841,8 @@ contains
       type(fftw_iodim), intent(in) :: dims(:)
       integer(C_INT) :: howmany_rank
       type(fftw_iodim), intent(in) :: howmany_dims(:)
-      real(C_FLOAT), intent(out) :: in(..)
-      real(C_FLOAT), intent(out) :: out(..)
+      real(C_FLOAT), intent(out) :: in(:)
+      real(C_FLOAT), intent(out) :: out(:)
       integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
       integer(C_INT) :: flags
       
