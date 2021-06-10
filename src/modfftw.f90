@@ -40,8 +40,8 @@ save
     procedure :: d_fftwf_plan_guru_r2r
   end interface 
   interface fftw_execute_r2r_if
-    procedure :: d_fftw_execute_r2r
-    procedure :: d_fftwf_execute_r2r
+    procedure :: fftw_execute_r2r
+    procedure :: fftwf_execute_r2r
   end interface
 
   ! C pointer to the actual (aligned) memory for FFTW
@@ -61,6 +61,7 @@ save
   ! NOTE: these pointers point to sub arrays of ptr
   type (C_ptr)                    :: planx, planxi, plany, planyi
   real(pois_r), pointer                   :: p210(:,:,:), p201(:,:,:)
+  real(pois_r), pointer, contiguous       :: p210_flat(:), p201_flat(:)
 
   ! Method 2:
   !   no domain decomposition nprocx = nprocy = 1
@@ -153,7 +154,9 @@ contains
 
     ! convert it to our 3D arrays with custom ubounds/lbounds
     p210(1:itot,1:jmax,1:konx) => fptr(1:itot*jmax*konx)
+    p210_flat(1:itot*jmax*konx)=> fptr(1:itot*jmax*konx)
     p201(1:jtot,1:konx,1:iony) => fptr(1:jtot*konx*iony)
+    p201_flat(1:itot*konx*iony)=> fptr(1:itot*konx*iony)
     Fp(1:iony,1:jonx,1:kmax) => fptr(1:iony*jonx*kmax)
 
     ! Prepare 1d FFT transforms
@@ -639,10 +642,10 @@ contains
 
     if (method == 1) then
       call transpose_a1(p, p210)
-      call fftw_execute_r2r_if(planx, p210, p210)
+      call fftw_execute_r2r_if(planx, p210_flat, p210_flat)
 
       call transpose_a2(p210, p201)
-      call fftw_execute_r2r_if(plany, p201, p201)
+      call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
       call transpose_a3(p201, Fp)
     else if (method == 2) then
@@ -669,10 +672,10 @@ contains
     if (method == 1) then
       call transpose_a3inv(p201, Fp)
 
-      call fftw_execute_r2r_if(planyi, p201, p201)
+      call fftw_execute_r2r_if(planyi, p201_flat, p201_flat)
       call transpose_a2inv(p210, p201)
 
-      call fftw_execute_r2r_if(planxi, p210, p210)
+      call fftw_execute_r2r_if(planxi, p210_flat, p210_flat)
       call transpose_a1inv(p, p210)
 
     else if (method == 2) then
@@ -770,16 +773,16 @@ contains
   subroutine D_fftw_execute_r2r(p, in, out)
       implicit none
       type(C_PTR) :: p
-      real(C_DOUBLE), pointer, intent(inout) :: in(..)
-      real(C_DOUBLE), pointer, intent(out) :: out(..)
+      real(C_DOUBLE), pointer, contiguous, intent(inout) :: in(:)
+      real(C_DOUBLE), pointer, contiguous, intent(out)   :: out(:)
       call fftw_execute_r2r(p, in, out)
   end subroutine
 
   subroutine D_fftwf_execute_r2r(p, in, out)
       implicit none
       type(C_PTR) :: p
-      real(C_FLOAT), pointer, intent(inout) :: in(..)
-      real(C_FLOAT), pointer, intent(out) :: out(..)
+      real(C_FLOAT), pointer, contiguous, intent(inout) :: in(:)
+      real(C_FLOAT), pointer, contiguous, intent(out)   :: out(:)
       call fftwf_execute_r2r(p, in, out)
   end subroutine
 
