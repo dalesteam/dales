@@ -61,7 +61,7 @@ elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    set(CMAKE_Fortran_COMPILER "mpifrtpx")
    set(CMAKE_Fortran_FLAGS "-CcdRR8 -g" CACHE STRING "")
    set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast" CACHE STRING "")
-   set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O2" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O0" CACHE STRING "")
    # Fujitsu fortran compiler
    # -CcdRR8 default real is 64 bit, like gnu -fdefault-real-8
    # -Ad (-CcR4R8) is like gnu -freal-4-real-8  ALL reals are 64 bit
