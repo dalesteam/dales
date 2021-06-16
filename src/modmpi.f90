@@ -64,26 +64,30 @@ save
   ! KIND of the input arguments, this means that code that calls this functions 
   ! does not have to worry about changing the MPI_TYPE with a changing KIND
   ! 
+  ! The implementations can be found in modmpiinterface
+  !
   ! The argument list is the same as the corresponding MPI_ functions, but with
   ! the MPI_TYPE omitted
   !------------------------------------------------------------------------------
   interface D_MPI_ISEND
-    procedure :: D_MPI_ISEND_REAL32
-    procedure :: D_MPI_ISEND_REAL64
+    procedure :: D_MPI_ISEND_REAL32_R1
+    procedure :: D_MPI_ISEND_REAL64_R1
   end interface
   interface D_MPI_IRECV
-    procedure :: D_MPI_IRECV_REAL32
-    procedure :: D_MPI_IRECV_REAL64
+    procedure :: D_MPI_IRECV_REAL32_R1
+    procedure :: D_MPI_IRECV_REAL64_R1
   end interface
   interface D_MPI_RECV
-    procedure :: D_MPI_RECV_REAL32
-    procedure :: D_MPI_RECV_REAL64
+    procedure :: D_MPI_RECV_REAL32_R1
+    procedure :: D_MPI_RECV_REAL64_R1
   end interface
   interface D_MPI_BCAST
-    procedure :: D_MPI_BCAST_REAL64_S
-    procedure :: D_MPI_BCAST_INT32_S
     procedure :: D_MPI_BCAST_LOGICAL_S
-    procedure :: D_MPI_BCAST_REAL32
+    procedure :: D_MPI_BCAST_REAL64_S
+    procedure :: D_MPI_BCAST_REAL32_S
+    procedure :: D_MPI_BCAST_INT32_S
+    procedure :: D_MPI_BCAST_REAL32_R1
+    procedure :: D_MPI_BCAST_REAL32_R2
     procedure :: D_MPI_BCAST_REAL64_R1
     procedure :: D_MPI_BCAST_REAL64_R2
     procedure :: D_MPI_BCAST_INT32_R1
@@ -96,6 +100,8 @@ save
     procedure :: D_MPI_ALLREDUCE_REAL64_S
     procedure :: D_MPI_ALLREDUCE_INT32_S
     procedure :: D_MPI_ALLREDUCE_REAL32_R1
+    procedure :: D_MPI_ALLREDUCE_REAL32_R2
+    procedure :: D_MPI_ALLREDUCE_REAL32_R3
     procedure :: D_MPI_ALLREDUCE_REAL64_R1
     procedure :: D_MPI_ALLREDUCE_REAL64_R2
     procedure :: D_MPI_ALLREDUCE_REAL64_R3
@@ -105,21 +111,24 @@ save
     procedure :: D_MPI_ALLREDUCE_REAL64_IP
   end interface
   interface D_MPI_ALLTOALL
-    procedure :: D_MPI_ALLTOALL_REAL32
-    procedure :: D_MPI_ALLTOALL_REAL64
+    procedure :: D_MPI_ALLTOALL_REAL32_R1
+    procedure :: D_MPI_ALLTOALL_REAL64_R1
   end interface
   interface D_MPI_REDUCE
-    procedure :: D_MPI_REDUCE_REAL32
+    procedure :: D_MPI_REDUCE_REAL32_R1
+    procedure :: D_MPI_REDUCE_REAL32_R2
+    procedure :: D_MPI_REDUCE_REAL32_R3
     procedure :: D_MPI_REDUCE_REAL64_R1
     procedure :: D_MPI_REDUCE_REAL64_R2
     procedure :: D_MPI_REDUCE_REAL64_R3
-    procedure :: D_MPI_REDUCE_REAL32_IP
+    procedure :: D_MPI_REDUCE_REAL32_IP_R1
+    procedure :: D_MPI_REDUCE_REAL32_IP_R2
     procedure :: D_MPI_REDUCE_REAL64_IP_R1
     procedure :: D_MPI_REDUCE_REAL64_IP_R2
   end interface
   interface D_MPI_GATHER
-    procedure :: D_MPI_GATHER_REAL32
-    procedure :: D_MPI_GATHER_REAL64
+    procedure :: D_MPI_GATHER_REAL32_R1
+    procedure :: D_MPI_GATHER_REAL64_R1
   end interface
 
   interface excjs

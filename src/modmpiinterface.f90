@@ -25,7 +25,7 @@ contains
 
 !>D_MPI_ISEND
   !MPI interfaces instantations for the various types
-  subroutine D_MPI_ISEND_REAL32(buf, count, dest, tag, comm, request, ierror)
+  subroutine D_MPI_ISEND_REAL32_R1(buf, count, dest, tag, comm, request, ierror)
     implicit none
     real(real32), target, contiguous, asynchronous, intent(inout) ::   buf(:)
     integer       ::   count, dest, tag, ierror
@@ -43,8 +43,8 @@ contains
     call c_f_pointer(c_p,buf_b)
     call MPI_ISEND(buf_b,count,MPI_REAL4,dest,tag,comm,request,ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_ISEND_REAL32
-  subroutine D_MPI_ISEND_REAL64(buf, count, dest, tag, comm, request, ierror)
+  end subroutine D_MPI_ISEND_REAL32_R1
+  subroutine D_MPI_ISEND_REAL64_R1(buf, count, dest, tag, comm, request, ierror)
     implicit none
     real(real64), contiguous, asynchronous, intent(inout) ::   buf(:)
     integer       ::   count, dest, tag, ierror
@@ -52,10 +52,10 @@ contains
     type(MPI_REQUEST) :: request
     call MPI_ISEND(buf,count,MPI_REAL8,dest,tag,comm,request,ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_ISEND_REAL64
+  end subroutine D_MPI_ISEND_REAL64_R1
 
 !>D_MPI_IRECV
-  subroutine D_MPI_IRECV_REAL32(buf, count, source, tag, comm, request, ierror)
+  subroutine D_MPI_IRECV_REAL32_R1(buf, count, source, tag, comm, request, ierror)
     implicit none
     real(real32), target, asynchronous,contiguous, intent(inout)  ::   buf(:)
     integer        :: count, source, tag, ierror
@@ -67,8 +67,8 @@ contains
     call c_f_pointer(c_p,buf_b)
     call MPI_IRECV(buf_b,count,MPI_REAL4,source,tag,comm,request,ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_IRECV_REAL32
-  subroutine D_MPI_IRECV_REAL64(buf, count, source, tag, comm, request, ierror)
+  end subroutine D_MPI_IRECV_REAL32_R1
+  subroutine D_MPI_IRECV_REAL64_R1(buf, count, source, tag, comm, request, ierror)
     implicit none
     real(real64), contiguous, asynchronous, intent(inout)  ::   buf(:)
     integer        :: count, source, tag, ierror
@@ -76,10 +76,10 @@ contains
     type(MPI_REQUEST) :: request
     call MPI_IRECV(buf,count,MPI_REAL8,source,tag,comm,request,ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_IRECV_REAL64
+  end subroutine D_MPI_IRECV_REAL64_R1
   
 !>D_MPI_RECV
-  subroutine D_MPI_RECV_REAL32(buf, count, source, tag, comm, status, ierror)
+  subroutine D_MPI_RECV_REAL32_R1(buf, count, source, tag, comm, status, ierror)
     implicit none
     real(real32), target, contiguous, intent(inout)  ::   buf(:)
     integer        :: count, source, tag, ierror
@@ -91,8 +91,8 @@ contains
     call c_f_pointer(c_p,buf_b)
     call MPI_RECV(buf_b,count,MPI_REAL4,source,tag,comm,status,ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_RECV_REAL32
-  subroutine D_MPI_RECV_REAL64(buf, count, source, tag, comm, status, ierror)
+  end subroutine D_MPI_RECV_REAL32_R1
+  subroutine D_MPI_RECV_REAL64_R1(buf, count, source, tag, comm, status, ierror)
     implicit none
     real(real64), contiguous, intent(inout)  ::   buf(:)
     integer        :: count, source, tag, ierror
@@ -100,9 +100,16 @@ contains
     type(MPI_STATUS) :: status
     call MPI_RECV(buf,count,MPI_REAL8,source,tag,comm,status,ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_RECV_REAL64
+  end subroutine D_MPI_RECV_REAL64_R1
 
 !>D_MPI_BCAST
+  subroutine D_MPI_BCAST_REAL32_S(buffer, count, root, comm, ierror)
+    implicit none
+    real(real32), intent(inout)  ::  buffer
+    integer        :: count, root, ierror
+    type(MPI_COMM) :: comm
+    call MPI_BCAST(buffer, count, MPI_REAL4, root, comm, ierror)
+  end subroutine D_MPI_BCAST_REAL32_S
   subroutine D_MPI_BCAST_REAL64_S(buffer, count, root, comm, ierror)
     implicit none
     real(real64), intent(inout)  ::  buffer
@@ -126,7 +133,7 @@ contains
     call MPI_BCAST(buffer, count, MPI_LOGICAL, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_BCAST_LOGICAL_S
-  subroutine D_MPI_BCAST_REAL32(buffer, count, root, comm, ierror)
+  subroutine D_MPI_BCAST_REAL32_R1(buffer, count, root, comm, ierror)
     implicit none
     real(real32), target, contiguous, intent(inout)   ::  buffer(:)
     integer        :: count, root, ierror
@@ -137,7 +144,19 @@ contains
     call c_f_pointer(c_p,buf_b)
     call MPI_BCAST(buf_b, count, MPI_REAL4, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_BCAST_REAL32
+  end subroutine D_MPI_BCAST_REAL32_R1
+  subroutine D_MPI_BCAST_REAL32_R2(buffer, count, root, comm, ierror)
+    implicit none
+    real(real32), target, contiguous, intent(inout)   ::  buffer(:,:)
+    integer        :: count, root, ierror
+    type(MPI_COMM) :: comm
+    BYTE, pointer :: buf_b
+    type(c_ptr) :: c_p
+    c_p = c_loc(buffer)
+    call c_f_pointer(c_p,buf_b)
+    call MPI_BCAST(buf_b, count, MPI_REAL4, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_BCAST_REAL32_R2
   subroutine D_MPI_BCAST_REAL64_R1(buffer, count, root, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)  ::  buffer(:)
@@ -234,6 +253,36 @@ contains
     call MPI_ALLREDUCE(bufs_b, bufr_b, count, MPI_REAL4, op, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLREDUCE_REAL32_R1
+  subroutine D_MPI_ALLREDUCE_REAL32_R2(sendbuf, recvbuf, count, op, comm, ierror)
+    implicit none
+    real(real32), target, contiguous, intent(inout)   :: sendbuf(:,:), recvbuf(:,:)
+    integer        :: count, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    BYTE, pointer :: bufs_b, bufr_b
+    type(c_ptr) :: c_p
+    c_p = c_loc(sendbuf)
+    call c_f_pointer(c_p,bufs_b)
+    c_p = c_loc(recvbuf)
+    call c_f_pointer(c_p,bufr_b)
+    call MPI_ALLREDUCE(bufs_b, bufr_b, count, MPI_REAL4, op, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLREDUCE_REAL32_R2
+  subroutine D_MPI_ALLREDUCE_REAL32_R3(sendbuf, recvbuf, count, op, comm, ierror)
+    implicit none
+    real(real32), target, contiguous, intent(inout)   :: sendbuf(:,:,:), recvbuf(:,:,:)
+    integer        :: count, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    BYTE, pointer :: bufs_b, bufr_b
+    type(c_ptr) :: c_p
+    c_p = c_loc(sendbuf)
+    call c_f_pointer(c_p,bufs_b)
+    c_p = c_loc(recvbuf)
+    call c_f_pointer(c_p,bufr_b)
+    call MPI_ALLREDUCE(bufs_b, bufr_b, count, MPI_REAL4, op, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLREDUCE_REAL32_R3
   subroutine D_MPI_ALLREDUCE_REAL64_R1(sendbuf, recvbuf, count, op, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
@@ -303,7 +352,7 @@ contains
   end subroutine D_MPI_ALLREDUCE_REAL64_IP
 
 !>D_MPI_ALLTOALL
-  subroutine D_MPI_ALLTOALL_REAL32(sendbuf, sendcount, recvbuf, recvcount, comm, ierror)
+  subroutine D_MPI_ALLTOALL_REAL32_R1(sendbuf, sendcount, recvbuf, recvcount, comm, ierror)
     implicit none
     real(real32), target, contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
     integer        :: sendcount, recvcount, ierror
@@ -316,18 +365,18 @@ contains
     call c_f_pointer(c_p,bufr_b)
     call MPI_ALLTOALL(bufs_b, sendcount, MPI_REAL4, bufr_b, recvcount, MPI_REAL4, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_ALLTOALL_REAL32
-  subroutine D_MPI_ALLTOALL_REAL64(sendbuf, sendcount, recvbuf, recvcount, comm, ierror)
+  end subroutine D_MPI_ALLTOALL_REAL32_R1
+  subroutine D_MPI_ALLTOALL_REAL64_R1(sendbuf, sendcount, recvbuf, recvcount, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
     integer        :: sendcount, recvcount, ierror
     type(MPI_COMM) :: comm
     call MPI_ALLTOALL(sendbuf, sendcount, MPI_REAL8, recvbuf, recvcount, MPI_REAL8, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_ALLTOALL_REAL64
+  end subroutine D_MPI_ALLTOALL_REAL64_R1
 
 !>D_MPI_REDUCE
-  subroutine D_MPI_REDUCE_REAL32(sendbuf, recvbuf, count, op, root, comm, ierror)
+  subroutine D_MPI_REDUCE_REAL32_R1(sendbuf, recvbuf, count, op, root, comm, ierror)
     implicit none
     real(real32), target, contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
     integer        :: count, root, ierror
@@ -341,7 +390,37 @@ contains
     call c_f_pointer(c_p,bufr_b)
     call MPI_REDUCE(bufs_b, bufr_b, count, MPI_REAL4, op, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_REDUCE_REAL32
+  end subroutine D_MPI_REDUCE_REAL32_R1
+  subroutine D_MPI_REDUCE_REAL32_R2(sendbuf, recvbuf, count, op, root, comm, ierror)
+    implicit none
+    real(real32), target, contiguous, intent(inout)   :: sendbuf(:,:), recvbuf(:,:)
+    integer        :: count, root, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    BYTE, pointer :: bufs_b, bufr_b
+    type(c_ptr) :: c_p
+    c_p = c_loc(sendbuf)
+    call c_f_pointer(c_p,bufs_b)
+    c_p = c_loc(recvbuf)
+    call c_f_pointer(c_p,bufr_b)
+    call MPI_REDUCE(bufs_b, bufr_b, count, MPI_REAL4, op, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_REDUCE_REAL32_R2
+  subroutine D_MPI_REDUCE_REAL32_R3(sendbuf, recvbuf, count, op, root, comm, ierror)
+    implicit none
+    real(real32), target, contiguous, intent(inout)   :: sendbuf(:,:,:), recvbuf(:,:,:)
+    integer        :: count, root, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    BYTE, pointer :: bufs_b, bufr_b
+    type(c_ptr) :: c_p
+    c_p = c_loc(sendbuf)
+    call c_f_pointer(c_p,bufs_b)
+    c_p = c_loc(recvbuf)
+    call c_f_pointer(c_p,bufr_b)
+    call MPI_REDUCE(bufs_b, bufr_b, count, MPI_REAL4, op, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_REDUCE_REAL32_R3
   subroutine D_MPI_REDUCE_REAL64_R1(sendbuf, recvbuf, count, op, root, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
@@ -369,7 +448,7 @@ contains
     call MPI_REDUCE(sendbuf, recvbuf, count, MPI_REAL8, op, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_REDUCE_REAL64_R3
-  subroutine D_MPI_REDUCE_REAL32_IP(recvbuf, count, op, root, comm, ierror)
+  subroutine D_MPI_REDUCE_REAL32_IP_R1(recvbuf, count, op, root, comm, ierror)
     implicit none
     real(real32), target, contiguous, intent(inout)   :: recvbuf(:)
     integer        :: count, root, ierror
@@ -381,7 +460,20 @@ contains
     call c_f_pointer(c_p,bufr_b)
     call MPI_REDUCE(MPI_IN_PLACE, bufr_b, count, MPI_REAL4, op, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_REDUCE_REAL32_IP
+  end subroutine D_MPI_REDUCE_REAL32_IP_R1
+  subroutine D_MPI_REDUCE_REAL32_IP_R2(recvbuf, count, op, root, comm, ierror)
+    implicit none
+    real(real32), target, contiguous, intent(inout)   :: recvbuf(:,:)
+    integer        :: count, root, ierror
+    type(MPI_OP)   :: op
+    type(MPI_COMM) :: comm
+    BYTE, pointer :: bufr_b
+    type(c_ptr) :: c_p
+    c_p = c_loc(recvbuf)
+    call c_f_pointer(c_p,bufr_b)
+    call MPI_REDUCE(MPI_IN_PLACE, bufr_b, count, MPI_REAL4, op, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_REDUCE_REAL32_IP_R2
   subroutine D_MPI_REDUCE_REAL64_IP_R1(recvbuf, count, op, root, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)  :: recvbuf(:)
@@ -402,7 +494,7 @@ contains
   end subroutine D_MPI_REDUCE_REAL64_IP_R2
 
 !>D_MPI_GATHER
-  subroutine D_MPI_GATHER_REAL32(sendbuf, sendcount, recvbuf, recvcount, root, comm, ierror)
+  subroutine D_MPI_GATHER_REAL32_R1(sendbuf, sendcount, recvbuf, recvcount, root, comm, ierror)
     implicit none
     real(real32), target, contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
     integer        :: sendcount, recvcount, root, ierror
@@ -417,8 +509,8 @@ contains
                    , bufr_b, recvcount, MPI_REAL4 &
                    , root, comm, ierror )
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_GATHER_REAL32
-  subroutine D_MPI_GATHER_REAL64(sendbuf, sendcount, recvbuf, recvcount, root, comm, ierror)
+  end subroutine D_MPI_GATHER_REAL32_R1
+  subroutine D_MPI_GATHER_REAL64_R1(sendbuf, sendcount, recvbuf, recvcount, root, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)   :: sendbuf(:), recvbuf(:)
     integer        :: sendcount, recvcount, root, ierror
@@ -427,6 +519,6 @@ contains
                    , recvbuf, recvcount, MPI_REAL8 &
                    , root, comm, ierror )
     if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_GATHER_REAL64
+  end subroutine D_MPI_GATHER_REAL64_R1
 
 end module
