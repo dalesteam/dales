@@ -724,8 +724,8 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
+    use modglobal, only : i1,j1,rd,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modfields, only : exnf,qt0,svm,thl0,ql0,rhof,presf
     use modmicrodata, only : Nr, mur, Dv, &
                              inr, iqr, Kt, &
                              l_sb, &
@@ -743,6 +743,7 @@ module modbulkmicro
     real :: G !< cond/evap rate of a drop
 
     real :: evap, Nevap
+    real :: qvsl, tmp, esl1, TC
 
     if (qrbase.gt.qrroof) return
 
@@ -752,6 +753,11 @@ module modbulkmicro
        do j=2,j1
        do i=2,i1
          if (qrmask(i,j,k)) then
+           tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+           TC = tmp - 273.15 ! in Celcius
+           esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+           qvsl = (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+
            numel=nint(mur(i,j,k)*100.)
            F = avf * mygamma21(numel)*Dvr(i,j,k) +  &
               bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
@@ -759,8 +765,8 @@ module modbulkmicro
                  -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
                  -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
                  -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
-           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-           G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl- 1.)
+           G = (Rv * tmp) / (Dv*esl1) + rlv/(Kt*tmp)*(rlv/(Rv*tmp) -1.)
            G = 1./G
 
            evap = 2*pi*Nr(i,j,k)*G*F*S/rhof(k)
@@ -785,8 +791,13 @@ module modbulkmicro
        do j=2,j1
        do i=2,i1
          if (qrmask(i,j,k)) then
-           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-           G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+           tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+           TC = tmp - 273.15 ! in Celcius
+           esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+           qvsl = (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+
+           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl- 1.)
+           G = (Rv * tmp) / (Dv*esl1) + rlv/(Kt*tmp)*(rlv/(Rv*tmp) -1.)
            G = 1./G
 
            evap = c_evapkk*2*pi*Dvr(i,j,k)*G*S*Nr(i,j,k)/rhof(k)

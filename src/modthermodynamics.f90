@@ -580,14 +580,14 @@ contains
              ! the rest is calculated here using thl0, ql0
              ! fields which will be globally available
 
-             tmp0(i,j,k) = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql
-             TC = tmp0(i,j,k) - 273.15 ! in Celcius
+             !tmp0(i,j,k) = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql
+             !TC = tmp0(i,j,k) - 273.15 ! in Celcius
 
-             esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
-             esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
-             esl(i,j,k) = esl1
-             qvsl(i,j,k)= (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
-             qvsi(i,j,k)= (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
+             !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+             !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
+             !esl(i,j,k) = esl1
+             !qvsl(i,j,k)= (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+             !qvsi(i,j,k)= (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
             
           end do
        end do
