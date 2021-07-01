@@ -578,12 +578,12 @@ contains
     !
     !! \author Fredrik Jansson, Jisk Attema, Pier Siebesma
 
-    use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
+    use modglobal, only : i1,j1,k1,rv,rlv,cp
     use modfields, only : qt0,thl0,exnf,presf,ql0
 
     implicit none
     integer :: i, j, k
-    real :: Tl, TC, esl1, esi1, es, qsat1, ilratio, qt, ql, b
+    real :: Tl, qsat1, qt, ql, b
     real Tl_min, qt_max
 
     do k=1,k1
@@ -591,34 +591,13 @@ contains
        ! if they in combination are not saturated, the whole slab is below saturation
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
-
-       ilratio = max(0.,min(1.,(Tl_min-tdn)/(tup-tdn)))
-       TC = Tl_min - 273.15 ! in Celcius
-       esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) )
-       esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) )
-       es = ilratio*esl1 + (1-ilratio)*esi1
-       qsat1 = (rd/rv) * es / (presf(k) - (1.-rd/rv)*es)
+       qsat1 = qsat_tab(Tl_min, presf(k))
        if (qt_max > qsat1) then
           do j=2,j1
              do i=2,i1
                 Tl = exnf(k)*thl0(i,j,k)
                 qt = qt0(i,j,k)
-
-                ilratio = max(0.,min(1.,(Tl-tdn)/(tup-tdn)))
-
-                ! Magnus formulas for e_sat over liquid and ice
-                ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
-                TC = Tl - 273.15 ! in Celcius
-                !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
-                !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
-                esl1 = exp(34.494 - 4924.99 / (TC  + 237.1)) /  (TC+105)**1.57  ! Huang
-                esi1 = exp(43.494 - 6545.8/(TC+278)) / (TC+868)**2              ! Huang
-
-                ! interpolated saturation vapor pressure
-                es = ilratio*esl1 + (1-ilratio)*esi1
-
-                ! convert saturation vapor pressure to saturation humidity
-                qsat1 = (rd/rv) * es / (presf(k) - (1.-rd/rv)*es)
+                qsat1 = qsat_tab(Tl, presf(k))
 
                 ! first step
                 b = rlv**2 / (rv * cp * Tl**2)
@@ -631,19 +610,7 @@ contains
                 Tl = Tl + (rlv/cp) * ql
                 qt = qt - ql
 
-                ilratio = max(0.,min(1.,(Tl-tdn)/(tup-tdn)))
-
-                TC = Tl - 273.15 ! in Celcius
-                !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
-                !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
-                esl1 = exp(34.494 - 4924.99 / (TC  + 237.1)) /  (TC+105)**1.57  ! Huang
-                esi1 = exp(43.494 - 6545.8/(TC+278)) / (TC+868)**2              ! Huang
-
-                ! interpolated saturation vapor pressure
-                es = ilratio*esl1 + (1-ilratio)*esi1
-
-                ! convert saturation vapor pressure to saturation humidity
-                qsat1 = (rd/rv) * es / (presf(k) - (1.-rd/rv)*es)
+                qsat1 = qsat_tab(Tl, presf(k))
 
                 b = rlv**2 / (rv * cp * Tl**2)
                 qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
@@ -688,12 +655,12 @@ contains
     !
     !! \author Fredrik Jansson, Jisk Attema, Pier Siebesma
 
-    use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp
+    use modglobal, only : i1,j1,k1,rv,rlv,cp
     use modfields, only : qt0h,thl0h,exnh,presh,ql0h
 
     implicit none
     integer :: i, j, k
-    real :: Tl, TC, esl1, esi1, es, qsat1, ilratio, qt, ql, b
+    real :: Tl, qsat1, qt, ql, b
     real Tl_min, qt_max
 
     do k=1,k1
@@ -702,33 +669,14 @@ contains
        Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
        qt_max = maxval(qt0h(2:i1,2:j1,k))
 
-       ilratio = max(0.,min(1.,(Tl_min-tdn)/(tup-tdn)))
-       TC = Tl_min - 273.15 ! in Celcius
-       esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) )
-       esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) )
-       es = ilratio*esl1 + (1-ilratio)*esi1
-       qsat1 = (rd/rv) * es / (presh(k) - (1.-rd/rv)*es)
+       qsat1 = qsat_tab(Tl_min, presh(k))
        if (qt_max > qsat1) then
           do j=2,j1
              do i=2,i1
                 Tl = exnh(k)*thl0h(i,j,k)
                 qt = qt0h(i,j,k)
 
-                ilratio = max(0.,min(1.,(Tl-tdn)/(tup-tdn)))
-
-                ! Magnus formulas for e_sat over liquid and ice
-                ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
-                TC = Tl - 273.15 ! in Celcius
-                !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) )
-                !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) )
-                esl1 = exp(34.494 - 4924.99 / (TC  + 237.1)) /  (TC+105)**1.57  ! Huang
-                esi1 = exp(43.494 - 6545.8/(TC+278)) / (TC+868)**2              ! Huang
-
-                ! interpolated saturation vapor pressure
-                es = ilratio*esl1 + (1-ilratio)*esi1
-
-                ! convert saturation vapor pressure to saturation humidity
-                qsat1 = (rd/rv) * es / (presh(k) - (1.-rd/rv)*es)
+                qsat1 = qsat_tab(Tl, presh(k))
 
                 ! first step
                 b = rlv**2 / (rv * cp * Tl**2)
@@ -741,19 +689,7 @@ contains
                 Tl = Tl + (rlv/cp) * ql
                 qt = qt - ql
 
-                ilratio = max(0.,min(1.,(Tl-tdn)/(tup-tdn)))
-
-                TC = Tl - 273.15 ! in Celcius
-                !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) )
-                !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) )
-                esl1 = exp(34.494 - 4924.99 / (TC  + 237.1)) /  (TC+105)**1.57  ! Huang
-                esi1 = exp(43.494 - 6545.8/(TC+278)) / (TC+868)**2              ! Huang
-
-                ! interpolated saturation vapor pressure
-                es = ilratio*esl1 + (1-ilratio)*esi1
-
-                ! convert saturation vapor pressure to saturation humidity
-                qsat1 = (rd/rv) * es / (presh(k) - (1.-rd/rv)*es)
+                qsat1 = qsat_tab(Tl, presh(k))
 
                 b = rlv**2 / (rv * cp * Tl**2)
                 qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
