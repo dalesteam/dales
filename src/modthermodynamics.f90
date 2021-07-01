@@ -60,71 +60,21 @@ contains
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
     use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof,ql0h
-    use modmpi, only : slabsum, myid
-    use mpi
+    use modmpi, only : slabsum
     implicit none
     integer:: k
-    real, dimension(2:i1, 2:j1, 1:k1) :: t
-    real :: wtime
-    integer, dimension(3) :: ind
 
     if (timee < 0.01) then
       call diagfld
     end if
     if (lmoist .and. (.not. lnoclouds)) then
-
-       wtime = MPI_Wtime()
-       call icethermo0
-       if (myid == 0) then
-         wtime = MPI_Wtime() - wtime
-         write (*,*) 'icethermo0     ', timee, 'Time spent:', wtime, 's'
-      end if
-
-      t = ql0(2:i1, 2:j1, 1:k1)
-      wtime = MPI_Wtime()
       call icethermo0_fast
-      if (myid == 0) then
-         wtime = MPI_Wtime() - wtime
-         write (*,*) 'icethermo0_fast', timee, 'Time spent:', wtime, 's'
-      end if
-
-       ind = maxloc(abs(t(2:i1, 2:j1, 1:k1) - ql0(2:i1, 2:j1, 1:k1))) + (/1,1,0/) ! add lower bounds, maxloc starts at 1
-       write (*,*) 'at', ind(1), ind(2), ind(3)
-       write (*,*) 'largest abs ql0 difference', maxval(abs(t(2:i1, 2:j1, 1:k1) - ql0(2:i1, 2:j1, 1:k1)))
-       write (*,*) 'ql0 there:', ql0(ind(1), ind(2), ind(3))
-       write (*,*) 't there:  ', t(ind(1), ind(2), ind(3))
-
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
     if (lmoist .and. (.not. lnoclouds)) then
-
-       wtime = MPI_Wtime()
-       call icethermoh
-       if (myid == 0) then
-          wtime = MPI_Wtime() - wtime
-          write (*,*) 'icethermoh     ', timee, 'Time spent:', wtime, 's'
-       end if
-       t(2:i1, 2:j1, 1:k1) = ql0h(2:i1, 2:j1, 1:k1)
-
-       wtime = MPI_Wtime()
        call icethermoh_fast
-       if (myid == 0) then
-          wtime = MPI_Wtime() - wtime
-          write (*,*) 'icethermoh_fast', timee, 'Time spent:', wtime, 's'
-       end if
-
-       ind = maxloc(abs(t(2:i1, 2:j1, 1:k1) - ql0h(2:i1, 2:j1, 1:k1))) + (/1,1,0/) ! add lower bounds, maxloc starts at 1
-       write (*,*) 'at', ind(1), ind(2), ind(3)
-       write (*,*) 'largest abs ql0h difference', maxval(abs(t(2:i1, 2:j1, 1:k1) - ql0h(2:i1, 2:j1, 1:k1)))
-       write (*,*) 'ql0h there:', ql0h(ind(1), ind(2), ind(3))
-       write (*,*) 't there:   ', t(ind(1), ind(2), ind(3))
-
-
-       if (myid == 0) then
-          write (*,*)
-       end if
     end if
 
     ! recalculate thv and rho on the basis of results
@@ -238,7 +188,7 @@ contains
         end do
       end do
 
-    else
+    else ! not lmoist
       thv0h = thl0h
       do k=2,kmax
         do j=2,j1
