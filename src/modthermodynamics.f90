@@ -665,7 +665,7 @@ contains
 !! \author Steef B\"oing
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
+  use modfields, only : qt0,thl0,exnf,presf,ql0
   implicit none
 
   integer i, j, k
@@ -739,26 +739,26 @@ contains
                 Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
               enddo
               nitert =max(nitert,niter)
-              tmp0(i,j,k)= Tnr
+              !tmp0(i,j,k)= Tnr
               ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
               tlonr=int((Tnr-150.)*5.)
               thinr=tlonr+1
               tlo=ttab(tlonr)
               thi=ttab(thinr)
-              esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+              esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-              qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
-              qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
+              qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
+              qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
+              qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
             else
-              tmp0(i,j,k)= Tnr
-              esl(i,j,k)=esl1
-              esi1=esi1
-              qvsl(i,j,k)=qvsl1
-              qvsi(i,j,k)=qvsi1
+             ! tmp0(i,j,k)= Tnr
+             ! esl(i,j,k)=esl1
+             ! esi1=esi1
+             ! qvsl(i,j,k)=qvsl1
+             ! qvsi(i,j,k)=qvsi1
             endif
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
-            qsat(i,j,k) = qsatur
+            !qsat(i,j,k) = qsatur
       end do
       end do
       end do

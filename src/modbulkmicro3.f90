@@ -875,6 +875,23 @@ subroutine untranspose_svs(svp_t,thlp_t,qtp_t,k_low,k_high)
   endif
 endsubroutine untranspose_svs
 
+! helper function to calculate qvsl
+pure function qvsl_magnus(T, p) result(qvsl)
+  use modglobal, only : rd,rv
+  implicit none
+  real, intent(in) :: T, p
+  real :: qvsl
+  real TC, esl
+
+  ! Magnus formulas for e_sat over liquid and ice
+  ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+  TC = T - 273.15 ! in Celcius
+  esl = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+
+  ! convert saturation vapor pressure to saturation humidity
+  qvsl = (rd/rv) * esl / (p - (1.-rd/rv)*esl)
+end function qvsl_magnus
+
 
 !  cloud initialisation
 ! ===============================
@@ -888,12 +905,13 @@ endsubroutine untranspose_svs
 !     - limit if mean x_cl smaller than xcmin
 ! ----------------------------------------------------------------------------
 subroutine initclouds3
-use modglobal, only : i1,j1,k1
-use modfields, only : rhof, qt0, svm, sv0, qvsl
+use modglobal, only : i1,j1,k1,rlv,cp
+use modfields, only : rhof, thl0, qt0, ql0, svm, sv0, presf, exnf
 implicit none
 
 integer :: i,j,k
 real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
+real qvsl, tmp
 
 x_min = xc0_min  ! minimal size of droplets
 Nc_set =  Nc0    ! prescribed number of droplets
@@ -903,7 +921,9 @@ if (l_c_ccn) then
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+    tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+    qvsl = qvsl_magnus(tmp, presf(k))
+    q_tocl = qt0(i,j,k)-qvsl                  ! get amount of available water for liquid clouds
     if (q_tocl>0.0) then
       ! prepare number of droplet
       n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
@@ -922,7 +942,9 @@ else
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+    tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+    qvsl = qvsl_magnus(tmp, presf(k))
+    q_tocl = qt0(i,j,k)-qvsl                  ! get amount of available water for liquid clouds
     if (q_tocl>0.0) then
       ! prepare number of droplet
       n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
