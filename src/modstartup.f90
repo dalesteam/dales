@@ -1104,7 +1104,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -s -f"//name //" "//linkname)
+        call system("ln -s -f "//name //" "//linkname)
       end if
 
 
