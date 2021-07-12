@@ -125,8 +125,8 @@ module modsimpleice2
 
 !> Calculates the microphysical source term.
   subroutine simpleice2
-    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
-    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
+    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh,rd,rv
+    use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,thl0,rhobf,surf_rain,presf
     use modmicrodata, only : sed_qr,qrp,&
                              aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
                              ccgz2,ccrz2,ccsz2,ddg,ddr,dds,&
@@ -154,6 +154,7 @@ module modsimpleice2
     logical :: qrmask_, qcmask_
     logical :: rain_present, snow_present, graupel_present   ! logicals for presence of different forms of water in the current cell
     logical :: any_qr, any_snow_graupel                      ! logicals for precense of any precipitation, and for presense of snow/graupel in the whole system
+    real :: qvsl, qvsi, tmp, esl1, esi1
     
     delt = rdt/ (4. - dble(rk3step))
     
@@ -238,6 +239,7 @@ module modsimpleice2
              ! thlpmcr  - thl tendency from microphysics
              
 
+             tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
              
              !partitioning and determination of intercept parameter
 
@@ -251,8 +253,8 @@ module modsimpleice2
                    !lambdas_=lambdar_ ! lambda snow    ! probably not right but they will not be used
                    !lambdag_=lambdar_ ! lambda graupel
                 elseif(l_graupel) then                  
-                   rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
-                   sgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
+                   rsgratio_=max(0.,min(1.,(tmp-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+                   sgratio_=max(0.,min(1.,(tmp-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
                    if (rsgratio_ > 0) then                                                                               ! sg = 0 -> only snow
                       rain_present = .true.
                       lambdar_=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio_)))**(1./(1.+bbr)) ! lambda rain
@@ -271,7 +273,7 @@ module modsimpleice2
 
                    ! no snow/graupel -> large lambda
                 else ! rain, snow but no graupel
-                   rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
+                   rsgratio_=max(0.,min(1.,(tmp-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
                    sgratio_=0.
                    if (rsgratio_ > 0) then 
                       rain_present = .true.
@@ -293,7 +295,7 @@ module modsimpleice2
                  if(l_warm) then 
                     ilratio_=1.   
                  else
-                    ilratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+                    ilratio_=max(0.,min(1.,(tmp-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
                  endif
                  
                  ! ql partitioning - used here and in Accrete
@@ -308,7 +310,7 @@ module modsimpleice2
                     ddisp=0.146-5.964e-2*log(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
                     lwc=1.e3*rhof(k)*qll ! Liquid water content in g/kg
                     autl=1./rhof(k)*1.67e-5*lwc*lwc/(5. + .0366*Nc_0/(1.e6*ddisp*(lwc+1.e-6)))
-                    tc=tmp0(i,j,k)-tmelt ! Temperature wrt melting point
+                    tc=tmp-tmelt ! Temperature wrt melting point
                     times=min(1.e3,(3.56*tc+106.7)*tc+1.e3) ! Time scale for ice autoconversion
                     auti=qli/times
                     aut = min(autl + auti,ql0(i,j,k)/delt)
@@ -322,7 +324,7 @@ module modsimpleice2
                     ! qli=ql0(i,j,k)-qll
                     
                     autl=max(0.,timekessl*(qll-qll0))
-                    tc=tmp0(i,j,k)-tmelt
+                    tc=tmp-tmelt
                     auti=max(0.,betakessi*exp(0.025*tc)*(qli-qli0))
                     aut = min(autl + auti,ql0(i,j,k)/delt)
                     qrp(i,j,k) = qrp(i,j,k)+aut
@@ -377,14 +379,21 @@ module modsimpleice2
               ! evapdep
               
               if (qrmask_.eqv..true.) then
-                  ! saturation ratios
-                 ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
-                 ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
+
+                 TC = tmp - 273.15 ! in Celcius
+                 esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+                 esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
+                 qvsl = (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+                 qvsi = (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
+
+                  ! saturation ratios   qv / qvs
+                 ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl
+                 ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi
                  !integration over ventilation factors and diameters, see e.g. seifert 2008
                  evapdepr = 0
                  evapdeps = 0
                  evapdepg = 0
-                 thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e2/tmp0(i,j,k))  ! thermodynamic function
+                 thfun=1.e-7/(2.2*tmp/esl1+2.2e2)  ! thermodynamic function
 
 
                  if (rain_present) then
@@ -474,8 +483,8 @@ module modsimpleice2
                    do i=2,i1
                       if (qr_spl(i,j,k) > qrmin) then
                          ! re-evaluate lambda and rsgratios
-                         rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
-                          sgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnsg) /(tupsg -tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
+                         rsgratio_=max(0.,min(1.,(tmp-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+                          sgratio_=max(0.,min(1.,(tmp-tdnsg) /(tupsg -tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
                          
                          !these ifs are here to avoid performing the power calculations unless they are going to be used
                          if (rsgratio_ > 0) then

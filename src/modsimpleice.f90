@@ -110,8 +110,8 @@ module modsimpleice
 
 !> Calculates the microphysical source term.
   subroutine simpleice
-    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof,tmp0,rhobf
+    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,cv
+    use modfields, only : sv0,svm,svp,qtp,thlp,thl0,ql0,exnf,rhof,rhobf,exnf
     use modsimpleicestat, only : simpleicetend
     use modmicrodata, only : nr, nrp, iqr, qrp, sed_qr, qr_spl, qtpmcr, thlpmcr, delt, &
                              qcmask, qcmin, qrmask, qrmin, qr, &
@@ -124,7 +124,7 @@ module modsimpleice
                              l_graupel, l_rain, l_warm
     implicit none
     integer:: i,j,k
-    real:: qrsmall, qrsum,qrtest
+    real:: qrsmall, qrsum, qrtest, tmp
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -190,7 +190,8 @@ module modsimpleice
       do k=1,k1
       do j=2,j1
       do i=2,i1
-        ilratio(i,j,k)=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+        tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+        ilratio(i,j,k)=max(0.,min(1.,(tmp-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
       enddo
       enddo
       enddo
@@ -215,8 +216,9 @@ module modsimpleice
       do j=2,j1
       do i=2,i1
         if(qrmask(i,j,k).eqv..true.) then
-          rsgratio(i,j,k)=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning
-          sgratio(i,j,k)=max(0.,min(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning
+          tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+          rsgratio(i,j,k)=max(0.,min(1.,(tmp-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning
+          sgratio(i,j,k)=max(0.,min(1.,(tmp-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning
           lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
           lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*(1.-sgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! snow
           lambdag(i,j,k)=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))*sgratio(i,j,k)+1.e-6)))**(1./(1.+bbg)) ! graupel
@@ -229,7 +231,8 @@ module modsimpleice
       do j=2,j1
       do i=2,i1
         if(qrmask(i,j,k).eqv..true.) then
-          rsgratio(i,j,k)=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
+          tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+          rsgratio(i,j,k)=max(0.,min(1.,(tmp-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
           sgratio(i,j,k)=0.
           lambdar(i,j,k)=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio(i,j,k)+1.e-6)))**(1./(1.+bbr)) ! lambda rain
           lambdas(i,j,k)=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio(i,j,k))+1.e-6)))**(1./(1.+bbs)) ! lambda snow
@@ -275,12 +278,12 @@ module modsimpleice
   end subroutine simpleice
 
   subroutine autoconvert
-    use modglobal, only : i1,j1,k1,rlv,cp,tmelt
-    use modfields, only : ql0,exnf,rhof,tmp0
+    use modglobal, only : i1,j1,k1,rlv,cp,tmelt,rlv,cp
+    use modfields, only : ql0,exnf,rhof,thl0
     use modmicrodata, only : betakessi, delt, l_berry, Nc_0, qli0, qll0, timekessl, &
                              qcmask, qrp, qtpmcr, thlpmcr, ilratio
     implicit none
-    real :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut
+    real :: qll,qli,ddisp,lwc,autl,tc,times,auti,aut,tmp
     integer:: i,j,k
 
     if(l_berry.eqv..true.) then ! Berry/Hsie autoconversion
@@ -289,12 +292,13 @@ module modsimpleice
     do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
           ! ql partitioning
+          tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
           ddisp=0.146-5.964e-2*log(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
           lwc=1.e3*rhof(k)*qll ! Liquid water content in g/kg
           autl=1./rhof(k)*1.67e-5*lwc*lwc/(5. + .0366*Nc_0/(1.e6*ddisp*(lwc+1.e-6)))
-          tc=tmp0(i,j,k)-tmelt ! Temperature wrt melting point
+          tc=tmp-tmelt ! Temperature wrt melting point
           times=min(1.e3,(3.56*tc+106.7)*tc+1.e3) ! Time scale for ice autoconversion
           auti=qli/times
           aut = min(autl + auti,ql0(i,j,k)/delt)
@@ -311,10 +315,11 @@ module modsimpleice
       do i=2,i1
         if (qcmask(i,j,k).eqv..true.) then
           ! ql partitioning
+          tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
           qll=ql0(i,j,k)*ilratio(i,j,k)
           qli=ql0(i,j,k)-qll
           autl=max(0.,timekessl*(qll-qll0))
-          tc=tmp0(i,j,k)-tmelt
+          tc=tmp-tmelt
           auti=max(0.,betakessi*exp(0.025*tc)*(qli-qli0))
           aut = min(autl + auti,ql0(i,j,k)/delt)
           qrp(i,j,k) = qrp(i,j,k)+aut
@@ -376,8 +381,8 @@ module modsimpleice
   end subroutine accrete
 
   subroutine evapdep
-    use modglobal, only : i1,j1,k1,rlv,cp,pi
-    use modfields, only : qt0,ql0,exnf,rhof,tmp0,qvsl,qvsi,esl
+    use modglobal, only : i1,j1,k1,rlv,cp,pi,rd,rv,rlv
+    use modfields, only : qt0,ql0,exnf,rhof,thl0,exnf,presf
     use modmicrodata, only : betag, betar, betas, ddg, ddr, dds, delt, &
                              n0rg, n0rr, n0rs, aag, aar, aas, &
                              ccgz, ccrz, ccsz, lambdag, lambdar, lambdas, &
@@ -388,19 +393,27 @@ module modsimpleice
     real :: ssl,ssi,ventr,vents,ventg,&
             thfun,evapdepr,evapdeps,evapdepg,devap
     integer:: i,j,k
+    real :: qvsl, qvsi, tmp, esl1, esi1, TC
 
     do k=1,k1
     do j=2,j1
     do i=2,i1
       if (qrmask(i,j,k).eqv..true.) then
+        tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+        TC = tmp - 273.15 ! in Celcius
+        esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+        esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
+        qvsl = (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+        qvsi = (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
+
         ! saturation ratios
-        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
-        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi(i,j,k)
+        ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl
+        ssi=(qt0(i,j,k)-ql0(i,j,k))/qvsi
         !integration over ventilation factors and diameters, see e.g. seifert 2008
         ventr=.78*n0rr/lambdar(i,j,k)**2 + gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)*lambdar(i,j,k)**(-2.5-0.5*ddr)
         vents=.78*n0rs/lambdas(i,j,k)**2 + gam2ds*.27*n0rs*sqrt(ccsz(k)/2.e-5)*lambdas(i,j,k)**(-2.5-0.5*dds)
         ventg=.78*n0rg/lambdag(i,j,k)**2 + gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)*lambdag(i,j,k)**(-2.5-0.5*ddg)
-        thfun=1.e-7/(2.2*tmp0(i,j,k)/esl(i,j,k)+2.2e2/tmp0(i,j,k))  ! thermodynamic function
+        thfun=1.e-7/(2.2*tmp/esl1+2.2e2/tmp)  ! thermodynamic function
         evapdepr=(4.*pi/(betar*rhof(k)))*(ssl-1.)*ventr*thfun
         evapdeps=(4.*pi/(betas*rhof(k)))*(ssi-1.)*vents*thfun
         evapdepg=(4.*pi/(betag*rhof(k)))*(ssi-1.)*ventg*thfun

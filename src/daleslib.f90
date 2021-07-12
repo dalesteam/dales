@@ -823,19 +823,20 @@ module daleslib
     function gatherlayericeavg(qi) result(ret)
       use mpi
       use modmpi, only: comm3d, my_real, myid, nprocs
-      use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn
-      use modfields, only: ql0, tmp0
+      use modglobal, only: imax, jmax, kmax, i1, j1, tup, tdn, rlv, cp
+      use modfields, only: ql0, thl0, exnf
       
       real, intent(out)     :: qi(:)
       integer               :: i,j,k, ret
-      real                  :: ilratio
+      real                  :: ilratio, tmp
 
       ret = 0
       do k=1,kmax
          qi(k) = 0
          do j = 2,j1
             do i = 2,i1
-               ilratio = max(0.,min(1., (tmp0(i,j,k)-tdn) / (tup-tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
+               tmp  = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+               ilratio = max(0.,min(1., (tmp-tdn) / (tup-tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
                qi(k) = qi(k) + (1.0 - ilratio) * ql0(i,j,k)              ! amount of ice 
             enddo
          enddo
@@ -857,18 +858,19 @@ module daleslib
     ! ilratio is calculated from the temperature, as in simpleice and icethermo routines.
     ! note: assumes the qi array is large enough (kmax elements)
     function geticecontent(qi) result(ret)
-      use modglobal, only: kmax, i1, j1, tup, tdn
-      use modfields, only: ql0, tmp0
+      use modglobal, only: kmax, i1, j1, tup, tdn, rlv, cp
+      use modfields, only: ql0, thl0, exnf
 
       real, intent(out)     :: qi(2:i1,2:j1,kmax)
       integer               :: i,j,k,ret
-      real                  :: ilratio
+      real                  :: ilratio, tmp
 
       ret = 0
       do k=1,kmax
          do j = 2,j1
             do i = 2,i1
-               ilratio = max(0., min(1., (tmp0(i,j,k) - tdn) / (tup - tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
+               tmp  = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+               ilratio = max(0., min(1., (tmp - tdn) / (tup - tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
                qi(i,j,k) = (1.0 - ilratio) * ql0(i,j,k)              ! amount of ice
             enddo
          enddo

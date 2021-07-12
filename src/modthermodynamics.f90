@@ -59,21 +59,22 @@ contains
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
-    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
+    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof,ql0h
     use modmpi, only : slabsum
     implicit none
     integer:: k
+
     if (timee < 0.01) then
       call diagfld
     end if
     if (lmoist .and. (.not. lnoclouds)) then
-      call icethermo0
+      call icethermo0_fast
     end if
     call diagfld
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
     if (lmoist .and. (.not. lnoclouds)) then
-      call icethermoh
+       call icethermoh_fast
     end if
 
     ! recalculate thv and rho on the basis of results
@@ -187,7 +188,7 @@ contains
         end do
       end do
 
-    else
+    else ! not lmoist
       thv0h = thl0h
       do k=2,kmax
         do j=2,j1
@@ -454,12 +455,217 @@ contains
   return
   end subroutine thermo
 
+
+  ! Warning: check that rd/rv etc are pre-computed
+  pure function qsat_magnus(T, p) result(qsat)
+    use modglobal, only : rd,rv,tup,tdn
+    implicit none
+    real, intent(in) :: T, p
+    real :: qsat
+    real ilratio, TC, esl, esi, es
+    ilratio = max(0.,min(1.,(T-tdn)/(tup-tdn)))
+
+    ! Magnus formulas for e_sat over liquid and ice
+    ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+    TC = T - 273.15 ! in Celcius
+    esl = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+    esi = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
+
+    ! interpolated saturation vapor pressure
+    es = ilratio*esl + (1-ilratio)*esi
+
+    ! convert saturation vapor pressure to saturation humidity
+    qsat = (rd/rv) * es / (p - (1.-rd/rv)*es)
+  end function qsat_magnus
+
+  ! Warning: check that rd/rv etc are pre-computed
+  pure function qsat_huang(T, p) result(qsat)
+    use modglobal, only : rd,rv,tup,tdn
+    implicit none
+    real, intent(in) :: T, p
+    real :: qsat
+    real ilratio, TC, esl, esi, es
+    ilratio = max(0.,min(1.,(T-tdn)/(tup-tdn)))
+
+    ! Huang's formulas for e_sat over liquid and ice
+    ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+    TC = T - 273.15 ! in Celcius
+    esl = exp(34.494 - 4924.99 / (TC  + 237.1)) /  (TC+105)**1.57  ! Huang
+    esi = exp(43.494 - 6545.8/(TC+278)) / (TC+868)**2              ! Huang
+
+    ! interpolated saturation vapor pressure
+    es = ilratio*esl + (1-ilratio)*esi
+
+    ! convert saturation vapor pressure to saturation humidity
+    qsat = (rd/rv) * es / (p - (1.-rd/rv)*es)
+  end function qsat_huang
+
+  pure function qsat_tab(T, p) result(qsat)
+    use modglobal, only : rd,rv
+    use modglobal, only : esatmtab
+
+    implicit none
+    real, intent(in) :: T, p
+    real :: qsat
+    integer :: tlonr
+    real :: tlo, thi, es
+
+    ! interpolated ice-liquid saturation vapor pressure from table
+    tlonr=int((T-150.)*5.)
+    !thinr=tlonr+1
+    tlo = 150. + 0.2*tlonr
+    thi = tlo + 0.2
+    es = (thi-T)*5.*esatmtab(tlonr)+(T-tlo)*5.*esatmtab(tlonr+1)
+
+    ! convert saturation vapor pressure to saturation humidity
+    qsat = (rd/rv) * es / (p - (1.-rd/rv)*es)
+  end function qsat_tab
+
+  subroutine icethermo0_fast
+    !> Calculates liquid water content ql from thl0 and qt0
+    ! Using 2 iterations of the (59) in the Heus 2010 article
+    ! and e_sat interpolated between liquid and ice expressions
+    !
+    !! \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+
+    use modglobal, only : i1,j1,k1,rv,rlv,cp
+    use modfields, only : qt0,thl0,exnf,presf,ql0
+
+    implicit none
+    integer :: i, j, k
+    real :: Tl, qsat1, qt, ql, b
+    real Tl_min, qt_max
+
+    do k=1,k1
+       ! find highest qt and lowest thl in the slab.
+       ! if they in combination are not saturated, the whole slab is below saturation
+       Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
+       qt_max = maxval(qt0(2:i1,2:j1,k))
+       qsat1 = qsat_tab(Tl_min, presf(k))
+       if (qt_max > qsat1) then
+          do j=2,j1
+             do i=2,i1
+                Tl = exnf(k)*thl0(i,j,k)
+                qt = qt0(i,j,k)
+                qsat1 = qsat_tab(Tl, presf(k))
+
+                ! first step
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+
+                ql = max(qt0(i,j,k) - qsat1, 0.)
+
+                ! second step
+                ! update the starting point
+                Tl = Tl + (rlv/cp) * ql
+                qt = qt - ql
+
+                qsat1 = qsat_tab(Tl, presf(k))
+
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+
+                ! save results
+                ql = max(qt0(i,j,k) - qsat1, 0.)
+                ql0(i,j,k) = ql
+
+                ! these fields are created on demand
+                ! qsat(i,j,k) = qsat1   ! = qt-ql when saturated i.e. ql > 0
+
+                ! the rest is calculated here using thl0, ql0
+                ! fields which will be globally available
+
+                !tmp0(i,j,k) = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql
+                !TC = tmp0(i,j,k) - 273.15 ! in Celcius
+
+                !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+                !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
+                !esl(i,j,k) = esl1
+                !qvsl(i,j,k)= (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+                !qvsi(i,j,k)= (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
+             end do
+          end do
+       else
+          ql0(2:i1,2:j1,k) = 0
+       end if
+    end do
+
+
+  end subroutine icethermo0_fast
+
+  ! this could be merged with icethermo0
+  ! if the extra fields stored are removed
+  ! and input and output fields are given as parameters.
+  ! in: thl, qt, exner,
+  ! out: ql
+  subroutine icethermoh_fast
+    !> Calculates liquid water content ql for halflevels
+    ! Using 2 iterations of the (59) in the Heus 2010 article
+    ! and e_sat interpolated between liquid and ice expressions
+    !
+    !! \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+
+    use modglobal, only : i1,j1,k1,rv,rlv,cp
+    use modfields, only : qt0h,thl0h,exnh,presh,ql0h
+
+    implicit none
+    integer :: i, j, k
+    real :: Tl, qsat1, qt, ql, b
+    real Tl_min, qt_max
+
+    do k=1,k1
+       ! find highest qt and lowest thl in the slab.
+       ! if they in combination are not saturated, the whole slab is below saturation
+       Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
+       qt_max = maxval(qt0h(2:i1,2:j1,k))
+
+       qsat1 = qsat_tab(Tl_min, presh(k))
+       if (qt_max > qsat1) then
+          do j=2,j1
+             do i=2,i1
+                Tl = exnh(k)*thl0h(i,j,k)
+                qt = qt0h(i,j,k)
+
+                qsat1 = qsat_tab(Tl, presh(k))
+
+                ! first step
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+
+                ql = max(qt0h(i,j,k) - qsat1, 0.)
+
+                ! second step
+                ! update the starting point
+                Tl = Tl + (rlv/cp) * ql
+                qt = qt - ql
+
+                qsat1 = qsat_tab(Tl, presh(k))
+
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+
+                ! save results
+                ql = max(qt0h(i,j,k) - qsat1, 0.)
+                ql0h(i,j,k) = ql
+
+             end do
+          end do
+       else
+          ql0h(2:i1,2:j1,k) = 0
+       end if
+    end do
+
+
+  end subroutine icethermoh_fast
+
+
+
   subroutine icethermo0
 !> Calculates liquid water content.and temperature
 !! \author Steef B\"oing
 
   use modglobal, only : i1,j1,k1,rd,rv,rlv,tup,tdn,cp,ttab,esatltab,esatitab
-  use modfields, only : qvsl,qvsi,qt0,thl0,exnf,presf,tmp0,ql0,esl,qsat
+  use modfields, only : qt0,thl0,exnf,presf,ql0
   implicit none
 
   integer i, j, k
@@ -533,26 +739,26 @@ contains
                 Tnr = Tnr - (thlguess-thl0(i,j,k))/((thlguess-thlguessmin)*500.)
               enddo
               nitert =max(nitert,niter)
-              tmp0(i,j,k)= Tnr
+              !tmp0(i,j,k)= Tnr
               ilratio = max(0.,min(1.,(Tnr-tdn)/(tup-tdn)))
               tlonr=int((Tnr-150.)*5.)
               thinr=tlonr+1
               tlo=ttab(tlonr)
               thi=ttab(thinr)
-              esl(i,j,k)=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
+              esl1=(thi-Tnr)*5.*esatltab(tlonr)+(Tnr-tlo)*5.*esatltab(thinr)
               esi1=(thi-Tnr)*5.*esatitab(tlonr)+(Tnr-tlo)*5.*esatitab(thinr)
-              qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))
-              qvsi(i,j,k)=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
-              qsatur = ilratio*qvsl(i,j,k)+(1.-ilratio)*qvsi(i,j,k)
+              qvsl1=rd/rv*esl1/(presf(k)-(1.-rd/rv)*esl1)
+              qvsi1=rd/rv*esi1/(presf(k)-(1.-rd/rv)*esi1)
+              qsatur = ilratio*qvsl1+(1.-ilratio)*qvsi1
             else
-              tmp0(i,j,k)= Tnr
-              esl(i,j,k)=esl1
-              esi1=esi1
-              qvsl(i,j,k)=qvsl1
-              qvsi(i,j,k)=qvsi1
+             ! tmp0(i,j,k)= Tnr
+             ! esl(i,j,k)=esl1
+             ! esi1=esi1
+             ! qvsl(i,j,k)=qvsl1
+             ! qvsi(i,j,k)=qvsi1
             endif
             ql0(i,j,k) = max(qt0(i,j,k)-qsatur,0.)
-            qsat(i,j,k) = qsatur
+            !qsat(i,j,k) = qsatur
       end do
       end do
       end do

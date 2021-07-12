@@ -733,9 +733,9 @@ end subroutine bulkmicro3
 !       For now, i'm skipping this optimization because the code gets too complex.
 ! ----------------------------------------------
 subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
-  use modfields, only : tmp0, qt0, ql0, esl, qvsl, qvsi, w0
+  use modfields, only : thl0, qt0, ql0, presf, exnf, w0
   use modfields, only : sv0, svm, svp
-  use modglobal, only : i1,j1,k1,rk3step
+  use modglobal, only : i1,j1,k1,rk3step,rd,rv,cp,rlv
   implicit none
   real, intent(out) ::  sv0_t   (ncols,k1,i1+3,j1) &
                        ,svp_t   (ncols,k1,i1+3,j1) &
@@ -743,16 +743,25 @@ subroutine transpose_svs(sv0_t, svm_t, svp_t, prg_t)
                        ,prg_t   (nprgs,k1,i1+3,j1)
 
   integer :: i,j,k,isv
+  real tmp, TC, esl1, esi1, qvsl1, qvsi1
 
   do j=2,j1
   do k=1,k1
   do i=2,i1
-    prg_t(n_tmp0,k,i,j) = tmp0(i,j,k)
+    ! calculate tmp, esl, esi, qvsl, qvsi here to save work in thermodynamics
+    tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+    TC = tmp - 273.15 ! in Celcius
+    esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+    esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
+    qvsl1 = (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
+    qvsi1 = (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
+
+    prg_t(n_tmp0,k,i,j) = tmp
     prg_t(n_qt0 ,k,i,j) = qt0 (i,j,k)
     prg_t(n_ql0 ,k,i,j) = ql0 (i,j,k)
-    prg_t(n_esl ,k,i,j) = esl (i,j,k)
-    prg_t(n_qvsl,k,i,j) = qvsl(i,j,k)
-    prg_t(n_qvsi,k,i,j) = qvsi(i,j,k)
+    prg_t(n_esl ,k,i,j) = esl1
+    prg_t(n_qvsl,k,i,j) = qvsl1
+    prg_t(n_qvsi,k,i,j) = qvsi1
     prg_t(n_w0  ,k,i,j) = w0  (i,j,k)
   enddo
   enddo
@@ -866,6 +875,23 @@ subroutine untranspose_svs(svp_t,thlp_t,qtp_t,k_low,k_high)
   endif
 endsubroutine untranspose_svs
 
+! helper function to calculate qvsl
+pure function qvsl_magnus(T, p) result(qvsl)
+  use modglobal, only : rd,rv
+  implicit none
+  real, intent(in) :: T, p
+  real :: qvsl
+  real TC, esl
+
+  ! Magnus formulas for e_sat over liquid and ice
+  ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
+  TC = T - 273.15 ! in Celcius
+  esl = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
+
+  ! convert saturation vapor pressure to saturation humidity
+  qvsl = (rd/rv) * esl / (p - (1.-rd/rv)*esl)
+end function qvsl_magnus
+
 
 !  cloud initialisation
 ! ===============================
@@ -879,12 +905,13 @@ endsubroutine untranspose_svs
 !     - limit if mean x_cl smaller than xcmin
 ! ----------------------------------------------------------------------------
 subroutine initclouds3
-use modglobal, only : i1,j1,k1
-use modfields, only : rhof, qt0, svm, sv0, qvsl
+use modglobal, only : i1,j1,k1,rlv,cp
+use modfields, only : rhof, thl0, qt0, ql0, svm, sv0, presf, exnf
 implicit none
 
 integer :: i,j,k
 real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
+real qvsl, tmp
 
 x_min = xc0_min  ! minimal size of droplets
 Nc_set =  Nc0    ! prescribed number of droplets
@@ -894,7 +921,9 @@ if (l_c_ccn) then
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+    tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+    qvsl = qvsl_magnus(tmp, presf(k))
+    q_tocl = qt0(i,j,k)-qvsl                  ! get amount of available water for liquid clouds
     if (q_tocl>0.0) then
       ! prepare number of droplet
       n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
@@ -913,7 +942,9 @@ else
   do k=1,k1
   do j=2,j1
   do i=2,i1
-    q_tocl = qt0(i,j,k)-qvsl(i,j,k)           ! get amount of available water for liquid clouds
+    tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+    qvsl = qvsl_magnus(tmp, presf(k))
+    q_tocl = qt0(i,j,k)-qvsl                  ! get amount of available water for liquid clouds
     if (q_tocl>0.0) then
       ! prepare number of droplet
       n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
