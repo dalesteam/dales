@@ -98,7 +98,7 @@ contains
       stop 'dtav should be a integer multiple of dtmax'
     end if
 
-    nvar = nvar + nsv
+    nvar = nvar + nsv ! add number of scalars to the number of output variables
     if (lnetcdf) then
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
@@ -155,14 +155,15 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-    allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))
+    if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
+    if (lnetcdf) allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))
 
     reclength = ceiling(1.0*imax/ncoarse)*ceiling(1.0*jmax/ncoarse)*(khigh-klow+1)*2
 
-    field = NINT(1.0E3*u0,2)
+    
     if (lnetcdf) vars(:,:,:,1) = u0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E3*u0,2)
       if (ldiracc) then
         open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -173,9 +174,10 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*v0,2)
+    
     if (lnetcdf) vars(:,:,:,2) = v0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E3*v0,2)
       if (ldiracc) then
         open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -186,9 +188,10 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E3*w0,2)
+    
     if (lnetcdf) vars(:,:,:,3) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E3*w0,2)
       if (ldiracc) then
         open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -199,9 +202,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*qt0,2)
     if (lnetcdf) vars(:,:,:,4) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E5*qt0,2)
       if (ldiracc) then
         open (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -212,9 +215,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E5*ql0,2)
     if (lnetcdf) vars(:,:,:,5) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E5*ql0,2)
       if (ldiracc) then
         open (ifoutput,file='wbql.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -225,9 +228,9 @@ contains
       close (ifoutput)
     endif
 
-    field = NINT(1.0E2*(thl0-300),2)
     if (lnetcdf) vars(:,:,:,6) = thl0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
+      field = NINT(1.0E2*(thl0-300),2)
       if (ldiracc) then
         open (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -238,18 +241,18 @@ contains
       close (ifoutput)
     end if
 
-    if(imicro/=imicro_none) then
-      do i=2-ih,i1+ih
-      do j=2-jh,j1+jh
-      do k=1,k1
-        field(i,j,k) = NINT(1.0E5*sv0(i,j,k,iqr),2)
-      enddo
-      enddo
-      enddo
-    else
-      field = 0.
-    endif
     if (lbinary) then
+      if(imicro/=imicro_none) then
+         do i=2-ih,i1+ih
+            do j=2-jh,j1+jh
+               do k=1,k1
+                  field(i,j,k) = NINT(1.0E5*sv0(i,j,k,iqr),2)
+               enddo
+            enddo
+         enddo
+      else
+         field = 0.
+      endif
       if (ldiracc) then
         open (ifoutput,file='wbqr.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -260,30 +263,22 @@ contains
       close (ifoutput)
     endif
 
-    field=0.
-    do i=2-ih,i1+ih
-    do j=2-jh,j1+jh
-    do k=2,k1
-      field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
-    enddo
-    enddo
-    enddo
-    
     if (lnetcdf) then 
       vars(:,:,:,7) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
       do k=klow,khigh
         vars(:,:,k,7) = vars(:,:,k,7) - thvh(k)
       end do
     end if
-    do i=2-ih,i1+ih, ncoarse
-    do j=2-jh,j1+jh, ncoarse
-    do k=2,k1
-      field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
-    enddo
-    enddo
-    enddo
 
     if (lbinary) then
+      do i=2-ih,i1+ih, ncoarse
+         do j=2-jh,j1+jh, ncoarse
+            do k=2,k1
+               field(i,j,k) = NINT(1.0E2*(thv0h(i,j,k)-thvh(k)),2)
+            enddo
+         enddo
+      enddo
+       
       if (ldiracc) then
         open (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
         write (ifoutput, rec=writecounter) field(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
@@ -311,7 +306,8 @@ contains
 
     writecounter=writecounter+1
 
-    deallocate(field,vars)
+    if (lbinary) deallocate(field)
+    if (lnetcdf) deallocate(vars)
 
   end subroutine fielddump
 !> Clean up when leaving the run
