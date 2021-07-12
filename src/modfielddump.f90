@@ -107,10 +107,9 @@ contains
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
       call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-!       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','kg/kg','tttt')
+      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','kg/kg','tttt')
+      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature','K','tttt')
       call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
@@ -126,7 +125,9 @@ contains
 
   end subroutine initfielddump
 
-!> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
+!> Do fielddump.
+!> if lbinary, collect data to truncated (2 byte) integers, and write them to file
+!> if lnetcdf, write to netCDF (as float32).  
   subroutine fielddump
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh
     use modsurfdata,only : thls,qts,thvs
