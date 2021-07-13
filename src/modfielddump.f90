@@ -55,6 +55,8 @@ save
   logical :: lbuoy = .true.      !< switch for saving the buoy field
   logical :: lsv(100) = .true.   !< switches for saving the sv fields
 
+  logical :: lclassic = .false.  !< switch for classic netcdf (true) or newer netCDF4 (false). Defaults to global lclassic.
+
   ! indices for the variables in the netCDF vars array
   integer :: ind, ind_u=-1, ind_v=-1, ind_w=-1, ind_qt=-1, ind_ql=-1, ind_thl=-1, ind_buoy=-1, ind_sv(100)=-1
 contains
@@ -63,20 +65,21 @@ contains
     use mpi
     use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc, lclassic_global=>lclassic
     implicit none
     integer :: ierr, n
     character(3) :: csvname
 
     namelist/NAMFIELDDUMP/ &
          dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lsv
+         lu, lv, lw, lqt, lql, lthl, lbuoy, lsv, lclassic
 
     dtav=dtav_glob
     klow=1
     khigh=kmax
     tmin = 0.
     tmax = 1e8
+    lclassic = lclassic_global
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
@@ -170,7 +173,7 @@ contains
       end do
       nvar = ind - 1 ! total number of fields actually in use
 
-      call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
+      call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1,lclassic_par=lclassic)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
         call writestat_dims_nc(ncid, ncoarse)
