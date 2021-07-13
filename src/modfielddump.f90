@@ -213,7 +213,8 @@ contains
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
-    ! To Do: if not in the time range (itmin, itmax) return
+    ! Only write fields if time is in the range (tmin, tmax)
+    if (timee < itmin .or. timee > itmax) return
 
     if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
     if (lnetcdf) allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))
