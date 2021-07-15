@@ -512,7 +512,6 @@ contains
 
     ! interpolated ice-liquid saturation vapor pressure from table
     tlonr=int((T-150.)*5.)
-    !thinr=tlonr+1
     tlo = 150. + 0.2*tlonr
     thi = tlo + 0.2
     es = (thi-T)*5.*esatmtab(tlonr)+(T-tlo)*5.*esatmtab(tlonr+1)
@@ -522,10 +521,35 @@ contains
   end function qsat_tab
 
   subroutine icethermo0_fast
-    !> Calculates liquid water content ql from thl0 and qt0
-    ! Using 2 iterations of the (59) in the Heus 2010 article
-    ! and e_sat interpolated between liquid and ice expressions
-    !
+    !> Calculates liquid water content ql from thl0 and qt0.
+    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
+    !> and e_sat interpolated between liquid and ice expressions.
+    !>
+    !> Given thl0 and qt0, we search for T such that
+    !> (1) ql = qt - qsat(T)     (definition of ql, instant condensation if above saturation)
+    !> (2) ql = cp/L * (T - Tl)  (definition of Tl)
+    !> hold simultaneously, and solve for qsat(T).
+    !> Tl is thl0/exnf(k) .
+    !>
+    !> Steps of the derivation:
+    !> - 1st order Taylor expansion of qsat(T) around T = Tl
+    !> - insert (1) and (2)
+    !> - solve for qsat(T)
+    !> - use the Clausius-Clapeyron relation for the T-derivative of qsat
+    !>
+    !> 2 iterations gives a good accuracy, 1 iteration is not
+    !> sufficient.  Fixing the number of iterations makes the code
+    !> vectorize, a variable number of iterations prevents
+    !> vectorization.
+    !>
+    !> The procedure works also when qsat(T) is a linear interoplation
+    !> between qsat_liquid and qsat_ice, with slightly reduced
+    !> accuracy in the interpolation region.
+    !>
+    !> qsat (T) can be calculated in different ways, with different
+    !> accuracy vs computing cost.  The fastest so far is to use a
+    !> lookup table for esat(T), and interpolate linearly in it.
+
     !! \author Fredrik Jansson, Jisk Attema, Pier Siebesma
 
     use modglobal, only : i1,j1,k1,rv,rlv,cp
@@ -533,56 +557,43 @@ contains
 
     implicit none
     integer :: i, j, k
-    real :: Tl, qsat1, qt, ql, b
+    real :: Tl, qsat, qt, ql, b
     real Tl_min, qt_max
 
     do k=1,k1
-       ! find highest qt and lowest thl in the slab.
-       ! if they in combination are not saturated, the whole slab is below saturation
+       ! Optimization: if the whole horizontal slab at k is unsaturated,
+       ! the calculation of this slab can be skipped.
+       ! Find highest qt and lowest thl in the slab.
+       ! If they in combination are not saturated, the whole slab is below saturation.
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
-       qsat1 = qsat_tab(Tl_min, presf(k))
-       if (qt_max > qsat1) then
+       qsat = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
+       if (qt_max > qsat) then
           do j=2,j1
              do i=2,i1
                 Tl = exnf(k)*thl0(i,j,k)
                 qt = qt0(i,j,k)
-                qsat1 = qsat_tab(Tl, presf(k))
 
                 ! first step
+                qsat = qsat_tab(Tl, presf(k))
                 b = rlv**2 / (rv * cp * Tl**2)
-                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
-                ql = max(qt0(i,j,k) - qsat1, 0.)
+                ql = max(qt0(i,j,k) - qsat, 0.)
 
-                ! second step
                 ! update the starting point
                 Tl = Tl + (rlv/cp) * ql
                 qt = qt - ql
 
-                qsat1 = qsat_tab(Tl, presf(k))
-
+                ! second step
+                qsat = qsat_tab(Tl, presf(k))
                 b = rlv**2 / (rv * cp * Tl**2)
-                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
                 ! save results
-                ql = max(qt0(i,j,k) - qsat1, 0.)
+                ql = max(qt0(i,j,k) - qsat, 0.)
                 ql0(i,j,k) = ql
 
-                ! these fields are created on demand
-                ! qsat(i,j,k) = qsat1   ! = qt-ql when saturated i.e. ql > 0
-
-                ! the rest is calculated here using thl0, ql0
-                ! fields which will be globally available
-
-                !tmp0(i,j,k) = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql
-                !TC = tmp0(i,j,k) - 273.15 ! in Celcius
-
-                !esl1 = 610.94 * exp( (17.625*TC) / (TC+243.04) ) ! Magnus
-                !esi1 = 611.21 * exp( (22.587*TC) / (TC+273.86) ) ! Magnus
-                !esl(i,j,k) = esl1
-                !qvsl(i,j,k)= (rd/rv) * esl1 / (presf(k) - (1.-rd/rv)*esl1)
-                !qvsi(i,j,k)= (rd/rv) * esi1 / (presf(k) - (1.-rd/rv)*esi1)
              end do
           end do
        else
@@ -594,14 +605,17 @@ contains
   end subroutine icethermo0_fast
 
   ! this could be merged with icethermo0
-  ! if the extra fields stored are removed
   ! and input and output fields are given as parameters.
   ! in: thl, qt, exner,
   ! out: ql
+  !
+  ! alternatively merge with calc_halflev and calthv
+  ! to eliminate qt0h, thl0h, ql0h fields
   subroutine icethermoh_fast
     !> Calculates liquid water content ql for halflevels
-    ! Using 2 iterations of the (59) in the Heus 2010 article
-    ! and e_sat interpolated between liquid and ice expressions
+    ! Using 2 iterations of Eq. (59) in the Heus 2010 article
+    ! and e_sat interpolated between liquid and ice expressions.
+    ! See comments in icethermo0_fast above for more details.
     !
     !! \author Fredrik Jansson, Jisk Attema, Pier Siebesma
 
@@ -610,7 +624,7 @@ contains
 
     implicit none
     integer :: i, j, k
-    real :: Tl, qsat1, qt, ql, b
+    real :: Tl, qsat, qt, ql, b
     real Tl_min, qt_max
 
     do k=1,k1
@@ -618,36 +632,32 @@ contains
        ! if they in combination are not saturated, the whole slab is below saturation
        Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
        qt_max = maxval(qt0h(2:i1,2:j1,k))
-
-       qsat1 = qsat_tab(Tl_min, presh(k))
-       if (qt_max > qsat1) then
+       qsat = qsat_tab(Tl_min, presh(k))
+       if (qt_max > qsat) then
           do j=2,j1
              do i=2,i1
                 Tl = exnh(k)*thl0h(i,j,k)
                 qt = qt0h(i,j,k)
 
-                qsat1 = qsat_tab(Tl, presh(k))
-
                 ! first step
+                qsat = qsat_tab(Tl, presh(k))
                 b = rlv**2 / (rv * cp * Tl**2)
-                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
-                ql = max(qt0h(i,j,k) - qsat1, 0.)
+                ql = max(qt0h(i,j,k) - qsat, 0.)
 
-                ! second step
                 ! update the starting point
                 Tl = Tl + (rlv/cp) * ql
                 qt = qt - ql
 
-                qsat1 = qsat_tab(Tl, presh(k))
-
+                ! second step
+                qsat = qsat_tab(Tl, presh(k))
                 b = rlv**2 / (rv * cp * Tl**2)
-                qsat1 = qsat1 * (1 + b * qt) / (1 + b*qsat1)
+                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
                 ! save results
-                ql = max(qt0h(i,j,k) - qsat1, 0.)
+                ql = max(qt0h(i,j,k) - qsat, 0.)
                 ql0h(i,j,k) = ql
-
              end do
           end do
        else
