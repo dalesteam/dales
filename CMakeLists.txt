@@ -59,8 +59,8 @@ elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    set(CMAKE_Fortran_COMPILER "mpifrtpx")
-   set(CMAKE_Fortran_FLAGS "-CcdRR8 -g" CACHE STRING "")
-   set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS "-CcdRR8 -g -Koptmsg=2" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast -x 128" CACHE STRING "")
    set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O2" CACHE STRING "")
    # Fujitsu fortran compiler
    # -CcdRR8 default real is 64 bit, like gnu -fdefault-real-8
