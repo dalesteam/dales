@@ -312,24 +312,31 @@ contains
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          
-          if (ldelta .or. (dthvdz(i,j,k)<=0)) then
-             zlt(i,j,k) = delta(k)
+
+          !if (ldelta .or. (dthvdz(i,j,k)<=0)) then
+          !   zlt(i,j,k) = delta(k)
+
              !temporarily disable lmason and lanisotrop to see if this vectorizes better
             !if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
             !if (lanisotrop) zlt(i,j,k) = dzf(k)
-            ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
-            ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
+           ! ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+          !  ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
 
-            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
-            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-          else
-             zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+          !  ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+          !  ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+          !else
+             !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+             zlt(i,j,k) = min(delta(k), &
+             cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
+             delta(k) * (1-sign(1,dthvdz(i,j,k)))) ! this row is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)
+             
+
+
              ! faster calculation: evaluate sqrt only if the second argument is actually smaller
              !if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
              !   zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
              !end if
-             
+
             !if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
             !if (lanisotrop) zlt(i,j,k) = dzf(k)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
@@ -337,7 +344,7 @@ contains
 
             ekm(i,j,k) = max(ekm(i,j,k),ekmin)
             ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-          endif
+          ! endif
         end do
       end do
     end do
@@ -440,7 +447,7 @@ contains
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
                 - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
-    
+
   end do
   end do
   end do
@@ -466,8 +473,8 @@ contains
           + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
+          ! Use known surface flux and exchange coefficient to derive
+          ! consistent gradient (such that correct flux will occur in
           ! shear production term)
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
@@ -490,8 +497,8 @@ contains
                                  (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
+          ! Use known surface flux and exchange coefficient to derive
+          ! consistent gradient (such that correct flux will occur in
           ! shear production term)
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
@@ -523,7 +530,7 @@ contains
   end do
 
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
-            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)
 
   return
   end subroutine sources
