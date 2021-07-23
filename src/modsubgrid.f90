@@ -312,25 +312,26 @@ contains
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          zlt(i,j,k) = delta(k)
+          
           if (ldelta .or. (dthvdz(i,j,k)<=0)) then
-            if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
-            if (lanisotrop) zlt(i,j,k) = dzf(k)
+             zlt(i,j,k) = delta(k)
+             !temporarily disable lmason and lanisotrop to see if this vectorizes better
+            !if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+            !if (lanisotrop) zlt(i,j,k) = dzf(k)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
             ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
 
             ekm(i,j,k) = max(ekm(i,j,k),ekmin)
             ekh(i,j,k) = max(ekh(i,j,k),ekmin)
           else
-             ! zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+             zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
              ! faster calculation: evaluate sqrt only if the second argument is actually smaller
-             if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
-                zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
-             end if
+             !if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
+             !   zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
+             !end if
              
-            if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
-            if (lanisotrop) zlt(i,j,k) = dzf(k)
-
+            !if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+            !if (lanisotrop) zlt(i,j,k) = dzf(k)
             ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
             ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
 
