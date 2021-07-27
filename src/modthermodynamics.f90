@@ -500,6 +500,22 @@ contains
     qsat = (rd/rv) * es / (p - (1.-rd/rv)*es)
   end function qsat_huang
 
+  pure function esat_tab(T) result(es)
+    use modglobal, only : rd,rv
+    use modglobal, only : esatmtab
+
+    implicit none
+    real, intent(in) :: T
+    integer :: tlonr
+    real :: tlo, thi, es
+
+    ! interpolated ice-liquid saturation vapor pressure from table
+    tlonr=int((T-150.)*5.)
+    tlo = 150. + 0.2*tlonr
+    thi = tlo + 0.2
+    es = (thi-T)*5.*esatmtab(tlonr)+(T-tlo)*5.*esatmtab(tlonr+1)
+  end function esat_tab
+
   pure function qsat_tab(T, p) result(qsat)
     use modglobal, only : rd,rv
     use modglobal, only : esatmtab
@@ -558,15 +574,23 @@ contains
     implicit none
     integer :: i, j, k
     real :: Tl, qsat, qt, ql, b
-    real Tl_min, qt_max
+    real Tl_min, Tl_max, qt_max
 
     do k=1,k1
        ! Optimization: if the whole horizontal slab at k is unsaturated,
        ! the calculation of this slab can be skipped.
        ! Find highest qt and lowest thl in the slab.
        ! If they in combination are not saturated, the whole slab is below saturation.
+       ! Also do range checks of Tl here. Tl must be within the range of the table,
+       ! and below the boiling point of water at this level.
+       ! Setting the limit at 5K below the boiling point here. Crossing the boiling point
+       ! is detected by esat > presf(k)
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
+       Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
+       if (Tl_min < 150) STOP 'icethermo0_fast: Tl_min below limit 150K'
+       if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
+
        qsat = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat) then
           do j=2,j1
@@ -625,12 +649,15 @@ contains
     implicit none
     integer :: i, j, k
     real :: Tl, qsat, qt, ql, b
-    real Tl_min, qt_max
+    real Tl_min, Tl_max, qt_max
 
     do k=1,k1
        ! find highest qt and lowest thl in the slab.
        ! if they in combination are not saturated, the whole slab is below saturation
        Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
+       Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
+       if (Tl_min < 150) STOP 'icethermoh_fast: Tl_min below limit 150K'
+       if (esat_tab(Tl_max + 5) > presh(k)) STOP 'icethermoh_fast: Tl_max too close to boiling point'
        qt_max = maxval(qt0h(2:i1,2:j1,k))
        qsat = qsat_tab(Tl_min, presh(k))
        if (qt_max > qsat) then
