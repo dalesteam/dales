@@ -30,6 +30,7 @@
 
 module modsubgrid
 use modsubgriddata
+use modprecision, only: field_r
 implicit none
 save
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
@@ -37,7 +38,6 @@ save
 contains
   subroutine initsubgrid
     use modglobal, only : ih,i1,jh,j1,k1,delta,deltai,dx,dy,zf,dzf,fkar,pi
-    use mpi
     use modmpi, only : myid
 
     implicit none
@@ -116,8 +116,7 @@ contains
 
   subroutine subgridnamelist
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
-    use mpi
-    use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
+    use modmpi,    only : myid, comm3d, mpierr, mpi_logical, D_MPI_BCAST
 
     implicit none
 
@@ -136,18 +135,18 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(ldelta     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lmason     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(nmason     ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lsmagorinsky,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lanisotrop ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(cs         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cf         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cn         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(Rigc       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ch1        ,1,MY_REAL   ,0,comm3d,mpierr)
+    call D_MPI_BCAST(ldelta          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lmason          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lsmagorinsky    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lanisotrop      ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(sgs_surface_fix ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(nmason          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cs              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cf              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cn              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(Rigc            ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(Prandtl         ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(ch1             ,1, 0,comm3d,mpierr)
 
   end subroutine subgridnamelist
 
@@ -556,8 +555,8 @@ contains
     use modfields, only : rhobf,rhobh
     implicit none
 
-    real, intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in)    :: flux (i2,j2)
 
     integer i,j,k,jm,jp,km,kp
@@ -619,7 +618,7 @@ contains
     use modfields, only : e120,rhobf,rhobh
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -680,7 +679,7 @@ contains
     use modsurfdata,only : ustar
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
@@ -792,7 +791,7 @@ contains
 
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
@@ -901,7 +900,7 @@ contains
 
   !*****************************************************************
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
 

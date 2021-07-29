@@ -101,4 +101,5 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
           fi
           cd build
-          make -j2 dales4.3
+          make -j2
+
