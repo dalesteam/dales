@@ -506,9 +506,9 @@ contains
     use modglobal, only : esatmtab
 
     implicit none
-    real, intent(in) :: T
+    real(field_r), intent(in) :: T
     integer :: tlonr
-    real :: tlo, thi, es
+    real(field_r) :: tlo, thi, es
 
     ! interpolated ice-liquid saturation vapor pressure from table
     tlonr=int((T-150.)*5.)
@@ -522,10 +522,10 @@ contains
     use modglobal, only : esatmtab
 
     implicit none
-    real, intent(in) :: T, p
-    real :: qsat
+    real(field_r), intent(in) :: T, p
+    real(field_r) :: qsat
     integer :: tlonr
-    real :: tlo, thi, es
+    real(field_r) :: tlo, thi, es
 
     ! interpolated ice-liquid saturation vapor pressure from table
     tlonr=int((T-150.)*5.)
@@ -574,8 +574,8 @@ contains
 
     implicit none
     integer :: i, j, k
-    real :: Tl, qsat, qt, ql, b
-    real Tl_min, Tl_max, qt_max
+    real(field_r) :: Tl, qsat, qt, ql, b
+    real(field_r) :: Tl_min, Tl_max, qt_max
 
     do k=1,k1
        ! Optimization: if the whole horizontal slab at k is unsaturated,
@@ -649,8 +649,8 @@ contains
 
     implicit none
     integer :: i, j, k
-    real :: Tl, qsat, qt, ql, b
-    real Tl_min, Tl_max, qt_max
+    real(field_r) :: Tl, qsat, qt, ql, b
+    real(field_r) :: Tl_min, Tl_max, qt_max
 
     do k=1,k1
        ! find highest qt and lowest thl in the slab.

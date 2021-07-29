@@ -878,9 +878,9 @@ endsubroutine untranspose_svs
 pure function qvsl_magnus(T, p) result(qvsl)
   use modglobal, only : rd,rv
   implicit none
-  real, intent(in) :: T, p
-  real :: qvsl
-  real TC, esl
+  real(field_r), intent(in) :: T, p
+  real(field_r) :: qvsl
+  real(field_r) TC, esl
 
   ! Magnus formulas for e_sat over liquid and ice
   ! from Huang 2018 https://doi.org/10.1175/JAMC-D-17-0334.
@@ -909,8 +909,8 @@ use modfields, only : rhof, thl0, qt0, ql0, svm, sv0, presf, exnf
 implicit none
 
 integer :: i,j,k
-real :: x_min, Nc_set, q_tocl,n_prop  ! availabel water and proposed size
-real qvsl, tmp
+real :: x_min, Nc_set, q_tocl,n_prop  ! available water and proposed size
+real(field_r) :: qvsl, tmp
 
 x_min = xc0_min  ! minimal size of droplets
 Nc_set =  Nc0    ! prescribed number of droplets

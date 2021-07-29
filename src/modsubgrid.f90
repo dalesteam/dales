@@ -315,7 +315,7 @@ contains
               do i=2,i1
                  zlt(i,j,k) = min(delta(k), &
                       cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
-                      delta(k) * (1.0-sign(1.0,dthvdz(i,j,k))))
+                      delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))
                  ! the last row is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)
                  ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as
                  ! in the original scheme.
