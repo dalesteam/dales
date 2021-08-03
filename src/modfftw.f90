@@ -361,13 +361,11 @@ contains
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*konx + 1, (n+1)*konx
+    do k=n*konx + 1, min(kmax, (n+1)*konx)
     do j=2,j1
     do i=2,i1
       ii = ii + 1
-      if (k <= kmax) then
-        bufin(ii) = p(i,j,k)
-      endif
+      bufin(ii) = p(i,j,k)
     enddo
     enddo
     enddo
@@ -422,13 +420,11 @@ contains
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*konx + 1,(n+1)*konx
+    do k=n*konx + 1, min(kmax, (n+1)*konx)
     do j=2,j1
     do i=2,i1
         ii = ii + 1
-        if (k <= kmax) then
-          p(i,j,k) = bufout(ii)
-        endif
+        p(i,j,k) = bufout(ii)
     enddo
     enddo
     enddo
@@ -453,12 +449,11 @@ contains
     do n=0,nprocy-1
     do k=1,konx
     do j=1,jmax
-    do i=n*iony + 1,(n+1)*iony
+    do i=n*iony + 1, min(itot, (n+1)*iony)
       ii = ii + 1
-      if (i <= itot) then
-        bufin(ii) = p210(i,j,k)
-      endif
+      bufin(ii) = p210(i,j,k)
     enddo
+    ii = ii + max(0, (n+1)*iony - itot)
     enddo
     enddo
     enddo
@@ -514,12 +509,11 @@ contains
     do n=0,nprocy-1
     do k=1,konx
     do j=1,jmax
-    do i=n*iony+1,(n+1)*iony
+    do i=n*iony+1, min(itot, (n+1)*iony)
       ii = ii + 1
-      if (i <= itot) then
-        p210(i,j,k) = bufout(ii)
-      endif
+      p210(i,j,k) = bufout(ii)
     enddo
+    ii = ii + max(0, (n+1)*iony - itot)
     enddo
     enddo
     enddo
@@ -542,14 +536,13 @@ contains
     ii = 0
     do n=0,nprocx-1
     do k=1,konx
-    do j=n*jonx+1,(n+1)*jonx
+    do j=n*jonx+1, min(jtot, (n+1)*jonx)
     do i=1,iony
       ii = ii + 1
-      if (j <= jtot) then
-        bufin(ii) = p201(j,k,i)
-      endif
+      bufin(ii) = p201(j,k,i)
     enddo
     enddo
+    ii = ii + max(0, ((n+1)*jonx - jtot)*iony)
     enddo
     enddo
 
@@ -559,13 +552,11 @@ contains
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*konx+1,(n+1)*konx
+    do k=n*konx+1, min(kmax, (n+1)*konx)
     do j=1,jonx
     do i=1,iony
         ii = ii + 1
-        if (k <= kmax) then
-          Fp(i,j,k) = bufout(ii)
-        endif
+        Fp(i,j,k) = bufout(ii)
     enddo
     enddo
     enddo
@@ -588,13 +579,11 @@ contains
 
     ii = 0
     do n=0,nprocx-1
-    do k=n*konx+1,(n+1)*konx
+    do k=n*konx+1, min(kmax, (n+1)*konx)
     do j=1,jonx
     do i=1,iony
       ii = ii + 1
-      if (k <= kmax) then
-        bufin(ii) = Fp(i,j,k)
-      endif
+      bufin(ii) = Fp(i,j,k)
     enddo
     enddo
     enddo
@@ -607,14 +596,13 @@ contains
     ii = 0
     do n=0,nprocx-1
     do k=1,konx
-    do j=n*jonx+1,(n+1)*jonx
+    do j=n*jonx+1, min(jtot, (n+1)*jonx)
     do i=1,iony
         ii = ii + 1
-        if (j <= jtot) then
-          p201(j,k,i) = bufout(ii)
-        endif
+        p201(j,k,i) = bufout(ii)
     enddo
     enddo
+    ii = ii + max(0, ((n+1)*jonx - jtot)*iony)
     enddo
     enddo
 
