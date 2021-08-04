@@ -394,10 +394,10 @@ contains
     do n=0,nprocx-1
     do k=1,konx
     do j=1,jmax
-    do i=n*imax + 1, (n+1)*imax
-        ii = ii + 1
-        p210(i,j,k) = bufout(ii)
+    do i= 1,imax
+        p210(n*imax+i,j,k) = bufout(ii+i)
     enddo
+    ii = ii + imax
     enddo
     enddo
     enddo
@@ -437,9 +437,9 @@ contains
     do k=n*konx + 1, min(kmax, (n+1)*konx)
     do j=2,j1
     do i=2,i1
-        ii = ii + 1
-        p(i,j,k) = bufout(ii)
+        p(i,j,k) = bufout(ii+i-1)
     enddo
+    ii = ii + i1-1
     enddo
     enddo
     enddo
@@ -480,9 +480,9 @@ contains
     do k=1,konx
     do j=n*jmax+1,(n+1)*jmax
     do i=1,iony
-        ii = ii + 1
-        p201(j,k,i) = bufout(ii)
+       p201(j,k,i) = bufout(ii+i)
     enddo
+    ii = ii + iony
     enddo
     enddo
     enddo
