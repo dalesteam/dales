@@ -63,7 +63,7 @@ contains
     use mpi
     use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     implicit none
     integer :: ierr, n
     character(3) :: csvname
@@ -122,7 +122,7 @@ contains
       fname(19:21) = cexpnr
       nvar = 7+nsv ! maximum number of variables
       allocate(ncname(nvar,4))
-      call ncinfo(tncname(1,:),'time','Time','s','time')
+      call nctiminfo(tncname(1,:))
       ind = 1
       if (lu) then
          ind_u = ind
