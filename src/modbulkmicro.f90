@@ -137,7 +137,7 @@ module modbulkmicro
           do j=2,j1
             do i=2,i1
               if (qrmask(i,j,k)) then
-                lbdr = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr
+                lbdr(i,j,k) = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr(i,j,k)
               !else
               !  lbdr = 0.
               endif
@@ -581,6 +581,9 @@ module modbulkmicro
 
     real,save :: dt_spl,wfallmax
 
+    precep = 0 ! zero the precipitation flux field
+               ! the update below is not always performed
+
     if (qrbase.gt.qrroof) return
 
     allocate(qr_spl(2:i1,2:j1,1:k1))
@@ -616,6 +619,7 @@ module modbulkmicro
             if (qrmask(i,j,k)) then
               ! correction for width of DSD
               Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
+              sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
               sed_Nr = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
 
               ! correction for the fact that pwcont .ne. qr_spl
@@ -625,8 +629,6 @@ module modbulkmicro
                 sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr
                 ! or:
                 ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
-              else
-                sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
               endif
 
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
