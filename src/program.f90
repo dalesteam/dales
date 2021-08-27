@@ -152,6 +152,7 @@ program DALES      !Version 4.0.0alpha
   use modcanstat,      only : initcanstat ,canstat, exitcanstat
   use modcandump,      only : initcandump, candump,exitcandump
   
+  use modraddata,only : swdir
   implicit none
 
 !----------------------------------------------------------------

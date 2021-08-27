@@ -127,6 +127,22 @@ contains
         isAllocated_RadInputsOutputs = .true.
       end if
     end if
+    !initialize rad arrays to 0 XPB
+    lwUp_slice      = 0.
+    lwDown_slice    = 0.
+    lwUpCS_slice    = 0.
+    lwDownCS_slice  = 0.
+    swUp_slice      = 0.
+    swDown_slice    = 0.
+    swDownDir_slice = 0.
+    swDownDif_slice = 0.
+    swUpCS_slice    = 0.
+    swDownCS_slice  = 0.
+    lwHR_slice      = 0.
+    lwHRCS_slice    = 0.
+    swHR_slice      = 0.
+    swHRCS_slice    = 0.
+
 
     if(.not.isReadTraceProfiles) then
       ! Patch sounding profile pressures above domain pressures (convert to hPa!)
@@ -180,9 +196,10 @@ contains
          end if
       end if
 
-      lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
-      lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
-      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
+      if (rad_longw) then !IF added not to propagate LW effects of canopy LW to levels above  #XPB
+        lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
+        lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
+      else !(.not. rad_longw) then !we get LW only at surface identically to how it is done in sunray subroutine 
         do i=2,i1
           lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
           lwu(i,j,1) =  1.0 * boltz * tskin_rad(i,j) ** 4.
@@ -213,7 +230,7 @@ contains
 
     end do ! Large loop over j=2,j1
 
-    do k=kmin_rad,kmax
+    do k=kmin_rad,kmax ! starts at kmin_rad so that no tendency is considered below kmin_rad if canopyeb is present
       do j=2,j1
         do i=2,i1
           thlpld          = -(lwd(i,j,k+1)-lwd(i,j,k))
@@ -572,7 +589,8 @@ contains
 
       use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
       use modfields, only: thl0,ql0,qt0,exnf
-      use modsurfdata, only: thls,ps
+      use modsurfdata, only: ps,thls
+      use modraddata, only: tskin_rad
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
 
@@ -585,7 +603,8 @@ contains
                                            liquidRe (imax,krad1), &
                                            iceRe    (imax,krad1)
       integer :: i,k,ksounding,im
-      real (KIND=kind_rb) :: sst
+      !real (KIND=kind_rb) :: sst
+      real (KIND=kind_rb) :: exners
       real(KIND=kind_rb) :: layerMass(imax,krad1)
       !real(KIND=kind_rb),dimension(imax,kmax)     :: tabs         ! Absolute temperature
       real(KIND=kind_rb),dimension(imax,jmax)     :: sstxy        ! sea surface temperature
@@ -598,7 +617,8 @@ contains
       sstxy(:,:) = 0.
       tabs_slice(:,:) = 0.; qv_slice(:,:) = 0.; qcl_slice(:,:) = 0.; qci_slice(:,:) = 0.;
 
-      sst = thls*(ps/pref0) ** (rd/cp)
+      !sst = thls*(ps/pref0) ** (rd/cp)
+      exners = (ps/pref0) ** (rd/cp)
 
       do i=2,i1
       do k=1,kmax
@@ -612,19 +632,22 @@ contains
       !                  + (rlv / cp) * ql0(2:i1,j,2:k1)
 
       do i=2,i1
-      im=i-1
-      do k=1,kmax
-         qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
-         qcl_slice (im,k) = ql0(i,j,k)
-         qci_slice (im,k) = 0.
-         o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
-         tg_slice  (im)   = sst
+        im=i-1
+        
+        !  tg_slice  (im)   = sst
+        tg_slice  (im)   = tskin_rad(i,j) * exners  ! Note: tskin = thlskin...
+        
+        do k=1,kmax
+          qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
+          qcl_slice (im,k) = ql0(i,j,k)
+          qci_slice (im,k) = 0.
+          o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
 
-         h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
+          h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
 !         h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
-         layerT    (im,k) = tabs_slice(im,k)
-         layerP    (im,k) = presf_input(k)
-      enddo
+          layerT    (im,k) = tabs_slice(im,k)
+          layerP    (im,k) = presf_input(k)
+        enddo
       enddo
 
      ! Patch sounding on top (no qcl or qci above domain; hard coded)

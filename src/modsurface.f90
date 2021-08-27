@@ -74,6 +74,7 @@ contains
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,albedo_rad
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
+    use modcanopy, only : lcanopyeb
 
     implicit none
 
@@ -97,7 +98,7 @@ contains
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
-      lsplitleaf,l3leaves,sigma
+      lsplitleaf,l3leaves,sigma,surfrad_meth
 
 
     ! 1    -   Initialize soil
@@ -168,7 +169,8 @@ contains
     call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(l3leaves                   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(sigma                      ,            1, MY_REAL    , 0, comm3d, mpierr)
-    
+    call MPI_BCAST(surfrad_meth                ,            1, MPI_INTEGER, 0, comm3d, mpierr)
+
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
@@ -177,8 +179,7 @@ contains
       lCO2Ags = .false.
     endif
     if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) .or. (iradiation .eq. irad_rrtmg))))) then
-      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw"
-      if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
+      if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw and choose right iradiation"
       lsplitleaf = .false.
     endif
 
@@ -1049,8 +1050,6 @@ contains
     
     !XPB Use surface tskin for radiation, unless lcanopyeb=true. 
     !    If so, tskin_rad is overwritten by tskin_can
-    !print *,'tskin_rad modsurf1048',tskin_rad(2,2)
-    !print *,'albedo_rad modsurf1048',albedo_rad(2,2)
     !if (lcanopyeb) then
     if (.False.) then !Im not sure tskin from canopy top will help
       if (.not. tskin_set) then ! in first call we use surface ppties because canopy needs rad and is not called yet. Afterwards, canopy top
@@ -1062,8 +1061,6 @@ contains
         tskin_rad (:,:) = tskin_surf (:,:)
         qskin_rad (:,:) = qskin_surf (:,:)
     endif
-    !print *,'tskin_rad modsurf1051',tskin_rad(2,2)
-    !print *,'albedo_rad modsurf1051',albedo_rad(2,2)
 
     return
 
@@ -1205,6 +1202,12 @@ contains
                    if(Rib < 0) L = -0.01
                 end if
                 if(abs((L - Lold)/L) < 1e-4) exit
+                if(iter > 1000) then 
+                   print *,'XPB tskin_surf(i,j),qskin_surf(i,j)',tskin_surf(i,j),qskin_surf(i,j)
+                   print *,'XPB thl0(i,j,1), qt0(i,j,1)',thl0(i,j,1),qt0(i,j,1)
+                   print *,'XPB grav,thvs,thv,thvsl,horv2',grav,thvs,thv,thvsl,horv2
+                   print *,'XPB L,Rib, zf(1),z0h(i,j),z0m(i,j)',L,Rib, zf(1),z0h(i,j),z0m(i,j)
+                endif  
                 if(iter > 1000) stop 'Obukhov length calculation does not converge!'
              end do
 
@@ -1699,8 +1702,10 @@ contains
     real     :: Fleafsun(nangle_gauss),gleafsun(nangle_gauss)
     real     :: Fnet(nz_gauss), gnet(nz_gauss)
     integer  :: angle
+    real     :: absPAR_ground! not used, but needed due to function definition
     ! vars needed for canopyeb
     real     :: fSL_bot, rs_leafshad_bot,rs_leafsun_bot,Fco2_can_bot
+    real     :: abssw_ground ! absorbed SW radiation by vegetated ground, only used if lcanopyeb
 
     real     :: lthls_patch(xpatches,ypatches)
     integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
@@ -1745,6 +1750,7 @@ contains
     local_gcco2av= 0.0
     local_alb_canav= 0.0
     local_Respav = 0.0
+    abssw_ground=0.0
 
     if (lrsAgs) then
       AnField    = 0.0
@@ -1882,17 +1888,17 @@ contains
           if (lsplitleaf) then
             PARdir_TOV = 0.5 * max(0.1,abs(swdir(i,j,1)))
             PARdif_TOV = 0.5 * max(0.1,abs(swdif(i,j,1)))
-           !call canopyrad(nz_gauss,LAI_surf(i,j),LAI_surf(i,j)*LAI_g,PARdir_TOV,PARdif_TOV,albedo_surf(i,j),1.0,& ! in! 
-           !     PARleaf_shad,PARleaf_sun,fSL,& 
-           !     albdir_lsplit(i,j),albdif_lsplit(i,j),albswd_lsplit(i,j),&
-           !     PARdir_lsplit(:nz_gauss),PARdif_lsplit(:nz_gauss),PARu_lsplit(:nz_gauss))! couldbe used for radiation
+            call canopyrad(nz_gauss,LAI_surf(i,j),LAI_surf(i,j)*LAI_g,PARdir_TOV,PARdif_TOV,albedo_surf(i,j),1.0,surfrad_meth,& ! in! 
+                 PARleaf_shad,PARleaf_sun,fSL,& 
+                 albdir_lsplit(i,j),albdif_lsplit(i,j),albswd_lsplit(i,j),&
+                 PARdir_lsplit(:nz_gauss),PARdif_lsplit(:nz_gauss),PARu_lsplit(:nz_gauss),absPAR_ground)! could be coupled to radiation
             !assume SW = 2.0*PAR
             swdir_lsplit(i,j,:nz_gauss) = 2.0 * PARdir_lsplit(:nz_gauss)
             swdif_lsplit(i,j,:nz_gauss) = 2.0 * PARdif_lsplit(:nz_gauss)
             swu_lsplit  (i,j,:nz_gauss) = 2.0 * PARu_lsplit  (:nz_gauss)
             do itg = 1,nz_gauss
               !shaded
-              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j),  & ! in
+              call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskinm_surf(i,j),  & ! in
                          phitot(i,j),PARleaf_shad(itg), & ! in 
                          lrelaxgc_surf,gcsurf_old_set,kgc_surf,gshad_old(i,j,itg),rk3coef, & ! in
                          lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j), & ! in
@@ -1901,7 +1907,7 @@ contains
               !sunny
               if (l3leaves) then      ! 3 angles for sunny leaves
                 do angle=1,nangle_gauss
-                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j), & ! in
+                  call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskinm_surf(i,j), & ! in
                              phitot(i,j),PARleaf_sun(itg,angle),  & ! in
                              lrelaxgc_surf,gcsurf_old_set,kgc_surf,gleafsun_old(i,j,itg,angle),rk3coef, & ! in
                              lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j), & ! in
@@ -1921,7 +1927,7 @@ contains
                 gsun   = sum(weight_g * gleafsun(1:nangle_gauss))
               else ! angles PAR are averaged
                 PARleaf_allsun   = sum(weight_g * PARleaf_sun(itg,1:nangle_gauss))
-                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j), & ! in
+                call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskinm_surf(i,j), & ! in
                            phitot(i,j),PARleaf_allsun(itg), & ! in
                            lrelaxgc_surf,gcsurf_old_set,kgc_surf,gsun_old(i,j,itg),rk3coef,& !
                            lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j),& !
@@ -1953,13 +1959,13 @@ contains
           else ! lsplitleaf
             if (lcanopyeb) then
             ! move to the canopy module and rewrite ,among others,swd modified by canopy and needed for surface
-              call canopyeb(i,j,ps,rk3coef)           ! in
+              call canopyeb(i,j,ps,rk3coef,abssw_ground)           ! in
             endif ! lcanopyeb  
              ! and for understory vegetation:
             
             !upscaling following Ronda et al
-            PAR      = 0.50 * max(0.1,abs(swd(i,j,1))) !
-            call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskin_surf(i,j),& ! in
+            PAR      = 0.50 * max(0.1,abssw_ground) !assume 50% of SW absorbed is PAR
+            call f_Ags(svm(i,j,1,indCO2),qt0(i,j,1),rhof(1),thl0(i,j,1),ps,tskinm_surf(i,j),& ! in
                        phitot(i,j),PAR, & ! in
                        lrelaxgc_surf,gcsurf_old_set,kgc_surf,gc_old(i,j),rk3coef,   & ! in
                        lrelaxci_surf,cisurf_old_set,kci_surf,ci_old(i,j),           & ! in
@@ -2016,7 +2022,6 @@ contains
 
           CO2flux(i,j) = wco2 * 1000.0 ! In ppb m/s
 
-
           local_wco2av = local_wco2av + wco2
           local_Anav   = local_Anav   + An
           local_gcco2av= local_gcco2av   + gcco2
@@ -2071,7 +2076,6 @@ contains
             endif
           end if
         endif
-
         ! 2.2   - Calculate soil resistance based on ECMWF method
 
         f2  = (phifc - phiwp) / (phiw(i,j,1) - phiwp)

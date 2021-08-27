@@ -234,7 +234,7 @@ contains
 !> Calculates the statistics
   subroutine do_radstat
 
-    use modmpi,    only :  slabsum
+    use modmpi,    only :  slabsum,myid
     use modglobal, only : kmax,ijtot,cp,dzf,i1,j1,k1,ih,jh
     use modfields, only : thlpcar,rhof,exnf
     use modraddata, only : lwd,lwu,swd,swdir,swdif,swu,thlprad,irad_par,iradiation
@@ -294,6 +294,7 @@ contains
     thllwtendmn = thllwtendmn + thllwtendav / ijtot
     thlswtendmn = thlswtendmn + thlswtendav / ijtot
     thlradlsmn  = thlradlsmn  + thlpcar
+    
 
     if (lradclearair) call radclearair
   end subroutine do_radstat

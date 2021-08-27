@@ -206,7 +206,6 @@ contains
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
-    use modcanopy, only : ncanopy,lcanopyeb
     implicit none
 
     if(timee<tnext .and. rk3step==3) then
@@ -215,7 +214,6 @@ contains
     if((itimerad==0 .or. timee==tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
       thlprad = 0.0
-      !print *,'tskin_rad modrad221',tskin_rad(2,2)
       select case (iradiation)
           case (irad_none)
           case (irad_full)
@@ -237,9 +235,6 @@ contains
             call rad_user
 
       end select
-     !if (lcanopyeb) then ! correct rad tencencies in canopy are written by canopyeb
-     !  thlprad(:,:,:ncanopy)= 0
-     !endif
       if (rad_ls) then
         call radprof
       endif
