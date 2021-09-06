@@ -61,6 +61,9 @@ module modlsm
     ! Random
     real, allocatable :: du_tot(:,:), thv_1(:,:), land_frac(:,:)
 
+    ! A-Gs
+    real, allocatable :: an_co2(:,:), resp_co2(:,:)
+
     ! Data structure for sub-grid tiles
     type lsm_tile
         ! Static properties:
@@ -96,6 +99,7 @@ module modlsm
     real, allocatable :: &
         theta_res(:), theta_wp(:), theta_fc(:), theta_sat(:), &
         gamma_theta_sat(:), vg_a(:), vg_l(:), vg_n(:)
+
     ! Derived soil parameters
     real, allocatable :: &
         vg_m(:), &
@@ -317,7 +321,7 @@ subroutine calc_canopy_resistance_js
             ! Calculate canopy and soil resistance
             tile_lv%rs(i,j) = tile_lv%rs_min(i,j) / tile_lv%lai(i,j) * f1(i,j) * f2_lv(i,j)
             tile_hv%rs(i,j) = tile_hv%rs_min(i,j) / tile_hv%lai(i,j) * f1(i,j) * f2_hv(i,j) * f3(i,j)
-            tile_bs%rs(i,j) = tile_hv%rs_min(i,j) / f2b(i,j)
+            tile_bs%rs(i,j) = tile_bs%rs_min(i,j) / f2b(i,j)
             tile_ws%rs(i,j) = 0.
 
         end do
@@ -327,23 +331,306 @@ end subroutine calc_canopy_resistance_js
 
 !
 ! Calculate canopy and soil resistances using A-Gs (plant physiology).
+! In addition, this calculates/sets the surface CO2 fluxes...
 !
 subroutine calc_canopy_resistance_ags
     use modglobal,   only : i1, j1
-    use modfields,   only : thl0, qt0, exnf, presf
-    use modsurface,  only : ps
+    use modfields,   only : rhof, exnh, qt0, presf, svm
+    use modsurface,  only : E1, ps
+    use modsurfdata, only : svflux, tskin, phiw, tsoil
     use modraddata,  only : swd
-    use modsurfdata, only : phiw
     use modemisdata, only : l_emission, svco2ags, svco2sum
 
     implicit none
 
+    ! NOTE: these should become a namelist switches...
+    logical, parameter :: lsplitleaf = .false.
+    logical, parameter :: lrelaxgc = .false.
+
+    real :: Ts, co2_comp, gm, fmin0, fmin, esatsurf, e, Ds, Dmax, cfrac, co2_abs, ci, to_ppb, from_ppb
+    real :: Ammax, fstr, Am, Rdark, PAR, alphac, AGSa1, Dstar, tempy, An, gc_inf, gcco2, fw, t_mean, th_mean, rs_co2
+    real :: cveg, cland, theta_min, theta_rel
     integer :: i, j, k, si
 
-    k = kmax_soil
+    ! Fixed constants (** = same in DALES and IFS, !! = different in DALES and IFS)
+    real, parameter :: Q10gm = 2.0        ! (**) Parameter to calculate the mesophyll conductance
+    real, parameter :: Q10am = 2.0        ! (**) Parameter to calculate max primary productivity
+    real, parameter :: Q10lambda = 1.5    ! (!!) Parameter to calculate the CO2 compensation concentration. (2 in IFS, 1.5 in DALES)
+
+    ! Reference temperatures calculation mesophyll conductance:
+    real, parameter :: T1gm = 278         ! (**)
+    real, parameter :: T2gm = 301         ! (!!: IFS=309, DALES=301 (default), 309 (C4))
+
+    ! Reference temperatues calculation max primary productivity:
+    real, parameter :: T1Am = 286         ! (!!: IFS=281, DALES=286 (C4))
+    real, parameter :: T2Am = 311         ! (**)
+
+    real, parameter :: nuco2q = 1.6       ! Ratio molecular viscosity water to carbon dioxide
+    real, parameter :: gmin = 2.5e-4      ! Cuticular (minimum) conductance. NOTE: = g_cu in IFS?
+    real, parameter :: ad =  0.07         ! Regression coefficient to calculate Cfrac
+    real, parameter :: Kx = 0.7           ! Extinction coefficient PAR
+
+    !????
+    real, parameter :: alpha0 =  0.014    ! Initial low light conditions (?)
+
+    real, parameter :: Mair = 28.97
+    real, parameter :: Mco2 = 44
+
+    ! Parameters respiration Jacobs (2006)
+    real, parameter :: Cw = 1.6e-3        ! Constant water stress correction
+    real, parameter :: wsmax = 0.55       ! Upper reference value soil water   # NOTE: I guess these are soil dependant?
+    real, parameter :: wsmin = 0.005      ! Lower reference value soil water   # NOTE: see line above :-)
+    real, parameter :: R10 =   0.23       ! Respiration at 10oC (Jacobs 2007)
+    real, parameter :: Eact0 = 53.3e3     ! Activation energy
+
+    ! Vegetation specific constants
+    ! TODO: link to lookup table IFS, for now hardcoded for single veg type.....
+    real, parameter :: gm298 = 7 !1.3     ! (mm s-1) NOTE: Much lower than DALES...
+    real, parameter :: Ammax298 = 1.7     ! CO2 maximal primary productivity
+    real, parameter :: f0 = 0.85          ! Maximum value Cfrac (constant or equation in IFS)
+    real, parameter :: co2_comp298 = 68.5 ! CO2 compensation concentration = Lambda(25) in IFS
+
+    ! For sw_splitleaf
+    !nr_gauss = 3                                 ! Amount of bins to use for Gaussian integrations
+    !weight_g = np.array([0.2778,0.4444,0.2778])  ! Weights of the Gaussian bins (must add up to 1)
+    !angle_g  = np.array([0.1127,   0.5,0.8873])  ! Sines of the leaf angles compared to the sun in the first Gaussian integration
+    !LAI_g    = np.array([0.1127,   0.5,0.8873])  ! Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
+    !sigma    = 0.2                               ! Scattering coefficient
+    !kdfbl    = 0.8                               ! Diffuse radiation extinction coefficient for black leaves
+
+    ! Conversion factors
+    ! NOTE: this should use the surface density, not `rhof(1)`.
+    to_ppb   = Mair/Mco2/rhof(1)*1000
+    from_ppb = 1./to_ppb
+
     do j=2,j1
         do i=2,i1
-            si = soil_index(i,j,k)
+            si = soil_index(i, j, kmax_soil)
+
+            Ts = tskin(i,j) * exnh(1)
+
+            ! Calculate the CO2 compensation concentration (IFS eq. 8.92)
+            ! "The compensation point Γ is defined as the CO2 concentration at which the net CO2 assimilation of a fully lit leaf becomes zero."
+            ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
+            co2_comp = rhof(1) * co2_comp298 * Q10lambda**(0.1 * (Ts - 298.0))
+
+            ! Calculate the mesophyll conductance (IFS eq. 8.93)
+            ! "The mesophyll conductance gm describes the transport of CO2 from the substomatal cavities to the mesophyll cells where the carbon is fixed."
+            ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
+            gm = gm298 * Q10gm**(0.1 * (Ts - 298.0)) / ((1. + exp(0.3 * (T1gm - Ts))) * (1. + exp(0.3 * (Ts - T2gm)))) / 1000.
+
+            ! Calculate CO2 concentration inside the leaf (ci)
+            ! NOTE: Differs from IFS
+            fmin0 = gmin/nuco2q - (1./9.)*gm
+            fmin  = (-fmin0 + (fmin0**2 + 4*gmin/nuco2q*gm)**0.5) / (2.*gm)
+
+            ! Calculate atmospheric moisture deficit
+            ! NOTE: "Therefore Ci/Cs is specified as a function of atmospheric moisture deficit Ds at the leaf surface"
+            !       In DALES, this uses a mix between esat(surface) and e(atmosphere)
+            !       In IFS, this uses (in kg kg-1): qsat(Ts)-qs instead of qsat(Ts)-qa!
+            ! NOTE: Old DALES LSM used the surface pressure in the calculation of `e`, not sure why...
+            esatsurf = 0.611e3 * exp(17.2694 * (Ts - 273.16) / (Ts - 35.86))
+            e = qt0(i,j,1) * presf(1) / 0.622
+            Ds = (esatsurf - e) / 1000.
+
+            ! This seems to differ from IFS?
+            Dmax = (f0 - fmin) / ad
+
+            ! Coupling factor (IFS eq. 8.101)
+            !cfrac = f0 * (1.0 - Ds/Dmax) + fmin * (Ds/Dmax)
+            cfrac = max(0.01, f0 * (1.0 - Ds/Dmax) + fmin * (Ds/Dmax))
+
+            ! Absolute CO2 concentration.
+            if (l_emission) then
+                ! A-Gs uses CO2 in ppm, DALES units are ppb
+                co2_abs  = svm(i,j,1,svco2sum) * from_ppb
+            else
+                print*,"A-Gs in new LSM not yet setup without emission module...!"
+                stop
+            endif
+
+            !if (lrelaxci) then
+            !  if (ci_old_set) then
+            !    ci_inf        = cfrac * (co2_abs - co2_comp) + co2_comp
+            !    ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
+            !    if (rk3step  == 3) then
+            !      ci_old(i,j) = ci
+            !    endif
+            !  else
+            !    ci            = cfrac * (co2_abs - co2_comp) + co2_comp
+            !    ci_old(i,j)   = ci
+            !  endif
+            !else
+            !  ci              = cfrac * (co2_abs - co2_comp) + co2_comp
+            !endif
+
+            ! CO2 concentration in leaf (IFS eq. ???):
+            ci = cfrac * (co2_abs - co2_comp) + co2_comp
+
+            ! Max gross primary production in high light conditions (Ag) (IFS eq. 8.94)
+            ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
+            Ammax = Ammax298 * Q10am**(0.1 * (Ts - 298.0)) / ((1.0 + exp(0.3 * (T1Am - Ts))) * (1. + exp(0.3 * (Ts - T2Am))))
+
+            ! Effect of soil moisture stress on gross assimilation rate.
+            ! NOTE: this seems to be different in IFS...
+            ! NOTE: for now, this uses the relative soil moisture content from the low vegetaion only!
+            fstr = max(1.0e-3, min(1.0, tile_lv%phiw_mean(i,j)))
+
+            ! Gross assimilation rate (Am, IFS eq. 8.97)
+            Am = Ammax * (1 - exp(-(gm * (ci - co2_comp) / Ammax)))
+
+            ! Autotrophic dark respiration (IFS eq. 8.99)
+            Rdark = Am/9.
+
+            !PAR = 0.40 * max(0.1,-swdav * cveg(i,j))
+            PAR = 0.5 * max(0.1, -swd(i,j,1))
+
+            ! Light use efficiency
+            alphac = alpha0 * (co2_abs - co2_comp) / (co2_abs + 2*co2_comp)
+
+            if (lsplitleaf) then
+                print*,'Splitleaf A-Gs not (yet) implemented!'
+                stop
+            !    PARdir   = 0.5 * max(0.1, sw_in[j,i])
+            !    PARdif   = 0.5 * max(0.1, sw_in[j,i])
+            !
+            !    cos_sza = max(1.e-10, calc_zenith_angle(lat, lon, doy, time))
+            !
+            !    kdrbl = 0.5 / cos_sza   ! Direct radiation extinction coefficient for black leaves
+            !    kdf = kdfbl * np.sqrt(1.0-sigma)
+            !    kdr = kdrbl * np.sqrt(1.0-sigma)
+            !    ref = (1.0 - np.sqrt(1.0-sigma)) / (1.0 + np.sqrt(1.0-sigma)) ! Reflection coefficient
+            !    ref_dir = 2 * ref / (1.0 + 1.6 * cos_sza)
+            !
+            !    Hleaf = np.zeros(nr_gauss+1)
+            !    Fleaf = np.zeros(nr_gauss+1)
+            !    Agl   = np.zeros(nr_gauss+1)
+            !
+            !    Fnet  = np.zeros(nr_gauss)
+            !    gnet  = np.zeros(nr_gauss)
+            !
+            !    ! Loop over different LAI locations
+            !    for it in range(nr_gauss):
+            !
+            !        iLAI   = LAI * LAI_g[it]        ! Integrated LAI between here and canopy top; Gaussian distributed
+            !        fSL    = np.exp(-kdrbl * iLAI)  ! Fraction of sun-lit leaves
+            !
+            !        PARdfD = PARdif * (1.0-ref)     * np.exp(-kdf * iLAI)     ! Total downward PAR due to diffuse radiation at canopy top
+            !        PARdrD = PARdir * (1.0-ref_dir) * np.exp(-kdr * iLAI)     ! Total downward PAR due to direct radiation at canopy top
+            !        PARdfU = PARdif * (1.0-ref)     * np.exp(-kdf * LAI) * \
+            !                albedo * (1.0-ref) * np.exp(-kdf * (LAI-iLAI))    ! Total upward (reflected) PAR that originates as diffuse radiation
+            !        PARdrU = PARdir * (1.0-ref_dir) * np.exp(-kdr * LAI) * \
+            !                albedo * (1.0-ref) * np.exp(-kdf * (LAI-iLAI))    ! Total upward (reflected) PAR that originates as direct radiation
+            !        PARdfT = PARdfD + PARdfU                                  ! Total PAR due to diffuse radiation at canopy top
+            !        PARdrT = PARdrD + PARdrU                                  ! Total PAR due to direct radiation at canopy top
+            !
+            !        dirPAR = (1.0-sigma) * PARdir * fSL                       ! Purely direct PAR (can only be downward)
+            !        difPAR = PARdfT + PARdrT - dirPAR                         ! Total diffuse radiation
+            !
+            !        HdfT   = kdf * PARdfD + kdf * PARdfU
+            !        HdrT   = kdr * PARdrD + kdf * PARdrU
+            !        dirH   = kdrbl * dirPAR
+            !        Hshad  = HdfT + HdrT - dirH
+            !
+            !        Hsun   = Hshad + angle_g * (1.0-sigma) * kdrbl * PARdir / np.sum(angle_g * weight_g)
+            !
+            !        Hleaf[0]  = Hshad
+            !        Hleaf[1:] = Hsun
+            !
+            !        Agl    = fstr * (Am + Rdark) * (1 - np.exp(-alphac*Hleaf/(Am + Rdark)))
+            !        gleaf  = gmin/nuco2q +  Agl/(co2_abs-ci)
+            !        Fleaf  = Agl - Rdark
+            !
+            !        Fshad  = Fleaf[0]
+            !        Fsun   = np.sum(weight_g * Fleaf[1:])
+            !        gshad  = gleaf[0]
+            !        gsun   = np.sum(weight_g * gleaf[1:])
+            !
+            !        Fnet[it] = Fsun * fSL + Fshad * (1 - fSL)
+            !        gnet[it] = gsun * fSL + gshad * (1 - fSL)
+            !
+            !    An     = LAI * np.sum(weight_g * Fnet)
+            !    gc_inf = LAI * np.sum(weight_g * gnet)
+            !
+            else
+                ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
+                ! NOTE: this only uses LAI from low vegetation (for now..)
+                AGSa1  = 1.0 / (1 - f0)
+                Dstar  = Dmax / (AGSa1 * (f0 - fmin))
+                tempy  = alphac * Kx * PAR / (Am + Rdark)
+                An     = (Am + Rdark) * (1 - 1.0 / (Kx * tile_lv%lai(i,j)) * (E1(tempy * exp(-Kx*tile_lv%lai(i,j))) - E1(tempy)))
+                gc_inf = tile_lv%lai(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2_abs - co2_comp) * (1 + Ds / Dstar)))
+            endif
+
+            if (lrelaxgc) then
+                print*,'Relax GC A-Gs not (yet) implemented!'
+                stop
+            !  if (gc_old_set) then
+            !    gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
+            !    if (rk3step ==3) then
+            !      gc_old(i,j) = gcco2
+            !    endif
+            !  else
+            !    gcco2 = gc_inf
+            !    gc_old(i,j) = gcco2
+            !  endif
+            else
+                gcco2 = gc_inf
+            endif
+
+            ! Calculate mean t_soil and theta_soil for calculation soil respiration
+            t_mean = 0
+            th_mean = 0
+            k = kmax_soil
+            do k=1, kmax_soil
+                t_mean  = t_mean  + tsoil(i,j,k) * dz_soil(k)
+                th_mean = th_mean + phiw(i,j,k)  * dz_soil(k)
+            enddo
+            t_mean  = t_mean  / (-zh_soil(1))
+            th_mean = th_mean / (-zh_soil(1))
+
+            ! Sub-grid fractions of low+high veg, and low+high veg + bare soil
+            cveg = tile_lv%base_frac(i,j) + tile_hv%base_frac(i,j)
+            cland = cveg + tile_bs%base_frac(i,j)
+
+            ! Water stress function:
+            fw = Cw * wsmax / (th_mean + wsmin)
+
+            ! Soil resistance, using old/JS approach
+            theta_min = cveg * theta_wp(si) + (1.-cveg) * theta_res(si)
+            theta_rel = (phiw(i,j,kmax_soil) - theta_min) / (theta_fc(si) - theta_min);
+            f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
+
+            ! Surface resistances for moisture and carbon dioxide
+            tile_lv%rs(i,j) = 1.0 / (1.6 * gcco2)
+            tile_hv%rs(i,j) = 1.0 / (1.6 * gcco2)
+            tile_bs%rs(i,j) = tile_bs%rs_min(i,j) / f2b(i,j)
+            tile_ws%rs(i,j) = 0.
+
+            rs_co2 = 1. / gcco2
+
+            ! NOTE:Combined assimilation for low and high veg, using only low veg as vegetation type:
+            resp_co2(i,j) = R10 * (1.-fw) * exp(Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / t_mean))
+            ! Scale with vegetation fraction, and translate to `ppb m s-1`.
+            resp_co2(i,j) = cveg * resp_co2(i,j) * to_ppb
+
+            ! Calculate net assimilation
+            ! NOTE: this uses the aerodynamic resistance from low vegetation...
+            an_co2(i,j) = -(co2_abs - ci) / (tile_lv%ra(i,j) + rs_co2)
+            ! Scale with vegetation + bare soil fraction, and translate to `ppb m s-1`.
+            an_co2(i,j) = cland * an_co2(i,j) * to_ppb
+
+            ! Set CO2 fluxes:
+            if (l_emission) then
+                ! Total flux into the CO2 field holding the sum of all CO2 concentrations:
+                svflux(i,j,svco2sum) = resp_co2(i,j) + an_co2(i,j)
+                ! Respiration flux into the respiration specific field:
+                svflux(i,j,svco2ags) = resp_co2(i,j)
+            else
+                print*,"A-Gs in new LSM not yet setup without emission module...!"
+                stop
+            endif
+
         end do
     end do
 
@@ -953,7 +1240,7 @@ subroutine initlsm
 
     ! Namelist definition
     namelist /NAMLSM/ &
-        lheterogeneous, lfreedrainage, dz_soil, iinterp_t, iinterp_theta
+        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta
 
     llsm = (isurf == 11)
 
@@ -973,9 +1260,10 @@ subroutine initlsm
         ! Broadcast namelist values to all MPI tasks
         call MPI_BCAST(lheterogeneous, 1, mpi_logical, 0, comm3d, mpierr)
         call MPI_BCAST(lfreedrainage,  1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(lags,           1, mpi_logical, 0, comm3d, mpierr)
 
-        call MPI_BCAST(iinterp_t,     1, mpi_integer, 0, comm3d, mpierr)
-        call MPI_BCAST(iinterp_theta, 1, mpi_integer, 0, comm3d, mpierr)
+        call MPI_BCAST(iinterp_t,      1, mpi_integer, 0, comm3d, mpierr)
+        call MPI_BCAST(iinterp_theta,  1, mpi_integer, 0, comm3d, mpierr)
 
         call MPI_BCAST(dz_soil, kmax_soil, my_real, 0, comm3d, mpierr)
 
@@ -1033,6 +1321,8 @@ subroutine exitlsm
 
     ! Allocated from `create_soil_grid`:
     deallocate( z_soil, dz_soil, dzi_soil, zh_soil, dzh_soil, dzhi_soil )
+
+    if (lags) deallocate(an_co2, resp_co2)
 
     ! Tiles, allocated from `allocate_tile`:
     call deallocate_tile(tile_lv)
@@ -1178,6 +1468,12 @@ subroutine allocate_fields
     allocate(cliq(i2, j2))
     allocate(rsveg(i2, j2))
     allocate(rssoil(i2, j2))
+
+    ! A-Gs
+    if (lags) then
+        allocate(an_co2(i2, j2))
+        allocate(resp_co2(i2, j2))
+    endif
 
     ! Allocate the tiled variables
     call allocate_tile(tile_lv)
