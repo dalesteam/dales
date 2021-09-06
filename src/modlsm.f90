@@ -25,6 +25,7 @@ module modlsm
 
     logical :: llsm            ! On/off switch LSM
     logical :: lfreedrainage   ! Free drainage bottom BC for soil moisture
+    logical :: lags            ! Switch for A-Gs scheme
 
     ! Interpolation types soil from full to half level
     integer :: iinterp_t, iinterp_theta
@@ -118,7 +119,11 @@ subroutine lsm
     call calc_theta_mean(tile_hv)
 
     ! Calculate canopy/soil resistances.
-    call calc_canopy_resistance
+    if (lags) then
+        call calc_canopy_resistance_ags
+    else
+        call calc_canopy_resistance_js
+    endif
 
     ! Calculate aerodynamic resistance (and u*, obuk).
     call calc_stability
@@ -265,9 +270,9 @@ subroutine calc_theta_mean(tile)
 end subroutine calc_theta_mean
 
 !
-! Calculate canopy and soil resistances
+! Calculate canopy and soil resistances using Jarvis-Stewart method.
 !
-subroutine calc_canopy_resistance
+subroutine calc_canopy_resistance_js
     use modglobal,   only : i1, j1
     use modfields,   only : thl0, qt0, exnf, presf
     use modsurface,  only : ps
@@ -318,7 +323,31 @@ subroutine calc_canopy_resistance
         end do
     end do
 
-end subroutine calc_canopy_resistance
+end subroutine calc_canopy_resistance_js
+
+!
+! Calculate canopy and soil resistances using A-Gs (plant physiology).
+!
+subroutine calc_canopy_resistance_ags
+    use modglobal,   only : i1, j1
+    use modfields,   only : thl0, qt0, exnf, presf
+    use modsurface,  only : ps
+    use modraddata,  only : swd
+    use modsurfdata, only : phiw
+    use modemisdata, only : l_emission, svco2ags, svco2sum
+
+    implicit none
+
+    integer :: i, j, k, si
+
+    k = kmax_soil
+    do j=2,j1
+        do i=2,i1
+            si = soil_index(i,j,k)
+        end do
+    end do
+
+end subroutine calc_canopy_resistance_ags
 
 !
 ! Calculate Obukhov length, ustar, and aerodynamic resistance, for all tiles
