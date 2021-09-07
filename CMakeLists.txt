@@ -77,7 +77,7 @@ else()
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=gnu -Werror=implicit-interface" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-fimplicit-none -finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 endif()
 
 # On compiler options
