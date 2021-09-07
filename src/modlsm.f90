@@ -21,7 +21,7 @@ module modlsm
     use netcdf
     implicit none
 
-    public :: initlsm, lsm, exitlsm, init_lsm_tiles
+    public :: initlsm, lsm, exitlsm, init_lsm_tiles, lags
 
     logical :: llsm            ! On/off switch LSM
     logical :: lfreedrainage   ! Free drainage bottom BC for soil moisture

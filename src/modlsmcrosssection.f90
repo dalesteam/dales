@@ -70,6 +70,7 @@ contains
     use modglobal,   only : imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,  only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf
+    use modlsm,      only : lags
     implicit none
 
     integer :: ierr, ii
@@ -147,6 +148,7 @@ contains
             nvar3 = 12
         else if (isurf == 11) then
             nvar3 = 16
+            if (lags) nvar3 = nvar3 + 2
         end if
 
         allocate(ncname3(nvar3,4))
@@ -189,6 +191,11 @@ contains
             call ncinfo(ncname3(14,:),'f2_hv', 'f2(theta) function high vegetation resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(15,:),'f2_b', 'f2(theta) function soil resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(16,:),'f3', 'f3(VPD) function vegetation resistance', 's/m', 'tt0t')
+            if (lags) then
+              call ncinfo(ncname3(17,:),'an_co2', 'Net CO2 assimilation', 'ppb m s-1', 'tt0t')
+              call ncinfo(ncname3(18,:),'resp_co2', 'CO2 respiration soil', 'ppb m s-1', 'tt0t')
+            end if
+
             call open_nc(fname3, ncid3, nrec3, n1=imax, n2=jmax)
             if (nrec3==0) then
               call define_nc(ncid3, 1, tncname3)
@@ -290,7 +297,7 @@ contains
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
     use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq, rsveg, rssoil, Wl, isurf, obl, ustar
-    use modlsm, only : f1, f2_lv, f2_hv, f2b, f3
+    use modlsm, only : f1, f2_lv, f2_hv, f2b, f3, lags, an_co2, resp_co2
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -379,6 +386,10 @@ contains
             vars(:,:,14) = f2_hv(2:i1,2:j1)
             vars(:,:,15) = f2b(2:i1,2:j1)
             vars(:,:,16) = f3(2:i1,2:j1)
+            if (lags) then
+              vars(:,:,17) = an_co2(2:i1,2:j1)
+              vars(:,:,18) = resp_co2(2:i1,2:j1)
+            endif
         end if
 
         call writestat_nc(ncid3, 1, tncname3, (/rtimee/), nrec3, .true.)
