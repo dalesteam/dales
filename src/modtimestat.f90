@@ -89,6 +89,7 @@ contains
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
+    use modlsm, only : lags
     implicit none
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
@@ -234,6 +235,7 @@ contains
           nvar = 32
         else if (isurf == 11) then
           nvar = 75
+          if (lags) nvar = nvar + 2
         else
           nvar = 21
         end if
@@ -399,6 +401,12 @@ contains
           call ncinfo(ncname(vi,:),'qtskin_ws','Skin specific humidity water','kg kg-1','time')
           vi = vi+1
 
+          if (lags) then
+            call ncinfo(ncname(vi,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
+            vi = vi+1
+            call ncinfo(ncname(vi,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
+            vi = vi+1
+          end if
         end if
 
         call open_nc(fname,  ncid,nrec)
@@ -476,7 +484,7 @@ contains
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
                            thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
-    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws, tile_aq, f1, f2_lv, f2_hv, f3, f2b
+    use modlsm,     only : tile_lv, tile_hv, tile_bs, tile_ws, tile_aq, f1, f2_lv, f2_hv, f3, f2b, lags, an_co2, resp_co2
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc, only : lnetcdf, writestat_nc,nc_fillvalue
@@ -508,6 +516,7 @@ contains
     real   :: G_lv_av, G_hv_av, G_bs_av, G_ws_av
     real   :: thlskin_lv_av, thlskin_hv_av, thlskin_bs_av, thlskin_ws_av, thlskin_aq_av
     real   :: qtskin_lv_av, qtskin_hv_av, qtskin_bs_av, qtskin_ws_av, qtskin_aq_av
+    real   :: an_co2_av, resp_co2_av
 
     integer:: i, j, k, vi
 
@@ -977,6 +986,11 @@ contains
       qtskin_ws_av = mean_2d(tile_ws%qtskin)
       qtskin_aq_av = mean_2d(tile_aq%qtskin)
 
+      if (lags) then
+        an_co2_av   = mean_2d(an_co2)
+        resp_co2_av = mean_2d(resp_co2)
+      endif
+
     end if
 
   !  9.8  write the results to output file
@@ -1145,6 +1159,11 @@ contains
           vars(vi) = qtskin_bs_av; vi = vi+1
           vars(vi) = qtskin_ws_av; vi = vi+1
           vars(vi) = qtskin_aq_av; vi = vi+1
+
+          if (lags) then
+            vars(vi) = an_co2_av; vi = vi+1
+            vars(vi) = resp_co2_av; vi = vi+1
+          end if
 
         end if
 
