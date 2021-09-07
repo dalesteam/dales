@@ -63,6 +63,7 @@ module modlsm
 
     ! A-Gs
     real, allocatable :: an_co2(:,:), resp_co2(:,:)
+    integer :: co2_index = -1
 
     ! Data structure for sub-grid tiles
     type lsm_tile
@@ -442,11 +443,9 @@ subroutine calc_canopy_resistance_ags
 
             ! Absolute CO2 concentration.
             if (l_emission) then
-                ! A-Gs uses CO2 in ppm, DALES units are ppb
                 co2_abs  = svm(i,j,1,svco2sum) * from_ppb
             else
-                print*,"A-Gs in new LSM not yet setup without emission module...!"
-                stop
+                co2_abs  = svm(i,j,1,co2_index) * from_ppb
             endif
 
             !if (lrelaxci) then
@@ -627,8 +626,7 @@ subroutine calc_canopy_resistance_ags
                 ! Respiration flux into the respiration specific field:
                 svflux(i,j,svco2ags) = resp_co2(i,j)
             else
-                print*,"A-Gs in new LSM not yet setup without emission module...!"
-                stop
+                svflux(i,j,co2_index) = resp_co2(i,j) + an_co2(i,j)
             endif
 
         end do
@@ -1233,6 +1231,7 @@ subroutine initlsm
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, mpi_integer, my_real
     use modsurfdata, only : isurf
+    use modemisdata, only : l_emission
     implicit none
 
     integer :: ierr
@@ -1240,7 +1239,7 @@ subroutine initlsm
 
     ! Namelist definition
     namelist /NAMLSM/ &
-        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta
+        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta, co2_index
 
     llsm = (isurf == 11)
 
@@ -1265,7 +1264,16 @@ subroutine initlsm
         call MPI_BCAST(iinterp_t,      1, mpi_integer, 0, comm3d, mpierr)
         call MPI_BCAST(iinterp_theta,  1, mpi_integer, 0, comm3d, mpierr)
 
+        call MPI_BCAST(co2_index,      1, mpi_integer, 0, comm3d, mpierr)
+
         call MPI_BCAST(dz_soil, kmax_soil, my_real, 0, comm3d, mpierr)
+
+        ! Checks on input
+        if (lags .and. .not. l_emission .and. (co2_index == -1)) then
+            print*,'With A-Gs enabled and without the emission module, the `co2_index`'
+            print*,'in the scalar array should be specified in the `NAMLSM` group.'
+            stop
+        endif
 
         ! Create/calculate soil grid properties
         call create_soil_grid
