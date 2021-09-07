@@ -28,7 +28,15 @@ jobs:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - uses: actions/checkout@v2
 
-      - name : Install OneApi
+      - name: Install common dependencies
+        run: |
+          # Enable sources for netcdff-dev
+          sudo sed -i '/^#\sdeb-src /s/^#//' "/etc/apt/sources.list"
+
+          sudo apt-get update
+          sudo apt-get install -y cmake libfftw3-dev libhypre-dev libnetcdf-dev
+
+      - name : Install Intel (oneapi) dependencies
         if: matrix.toolchain == 'intel' 
         run: |
           # use wget to fetch the Intel repository public key
@@ -47,40 +55,25 @@ jobs:
           # which utilizes mpiifort which works
           echo "SYST=CARTESIUS" >> $GITHUB_ENV 
 
-
-      - name: Install common dependencies
-        run: |
-          # Enable sources for netcdff-dev
-          sudo sed -i '/^#\sdeb-src /s/^#//' "/etc/apt/sources.list"
-
-          sudo apt-get update
-          sudo apt-get install -y cmake libfftw3-dev libhypre-dev libnetcdf-dev
-
-      - name: Install Intel depencencies
-        if: matrix.toolchain == 'intel' 
-        run: |
           if [[ -f /opt/intel/oneapi/setvars.sh ]]; then
             source /opt/intel/oneapi/setvars.sh
           fi
           
-          sudo apt-get install devscripts
-          sudo apt-get build-dep libnetcdff-dev
-
-          #Customize libnetcdff
-          apt-get source libnetcdff-dev
-          cd netcdf-fortran-*/
-          echo "override_dh_shlibdeps:" >> debian/rules
-          echo -e "\tdh_shlibdeps --dpkg-shlibdeps-params=--ignore-missing-info" >> debian/rules
 
           export F77=ifort
           export FC=ifort
           export F90=ifort
-          export FFLAGS='-O3 -xHost -ip -no-prec-div -static-intel'
 
-          debuild --no-lintian --preserve-env --preserve-envvar PATH -b -uc -us -ui 
-
-          cd ../
-          sudo dpkg -i *.deb
+          wget https://github.com/Unidata/netcdf-fortran/archive/refs/tags/v4.5.2.tar.gz -O netcdf.tar.gz
+          tar -xzf netcdf.tar.gz
+          cd netcdf-*
+          mkdir build
+          cd build
+          cmake ../
+          cd fortran
+          make typeSizes.o
+          make netcdf4.o
+          sudo cp netcdf.mod /usr/include/netcdf.mod #copy just the interface
 
       - name: Install Gnu dependencies
         if: matrix.toolchain == 'gnu'
@@ -95,6 +88,7 @@ jobs:
           mkdir build
           cd build
           cmake -DCMAKE_BUILD_TYPE=DEBUG ${{ matrix.fftw }} ${{ matrix.hypre }} ../
+
       - name : Build
         run: |
           if [[ -f /opt/intel/oneapi/setvars.sh ]]; then

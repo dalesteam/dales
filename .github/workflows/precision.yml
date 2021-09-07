@@ -48,4 +48,4 @@ jobs:
       - name : Build
         run: |
           cd build
-          make -j2 dales4
+          make -j2 
