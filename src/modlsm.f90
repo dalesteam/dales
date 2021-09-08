@@ -340,7 +340,7 @@ subroutine calc_canopy_resistance_ags
     use modsurface,  only : E1, ps
     use modsurfdata, only : svflux, tskin, phiw, tsoil
     use modraddata,  only : swd
-    use modemisdata, only : l_emission, svco2ags, svco2sum
+    use modemisdata, only : l_emission, svco2ags, svco2sum, svco2veg
 
     implicit none
 
@@ -625,6 +625,8 @@ subroutine calc_canopy_resistance_ags
                 svflux(i,j,svco2sum) = resp_co2(i,j) + an_co2(i,j)
                 ! Respiration flux into the respiration specific field:
                 svflux(i,j,svco2ags) = resp_co2(i,j)
+                ! Net update into the vegetation specific field:
+                svflux(i,j,svco2veg) = an_co2(i,j)
             else
                 svflux(i,j,co2_index) = resp_co2(i,j) + an_co2(i,j)
             endif
