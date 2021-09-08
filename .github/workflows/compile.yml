@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: ["gnu", "intel"]
+        toolchain: ["gnu"]
         fftw:    ["", "-DUSE_FFTW=T"]
         hypre:   ["", "-DUSE_HYPRE=T"]
         
@@ -54,31 +54,6 @@ jobs:
           # localpc_ifort uses mpif90, which breaks, therefore we use CARTESIUS,
           # which utilizes mpiifort which works
           echo "SYST=CARTESIUS" >> $GITHUB_ENV 
-
-          if [[ -f /opt/intel/oneapi/setvars.sh ]]; then
-            source /opt/intel/oneapi/setvars.sh
-          fi
-          
-
-          export F77=ifort
-          export FC=ifort
-          export F90=ifort
-
-          wget https://github.com/Unidata/netcdf-fortran/archive/refs/tags/v4.5.2.tar.gz -O netcdf.tar.gz
-          tar -xzf netcdf.tar.gz
-          cd netcdf-*
-          mkdir build
-          cd build
-          cmake ../
-          cd fortran
-          make typeSizes.o
-          make netcdf4.o
-
-          #Install netcdf, then overwrite interfaces with intel version
-          sudo apt-get install -y libnetcdff-dev
-
-          sudo cp typesizes.mod /usr/include/typesizes.mod #copy just the interface
-          sudo cp netcdf.mod /usr/include/netcdf.mod #copy just the interface
 
       - name: Install Gnu dependencies
         if: matrix.toolchain == 'gnu'
