@@ -20,6 +20,10 @@ jobs:
         fftw:    ["", "-DUSE_FFTW=T"]
         hypre:    ["", "-DUSE_HYPRE=T"]
         field_r: [real32,real64]
+        pois_r:  [real32,real64]
+        exclude:
+          - pois_r: real32
+            hypre: "-DUSE_HYPRE=T"
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
@@ -42,6 +46,9 @@ jobs:
           
           sed -i '/field_r/d' ./modprecision.f90
           echo "integer, parameter :: field_r =  ${{ matrix.field_r }}" >> ./modprecision.f90
+          
+          sed -i '/pois_r/d' ./modprecision.f90
+          echo "integer, parameter :: pois_r =  ${{ matrix.pois_r }}" >> ./modprecision.f90
           
           echo "end module" >> ./modprecision.f90
 
