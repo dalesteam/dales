@@ -73,6 +73,11 @@ jobs:
           cd fortran
           make typeSizes.o
           make netcdf4.o
+
+          #Install netcdf, then overwrite interfaces with intel version
+          sudo apt-get install -y libnetcdff-dev
+
+          sudo cp typesizes.mod /usr/include/typesizes.mod #copy just the interface
           sudo cp netcdf.mod /usr/include/netcdf.mod #copy just the interface
 
       - name: Install Gnu dependencies
