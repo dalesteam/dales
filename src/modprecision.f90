@@ -31,7 +31,9 @@ integer, parameter :: field_r = real32  ! Precision for the most common fields u
                                         ! And all other fields that do not have
                                         ! their own kind and need to interoperate
 
-integer, parameter :: pois_r  = real32  ! Precision for the poisson solver,
+integer, parameter :: pois_r  = real64  ! Precision for the poisson solver,
+                                        ! HYPRE is double-only, so real32 doesn't
+                                        ! work with -DUSE_HYPRE=T 
                                         ! Precision for p and Fp fields
                                         ! Precision for all internal fields in
                                         ! the old fft and fftw module
