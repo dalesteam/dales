@@ -221,8 +221,9 @@ contains
     endif
 
     if(lhetero_sfc_temp) then
-       allocate(temp_sfc_domain(itot,jtot))
+       allocate(dthl_sfc_domain(itot,jtot))
        allocate(thls_hetero(i1,j1))
+       allocate(dthls_hetero(i1,j1))
        !cstep allocate(tempsfc_hetero(i1,j1))
 
        if  (myid==0) then
@@ -238,26 +239,27 @@ contains
           do i=1,itot
           do j=1,jtot
             read(ifinput,'(F13.7)') var
-            temp_sfc_domain(i,j) = var
-            write(6,*) i,j,'read line',temp_sfc_domain(i,j)
+            dthl_sfc_domain(i,j) = var
+            write(6,*) i,j,'read line',dthl_sfc_domain(i,j)
           end do
           end do
           close(ifinput)
        endif
 
-       call MPI_BCAST(temp_sfc_domain(1:itot,1:jtot),itot*jtot,MY_REAL ,0,comm3d,mpierr)
+       call MPI_BCAST(dthl_sfc_domain(1:itot,1:jtot),itot*jtot,MY_REAL ,0,comm3d,mpierr)
 
        exner      = (ps / pref0)**(rd/cp)
        do i=2,i1
        do j=2,j1
-        ! tempsfc_hetero (i,j) = temp_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) !maps global to local domains
+        ! tempsfc_hetero (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) !maps global to local domains
         ! thls_hetero    (i,j) = tempsfc_hetero(i,j) / exner
-         !thls_hetero    (i,j) = temp_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) / exner  !maps global to local domains
-         thls_hetero    (i,j) = temp_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
+         !thls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) / exner  !maps global to local domains
+         dthl_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
+         thls_hetero    (i,j) = thls + dthl_hetero    (i,j)  !dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
        end do
        end do
 
-       deallocate(temp_sfc_domain)
+       deallocate(dthl_sfc_domain)
 
     endif
 
@@ -1544,7 +1546,7 @@ contains
     implicit none
     if (lhetero_sfc_temp) then
         !deallocate(thls_hetero,tempsfc_hetero) 
-        deallocate(thls_hetero)
+        deallocate(dthls_hetero,thls_hetero)
     endif
     return
   end subroutine exitsurface

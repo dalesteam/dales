@@ -246,6 +246,7 @@ SAVE
   logical           :: lhetero_sfc_temp       = .false. !< Switch to use heterogeneous temperature field sfc_temp.inp.xxx 
   real, allocatable :: temp_sfc_domain(:,:)             !< Heterogeneous surface temperature defined at full domain (K)
   real, allocatable :: thls_hetero(:,:)                 !< Heterogeneous surface potential temperature defined at subdomain (K)
+  real, allocatable :: dthls_hetero(:,:)                !< 2D field of thl perturbations (K)
   real, allocatable :: tempsfc_hetero(:,:)              !< Heterogeneous surface temperature defined at subdomain (K)
 
   ! Heterogeneous surfaces
