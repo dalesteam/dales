@@ -50,7 +50,8 @@ module modemisdata
                           ! each name must(!) be 6 characters long for now  
 
   ! Interaction with AGs ------------------------------------------------
-  integer :: svco2ags =  -1       ! Scalar field number for AGs to emit CO2
+  integer :: svco2ags = -1       ! Scalar field number for AGs to emit CO2
+  integer :: svco2sum = -1       ! Scalar field which holds the sum of CO2
   integer, allocatable :: co2fields(:) ! Array defnining co2 fields for AGs
 
   ! ---------------------------------------------------------------------!

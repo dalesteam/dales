@@ -37,12 +37,12 @@ contains
     use moddatetime,  only : datex, prevday, nextday
 
     implicit none
-  
+
     ! Auxiliary variables
     integer :: ierr
 
     ! --- Read & broadcast namelist EMISSION -----------------------------------
-    namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames
+    namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames, svco2sum
 
     if (myid == 0) then
 
@@ -57,18 +57,18 @@ contains
     call mpi_bcast(l_emission,    1,   mpi_logical,   0, comm3d, ierr)
     call mpi_bcast(kemis,         1,   mpi_integer,   0, comm3d, ierr)
     call mpi_bcast(svskip,        1,   mpi_integer,   0, comm3d, ierr)
+    call mpi_bcast(svco2sum,      1,   mpi_integer,   0, comm3d, ierr)
     call mpi_bcast(emisnames(1:100), 100, mpi_character, 0, comm3d, ierr)
 
     ! -- Interaction with AGs   ----------------------------------------------------
 
-     
     allocate(co2fields(nsv))
     co2fields = 0
-    co2fields(svskip+1:nsv) = index(emisnames(1:nsv-svskip), "co2") 
+    co2fields(svskip+1:nsv) = index(emisnames(1:nsv-svskip), "co2")
 
     svco2ags = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
     svco2ags = svco2ags + svskip
- 
+
     if (myid == 0) then
       write(6,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
       write(6,*) co2fields
@@ -83,30 +83,30 @@ contains
 
     ! --- Read emission files for first time step ----------------------------------
 
-    ! Two hourly emission fields are loaded at all times: 
+    ! Two hourly emission fields are loaded at all times:
     ! (1) before model time,   t_field < t_model, "in-the-past"
     ! (2) ahead of model time, t_field > t_model, "in-the-future"
     allocate(emisfield(i2, j2, kemis, svskip+1:nsv, 2))
 
     if (datex(5) >= 30) then
       call reademission(    datex(1),   datex(2),   datex(3),   datex(4), emisfield(:,:,:,:,1))
-      
-      if (datex(4) == 23) then  
+
+      if (datex(4) == 23) then
         call reademission(nextday(1), nextday(2), nextday(3),          0, emisfield(:,:,:,:,2))
       else
         call reademission(  datex(1),   datex(2),   datex(3), datex(4)+1, emisfield(:,:,:,:,2))
       endif
 
     else
-      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), emisfield(:,:,:,:,2)) 
-     
+      call reademission(    datex(1),   datex(2),   datex(3),   datex(4), emisfield(:,:,:,:,2))
+
       if (datex(4) == 0) then
         call reademission(prevday(1), prevday(2), prevday(3),         23, emisfield(:,:,:,:,1))
       else
         call reademission(  datex(1),   datex(2),   datex(3), datex(4)-1, emisfield(:,:,:,:,1))
       endif
 
-    endif 
+    endif
   end subroutine initemission
 
   subroutine reademission(iyear, imonth, iday, ihour, emisfield)
@@ -124,18 +124,18 @@ contains
 
     implicit none
 
-    integer, intent(in)  :: iyear, imonth, iday, ihour     
+    integer, intent(in)  :: iyear, imonth, iday, ihour
     real, intent(out)    :: emisfield(i2, j2, kemis, 1+svskip:nsv)
 
-    integer, parameter   :: ndim = 3 
+    integer, parameter   :: ndim = 3
     integer              :: start(ndim), count(ndim)
     integer              :: ncid, varid
     integer              :: isv
- 
+
     character(len=12)    :: sdatetime
 
     ! Create string from given date
-    write(sdatetime, "(I0.4,2I0.2,2I0.2)") iyear, imonth, iday, ihour, 0 
+    write(sdatetime, "(I0.4,2I0.2,2I0.2)") iyear, imonth, iday, ihour, 0
 
     write(6,"(A18, A12)") "Reading emission: ", sdatetime
 
@@ -144,7 +144,7 @@ contains
       call check( nf90_open( trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
 
       call check( nf90_inq_varid( ncid, emisnames(isv-svskip), varid) )
-      call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), & 
+      call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), &
                                   start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
                                   count = (/imax, jmax, kemis, 1/) ) )
       call check( nf90_close( ncid ) )
@@ -155,8 +155,8 @@ contains
 
     subroutine check(status)
       integer, intent(in) :: status
-    
-      if(status /= nf90_noerr) then 
+
+      if(status /= nf90_noerr) then
         print *, trim(nf90_strerror(status))
         stop 'NetCDF error in modemission. See outputfile for more information.'
       end if
@@ -172,7 +172,7 @@ contains
   ! 1. Emission files (currently) in kg per gridbox per hour!
   !    What results from this routine now is ug/g, i.e. we scale for time,
   !    gridbx size and air density AND apply a factor of 1e6.
-  ! 
+  !
   ! TODO
   ! 1. MDB Align properly with "non-emitted" tracers, i.e. cloud scalars from e.g.
   ! microphysics/chemistry
@@ -181,19 +181,20 @@ contains
     use modfields,   only : svp
     use modglobal,   only : i1, j1, ih, jh, nsv, &
                             rdt, rtimee, rk3step, &
-                            dzf, dx, dy    
+                            dzf, dx, dy
     use modfields,   only : rhof
     use moddatetime, only : datex, nextday
-    
+
     implicit none
 
-    integer         :: k
-    
+    integer         :: i, j, k, l
+
     real            :: emistime_s, emistime_e ! Emission timers
     real, parameter :: div3600 = 1./3600.     ! Quick division
- 
+    real            :: tend
+
     if (.not. (l_emission)) return
- 
+
     ! --------------------------------------------------------------------------
     ! Interpolate and apply emission
     ! --------------------------------------------------------------------------
@@ -201,11 +202,23 @@ contains
 
     ! MdB NOTE : Better way to do this? Problem is the broadcasting of 1D arrays
     ! rhof and dzf to emisfield. For now, loop over k.
+    ! BvS NOTE: I wrote out the loop, to prevent needing a temporary 2D field to store `tend`.
 
-    do k = 1,kemis
-      svp(2:i1, 2:j1, k, svskip+1:nsv) = svp(2:i1, 2:j1, k, svskip+1:nsv)    + &
-            ((1. - emistime_s)*emisfield(2:i1, 2:j1, k, svskip+1:nsv, 1) + &
-                   emistime_s *emisfield(2:i1, 2:j1, k, svskip+1:nsv, 2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6) 
+    do k = 1, kemis
+      do i = 2, i1
+        do j = 2, j1
+          do l = svskip+1, nsv
+            tend = ((1. - emistime_s)*emisfield(i,j,k,l,1) + &
+                          emistime_s *emisfield(i,j,k,l,2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
+
+            ! Add tendency to specific CO2 field
+            svp(i,j,k,l) = svp(i,j,k,l) + tend
+
+            ! Add tendency to CO2 sum field
+            svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend
+          end do
+        end do
+      end do
     end do
 
     ! --------------------------------------------------------------------------
@@ -219,7 +232,7 @@ contains
       if ( emistime_e < emistime_s ) then
         ! Transfer data from 'ahead-of-modeltime' field to 'past-modeltime' field
         emisfield(:,:,:,:,1) = emisfield(:,:,:,:,2)
-        
+
         ! Read new 'ahead-of-modeltime' emission field
         if ( datex(4) == 23 ) then
           call reademission(nextday(1), nextday(2), nextday(3),          0, emisfield(:,:,:,:,2))
@@ -236,7 +249,7 @@ contains
   ! Cleanup after run.
   ! --------------------------------------------------------------------------
   subroutine exitemission
-  
+
     implicit none
 
     if (.not. (l_emission)) return
