@@ -39,7 +39,6 @@ save
       integer ::  i2
       integer ::  j2
       integer ::  nsv = 0       !< Number of additional scalar fields
-      integer ::  ncosv = 0
 
       integer ::  ih=3
       integer ::  jh=3
@@ -327,8 +326,6 @@ contains
       jh = 1
       kh = 1
     end if
-
-    ncosv = max(2*nsv-3,0)
 
     ! Global constants
 
