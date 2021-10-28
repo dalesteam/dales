@@ -254,8 +254,8 @@ contains
         ! tempsfc_hetero (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) !maps global to local domains
         ! thls_hetero    (i,j) = tempsfc_hetero(i,j) / exner
          !thls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) / exner  !maps global to local domains
-         dthl_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
-         thls_hetero    (i,j) = thls + dthl_hetero    (i,j)  !dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
+         dthls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
+         thls_hetero    (i,j) = thls + dthls_hetero    (i,j)  !dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
        end do
        end do
 

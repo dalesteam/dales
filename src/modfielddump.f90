@@ -34,7 +34,7 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer :: nvar = 7
+  integer :: nvar = 8 !  cstep perturbed time dependent sst added 7
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(:,:), allocatable :: ncname
@@ -112,9 +112,10 @@ contains
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
 !       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
+      call ncinfo(ncname( 8,:),'tskin','surface potential temperature','K','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
+        call ncinfo(ncname(nvar+n-2,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
       end do
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
@@ -129,7 +130,7 @@ contains
 !> Do fielddump. Collect data to truncated (2 byte) integers, and write them to file
   subroutine fielddump
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh
-    use modsurfdata,only : thls,qts,thvs
+    use modsurfdata,only : thls,qts,thvs,tskin
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyidx, cmyidy
@@ -283,6 +284,17 @@ contains
     enddo
     enddo
 
+    write (6,*) 'prepare tskin output'
+    !if (lnetcdf) vars(:,:,1,8) = tskin(2:i1:ncoarse,2:j1:ncoarse)
+    do i=2,i1,ncoarse
+    do j=2,j1,ncoarse
+       vars(i,j,1,8) = tskin (i,j)
+       write (6,*) 'tskin', vars(i,j,1,8),tskin (i,j)
+    enddo
+    enddo
+    write (6,*) 'tskin data put in array'
+
+
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbthv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -294,7 +306,7 @@ contains
       close (ifoutput)
     endif
 
-    if (lnetcdf) vars(:,:,:,8:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+    if (lnetcdf) vars(:,:,:,nvar-nsv+1:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
