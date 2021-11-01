@@ -1067,7 +1067,7 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("cp "//name //" "//linkname)
+      call system("ln -s -f "//name //" "//linkname)
 
       if (nsv>0) then
         name(5:5)='s'
@@ -1080,7 +1080,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("cp "//name //" "//linkname)
+        call system("ln -s -f "//name //" "//linkname)
 
       end if
 
@@ -1103,7 +1103,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("cp "//name //" "//linkname)
+        call system("ln -s -f "//name //" "//linkname)
       end if
 
 

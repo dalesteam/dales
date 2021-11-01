@@ -244,7 +244,7 @@ contains
     kp=k+1
     km=k-1
 
-    if (whls(kp).lt.0) then   !downwind scheme for subsidence
+    if (whls(kp).lt.0) then   !upwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(kp) * (thl0(2:i1,2:j1,kp) - thl0(2:i1,2:j1,k))/dzh(kp)
        qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(kp) * (qt0 (2:i1,2:j1,kp) - qt0 (2:i1,2:j1,k))/dzh(kp)
        if (lmomsubs) then
@@ -254,7 +254,7 @@ contains
 
        svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(kp) * (sv0(2:i1,2:j1,kp,:) - sv0(2:i1,2:j1,k,:))/dzh(kp)
 
-    else !downwind scheme for mean upward motions
+    else !upwind scheme for mean upward motions
        if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
           thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,km))/dzh(k)
           qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k) * (qt0 (2:i1,2:j1,k) - qt0 (2:i1,2:j1,km))/dzh(k)
