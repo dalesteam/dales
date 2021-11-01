@@ -35,8 +35,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine initradiation
     use modglobal,    only : i1,ih,j1,jh,k1,nsv,ih,jh,btime,tres,dt_lim,ifnamopt,fname_options,checknamelisterror
-    use mpi
-    use modmpi,       only : myid,my_real,comm3d,mpi_logical,mpi_integer
+    use modmpi,       only : myid,comm3d,mpi_logical,mpi_integer,D_MPI_BCAST
     implicit none
 
     integer :: ierr
@@ -64,26 +63,26 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(SSA,1,my_real,0,comm3d,ierr)
-    call MPI_BCAST(iDE,1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(laero,1,MPI_LOGICAL,0,comm3d,ierr)
+    call D_MPI_BCAST(SSA,1,0,comm3d,ierr)
+    call D_MPI_BCAST(iDE,1,0,comm3d,ierr)
+    call D_MPI_BCAST(laero,1,0,comm3d,ierr)
 
-    call MPI_BCAST(lCnstZenith,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(cnstZenith, 1,my_real,    0,comm3d,ierr)
-    call MPI_BCAST(lCnstAlbedo,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(ioverlap,   1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(inflglw,    1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(iceflglw,   1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(liqflglw,   1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(inflgsw,    1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(iceflgsw,   1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(liqflgsw,   1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(ocean,      1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(usero3,     1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(co2factor,  1,my_real,    0,comm3d,ierr)
-    call MPI_BCAST(doperpetual,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(doseasons,  1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(iyear,      1,MPI_INTEGER,0,comm3d,ierr)
+    call D_MPI_BCAST(lCnstZenith,1,0,comm3d,ierr)
+    call D_MPI_BCAST(cnstZenith, 1, 0,comm3d,ierr)
+    call D_MPI_BCAST(lCnstAlbedo,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ioverlap,   1,0,comm3d,ierr)
+    call D_MPI_BCAST(inflglw,    1,0,comm3d,ierr)
+    call D_MPI_BCAST(iceflglw,   1,0,comm3d,ierr)
+    call D_MPI_BCAST(liqflglw,   1,0,comm3d,ierr)
+    call D_MPI_BCAST(inflgsw,    1,0,comm3d,ierr)
+    call D_MPI_BCAST(iceflgsw,   1,0,comm3d,ierr)
+    call D_MPI_BCAST(liqflgsw,   1,0,comm3d,ierr)
+    call D_MPI_BCAST(ocean,      1,0,comm3d,ierr)
+    call D_MPI_BCAST(usero3,     1,0,comm3d,ierr)
+    call D_MPI_BCAST(co2factor,  1, 0,comm3d,ierr)
+    call D_MPI_BCAST(doperpetual,1,0,comm3d,ierr)
+    call D_MPI_BCAST(doseasons,  1,0,comm3d,ierr)
+    call D_MPI_BCAST(iyear,      1,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -188,8 +187,7 @@ contains
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine radiation
-    use mpi
-    use modmpi, only: myid
+    use modmpi, only: myid, MPI_Wtime
     use modglobal, only : timee, dt_lim,rk3step
     use modfields, only : thlp
     use moduser,   only : rad_user

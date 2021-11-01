@@ -55,8 +55,7 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedepsv
-    use mpi
-    use modmpi,     only :myid,my_real,mpi_logical,mpierr,comm3d
+    use modmpi,     only :myid,mpi_logical,mpierr,comm3d,D_MPI_BCAST
     use modglobal,  only :cexpnr,kmax,k1,ifinput,runtime,nsv,ntimedep
     use modtestbed, only :ltestbed,ntnudge
     
@@ -159,13 +158,13 @@ contains
    endif
 
 
-    call MPI_BCAST(timesvsurf(1:kflux),kflux,MY_REAL,0,comm3d,mpierr)
-    call MPI_BCAST(svst             ,kflux*nsv,MY_REAL,0,comm3d,mpierr)
-    call MPI_BCAST(timesvz(1:kls)    ,kls,MY_REAL  ,0,comm3d,mpierr)
-    call MPI_BCAST(ltimedepsvsurf ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(ltimedepsvz    ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(timesvsurf(1:kflux),kflux,0,comm3d,mpierr)
+    call D_MPI_BCAST(svst             ,kflux*nsv,0,comm3d,mpierr)
+    call D_MPI_BCAST(timesvz(1:kls)    ,kls,0,comm3d,mpierr)
+    call D_MPI_BCAST(ltimedepsvsurf ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(ltimedepsvz    ,1,0,comm3d,mpierr)
     do n=1,nsv
-         call MPI_BCAST(svzt(1:k1,1:kls,n),kmax*kls,MY_REAL,0,comm3d,mpierr)
+         call D_MPI_BCAST(svzt(1:k1,1:kls,n),kmax*kls,0,comm3d,mpierr)
     enddo
     call timedepsv
 

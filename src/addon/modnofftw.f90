@@ -21,16 +21,17 @@
 !  Copyright 2014 Netherlands eScience Center
 !
 module modfftw
+use modprecision, only : pois_r
 
 implicit none
 
 contains
 
   subroutine fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
-    real(kind=8), pointer      :: p(:,:,:)
-    real(kind=8), pointer      :: Fp(:,:,:)
-    real(kind=8), allocatable  :: d(:,:,:)
-    real(kind=8), allocatable  :: xyrt(:,:)
+    real(pois_r), pointer      :: p(:,:,:)
+    real(pois_r), pointer      :: Fp(:,:,:)
+    real(pois_r), allocatable  :: d(:,:,:)
+    real(pois_r), allocatable  :: xyrt(:,:)
     integer,intent(out)        :: ps,pe,qs,qe
     call error_and_exit()
     ps=0 ! suppress warnings about intent(out) variables not being assigned
@@ -40,22 +41,22 @@ contains
  end subroutine
 
  subroutine fftwexit(p,Fp,d,xyrt)
-    real(kind=8), pointer     :: p(:,:,:)
-    real(kind=8), pointer     :: Fp(:,:,:)
-    real(kind=8), allocatable :: d(:,:,:)
-    real(kind=8), allocatable :: xyrt(:,:)
+    real(pois_r), pointer     :: p(:,:,:)
+    real(pois_r), pointer     :: Fp(:,:,:)
+    real(pois_r), allocatable :: d(:,:,:)
+    real(pois_r), allocatable :: xyrt(:,:)
     call error_and_exit()
  end subroutine
 
   subroutine fftwf(p, Fp)
-    real(kind=8), pointer :: p(:,:,:)
-    real(kind=8), pointer :: Fp(:,:,:)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
     call error_and_exit()
   end subroutine
 
   subroutine fftwb(p, Fp)
-    real(kind=8), pointer :: p(:,:,:)
-    real(kind=8), pointer :: Fp(:,:,:)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
     call error_and_exit()
   end subroutine
 

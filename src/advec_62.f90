@@ -29,6 +29,7 @@
 !
 
 module advec_62
+use modprecision, only : field_r
 contains
 !> Advection at cell center
 subroutine advecc_62(putin, putout)
@@ -38,9 +39,9 @@ subroutine advecc_62(putin, putout)
 
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real                                       :: inv2dzfk, rhobf_p, rhobf_m
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r)                                       :: inv2dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
@@ -173,9 +174,9 @@ subroutine advecu_62(putin,putout)
 
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real                                       :: inv4dzfk, rhobf_p, rhobf_m
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r)                                       :: inv4dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
@@ -310,9 +311,9 @@ subroutine advecv_62(putin, putout)
   use modfields, only : u0, v0, w0,rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real                                       :: inv4dzfk, rhobf_p, rhobf_m
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r)                                       :: inv4dzfk, rhobf_p, rhobf_m
 
   integer :: i,j,k
 
@@ -444,9 +445,9 @@ subroutine advecw_62(putin, putout)
   use modfields, only : u0, v0, w0,rhobh
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
-  real                                       :: inv4dzhk, rhobh_p, rhobh_m
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r)                                       :: inv4dzhk, rhobh_p, rhobh_m
 
   integer :: i,j,k
 

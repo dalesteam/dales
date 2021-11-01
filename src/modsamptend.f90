@@ -653,8 +653,8 @@ subroutine initsamptend
 !> Write the statistics to file
   subroutine writesamptend
     use modglobal, only : kmax,k1,rtimee
-    use mpi
-    use modmpi,    only : mpi_integer,myid,comm3d,mpierr,my_real,mpi_sum
+    use modmpi,    only : mpi_integer,myid,comm3d,mpierr,mpi_sum &
+                        , D_MPI_ALLREDUCE
     use modstat_nc, only: lnetcdf,writestat_nc
     implicit none
     integer :: field,k
@@ -672,14 +672,14 @@ subroutine initsamptend
     nrpmn = 0.
     nrsamptot=0
 
-    call MPI_ALLREDUCE(nrsamp   ,nrsamptot ,k1*isamptot,MPI_INTEGER,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(upav     ,upmn      ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(vpav     ,vpmn      ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(wpav     ,wpmn      ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(thlpav   ,thlpmn    ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qtpav    ,qtpmn     ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qrpav    ,qrpmn     ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(nrpav    ,nrpmn     ,k1*nrfields*isamptot,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(nrsamp   ,nrsamptot ,k1*isamptot         ,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(upav     ,upmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(vpav     ,vpmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wpav     ,wpmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thlpav   ,thlpmn    ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qtpav    ,qtpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qrpav    ,qrpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(nrpav    ,nrpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
 
     do field=1,nrfields
     do isamp=1,isamptot

@@ -29,6 +29,7 @@
 !
 
 module modthermodynamics
+  use modprecision, only : field_r
 
   implicit none
 !   private
@@ -36,7 +37,7 @@ module modthermodynamics
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
-  real, allocatable :: thv0(:,:,:)
+  real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
 
 
@@ -262,7 +263,7 @@ contains
    exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
    do n=1,nsv
-      call slabsum(sv0av(1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
    end do
    sv0av = sv0av/ijtot
 !***********************************************************

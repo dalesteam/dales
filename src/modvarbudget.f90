@@ -6,7 +6,7 @@
 
 module modvarbudget
 
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
   implicit none
   PRIVATE
   PUBLIC :: initvarbudget, varbudget, exitvarbudget
@@ -44,8 +44,7 @@ module modvarbudget
 contains
 
   subroutine initvarbudget
-    use mpi
-    use modmpi,     only : myid,mpierr, comm3d,my_real, mpi_logical
+    use modmpi,     only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only : k1,ih,i1,jh,j1,ifnamopt,fname_options, ifoutput,&
                            cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,&
                            lwarmstart,checknamelisterror,ladaptive,dtmax
@@ -68,9 +67,9 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(timeav     ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lvarbudget ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lvarbudget ,1,0,comm3d,mpierr)
     idtav = dtav/tres
     itimeav = timeav/tres
 
@@ -248,9 +247,8 @@ contains
     use modsubgriddata, only : ekh
     use modsubgrid,     only : diffc
     use modfields,      only : u0,v0,w0,u0av,v0av
-    use modmpi,         only : comm3d,my_real,mpi_sum,mpierr, &
-                               slabsum
-    use mpi,             only : mpi_allreduce
+    use modmpi,         only : comm3d,mpi_sum,mpierr, &
+                               slabsum, D_MPI_ALLREDUCE
     use advec_2nd,      only : advecc_2nd
     use advec_52,       only : advecc_52
     use advec_5th,      only : advecc_5th
@@ -268,19 +266,18 @@ contains
 
 !    ----------- input variables
     real &
-        varxf      (2-ih:i1+ih,2-jh:j1+jh,k1), &    !input variable x at full level &
         varxflux   (i2,j2),                    &    !surface flux of varx
-        src        (2-ih:i1+ih,2-jh:j1+jh,k1), &    !source of variable x at full level &
         resprodf   (k1),                       &    !resolved production of variance, full level &
+        src        (2-ih:i1+ih,2-jh:j1+jh,k1), &    !source of variable x at full level &
         subprodf   (k1),                       &    !'gradient' production, at full level &
         restranf   (k1),                       &    !resolved transport of (co-)variance at full level &
         disf       (k1),                       &    !'real' dissipation , at full level
         srcf       (k1)                             !source term interaction
+    real(field_r) &
+        varxf      (2-ih:i1+ih,2-jh:j1+jh,k1)!, &    !input variable x at full level &
 
 !    ----------- function variables
     real &
-        varxfdev   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of varxf &
-        varxfmn    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !3D field of slab-averaged varxf &
         u0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of u &
         v0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of v &
         w0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of w &
@@ -288,14 +285,18 @@ contains
         v0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for v &
         w0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for w &
         ekh_stor   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for ekh &
-        term       (2-ih:i1+ih,2-jh:j1+jh,k1), &    !output for adv/diff routines &
         dumfield   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !dummy field to construct terms &
         varxfluxmn (i2,j2),                    &    !2D field of averaged varx surface flux &
-        w0av       (k1),                       &    !mean vertical velocity
         ekhav      (k1),                       &    !mean ekh
-        term_av    (k1),                       &    !mean term
-        varxfav    (k1),                       &    !mean of varxf at full level &
+        term_av2   (k1),                       &    !mean term, default precision
         varx2fav   (k1)                             !variance of varxf at full level &
+    real(field_r) &
+        varxfdev   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of varxf &
+        varxfmn    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !3D field of slab-averaged varxf &
+        varxfav    (k1),                       &    !mean of varxf at full level &
+        term       (2-ih:i1+ih,2-jh:j1+jh,k1), &    !output for adv/diff routines &
+        term_av    (k1),                       &    !mean term
+        w0av       (k1)!                        &    !mean vertical velocity
 
 !    ----------- local (processor) variables
     real varx2favl   (k1)  !variance of varxf at full level &
@@ -367,7 +368,7 @@ contains
     end do
     end do
 
-    call MPI_ALLREDUCE(varx2favl, varx2fav, k1, MY_REAL, &
+    call D_MPI_ALLREDUCE(varx2favl, varx2fav, k1, &
                        MPI_SUM, comm3d,mpierr)
     varx2fav = varx2fav / ijtot
 
@@ -478,7 +479,7 @@ contains
       varxfluxavl = varxfluxavl + varxflux(i,j)
     end do
     end do
-    call MPI_ALLREDUCE(varxfluxavl, varxfluxav, 1,    MY_REAL, &
+    call D_MPI_ALLREDUCE(varxfluxavl, varxfluxav, 1, &
                            MPI_SUM, comm3d,mpierr)
     varxfluxav = varxfluxav/ijtot
 
@@ -513,13 +514,13 @@ contains
    !      srcf = 2 <a' S'>
    !-------------------------------------------------------------
 
-    term_av = 0.
-    call slabsum(term_av ,1,k1,src ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    term_av = term_av/ijtot
+    term_av2 = 0.
+    call slabsum(term_av2 ,1,k1,src ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    term_av2 = term_av2/ijtot
 
     term = 0.
     do k=1,k1
-       term(:,:,k) = src(:,:,k) - term_av(k)
+       term(:,:,k) = src(:,:,k) - term_av2(k)
     enddo
 
     dumfield = 2.*varxfdev*term

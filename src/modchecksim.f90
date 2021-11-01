@@ -45,8 +45,7 @@ contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
   subroutine initchecksim
     use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres,checknamelisterror
-    use mpi
-    use modmpi,    only : myid,my_real,comm3d,mpierr
+    use modmpi,    only : myid,comm3d,mpierr, D_MPI_BCAST
     implicit none
     integer :: ierr
     namelist/NAMCHECKSIM/ &
@@ -64,7 +63,7 @@ contains
       end if
     end if
 
-    call MPI_BCAST(tcheck     ,1,MY_REAL   ,0,comm3d,mpierr)
+    call D_MPI_BCAST(tcheck     ,1,0,comm3d,mpierr)
     itcheck = floor(tcheck/tres)
     tnext = itcheck+btime
 
@@ -98,8 +97,7 @@ contains
   subroutine calccourant
     use modglobal, only : i1,j1,kmax,dx,dy,dzh
     use modfields, only : u0,v0,w0
-    use mpi
-    use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
     implicit none
 
     real, allocatable, dimension (:) :: courxl,courx,couryl,coury,courzl,courz,courtotl,courtot
@@ -120,10 +118,10 @@ contains
       courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
       w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*dtmn*dtmn
     end do
-    call MPI_ALLREDUCE(courxl,courx,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(couryl,coury,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(courzl,courz,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
-    call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(courxl  ,courx  ,kmax,MPI_MAX,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(couryl  ,coury  ,kmax,MPI_MAX,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(courzl  ,courz  ,kmax,MPI_MAX,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
       write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
       maxval(courx(1:kmax)),maxval(coury(1:kmax)),maxval(courz(1:kmax)),maxloc(courz(1:kmax)),sqrt(maxval(courtot(1:kmax))),maxloc(courtot(1:kmax))
@@ -138,8 +136,7 @@ contains
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
     use modsubgrid,only : ekm
-    use mpi
-    use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
     implicit none
 
 
@@ -153,7 +150,7 @@ contains
       peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
     end do
 
-    call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(peclettotl,peclettot,k1,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
       write(6,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
     end if
@@ -167,8 +164,7 @@ contains
 
     use modglobal, only : i1,j1,kmax,dx,dy,dzf,dt_reason
     use modfields, only : u0,v0,w0,rhobf,rhobh
-    use mpi
-    use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,my_real,mpierr
+    use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,mpierr, D_MPI_ALLREDUCE
     implicit none
 
 
@@ -195,9 +191,9 @@ contains
     end do
     end do
 
-    call MPI_ALLREDUCE(divtotl, divtot, 1,    MY_REAL, &
+    call D_MPI_ALLREDUCE(divtotl, divtot, 1,     &
                           MPI_SUM, comm3d,mpierr)
-    call MPI_ALLREDUCE(divmaxl, divmax, 1,    MY_REAL, &
+    call D_MPI_ALLREDUCE(divmaxl, divmax, 1,     &
                           MPI_MAX, comm3d,mpierr)
 
     if(myid==0)then

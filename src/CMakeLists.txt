@@ -25,7 +25,7 @@ endif(USE_HYPRE)
 
 if(USE_FFTW)
   # Build the FFTW-based Poisson solver
-  list(APPEND OPTIONAL_LIBS ${FFTW_LIB})
+  list(APPEND OPTIONAL_LIBS ${FFTW_LIB} ${FFTWF_LIB})
 else(USE_FFTW)
   # Do not build the iterative solver, but use (empty) fallback functions
   list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/modfftw.f90)

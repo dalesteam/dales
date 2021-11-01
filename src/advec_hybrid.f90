@@ -25,6 +25,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module advec_hybrid
+use modprecision, only: field_r
 implicit none
 contains
 
@@ -35,10 +36,10 @@ subroutine advecc_hybrid(pin,pout)
   implicit none
 
   ! input and output variables
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
 
-  real,dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhopin  !< 3D density profile * input
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhopin  !< 3D density profile * input
 
   ! local variables
   logical,dimension(2:i1+1,2:j1+1,k1) :: lsmx,lsmy,lsmz
@@ -138,7 +139,7 @@ end subroutine advecc_hybrid
 function ip_hybrid(vin,lpos,lsmooth)
   implicit none
   real :: ip_hybrid
-  real,intent(in),dimension(-3:2) :: vin   ! Subset of a variable
+  real(field_r),intent(in),dimension(-3:2) :: vin   ! Subset of a variable
   logical,intent(in) :: lpos               ! Positive of negative velocity
   logical,intent(in) :: lsmooth            ! Locally smooth or non-smooth
 
@@ -204,7 +205,7 @@ function smoothness(pin,dir)
   use modglobal, only : kmax,ih,i1,jh,j1,k1
   use modfields, only : u0,v0,w0
   implicit none
-  real,intent(in),dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: pin
+  real(field_r),intent(in),dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: pin
   integer,intent(in) :: dir
   real,dimension(2:i1+1,2:j1+1,k1) :: smoothness
   real,dimension(3) :: gam=0.

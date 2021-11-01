@@ -13,17 +13,17 @@ if("$ENV{SYST}" STREQUAL "HUYGENS")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "CARTESIUS")
   set(CMAKE_Fortran_COMPILER "mpiifort")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend-source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "localpc_ifort")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend-source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "HYDRA")
   set(CMAKE_Fortran_COMPILER "mpiifort")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend-source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FEDORA")
@@ -39,7 +39,7 @@ elseif("$ENV{SYST}" STREQUAL "ECMWF")
   set(CMAKE_Fortran_FLAGS_DEBUG "-g -R b -K trap=fp" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF-intel")
   set(CMAKE_Fortran_COMPILER "ftn")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend-source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF-gnu")
@@ -54,14 +54,14 @@ elseif("$ENV{SYST}" STREQUAL "gnu-fast")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_COMPILER "mpiifort")
-   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend-source" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    set(CMAKE_Fortran_COMPILER "mpifrtpx")
    set(CMAKE_Fortran_FLAGS "-CcdRR8 -g" CACHE STRING "")
    set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast" CACHE STRING "")
-   set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O2" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O0" CACHE STRING "")
    # Fujitsu fortran compiler
    # -CcdRR8 default real is 64 bit, like gnu -fdefault-real-8
    # -Ad (-CcR4R8) is like gnu -freal-4-real-8  ALL reals are 64 bit
@@ -77,7 +77,7 @@ else()
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=gnu -Werror=implicit-interface" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-fimplicit-none -finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 endif()
 
 # On compiler options
@@ -177,6 +177,14 @@ FIND_LIBRARY(FFTW_LIB fftw3
   /usr/lib
   /usr/lib64
   DOC "FFTW static library"
+)
+
+FIND_LIBRARY(FFTWF_LIB fftw3f
+  PATHS
+  $ENV{FFTW_LIB}
+  /usr/lib
+  /usr/lib64
+  DOC "FFTW single precision library"
 )
 
 if(NETCDF_INCLUDE_DIR)
