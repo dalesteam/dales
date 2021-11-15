@@ -57,7 +57,26 @@ elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
+   set(CMAKE_Fortran_COMPILER "mpifrtpx")
+   set(CMAKE_Fortran_FLAGS "-CcdRR8 -g -Koptmsg=2" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast -x 128" CACHE STRING "")
+   set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O0" CACHE STRING "")
+   # Fujitsu fortran compiler
+   # -CcdRR8 default real is 64 bit, like gnu -fdefault-real-8
+   # -Ad (-CcR4R8) is like gnu -freal-4-real-8  ALL reals are 64 bit
+   # -Kfast optimization and SVE vectorization
+   # -Haefosux checking: s-subscript range, u-undefinied values
+   #                     a-argument mismatches, e-shape conformance
+   #                     f-simultaneousOPEN and I/O recursive calls
+   #                     o-overlapping dummy arguments and extend undefined
+   #                     x-module, submodule, common, and pointer undefined
+   # -x <n> inlines functions if the size increases by at most n bytes
+   #        128 gives good speedup
+   # -Koptmsg=2 prints a lot of optimization information
+   #
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
+   # don't set any compilation flags here, allows setting them outside CMake
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
   set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=legacy" CACHE STRING "")
