@@ -132,7 +132,6 @@ save
       integer, parameter :: iadv_62     = 62
       integer, parameter :: iadv_52     = 52
       integer, parameter :: iadv_kappa    = 7
-      integer, parameter :: iadv_kappa_f  = 77
       integer, parameter :: iadv_hybrid   = 55
       integer, parameter :: iadv_hybrid_f = 555
 
