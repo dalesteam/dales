@@ -93,19 +93,16 @@ contains
  subroutine cyclich
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv
-  use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
+  use modfields, only : thl0,qt0,sv0
   use modmpi,    only : excjs
 
   integer n
 
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( thlm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qtm            , 2,i1,2,j1,1,k1,ih,jh)
 
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
-    call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
   enddo
 
   return
@@ -115,17 +112,13 @@ contains
  subroutine cyclicm
 
   use modglobal, only : i1,ih,j1,jh,k1
-  use modfields, only : u0,um,v0,vm,w0,wm,e120,e12m
+  use modfields, only : u0,v0,w0,e120
   use modmpi,    only : excjs
 
   call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( um  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( vm  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( wm  , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( e12m  , 2,i1,2,j1,1,k1,ih,jh)
 
   return
   end subroutine cyclicm
