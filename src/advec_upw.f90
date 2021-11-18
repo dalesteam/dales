@@ -21,6 +21,7 @@
 !
 
 module advec_upw
+use modprecision, only : field_r
 contains
 !> Advection at cell center
 subroutine advecc_upw(putin,putout)
@@ -29,11 +30,11 @@ subroutine advecc_upw(putin,putout)
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: put
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: put
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
   integer :: i,j,k
 
 

@@ -46,14 +46,15 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module advec_kappa
+use modprecision, only : field_r
 contains
 
 subroutine advecc_kappa(putin,putout)
   use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
   
   real      d1,d2,cf
   real :: d1m, d2m, d1p, cfm, cfp, work
@@ -209,9 +210,9 @@ subroutine  halflev_kappa(putin,putout)
   use modglobal, only : i1,ih,j1,jh,k1
     use modfields, only : w0, rhobf, rhobh
     implicit none
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
-    real      d1,d2,cf
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+    real(field_r)      d1,d2,cf
     integer   i,j,k
 
 
@@ -253,10 +254,10 @@ subroutine  halflev_kappa(putin,putout)
   real function rlim(d1,d2)
     use modglobal, only : eps1
     implicit none
-    real, intent(in) :: d1 !< Scalar flux at 1.5 cells upwind
-    real, intent(in) :: d2 !< Scalar flux at 0.5 cells upwind
+    real(field_r), intent(in) :: d1 !< Scalar flux at 1.5 cells upwind
+    real(field_r), intent(in) :: d2 !< Scalar flux at 0.5 cells upwind
 
-    real ri,phir
+    real(field_r) ri,phir
 
     ri    = (d2+eps1)/(d1+eps1)
     phir  = max(0.,min(2.*ri,min(1./3.+2./3.*ri,2.)))
