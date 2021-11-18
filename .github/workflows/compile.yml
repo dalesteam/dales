@@ -1,0 +1,78 @@
+# This is a basic workflow to compile DALES
+
+name: DALES compilation CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events
+  push:
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: ["gnu"]
+        fftw:    ["", "-DUSE_FFTW=T"]
+        hypre:   ["", "-DUSE_HYPRE=T"]
+        
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      - name: Install common dependencies
+        run: |
+          # Enable sources for netcdff-dev
+          sudo sed -i '/^#\sdeb-src /s/^#//' "/etc/apt/sources.list"
+
+          sudo apt-get update
+          sudo apt-get install -y cmake libfftw3-dev libhypre-dev libnetcdf-dev
+
+      - name : Install Intel (oneapi) dependencies
+        if: matrix.toolchain == 'intel' 
+        run: |
+          # use wget to fetch the Intel repository public key
+          cd /tmp
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          # add to your apt sources keyring so that archives signed with this key will be trusted.
+          sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          # remove the public key
+          rm GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB 
+
+          sudo add-apt-repository "deb https://apt.repos.intel.com/oneapi all main"
+
+          sudo apt install -y intel-oneapi-mpi-devel intel-oneapi-compiler-fortran
+
+          # localpc_ifort uses mpif90, which breaks, therefore we use CARTESIUS,
+          # which utilizes mpiifort which works
+          echo "SYST=CARTESIUS" >> $GITHUB_ENV 
+
+      - name: Install Gnu dependencies
+        if: matrix.toolchain == 'gnu'
+        run: |
+            sudo apt-get install -y libopenmpi-dev libnetcdff-dev
+
+      - name : Set up Build
+        run: |
+          if [[ -f /opt/intel/oneapi/setvars.sh ]]; then
+            source /opt/intel/oneapi/setvars.sh
+          fi
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=DEBUG ${{ matrix.fftw }} ${{ matrix.hypre }} ../
+
+      - name : Build
+        run: |
+          if [[ -f /opt/intel/oneapi/setvars.sh ]]; then
+            source /opt/intel/oneapi/setvars.sh
+          fi
+          cd build
+          make -j2
