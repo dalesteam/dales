@@ -20,7 +20,7 @@
 
 module modhypre
 use iso_c_binding
-use modprecision, only : real64
+use modprecision, only : pois_r, real64
 implicit none
 private
 public :: inithypre, solve_hypre, exithypre, set_initial_guess
@@ -1084,7 +1084,7 @@ contains
 
     implicit none
 
-    real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
     real(real64) values(imax,jmax)
 
     integer i,j,k
@@ -1107,7 +1107,7 @@ contains
 
     implicit none
 
-    real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
     logical, intent(out) :: converged
     real(real64) values(imax,jmax)
 

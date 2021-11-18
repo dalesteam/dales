@@ -183,6 +183,14 @@ FIND_LIBRARY(FFTW_LIB fftw3
   DOC "FFTW static library"
 )
 
+FIND_LIBRARY(FFTWF_LIB fftw3f
+  PATHS
+  $ENV{FFTW_LIB}
+  /usr/lib
+  /usr/lib64
+  DOC "FFTW single precision library"
+)
+
 if(NETCDF_INCLUDE_DIR)
   include_directories(${NETCDF_INCLUDE_DIR})
 else(NETCDF_INCLUDE_DIR)
