@@ -20,10 +20,21 @@
 !
 !  Copyright 2014 Netherlands eScience Center
 !
+
+
 module modfftw
+! All use arguments must be outside of #ifdef because CMAKE doesnt read beyond
+! it for dependency generation
 use, intrinsic  :: iso_c_binding
 use modprecision, only : pois_r
+use modglobal, only : itot, jtot, imax, jmax, i1, j1, ih, jh, kmax, ijtot &
+                    , dxi,dyi,pi
+use modmpi, only : commcol, commrow, mpierr, nprocx, D_MPI_ALLTOALL, nprocy &
+                 , myidx, myidy
 implicit none
+
+#ifdef USE_FFTW
+
 include 'fftw3.f03'
 
 save
@@ -78,9 +89,6 @@ contains
 
   subroutine fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
 
-    use modmpi, only   : nprocx, nprocy
-    use modglobal, only: itot, jtot, imax, jmax, i1, j1, ih, jh, kmax
-    use, intrinsic  :: iso_c_binding
     implicit none
 
     real(pois_r), pointer              :: p(:,:,:)
@@ -363,8 +371,6 @@ contains
 !            p201(      jtot,      konx,iony) <=> p102(iony,jonx,kmax)
 !
   subroutine transpose_a1(p,p210)
-    use modmpi, only : commrow, mpierr, nprocx, D_MPI_ALLTOALL
-    use modglobal, only : i1,j1, itot, imax,jmax, kmax, ih, jh
     implicit none
 
     !real, intent(in)    :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
@@ -407,8 +413,6 @@ contains
   end subroutine
 
   subroutine transpose_a1inv(p,p210)
-    use modmpi, only : commrow, mpierr, nprocx, D_MPI_ALLTOALL
-    use modglobal, only : i1,j1, itot, imax,jmax, kmax, ih,jh
     implicit none
 
     !real, intent(out)   :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
@@ -451,8 +455,6 @@ contains
   end subroutine
 
   subroutine transpose_a2(p210, p201)
-    use modmpi, only : commcol, mpierr, nprocy, D_MPI_ALLTOALL
-    use modglobal, only : itot, jtot, jmax
     implicit none
 
     !real, intent(in)    :: p210(itot,jmax,konx)
@@ -495,8 +497,6 @@ contains
   end subroutine
 
   subroutine transpose_a2inv(p210, p201)
-    use modmpi, only : commcol, mpierr, nprocy, D_MPI_ALLTOALL
-    use modglobal, only : itot, jtot, jmax
     implicit none
 
     !real, intent(out)  :: p210(itot,jmax,konx)
@@ -539,8 +539,6 @@ contains
   end subroutine
 
   subroutine transpose_a3(p201, Fp)
-    use modmpi, only : commrow, mpierr, nprocx,D_MPI_ALLTOALL
-    use modglobal, only : itot, jtot, jmax, kmax
     implicit none
 
     !real, intent(in)    :: p201(jtot,konx,iony)
@@ -585,8 +583,6 @@ contains
   end subroutine
 
   subroutine transpose_a3inv(p201, Fp)
-    use modmpi, only : commrow, mpierr, nprocx, D_MPI_ALLTOALL
-    use modglobal, only : itot, jtot, jmax, kmax
     implicit none
 
     !real, intent(out)   :: p201(jtot,konx,iony)
@@ -631,10 +627,6 @@ contains
   end subroutine
 
   subroutine fftwf(p, Fp)
-
-    use modglobal, only : ijtot, i1, j1, ih, jh, kmax
-    use modmpi, only    : myidx,myidy,nprocx
-
     implicit none
 
     real(pois_r), pointer :: p(:,:,:)
@@ -658,10 +650,6 @@ contains
   end subroutine
 
   subroutine fftwb(p, Fp)
-
-    use modglobal, only : ijtot, i1, j1, ih, jh, kmax
-    use modmpi, only    : myidx,myidy,nprocx
-
     implicit none
 
     real(pois_r), pointer :: p(:,:,:)
@@ -688,9 +676,6 @@ contains
 
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine fftwinit_factors(xyrt)
-    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh
-    use modmpi, only    : myidx, myidy
-
     implicit none
 
     real(pois_r), allocatable :: xyrt(:,:)
@@ -854,5 +839,53 @@ contains
 
       d_fftwf_plan_guru_r2r = fftwf_plan_guru_r2r(rank,dimsf,howmany_rank,howmany_dimsf,in,out,kind,flags)
     end function 
+
+
+#else
+
+contains
+
+  subroutine fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+    real(pois_r), pointer      :: p(:,:,:)
+    real(pois_r), pointer      :: Fp(:,:,:)
+    real(pois_r), allocatable  :: d(:,:,:)
+    real(pois_r), allocatable  :: xyrt(:,:)
+    integer,intent(out)        :: ps,pe,qs,qe
+    call error_and_exit()
+    ps=0 ! suppress warnings about intent(out) variables not being assigned
+    pe=0
+    qs=0
+    qe=0
+ end subroutine
+
+ subroutine fftwexit(p,Fp,d,xyrt)
+    real(pois_r), pointer     :: p(:,:,:)
+    real(pois_r), pointer     :: Fp(:,:,:)
+    real(pois_r), allocatable :: d(:,:,:)
+    real(pois_r), allocatable :: xyrt(:,:)
+    call error_and_exit()
+ end subroutine
+
+  subroutine fftwf(p, Fp)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
+    call error_and_exit()
+  end subroutine
+
+  subroutine fftwb(p, Fp)
+    real(pois_r), pointer :: p(:,:,:)
+    real(pois_r), pointer :: Fp(:,:,:)
+    call error_and_exit()
+  end subroutine
+
+  subroutine error_and_exit
+    write (*,*) 'DALES was compiled without FFTW.'
+    write (*,*) 'Use the default poisson solver (solver_id=0),'
+    write (*,*) 'or recompile DALES with the option USE_FFTW.'
+
+    call exit(-1)
+  end subroutine
+
+#endif
 
 end module modfftw

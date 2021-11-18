@@ -19,9 +19,21 @@
 !  Based on hypre/src/test/f77_struct.f
 
 module modhypre
+! All use arguments must be outside of #ifdef because CMAKE doesnt read beyond
+! it for dependency generation
 use iso_c_binding
 use modprecision, only : pois_r, real64
+use modmpi, only : myid, myidx, myidy, nprocx, nprocy, MPI_COMM_WORLD &
+                 , MPI_Wtime
+use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax, solver_id, maxiter &
+                    , n_pre, n_post, tolerance, precond, dzf, dzh, dx, dy &
+                    , itot, jtot
+use modfields, only : rhobf, rhobh
+
 implicit none
+
+#ifdef USE_HYPRE
+
 private
 public :: inithypre, solve_hypre, exithypre, set_initial_guess
 save
@@ -715,8 +727,6 @@ end interface
 contains
   subroutine initprecond
     ! Setup a preconditioner for the BiCGSTAB or GMRES solvers
-    use modglobal, only : solver_id, precond, maxiter, n_pre, n_post
-
     implicit none
 
     ! The precond_id flags mean :
@@ -758,8 +768,6 @@ contains
   end subroutine
 
   subroutine exitprecond
-    use modglobal, only : precond
-
     implicit none
 
     if (precond == 0) then
@@ -772,13 +780,6 @@ contains
   end subroutine
 
   subroutine inithypre
-    use modmpi, only : myid, myidx, myidy, nprocx, nprocy, MPI_COMM_WORLD &
-                     , MPI_Wtime
-    use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, itot, jtot, &
-      solver_id, maxiter, n_pre, n_post, tolerance, precond
-
-    use modfields, only : rhobf, rhobh
-
     implicit none
 
     ! NOTE: we assume kmax is larger than 7,
@@ -1080,7 +1081,6 @@ contains
   end subroutine
 
   subroutine set_initial_guess(p)
-    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax
 
     implicit none
 
@@ -1102,8 +1102,6 @@ contains
   end subroutine
 
   subroutine solve_hypre(p, converged)
-    use modmpi, only : myid
-    use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax, solver_id, maxiter
 
     implicit none
 
@@ -1222,7 +1220,6 @@ contains
   end subroutine
 
   subroutine exithypre
-    use modglobal, only : solver_id, precond
 
     implicit none
 
@@ -1257,5 +1254,55 @@ contains
     call HYPRE_StructVectorDestroy(vectorB, ierr)
     call HYPRE_StructVectorDestroy(vectorX, ierr)
   end subroutine
+
+#else
+
+private
+public :: inithypre, solve_hypre, exithypre, set_initial_guess
+
+contains
+
+  subroutine inithypre
+    implicit none
+
+    call error_and_exit()
+  end subroutine
+
+  subroutine exithypre
+    implicit none
+
+    call error_and_exit()
+  end subroutine
+
+  subroutine set_initial_guess(p)
+    implicit none
+
+    real(pois_r), intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+
+    call error_and_exit()
+  end subroutine
+
+  subroutine solve_hypre(p, converged)
+    implicit none
+
+    real(pois_r), intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    logical, intent(out) :: converged
+
+    call error_and_exit()
+    converged = .false. ! suppress warnings about intent(out) variable
+                        ! not being assigned
+  end subroutine
+
+  subroutine error_and_exit
+    implicit none
+
+    write (*,*) 'DALES was compiled without HYPRE.'
+    write (*,*) 'Use the poisson solver (solver_id=0),'
+    write (*,*) 'or recompile DALES with the option USE_HYPRE.'
+
+    call exit(-1)
+  end subroutine
+
+#endif
 
 end module

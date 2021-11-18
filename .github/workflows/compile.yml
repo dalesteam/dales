@@ -19,7 +19,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: ["gnu"]
+        toolchain: ["gnu", "intel"]
         fftw:    ["", "-DUSE_FFTW=T"]
         hypre:   ["", "-DUSE_HYPRE=T"]
         
@@ -55,6 +55,34 @@ jobs:
           # which utilizes mpiifort which works
           echo "SYST=CARTESIUS" >> $GITHUB_ENV 
 
+      - name: Checkout NetCdf-Fortran for Intel
+        if: matrix.toolchain == 'intel'
+        uses: actions/checkout@v2
+        with:
+          repository: Unidata/netcdf-fortran
+          ref: 4.4.4
+          path: netcdf-fortran
+
+      - name: Compile netcdf-Fortran for Intel
+        if: matrix.toolchain == 'intel'
+        run: |
+          source /opt/intel/oneapi/setvars.sh
+          #make sure ifort is found
+          sudo ln -s `which ifort` /usr/bin/ifort
+          cd netcdf-fortran
+          NCDIR=/usr FC=/usr/bin/ifort ./configure
+          #fix weird bug where libmf et al are not found
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libimf.so \
+             /opt/intel/oneapi/compiler/latest/linux/lib/
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libintlc.so.5 \
+             /opt/intel/oneapi/compiler/latest/linux/lib/
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libsvml.so \
+             /opt/intel/oneapi/compiler/latest/linux/lib/
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libirng.so \
+             /opt/intel/oneapi/compiler/latest/linux/lib/
+          sudo make -j2
+          sudo make install
+
       - name: Install Gnu dependencies
         if: matrix.toolchain == 'gnu'
         run: |
@@ -75,4 +103,4 @@ jobs:
             source /opt/intel/oneapi/setvars.sh
           fi
           cd build
-          make -j2
+          make -j2 
