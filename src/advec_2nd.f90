@@ -29,6 +29,9 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module advec_2nd
+use modprecision, only : field_r
+contains
 !> Advection at cell center
 subroutine advecc_2nd(putin,putout)
 
@@ -36,8 +39,8 @@ subroutine advecc_2nd(putin,putout)
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k
@@ -121,8 +124,8 @@ subroutine advecu_2nd(putin, putout)
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
@@ -237,8 +240,8 @@ subroutine advecv_2nd(putin, putout)
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v-field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v-field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
@@ -351,8 +354,8 @@ subroutine advecw_2nd(putin,putout)
   use modfields, only : u0, v0, w0, rhobh
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w-field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w-field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
@@ -438,3 +441,4 @@ subroutine advecw_2nd(putin,putout)
 
 
 end subroutine advecw_2nd
+end module advec_2nd

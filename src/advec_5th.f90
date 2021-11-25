@@ -33,6 +33,9 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module advec_5th
+use modprecision, only : field_r
+contains
 !> Advection at cell center
 subroutine advecc_5th(putin, putout)
 
@@ -41,8 +44,8 @@ subroutine advecc_5th(putin, putout)
 
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the cell centered field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
   integer :: i,j,k
 
@@ -55,21 +58,21 @@ subroutine advecc_5th(putin, putout)
                 ( &
                   u0(i+1,j,k)/60.&
                   *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                  -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                  -sign(1._field_r,u0(i+1,j,k))*u0(i+1,j,k)/60.&
                   *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                   -u0(i,j,k)/60.&
                   *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                  +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                  +sign(1._field_r,u0(i,j,k))*u0(i,j,k)/60.&
                   *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi&
                 +(&
                   v0(i,j+1,k)/60.&
                   *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                  -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                  -sign(1._field_r,v0(i,j+1,k))*v0(i,j+1,k)/60.&
                   *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                   -v0(i,j,k)/60.&
                   *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                  +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                  +sign(1._field_r,v0(i,j,k))*v0(i,j,k)/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k))) &
                   )* dyi &
                 +(1./rhobf(1))*( &
@@ -87,21 +90,21 @@ subroutine advecc_5th(putin, putout)
                   ( &
                       u0(i+1,j,k)/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                      -sign(1._field_r,u0(i+1,j,k))*u0(i+1,j,k)/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -u0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                      +sign(1._field_r,u0(i,j,k))*u0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi&
                 +(&
                       v0(i,j+1,k)/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                      -sign(1._field_r,v0(i,j+1,k))*v0(i,j+1,k)/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -v0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                      +sign(1._field_r,v0(i,j,k))*v0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
                 +(1./rhobf(k))*( &
@@ -121,28 +124,28 @@ subroutine advecc_5th(putin, putout)
                   ( &
                       u0(i+1,j,k)/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                      -sign(1._field_r,u0(i+1,j,k))*u0(i+1,j,k)/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -u0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                      +sign(1._field_r,u0(i,j,k))*u0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi&
                 +(&
                       v0(i,j+1,k)/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                      -sign(1._field_r,v0(i,j+1,k))*v0(i,j+1,k)/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -v0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                      +sign(1._field_r,v0(i,j,k))*v0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
                 +(1/rhobf(k))*( &
                       w0(i,j,k+1)/60.&
                       *(37.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k))-8.*(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)+rhobf(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,w0(i,j,k+1))*w0(i,j,k+1)/60.&
+                      -sign(1._field_r,w0(i,j,k+1))*w0(i,j,k+1)/60.&
                       *(10.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k)*putin(i,j,k))-5.*(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)-rhobf(k-2)*putin(i,j,k-2)))&
                       -w0(i,j,k)  * (rhobf(k-1)*putin(i,j,k-1)+rhobf(k)*putin(i,j,k))/2. &
@@ -158,21 +161,21 @@ subroutine advecc_5th(putin, putout)
                   ( &
                       u0(i+1,j,k)/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                      -sign(1._field_r,u0(i+1,j,k))*u0(i+1,j,k)/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -u0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                      +sign(1._field_r,u0(i,j,k))*u0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )* dxi &
                 +( &
                       v0(i,j+1,k)/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                      -sign(1._field_r,v0(i,j+1,k))*v0(i,j+1,k)/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -v0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                      +sign(1._field_r,v0(i,j,k))*v0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
                 +(1./rhobf(k))*( &
@@ -180,7 +183,7 @@ subroutine advecc_5th(putin, putout)
                       -w0(i,j,k)/60.&
                       *(37.*(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1))-8.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-3)*putin(i,j,k-3)))&
-                      +sign(1.,w0(i,j,k))*w0(i,j,k)/60.&
+                      +sign(1._field_r,w0(i,j,k))*w0(i,j,k)/60.&
                       *(10.*(rhobf(k)*putin(i,j,k)-rhobf(k-1)*putin(i,j,k-1))-5.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / dzf(k) &
@@ -197,34 +200,34 @@ subroutine advecc_5th(putin, putout)
                   ( &
                       u0(i+1,j,k)/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,u0(i+1,j,k))*u0(i+1,j,k)/60.&
+                      -sign(1._field_r,u0(i+1,j,k))*u0(i+1,j,k)/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -u0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,u0(i,j,k))*u0(i,j,k)/60.&
+                      +sign(1._field_r,u0(i,j,k))*u0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )* dxi &
                 +( &
                       v0(i,j+1,k)/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,v0(i,j+1,k))*v0(i,j+1,k)/60.&
+                      -sign(1._field_r,v0(i,j+1,k))*v0(i,j+1,k)/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -v0(i,j,k)/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,v0(i,j,k))*v0(i,j,k)/60.&
+                      +sign(1._field_r,v0(i,j,k))*v0(i,j,k)/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi &
                 +(1./rhobf(k))*( &
                       w0(i,j,k+1)/60.&
                       *(37.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k))-8.*(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)+rhobf(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,w0(i,j,k+1))*w0(i,j,k+1)/60.&
+                      -sign(1._field_r,w0(i,j,k+1))*w0(i,j,k+1)/60.&
                       *(10.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k)*putin(i,j,k))-5.*(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)-rhobf(k-2)*putin(i,j,k-2)))&
                       -w0(i,j,k)/60.&
                       *(37.*(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1))-8.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-3)*putin(i,j,k-3)))&
-                      +sign(1.,w0(i,j,k))*w0(i,j,k)/60.&
+                      +sign(1._field_r,w0(i,j,k))*w0(i,j,k)/60.&
                       *(10.*(rhobf(k)*putin(i,j,k)-rhobf(k-1)*putin(i,j,k-1))-5.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / dzf(k) &
@@ -247,8 +250,8 @@ subroutine advecu_5th(putin,putout)
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the u field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
   integer :: i,j,k
 
@@ -262,21 +265,21 @@ subroutine advecu_5th(putin,putout)
                 (&
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
                     *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -sign(1.,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
+                    -sign(1._field_r,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
                     *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                     -(u0(i,j,k)+u0(i-1,j,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                    +sign(1.,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
+                    +sign(1._field_r,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                 )*dxi5 &
               +(&
                     (v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                     *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -sign(1.,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
+                    -sign(1._field_r,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                     *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                     -(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                    +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
+                    +sign(1._field_r,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
               +(1./rhobf(1))*( &
@@ -293,21 +296,21 @@ subroutine advecu_5th(putin,putout)
                 ( &
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
                     *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -sign(1.,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
+                    -sign(1._field_r,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
                     *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                     -(u0(i,j,k)+u0(i-1,j,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                    +sign(1.,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
+                    +sign(1._field_r,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                 )*dxi5&
               +(&
                     (v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                     *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -sign(1.,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
+                    -sign(1._field_r,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                     *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                     -(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                    +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
+                    +sign(1._field_r,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
               + (1./rhobf(k))*( &
@@ -325,28 +328,28 @@ subroutine advecu_5th(putin,putout)
                 ( &
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
                     *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -sign(1.,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
+                    -sign(1._field_r,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
                     *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                     -(u0(i,j,k)+u0(i-1,j,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                    +sign(1.,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
+                    +sign(1._field_r,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                 )*dxi5&
               +(&
                     (v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                     *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -sign(1.,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
+                    -sign(1._field_r,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                     *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                     -(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                    +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
+                    +sign(1._field_r,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                 )* dyi5 &
               +(1/rhobf(k))*( &
                       (w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
                       *(37.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k))-8.*(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)+rhobf(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,(w0(i,j,k+1)+w0(i-1,j,k+1)))*(w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
+                      -sign(1._field_r,(w0(i,j,k+1)+w0(i-1,j,k+1)))*(w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
                       *(10.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k)*putin(i,j,k))-5.*(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)-rhobf(k-2)*putin(i,j,k-2)))&
                       -(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1) )*(w0(i,j,k  )+w0(i-1,j,k  ))/2. &
@@ -362,21 +365,21 @@ subroutine advecu_5th(putin,putout)
                   (&
                       (u0(i+1,j,k)+u0(i,j,k))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
+                      -sign(1._field_r,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -(u0(i,j,k)+u0(i-1,j,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
+                      +sign(1._field_r,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )* dxi5 &
                 +( &
                       (v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
+                      -sign(1._field_r,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -(v0(i,j,k)+v0(i-1,j,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
+                      +sign(1._field_r,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )*dyi5&
                 + (1./rhobf(k))*(&
@@ -384,7 +387,7 @@ subroutine advecu_5th(putin,putout)
                       -(w0(i,j,k)+w0(i-1,j,k))/60.&
                       *(37.*(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1))-8.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-3)*putin(i,j,k-3)))&
-                      +sign(1.,(w0(i,j,k)+w0(i-1,j,k)))*(w0(i,j,k)+w0(i-1,j,k))/60.&
+                      +sign(1._field_r,(w0(i,j,k)+w0(i-1,j,k)))*(w0(i,j,k)+w0(i-1,j,k))/60.&
                       *(10.*(rhobf(k)*putin(i,j,k)-rhobf(k-1)*putin(i,j,k-1))-5.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
@@ -398,34 +401,34 @@ subroutine advecu_5th(putin,putout)
                   (&
                       (u0(i+1,j,k)+u0(i,j,k))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
+                      -sign(1._field_r,(u0(i+1,j,k)+u0(i,j,k)))*(u0(i+1,j,k)+u0(i,j,k))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -(u0(i,j,k)+u0(i-1,j,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
+                      +sign(1._field_r,(u0(i,j,k)+u0(i-1,j,k)))*(u0(i,j,k)+u0(i-1,j,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )* dxi5 &
                 +( &
                       (v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
+                      -sign(1._field_r,(v0(i,j+1,k)+v0(i-1,j+1,k)))*(v0(i,j+1,k)+v0(i-1,j+1,k))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -(v0(i,j,k)+v0(i-1,j,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
+                      +sign(1._field_r,(v0(i,j,k)+v0(i-1,j,k)))*(v0(i,j,k)+v0(i-1,j,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )*dyi5&
                 + (1./rhobf(k))*(&
                       (w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
                       *(37.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k))-8.*(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)+rhobf(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,(w0(i,j,k+1)+w0(i-1,j,k+1)))*(w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
+                      -sign(1._field_r,(w0(i,j,k+1)+w0(i-1,j,k+1)))*(w0(i,j,k+1)+w0(i-1,j,k+1))/60.&
                       *(10.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k)*putin(i,j,k))-5.*(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)-rhobf(k-2)*putin(i,j,k-2)))&
                       -(w0(i,j,k)+w0(i-1,j,k))/60.&
                       *(37.*(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1))-8.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-3)*putin(i,j,k-3)))&
-                      +sign(1.,(w0(i,j,k)+w0(i-1,j,k)))*(w0(i,j,k)+w0(i-1,j,k))/60.&
+                      +sign(1._field_r,(w0(i,j,k)+w0(i-1,j,k)))*(w0(i,j,k)+w0(i-1,j,k))/60.&
                       *(10.*(rhobf(k)*putin(i,j,k)-rhobf(k-1)*putin(i,j,k-1))-5.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
@@ -449,8 +452,8 @@ subroutine advecv_5th(putin, putout)
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
   integer :: i,j,k
 
@@ -467,21 +470,21 @@ subroutine advecv_5th(putin, putout)
                 ( &
                     (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                     *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -sign(1.,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
+                    -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                     *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                     -(u0(i,j,k)+u0(i,j-1,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                    +sign(1.,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
+                    +sign(1._field_r,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                     (v0(i,j+1,k)+v0(i,j,k))/60.&
                     *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -sign(1.,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
+                    -sign(1._field_r,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
                     *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                     -(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                    +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
+                    +sign(1._field_r,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
                 +(1./rhobf(1))*( &
@@ -499,21 +502,21 @@ subroutine advecv_5th(putin, putout)
                 ( &
                     (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                     *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -sign(1.,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
+                    -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                     *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                     -(u0(i,j,k)+u0(i,j-1,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                    +sign(1.,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
+                    +sign(1._field_r,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                     (v0(i,j+1,k)+v0(i,j,k))/60.&
                     *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -sign(1.,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
+                    -sign(1._field_r,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
                     *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                     -(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                    +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
+                    +sign(1._field_r,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
                 +(1./rhobf(k))*( &
@@ -532,21 +535,21 @@ subroutine advecv_5th(putin, putout)
                   ( &
                       (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
+                      -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -(u0(i,j,k)+u0(i,j-1,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
+                      +sign(1._field_r,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                       (v0(i,j+1,k)+v0(i,j,k))/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
+                      -sign(1._field_r,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -(v0(i,j,k)+v0(i,j-1,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
+                      +sign(1._field_r,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )*dyi5&
                 +(1./rhobf(k))*(&
@@ -554,7 +557,7 @@ subroutine advecv_5th(putin, putout)
                       -(w0(i,j,k)+w0(i,j-1,k))/60.&
                       *(37.*(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1))-8.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-3)*putin(i,j,k-3)))&
-                      +sign(1.,(w0(i,j,k)+w0(i,j-1,k)))*(w0(i,j,k)+w0(i,j-1,k))/60.&
+                      +sign(1._field_r,(w0(i,j,k)+w0(i,j-1,k)))*(w0(i,j,k)+w0(i,j-1,k))/60.&
                       *(10.*(rhobf(k)*putin(i,j,k)-rhobf(k-1)*putin(i,j,k-1))-5.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
@@ -571,28 +574,28 @@ subroutine advecv_5th(putin, putout)
                 ( &
                     (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                     *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                    -sign(1.,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
+                    -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                     *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                     -(u0(i,j,k)+u0(i,j-1,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                    +sign(1.,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
+                    +sign(1._field_r,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                     (v0(i,j+1,k)+v0(i,j,k))/60.&
                     *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                    -sign(1.,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
+                    -sign(1._field_r,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
                     *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                     -(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                    +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
+                    +sign(1._field_r,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                     *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
                 +(1/rhobf(k))*( &
                       (w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
                       *(37.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k))-8.*(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)+rhobf(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,(w0(i,j,k+1)+w0(i,j-1,k+1)))*(w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
+                      -sign(1._field_r,(w0(i,j,k+1)+w0(i,j-1,k+1)))*(w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
                       *(10.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k)*putin(i,j,k))-5.*(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)-rhobf(k-2)*putin(i,j,k-2)))&
                       -(w0(i,j,k)  +w0(i,j-1,k))  *(rhobf(k-1)*putin(i,j,k-1)+rhobf(k)*putin(i,j,k))/2. &
@@ -608,34 +611,34 @@ subroutine advecv_5th(putin, putout)
                   ( &
                       (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
+                      -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j-1,k)))*(u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -(u0(i,j,k)+u0(i,j-1,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
+                      +sign(1._field_r,(u0(i,j,k)+u0(i,j-1,k)))*(u0(i,j,k)+u0(i,j-1,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                       (v0(i,j+1,k)+v0(i,j,k))/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
+                      -sign(1._field_r,(v0(i,j+1,k)+v0(i,j,k)))*(v0(i,j+1,k)+v0(i,j,k))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -(v0(i,j,k)+v0(i,j-1,k))/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
+                      +sign(1._field_r,(v0(i,j,k)+v0(i,j-1,k)))*(v0(i,j,k)+v0(i,j-1,k))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )*dyi5&
                 +(1./rhobf(k))*(&
                       (w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
                       *(37.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k)*putin(i,j,k))-8.*(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)+rhobf(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,(w0(i,j,k+1)+w0(i,j-1,k+1)))*(w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
+                      -sign(1._field_r,(w0(i,j,k+1)+w0(i,j-1,k+1)))*(w0(i,j,k+1)+w0(i,j-1,k+1))/60.&
                       *(10.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k)*putin(i,j,k))-5.*(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-1)*putin(i,j,k-1))&
                           +(rhobf(k+3)*putin(i,j,k+3)-rhobf(k-2)*putin(i,j,k-2)))&
                       -(w0(i,j,k)+w0(i,j-1,k))/60.&
                       *(37.*(rhobf(k)*putin(i,j,k)+rhobf(k-1)*putin(i,j,k-1))-8.*(rhobf(k+1)*putin(i,j,k+1)+rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)+rhobf(k-3)*putin(i,j,k-3)))&
-                      +sign(1.,(w0(i,j,k)+w0(i,j-1,k)))*(w0(i,j,k)+w0(i,j-1,k))/60.&
+                      +sign(1._field_r,(w0(i,j,k)+w0(i,j-1,k)))*(w0(i,j,k)+w0(i,j-1,k))/60.&
                       *(10.*(rhobf(k)*putin(i,j,k)-rhobf(k-1)*putin(i,j,k-1))-5.*(rhobf(k+1)*putin(i,j,k+1)-rhobf(k-2)*putin(i,j,k-2))&
                           +(rhobf(k+2)*putin(i,j,k+2)-rhobf(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzf(k)) &
@@ -656,8 +659,8 @@ subroutine advecw_5th(putin, putout)
   use modfields, only : u0, v0, w0, rhobh
   implicit none
 
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
-  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the w field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 
   integer :: i,j,k
 
@@ -671,21 +674,21 @@ subroutine advecw_5th(putin, putout)
                   (&
                       (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
+                      -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -(u0(i,j,k)+u0(i,j,k-1))/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
+                      +sign(1._field_r,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 + (&
                       (v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
+                      -sign(1._field_r,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -(v0(i,j,k)+v0(i,j,k-1))/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
+                      +sign(1._field_r,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
                 + (1./rhobh(k))*( &
@@ -703,28 +706,28 @@ subroutine advecw_5th(putin, putout)
                   (&
                       (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                       *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                      -sign(1.,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
+                      -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                       *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                       -(u0(i,j,k)+u0(i,j,k-1))/60.&
                       *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                      +sign(1.,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
+                      +sign(1._field_r,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
                       *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 + (&
                       (v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                       *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                      -sign(1.,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
+                      -sign(1._field_r,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                       *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                       -(v0(i,j,k)+v0(i,j,k-1))/60.&
                       *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                      +sign(1.,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
+                      +sign(1._field_r,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
                       *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )* dyi5 &
                 + (1/rhobh(k))*( &
                       (w0(i,j,k)+w0(i,j,k+1))/60.&
                       *(37.*(rhobh(k+1)*putin(i,j,k+1)+rhobh(k)*putin(i,j,k))-8.*(rhobh(k+2)*putin(i,j,k+2)+rhobh(k-1)*putin(i,j,k-1))&
                           +(rhobh(k+3)*putin(i,j,k+3)+rhobh(k-2)*putin(i,j,k-2)))&
-                      -sign(1.,(w0(i,j,k)+w0(i,j,k+1)))*(w0(i,j,k)+w0(i,j,k+1))/60.&
+                      -sign(1._field_r,(w0(i,j,k)+w0(i,j,k+1)))*(w0(i,j,k)+w0(i,j,k+1))/60.&
                       *(10.*(rhobh(k+1)*putin(i,j,k+1)-rhobh(k)*putin(i,j,k))-5.*(rhobh(k+2)*putin(i,j,k+2)-rhobh(k-1)*putin(i,j,k-1))&
                           +(rhobh(k+3)*putin(i,j,k+3)-rhobh(k-2)*putin(i,j,k-2)))&
                       -(rhobh(k)*putin(i,j,k)+rhobh(k-1)*putin(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1))/2. &
@@ -740,21 +743,21 @@ subroutine advecw_5th(putin, putout)
                   (&
                   (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                   *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                  -sign(1.,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
+                  -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                   *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                   -(u0(i,j,k)+u0(i,j,k-1))/60.&
                   *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                  +sign(1.,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
+                  +sign(1._field_r,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
                   *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                   (v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                   *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                  -sign(1.,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
+                  -sign(1._field_r,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                   *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                   -(v0(i,j,k)+v0(i,j,k-1))/60.&
                   *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                  +sign(1.,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
+                  +sign(1._field_r,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )*dyi5&
                 + (1./rhobh(k))*(&
@@ -762,7 +765,7 @@ subroutine advecw_5th(putin, putout)
                   -(w0(i,j,k)+w0(i,j,k-1))/60.&
                   *(37.*(rhobh(k)*putin(i,j,k)+rhobh(k-1)*putin(i,j,k-1))-8.*(rhobh(k+1)*putin(i,j,k+1)+rhobh(k-2)*putin(i,j,k-2))&
                       +(rhobh(k+2)*putin(i,j,k+2)+rhobh(k-3)*putin(i,j,k-3)))&
-                  +sign(1.,(w0(i,j,k)+w0(i,j,k-1)))*(w0(i,j,k)+w0(i,j,k-1))/60.&
+                  +sign(1._field_r,(w0(i,j,k)+w0(i,j,k-1)))*(w0(i,j,k)+w0(i,j,k-1))/60.&
                   *(10.*(rhobh(k)*putin(i,j,k)-rhobh(k-1)*putin(i,j,k-1))-5.*(rhobh(k+1)*putin(i,j,k+1)-rhobh(k-2)*putin(i,j,k-2))&
                       +(rhobh(k+2)*putin(i,j,k+2)-rhobh(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzh(k)) &
@@ -777,34 +780,34 @@ subroutine advecw_5th(putin, putout)
                   (&
                   (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                   *(37.*(putin(i+1,j,k)+putin(i,j,k))-8.*(putin(i+2,j,k)+putin(i-1,j,k))+(putin(i+3,j,k)+putin(i-2,j,k)))&
-                  -sign(1.,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
+                  -sign(1._field_r,(u0(i+1,j,k)+u0(i+1,j,k-1)))*(u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
                   *(10.*(putin(i+1,j,k)-putin(i,j,k))-5.*(putin(i+2,j,k)-putin(i-1,j,k))+(putin(i+3,j,k)-putin(i-2,j,k)))&
                   -(u0(i,j,k)+u0(i,j,k-1))/60.&
                   *(37.*(putin(i,j,k)+putin(i-1,j,k))-8.*(putin(i+1,j,k)+putin(i-2,j,k))+(putin(i+2,j,k)+putin(i-3,j,k)))&
-                  +sign(1.,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
+                  +sign(1._field_r,(u0(i,j,k)+u0(i,j,k-1)))*(u0(i,j,k)+u0(i,j,k-1))/60.&
                   *(10.*(putin(i,j,k)-putin(i-1,j,k))-5.*(putin(i+1,j,k)-putin(i-2,j,k))+(putin(i+2,j,k)-putin(i-3,j,k)))&
                   )*dxi5&
                 +(&
                   (v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                   *(37.*(putin(i,j+1,k)+putin(i,j,k))-8.*(putin(i,j+2,k)+putin(i,j-1,k))+(putin(i,j+3,k)+putin(i,j-2,k)))&
-                  -sign(1.,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
+                  -sign(1._field_r,(v0(i,j+1,k)+v0(i,j+1,k-1)))*(v0(i,j+1,k)+v0(i,j+1,k-1))/60.&
                   *(10.*(putin(i,j+1,k)-putin(i,j,k))-5.*(putin(i,j+2,k)-putin(i,j-1,k))+(putin(i,j+3,k)-putin(i,j-2,k)))&
                   -(v0(i,j,k)+v0(i,j,k-1))/60.&
                   *(37.*(putin(i,j,k)+putin(i,j-1,k))-8.*(putin(i,j+1,k)+putin(i,j-2,k))+(putin(i,j+2,k)+putin(i,j-3,k)))&
-                  +sign(1.,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
+                  +sign(1._field_r,(v0(i,j,k)+v0(i,j,k-1)))*(v0(i,j,k)+v0(i,j,k-1))/60.&
                   *(10.*(putin(i,j,k)-putin(i,j-1,k))-5.*(putin(i,j+1,k)-putin(i,j-2,k))+(putin(i,j+2,k)-putin(i,j-3,k)))&
                   )*dyi5&
                 + (1./rhobh(k))*(&
                   (w0(i,j,k)+w0(i,j,k+1))/60.&
                   *(37.*(rhobh(k+1)*putin(i,j,k+1)+rhobh(k)*putin(i,j,k))-8.*(rhobh(k+2)*putin(i,j,k+2)+rhobh(k-1)*putin(i,j,k-1))&
                       +(rhobh(k+3)*putin(i,j,k+3)+rhobh(k-2)*putin(i,j,k-2)))&
-                  -sign(1.,(w0(i,j,k)+w0(i,j,k+1)))*(w0(i,j,k)+w0(i,j,k+1))/60.&
+                  -sign(1._field_r,(w0(i,j,k)+w0(i,j,k+1)))*(w0(i,j,k)+w0(i,j,k+1))/60.&
                   *(10.*(rhobh(k+1)*putin(i,j,k+1)-rhobh(k)*putin(i,j,k))-5.*(rhobh(k+2)*putin(i,j,k+2)-rhobh(k-1)*putin(i,j,k-1))&
                       +(rhobh(k+3)*putin(i,j,k+3)-rhobh(k-2)*putin(i,j,k-2)))&
                   -(w0(i,j,k)+w0(i,j,k-1))/60.&
                   *(37.*(rhobh(k)*putin(i,j,k)+rhobh(k-1)*putin(i,j,k-1))-8.*(rhobh(k+1)*putin(i,j,k+1)+rhobh(k-2)*putin(i,j,k-2))&
                       +(rhobh(k+2)*putin(i,j,k+2)+rhobh(k-3)*putin(i,j,k-3)))&
-                  +sign(1.,(w0(i,j,k)+w0(i,j,k-1)))*(w0(i,j,k)+w0(i,j,k-1))/60.&
+                  +sign(1._field_r,(w0(i,j,k)+w0(i,j,k-1)))*(w0(i,j,k)+w0(i,j,k-1))/60.&
                   *(10.*(rhobh(k)*putin(i,j,k)-rhobh(k-1)*putin(i,j,k-1))-5.*(rhobh(k+1)*putin(i,j,k+1)-rhobh(k-2)*putin(i,j,k-2))&
                       +(rhobh(k+2)*putin(i,j,k+2)-rhobh(k-3)*putin(i,j,k-3)))&
                   ) / (2. * dzh(k)) &
@@ -818,3 +821,4 @@ end do
   !end if
 
 end subroutine advecw_5th
+end module advec_5th

@@ -22,7 +22,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modglobal
-
+use modprecision
 implicit none
 save
 
@@ -47,7 +47,6 @@ save
       integer ::  kcb=0
 
       character(256) :: fname_options = 'namoptions'
-      integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
@@ -56,13 +55,6 @@ save
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
       integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
-
-      
-      !< Parameter kinds, for rrtmg radiation scheme
-      integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
-      integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
-      integer,parameter  :: SHR_KIND_R4 = selected_real_kind( 6) ! 4 byte real
-      integer,parameter  :: SHR_KIND_IN = kind(1)   ! native integer
 
       !<  Global constants modconst.f90
       !< File numbers
@@ -96,7 +88,7 @@ save
       real,parameter :: ekmin    = 1.e-6            !<    *minimum value for k-coefficient.
       real,parameter :: e12min   = 5.e-5            !<    *minimum value for TKE.
       real,parameter :: fkar     = 0.4              !<    *Von Karman constant
-      real,parameter :: eps1     = 1.e-10           !<    *very small number*
+      real(field_r),parameter :: eps1     = 1.e-10           !<    *very small number*
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
@@ -152,7 +144,7 @@ save
       integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
                                      !                                     FFT  SMG PFMG BiCGSTAB GMRES
       integer :: maxiter = 10000     ! Number of iterations                 .    X   X     X       X
-      real    :: tolerance = 1E-8    ! Convergence threshold                .    X   X     X       X
+      real(real64):: tolerance = 1E-8! Convergence threshold                .    X   X     X       X
       integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
@@ -161,8 +153,8 @@ save
       integer :: xyear  = 0     !<     * year, only for time units in netcdf
       real :: xday      = 1.    !<     * day number
       real :: xtime     = 0.    !<     * GMT time (in hours)
-      real :: cu        = 0.    !<     * translation velocity in x-direction
-      real :: cv        = 0.    !<     * translation velocity in y-direction
+      real(field_r) :: cu        = 0.    !<     * translation velocity in x-direction
+      real(field_r) :: cv        = 0.    !<     * translation velocity in y-direction
       real :: runtime   = 300.  !<     * simulation time in secs
       real :: dtmax     = 20.   !<     * maximum time integration interval
       integer(kind=longint) :: idtmax        !<     * maximum time integration interval
@@ -236,8 +228,7 @@ contains
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
-    use mpi
-    use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
+    use modmpi, only : nprocx, nprocy, myid,comm3d, mpierr, D_MPI_BCAST
     implicit none
 
     integer :: advarr(4)
@@ -349,8 +340,8 @@ contains
     mygamma251(-100)=0.
     mygamma21(-100)=0.
     do m=-99,4000
-    mygamma251(m)=max(lacz_gamma(m/100.+2.5)/lacz_gamma(m/100.+1.)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
-    mygamma21(m)=max(lacz_gamma(m/100.+2.)/lacz_gamma(m/100.+1.)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
+    mygamma251(m)=max(lacz_gamma(m/100._dp+2.5_dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
+    mygamma21(m)=max(lacz_gamma(m/100._dp+2._dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
     end do
 
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
@@ -419,7 +410,7 @@ contains
 
   ! MPI broadcast kmax elements from zf
 
-    call MPI_BCAST(zf,kmax,MY_REAL   ,0,comm3d,mpierr)
+    call D_MPI_BCAST(zf, kmax, 0, comm3d, mpierr)
 
     zh(1) = 0.0
     do k=1,kmax
@@ -592,7 +583,6 @@ FUNCTION LACZ_GAMMA(X) RESULT(fn_val)
 !----------------------------------------------------------------------
 
 IMPLICIT NONE
-INTEGER, PARAMETER  :: dp = SELECTED_REAL_KIND(12, 60)
 
 REAL (dp), INTENT(IN)  :: x
 REAL (dp)              :: fn_val

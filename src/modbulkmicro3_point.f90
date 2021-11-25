@@ -1,4 +1,5 @@
 module modbulkmicro3_point
+  use modprecision, only : field_r
   use modglobal, only :    rdt,rk3step
   use modmicrodata, only : Dv,Kt,delt,nu_a,Sc_num,D_eq, &
                            k_br,k_l,k_r,k_rr,kappa_r, phi, pirhow, &
@@ -91,7 +92,7 @@ contains
     use modmicrodata3, only : in_hr,iq_hr,in_cl,iq_cl,in_cc, &
                               in_ci,iq_ci,in_hs,iq_hs,in_hg,iq_hg
     implicit none
-    real, intent(in)    :: exnf_k_in, rhof_k_in,presf_k_in
+    real(field_r), intent(in)    :: exnf_k_in, rhof_k_in,presf_k_in
     real, intent(in)    :: sv0(ncols),svm(ncols),prg(nprgs)
     real, intent(inout) :: svp(ncols)
     real, intent(out)   :: thlpmcr_out,qtpmcr_out

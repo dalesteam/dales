@@ -13,22 +13,22 @@ if("$ENV{SYST}" STREQUAL "HUYGENS")
   set(CMAKE_Fortran_FLAGS_DEBUG "-O2 -g -qfullpath -C -qflttrp=enable:nanq:overflow:zerodivide -qsigtrap -qinitauto=ff" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "CARTESIUS")
   set(CMAKE_Fortran_COMPILER "mpiifort")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -r8 -ftz -extend_source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "localpc_ifort")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -r8 -ftz -extend_source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "HYDRA")
   set(CMAKE_Fortran_COMPILER "mpiifort")
-  set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -r8 -ftz -extend_source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FEDORA")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/ -std=legacy" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/ -std=gnu -Werror=implicit-interface" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEV     "-fbounds-check -fbacktrace -fno-f2c -O3 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
@@ -44,22 +44,22 @@ elseif("$ENV{SYST}" STREQUAL "ECMWF-intel")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF-gnu")
   set(CMAKE_Fortran_COMPILER "ftn")
-  set(CMAKE_Fortran_FLAGS "-W -Wall -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -W -Wall -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -g -fbacktrace" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "gnu-fast")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-W -Wall -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=legacy" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -W -Wall -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=gnu -Werror=implicit-interface" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -g -fbacktrace" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "lisa-intel")
    set(CMAKE_Fortran_COMPILER "mpiifort")
-   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS "-cpp -r8 -ftz -extend_source" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
    set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    set(CMAKE_Fortran_COMPILER "mpifrtpx")
-   set(CMAKE_Fortran_FLAGS "-CcdRR8 -g -Koptmsg=2" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS "-Cpp -CcdRR8 -g -Koptmsg=2" CACHE STRING "")
    set (CMAKE_Fortran_FLAGS_RELEASE "-Kfast -x 128" CACHE STRING "")
    set (CMAKE_Fortran_FLAGS_DEBUG   "-Haefosux -O0" CACHE STRING "")
    # Fujitsu fortran compiler
@@ -79,7 +79,7 @@ elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
    # don't set any compilation flags here, allows setting them outside CMake
 else()
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=legacy" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-cpp -fimplicit-none -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=gnu -Werror=implicit-interface" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 endif()
@@ -87,6 +87,7 @@ endif()
 # On compiler options
 # June 2020: added -std=legacy to gfortran for compatibility with gfortran 10, which introduced stricter type checking
 # the old FFT code from Netlib/FFTPACK does not compile with gfortran 10 without this flag.
+# March 2021: fixed interfaces and removed -std=legacy
 
 # For GCC based compilers:
 #  * -march=native   : compile for the current CPU, allows use of modern AVX etc.
@@ -106,6 +107,7 @@ execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPU
 execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 # execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NFCONFIG_FORTRAN_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
 # not used at the moment - not just a path but several compiler flags
+
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
 EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
@@ -154,7 +156,7 @@ FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
 )
 
 # libHYPRE.a for static library
-FIND_LIBRARY(HYPRE_LIB HYPRE
+FIND_LIBRARY(HYPRE_LIB HYPRE_core HYPRE
   PATHS
   $ENV{HYPRE_LIB}
   ${ADDMODULEPATH}/lib
@@ -180,6 +182,14 @@ FIND_LIBRARY(FFTW_LIB fftw3
   /usr/lib
   /usr/lib64
   DOC "FFTW static library"
+)
+
+FIND_LIBRARY(FFTWF_LIB fftw3f
+  PATHS
+  $ENV{FFTW_LIB}
+  /usr/lib
+  /usr/lib64
+  DOC "FFTW single precision library"
 )
 
 if(NETCDF_INCLUDE_DIR)
@@ -212,6 +222,7 @@ OPTION(USE_HYPRE "Also build iterative solver (optional, needs HYPRE)" OFF)
 ### FFTW based poisson solver (FFTW)
 OPTION(USE_FFTW "Also build FFTW based poisson solver (optional, needs FFTW3)" OFF)
 
+
 ### Documentation
 INCLUDE(FindDoxygen)
 if(DOXYGEN)
@@ -234,5 +245,26 @@ if(usrfile STREQUAL "")
 endif()
 execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${usrfile} ${CMAKE_CURRENT_SOURCE_DIR}/src/moduser.f90)
 MESSAGE(STATUS "Case " ${CASE} " uses " ${usrfile})
+
+#optional compilation flags
+set(opt_flags "")
+if(USE_HYPRE)
+  # Build the iterative Poisson solver
+  list(APPEND OPTIONAL_LIBS ${HYPRE_LIB})
+	set(opt_flags "${opt_flags} -DUSE_HYPRE")
+endif(USE_HYPRE)
+if(USE_FFTW)
+  # Build the FFTW-based Poisson solver
+  list(APPEND OPTIONAL_LIBS ${FFTW_LIB} ${FFTWF_LIB})
+	set(opt_flags "${opt_flags} -DUSE_FFTW")
+endif(USE_FFTW)
+
+### Precision 
+set(POIS_PRECISION 64 CACHE STRING  "Precision for poisson solver (default 64 bit) [32,64]")
+set(FIELD_PRECISION 64 CACHE STRING "Precision for fields in modfields.f90 (default 64 bit) [32, 64]")
+
+# Append all  flags
+set(opt_flags "${opt_flags} -DPOIS_PRECISION=${POIS_PRECISION} -DFIELD_PRECISION=${FIELD_PRECISION}")
+string(APPEND CMAKE_Fortran_FLAGS "${opt_flags}")
 
 ADD_SUBDIRECTORY(src)

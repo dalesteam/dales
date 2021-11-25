@@ -60,8 +60,8 @@ save
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
-    use mpi
-    use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
+    use modmpi,   only :myid,comm3d,mpi_logical,mpi_integer,myidx,myidy &
+                       , D_MPI_BCAST
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     implicit none
@@ -84,23 +84,23 @@ contains
       write(6 ,NAMFIELDDUMP)
       close(ifnamopt)
     end if
-    call MPI_BCAST(ncoarse     ,1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(klow        ,1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(khigh       ,1,MPI_INTEGER,0,comm3d,ierr)
-    call MPI_BCAST(dtav        ,1,MY_REAL   ,0,comm3d,ierr)
-    call MPI_BCAST(tmin        ,1,MY_REAL   ,0,comm3d,ierr)
-    call MPI_BCAST(tmax        ,1,MY_REAL   ,0,comm3d,ierr)
-    call MPI_BCAST(lfielddump  ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(ldiracc     ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lbinary     ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lu          ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lv          ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lw          ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lqt         ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lql         ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lthl        ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lbuoy       ,1,MPI_LOGICAL,0,comm3d,ierr)
-    call MPI_BCAST(lsv       ,100,MPI_LOGICAL,0,comm3d,ierr)
+    call D_MPI_BCAST(ncoarse     ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(klow        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(khigh       ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(dtav        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(tmin        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(tmax        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lfielddump  ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ldiracc     ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lbinary     ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lu          ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lv          ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lw          ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lqt         ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lql         ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lthl        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lbuoy       ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
 
     if (ncoarse==-1) then
       ncoarse = 1

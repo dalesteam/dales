@@ -23,27 +23,30 @@
 !  Copyright 2014 Netherlands eScience Center
 !
 module modfft2d
+use modprecision, only : pois_r
+use iso_fortran_env, only : int32
 
 implicit none
 
 save
   integer                             :: nkonx, nkony
-  real, dimension(:),     allocatable :: winew, wjnew
-  real, dimension(:,:,:), allocatable :: worka, workb
-  real, dimension(:),     allocatable :: bufin, bufout
-  real, allocatable, target           :: fptr(:)
+  real(pois_r), dimension(:),     allocatable :: winew, wjnew
+  real(pois_r), dimension(:,:,:), allocatable :: worka, workb
+  real(pois_r), dimension(:),     allocatable :: bufin, bufout
+  real(pois_r), allocatable, target           :: fptr(:)
 
 contains
 
   subroutine fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     use modmpi, only   : nprocx, nprocy
     use modglobal, only: itot, jtot, imax, jmax, kmax, i1, j1, ih, jh
+    use fftnew, only   : rffti
     implicit none
 
-    real, pointer        :: p(:,:,:)
-    real, pointer        :: Fp(:,:,:)
-    real, allocatable    :: d(:,:,:)
-    real, allocatable    :: xyrt(:,:)
+    real(pois_r), pointer        :: p(:,:,:)
+    real(pois_r), pointer        :: Fp(:,:,:)
+    real(pois_r), allocatable    :: d(:,:,:)
+    real(pois_r), allocatable    :: xyrt(:,:)
     integer, intent(out) :: ps,pe,qs,qe
 
     integer :: sz
@@ -77,8 +80,8 @@ contains
 ! Prepare 1d FFT transforms
     allocate(winew(2*itot+15),wjnew(2*jtot+15))
 
-    CALL rffti(itot,winew)
-    CALL rffti(jtot,wjnew)
+    CALL rffti(int(itot,int32),winew)
+    CALL rffti(int(jtot,int32),wjnew)
 
     allocate(fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax))
     allocate(   d(2-ih:i1+ih,2-jh:j1+jh,kmax))
@@ -101,11 +104,11 @@ contains
 
     implicit none
 
-    real, allocatable :: xyrt(:,:)
+    real(pois_r), allocatable :: xyrt(:,:)
 
     integer :: i,j,iv,jv
-    real    :: fac
-    real    :: xrt(itot), yrt(jtot)
+    real(pois_r) :: fac
+    real(pois_r) :: xrt(itot), yrt(jtot)
 
   ! Generate Eigenvalues xrt and yrt
   ! NOTE / BUG: the code below seems incorrect for odd-itot and
@@ -152,10 +155,10 @@ contains
   subroutine fft2dexit(p, Fp, d, xyrt)
     implicit none
 
-    real, pointer     :: p(:,:,:)
-    real, pointer     :: Fp(:,:,:)
-    real, allocatable :: d(:,:,:)
-    real, allocatable :: xyrt(:,:)
+    real(pois_r), pointer     :: p(:,:,:)
+    real(pois_r), pointer     :: Fp(:,:,:)
+    real(pois_r), allocatable :: d(:,:,:)
+    real(pois_r), allocatable :: xyrt(:,:)
 
     deallocate(bufin,bufout)
     deallocate(worka,workb)
@@ -212,13 +215,12 @@ contains
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
-    use mpi
-    use modmpi, only : commrow, mpierr, my_real, nprocx
+    use modmpi, only : commrow, mpierr, nprocx, D_MPI_ALLTOALL
     use modglobal, only : i1,j1, itot, imax,jmax, kmax, ih, jh
     implicit none
 
-    real, intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out) ::   ptrans(itot,jmax,nkonx)
+    real(pois_r), intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(out) ::   ptrans(itot,jmax,nkonx)
 
     integer :: n, i,j,k, ii
 
@@ -236,9 +238,9 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
-                      commrow,mpierr)
+    call D_MPI_ALLTOALL(bufin,   (imax*jmax*nkonx), &
+                        bufout,  (imax*jmax*nkonx), &
+                        commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
@@ -258,13 +260,12 @@ contains
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
-    use mpi
-    use modmpi, only : commrow, mpierr, my_real, nprocx
+    use modmpi, only : commrow, mpierr, nprocx, D_MPI_ALLTOALL
     use modglobal, only : i1,j1, itot, imax,jmax, kmax, ih, jh
     implicit none
 
-    real, intent(inout)  :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(in)     :: ptrans(itot,jmax,nkonx)
+    real(pois_r), intent(inout)  :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(in)     :: ptrans(itot,jmax,nkonx)
 
     integer :: n, i,j,k, ii
 
@@ -280,9 +281,9 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkonx),my_real, &
-                      bufout,  (imax*jmax*nkonx),my_real, &
-                      commrow,mpierr)
+    call D_MPI_ALLTOALL(bufin,   (imax*jmax*nkonx), &
+                        bufout,  (imax*jmax*nkonx), &
+                        commrow,mpierr)
 
     ii = 0
     do n=0,nprocx-1
@@ -304,13 +305,12 @@ contains
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
-    use mpi
-    use modmpi, only : commcol, mpierr, nprocy, my_real
+    use modmpi, only : commcol, mpierr, nprocy, D_MPI_ALLTOALL
     use modglobal, only : i1,j1, jtot, imax,jmax, kmax, ih, jh
     implicit none
 
-    real, intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(out) ::   ptrans(jtot,imax,nkony)
+    real(pois_r), intent(in)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(out) ::   ptrans(jtot,imax,nkony)
 
     integer :: n, i,j,k, ii
 
@@ -328,9 +328,9 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkony),my_real, &
-                      bufout,  (imax*jmax*nkony),my_real, &
-                      commcol,mpierr)
+    call D_MPI_ALLTOALL(bufin,   (imax*jmax*nkony), &
+                        bufout,  (imax*jmax*nkony), &
+                        commcol,mpierr)
 
 
     ii = 0
@@ -351,13 +351,12 @@ contains
 ! data are on a single processor in the k-direction for p
 ! data are on a single processor in the i-direction for ptrans
 
-    use mpi
-    use modmpi, only : commcol, mpierr, nprocy, my_real
+    use modmpi, only : commcol, mpierr, nprocy, D_MPI_ALLTOALL
     use modglobal, only : i1,j1, jtot, imax,jmax, kmax, ih, jh
     implicit none
 
-    real, intent(inout)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(in)     ::   ptrans(jtot,imax,nkony)
+    real(pois_r), intent(inout)  ::   p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(in)     ::   ptrans(jtot,imax,nkony)
 
     integer :: n, i,j,k, ii
 
@@ -373,9 +372,9 @@ contains
     enddo
     enddo
 
-    call MPI_ALLTOALL(bufin,   (imax*jmax*nkony),my_real, &
-                      bufout,  (imax*jmax*nkony),my_real, &
-                      commcol,mpierr)
+    call D_MPI_ALLTOALL(bufin,   (imax*jmax*nkony), &
+                        bufout,  (imax*jmax*nkony), &
+                        commcol,mpierr)
 
     ii = 0
     do n=0,nprocy-1
@@ -398,11 +397,12 @@ contains
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
+    use fftnew, only    : rfftf
 
     implicit none
 
-    real, intent(inout) ::  p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(inout) :: Fp(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(inout) ::  p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(inout) :: Fp(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: i,j,k, ke
 
@@ -414,14 +414,14 @@ contains
       call transpose_a(p, worka)
       do k=1,ke
       do j=1,jmax
-        call rfftf(itot,worka(1,j,k),winew)
+        call rfftf(int(itot,int32),worka(1,j,k),winew)
       enddo
       enddo
       call transpose_ainv(p, worka)
     else
       do k=1,kmax
       do j=2,j1
-        call rfftf(itot,p(2,j,k),winew)
+        call rfftf(int(itot,int32),p(2,j,k),winew)
       enddo
       enddo
     endif
@@ -433,7 +433,7 @@ contains
     call transpose_b(p, workb)
     do k=1,ke
     do i=1,imax
-      call rfftf(jtot,workb(1,i,k),wjnew)
+      call rfftf(int(jtot,int32),workb(1,i,k),wjnew)
     enddo
     enddo
     call transpose_binv(p, workb)
@@ -446,11 +446,12 @@ contains
 
     use modglobal, only : imax, jmax, kmax, itot, jtot, ijtot, i1, j1, ih, jh
     use modmpi, only    : myidx,myidy,nprocx
+    use fftnew, only    : rfftb
 
     implicit none
 
-    real, intent(inout) ::  p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    real, intent(inout) :: Fp(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(inout) ::  p(2-ih:i1+ih,2-jh:j1+jh,kmax)
+    real(pois_r), intent(inout) :: Fp(2-ih:i1+ih,2-jh:j1+jh,kmax)
 
     integer :: i,j,k, ke
 
@@ -461,7 +462,7 @@ contains
     call transpose_b(p, workb)
     do k=1,ke
     do i=1,imax
-      call rfftb(jtot,workb(1,i,k),wjnew)
+      call rfftb(int(jtot,int32),workb(1,i,k),wjnew)
     enddo
     enddo
     call transpose_binv(p, workb)
@@ -474,14 +475,14 @@ contains
       call transpose_a(p, worka)
       do k=1,ke
       do j=1,jmax
-        call rfftb(itot,worka(1,j,k),winew)
+        call rfftb(int(itot,int32),worka(1,j,k),winew)
       enddo
       enddo
       call transpose_ainv(p, worka)
     else
       do k=1,kmax
       do j=2,j1
-        call rfftb(itot,p(2,j,k),winew)
+        call rfftb(int(itot,int32),p(2,j,k),winew)
       enddo
       enddo
     endif

@@ -30,7 +30,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modbulkmicrostat
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
 
 implicit none
 private
@@ -83,8 +83,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initbulkmicrostat
-    use mpi
-    use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
+    use modmpi,    only  : myid, mpi_logical, comm3d, mpierr, D_MPI_BCAST
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
          dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -118,9 +117,9 @@ subroutine initbulkmicrostat
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(lmicrostat  ,1,MPI_LOGICAL  ,0,comm3d,mpierr)
-    call MPI_BCAST(dtav    ,1,MY_REAL  ,0,comm3d,mpierr)
-    call MPI_BCAST(timeav    ,1,MY_REAL  ,0,comm3d,mpierr)
+    call D_MPI_BCAST(lmicrostat,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav      ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav    ,1,0,comm3d,mpierr)
     idtav = dtav/tres
     itimeav = timeav/tres
 
@@ -256,7 +255,7 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
-    use modmpi,    only  : my_real, mpi_sum, comm3d, mpierr
+    use modmpi,    only  :  mpi_sum, comm3d, mpierr, D_MPI_ALLREDUCE
     use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
     use modfields,  only  : ql0
@@ -286,14 +285,14 @@ subroutine initbulkmicrostat
       end if
     end do
 
-    call MPI_ALLREDUCE(cloudcountavl,cloudcountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(raincountavl ,raincountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(preccountavl  ,preccountav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(prec_prcavl  ,prec_prcav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(Dvravl  ,Dvrav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(Nrrainavl  ,Nrrainav  ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(precavl  ,precav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
-    call MPI_ALLREDUCE(qravl  ,qrav    ,k1,MY_REAL,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(cloudcountavl,cloudcountav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(raincountavl ,raincountav ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(preccountavl ,preccountav ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(prec_prcavl  ,prec_prcav  ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(Dvravl       ,Dvrav       ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(Nrrainavl    ,Nrrainav    ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(precavl      ,precav      ,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qravl        ,qrav        ,k1,MPI_SUM,comm3d,mpierr)
 
     cloudcountmn  = cloudcountmn  +  cloudcountav  /ijtot
     raincountmn  = raincountmn  +  raincountav  /ijtot
@@ -315,7 +314,7 @@ subroutine initbulkmicrostat
     use modmicrodata,  only  : qrp, Nrp
     implicit none
 
-    real, dimension(:), allocatable  :: avfield
+    real(field_r), dimension(:), allocatable  :: avfield
     integer        :: ifield = 0
 
     if (.not. lmicrostat)  return

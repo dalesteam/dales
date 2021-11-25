@@ -23,6 +23,7 @@
 !
 
   module modmicrodata
+  use modprecision, only : field_r
 
   use modglobal, only : rhow,lacz_gamma
   implicit none
@@ -157,7 +158,8 @@
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
 
-   real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
+   real,allocatable,dimension(:,:,:) :: Nr,qltot,qr,thlpmcr,qtpmcr
+   real(field_r),allocatable,dimension(:,:,:) :: Nrp,qrp
    real,allocatable,dimension(:,:,:) :: precep
 
   real :: delt

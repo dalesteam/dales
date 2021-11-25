@@ -14,6 +14,8 @@
 ! Last Update: 4/3/2009
 !===============================================================================
 
+module rrtmg_sw_read_nc
+contains
 !*******************************************************************************
 subroutine sw_kgb16
     use rrsw_kg16, only: sfluxrefo, kao, kbo, selfrefo, forrefo, rayl, no16
@@ -794,3 +796,4 @@ subroutine sw_kgb29
 
 end subroutine sw_kgb29
 !*******************************************************************************
+end module rrtmg_sw_read_nc
