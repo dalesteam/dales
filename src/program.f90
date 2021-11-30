@@ -122,7 +122,7 @@ program DALES
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
   !use modspectra2,     only : dospecs,initspectra2,tanhfilter
-  use modtimestat,     only : inittimestat, timestat
+  use modtimestat,     only : inittimestat, timestat, exittimestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
@@ -329,5 +329,6 @@ program DALES
   call exitheterostats
   call exitcanopy
   call exitmodules
+  call exittimestat
 
 end program DALES
