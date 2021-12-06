@@ -55,7 +55,7 @@ save
   logical :: lbuoy = .true.      !< switch for saving the buoy field
   logical :: lsv(100) = .true.   !< switches for saving the sv fields
 
-  logical :: lclassic = .false.  !< switch for classic netcdf (true) or newer netCDF4 (false). Defaults to global lclassic.
+  logical :: lclassic = .false.  !< switch for classic netcdf (true) or newer netCDF4 (false) for 3d fielddumps. Defaults to global lclassic.
 
   ! indices for the variables in the netCDF vars array
   integer :: ind, ind_u=-1, ind_v=-1, ind_w=-1, ind_qt=-1, ind_ql=-1, ind_thl=-1, ind_buoy=-1, ind_sv(100)=-1
@@ -95,6 +95,7 @@ contains
     call D_MPI_BCAST(tmin        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(tmax        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lfielddump  ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lclassic    ,1,0,comm3d,ierr)
     call D_MPI_BCAST(ldiracc     ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lbinary     ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lu          ,1,0,comm3d,ierr)
