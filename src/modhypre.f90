@@ -99,7 +99,7 @@ contains
     use mpi
     use modmpi, only : myid, myidx, myidy, nprocx, nprocy
     use modglobal, only : imax, jmax, kmax, dzf, dzh, dx, dy, itot, jtot, &
-      solver_id, maxiter, n_pre, n_post, tolerance, precond
+      solver_id, maxiter, n_pre, n_post, tolerance, precond,lopenbc,lperiodic,lboundary
 
     use modfields, only : rhobf, rhobh
 
@@ -107,7 +107,7 @@ contains
 
     ! NOTE: we assume kmax is larger than 7,
     ! when we make the stencil entries
-    real, allocatable ::  values(:)
+    real, allocatable ::  values(:),temp(:)
     real      cx, cy, cz_down, cz_up, cc
 
     ! integer   num_ghost(6)
@@ -118,7 +118,7 @@ contains
 
     ! data num_ghost / 3, 3, 3, 3, 0, 0 /
 
-    allocate(values(imax*jmax*kmax))
+    allocate(values(imax*jmax*kmax),temp(max(imax,jmax)))
 
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD
@@ -143,6 +143,9 @@ contains
     periodic(1) = itot
     periodic(2) = jtot
     periodic(3) = 0
+    ! Remove periodicity if openboundaries are used
+    if(lopenbc.and..not.lperiodic(1)) periodic(1)=0
+    if(lopenbc.and..not.lperiodic(3)) periodic(2)=0
     call HYPRE_StructGridSetPeriodic(grid, periodic, ierr)
 
     ! This is a collective call finalizing the grid assembly
@@ -256,6 +259,48 @@ contains
 
       call HYPRE_StructMatrixSetBoxValues(matrixA, &
            ilower, iupper, 7, stencil_indices, values, ierr)
+      if(lopenbc) then ! Set potential neuman lateral boundary conditions
+       if(lboundary(1).and. .not. lperiodic(1)) then
+         call HYPRE_StructMatrixGetBoxValues(matrixA, &
+           (/0,myidy*jmax,k-1/),(/0,(myidy+1)*jmax-1,k-1/),1,6,temp,ierr)
+         do i = 1, jmax*2,2
+           values(i+0) = 0.
+           values(i+1) = temp((i+1)/2)+cx
+         end do
+         call HYPRE_StructMatrixSetBoxValues(matrixA, &
+           (/0,myidy*jmax,k-1/),(/0,(myidy+1)*jmax-1,k-1/),2,(/0,6/),values,ierr)
+       endif
+       if(lboundary(2).and. .not. lperiodic(2)) then
+         call HYPRE_StructMatrixGetBoxValues(matrixA, &
+           (/itot-1,myidy*jmax,k-1/),(/itot-1,(myidy+1)*jmax-1,k-1/),1,6,temp,ierr)
+         do i = 1, jmax*2,2
+           values(i+0) = 0.
+           values(i+1) = temp((i+1)/2)+cx
+         end do
+         call HYPRE_StructMatrixSetBoxValues(matrixA, &
+           (/itot-1,myidy*jmax,k-1/),(/itot-1,(myidy+1)*jmax-1,k-1/),2,(/1,6/),values,ierr)
+       endif
+       if(lboundary(3).and. .not. lperiodic(3)) then
+         call HYPRE_StructMatrixGetBoxValues(matrixA, &
+           (/myidx*imax,0,k-1/),(/(myidx+1)*imax-1,0,k-1/),1,6,temp,ierr)
+         do i = 1,imax*2,2
+           values(i+0) = 0.
+           values(i+1) = temp((i+1)/2)+cy
+         end do
+         call HYPRE_StructMatrixSetBoxValues(matrixA, &
+           (/myidx*imax,0,k-1/),(/(myidx+1)*imax-1,0,k-1/),2,(/2,6/),values,ierr)
+       endif
+       if(lboundary(4).and. .not. lperiodic(4)) then
+         call HYPRE_StructMatrixGetBoxValues(matrixA, &
+           (/myidx*imax,jtot-1,k-1/),(/(myidx+1)*imax-1,jtot-1,k-1/),1,6,temp,ierr)
+         do i = 1,imax*2,2
+           values(i+0) = 0.
+           values(i+1) = temp((i+1)/2)+cy
+         end do
+         call HYPRE_StructMatrixSetBoxValues(matrixA, &
+           (/myidx*imax,jtot-1,k-1/),(/(myidx+1)*imax-1,jtot-1,k-1/),2,(/3,6/),values,ierr)
+       endif
+      endif
     enddo
 
     call HYPRE_StructMatrixAssemble(matrixA, ierr)
@@ -399,7 +444,7 @@ contains
       call exit(-1)
     endif
 
-    deallocate(values)
+    deallocate(values,temp)
 
   end subroutine
 
@@ -415,7 +460,7 @@ contains
     do k=1,kmax
       do j=1,jmax
         do i=1,imax
-          values(i,j) = p(i,j,k)
+          values(i,j) = 0.!p(i,j,k)
         enddo
       enddo
       ilower(3) = k - 1
