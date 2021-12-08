@@ -252,9 +252,8 @@ contains
 
   subroutine openboundary_readboundary
     ! Routine reads the boundary input for all time steps
-    use modglobal, only : dzf,kmax,cexpnr,imax,jmax,itot,jtot,k1,ntboundary, &
+    use modglobal, only : kmax,cexpnr,imax,jmax,itot,jtot,k1,ntboundary, &
       tboundary,i1,j1,i2,j2,kmax,nsv,iturb
-    use modfields, only : rhobf
     use modmpi, only : myidx,myidy
     implicit none
     integer :: it,i,j,k,ib
@@ -425,9 +424,6 @@ contains
     end do
     status = nf90_close(ncid)
     if (status /= nf90_noerr) call handle_err(status)
-    ! Create 1/int(rho)
-    allocate(rhointi(k1))
-    rhointi = 1./(rhobf*dzf)
   end subroutine openboundary_readboundary
 
   subroutine openboundary_divcorr()
@@ -522,7 +518,6 @@ contains
         endif
       end do
     end do
-    !call chkdiv
     if(myid==0) print *, "Finished divergence correction"
     ! Copy data to boundary information
     if(.not.lwarmstart) then
@@ -567,7 +562,9 @@ contains
         end do
       endif
     endif
-    !call chkdiv
+    ! Create 1/int(rho)
+    allocate(rhointi(k1))
+    rhointi = 1./(rhobf*dzf)
   end subroutine openboundary_divcorr
 
   subroutine openboundary_ghost
