@@ -47,6 +47,7 @@ save
   integer  :: nprocy = 0
   integer  :: mpierr
   integer  :: my_real = MPI_DOUBLE_PRECISION
+  logical :: periods(2) = .true.
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
@@ -87,7 +88,7 @@ contains
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
   end subroutine initmpicomm
 
-  
+
 ! This routine does the setup of the MPI mesh
 ! NPROCS
 !        is the number of processors, this is set at run time, ie. mpirun -np 10
@@ -106,7 +107,6 @@ contains
   subroutine initmpi
     implicit none
     integer dims(2)
-    logical periods(2)
 
 ! Specify the # procs in each direction.
 ! specifying a 0 means that MPI will try to find a useful # procs in
@@ -117,8 +117,8 @@ contains
 
 ! directions 1 and 2 are chosen periodic
 
-    periods(1) = .true.
-    periods(2) = .true.
+    !periods(1) = .true.
+    !periods(2) = .true.
 
 ! find suitable # procs in each direction
 
@@ -335,10 +335,10 @@ contains
     aver = aver + avers
 
   end subroutine slabsum
-  
+
   subroutine mpi_get_time(val)
    real, intent(out) :: val
- 
+
    val = MPI_Wtime()
    call MPI_BCAST(val,1,MY_REAL   ,0,comm3d,mpierr)
 
