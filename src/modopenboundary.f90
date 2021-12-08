@@ -156,7 +156,7 @@ contains
   subroutine openboundary_initfields
     ! Routine that reads the fields for a heterogneous initialisation
     ! Variables not present in the input file are initialised to their profiles
-    use modglobal, only : imax,jmax,kmax,i1,j1,cexpnr,nsv
+    use modglobal, only : imax,jmax,kmax,i1,j1,cexpnr,nsv,i2,j2,k1
     use modfields, only : u0,um,v0,vm,w0,wm,thl0,thlm,qt0,qtm,e120,e12m, sv0, svm, &
       uprof,vprof,thlprof,qtprof,e12prof,svprof
     use modmpi, only : myidx,myidy,myid
@@ -436,7 +436,7 @@ contains
     use modmpi, only : myid,comm3d,mpierr,MY_REAL
     use modglobal, only : imax,jmax,kmax,dzf,dy,dx,xsize,ysize,zh,k1,lwarmstart,i1,i2,j1,j2
     use modfields, only : u0,um,v0,vm,w0,wm,rhobf,rhobh
-    use modchecksim, only : chkdiv
+    !use modchecksim, only : chkdiv
     implicit none
     real :: sumdiv,divold,divnew,div,divpart
     integer :: i,j,k,it,iter
@@ -522,7 +522,7 @@ contains
         endif
       end do
     end do
-    call chkdiv
+    !call chkdiv
     if(myid==0) print *, "Finished divergence correction"
     ! Copy data to boundary information
     if(.not.lwarmstart) then
@@ -567,7 +567,7 @@ contains
         end do
       endif
     endif
-    call chkdiv
+    !call chkdiv
   end subroutine openboundary_divcorr
 
   subroutine openboundary_ghost
