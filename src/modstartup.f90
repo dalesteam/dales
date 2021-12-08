@@ -792,7 +792,6 @@ contains
       call baseprofs !call baseprofs
       if(lopenbc) then
         call openboundary_readboundary
-        call chkdiv
       endif
 
     end if  ! end if (.not. warmstart)
