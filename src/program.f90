@@ -100,14 +100,14 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
+  use modglobal,         only : rk3step,timeleft,lopenbc
   use modmpi,            only : initmpicomm
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microsources
-  use modsurface,        only : surface 
+  use modsurface,        only : surface
   use modlsm,            only : lsm
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
@@ -154,6 +154,7 @@ program DALES
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use moddatetime,     only : datetime
   use modemission,     only : emission
+  use modopenboundary, only : openboundary_ghost,openboundary_tend,openboundary_phasevelocity,openboundary_turb
 
   implicit none
 
@@ -207,22 +208,32 @@ program DALES
     call tstep_update                           ! Calculate new timestep
     call timedep
     call samptend(tend_start,firstterm=.true.)
+
     call datetime
 
 !-----------------------------------------------------
-!   3.1   RADIATION
+!   3.1   Openboundaries
+!-----------------------------------------------------
+    if(lopenbc) then
+      call openboundary_turb
+      call openboundary_ghost
+      call openboundary_tend
+    endif
+
+!-----------------------------------------------------
+!   3.2   RADIATION
 !-----------------------------------------------------
     call radiation !radiation scheme
     call samptend(tend_rad)
 
 !-----------------------------------------------------
-!   3.2   THE SURFACE LAYER / LAND-SURFACE
+!   3.3   THE SURFACE LAYER / LAND-SURFACE
 !-----------------------------------------------------
     call lsm
     call surface
 
 !-----------------------------------------------------
-!   3.3   ADVECTION AND DIFFUSION
+!   3.4   ADVECTION AND DIFFUSION
 !-----------------------------------------------------
     call advection
     call samptend(tend_adv)
@@ -231,7 +242,7 @@ program DALES
     call samptend(tend_subg)
 
 !-----------------------------------------------------
-!   3.4   REMAINING TERMS
+!   3.5   REMAINING TERMS
 !-----------------------------------------------------
     call coriolis !remaining terms of ns equation
     call samptend(tend_coriolis)
@@ -245,7 +256,7 @@ program DALES
     call emission
 
 !------------------------------------------------------
-!   3.4   EXECUTE ADD ONS
+!   3.6   EXECUTE ADD ONS
 !------------------------------------------------------
     call nudge
     call nudgeboundary
@@ -256,24 +267,29 @@ program DALES
     call samptend(tend_addon)
 
 !-----------------------------------------------------------------------
-!   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
+!   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
     call poisson
     call samptend(tend_pois,lastterm=.true.)
+    if(lopenbc) call openboundary_phasevelocity()
 
     call tstep_integrate                        ! Apply tendencies to all variables
-    call boundary
+    if(lopenbc) then
+      call openboundary_ghost
+    else
+      call boundary
+    endif
     !call tiltedboundary
 !-----------------------------------------------------
-!   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
+!   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
 !-----------------------------------------------------
     call thermodynamics
     call leibniztend
 !-----------------------------------------------------
-!   3.7  WRITE RESTARTFILES AND DO STATISTICS
+!   3.9  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
     call twostep
     !call coldedge
