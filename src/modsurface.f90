@@ -702,11 +702,12 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv
+    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv,lopenbc,lboundary,lperiodic
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use mpi
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excjs, mpi_integer
     use moduser,    only : surf_user
+    use modopenboundary, only : openboundary_excjs
     implicit none
 
     integer  :: i, j, n, patchx, patchy
@@ -1037,7 +1038,12 @@ contains
     end if
 
     ! Transfer ustar to neighbouring cells
-    call excjs(ustar,2,i1,2,j1,1,1,1,1)
+    if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
+      call openboundary_excjs(ustar, 2,i1,2,j1,1,1,1,1, &
+        & (.not.lboundary(1:4)).or.lperiodic(1:4))
+    else
+      call excjs(ustar, 2,i1,2,j1,1,1,1,1)
+    endif
 
     return
 
