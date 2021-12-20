@@ -45,10 +45,10 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,kmax
+    use modglobal, only : solver_id,i1,j1,ih,jh,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
-    use modhypre, only : inithypre
+    use modhypre, only : inithypre_grid, inithypre_solver
 
     implicit none
 
@@ -67,14 +67,15 @@ contains
       !NOTE: If you don't want to do that, you will need the line below
       allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
-      call inithypre
+      call inithypre_grid
+      call inithypre_solver(psolver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post)
     endif
   end subroutine initpois
 
   subroutine exitpois
-    use modglobal, only : solver_id
+    use modglobal, only : solver_id,psolver
     use modfft2d, only : fft2dexit
-    use modhypre, only : exithypre
+    use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
 
     implicit none
@@ -89,14 +90,15 @@ contains
       ! HYPRE based solver
       !call fft2dexit(p,Fp,d,xyrt)
       deallocate(p)
-      call exithypre
+      call exithypre_grid
+      call exithypre_solver(psolver)
     endif
   end subroutine exitpois
 
   subroutine poisson
-    use modglobal, only : solver_id
+    use modglobal, only : solver_id,psolver
     use modmpi, only : myid
-    use modhypre, only : solve_hypre, set_initial_guess
+    use modhypre, only : solve_hypre, set_zero_guess
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
 
@@ -123,13 +125,13 @@ contains
       ! Backward FFT
       call fftwb(p, Fp)
     else
-      call solve_hypre(p, converged)
+      call solve_hypre(psolver, p, converged)
       if (.not. converged) then
         if (myid == 0) then
           write (*,*) 'Not converged'
         endif
-        call set_initial_guess(p)
-        call solve_hypre(p, converged)
+        call set_zero_guess()
+        call solve_hypre(psolver, p, converged)
         !call fillps
         ! Forward FFT
         !call fft2df(p, Fp)

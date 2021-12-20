@@ -8,28 +8,43 @@
 !
 
 module modhypre
-
+use modglobal, only : solver_type
 implicit none
 private
-public :: inithypre, solve_hypre, exithypre, set_initial_guess
+public :: inithypre_grid, inithypre_solver, solve_hypre, exithypre_grid, exithypre_solver, set_initial_guess, set_zero_guess
 
 contains
 
-  subroutine inithypre
+  subroutine inithypre_grid
     implicit none
 
     call error_and_exit()
   end subroutine
 
-  subroutine exithypre
+  subroutine inithypre_solver(solver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post)
     implicit none
+    type(solver_type), intent(inout) :: solver
+    real, intent(in) :: tolerance
+    integer, intent(in) :: solver_id, maxiter, precond_id,n_pre,n_post
+
+    call error_and_exit()
+  end subroutine
+
+  subroutine exithypre_grid
+    implicit none
+
+    call error_and_exit()
+  end subroutine
+
+  subroutine exithypre_solver(solver)
+    implicit none
+    type(solver_type), intent(inout) :: solver
 
     call error_and_exit()
   end subroutine
 
   subroutine set_initial_guess(p)
     use modglobal, only : i1, j1, ih, jh, kmax
-
     implicit none
 
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
@@ -37,13 +52,19 @@ contains
     call error_and_exit()
   end subroutine
 
-  subroutine solve_hypre(p, converged)
-    use modglobal, only : i1, j1, ih, jh, kmax
+  subroutine set_zero_guess()
+    implicit none
 
+    call error_and_exit()
+  end subroutine
+
+  subroutine solve_hypre(solver, p, converged)
+    use modglobal, only : i1, j1, ih, jh, kmax
     implicit none
 
     real, intent(inout) :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
     logical, intent(out) :: converged
+    type(solver_type), intent(inout) :: solver
 
     call error_and_exit()
     converged = .false. ! suppress warnings about intent(out) variable

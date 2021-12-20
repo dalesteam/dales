@@ -59,7 +59,7 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
-                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, &
+                                  solver_id, maxiter, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -109,7 +109,7 @@ contains
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
-        solver_id, maxiter, tolerance, n_pre, n_post, precond
+        solver_id, maxiter, tolerance, n_pre, n_post, precond_id
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z
 
@@ -275,7 +275,7 @@ contains
     call MPI_BCAST(n_pre,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(n_post,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(tolerance,1,MY_REAL,0,commwrld,mpierr)
-    call MPI_BCAST(precond,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(precond_id,1,MPI_INTEGER,0,commwrld,mpierr)
 
     ! Broadcast openboundaries Variables
     call MPI_BCAST(lopenbc,1,MPI_LOGICAL,0,commwrld,mpierr)

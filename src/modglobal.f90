@@ -161,7 +161,13 @@ save
       real    :: tolerance = 1E-8    ! Convergence threshold                .    X   X     X       X
       integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
+      integer :: precond_id = 1      ! Preconditioner ID                    .    .  12   0189     0189
+      type solver_type
+        integer*8 solver,precond
+        integer   solver_id, precond_id, maxiter, n_post, n_pre
+        real      tolerance
+      end type
+      type(solver_type) :: psolver
 
       ! Global variables (modvar.f90)
       integer :: xyear  = 0     !<     * year, only for time units in netcdf
