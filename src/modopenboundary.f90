@@ -430,14 +430,20 @@ contains
     ! Correct for any integrated divergence present in the boundary input
     use mpi
     use modmpi, only : myid,comm3d,mpierr,MY_REAL
-    use modglobal, only : imax,jmax,kmax,dzf,dy,dx,xsize,ysize,zh,k1,lwarmstart,i1,i2,j1,j2
+    use modglobal, only : imax,jmax,kmax,dzf,dy,dx,xsize,ysize,zh,k1,lwarmstart, &
+      i1,i2,j1,j2,initsolver,solver_type,k1,solver_id,maxiter,tolerance,precond_id, &
+      n_pre,n_post,solver_id_init,maxiter_init,tolerance_init,precond_id_init, &
+      n_pre_init,n_post_init,ih,jh,dzh
     use modfields, only : u0,um,v0,vm,w0,wm,rhobf,rhobh
+    use modhypre, only : inithypre_solver, solve_hypre,set_zero_guess,exithypre_solver
     !use modchecksim, only : chkdiv
     implicit none
     real :: sumdiv,divold,divnew,div,divpart
     integer :: i,j,k,it,iter
-    integer,parameter :: maxiter = 20
     real,parameter :: maxdiv = 1e-10
+    real,dimension(i2,j2,k1) :: pcorr
+    logical :: converged
+    real :: divmax,divmaxl,divtot,divtotl
     ! Divergence correction
     if(myid==0) print *, "Start divergence correction"
     do it = 1,ntboundary
@@ -486,7 +492,7 @@ contains
         else
           divnew = sumdiv
         endif
-        if(abs(sumdiv)<maxdiv .or. iter>=maxiter) then
+        if(abs(sumdiv)<maxdiv .or. iter>=20) then
           if(myid==0) print *, 't,input,corrected,niter',tboundary(it),divold,divnew,iter
           exit
         endif
@@ -565,6 +571,69 @@ contains
     ! Create 1/int(rho)
     allocate(rhointi(k1))
     rhointi = 1./(rhobf*dzf)
+    if(linithetero) then
+      if(myid==0) print *, "Start divergence correction initial field"
+      if(solver_id_init == -1) solver_id_init = solver_id
+      if(maxiter_init == -1) maxiter_init = maxiter
+      if(tolerance_init == -1) tolerance_init = tolerance
+      if(precond_id_init == -1) precond_id_init = precond_id
+      if(n_pre_init == -1) n_pre_init = n_pre
+      if(n_post_init == -1) n_post_init = n_post
+      call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init)
+      iter = 0
+      do while(.True.)
+        divmax = 0.
+        divtot = 0.
+        divmaxl= 0.
+        divtotl= 0.
+        do k=1,kmax
+          do j=2,j1
+            do i=2,i1
+              pcorr(i,j,k)  =  rhobf(k)*(( um(i+1,j,k)-um(i,j,k) ) / dx &
+                                        +( vm(i,j+1,k)-vm(i,j,k) ) / dy ) &
+                                        +( wm(i,j,k+1)*rhobh(k+1)-wm(i,j,k)*rhobh(k)) / dzf(k)
+              divmaxl = max(divmaxl,abs(pcorr(i,j,k)))
+              divtotl = divtotl + pcorr(i,j,k)*dx*dy*dzf(k)
+            end do
+          end do
+        end do
+        call MPI_ALLREDUCE(divtotl, divtot, 1,    MY_REAL, &
+                              MPI_SUM, comm3d,mpierr)
+        call MPI_ALLREDUCE(divmaxl, divmax, 1,    MY_REAL, &
+                              MPI_MAX, comm3d,mpierr)
+        if(iter==0) divold = divmax
+        if(divmax<1e-5.or. iter>=5) then
+          if(myid==0) print *, "Finished divergence correction initial field, old/new maximum divergence and iter",divold,divmax,iter
+          exit
+        endif
+        call set_zero_guess()
+        call solve_hypre(initsolver,pcorr,converged)
+        call set_zero_guess()
+        call openboundary_excjs(pcorr   , 2,i1,2,j1,1,kmax,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+        if(lboundary(1).and. .not. lperiodic(1)) pcorr(1,:,:) = pcorr(2,:,:)
+        if(lboundary(2).and. .not. lperiodic(2)) pcorr(i2,:,:) = pcorr(i1,:,:)
+        if(lboundary(3).and. .not. lperiodic(3)) pcorr(:,1,:) = pcorr(:,2,:)
+        if(lboundary(4).and. .not. lperiodic(4)) pcorr(:,j2,:) = pcorr(:,j1,:)
+        do k=1,kmax
+          do j=2,j1
+            do i=2,i1
+              um(i,j,k) = um(i,j,k)-(pcorr(i,j,k)-pcorr(i-1,j,k))/dx
+              vm(i,j,k) = vm(i,j,k)-(pcorr(i,j,k)-pcorr(i,j-1,k))/dy
+            end do
+          end do
+        end do
+        do k=2,kmax
+          do j=2,j1
+            do i=2,i1
+              wm(i,j,k) = wm(i,j,k)-(pcorr(i,j,k)-pcorr(i,j,k-1))/dzh(k)
+            end do
+          end do
+        end do
+        iter = iter+1
+      end do
+      u0 = um; v0 = vm; w0 = wm
+      call exithypre_solver(initsolver)
+    endif
   end subroutine openboundary_divcorr
 
   subroutine openboundary_ghost

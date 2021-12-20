@@ -60,7 +60,8 @@ contains
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
                                   solver_id, maxiter, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
-                                  lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb
+                                  lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
+                                  solver_id_init, maxiter_init, tolerance_init, n_pre_init, n_post_init, precond_id_init
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -84,7 +85,7 @@ contains
     use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr,periods
     use modchem,           only : initchem
     use modversion,        only : git_version
-    use modopenboundary,   only : initopenboundary
+    use modopenboundary,   only : initopenboundary,openboundary_divcorr
 
     implicit none
     integer :: ierr
@@ -111,7 +112,8 @@ contains
     namelist/SOLVER/ &
         solver_id, maxiter, tolerance, n_pre, n_post, precond_id
     namelist/OPENBC/ &
-        lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z
+        lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z, &
+        solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init
 
 
     ! get myid
@@ -296,6 +298,12 @@ contains
     call MPI_BCAST(lambdas_x,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(lambdas_y,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(lambdas_z,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(solver_id_init,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(maxiter_init,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(n_pre_init,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(n_post_init,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(tolerance_init,1,MY_REAL,0,commwrld,mpierr)
+    call MPI_BCAST(precond_id_init,1,MPI_INTEGER,0,commwrld,mpierr)
 
     call testwctime
     ! Allocate and initialize core modules
@@ -321,6 +329,7 @@ contains
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
+    call openboundary_divcorr
 
     call checkinitvalues
 
@@ -444,7 +453,7 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
-    use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields,openboundary_divcorr
+    use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
 
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
@@ -691,7 +700,7 @@ contains
 
       call baseprofs ! call baseprofs before thermodynamics
       if(lopenbc) then
-        call openboundary_divcorr()
+        call openboundary_ghost()
       else
         call boundary
       endif
