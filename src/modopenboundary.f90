@@ -432,7 +432,7 @@ contains
     use modmpi, only : myid,comm3d,mpierr,MY_REAL
     use modglobal, only : imax,jmax,kmax,dzf,dy,dx,xsize,ysize,zh,k1,lwarmstart, &
       i1,i2,j1,j2,initsolver,solver_type,k1,solver_id,maxiter,tolerance,precond_id, &
-      n_pre,n_post,solver_id_init,maxiter_init,tolerance_init,precond_id_init, &
+      n_pre,n_post,solver_id_init,maxiter_init,tolerance_init,precond_id_init,maxiter_precond_init, &
       n_pre_init,n_post_init,ih,jh,dzh
     use modfields, only : u0,um,v0,vm,w0,wm,rhobf,rhobh
     use modhypre, only : inithypre_solver, solve_hypre,set_zero_guess,exithypre_solver
@@ -579,7 +579,7 @@ contains
       if(precond_id_init == -1) precond_id_init = precond_id
       if(n_pre_init == -1) n_pre_init = n_pre
       if(n_post_init == -1) n_post_init = n_post
-      call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init)
+      call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init)
       iter = 0
       do while(.True.)
         divmax = 0.

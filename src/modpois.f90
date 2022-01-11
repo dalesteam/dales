@@ -45,7 +45,7 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver
+    use modglobal, only : solver_id,i1,j1,ih,jh,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre_grid, inithypre_solver
@@ -68,7 +68,7 @@ contains
       allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
       call inithypre_grid
-      call inithypre_solver(psolver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post)
+      call inithypre_solver(psolver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,maxiter_precond)
     endif
   end subroutine initpois
 

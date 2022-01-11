@@ -50,15 +50,15 @@ contains
     if (solver%precond_id == 0) then
       call HYPRE_StructSMGCreate(mpi_comm_hypre, solver%precond, ierr)
       call HYPRE_StructSMGSetMemoryUse(solver%precond, zero, ierr)
-      call HYPRE_StructSMGSetMaxIter(solver%precond, solver%maxiter, ierr)
+      call HYPRE_StructSMGSetMaxIter(solver%precond, solver%maxiter_precond, ierr)
       call HYPRE_StructSMGSetNumPreRelax(solver%precond, solver%n_pre, ierr)
       call HYPRE_StructSMGSetNumPostRelax(solver%precond, solver%n_post, ierr)
       call HYPRE_StructSMGSetTol(solver%precond, 0.0d0, ierr)
     else if (solver%precond_id == 1) then
       call HYPRE_StructPFMGCreate(mpi_comm_hypre, solver%precond, ierr)
-      call HYPRE_StructPFMGSetMaxIter(solver%precond, solver%maxiter, ierr)
+      call HYPRE_StructPFMGSetMaxIter(solver%precond, solver%maxiter_precond, ierr)
       ! weighted Jacobi = 1; red-black GS = 2
-      call HYPRE_StructPFMGSetRelaxType(solver%precond, 2, ierr)
+      call HYPRE_StructPFMGSetRelaxType(solver%precond, 1, ierr)
       call HYPRE_StructPFMGSetNumPreRelax(solver%precond, solver%n_pre, ierr)
       call HYPRE_StructPFMGSetNumPostRelax(solver%precond, solver%n_post, ierr)
       call HYPRE_StructPFMGSetTol(solver%precond, 0.0d0, ierr)
@@ -67,7 +67,7 @@ contains
       ! call HYPRE_StructPFMGSetRAPType(precond_id, 1, ierr)
     else if (solver%precond_id == 7 .and. solver%solver_id == 5) then
       call HYPRE_StructJacobiCreate(mpi_comm_hypre, solver%precond, ierr)
-      call HYPRE_StructJacobiSetMaxIter(solver%precond, solver%maxiter, ierr)
+      call HYPRE_StructJacobiSetMaxIter(solver%precond, solver%maxiter_precond, ierr)
     else if (solver%precond_id == 8) then
       solver%precond = 0
     else if (solver%precond_id == 9) then
@@ -333,11 +333,11 @@ contains
 
   end subroutine inithypre_grid
 
-  subroutine inithypre_solver(solver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post)
+  subroutine inithypre_solver(solver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,maxiter_precond)
     use modmpi, only : myid
     implicit none
     type(solver_type), intent(inout) :: solver
-    integer, intent(in) :: solver_id, maxiter, precond_id, n_pre, n_post
+    integer, intent(in) :: solver_id, maxiter, precond_id, n_pre, n_post, maxiter_precond
     real, intent(in) :: tolerance
     !-----------------------------------------------------------------------
     !     5. Choose a solver and initialize it
@@ -348,6 +348,7 @@ contains
     solver%precond_id = precond_id
     solver%n_pre      = n_pre
     solver%n_post     = n_post
+    solver%maxiter_precond = maxiter_precond
     if (solver%solver_id == 1) then
       ! Solve the system using SMG
       if (myid == 0) then

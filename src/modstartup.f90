@@ -59,9 +59,9 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
-                                  solver_id, maxiter, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
+                                  solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  solver_id_init, maxiter_init, tolerance_init, n_pre_init, n_post_init, precond_id_init
+                                  solver_id_init, maxiter_init, tolerance_init, n_pre_init, n_post_init, precond_id_init, maxiter_precond_init
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -110,10 +110,10 @@ contains
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
-        solver_id, maxiter, tolerance, n_pre, n_post, precond_id
+        solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z, &
-        solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init
+        solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init
 
 
     ! get myid
@@ -278,6 +278,7 @@ contains
     call MPI_BCAST(n_post,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(tolerance,1,MY_REAL,0,commwrld,mpierr)
     call MPI_BCAST(precond_id,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(maxiter_precond,1,MPI_INTEGER,0,commwrld,mpierr)
 
     ! Broadcast openboundaries Variables
     call MPI_BCAST(lopenbc,1,MPI_LOGICAL,0,commwrld,mpierr)
@@ -304,6 +305,7 @@ contains
     call MPI_BCAST(n_post_init,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(tolerance_init,1,MY_REAL,0,commwrld,mpierr)
     call MPI_BCAST(precond_id_init,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(maxiter_precond_init,1,MPI_INTEGER,0,commwrld,mpierr)
 
     call testwctime
     ! Allocate and initialize core modules

@@ -162,9 +162,10 @@ save
       integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: precond_id = 1      ! Preconditioner ID                    .    .  12   0189     0189
+      integer :: maxiter_precond = 1 ! Number of iterations for precondition per iteration
       type solver_type
         integer*8 solver,precond
-        integer   solver_id, precond_id, maxiter, n_post, n_pre
+        integer   solver_id, precond_id, maxiter, n_post, n_pre, maxiter_precond
         real      tolerance
       end type
       type(solver_type) :: psolver
@@ -228,7 +229,7 @@ save
       integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
       real,dimension(:),allocatable :: tboundary
       type(solver_type) :: initsolver
-      integer :: solver_id_init = -1, precond_id_init = -1, maxiter_init = -1, n_pre_init = -1, n_post_init = -1
+      integer :: solver_id_init = -1, precond_id_init = -1, maxiter_init = -1, n_pre_init = -1, n_post_init = -1, maxiter_precond_init = 1
       real :: tolerance_init = -1
 
       ! modphsgrd.f90
