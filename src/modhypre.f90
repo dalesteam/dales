@@ -535,7 +535,7 @@ contains
     !-----------------------------------------------------------------------
     !     2. Call a solver
     !-----------------------------------------------------------------------
-
+    stat = 0
     if (solver%solver_id == 1) then
       ! Solve the system using SMG
       call HYPRE_StructSMGSolve(solver%solver, matrixA, vectorB, vectorX, stat)

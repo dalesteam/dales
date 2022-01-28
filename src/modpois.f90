@@ -130,8 +130,8 @@ contains
         if (myid == 0) then
           write (*,*) 'Not converged'
         endif
-        call set_zero_guess()
-        call solve_hypre(psolver, p, converged)
+        !call set_zero_guess()
+        !call solve_hypre(psolver, p, converged)
         !call fillps
         ! Forward FFT
         !call fft2df(p, Fp)
