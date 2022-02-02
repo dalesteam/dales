@@ -43,8 +43,7 @@ SAVE
 
 contains
   subroutine initnudge
-    use mpi
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
+    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,D_MPI_BCAST
     use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax,checknamelisterror
     implicit none
 
@@ -71,7 +70,7 @@ contains
       write(6 ,NAMNUDGE)
       close(ifnamopt)
     end if
-    call MPI_BCAST(lnudge    , 1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(lnudge    , 1,0,comm3d,mpierr)
 
     if (.not. lnudge) return
     if(myid==0) then
@@ -123,13 +122,13 @@ contains
       close(ifinput)
       tnudge  = tnudgefac*tnudge
     end if
-    call MPI_BCAST(timenudge ,ntnudge+1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(tnudge    ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(unudge    ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(vnudge    ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(wnudge    ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(thlnudge  ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(qtnudge   ,k1*ntnudge,MY_REAL    ,0,comm3d,mpierr)
+    call D_MPI_BCAST(timenudge ,ntnudge+1 ,0,comm3d,mpierr)
+    call D_MPI_BCAST(tnudge    ,k1*ntnudge,0,comm3d,mpierr)
+    call D_MPI_BCAST(unudge    ,k1*ntnudge,0,comm3d,mpierr)
+    call D_MPI_BCAST(vnudge    ,k1*ntnudge,0,comm3d,mpierr)
+    call D_MPI_BCAST(wnudge    ,k1*ntnudge,0,comm3d,mpierr)
+    call D_MPI_BCAST(thlnudge  ,k1*ntnudge,0,comm3d,mpierr)
+    call D_MPI_BCAST(qtnudge   ,k1*ntnudge,0,comm3d,mpierr)
     lunudge = any(abs(unudge)>1e-8)
     lvnudge = any(abs(vnudge)>1e-8)
     lwnudge = any(abs(wnudge)>1e-8)

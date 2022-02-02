@@ -122,7 +122,7 @@ program DALES
   use modchecksim,     only : initchecksim, checksim
   use modstat_nc,      only : initstat_nc
   !use modspectra2,     only : dospecs,initspectra2,tanhfilter
-  use modtimestat,     only : inittimestat, timestat
+  use modtimestat,     only : inittimestat, timestat, exittimestat
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
@@ -150,6 +150,7 @@ program DALES
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
+  use modadvection,    only : advection
 
 
   implicit none
@@ -200,7 +201,8 @@ program DALES
   call testwctime
 
   do while (timeleft>0 .or. rk3step < 3)
-    call tstep_update                           ! Calculate new timestep
+    ! Calculate new timestep, and reset tendencies to 0.
+    call tstep_update
     call timedep
     call samptend(tend_start,firstterm=.true.)
 
@@ -256,7 +258,10 @@ program DALES
     call poisson
     call samptend(tend_pois,lastterm=.true.)
 
-    call tstep_integrate                        ! Apply tendencies to all variables
+    ! Apply tendencies to all variables
+    call tstep_integrate
+    ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
+    !       Do not change them below this point.
     call boundary
     !call tiltedboundary
 !-----------------------------------------------------
@@ -324,5 +329,6 @@ program DALES
   call exitheterostats
   call exitcanopy
   call exitmodules
+  call exittimestat
 
 end program DALES

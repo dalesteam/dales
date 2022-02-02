@@ -68,8 +68,7 @@ save
 contains
 !> Initializing lsmcrosssection. Read out the namelist, initializing the variables
   subroutine initlsmcrosssection
-    use mpi
-    use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid
+    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,D_MPI_BCAST
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf
@@ -98,10 +97,10 @@ contains
        write (6,*) "Ignoring lcross, lsmcrossection currently implemented only for isurf==1."
     endif
 
-    call MPI_BCAST(dtav       ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lcross     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(crossheight,1,MPI_INTEGER,0,comm3d,mpierr)
-    call MPI_BCAST(crossplane ,1,MPI_INTEGER,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lcross     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(crossheight,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(crossplane ,1,0,comm3d,mpierr)
 
 
     idtav = dtav/tres

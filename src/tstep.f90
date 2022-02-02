@@ -45,14 +45,11 @@ implicit none
 
 contains
 subroutine tstep_update
-
-
   use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
-  use modfields, only : um,vm,wm
+  use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
   use modsubgrid,only : ekm,ekh
-  use mpi
-  use modmpi,    only : comm3d,mpierr,mpi_max,my_real
+  use modmpi,    only : comm3d,mpierr,mpi_max,D_MPI_ALLREDUCE
   implicit none
 
   real, allocatable, dimension (:) :: courtotl,courtot
@@ -77,7 +74,7 @@ subroutine tstep_update
           courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
           wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
         end do
-        call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
+        call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
         do k=1,kmax
           courtotmax=max(courtotmax,courtot(k))
@@ -88,7 +85,7 @@ subroutine tstep_update
            peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
            peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
-        call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+        call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
            dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
            dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
@@ -118,7 +115,7 @@ subroutine tstep_update
           courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
           (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
         end do
-        call MPI_ALLREDUCE(courtotl,courtot,kmax,MY_REAL,MPI_MAX,comm3d,mpierr)
+        call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
         do k=1,kmax
             courtotmax=max(courtotmax,sqrt(courtot(k)))
@@ -128,7 +125,7 @@ subroutine tstep_update
            peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
            peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
-        call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
+        call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
         dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
         rdt = dble(dt)*tres
@@ -149,6 +146,15 @@ subroutine tstep_update
   end if
 
   deallocate(courtotl,courtot)
+
+  ! set all tendencies to zero
+  up=0.
+  vp=0.
+  wp=0.
+  thlp=0.
+  qtp=0.
+  svp=0.
+  e12p=0.
 
 end subroutine tstep_update
 
@@ -171,7 +177,7 @@ subroutine tstep_integrate
 
 
   use modglobal, only : rdt,rk3step,e12min
-  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
+  use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
@@ -179,7 +185,6 @@ subroutine tstep_integrate
   real rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
-  wp_store = wp
 
   if(rk3step /= 3) then
      u0   = um   + rk3coef * up
@@ -206,14 +211,5 @@ subroutine tstep_integrate
      e120 = e12m
 
   end if
-
-  up=0.
-  vp=0.
-  wp=0.
-  thlp=0.
-  qtp=0.
-  svp=0.
-  e12p=0.
-
 end subroutine tstep_integrate
 end module tstep

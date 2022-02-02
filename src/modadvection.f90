@@ -24,15 +24,24 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
+module modadvection
+contains
 !> Advection redirection function
 subroutine advection
 
-  use modglobal,  only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                         iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_kappa_f,iadv_null,leq
-  use modfields,  only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
-  use modsubgrid, only : lsmagorinsky
-  use advec_hybrid, only : advecc_hybrid
+  use modglobal,      only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
+                             iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq
+  use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
+  use modsubgrid,     only : lsmagorinsky
+  use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, advecc_2nd
+  use advec_52,       only : advecu_52, advecv_52, advecw_52, advecc_52
+  use advec_5th,      only : advecu_5th, advecv_5th, advecw_5th, advecc_5th
+  use advec_62,       only : advecu_62, advecv_62, advecw_62, advecc_62
+  use advec_6th,      only : advecu_6th, advecv_6th, advecw_6th, advecc_6th
+  use advec_hybrid,   only : advecc_hybrid
   use advec_hybrid_f, only : advecc_hybrid_f
+  use advec_kappa,    only : advecc_kappa
+  use advec_upw,      only : advecc_upw
   implicit none
   integer :: n
 
@@ -95,8 +104,6 @@ subroutine advection
         call advecc_62(e120,e12p)
       case(iadv_kappa)
         call advecc_kappa(e120,e12p)
-      case(iadv_kappa_f)
-        call advecc_kappa_f(e120,e12p)
       case(iadv_hybrid)
         !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
         call advecc_hybrid(e120,e12p)
@@ -126,8 +133,6 @@ subroutine advection
       call advecc_62(thl0,thlp)
     case(iadv_kappa)
       call advecc_kappa(thl0,thlp)
-    case(iadv_kappa_f)
-      call advecc_kappa_f(thl0,thlp)
     case(iadv_upw)
       if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
       call advecc_upw(thl0,thlp)
@@ -159,8 +164,6 @@ subroutine advection
         call advecc_62(qt0,qtp)
       case(iadv_kappa)
         call advecc_kappa(qt0,qtp)
-      case(iadv_kappa_f)
-         call advecc_kappa_f(qt0,qtp)
       case(iadv_upw)
         if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
         call advecc_upw(qt0,qtp)
@@ -193,8 +196,6 @@ subroutine advection
       call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_kappa)
       call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
-    case(iadv_kappa_f)
-      call advecc_kappa_f(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)
       if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
       call advecc_upw(sv0(:,:,:,n),svp(:,:,:,n))
@@ -212,3 +213,4 @@ subroutine advection
   end do
 
 end subroutine advection
+end module modadvection

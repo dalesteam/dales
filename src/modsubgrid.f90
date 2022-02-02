@@ -30,6 +30,7 @@
 
 module modsubgrid
 use modsubgriddata
+use modprecision, only: field_r
 implicit none
 save
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
@@ -37,7 +38,6 @@ save
 contains
   subroutine initsubgrid
     use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar,pi
-    use mpi
     use modmpi, only : myid
 
     implicit none
@@ -52,9 +52,9 @@ contains
     allocate(ekm(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(ekh(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(zlt(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sbdiss(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(sbdiss(2-ih:i1+ih,2-jh:j1+jh,1))
+    allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,1))
+    allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(csz(k1))
 
     ! Initialize variables to avoid problems when not using subgrid scheme JvdD
@@ -100,8 +100,7 @@ contains
 
   subroutine subgridnamelist
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
-    use mpi
-    use modmpi,    only : myid, comm3d, mpierr, my_real, mpi_logical
+    use modmpi,    only : myid, comm3d, mpierr, mpi_logical, D_MPI_BCAST
 
     implicit none
 
@@ -118,17 +117,17 @@ contains
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(ldelta     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(lmason     ,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(nmason     ,1,MY_REAL    ,0,comm3d,mpierr)
-    call MPI_BCAST(lsmagorinsky,1,MPI_LOGICAL,0,comm3d,mpierr)
-    call MPI_BCAST(cs         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cf         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(cn         ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(Rigc       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(Prandtl    ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(sgs_surface_fix ,1,MPI_LOGICAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ch1        ,1,MY_REAL   ,0,comm3d,mpierr)
+    call D_MPI_BCAST(ldelta          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lmason          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(nmason          ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lsmagorinsky    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cs              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cf              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(cn              ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(Rigc            ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(Prandtl         ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(sgs_surface_fix ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(ch1             ,1, 0,comm3d,mpierr)
 
   end subroutine subgridnamelist
 
@@ -416,13 +415,6 @@ contains
               ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp) + &
                (w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2    )
 
-
-!    sbshr(i,j,k)  = ekm(i,j,k)*tdef2/ ( 2*e120(i,j,k))
-!    sbbuo(i,j,k)  = -ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k)/ ( 2*e120(i,j,k))
-!    sbdiss(i,j,k) = - (ce1 + ce2*zlt(i,j,k)/delta(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))
-
-!     e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1)+ &
-!            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
                 - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
@@ -508,8 +500,6 @@ contains
   end do
   end do
 
-!  e12p(2:i1,2:j1,1:kmax) = e12p(2:i1,2:j1,1:kmax)+ &
-!            sbshr(2:i1,2:j1,1:kmax)+sbbuo(2:i1,2:j1,1:kmax)+sbdiss(2:i1,2:j1,1:kmax)
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
             sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
 
@@ -522,8 +512,8 @@ contains
     use modfields, only : rhobf,rhobh
     implicit none
 
-    real, intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in)    :: flux (i2,j2)
 
     integer i,j,k,jm,jp,km,kp
@@ -585,7 +575,7 @@ contains
     use modfields, only : e120,rhobf,rhobh
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -646,7 +636,7 @@ contains
     use modsurfdata,only : ustar
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
@@ -758,7 +748,7 @@ contains
 
     implicit none
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
@@ -867,7 +857,7 @@ contains
 
   !*****************************************************************
 
-    real, intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
 

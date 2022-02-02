@@ -1,0 +1,47 @@
+name: DALES precision CI
+
+# Controls when the action will run. 
+on:
+  # Triggers the workflow on push or pull request events but only for the feature/single_precision branch
+  push:
+  pull_request:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  build:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        fftw:    ["", "-DUSE_FFTW=T"]
+        hypre:    ["", "-DUSE_HYPRE=T"]
+        field_r: ["32","64"]
+        pois_r:  ["32","64"]
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v2
+
+      # Runs a set of commands using the runners shell
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libnetcdff-dev libfftw3-dev libhypre-dev libopenmpi-dev
+      - name : Set up Build
+        run: |
+          mkdir build
+          cd build
+          cmake -DCMAKE_BUILD_TYPE=DEBUG \
+           ${{ matrix.fftw }} \
+           ${{ matrix.hypre }} \
+           -DPOIS_PRECISION=${{ matrix.pois_r }} \
+           -DFIELD_PRECISION=${{ matrix.field_r }} ../
+      - name : Build
+        run: |
+          cd build
+          make -j2 

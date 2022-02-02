@@ -28,6 +28,7 @@
 !
 
 module modpois
+use modprecision, only : pois_r
 
 implicit none
 private
@@ -35,10 +36,10 @@ public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
 
 save
 
-  real, pointer     :: p(:,:,:)    ! pressure fluctuations in real space
-  real, pointer     :: Fp(:,:,:)   ! pressure fluctuations in fourier space
-  real, allocatable :: d(:,:,:)    ! work array for tridiagonal solver
-  real, allocatable :: xyrt(:,:)   ! constant factors in the poisson equation
+  real(pois_r), pointer     :: p(:,:,:)    ! pressure fluctuations in real space
+  real(pois_r), pointer     :: Fp(:,:,:)   ! pressure fluctuations in fourier space
+  real(pois_r), allocatable :: d(:,:,:)    ! work array for tridiagonal solver
+  real(pois_r), allocatable :: xyrt(:,:)   ! constant factors in the poisson equation
 
   integer :: ps,pe,qs,qe           ! start and end index of fourier space matrices
 
@@ -159,9 +160,9 @@ contains
     use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt,ih,jh
     use modmpi,    only : excjs
     implicit none
-    real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
+    real(pois_r),allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
-    real rk3coef
+    real(pois_r) :: rk3coef
 
     allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
@@ -307,8 +308,8 @@ contains
     use modfields, only : rhobf, rhobh
     implicit none
 
-    real    :: a(kmax),b(kmax),c(kmax)
-    real    :: z,ak,bk,bbk
+    real(pois_r) :: a(kmax),b(kmax),c(kmax)
+    real(pois_r) :: z,ak,bk,bbk
     integer :: i, j, k
 
   ! Generate tridiagonal matrix

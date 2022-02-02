@@ -26,7 +26,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modstattend
-  use modglobal, only : longint
+  use modprecision, only : longint, field_r
 
   implicit none
 !   private
@@ -52,8 +52,7 @@ module modstattend
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initstattend
-    use mpi
-    use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
+    use modmpi,   only : mpierr,mpi_logical,comm3d,myid,D_MPI_BCAST
     use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
     ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -76,9 +75,9 @@ subroutine initstattend
       close(ifnamopt)
     end if
 
-    call MPI_BCAST(dtav       ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(timeav     ,1,MY_REAL   ,0,comm3d,mpierr)
-    call MPI_BCAST(ltend      ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(ltend      ,1,0,comm3d,mpierr)
 
     idtav = dtav/tres
     itimeav = timeav/tres
@@ -192,7 +191,7 @@ subroutine initstattend
     implicit none
     integer, intent(in)           :: tendterm !< name of the term to write down
     logical, intent(in), optional :: lastterm !< true if this is the last term of the equations; the write routine is entered.
-    real, dimension(:),allocatable :: avfield
+    real(field_r), dimension(:),allocatable :: avfield
     if (.not.(ltend)) return
     if (rk3step/=3) return
     if(timee<tnext) then

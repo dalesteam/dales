@@ -23,6 +23,7 @@
 !
 
   module modmicrodata
+  use modprecision, only : field_r
 
   use modglobal, only : rhow,lacz_gamma
   implicit none
@@ -35,6 +36,7 @@
   integer, parameter :: imicro_bin     = 3
   integer, parameter :: imicro_sice    = 5
   integer, parameter :: imicro_sice2   = 6
+  integer, parameter :: imicro_bulk3   = 11  !#sb3
   integer, parameter :: imicro_user    = 10
   logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
              l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
@@ -156,7 +158,8 @@
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
 
-   real,allocatable,dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
+   real,allocatable,dimension(:,:,:) :: Nr,qltot,qr,thlpmcr,qtpmcr
+   real(field_r),allocatable,dimension(:,:,:) :: Nrp,qrp
    real,allocatable,dimension(:,:,:) :: precep
 
   real :: delt

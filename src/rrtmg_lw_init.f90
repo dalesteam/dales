@@ -20,22 +20,22 @@
       use modglobal, only: im => kind_im, rb => kind_rb
       use rrlw_wvn
       use rrtmg_lw_setcoef, only: lwatmref, lwavplank
-!      use rrlw_kgb01                  ! molecular absorption coefficients
-!      use rrlw_kgb02
-!      use rrlw_kgb03
-!      use rrlw_kgb04
-!      use rrlw_kgb05
-!      use rrlw_kgb06
-!      use rrlw_kgb07
-!      use rrlw_kgb08
-!      use rrlw_kgb09
-!      use rrlw_kgb10
-!      use rrlw_kgb11
-!      use rrlw_kgb12
-!      use rrlw_kgb13
-!      use rrlw_kgb14
-!      use rrlw_kgb15
-!      use rrlw_kgb16
+      use rrtmg_lw_read_nc, only: lw_kgb01 & ! molecular absorption coefficients
+                                , lw_kgb02 &
+                                , lw_kgb03 &
+                                , lw_kgb04 &
+                                , lw_kgb05 &
+                                , lw_kgb06 &
+                                , lw_kgb07 &
+                                , lw_kgb08 &
+                                , lw_kgb09 &
+                                , lw_kgb10 &
+                                , lw_kgb11 &
+                                , lw_kgb12 &
+                                , lw_kgb13 &
+                                , lw_kgb14 &
+                                , lw_kgb15 &
+                                , lw_kgb16 
 
       implicit none
 
