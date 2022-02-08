@@ -367,9 +367,12 @@ contains
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
-
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  ! with the TKE scheme, ekh, ekm are calculated over the ghost cells from e120
+  ! so no need to exchange here
+  if(lsmagorinsky) then
+     call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
+     call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  endif
 
   do j=1,j2
     do i=1,i2
