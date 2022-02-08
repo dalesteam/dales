@@ -290,8 +290,10 @@ contains
   ! do TKE scheme
   else
     do k=1,kmax
-      do j=2,j1
-        do i=2,i1
+       !do j=2,j1
+       !  do i=2,i1
+      do j=1,j2 ! including 1 ghost cell in each direction
+        do i=1,i2
           if (ldelta .or. (dthvdz(i,j,k)<=0)) then
             zlt(i,j,k) = delta(k)
             if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
@@ -324,9 +326,12 @@ contains
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
-
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  ! with the TKE scheme, ekh, ekm are calculated over the ghost cells from e120
+  ! so no need to exchange here
+  if(lsmagorinsky) then
+     call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
+     call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  endif
 
   do j=1,j2
     do i=1,i2
