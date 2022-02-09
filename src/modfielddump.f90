@@ -192,7 +192,7 @@ contains
                           timee,dt_lim,cexpnr,ifoutput,rtimee
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modmicrodata, only : iqr, imicro, imicro_none
+    use modmicrodata, only : iqr, imicro, imicro_none, qrmin
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -356,6 +356,20 @@ contains
        do n=1,nsv
           if (lsv(n)) then
              vars(:,:,:,ind_sv(n)) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,n)
+
+             if(imicro/=imicro_none .and. n == iqr) then
+                ! round small qr to 0 at output, for better compression
+                do k=1,khigh-klow
+                   do j=2,j1
+                      do i=2,i1
+                         if (abs(vars(i,j,k,ind_sv(n))) < qrmin) then
+                            vars(i,j,k,ind_sv(n)) = 0
+                         end if
+                      end do
+                   end do
+                end do
+             end if
+
           end if
        end do
     end if
