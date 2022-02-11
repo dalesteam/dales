@@ -122,19 +122,19 @@
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-  real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets specific mixing ratio [kg_w/kg_a]
-                                       ,Nc  & !<  cloud droplets number conc.  [#/m^3]
-                                       ,nuc & !<  width parameter of cloud DSD
-                                       ,rhoz  !< slab averaged density in 3 dimensions
+  real(field_r),allocatable, dimension(:,:,:) :: qc,  & !<  cloud droplets specific mixing ratio [kg_w/kg_a]
+                                                 Nc,  & !<  cloud droplets number conc.  [#/m^3]
+                                                 nuc, & !<  width parameter of cloud DSD
+                                                 rhoz   !< slab averaged density in 3 dimensions
 
-  real,allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
+  real(field_r),allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
                              !< prec. liq. water and conc. for sedim. time splitting
-  real,allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
-                                        sed_qr, & !<  sedimentation rain drops mix. ratio
-                                        sed_Nr    !<  sedimentation rain drop number conc.
+  real(field_r),allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
+                                                 sed_qr, & !<  sedimentation rain drops mix. ratio
+                                                 sed_Nr    !<  sedimentation rain drop number conc.
   real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
     ,k_au                     !<  coeff. for autoconversion rate
-  real,allocatable, dimension(:,:,:) ::  &
+  real(field_r),allocatable, dimension(:,:,:) ::  &
     presz              &      !<  3D pressure
     ,Dvc               &      !<  cloud water mean diameter
     ,xc                &      !<  mean mass of cloud water droplets
@@ -158,9 +158,9 @@
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
 
-   real,allocatable,dimension(:,:,:) :: Nr,qltot,qr,thlpmcr,qtpmcr
+   real(field_r),allocatable,dimension(:,:,:) :: Nr,qr,thlpmcr,qtpmcr
    real(field_r),allocatable,dimension(:,:,:) :: Nrp,qrp
-   real,allocatable,dimension(:,:,:) :: precep
+   real(field_r),allocatable,dimension(:,:,:) :: precep
 
   real :: delt
 
@@ -234,7 +234,7 @@
      ,tdnsg=223.   ! Following Khairoutdinov and Randall
 
    ! Fields related to ice-liquid partitioning and slope of distribution
-   real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
+   real(field_r),allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
    real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
    real,allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
