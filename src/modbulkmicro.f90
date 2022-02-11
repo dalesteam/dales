@@ -45,6 +45,7 @@ module modbulkmicro
 !
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
+  use modprecision, only : field_r
   implicit none
   private
   public initbulkmicro, exitbulkmicro, bulkmicro
@@ -109,8 +110,8 @@ module modbulkmicro
     use modglobal, only : i1,j1,k1
     use modfields, only : rhof
     implicit none
-    real, intent(in)    :: Nr  (2:i1, 2:j1, 1:k1) &
-                          ,qr  (2:i1, 2:j1, 1:k1)
+    real(field_r), intent(in)    :: Nr  (2:i1, 2:j1, 1:k1), &
+                                    qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
     if (l_sb) then
@@ -577,7 +578,7 @@ module modbulkmicro
     real :: wfall_Nr      !<  fall velocity for Nr
     real :: sed_qr
     real :: sed_Nr
-    real, allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
+    real(field_r), allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
 
     real,save :: dt_spl,wfallmax
 
@@ -841,7 +842,8 @@ module modbulkmicro
     use modglobal, only : pi,rhow
     implicit none
 
-    real, intent(in) :: Nin, Din, sig2, Ddiv
+    real(field_r), intent(in) :: Nin
+    real         , intent(in) :: Din, sig2, Ddiv
     integer, intent(in) :: nnn
     !para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
     !,power of of D in integral
@@ -903,7 +905,8 @@ module modbulkmicro
     use modglobal, only : pi,rhow
     implicit none
 
-    real, intent(in) :: Nin, Din, sig2, Ddiv
+    real(field_r), intent(in) :: Nin
+    real         , intent(in) :: Din, sig2, Ddiv
     integer, intent(in) :: nnn
     !para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
     !,power of of D in integral
