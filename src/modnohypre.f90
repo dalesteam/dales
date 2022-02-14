@@ -21,11 +21,11 @@ contains
     call error_and_exit()
   end subroutine
 
-  subroutine inithypre_solver(solver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post)
+  subroutine inithypre_solver(solver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,maxiter_precond)
     implicit none
     type(solver_type), intent(inout) :: solver
     real, intent(in) :: tolerance
-    integer, intent(in) :: solver_id, maxiter, precond_id,n_pre,n_post
+    integer, intent(in) :: solver_id, maxiter, precond_id,n_pre,n_post,maxiter_precond
 
     call error_and_exit()
   end subroutine
