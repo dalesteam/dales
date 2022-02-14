@@ -203,7 +203,24 @@ save
 
       character(3) cexpnr
 
-
+      ! Variables for modopenboundary.f90
+      logical :: lopenbc = .false., lsynturb = .false.,linithetero = .false.
+      type boundary_type
+        integer :: nx1,nx2,nx1patch,nx2patch,nx1u,nx2u,nx1v,nx2v,nx1w,nx2w
+        real, allocatable, dimension(:,:,:) :: u,v,w,thl,qt,e12, &
+          & u2,v2,w2,uv,uw,vw,thl2,qt2,wthl,wqt,ci,svturb
+        real, allocatable, dimension(:,:,:,:) :: sv
+        real, allocatable, dimension(:,:) :: radcorr,uphase,uphasesingle, &
+          radcorrsingle,uturb,vturb,wturb,thlturb,qtturb,e12turb!,randqt,randthl
+        real, allocatable, dimension(:,:,:,:) :: eigvec
+        character (len=:), allocatable :: name
+      end type
+      type(boundary_type), dimension(5) :: boundary
+      logical, dimension(5) :: lboundary = .false.
+      logical, dimension(5) :: lperiodic = .false.
+      real :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.
+      integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
+      real,dimension(:),allocatable :: tboundary
 
       ! modphsgrd.f90
 

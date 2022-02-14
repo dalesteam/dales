@@ -78,7 +78,7 @@ subroutine advecc_2nd(putin,putout)
     end do
 
     do j=2,j1
-    do k=2,kmax         
+    do k=2,kmax
        do i=2,i1
           putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
                 w0(i,j,k+1) * (rhobf(k+1) * putin(i,j,k+1) + rhobf(k) * putin(i,j,k)) &
@@ -115,12 +115,13 @@ end subroutine advecc_2nd
 
 
 !> Advection at the u point.
-subroutine advecu_2nd(putin, putout)
+subroutine advecu_2nd(putin, putout, sx)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
+  integer, intent(in) :: sx
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
@@ -141,7 +142,7 @@ subroutine advecu_2nd(putin, putout)
     do j=2,j1
     jm=j-1
     jp=j+1
-      do i=2,i1
+      do i=sx,i1
       im=i-1
       ip=i+1
         putout(i,j,k)  = putout(i,j,k)- ( &
@@ -163,7 +164,7 @@ subroutine advecu_2nd(putin, putout)
     do j=2,j1
     jm=j-1
     jp=j+1
-      do i=2,i1
+      do i=sx,i1
       im=i-1
       ip=i+1
         putout(i,j,1)  = putout(i,j,1)-(1./rhobf(1))*( &
@@ -178,7 +179,7 @@ subroutine advecu_2nd(putin, putout)
     do k=2,kmax
        km=k-1
        kp=k+1
-       do i=2,i1
+       do i=sx,i1
           im=i-1
           ip=i+1
           putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
@@ -194,7 +195,7 @@ subroutine advecu_2nd(putin, putout)
     do j=2,j1
     jm=j-1
     jp=j+1
-      do i=2,i1
+      do i=sx,i1
       im=i-1
       ip=i+1
         putout(i,j,1)  = putout(i,j,1)- (1./rhobf(1))*( &
@@ -209,7 +210,7 @@ subroutine advecu_2nd(putin, putout)
     do k=2,kmax
        km=k-1
        kp=k+1
-       do i=2,i1
+       do i=sx,i1
           im=i-1
           ip=i+1
           putout(i,j,k)  = putout(i,j,k)- (1./rhobf(k))*( &
@@ -231,12 +232,13 @@ end subroutine advecu_2nd
 
 
 !> Advection at the v point.
-subroutine advecv_2nd(putin, putout)
+subroutine advecv_2nd(putin, putout, sy)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
+  integer,intent(in) :: sy
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: putin !< Input: the v-field
   real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhoputin
@@ -254,7 +256,7 @@ subroutine advecv_2nd(putin, putout)
   do k=1,kmax
   km=k-1
   kp=k+1
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
       do i=2,i1
@@ -276,7 +278,7 @@ subroutine advecv_2nd(putin, putout)
 
   if (leq) then
 
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
       do i=2,i1
@@ -288,7 +290,7 @@ subroutine advecv_2nd(putin, putout)
       end do
     end do
 
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
     do k=2,kmax
@@ -306,7 +308,7 @@ subroutine advecv_2nd(putin, putout)
     end do
 
   else
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
       do i=2,i1
@@ -319,7 +321,7 @@ subroutine advecv_2nd(putin, putout)
       end do
     end do
 
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
     do k=2,kmax

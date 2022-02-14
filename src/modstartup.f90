@@ -59,7 +59,8 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
-                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror
+                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, &
+                                  lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -80,14 +81,16 @@ contains
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
     use mpi
-    use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr
+    use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr,periods
     use modchem,           only : initchem
     use modversion,        only : git_version
-    
+    use modopenboundary,   only : initopenboundary
+
     implicit none
     integer :: ierr
+    logical,dimension(2) :: lper = .false.
     character(256), optional, intent(in) :: path
-    
+
     !declare namelists
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
@@ -107,6 +110,8 @@ contains
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
         solver_id, maxiter, tolerance, n_pre, n_post, precond
+    namelist/OPENBC/ &
+        lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z
 
 
     ! get myid
@@ -148,18 +153,29 @@ contains
       read (ifnamopt,SOLVER,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'SOLVER')
       write(6 ,SOLVER)
+      read (ifnamopt,OPENBC,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'OPENBC')
+      write(6 ,OPENBC)
+      close(ifnamopt)
+      if(lopenbc) then
+        ! Check if grid needs to be periodic
+        periods = (/lper(1),lper(2)/)
+        lperiodic(1:2) = lper(1)
+        lperiodic(3:4) = lper(2)
+      endif
       close(ifnamopt)
     end if
 
 
     ! these must be shared before initmpi sets up the cartesian grid
     ! commwrld is already set up
+    call MPI_BCAST(periods,2,MPI_LOGICAL,0,commwrld,mpierr)
     call MPI_BCAST(nprocx ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(nprocy ,1,MPI_INTEGER,0,commwrld,mpierr)
 
     ! Initialize MPI
     call initmpi
-    
+
   !broadcast namelists
     call MPI_BCAST(iexpnr     ,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(lwarmstart ,1,MPI_LOGICAL,0,commwrld,mpierr)
@@ -260,14 +276,38 @@ contains
     call MPI_BCAST(n_post,1,MPI_INTEGER,0,commwrld,mpierr)
     call MPI_BCAST(tolerance,1,MY_REAL,0,commwrld,mpierr)
     call MPI_BCAST(precond,1,MPI_INTEGER,0,commwrld,mpierr)
-    
+
+    ! Broadcast openboundaries Variables
+    call MPI_BCAST(lopenbc,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(linithetero,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lperiodic,5,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(dxint,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(dyint,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(dzint,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(taum,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(tauh,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(pbc,1,MPI_INTEGER   ,0,commwrld,mpierr)
+    call MPI_BCAST(lsynturb,1,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(iturb,1,MPI_INTEGER,0,commwrld,mpierr)
+    call MPI_BCAST(lambda,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(tau,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(nmodes,1,MPI_INTEGER   ,0,commwrld,mpierr)
+    call MPI_BCAST(lambdas,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(lambdas_x,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(lambdas_y,1,MY_REAL   ,0,commwrld,mpierr)
+    call MPI_BCAST(lambdas_z,1,MY_REAL   ,0,commwrld,mpierr)
+
     call testwctime
     ! Allocate and initialize core modules
     call initglobal
     call initfields
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
-    call initboundary
+    if(.not.lopenbc) then
+      call initboundary
+    else
+      call initopenboundary
+    endif
     call initthermodynamics
     call initradiation
     call initchem
@@ -281,7 +321,7 @@ contains
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
-    
+
     call checkinitvalues
 
 
@@ -390,7 +430,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lopenbc,linithetero
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -404,6 +444,7 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+    use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields,openboundary_divcorr
 
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
@@ -437,7 +478,7 @@ contains
         if (ltestbed) then
 
           write(*,*) 'readinitfiles: testbed mode: profiles for initialization obtained from scm_in.nc'
-          
+
           do k=1,kmax
             height (k) = zf(k)
             thlprof(k) = tb_thl(1,k)
@@ -452,7 +493,7 @@ contains
           !thls
           !wtsurf
           !wqsurf
-         
+
         else
 
           open (ifinput,file='prof.inp.'//cexpnr)
@@ -469,7 +510,7 @@ contains
                 vprof  (k), &
                 e12prof(k)
           end do
-        
+
           close(ifinput)
 
         end if   !ltestbed
@@ -500,50 +541,6 @@ contains
       call MPI_BCAST(uprof  ,kmax,MY_REAL   ,0,comm3d,mpierr)
       call MPI_BCAST(vprof  ,kmax,MY_REAL   ,0,comm3d,mpierr)
       call MPI_BCAST(e12prof,kmax,MY_REAL   ,0,comm3d,mpierr)
-      do k=1,kmax
-      do j=1,j2
-      do i=1,i2
-        thl0(i,j,k) = thlprof(k)
-        thlm(i,j,k) = thlprof(k)
-        qt0 (i,j,k) = qtprof (k)
-        qtm (i,j,k) = qtprof (k)
-        u0  (i,j,k) = uprof  (k) - cu
-        um  (i,j,k) = uprof  (k) - cu
-        v0  (i,j,k) = vprof  (k) - cv
-        vm  (i,j,k) = vprof  (k) - cv
-        w0  (i,j,k) = 0.0
-        wm  (i,j,k) = 0.0
-        e120(i,j,k) = e12prof(k)
-        e12m(i,j,k) = e12prof(k)
-        ekm (i,j,k) = 0.0
-        ekh (i,j,k) = 0.0
-      end do
-      end do
-      end do
-    !---------------------------------------------------------------
-    !  1.2 randomnize fields
-    !---------------------------------------------------------------
-
-      krand  = min(krand,kmax)
-      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
-      do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
-      end do
-      negval = .True. ! negative perturbations allowed
-      do k = 1,krand
-        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
-        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
-      end do
-
-      do k=krandumin,krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
-      end do
 
       svprof = 0.
       if(myid==0)then
@@ -570,15 +567,80 @@ contains
       call MPI_BCAST(wsvsurf,nsv   ,MY_REAL   ,0,comm3d,mpierr)
 
       call MPI_BCAST(svprof ,k1*nsv,MY_REAL   ,0,comm3d,mpierr)
-      do k=1,kmax
-        do j=1,j2
-          do i=1,i2
-            do n=1,nsv
-              sv0(i,j,k,n) = svprof(k,n)
-              svm(i,j,k,n) = svprof(k,n)
-            end do
+      ! Initialize fields
+      if(lopenbc .and. linithetero) then! Openboundaries with heterogeneous initialisation
+        call openboundary_initfields()
+        do j = 1,j2
+          do i = 1,i2
+            wm(i,j,1) = 0.
+            w0(i,j,1) = 0.
           end do
         end do
+        do k = 1,kmax
+        do j = 1,j2
+        do i = 1,i2
+           ekm(i,j,k) = 0.0
+           ekh(i,j,k) = 0.0
+        end do
+        end do
+        end do
+      else
+        do k=1,kmax
+        do j=1,j2
+        do i=1,i2
+          thl0(i,j,k) = thlprof(k)
+          thlm(i,j,k) = thlprof(k)
+          qt0 (i,j,k) = qtprof (k)
+          qtm (i,j,k) = qtprof (k)
+          u0  (i,j,k) = uprof  (k) - cu
+          um  (i,j,k) = uprof  (k) - cu
+          v0  (i,j,k) = vprof  (k) - cv
+          vm  (i,j,k) = vprof  (k) - cv
+          w0  (i,j,k) = 0.0
+          wm  (i,j,k) = 0.0
+          e120(i,j,k) = e12prof(k)
+          e12m(i,j,k) = e12prof(k)
+          ekm (i,j,k) = 0.0
+          ekh (i,j,k) = 0.0
+        end do
+        end do
+        end do
+        if(nsv>0) then
+          do k=1,kmax
+            do j=1,j2
+              do i=1,i2
+                do n=1,nsv
+                  sv0(i,j,k,n) = svprof(k,n)
+                  svm(i,j,k,n) = svprof(k,n)
+                end do
+              end do
+            end do
+          end do
+        endif
+      endif
+    !---------------------------------------------------------------
+    !  1.2 randomnize fields
+    !---------------------------------------------------------------
+
+      krand  = min(krand,kmax)
+      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
+      do k = 1,krand
+        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+      end do
+      negval = .True. ! negative perturbations allowed
+      do k = 1,krand
+        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
+      end do
+
+      do k=krandumin,krandumax
+        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
       end do
 
 !-----------------------------------------------------------------
@@ -608,6 +670,10 @@ contains
       case(10)
         call initsurf_user
       end select
+      if(lopenbc) then
+        call openboundary_readboundary
+        call openboundary_ghost
+      endif
 
       ! Set initial Obukhov length to -0.1 for iteration
       obl   = -0.1
@@ -624,7 +690,11 @@ contains
       svs = svprof(1,:)
 
       call baseprofs ! call baseprofs before thermodynamics
-      call boundary
+      if(lopenbc) then
+        call openboundary_divcorr()
+      else
+        call boundary
+      endif
       call thermodynamics
       call surface
 
@@ -635,7 +705,11 @@ contains
 !        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
 !      end do
 
-      call boundary
+      if(lopenbc) then
+        call openboundary_ghost
+      else
+        call boundary
+      endif
       call thermodynamics
 
       ! save initial pressure profiles
@@ -716,6 +790,9 @@ contains
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
       call baseprofs !call baseprofs
+      if(lopenbc) then
+        call openboundary_readboundary
+      endif
 
     end if  ! end if (.not. warmstart)
 
@@ -729,7 +806,7 @@ contains
       if (ltestbed) then
 
           write(*,*) 'readinitfiles: testbed mode: profiles for ls forcing obtained from scm_in.nc'
-          
+
           do k=1,kmax
             height (k) = zf(k)
             ug     (k) = tb_ug(1,k)
@@ -740,7 +817,7 @@ contains
             dqtdtls(k) = tb_qtadv(1,k)
             thlpcar(k) = tb_thladv(1,k)
           end do
-         
+
       else
 
         open (ifinput,file='lscale.inp.'//cexpnr)
@@ -1009,7 +1086,7 @@ contains
     if (rk3Step/=3) return
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    
+
     ! if trestart > 0, write a restartfile every trestart seconds and at the end
     ! if trestart = 0, write restart files only at the end of the simulation
     ! if trestart < 0, don't write any restart files
@@ -1213,7 +1290,7 @@ contains
 
   subroutine exitmodules
     use modfields,         only : exitfields
-    use modglobal,         only : exitglobal
+    use modglobal,         only : exitglobal,lopenbc
     use modmpi,            only : exitmpi
     use modboundary,       only : exitboundary
     use modmicrophysics,   only : exitmicrophysics
@@ -1225,6 +1302,7 @@ contains
     use modlsm,            only : exitlsm
     use modthermodynamics, only : exitthermodynamics
     use modemission,       only : exitemission
+    use modopenboundary,   only : exitopenboundary
 
     call exittimedep
     call exitthermodynamics
@@ -1235,7 +1313,11 @@ contains
     call exitpois
     call exitmicrophysics
     call exitemission
-    call exitboundary
+    if(lopenbc) then
+      call exitopenboundary
+    else
+      call exitboundary
+    endif
     call exitfields
     call exitglobal
     call exitmpi
@@ -1272,7 +1354,7 @@ contains
             j >= js .and. j <= je) then
             if (.not. negval) then ! Avoid non-physical negative values
               field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
-            else 
+            else
               field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
             endif
 

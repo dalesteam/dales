@@ -831,10 +831,11 @@ end subroutine calc_water_bcs
 ! the diffusion scheme, thermodynamics, ...
 !
 subroutine calc_bulk_bcs
-    use modglobal,   only : i1, j1, cp, rlv, fkar, zf, cu, cv, grav, rv, rd
+    use modglobal,   only : i1, j1, cp, rlv, fkar, zf, cu, cv, grav, rv, rd, lopenbc,lboundary,lperiodic
     use modfields,   only : rhof, thl0, qt0, u0, v0, thvh
     use modsurface,  only : phim, phih
     use modmpi,      only : excjs
+    use modopenboundary, only : openboundary_excjs
     use modsurfdata, only : &
         H, LE, G0, tskin, qskin, thlflux, qtflux, dthldz, dqtdz, &
         dudz, dvdz, ustar, obl, cliq, ra, rsveg, rssoil
@@ -914,7 +915,12 @@ subroutine calc_bulk_bcs
             dvdz(i,j) = ustar(i,j) / (fkar * zf(1)) * phim(zf(1)/obl(i,j)) * (vcv/du_tot(i,j))
 
             ! Cyclic BCs where needed.
-            call excjs(ustar,2,i1,2,j1,1,1,1,1)
+            if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
+              call openboundary_excjs(ustar, 2,i1,2,j1,1,1,1,1, &
+                & (.not.lboundary(1:4)).or.lperiodic(1:4))
+            else
+              call excjs(ustar, 2,i1,2,j1,1,1,1,1)
+            endif
 
             ! Just for diagnostics (modlsmcrosssection)
             cliq(i,j) = tile_ws%frac(i,j) / land_frac(i,j)

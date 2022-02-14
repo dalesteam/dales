@@ -45,7 +45,7 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id
+    use modglobal, only : solver_id,i1,j1,ih,jh,kmax
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre
@@ -62,10 +62,10 @@ contains
       ! HYPRE based solver
 
       ! using FFT based solver as fallback
-      call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+      !call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
 
-      !NOTE: If you dont want to do that, you will need the line below
-      !allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
+      !NOTE: If you don't want to do that, you will need the line below
+      allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
       call inithypre
     endif
@@ -87,7 +87,8 @@ contains
       call fftwexit(p,Fp,d,xyrt)
     else
       ! HYPRE based solver
-      call fft2dexit(p,Fp,d,xyrt)
+      !call fft2dexit(p,Fp,d,xyrt)
+      deallocate(p)
       call exithypre
     endif
   end subroutine exitpois
@@ -125,19 +126,21 @@ contains
       call solve_hypre(p, converged)
       if (.not. converged) then
         if (myid == 0) then
-          write (*,*) 'Falling back to fft2d solver.'
+          write (*,*) 'Not converged'
         endif
-        call fillps
+        call set_initial_guess(p)
+        call solve_hypre(p, converged)
+        !call fillps
         ! Forward FFT
-        call fft2df(p, Fp)
+        !call fft2df(p, Fp)
 
-        call solmpj
+        !call solmpj
 
         ! Backward FFT
-        call fft2db(p, Fp)
+        !call fft2db(p, Fp)
 
         ! Re-use our current solution as the next initial guess
-        call set_initial_guess(p)
+        !call set_initial_guess(p)
       endif
     endif
 
@@ -156,8 +159,10 @@ contains
   ! Adapted fillps for RK3 time loop
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt,ih,jh
+    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt,ih,jh, &
+      lboundary,lopenbc,i2,j2,lperiodic
     use modmpi,    only : excjs
+    use modopenboundary, only : openboundary_excjs
     implicit none
     real,allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
     integer i,j,k
@@ -169,9 +174,17 @@ contains
 
     rk3coef = rdt / (4. - dble(rk3step))
 
+    if(lopenbc) then
+      call openboundary_excjs(up   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      call openboundary_excjs(vp   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+    else
+      call excjs( up           , 2,i1,2,j1,1,k1,ih,jh)
+      call excjs( vp           , 2,i1,2,j1,1,k1,ih,jh)
+    endif
+
     do k=1,kmax
-      do j=2,j1
-        do i=2,i1
+      do j=2,j2
+        do i=2,i2
           pup(i,j,k) = up(i,j,k) + um(i,j,k) / rk3coef
           pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) / rk3coef
           pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) / rk3coef
@@ -192,12 +205,14 @@ contains
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
-        pwp(i,j,k1) = 0.
+        pwp(i,j,k1) = wp(i,j,k1) + wm(i,j,k1) / rk3coef
+        !pwp(i,j,k1) = 0.
       end do
     end do
 
-    call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
-    call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
+    ! Already implemented in loop for pup and periodicity check for up and vp
+    !call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
+    !call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
 
     do k=1,kmax
       do j=2,j1
@@ -236,14 +251,23 @@ contains
 !-----------------------------------------------------------------|
 
     use modfields, only : up, vp, wp
-    use modglobal, only : i1,j1,kmax,dx,dy,dzh,ih,jh
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh,ih,jh,lopenbc,lboundary,i2,j2,k1,lperiodic
     use modmpi,    only : excjs
+    use modopenboundary, only : openboundary_excjs
     implicit none
     integer i,j,k
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
-  call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  if(lopenbc) then ! If openboundaries are used only cyclic conditions for non-domain boundaries, hom. Neumann otherwise.
+    call openboundary_excjs(p   , 2,i1,2,j1,1,kmax,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+    if(lboundary(1).and. .not. lperiodic(1)) p(1,:,:) = p(2,:,:)
+    if(lboundary(2).and. .not. lperiodic(2)) p(i2,:,:) = p(i1,:,:)
+    if(lboundary(3).and. .not. lperiodic(3)) p(:,1,:) = p(:,2,:)
+    if(lboundary(4).and. .not. lperiodic(4)) p(:,j2,:) = p(:,j1,:)
+  else
+    call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  endif
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
