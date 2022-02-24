@@ -30,7 +30,7 @@ private
 PUBLIC :: initradfield, radfield, exitradfield
 save
 !NetCDF variables
-  integer,parameter :: nvar = 24
+  integer,parameter :: nvar = 22
   integer :: ncid2,nrec2 = 0
   integer :: nsamples
   character(80) :: fname
@@ -113,12 +113,12 @@ contains
     call ncinfo(ncname(17,:),'rsds_dif','surface downwellling shortwave diffuse flux','W/m2','tt0t')
 
     call ncinfo(ncname(18,:),'prw','water vapor path','kg/m2','tt0t')
-    call ncinfo(ncname(19,:),'clwvi','condensed water path','kg/m2','tt0t')
-    call ncinfo(ncname(20,:),'clivi','ice water path','kg/m2','tt0t')
-    call ncinfo(ncname(21,:),'spwr','saturated water vapor path','kg/m2','tt0t')
-    call ncinfo(ncname(22,:),'uabot','eastward wind at lowest model level','m/s','mt0t')
-    call ncinfo(ncname(23,:),'vabot','northward wind at lowest model level','m/s','tm0t')
-    call ncinfo(ncname(24,:),'tabot','air temperature at lowest model level','K','tt0t')
+    call ncinfo(ncname(19,:),'clwvi','condensed water path','kg/m2','tt0t') ! both liquid and ice
+    !call ncinfo(ncname(20,:),'clivi','ice water path','kg/m2','tt0t')
+    !call ncinfo(ncname(21,:),'spwr','saturated water vapor path','kg/m2','tt0t')
+    call ncinfo(ncname(20,:),'uabot','eastward wind at lowest model level','m/s','mt0t')
+    call ncinfo(ncname(21,:),'vabot','northward wind at lowest model level','m/s','tm0t')
+    call ncinfo(ncname(22,:),'tabot','air temperature at lowest model level','K','tt0t')
 
     call open_nc(fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
     if (nrec2==0) then
@@ -153,13 +153,13 @@ contains
 
 
   subroutine sample_radfield
-    use modfields, only : rhof,qt0,ql0,tmp0,qsat,u0,v0
+    use modfields, only : rhof,qt0,ql0,u0,v0,exnf,thl0,qt0
     use modsurfdata, only: qtflux,thlflux
     use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp
     use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif
     implicit none
     integer :: i,j,k
-    real :: ilratio
+    real :: tmp !,ilratio,qsat
 
     ! rcemip , neglect density difference zf and zh (consistent with surface flux parameterization)
     field_2D_mn (2:i1,2:j1,1) = field_2D_mn (2:i1,2:j1,1) + rhof(1) * rlv * qtflux (2:i1,2:j1)
@@ -187,17 +187,31 @@ contains
           do i=2,i1
              field_2D_mn (i,j,18) = field_2D_mn (i,j,18) + rhof(k) * (qt0(i,j,k) - ql0(i,j,k)) * dzf(k)
              field_2D_mn (i,j,19) = field_2D_mn (i,j,19) + rhof(k) *  ql0(i,j,k) * dzf(k)
-             ilratio=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
-             field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio)
-             field_2D_mn (i,j,21) = field_2D_mn (i,j,21) + rhof(k) *  qsat(i,j,k) * dzf(k)
+
+             ! ice water path and qsat-path disabled in Fugaku branch
+             ! due to no ice and new thermodynamics where tmp, qsat are not saved as 3d fields
+
+             !tmp = exnf(k)*thl0(i,j,k)  + (rlv/cp) * ql0(i,j,k)
+             !ilratio=max(0.,min(1.,(tmp-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+             !qsat=
+             !field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio)
+             !field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + rhof(k) *  ql0(i,j,k) * dzf(k)
+             !field_2D_mn (i,j,21) = field_2D_mn (i,j,21) + rhof(k) *  qsat * dzf(k)
           end do
        end do
     end do
 
 
-    field_2D_mn (2:i1,2:j1,22) = field_2D_mn (2:i1,2:j1,22) + u0(2:i1,2:j1,1)
-    field_2D_mn (2:i1,2:j1,23) = field_2D_mn (2:i1,2:j1,23) + v0(2:i1,2:j1,1)
-    field_2D_mn (2:i1,2:j1,24) = field_2D_mn (2:i1,2:j1,24) + tmp0(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,20) = field_2D_mn (2:i1,2:j1,20) + u0(2:i1,2:j1,1)
+    field_2D_mn (2:i1,2:j1,21) = field_2D_mn (2:i1,2:j1,21) + v0(2:i1,2:j1,1)
+
+    do j=2,j1
+       do i=2,i1
+          tmp = exnf(k)*thl0(i,j,1)  + (rlv/cp) * ql0(i,j,1)
+          field_2D_mn (2:i1,2:j1,22) = field_2D_mn (2:i1,2:j1,22) + tmp
+       end do
+    end do
+
   end subroutine sample_radfield
 
 

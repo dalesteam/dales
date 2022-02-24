@@ -11,8 +11,8 @@ module modvarbudget
   PRIVATE
   PUBLIC :: initvarbudget, varbudget, exitvarbudget
   save
-  
-  ! netCDF variables 
+
+  ! netCDF variables
   integer,parameter :: nvar = 14
   character(80),dimension(nvar,4) :: ncname
 
@@ -112,7 +112,7 @@ contains
 
     qt2fav    = 0.
     qt2Prfav  = 0.; qt2Prfmn  = 0.; qt2Psfav  = 0.; qt2Psfmn  = 0.
-    qt2Trfav  = 0.; qt2Trfmn  = 0.; qt2Disfav = 0.; qt2Disfmn = 0. 
+    qt2Trfav  = 0.; qt2Trfmn  = 0.; qt2Disfav = 0.; qt2Disfmn = 0.
     qt2Sfav   = 0.; qt2Sfmn   = 0.
     qt2tendf  = 0.
     qt2residf = 0.
@@ -167,7 +167,7 @@ contains
     end if
     if (timee>=tnextwrite) then
       tnextwrite = tnextwrite+itimeav
-      call writevarbudget 
+      call writevarbudget
     end if
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
 
@@ -184,7 +184,7 @@ contains
     use modglobal     , only : i1,j1,ih,jh,k1,cp,ijtot, &
                                iadv_thl,iadv_qt
     use modmpi        , only : slabsum
-  
+
     implicit none
 
   ! Set av values to zero
@@ -213,7 +213,7 @@ contains
 ! ---------------------------------------------------------
 !  2. ADD SLAB AVERAGES TO TIME MEANS
 ! ---------------------------------------------------------
-    
+
     thl2Prfmn  = thl2Prfmn  + thl2Prfav
     thl2Psfmn  = thl2Psfmn  + thl2Psfav
     thl2Trfmn  = thl2Trfmn  + thl2Trfav
@@ -265,16 +265,14 @@ contains
     integer iadv_var
 
 !    ----------- input variables
-    real &
-        varxflux   (i2,j2),                    &    !surface flux of varx
-        resprodf   (k1),                       &    !resolved production of variance, full level &
-        src        (2-ih:i1+ih,2-jh:j1+jh,k1), &    !source of variable x at full level &
-        subprodf   (k1),                       &    !'gradient' production, at full level &
-        restranf   (k1),                       &    !resolved transport of (co-)variance at full level &
-        disf       (k1),                       &    !'real' dissipation , at full level
-        srcf       (k1)                             !source term interaction
-    real(field_r) &
-        varxf      (2-ih:i1+ih,2-jh:j1+jh,k1)!, &    !input variable x at full level &
+    real          varxflux   (i2,j2),                    &    !surface flux of varx
+                  resprodf   (k1)                             !resolved production of variance, full level &
+    real(field_r) src        (2-ih:i1+ih,2-jh:j1+jh,k1)       !source of variable x at full level &
+    real          subprodf   (k1),                       &    !'gradient' production, at full level &
+                  restranf   (k1),                       &    !resolved transport of (co-)variance at full level &
+                  disf       (k1),                       &    !'real' dissipation , at full level
+                  srcf       (k1)                             !source term interaction
+    real(field_r) varxf      (2-ih:i1+ih,2-jh:j1+jh,k1)       !input variable x at full level &
 
 !    ----------- function variables
     real &
@@ -288,7 +286,6 @@ contains
         dumfield   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !dummy field to construct terms &
         varxfluxmn (i2,j2),                    &    !2D field of averaged varx surface flux &
         ekhav      (k1),                       &    !mean ekh
-        term_av2   (k1),                       &    !mean term, default precision
         varx2fav   (k1)                             !variance of varxf at full level &
     real(field_r) &
         varxfdev   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of varxf &
@@ -296,6 +293,7 @@ contains
         varxfav    (k1),                       &    !mean of varxf at full level &
         term       (2-ih:i1+ih,2-jh:j1+jh,k1), &    !output for adv/diff routines &
         term_av    (k1),                       &    !mean term
+        term_av2   (k1),                       &    !mean term, default precision
         w0av       (k1)!                        &    !mean vertical velocity
 
 !    ----------- local (processor) variables
@@ -321,7 +319,7 @@ contains
     varxfluxavl = 0.
 
  !-------------------------------------------------------------
- ! Store the velocity fields 
+ ! Store the velocity fields
  !-------------------------------------------------------------
     u0_stor = u0
     v0_stor = v0
@@ -330,7 +328,7 @@ contains
  !-------------------------------------------------------------
  !      compute slab-averaged and deviation values of varx
  !-------------------------------------------------------------
- 
+
     call slabsum(varxfav ,1,k1,varxf ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     varxfav = varxfav/ijtot
 
@@ -338,7 +336,7 @@ contains
     do k=1,k1
        varxfmn(:,:,k) = varxfav(k)
     enddo
- 
+
     do k=1,k1
        varxfdev(:,:,k) = varxf(:,:,k) - varxfav(k)
     enddo
@@ -359,7 +357,7 @@ contains
  !-------------------------------------------------------------
  !      compute variance at full level (used for storing tendency)
  !-------------------------------------------------------------
-    
+
     do j=2,j1
     do i=2,i1
     do k=1,k1
@@ -450,7 +448,7 @@ contains
    !      where
    !      d/dxj (K d/dxj a') = d/dxj (K d/dxj a) - <d/dxj (K d/dxj a)>
    !-------------------------------------------------------------
-    
+
     term = 0.
 
     call diffc(varxf,term,varxflux)
@@ -466,7 +464,7 @@ contains
 
     call slabsum(disf ,1,k1,dumfield ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     disf = disf/ijtot
-    
+
    !-------------------------------------------------------------
    !      Compute subgrid gradient production subprodf:
    !      subprodf = 2 <a' d/dxj (K' d/dxj <a>)>
@@ -577,7 +575,7 @@ contains
                     - thl2Trfmn(k) - thl2Disfmn(k) - thl2Sfmn (k)
 
       qt2residf(k) = qt2tendf(k) - qt2Prfmn (k) - qt2Psfmn(k) &
-                   - qt2Trfmn(k) - qt2Disfmn(k) - qt2Sfmn (k) 
+                   - qt2Trfmn(k) - qt2Disfmn(k) - qt2Sfmn (k)
     end do
 
  !-------------------------------------------------------------
@@ -724,5 +722,3 @@ contains
 
 
 end module modvarbudget
-
-

@@ -32,7 +32,7 @@ module modraddata
 
 ! implicit none
   use modglobal, only : longint,kind_rb,SHR_KIND_IN,SHR_KIND_R4
-
+  use modprecision, only : field_r
 SAVE
 
   integer, parameter :: irad_none  = 0   !< 0=no radiation
@@ -57,7 +57,7 @@ SAVE
   real :: dlwtop     = 74.               !< longwave radiative flux divergence at top of domain
   real :: dlwbot     = 0.                !< longwave radiative flux divergence near the surface
   real :: sw0        = 1368.22           !< Solar constant (in W/m2). SWD at TOA = sw0*cos(mu)
-                                         !< NOTE: when using delta-Eddington (iradiation=2) this represents the downwelling solar 
+                                         !< NOTE: when using delta-Eddington (iradiation=2) this represents the downwelling solar
                                          !        radiation at the top of the domain/cloud
 
   real :: gc         = 0.85              !< asymmetry factor of droplet scattering angle distribution
@@ -170,22 +170,22 @@ SAVE
 
   real mu                            !< cosine of the solar zenith angle
 
-  real, allocatable :: thlprad(:,:,:)!<   the radiative tendencies
+  real(field_r), allocatable :: thlprad(:,:,:)!<   the radiative tendencies
   real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
-  real, allocatable :: swdir(:,:,:)  !<   Direct shortwave downward radiative flux
-  real, allocatable :: swdif(:,:,:)  !<   Difuse shortwave downward radiative flux
-  real, allocatable :: lwc(:,:,:)    !<   Liquid water content calculated in rrtmg
+  real(field_r), allocatable :: swdir(:,:,:)  !<   Direct shortwave downward radiative flux
+  real(field_r), allocatable :: swdif(:,:,:)  !<   Difuse shortwave downward radiative flux
+  real(field_r), allocatable :: lwc(:,:,:)    !<   Liquid water content calculated in rrtmg
   real, allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
   real, allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
   real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
 !
-  real, allocatable :: swdca(:,:,:)  !<  clear air shortwave downward radiative flux
-  real, allocatable :: swuca(:,:,:)  !<  clear air shortwave upward radiative flux
-  real, allocatable :: lwdca(:,:,:)  !<  clear air longwave downward radiative flux
-  real, allocatable :: lwuca(:,:,:)  !<  clear air longwave upward radiative flux
+  real(field_r), allocatable :: swdca(:,:,:)  !<  clear air shortwave downward radiative flux
+  real(field_r), allocatable :: swuca(:,:,:)  !<  clear air shortwave upward radiative flux
+  real(field_r), allocatable :: lwdca(:,:,:)  !<  clear air longwave downward radiative flux
+  real(field_r), allocatable :: lwuca(:,:,:)  !<  clear air longwave upward radiative flux
 
-  real, allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
-  real, allocatable :: SW_up_ca_TOA(:,:), SW_dn_ca_TOA(:,:), LW_up_ca_TOA(:,:), LW_dn_ca_TOA(:,:)
+  real(field_r), allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:) !< Top of the atmosphere radiative fluxes
+  real(field_r), allocatable :: SW_up_ca_TOA(:,:), SW_dn_ca_TOA(:,:), LW_up_ca_TOA(:,:), LW_dn_ca_TOA(:,:)
 
 
 contains
