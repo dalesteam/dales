@@ -216,13 +216,13 @@ module modbulkmicro
     ! remove neg. values of Nr and qr
     !*********************************************************************
     if (l_rain) then
-       if (-sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-       if (-sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-
+       !if (-sum(qr, qr<0.) > 0.000001*sum(qr)) then
+       !  write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
+       !if (-sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
+       !   write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
+              
        Nr = max(0.,Nr)
        qr = max(0.,qr)
 
