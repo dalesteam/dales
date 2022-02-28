@@ -1845,7 +1845,7 @@ contains
       print 604
 
 600 format ('-----------------------------------------------------------', &
-         /3x,'Computing with file: ',A20,' containing ',I3,' gases',   &
+         /3x,'Comag with file: ',A20,' containing ',I3,' gases',   &
          /3x,'Number of Bands (Total/Solar/IR): ',I3,'/',I3,'/',I3     &
          /3x,'Total Power in Solar Bands: ',F8.2)
 601 format ('                                                -----------', &
