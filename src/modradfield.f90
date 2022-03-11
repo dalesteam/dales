@@ -48,7 +48,7 @@ contains
   subroutine initradfield
     use modmpi,   only :myid,comm3d,myidx,myidy,D_MPI_BCAST
     use modglobal,only :imax,jmax,i1,ih,j1,jh,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,&
-         timeav_glob,ladaptive,dt_lim,btime,tres,checknamelisterror
+         timeav_glob,ladaptive,dt_lim,btime,tres,checknamelisterror,output_prefix
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
     implicit none
     integer :: ierr
@@ -120,7 +120,7 @@ contains
     call ncinfo(ncname(21,:),'vabot','northward wind at lowest model level','m/s','tm0t')
     call ncinfo(ncname(22,:),'tabot','air temperature at lowest model level','K','tt0t')
 
-    call open_nc(fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
+    call open_nc(trim(output_prefix)//fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
     if (nrec2==0) then
        call define_nc( ncid2, 1, tncname)
        call writestat_dims_nc(ncid2)
