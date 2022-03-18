@@ -30,7 +30,7 @@ private
 PUBLIC :: initradfield, radfield, exitradfield
 save
 !NetCDF variables
-  integer,parameter :: nvar = 24
+  integer,parameter :: nvar = 29
   integer :: ncid2,nrec2 = 0
   integer :: nsamples
   character(80) :: fname
@@ -120,6 +120,12 @@ contains
     call ncinfo(ncname(23,:),'vabot','northward wind at lowest model level','m/s','tm0t')
     call ncinfo(ncname(24,:),'tabot','air temperature at lowest model level','K','tt0t')
 
+    call ncinfo(ncname(25,:),'rsdtoa','TOA incoming shortwave flux','units','tt0t')
+    call ncinfo(ncname(26,:),'rsutoa','TOA outgoing shortwave flux','units','tt0t')
+    call ncinfo(ncname(27,:),'rlutoa','TOA outgoing longwave flux','units','tt0t')
+    call ncinfo(ncname(28,:),'rsutoacs','TOA outgoing shortwave flux - clear sky','units','tt0t')
+    call ncinfo(ncname(29,:),'rlutoacs','TOA outgoing longwave flux - clear sky','units','tt0t')
+
     call open_nc(fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
     if (nrec2==0) then
        call define_nc( ncid2, 1, tncname)
@@ -156,7 +162,10 @@ contains
     use modfields, only : rhof,qt0,ql0,tmp0,qsat,u0,v0
     use modsurfdata, only: qtflux,thlflux
     use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp
-    use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif
+    use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif,&
+                            SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,& 
+                            SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
+
     implicit none
     integer :: i,j,k
     real :: ilratio
@@ -194,10 +203,15 @@ contains
        end do
     end do
 
-
     field_2D_mn (2:i1,2:j1,22) = field_2D_mn (2:i1,2:j1,22) + u0(2:i1,2:j1,1)
     field_2D_mn (2:i1,2:j1,23) = field_2D_mn (2:i1,2:j1,23) + v0(2:i1,2:j1,1)
     field_2D_mn (2:i1,2:j1,24) = field_2D_mn (2:i1,2:j1,24) + tmp0(2:i1,2:j1,1)
+
+    field_2D_mn (2:i1,2:j1,25) = field_2D_mn (2:i1,2:j1,25) + SW_dn_TOA(2:i1,2:j1)    !rsdtoa,  TOA incoming shortwave flux
+    field_2D_mn (2:i1,2:j1,26) = field_2D_mn (2:i1,2:j1,26) + SW_up_TOA(2:i1,2:j1)    !rsutoa,  TOA outgoing shortwave flux
+    field_2D_mn (2:i1,2:j1,27) = field_2D_mn (2:i1,2:j1,27) + LW_up_TOA(2:i1,2:j1)    !rlutoa,  TOA outgoing longwave flux
+    field_2D_mn (2:i1,2:j1,28) = field_2D_mn (2:i1,2:j1,28) + SW_up_ca_TOA(2:i1,2:j1) !rsutoacs,TOA outgoing shortwave flux - clear sky
+    field_2D_mn (2:i1,2:j1,29) = field_2D_mn (2:i1,2:j1,29) + LW_up_ca_TOA(2:i1,2:j1) !rlutoacs,TOA outgoing longwave flux - clear sky
   end subroutine sample_radfield
 
 
