@@ -155,6 +155,7 @@ contains
       read (ifnamopt,SOLVER,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'SOLVER')
       write(6 ,SOLVER)
+      rewind(ifnamopt)
       read (ifnamopt,OPENBC,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'OPENBC')
       write(6 ,OPENBC)

@@ -114,7 +114,7 @@ contains
 
     ! data num_ghost / 3, 3, 3, 3, 0, 0 /
 
-    allocate(values(imax*jmax*kmax),temp(max(imax,jmax)))
+    allocate(values(imax*jmax*7),temp(max(imax,jmax)))
 
     ! Have hypre reuse the comm world
     mpi_comm_hypre = MPI_COMM_WORLD
@@ -253,6 +253,41 @@ contains
         values(i+6) = cc ! center
       enddo
 
+      ! Modify the matrix at a single point to fix the over-all p
+      ! makes the matrix non-singular which may improve convergence
+      ! matrix is made symmetric by not coupling to the special element
+      ! if that element is 0, the couplings of other elements can be set to 0
+      ! note: assumes kmax > 10, just to put the special point well inside the domain
+      if (k == 10 .and. myidx == 0 .and. myidy == 0) then
+         i = imax/2
+         j = jmax/2
+         values( (i+j*imax)*7 + 1) = 0
+         values( (i+j*imax)*7 + 2) = 0
+         values( (i+j*imax)*7 + 3) = 0
+         values( (i+j*imax)*7 + 4) = 0
+         values( (i+j*imax)*7 + 5) = 0
+         values( (i+j*imax)*7 + 6) = 0
+         values( (i+j*imax)*7 + 7) = cc  ! value here doesn't matter in theory, probably better conditioning if
+                                         ! similar to other diagonal values
+
+         !! from here on, it's the neighbors of the special element
+         values( (i+1+j*imax)*7 + 1) = 0    ! west link of east neighbor
+         values( (i-1+j*imax)*7 + 2) = 0    ! east link of west neighbor
+         values( (i+(j+1)*imax)*7 + 3) = 0  ! south link of north neighbor
+         values( (i+(j-1)*imax)*7 + 4) = 0  ! north link of south neighbor
+      end if
+      if (k == 11 .and. myidx == 0 .and. myidy == 0) then
+         i = imax/2
+         j = jmax/2
+         values( (i+j*imax)*7 + 5) = 0      ! down link of above neighbor
+      end if
+      if (k == 9 .and. myidx == 0 .and. myidy == 0) then
+         i = imax/2
+         j = jmax/2
+         values( (i+j*imax)*7 + 6) = 0      ! up link of below neighbor
+      end if
+
+
       call HYPRE_StructMatrixSetBoxValues(matrixA, &
            ilower, iupper, 7, stencil_indices, values, ierr)
       if(lopenbc) then ! Set potential neuman lateral boundary conditions
@@ -320,7 +355,7 @@ contains
 
     ! initialize some values as starting point for the iterative solver
     do i=1,imax*jmax
-        values(i) = 1e-5
+        values(i) = 0 !1e-5
     enddo
     do k=1,kmax
       ilower(3) = k - 1
@@ -387,7 +422,7 @@ contains
       ! call HYPRE_StructPFMGSetSkipRelax(solver, one)
       ! call HYPRE_StructPFMGSetDxyz(solver, dxyz, ierr)
 
-      call HYPRE_StructPFMGSetLogging(solver%solver, 2, ierr)
+      call HYPRE_StructPFMGSetLogging(solver%solver, 10, ierr)
       call HYPRE_StructPFMGSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else if (solver%solver_id == 3) then
@@ -445,8 +480,8 @@ contains
       call initprecond(solver)
       call HYPRE_StructLGMRESSetPrecond(solver%solver, solver%precond_id, solver%precond, ierr)
 
-      call HYPRE_StructLGMRESSetLogging(solver%solver, 2, ierr)
-      call HYPRE_StructLGMRESSetPrintLevel(solver%solver, 0, ierr)
+      call HYPRE_StructLGMRESSetLogging(solver%solver, 10, ierr)
+      call HYPRE_StructLGMRESSetPrintLevel(solver%solver, 10, ierr)
       call HYPRE_StructLGMRESSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else
@@ -500,7 +535,7 @@ contains
   end subroutine
 
   subroutine solve_hypre(solver, p, converged)
-    use modmpi, only : myid
+    use modmpi, only : myid, myidx, myidy
     use modglobal, only : i1, j1, ih, jh, imax, jmax, kmax
 
     implicit none
@@ -523,6 +558,14 @@ contains
           values(i,j) = p(i+1,j+1,k)
         enddo
       enddo
+
+      ! special point anchoring P
+      ! note should match the special point in the matrix
+      if (k == 10 .and. myidx == 0 .and. myidy == 0) then
+         i = imax/2
+         j = jmax/2
+         values(i,j) = 0
+      end if
 
       ilower(3) = k - 1
       iupper(3) = k - 1
