@@ -77,9 +77,9 @@ contains
     use modfft2d, only : fft2dexit
     use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
-
+    
     implicit none
-
+    
     if (solver_id == 0) then
       ! FFT based solver
       call fft2dexit(p,Fp,d,xyrt)
@@ -101,13 +101,16 @@ contains
     use modhypre, only : solve_hypre, set_zero_guess
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
-
+    use mpi
+    
     implicit none
-
+    real wtime
     logical converged
 
-    call fillps
+    wtime = MPI_Wtime()
 
+    call fillps
+    
     if (solver_id == 0) then
       ! Forward FFT
       call fft2df(p, Fp)
@@ -148,6 +151,10 @@ contains
 
     call tderive
 
+    if (myid == 0) then
+       wtime = MPI_Wtime() - wtime
+       write (*,*) 'Poisson, time spent:', wtime, 's'
+    end if
   end subroutine poisson
 
   subroutine fillps
