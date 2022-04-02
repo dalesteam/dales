@@ -258,7 +258,7 @@ contains
       ! matrix is made symmetric by not coupling to the special element
       ! if that element is 0, the couplings of other elements can be set to 0
       ! note: assumes kmax > 10, just to put the special point well inside the domain
-      if (k == 10 .and. myidx == 0 .and. myidy == 0) then
+      if (k == kmax-10 .and. myidx == 0 .and. myidy == 0) then
          i = imax/2
          j = jmax/2
          values( (i+j*imax)*7 + 1) = 0
@@ -271,20 +271,20 @@ contains
                                          ! similar to other diagonal values
 
          !! from here on, it's the neighbors of the special element
-         !values( (i+1+j*imax)*7 + 1) = 0    ! west link of east neighbor
-         !values( (i-1+j*imax)*7 + 2) = 0    ! east link of west neighbor
-         !values( (i+(j+1)*imax)*7 + 3) = 0  ! south link of north neighbor
-         !values( (i+(j-1)*imax)*7 + 4) = 0  ! north link of south neighbor
+         values( (i+1+j*imax)*7 + 1) = 0    ! west link of east neighbor
+         values( (i-1+j*imax)*7 + 2) = 0    ! east link of west neighbor
+         values( (i+(j+1)*imax)*7 + 3) = 0  ! south link of north neighbor
+         values( (i+(j-1)*imax)*7 + 4) = 0  ! north link of south neighbor
       end if
-      if (k == 11 .and. myidx == 0 .and. myidy == 0) then
+      if (k == kmax-9 .and. myidx == 0 .and. myidy == 0) then
          i = imax/2
          j = jmax/2
-         !values( (i+j*imax)*7 + 5) = 0      ! down link of above neighbor
+         values( (i+j*imax)*7 + 5) = 0      ! down link of above neighbor
       end if
-      if (k == 9 .and. myidx == 0 .and. myidy == 0) then
+      if (k == kmax-11 .and. myidx == 0 .and. myidy == 0) then
          i = imax/2
          j = jmax/2
-         !values( (i+j*imax)*7 + 6) = 0      ! up link of below neighbor
+         values( (i+j*imax)*7 + 6) = 0      ! up link of below neighbor
       end if
 
 
@@ -561,10 +561,10 @@ contains
 
       ! special point anchoring P
       ! note should match the special point in the matrix
-      if (k == 10 .and. myidx == 0 .and. myidy == 0) then
+      if (k == kmax-10 .and. myidx == 0 .and. myidy == 0) then
          i = imax/2
          j = jmax/2
-         values(i,j) = 0
+         values(i+1,j+1) = 0  ! values indexed from 1 here
       end if
 
       ilower(3) = k - 1
@@ -576,12 +576,12 @@ contains
     ! use current values (ie. the solution to the previous call) as starting point
 
     ! ...except in the beginning of a full RK step
-    if(rk3step == 1) then
-       if (myid == 0) then
-          write(*,*) "Poisson solver: initial guess 0"
-       end if
-       call set_zero_guess()
-    end if
+    !if(rk3step == 1) then
+    !   if (myid == 0) then
+    !      write(*,*) "Poisson solver: initial guess 0"
+    !   end if
+    !   call set_zero_guess()
+    !end if
     
     !-----------------------------------------------------------------------
     !     2. Call a solver
