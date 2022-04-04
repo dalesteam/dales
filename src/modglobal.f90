@@ -163,6 +163,7 @@ save
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: precond_id = 1      ! Preconditioner ID                    .    .  12   0189     0189
       integer :: maxiter_precond = 1 ! Number of iterations for precondition per iteration
+      integer :: hypre_logging = 1   ! HYPRE logging and print level - set higher value for more messages
       type solver_type
         integer*8 solver,precond
         integer   solver_id, precond_id, maxiter, n_post, n_pre, maxiter_precond

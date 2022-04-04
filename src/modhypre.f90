@@ -19,7 +19,7 @@
 !  Based on hypre/src/test/f77_struct.f
 
 module modhypre
-use modglobal, only : solver_type
+use modglobal, only : solver_type, hypre_logging
 implicit none
 private
 public :: inithypre_grid, inithypre_solver, solve_hypre, exithypre_grid, exithypre_solver, set_initial_guess, set_zero_guess
@@ -396,7 +396,7 @@ contains
       call HYPRE_StructSMGSetRelChange(solver%solver, zero, ierr)
       call HYPRE_StructSMGSetNumPreRelax(solver%solver, solver%n_pre, ierr)
       call HYPRE_StructSMGSetNumPostRelax(solver%solver, solver%n_post, ierr)
-      call HYPRE_StructSMGSetLogging(solver%solver, 1, ierr)
+      call HYPRE_StructSMGSetLogging(solver%solver, hypre_logging, ierr)
       call HYPRE_StructSMGSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
     else if (solver%solver_id == 2) then
       ! Solve the system using PFMG
@@ -422,7 +422,7 @@ contains
       ! call HYPRE_StructPFMGSetSkipRelax(solver, one)
       ! call HYPRE_StructPFMGSetDxyz(solver, dxyz, ierr)
 
-      call HYPRE_StructPFMGSetLogging(solver%solver, 10, ierr)
+      call HYPRE_StructPFMGSetLogging(solver%solver, hypre_logging, ierr)
       call HYPRE_StructPFMGSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else if (solver%solver_id == 3) then
@@ -436,7 +436,7 @@ contains
       call initprecond(solver)
       call HYPRE_StructBiCGSTABSetPrecond(solver%solver, solver%precond_id, solver%precond, ierr)
 
-      call HYPRE_StructBiCGSTABSetLogging(solver%solver, 2, ierr)
+      call HYPRE_StructBiCGSTABSetLogging(solver%solver, hypre_logging, ierr)
       call HYPRE_StructBiCGSTABSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else if (solver%solver_id == 4) then
@@ -450,7 +450,7 @@ contains
       call initprecond(solver)
       call HYPRE_StructGMRESSetPrecond(solver%solver, solver%precond_id, solver%precond, ierr)
 
-      call HYPRE_StructGMRESSetLogging(solver%solver, 2, ierr)
+      call HYPRE_StructGMRESSetLogging(solver%solver, hypre_logging, ierr)
       call HYPRE_StructGMRESSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else if (solver%solver_id == 5) then
@@ -465,8 +465,8 @@ contains
       call initprecond(solver)
       call HYPRE_StructPCGSetPrecond(solver%solver, solver%precond_id, solver%precond, ierr)
 
-      call HYPRE_StructPCGSetLogging(solver%solver, 2, ierr)
-      call HYPRE_StructPCGSetPrintLevel(solver%solver, 0, ierr)
+      call HYPRE_StructPCGSetLogging(solver%solver, hypre_logging, ierr)
+      call HYPRE_StructPCGSetPrintLevel(solver%solver, hypre_logging, ierr)
       call HYPRE_StructPCGSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else if (solver%solver_id == 6) then
@@ -480,8 +480,8 @@ contains
       call initprecond(solver)
       call HYPRE_StructLGMRESSetPrecond(solver%solver, solver%precond_id, solver%precond, ierr)
 
-      call HYPRE_StructLGMRESSetLogging(solver%solver, 10, ierr)
-      call HYPRE_StructLGMRESSetPrintLevel(solver%solver, 10, ierr)
+      call HYPRE_StructLGMRESSetLogging(solver%solver, hypre_logging, ierr)
+      call HYPRE_StructLGMRESSetPrintLevel(solver%solver, hypre_logging, ierr)
       call HYPRE_StructLGMRESSetup(solver%solver, matrixA, vectorB, vectorX, ierr)
 
     else

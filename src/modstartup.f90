@@ -61,7 +61,8 @@ contains
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  solver_id_init, maxiter_init, tolerance_init, n_pre_init, n_post_init, precond_id_init, maxiter_precond_init
+                                  solver_id_init, maxiter_init, tolerance_init, n_pre_init, n_post_init, precond_id_init, maxiter_precond_init, &
+                                  hypre_logging
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -110,7 +111,7 @@ contains
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
-        solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond
+        solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond, hypre_logging
     namelist/OPENBC/ &
         lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z, &
         solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init
