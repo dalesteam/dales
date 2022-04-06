@@ -57,8 +57,8 @@ contains
     else if (solver%precond_id == 1) then
       call HYPRE_StructPFMGCreate(mpi_comm_hypre, solver%precond, ierr)
       call HYPRE_StructPFMGSetMaxIter(solver%precond, solver%maxiter_precond, ierr)
-      ! weighted Jacobi = 1; red-black GS = 2
-      call HYPRE_StructPFMGSetRelaxType(solver%precond, 1, ierr)
+      ! weighted Jacobi = 1; red-black GS = 2    2 seems faster
+      call HYPRE_StructPFMGSetRelaxType(solver%precond, 2, ierr)
       call HYPRE_StructPFMGSetNumPreRelax(solver%precond, solver%n_pre, ierr)
       call HYPRE_StructPFMGSetNumPostRelax(solver%precond, solver%n_post, ierr)
       call HYPRE_StructPFMGSetTol(solver%precond, 0.0d0, ierr)
