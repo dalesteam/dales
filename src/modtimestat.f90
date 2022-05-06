@@ -7,9 +7,10 @@
 !! Timeseries of the most relevant parameters. Written to tmser1.expnr and tmsurf.expnr
 !! If netcdf is true, this module leads the tmser.expnr.nc output
 !!  \author Pier Siebesma, K.N.M.I.
-!!  \author Stephan de Roode,TU Delft
+!!  \author Stephan de Roode, TU Delft
 !!  \author Chiel van Heerwaarden, Wageningen U.R.
-!!  \author Thijs Heus,MPI-M
+!!  \author Thijs Heus, MPI-M
+!!  \author Fredrik Jansson, TU Delft
 !!  \par Revision list
 !  This file is part of DALES.
 !
@@ -40,7 +41,7 @@ implicit none
 ! PUBLIC :: inittimestat, timestat
 save
 !NetCDF variables
-  !integer,parameter :: nvar = 28
+
   integer :: nvar
   integer :: ncid,nrec = 0
   character(80) :: fname = 'tmser.xxx.nc'
@@ -59,8 +60,9 @@ save
   real    :: blh_thres=-1 ,blh_sign=1.0
   real   :: zbaseav, ztopav, ztopmax,zbasemin
   real   :: qlintav, qlintmax, tke_tot
+  real   :: qtintav, qrintav
   real   :: cc, wmax, qlmax
-  real   :: qlint
+  real   :: qlint, qtint, qrint
   logical:: store_zi = .false.
 
   !Variables for heterogeneity
@@ -183,7 +185,7 @@ contains
                   '   [m/s]  '
              close(ifoutput)
           end if
-          
+
           if(lhetero) then
              do i=1,xpatches
                 do j=1,ypatches
@@ -195,7 +197,7 @@ contains
                         '#  time      cc     z_cbase    z_ctop_avg  z_ctop_max      zi         we', &
                         '   <<ql>>  <<ql>>_max   w_max   tke     ql_max'
                    close(ifoutput)
-                   
+
                    name = 'tmsurfpatchiiixjjj.'//cexpnr
                    write (name(12:14),'(i3.3)') i
                    write (name(16:18),'(i3.3)') j
@@ -204,7 +206,7 @@ contains
                         '#  time        ust        tst        qst         obukh', &
                         '      thls        z0        wthls      wthvs      wqls '
                    close(ifoutput)
-                   
+
                    if(isurf == 1) then
                       name = 'tmlsmpatchiiixjjj.'//cexpnr
                       write (name(11:13),'(i3.3)') i
@@ -227,9 +229,9 @@ contains
 
       if (lnetcdf) then
         if(isurf == 1) then
-          nvar = 32
+          nvar = 34
         else
-          nvar = 21
+          nvar = 23
         end if
 
         allocate(ncname(nvar,4))
@@ -256,19 +258,21 @@ contains
         call ncinfo(ncname(19,:),'wtheta','Surface kinematic temperature flux','K m/s','time')
         call ncinfo(ncname(20,:),'wthetav','Surface kinematic virtual temperature flux','K m/s','time')
         call ncinfo(ncname(21,:),'wq','Surface kinematic moisture flux','kg/kg m/s','time')
+        call ncinfo(ncname(22,:),'twp_bar','Total water path','kg/m^2','time')
+        call ncinfo(ncname(23,:),'rwp_bar','Rain water path','kg/m^2','time')
 
         if(isurf==1) then
-          call ncinfo(ncname(22,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(23,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(24,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(25,:),'G0','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(26,:),'tendskin','Skin tendency','W/m^2','time')
-          call ncinfo(ncname(27,:),'rs','Surface resistance','s/m','time')
-          call ncinfo(ncname(28,:),'ra','Aerodynamic resistance','s/m','time')
-          call ncinfo(ncname(29,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
-          call ncinfo(ncname(30,:),'Wl','Liquid water reservoir','m','time')
-          call ncinfo(ncname(31,:),'rssoil','Soil evaporation resistance','s/m','time')
-          call ncinfo(ncname(32,:),'rsveg','Vegitation resistance','s/m','time')
+          call ncinfo(ncname(24,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(25,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(26,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(27,:),'G0','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(28,:),'tendskin','Skin tendency','W/m^2','time')
+          call ncinfo(ncname(29,:),'rs','Surface resistance','s/m','time')
+          call ncinfo(ncname(30,:),'ra','Aerodynamic resistance','s/m','time')
+          call ncinfo(ncname(31,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
+          call ncinfo(ncname(32,:),'Wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(33,:),'rssoil','Soil evaporation resistance','s/m','time')
+          call ncinfo(ncname(34,:),'rsveg','Vegitation resistance','s/m','time')
         end if
         call open_nc(fname,  ncid,nrec)
         if(nrec==0) call define_nc( ncid, NVar, ncname)
@@ -337,8 +341,8 @@ contains
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
-!
-    use modfields,  only : e120,ql0,u0av,v0av,rhof,u0,v0,w0
+    use modmicrodata, only : imicro, iqr
+    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhof,u0,v0,w0,sv0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -350,6 +354,7 @@ contains
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
     real   :: qlintavl, qlintmaxl, tke_totl
+    real   :: qrintavl, qtintavl
     real   :: ccl, wmaxl, qlmaxl
     real   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
     real   :: usttst, ustqst
@@ -447,6 +452,8 @@ contains
 
     ccl      = 0.0
     qlintavl = 0.0
+    qtintavl = 0.0
+    qrintavl = 0.0
     qlintmaxl= 0.0
     tke_totl = 0.0
 
@@ -460,9 +467,17 @@ contains
         endif
 
         qlint     = 0.0
+        qtint     = 0.0
+        qrint     = 0.0
         do k=1,kmax
           qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
+          qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
         end do
+        if (imicro > 0) then
+           do k=1,kmax
+              qrint = qrint + sv0(i,j,k,iqr)*rhof(k)*dzf(k)
+           end do
+        end if
         if (qlint>0.) then
           ccl      = ccl      + 1.0
           qlintavl = qlintavl + qlint
@@ -473,6 +488,8 @@ contains
             qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
           endif
         end if
+        qtintavl = qtintavl + qtint
+        qrintavl = qrintavl + qrint
 
         do k=1,kmax
           if (ql0(i,j,k) > 0.) then
@@ -492,6 +509,10 @@ contains
     call D_MPI_ALLREDUCE(ccl   , cc   , 1,       &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlintavl, qlintav, 1  , &
+                          MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qtintavl, qtintav, 1  , &
+                          MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qrintavl, qrintav, 1  , &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlintmaxl, qlintmax, 1, &
                           MPI_MAX, comm3d,mpierr)
@@ -579,6 +600,8 @@ contains
 
     cc      = cc/ijtot
     qlintav = qlintav / ijtot !domain averaged liquid water path
+    qtintav = qtintav / ijtot !domain averaged total water path
+    qrintav = qrintav / ijtot !domain averaged rain water path
 
     if (lhetero) then
       do j=1,ypatches
@@ -841,18 +864,21 @@ contains
         vars(19) = wts
         vars(20) = wthvs
         vars(21) = wqls
+        vars(22) = qtintav
+        vars(23) = qrintav
+
         if (isurf == 1) then
-          vars(22) = Qnetav
-          vars(23) = Hav
-          vars(24) = LEav
-          vars(25) = G0av
-          vars(26) = tendskinav
-          vars(27) = rsav
-          vars(28) = raav
-          vars(29) = cliqav
-          vars(30) = wlav
-          vars(31) = rssoilav
-          vars(32) = rsvegav
+          vars(24) = Qnetav
+          vars(25) = Hav
+          vars(26) = LEav
+          vars(27) = G0av
+          vars(28) = tendskinav
+          vars(29) = rsav
+          vars(30) = raav
+          vars(31) = cliqav
+          vars(32) = wlav
+          vars(33) = rssoilav
+          vars(34) = rsvegav
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
