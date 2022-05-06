@@ -183,8 +183,8 @@ save
       real    :: courant = -1
       real    :: peclet  = 0.15
       integer(kind=longint) :: dt_lim
-
-
+      integer(kind=longint) :: ntimesteps = 0
+      real                  :: walltime_stepping
       integer :: rk3step = 0
 
       integer :: iexpnr = 0     !<     * number of the experiment

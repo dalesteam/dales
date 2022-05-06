@@ -176,7 +176,7 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : rdt,rk3step,e12min
+  use modglobal, only : rdt,rk3step,e12min,ntimesteps
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
@@ -210,6 +210,7 @@ subroutine tstep_integrate
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
 
+     ntimesteps = ntimesteps + 1
   end if
 end subroutine tstep_integrate
 end module tstep

@@ -100,8 +100,8 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
-  use modmpi,            only : initmpicomm
+  use modglobal,         only : rk3step,timeleft,ntimesteps,walltime_stepping,imax,jmax,kmax
+  use modmpi,            only : initmpicomm,myid
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -154,7 +154,7 @@ program DALES
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use modadvection,    only : advection
-
+  use mpi,              only : MPI_Wtime
 
   implicit none
 
@@ -205,6 +205,7 @@ program DALES
 !------------------------------------------------------
   call testwctime
 
+  walltime_stepping = MPI_Wtime()
   do while (timeleft>0 .or. rk3step < 3)
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
@@ -312,6 +313,13 @@ program DALES
 !             END OF TIME LOOP
 !-------------------------------------------------------
 
+if (myid==0) then
+   walltime_stepping = MPI_Wtime() - walltime_stepping
+   write(6,*)'wall time stepping          =', walltime_stepping, ' s'
+   write(6,*)'time steps                  =', ntimesteps
+   write(6,*)'wall time / time step       =', walltime_stepping / ntimesteps, ' s'
+   write(6,*)'wall time / grid point step =', walltime_stepping / ntimesteps / (imax*jmax*kmax) * 1e6, ' us'
+end if
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
