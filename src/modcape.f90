@@ -103,8 +103,7 @@ contains
     call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','-','tt0t')
     call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
-    !call ncinfo(ncname( 22,:),'htop','upper limit of density current','m','tt0t')
-    call ncinfo(ncname( 22,:),'hinv','inversion height','m','tt0t')
+    call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
     call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','tt0t')
     call ncinfo(ncname( 24,:),'vmix','v wind speed averaged over mixed layer','m/s','tt0t')
     call ncinfo(ncname( 25,:),'thetavmix','theta_v averaged over mixed layer','K','tt0t')
@@ -458,7 +457,7 @@ contains
              end if
           end do
 
-          ! find hinv = lowest height where dT/dz < 0
+          ! find hinvsrf = lowest height where dT/dz < 0, height of surface inversion
           do k=1,kmax
              ! calculate T
              tmpk  = exnf(k)*thl0(i,j,k)    + (rlv/cp) * ql0(i,j,k)
