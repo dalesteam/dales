@@ -178,6 +178,8 @@ contains
   ! 1. Emission files (currently) in kg per gridbox per hour!
   !    What results from this routine now is ug/g, i.e. we scale for time,
   !    gridbx size and air density AND apply a factor of 1e6.
+  ! 
+  !    Note that svp is tracer tendency in ug g-1 s-1
   !
   ! TODO
   ! 1. MDB Align properly with "non-emitted" tracers, i.e. cloud scalars from e.g.
