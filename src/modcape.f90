@@ -33,7 +33,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 20
+  integer,parameter :: nvar = 25
   integer :: ncid4 = 0
   integer :: nrec = 0
   character(80) :: fname = 'cape.xxxxyxxx.xxx.nc'
@@ -102,6 +102,12 @@ contains
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
     call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','-','tt0t')
+    call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
+    call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
+    call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','tt0t')
+    call ncinfo(ncname( 24,:),'vmix','v wind speed averaged over mixed layer','m/s','tt0t')
+    call ncinfo(ncname( 25,:),'thetavmix','theta_v averaged over mixed layer','K','tt0t')
+
     call open_nc(trim(output_prefix)//fname,  ncid4,nrec,n1=imax,n2=jmax)
     if (nrec==0) then
       call define_nc( ncid4, 1, tncname)
@@ -116,7 +122,7 @@ contains
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,rk3step,timee,rtimee,dt_lim,grav,eps1,&
     nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
-    use modfields, only : thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
+    use modfields, only : u0,v0,thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wthvtmnlast
     use modmicrodata, only : iqr, precep, imicro
@@ -126,7 +132,8 @@ contains
     real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
     cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
     thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),&
-    cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:)
+    cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),&
+    hmix(:,:), hinv(:,:), umix(:,:), vmix(:,:), thetavmix(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
@@ -134,6 +141,7 @@ contains
     ! LOCAL VARIABLES
     integer :: i,j,k,ktest,tlonr,thinr,niter,nitert,kdmax,kdmaxl
     real :: Tnr,Tnr_old,ilratio,tlo,thi,esl1,esi1,qsatur,thlguess,thlguessmin,ttry,qvsl1,qvsi1
+    real :: thv_sum, rho_sum, thv_avg, u_sum, v_sum, tmpk, tmpkp
 
     if (.not. lcape) return
     if (rk3step/=3) return
@@ -152,6 +160,8 @@ contains
              lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),&
              capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
+    allocate(hmix(2:i1,2:j1),hinv(2:i1,2:j1),&
+             umix(2:i1,2:j1),vmix(2:i1,2:j1),thetavmix(2:i1,2:j1))
 
     ! DETERMINE CLOUD BASE, UNFORTUNATELY HAVE TO USE STATS HERE: END UP JUST BELOW
     kcb=1
@@ -423,6 +433,46 @@ contains
     enddo
     enddo
 
+    ! Cold pool detection
+    ! Rochetin et al, JAMES 2021, doi:10.1029/2020MS002402
+    do j=2,j1
+       do i=2,i1
+          thv_sum = 0
+          u_sum = 0
+          v_sum = 0
+          rho_sum = 0
+          ! mixed layer - ground to the lowest height where theta_v > <theta_v> + 0.2K
+          do k=1,k1
+             thv_sum = thv_sum + rhobf(k) * thvfull(i,j,k) * dzf(k)
+             u_sum   = u_sum   + rhobf(k) * u0(i,j,k)      * dzf(k)
+             v_sum   = v_sum   + rhobf(k) * v0(i,j,k)      * dzf(k)
+             rho_sum = rho_sum + rhobf(k) * dzf(k)
+             thv_avg = thv_sum / rho_sum !mass-weighted average of thv up to level k
+             if (thvfull(i,j,k) > thv_avg + 0.2 .or. k == k1) then
+                hmix(i,j) = zf(k)
+                thetavmix(i,j) = thv_avg
+                umix(i,j) = u_sum / rho_sum
+                vmix(i,j) = v_sum / rho_sum
+                exit
+             end if
+          end do
+
+          ! find hinvsrf = lowest height where dT/dz < 0, height of surface inversion
+          do k=1,kmax
+             ! calculate T
+             tmpk  = exnf(k)*thl0(i,j,k)    + (rlv/cp) * ql0(i,j,k)
+             tmpkp = exnf(k)*thl0(i,j,k+1)  + (rlv/cp) * ql0(i,j,k+1)
+             if (tmpkp < tmpk .or. k==kmax) then
+                hinv(i,j) = zf(k)
+                exit
+             end if
+          end do
+
+       end do
+    end do
+
+
+
     if (lnetcdf) then
       allocate(vars(1:imax,1:jmax,nvar))
       vars(:,:,1) = dcape(2:i1,2:j1)
@@ -435,7 +485,7 @@ contains
       vars(:,:,8) = hw2cb(2:i1,2:j1)
       vars(:,:,9) = hw2max(2:i1,2:j1)
       vars(:,:,10) = qtcb(2:i1,2:j1)
-      vars(:,:,11)= thlcb(2:i1,2:j1)
+      vars(:,:,11) = thlcb(2:i1,2:j1)
       vars(:,:,12) = wcb(2:i1,2:j1)
       vars(:,:,13) = buoycb(2:i1,2:j1)
       vars(:,:,14) = buoymax(2:i1,2:j1)
@@ -444,7 +494,12 @@ contains
       vars(:,:,17) = rwp(2:i1,2:j1)
       vars(:,:,18) = twp(2:i1,2:j1)
       vars(:,:,19) = cldtop(2:i1,2:j1)
-      vars(:,:,20)= sprec(2:i1,2:j1)
+      vars(:,:,20) = sprec(2:i1,2:j1)
+      vars(:,:,21) = hmix(2:i1,2:j1)
+      vars(:,:,22) = hinv(2:i1,2:j1)
+      vars(:,:,23) = umix(2:i1,2:j1)
+      vars(:,:,24) = vmix(2:i1,2:j1)
+      vars(:,:,25) = thetavmix(2:i1,2:j1)
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
       deallocate(vars)
@@ -452,6 +507,7 @@ contains
 
     deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,&
     buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
+    deallocate(hmix,hinv,umix,vmix,thetavmix)
 
   end subroutine docape
 
