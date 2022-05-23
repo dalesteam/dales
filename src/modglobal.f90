@@ -188,8 +188,8 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
-
-
+      integer :: outdirs = 0    !< 1 - create output directories using myidy
+      character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory 
 
       ! modphsgrd.f90
 

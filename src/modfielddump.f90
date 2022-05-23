@@ -62,7 +62,8 @@ contains
   subroutine initfielddump
     use modmpi,   only :myid,comm3d,mpi_logical,mpi_integer,myidx,myidy &
                        , D_MPI_BCAST
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
+    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
+     checknamelisterror, output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     implicit none
     integer :: ierr, n
@@ -170,7 +171,7 @@ contains
       end do
       nvar = ind - 1 ! total number of fields actually in use
 
-      call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
+      call open_nc(trim(output_prefix)//fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
         call writestat_dims_nc(ncid, ncoarse)

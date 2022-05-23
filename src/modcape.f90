@@ -48,7 +48,8 @@ contains
 !> Initializing cape crossections. Read out the namelist, initializing the variables
   subroutine initcape
     use modmpi,   only :myid,mpierr,comm3d,mpi_logical,cmyid,D_MPI_BCAST
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror,&
+                        output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
    implicit none
 
@@ -101,7 +102,7 @@ contains
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
     call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','-','tt0t')
-    call open_nc(fname,  ncid4,nrec,n1=imax,n2=jmax)
+    call open_nc(trim(output_prefix)//fname,  ncid4,nrec,n1=imax,n2=jmax)
     if (nrec==0) then
       call define_nc( ncid4, 1, tncname)
       call writestat_dims_nc(ncid4)
