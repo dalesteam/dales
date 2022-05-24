@@ -301,14 +301,14 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   \tablelasttail{
         &&&&\\\hline
   }
-\begin{supertabular}{|l|p{1.6cm}|p{4.4cm}|p{6cm}|l|}
+\begin{supertabular}{|l|p{1.2cm}|p{4.7cm}|p{6cm}|l|}
   iexpnr	& 0		& $x \in \mathbb{N}, \quad 0 \leq  x < 1000$		& Experiment number; every output filename ends with [.iexpnr]	& -\\
   \hypertarget{dtmax}{dtmax}	& 20		& $x \in \mathbb{R}, \quad x>0$		& Maximum timestep that is used by the model	& s\\
   wctime	& 8640000.	& $x \in \mathbb{R}, \quad x>0$		&  Maximum wall clock time of a simulation & s\\
   runtime	& 300		& $x \in \mathbb{R}, \quad x>0$		& Total simulation (or: run) time		& s\\
   ltotruntime	& .false.		& $x\in\{\text{.false.},\text{.true.}\}$		& If true, the runtime is counted since the last cold start instead of the last warm start	& -\\
   lwarmstart& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Flag for a ``cold'' or a  ``warm'' start	& -\\
-  startfile	& -		& $x = \text{initd\#\#h\#\#mxxx.\#\#\#}$	& Basis for the name of the restartfiles	& -\\
+  startfile	& -		& $x = \text{\textquotesingle initd\#\#\#h\#\#mx\#\#\#y\#\#\#.\#\#\#\textquotesingle}$	& Basis for the name of the restartfiles	& -\\
   trestart	& 3600		& $x \in \mathbb{R}, \quad x>0$		& Each $trestart$ seconds, a restart file is written to disk	& s\\
   dtav\_glob	& 60		& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$		& Global value for sampling interval of statistical routines	& s\\
   timeav\_glob	& 3600		& $x = n \cdot \text{dtav\_glob}, \quad n \in \mathbb{N}^*$	& Global value for writing interval of statistical routines	& s\\
