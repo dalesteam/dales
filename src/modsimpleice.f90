@@ -53,7 +53,7 @@ module modsimpleice
                              qrmask, qcmask, precep, &
                              ccrz, ccsz, ccgz, bbg, bbr, bbs, ddg, ddr, dds
 
-    use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
+    use modglobal, only : i1,j1,k1,lacz_gamma
 
     implicit none
 

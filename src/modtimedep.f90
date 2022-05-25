@@ -72,7 +72,7 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
-    use modmpi,    only :myid,mpi_logical,mpierr,comm3d,D_MPI_BCAST
+    use modmpi,    only :myid,mpierr,comm3d,D_MPI_BCAST
     use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv

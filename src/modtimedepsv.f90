@@ -55,7 +55,7 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedepsv
-    use modmpi,     only :myid,mpi_logical,mpierr,comm3d,D_MPI_BCAST
+    use modmpi,     only :myid,mpierr,comm3d,D_MPI_BCAST
     use modglobal,  only :cexpnr,kmax,k1,ifinput,runtime,nsv,ntimedep
     use modtestbed, only :ltestbed,ntnudge
     

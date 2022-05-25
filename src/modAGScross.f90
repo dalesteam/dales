@@ -51,7 +51,7 @@ save
 contains
 !> Initializing AGScross. Read out the namelist, initializing the variables
   subroutine initAGScross
-    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,cmyid, D_MPI_BCAST
+    use modmpi,   only :myid,mpierr,comm3d,cmyid,D_MPI_BCAST
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax, dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc,nctiminfo
     use modsurfdata, only : lrsAgs, ksoilmax,lsplitleaf

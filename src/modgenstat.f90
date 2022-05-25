@@ -165,7 +165,7 @@ save
 contains
 
   subroutine initgenstat
-    use modmpi,    only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
+    use modmpi,    only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc

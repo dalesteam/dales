@@ -239,7 +239,7 @@ contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
   use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
-  use modmpi,      only : myid, mpi_logical, mpi_integer,  comm3d, mpierr &
+  use modmpi,      only : myid, comm3d, mpierr &
                         , D_MPI_BCAST
   use modsurfdata, only : lCHon
   implicit none

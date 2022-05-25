@@ -100,7 +100,7 @@ contains
 
   subroutine subgridnamelist
     use modglobal, only : ifnamopt,fname_options,checknamelisterror
-    use modmpi,    only : myid, comm3d, mpierr, mpi_logical, D_MPI_BCAST
+    use modmpi,    only : myid, comm3d, mpierr, D_MPI_BCAST
 
     implicit none
 

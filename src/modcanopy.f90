@@ -56,7 +56,7 @@ module modcanopy
 contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
-    use modmpi,    only : myid, mpi_logical, mpi_integer, comm3d, mpierr, D_MPI_BCAST
+    use modmpi,    only : myid, comm3d, mpierr, D_MPI_BCAST
     use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf, checknamelisterror
 
     implicit none

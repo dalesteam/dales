@@ -82,7 +82,7 @@ save
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
-    use modmpi,    only : myid,comm3d,mpi_logical,mpierr,mpi_integer, D_MPI_BCAST
+    use modmpi,    only : myid,comm3d,mpierr,D_MPI_BCAST
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
     use modfields, only : thlprof,qtprof,svprof

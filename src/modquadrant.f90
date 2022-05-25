@@ -61,7 +61,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initquadrant
-    use modmpi,    only : comm3d,mpierr,myid,mpi_logical,mpi_integer &
+    use modmpi,    only : comm3d,mpierr,myid &
                         , D_MPI_BCAST
     use modglobal, only : ladaptive, dtmax,ifnamopt,fname_options,kmax,   &
                            dtav_glob,btime,tres,cexpnr,ifoutput,nsv,lwarmstart,checknamelisterror

@@ -60,7 +60,7 @@ module modbulkmicro3
 !> Initializes and allocates the arrays
   subroutine initbulkmicro3
     use modglobal, only : lwarmstart,ifnamopt,fname_options,i1,ih,j1,jh,k1
-    use modmpi,    only : myid,comm3d,mpi_logical,D_MPI_BCAST
+    use modmpi,    only : myid,comm3d,D_MPI_BCAST
     implicit none
     integer :: ierr
 

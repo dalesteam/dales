@@ -56,7 +56,7 @@ module modsimpleice2
 
 !> Initializes and allocates the arrays
   subroutine initsimpleice2
-    use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
+    use modglobal, only : i1,j1,k1,lacz_gamma
     use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
@@ -64,7 +64,6 @@ module modsimpleice2
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
                              bbg,bbr,bbs,ddg,ddr,dds
     implicit none
-    integer:: k
 
     allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics

@@ -47,7 +47,7 @@ contains
 
 !> Initializing cape crossections. Read out the namelist, initializing the variables
   subroutine initcape
-    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,cmyid,D_MPI_BCAST
+    use modmpi,   only :myid,mpierr,comm3d,cmyid,D_MPI_BCAST
     use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
    implicit none

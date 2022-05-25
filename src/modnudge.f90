@@ -43,7 +43,7 @@ SAVE
 
 contains
   subroutine initnudge
-    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,D_MPI_BCAST
+    use modmpi,   only :myid,mpierr,comm3d,D_MPI_BCAST
     use modglobal,only :ifnamopt,fname_options,runtime,cexpnr,ifinput,k1,kmax,checknamelisterror
     implicit none
 

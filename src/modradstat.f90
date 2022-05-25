@@ -81,7 +81,7 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initradstat
-    use modmpi,    only : myid,mpierr, comm3d, mpi_logical,D_MPI_BCAST
+    use modmpi,    only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal, only : dtmax, k1, ifnamopt,fname_options, ifoutput,&
                           cexpnr,dtav_glob,timeav_glob,ladaptive,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo
