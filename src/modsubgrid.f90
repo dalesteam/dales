@@ -506,14 +506,14 @@ contains
   return
   end subroutine sources
 
-  subroutine diffc (putin,putout,flux)
+  subroutine diffc (a_in,a_out,flux)
 
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
     use modfields, only : rhobf,rhobh
     implicit none
 
-    real(field_r), intent(in)    :: putin(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(in)    :: a_in(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in)    :: flux (i2,j2)
 
     integer i,j,k,jm,jp,km,kp
@@ -527,19 +527,19 @@ contains
         jm=j-1
 
         do i=2,i1
-          putout(i,j,k) = putout(i,j,k) &
+          a_out(i,j,k) = a_out(i,j,k) &
                     +  0.5 * ( &
-                  ( (ekh(i+1,j,k)+ekh(i,j,k))*(putin(i+1,j,k)-putin(i,j,k)) &
-                    -(ekh(i,j,k)+ekh(i-1,j,k))*(putin(i,j,k)-putin(i-1,j,k)))*dx2i &
+                  ( (ekh(i+1,j,k)+ekh(i,j,k))*(a_in(i+1,j,k)-a_in(i,j,k)) &
+                    -(ekh(i,j,k)+ekh(i-1,j,k))*(a_in(i,j,k)-a_in(i-1,j,k)))*dx2i &
                     + &
-                  ( (ekh(i,jp,k)+ekh(i,j,k)) *(putin(i,jp,k)-putin(i,j,k)) &
-                    -(ekh(i,j,k)+ekh(i,jm,k)) *(putin(i,j,k)-putin(i,jm,k)) )*dy2i &
+                  ( (ekh(i,jp,k)+ekh(i,j,k)) *(a_in(i,jp,k)-a_in(i,j,k)) &
+                    -(ekh(i,j,k)+ekh(i,jm,k)) *(a_in(i,j,k)-a_in(i,jm,k)) )*dy2i &
                   + &
                   ( rhobh(kp)/rhobf(k) * (dzf(kp)*ekh(i,j,k) + dzf(k)*ekh(i,j,kp)) &
-                    *  (putin(i,j,kp)-putin(i,j,k)) / dzh(kp)**2 &
+                    *  (a_in(i,j,kp)-a_in(i,j,k)) / dzh(kp)**2 &
                     - &
                     rhobh(k)/rhobf(k) * (dzf(km)*ekh(i,j,k) + dzf(k)*ekh(i,j,km)) &
-                    *  (putin(i,j,k)-putin(i,j,km)) / dzh(k)**2           )/dzf(k) &
+                    *  (a_in(i,j,k)-a_in(i,j,km)) / dzh(k)**2           )/dzf(k) &
                             )
 
         end do
@@ -549,16 +549,16 @@ contains
     do j=2,j1
       do i=2,i1
 
-        putout(i,j,1) = putout(i,j,1) &
+        a_out(i,j,1) = a_out(i,j,1) &
                   + 0.5 * ( &
-                ( (ekh(i+1,j,1)+ekh(i,j,1))*(putin(i+1,j,1)-putin(i,j,1)) &
-                  -(ekh(i,j,1)+ekh(i-1,j,1))*(putin(i,j,1)-putin(i-1,j,1)) )*dx2i &
+                ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1)-a_in(i,j,1)) &
+                  -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1)-a_in(i-1,j,1)) )*dx2i &
                   + &
-                ( (ekh(i,j+1,1)+ekh(i,j,1))*(putin(i,j+1,1)-putin(i,j,1)) &
-                  -(ekh(i,j,1)+ekh(i,j-1,1))*(putin(i,j,1)-putin(i,j-1,1)) )*dy2i &
+                ( (ekh(i,j+1,1)+ekh(i,j,1))*(a_in(i,j+1,1)-a_in(i,j,1)) &
+                  -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1)-a_in(i,j-1,1)) )*dy2i &
                   + &
                 ( rhobh(2)/rhobf(1) * (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
-                  *  (putin(i,j,2)-putin(i,j,1)) / dzh(2)**2 &
+                  *  (a_in(i,j,2)-a_in(i,j,1)) / dzh(2)**2 &
                   + rhobh(1)/rhobf(1)*flux(i,j) *2.                        )/dzf(1) &
                           )
 
@@ -569,13 +569,13 @@ contains
 
 
 
-  subroutine diffe(putout)
+  subroutine diffe(a_out)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dx2i,dzf,dy2i,dzh
     use modfields, only : e120,rhobf,rhobh
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -588,7 +588,7 @@ contains
 
         do i=2,i1
 
-          putout(i,j,k) = putout(i,j,k) &
+          a_out(i,j,k) = a_out(i,j,k) &
                   +  ( &
               ((ekm(i+1,j,k)+ekm(i,j,k))*(e120(i+1,j,k)-e120(i,j,k)) &
               -(ekm(i,j,k)+ekm(i-1,j,k))*(e120(i,j,k)-e120(i-1,j,k)))*dx2i &
@@ -613,7 +613,7 @@ contains
     do j=2,j1
       do i=2,i1
 
-        putout(i,j,1) = putout(i,j,1) + &
+        a_out(i,j,1) = a_out(i,j,1) + &
             ( (ekm(i+1,j,1)+ekm(i,j,1))*(e120(i+1,j,1)-e120(i,j,1)) &
               -(ekm(i,j,1)+ekm(i-1,j,1))*(e120(i,j,1)-e120(i-1,j,1)) )*dx2i &
             + &
@@ -629,14 +629,14 @@ contains
   end subroutine diffe
 
 
-  subroutine diffu (putout)
+  subroutine diffu (a_out)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dy,dyi,dzh, cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
@@ -667,7 +667,7 @@ contains
                   ekm(i,j,k)+ekm(i,jm,k)+ekm(i-1,jm,k)+ekm(i-1,j,k)  )
 
 
-          putout(i,j,k) = putout(i,j,k) &
+          a_out(i,j,k) = a_out(i,j,k) &
                   + &
                   ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
                     -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
@@ -720,7 +720,7 @@ contains
                 upcu/sqrt(upcu**2  + &
                 ((v0(i,j,1)+v0(i-1,j,1)+v0(i,jp,1)+v0(i-1,jp,1))/4.+cv)**2)
 
-        putout(i,j,1) = putout(i,j,1) &
+        a_out(i,j,1) = a_out(i,j,1) &
                 + &
               ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
               -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i &
@@ -740,7 +740,7 @@ contains
   end subroutine diffu
 
 
-  subroutine diffv (putout)
+  subroutine diffv (a_out)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dzf,dyi,dy2i,dzh, cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
@@ -748,7 +748,7 @@ contains
 
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
@@ -778,7 +778,7 @@ contains
                 ekm(i,j,k)+ekm(i,jm,k)+ekm(i+1,jm,k)+ekm(i+1,j,k)  )
 
 
-        putout(i,j,k) = putout(i,j,k) &
+        a_out(i,j,k) = a_out(i,j,k) &
                 + &
               ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                         +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
@@ -828,7 +828,7 @@ contains
                     vpcv/sqrt(vpcv**2  + &
                 ((u0(i,j,1)+u0(i+1,j,1)+u0(i,jm,1)+u0(i+1,jm,1))/4.+cu)**2)
 
-        putout(i,j,1) = putout(i,j,1) &
+        a_out(i,j,1) = a_out(i,j,1) &
                   + &
                   ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                             +(u0(i+1,j,1)-u0(i+1,jm,1))*dyi) &
@@ -849,7 +849,7 @@ contains
 
 
 
-  subroutine diffw(putout)
+  subroutine diffw(a_out)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dy,dyi,dzf,dzh
     use modfields, only : u0,v0,w0,rhobh,rhobf
@@ -857,7 +857,7 @@ contains
 
   !*****************************************************************
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
 
@@ -886,7 +886,7 @@ contains
                     ( 4.   * dzh(k) )
 
 
-          putout(i,j,k) = putout(i,j,k) &
+          a_out(i,j,k) = a_out(i,j,k) &
                 + &
                   ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
                             +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &

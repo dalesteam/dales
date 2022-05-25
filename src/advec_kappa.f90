@@ -49,32 +49,32 @@ module advec_kappa
 use modprecision, only : field_r
 contains
 
-subroutine advecc_kappa(putin,putout)
+subroutine advecc_kappa(a_in,a_out)
   use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
-  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
   
   real      d1,d2,cf
   real :: d1m, d2m, d1p, cfm, cfp, work
   integer   i,j,k,k_low,k_high
 
-  ! find the lowest and highest k level with a non-zero value in putin 
+  ! find the lowest and highest k level with a non-zero value in a_in 
   k_low = -1
   do k=1,k1
-     if (any(putin(:,:,k).ne.0.)) then
+     if (any(a_in(:,:,k).ne.0.)) then
         k_low = k
         exit
      endif
   enddo
   if (k_low == -1) then
-     ! putin == zero
+     ! a_in == zero
      return
   endif
 
   do k=k1,1,-1
-     if (any(putin(:,:,k).ne.0.)) then
+     if (any(a_in(:,:,k).ne.0.)) then
         k_high = k
         exit
      endif
@@ -85,10 +85,10 @@ subroutine advecc_kappa(putin,putout)
      do j=2,j1
         do i=2,i1 ! YES
            d1m = 0
-           d2m = rhobf(2) * putin(i,j,2) - rhobf(1) * putin(i,j,1)
-           cfm = rhobf(1) * putin(i,j,1)
-           d1p = rhobf(2) * putin(i,j,2) - rhobf(3) * putin(i,j,3)
-           cfp = rhobf(2) * putin(i,j,2)
+           d2m = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
+           cfm = rhobf(1) * a_in(i,j,1)
+           d1p = rhobf(2) * a_in(i,j,2) - rhobf(3) * a_in(i,j,3)
+           cfp = rhobf(2) * a_in(i,j,2)
 
            if (w0(i,j,2) > 0) then
               d1 = d1m
@@ -105,8 +105,8 @@ subroutine advecc_kappa(putin,putout)
                 (sign(0.5, d1) + sign(0.5, d2))
 
            work = work * w0(i,j,2)
-           putout(i,j,1) = putout(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
-           putout(i,j,2) = putout(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
+           a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
+           a_out(i,j,2) = a_out(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
         end do
      end do
   end if
@@ -115,11 +115,11 @@ subroutine advecc_kappa(putin,putout)
   do k= max(k_low-1,1), min(k_high+2, kmax) ! loop accesses k-2, k-1, k, k+1
      do j=2,j1
         do i=2,i2 ! YES
-           d2m = putin(i  ,j,k)-putin(i-1,j,k)
-           d1m = putin(i-1,j,k)-putin(i-2,j,k)
-           d1p = putin(i  ,j,k)-putin(i+1,j,k)
-           cfm = putin(i-1,j,k)
-           cfp = putin(i  ,j,k)
+           d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
+           d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
+           d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
+           cfm = a_in(i-1,j,k)
+           cfp = a_in(i  ,j,k)
 
            if (u0(i,j,k) > 0) then
               d1 = d1m
@@ -136,8 +136,8 @@ subroutine advecc_kappa(putin,putout)
                 (sign(0.5, d1) + sign(0.5, d2))
 
            work = work * u0(i,j,k) * dxi
-           putout(i-1,j,k) = putout(i-1,j,k) - work
-           putout(i,j,k)   = putout(i,j,k)   + work
+           a_out(i-1,j,k) = a_out(i-1,j,k) - work
+           a_out(i,j,k)   = a_out(i,j,k)   + work
         end do
      end do
      !  end do
@@ -145,11 +145,11 @@ subroutine advecc_kappa(putin,putout)
      !  do k=1,kmax
      do j=2,j2
         do i=2,i1 ! YES
-           d1m = putin(i,j-1,k)-putin(i,j-2,k)
-           d1p = putin(i,j  ,k)-putin(i,j+1,k)
-           d2m = putin(i,j  ,k)-putin(i,j-1,k)
-           cfm = putin(i,j-1,k)
-           cfp = putin(i,j  ,k)
+           d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
+           d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
+           d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
+           cfm = a_in(i,j-1,k)
+           cfp = a_in(i,j  ,k)
 
            if (v0(i,j,k) > 0) then
               d1 = d1m
@@ -166,8 +166,8 @@ subroutine advecc_kappa(putin,putout)
                 (sign(0.5, d1) + sign(0.5, d2))
 
            work = work * v0(i,j,k) * dyi
-           putout(i,j-1,k) = putout(i,j-1,k) - work
-           putout(i,j,k)   = putout(i,j,k)   + work
+           a_out(i,j-1,k) = a_out(i,j-1,k) - work
+           a_out(i,j,k)   = a_out(i,j,k)   + work
         end do
      end do
      !  end do
@@ -176,11 +176,11 @@ subroutine advecc_kappa(putin,putout)
      if (k >= 3) then
         do j=2,j1
            do i=2,i1 ! YES
-              d1m = rhobf(k-1) * putin(i,j,k-1) - rhobf(k-2) * putin(i,j,k-2)
-              d2m = rhobf(k)   * putin(i,j,k  ) - rhobf(k-1) * putin(i,j,k-1)
-              d1p = rhobf(k)   * putin(i,j,k  ) - rhobf(k+1) * putin(i,j,k+1)
-              cfm = rhobf(k-1) * putin(i,j,k-1)
-              cfp = rhobf(k)   * putin(i,j,k  )
+              d1m = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
+              d2m = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
+              d1p = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
+              cfm = rhobf(k-1) * a_in(i,j,k-1)
+              cfp = rhobf(k)   * a_in(i,j,k  )
 
               if (w0(i,j,k) > 0) then
                  d1 = d1m
@@ -197,21 +197,21 @@ subroutine advecc_kappa(putin,putout)
                    (sign(0.5, d1) + sign(0.5, d2))
 
               work = work * w0(i,j,k)
-              putout(i,j,k-1) = putout(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
-              putout(i,j,k)   = putout(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
+              a_out(i,j,k-1) = a_out(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
+              a_out(i,j,k)   = a_out(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
            end do
         end do
      end if
   end do
 end subroutine advecc_kappa
 
-subroutine  halflev_kappa(putin,putout)
+subroutine  halflev_kappa(a_in,a_out)
 
   use modglobal, only : i1,ih,j1,jh,k1
     use modfields, only : w0, rhobf, rhobh
     implicit none
-    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: putin
-    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: putout
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
     real(field_r)      d1,d2,cf
     integer   i,j,k
 
@@ -220,15 +220,15 @@ subroutine  halflev_kappa(putin,putout)
       do j=2,j1
         do i=2,i1
           if (w0(i,j,k)>=0) then
-            d1 = rhobf(k-1) * putin(i,j,k-1) - rhobf(k-2) * putin(i,j,k-2)
-            d2 = rhobf(k) * putin(i,j,k  )   - rhobf(k-1) * putin(i,j,k-1)
-            cf = rhobf(k-1) * putin(i,j,k-1)
+            d1 = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
+            d2 = rhobf(k) * a_in(i,j,k  )   - rhobf(k-1) * a_in(i,j,k-1)
+            cf = rhobf(k-1) * a_in(i,j,k-1)
           else
-            d1 = rhobf(k)   * putin(i,j,k  ) - rhobf(k+1) * putin(i,j,k+1)
-            d2 = rhobf(k-1) * putin(i,j,k-1) - rhobf(k)   * putin(i,j,k  )
-            cf = rhobf(k)   * putin(i,j,k  )
+            d1 = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
+            d2 = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k)   * a_in(i,j,k  )
+            cf = rhobf(k)   * a_in(i,j,k  )
           end if
-          putout(i,j,k) = (1./rhobh(k))*(cf + rlim(d1,d2))
+          a_out(i,j,k) = (1./rhobh(k))*(cf + rlim(d1,d2))
         end do
       end do
     end do
@@ -237,14 +237,14 @@ subroutine  halflev_kappa(putin,putout)
       do i=2,i1
         if (w0(i,j,2)>=0) then
           d1 = 0
-          d2 = rhobf(2) * putin(i,j,2) - rhobf(1) * putin(i,j,1)
-          cf = rhobf(1) * putin(i,j,1)
+          d2 = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
+          cf = rhobf(1) * a_in(i,j,1)
         else
-          d1 = rhobf(2) * putin(i,j,2) - rhobf(3) * putin(i,j,3)
-          d2 = rhobf(1) * putin(i,j,1) - rhobf(2) * putin(i,j,2)
-          cf = rhobf(2) * putin(i,j,2)
+          d1 = rhobf(2) * a_in(i,j,2) - rhobf(3) * a_in(i,j,3)
+          d2 = rhobf(1) * a_in(i,j,1) - rhobf(2) * a_in(i,j,2)
+          cf = rhobf(2) * a_in(i,j,2)
         end if
-        putout(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
+        a_out(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
       end do
     end do
 

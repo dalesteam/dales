@@ -233,12 +233,12 @@ contains
     return
   end subroutine exitcanopy
 
-  subroutine canopyu (putout)
+  subroutine canopyu (a_out)
     use modglobal, only  : i1, ih, j1, j2, jh, k1, cu, cv, dzh, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -254,18 +254,18 @@ contains
                 ((dzh(kp)*(w0(1:imax,2:j1,k)+w0(2:i1,2:j1,k))+dzh(k)*(w0(1:imax,2:j1,kp)+w0(2:i1,2:j1,kp)))/(2*(dzh(k)+dzh(kp))))**2 &
                 )
 
-      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * ucor(2:i1,2:j1,k)
+      a_out(2:i1,2:j1,k) = a_out(2:i1,2:j1,k) - ftau * ucor(2:i1,2:j1,k)
     end do
 
     return
   end subroutine canopyu
 
-  subroutine canopyv (putout)
+  subroutine canopyv (a_out)
     use modglobal, only  : i1, i2, ih, j1, jh, k1, cu, cv, dzh, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -281,18 +281,18 @@ contains
                 ((dzh(kp)*(w0(2:i1,1:jmax,k)+w0(2:i1,2:j1,k))+dzh(k)*(w0(2:i1,1:jmax,kp)+w0(2:i1,2:j1,kp)))/(2*(dzh(k)+dzh(kp))))**2 &
                 )
 
-      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * vcor(2:i1,2:j1,k)
+      a_out(2:i1,2:j1,k) = a_out(2:i1,2:j1,k) - ftau * vcor(2:i1,2:j1,k)
     end do
 
     return
   end subroutine canopyv
 
-  subroutine canopyw (putout)
+  subroutine canopyw (a_out)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, dzf, imax, jmax
     use modfields, only  : u0, v0, w0
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -308,18 +308,18 @@ contains
                 ((dzf(km)*(vcor(2:i1,2:j1,k)+vcor(2:i1,3:j2,k))+dzf(k)*(vcor(2:i1,2:j1,km)+vcor(2:i1,3:j2,km)))/(4*dzh(k)))**2 &
                 )
 
-      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - ftau * w0(2:i1,2:j1,k)
+      a_out(2:i1,2:j1,k) = a_out(2:i1,2:j1,k) - ftau * w0(2:i1,2:j1,k)
     end do
 
     return
   end subroutine canopyw
 
-  subroutine canopye (putout)
+  subroutine canopye (a_out)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, cu, cv, dzh, imax, jmax
     use modfields, only  : u0, v0, w0, e120
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ucor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: vcor  (2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: ftau  (imax,jmax)
@@ -335,18 +335,18 @@ contains
                 ((dzh(kp)*w0(2:i1,2:j1,k)+dzh(k)*w0(2:i1,2:j1,kp))/(dzh(k)+dzh(kp)))**2 &
                 )
 
-      putout(2:i1,2:j1,k) = putout(2:i1,2:j1,k) - e120(2:i1,2:j1,k) * ftau
+      a_out(2:i1,2:j1,k) = a_out(2:i1,2:j1,k) - e120(2:i1,2:j1,k) * ftau
     end do
 
     return
   end subroutine canopye
 
-  subroutine canopyc (putout, flux_top, flux_surf, alpha, pai)
+  subroutine canopyc (a_out, flux_top, flux_surf, alpha, pai)
     use modglobal, only  : i1, i2, ih, j1, j2, jh, k1, dzf, imax, jmax
     use modfields, only  : rhobh, rhobf
     implicit none
 
-    real(field_r), intent(inout) :: putout(2-ih:i1+ih,2-jh:j1+jh,k1)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in   ) :: flux_top
     real, intent(in   ) :: flux_surf(i2,j2)
     real, intent(in   ) :: alpha
@@ -365,7 +365,7 @@ contains
       tendency(:,:,k) = ( integratedcontribution(:,:,(k+1)) - integratedcontribution(:,:,k) ) / ( rhobf(k) * dzf(k) )
     end do
 
-    putout(2:i1,2:j1,1:ncanopy) = putout(2:i1,2:j1,1:ncanopy) + tendency
+    a_out(2:i1,2:j1,1:ncanopy) = a_out(2:i1,2:j1,1:ncanopy) + tendency
 
     return
   end subroutine canopyc
