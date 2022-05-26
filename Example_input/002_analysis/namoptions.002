@@ -1,0 +1,185 @@
+&RUN		! Requires DALES v07
+iexpnr        =  002			! Experiment number___ Run with lhetero and lsplitflux
+lwarmstart    =  .true. 		! a cold (false) or warm (true) start
+startfile 	  =  'initd004h30mxxxxxxxx.001' 		! Quotation marks required on Snellius!
+runtime       =  16200			! Simulation time [sec]
+trestart      =  5400			! Every XX seconds, a restart file is written to disk
+ladaptive     =  .true.			! 
+irandom       =  43				! 
+randthl       =  0.1			! Amplitude of randomization of thl
+randqt        =  2.5e-5			! Amplitude of randomization of qt
+nsv           =  3				! Number of additional passive scalars
+nprocx        =  25
+nprocy        =  12
+/
+
+&DOMAIN	
+itot          =  500 			! Horizontal grid points (x)
+jtot          =  240 			! Horizontal grid points (y)
+kmax          =  600			! Vertical grid points
+
+xsize         =  10000.			! Horizontal domain size (x)
+ysize         =  4800.			! Horizontal domain size (y)
+
+xlat          =  51.97
+xlon          =  4.926244
+xday          =  129.
+xtime         =  6
+/
+
+&PHYSICS
+isurf         =  1				! Flag for surface parameterization (see namoptions pdf)
+iradiation    =  2				! Flag for radiation calculations (see namoptions pdf)
+ps         =  101300.00			! surface pressure [Pa]
+thls       =  286.5				! Liquid water potential temperature [K]
+lcoriol    = .false.			! Coriolis force 
+rad_shortw = .true.				! Parameterized shortwave radiative forcing
+rad_longw  = .false.			! Parameterized longwave radiative forcing
+sw0         = 1120.				! Direct solar radiative forcing component cloud top [W/m2]
+/
+
+&DYNAMICS
+ibas_prf   =  2					! Flag for density calculations based on (see namoptions.pdf)
+lqlnr      =  .true.			! Newton-Raphson approximation of the liquid water content
+cu         =  0.				! Transformation velocity of the Galilei transformation in xdirection
+cv         =  0.				! Transformation velocity of the Galilei transformation in ydirection
+
+iadv_mom      = 52				! Advection scheme for momentum (see namoptions.pdf)
+iadv_tke      = 52				! Advection scheme for TKE 		(see namoptions.pdf)	
+iadv_thl      = 52				! Advection scheme for theta_l	(see namoptions.pdf)
+iadv_qt       = 52				! Advection scheme for q_t		(see namoptions.pdf)
+iadv_sv       = 7*7				! Advection scheme for scalars	(see namoptions.pdf)
+
+!!!!!
+! 		Non-periodic BCs 
+!!!!!
+lnonperiodbc_sv(3)  = .true.		! Turn on non-periodic boundary conditions for scalar #3
+
+!!!!!
+! 		Percentage-chemistry 
+!!!!!
+lpercentchem 	= .true.	! Switch to turn on percentage-chemistry functionality for specific scalars
+pc_chemrate(1)  = -0.05        ! The chemical conversion rate [%/h] for scalar #1 (nh3_r0b)
+pc_chemrate(2)  = -0.05        ! The chemical conversion rate [%/h] for scalar #2 (nh3_r1b)
+pc_chemrate(3)  = -0.05        ! The chemical conversion rate [%/h] for scalar #3 (nh3_r1p)
+/
+
+&NAMSURFACE
+tsoilav(1)   = 286.60			! Initial soil temperature (for 4 layers, only used if isurf = 1)
+tsoilav(2)   = 287.50
+tsoilav(3)   = 288.00
+tsoilav(4)   = 288.50
+tsoildeepav  = 289.50			! Soil bottom temperature (if isurf = 1)
+
+phiwav(1)    = 0.43				! Soil moisture (if isurf = 1 and preferably below 0.323) [m3/m3]
+phiwav(2)    = 0.43
+phiwav(3)    = 0.43
+phiwav(4)    = 0.43
+
+rootfav(1)   = 0.35				! Root fraction (if isurf = 1)
+rootfav(2)   = 0.38
+rootfav(3)   = 0.23
+rootfav(4)   = 0.04
+
+lmostlocal   = .true.			! Switch to locally determine Obukhov length
+lsmoothflux  = .false.			! Switch to create uniform sensible and latent heat flux over domain
+rsisurf2     = 50.				! Vegetation resistance (if isurf = 2) [s/m]	(?isurf = 1 a.t.m.?)
+	
+z0mav        = 0.05				! Roughness length of momentum [m]
+z0hav        = 0.01				! Roughness length of heat [m]
+Cskinav      = 10000.			! Heat capacity skin layer (if isurf = 1) [J/K/m2]
+lambdaskinav = 4.				! Heat conductivity skin layer (if isurf = 1) [J/s/K/m2] 
+albedoav     = 0.25				! Albedo (if isurf = 1)
+Qnetav       = -99999			! Net radiation (if iradiation isnot 1 and isurf = 1)
+
+rsminav      = 110.				! Minimal vegetation resistance (if isurf = 1) [s/m]
+rssoilminav  = 50.				! Minimum soil evaporation resistance
+cvegav       = 0.9				! Vegetation cover
+LAIav        = 2.				! Leaf Area Index (if isurf = 1) [m2/m2]
+gDav         = 0.				! Correction for evaporation of tall vegetation (if isurf = 1)
+Wlav         = 0.00000			! Initial water cover on vegetation [m]
+
+lhetero 	 = .true. 			! Switch to apply heterogeneous surfaces
+lpatchoutput = .false. 			! Switch which can turn off writing patch-specific output files
+xpatches 	 = 500 				! Amount of patches in the x-direction
+ypatches 	 = 240 				! Amount of patches in the y-direction
+land_use(24,1)= 1   			! Indicator for the land type
+land_use(25,1)= 1   			! Indicator for the land type
+
+!!!!!
+! 		Split-flux
+!!!!!
+lsplitflux 	 	= .true. 		! Switch to turn on split-flux functionality (see DALES split-flux instructions.docx)
+sf_scalars(1,1) = 2        ! Scalar 2 (nh3_r1b) in split-flux set 1 is scalar nr 1
+sf_scalars(1,2) = 3        ! Scalar 3 (nh3_r1p) in split-flux set 1 is scalar nr 2
+/
+
+&NAMCHECKSIM
+tcheck      =  60				! Time interval between checks of velocity divergence and Courant numbers [s]
+/
+
+&NAMSAMPLING
+lsampup     = .false.			! Switch for conditional sampling updrafts (w>0)
+dtav        = 60				! Time interval for sampling of statistics [s]
+timeav      = 600				! Time interval for writing statistics [s]
+/
+
+&NAMTIMESTAT
+ltimestat   = .true.			! Switch for calculating of time series
+iblh_meth   = 2					! Flag for the method used to calculate boundary-layer height (see namoptions.pdf)
+iblh_var    = -1				! Flag for the variable used to calculate boundary-layer height (see namoptions.pdf)
+dtav        = 60				! Time interval for sampling of statistics [s]
+/
+
+&NAMCROSSSECTION
+lcross      = .true.			! Switch for dumping of crosssections of the field
+dtav        = 10				! Time interval for sampling of statistics [s]
+crossheight = 2					! Heights of the horizontal crosssection
+crossplane  = 1 				! Location of the vertical (xz) plane on every processor
+crossortho  = 1 				! Location of the vertical (yz) plane on every processor
+/
+
+&NAMFIELDDUMP
+lfielddump	= .true.			! Switch for dumping of 3d-fields
+dtav 		= 10    			! Time interval for sampling of statistics [s]
+klow 		= 3   				! Lowest level of the 3d-field output
+khigh 		= 24 				! Highest level of the 3d-field output
+ncoarse 	= 1   				! Factor by which to reduce (sample) the 3d-field to be written (in each horizontal direction)
+/
+
+&NAMNETCDFSTATS
+lnetcdf      = .true.			! Switch to write NetCDF output
+/
+
+&NAMGENSTAT
+lstat       = .true.			! Switch for calculating generic slabaveraged statistics
+dtav        = 60				! Time interval for sampling of statistics [s]
+timeav      = 600				! Time interval for writing statistics [s]
+/
+
+&NAMLSMSTAT
+lstat       = .true.			! Switch for calculating land surface statistics
+dtav        = 60				! Time interval for sampling of statistics [s]
+timeav      = 600				! Time interval for writing statistics [s]
+/
+
+&NAMCHEM
+lchem       = .false.			! Switch to turn chemistry on and off
+tnor        = 25				! Number of chemical reactions
+firstchem   = 1					! Column number in scalar.inp of first chemical
+lastchem    = 8					! Column number in scalar.inp of last chemical (might be incorrect a.t.m.)
+ldiuvar     = .true.			! Switches diurnal photolysis reaction rates
+lchmovie    = .false.			! Switch for extra output to make movies (???)
+lsegr       = .true.			! Switch for information about segregation in a Mixed Layer approach
+/		
+
+&NAMHETEROSTATS
+lheterostats = .false.			! Switch for calculating generic x-averaged statistics
+dtav = 600						! Time interval for sampling of statistics [s]
+/
+
+&NAMDE
+SSA          = 0.92				! Representative single scattering albedo
+iDE          = 1				! Scalar field used as aerosols if laero set to .true.
+laero        = .false.			! Switch to use aerosols instead of clouds for Delta-Eddington calculations
+/

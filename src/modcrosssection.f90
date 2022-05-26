@@ -557,22 +557,34 @@ contains
 
   end subroutine wrtorth
 
+
 !> Clean up when leaving the run
+	!____________________
+	!     Start Ruben Schulte, 22-03-2022
+	! Bugfix: cross-section netCDF files did not propperly close propperly.
+	! Replaced original subroutine exitcrosssection with the subroutine from:
+	! https://github.com/dalesteam/dales/blob/ruisdael/src/modcrosssection.f90
+
   subroutine exitcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modmpi, only : myid
+    use modmpi, only : myidx, myidy
     implicit none
 
-    if(lcross .and. lnetcdf) then
-    if (myid==0) then
-    call exitstat_nc(ncid1)
-    end if
-    do cross=1,nxy
-    call exitstat_nc(ncid2(cross))
-    end do
-    call exitstat_nc(ncid3)
+    if (lcross .and. lnetcdf) then
+      if (myidy==0) then
+         call exitstat_nc(ncid1)
+      end if
+      do cross=1,nxy
+        call exitstat_nc(ncid2(cross))
+      end do
+      if (myidx==0) then
+        call exitstat_nc(ncid3)
+      end if    
     end if
 
   end subroutine exitcrosssection
+  
+  ! 			END
+  !____________________
 
 end module modcrosssection

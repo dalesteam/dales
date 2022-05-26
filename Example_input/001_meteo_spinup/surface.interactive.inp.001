@@ -1,0 +1,4 @@
+#Surface input file - the standard land cover should be listed below. It is marked by typenr = 0
+#typenr    name       z0mav  z0hav   ps      albedo  tsoil1 tsoil2 tsoil3 tsoil4 tsoildeep phiw1 phiw2 phiw3 phiw4 rootf1 rootf2 rootf3 rootf4 Cskin  lambdaskin  Qnet    cveg  Wlav   rsmin  LAI     gD   wsvsurf(01)  wsvsurf(02)  wsvsurf(03)
+    0   "standard  "  0.050  0.010  101300   0.25    286.6  287.5  288.0  288.5  289.5     0.43  0.43  0.43  0.43  0.35   0.38   0.23   0.04   10000  4.0         -99999  0.9   0.0    110    2.0     0.0  0.0          0.0          0.0        
+    1   "nh3emis   "  0.050  0.010  101300   0.25    286.6  287.5  288.0  288.5  289.5     0.43  0.43  0.43  0.43  0.35   0.38   0.23   0.04   10000  4.0         -99999  0.9   0.0    110    2.0     0.0  0.0          0.0          0.0        
