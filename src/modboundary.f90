@@ -134,7 +134,7 @@ contains
 			enddo
 			enddo
 			enddo
-			
+					
 		  elseif (myidx .eq. nprocx-1) then
 			
 			do i= i1+1, i1+ih	! Loop over the right most x ghost-cells
@@ -145,7 +145,7 @@ contains
 			enddo
 			enddo
 			enddo
-			
+					
 		  endif
 	  endif
 	  ! 		Ruben Schulte, 07-01-2021

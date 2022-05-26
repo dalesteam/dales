@@ -59,6 +59,9 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge
+								  
+								  
+								  
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -84,7 +87,14 @@ contains
 	use modglobal, 	only : lnonperiodbc_sv
 	! 			END
 	!____________________
-
+	
+    !____________________
+    ! 	START 	Ruben Schulte, 10-02-2021
+    ! Call switch for and array with pecentage chemistry scalars
+	use modglobal,         only : lpercentchem, pc_chemrate 	
+	! 			END
+	!____________________
+	
     implicit none
     integer :: ierr
 
@@ -106,7 +116,9 @@ contains
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds, &
 		! NEW: Ruben Schulte, 07-01-2021: 	non-periodic boundary conditions for specific scalars
-		lnonperiodbc_sv
+		lnonperiodbc_sv, &
+		! NEW: Ruben Schulte, 10-02-2021: 	percentage chemistry for specific scalars
+		lpercentchem, pc_chemrate
 	    
 
     ! get myid
@@ -257,6 +269,15 @@ contains
     call MPI_BCAST(lnonperiodbc_sv(1:1000)	,1000, MPI_LOGICAL	  , 0, MPI_COMM_WORLD, mpierr)
 	! 			END
 	!____________________
+		
+	!____________________
+	! 	START 	Ruben Schulte, 10-02-2021
+	! Have the new variables communicate between cores
+    call MPI_BCAST(lpercentchem           	,1	 , MPI_LOGICAL, 0, MPI_COMM_WORLD, mpierr)
+    call MPI_BCAST(pc_chemrate(1:1000)		,1000, MY_REAL	  , 0, MPI_COMM_WORLD, mpierr)
+	! 			END
+	!____________________
+	
 
     ! Initialize MPI
     call initmpi

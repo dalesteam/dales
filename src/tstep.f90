@@ -167,6 +167,14 @@ subroutine tstep_integrate
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,wp_store,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
+  
+  !____________________
+  ! 	START 	Ruben Schulte, 10-02-2021
+  ! Call switch for and array with pecentage-chemistry scalars
+  use modglobal,         only : lpercentchem, pc_chemrate
+  ! 			END
+  !____________________
+  
   implicit none
 
   integer i,j,k,n
@@ -174,7 +182,19 @@ subroutine tstep_integrate
 
   rk3coef = rdt / (4. - dble(rk3step))
   wp_store = wp
-
+  
+  
+  !____________________
+  ! 	START 	Ruben Schulte, 10-02-2021
+  ! Implement the pecentage-chemistry functionality
+  if (lpercentchem) then
+	do n=1,nsv
+		svp(:,:,:,n) = svp(:,:,:,n) + svm(:,:,:,n) * pc_chemrate(n)/3600
+	enddo
+  endif  
+  ! 			END
+  !____________________
+  
   if(rk3step /= 3) then
      u0   = um   + rk3coef * up
      v0   = vm   + rk3coef * vp

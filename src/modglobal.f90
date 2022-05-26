@@ -193,6 +193,13 @@ save
 	  ! 			END
 	  !____________________
 
+	  !____________________
+	  ! 	START 	Ruben Schulte, 10-02-2021
+	  ! Define switch for, array with and loss factor for scalars affected by percentage chemistry
+	  logical 	:: lpercentchem = .false.			! Switch to turn on "percentage chemisty" for specific scalars
+	  real	 	:: pc_chemrate(1000) = 0 		! Array to define scalar indices with non-periodic boundary conditions
+	  ! 			END
+	  !____________________
 
 
 

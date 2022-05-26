@@ -67,3 +67,20 @@
 		* Implement new script to allow for calculation of splitted fluxes. 
 			+ Documentation in "DALES split-flux instructions.docx". 
 			+ Start at line 870. 
+
+- _v05_dales-master_perc_chem: 
+	Update data on 10-02-2021. 
+	Continuation based on "_v04_dales-master_split-flux". 
+	Add the option for "percentage-chemistry functionality", where specific scalars 
+	have an additional loss/source term in a percentage of the concentration per hour,
+	representing simplified chemistry. 
+	- modglobal.f90: Add new (NAMOPTIONS input) variables to DALES. 
+		* Added: lprec_chem, pc_chemrate. 
+	- modfields.f90: allocate pc_chemrate to determine the size of the variable of length "nsv". 
+		* allocate pc_chemrate to set the size of the variable to be "nsv". 
+		* Set default value of pc_chemrate to  be 0. 
+		* deallocate pc_chemrate. 
+	- modstartup.f90: Read the new variables under the &DYNAMICS list. 
+		* Added: lprec_chem, pc_chemrate. 
+	- tstep.f90: Add the percentage-chemistry functionallity to scalar concentration. 
+		* Added equation svp(:,:,:,n) = svp(:,:,:,n) + svm(:,:,:,n) * pc_chemrate(n)/3600. 

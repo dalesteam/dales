@@ -191,7 +191,7 @@ contains
 	!____________________
 	! 	START 	Ruben Schulte, 26-01-2021
 	! Have the new variables communicate between cores
-    call MPI_BCAST(lsplitflux   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lsplitflux           			,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     call MPI_BCAST(sf_scalars(1:sf_dim1,1:sf_dim2)	,sf_dim1*sf_dim2, MPI_INTEGER, 0, comm3d, mpierr)
 	! 			END
 	!____________________

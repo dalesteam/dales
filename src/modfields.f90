@@ -140,6 +140,7 @@ contains
 subroutine initfields
 
     use modglobal, only : i1,ih,j1,jh,k1,nsv
+
     ! Allocation of prognostic variables
     implicit none
 
@@ -267,11 +268,13 @@ subroutine initfields
     qvsl=0.;qvsi=0.;esl=0.
 
     cloudarea=0.;cloudnr=0.;cloudnrold=0.;distcld=0.;distcr=0.;distqr=0.;distdiv=0.;distcon=0.;distbuoy=0.;distw=0.
+	
 
   end subroutine initfields
 
 !> Deallocate the fields
   subroutine exitfields
+  
   implicit none
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,wp_store,thlp,e12p,qtp)
@@ -287,6 +290,7 @@ subroutine initfields
     deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(cloudarea,cloudnr,cloudnrold,distcld,distcr,distqr,distdiv,distcon,distbuoy,distw)
     deallocate(qvsl,qvsi,esl)
+	
     end subroutine exitfields
 
 end module modfields
