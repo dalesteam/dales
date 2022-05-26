@@ -1,10 +1,62 @@
 Changes in DALES
 ================
 
+Version 4.3 - 2021-03-13
+------------------------
+
+This version introduces a library interface to DALES, defined in `daleslib.f90.` With this interface,
+DALES can be used with the [OMUSE](https://omuse.readthedocs.io/en/latest/) framework, which provides
+a Python interface to DALES. Another new feature is the support of iterative Poisson solvers, see
+the [Wiki](https://github.com/dalesteam/dales/wiki/Iterative-Poisson-solver) and also an
+alternative FFT-based solver using the FFTW library.
+
+
+### Improvements
+
+* Add option ntimedep to PHYSICS namelist - max number of time points for timedependent forcings. Commit 14a84deb
+* Add support for non-uniform grid in the kappa advection scheme. Commit d8e6c68d
+* Add a namelist option lsync in NAMNETCDFSTATS to synchronize netCDF output files after writing
+* Iterative Poisson solver support with the HYPRE library (by J. Attema).
+* Don't overwrite ascii output files on warm start. Commit 25fae048
+* Warn when moduser routines are invoked from a case, when a custom moduser.f90 has not been compiled in. Commit ae148a3bd3
+* Allow advection schemes 5th and 6th with non-uniform grid again, add experimental kappa scheme (77) with better non-uniform grid support. Commit 4ab9a7571b
+* Add missing rho in divergence diagnostic, show reason for dt limit. Commit da3a32f951b5
+* Add qsat field for statistics, and statistics for accumulated surface rain flux in simpleice2.  Commit 6036c1a93b
+* Add a library interface to DALES, to enable interfacing with OMUSE. Commits 6e0e39f2, 9f91f2d, 4b97aca, 640977e
+
+
+### Optimization
+
+* modpois: don't exchange the pwp field, ghost cells in it are not needed. Commit c7f72b1b
+* If lcoriol is .false., skip coriolis calculations. Commit c343772
+* advec_5th: move i,j loops inside if k. Advection calls ~3 times faster. Commit 0badd3a124
+* Asynchronous MPI halo exchanges. E,W in parallel, then N,S. By J. Attema. Commits a54b9f8e, 6951323, 0c08a262
+
+
+### Bugs fixed
+
+* Use the 2D tskin field as input for RRTMG LW_out instead of the domain mean value of tskin. Commit 910fa438
+* [Issue #58](https://github.com/dalesteam/dales/issues/58) Disable lsmcrossection if isurf/=1
+* [Issue #52](https://github.com/dalesteam/dales/issues/52) making modtimedepsv allocations consistent with modtimedep and removing redundant broadcast. Commit e6dd89a3
+* kappa advection scheme: fix index error on lowest level. Commit 98d34d2e
+* radiation and restarts : https://github.com/dalesteam/dales/issues/40
+* modsimpleice2 and initialization order, https://github.com/dalesteam/dales/issues/49 . Commit be3f9711bb6
+* timedependent forcings, finding the correct interval for interpolation with time dependent surface variables. https://github.com/dalesteam/dales/issues/48 . Commit d6f2225, 1ed4357
+* modbudget: remove extra factor rhobf in calculation of sbtke average. From S. de Roode.
+* modbudget: add if(myid==0) around netcdf profile writing. Commit b7afc418c5
+* Fix ibas_prf=3 initialization when zf(k) is exactly 11000 (1st value in the lapse rate table).
+  [Issue #41](https://github.com/dalesteam/dales/issues/41), Commit ee6230bc00
+* modradstat: handle sign conventions of different radiation schemes (S. de Roode). Commit f43012
+* radiation: initialize {sw,lw}{Up,Down}_slice arrays before rrtmg calls, since the calls are not always performed (S. de Roode). Commit d4e979de7d
+* netCDF staistics: fix for determining the index where writing is resumed at warm start.
+  [Issue #42](https://github.com/dalesteam/dales/issues/42), Commit 8ff2cced3
+* Fix closing of crosssection netcdf files. Commit e72701e08
+
+
 Version 4.2 - 2019-06-05
 ------------------------
 
-This is a summary of changes in DALES 4.2. More detials of the chanes follow below.
+This is a summary of changes in DALES 4.2. More details of the changes follow below.
 
 * Optimization of advection and subgrid schemes
 * Improvement surface scheme (phi functions) for stable conditions
@@ -151,7 +203,7 @@ According to Chiel, microHH does the same.
 
 * Don't do halo exchange of the m-fields
 The m-fields ghost cells are seldom needed.  Saves maybe 1 % for a
-single process run, and a large amount of MPI cvommunication in a multi-process run.
+single process run, and a large amount of MPI communication in a multi-process run.
 This was tried but reverted since it interfered with chemistry, which *does* use the m-field halos.
 (Commit 0c2cf59)
 
@@ -177,3 +229,5 @@ Handle chemicals sv fields. Add namelist options, maybe a vector for all sv - ac
 * Merged netCDF writing. It is tedious to stitch together the separate netCDF files produced - one file per MPI task. There are scripts in the Dales repository, but they are from the time of slab parallelization and only stitch in one direction. Consider the parallel netCDF API where many MPI tasks can write together into a single file.
 
 * Synchronize netCDF files periodically. When switching to compressed netCDF v4, the files can be unreadable while DALES is running or after DALES crashes or is stopped in the middle of the run.
+
+
