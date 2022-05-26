@@ -75,6 +75,13 @@ contains
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
+    !____________________
+    ! 	START 	Ruben Schulte, 26-02-2021
+	! Call the switch which allows for the writing of the patch output files
+	use modsurfdata, 	only : lpatchoutput 	
+	! 			END
+	!____________________
+
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
@@ -97,7 +104,9 @@ contains
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
-      lsplitleaf
+      lsplitleaf, &
+	  ! Ruben Schulte, 26-02-2021: 	Add lpatchoutput, which can prevent the patch output files from being written
+	  lpatchoutput
 
 
     ! 1    -   Initialize soil
@@ -168,7 +177,16 @@ contains
     call MPI_BCAST(lsplitleaf                 ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
     
     call MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch, MPI_INTEGER, 0, comm3d, mpierr)
-
+	
+	
+	!____________________
+	! 	START 	Ruben Schulte, 26-02-2021
+	! Have the new switch communicate between cores
+    call MPI_BCAST(lpatchoutput           	,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+	! 			END
+	!____________________
+	
+	
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
@@ -238,6 +256,7 @@ contains
       allocate(cveg_patch(xpatches,ypatches))
       allocate(Wl_patch(xpatches,ypatches))
       allocate(rsmin_patch(xpatches,ypatches))
+      allocate(rssoilmin_patch(xpatches,ypatches))
       allocate(LAI_patch(xpatches,ypatches))
       allocate(gD_patch(xpatches,ypatches))
 
@@ -266,6 +285,7 @@ contains
       cveg_patch       = -1
       Wl_patch         = -1
       rsmin_patch      = -1
+      rssoilmin_patch  = -1
       LAI_patch        = -1
       gD_patch         = -1
 
@@ -324,7 +344,7 @@ contains
                   i = defined_landtypes
                   read(readbuffer, *, iostat=ierr) landtype(i), landname(i), z0mav_land(i), z0hav_land(i), ps_land(i), &
                     albedo_land(i),tsoil_land(1:ksoilmax,i),tsoildeep_land(i),phiw_land(1:ksoilmax,i),rootf_land(1:ksoilmax,i),&
-                    Cskin_land(i), lambdaskin_land(i), Qnet_land(i), cveg_land(i), Wl_land(i), rsmin_land(i), LAI_land(i), &
+                    Cskin_land(i), lambdaskin_land(i), Qnet_land(i), cveg_land(i), Wl_land(i), rsmin_land(i), rssoilmin_land(i), LAI_land(i), &
                     gD_land(i), wsv_land(1:nsv,i)
 
                   if(z0mav_land(i) .lt. 0) then
@@ -419,6 +439,7 @@ contains
           Qnetav       = 0
           cvegav       = 0
           rsminav      = 0
+          rssoilminav  = 0
           LAIav        = 0
           gDav         = 0
           Wlav         = 0
@@ -426,7 +447,7 @@ contains
           z0mav        = 0
           z0hav        = 0
           ps           = 0
-          thls         = 300
+          !thls         = 300
 
           do i = 1, xpatches
             do j = 1, ypatches
@@ -447,6 +468,7 @@ contains
               Qnet_patch(i,j)       = Qnet_land(landindex)
               cveg_patch(i,j)       = cveg_land(landindex)
               rsmin_patch(i,j)      = rsmin_land(landindex)
+              rssoilmin_patch(i,j)  = rssoilmin_land(landindex)
               LAI_patch(i,j)        = LAI_land(landindex)
               gD_patch(i,j)         = gD_land(landindex)
               Wl_patch(i,j)         = Wl_land(landindex)
@@ -467,6 +489,7 @@ contains
               Qnetav        = Qnetav       +  ( Qnet_patch(i,j)       / ( xpatches * ypatches ) )
               cvegav        = cvegav       +  ( cveg_patch(i,j)       / ( xpatches * ypatches ) )
               rsminav       = rsminav      +  ( rsmin_patch(i,j)      / ( xpatches * ypatches ) )
+              rssoilminav   = rssoilminav  +  ( rssoilmin_patch(i,j)  / ( xpatches * ypatches ) )
               LAIav         = LAIav        +  ( LAI_patch(i,j)        / ( xpatches * ypatches ) )
               gDav          = gDav         +  ( gD_patch(i,j)         / ( xpatches * ypatches ) )
               Wlav          = Wlav         +  ( Wl_patch(i,j)         / ( xpatches * ypatches ) )
@@ -1564,7 +1587,7 @@ contains
           Cskin      (i,j) = Cskin_patch     (tempx,tempy)
           lambdaskin (i,j) = lambdaskin_patch(tempx,tempy)
           rsmin      (i,j) = rsmin_patch     (tempx,tempy)
-          rssoilmin  (i,j) = rsmin_patch     (tempx,tempy)
+          rssoilmin  (i,j) = rssoilmin_patch (tempx,tempy)
           LAI        (i,j) = LAI_patch       (tempx,tempy)
           gD         (i,j) = gD_patch        (tempx,tempy)
           cveg       (i,j) = cveg_patch      (tempx,tempy)

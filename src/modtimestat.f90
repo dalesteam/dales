@@ -86,6 +86,14 @@ contains
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo
+	
+    !____________________
+    ! 	START 	Ruben Schulte, 26-02-2021
+	! Call the switch which allows for the writing of the patch output files
+	use modsurfdata, 	only : lpatchoutput 	
+	! 			END
+	!____________________
+	
     implicit none
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
@@ -188,7 +196,7 @@ contains
         close(ifoutput)
       end if
 
-      if(lhetero) then
+      if(lhetero .AND. lpatchoutput) then
         do i=1,xpatches
           do j=1,ypatches
             name = 'tmser1patchiiixjjj.'//cexpnr
@@ -349,6 +357,14 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+	
+    !____________________
+    ! 	START 	Ruben Schulte, 26-02-2021
+	! Call the switch which allows for the writing of the patch output files
+	use modsurfdata, 	only : lpatchoutput 	
+	! 			END
+	!____________________
+	
     implicit none
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
@@ -861,7 +877,7 @@ contains
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
       end if
 
-      if(lhetero) then
+      if(lhetero .AND. lpatchoutput) then
         do i=1,xpatches
           do j=1,ypatches
             name = 'tmser1patchiiixjjj.'//cexpnr

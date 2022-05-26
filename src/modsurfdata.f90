@@ -284,6 +284,7 @@ SAVE
   real, allocatable :: cveg_patch(:,:)                  !< Vegetation cover [-]
   real, allocatable :: Wl_patch(:,:)                    !< Liquid water reservoir [m]
   real, allocatable :: rsmin_patch(:,:)                 !< Minimum vegetation resistance [s/m]
+  real, allocatable :: rssoilmin_patch(:,:)             !< Minimum soil resistance [s/m]
   real, allocatable :: LAI_patch(:,:)                   !< Leaf area index vegetation [-]
   real, allocatable :: gD_patch(:,:)                    !< Response factor vegetation to vapor pressure deficit [-]
   real              :: tsoil_land(ksoilmax,max_lands)=-1!< Soil temperature [K]
@@ -296,8 +297,16 @@ SAVE
   real              :: cveg_land(max_lands)        = -1 !< Vegetation cover [-]
   real              :: Wl_land(max_lands)          = -1 !< Liquid water reservoir [m]
   real              :: rsmin_land(max_lands)       = -1 !< Minimum vegetation resistance [s/m]
+  real              :: rssoilmin_land(max_lands)   = -1 !< Minimum soil resistance [s/m]
   real              :: LAI_land(max_lands)         = -1 !< Leaf area index vegetation [-]
   real              :: gD_land(max_lands)          = -1 !< Response factor vegetation to vapor pressure deficit [-]
   real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
+  
+  !____________________
+  ! 	START 	Ruben Schulte, 26-02-2021
+  ! Do/Don't write patch output files when lhetero = .true. (tmserlpatch..., tmsurfpatch... & tmlsmpatch for each patch)
+  logical 				:: lpatchoutput = .true.			! Switch which allows/prevents patch output files from being written
+  ! 			END
+  !____________________
 
 end module modsurfdata
