@@ -76,12 +76,19 @@ contains
     use modmpi,     only : myid, comm3d, mpierr, my_real, mpi_logical, mpi_integer
 
     !____________________
+    ! 	START 	Ruben Schulte, 26-01-2021
+	! Call the required variables for split-flux functionality 
+	use modsurfdata, 	only : lsplitflux, sf_scalars, sf_dim1, sf_dim2 	
+	! 			END
+	!____________________
+
+    !____________________
     ! 	START 	Ruben Schulte, 26-02-2021
 	! Call the switch which allows for the writing of the patch output files
 	use modsurfdata, 	only : lpatchoutput 	
 	! 			END
 	!____________________
-
+	
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
@@ -104,10 +111,12 @@ contains
       ! Soil properties
       phi, phifc, phiwp, R10, &
       !2leaf AGS, sunlit/shaded
-      lsplitleaf, &
+      lsplitleaf, & 
+	  ! Ruben Schulte, 26-01-2021: 	split-flux input
+	  lsplitflux, sf_scalars, &
 	  ! Ruben Schulte, 26-02-2021: 	Add lpatchoutput, which can prevent the patch output files from being written
 	  lpatchoutput
-
+	  
 
     ! 1    -   Initialize soil
 
@@ -180,12 +189,19 @@ contains
 	
 	
 	!____________________
+	! 	START 	Ruben Schulte, 26-01-2021
+	! Have the new variables communicate between cores
+    call MPI_BCAST(lsplitflux   ,            1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(sf_scalars(1:sf_dim1,1:sf_dim2)	,sf_dim1*sf_dim2, MPI_INTEGER, 0, comm3d, mpierr)
+	! 			END
+	!____________________
+	
+	!____________________
 	! 	START 	Ruben Schulte, 26-02-2021
 	! Have the new switch communicate between cores
     call MPI_BCAST(lpatchoutput           	,            1, MPI_LOGICAL, 0, comm3d, mpierr)
 	! 			END
 	!____________________
-	
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
@@ -718,6 +734,15 @@ contains
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : my_real, mpierr, comm3d, mpi_sum, excj, excjs, mpi_integer
     use moduser,    only : surf_user
+	
+	!____________________
+	! 	START 	Ruben Schulte, 26-01-2021
+	! Call the required variables for split-flux functionality 
+	use modfields,		only : svm		
+	use modsurfdata,	only : lsplitflux, sf_scalars, sf_dim1, sf_dim2 	! New variables
+	! 			END
+	!____________________
+	
     implicit none
 
     integer  :: i, j, n, patchx, patchy
@@ -732,6 +757,16 @@ contains
 
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
+	
+	!____________________
+	! 	START 	Ruben Schulte, 26-01-2021
+	! Define new variables for split-flux functionality 
+	integer 	:: sf_counter, sf_i, sf_j		! for/while loop counters
+	real 		:: sf_svm(sf_dim1) = -999		! Combined scalar concentration
+	real 		:: sf_flux(sf_dim1) = -999		! Total (and to be split) scalar surface flux
+	! 			END
+	!____________________
+	
 
     patchx = 0
     patchy = 0
@@ -861,10 +896,141 @@ contains
           qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
 
           if(lhetero) then
-            do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchy)
-            enddo
-          else
+			
+			
+			!____________________
+			! 	START 	Ruben Schulte, 26-01-2021
+			! Fill the combined concentration and total flux arrays
+			
+			if (lsplitflux) then
+				
+				! First, reset sf_svm & sf_flux
+				sf_svm(:) = -999
+				sf_flux(:) = -999
+				
+				do sf_i=1,sf_dim1		! Loop over first dimension of sf_scalars
+					
+					!!!!!
+					!!!!! _Fill the sf_flux array_
+					! sf_flux = The flux of the first scalar defined in the second dimension of sf_scalars
+					!!!!!
+					
+					sf_counter = 0
+					sf_j = 0
+					! Only continue searching until the first non -1 value is found
+					do while (sf_counter .eq. 0) 	
+						sf_j = sf_j + 1
+						
+						
+						if (sf_scalars(sf_i, sf_j) .ne. -1) then	! Check if sf_scalars is not -1
+							
+							! Save the flux of the first defined scalar
+							sf_flux(sf_i) = wsv_patch(sf_scalars(sf_i, sf_j),patchx,patchy)
+							! End the while loop
+							sf_counter = 1
+						endif
+						
+						if (sf_j .eq. sf_dim2) then
+							sf_counter = 1
+						endif
+						
+					enddo
+					
+					!!!!!
+					!!!!! _Fill the sf_svm array_
+					! sf_svm = The sum of the concentrations of the scalars defined in the second dimension sf_scalars
+					!!!!!
+					
+					do sf_j=1,sf_dim2 	! Loop over second dimension of sf_scalars
+						
+						if (sf_scalars(sf_i, sf_j) .ne. -1) then 	! Check if sf_scalars is not -1
+							
+							! Additional check: only split the additional flux if the scalar flux is equal to the base scalar flux.
+							! This allows for the surface heterogeneity to be maintained
+							if (sf_flux(sf_i) .eq. wsv_patch(sf_scalars(sf_i, sf_j),patchx,patchy)) then
+								
+								if (sf_svm(sf_i) .eq. -999 .AND. svm(i,j,1,sf_scalars(sf_i, sf_j)) .gt. 0) then	! Check if this is the first scalar that is defined in sf_scalars
+									sf_svm(sf_i) = svm(i,j,1,sf_scalars(sf_i, sf_j))
+								elseif (svm(i,j,1,sf_scalars(sf_i, sf_j)) .gt. 0) then
+									sf_svm(sf_i) = sf_svm(sf_i) + svm(i,j,1,sf_scalars(sf_i, sf_j))
+								endif
+							endif
+						endif
+					enddo 		! <-- do sf_j=1,sf_dim2
+					
+					
+				enddo		! <-- do sf_i=1,sf_dim1
+			
+			
+				!!!!!
+				!!!!! _Fill svflux_
+				! svflux = split-flux .OR. original flux
+				!!!!!
+			
+				
+				! Loop over all scalars defined in DALES
+				do n=1,nsv
+					
+					! Reset the counter
+					sf_counter = 0
+					
+					do sf_i = 1,sf_dim1
+						do sf_j = 1,sf_dim2
+							
+							! check if scalar n is found in sf_scalars
+							if (sf_scalars(sf_i, sf_j) .eq. n) then
+									
+								! Additional check: only split the additional flux if the scalar flux is equal to the base scalar flux.
+								! This allows for the surface heterogeneity to be maintained
+								if (sf_flux(sf_i) .eq. wsv_patch(sf_scalars(sf_i, sf_j),patchx,patchy)) then
+									
+									! split-flux is activated for this scalar, so set the counter to 1
+									sf_counter = 1
+									
+									! Calculate and save the split-flux for scalar n
+									if (svm(i,j,1,n) .gt. 0 .AND. sf_svm(sf_i) .gt. 0 .AND. sf_flux(sf_i) .ne. -999) then
+										svflux(i,j,n) = svm(i,j,1,n) / sf_svm(sf_i) * sf_flux(sf_i)
+									else
+										svflux(i,j,n) = 0
+									endif
+									
+									! Temporary printing of variables
+									! print *, "i=", i,", j=",j, ", n=", n, ", sf_scalars=", sf_scalars(sf_i, sf_j), ", svm=", svm(i,j,1,n),", sf_flux=", sf_flux(sf_i), "svflux=",svflux(i,j,n)
+									
+								endif		
+								
+							endif 		! <-- if (sf_scalars(sf_i, sf_j) .eq. n) then
+							
+						enddo 		! <-- do sf_j = 1,sf_dim2
+					enddo 		! do sf_i = 1,sf_dim1
+					
+					
+					! If the scalar is not part of sf_scalars, use original code
+					if (sf_counter .eq. 0 ) then
+						svflux(i,j,n) = wsv_patch(n,patchx,patchy)
+					endif
+					
+					
+				enddo 		! <-- do n=1,nsv
+				
+			else 		! <-- if (lsplitflux) then
+			
+			
+				! Start: original code for when lsplitflux = .false.
+				do n=1,nsv
+				  svflux(i,j,n) = wsv_patch(n,patchx,patchy)
+				enddo
+				! End: original code
+				
+				
+			endif		! <-- if (lsplitflux) then
+          
+		  !!!!!!
+		  ! 			END
+		  !____________________
+		  
+		  
+		  else 		! <-- if(lhetero) then
             do n=1,nsv
               svflux(i,j,n) = wsvsurf(n)
             enddo

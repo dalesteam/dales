@@ -303,6 +303,16 @@ SAVE
   real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
   
   !____________________
+  ! 	START 	Ruben Schulte, 26-01-2021
+  ! Define split flux variables
+  logical 				:: lsplitflux = .false.			! Switch for split flux functionallity
+  integer, parameter 	:: sf_dim1 = 5					! Dimension 1 of the sf_scalars matrix
+  integer, parameter 	:: sf_dim2 = 5 					! Dimension 2 of the sf_scalars matrix
+  integer				:: sf_scalars(sf_dim1,sf_dim2) = -1	! Matrix where the to be combined scalars are defined by the user
+  ! 			END
+  !____________________
+  
+  !____________________
   ! 	START 	Ruben Schulte, 26-02-2021
   ! Do/Don't write patch output files when lhetero = .true. (tmserlpatch..., tmsurfpatch... & tmlsmpatch for each patch)
   logical 				:: lpatchoutput = .true.			! Switch which allows/prevents patch output files from being written
