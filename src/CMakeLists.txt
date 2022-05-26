@@ -1,4 +1,4 @@
-set(target_name dales4.3)
+set(target_name dales4.4)
 set(target_lib dales)
 
 # Add all Fortran90 files from this directory
