@@ -83,11 +83,10 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initsimpleicestat
-    use mpi
     use modmpi,    only  : myid, mpi_logical, my_real, comm3d, mpierr
     use modglobal, only  : ifnamopt, fname_options, cexpnr, ifoutput, &
-              dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres,lwarmstart,checknamelisterror
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
+              dtav_glob, timeav_glob, ladaptive, k1, dtmax,btime,tres
+    use modstat_nc, only : lnetcdf, open_nc,define_nc,redefine_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
     use modmicrodata,only: imicro, imicro_sice
     implicit none
@@ -103,7 +102,11 @@ subroutine initsimpleicestat
     if(myid==0)then
       open (ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSIMPLEICESTAT,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMSIMPLEICESTAT')
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMSIMPLEICESTAT'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMSIMPLEICESTAT'
+      endif
       write(6,NAMSIMPLEICESTAT)
       close(ifnamopt)
     end if
@@ -168,7 +171,7 @@ subroutine initsimpleicestat
     qrmn    = 0.0
     Dvrmn    = 0.0
 
-    if (myid == 0 .and. .not. lwarmstart) then
+    if (myid == 0) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
       close(ifoutput)
       open (ifoutput,file = 'nptend.'//cexpnr ,status = 'replace')
@@ -185,7 +188,7 @@ subroutine initsimpleicestat
       tnextwrite = itimeav+btime
       nsamples = itimeav/idtav
       if (myid==0) then
-        call nctiminfo(tncname(1,:))
+        call ncinfo(tncname(1,:),'time','Time','s','time')
         call ncinfo(ncname( 1,:),'cfrac','Cloud fraction','-','tt')
         call ncinfo(ncname( 2,:),'rainrate','Echo Rain Rate','W/m^2','tt')
         call ncinfo(ncname( 3,:),'preccount','Preccount','W/m^2','mt')

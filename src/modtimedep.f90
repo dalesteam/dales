@@ -34,14 +34,14 @@ module modtimedep
 
 implicit none
 private
-public :: inittimedep, timedep,ltimedep,ltimedepuv,exittimedep
+public :: inittimedep, timedep,ltimedep,exittimedep
 
 save
 ! switches for timedependent surface fluxes and large scale forcings
   logical       :: ltimedep     = .false. !< Overall switch, input in namoptions
-  logical       :: ltimedepuv   = .false. !< Switch for time-dependent u,v forcings from ls_flux.inp
   logical       :: ltimedepz    = .true.  !< Switch for large scale forcings
   logical       :: ltimedepsurf = .true.  !< Switch for surface fluxes
+
   integer    :: kflux
   integer    :: kls
 
@@ -72,9 +72,8 @@ save
 contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
-    use mpi
     use modmpi,    only :myid,my_real,mpi_logical,mpierr,comm3d
-    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep
+    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
 
@@ -96,8 +95,8 @@ contains
       kflux = ntnudge
       kls   = ntnudge
     else
-      kflux = ntimedep
-      kls   = ntimedep
+      kflux = 100
+      kls   = 100
     end if
 
     allocate(height   (k1))
@@ -208,10 +207,6 @@ contains
         ierr = 0
         do while (timeflux(t) < runtime)
           t=t+1
-          if (t > kflux) then
-             write (*,*) "Too many time points in file ", 'ls_flux.inp.'//cexpnr, ", the limit is kflux = ", kflux 
-             stop
-          end if
           read(ifinput,*, iostat = ierr) timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           write(*,'(i8,6e12.4)') t,timeflux(t), wtsurft(t), wqsurft(t),thlst(t),qtst(t),pst(t)
           if (ierr < 0) then
@@ -234,10 +229,6 @@ contains
         t = 0
         do while (timels(t) < runtime)
           t = t + 1
-          if (t > kls) then
-             write (*,*) "Too many time points in file ", 'nudge.inp.'//cexpnr, ", the limit is kls = ", kls
-             stop
-          end if
           chmess1 = "#"
           ierr = 1 ! not zero
           do while (.not.(chmess1 == "#" .and. ierr ==0)) !search for the next line consisting of "# time", from there onwards the profiles will be read
@@ -247,36 +238,18 @@ contains
             end if
           end do
           write (*,*) 'timels = ',timels(t)
-          if (ltimedepuv) then
-             ! new, optional format with u,v in ls_flux.inp.*
-             do k=1,kmax
-                read (ifinput,*) &
-                     height  (k)  , &
-                     ugt     (k,t), &
-                     vgt     (k,t), &
-                     wflst   (k,t), &
-                     dqtdxlst(k,t), &
-                     dqtdylst(k,t), &
-                     dqtdtlst(k,t), &
-                     thlpcart(k,t), &
-                     dudtlst (k,t), &
-                     dvdtlst (k,t)
-             end do
-          else
-             ! old format without u,v in ls_flux.inp.*  (default)
-             do k=1,kmax
-                read (ifinput,*) &
-                     height  (k)  , &
-                     ugt     (k,t), &
-                     vgt     (k,t), &
-                     wflst   (k,t), &
-                     dqtdxlst(k,t), &
-                     dqtdylst(k,t), &
-                     dqtdtlst(k,t), &
-                     thlpcart(k,t)
-             end do
-          end if
-       end do
+          do k=1,kmax
+            read (ifinput,*) &
+              height  (k)  , &
+              ugt     (k,t), &
+              vgt     (k,t), &
+              wflst   (k,t), &
+              dqtdxlst(k,t), &
+              dqtdylst(k,t), &
+              dqtdtlst(k,t), &
+              thlpcart(k,t)
+          end do
+        end do
 
         close(ifinput)
 
@@ -396,11 +369,12 @@ contains
 
     !---- interpolate ----
     t=1
-    do while(rtimee>timels(t+1))
-       t=t+1
+    do while(rtimee>timels(t))
+      t=t+1
     end do
-    ! timels(t) < rtimee <= timels(t+1)
-    ! or t = 1 if rtimee < timels(1)
+    if (rtimee>timels(1)) then
+      t=t-1
+    end if
 
     fac = ( rtimee-timels(t) ) / ( timels(t+1)-timels(t) )
     ug       = ugt      (:,t) + fac * ( ugt      (:,t+1) - ugt      (:,t) )
@@ -455,11 +429,12 @@ contains
     if(.not.(ltimedepsurf)) return
   !     --- interpolate! ----
     t=1
-    do while(rtimee>timeflux(t+1))
+    do while(rtimee>timeflux(t))
       t=t+1
     end do
-    ! timeflux(t) <= rtimee <= timeflux(t+1)
-    ! or t = 1 if rtimee < timeflux(1)
+    if (rtimee>timeflux(t)) then
+      t=t-1
+    endif
 
     fac = ( rtimee-timeflux(t) ) / ( timeflux(t+1)-timeflux(t))
     wqsurf = wqsurft(t) + fac * ( wqsurft(t+1) - wqsurft(t)  )

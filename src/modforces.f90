@@ -145,14 +145,13 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol
+  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
   integer i, j, k, jm, jp, km, kp
 
-  if (lcoriol .eqv. .false.) return
-  
+
   do k=2,kmax
     kp=k+1
     km=k-1

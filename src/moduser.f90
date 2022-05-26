@@ -25,27 +25,22 @@ module moduser
 contains
 subroutine initsurf_user
   implicit none
-  STOP "surf_user invoked (isurf = 10) but a case-specific moduser.f90 was not compiled in."
 end subroutine initsurf_user
 
 subroutine force_user
   implicit none
-  STOP "force_user invoked but a case-specific moduser.f90 was not compiled in."
-end subroutine force_user
+  end subroutine force_user
 
 subroutine rad_user
   implicit none
-  STOP "rad_user invoked but a case-specific moduser.f90 was not compiled in."
 end subroutine rad_user
 
 subroutine micro_user
   implicit none
-    STOP "micro_user invoked but a case-specific moduser.f90 was not compiled in."
 end subroutine micro_user
 
 subroutine surf_user
   implicit none
-  STOP "surf_user invoked (isurf = 10) but a case-specific moduser.f90 was not compiled in."
 end subroutine surf_user
 
 end module moduser

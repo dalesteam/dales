@@ -79,7 +79,6 @@ contains
 
     use typeSizes
     use netcdf
-    use mpi
     use modmpi
     use modglobal
 
@@ -260,7 +259,6 @@ contains
     use typeSizes
     use netcdf
     use modfields
-    use mpi
     use modmpi,     only : myidx,commrow,mpierr,gatherrow,MY_REAL,MPI_SUM
     use modsurfdata
     use modsubgrid, only : ekm, ekh

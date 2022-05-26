@@ -55,9 +55,8 @@ module modcanopy
 contains
 !-----------------------------------------------------------------------------------------
   SUBROUTINE initcanopy
-    use mpi
     use modmpi,    only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
-    use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf, checknamelisterror
+    use modglobal, only : kmax, ifnamopt, fname_options, ifinput, cexpnr, zh, dzh, dzf
 
     implicit none
 
@@ -71,7 +70,11 @@ contains
     if(myid==0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCANOPY,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMCANOPY')
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMCANOPY'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMCANOPY'
+      endif
       write(6 ,NAMCANOPY)
       close(ifnamopt)
 

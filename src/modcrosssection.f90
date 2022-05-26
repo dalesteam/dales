@@ -73,23 +73,20 @@ save
 contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
-    use mpi
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy
-    ! 30-07-2020 Ruben Schulte start: added nsv
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror,nsv
+	! 30-07-2020 Ruben Schulte start: added nsv
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime, nsv
 	! 30-07-2020 Ruben Schulte end: added nsv
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
-
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
    implicit none
 
     integer :: ierr,k
-
+	
 	! 30-07-2020 Ruben Schulte start: Added as part of the do loops adding scalar data to netcdf
     character(3) :: csvname		
 	integer n
     ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf	
-	
-	
+
     namelist/NAMCROSSSECTION/ &
     lcross, lbinary, dtav, crossheight, crossplane, crossortho
 
@@ -104,7 +101,11 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCROSSSECTION,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMCROSSSECTION')
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMCROSSSECTION'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMCROSSSECTION'
+      endif
       write(6 ,NAMCROSSSECTION)
       close(ifnamopt)
     end if
@@ -143,10 +144,10 @@ contains
     if (myidy==0) then
       fname1(9:16) = cmyid
       fname1(18:20) = cexpnr
-	  ! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
+	! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
       allocate(ncname1(nvar,4))
-	  ! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
-      call nctiminfo(tncname1(1,:))
+	! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
+      call ncinfo(tncname1(1,:),'time','Time','s','time')
       call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
       call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
       call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
@@ -177,10 +178,10 @@ contains
       fname2(9:12) = cheight
       fname2(14:21) = cmyid
       fname2(23:25) = cexpnr
-	  ! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
+	! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
       allocate(ncname2(nvar,4))
-	  ! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
-      call nctiminfo(tncname2(1,:))
+	! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
+      call ncinfo(tncname2(1,:),'time','Time','s','time')
       call ncinfo(ncname2( 1,:),'uxy','xy crosssections of the West-East velocity','m/s','mt0t')
       call ncinfo(ncname2( 2,:),'vxy','xy crosssections of the South-North velocity','m/s','tm0t')
       call ncinfo(ncname2( 3,:),'wxy','xy crosssections of the Vertical velocity','m/s','tt0t')
@@ -199,7 +200,7 @@ contains
 		  call ncinfo(ncname2(12+n,:),'sv'//csvname//'xy','xy crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','tt0t')
 	  end do
 	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
-	  call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
+      call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
         call writestat_dims_nc(ncid2(cross))
@@ -210,9 +211,9 @@ contains
     fname3(9:16) = cmyid
     fname3(18:20) = cexpnr
 	! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
-    allocate(ncname3(nvar,4))
+      allocate(ncname3(nvar,4))
 	! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
-    call nctiminfo(tncname3(1,:))
+    call ncinfo(tncname3(1,:),'time','Time','s','time')
     call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
     call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
     call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
@@ -225,12 +226,12 @@ contains
     call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
     call ncinfo(ncname3(11,:),'cloudnryz','yz crosssection of the cloud number','-','0ttt')
     call ncinfo(ncname3(12,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
-    ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
-    do n=1,nsv			 
-	  write (csvname(1:3),'(i3.3)') n
-	  call ncinfo(ncname3(12+n,:),'sv'//csvname//'yz','yz crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','0ttt')
-    end do
-    ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+      ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
+	  do n=1,nsv			
+          write (csvname(1:3),'(i3.3)') n
+		  call ncinfo(ncname3(12+n,:),'sv'//csvname//'yz','yz crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','0ttt')
+	  end do
+	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
     call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
     if (nrec3==0) then
       call define_nc( ncid3, 1, tncname3)
@@ -587,19 +588,17 @@ contains
 !> Clean up when leaving the run
   subroutine exitcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modmpi, only : myidx, myidy
+    use modmpi, only : myid
     implicit none
 
     if(lcross .and. lnetcdf) then
-    if (myidy==0) then
-       call exitstat_nc(ncid1)
+    if (myid==0) then
+    call exitstat_nc(ncid1)
     end if
     do cross=1,nxy
     call exitstat_nc(ncid2(cross))
     end do
-    if (myidx==0) then
-       call exitstat_nc(ncid3)
-    end if    
+    call exitstat_nc(ncid3)
     end if
 
   end subroutine exitcrosssection

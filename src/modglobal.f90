@@ -46,7 +46,7 @@ save
       integer ::  kh=1
       integer ::  kcb=0
 
-      character(256) :: fname_options = 'namoptions'
+      character(50) :: fname_options = 'namoptions'
       integer, parameter :: longint=8
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
@@ -55,9 +55,7 @@ save
       character(50) :: startfile    !<    * name of the restart file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
-      integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
 
-      
       !< Parameter kinds, for rrtmg radiation scheme
       integer, parameter :: kind_rb = selected_real_kind(12) ! 8 byte real
       integer, parameter :: kind_im = selected_int_kind(6)   ! 4 byte integer
@@ -131,9 +129,8 @@ save
       integer, parameter :: iadv_cd6    = 6
       integer, parameter :: iadv_62     = 62
       integer, parameter :: iadv_52     = 52
-      integer, parameter :: iadv_kappa    = 7
-      integer, parameter :: iadv_kappa_f  = 77
-      integer, parameter :: iadv_hybrid   = 55
+      integer, parameter :: iadv_kappa  = 7
+      integer, parameter :: iadv_hybrid = 55
       integer, parameter :: iadv_hybrid_f = 555
 
       real :: lambda_crit=100. !< maximum value for the smoothness. This controls if WENO or
@@ -149,23 +146,14 @@ save
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
 
-      ! Poisson solver: modpois / modhypre
-      integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
-                                     !                                     FFT  SMG PFMG BiCGSTAB GMRES
-      integer :: maxiter = 10000     ! Number of iterations                 .    X   X     X       X
-      real    :: tolerance = 1E-8    ! Convergence threshold                .    X   X     X       X
-      integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
 
       ! Global variables (modvar.f90)
-      integer :: xyear  = 0     !<     * year, only for time units in netcdf
       real :: xday      = 1.    !<     * day number
-      real :: xtime     = 0.    !<     * GMT time (in hours)
+      real :: xtime     = 0.    !<     * GMT time
       real :: cu        = 0.    !<     * translation velocity in x-direction
       real :: cv        = 0.    !<     * translation velocity in y-direction
       real :: runtime   = 300.  !<     * simulation time in secs
-      real :: dtmax     = 20.   !<     * maximum time integration interval
+      real :: dtmax     = 20.    !<     * maximum time integration interval
       integer(kind=longint) :: idtmax        !<     * maximum time integration interval
       real :: dtav_glob   = 60.
       real :: timeav_glob = 3600.
@@ -178,7 +166,6 @@ save
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real :: rdt                !<     * time integration interval
-      integer               :: dt_reason=0  !< indicates which dt limit was the lowest
       integer(kind=longint) :: timee             !<     * elapsed time since the "cold" start
       real :: rtimee             !<     * elapsed time since the "cold" start
       integer(kind=longint) :: btime             !<     * time of (re)start
@@ -197,8 +184,8 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
-
-
+	  
+	  
 	  !____________________
 	  ! 	START 	Ruben Schulte, 07-01-2021
 	  ! Call array with logicals for the non-periodic BC scalars
@@ -253,7 +240,6 @@ contains
 !!
 !! Set courant number, calculate the grid sizes (both computational and physical), and set the coriolis parameter
   subroutine initglobal
-    use mpi
     use modmpi, only : nprocx, nprocy, myid,comm3d, my_real, mpierr
     implicit none
 
@@ -349,7 +335,7 @@ contains
 
     ! Global constants
 
-
+    
 
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice
@@ -359,7 +345,7 @@ contains
     ttab(m)=150.+0.2*m
     esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
          tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-
+    
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
     end do
 
@@ -753,23 +739,5 @@ IF (fact /= one) fn_val = fact / fn_val
 900 RETURN
 ! ---------- Last line of GAMMA ----------
 END FUNCTION LACZ_GAMMA
-
-! Subroutine for detecting and reporting namelist errors.
-! Prints the last line read before failiure, as debugging help.
-subroutine checknamelisterror (ierr, ifnamopt, namelist)
-  implicit none
-  integer, intent(in) :: ierr, ifnamopt
-  character(*), intent(in) :: namelist
-  character(len=1000) :: line
-
-  if (ierr > 0) then
-     print *, 'Problem in namoptions ', namelist
-     print *, 'iostat error: ', ierr
-     backspace(ifnamopt)
-     read(ifnamopt,fmt='(A)') line
-     print *, 'Invalid line: '//trim(line)
-     stop 'ERROR: Problem in namelist.'
-  endif
-end subroutine checknamelisterror
 
 end module modglobal

@@ -6,7 +6,7 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 4.3
+!! @version 4.0.1alpha
 !!
 !! @author
 !! Steef Boing
@@ -95,13 +95,12 @@
 !!  Copyright 1993-2009 Delft University of Technology, Wageningen University,
 !! Utrecht University, KNMI
 !!
-program DALES
+program DALES      !Version 4.0.0alpha
 
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
   use modglobal,         only : rk3step,timeleft
-  use modmpi,            only : initmpicomm
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -112,7 +111,6 @@ program DALES
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
   use modpois,           only : poisson
-  use tstep,             only : tstep_update,  tstep_integrate
   !use modedgecold,       only : coldedge
 
 !----------------------------------------------------------------
@@ -159,7 +157,6 @@ program DALES
 !----------------------------------------------------------------
 
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
-  call initmpicomm
   call startup
 
 !---------------------------------------------------------
@@ -186,7 +183,7 @@ program DALES
   call initbulkmicrostat
   call initbudget
   !call initstressbudget
-! call initchem
+  call initchem
   call initheterostats
   call initcanopy
 

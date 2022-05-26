@@ -95,7 +95,7 @@ contains
   use modglobal, only : i1,ih,j1,jh,k1,nsv
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
   use modmpi,    only : excjs
-
+  
   !____________________
   ! 	START 	Ruben Schulte, 07-01-2021
   ! Call array with logicals for the non-periodic BC scalars
@@ -115,7 +115,8 @@ contains
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
-
+	
+	
 	  !!!!!!!!!!
 	  ! 		Ruben Schulte, 07-01-2021
 	  ! 			START
@@ -124,7 +125,7 @@ contains
 	  !		Force ghost-cells to zero for specific scalars
 	  if (lnonperiodbc_sv(n)) then
 		  if (myidx .eq. 0) then
-
+			
 			do i= 2-ih, 2-1		! Loop over the left most x ghost-cells
 			do j= 2-jh, j1+jh	! Loop over all y cells
 			do k= 1, k1			! Loop over all z cells
@@ -133,9 +134,9 @@ contains
 			enddo
 			enddo
 			enddo
-
+					
 		  elseif (myidx .eq. nprocx-1) then
-
+			
 			do i= i1+1, i1+ih	! Loop over the right most x ghost-cells
 			do j= 2-jh, j1+jh	! Loop over all y cells
 			do k= 1, k1			! Loop over all z cells
@@ -144,14 +145,16 @@ contains
 			enddo
 			enddo
 			enddo
-
+					
 		  endif
 	  endif
 	  ! 		Ruben Schulte, 07-01-2021
 	  ! 			END
 	  !!!!!!!!!!
 
+	
   enddo
+  
 
   return
   end subroutine cyclich

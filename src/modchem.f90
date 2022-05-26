@@ -238,8 +238,7 @@ save
 contains
 !-----------------------------------------------------------------------------------------
 SUBROUTINE initchem
-  use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
-  use mpi
+  use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres
   use modmpi,      only : myid, mpi_logical, mpi_integer, my_real, comm3d, mpierr
   use modsurfdata, only : lCHon
   implicit none
@@ -269,7 +268,11 @@ SUBROUTINE initchem
   if(myid==0) then
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
     read (ifnamopt,NAMCHEM,iostat=ierr)
-    call checknamelisterror(ierr, ifnamopt, 'NAMCHEM')
+    if (ierr > 0) then
+      print *, 'Problem in namoptions NAMCHEM'
+      print *, 'iostat error: ', ierr
+      stop 'ERROR: Problem in namoptions NAMCHEM'
+    endif
     write(6 ,NAMCHEM)
     close(ifnamopt)
   endif
@@ -332,7 +335,7 @@ SUBROUTINE initchem
     pl_scheme(i)=pl_scheme(1)
   enddo
 
-  if(myid==0 .and. .not. lwarmstart) then
+  if(myid==0)then
     open (ifoutput,file='cloudstat.'//cexpnr,status='replace')
     write(ifoutput,'(A)') "#  time   UTC #zbase #cloud zbaseavg max_ztop cld_hght max_hght qlintmax qlintavg allqlmax allqlavg"
     close (ifoutput)
@@ -1137,7 +1140,6 @@ SUBROUTINE twostep2(y)
 !c
 use modglobal, only : ih,i1,jh,j1,k1,kmax,rtimee,rdt,timee,timeav_glob,ifoutput,cexpnr,dz,ijtot
 use modfields, only : qt0
-use mpi
 use modmpi, only: comm3d, mpierr,mpi_max,mpi_min,mpi_sum,my_real,myid,nprocs
 use modtimestat, only: we, zi, ziold, calcblheight
 
@@ -1788,7 +1790,6 @@ subroutine ratech
   use modglobal, only : i1,j1,kmax,pi,xtime,timee,rtimee,xday,xlat,xlon, &
                         zf,dzf,ijtot,ifoutput,cexpnr
   use modfields, only : qt0, ql0 ,rhof
-  use mpi
   use modmpi,    only : myid, comm3d, mpierr, mpi_max, my_real, mpi_sum
   use modsurfdata,only: taufield, lrsAgs
   use modraddata,only: iradiation, irad_par

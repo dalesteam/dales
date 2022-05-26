@@ -42,9 +42,9 @@ save
 contains
 !> Initializing Cloudfield. Read out the namelist, initializing the variables
   subroutine initcloudfield
-    use mpi
+
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical
-    use modglobal,only :ifnamopt,fname_options,dtmax,dtav_glob,btime,ladaptive,tres,checknamelisterror
+    use modglobal,only :ifnamopt,fname_options,dtmax,dtav_glob,btime,ladaptive,tres
     implicit none
     integer :: ierr
     namelist/NAMCLOUDFIELD/ &
@@ -55,7 +55,11 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCLOUDFIELD,iostat=ierr)
-       call checknamelisterror(ierr, ifnamopt, 'NAMCLOUDFIELD')
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMCLOUDFIELD'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMCLOUDFIELD'
+      endif
       write(6 ,NAMCLOUDFIELD)
       close(ifnamopt)
     end if

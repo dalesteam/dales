@@ -47,10 +47,9 @@ contains
 
 !> Initializing cape crossections. Read out the namelist, initializing the variables
   subroutine initcape
-    use mpi
     use modmpi,   only :myid,my_real,mpierr,comm3d,mpi_logical,cmyid
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime,checknamelisterror
-    use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,dt_lim,cexpnr,tres,btime
+    use modstat_nc,only : lnetcdf,open_nc, define_nc, redefine_nc,ncinfo,writestat_dims_nc
    implicit none
 
     integer :: ierr
@@ -62,7 +61,11 @@ contains
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMCAPE,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMCAPE')
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMCAPE'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMCAPE'
+      endif
       write(6 ,NAMCAPE)
       close(ifnamopt)
     end if
@@ -81,7 +84,7 @@ contains
     if (lnetcdf) then
     fname(6:13) = cmyid
     fname(15:17) = cexpnr
-    call nctiminfo(tncname(1,:))
+    call ncinfo(tncname(1,:),'time','Time','s','time')
     call ncinfo(ncname( 1,:),'dcape','xy crosssections of actual dcape','J/m^2','tt0t')
     call ncinfo(ncname( 2,:),'dscape','xy crosssections of actual dscape','J/m^2','tt0t')
     call ncinfo(ncname( 3,:),'dcin','xy crosssections of actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')

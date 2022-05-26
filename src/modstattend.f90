@@ -52,11 +52,10 @@ module modstattend
 contains
 !> Initialization routine, reads namelists and inits variables
 subroutine initstattend
-    use mpi
     use modmpi,   only : mpierr,my_real,mpi_logical,comm3d,myid
     use modglobal,only : cexpnr,dtmax,ifnamopt,fname_options,k1,dtav_glob,timeav_glob,&
-    ladaptive, dt_lim,btime,tres,ifoutput,lwarmstart,checknamelisterror
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    ladaptive, dt_lim,btime,tres,ifoutput
+    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,writestat_dims_nc
     use modgenstat, only : ncid_prof=>ncid
 
     implicit none
@@ -71,7 +70,11 @@ subroutine initstattend
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMSTATTEND,iostat=ierr)
-      call checknamelisterror(ierr, ifnamopt, 'NAMSTATTEND')
+      if (ierr > 0) then
+        print *, 'Problem in namoptions NAMSTATTEND'
+        print *, 'iostat error: ', ierr
+        stop 'ERROR: Problem in namoptions NAMSTATTEND'
+      endif
       write(6 ,NAMSTATTEND)
       close(ifnamopt)
     end if
@@ -109,7 +112,7 @@ subroutine initstattend
     thlpav = 0
     qtpav = 0
 
-    if(myid==0 .and. .not. lwarmstart) then
+    if(myid==0)then
       open (ifoutput,file='utend.'//cexpnr,status='replace')
       close (ifoutput)
       open (ifoutput,file='vtend.'//cexpnr,status='replace')
@@ -131,7 +134,7 @@ subroutine initstattend
     nsamples = itimeav/idtav
      if (myid==0) then
         fname(10:12) = cexpnr
-        call nctiminfo(tncname(1,:))
+        call ncinfo(tncname(1,:),'time','Time','s','time')
         call ncinfo(ncname( 1,:),'utendadv','U advective tendency','m/s^2','tt')
         call ncinfo(ncname( 2,:),'utenddif','U diffusive tendency','m/s^2','tt')
         call ncinfo(ncname( 3,:),'utendfor','U tendency due to other forces','m/s^2','tt')
