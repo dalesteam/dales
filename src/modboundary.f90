@@ -95,8 +95,18 @@ contains
   use modglobal, only : i1,ih,j1,jh,k1,nsv
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm
   use modmpi,    only : excjs
+  
+  !____________________
+  ! 	START 	Ruben Schulte, 07-01-2021
+  ! Call array with logicals for the non-periodic BC scalars
+  use modglobal, 	only : lnonperiodbc_sv
+  use modmpi,    	only : myidx,nprocx		! Also call variables determining the processor in use
+  ! 			END
+  !____________________
+  
 
   integer n
+  integer i,j,k,m		! Addition Ruben Schulte 07-01-2021
 
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
@@ -106,7 +116,46 @@ contains
   do n=1,nsv
     call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( svm(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
+	
+	
+	  !!!!!!!!!!
+	  ! 		Ruben Schulte, 07-01-2021
+	  ! 			START
+	  !
+	  ! X-direction: non-periodic boundary conditions
+	  !		Force ghost-cells to zero for specific scalars
+	  if (lnonperiodbc_sv(n)) then
+		  if (myidx .eq. 0) then
+			
+			do i= 2-ih, 2-1		! Loop over the left most x ghost-cells
+			do j= 2-jh, j1+jh	! Loop over all y cells
+			do k= 1, k1			! Loop over all z cells
+				svm(i,j,k,n) = 0
+				sv0(i,j,k,n) = 0
+			enddo
+			enddo
+			enddo
+					
+		  elseif (myidx .eq. nprocx-1) then
+			
+			do i= i1+1, i1+ih	! Loop over the right most x ghost-cells
+			do j= 2-jh, j1+jh	! Loop over all y cells
+			do k= 1, k1			! Loop over all z cells
+				svm(i,j,k,n) = 0
+				sv0(i,j,k,n) = 0
+			enddo
+			enddo
+			enddo
+					
+		  endif
+	  endif
+	  ! 		Ruben Schulte, 07-01-2021
+	  ! 			END
+	  !!!!!!!!!!
+
+	
   enddo
+  
 
   return
   end subroutine cyclich

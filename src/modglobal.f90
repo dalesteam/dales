@@ -184,6 +184,15 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
+	  
+	  
+	  !____________________
+	  ! 	START 	Ruben Schulte, 07-01-2021
+	  ! Call array with logicals for the non-periodic BC scalars
+	  logical 			 :: lnonperiodbc_sv(1000) = .false.	 ! For all nsv scalars, set non-periodic BCs to .true. or .false.
+	  ! 			END
+	  !____________________
+
 
 
 

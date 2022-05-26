@@ -186,7 +186,7 @@ contains
 	! 			END
 	!____________________
 	
-	
+
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."

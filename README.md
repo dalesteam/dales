@@ -37,3 +37,17 @@
 							NAMSURFACE section.
 		* modtimestat.f90: 	Added lpatchoutput as an additional condition for writing 
 							the patch-specific output files.
+	
+- _v03_dales-master_non-periodic BCs
+	Update data: 07-01-2021
+	Continuation based on "_v02_dales-master_hetero-sfc"
+	- Makes the boundary conditions (BCs) at x = 0 and x = itot non-periodic
+		Changed subroutine "cyclich" in modboundary.f90
+		Force the ghost-cells to be zero
+	- Add two new input files to namoptions, under &DYNAMICS:
+		* lnonperiodbc_sv: 	Array (of length 1000) with logicals for the non-periodic 
+							BC scalars
+		*** Changes are made to modglobal.f90, modstartup.f90 & modboundary.f90.
+			Search for (ctrl+F) "Ruben" to find the changes.
+	- Increased the maximum of patches for lhetero
+		Changed mpatches from 16 to 1000 in modsurfdata.f90

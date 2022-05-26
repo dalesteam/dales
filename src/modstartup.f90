@@ -78,6 +78,13 @@ contains
     use mpi,               only : MPI_COMM_WORLD,MPI_INTEGER,MPI_LOGICAL,MPI_CHARACTER
     use modmpi,            only : initmpi,my_real,myid,nprocx,nprocy,mpierr
 
+	!____________________
+	! 	START 	Ruben Schulte, 07-01-2021
+	! Call array with logicals for the non-periodic BC scalars
+	use modglobal, 	only : lnonperiodbc_sv
+	! 			END
+	!____________________
+
     implicit none
     integer :: ierr
 
@@ -97,7 +104,10 @@ contains
         lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepsv,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
-        llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
+        llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds, &
+		! NEW: Ruben Schulte, 07-01-2021: 	non-periodic boundary conditions for specific scalars
+		lnonperiodbc_sv
+	    
 
     ! get myid
     call MPI_INIT(mpierr)
@@ -240,6 +250,13 @@ contains
     call MPI_BCAST(iadv_sv(1:nsv) ,nsv,MPI_INTEGER,0,MPI_COMM_WORLD,mpierr)
 
     call MPI_BCAST(lnoclouds  ,1,MPI_LOGICAL,0,MPI_COMM_WORLD,mpierr)
+	
+	!____________________
+	! 	START 	Ruben Schulte, 07-01-2021
+	! Have the non-periodic BC variable communicate between cores
+    call MPI_BCAST(lnonperiodbc_sv(1:1000)	,1000, MPI_LOGICAL	  , 0, MPI_COMM_WORLD, mpierr)
+	! 			END
+	!____________________
 
     ! Initialize MPI
     call initmpi
