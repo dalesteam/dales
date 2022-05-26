@@ -4,14 +4,33 @@
  This README file notes the changes made to the code
  
  
- - _v07_dales-master_back-to-v4-2:
+ - _v07b_dales-master_reduce-output: 
+	Update data on 23-04-2021. 
+	Continuation based on "_v07_dales-master_back-to-v4-2". 
+	For larger runs, the output resulting from namcrosssection & namfielddump becomes 
+	very large. This version removes several meteorological variables from these outputs,
+	keeping the scalar concentrations, w, thl, qt & e120.
+	- modcrosssection: remove multiple variables
+		* Line 43:		Decreased nvar: 	nvar = 12 --> nvar = 4
+		* Line 155:  	remove variables from xz cross-section output initialization
+		* Line 186:  	remove variables from xy cross-section output initialization
+		* Line 215:  	remove variables from yz cross-section output initialization
+		* Line 334:  	remove variables from xz cross-section output writing
+		* Line 437:  	remove variables from xy cross-section output writing
+		* Line 537:  	remove variables from yz cross-section output writing
+	- modfielddump: remove multiple variables
+		* Line 40:		Decreased nvar: 	nvar = 7 --> nvar = 3
+		* Line 114:  	remove variables from the fielddump output initialization
+		* line 171 to 300	Remove several variables from fielddump output writing 
+	
+- _v07_dales-master_back-to-v4-2:
 	Update data on 30-03-2021.
 	Continuation based on "_v05_dales-master_perc_chem". 
 	Going back from DALES v4.3 to DALES v4.2. 
 	!!! IMPORTANT !!! 
-		Remove the "rssoilmin" variable from  surface.interactive.inp
+		Remove the "rssoilmin" variable from surface.interactive.inp
 	!!! IMPORTANT !!! 
-	- from DALES v4.2 to DALES v4.3 comes with multiple unexpected issues which 
+	- Upgrading from DALES v4.2 to DALES v4.3 comes with multiple unexpected issues which 
 	  appear not to be easily fixed. The issues listed below are the reasons we revert 
 	  back to v4.2: 
 		* lcoriol = .false. but the coriolis force still acts upon the domain.

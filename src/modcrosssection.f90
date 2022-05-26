@@ -36,9 +36,13 @@ private
 PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
-  ! 30-07-2020 Ruben Schulte start: Removed ",parameter"
-  integer :: nvar = 12
-  ! 30-07-2020 Ruben Schulte end: Removed ",parameter"
+	
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
+  integer :: nvar = 4
+  ! 			END
+  !____________________
   integer :: ncid1 = 0
   integer,allocatable :: ncid2(:)
   integer :: ncid3 = 1
@@ -147,25 +151,22 @@ contains
 	! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
       allocate(ncname1(nvar,4))
 	! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
+	
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
       call ncinfo(tncname1(1,:),'time','Time','s','time')
-      call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
-      call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
-      call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
-      call ncinfo(ncname1( 4,:),'thlxz','xz crosssection of the Liquid water potential temperature','K','t0tt')
-      call ncinfo(ncname1( 5,:),'thvxz','xz crosssection of the Virtual potential temperature','K','t0tt')
-      call ncinfo(ncname1( 6,:),'qtxz','xz crosssection of the Total water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 8,:),'buoyxz','xz crosssection of the Buoyancy','K','t0tt')
-      call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
-      call ncinfo(ncname1( 11,:),'cloudnrxz','xz crosssection of the cloud number','-','t0tt')
-      call ncinfo(ncname1( 12,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
-      ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
+      call ncinfo(ncname1( 1,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
+      call ncinfo(ncname1( 2,:),'thlxz','xz crosssection of the Liquid water potential temperature','K','t0tt')
+      call ncinfo(ncname1( 3,:),'qtxz','xz crosssection of the Total water specific humidity','kg/kg','t0tt')
+      call ncinfo(ncname1( 4,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
 	  do n=1,nsv			
           write (csvname(1:3),'(i3.3)') n
-		  call ncinfo(ncname1(12+n,:),'sv'//csvname//'xz','xz crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','t0tt')
+		  call ncinfo(ncname1(4+n,:),'sv'//csvname//'xz','xz crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','t0tt')
 	  end do
-	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+  ! 			END
+  !____________________
+  
 	  call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
       if (nrec1 == 0) then
         call define_nc( ncid1, 1, tncname1)
@@ -181,25 +182,22 @@ contains
 	! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
       allocate(ncname2(nvar,4))
 	! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
+	
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
       call ncinfo(tncname2(1,:),'time','Time','s','time')
-      call ncinfo(ncname2( 1,:),'uxy','xy crosssections of the West-East velocity','m/s','mt0t')
-      call ncinfo(ncname2( 2,:),'vxy','xy crosssections of the South-North velocity','m/s','tm0t')
-      call ncinfo(ncname2( 3,:),'wxy','xy crosssections of the Vertical velocity','m/s','tt0t')
-      call ncinfo(ncname2( 4,:),'thlxy','xy crosssections of the Liquid water potential temperature','K','tt0t')
-      call ncinfo(ncname2( 5,:),'thvxy','xy crosssections of the Virtual potential temperature','K','tt0t')
-      call ncinfo(ncname2( 6,:),'qtxy','xy crosssections of the Total water specific humidity','kg/kg','tt0t')
-      call ncinfo(ncname2( 7,:),'qlxy','xy crosssections of the Liquid water specific humidity','kg/kg','tt0t')
-      call ncinfo(ncname2( 8,:),'buoyxy','xy crosssection of the Buoyancy','K','tt0t')
-      call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
-      call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
-      call ncinfo(ncname2(11,:),'cloudnrxy','xy crosssection of the cloud number','-','tt0t')
-      call ncinfo(ncname2(12,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','tt0t')
-      ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
+      call ncinfo(ncname2( 1,:),'wxy','xy crosssections of the Vertical velocity','m/s','tt0t')
+      call ncinfo(ncname2( 2,:),'thlxy','xy crosssections of the Liquid water potential temperature','K','tt0t')
+      call ncinfo(ncname2( 3,:),'qtxy','xy crosssections of the Total water specific humidity','kg/kg','tt0t')
+      call ncinfo(ncname2( 4,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','tt0t')
 	  do n=1,nsv			
           write (csvname(1:3),'(i3.3)') n
-		  call ncinfo(ncname2(12+n,:),'sv'//csvname//'xy','xy crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','tt0t')
+		  call ncinfo(ncname2(4+n,:),'sv'//csvname//'xy','xy crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','tt0t')
 	  end do
-	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+  ! 			END
+  !____________________
+  
       call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
       if (nrec2(cross)==0) then
         call define_nc( ncid2(cross), 1, tncname2)
@@ -213,25 +211,22 @@ contains
 	! 30-07-2020 Ruben Schulte start: Added in order to add scalar data to netcdf
       allocate(ncname3(nvar,4))
 	! 30-07-2020 Ruben Schulte end: Added in order to add scalar data to netcdf
+	
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
     call ncinfo(tncname3(1,:),'time','Time','s','time')
-    call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
-    call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
-    call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
-    call ncinfo(ncname3( 4,:),'thlyz','yz crosssection of the Liquid water potential temperature','K','0ttt')
-    call ncinfo(ncname3( 5,:),'thvyz','yz crosssection of the Virtual potential temperature','K','0ttt')
-    call ncinfo(ncname3( 6,:),'qtyz','yz crosssection of the Total water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3( 8,:),'buoyyz','yz crosssection of the Buoyancy','K','0ttt')
-    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
-    call ncinfo(ncname3(11,:),'cloudnryz','yz crosssection of the cloud number','-','0ttt')
-    call ncinfo(ncname3(12,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
-      ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
+    call ncinfo(ncname3( 1,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
+    call ncinfo(ncname3( 2,:),'thlyz','yz crosssection of the Liquid water potential temperature','K','0ttt')
+    call ncinfo(ncname3( 3,:),'qtyz','yz crosssection of the Total water specific humidity','kg/kg','0ttt')
+    call ncinfo(ncname3( 4,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
 	  do n=1,nsv			
           write (csvname(1:3),'(i3.3)') n
-		  call ncinfo(ncname3(12+n,:),'sv'//csvname//'yz','yz crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','0ttt')
+		  call ncinfo(ncname3(4+n,:),'sv'//csvname//'yz','yz crosssection of scalar '//csvname//' specific mixing ratio','(kg/kg)','0ttt')
 	  end do
-	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+  ! 			END
+  !____________________
+  
     call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
     if (nrec3==0) then
       call define_nc( ncid3, 1, tncname3)
@@ -336,28 +331,21 @@ contains
 
     if (lnetcdf) then
       allocate(vars(1:imax,1:kmax,nvar))
-      vars(:,:,1) = um(2:i1,crossplane,1:kmax)+cu
-      vars(:,:,2) = vm(2:i1,crossplane,1:kmax)+cv
-      vars(:,:,3) = wm(2:i1,crossplane,1:kmax)
-      vars(:,:,4) = thlm(2:i1,crossplane,1:kmax)
-      vars(:,:,5) = thv0(2:i1,1:kmax)
-      vars(:,:,6) = qtm(2:i1,crossplane,1:kmax)
-      vars(:,:,7) = ql0(2:i1,crossplane,1:kmax)
-      vars(:,:,8) = buoy(2:i1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,crossplane,1:kmax,2)
-      vars(:,:,10) = svm(2:i1,crossplane,1:kmax,1)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = cloudnr(2:i1,crossplane,1:kmax)
-      vars(:,:,12) = e120(2:i1,crossplane,1:kmax)
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
+      vars(:,:,1) = wm(2:i1,crossplane,1:kmax)
+      vars(:,:,2) = thlm(2:i1,crossplane,1:kmax)
+      vars(:,:,3) = qtm(2:i1,crossplane,1:kmax)
+      vars(:,:,4) = e120(2:i1,crossplane,1:kmax)
       ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
       do n=1,nsv
-          vars(:,:,12+n) = svm(2:i1,crossplane,1:kmax,n)
+          vars(:,:,4+n) = svm(2:i1,crossplane,1:kmax,n)
       end do
 	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+  ! 			END
+  !____________________
+  
       call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
       call writestat_nc(ncid1,nvar,ncname1(1:nvar,:),vars,nrec1,imax,kmax)
       deallocate(vars)
@@ -446,28 +434,20 @@ contains
       do cross=1,nxy
       allocate(vars(1:imax,1:jmax,nvar))
       vars=0.
-      vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
-      vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
-      vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,4) = thlm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,5) = thv0(2:i1,2:j1,cross)
-      vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
-      vars(:,:,8) = buoy(2:i1,2:j1,cross)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
-      vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = cloudnr(2:i1,2:j1,crossheight(cross))
-      vars(:,:,12) = e120(2:i1,2:j1,crossheight(cross))
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
+      vars(:,:,1) = wm(2:i1,2:j1,crossheight(cross))
+      vars(:,:,2) = thlm(2:i1,2:j1,crossheight(cross))
+      vars(:,:,3) = qtm(2:i1,2:j1,crossheight(cross))
+      vars(:,:,4) = e120(2:i1,2:j1,crossheight(cross))
       ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
       do n=1,nsv
-          vars(:,:,12+n) = svm(2:i1,2:j1,crossheight(cross),n)
+          vars(:,:,4+n) = svm(2:i1,2:j1,crossheight(cross),n)
       end do
 	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+  ! 			END
+  !____________________
       call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
       call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
       deallocate(vars)
@@ -554,28 +534,20 @@ contains
 
     if (lnetcdf) then
       allocate(vars(1:jmax,1:kmax,nvar))
-      vars(:,:,1) = um(crossortho,2:j1,1:kmax)+cu
-      vars(:,:,2) = vm(crossortho,2:j1,1:kmax)+cv
-      vars(:,:,3) = wm(crossortho,2:j1,1:kmax)
-      vars(:,:,4) = thlm(crossortho,2:j1,1:kmax)
-      vars(:,:,5) = thv0(2:j1,1:kmax)
-      vars(:,:,6) = qtm(crossortho,2:j1,1:kmax)
-      vars(:,:,7) = ql0(crossortho,2:j1,1:kmax)
-      vars(:,:,8) = buoy(2:j1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(crossortho,2:j1,1:kmax,2)
-      vars(:,:,10) = svm(crossortho,2:j1,1:kmax,1)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = cloudnr(crossortho,2:j1,1:kmax)
-      vars(:,:,12) = e120(crossortho,2:j1,1:kmax)
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt, e120 and scalars
+      vars(:,:,1) = wm(crossortho,2:j1,1:kmax)
+      vars(:,:,2) = thlm(crossortho,2:j1,1:kmax)
+      vars(:,:,3) = qtm(crossortho,2:j1,1:kmax)
+      vars(:,:,4) = e120(crossortho,2:j1,1:kmax)
       ! 30-07-2020 Ruben Schulte start: do loop adding scalar data to netcdf
       do n=1,nsv
-          vars(:,:,12+n) = svm(crossortho,2:j1,1:kmax,n)
+          vars(:,:,4+n) = svm(crossortho,2:j1,1:kmax,n)
       end do
 	  ! 30-07-2020 Ruben Schulte end: do loop adding scalar data to netcdf
+  ! 			END
+  !____________________
       call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
       call writestat_nc(ncid3,nvar,ncname3(1:nvar,:),vars,nrec3,jmax,kmax)
       deallocate(vars)

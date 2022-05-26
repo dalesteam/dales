@@ -34,7 +34,12 @@ private
 PUBLIC :: initfielddump, fielddump,exitfielddump
 save
 !NetCDF variables
-  integer :: nvar = 7
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt and scalars
+  integer :: nvar = 3
+  ! 			END
+  !____________________
   integer :: ncid,nrec = 0
   character(80) :: fname = 'fielddump.xxx.xxx.xxx.nc'
   character(80),dimension(:,:), allocatable :: ncname
@@ -106,19 +111,19 @@ contains
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
       allocate(ncname(nvar,4))
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt and scalars
       call ncinfo(tncname(1,:),'time','Time','s','time')
-      call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
-      call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
-      call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
-      call ncinfo(ncname( 4,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 5,:),'ql','Liquid water specific humidity','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
-!       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
-      call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
+      call ncinfo(ncname( 1,:),'w','Vertical velocity','m/s','ttmt')
+      call ncinfo(ncname( 2,:),'qt','Total water specific humidity','1e-5kg/kg','tttt')
+      call ncinfo(ncname( 3,:),'thl','Liquid water potential temperature above 300K','K','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
+        call ncinfo(ncname(3+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
       end do
+  ! 			END
+  !____________________
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
@@ -163,8 +168,10 @@ contains
 
     reclength = ceiling(1.0*imax/ncoarse)*ceiling(1.0*jmax/ncoarse)*(khigh-klow+1)*2
 
+  !____________________
+  ! 	START 	Ruben Schulte, 23-04-2021
+  ! Removing cross-section outputs and keep w, thl, qt and scalars
     field = NINT(1.0E3*u0,2)
-    if (lnetcdf) vars(:,:,:,1) = u0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbuu.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -177,7 +184,6 @@ contains
     endif
 
     field = NINT(1.0E3*v0,2)
-    if (lnetcdf) vars(:,:,:,2) = v0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbvv.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -190,7 +196,7 @@ contains
     endif
 
     field = NINT(1.0E3*w0,2)
-    if (lnetcdf) vars(:,:,:,3) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf) vars(:,:,:,1) = w0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbww.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -203,7 +209,7 @@ contains
     endif
 
     field = NINT(1.0E5*qt0,2)
-    if (lnetcdf) vars(:,:,:,4) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf) vars(:,:,:,2) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbqt.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -216,7 +222,6 @@ contains
     endif
 
     field = NINT(1.0E5*ql0,2)
-    if (lnetcdf) vars(:,:,:,5) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbql.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -228,8 +233,8 @@ contains
       close (ifoutput)
     endif
 
+    if (lnetcdf) vars(:,:,:,3) = thl0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     field = NINT(1.0E2*(thl0-300),2)
-    if (lnetcdf) vars(:,:,:,6) = thl0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
     if (lbinary) then
       if (ldiracc) then
         open (ifoutput,file='wbthl.'//cmyidx//'.'//cmyidy//'.'//cexpnr,access='direct', form='unformatted', recl=reclength)
@@ -272,12 +277,6 @@ contains
     enddo
     enddo
     
-    if (lnetcdf) then 
-      vars(:,:,:,7) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
-      do k=klow,khigh
-        vars(:,:,k,7) = vars(:,:,k,7) - thvh(k)
-      end do
-    end if
     do i=2-ih,i1+ih, ncoarse
     do j=2-jh,j1+jh, ncoarse
     do k=2,k1
@@ -297,7 +296,7 @@ contains
       close (ifoutput)
     endif
 
-    if (lnetcdf) vars(:,:,:,8:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
+    if (lnetcdf) vars(:,:,:,4:nvar) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,:)
 
     if(lnetcdf) then
       call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
