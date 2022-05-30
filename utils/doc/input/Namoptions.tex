@@ -85,7 +85,7 @@
 
 \pagenumbering{arabic}
 \setcounter{page}{1}
-This document gives an overview of all namelist options in version 4.3 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the model, the reader is referred to \citet{Heus2009}. 
+This document gives an overview of all namelist options in version 4.4 of the Dutch Atmospheric Large Eddy Simulation (DALES) model. Only general information concerning these options is presented. For more detailed information about the basic model, the reader is referred to \citet{Heus2009}. This paper describes the code of DALES version 3.2. 
 
 \chapter{Namoptions overview}\label{chapter:namoptions}
 
@@ -309,7 +309,9 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   ltotruntime	& .false.		& $x\in\{\text{.false.},\text{.true.}\}$		& If true, the runtime is counted since the last cold start instead of the last warm start	& -\\
   lwarmstart& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& Flag for a ``cold'' or a  ``warm'' start	& -\\
   startfile	& -		& $x = \text{\textquotesingle initd\#\#\#h\#\#mx\#\#\#y\#\#\#.\#\#\#\textquotesingle}$	& Basis for the name of the restartfiles	& -\\
-  trestart	& 3600		& $x \in \mathbb{R}, \quad x>0$		& Each $trestart$ seconds, a restart file is written to disk	& s\\
+  \multirow[t]{3}{*}{trestart}	& \multirow[t]{3}{*}{3600}		& \multirow[t]{3}{*}{$x \in \mathbb{R}$} 		& $\text{trestart}>0$:  Each $trestart$ seconds, a restart file is written to disk	& \multirow[t]{3}{*}{s}\\
+  	& & & $\text{trestart}=0$: A restart file is written at the end of the simulation & \\
+  	& & & $\text{trestart}<0$: No restart file is written  & \\
   dtav\_glob	& 60		& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$		& Global value for sampling interval of statistical routines	& s\\
   timeav\_glob	& 3600		& $x = n \cdot \text{dtav\_glob}, \quad n \in \mathbb{N}^*$	& Global value for writing interval of statistical routines	& s\\
   irandom	& 0		& $x \in \mathbb{Z}$			& Number to feed randomnizer with		& -\\
@@ -1050,7 +1052,7 @@ tnudgefac & 1	& $x \in \mathbb{R}, \quad x>0$	&	Nudgefactor & -\\
 \end{center}
 
 
-%\newpage
+\newpage
 \subsection{Namelist NAMRADIATION}\label{par:radiation}
 This namelist is only used if the Rapid Radiative Transfer Model for GCMs (RRTMG) is applied, i.e.  \hyperlink{iradiation}{iradiation} = 4.
 \begin{center}
@@ -1315,13 +1317,17 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
   R10		& 0.23	& $x \in \mathbb{R}, \quad x > 0$	& Respiration at 10 $^{\circ}$C & mg m$^{-2}$ s$^{-1}$ \\
   T2gm		& 301.0	& $x \in \mathbb{R}, \quad x > 0$	& Reference temperature to calculate the mesophyll conductance & K \\
   Q10gm		& 2.0	& $x \in \mathbb{R}, \quad x > 0$	& Parameter to calculate the mesophyll conductance & - \\
-  lsplitleaf & .false.	&  $x\in\{\text{.false.},\text{.true.}\}$  & Switch to split $\text{A-}\text{g}_\text{s}$ calculations over different parts of the leaf  & - \\
+  lsplitleaf 	& .false. &  $x\in\{\text{.false.},\text{.true.}\}$  & Switch to split $\text{A-}\text{g}_\text{s}$ calculations over different parts of the leaf  & - \\
+  i\_expemis	& -1 	& $x \in \mathbb{N}$			& If $0 < \text{i\_expemis} \leq \text{nsv}$, an exponential emission profile is applied for scalar index i\_expemis of the form $ E_0 {\rm e}^{-\frac{1}{2} \left(\frac{t-E_1}{E_2}\right)^2 } $ with $t$ the amount of seconds since the start of the simulation & - \\
+  expemis0	& 0.0	& $x \in \mathbb{R}$			& Maximum exponential emission, $E_0$ & ppb m s$^{-1}$ \\
+  expemis1	& 0.0	& $x \in \mathbb{R}$			& Time of maximum exponential emission, $E_1$ & s \\
+  expemis2	& 10800.0 & $x \in \mathbb{R}$			& Timescale of exponential emission, $E_2$ & s \\
 \end{supertabular}
 
 
 \end{center}
 
-%\newpage
+\newpage
 \subsection{Namelist NAMTESTBED}\label{par:testbed}
 \begin{center}
 	  \tablefirsthead{
@@ -1349,7 +1355,7 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
-\newpage
+%\newpage
 
 
 \subsection{Namelist NAMTIMESTAT}\label{par:timestat}
@@ -1391,6 +1397,7 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
+\newpage
 \section{Addon modules}\label{par:addonmod}
 
 \subsection{Namelist NAMPARTICLES}\label{par:particles}
@@ -1458,6 +1465,8 @@ Old version of modcrosssection (Paragraph \ref{par:crosssection}). Usage of modp
 %  projectplane	& 2	& $x \in \mathbb{N}^*, \quad x \le \frac{\text{jtot}}{N_{\text{processors}}}$	& Position of the xz-plane on every processor & -\\
 \end{supertabular}
 \end{center}
+
+\newpage
 
 \subsection{Namelist NAMSTRESS}\label{par:stress}
 \begin{center}
