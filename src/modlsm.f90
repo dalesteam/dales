@@ -21,10 +21,11 @@ module modlsm
     use netcdf
     implicit none
 
-    public :: initlsm, lsm, exitlsm, init_lsm_tiles
+    public :: initlsm, lsm, exitlsm, init_lsm_tiles, lags
 
     logical :: llsm            ! On/off switch LSM
     logical :: lfreedrainage   ! Free drainage bottom BC for soil moisture
+    logical :: lags            ! Switch for A-Gs scheme
 
     ! Interpolation types soil from full to half level
     integer :: iinterp_t, iinterp_theta
@@ -59,6 +60,10 @@ module modlsm
 
     ! Random
     real, allocatable :: du_tot(:,:), thv_1(:,:), land_frac(:,:), cveg(:,:)
+
+    ! A-Gs
+    real, allocatable :: an_co2(:,:), resp_co2(:,:)
+    integer :: co2_index = -1
 
     ! Data structure for sub-grid tiles
     type T_lsm_tile
@@ -136,7 +141,11 @@ subroutine lsm
     end do
 
     ! Calculate canopy/soil resistances.
-    call calc_canopy_resistance
+    if (lags) then
+        call calc_canopy_resistance_ags
+    else
+        call calc_canopy_resistance_js
+    endif
 
     ! Calculate aerodynamic resistance (and u*, obuk).
     call calc_stability
@@ -231,7 +240,7 @@ subroutine calc_liquid_reservoir
     implicit none
 
     integer :: i, j
-    real :: tend, rk3coef, rainrate, wl_tend_max, wl_tend_min 
+    real :: tend, rk3coef, rainrate, wl_tend_max, wl_tend_min
     real :: wl_tend_liq, wl_tend_dew, wl_tend_precip, wl_tend_sum, wl_tend_lim
 
     real, parameter :: intercept_eff = 0.5
@@ -271,7 +280,6 @@ subroutine calc_liquid_reservoir
                 rainrate = -sed_qr(i,j,1)/rhow
             end if
 
-            !wl_tend_precip = intercept_eff * c_veg * rainrate
             wl_tend_precip = intercept_eff * cveg(i,j) * rainrate
 
             ! Total and limited tendencies
@@ -322,9 +330,9 @@ subroutine calc_theta_mean(tile)
 end subroutine calc_theta_mean
 
 !
-! Calculate canopy and soil resistances
+! Calculate canopy and soil resistances using Jarvis-Stewart method.
 !
-subroutine calc_canopy_resistance
+subroutine calc_canopy_resistance_js
     use modglobal,   only : i1, j1
     use modfields,   only : thl0, qt0, exnf, presf
     use modsurface,  only : ps
@@ -388,7 +396,15 @@ subroutine calc_canopy_resistance
         end do
     end do
 
-end subroutine calc_canopy_resistance
+end subroutine calc_canopy_resistance_js
+
+!
+! Calculate canopy and soil resistances using A-Gs (plant physiology).
+! In addition, this calculates/sets the surface CO2 fluxes...
+!
+subroutine calc_canopy_resistance_ags
+
+end subroutine calc_canopy_resistance_ags
 
 !
 ! Calculate Obukhov length, ustar, and aerodynamic resistance, for all tiles
@@ -937,7 +953,7 @@ subroutine integrate_theta_soil
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
 
     implicit none
-    integer :: i, j, k, si!, ilu_bs
+    integer :: i, j, k, si
     real :: tend, rk3coef, flux_top, fac
 
     rk3coef = rdt / (4. - dble(rk3step))
@@ -1001,7 +1017,7 @@ subroutine initlsm
 
     ! Namelist definition
     namelist /NAMLSM/ &
-        lheterogeneous, lfreedrainage, dz_soil, iinterp_t, iinterp_theta, nlu
+        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta, co2_index, nlu
     llsm = (isurf == 11)
 
     if (llsm) then
@@ -1019,11 +1035,13 @@ subroutine initlsm
         ! Broadcast namelist values to all MPI tasks
         call MPI_BCAST(lheterogeneous, 1, mpi_logical, 0, comm3d, mpierr)
         call MPI_BCAST(lfreedrainage,  1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(lags,           1, mpi_logical, 0, comm3d, mpierr)
         call MPI_BCAST(nlu,            1, mpi_integer, 0, comm3d, mpierr)
 
         call MPI_BCAST(iinterp_t,      1, mpi_integer, 0, comm3d, mpierr)
         call MPI_BCAST(iinterp_theta,  1, mpi_integer, 0, comm3d, mpierr)
 
+        call MPI_BCAST(co2_index,      1, mpi_integer, 0, comm3d, mpierr)
         call MPI_BCAST(dz_soil, kmax_soil, my_real, 0, comm3d, mpierr)
 
     ! write(*,*) 'nlu from namoptions ', nlu 
@@ -1032,11 +1050,17 @@ subroutine initlsm
         allocate(tile(nlu), stat=ierr)
         if (ierr/=0) stop
 
+        ! Checks on input
+        if (lags .and. .not. l_emission .and. (co2_index == -1)) then
+            print*,'With A-Gs enabled and without the emission module, the `co2_index`'
+            print*,'in the scalar array should be specified in the `NAMLSM` group.'
+            stop
+        endif
+
         ! Create/calculate soil grid properties
         call create_soil_grid
 
         ! Allocate required fields in modsurfacedata, and arrays / tiles from this module:
-
         call allocate_fields
 
         if (lheterogeneous) then
@@ -1090,6 +1114,8 @@ subroutine exitlsm
 
     ! Allocated from `create_soil_grid`:
     deallocate( z_soil, dz_soil, dzi_soil, zh_soil, dzh_soil, dzhi_soil )
+
+    if (lags) deallocate(an_co2, resp_co2)
 
     ! Tiles, allocated from `allocate_tile`:
     do ilu=1,nlu
@@ -1231,6 +1257,12 @@ subroutine allocate_fields
     allocate(rsveg(i2, j2))
     allocate(rssoil(i2, j2))
 
+    ! A-Gs
+    if (lags) then
+        allocate(an_co2(i2, j2))
+        allocate(resp_co2(i2, j2))
+    endif
+
     ! Allocate the tiled variables
     do ilu=1,nlu
       call allocate_tile(tile(ilu))
@@ -1247,10 +1279,6 @@ subroutine allocate_tile(tile)
     type(T_lsm_tile), intent(inout) :: tile
 
     ! Static properties:
-    !allocate(tile % luname)
-    !allocate(tile % lushort)
-    !allocate(tile % lveg)
-
     allocate(tile % z0m(i2, j2))
     allocate(tile % z0h(i2, j2))
 
@@ -1308,7 +1336,6 @@ end subroutine allocate_tile
 subroutine deallocate_tile(tile)
     implicit none
     type(T_lsm_tile), intent(inout) :: tile
-    !deallocate( tile%luname,  tile%lushort,  tile%lveg)
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
     deallocate( tile%lambda_stable, tile%lambda_unstable )
@@ -1602,17 +1629,6 @@ subroutine init_heterogeneous
     tile(4)%lveg = .false.
     tile(5)%lveg = .false.
     tile(6)%lveg = .false.
-
-    !! Find indices
-    !ilu_aq = 0
-    !ilu_ws = 0
-    !do ilu=1,nlu
-    !  if (trim(tile(ilu)%lushort) == 'aq') then
-    !    ilu_aq = ilu
-    !  else if (trim(tile(ilu)%lushort) == 'ws') then
-    !    ilu_ws = ilu
-    !  end if
-    !end do
 
     ilu_lv = 1
     ilu_hv = 2
