@@ -328,7 +328,7 @@ program DALES
   call exitfielddump
   call exitheterostats
   call exitcanopy
-  call exitmodules
   call exittimestat
+  call exitmodules
 
 end program DALES
