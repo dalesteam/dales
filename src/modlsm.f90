@@ -1010,6 +1010,8 @@ subroutine initlsm
     use modglobal,   only : ifnamopt, fname_options, checknamelisterror, lwarmstart
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, mpi_integer, my_real
     use modsurfdata, only : isurf
+    use modemisdata, only : l_emission
+
     implicit none
 
     integer :: ierr
@@ -1776,7 +1778,7 @@ subroutine init_heterogeneous_nc
     
     ! check if nlu_file==nlu-1 ('wet skin' is not in file)
     if (nlu-1 /= nlu_file) then
-      write(6,"(A46, i1.2, A2, i1.2)") "Number of LU types in file differs from nlu-1:  ", nlu-1, "/=", nlu_file
+      write(6,"(A46, i3, A2, i3)") "STOPPED. Number of LU types in file differs from nlu-1:  ", nlu-1, " /=", nlu_file
       stop
     end if
 

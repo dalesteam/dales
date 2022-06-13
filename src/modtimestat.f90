@@ -393,7 +393,7 @@ contains
                            lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
                            thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
-    use modlsm,     only : tile, f1, f2b, nlu
+    use modlsm,     only : tile, f1, f2b, nlu, lags, an_co2, resp_co2
     use mpi
     use modmpi,     only : my_real,mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid
     use modstat_nc, only : lnetcdf, writestat_nc,nc_fillvalue
@@ -425,6 +425,7 @@ contains
     real   :: G_av(nlu)
     real   :: thlskin_av(nlu)
     real   :: qtskin_av(nlu)
+    real   :: an_co2_av, resp_co2_av
 
     integer:: i, j, k, vi, ilu
 
@@ -985,67 +986,9 @@ contains
           vars(vi) = LEav; vi = vi+1
           vars(vi) = G0av; vi = vi+1
 
-          vars(vi) = obuk_lv_av; vi = vi+1
-          vars(vi) = obuk_hv_av; vi = vi+1
-          vars(vi) = obuk_bs_av; vi = vi+1
-          vars(vi) = obuk_aq_av; vi = vi+1
-
-          vars(vi) = ustar_lv_av; vi = vi+1
-          vars(vi) = ustar_hv_av; vi = vi+1
-          vars(vi) = ustar_bs_av; vi = vi+1
-          vars(vi) = ustar_aq_av; vi = vi+1
-
-          vars(vi) = ra_lv_av; vi = vi+1
-          vars(vi) = ra_hv_av; vi = vi+1
-          vars(vi) = ra_bs_av; vi = vi+1
-          vars(vi) = ra_aq_av; vi = vi+1
-
           vars(vi) = f1_av; vi = vi+1
-          vars(vi) = f2_lv_av; vi = vi+1
-          vars(vi) = f2_hv_av; vi = vi+1
-          vars(vi) = f3_av; vi = vi+1
           vars(vi) = f2b_av; vi = vi+1
-
-          vars(vi) = rs_lv_av; vi = vi+1
-          vars(vi) = rs_hv_av; vi = vi+1
-          vars(vi) = rs_bs_av; vi = vi+1
-
-          vars(vi) = c_lv_av; vi = vi+1
-          vars(vi) = c_hv_av; vi = vi+1
-          vars(vi) = c_bs_av; vi = vi+1
-          vars(vi) = c_ws_av; vi = vi+1
-          vars(vi) = c_aq_av; vi = vi+1
-
           vars(vi) = wlav; vi = vi+1
-
-          vars(vi) = H_lv_av; vi = vi+1
-          vars(vi) = H_hv_av; vi = vi+1
-          vars(vi) = H_bs_av; vi = vi+1
-          vars(vi) = H_ws_av; vi = vi+1
-          vars(vi) = H_aq_av; vi = vi+1
-
-          vars(vi) = LE_lv_av; vi = vi+1
-          vars(vi) = LE_hv_av; vi = vi+1
-          vars(vi) = LE_bs_av; vi = vi+1
-          vars(vi) = LE_ws_av; vi = vi+1
-          vars(vi) = LE_aq_av; vi = vi+1
-
-          vars(vi) = G_lv_av; vi = vi+1
-          vars(vi) = G_hv_av; vi = vi+1
-          vars(vi) = G_bs_av; vi = vi+1
-          vars(vi) = G_ws_av; vi = vi+1
-
-          vars(vi) = thlskin_lv_av; vi = vi+1
-          vars(vi) = thlskin_hv_av; vi = vi+1
-          vars(vi) = thlskin_bs_av; vi = vi+1
-          vars(vi) = thlskin_ws_av; vi = vi+1
-          vars(vi) = thlskin_aq_av; vi = vi+1
-
-          vars(vi) = qtskin_lv_av; vi = vi+1
-          vars(vi) = qtskin_hv_av; vi = vi+1
-          vars(vi) = qtskin_bs_av; vi = vi+1
-          vars(vi) = qtskin_ws_av; vi = vi+1
-          vars(vi) = qtskin_aq_av; vi = vi+1
 
           if (lags) then
             vars(vi) = an_co2_av; vi = vi+1
