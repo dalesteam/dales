@@ -1,6 +1,42 @@
 Changes in DALES
 ================
 
+
+Version 4.4 - 2022-06-20
+------------------------
+
+This version introduces configurable floating point precision (by Victor Azizi, Jisk Attema, Fredrik Jansson). The main 3D fields can be either double (default) or single precision. The choice is made at compile time, and reduces the memory requirements and computation time by about 40%. See the [Wiki](https://github.com/dalesteam/dales/wiki/Installation-notes).
+A new two-moment ice microphysics scheme has been introduced (Jan Chylik, Roel Neggers, with tuning by Jisk Attema). 
+This version also introduces support and tuning for the Fugaku supercomputer, see 
+[DALES on Fugaku](https://github.com/dalesteam/dales/wiki/DALES-on-Fugaku).
+
+### Improvements
+
+* Automatic testing of git commits using GitHub actions (Victor Azizi) 
+* All function interfaces are now explicit, reducing the chance of mistakes with variable type
+* Add `twp_bar`, `rwp_bar` to `tmser.nnn.nc`, commit 7da93bdc
+* fielddump: time windowing, save fields only when `tmin <= current time <= tmax`, commit a65b03
+* Add namelist flags to select individual fields for 3D fielddump, commit c68814
+* Relative time units (s since date) in netCDF output (if xday, xyear are specified in namelist)
+* All module interfaces made explicit, reducing risk of type errors
+* Automatic testing with GitHub Actions, by Victor Azizi, commit 297f18
+* Add netCDF error checking, commits 031d5c6, ecfeb0ba
+
+### Optimization
+
+* Configurable floating point precision (by Victor Azizi, Jisk Attema, Fredrik Jansson)
+* Don't exchange halos of m-fields, commit e25a23
+* Optimize kappa advection scheme, commit fe60b5e
+* Optimized warm microphysics by Jisk Attema, commit 1758dcc0
+* Reduced memory allocation, commit 41c1589
+
+### Bugs fixed
+
+* Remove option -malign=double
+* Close the tmser.nnn.nc file at the end
+* Fix slabsum calls sv0(1,1,1,n) -> sv0(:,:,:,n), commit 79712743
+
+
 Version 4.3 - 2021-03-13
 ------------------------
 

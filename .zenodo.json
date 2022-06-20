@@ -10,8 +10,13 @@
       }, 
       {
         "orcid": "0000-0002-0948-1176", 
-        "affiliation": "eScienceCenter", 
+        "affiliation": "Netherlands eScience Center",
         "name": "Jisk Attema"
+      },
+      {
+        "orcid": "0000-0003-3535-8320",
+        "affiliation": "Netherlands eScience Center",
+        "name": "Victor Azizi"
       }, 
       {
         "name": "Cees Beets"
@@ -60,7 +65,8 @@
       }, 
       {
         "orcid": "0000-0001-8367-1333", 
-        "name": "Gijs van den Oord"
+        "name": "Gijs van den Oord",
+        "affiliation": "Netherlands eScience Center"
       }, 
       {
         "orcid": "0000-0003-3217-8009", 
