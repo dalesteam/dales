@@ -380,6 +380,7 @@ contains
   end subroutine checkinitvalues
 
   subroutine readinitfiles
+    use iso_fortran_env,   only : int64
     use modfields,         only : u0,v0,w0,um,vm,wm,thlm,thl0,thl0h,qtm,qt0,qt0h,&
                                   ql0,ql0h,thv0h,sv0,svm,e12m,e120,&
                                   dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,&
@@ -404,7 +405,8 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
-
+    use mt19937_64,        only : init_genrand64
+    
     integer i,j,k,n
     logical negval !switch to allow or not negative values in randomnization
 
@@ -525,26 +527,49 @@ contains
     !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
-      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
-      do k = 1,krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
-      end do
-      negval = .True. ! negative perturbations allowed
-      do k = 1,krand
-        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
-        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
-      end do
 
-      do k=krandumin,krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
-      end do
-
+      if (irandom >= 0) then
+         negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
+         do k = 1,krand
+            call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+            call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+         end do
+         negval = .True. ! negative perturbations allowed
+         do k = 1,krand
+            call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+            call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
+         end do
+         
+         do k=krandumin,krandumax
+            call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+            call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
+         end do
+      else
+         ! for negative seeds, initialize using mersenne twister generator
+         call init_genrand64(int(-irandom, kind=int64))
+         do k = 1,krand
+            call randomize_mt(qtm ,k,randqt,  ih,jh,.false.)
+            call randomize_mt(qt0 ,k,randqt,  ih,jh,.false.)
+         end do
+         do k = 1,krand
+            call randomize_mt(thlm,k,randthl, ih,jh,.true.)
+            call randomize_mt(thl0,k,randthl, ih,jh,.true.)
+         end do
+         
+         do k=krandumin,krandumax
+            call randomize_mt(um  ,k, randu,  ih,jh,.true.)
+            call randomize_mt(u0  ,k, randu,  ih,jh,.true.)
+            call randomize_mt(vm  ,k, randu,  ih,jh,.true.)
+            call randomize_mt(v0  ,k, randu,  ih,jh,.true.)
+            call randomize_mt(wm  ,k, randu,  ih,jh,.true.)
+            call randomize_mt(w0  ,k, randu,  ih,jh,.true.)
+         end do
+      end if
+      
       svprof = 0.
       if(myid==0)then
         if (nsv>0) then
@@ -1202,6 +1227,46 @@ contains
     return
   end subroutine randomnize
 
+  subroutine randomize_mt(field,klev,ampl,ihl,jhl,negval)
+    ! Adds (pseudo) random noise with given amplitude to the field at level k.
+    ! Uses the high-quality Mersenne Twister pseudo random number generator.
+    ! Generates the field for the full 2D domain and stores the locally needed part
+    ! so that the initial state is independent of parallization.
+
+    use modmpi,     only : myidx, myidy
+    use modglobal,  only : itot,jtot,imax,jmax,i1,j1,k1
+    use mt19937_64, only : genrand64_real1
+    integer ihl, jhl, klev
+    logical negval
+    real ampl
+    real(field_r) field(2-ihl:i1+ihl,2-jhl:j1+jhl,k1)
+    integer i,j
+    integer is,ie,js,je
+    real(field_r) ran
+
+
+    is = myidx * imax + 1
+    ie = is + imax - 1
+
+    js = myidy * jmax + 1
+    je = js + jmax - 1
+
+    do j=1,jtot
+       do i=1,itot
+          ran = genrand64_real1()
+          if (i >= is .and. i <= ie .and. &
+               j >= js .and. j <= je) then
+             if (.not. negval) then ! Avoid non-physical negative values
+                field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
+             else 
+                field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
+             endif             
+          endif
+       enddo
+    enddo
+  end subroutine randomize_mt
+
+  
   subroutine baseprofs
     ! Calculates the profiles corresponding to the base state
     ! In the current implementation, neither the base pressure, nor the base virtual temperature plays a role in the dynamics
