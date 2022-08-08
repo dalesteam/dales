@@ -661,6 +661,7 @@ subroutine calc_bulk_bcs
             ! Calculate mean Obukhov length from mean fluxes
             bflux = grav/thvh(1) * (thlflux(i,j) * (1.-(1.-rv/rd)*qskin(i,j)) - &
                 (1.-rv/rd)*tskin(i,j)*qtflux(i,j))
+            obl(i,j) = -ustar(i,j)**3 / (fkar * bflux)
 
             ! MO gradients
             dthldz(i,j) = -thlflux(i,j) / (fkar * zf(1) * ustar(i,j)) * phih(zf(1)/obl(i,j))
