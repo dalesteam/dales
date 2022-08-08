@@ -52,7 +52,7 @@ integer :: VARID,STATUS,NCID,mpierr,timeID
 ! integer :: dimids(NDIMS)
 ! integer :: start(NDIMS), count(NDIMS)
 
-type(randomNumberSequence) :: randomNumbers
+type(randomNumberSequence) :: noise
 contains
   subroutine initsynturb
     use netcdf
@@ -67,7 +67,7 @@ contains
         nisqrt  = sqrt(2./nmodes)
         nisqrt2 = sqrt(1./nmodes)
         ctot = lambda/tau
-        randomNumbers = new_RandomNumberSequence(seed = 100)
+        noise = new_RandomNumberSequence(seed = 100)
         nxpatch = int(dx/dxint*real(itot));
         nypatch = int(dy/dyint*real(jtot));
         nzpatch = kmax
@@ -572,11 +572,11 @@ contains
     real :: temp1,temp2
     temp1 = 0.
     do while(temp1<eps1)
-      temp1 = real(getRandomReal(randomNumbers))
+      temp1 = real(getRandomReal(noise))
     end do
     temp2 = 0.
     do while(temp2<eps1)
-      temp2 = real(getRandomReal(randomNumbers))
+      temp2 = real(getRandomReal(noise))
     end do
     gaussrand   = sqrt(-2.*log(temp1))*cos(2.*pi*temp2)*sigma+mu
     !val(i*2) = sqrt(-2.*log(temp1))*sin(2.*pi*temp2)*sigma+mu
