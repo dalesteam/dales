@@ -284,8 +284,7 @@ contains
         boundary(ib)%e12(boundary(ib)%nx1,boundary(ib)%nx2,ntboundary), &
         boundary(ib)%u(boundary(ib)%nx1u,boundary(ib)%nx2u,ntboundary), &
         boundary(ib)%v(boundary(ib)%nx1v,boundary(ib)%nx2v,ntboundary), &
-        boundary(ib)%w(boundary(ib)%nx1w,boundary(ib)%nx2w,ntboundary), &
-        )
+        boundary(ib)%w(boundary(ib)%nx1w,boundary(ib)%nx2w,ntboundary))
       if(nsv>0) then
         allocate(boundary(ib)%sv(boundary(ib)%nx1,boundary(ib)%nx2,ntboundary,nsv))
       endif
