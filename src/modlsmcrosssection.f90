@@ -147,7 +147,7 @@ contains
         if (isurf == 1) then
             nvar3 = 12
         else if (isurf == 11) then
-            nvar3 = 16
+            nvar3 = 13
             if (lags) nvar3 = nvar3 + 2
         end if
 
