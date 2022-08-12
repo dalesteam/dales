@@ -853,11 +853,11 @@ contains
                            tres,ifinput,nsv,dt
     use modmpi,     only : cmyid
     use modsubgriddata, only : ekm,ekh
-    use modlsm, only : kmax_soil, tile_lv, tile_hv, tile_bs, tile_ws, tile_aq
+    use modlsm, only : kmax_soil, tile, nlu
 
 
     character(50) :: name
-    integer i,j,k,n
+    integer i,j,k,n, ilu
     !********************************************************************
 
   !    1.0 Read initfiles
@@ -972,23 +972,29 @@ contains
       read(ifinput) ((tskin (i,j),   i=1,i2), j=1,j2)
       read(ifinput) ((Wl    (i,j),   i=1,i2), j=1,j2)
 
-      read(ifinput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_aq%thlskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_aq%thlskin(i,j), i=1,i2), j=1,j2)
 
-      read(ifinput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_aq%qtskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_aq%qtskin(i,j), i=1,i2), j=1,j2)
 
-      read(ifinput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
-      read(ifinput) ((tile_aq%obuk(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
+      !read(ifinput) ((tile_aq%obuk(i,j), i=1,i2), j=1,j2)
+
+      do ilu=1,nlu
+        read(ifinput) ((tile(ilu)%thlskin(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((tile(ilu)%qtskin(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((tile(ilu)%obuk(i,j), i=1,i2), j=1,j2)
+      end do
 
       read(ifinput) timee
       close(ifinput)
@@ -1033,11 +1039,11 @@ contains
     use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
-    use modlsm,    only : kmax_soil, tile_lv, tile_hv, tile_bs, tile_ws, tile_aq
+    use modlsm,    only : kmax_soil, tile, nlu
 
     implicit none
     integer imin,ihour
-    integer i,j,k,n
+    integer i,j,k,n, ilu
     character(50) name,linkname
 
       ihour = floor(rtimee/3600)
@@ -1161,23 +1167,29 @@ contains
         write(ifoutput) ((Wl    (i,j),   i=1,i2), j=1,j2)
 
         ! Sub-grid tiles
-        write(ifoutput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_aq%thlskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_lv%thlskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_hv%thlskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_bs%thlskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_ws%thlskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_aq%thlskin(i,j), i=1,i2), j=1,j2)
 
-        write(ifoutput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_aq%qtskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_lv%qtskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_hv%qtskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_bs%qtskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_ws%qtskin(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_aq%qtskin(i,j), i=1,i2), j=1,j2)
 
-        write(ifoutput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
-        write(ifoutput) ((tile_aq%obuk(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_lv%obuk(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_hv%obuk(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_bs%obuk(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_ws%obuk(i,j), i=1,i2), j=1,j2)
+        !write(ifoutput) ((tile_aq%obuk(i,j), i=1,i2), j=1,j2)
+
+        do ilu=1,nlu
+          write(ifoutput) ((tile(ilu)%thlskin(i,j), i=1,i2), j=1,j2)
+          write(ifoutput) ((tile(ilu)%qtskin(i,j), i=1,i2), j=1,j2)
+          write(ifoutput) ((tile(ilu)%obuk(i,j), i=1,i2), j=1,j2)
+        end do
 
         write(ifoutput)  timee
         close (ifoutput)

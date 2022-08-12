@@ -141,7 +141,7 @@ contains
       call ncinfo(ncname1(10,:),'cloudnrxz', 'xz crosssection of the cloud number',                      '-',       't0tt')
       do n = 1,nsv
         write(csvname(1:3), '(i3.3)') n
-        call ncinfo(ncname1(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',          'kg/kg',   't0tt')
+        call ncinfo(ncname1(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',          'ug/g',   't0tt')
       enddo
 
 !      call ncinfo(ncname1( ?,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
@@ -178,7 +178,7 @@ contains
       call ncinfo(ncname2(10,:), 'cloudnrxy', 'xy crosssection of the cloud number',                       '-',       'tt0t')
       do n = 1,nsv
         write(csvname(1:3), '(i3.3)') n
-        call ncinfo(ncname2(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',           'kg/kg',   'tt0t')
+        call ncinfo(ncname2(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',           'ug/g',   'tt0t')
       enddo
 
 !      call ncinfo(ncname2( ?,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
@@ -211,7 +211,7 @@ contains
     call ncinfo(ncname3(10,:), 'cloudnryz','yz crosssection of the cloud number',                        '-',      '0ttt')
     do n = 1,nsv
       write(csvname(1:3), '(i3.3)') n
-      call ncinfo(ncname3(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',         'kg/kg',  '0ttt')
+      call ncinfo(ncname3(10+n,:),'sv'//csvname,'scalar '//csvname//' specific concentration',         'ug/g',  '0ttt')
     enddo
 
 !    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')

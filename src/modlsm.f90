@@ -56,27 +56,41 @@ module modlsm
     real, allocatable :: gD(:,:)
 
     ! Reduction functions canopy resistance
-    real, allocatable :: f1(:,:), f2_lv(:,:), f2_hv(:,:), f2b(:,:), f3(:,:)
+    real, allocatable :: f1(:,:), f2b(:,:)
 
     ! Random
-    real, allocatable :: du_tot(:,:), thv_1(:,:), land_frac(:,:)
+    real, allocatable :: du_tot(:,:), thv_1(:,:), land_frac(:,:), cveg(:,:)
 
     ! A-Gs
     real, allocatable :: an_co2(:,:), resp_co2(:,:)
     integer :: co2_index = -1
 
     ! Data structure for sub-grid tiles
-    type lsm_tile
+    type T_lsm_tile
+    ! Fixed LU properties
+        ! Land use name
+        character(len=64) :: luname
+        character(len=2)  :: lushort
+        ! Check if LU type is vegetation 
+        logical           :: lveg
         ! Static properties:
         real, allocatable :: z0m(:,:), z0h(:,:)
         ! Base tile fraction (i.e. without liquid water)
         real, allocatable :: base_frac(:,:)
+        ! Conductivity skin layer:
+        real, allocatable :: lambda_stable(:,:), lambda_unstable(:,:)
+        ! Vegetation properties:
+        real, allocatable :: lai(:,:)
+        ! Surface properties: 
+        real, allocatable :: rs_min(:,:)
+        ! Root fraction parameters
+        real, allocatable :: a_r(:,:), b_r(:,:)
+
+    ! Dynamic land surface properties
         ! Dynamic tile fraction:
         real, allocatable :: frac(:,:)
         ! Monin-obukhov / surface layer:
         real, allocatable :: obuk(:,:), ustar(:,:), ra(:,:)
-        ! Conductivity skin layer:
-        real, allocatable :: lambda_stable(:,:), lambda_unstable(:,:)
         ! Surface fluxes:
         real, allocatable :: H(:,:), LE(:,:), G(:,:)
         real, allocatable :: wthl(:,:), wqt(:,:)
@@ -85,22 +99,22 @@ module modlsm
         ! Buoyancy difference surface - atmosphere
         real, allocatable :: db(:,:)
         ! Vegetation properties:
-        real, allocatable :: lai(:,:), rs_min(:,:), rs(:,:)
+        real, allocatable :: rs(:,:)
+        real, allocatable :: f2(:,:), f3(:,:), gD(:,:)
         ! Root fraction in soil
-        real, allocatable :: a_r(:,:), b_r(:,:)
         real, allocatable :: root_frac(:,:,:)
         ! Root fraction weighted mean soil water content
         real, allocatable :: phiw_mean(:,:)
-    end type lsm_tile
+    end type T_lsm_tile
 
-    ! Tiles for low veg (lv), high veg (hv), bare soil (bs), wet skin (ws), water (aq):
-    type(lsm_tile) tile_lv, tile_hv, tile_bs, tile_ws, tile_aq
+    !Tiles for all LU types
+    integer :: ilu, nlu
+    type(T_lsm_tile), allocatable :: tile(:)
 
     ! Land-surface / van Genuchten parameters from NetCDF input table.
     real, allocatable :: &
         theta_res(:), theta_wp(:), theta_fc(:), theta_sat(:), &
         gamma_theta_sat(:), vg_a(:), vg_l(:), vg_n(:)
-
     ! Derived soil parameters
     real, allocatable :: &
         vg_m(:), &
@@ -120,8 +134,11 @@ subroutine lsm
     call calc_tile_fractions
 
     ! Calculate root fraction weighted mean soil water content.
-    call calc_theta_mean(tile_lv)
-    call calc_theta_mean(tile_hv)
+    do ilu=1,nlu
+      if (tile(ilu)%lveg) then
+        call calc_theta_mean(tile(ilu))
+      end if
+    end do
 
     ! Calculate canopy/soil resistances.
     if (lags) then
@@ -158,26 +175,59 @@ end subroutine lsm
 ! Calculate dynamic tile fractions, based on liquid water on vegetation
 !
 subroutine calc_tile_fractions
-    use modglobal, only : i1, j1
-    use modsurfdata, only : wl, wmax
+    use modglobal, only : i1, j1, eps1
+    use modsurfdata, only : wl
     implicit none
 
     integer :: i, j
     real :: c_liq
+    character(len=2) :: lushort
+    real :: base_frac_sum
+    real :: sum_frac, sum_basefrac
 
     ! Water tile fraction is not variable
-    tile_aq%frac(:,:) = tile_aq%base_frac(:,:)
+    do ilu=1,nlu
+      if (trim(tile(ilu)%lushort) == 'aq') then
+        tile(ilu)%frac(:,:) = tile(ilu)%base_frac(:,:)
+      end if
+    end do 
 
     do j=2, j1
-        do i=2, i1
-            c_liq = min(1., wl(i,j)/wl_max(i,j))
-            tile_ws%frac(i,j) = land_frac(i,j) * c_liq
-            tile_lv%frac(i,j) = (1.-c_liq) * tile_lv%base_frac(i,j)
-            tile_hv%frac(i,j) = (1.-c_liq) * tile_hv%base_frac(i,j)
-            tile_bs%frac(i,j) = (1.-c_liq) * (1.-tile_lv%base_frac(i,j)-tile_hv%base_frac(i,j)-tile_aq%base_frac(i,j))
+      do i=2, i1
+        c_liq = min(1., wl(i,j)/wl_max(i,j))
+        base_frac_sum = 0
+        do ilu=1,nlu
+          if (trim(tile(ilu)%lushort) == 'aq') then
+            cycle 
+          else if (trim(tile(ilu)%lushort) == 'ws') then 
+            tile(ilu)%frac(i,j) = land_frac(i,j) * c_liq
+          else
+            tile(ilu)%frac(i,j) = (1.-c_liq) * tile(ilu)%base_frac(i,j)
+          end if
+          base_frac_sum = base_frac_sum + tile(ilu)%base_frac(i,j)
         end do
+      end do
     end do
 
+    do j=2, j1
+      do i=2, i1
+        sum_basefrac=0
+        sum_frac=0
+        do ilu=1,nlu
+          sum_basefrac = sum_basefrac + tile(ilu)%base_frac(i,j)
+          sum_frac = sum_frac + tile(ilu)%frac(i,j)
+        end do
+
+        if (sum_frac < 1.-1e-5) then
+          print*,'ERROR: sum of LU fractions below 1:',sum_frac
+          stop
+        endif
+        if (sum_basefrac < 1.-1e-5) then
+          print*,'ERROR: sum of LU base fractions below 1:',sum_basefrac
+          stop
+        endif 
+      end do
+    end do
 end subroutine calc_tile_fractions
 
 !
@@ -190,7 +240,7 @@ subroutine calc_liquid_reservoir
     implicit none
 
     integer :: i, j
-    real :: tend, rk3coef, rainrate, c_veg, wl_tend_max, wl_tend_min
+    real :: tend, rk3coef, rainrate, wl_tend_max, wl_tend_min
     real :: wl_tend_liq, wl_tend_dew, wl_tend_precip, wl_tend_sum, wl_tend_lim
 
     real, parameter :: intercept_eff = 0.5
@@ -200,22 +250,28 @@ subroutine calc_liquid_reservoir
     if(rk3step == 1) wlm(:,:) = wl(:,:)
 
     do j=2, j1
-        do i=2, i1
-            c_veg = tile_lv%base_frac(i,j)+tile_hv%base_frac(i,j)
+        do i=2, i1 
+            wl_tend_dew = 0
+            wl_tend_liq = 0
 
             ! Max and min possible tendencies
             wl_tend_min = -wlm(i,j) / rk3coef
             wl_tend_max = (wl_max(i,j) - wlm(i,j)) / rk3coef
 
-            ! Tendency due to evaporation from liquid water reservoir/tile.
-            wl_tend_liq = -max(0., tile_ws%frac(i,j) * tile_ws%LE(i,j) * to_ms)
+            do ilu=1,nlu
+              if (trim(tile(ilu)%lushort) == 'aq') then
+                cycle
+              end if
 
-            ! Tendency due to dewfall into vegetation/soil/liquid water tiles
-            wl_tend_dew = &
-                -( min(0., tile_lv%frac(i,j) * tile_lv%LE(i,j) * to_ms) + &
-                   min(0., tile_hv%frac(i,j) * tile_hv%LE(i,j) * to_ms) + &
-                   min(0., tile_bs%frac(i,j) * tile_bs%LE(i,j) * to_ms) + &
-                   min(0., tile_ws%frac(i,j) * tile_ws%LE(i,j) * to_ms) )
+              ! Tendency due to evaporation from liquid water reservoir/tile.
+              if (trim(tile(ilu)%lushort) == 'ws') then
+                wl_tend_liq = wl_tend_liq -max(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms)
+              end if 
+
+              ! Tendency due to dewfall into vegetation/soil/liquid water tiles
+              wl_tend_dew = wl_tend_dew &
+                -( min(0., tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * to_ms) )
+            end do
 
             ! Tendency due to interception of precipitation by vegetation
             if (imicro == 0) then
@@ -224,16 +280,16 @@ subroutine calc_liquid_reservoir
                 rainrate = -sed_qr(i,j,1)/rhow
             end if
 
-            wl_tend_precip = intercept_eff * c_veg * rainrate
+            wl_tend_precip = intercept_eff * cveg(i,j) * rainrate
 
             ! Total and limited tendencies
-            wl_tend_sum = wl_tend_liq + wl_tend_dew + wl_tend_precip;
-            wl_tend_lim = min(wl_tend_max, max(wl_tend_min,  wl_tend_sum));
+            wl_tend_sum = wl_tend_liq + wl_tend_dew + wl_tend_precip
+            wl_tend_lim = min(wl_tend_max, max(wl_tend_min,  wl_tend_sum))
 
             ! Diagnose interception and throughfall
             throughfall(i,j) = &
-                -(1.-c_veg) * rainrate &
-                -(1.-intercept_eff) * c_veg * rainrate &
+                -(1.-cveg(i,j)) * rainrate &
+                -(1.-intercept_eff) * cveg(i,j) * rainrate &
                 + min(0., wl_tend_lim - wl_tend_sum)
             interception(i,j) = max(0., wl_tend_lim)
 
@@ -254,7 +310,7 @@ subroutine calc_theta_mean(tile)
     use modsurfdata, only : phiw
     implicit none
 
-    type(lsm_tile), intent(inout) :: tile
+    type(T_lsm_tile), intent(inout) :: tile
     integer :: i, j, k, si
     real :: theta_lim
 
@@ -264,7 +320,6 @@ subroutine calc_theta_mean(tile)
         do j=2,j1
             do i=2,i1
                 si = soil_index(i,j,k)
-
                 theta_lim = max(phiw(i,j,k), theta_wp(si))
                 tile%phiw_mean(i,j) = tile%phiw_mean(i,j) + tile%root_frac(i,j,k) * &
                     (theta_lim - theta_wp(si)) / (theta_fc(si) - theta_wp(si))
@@ -286,7 +341,7 @@ subroutine calc_canopy_resistance_js
     implicit none
 
     integer :: i, j, k, si
-    real :: swd_pos, T, esat, e, theta_min, theta_rel, c_veg
+    real :: swd_pos, T, esat, e, theta_min, theta_rel
 
     ! Constants f1 calculation:
     real, parameter :: a_f1 = 0.81
@@ -303,27 +358,40 @@ subroutine calc_canopy_resistance_js
             f1(i,j) = 1./min(1., (b_f1*swd_pos + c_f1) / (a_f1 * (b_f1*swd_pos + 1.)))
 
             ! f2: reduction vegetation resistance as f(theta):
-            f2_lv(i,j) = 1./min(1., max(1.e-9, tile_lv%phiw_mean(i,j)))
-            f2_hv(i,j) = 1./min(1., max(1.e-9, tile_hv%phiw_mean(i,j)))
+            do ilu=1,nlu 
+              if (tile(ilu)%lveg) then
+                tile(ilu)%f2(i,j) = 1./min(1., max(1.e-9, tile(ilu)%phiw_mean(i,j)))
+              endif
+            enddo
 
             ! f3: reduction vegetation resistance as f(VPD) (high veg only):
             T    = thl0(i,j,1) * exnf(1)
             esat = 0.611e3 * exp(17.2694 * (T - 273.16) / (T - 35.86))
             e    = qt0(i,j,1) * presf(1) / 0.622
 
-            f3(i,j) = 1./exp(-gD(i,j) * (esat-e))
-
+            do ilu=1,nlu 
+              if (tile(ilu)%lveg) then
+                tile(ilu)%f3(i,j) = 1./exp(-tile(ilu)%gD(i,j) * (esat-e))
+              endif
+            enddo
+            
             ! f2b: reduction soil resistance as f(theta)
-            c_veg     = tile_lv%base_frac(i,j) + tile_hv%base_frac(i,j)
-            theta_min = c_veg * theta_wp(si) + (1.-c_veg) * theta_res(si);
+            theta_min = cveg(i,j) * theta_wp(si) + (1.-cveg(i,j)) * theta_res(si);
             theta_rel = (phiw(i,j,k) - theta_min) / (theta_fc(si) - theta_min);
             f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
 
-            ! Calculate canopy and soil resistance
-            tile_lv%rs(i,j) = tile_lv%rs_min(i,j) / tile_lv%lai(i,j) * f1(i,j) * f2_lv(i,j)
-            tile_hv%rs(i,j) = tile_hv%rs_min(i,j) / tile_hv%lai(i,j) * f1(i,j) * f2_hv(i,j) * f3(i,j)
-            tile_bs%rs(i,j) = tile_bs%rs_min(i,j) / f2b(i,j)
-            tile_ws%rs(i,j) = 0.
+            ! Calculate canopy and soil resistance           
+            do ilu=1,nlu
+              if (tile(ilu)%lveg) then
+                tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / tile(ilu)%lai(i,j) * tile(ilu)%f2(i,j) * tile(ilu)%f3(i,j) * f1(i,j)
+              else if (trim(tile(ilu)%lushort) == 'bs') then
+                tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j) / f2b(i,j)
+              else if (trim(tile(ilu)%lushort) == 'ws') then
+                tile(ilu)%rs(i,j) = 0
+              else
+                tile(ilu)%rs(i,j) = tile(ilu)%rs_min(i,j)
+              endif 
+            enddo
 
         end do
     end do
@@ -335,304 +403,6 @@ end subroutine calc_canopy_resistance_js
 ! In addition, this calculates/sets the surface CO2 fluxes...
 !
 subroutine calc_canopy_resistance_ags
-    use modglobal,   only : i1, j1
-    use modfields,   only : rhof, exnh, qt0, presf, svm
-    use modsurface,  only : E1, ps
-    use modsurfdata, only : svflux, tskin, phiw, tsoil
-    use modraddata,  only : swd
-    use modemisdata, only : l_emission, svco2ags, svco2sum, svco2veg
-
-    implicit none
-
-    ! NOTE: these should become a namelist switches...
-    logical, parameter :: lsplitleaf = .false.
-    logical, parameter :: lrelaxgc = .false.
-
-    real :: Ts, co2_comp, gm, fmin0, fmin, esatsurf, e, Ds, Dmax, cfrac, co2_abs, ci, to_ppb, from_ppb
-    real :: Ammax, fstr, Am, Rdark, PAR, alphac, AGSa1, Dstar, tempy, An, gc_inf, gcco2, fw, t_mean, th_mean, rs_co2
-    real :: cveg, cland, theta_min, theta_rel
-    integer :: i, j, k, si
-
-    ! Fixed constants (** = same in DALES and IFS, !! = different in DALES and IFS)
-    real, parameter :: Q10gm = 2.0        ! (**) Parameter to calculate the mesophyll conductance
-    real, parameter :: Q10am = 2.0        ! (**) Parameter to calculate max primary productivity
-    real, parameter :: Q10lambda = 1.5    ! (!!) Parameter to calculate the CO2 compensation concentration. (2 in IFS, 1.5 in DALES)
-
-    ! Reference temperatures calculation mesophyll conductance:
-    real, parameter :: T1gm = 278         ! (**)
-    real, parameter :: T2gm = 301         ! (!!: IFS=309, DALES=301 (default), 309 (C4))
-
-    ! Reference temperatues calculation max primary productivity:
-    real, parameter :: T1Am = 286         ! (!!: IFS=281, DALES=286 (C4))
-    real, parameter :: T2Am = 311         ! (**)
-
-    real, parameter :: nuco2q = 1.6       ! Ratio molecular viscosity water to carbon dioxide
-    real, parameter :: gmin = 2.5e-4      ! Cuticular (minimum) conductance. NOTE: = g_cu in IFS?
-    real, parameter :: ad =  0.07         ! Regression coefficient to calculate Cfrac
-    real, parameter :: Kx = 0.7           ! Extinction coefficient PAR
-
-    !????
-    real, parameter :: alpha0 =  0.014    ! Initial low light conditions (?)
-
-    real, parameter :: Mair = 28.97
-    real, parameter :: Mco2 = 44
-
-    ! Parameters respiration Jacobs (2006)
-    real, parameter :: Cw = 1.6e-3        ! Constant water stress correction
-    real, parameter :: wsmax = 0.55       ! Upper reference value soil water   # NOTE: I guess these are soil dependant?
-    real, parameter :: wsmin = 0.005      ! Lower reference value soil water   # NOTE: see line above :-)
-    real, parameter :: R10 =   0.23       ! Respiration at 10oC (Jacobs 2007)
-    real, parameter :: Eact0 = 53.3e3     ! Activation energy
-
-    ! Vegetation specific constants
-    ! TODO: link to lookup table IFS, for now hardcoded for single veg type.....
-    real, parameter :: gm298 = 7 !1.3     ! (mm s-1) NOTE: Much lower than DALES...
-    real, parameter :: Ammax298 = 1.7     ! CO2 maximal primary productivity
-    real, parameter :: f0 = 0.85          ! Maximum value Cfrac (constant or equation in IFS)
-    real, parameter :: co2_comp298 = 68.5 ! CO2 compensation concentration = Lambda(25) in IFS
-
-    ! For sw_splitleaf
-    !nr_gauss = 3                                 ! Amount of bins to use for Gaussian integrations
-    !weight_g = np.array([0.2778,0.4444,0.2778])  ! Weights of the Gaussian bins (must add up to 1)
-    !angle_g  = np.array([0.1127,   0.5,0.8873])  ! Sines of the leaf angles compared to the sun in the first Gaussian integration
-    !LAI_g    = np.array([0.1127,   0.5,0.8873])  ! Ratio of integrated LAI at locations where shaded leaves are evaluated in the second Gaussian integration
-    !sigma    = 0.2                               ! Scattering coefficient
-    !kdfbl    = 0.8                               ! Diffuse radiation extinction coefficient for black leaves
-
-    ! Conversion factors
-    ! NOTE: this should use the surface density, not `rhof(1)`.
-    to_ppb   = Mair/Mco2/rhof(1)*1000
-    from_ppb = 1./to_ppb
-
-    do j=2,j1
-        do i=2,i1
-            si = soil_index(i, j, kmax_soil)
-
-            Ts = tskin(i,j) * exnh(1)
-
-            ! Calculate the CO2 compensation concentration (IFS eq. 8.92)
-            ! "The compensation point Γ is defined as the CO2 concentration at which the net CO2 assimilation of a fully lit leaf becomes zero."
-            ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
-            co2_comp = rhof(1) * co2_comp298 * Q10lambda**(0.1 * (Ts - 298.0))
-
-            ! Calculate the mesophyll conductance (IFS eq. 8.93)
-            ! "The mesophyll conductance gm describes the transport of CO2 from the substomatal cavities to the mesophyll cells where the carbon is fixed."
-            ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
-            gm = gm298 * Q10gm**(0.1 * (Ts - 298.0)) / ((1. + exp(0.3 * (T1gm - Ts))) * (1. + exp(0.3 * (Ts - T2gm)))) / 1000.
-
-            ! Calculate CO2 concentration inside the leaf (ci)
-            ! NOTE: Differs from IFS
-            fmin0 = gmin/nuco2q - (1./9.)*gm
-            fmin  = (-fmin0 + (fmin0**2 + 4*gmin/nuco2q*gm)**0.5) / (2.*gm)
-
-            ! Calculate atmospheric moisture deficit
-            ! NOTE: "Therefore Ci/Cs is specified as a function of atmospheric moisture deficit Ds at the leaf surface"
-            !       In DALES, this uses a mix between esat(surface) and e(atmosphere)
-            !       In IFS, this uses (in kg kg-1): qsat(Ts)-qs instead of qsat(Ts)-qa!
-            ! NOTE: Old DALES LSM used the surface pressure in the calculation of `e`, not sure why...
-            esatsurf = 0.611e3 * exp(17.2694 * (Ts - 273.16) / (Ts - 35.86))
-            e = qt0(i,j,1) * presf(1) / 0.622
-            Ds = (esatsurf - e) / 1000.
-
-            ! This seems to differ from IFS?
-            Dmax = (f0 - fmin) / ad
-
-            ! Coupling factor (IFS eq. 8.101)
-            !cfrac = f0 * (1.0 - Ds/Dmax) + fmin * (Ds/Dmax)
-            cfrac = max(0.01, f0 * (1.0 - Ds/Dmax) + fmin * (Ds/Dmax))
-
-            ! Absolute CO2 concentration.
-            if (l_emission) then
-                co2_abs  = svm(i,j,1,svco2sum) * from_ppb
-            else
-                co2_abs  = svm(i,j,1,co2_index) * from_ppb
-            endif
-
-            !if (lrelaxci) then
-            !  if (ci_old_set) then
-            !    ci_inf        = cfrac * (co2_abs - co2_comp) + co2_comp
-            !    ci            = ci_old(i,j) + min(kci*rk3coef, 1.0) * (ci_inf - ci_old(i,j))
-            !    if (rk3step  == 3) then
-            !      ci_old(i,j) = ci
-            !    endif
-            !  else
-            !    ci            = cfrac * (co2_abs - co2_comp) + co2_comp
-            !    ci_old(i,j)   = ci
-            !  endif
-            !else
-            !  ci              = cfrac * (co2_abs - co2_comp) + co2_comp
-            !endif
-
-            ! CO2 concentration in leaf (IFS eq. ???):
-            ci = cfrac * (co2_abs - co2_comp) + co2_comp
-
-            ! Max gross primary production in high light conditions (Ag) (IFS eq. 8.94)
-            ! NOTE: The old DALES LSM used the atmospheric `thl`, IFS uses the surface temperature.
-            Ammax = Ammax298 * Q10am**(0.1 * (Ts - 298.0)) / ((1.0 + exp(0.3 * (T1Am - Ts))) * (1. + exp(0.3 * (Ts - T2Am))))
-
-            ! Effect of soil moisture stress on gross assimilation rate.
-            ! NOTE: this seems to be different in IFS...
-            ! NOTE: for now, this uses the relative soil moisture content from the low vegetaion only!
-            fstr = max(1.0e-3, min(1.0, tile_lv%phiw_mean(i,j)))
-
-            ! Gross assimilation rate (Am, IFS eq. 8.97)
-            Am = Ammax * (1 - exp(-(gm * (ci - co2_comp) / Ammax)))
-
-            ! Autotrophic dark respiration (IFS eq. 8.99)
-            Rdark = Am/9.
-
-            !PAR = 0.40 * max(0.1,-swdav * cveg(i,j))
-            PAR = 0.5 * max(0.1, -swd(i,j,1))
-
-            ! Light use efficiency
-            alphac = alpha0 * (co2_abs - co2_comp) / (co2_abs + 2*co2_comp)
-
-            if (lsplitleaf) then
-                print*,'Splitleaf A-Gs not (yet) implemented!'
-                stop
-            !    PARdir   = 0.5 * max(0.1, sw_in[j,i])
-            !    PARdif   = 0.5 * max(0.1, sw_in[j,i])
-            !
-            !    cos_sza = max(1.e-10, calc_zenith_angle(lat, lon, doy, time))
-            !
-            !    kdrbl = 0.5 / cos_sza   ! Direct radiation extinction coefficient for black leaves
-            !    kdf = kdfbl * np.sqrt(1.0-sigma)
-            !    kdr = kdrbl * np.sqrt(1.0-sigma)
-            !    ref = (1.0 - np.sqrt(1.0-sigma)) / (1.0 + np.sqrt(1.0-sigma)) ! Reflection coefficient
-            !    ref_dir = 2 * ref / (1.0 + 1.6 * cos_sza)
-            !
-            !    Hleaf = np.zeros(nr_gauss+1)
-            !    Fleaf = np.zeros(nr_gauss+1)
-            !    Agl   = np.zeros(nr_gauss+1)
-            !
-            !    Fnet  = np.zeros(nr_gauss)
-            !    gnet  = np.zeros(nr_gauss)
-            !
-            !    ! Loop over different LAI locations
-            !    for it in range(nr_gauss):
-            !
-            !        iLAI   = LAI * LAI_g[it]        ! Integrated LAI between here and canopy top; Gaussian distributed
-            !        fSL    = np.exp(-kdrbl * iLAI)  ! Fraction of sun-lit leaves
-            !
-            !        PARdfD = PARdif * (1.0-ref)     * np.exp(-kdf * iLAI)     ! Total downward PAR due to diffuse radiation at canopy top
-            !        PARdrD = PARdir * (1.0-ref_dir) * np.exp(-kdr * iLAI)     ! Total downward PAR due to direct radiation at canopy top
-            !        PARdfU = PARdif * (1.0-ref)     * np.exp(-kdf * LAI) * \
-            !                albedo * (1.0-ref) * np.exp(-kdf * (LAI-iLAI))    ! Total upward (reflected) PAR that originates as diffuse radiation
-            !        PARdrU = PARdir * (1.0-ref_dir) * np.exp(-kdr * LAI) * \
-            !                albedo * (1.0-ref) * np.exp(-kdf * (LAI-iLAI))    ! Total upward (reflected) PAR that originates as direct radiation
-            !        PARdfT = PARdfD + PARdfU                                  ! Total PAR due to diffuse radiation at canopy top
-            !        PARdrT = PARdrD + PARdrU                                  ! Total PAR due to direct radiation at canopy top
-            !
-            !        dirPAR = (1.0-sigma) * PARdir * fSL                       ! Purely direct PAR (can only be downward)
-            !        difPAR = PARdfT + PARdrT - dirPAR                         ! Total diffuse radiation
-            !
-            !        HdfT   = kdf * PARdfD + kdf * PARdfU
-            !        HdrT   = kdr * PARdrD + kdf * PARdrU
-            !        dirH   = kdrbl * dirPAR
-            !        Hshad  = HdfT + HdrT - dirH
-            !
-            !        Hsun   = Hshad + angle_g * (1.0-sigma) * kdrbl * PARdir / np.sum(angle_g * weight_g)
-            !
-            !        Hleaf[0]  = Hshad
-            !        Hleaf[1:] = Hsun
-            !
-            !        Agl    = fstr * (Am + Rdark) * (1 - np.exp(-alphac*Hleaf/(Am + Rdark)))
-            !        gleaf  = gmin/nuco2q +  Agl/(co2_abs-ci)
-            !        Fleaf  = Agl - Rdark
-            !
-            !        Fshad  = Fleaf[0]
-            !        Fsun   = np.sum(weight_g * Fleaf[1:])
-            !        gshad  = gleaf[0]
-            !        gsun   = np.sum(weight_g * gleaf[1:])
-            !
-            !        Fnet[it] = Fsun * fSL + Fshad * (1 - fSL)
-            !        gnet[it] = gsun * fSL + gshad * (1 - fSL)
-            !
-            !    An     = LAI * np.sum(weight_g * Fnet)
-            !    gc_inf = LAI * np.sum(weight_g * gnet)
-            !
-            else
-                ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
-                ! NOTE: this only uses LAI from low vegetation (for now..)
-                AGSa1  = 1.0 / (1 - f0)
-                Dstar  = Dmax / (AGSa1 * (f0 - fmin))
-                tempy  = alphac * Kx * PAR / (Am + Rdark)
-                An     = (Am + Rdark) * (1 - 1.0 / (Kx * tile_lv%lai(i,j)) * (E1(tempy * exp(-Kx*tile_lv%lai(i,j))) - E1(tempy)))
-                gc_inf = tile_lv%lai(i,j) * (gmin/nuco2q + AGSa1 * fstr * An / ((co2_abs - co2_comp) * (1 + Ds / Dstar)))
-            endif
-
-            if (lrelaxgc) then
-                print*,'Relax GC A-Gs not (yet) implemented!'
-                stop
-            !  if (gc_old_set) then
-            !    gcco2       = gc_old(i,j) + min(kgc*rk3coef, 1.0) * (gc_inf - gc_old(i,j))
-            !    if (rk3step ==3) then
-            !      gc_old(i,j) = gcco2
-            !    endif
-            !  else
-            !    gcco2 = gc_inf
-            !    gc_old(i,j) = gcco2
-            !  endif
-            else
-                gcco2 = gc_inf
-            endif
-
-            ! Calculate mean t_soil and theta_soil for calculation soil respiration
-            t_mean = 0
-            th_mean = 0
-            k = kmax_soil
-            do k=1, kmax_soil
-                t_mean  = t_mean  + tsoil(i,j,k) * dz_soil(k)
-                th_mean = th_mean + phiw(i,j,k)  * dz_soil(k)
-            enddo
-            t_mean  = t_mean  / (-zh_soil(1))
-            th_mean = th_mean / (-zh_soil(1))
-
-            ! Sub-grid fractions of low+high veg, and low+high veg + bare soil
-            cveg = tile_lv%base_frac(i,j) + tile_hv%base_frac(i,j)
-            cland = cveg + tile_bs%base_frac(i,j)
-
-            ! Water stress function:
-            fw = Cw * wsmax / (th_mean + wsmin)
-
-            ! Soil resistance, using old/JS approach
-            theta_min = cveg * theta_wp(si) + (1.-cveg) * theta_res(si)
-            theta_rel = (phiw(i,j,kmax_soil) - theta_min) / (theta_fc(si) - theta_min);
-            f2b(i,j)  = 1./min(1., max(1.e-9, theta_rel))
-
-            ! Surface resistances for moisture and carbon dioxide
-            tile_lv%rs(i,j) = 1.0 / (1.6 * gcco2)
-            tile_hv%rs(i,j) = 1.0 / (1.6 * gcco2)
-            tile_bs%rs(i,j) = tile_bs%rs_min(i,j) / f2b(i,j)
-            tile_ws%rs(i,j) = 0.
-
-            rs_co2 = 1. / gcco2
-
-            ! NOTE:Combined assimilation for low and high veg, using only low veg as vegetation type:
-            resp_co2(i,j) = R10 * (1.-fw) * exp(Eact0 / (283.15 * 8.314) * (1.0 - 283.15 / t_mean))
-            ! Scale with vegetation fraction, and translate to `ppb m s-1`.
-            resp_co2(i,j) = cveg * resp_co2(i,j) * to_ppb
-
-            ! Calculate net assimilation
-            ! NOTE: this uses the aerodynamic resistance from low vegetation...
-            an_co2(i,j) = -(co2_abs - ci) / (tile_lv%ra(i,j) + rs_co2)
-            ! Scale with vegetation + bare soil fraction, and translate to `ppb m s-1`.
-            an_co2(i,j) = cland * an_co2(i,j) * to_ppb
-
-            ! Set CO2 fluxes:
-            if (l_emission) then
-                ! Total flux into the CO2 field holding the sum of all CO2 concentrations:
-                svflux(i,j,svco2sum) = resp_co2(i,j) + an_co2(i,j)
-                ! Respiration flux into the respiration specific field:
-                svflux(i,j,svco2ags) = resp_co2(i,j)
-                ! Net update into the vegetation specific field:
-                svflux(i,j,svco2veg) = an_co2(i,j)
-            else
-                svflux(i,j,co2_index) = resp_co2(i,j) + an_co2(i,j)
-            endif
-
-        end do
-    end do
 
 end subroutine calc_canopy_resistance_ags
 
@@ -640,32 +410,29 @@ end subroutine calc_canopy_resistance_ags
 ! Calculate Obukhov length, ustar, and aerodynamic resistance, for all tiles
 !
 subroutine calc_stability
-    use modglobal, only : i1, j1, cu, cv, rv, rd
-    use modfields, only : u0, v0, thl0, qt0
-    implicit none
+  use modglobal, only : i1, j1, cu, cv, rv, rd
+  use modfields, only : u0, v0, thl0, qt0
+  implicit none
 
-    real, parameter :: du_min = 0.1
-    real :: du, dv
-    integer :: i, j
+  real, parameter :: du_min = 0.1
+  real :: du, dv
+  integer :: i, j
 
-    ! Calculate properties shared by all tiles:
-    ! Absolute wind speed difference, and virtual potential temperature atmosphere
-    do j=2,j1
-        do i=2,i1
-            du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
-            dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
-            du_tot(i,j) = max(0.1, sqrt(du**2 + dv**2))
+  ! Calculate properties shared by all tiles:
+  ! Absolute wind speed difference, and virtual potential temperature atmosphere
+  do j=2,j1
+      do i=2,i1
+          du = 0.5*(u0(i,j,1) + u0(i+1,j,1)) + cu
+          dv = 0.5*(v0(i,j,1) + v0(i,j+1,1)) + cv
+          du_tot(i,j) = max(0.1, sqrt(du**2 + dv**2))
 
-            thv_1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
-        end do
-    end do
+          thv_1(i,j) = thl0(i,j,1)  * (1.+(rv/rd-1.)*qt0(i,j,1))
+      end do
+  end do
 
-    call calc_obuk_ustar_ra(tile_lv)
-    call calc_obuk_ustar_ra(tile_hv)
-    call calc_obuk_ustar_ra(tile_bs)
-    call calc_obuk_ustar_ra(tile_ws)
-    call calc_obuk_ustar_ra(tile_aq)
-
+  do ilu=1, nlu
+    call calc_obuk_ustar_ra(tile(ilu))
+  end do
 end subroutine calc_stability
 
 !
@@ -676,7 +443,7 @@ subroutine calc_obuk_ustar_ra(tile)
     use modfields, only : u0, v0
     implicit none
 
-    type(lsm_tile), intent(inout) :: tile
+    type(T_lsm_tile), intent(inout) :: tile
     integer :: i, j
     real :: thvs
 
@@ -684,8 +451,7 @@ subroutine calc_obuk_ustar_ra(tile)
         do i=2,i1
             if (tile%frac(i,j) > 0) then
                 ! Buoyancy difference surface - atmosphere
-                thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
-                !tile%db(i,j) = grav/thvs * (thvs - thv_1(i,j))
+                thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))                  
                 tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
 
                 ! Iteratively find Obukhov length
@@ -718,7 +484,7 @@ subroutine calc_tile_bcs(tile)
     use modsurfdata, only : ps, tsoil
     implicit none
 
-    type(lsm_tile), intent(inout) :: tile
+    type(T_lsm_tile), intent(inout) :: tile
     integer :: i, j
     real :: Ts, thvs, esats, qsats, desatdTs, dqsatdTs, &
         rs_lim, fH, fLE, fG, num, denom, Ta, qsat_new, &
@@ -726,9 +492,6 @@ subroutine calc_tile_bcs(tile)
 
     rhocp_i = 1. / (rhof(1) * cp)
     rholv_i = 1. / (rhof(1) * rlv)
-
-    ! tmp
-    !real :: HLEG, lwu_new, Qnet_new
 
     do j=2, j1
         do i=2, i1
@@ -795,33 +558,50 @@ end subroutine calc_tile_bcs
 !
 ! Calculate BCs and fluxes for the water tile
 !
-subroutine calc_water_bcs
+!subroutine calc_water_bcs
+subroutine calc_water_bcs(tile)
     use modglobal,   only : i1, j1, cp, rlv
     use modfields,   only : exnh, thl0, qt0, rhof
     use modsurfdata, only : ps
     implicit none
 
+    type(T_lsm_tile), intent(inout) :: tile
     integer :: i, j
     real :: esats
 
     do j=2, j1
-        do i=2, i1
-            if (tile_aq%frac(i,j) > 0) then
-                ! Calculate BCs. `tile_aq%tskin` is fixed in time (for now...)
-                tile_aq%thlskin(i,j) = tile_aq%tskin(i,j) / exnh(1)
-                esats = 0.611e3 * exp(17.2694 * (tile_aq%tskin(i,j) - 273.16) / (tile_aq%tskin(i,j) - 35.86))
-                tile_aq%qtskin(i,j) = 0.622 * esats / ps
+      do i=2, i1
+        !if (tile_aq%frac(i,j) > 0) then
+        if (tile%frac(i,j) > 0) then
+            !! Calculate BCs. `tile_aq%tskin` is fixed in time (for now...)
+            !tile_aq%thlskin(i,j) = tile_aq%tskin(i,j) / exnh(1)
+            !esats = 0.611e3 * exp(17.2694 * (tile_aq%tskin(i,j) - 273.16) / (tile_aq%tskin(i,j) - 35.86))
+            !tile_aq%qtskin(i,j) = 0.622 * esats / ps
+            !
+            !! Calculate kinematic fluxes
+            !tile_aq%wthl(i,j) = 1./tile_aq%ra(i,j) * (tile_aq%thlskin(i,j) - thl0(i,j,1))
+            !tile_aq%wqt (i,j) = 1./tile_aq%ra(i,j) * (tile_aq%qtskin (i,j) - qt0 (i,j,1))
+            !
+            !! Calculate energetic fluxes
+            !tile_aq%H (i,j) = tile_aq%wthl(i,j) * rhof(1) * cp
+            !tile_aq%LE(i,j) = tile_aq%wqt (i,j) * rhof(1) * rlv
+            !tile_aq%G (i,j) = 0.
+            ! Calculate BCs. `tile_aq%tskin` is fixed in time (for now...)
 
-                ! Calculate kinematic fluxes
-                tile_aq%wthl(i,j) = 1./tile_aq%ra(i,j) * (tile_aq%thlskin(i,j) - thl0(i,j,1))
-                tile_aq%wqt (i,j) = 1./tile_aq%ra(i,j) * (tile_aq%qtskin (i,j) - qt0 (i,j,1))
+            tile%thlskin(i,j) = tile%tskin(i,j) / exnh(1)
+            esats = 0.611e3 * exp(17.2694 * (tile%tskin(i,j) - 273.16) / (tile%tskin(i,j) - 35.86))
+            tile%qtskin(i,j) = 0.622 * esats / ps
 
-                ! Calculate energetic fluxes
-                tile_aq%H (i,j) = tile_aq%wthl(i,j) * rhof(1) * cp
-                tile_aq%LE(i,j) = tile_aq%wqt (i,j) * rhof(1) * rlv
-                tile_aq%G (i,j) = 0.
-            end if
-        end do
+            ! Calculate kinematic fluxes
+            tile%wthl(i,j) = 1./tile%ra(i,j) * (tile%thlskin(i,j) - thl0(i,j,1))
+            tile%wqt (i,j) = 1./tile%ra(i,j) * (tile%qtskin (i,j) - qt0 (i,j,1))
+
+            ! Calculate energetic fluxes
+            tile%H (i,j) = tile%wthl(i,j) * rhof(1) * cp
+            tile%LE(i,j) = tile%wqt (i,j) * rhof(1) * rlv
+            tile%G (i,j) = 0.
+        end if
+      end do
     end do
 
 end subroutine calc_water_bcs
@@ -841,57 +621,39 @@ subroutine calc_bulk_bcs
     implicit none
 
     integer :: i, j
-    real :: rhocp_i, rholv_i, ucu, vcv, cveg, bflux
+    real :: rhocp_i, rholv_i, ucu, vcv, bflux
 
     rhocp_i = 1. / (rhof(1) * cp)
     rholv_i = 1. / (rhof(1) * rlv)
 
     ! Calculate surface temperature for each tile, and calculate
     ! surface fluxes (H, LE, G0, wthl, wqt) and values (thlskin, qtskin)
-    call calc_tile_bcs(tile_lv)
-    call calc_tile_bcs(tile_hv)
-    call calc_tile_bcs(tile_bs)
-    call calc_tile_bcs(tile_ws)
-    call calc_water_bcs
+    do ilu=1,nlu
+      if (trim(tile(ilu)%lushort) == 'aq') then 
+        call calc_water_bcs(tile(ilu))
+      else
+        call calc_tile_bcs(tile(ilu))
+      endif
+    enddo
 
     do j=2,j1
         do i=2,i1
-            ! Calc grid point averaged quantities
-            H(i,j) = tile_lv%frac(i,j) * tile_lv%H(i,j) + &
-                     tile_hv%frac(i,j) * tile_hv%H(i,j) + &
-                     tile_bs%frac(i,j) * tile_bs%H(i,j) + &
-                     tile_ws%frac(i,j) * tile_ws%H(i,j) + &
-                     tile_aq%frac(i,j) * tile_aq%H(i,j)
-
-            LE(i,j) = tile_lv%frac(i,j) * tile_lv%LE(i,j) + &
-                      tile_hv%frac(i,j) * tile_hv%LE(i,j) + &
-                      tile_bs%frac(i,j) * tile_bs%LE(i,j) + &
-                      tile_ws%frac(i,j) * tile_ws%LE(i,j) + &
-                      tile_aq%frac(i,j) * tile_aq%LE(i,j)
-
-            G0(i,j) = tile_lv%frac(i,j) * tile_lv%G(i,j) + &
-                      tile_hv%frac(i,j) * tile_hv%G(i,j) + &
-                      tile_bs%frac(i,j) * tile_bs%G(i,j) + &
-                      tile_ws%frac(i,j) * tile_ws%G(i,j) + &
-                      tile_aq%frac(i,j) * tile_aq%G(i,j)
-
-            ustar(i,j) = tile_lv%frac(i,j) * tile_lv%ustar(i,j) + &
-                         tile_hv%frac(i,j) * tile_hv%ustar(i,j) + &
-                         tile_bs%frac(i,j) * tile_bs%ustar(i,j) + &
-                         tile_ws%frac(i,j) * tile_ws%ustar(i,j) + &
-                         tile_aq%frac(i,j) * tile_aq%ustar(i,j)
-
-            tskin(i,j) = tile_lv%frac(i,j) * tile_lv%thlskin(i,j) + &
-                         tile_hv%frac(i,j) * tile_hv%thlskin(i,j) + &
-                         tile_bs%frac(i,j) * tile_bs%thlskin(i,j) + &
-                         tile_ws%frac(i,j) * tile_ws%thlskin(i,j) + &
-                         tile_aq%frac(i,j) * tile_aq%thlskin(i,j)
-
-            qskin(i,j) = tile_lv%frac(i,j) * tile_lv%qtskin(i,j) + &
-                         tile_hv%frac(i,j) * tile_hv%qtskin(i,j) + &
-                         tile_bs%frac(i,j) * tile_bs%qtskin(i,j) + &
-                         tile_ws%frac(i,j) * tile_ws%qtskin(i,j) + &
-                         tile_aq%frac(i,j) * tile_aq%qtskin(i,j)
+            H(i,j) = 0 
+            LE(i,j) = 0 
+            G0(i,j) = 0 
+            ustar(i,j) = 0 
+            tskin(i,j) = 0 
+            qskin(i,j) = 0 
+            rsveg(i,j) = 0
+            rssoil(i,j) = 0
+            do ilu=1,nlu
+              H(i,j)      = H(i,j)     + tile(ilu)%frac(i,j) * tile(ilu)%H(i,j) 
+              LE(i,j)     = LE(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) 
+              G0(i,j)     = G0(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%G(i,j) 
+              ustar(i,j)  = ustar(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%ustar(i,j) 
+              tskin(i,j)  = tskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%thlskin(i,j) 
+              qskin(i,j)  = qskin(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%qtskin(i,j) 
+            enddo
 
             ! Kinematic surface fluxes
             thlflux(i,j) =  H(i,j)  * rhocp_i
@@ -917,24 +679,31 @@ subroutine calc_bulk_bcs
             call excjs(ustar,2,i1,2,j1,1,1,1,1)
 
             ! Just for diagnostics (modlsmcrosssection)
-            cliq(i,j) = tile_ws%frac(i,j) / land_frac(i,j)
+            do ilu=1,nlu
+              if (trim(tile(ilu)%lushort) == 'ws') then
+                cliq(i,j) = tile(ilu)%frac(i,j) / land_frac(i,j)
+              endif
+            enddo
 
             ! Calculate ra consistent with mean flux and temperature difference:
             ra(i,j) = (tskin(i,j) - thl0(i,j,1)) / thlflux(i,j)
 
-            cveg = tile_lv%frac(i,j) + tile_hv%frac(i,j)
-            if (cveg > 0) then
-                rsveg(i,j) = (tile_lv%frac(i,j) * tile_lv%rs(i,j) + &
-                              tile_hv%frac(i,j) * tile_hv%rs(i,j)) / cveg
+            if (cveg(i,j) > 0) then
+                do ilu=1,nlu
+                  if (tile(ilu)%lveg) then
+                    rsveg(i,j) = rsveg(i,j) + tile(ilu)%frac(i,j) * tile(ilu)%rs(i,j) 
+                  endif
+                enddo
+                rsveg(i,j) = rsveg(i,j) / cveg(i,j)
             else
                 rsveg(i,j) = 0.
             end if
 
-            if (tile_bs%frac(i,j) > 0) then
-                rssoil(i,j) = tile_bs%rs(i,j)
-            else
-                rssoil(i,j) = 0.
-            end if
+            do ilu=1,nlu
+              if ( (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'ap' .or. trim(tile(ilu)%lushort) == 'bu') .and. tile(ilu)%frac(i,j) > 0) then
+                  rssoil(i,j) = rssoil(i,j) + tile(ilu)%rs(i,j) * tile(ilu)%frac(i,j)
+              end if
+            end do
 
         end do
     end do
@@ -1092,30 +861,34 @@ subroutine calc_root_water_extraction
     implicit none
 
     integer :: i, j, k
-    real :: phiw_rf_lv, phiw_rf_hv, phi_frac_lv, phi_frac_hv, LE_lv, LE_hv
+    real :: phiw_rf, phi_frac, LE
     real, parameter :: fac = 1./(rhow * rlv)
 
+    phiw_source = 0
     do j=2, j1
-        do i=2, i1
-
-            LE_lv = tile_lv%frac(i,j) * tile_lv%LE(i,j)
-            LE_hv = tile_hv%frac(i,j) * tile_hv%LE(i,j)
-
-            phiw_rf_lv = 0.
-            phiw_rf_hv = 0.
-            do k=1, kmax_soil
-                phiw_rf_lv = phiw_rf_lv + tile_lv%root_frac(i,j,k) * phiw(i,j,k)
-                phiw_rf_hv = phiw_rf_hv + tile_hv%root_frac(i,j,k) * phiw(i,j,k)
-            end do
+      do i=2, i1
+        do ilu=1,nlu
+          if (.not. tile(ilu)%lveg) then
+            cycle
+          else
+            LE = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j)
+            phiw_rf = 0.
 
             do k=1, kmax_soil
-                phi_frac_lv = tile_lv%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf_lv
-                phi_frac_hv = tile_hv%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf_hv
-
-                phiw_source(i,j,k) = -max(0., LE_lv) * fac * dzi_soil(k) * phi_frac_lv &
-                                     -max(0., LE_hv) * fac * dzi_soil(k) * phi_frac_hv
+                phiw_rf = phiw_rf + tile(ilu)%root_frac(i,j,k) * phiw(i,j,k)
             end do
+            
+            do k=1, kmax_soil
+                phi_frac = tile(ilu)%root_frac(i,j,k) * phiw(i,j,k) / phiw_rf
+            
+                phiw_source(i,j,k) = phiw_source(i,j,k) &
+                                     - max(0., LE) * fac * dzi_soil(k) * phi_frac
+            
+            end do
+
+          end if
         end do
+      end do
     end do
 
 end subroutine calc_root_water_extraction
@@ -1188,15 +961,19 @@ subroutine integrate_theta_soil
 
     fac = 1./(rhow * rlv)
 
-    ! Top soil layer
+     ! Top soil layer
     k = kmax_soil
     do j=2,j1
         do i=2,i1
-            flux_top = tile_bs%frac(i,j) * tile_bs%LE(i,j) * fac + throughfall(i,j)
-            tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
-                   - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
+          do ilu=1,nlu
+            if (trim(tile(ilu)%lushort) == 'bs') then
+              flux_top = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * fac + throughfall(i,j)
+              tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
+                    - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
 
-            phiw(i,j,k) = phiwm(i,j,k) + rk3coef * tend
+              phiw(i,j,k) = phiwm(i,j,k) + rk3coef * tend
+            end if
+          end do
         end do
     end do
 
@@ -1234,6 +1011,7 @@ subroutine initlsm
     use modmpi,      only : myid, comm3d, mpierr, mpi_logical, mpi_integer, my_real
     use modsurfdata, only : isurf
     use modemisdata, only : l_emission
+
     implicit none
 
     integer :: ierr
@@ -1241,14 +1019,12 @@ subroutine initlsm
 
     ! Namelist definition
     namelist /NAMLSM/ &
-        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta, co2_index
-
+        lheterogeneous, lfreedrainage, lags, dz_soil, iinterp_t, iinterp_theta, co2_index, nlu
     llsm = (isurf == 11)
 
     if (llsm) then
 
         allocate(dz_soil(kmax_soil))
-
         ! Read namelist
         if (myid == 0) then
             open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -1262,13 +1038,19 @@ subroutine initlsm
         call MPI_BCAST(lheterogeneous, 1, mpi_logical, 0, comm3d, mpierr)
         call MPI_BCAST(lfreedrainage,  1, mpi_logical, 0, comm3d, mpierr)
         call MPI_BCAST(lags,           1, mpi_logical, 0, comm3d, mpierr)
+        call MPI_BCAST(nlu,            1, mpi_integer, 0, comm3d, mpierr)
 
         call MPI_BCAST(iinterp_t,      1, mpi_integer, 0, comm3d, mpierr)
         call MPI_BCAST(iinterp_theta,  1, mpi_integer, 0, comm3d, mpierr)
 
         call MPI_BCAST(co2_index,      1, mpi_integer, 0, comm3d, mpierr)
-
         call MPI_BCAST(dz_soil, kmax_soil, my_real, 0, comm3d, mpierr)
+
+    ! write(*,*) 'nlu from namoptions ', nlu 
+    ! call flush()
+
+        allocate(tile(nlu), stat=ierr)
+        if (ierr/=0) stop
 
         ! Checks on input
         if (lags .and. .not. l_emission .and. (co2_index == -1)) then
@@ -1285,7 +1067,8 @@ subroutine initlsm
 
         if (lheterogeneous) then
             ! Initialise heterogeneous LSM from external input
-            call init_heterogeneous
+            !call init_heterogeneous
+            call init_heterogeneous_nc
         else
             ! Initialise homogeneous LSM from namelist input
             call init_homogeneous
@@ -1299,6 +1082,7 @@ subroutine initlsm
 
         ! Calculate root fractions soil (low and high veg)
         call calc_root_fractions
+
     end if
 
 end subroutine initlsm
@@ -1323,8 +1107,9 @@ subroutine exitlsm
     deallocate( soil_index, tsoil, tsoilm, phiw, phiwm, phiw_source )
     deallocate( wl, wlm, wl_max )
     deallocate( throughfall, interception )
-    deallocate( gD, f1, f2_lv, f2_hv, f2b, f3 )
-    deallocate( du_tot, thv_1, land_frac )
+    !deallocate( gD, f1, f2_lv, f2_hv, f2b, f3 )
+    deallocate( f1, f2b )
+    deallocate( du_tot, thv_1, land_frac, cveg )
     deallocate( lambda, lambdah, lambdas, lambdash, gammas, gammash )
     deallocate( Qnet, H, LE, G0 )
     deallocate( tendskin, cliq, rsveg, rssoil )
@@ -1335,11 +1120,9 @@ subroutine exitlsm
     if (lags) deallocate(an_co2, resp_co2)
 
     ! Tiles, allocated from `allocate_tile`:
-    call deallocate_tile(tile_lv)
-    call deallocate_tile(tile_hv)
-    call deallocate_tile(tile_bs)
-    call deallocate_tile(tile_ws)
-    call deallocate_tile(tile_aq)
+    do ilu=1,nlu
+      call deallocate_tile(tile(ilu))
+    enddo
 
 end subroutine exitlsm
 
@@ -1443,16 +1226,13 @@ subroutine allocate_fields
     allocate(throughfall(i2, j2))
     allocate(interception(i2, j2))
 
-    allocate(gD(i2, j2))
     allocate(f1(i2, j2))
-    allocate(f2_lv(i2, j2))
-    allocate(f2_hv(i2, j2))
     allocate(f2b(i2, j2))
-    allocate(f3(i2, j2))
 
     allocate(du_tot(i2, j2))
     allocate(thv_1(i2, j2))
     allocate(land_frac(i2, j2))
+    allocate(cveg(i2, j2))
 
     ! NOTE: names differ from what is described in modsurfdata!
     ! Diffusivity temperature:
@@ -1486,11 +1266,9 @@ subroutine allocate_fields
     endif
 
     ! Allocate the tiled variables
-    call allocate_tile(tile_lv)
-    call allocate_tile(tile_hv)
-    call allocate_tile(tile_bs)
-    call allocate_tile(tile_ws)
-    call allocate_tile(tile_aq)
+    do ilu=1,nlu
+      call allocate_tile(tile(ilu))
+    enddo
 
 end subroutine allocate_fields
 
@@ -1500,7 +1278,7 @@ end subroutine allocate_fields
 subroutine allocate_tile(tile)
     use modglobal, only : i2, j2
     implicit none
-    type(lsm_tile), intent(inout) :: tile
+    type(T_lsm_tile), intent(inout) :: tile
 
     ! Static properties:
     allocate(tile % z0m(i2, j2))
@@ -1547,6 +1325,11 @@ subroutine allocate_tile(tile)
     ! Root fraction weigthed mean soil water content
     allocate(tile % phiw_mean(i2, j2))
 
+    ! Reduction functions canopy resistance
+    allocate(tile % f2(i2, j2))
+    allocate(tile % f3(i2, j2))
+    allocate(tile % gD(i2, j2))
+
 end subroutine allocate_tile
 
 !
@@ -1554,8 +1337,7 @@ end subroutine allocate_tile
 !
 subroutine deallocate_tile(tile)
     implicit none
-    type(lsm_tile), intent(inout) :: tile
-
+    type(T_lsm_tile), intent(inout) :: tile
     deallocate( tile%z0m, tile%z0h, tile%base_frac, tile%frac )
     deallocate( tile%obuk, tile%ustar, tile%ra )
     deallocate( tile%lambda_stable, tile%lambda_unstable )
@@ -1563,7 +1345,7 @@ subroutine deallocate_tile(tile)
     deallocate( tile%tskin, tile%thlskin, tile%qtskin)
     deallocate( tile%db, tile%lai, tile%rs_min, tile%rs )
     deallocate( tile%a_r, tile%b_r, tile%root_frac, tile%phiw_mean )
-
+    deallocate( tile%f2, tile%f3, tile%gD )
 end subroutine deallocate_tile
 
 !
@@ -1574,25 +1356,11 @@ subroutine init_lsm_tiles
     use modfields, only : thlprof, qtprof
     implicit none
 
-    tile_lv % thlskin(:,:) = thlprof(1)
-    tile_lv % qtskin (:,:) = qtprof(1)
-    tile_lv % obuk   (:,:) = -0.1
-
-    tile_hv % thlskin(:,:) = thlprof(1)
-    tile_hv % qtskin (:,:) = qtprof(1)
-    tile_hv % obuk   (:,:) = -0.1
-
-    tile_bs % thlskin(:,:) = thlprof(1)
-    tile_bs % qtskin (:,:) = qtprof(1)
-    tile_bs % obuk   (:,:) = -0.1
-
-    tile_ws % thlskin(:,:) = thlprof(1)
-    tile_ws % qtskin (:,:) = qtprof(1)
-    tile_ws % obuk   (:,:) = -0.1
-
-    tile_aq % thlskin(:,:) = thlprof(1)
-    tile_aq % qtskin (:,:) = qtprof(1)
-    tile_aq % obuk   (:,:) = -0.1
+    do ilu=1,nlu
+      tile(ilu) % thlskin(:,:) = thlprof(1)
+      tile(ilu) % qtskin (:,:) = qtprof(1)
+      tile(ilu) % obuk   (:,:) = -0.1
+    end do
 
 end subroutine init_lsm_tiles
 
@@ -1606,13 +1374,14 @@ subroutine init_homogeneous
     implicit none
 
     integer :: ierr, k
-    real :: c_low, c_high, c_bare, c_water
-    real :: z0m_low, z0m_high, z0m_bare, z0m_water
-    real :: z0h_low, z0h_high, z0h_bare, z0h_water
-    real :: lambda_s_low, lambda_s_high, lambda_s_bare
-    real :: lambda_us_low, lambda_us_high, lambda_us_bare
+    integer :: ilu_lv, ilu_hv, ilu_bs, ilu_aq, ilu_ap, ilu_ws
+    real :: c_low, c_high, c_bare, c_water, c_asph
+    real :: z0m_low, z0m_high, z0m_bare, z0m_water, z0m_asph
+    real :: z0h_low, z0h_high, z0h_bare, z0h_water, z0h_asph
+    real :: lambda_s_low, lambda_s_high, lambda_s_bare, lambda_s_asph
+    real :: lambda_us_low, lambda_us_high, lambda_us_bare, lambda_us_asph
     real :: lai_low, lai_high
-    real :: rs_min_low, rs_min_high, rs_min_bare
+    real :: rs_min_low, rs_min_high, rs_min_bare, rs_min_asph
     real :: ar_low, br_low, ar_high, br_high
     real :: gD_high
     real :: tskin_water
@@ -1622,20 +1391,21 @@ subroutine init_homogeneous
 
     ! Read namelist
     namelist /NAMLSM_HOMOGENEOUS/ &
-        c_low, c_high, c_bare, c_water, &
-        z0m_low, z0m_high, z0m_bare, z0m_water, &
-        z0h_low, z0h_high, z0h_bare, z0h_water, &
-        lambda_s_low, lambda_s_high, lambda_s_bare, &
-        lambda_us_low, lambda_us_high, lambda_us_bare, &
+        c_low, c_high, c_bare, c_water, c_asph, &
+        z0m_low, z0m_high, z0m_bare, z0m_water, z0m_asph, &
+        z0h_low, z0h_high, z0h_bare, z0h_water, z0h_asph, &
+        lambda_s_low, lambda_s_high, lambda_s_bare, lambda_s_asph, &
+        lambda_us_low, lambda_us_high, lambda_us_bare, lambda_us_asph, &
         lai_low, lai_high, &
-        rs_min_low, rs_min_high, rs_min_bare, &
+        rs_min_low, rs_min_high, rs_min_bare, rs_min_asph, &
         t_soil_p, theta_soil_p, soil_index_p, &
         ar_low, br_low, ar_high, br_high, &
         gD_high, tskin_water
 
     allocate(t_soil_p(kmax_soil), theta_soil_p(kmax_soil))
     allocate(soil_index_p(kmax_soil))
-
+  !todo : check if len(soil_index_p)==len(t_soil_p)==len(theta_soil_p)==len(kmax_soil)
+  !if not, throw error
     if (myid == 0) then
         open(ifnamopt, file=fname_options, status='old', iostat=ierr)
         read(ifnamopt, NAMLSM_HOMOGENEOUS, iostat=ierr)
@@ -1649,24 +1419,29 @@ subroutine init_homogeneous
     call MPI_BCAST(c_high,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(c_bare,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(c_water, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(c_asph, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(z0m_low,   1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0m_high,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0m_bare,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0m_water, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0m_asph, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(z0h_low,   1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0h_high,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0h_bare,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(z0h_water, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(z0h_asph, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(lambda_s_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(lambda_s_high, 1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(lambda_s_bare, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lambda_s_asph, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(lambda_us_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(lambda_us_high, 1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(lambda_us_bare, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(lambda_us_asph, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(lai_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(lai_high, 1, my_real, 0, comm3d, mpierr)
@@ -1674,6 +1449,7 @@ subroutine init_homogeneous
     call MPI_BCAST(rs_min_low,  1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(rs_min_high, 1, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(rs_min_bare, 1, my_real, 0, comm3d, mpierr)
+    call MPI_BCAST(rs_min_asph, 1, my_real, 0, comm3d, mpierr)
 
     call MPI_BCAST(t_soil_p,     kmax_soil, my_real, 0, comm3d, mpierr)
     call MPI_BCAST(theta_soil_p, kmax_soil, my_real, 0, comm3d, mpierr)
@@ -1688,47 +1464,83 @@ subroutine init_homogeneous
 
     call MPI_BCAST(tskin_water, 1, my_real, 0, comm3d, mpierr)
 
+    ! hack to set LU indices
+    ilu_lv = 1
+    ilu_hv = 2
+    ilu_bs = 3
+    ilu_aq = 4
+    ilu_ap = 5
+    ilu_ws = 6
+
+    ! hack to set LU names & type
+    ! todo: read from namoptions
+    tile(ilu_lv) % lushort = 'lv'
+    tile(ilu_hv) % lushort = 'hv'
+    tile(ilu_bs) % lushort = 'bs'
+    tile(ilu_aq) % lushort = 'aq'
+    tile(ilu_ap) % lushort = 'ap'
+    tile(ilu_ws) % lushort = 'ws'
+
+    tile(ilu_lv)%luname = 'low vegetation'
+    tile(ilu_hv)%luname = 'high vegetation'
+    tile(ilu_bs)%luname = 'bare soil'
+    tile(ilu_aq)%luname = 'water'
+    tile(ilu_ap)%luname = 'asphalt'
+    tile(ilu_ws)%luname = 'water on leaf'
+
+    tile(ilu_lv)%lveg = .True. 
+    tile(ilu_hv)%lveg = .True.
+    tile(ilu_bs)%lveg = .False.
+    tile(ilu_aq)%lveg = .False.
+    tile(ilu_ap)%lveg = .False.
+    tile(ilu_ws)%lveg = .False.
+
     ! Set values
-    tile_lv % base_frac(:,:) = c_low
-    tile_hv % base_frac(:,:) = c_high
-    tile_bs % base_frac(:,:) = c_bare
-    tile_aq % base_frac(:,:) = c_water
-    tile_ws % base_frac(:,:) = 0.
+    tile(ilu_lv) % base_frac(:,:) = c_low
+    tile(ilu_hv) % base_frac(:,:) = c_high
+    tile(ilu_bs) % base_frac(:,:) = c_bare
+    tile(ilu_aq) % base_frac(:,:) = c_water
+    tile(ilu_ap) % base_frac(:,:) = c_asph
+    tile(ilu_ws) % base_frac(:,:) = 0.
 
-    tile_lv % z0m(:,:) = z0m_low
-    tile_hv % z0m(:,:) = z0m_high
-    tile_bs % z0m(:,:) = z0m_bare
-    tile_aq % z0m(:,:) = z0m_water
+    tile(ilu_lv) % z0m(:,:) = z0m_low
+    tile(ilu_hv) % z0m(:,:) = z0m_high
+    tile(ilu_bs) % z0m(:,:) = z0m_bare
+    tile(ilu_aq) % z0m(:,:) = z0m_water
+    tile(ilu_ap) % z0m(:,:) = z0m_asph
 
-    tile_lv % z0h(:,:) = z0h_low
-    tile_hv % z0h(:,:) = z0h_high
-    tile_bs % z0h(:,:) = z0h_bare
-    tile_aq % z0h(:,:) = z0h_water
+    tile(ilu_lv) % z0h(:,:) = z0h_low
+    tile(ilu_hv) % z0h(:,:) = z0h_high
+    tile(ilu_bs) % z0h(:,:) = z0h_bare
+    tile(ilu_aq) % z0h(:,:) = z0h_water
+    tile(ilu_ap) % z0h(:,:) = z0h_asph
 
-    tile_lv % lambda_stable(:,:) = lambda_s_low
-    tile_hv % lambda_stable(:,:) = lambda_s_high
-    tile_bs % lambda_stable(:,:) = lambda_s_bare
+    tile(ilu_lv) % lambda_stable(:,:) = lambda_s_low
+    tile(ilu_hv) % lambda_stable(:,:) = lambda_s_high
+    tile(ilu_bs) % lambda_stable(:,:) = lambda_s_bare
+    tile(ilu_ap) % lambda_stable(:,:) = lambda_s_asph
 
-    tile_lv % lambda_unstable(:,:) = lambda_us_low
-    tile_hv % lambda_unstable(:,:) = lambda_us_high
-    tile_bs % lambda_unstable(:,:) = lambda_us_bare
+    tile(ilu_lv) % lambda_unstable(:,:) = lambda_us_low
+    tile(ilu_hv) % lambda_unstable(:,:) = lambda_us_high
+    tile(ilu_bs) % lambda_unstable(:,:) = lambda_us_bare
+    tile(ilu_ap) % lambda_unstable(:,:) = lambda_us_asph
 
-    tile_lv % lai(:,:) = lai_low
-    tile_hv % lai(:,:) = lai_high
+    tile(ilu_lv) % lai(:,:) = lai_low
+    tile(ilu_hv) % lai(:,:) = lai_high
 
-    tile_lv % rs_min(:,:) = rs_min_low
-    tile_hv % rs_min(:,:) = rs_min_high
-    tile_bs % rs_min(:,:) = rs_min_bare
+    tile(ilu_lv) % rs_min(:,:) = rs_min_low
+    tile(ilu_hv) % rs_min(:,:) = rs_min_high
+    tile(ilu_bs) % rs_min(:,:) = rs_min_bare
+    tile(ilu_ap) % rs_min(:,:) = rs_min_asph
 
-    tile_lv % a_r(:,:) = ar_low
-    tile_lv % b_r(:,:) = br_low
-    tile_hv % a_r(:,:) = ar_high
-    tile_hv % b_r(:,:) = br_high
+    tile(ilu_lv) % a_r(:,:) = ar_low
+    tile(ilu_lv) % b_r(:,:) = br_low
+    tile(ilu_hv) % a_r(:,:) = ar_high
+    tile(ilu_hv) % b_r(:,:) = br_high
 
-    gD(:,:) = gD_high
+    tile(ilu_hv) % gD(:,:) = gD_high
 
-    tile_aq % tskin(:,:) = tskin_water
-
+    tile(ilu_aq) % tskin(:,:) = tskin_water
 
     if (.not. lwarmstart) then
         ! Init prognostic variables in case of cold start.
@@ -1751,21 +1563,27 @@ subroutine init_homogeneous
     end do
 
     ! Set properties wet skin tile
-    tile_ws % z0m(:,:) = c_low*z0m_low + c_high*z0m_high + c_bare*z0m_bare
-    tile_ws % z0h(:,:) = c_low*z0h_low + c_high*z0h_high + c_bare*z0h_bare
+    tile(ilu_ws) % z0m(:,:) = c_low*z0m_low + c_high*z0m_high + c_bare*z0m_bare
+    tile(ilu_ws) % z0h(:,:) = c_low*z0h_low + c_high*z0h_high + c_bare*z0h_bare
 
-    tile_ws % lambda_stable(:,:)   = c_low*lambda_s_low  + c_high*lambda_s_high  + c_bare*lambda_s_bare
-    tile_ws % lambda_unstable(:,:) = c_low*lambda_us_low + c_high*lambda_us_high + c_bare*lambda_us_bare
+    tile(ilu_ws) % lambda_stable(:,:)   = c_low*lambda_s_low  + c_high*lambda_s_high  + c_bare*lambda_s_bare + c_asph*lambda_s_asph
+    tile(ilu_ws) % lambda_unstable(:,:) = c_low*lambda_us_low + c_high*lambda_us_high + c_bare*lambda_us_bare + c_asph*lambda_us_asph
 
     ! Calculate land fraction, and limit to prevent div/0's
     land_frac(:,:) = 1.-c_water
     where (land_frac == 0) land_frac = eps1
 
+    ! Calculate vegetation fraction, and limit to prevent div/0's
+    cveg(:,:) = tile(ilu_lv)%base_frac(:,:) + tile(ilu_hv)%base_frac(:,:)
+    where (cveg == 0) cveg = eps1
+    
+
     ! Max liquid water per grid point, accounting for LAI
     wl_max(:,:) = wmax * ( &
-            tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
-            tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
-            tile_bs%base_frac(:,:)) / land_frac(:,:)
+            tile(ilu_lv)%base_frac(:,:) * tile(ilu_lv)%lai(:,:) + &
+            tile(ilu_hv)%base_frac(:,:) * tile(ilu_hv)%lai(:,:) + &
+            tile(ilu_ap)%base_frac(:,:) + &
+            tile(ilu_bs)%base_frac(:,:)) / land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
 
     ! Cleanup!
@@ -1778,10 +1596,13 @@ end subroutine init_homogeneous
 !
 subroutine init_heterogeneous
     use modglobal,   only : i1, j1, lwarmstart, iexpnr, eps1
+    use modglobal,   only : i2, j2
     use modmpi,      only : myidx, myidy
     use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
     implicit none
 
+    integer       :: ilu_lv, ilu_hv, ilu_aq, ilu_ap, ilu_ws, ilu_bs
+    real          :: lai_tmp(i2,j2)
     character(20) :: input_file = 'lsm.inp.x___y___.___'
     write(input_file(10:12), '(i3.3)') myidx
     write(input_file(14:16), '(i3.3)') myidy
@@ -1789,49 +1610,88 @@ subroutine init_heterogeneous
 
     open(666, file=input_file, form='unformatted', status='unknown', action='read', access='stream')
 
+    ! hack to manually enter data that is not in file
+    tile(1)%lushort = 'lv'
+    tile(2)%lushort = 'hv'
+    tile(3)%lushort = 'bs'
+    tile(4)%lushort = 'aq'
+    tile(5)%lushort = 'ap'
+    tile(6)%lushort = 'ws'
+
+    tile(1)%luname = 'low vegetation'
+    tile(2)%luname = 'high vegetation'
+    tile(3)%luname = 'bare soil'
+    tile(4)%luname = 'water'
+    tile(5)%luname = 'asphalt'
+    tile(6)%luname = 'water on leaf'
+
+    tile(1)%lveg = .true.
+    tile(2)%lveg = .true.
+    tile(3)%lveg = .false.
+    tile(4)%lveg = .false.
+    tile(5)%lveg = .false.
+    tile(6)%lveg = .false.
+
+    ilu_lv = 1
+    ilu_hv = 2
+    ilu_bs = 3
+    ilu_aq = 4
+    ilu_ap = 5
+    ilu_ws = 6
+
+    !todo: check order of variables in input file, modify file if needed
+
     ! 2D surface fields
-    read(666) tile_lv%base_frac(2:i1, 2:j1)
-    read(666) tile_hv%base_frac(2:i1, 2:j1)
-    read(666) tile_bs%base_frac(2:i1, 2:j1)
-    read(666) tile_aq%base_frac(2:i1, 2:j1)
+    do ilu=1,nlu-1
+      read(666) tile(ilu)%base_frac(2:i1, 2:j1)
+    enddo
+    do ilu=1,nlu-1
+      read(666) tile(ilu)%z0m(2:i1, 2:j1)
+    enddo
+    do ilu=1,nlu-1
+      read(666) tile(ilu)%z0h(2:i1, 2:j1)
+    enddo
+    do ilu=1,nlu-1
+      if (ilu == ilu_aq) cycle
+      read(666) tile(ilu)%lambda_stable(2:i1, 2:j1)
+    enddo
+    do ilu=1,nlu-1
+      if (ilu == ilu_aq) cycle
+      read(666) tile(ilu)%lambda_unstable(2:i1, 2:j1)
+    enddo
+    do ilu=1,nlu
+      if (ilu > ilu_hv) cycle      
+      read(666) tile(ilu)%lai(2:i1, 2:j1)
+    enddo
+    do ilu=1,nlu-1
+      if (ilu == ilu_aq) cycle
+      read(666) tile(ilu)%rs_min(2:i1, 2:j1)
+    enddo
+    read(666) tile(ilu_lv)%a_r(2:i1, 2:j1)
+    read(666) tile(ilu_lv)%b_r(2:i1, 2:j1)
+    read(666) tile(ilu_hv)%a_r(2:i1, 2:j1)
+    read(666) tile(ilu_hv)%b_r(2:i1, 2:j1)
 
-    read(666) tile_lv%z0m(2:i1, 2:j1)
-    read(666) tile_hv%z0m(2:i1, 2:j1)
-    read(666) tile_bs%z0m(2:i1, 2:j1)
-    read(666) tile_aq%z0m(2:i1, 2:j1)
+    do ilu=1,nlu
+      if (ilu == ilu_hv) then       
+        read(666) tile(ilu)%gD(2:i1, 2:j1)
+      else
+        tile(ilu)%gD(2:i1, 2:j1) = 0
+      end if
+    end do
 
-    read(666) tile_lv%z0h(2:i1, 2:j1)
-    read(666) tile_hv%z0h(2:i1, 2:j1)
-    read(666) tile_bs%z0h(2:i1, 2:j1)
-    read(666) tile_aq%z0h(2:i1, 2:j1)
-
-    read(666) tile_lv%lambda_stable(2:i1, 2:j1)
-    read(666) tile_hv%lambda_stable(2:i1, 2:j1)
-    read(666) tile_bs%lambda_stable(2:i1, 2:j1)
-
-    read(666) tile_lv%lambda_unstable(2:i1, 2:j1)
-    read(666) tile_hv%lambda_unstable(2:i1, 2:j1)
-    read(666) tile_bs%lambda_unstable(2:i1, 2:j1)
-
-    read(666) tile_lv%lai(2:i1, 2:j1)
-    read(666) tile_hv%lai(2:i1, 2:j1)
-
-    read(666) tile_lv%rs_min(2:i1, 2:j1)
-    read(666) tile_hv%rs_min(2:i1, 2:j1)
-    read(666) tile_bs%rs_min(2:i1, 2:j1)
-
-    read(666) tile_lv%a_r(2:i1, 2:j1)
-    read(666) tile_lv%b_r(2:i1, 2:j1)
-    read(666) tile_hv%a_r(2:i1, 2:j1)
-    read(666) tile_hv%b_r(2:i1, 2:j1)
-
-    read(666) gD(2:i1, 2:j1)
-
-    read(666) tile_aq%tskin(2:i1, 2:j1)
+    read(666) tile(ilu_aq)%tskin(2:i1, 2:j1)
 
     ! 3D soil fields
     read(666) soil_index(2:i1, 2:j1, 1:kmax_soil)
-
+  !write(*,*) 'soil_ind', kmax_soil, soil_index(3,3,1)
+  !write(*,*) 'soil_ind_minmax', minval(soil_index), maxval(soil_index)
+  !write(*,*) 'gDmean  ', minval(gD), maxval(gD), sum(gD)/(max(1,size(gD)))
+  !write(*,*) 'lvfracmean', sum(tile_lv%base_frac)/(max(1,size(tile_lv%base_frac)))
+  !write(*,*) 'hvfracmean', sum(tile_hv%base_frac)/(max(1,size(tile_hv%base_frac)))
+  !write(*,*) 'aqfracmean', sum(tile_aq%base_frac)/(max(1,size(tile_aq%base_frac)))
+  !write(*,*) 'apfracmean', sum(tile_ap%base_frac)/(max(1,size(tile_ap%base_frac)))
+  !write(*,*) 'bsfracmean', sum(tile_bs%base_frac)/(max(1,size(tile_bs%base_frac)))
     if (.not. lwarmstart) then
         read(666) tsoil(2:i1, 2:j1, 1:kmax_soil)
         read(666) phiw (2:i1, 2:j1, 1:kmax_soil)
@@ -1843,41 +1703,319 @@ subroutine init_heterogeneous
     close(666)
 
     ! Derived quantities
-    tile_ws%base_frac(:,:) = 0.
+    tile(ilu_ws)%base_frac(:,:) = 0.
+    tile(ilu_ws)%z0m(:,:) = 0
+    tile(ilu_ws)%z0h(:,:) = 0
+    tile(ilu_ws)%lambda_stable(:,:) = 0
+    tile(ilu_ws)%lambda_unstable(:,:) = 0
 
-    ! Set properties wet skin tile
-    tile_ws%z0m(:,:) = &
-        tile_lv%base_frac(:,:)*tile_lv%z0m(:,:) + &
-        tile_hv%base_frac(:,:)*tile_lv%z0m(:,:) + &
-        tile_bs%base_frac(:,:)*tile_bs%z0m(:,:)
+    do ilu=1,nlu
+      if (trim(tile(ilu)%lushort) == 'aq') then
+        cycle
+      else
+        tile(ilu_ws)%z0m(:,:) = tile(ilu_ws)%z0m(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%z0m(:,:)
+        tile(ilu_ws)%z0h(:,:) = tile(ilu_ws)%z0h(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%z0h(:,:)
+        tile(ilu_ws)%lambda_stable(:,:) = tile(ilu_ws)%lambda_stable(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%lambda_stable(:,:)
+        tile(ilu_ws)%lambda_unstable(:,:) = tile(ilu_ws)%lambda_unstable(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%lambda_unstable(:,:)
+      end if
+    end do
 
-    tile_ws%z0h(:,:) = &
-        tile_lv%base_frac(:,:)*tile_lv%z0h(:,:) + &
-        tile_hv%base_frac(:,:)*tile_lv%z0h(:,:) + &
-        tile_bs%base_frac(:,:)*tile_bs%z0h(:,:)
-
-    tile_ws%lambda_stable(:,:) = &
-        tile_lv%base_frac(:,:)*tile_lv%lambda_stable(:,:) + &
-        tile_hv%base_frac(:,:)*tile_lv%lambda_stable(:,:) + &
-        tile_bs%base_frac(:,:)*tile_bs%lambda_stable(:,:)
-
-    tile_ws%lambda_unstable(:,:) = &
-        tile_lv%base_frac(:,:)*tile_lv%lambda_unstable(:,:) + &
-        tile_hv%base_frac(:,:)*tile_lv%lambda_unstable(:,:) + &
-        tile_bs%base_frac(:,:)*tile_bs%lambda_unstable(:,:)
+    ! Calculate vegetation fraction, and limit to prevent div/0's
+    do ilu=1,nlu
+      if (tile(ilu)%lveg) then
+        cveg(:,:) = cveg(:,:) + tile(ilu)%base_frac(:,:)
+      end if
+    end do
+    where (cveg == 0) cveg = eps1
 
     ! Calculate land fraction, and limit to prevent div/0's
-    land_frac(:,:) = 1.-tile_aq%base_frac(:,:)
+    land_frac(:,:) = 1.-tile(ilu_aq)%base_frac(:,:)
     where (land_frac == 0) land_frac = eps1
 
     ! Max liquid water per grid point, accounting for LAI
-    wl_max(:,:) = wmax * ( &
-            tile_lv%base_frac(:,:) * tile_lv%lai(:,:) + &
-            tile_hv%base_frac(:,:) * tile_hv%lai(:,:) + &
-            tile_bs%base_frac(:,:)) / land_frac(:,:)
+    wl_max = 0
+    do ilu=1,nlu
+      if (tile(ilu)%lveg) then
+        lai_tmp(:,:) = tile(ilu)%lai(:,:)
+      else
+        lai_tmp(:,:) = 1
+      endif
+      wl_max(:,:) = wl_max(:,:) + tile(ilu)%base_frac(:,:) * lai_tmp(:,:)
+    enddo
+    wl_max(:,:) = wl_max(:,:) * wmax/land_frac(:,:) 
     where (wl_max == 0) wl_max = eps1
 
 end subroutine init_heterogeneous
+
+!
+! Init LSM properties from external input: read from NetCDF
+!
+subroutine init_heterogeneous_nc
+
+    use netcdf
+    use modglobal,   only : i1, j1, lwarmstart, iexpnr, eps1
+    use modglobal,   only : i2, j2
+    use modmpi,      only : myidx, myidy
+    use modglobal,   only : imax, jmax
+
+    use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
+    implicit none
+
+    integer       :: ilu_lv, ilu_hv, ilu_aq, ilu_ap, ilu_ws, ilu_bs
+    real          :: lai_tmp(i2,j2)
+    character(32) :: input_file = 'lsm.inp_xxx.nc' 
+    integer       :: ncid , varid
+    character     :: lvegs(nlu-1)
+    integer       :: nlu_file
+    
+    write(input_file(9:11), '(i3.3)') iexpnr
+
+    write(6,"(A18, A32)") "Reading LSM input: ", input_file
+    call check( nf90_open(input_file, nf90_nowrite, ncid) )
+
+    call check( nf90_inq_dimid(ncid, 'nlu', varid) )
+    call check( nf90_inquire_dimension(ncid, varid, len=nlu_file) )
+    
+    ! check if nlu_file==nlu-1 ('wet skin' is not in file)
+    if (nlu-1 /= nlu_file) then
+      write(6,"(A46, i3, A2, i3)") "STOPPED. Number of LU types in file differs from nlu-1:  ", nlu-1, " /=", nlu_file
+      stop
+    end if
+
+    ! set land use names and indices, and whether it's vegetation or not
+    do ilu=1,nlu-1
+      call check( nf90_inq_varid( ncid, 'luname', varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%luname , &
+                               start = (/ 1 , ilu /) , &
+                               count = (/ 32, 1   /)) )
+
+      call check( nf90_inq_varid( ncid, 'lushort', varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%lushort , &
+                              start = (/ 1, ilu /) , &
+                              count = (/ 2, 1   /)) )
+
+      call check( nf90_inq_varid( ncid, 'lveg', varid) )
+      call check( nf90_get_var(ncid, varid, lvegs(ilu), &
+                                start = (/ 1, ilu /), &
+                                count = (/ 1, 1   /) ) )
+      if (trim(lvegs(ilu)) .eq. "T") then
+        tile(ilu)%lveg = .true.
+      else if (trim(lvegs(ilu)) .eq. "F") then
+        tile(ilu)%lveg = .false.
+      else 
+        print *,'logical lveg not defined'
+        stop
+      end if
+      
+      ! todo: read from file
+      if (tile(ilu)%lushort == 'lv') then
+        ilu_lv = ilu
+      else if (tile(ilu)%lushort == 'hv') then
+        ilu_hv = ilu
+      else if (tile(ilu)%lushort == 'bs') then
+        ilu_bs = ilu
+      else if (tile(ilu)%lushort == 'aq') then
+        ilu_aq = ilu
+      else if (tile(ilu)%lushort == 'ap') then
+        ilu_ap = ilu
+      end if
+    end do
+    
+    ! wet skin is always the last LU type; set explicitly
+    ilu_ws            = nlu
+    tile(nlu)%luname  = 'wet skin'    
+    tile(nlu)%lushort = 'ws'    
+    tile(nlu)%lveg    = .false.    
+    
+    ! 2D surface fields
+    do ilu=1,nlu-1
+      ! LU cover
+      call check( nf90_inq_varid( ncid, 'c_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%base_frac(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+
+      ! z0m 
+      call check( nf90_inq_varid( ncid, 'z0m_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%z0m(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+
+      ! z0h 
+      call check( nf90_inq_varid( ncid, 'z0h_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%z0h(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+    enddo
+
+    do ilu=1,nlu-1
+      if (ilu == ilu_aq) cycle
+      ! lambda stable
+      call check( nf90_inq_varid( ncid, 'lambda_s_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%lambda_stable(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+
+      ! lambda unstable
+      call check( nf90_inq_varid( ncid, 'lambda_us_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%lambda_unstable(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+
+      ! rs_min
+      call check( nf90_inq_varid( ncid, 'rs_min_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%rs_min(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )                          
+    enddo
+
+    do ilu=1,nlu
+      if (ilu /= ilu_hv .and. ilu /= ilu_lv) cycle    
+
+      ! lai
+      call check( nf90_inq_varid( ncid, 'lai_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%lai(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+      ! a_r
+      call check( nf90_inq_varid( ncid, 'ar_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%a_r(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+      ! b_r
+      call check( nf90_inq_varid( ncid, 'br_'//trim(tile(ilu)%lushort), varid) )
+      call check( nf90_get_var(ncid, varid, tile(ilu)%b_r(2:i1, 2:j1) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                count = (/imax, jmax/) ) )
+    enddo
+
+    do ilu=1,nlu
+      if (ilu == ilu_hv) then       
+        ! gD
+        call check( nf90_inq_varid( ncid, 'gD', varid) )
+        call check( nf90_get_var(ncid, varid, tile(ilu)%gD(2:i1, 2:j1) , &
+                                  start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                                  count = (/imax, jmax/) ) )
+      else
+        tile(ilu)%gD(2:i1, 2:j1) = 0
+      end if
+    end do
+
+    ! tskin
+    call check( nf90_inq_varid( ncid, 'tskin_aq', varid) )
+    call check( nf90_get_var(ncid, varid, tile(ilu_aq)%tskin(2:i1, 2:j1) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+                              count = (/imax, jmax/) ) )
+
+    ! 3D soil fields
+    ! soil index
+    call check( nf90_inq_varid( ncid, 'index_soil', varid) )
+    call check( nf90_get_var(ncid, varid, soil_index(2:i1, 2:j1, 1:kmax_soil) , &
+                              start = (/1 + myidx * imax, 1 + myidy * jmax, 1/), &
+                              count = (/imax, jmax, kmax_soil/) ) )
+
+    if (.not. lwarmstart) then
+      ! soil temperature
+      call check( nf90_inq_varid( ncid, 't_soil', varid) )
+      call check( nf90_get_var(ncid, varid, tsoil(2:i1, 2:j1, 1:kmax_soil) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax, 1/), &
+                                count = (/imax, jmax, kmax_soil/) ) )
+
+      ! soil moisture
+      call check( nf90_inq_varid( ncid, 'theta_soil', varid) )
+      call check( nf90_get_var(ncid, varid, phiw(2:i1, 2:j1, 1:kmax_soil) , &
+                                start = (/1 + myidx * imax, 1 + myidy * jmax, 1/), &
+                                count = (/imax, jmax, kmax_soil/) ) )
+
+      ! liquid water
+      wl(:,:)  = 0.
+      wlm(:,:) = 0.
+    end if
+
+    call check( nf90_close(ncid) )
+
+    ! Derived quantities
+    tile(ilu_ws)%base_frac(:,:) = 0.
+
+    ! Set properties wet skin tile
+    tile(ilu_ws)%z0m(:,:) = 0
+    tile(ilu_ws)%z0h(:,:) = 0
+    tile(ilu_ws)%lambda_stable(:,:) = 0
+    tile(ilu_ws)%lambda_unstable(:,:) = 0
+
+    do ilu=1,nlu
+      if (ilu == ilu_aq) then
+        cycle
+      else
+        tile(ilu_ws)%z0m(:,:) = tile(ilu_ws)%z0m(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%z0m(:,:)
+        tile(ilu_ws)%z0h(:,:) = tile(ilu_ws)%z0h(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%z0h(:,:)
+        tile(ilu_ws)%lambda_stable(:,:) = tile(ilu_ws)%lambda_stable(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%lambda_stable(:,:)
+        tile(ilu_ws)%lambda_unstable(:,:) = tile(ilu_ws)%lambda_unstable(:,:) + tile(ilu)%base_frac(:,:)*tile(ilu)%lambda_unstable(:,:)
+      end if
+    end do
+
+    ! Calculate vegetation fraction, and limit to prevent div/0's
+    do ilu=1,nlu
+      if (tile(ilu)%lveg) then
+        cveg(:,:) = cveg(:,:) + tile(ilu)%base_frac(:,:)
+      end if
+    end do
+    where (cveg == 0) cveg = eps1
+
+    ! Calculate land fraction, and limit to prevent div/0's
+    land_frac(:,:) = 1.-tile(ilu_aq)%base_frac(:,:)
+    where (land_frac == 0) land_frac = eps1
+
+    ! Max liquid water per grid point, accounting for LAI
+    wl_max = 0
+    do ilu=1,nlu
+      if (ilu == ilu_aq) cycle
+      if (tile(ilu)%lveg) then
+        lai_tmp(:,:) = tile(ilu)%lai(:,:)
+        wl_max(:,:)  = wl_max(:,:) + tile(ilu)%base_frac(:,:) * lai_tmp(:,:)
+      else
+        wl_max(:,:)  = wl_max(:,:) + tile(ilu)%base_frac(:,:)
+      endif
+    enddo
+    wl_max(:,:) = wl_max(:,:) * wmax/land_frac(:,:) 
+    where (wl_max == 0) wl_max = eps1
+
+    !! debugging: some checks
+    write(*,*) '...checking LU inputs: mean, min and max, accounting for ghost cells'
+    do ilu=1,nlu
+      write(*,*) 'lushort       ', tile(ilu)%lushort
+      write(*,*) 'base_frac     ', sum(tile(ilu)%base_frac(2:i1,2:j1))/size(tile(ilu)%base_frac(2:i1,2:j1)), minval(tile(ilu)%base_frac(2:i1,2:j1)), maxval(tile(ilu)%base_frac(2:i1,2:j1)) 
+      write(*,*) 'z0h           ', sum(tile(ilu)%z0h(2:i1,2:j1))/size(tile(ilu)%z0h(2:i1,2:j1)), minval(tile(ilu)%z0h(2:i1,2:j1)), maxval(tile(ilu)%z0h(2:i1,2:j1)) 
+      write(*,*) 'z0m           ', sum(tile(ilu)%z0m(2:i1,2:j1))/size(tile(ilu)%z0m(2:i1,2:j1)), minval(tile(ilu)%z0m(2:i1,2:j1)), maxval(tile(ilu)%z0m(2:i1,2:j1)) 
+      write(*,*) 'rs_min        ', sum(tile(ilu)%rs_min(2:i1,2:j1))/size(tile(ilu)%rs_min(2:i1,2:j1)), minval(tile(ilu)%rs_min(2:i1,2:j1)), maxval(tile(ilu)%rs_min(2:i1,2:j1)) 
+      write(*,*) 'gD            ', sum(tile(ilu)%gD(2:i1,2:j1))/size(tile(ilu)%gD(2:i1,2:j1)), minval(tile(ilu)%gD(2:i1,2:j1)), maxval(tile(ilu)%gD(2:i1,2:j1)) 
+
+      if (ilu == ilu_aq) cycle
+      write(*,*) 'lambda_stable ', sum(tile(ilu)%lambda_stable(2:i1,2:j1))/size(tile(ilu)%lambda_stable(2:i1,2:j1)), minval(tile(ilu)%lambda_stable(2:i1,2:j1)), maxval(tile(ilu)%lambda_stable(2:i1,2:j1)) 
+      write(*,*) 'lambda_unstab ', sum(tile(ilu)%lambda_unstable(2:i1,2:j1))/size(tile(ilu)%lambda_unstable(2:i1,2:j1)), minval(tile(ilu)%lambda_unstable(2:i1,2:j1)), maxval(tile(ilu)%lambda_unstable(2:i1,2:j1)) 
+      write(*,*) ''
+    end do
+
+    do ilu=1,nlu
+      if (ilu /= ilu_hv .and. ilu /= ilu_lv) cycle   
+      write(*,*) 'lushort       ', tile(ilu)%lushort 
+      write(*,*) 'lai           ', sum(tile(ilu)%lai(2:i1,2:j1))/size(tile(ilu)%lai(2:i1,2:j1)), minval(tile(ilu)%lai(2:i1,2:j1)), maxval(tile(ilu)%lai(2:i1,2:j1))
+      write(*,*) 'a_r           ', sum(tile(ilu)%a_r(2:i1,2:j1))/size(tile(ilu)%a_r(2:i1,2:j1)), minval(tile(ilu)%a_r(2:i1,2:j1)), maxval(tile(ilu)%a_r(2:i1,2:j1))
+      write(*,*) 'b_r           ', sum(tile(ilu)%b_r(2:i1,2:j1))/size(tile(ilu)%b_r(2:i1,2:j1)), minval(tile(ilu)%b_r(2:i1,2:j1)), maxval(tile(ilu)%b_r(2:i1,2:j1))
+      write(*,*) ''
+    end do
+
+    write(*,*) 'tskin_aq      ', sum(tile(ilu_aq)%tskin(2:i1,2:j1))/size(tile(ilu_aq)%tskin(2:i1,2:j1)), minval(tile(ilu_aq)%tskin(2:i1,2:j1)), maxval(tile(ilu_aq)%tskin(2:i1,2:j1)) 
+    write(*,*) 'soil_index top', sum(soil_index(2:i1,2:j1,4))/size(soil_index(2:i1,2:j1,4)), minval(soil_index(2:i1,2:j1,4)), maxval(soil_index(2:i1,2:j1,4)) 
+
+    write(*,*) 'tsoil top     ', sum(tsoil(2:i1,2:j1,4))/size(tsoil(2:i1,2:j1,4)), minval(tsoil(2:i1,2:j1,4)), maxval(tsoil(2:i1,2:j1,4)) 
+    write(*,*) 'phiw top      ', sum(phiw(2:i1,2:j1,4))/size(phiw(2:i1,2:j1,4)), minval(phiw(2:i1,2:j1,4)), maxval(phiw(2:i1,2:j1,4)) 
+    write(*,*) 'cveg     ', sum(cveg)/size(cveg), minval(cveg), maxval(cveg) 
+    write(*,*) 'land_frac', sum(land_frac)/size(land_frac), minval(land_frac), maxval(land_frac) 
+    write(*,*) 'wl_max   ', sum(wl_max)/size(wl_max), minval(wl_max), maxval(wl_max) 
+    write(*,*) 'wmax     ', wmax 
+
+end subroutine init_heterogeneous_nc
 
 !
 ! Read the input table with the (van Genuchten) soil parameters
@@ -1995,35 +2133,32 @@ end subroutine calc_soil_properties
 subroutine calc_root_fractions
     use modglobal, only : i1, j1
     implicit none
-    real :: root_sum_lv, root_sum_hv
+    real :: root_sum(nlu)
     integer i, j, k
 
     do j=2,j1
-        do i=2,i1
-            root_sum_lv = 0
-            root_sum_hv = 0
-            do k=2, kmax_soil
-
-                tile_lv%root_frac(i,j,k) = 0.5 * (&
-                    exp(tile_lv%a_r(i,j) * zh_soil(k+1)) + &
-                    exp(tile_lv%b_r(i,j) * zh_soil(k+1)) - &
-                    exp(tile_lv%a_r(i,j) * zh_soil(k  )) - &
-                    exp(tile_lv%b_r(i,j) * zh_soil(k  )))
-
-                tile_hv%root_frac(i,j,k) = 0.5 * (&
-                    exp(tile_hv%a_r(i,j) * zh_soil(k+1)) + &
-                    exp(tile_hv%b_r(i,j) * zh_soil(k+1)) - &
-                    exp(tile_hv%a_r(i,j) * zh_soil(k  )) - &
-                    exp(tile_hv%b_r(i,j) * zh_soil(k  )))
-
-                root_sum_lv = root_sum_lv + tile_lv%root_frac(i,j,k)
-                root_sum_hv = root_sum_hv + tile_hv%root_frac(i,j,k)
-            end do
-
-            ! Make sure that the fractions sum to one.
-            tile_lv%root_frac(i,j,1) = 1. - root_sum_lv
-            tile_hv%root_frac(i,j,1) = 1. - root_sum_hv
+      do i=2,i1
+        root_sum = 0
+        do k=2, kmax_soil
+          do ilu=1,nlu
+            if (tile(ilu)%lveg) then
+              tile(ilu)%root_frac(i,j,k) = 0.5 * (&
+                  exp(tile(ilu)%a_r(i,j) * zh_soil(k+1)) + &
+                  exp(tile(ilu)%b_r(i,j) * zh_soil(k+1)) - &
+                  exp(tile(ilu)%a_r(i,j) * zh_soil(k  )) - &
+                  exp(tile(ilu)%b_r(i,j) * zh_soil(k  )))
+              root_sum(ilu) = root_sum(ilu) + tile(ilu)%root_frac(i,j,k)
+            end if
+          end do
         end do
+
+        ! Make sure that the fractions sum to one.
+        do ilu=1,nlu
+          if (tile(ilu)%lveg) then
+            tile(ilu)%root_frac(i,j,1) = 1. - root_sum(ilu)
+          end if
+        end do
+      end do
     end do
 
 end subroutine calc_root_fractions

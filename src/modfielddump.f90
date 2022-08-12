@@ -114,7 +114,7 @@ contains
       call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
       do n=1,nsv
         write (csvname(1:3),'(i3.3)') n
-        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
+        call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(ug/g)','tttt')
       end do
       call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
       if (nrec==0) then

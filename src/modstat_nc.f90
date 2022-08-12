@@ -296,7 +296,6 @@ contains
 
       end select
       if (iret/=0) then
-        write (*,*) 'nvar', nvar, sx(n,:)
 
         call nchandle_error(iret)
       end if
