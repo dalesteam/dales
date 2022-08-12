@@ -645,6 +645,7 @@ subroutine calc_bulk_bcs
             tskin(i,j) = 0 
             qskin(i,j) = 0 
             rsveg(i,j) = 0
+            rssoil(i,j) = 0
             do ilu=1,nlu
               H(i,j)      = H(i,j)     + tile(ilu)%frac(i,j) * tile(ilu)%H(i,j) 
               LE(i,j)     = LE(i,j)    + tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) 
@@ -699,10 +700,8 @@ subroutine calc_bulk_bcs
             end if
 
             do ilu=1,nlu
-              if ( (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'ap' .or. trim(tile(ilu)%lushort) == 'bu') .and. tile(ilu)%frac(i,j) > 0) then 
+              if ( (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'ap' .or. trim(tile(ilu)%lushort) == 'bu') .and. tile(ilu)%frac(i,j) > 0) then
                   rssoil(i,j) = rssoil(i,j) + tile(ilu)%rs(i,j) * tile(ilu)%frac(i,j)
-              else
-                  rssoil(i,j) = 0.
               end if
             end do
 
