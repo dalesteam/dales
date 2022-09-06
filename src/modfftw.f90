@@ -45,11 +45,11 @@ save
   interface fftw_plan_many_r2r_if
     procedure :: d_fftw_plan_many_r2r
     procedure :: d_fftwf_plan_many_r2r
-  end interface 
+  end interface
   interface fftw_plan_guru_r2r_if
     procedure :: d_fftw_plan_guru_r2r
     procedure :: d_fftwf_plan_guru_r2r
-  end interface 
+  end interface
   interface fftw_execute_r2r_if
     procedure :: fftw_execute_r2r
     procedure :: fftwf_execute_r2r
@@ -241,6 +241,12 @@ contains
       FFTW_MEASURE & ! flags (FFTW_MEASURE or FFTW_ESTIMATE)
     )
 
+    if ((.not. c_associated(planx)) .or. (.not. c_associated(plany)) &
+        .or. (.not. c_associated(planxi)) .or. (.not. c_associated(planyi))) then
+
+       STOP "FFTW plan creation failed (method 1)."
+    end if
+
     allocate(xyrt(iony,jonx))
     allocate(d(iony,jonx,kmax))
     ps = 1
@@ -293,6 +299,10 @@ contains
       kinds, &         ! kind
       FFTW_MEASURE &   ! flags (FFTW_MEASURE or FFTW_ESTIMATE)
     )
+
+    if ((.not. c_associated(planxy)) .or. (.not. c_associated(planxyi))) then
+       STOP "FFTW plan creation failed (method 2)."
+    end if
 
     allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
     allocate(   d(2-ih:i1+ih,2-jh:j1+jh,kmax))
@@ -754,7 +764,7 @@ contains
       stop 'Illegal method in fftwinit_factors.'
     endif
   end subroutine fftwinit_factors
-  
+
   subroutine D_fftw_execute_r2r(p, in, out)
       implicit none
       type(C_PTR) :: p
@@ -819,7 +829,7 @@ contains
       integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
       integer(C_INT) :: flags
       d_fftw_plan_guru_r2r = fftw_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
-    end function 
+    end function
 
     type(C_PTR) function d_fftwf_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
       integer(C_INT) :: rank
@@ -830,7 +840,7 @@ contains
       real(C_FLOAT), intent(out) :: out(:)
       integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
       integer(C_INT) :: flags
-      
+
       !fftw_iodim and fftwf_iodim are exactly the same, fortran needs some convincing
       type(fftwf_iodim) :: dimsf(size(dims))
       type(fftwf_iodim) :: howmany_dimsf(size(howmany_dims))
@@ -838,7 +848,7 @@ contains
       howmany_dimsf = transfer(howmany_dims,dimsf)
 
       d_fftwf_plan_guru_r2r = fftwf_plan_guru_r2r(rank,dimsf,howmany_rank,howmany_dimsf,in,out,kind,flags)
-    end function 
+    end function
 
 
 #else
