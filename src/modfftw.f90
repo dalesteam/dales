@@ -98,7 +98,7 @@ contains
     integer,intent(out)        :: ps,pe,qs,qe
 
     integer(kind=8)     :: sz
-    real(pois_r), pointer :: fptr(:)
+    real(pois_r), pointer,contiguous :: fptr(:)
     integer             :: embed(1), kinds(2)
     type (fftw_iodim)   :: dimij(2), dimk(1)
 
