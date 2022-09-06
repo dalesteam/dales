@@ -61,9 +61,9 @@ save
   ! purpose
   ! -------
   ! These interfaces determine the correct KIND for the mpi procedures from the
-  ! KIND of the input arguments, this means that code that calls this functions 
+  ! KIND of the input arguments, this means that code that calls this functions
   ! does not have to worry about changing the MPI_TYPE with a changing KIND
-  ! 
+  !
   ! The implementations can be found in modmpiinterface
   !
   ! The argument list is the same as the corresponding MPI_ functions, but with
@@ -141,24 +141,36 @@ save
   end interface
 
 contains
+
+! Subroutine for detecting and reporting namelist errors.
+! Prints the last line read before failiure, as debugging help.
+  subroutine checkmpierror (mpierr, location)
+    implicit none
+    integer, intent(in) :: mpierr
+    character(*), intent(in) :: location
+
+    if (mpierr /= MPI_SUCCESS) then
+       print *, 'MPI error', mpierr, 'in', location
+       call abort
+    endif
+  end subroutine checkmpierror
+
   ! Initializes the world communicator within dales. Optionally this communicator is passed from an external caller.
-  ! TODO: Handle errors correctly.
   subroutine initmpicomm(comm)
     implicit none
     type(MPI_COMM), intent(in),optional  :: comm
     logical                              :: init
-    integer                              :: ierr
 
     call MPI_INITIALIZED(init,mpierr)
+    call checkmpierror(mpierr, 'MPI_INITIALIZED')
 
     if(.not.init) then
         call MPI_INIT(mpierr)
-    endif
+        call checkmpierror(mpierr, 'MPI_INIT')
+     endif
 
-    call MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, ierr)
-    if (ierr /= MPI_SUCCESS) then
-      call abort
-    end if
+    call MPI_Comm_set_errhandler(MPI_COMM_WORLD, MPI_ERRORS_RETURN, mpierr)
+    call checkmpierror(mpierr, 'MPI_Comm_set_errhandler')
 
     if(present(comm)) then
         libmode=.true.
@@ -166,6 +178,7 @@ contains
             commwrld=comm
         else
             call MPI_COMM_DUP(comm,commwrld,mpierr)
+            call checkmpierror(mpierr, 'MPI_COMM_DUP')
         endif
     else
         libmode=.false.
@@ -173,10 +186,12 @@ contains
     endif
 
     call MPI_COMM_RANK( commwrld, myid, mpierr )
+    call checkmpierror(mpierr, 'MPI_COMM_RANK')
     call MPI_COMM_SIZE( commwrld, nprocs, mpierr )
+    call checkmpierror(mpierr, 'MPI_COMM_SIZE')
   end subroutine initmpicomm
 
-  
+
 ! This routine does the setup of the MPI mesh
 ! NPROCS
 !        is the number of processors, this is set at run time, ie. mpirun -np 10
@@ -212,7 +227,9 @@ contains
 ! find suitable # procs in each direction
 
     call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr)
+    call checkmpierror(mpierr, 'MPI_COMM_SIZE')
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
+    call checkmpierror(mpierr, 'MPI_DIMS_CREATE')
 
     nprocx = dims(1)
     nprocy = dims(2)
@@ -221,25 +238,33 @@ contains
 
     call MPI_CART_CREATE(MPI_COMM_WORLD, 2, dims, periods, .true., &
                          comm3d, mpierr )
+    call checkmpierror(mpierr, 'MPI_CART_CREATE')
 
 ! Get my processor number in this communicator
 
     call MPI_COMM_RANK( comm3d, myid, mpierr )
+    call checkmpierror(mpierr, 'MPI_COMM_RANK')
 
 ! when applying boundary conditions, we need to know which processors
 ! are neighbours in all 3 directions
 ! these are determined with the aid of the MPI routine MPI_CART_SHIFT,
 
     call MPI_CART_SHIFT( comm3d, 0,  1, nbrwest,  nbreast ,   mpierr )
+    call checkmpierror(mpierr, 'MPI_CART_SHIFT')
     call MPI_CART_SHIFT( comm3d, 1,  1, nbrsouth, nbrnorth,   mpierr )
+    call checkmpierror(mpierr, 'MPI_CART_SHIFT')
 
 ! Setup the row- and column- communicators
     call MPI_Cart_sub( comm3d, (/.TRUE.,.FALSE./), commrow, mpierr )
+    call checkmpierror(mpierr, 'MPI_Cart_sub')
     call MPI_Cart_sub( comm3d, (/.FALSE.,.TRUE./), commcol, mpierr )
+    call checkmpierror(mpierr, 'MPI_Cart_sub')
 
 ! Get the processors ranks in these communicators
     call MPI_COMM_RANK( commrow, myidx, mpierr )
+    call checkmpierror(mpierr, 'MPI_COMM_RANK')
     call MPI_COMM_RANK( commcol, myidy, mpierr )
+    call checkmpierror(mpierr, 'MPI_COMM_RANK')
 
     if(myid==0)then
       CPU_program0 = MPI_Wtime()
@@ -265,14 +290,18 @@ contains
     end if
 
     call MPI_Comm_free( comm3d, mpierr )
+    call checkmpierror(mpierr, 'MPI_Comm_free')
 
     if(commwrld/=MPI_COMM_WORLD .and. myid==0) then
         call MPI_COMM_FREE(commwrld,mpierr)
+        call checkmpierror(mpierr, 'MPI_COMM_FREE')
     endif
 
     call MPI_FINALIZED(mpifin,mpierr)
+    call checkmpierror(mpierr, 'MPI_FINALIZED')
     if(.not.mpifin .and. .not.libmode) then
         call MPI_FINALIZE(mpierr)
+        call checkmpierror(mpierr, 'MPI_FINALIZE')
     endif
   end subroutine exitmpi
 
@@ -329,7 +358,7 @@ contains
     ! Single processor, make sure the field is periodic
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
-    
+
   endif
 
   if(nprocx .gt. 1)then
@@ -369,7 +398,7 @@ contains
     ! Make sure data is sent
     call MPI_WAIT(reqn, status, mpierr)
     call MPI_WAIT(reqs, status, mpierr)
-  
+
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -444,7 +473,7 @@ contains
     ! Single processor, make sure the field is periodic
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
-    
+
   endif
 
   if(nprocx .gt. 1)then
@@ -486,7 +515,7 @@ contains
     if (mpierr /= MPI_SUCCESS) call abort
     call MPI_WAIT(reqs, status, mpierr)
     if (mpierr /= MPI_SUCCESS) call abort
-  
+
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -563,7 +592,7 @@ contains
 
   subroutine mpi_get_time(val)
    real(real32), intent(out) :: val
- 
+
    val = MPI_Wtime()
    call MPI_BCAST(val,1,MPI_REAL4,0,comm3d,mpierr)
 
