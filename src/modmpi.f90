@@ -148,10 +148,19 @@ contains
     implicit none
     integer, intent(in) :: mpierr
     character(*), intent(in) :: location
+    integer len, err
+    character(len = MPI_MAX_ERROR_STRING) :: str
 
     if (mpierr /= MPI_SUCCESS) then
-       print *, 'MPI error', mpierr, 'in', location
-       call abort
+       print *, 'MPI error', mpierr, 'in ', location
+       ! look up the meaning of the error code
+       call mpi_error_string(mpierr, str, len, err)
+       if (err /= MPI_SUCCESS) then
+          print *, 'Another error occurred when looking up the error code', err
+          STOP
+       endif
+       print *, trim(str)
+       STOP
     endif
   end subroutine checkmpierror
 
@@ -225,10 +234,21 @@ contains
     periods(2) = .true.
 
 ! find suitable # procs in each direction
-
+ ! if either nprocx = 0 or nprocy = 0 a value is computed automatically
+ ! considering the total number of processors but not the itot,jtot grid size
     call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr)
     call checkmpierror(mpierr, 'MPI_COMM_SIZE')
+
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
+    if (mpierr /= MPI_SUCCESS) then
+       if (myid == 0) then
+          print *, 'MPI grid setup failed. '
+          print *, '  nprocx', nprocx
+          print *, '  nprocy', nprocy
+          print *, '  nprocs', nprocs
+          print *, 'nprocx * nprocy = nprocs is required but could not be achieved.'
+       endif
+    endif
     call checkmpierror(mpierr, 'MPI_DIMS_CREATE')
 
     nprocx = dims(1)
