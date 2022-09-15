@@ -639,8 +639,8 @@ contains
       svm  = sv0
       e12m = e120
       call calc_halflev
-      exnf = (presf/pref0)**(rd/cp)
-      exnh = (presh/pref0)**(rd/cp)
+      exnf = (initial_presf/pref0)**(rd/cp)
+      exnh = (initial_presh/pref0)**(rd/cp)
 
       do  j=2,j1
       do  i=2,i1
