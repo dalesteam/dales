@@ -37,19 +37,19 @@ PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
   integer,parameter :: nvar = 11
-  integer :: ncid1 = 0
-  integer,allocatable :: ncid2(:)
-  integer :: ncid3 = 1
-  integer :: nrec1 = 0
-  integer,allocatable :: nrec2(:)
-  integer :: nrec3 = 0
+  integer :: ncid1(100)
+  integer :: ncid2(100)
+  integer :: ncid3(100)
+  integer :: nrec1(100) = 0
+  integer :: nrec2(100) = 0
+  integer :: nrec3(100) = 0
   integer :: crossheight(100)
-  integer :: nxy = 0
+  integer :: nxy = 0, nxz = 0, nyz = 0
   integer :: cross
   character(4) :: cheight
-  character(80) :: fname1 = 'crossxz.xxxxyxxx.xxx.nc'
-  character(80) :: fname2 = 'crossxy.xxxx.xxxxyxxx.xxx.nc'
-  character(80) :: fname3 = 'crossyz.xxxxyxxx.xxx.nc'
+  character(80) :: fname1 = 'crossxz.yyyy.x000.exp.nc'
+  character(80) :: fname2 = 'crossxy.zzzz.x000y000.exp.nc'
+  character(80) :: fname3 = 'crossyz.xxxx.y000.exp.nc'
   character(80),dimension(nvar,4) :: ncname1
   character(80),dimension(1,4) :: tncname1
   character(80),dimension(nvar,4) :: ncname2
@@ -61,8 +61,8 @@ save
   integer(kind=longint) :: idtav,tnext
   logical :: lcross = .false. !< switch for doing the crosssection (on/off)
   logical :: lbinary = .false. !< switch for doing the crosssection (on/off)
-  integer :: crossplane = 2 !< Location of the xz crosssection
-  integer :: crossortho = 2 !< Location of the yz crosssection
+  integer :: crossplane(100) !< Location of the xz crosssection
+  integer :: crossortho(100) !< Location of the yz crosssection
 
   logical :: lxy = .true.   !< switch for doing xy crosssections
   logical :: lxz = .true.   !< switch for doing xz crosssections
@@ -72,9 +72,9 @@ save
 contains
 !> Initializing Crosssection. Read out the namelist, initializing the variables
   subroutine initcrosssection
-    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,myidx,myidy &
+    use modmpi,   only :myid,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,cmyidx,cmyidy,myidx,myidy &
                        , D_MPI_BCAST
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modglobal,only :imax,jmax,itot,jtot,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
 
    implicit none
@@ -84,11 +84,13 @@ contains
     namelist/NAMCROSSSECTION/ &
     lcross, lbinary, dtav, crossheight, crossplane, crossortho, lxy, lxz, lyz
 
-    allocate(ncid2(kmax),nrec2(kmax))
     crossheight(1)=2
     crossheight(2:100)=-999
-    ncid2(1)=2
-    ncid2(2:kmax)=0
+    crossplane(1)=2
+    crossplane(2:100)=-999
+    crossortho(1)=2
+    crossortho(2:100)=-999
+
     nrec2(1:kmax)=0
 
     dtav = dtav_glob
@@ -104,54 +106,79 @@ contains
     call D_MPI_BCAST(lcross     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lbinary    ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(crossheight(1:100),100,0,comm3d,mpierr)
-    call D_MPI_BCAST(crossplane ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(crossortho ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(crossplane(1:100),100,0,comm3d,mpierr)
+    call D_MPI_BCAST(crossortho(1:100),100,0,comm3d,mpierr)
     call D_MPI_BCAST(lxy        ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lxz        ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lyz        ,1,0,comm3d,mpierr)
 
-    nxy=0
+    if(any((crossheight(1:100).gt.kmax)) .or. any(crossplane > jtot+1) .or. any(crossortho > itot+1) ) then
+      stop 'CROSSSECTION: crosssection out of range'
+    end if
+    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
+      stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
+    end if
+
     k=1
     do while (crossheight(k) > 0)
-    nxy=nxy+1
-    ncid2(k)=k+1
-    nrec2(k)=0
-    k=k+1
+       nxy=nxy+1
+       k=k+1
     end do
+
+    k=1
+    do while (crossplane(k) > 0)
+       crossplane(k) = crossplane(k) - myidy*jmax  ! convert to local grid index
+       nxz=nxz+1
+       k=k+1
+    end do
+
+    k=1
+    do while (crossortho(k) > 0)
+       crossortho(k) = crossortho(k) - myidx*imax  ! convert to local grid index
+       nyz=nyz+1
+       k=k+1
+    end do
+
+    ! cross sections with
+    ! 2  <= crossplane, <= j1
+    ! 2  <= crossortho <= i1
+    ! belong to this processor
 
     idtav = dtav/tres
     tnext   = idtav+btime
     if(.not.(lcross)) return
     dt_lim = min(dt_lim,tnext)
 
-    if(any((crossheight(1:100).gt.kmax)) .or. crossplane>j1 .or. crossortho> i1 ) then
-      stop 'CROSSSECTION: crosssection out of range'
-    end if
-    if (.not. ladaptive .and. abs(dtav/dtmax-nint(dtav/dtmax))>1e-4) then
-      stop 'CROSSSECTION: dtav should be a integer multiple of dtmax'
-    end if
     if (lnetcdf) then
-    if (myidy==0 .and. lxz) then
-      fname1(9:16) = cmyid
-      fname1(18:20) = cexpnr
-      call nctiminfo(tncname1(1,:))
-      call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
-      call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
-      call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
-      call ncinfo(ncname1( 4,:),'thlxz','xz crosssection of the Liquid water potential temperature','K','t0tt')
-      call ncinfo(ncname1( 5,:),'thvxz','xz crosssection of the Virtual potential temperature','K','t0tt')
-      call ncinfo(ncname1( 6,:),'qtxz','xz crosssection of the Total water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 8,:),'buoyxz','xz crosssection of the Buoyancy','K','t0tt')
-      call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
-      call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
-      call ncinfo(ncname1( 11,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
-      call open_nc(fname1,  ncid1,nrec1,n1=imax,n3=kmax)
-      if (nrec1 == 0) then
-        call define_nc( ncid1, 1, tncname1)
-        call writestat_dims_nc(ncid1)
-      end if
-      call define_nc( ncid1, NVar, ncname1)
+       if (lxz) then
+          do cross=1,nxz
+             if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
+                !      fname1(9:16) = cmyid
+                !      fname1(18:20) = cexpnr
+                write(cheight,'(i4.4)') crossplane(cross) + myidy*jmax
+                fname1(9:12) = cheight
+                fname1(15:17) = cmyidx
+                fname1(19:21) = cexpnr
+                call nctiminfo(tncname1(1,:))
+                call ncinfo(ncname1( 1,:),'uxz', 'xz crosssection of the West-East velocity','m/s','m0tt')
+                call ncinfo(ncname1( 2,:),'vxz', 'xz crosssection of the South-North velocity','m/s','t0tt')
+                call ncinfo(ncname1( 3,:),'wxz', 'xz crosssection of the Vertical velocity','m/s','t0mt')
+                call ncinfo(ncname1( 4,:),'thlxz','xz crosssection of the Liquid water potential temperature','K','t0tt')
+                call ncinfo(ncname1( 5,:),'thvxz','xz crosssection of the Virtual potential temperature','K','t0tt')
+                call ncinfo(ncname1( 6,:),'qtxz','xz crosssection of the Total water specific humidity','kg/kg','t0tt')
+                call ncinfo(ncname1( 7,:),'qlxz','xz crosssection of the Liquid water specific humidity','kg/kg','t0tt')
+                call ncinfo(ncname1( 8,:),'buoyxz','xz crosssection of the Buoyancy','K','t0tt')
+                call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
+                call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
+                call ncinfo(ncname1( 11,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
+                call open_nc(fname1,ncid1(cross),nrec1(cross),n1=imax,n3=kmax)
+                if (nrec1(cross) == 0) then
+                   call define_nc(ncid1(cross), 1, tncname1)
+                   call writestat_dims_nc(ncid1(cross))
+                end if
+                call define_nc(ncid1(cross), NVar, ncname1)
+             end if
+          end do
     end if
     if (lxy) then
        do cross=1,nxy
@@ -171,35 +198,43 @@ contains
           call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
           call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
           call ncinfo(ncname2(11,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','tt0t')
-          call open_nc(fname2,  ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
+          call open_nc(fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
           if (nrec2(cross)==0) then
-             call define_nc( ncid2(cross), 1, tncname2)
+             call define_nc(ncid2(cross), 1, tncname2)
              call writestat_dims_nc(ncid2(cross))
           end if
-          call define_nc( ncid2(cross), NVar, ncname2)
+          call define_nc(ncid2(cross), NVar, ncname2)
        end do
     end if
-   if (myidx==0 .and. lyz) then
-    fname3(9:16) = cmyid
-    fname3(18:20) = cexpnr
-    call nctiminfo(tncname3(1,:))
-    call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
-    call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
-    call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
-    call ncinfo(ncname3( 4,:),'thlyz','yz crosssection of the Liquid water potential temperature','K','0ttt')
-    call ncinfo(ncname3( 5,:),'thvyz','yz crosssection of the Virtual potential temperature','K','0ttt')
-    call ncinfo(ncname3( 6,:),'qtyz','yz crosssection of the Total water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3( 8,:),'buoyyz','yz crosssection of the Buoyancy','K','0ttt')
-    call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
-    call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
-    call ncinfo(ncname3(11,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
-    call open_nc(fname3,  ncid3,nrec3,n2=jmax,n3=kmax)
-    if (nrec3==0) then
-      call define_nc( ncid3, 1, tncname3)
-      call writestat_dims_nc(ncid3)
-    end if
-    call define_nc( ncid3, NVar, ncname3)
+    if (lyz) then  ! .and. myidx == 0
+       do cross=1,nyz
+          if (crossortho(cross) >= 2 .and. crossortho(cross) <= i1) then
+             !fname3(9:16) = cmyid
+             !fname3(18:20) = cexpnr
+             write(cheight,'(i4.4)') crossortho(cross) + myidx*imax
+             fname3(9:12) = cheight
+             fname3(15:17) = cmyidy
+             fname3(19:21) = cexpnr
+             call nctiminfo(tncname3(1,:))
+             call ncinfo(ncname3( 1,:),'uyz','yz crosssection of the West-East velocity','m/s','0ttt')
+             call ncinfo(ncname3( 2,:),'vyz','yz crosssection of the South-North velocity','m/s','0mtt')
+             call ncinfo(ncname3( 3,:),'wyz','yz crosssection of the Vertical velocity','m/s','0tmt')
+             call ncinfo(ncname3( 4,:),'thlyz','yz crosssection of the Liquid water potential temperature','K','0ttt')
+             call ncinfo(ncname3( 5,:),'thvyz','yz crosssection of the Virtual potential temperature','K','0ttt')
+             call ncinfo(ncname3( 6,:),'qtyz','yz crosssection of the Total water specific humidity','kg/kg','0ttt')
+             call ncinfo(ncname3( 7,:),'qlyz','yz crosssection of the Liquid water specific humidity','kg/kg','0ttt')
+             call ncinfo(ncname3( 8,:),'buoyyz','yz crosssection of the Buoyancy','K','0ttt')
+             call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
+             call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
+             call ncinfo(ncname3(11,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
+             call open_nc(fname3,  ncid3(cross),nrec3(cross),n2=jmax,n3=kmax)
+             if (nrec3(cross)==0) then
+                call define_nc(ncid3(cross), 1, tncname3)
+                call writestat_dims_nc(ncid3(cross))
+             end if
+             call define_nc(ncid3(cross), NVar, ncname3)
+          end if
+       end do
     end if
  end if
 
@@ -230,7 +265,7 @@ contains
 
 !> Do the xz crosssections and dump them to file
   subroutine wrtvert
-  use modglobal, only : imax,i1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+  use modglobal, only : imax,i1,j1,kmax,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
   use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
   use modmpi,    only : myidy
   use modstat_nc, only : lnetcdf, writestat_nc
@@ -241,20 +276,19 @@ contains
 
   real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
-  if( myidy /= 0 ) return 
-
   allocate(thv0(2:i1,1:kmax),buoy(2:i1,1:kmax))
 
+  if(lbinary .and. myidy == 0) then
+     ! the old binary format only writes the first cross plane, in the first MPI row.
 
-    do  i=2,i1
-    do  k=1,kmax
-      thv0(i,k) = (thl0(i,crossplane,k)+rlv*ql0(i,crossplane,k)/(cp*exnf(k))) &
-                    *(1+(rv/rd-1)*qt0(i,crossplane,k)-rv/rd*ql0(i,crossplane,k))
-      buoy(i,k) = thv0(i,k)-thvf(k)
-    enddo
-    enddo
+     do  i=2,i1
+        do  k=1,kmax
+           thv0(i,k) = (thl0(i,crossplane(1),k)+rlv*ql0(i,crossplane(1),k)/(cp*exnf(k))) &
+                *(1+(rv/rd-1)*qt0(i,crossplane(1),k)-rv/rd*ql0(i,crossplane(1),k))
+           buoy(i,k) = thv0(i,k)-thvf(k)
+        enddo
+     enddo
 
-    if(lbinary) then
       open(ifoutput,file='movv_u.'//cexpnr,position='append',action='write')
       write(ifoutput,'(es12.5)') ((um(i,crossplane,k)+cu,i=2,i1),k=1,kmax)
       close(ifoutput)
@@ -298,24 +332,35 @@ contains
 
     if (lnetcdf) then
       allocate(vars(1:imax,1:kmax,nvar))
-      vars(:,:,1) = um(2:i1,crossplane,1:kmax)+cu
-      vars(:,:,2) = vm(2:i1,crossplane,1:kmax)+cv
-      vars(:,:,3) = wm(2:i1,crossplane,1:kmax)
-      vars(:,:,4) = thlm(2:i1,crossplane,1:kmax)
-      vars(:,:,5) = thv0(2:i1,1:kmax)
-      vars(:,:,6) = qtm(2:i1,crossplane,1:kmax)
-      vars(:,:,7) = ql0(2:i1,crossplane,1:kmax)
-      vars(:,:,8) = buoy(2:i1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,crossplane,1:kmax,2)
-      vars(:,:,10) = svm(2:i1,crossplane,1:kmax,1)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = e120(2:i1,crossplane,1:kmax)
-      call writestat_nc(ncid1,1,tncname1,(/rtimee/),nrec1,.true.)
-      call writestat_nc(ncid1,nvar,ncname1(1:nvar,:),vars,nrec1,imax,kmax)
+      do cross=1,nxz
+         if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
+            do  i=2,i1
+               do  k=1,kmax
+                  thv0(i,k) = (thl0(i,crossplane(cross),k)+rlv*ql0(i,crossplane(cross),k)/(cp*exnf(k))) &
+                       *(1+(rv/rd-1)*qt0(i,crossplane(cross),k)-rv/rd*ql0(i,crossplane(cross),k))
+                  buoy(i,k) = thv0(i,k)-thvf(k)
+               enddo
+            enddo
+            vars(:,:,1) = um(2:i1,crossplane(cross),1:kmax)+cu
+            vars(:,:,2) = vm(2:i1,crossplane(cross),1:kmax)+cv
+            vars(:,:,3) = wm(2:i1,crossplane(cross),1:kmax)
+            vars(:,:,4) = thlm(2:i1,crossplane(cross),1:kmax)
+            vars(:,:,5) = thv0(2:i1,1:kmax)
+            vars(:,:,6) = qtm(2:i1,crossplane(cross),1:kmax)
+            vars(:,:,7) = ql0(2:i1,crossplane(cross),1:kmax)
+            vars(:,:,8) = buoy(2:i1,1:kmax)
+            if(nsv>1) then
+               vars(:,:,9) = svm(2:i1,crossplane(cross),1:kmax,2)
+               vars(:,:,10) = svm(2:i1,crossplane(cross),1:kmax,1)
+            else
+               vars(:,:,9) = 0.
+               vars(:,:,10) = 0.
+            end if
+            vars(:,:,11) = e120(2:i1,crossplane(cross),1:kmax)
+            call writestat_nc(ncid1(cross),1,tncname1,(/rtimee/),nrec1(cross),.true.)
+            call writestat_nc(ncid1(cross),nvar,ncname1(1:nvar,:),vars,nrec1(cross),imax,kmax)
+         end if
+      end do
       deallocate(vars)
     end if
     deallocate(thv0,buoy)
@@ -399,29 +444,29 @@ contains
     endif
 
     if (lnetcdf) then
-      do cross=1,nxy
-      allocate(vars(1:imax,1:jmax,nvar))
-      vars=0.
-      vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
-      vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
-      vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,4) = thlm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,5) = thv0(2:i1,2:j1,cross)
-      vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
-      vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
-      vars(:,:,8) = buoy(2:i1,2:j1,cross)
-      if(nsv>1) then
-      vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
-      vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = e120(2:i1,2:j1,crossheight(cross))
-      call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
-      call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
-      deallocate(vars)
-      end do
+       allocate(vars(1:imax,1:jmax,nvar))
+       do cross=1,nxy
+          vars=0.
+          vars(:,:,1) = um(2:i1,2:j1,crossheight(cross))+cu
+          vars(:,:,2) = vm(2:i1,2:j1,crossheight(cross))+cv
+          vars(:,:,3) = wm(2:i1,2:j1,crossheight(cross))
+          vars(:,:,4) = thlm(2:i1,2:j1,crossheight(cross))
+          vars(:,:,5) = thv0(2:i1,2:j1,cross)
+          vars(:,:,6) = qtm(2:i1,2:j1,crossheight(cross))
+          vars(:,:,7) = ql0(2:i1,2:j1,crossheight(cross))
+          vars(:,:,8) = buoy(2:i1,2:j1,cross)
+          if(nsv>1) then
+             vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
+             vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
+          else
+             vars(:,:,9) = 0.
+             vars(:,:,10) = 0.
+          end if
+          vars(:,:,11) = e120(2:i1,2:j1,crossheight(cross))
+          call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
+          call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
+       end do
+       deallocate(vars)
     end if
 
     deallocate(thv0,buoy)
@@ -430,7 +475,7 @@ contains
 
   ! yz cross section
   subroutine wrtorth
-    use modglobal, only : jmax,kmax,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
+    use modglobal, only : jmax,kmax,i1,j1,nsv,rlv,cp,rv,rd,cu,cv,cexpnr,ifoutput,rtimee
     use modfields, only : um,vm,wm,thlm,qtm,svm,thl0,qt0,ql0,e120,exnf,thvf
     use modmpi,    only : cmyid, myidx
     use modstat_nc, only : lnetcdf, writestat_nc
@@ -443,38 +488,36 @@ contains
 
     real, allocatable :: thv0(:,:),vars(:,:,:),buoy(:,:)
 
-    if( myidx /= 0 ) return 
-
-
     allocate(thv0(1:j1,1:kmax),buoy(1:j1,1:kmax))
 
-    do  j=1,j1
-    do  k=1,kmax
-      thv0(j,k) =&
-       (thl0(crossortho,j,k)+&
-       rlv*ql0(crossortho,j,k)/&
-       (cp*exnf(k))) &
-                    *(1+(rv/rd-1)*qt0(crossortho,j,k)&
-                    -rv/rd*ql0(crossortho,j,k))
-       buoy(j,k) =thv0(j,k)-thvf(k)
-    enddo
-    enddo
+    if(lbinary .and. myidx == 0) then
+       ! the old binary format only writes the first cross plane, in the first MPI column
+       do  j=1,j1
+          do  k=1,kmax
+             thv0(j,k) =&
+                  (thl0(crossortho(1),j,k)+&
+                  rlv*ql0(crossortho(1),j,k)/&
+                  (cp*exnf(k))) &
+                  *(1+(rv/rd-1)*qt0(crossortho(1),j,k)&
+                  -rv/rd*ql0(crossortho(1),j,k))
+             buoy(j,k) =thv0(j,k)-thvf(k)
+          enddo
+       enddo
 
-    if(lbinary) then
       open(ifoutput,file='movo_u.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((um(crossortho,j,k)+cu,j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((um(crossortho(1),j,k)+cu,j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_v.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((vm(crossortho,j,k)+cv,j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((vm(crossortho(1),j,k)+cv,j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_w.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((wm(crossortho,j,k),j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((wm(crossortho(1),j,k),j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_thl.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((thlm(crossortho,j,k),j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((thlm(crossortho(1),j,k),j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_thv.'//cmyid//'.'//cexpnr,position='append',action='write')
@@ -486,43 +529,58 @@ contains
       close(ifoutput)
 
       open(ifoutput,file='movo_qt.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*qtm(crossortho,j,k),j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((1.e3*qtm(crossortho(1),j,k),j=2,j1),k=1,kmax)
       close(ifoutput)
 
       open(ifoutput,file='movo_ql.'//cmyid//'.'//cexpnr,position='append',action='write')
-      write(ifoutput,'(es12.5)') ((1.e3*ql0(crossortho,j,k),j=2,j1),k=1,kmax)
+      write(ifoutput,'(es12.5)') ((1.e3*ql0(crossortho(1),j,k),j=2,j1),k=1,kmax)
       close(ifoutput)
 
       do n = 1,nsv
         name = 'movh_tnn.'//cmyid//'.'//cexpnr
         write(name(7:8),'(i2.2)') n
         open(ifoutput,file=name,position='append',action='write')
-        write(ifoutput,'(es12.5)') ((svm(crossortho,j,k,n),j=2,j1),k=1,kmax)
+        write(ifoutput,'(es12.5)') ((svm(crossortho(1),j,k,n),j=2,j1),k=1,kmax)
         close(ifoutput)
       end do
     end if
 
     if (lnetcdf) then
-      allocate(vars(1:jmax,1:kmax,nvar))
-      vars(:,:,1) = um(crossortho,2:j1,1:kmax)+cu
-      vars(:,:,2) = vm(crossortho,2:j1,1:kmax)+cv
-      vars(:,:,3) = wm(crossortho,2:j1,1:kmax)
-      vars(:,:,4) = thlm(crossortho,2:j1,1:kmax)
-      vars(:,:,5) = thv0(2:j1,1:kmax)
-      vars(:,:,6) = qtm(crossortho,2:j1,1:kmax)
-      vars(:,:,7) = ql0(crossortho,2:j1,1:kmax)
-      vars(:,:,8) = buoy(2:j1,1:kmax)
-      if(nsv>1) then
-      vars(:,:,9) = svm(crossortho,2:j1,1:kmax,2)
-      vars(:,:,10) = svm(crossortho,2:j1,1:kmax,1)
-      else
-      vars(:,:,9) = 0.
-      vars(:,:,10) = 0.
-      end if
-      vars(:,:,11) = e120(crossortho,2:j1,1:kmax)
-      call writestat_nc(ncid3,1,tncname3,(/rtimee/),nrec3,.true.)
-      call writestat_nc(ncid3,nvar,ncname3(1:nvar,:),vars,nrec3,jmax,kmax)
-      deallocate(vars)
+       allocate(vars(1:jmax,1:kmax,nvar))
+       do cross=1,nyz
+          if (crossortho(cross) >= 2 .and. crossortho(cross) <= i1) then
+             do  j=1,j1
+                do  k=1,kmax
+                   thv0(j,k) =&
+                        (thl0(crossortho(cross),j,k)+&
+                        rlv*ql0(crossortho(cross),j,k)/&
+                        (cp*exnf(k))) &
+                        *(1+(rv/rd-1)*qt0(crossortho(cross),j,k)&
+                        -rv/rd*ql0(crossortho(cross),j,k))
+                   buoy(j,k) =thv0(j,k)-thvf(k)
+                enddo
+             enddo
+             vars(:,:,1) = um(crossortho(cross),2:j1,1:kmax)+cu
+             vars(:,:,2) = vm(crossortho(cross),2:j1,1:kmax)+cv
+             vars(:,:,3) = wm(crossortho(cross),2:j1,1:kmax)
+             vars(:,:,4) = thlm(crossortho(cross),2:j1,1:kmax)
+             vars(:,:,5) = thv0(2:j1,1:kmax)
+             vars(:,:,6) = qtm(crossortho(cross),2:j1,1:kmax)
+             vars(:,:,7) = ql0(crossortho(cross),2:j1,1:kmax)
+             vars(:,:,8) = buoy(2:j1,1:kmax)
+             if(nsv>1) then
+                vars(:,:,9) = svm(crossortho(cross),2:j1,1:kmax,2)
+                vars(:,:,10) = svm(crossortho(cross),2:j1,1:kmax,1)
+             else
+                vars(:,:,9) = 0.
+                vars(:,:,10) = 0.
+             end if
+             vars(:,:,11) = e120(crossortho(cross),2:j1,1:kmax)
+             call writestat_nc(ncid3(cross),1,tncname3,(/rtimee/),nrec3(cross),.true.)
+             call writestat_nc(ncid3(cross),nvar,ncname3(1:nvar,:),vars,nrec3(cross),jmax,kmax)
+          end if
+       end do
+       deallocate(vars)
     end if
 
     deallocate(thv0,buoy)
@@ -533,19 +591,28 @@ contains
   subroutine exitcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
     use modmpi, only : myidx, myidy
+    use modglobal, only : i1,j1
     implicit none
 
     if(lcross .and. lnetcdf) then
-       if (myidy==0 .and. lxz) then
-          call exitstat_nc(ncid1)
+       if (lxz) then
+          do cross=1,nxz
+             if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
+                call exitstat_nc(ncid1(cross))
+             end if
+          end do
        end if
        if (lxy) then
           do cross=1,nxy
              call exitstat_nc(ncid2(cross))
           end do
        end if
-       if (myidx==0 .and. lyz) then
-          call exitstat_nc(ncid3)
+       if (lyz) then
+          do cross=1,nyz
+             if (crossortho(cross) >= 2 .and. crossortho(cross) <= i1) then
+                call exitstat_nc(ncid3(cross))
+             end if
+          end do
        end if
     end if
 
