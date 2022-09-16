@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 40
+  integer :: nvar = 42
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -411,15 +411,17 @@ contains
         call ncinfo(ncname(38,:),'qt2r','Resolved total water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(39,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(40,:),'cs','Smagorinsky constant','-','tt')
+        call ncinfo(ncname(41,:),'exnf','Full level Exner function','-','tt')
+        call ncinfo(ncname(42,:),'exnh','Half level Exner function','-','mt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(40+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(40+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(40+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(42+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(42+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(42+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(42+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -1575,14 +1577,16 @@ contains
         vars(:,38)=qt2mn
         vars(:,39)=ql2mn
         vars(:,40)=csz
+        vars(:,41)=exnf
+        vars(:,42)=exnh
         do n=1,nsv
-          vars(:,40+7*(n-1)+1)=svmmn(:,n)
-          vars(:,40+7*(n-1)+2)=svpmn(:,n)
-          vars(:,40+7*(n-1)+3)=svptmn(:,n)
-          vars(:,40+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,40+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,40+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,40+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,42+7*(n-1)+1)=svmmn(:,n)
+          vars(:,42+7*(n-1)+2)=svpmn(:,n)
+          vars(:,42+7*(n-1)+3)=svptmn(:,n)
+          vars(:,42+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,42+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,42+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,42+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)

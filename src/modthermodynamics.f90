@@ -223,7 +223,7 @@ contains
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
 
-  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee
+  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner
   use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf, &
                         initial_presf,initial_presh
@@ -259,9 +259,9 @@ contains
    thl0av = thl0av/ijtot
    qt0av = qt0av /ijtot
    ql0av = ql0av /ijtot
-   if (timee < 0.01) then
-      exnf   = 1-grav*zf/(cp*thls)  ! What's this?
-      exnh  = 1-grav*zh/(cp*thls)   !
+   if (timee < 0.01 .or. .not. lconstexner) then
+      exnf   = 1-grav*zf/(cp*thls)  
+      exnh  = 1-grav*zh/(cp*thls)   
    endif
 
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
@@ -276,7 +276,7 @@ contains
 
 !    2.1 Use first guess of theta, then recalculate theta
    call fromztop
-   if (timee < 0.01) then
+   if (timee < 0.01 .or. .not. lconstexner) then
       exnf = (presf/pref0)**(rd/cp)
    endif
    th0av = thl0av + (rlv/cp)*ql0av/exnf
@@ -292,7 +292,7 @@ contains
 !***********************************************************
 
 !    3.1 determine exner
-   if (timee < 0.01) then
+   if (timee < 0.01 .or. .not. lconstexner) then
       exnh(1) = (ps/pref0)**(rd/cp)
       exnf(1) = (presf(1)/pref0)**(rd/cp)
       do k=2,k1
