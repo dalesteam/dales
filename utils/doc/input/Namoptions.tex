@@ -1080,7 +1080,7 @@ This namelist is only used if the Rapid Radiative Transfer Model for GCMs (RRTMG
 %  timeav	& timeav\_glob	& $x = n \cdot \text{dtav}, \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
    lCnstZenith	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fixed solar zenith angle	& -\\
    cnstZenith	&	0	& $x \in \mathbb{R}, \quad \vert x\vert \leq 90 $	& Solar zenith angle if lCnstZenith = .true.	& $^{\circ}$\\
-   lCnstAlbedo	&	.false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply the constant \hyperlink{albedo}{albedoav} as albedo instead of the parameterization in RRTMG	& -\\
+   lCnstAlbedo	&	.true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply the constant \hyperlink{albedo}{albedoav} as albedo instead of the parameterization in RRTMG	& -\\
   &&&&\\
   ioverlap	& 2	& $x \in \lbrace 0, 1, 2, 3 \rbrace$	& \parbox{6cm}{Flag for cloud overlap method: \\ 
 0: Clear only\\
