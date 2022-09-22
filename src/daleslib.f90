@@ -98,6 +98,7 @@ module daleslib
             use modbulkmicrostat,   only : initbulkmicrostat
             use modbudget,          only : initbudget
             use modheterostats,     only : initheterostats
+            use modvarbudget,       only : initvarbudget
 
             ! modules below are disabled by default to improve compilation time
             !use modstress,         only : initstressbudget
@@ -171,6 +172,7 @@ module daleslib
             call initnudge
             call initbulkmicrostat
             call initbudget
+            call initvarbudget
             !call initstressbudget
             call initchem
             call initheterostats
@@ -455,6 +457,7 @@ module daleslib
 
             use modbulkmicrostat,   only : bulkmicrostat
             use modbudget,          only : budgetstat
+            use modvarbudget,       only : varbudget
             use modheterostats,     only : heterostats
 
             ! modules below are disabled by default to improve compilation time
@@ -570,6 +573,7 @@ module daleslib
 
             call bulkmicrostat
             call budgetstat
+            call varbudget
             !call stressbudgetstat
             call heterostats
 
@@ -656,6 +660,7 @@ module daleslib
 
             use modbulkmicrostat,   only : exitbulkmicrostat
             use modbudget,          only : exitbudget
+            use modvarbudget,       only : exitvarbudget
             use modheterostats,     only : exitheterostats
 
             ! modules below are disabled by default to improve compilation time
@@ -681,6 +686,7 @@ module daleslib
             call exitsamptend
             call exitbulkmicrostat
             call exitbudget
+            call exitvarbudget
             !call exitstressbudget
             call exitcrosssection
             call exitAGScross
