@@ -30,6 +30,7 @@
 module modradstat
 
   use modglobal, only : longint
+  use modprecision, only: field_r
 
 implicit none
 !private
@@ -48,14 +49,14 @@ save
 !     ------
 
 !   --------------
-  real, allocatable :: thltendav(:)
-  real, allocatable :: thllwtendav(:)
-  real, allocatable :: thlswtendav(:)
+  real(field_r), allocatable :: thltendav(:)
+  real(field_r), allocatable :: thllwtendav(:)
+  real(field_r), allocatable :: thlswtendav(:)
   real, allocatable :: lwuav(:)
   real, allocatable :: lwdav(:)
   real, allocatable :: swdav(:)
-  real, allocatable :: swdirav(:)
-  real, allocatable :: swdifav(:)
+  real(field_r), allocatable :: swdirav(:)
+  real(field_r), allocatable :: swdifav(:)
   real, allocatable :: swuav(:)
   real, allocatable :: lwucaav(:)
   real, allocatable :: lwdcaav(:)
