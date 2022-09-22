@@ -92,6 +92,7 @@ module daleslib
             use modlsmcrosssection, only : initlsmcrosssection
             use modcloudfield,      only : initcloudfield
             use modfielddump,       only : initfielddump
+            use modradfield,        only : initradfield
             use modsamptend,        only : initsamptend
 
             use modbulkmicrostat,   only : initbulkmicrostat
@@ -164,6 +165,7 @@ module daleslib
             call initfielddump
             call initsamptend
             call initradstat
+            call initradfield
             call initlsmstat
             !call initparticles
             call initnudge
@@ -447,6 +449,7 @@ module daleslib
             use modlsmcrosssection, only : lsmcrosssection
             use modcloudfield,      only : cloudfield
             use modfielddump,       only : fielddump
+            use modradfield,        only : radfield
             use modsamptend,        only : samptend,tend_start,tend_adv,tend_subg,tend_force,&
                 tend_rad,tend_ls,tend_micro,tend_topbound,tend_pois,tend_addon,tend_coriolis,leibniztend
 
@@ -562,6 +565,7 @@ module daleslib
             !call projection
             call cloudfield
             call fielddump
+            call radfield
             !call particles
 
             call bulkmicrostat
@@ -647,6 +651,7 @@ module daleslib
             use modlsmcrosssection, only : exitlsmcrosssection
             use modcloudfield,      only : cloudfield
             use modfielddump,       only : exitfielddump
+            use modradfield,        only : exitradfield
             use modsamptend,        only : exitsamptend
 
             use modbulkmicrostat,   only : exitbulkmicrostat
@@ -682,6 +687,7 @@ module daleslib
             call exitlsmcrosssection
             call exitcape
             call exitfielddump
+            call exitradfield
             call exitheterostats
             call exitcanopy
             call exitmodules
