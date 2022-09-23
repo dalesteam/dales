@@ -1,3 +1,11 @@
 .DS_Store
 src/modversion.f90
 *~
+build
+CMakeFiles
+
+# Some TNO specific stuff
+cases/tno/*
+DALES_TNO.sh
+fastmake.sh
+*.jb

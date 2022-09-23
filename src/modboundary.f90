@@ -80,6 +80,7 @@ contains
 
     call cyclicm
     call cyclich
+    call setboundaries
   
     call topm
     call toph
@@ -130,6 +131,22 @@ contains
 
   return
   end subroutine cyclicm
+
+  subroutine setboundaries
+
+  use modglobal, only : i1,ih,j1,jh,k1,nsv
+  use modfields, only : sv0, svm
+  use modmpi,    only : closeboundaries
+
+  implicit none
+  integer :: n   
+  
+  do n=1,nsv
+    call closeboundaries(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n), 2,i1,ih, 2,j1,jh, 1,k1, 0.)
+    call closeboundaries(svm(2-ih:i1+ih,2-jh:j1+jh,1:k1,n), 2,i1,ih, 2,j1,jh, 1,k1, 0.)
+  enddo     
+
+  end subroutine setboundaries
 
 !>
 !! grwdamp damps gravity waves in the upper part of the domain.

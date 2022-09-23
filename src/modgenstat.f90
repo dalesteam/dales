@@ -409,13 +409,13 @@ contains
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(39+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(39+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(39+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(39+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(39+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(39+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(39+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(ug/g)','tt')
+          call ncinfo(ncname(39+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(ug/g/s)','tt')
+          call ncinfo(ncname(39+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(ug/g/s)','tt')
+          call ncinfo(ncname(39+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(ug/g)^2','tt')
+          call ncinfo(ncname(39+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','ug/g m/s','mt')
+          call ncinfo(ncname(39+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','ug/g m/s','mt')
+          call ncinfo(ncname(39+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','ug/g m/s','mt')
         end do
 
         if (isurf==1) then

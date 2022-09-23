@@ -109,6 +109,7 @@ program DALES
   use modmicrophysics,   only : microsources
   use modsurface,        only : surface 
   use modlsm,            only : lsm
+  use moddeposition,     only : drydep      
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
@@ -127,11 +128,13 @@ program DALES
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
+  !use moddepstat,      only : initdepstat ,depstat, exitdepstat
   use modsampling,     only : initsampling, sampling,exitsampling
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
+  !use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
@@ -178,12 +181,14 @@ program DALES
   call initcrosssection
   call initAGScross
   call initlsmcrosssection
+  !call initdepcrosssection
   !call initprojection
   call initcloudfield
   call initfielddump
   call initsamptend
   call initradstat
   call initlsmstat
+  !call initdepstat
   !call initparticles
   call initnudge
   call initnudgeboundary
@@ -219,6 +224,7 @@ program DALES
 !   3.2   THE SURFACE LAYER / LAND-SURFACE
 !-----------------------------------------------------
     call lsm
+    call drydep
     call surface
 
 !-----------------------------------------------------
@@ -282,11 +288,13 @@ program DALES
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
     call radstat
     call lsmstat
+    !call depstat
     call sampling
     call quadrant
     call crosssection
     call AGScross
     call lsmcrosssection
+    !call depcrosssection
     !call tanhfilter
     call docape
     !call projection
@@ -315,6 +323,7 @@ program DALES
   call exitgenstat
   call exitradstat
   call exitlsmstat
+  !call exitdepstat
   !call exitparticles
   call exitnudge
   call exitnudgeboundary
@@ -328,6 +337,7 @@ program DALES
   call exitcrosssection
   call exitAGScross
   call exitlsmcrosssection
+  !call exitdepcrosssection
   call exitcape
   call exitfielddump
   call exitheterostats
