@@ -80,11 +80,11 @@ contains
                                 , D_MPI_BCAST
     use modchem,           only : initchem
     use modversion,        only : git_version
-    
+
     implicit none
     integer :: ierr
     character(256), optional, intent(in) :: path
-    
+
     !declare namelists
     namelist/RUN/ &
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
@@ -156,7 +156,7 @@ contains
 
     ! Initialize MPI
     call initmpi
-    
+
   !broadcast namelists
     call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lwarmstart ,1,0,commwrld,mpierr)
@@ -256,7 +256,7 @@ contains
     call D_MPI_BCAST(n_post,1,0,commwrld,mpierr)
     call D_MPI_BCAST(tolerance,1,0,commwrld,mpierr)
     call D_MPI_BCAST(precond,1,0,commwrld,mpierr)
-    
+
     call testwctime
     ! Allocate and initialize core modules
     call initglobal
@@ -274,7 +274,7 @@ contains
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
-    
+
     call checkinitvalues
 
 
@@ -396,7 +396,7 @@ contains
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
 
-    integer i,j,k,n
+    integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
@@ -428,7 +428,7 @@ contains
         if (ltestbed) then
 
           write(*,*) 'readinitfiles: testbed mode: profiles for initialization obtained from scm_in.nc'
-          
+
           do k=1,kmax
             height (k) = zf(k)
             thlprof(k) = tb_thl(1,k)
@@ -443,10 +443,13 @@ contains
           !thls
           !wtsurf
           !wqsurf
-         
-        else
 
-          open (ifinput,file='prof.inp.'//cexpnr)
+        else
+          open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file', 'prof.inp.'//cexpnr
+             STOP
+          end if
           read (ifinput,'(a80)') chmess
           write(*,     '(a80)') chmess
           read (ifinput,'(a80)') chmess
@@ -460,7 +463,7 @@ contains
                 vprof  (k), &
                 e12prof(k)
           end do
-        
+
           close(ifinput)
 
         end if   !ltestbed
@@ -539,7 +542,11 @@ contains
       svprof = 0.
       if(myid==0)then
         if (nsv>0) then
-          open (ifinput,file='scalar.inp.'//cexpnr)
+          open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file', 'scalar.inp.'//cexpnr
+             STOP
+          end if
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
           do k=1,kmax
@@ -714,7 +721,7 @@ contains
       if (ltestbed) then
 
           write(*,*) 'readinitfiles: testbed mode: profiles for ls forcing obtained from scm_in.nc'
-          
+
           do k=1,kmax
             height (k) = zf(k)
             ug     (k) = tb_ug(1,k)
@@ -725,10 +732,14 @@ contains
             dqtdtls(k) = tb_qtadv(1,k)
             thlpcar(k) = tb_thladv(1,k)
           end do
-         
+
       else
 
-        open (ifinput,file='lscale.inp.'//cexpnr)
+        open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
+        if (ierr /= 0) then
+           write(6,*) 'Cannot open the file', 'lscale.inp.'//cexpnr
+           STOP
+        end if
         read (ifinput,'(a80)') chmess
         read (ifinput,'(a80)') chmess
         do  k=1,kmax
@@ -962,7 +973,7 @@ contains
     if (rk3Step/=3) return
 
     if (timee<tnextrestart) dt_lim = min(dt_lim,tnextrestart-timee)
-    
+
     ! if trestart > 0, write a restartfile every trestart seconds and at the end
     ! if trestart = 0, write restart files only at the end of the simulation
     ! if trestart < 0, don't write any restart files
@@ -992,7 +1003,7 @@ contains
     integer i,j,k,n
     character(50) name,linkname
 
-    
+
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
       name = 'initdXXXhXXmXXXXXXXX.XXX'
@@ -1190,7 +1201,7 @@ contains
             j >= js .and. j <= je) then
             if (.not. negval) then ! Avoid non-physical negative values
               field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
-            else 
+            else
               field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
             endif
 
