@@ -262,44 +262,64 @@ contains
     implicit none
 
     integer i,j,k,im,ip,jm,jp,km,kp       !counter variables
-    integer iadv_var
 
 !    ----------- input variables
     real          varxflux   (i2,j2),                    &    !surface flux of varx
                   resprodf   (k1)                             !resolved production of variance, full level &
     real(field_r) src        (2-ih:i1+ih,2-jh:j1+jh,k1)       !source of variable x at full level &
+    integer iadv_var
     real          subprodf   (k1),                       &    !'gradient' production, at full level &
                   restranf   (k1),                       &    !resolved transport of (co-)variance at full level &
                   disf       (k1),                       &    !'real' dissipation , at full level
-                  srcf       (k1)                             !source term interaction
+                  srcf       (k1),                       &     !source term interaction
+                  varxfluxmn (i2,j2),                    &
+                  varx2fav   (k1)
     real(field_r) varxf      (2-ih:i1+ih,2-jh:j1+jh,k1)       !input variable x at full level &
 
+
 !    ----------- function variables
-    real &
-        u0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of u &
-        v0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of v &
-        w0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of w &
-        u0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for u &
-        v0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for v &
-        w0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for w &
-        ekh_stor   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !container for ekh &
-        dumfield   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !dummy field to construct terms &
-        varxfluxmn (i2,j2),                    &    !2D field of averaged varx surface flux &
-        ekhav      (k1),                       &    !mean ekh
-        varx2fav   (k1)                             !variance of varxf at full level &
-    real(field_r) &
-        varxfdev   (2-ih:i1+ih,2-jh:j1+jh,k1), &    !fluctuation of varxf &
-        varxfmn    (2-ih:i1+ih,2-jh:j1+jh,k1), &    !3D field of slab-averaged varxf &
-        varxfav    (k1),                       &    !mean of varxf at full level &
-        term       (2-ih:i1+ih,2-jh:j1+jh,k1), &    !output for adv/diff routines &
-        term_av    (k1),                       &    !mean term
-        term_av2   (k1),                       &    !mean term, default precision
-        w0av       (k1)!                        &    !mean vertical velocity
+    real, allocatable :: &
+        u0_dev     (:,:,:), &    !fluctuation of u &
+        v0_dev     (:,:,:), &    !fluctuation of v &
+        w0_dev     (:,:,:), &    !fluctuation of w &
+        u0_stor    (:,:,:), &    !container for u &
+        v0_stor    (:,:,:), &    !container for v &
+        w0_stor    (:,:,:), &    !container for w &
+        ekh_stor   (:,:,:), &    !container for ekh &
+        dumfield   (:,:,:), &    !dummy field to construct terms &
+        ekhav      (:)           !mean ekh
+    real(field_r), allocatable :: &
+        varxfdev   (:,:,:), &    !fluctuation of varxf &
+        varxfmn    (:,:,:), &    !3D field of slab-averaged varxf &
+        varxfav    (:),                       &    !mean of varxf at full level &
+        term       (:,:,:), &    !output for adv/diff routines &
+        term_av    (:),                       &    !mean term
+        term_av2   (:),                       &    !mean term, default precision
+        w0av       (:)!                        &    !mean vertical velocity
 
 !    ----------- local (processor) variables
     real varx2favl   (k1)  !variance of varxf at full level &
 
     real varxfluxavl,varxfluxav
+
+    allocate( &
+         u0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         v0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         w0_dev     (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         u0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         v0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         w0_stor    (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         ekh_stor   (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         dumfield   (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         ekhav      (k1),                       &
+         varxfdev   (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         varxfmn    (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         varxfav    (k1),                       &
+         term       (2-ih:i1+ih,2-jh:j1+jh,k1), &
+         term_av    (k1),                       &
+         term_av2   (k1),                       &
+         w0av       (k1) )
+
 
     ! Set to zero at start
     varxfdev    = 0.; varxfmn = 0.
@@ -526,6 +546,8 @@ contains
     call slabsum(srcf ,1,k1,dumfield ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     srcf = srcf/ijtot
 
+    deallocate(u0_dev, v0_dev, w0_dev, u0_stor, v0_stor, w0_stor, ekh_stor, &
+         dumfield, ekhav, varxfdev, varxfmn, varxfav, term, term_av, term_av2,w0av)
   return
 
   end subroutine varproduction
