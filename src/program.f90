@@ -109,7 +109,7 @@ program DALES
   use modmicrophysics,   only : microsources
   use modsurface,        only : surface 
   use modlsm,            only : lsm
-  use moddeposition,     only : drydep      
+  use moddrydeposition,  only : drydep      
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
@@ -134,7 +134,7 @@ program DALES
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
-  !use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
+  use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
@@ -181,7 +181,7 @@ program DALES
   call initcrosssection
   call initAGScross
   call initlsmcrosssection
-  !call initdepcrosssection
+  call initdepcrosssection
   !call initprojection
   call initcloudfield
   call initfielddump
@@ -294,7 +294,7 @@ program DALES
     call crosssection
     call AGScross
     call lsmcrosssection
-    !call depcrosssection
+    call depcrosssection
     !call tanhfilter
     call docape
     !call projection
@@ -337,7 +337,7 @@ program DALES
   call exitcrosssection
   call exitAGScross
   call exitlsmcrosssection
-  !call exitdepcrosssection
+  call exitdepcrosssection
   call exitcape
   call exitfielddump
   call exitheterostats

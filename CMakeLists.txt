@@ -28,9 +28,10 @@ elseif("$ENV{SYST}" STREQUAL "HYDRA")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "FEDORA")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -I /usr/lib64/gfortran/modules/mpich/ -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEV     "-fbounds-check -fbacktrace -fno-f2c -O3 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "ECMWF")
   set(CMAKE_Fortran_COMPILER "ftn")
   set(CMAKE_Fortran_FLAGS "-s real64" CACHE STRING "")
@@ -41,16 +42,21 @@ elseif("$ENV{SYST}" STREQUAL "ECMWF-intel")
   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "ECMWF-gnu")
+  set(CMAKE_Fortran_COMPILER "ftn")
+  set(CMAKE_Fortran_FLAGS "-W -Wall -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -g -fbacktrace" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "gnu-fast")
   set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -march=native -g -fbacktrace" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
-elseif("$ENV{SYST}" STREQUAL "gnu-fast")
-  set(CMAKE_Fortran_COMPILER "mpif90")
-  set(CMAKE_Fortran_FLAGS "-finit-real=nan -W -Wall -fdefault-real-8 -ffree-line-length-none" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -march=native -g -fbacktrace" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set(CMAKE_Fortran_FLAGS "-W -Wall -fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=legacy" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -Ofast -g -fbacktrace" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "lisa-intel")
+   set(CMAKE_Fortran_COMPILER "mpiifort")
+   set(CMAKE_Fortran_FLAGS "-r8 -ftz -extend_source" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS_RELEASE "-g -traceback -O3 -xHost" CACHE STRING "")
+   set(CMAKE_Fortran_FLAGS_DEBUG "-traceback -fpe1 -O0 -g -check all" CACHE STRING "")
 ##########   TNO HPC   ###################
 elseif("$ENV{SYST}" STRGREATER "app-hpc")
   message ("system tno-hpc")
@@ -61,21 +67,36 @@ elseif("$ENV{SYST}" STRGREATER "app-hpc")
   ###set(CMAKE_Fortran_FLAGS_RELEASE "-fbacktrace -funroll-all-loops -fno-f2c -O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_RELEASE "-O3" CACHE STRING "")
   set(CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow -Wall -Wno-unused-variable -Wno-conversion" CACHE STRING "")
-
+elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
 else()
-  message ("undefined system")
-  set (CMAKE_Fortran_COMPILER "mpif90")
-  set (CMAKE_Fortran_FLAGS "-finit-real=nan -fdefault-real-8 -ffree-line-length-none " CACHE STRING "")
+  set(CMAKE_Fortran_COMPILER "mpif90")
+  set(CMAKE_Fortran_FLAGS "-fdefault-real-8 -fdefault-double-8 -march=native -malign-double -ffree-line-length-none -std=legacy" CACHE STRING "")
   set (CMAKE_Fortran_FLAGS_RELEASE "-funroll-all-loops -fno-f2c -O3" CACHE STRING "")
-  set (CMAKE_Fortran_FLAGS_DEBUG   "-fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+  set (CMAKE_Fortran_FLAGS_DEBUG   "-finit-real=nan -fbounds-check -fbacktrace -fno-f2c -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 endif()
+
+# On compiler options
+# June 2020: added -std=legacy to gfortran for compatibility with gfortran 10, which introduced stricter type checking
+# the old FFT code from Netlib/FFTPACK does not compile with gfortran 10 without this flag.
+
+# For GCC based compilers:
+#  * -march=native   : compile for the current CPU, allows use of modern AVX etc.
+#  * -malign-double  : align stuff on 64-bit boundaries.
+#  * -finit-real-nan : makes the code slower, moved them to debug
+
 
 ## Project parameters
 PROJECT(DALES Fortran)
-cmake_minimum_required(VERSION 2.6)
+cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR "4")
 set(VERSION_MINOR "2")
-set(VERSION_PATCH "0")
+set(VERSION_PATCH "1")
+
+# use nf-config to find paths to netcdf. Broken on Fedora due to module path missing.
+execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
+execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
+# execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NFCONFIG_FORTRAN_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
+# not used at the moment - not just a path but several compiler flags
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
 EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
@@ -83,6 +104,7 @@ EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPAT
 ### Find NetCDF files
 FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   PATHS
+  ${NFCONFIG_INCLUDE_DIR}
   $ENV{SARA_NETCDF_INCLUDE}
   $ENV{SURFSARA_NETCDF_INCLUDE}
   $ENV{NETCDF_INCLUDE}
@@ -111,6 +133,7 @@ FIND_LIBRARY(NETCDF_C_LIB netcdf
 
 FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   PATHS
+  ${NFCONFIG_PREFIX}/lib
   $ENV{SARA_NETCDF_LIB}
   $ENV{SURFSARA_NETCDF_LIB}
   $ENV{NETCDF_LIB}
@@ -250,7 +273,7 @@ if(NOT CASE)
       FORCE)
 endif()
 
-### Add case specific file 
+### Add case specific file
 FILE(GLOB usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/${CASE}/moduser.f90")
 if(usrfile STREQUAL "")
   set(usrfile "${CMAKE_CURRENT_SOURCE_DIR}/cases/standard/moduser.f90")

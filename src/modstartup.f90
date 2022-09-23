@@ -66,7 +66,7 @@ contains
     use moddatetime,       only : initdatetime
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
-    use moddeposition,     only : initdrydep
+    use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields
     use modpois,           only : initpois
     use modradiation,      only : initradiation
@@ -285,7 +285,6 @@ contains
     call initpois ! hypre solver needs grid and baseprofiles
     
     call checkinitvalues
-
 
   end subroutine startup
 
@@ -1237,7 +1236,7 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modlsm,            only : exitlsm
-    use moddeposition,     only : exitdrydep
+    use moddrydeposition,  only : exitdrydep
     use modthermodynamics, only : exitthermodynamics
     use modemission,       only : exitemission
 
