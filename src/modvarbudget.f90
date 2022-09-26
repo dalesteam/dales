@@ -243,7 +243,8 @@ contains
     use modglobal,      only : i1,i2,ih,j1,j2,jh,k1,kmax,     &
                                dzf,dzh,ijtot,dx2i,dy2i,cu,cv, &
                                iadv_cd2,iadv_5th,iadv_52,     &
-                               iadv_cd6,iadv_62,iadv_kappa
+                               iadv_cd6,iadv_62,iadv_kappa,   &
+                               iadv_hybrid,iadv_hybrid_f
     use modsubgriddata, only : ekh
     use modsubgrid,     only : diffc
     use modfields,      only : u0,v0,w0,u0av,v0av
@@ -415,6 +416,10 @@ contains
         call advecc_62(varxfmn,term)
       case(iadv_kappa)
         call advecc_kappa(varxfmn,term)
+      case(iadv_hybrid)
+        call advecc_hybrid(varxfmn,term)
+      case(iadv_hybrid_f)
+        call advecc_hybrid_f(varxfmn,term)
       case default
           stop "Unknown advection scheme "
     end select
@@ -451,6 +456,10 @@ contains
         call advecc_62(varxfdev,term)
       case(iadv_kappa)
         call advecc_kappa(varxfdev,term)
+      case(iadv_hybrid)
+        call advecc_hybrid(varxfmn,term)
+      case(iadv_hybrid_f)
+        call advecc_hybrid_f(varxfmn,term)
       case default
           stop "Unknown advection scheme "
     end select
