@@ -58,7 +58,7 @@ module modbulkmicro
 
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
-    use modglobal, only : i1,j1,k1
+    use modglobal, only : i1,j1,k1,ih,jh
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
                              lbdr, &
@@ -74,7 +74,7 @@ module modbulkmicro
             ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
 
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
-            ,qtpmcr   (2:i1,2:j1,k1)  & !
+            ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! ghost cells added here for modvarbudget
             ,xr       (2:i1,2:j1,k1)  & !
             ,mur      (2:i1,2:j1,k1)  & !
             ,lbdr     (2:i1,2:j1,k1)  & !

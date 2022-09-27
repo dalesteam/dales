@@ -50,7 +50,7 @@ contains
                            lwarmstart,checknamelisterror,ladaptive,dtmax
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav,ncid_prof=>ncid
-    use modmicrodata, only : qtpmcr, imicro
+    use modmicrodata, only : qtpmcr, imicro, imicro_bulk, imicro_sice, imicro_sice2
     implicit none
 
     integer ierr
@@ -102,9 +102,9 @@ contains
     allocate(qt2residf(k1))
     allocate(qt2bf    (k1))
 
-    if (imicro == 0) then
-       ! no microphysics, we still reference qtpmcr so make sure it's allocated
-       allocate(qtpmcr   (2:i1,2:j1,k1))
+    if (.not. (imicro == imicro_bulk .or. imicro == imicro_sice .or. imicro == imicro_sice2) ) then
+       ! no qtpmcr allocated in microphysics, we still reference qtpmcr so make sure it's allocated
+       allocate(qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1))
        qtpmcr = 0
     end if
 
@@ -676,7 +676,7 @@ contains
   end subroutine writevarbudget
 
   subroutine exitvarbudget
-    use modmicrodata, only : qtpmcr, imicro
+    use modmicrodata, only : qtpmcr, imicro, imicro_bulk, imicro_sice, imicro_sice2
     implicit none
 
     if(.not.(lvarbudget)) return
@@ -689,7 +689,7 @@ contains
     deallocate(qt2Trfav ,qt2Trfmn ,qt2Sfav ,qt2Sfmn)
     deallocate(qt2Disfav,qt2Disfmn,qt2tendf,qt2residf,qt2bf)
 
-    if (imicro == 0) then
+    if (.not. (imicro == imicro_bulk .or. imicro == imicro_sice .or. imicro == imicro_sice2) ) then
        ! no microphysics. deallocate qtpmcr since we allocated it.
        deallocate(qtpmcr)
     end if
