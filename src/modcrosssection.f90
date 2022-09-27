@@ -92,8 +92,6 @@ contains
     crossortho(1)=2
     crossortho(2:100)=-999
 
-    nrec2(1:kmax)=0
-
     dtav = dtav_glob
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
