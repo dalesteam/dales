@@ -463,9 +463,9 @@ contains
       case(iadv_kappa)
         call advecc_kappa(varxfdev,term)
       case(iadv_hybrid)
-        call advecc_hybrid(varxfmn,term)
+        call advecc_hybrid(varxfdev,term)
       case(iadv_hybrid_f)
-        call advecc_hybrid_f(varxfmn,term)
+        call advecc_hybrid_f(varxfdev,term)
       case default
           stop "Unknown advection scheme "
     end select
