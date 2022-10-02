@@ -392,7 +392,7 @@ contains
         r(2,1) = r(1,2); r(3,1) = r(1,3); r(3,2) = r(2,3)
         call DSYEVJ3(r,eigvec,eigval)
         do ii = 1,3
-          if(eigval(ii)<-1.e-8) print *,"warning negative eigenvalue ",eigval(ii), " value set to 1e-8"
+          !if(eigval(ii)<-1.e-8) print *,"warning negative eigenvalue ",eigval(ii), " value set to 1e-8"
           eigval(ii) = max(eigval(ii),1.e-8)
         end do
         boundary(ib)%eigvec(i,j,:,:) = real(eigvec)

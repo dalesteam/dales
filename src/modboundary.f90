@@ -147,7 +147,7 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
@@ -196,12 +196,13 @@ contains
   ! Additional to gravity wave damping, set qt, thl and sv0(:) equal to slabaverage
   ! at level kmax.
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
-
-  thl0(2:i1,2:j1,kmax) = thl0av(kmax)
-  qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
-  do n=1,nsv
-    sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
-  end do
+  if(.not.lopenbc) then
+    thl0(2:i1,2:j1,kmax) = thl0av(kmax)
+    qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
+    do n=1,nsv
+      sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+    end do
+  endif
 
   return
   end subroutine grwdamp
