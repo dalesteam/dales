@@ -480,6 +480,12 @@ contains
       do k=k1,1,-1
         write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
       end do
+
+      do k=1,k1
+        if (dzf(k) <= 0 .or. dzh(k) <= 0) then
+          stop "Zero or negative level spacing found in dzf or dzh."
+        end if
+      end do
     end if
 !     tnextrestart = trestart/tres
 !     timeleft=ceiling(runtime/tres)
