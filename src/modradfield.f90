@@ -49,7 +49,7 @@ contains
     use modmpi,   only :myid,comm3d,myidx,myidy,D_MPI_BCAST
     use modglobal,only :imax,jmax,i1,ih,j1,jh,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,&
          timeav_glob,ladaptive,dt_lim,btime,tres,checknamelisterror
-    use modstat_nc,only : open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     implicit none
     integer :: ierr
 
@@ -93,7 +93,7 @@ contains
 
     write(fname,'(A,i3.3,A,i3.3,A)') 'radfield.', myidx, '.', myidy, '.xxx.nc'    !rce table 5 2D hourly averaged variables
     fname(18:20) = cexpnr
-    call ncinfo(tncname(1,:),'time','Time','s','time')
+    call nctiminfo(tncname(1,:))
     call ncinfo(ncname( 1,:),'hfls','surface upward latent heat flux','W/m2','tt0t')
     call ncinfo(ncname( 2,:),'hfss','surface upward sensible heat flux','W/m2','tt0t')
     call ncinfo(ncname( 3,:),'rlds','surface downwellling longwave flux','W/m2','tt0t')
