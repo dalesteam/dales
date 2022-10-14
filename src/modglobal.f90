@@ -396,7 +396,7 @@ contains
     if(myid==0)then
       open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
       if (ierr /= 0) then
-         write(6,*) 'Cannot open the file', 'prof.inp.'//cexpnr
+         write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
          STOP
       end if
       read(ifinput,'(a72)') chmess

@@ -447,7 +447,7 @@ contains
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
-             write(6,*) 'Cannot open the file', 'prof.inp.'//cexpnr
+             write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
              STOP
           end if
           read (ifinput,'(a80)') chmess
@@ -544,7 +544,7 @@ contains
         if (nsv>0) then
           open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
-             write(6,*) 'Cannot open the file', 'scalar.inp.'//cexpnr
+             write(6,*) 'Cannot open the file ', 'scalar.inp.'//cexpnr
              STOP
           end if
           read (ifinput,'(a80)') chmess
@@ -737,7 +737,7 @@ contains
 
         open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
         if (ierr /= 0) then
-           write(6,*) 'Cannot open the file', 'lscale.inp.'//cexpnr
+           write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
            STOP
         end if
         read (ifinput,'(a80)') chmess
