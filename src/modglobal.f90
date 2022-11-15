@@ -233,7 +233,7 @@ contains
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
-    integer :: k, n, m
+    integer :: k, n, m, ierr
     character(80) chmess
 
     !timestepping
@@ -397,7 +397,11 @@ contains
 
 
     if(myid==0)then
-      open (ifinput,file='prof.inp.'//cexpnr)
+      open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+      if (ierr /= 0) then
+         write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+         STOP
+      end if
       read(ifinput,'(a72)') chmess
       read(ifinput,'(a72)') chmess
 
