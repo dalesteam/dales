@@ -62,7 +62,7 @@ module modsimpleice
              ,nr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,nrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
              ,thlpmcr(2:i1,2:j1,k1)   & ! thl tendency due to microphysics only, for statistics
-             ,qtpmcr(2:i1,2:j1,k1)    & ! qt tendency due to microphysics only, for statistics
+             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! qt tendency due to microphysics only, for statistics. Ghost cells for modvarbudget.
              ,sed_qr(2:i1,2:j1,k1)    & ! sedimentation rain droplets mixing ratio
              ,qr_spl(2:i1,2:j1,k1)    & ! time-splitting substep qr
              ,ilratio(2:i1,2:j1,k1)   & ! partition ratio cloud water vs cloud ice
