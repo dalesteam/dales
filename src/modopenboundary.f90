@@ -57,7 +57,7 @@ contains
 
     if(.not.lopenbc) return
     ! Check for conflicting options
-    if(solver_id == 0 .or. solver_id == 100) stop 'Openboundaries only possible with HYPRE pressure solver, change solver_id'
+    if(solver_id == 0) stop 'Openboundaries only possible with HYPRE or FFTW pressure solver, change solver_id'
     if(iadv_mom /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_mom to 2'
     if(iadv_thl /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_thl to 2'
     if(iadv_qt  /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_qt to 2'
@@ -434,7 +434,7 @@ contains
       n_pre,n_post,solver_id_init,maxiter_init,tolerance_init,precond_id_init,maxiter_precond_init, &
       n_pre_init,n_post_init,ih,jh,dzh
     use modfields, only : u0,um,v0,vm,w0,wm,rhobf,rhobh
-    use modhypre, only : inithypre_solver, solve_hypre,set_zero_guess,exithypre_solver
+    use modhypre, only : inithypre_grid, inithypre_solver, solve_hypre,set_zero_guess,exithypre_solver
     !use modchecksim, only : chkdiv
     implicit none
     real :: sumdiv,divold,divnew,div,divpart
@@ -578,6 +578,9 @@ contains
       if(precond_id_init == -1) precond_id_init = precond_id
       if(n_pre_init == -1) n_pre_init = n_pre
       if(n_post_init == -1) n_post_init = n_post
+      if(solver_id == 100) then
+         call inithypre_grid ! if FFTW is used during run, need to init hypre grid here(?)
+      end if
       call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init)
       iter = 0
       do while(.True.)
