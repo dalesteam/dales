@@ -5,6 +5,9 @@
 !!  Layer to deal with the parallelization.
 !>
 !!  \author Matthieu Pourquie, TU Delft
+!!  \author Jisk Attema
+!!  \author Victor Azizi
+!!  \author Fredrik Jansson
 !!  \par Revision list
 !!  \todo Documentation
 !!  \todo 2D/3D parallelization
@@ -72,10 +75,12 @@ save
   interface D_MPI_ISEND
     procedure :: D_MPI_ISEND_REAL32_R1
     procedure :: D_MPI_ISEND_REAL64_R1
+    procedure :: D_MPI_ISEND_LOGICAL_R1
   end interface
   interface D_MPI_IRECV
     procedure :: D_MPI_IRECV_REAL32_R1
     procedure :: D_MPI_IRECV_REAL64_R1
+    procedure :: D_MPI_IRECV_LOGICAL_R1
   end interface
   interface D_MPI_RECV
     procedure :: D_MPI_RECV_REAL32_R1
@@ -134,6 +139,7 @@ save
   interface excjs
     procedure :: excjs_real32
     procedure :: excjs_real64
+    procedure :: excjs_logical
   end interface
   interface slabsum
     procedure :: slabsum_real32
@@ -435,8 +441,6 @@ contains
     deallocate (recve, recvw)
 
   endif
-
-  return
   end subroutine excjs_real32
 
   subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
@@ -554,9 +558,125 @@ contains
     deallocate (recve, recvw)
 
   endif
-
-  return
   end subroutine excjs_real64
+
+  subroutine excjs_logical(a,sx,ex,sy,ey,sz,ez,ih,jh)
+  implicit none
+  integer sx, ex, sy, ey, sz, ez, ih, jh
+  logical a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  type(MPI_STATUS)  :: status
+  integer :: xl, yl, zl
+  type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
+  type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
+  integer nssize, ewsize
+  logical,allocatable, dimension(:) :: sendn,recvn &
+                                          , sends,recvs &
+                                          , sende,recve &
+                                          , sendw,recvw
+
+! Calulate buffer lengths
+  xl = size(a,1)
+  yl = size(a,2)
+  zl = size(a,3)
+
+!   Calculate buffer size
+  nssize = xl*jh*zl
+  ewsize = ih*yl*zl
+
+
+  if(nprocy .gt. 1)then
+
+    !   Allocate send / receive buffers
+    allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
+
+    sendn = reshape(a(:,ey-jh+1:ey,:),(/nssize/))
+    sends = reshape(a(:,sy:sy+jh-1,:),(/nssize/))
+
+    !   Send north/south
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+
+    !   Receive south/north
+    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
+    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
+
+    ! Wait until data is received
+    call MPI_WAIT(reqrs, status, mpierr)
+    call MPI_WAIT(reqrn, status, mpierr)
+
+
+    ! Write back buffers
+    a(:,sy-jh:sy-1,:) = reshape(recvs,(/xl,jh,zl/))
+    a(:,ey+1:ey+jh,:) = reshape(recvn,(/xl,jh,zl/))
+
+  else
+
+    ! Single processor, make sure the field is periodic
+    a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
+    a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
+
+  endif
+
+  if(nprocx .gt. 1)then
+
+    !   Allocate send / receive buffers
+    allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
+
+    sende = reshape(a(ex-ih+1:ex,:,:),(/ewsize/))
+    sendw = reshape(a(sx:sx+ih-1,:,:),(/ewsize/))
+
+    !   Send east/west
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
+    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
+    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
+
+    ! Wait until data is received
+    call MPI_WAIT(reqrw, status, mpierr)
+    call MPI_WAIT(reqre, status, mpierr)
+
+    ! Write back buffers
+    a(sx-ih:sx-1,:,:) = reshape(recvw,(/ih,yl,zl/))
+    a(ex+1:ex+ih,:,:) = reshape(recve,(/ih,yl,zl/))
+
+  else
+
+    ! Single processor, make sure the field is periodic
+    a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
+    a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
+
+  endif
+
+  if(nprocy.gt.1)then
+
+    ! Make sure data is sent
+    call MPI_WAIT(reqn, status, mpierr)
+    if (mpierr /= MPI_SUCCESS) call abort
+    call MPI_WAIT(reqs, status, mpierr)
+    if (mpierr /= MPI_SUCCESS) call abort
+
+    deallocate (sendn, sends)
+    deallocate (recvn, recvs)
+
+  endif
+
+  if(nprocx.gt.1)then
+
+    ! Make sure data is sent
+    call MPI_WAIT(reqe, status, mpierr)
+    if (mpierr /= MPI_SUCCESS) call abort
+    call MPI_WAIT(reqw, status, mpierr)
+    if (mpierr /= MPI_SUCCESS) call abort
+
+    ! Deallocate buffers
+    deallocate (sende, sendw)
+    deallocate (recve, recvw)
+
+  endif
+  end subroutine excjs_logical
+
 
   subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
     implicit none
