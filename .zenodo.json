@@ -34,22 +34,34 @@
       },
       {
         "name": "Hans Cuijpers"
+      },
+      {
+        "name": "Pim van Dorp"
       }, 
       {
         "orcid": "0000-0001-8073-6541", 
         "name": "Johan van der Dussen"
+      },
+      {
+        "name": "Peter Duynkerke"
       }, 
       {
-        "orcid": "0000-0001-7202-3525", 
+        "orcid": "0000-0001-7202-3525",
+        "affiliation": "Wageningen University and Research",
         "name": "Chiel van Heerwaarden"
       }, 
       {
         "orcid": "0000-0003-2650-2423", 
         "name": "Thijs Heus"
+      },
+      {
+        "orcid": "0000-0003-2905-6692",
+        "affiliation": "Wageningen University and Research",
+        "name": "Martin Janssens"
       }, 
       {
         "orcid": "0000-0003-4712-5938", 
-        "affiliation": "CWI", 
+        "affiliation": "Delft University of Technology",
         "name": "Fredrik Jansson"
       }, 
       {
@@ -58,6 +70,10 @@
       {
         "orcid": "0000-0003-3614-8544", 
         "name": "Arnold Moene"
+      },
+      {
+        "affiliation": "Delft University of Technology",
+        "name": "Frans Nieuwstadt"
       }, 
       {
         "orcid": "0000-0002-6327-6720", 
@@ -67,9 +83,13 @@
         "orcid": "0000-0001-8367-1333", 
         "name": "Gijs van den Oord",
         "affiliation": "Netherlands eScience Center"
+      },
+      {
+        "name": "Mathieu Pourquie"
       }, 
       {
-        "orcid": "0000-0003-3217-8009", 
+        "orcid": "0000-0003-3217-8009",
+        "affiliation": "Delft University of Technology",
         "name": "Stephan de Roode"
       }, 
       {
@@ -81,7 +101,8 @@
         "name": "Xabier Pedruzo"
       }, 
       {
-        "orcid": "0000-0002-7751-5999", 
+        "orcid": "0000-0002-7751-5999",
+	"affiliation": "Delft University of Technology",
         "name": "Pier Siebesma"
       }, 
       {
