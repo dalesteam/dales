@@ -1758,11 +1758,10 @@ subroutine rc_comp_point( compnam,lu,day_of_year,t,gw,gstom,gsoil_eff,gc_tot,&
         tfac = (2.75e15/tk)*exp(-1.04e4/tk)
 
         ! Stomatal compensation point:
-        if (LAI_present .and. present(c_ave_prev_nh3) .and. c_ave_prev_nh3 .gt. 0.) then
+        if (LAI_present .and. present(c_ave_prev_nh3) ) then
           ! gamma_stom ([NH4+]/[H+] ratio in apoplast) is linearly dependent on an
           ! averaged air concentration in a previous period (stored in soil and leaves):
           gamma_stom = gamma_stom_c_fac(lu)*c_ave_prev_nh3*4.7*exp(-0.071*t)
-
           ! calculate stomatal compensation point for NH3 in ug/m3:
           cstom = max(0.0,gamma_stom*tfac)
         else
@@ -1772,14 +1771,18 @@ subroutine rc_comp_point( compnam,lu,day_of_year,t,gw,gstom,gsoil_eff,gc_tot,&
 
         ! External leaf gamma depends on atmospheric concentration and
         ! surface temperature (assumed to hold for all land use types with vegetation):
-        if (SAI_present .and. present(catm) .and. present(c_ave_prev_nh3) .and. present(c_ave_prev_so2) .and. c_ave_prev_nh3 .gt. 0. .and. c_ave_prev_so2 .gt. 0.) then
+        if (SAI_present .and. present(catm) .and. present(c_ave_prev_nh3) .and. present(c_ave_prev_so2) ) then
           gamma_w = -850.+1840.*catm*exp(-0.11*t)
           ! correction gamma_w for co deposition 
           ! xxx documentation to be added
           ! gamma(with SNratio) = [1.12-1.32*SNratio(molair)]  * gamma_original   
           ! where SNratio(molar) = (CSO2longterm/64)/(CNH3longterm/17))
           !   where CSO2longterm and CNH3longterm in ug m-3.
+          if (c_ave_prev_nh3 .gt. 0. .and. c_ave_prev_so2 .gt. 0.) then
           co_dep_fac = 1.12 - 1.32 * ((c_ave_prev_so2/64.)/(c_ave_prev_nh3/17.))
+          else
+            co_dep_fac = 0.0
+          endif
           co_dep_fac = max(0.0,co_dep_fac)   
           gamma_w = co_dep_fac * gamma_w 
           cw      = max(0.0,gamma_w*tfac)
