@@ -578,7 +578,7 @@ contains
       case(10)
         call initsurf_user
       end select
-      tskin_rad =  tskin_surf ! radiation also needs tskin initalized XPB2
+      tskin_rad =  tskin_surf ! radiation also needs tskin initalized XPB
       ! Set initial Obukhov length to -0.1 for iteration
       obl   = -0.1
       oblav = -0.1

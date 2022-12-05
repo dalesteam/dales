@@ -659,8 +659,6 @@ contains
       z0h        = z0hav
     endif
     
-    !XPB Use surface albedo for radiation, unless lcanopyeb=true. 
-    !    If so, albedo_rad is overwritten by albedo_can
     albedo_rad(:,:) = albedo_surf(:,:)
     ! 3. Initialize surface layer
     allocate(ustar   (i2,j2))
@@ -1048,19 +1046,8 @@ contains
     ! Transfer ustar to neighbouring cells
     call excj( ustar  , 1, i2, 1, j2, 1,1)
     
-    !XPB Use surface tskin for radiation, unless lcanopyeb=true. 
-    !    If so, tskin_rad is overwritten by tskin_can
-    !if (lcanopyeb) then
-    if (.False.) then !Im not sure tskin from canopy top will help
-      if (.not. tskin_set) then ! in first call we use surface ppties because canopy needs rad and is not called yet. Afterwards, canopy top
-        tskin_rad (:,:) = tskin_surf (:,:)
-        qskin_rad (:,:) = qskin_surf (:,:)
-        tskin_set = .true.
-      endif
-    else ! no canopy, use always surface ppties
-        tskin_rad (:,:) = tskin_surf (:,:)
-        qskin_rad (:,:) = qskin_surf (:,:)
-    endif
+    tskin_rad (:,:) = tskin_surf (:,:)
+    qskin_rad (:,:) = qskin_surf (:,:)
 
     return
 
@@ -1202,12 +1189,6 @@ contains
                    if(Rib < 0) L = -0.01
                 end if
                 if(abs((L - Lold)/L) < 1e-4) exit
-                if(iter > 1000) then 
-                   print *,'XPB tskin_surf(i,j),qskin_surf(i,j)',tskin_surf(i,j),qskin_surf(i,j)
-                   print *,'XPB thl0(i,j,1), qt0(i,j,1)',thl0(i,j,1),qt0(i,j,1)
-                   print *,'XPB grav,thvs,thv,thvsl,horv2',grav,thvs,thv,thvsl,horv2
-                   print *,'XPB L,Rib, zf(1),z0h(i,j),z0m(i,j)',L,Rib, zf(1),z0h(i,j),z0m(i,j)
-                endif  
                 if(iter > 1000) stop 'Obukhov length calculation does not converge!'
              end do
 
@@ -2262,7 +2243,7 @@ contains
       if (.not. tleaf_old_set) then
         if (rk3step == 3) then
           tleaf_old_set = .true.
-          if (myid==0)print *,'XPB, tleaf_old_set to true'
+          if (myid==0)print *,'tleaf_old_set to true'
         endif
       endif
     endif

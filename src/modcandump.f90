@@ -33,7 +33,6 @@ private
 PUBLIC :: initcandump, candump,exitcandump
 save
 !NetCDF variables
-  !integer :: nvar = 18
   integer :: nvar =23 
   integer :: ncid,nrec = 0
   character(80) :: fname = 'candump.xxx.xxx.xxx.nc'
