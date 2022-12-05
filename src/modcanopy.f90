@@ -835,7 +835,7 @@ contains
     ! assume for LW that leaves/plants form one horizontal layer (minimum overlap) in each grid and LW only moves upwards and downwards
     do k_can = 1,ncanopy
       !get plant area (m2leaf per m2 ground) in a grid at half levels)
-      if (iradiation==irad_lsm .or.((iradiation==irad_par .or. iradiation==irad_rrtmg ).and. rad_longw==.false.)) then ! there is no LW calculated by radiation
+      if (iradiation==irad_lsm .or.((iradiation==irad_par .or. iradiation==irad_rrtmg ).and. rad_longw .eqv. .false.)) then ! there is no LW calculated by radiation
         lwd_air = unexposedleafLWin(tmp0(i,j,k_can), leaf_eps)
         lwu_air = lwd_air
       else ! get LW calculated by rad scheme, here positive for any rad scheme
@@ -1218,7 +1218,7 @@ subroutine leafeb_ags(i_s, i_r, eps, transpiretype, lwidth, llength, & ! incomin
 
        !real, intent(inout) :: rs                       ! stomatal resistance from last timestep [s m-1]
                                                        !   updated in this routine
-       real, intent(inout) :: gccleaf                  ! carbon stomatal conductance from last timestep [s m-1]
+       real, intent(inout) :: gccleaf                  ! carbon stomatal conductance from last timestep [m s-1]
                                                        !   updated in this routine
        real, intent(inout) :: ci                       ! leaf internal carbon concentration 
                                                        !   updated in this routine
