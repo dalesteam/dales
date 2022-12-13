@@ -61,7 +61,6 @@ contains
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge, &
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  solver_id_init, maxiter_init, tolerance_init, n_pre_init, n_post_init, precond_id_init, maxiter_precond_init, &
                                   hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -115,8 +114,7 @@ contains
     namelist/SOLVER/ &
         solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond, hypre_logging
     namelist/OPENBC/ &
-        lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z, &
-        solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init
+        lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z
 
 
     ! get myid
@@ -303,13 +301,6 @@ contains
     call MPI_BCAST(lambdas_x,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(lambdas_y,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(lambdas_z,1,MY_REAL   ,0,commwrld,mpierr)
-    call MPI_BCAST(solver_id_init,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(maxiter_init,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(n_pre_init,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(n_post_init,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(tolerance_init,1,MY_REAL,0,commwrld,mpierr)
-    call MPI_BCAST(precond_id_init,1,MPI_INTEGER,0,commwrld,mpierr)
-    call MPI_BCAST(maxiter_precond_init,1,MPI_INTEGER,0,commwrld,mpierr)
 
     call testwctime
     ! Allocate and initialize core modules

@@ -229,9 +229,6 @@ save
       real :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.
       integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
       real,dimension(:),allocatable :: tboundary
-      type(solver_type) :: initsolver
-      integer :: solver_id_init = -1, precond_id_init = -1, maxiter_init = -1, n_pre_init = -1, n_post_init = -1, maxiter_precond_init = 1
-      real :: tolerance_init = -1
 
       ! modphsgrd.f90
 

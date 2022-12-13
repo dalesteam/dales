@@ -428,23 +428,13 @@ contains
   subroutine openboundary_divcorr()
     ! Correct for any integrated divergence present in the boundary input
     use mpi
-    !use modfftw, only: fftwf, fftwb
-    !use modpois, only: solmpj
     use modmpi, only : myid,comm3d,mpierr,MY_REAL
     use modglobal, only : imax,jmax,kmax,dzf,dy,dx,xsize,ysize,zh,k1,lwarmstart, &
-      i1,i2,j1,j2,initsolver,solver_type,k1,solver_id,maxiter,tolerance,precond_id, &
-      n_pre,n_post,solver_id_init,maxiter_init,tolerance_init,precond_id_init,maxiter_precond_init, &
-      n_pre_init,n_post_init,ih,jh,dzh
+      i1,i2,j1,j2,k1,dzh
     use modfields, only : u0,um,v0,vm,w0,wm,rhobf,rhobh
-    use modhypre, only : inithypre_grid, inithypre_solver, solve_hypre,set_zero_guess,exithypre_solver
     implicit none
-    real :: sumdiv,div,divpart
-    integer :: i,j,k,it,iter,icalc
-    real,parameter :: maxdiv = 1e-10
-    real,dimension(i2,j2,k1) :: pcorr
-    logical :: converged
-    real :: divmax,divmaxl,divtot,divtotl,divnew_max,divnew_sum,divold_max,divold_sum,divnew,divold
-    !real, pointer     :: Fp(:,:,:)
+    real :: sumdiv,div,divpart,divnew,divold
+    integer :: i,j,k,it,icalc
     ! Create 1/int(rho)
     allocate(rhointi(k1))
     rhointi = 1./(rhobf*dzf)
@@ -568,89 +558,6 @@ contains
         end do
       endif
     endif
-    ! if(linithetero) then
-    !   if(myid==0) print *, "Start divergence correction initial field"
-    !   if(solver_id_init == -1) solver_id_init = solver_id
-    !   if(maxiter_init == -1) maxiter_init = maxiter
-    !   if(tolerance_init == -1) tolerance_init = tolerance
-    !   if(precond_id_init == -1) precond_id_init = precond_id
-    !   if(n_pre_init == -1) n_pre_init = n_pre
-    !   if(n_post_init == -1) n_post_init = n_post
-    !   if(solver_id /= 100) then ! Use iterative solver (HYPRE)
-    !      call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init)
-    !    else
-    !      call inithypre_grid ! if FFTW is used during run, need to init hypre grid here(?)
-    !      call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init)
-    !   end if
-    !   do icalc=1,2
-    !     do k=1,kmax
-    !       do j=2,j1
-    !         do i=2,i1
-    !           pcorr(i,j,k)  =  rhobf(k)*(( um(i+1,j,k)-um(i,j,k) ) / dx &
-    !                                     +( vm(i,j+1,k)-vm(i,j,k) ) / dy ) &
-    !                                     +( wm(i,j,k+1)*rhobh(k+1)-wm(i,j,k)*rhobh(k)) / dzf(k)
-    !           divmaxl = max(divmaxl,abs(pcorr(i,j,k)))
-    !           divtotl = divtotl + pcorr(i,j,k)*dx*dy*dzf(k)
-    !         end do
-    !       end do
-    !     end do
-    !     call MPI_ALLREDUCE(divtotl, divtot, 1,    MY_REAL, &
-    !                           MPI_SUM, comm3d,mpierr)
-    !     call MPI_ALLREDUCE(divmaxl, divmax, 1,    MY_REAL, &
-    !                           MPI_MAX, comm3d,mpierr)
-    !     if(icalc==1) then
-    !       divold_max = divmax
-    !       divold_sum = divtot
-    !     else
-    !       divnew_max = divmax
-    !       divnew_sum = divtot
-    !       if(myid==0) then
-    !         print *, "input max,input sum,corrected max, corrected sum;",divold_max,divold_sum,divnew_max,divnew_sum
-    !         print *, "Finished divergence correction initial field"
-    !       endif
-    !       exit
-    !     endif
-    !     ! Calculate correction using pressure solver
-    !     if(solver_id==100) then ! Use fourrier solver
-    !       call set_zero_guess()
-    !       call solve_hypre(initsolver,pcorr,converged)
-    !       ! call fftwf(pcorr, Fp)
-    !       ! call solmpj ! Cross dependency conflict
-    !       ! call fftwb(pcorr, Fp)
-    !     else ! Use iterative solver (HYPRE)
-    !       call set_zero_guess()
-    !       call solve_hypre(initsolver,pcorr,converged)
-    !     endif
-    !     call openboundary_excjs(pcorr   , 2,i1,2,j1,1,kmax,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-    !     if(lboundary(1).and. .not. lperiodic(1)) pcorr(1,:,:) = pcorr(2,:,:)
-    !     if(lboundary(2).and. .not. lperiodic(2)) pcorr(i2,:,:) = pcorr(i1,:,:)
-    !     if(lboundary(3).and. .not. lperiodic(3)) pcorr(:,1,:) = pcorr(:,2,:)
-    !     if(lboundary(4).and. .not. lperiodic(4)) pcorr(:,j2,:) = pcorr(:,j1,:)
-    !     ! Apply correction
-    !     do k=1,kmax
-    !       do j=2,j1
-    !         do i=2,i1
-    !           um(i,j,k) = um(i,j,k)-(pcorr(i,j,k)-pcorr(i-1,j,k))/dx
-    !           vm(i,j,k) = vm(i,j,k)-(pcorr(i,j,k)-pcorr(i,j-1,k))/dy
-    !         end do
-    !       end do
-    !     end do
-    !     do k=2,kmax
-    !       do j=2,j1
-    !         do i=2,i1
-    !           wm(i,j,k) = wm(i,j,k)-(pcorr(i,j,k)-pcorr(i,j,k-1))/dzh(k)
-    !         end do
-    !       end do
-    !     end do
-    !     call openboundary_excjs(um   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-    !     call openboundary_excjs(vm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-    !     call openboundary_excjs(wm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-    !     u0 = um; v0 = vm; w0 = wm
-    !   enddo
-    !   !if(solver_id/=100) call exithypre_solver(initsolver)
-    !   if(solver_id/=100) call exithypre_solver(initsolver)
-    !   !nullify(Fp)
-    ! endif
   end subroutine openboundary_divcorr
 
   subroutine openboundary_ghost
