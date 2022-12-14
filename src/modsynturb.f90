@@ -323,7 +323,7 @@ contains
   end subroutine synturb_all
 
   subroutine sepsim()
-    use modglobal, only : rtimee,rdt,lmoist
+    use modglobal, only : rtimee,lmoist
     use modmpi, only : myid
     implicit none
     integer :: ib
@@ -335,7 +335,7 @@ contains
           itimestep = itimestep+1
         end do
         if(abs(tturb(itimestep)-real(rtimee))>0.01 .and. real(rtimee)>5.) then
-          print *, 'mistake in time', itimestep,tturb(itimestep),real(rtimee),rdt
+          print *, 'mistake in time', itimestep,tturb(itimestep),real(rtimee)
           stop
         endif
         boundary(ib)%uturb = uturbin(:,:,itimestep)
@@ -358,7 +358,7 @@ contains
   end subroutine sepsim
 
   subroutine calc_eigdec(ib)
-    use modglobal, only : rtimee,rdt,tboundary,ntboundary
+    use modglobal, only : rtimee,tboundary,ntboundary
     implicit none
     integer, intent(in) :: ib
     real*8,dimension(3,3) :: r,eigvec
@@ -368,15 +368,15 @@ contains
     ! Interpolate covariance to current time
     itm = 1
     if(ntboundary>1) then
-      do while(rtimee-rdt>tboundary(itm))
+      do while(rtimee>tboundary(itm))
         itm = itm+1
       end do
-      if (rtimee-rdt>tboundary(1)) then
+      if (rtimee>tboundary(1)) then
         itm = itm-1
       end if
       itp = itm+1
-      fm = (tboundary(itp)-rtimee+rdt)/(tboundary(itp)-tboundary(itm))
-      fp = (rtimee-rdt-tboundary(itm))/(tboundary(itp)-tboundary(itm))
+      fm = (tboundary(itp)-rtimee)/(tboundary(itp)-tboundary(itm))
+      fp = (rtimee-tboundary(itm))/(tboundary(itp)-tboundary(itm))
     else
       itm = 1; itp = 1; fp  = 1.; fm  = 1.
     endif
@@ -392,7 +392,7 @@ contains
         r(2,1) = r(1,2); r(3,1) = r(1,3); r(3,2) = r(2,3)
         call DSYEVJ3(r,eigvec,eigval)
         do ii = 1,3
-          if(eigval(ii)<-1.e-8) print *,"warning negative eigenvalue ",eigval(ii), " value set to 1e-8"
+          !if(eigval(ii)<-1.e-8) print *,"warning negative eigenvalue ",eigval(ii), " value set to 1e-8"
           eigval(ii) = max(eigval(ii),1.e-8)
         end do
         boundary(ib)%eigvec(i,j,:,:) = real(eigvec)
@@ -402,7 +402,7 @@ contains
   end subroutine calc_eigdec
 
   subroutine calc_pert(ib,x,y,z,nx,ny,nz,uturb,iuturb)
-    use modglobal, only : rtimee, rdt,dxint,dyint
+    use modglobal, only : rtimee,dxint,dyint
     use modmpi, only : myidx,myidy
     implicit none
     real, dimension(:), intent(in) :: x,y,z
@@ -414,7 +414,7 @@ contains
     real, dimension(3) :: xx,ci
     real, dimension(3,3) :: eigvec
     real :: t,utemp,vtemp,wtemp
-    t = real(rtimee-rdt)
+    t = rtimee
     select case(ib)
     case(1,2)
       pi1 => j; pi2 => k; pi1patch => jpatch; pi2patch => kpatch
@@ -453,7 +453,7 @@ contains
   end subroutine calc_pert
 
   subroutine calc_pert2(ib,x,y,z,nx,ny,nz,uturb,iuturb,thlturb,qtturb)
-    use modglobal, only : rtimee, rdt,tboundary,ntboundary
+    use modglobal, only : rtimee,tboundary,ntboundary
     use modmpi, only : myidx,myidy
     implicit none
     real, dimension(:), intent(in) :: x,y,z
@@ -466,7 +466,7 @@ contains
     real, dimension(3,3) :: eigvec
     real :: wthl,wqt,w2,thl2,qt2,utemp,vtemp,wtemp,wturbf,thltemp,qttemp
     real :: t,fp,fm,rho
-    t = real(rtimee-rdt)
+    t = rtimee
     itm = 1
     ! Interpolate covariance to current time
     if(ntboundary>1) then

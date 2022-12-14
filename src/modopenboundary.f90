@@ -430,24 +430,18 @@ contains
     use mpi
     use modmpi, only : myid,comm3d,mpierr,MY_REAL
     use modglobal, only : imax,jmax,kmax,dzf,dy,dx,xsize,ysize,zh,k1,lwarmstart, &
-      i1,i2,j1,j2,initsolver,solver_type,k1,solver_id,maxiter,tolerance,precond_id, &
-      n_pre,n_post,solver_id_init,maxiter_init,tolerance_init,precond_id_init,maxiter_precond_init, &
-      n_pre_init,n_post_init,ih,jh,dzh
+      i1,i2,j1,j2,k1,dzh
     use modfields, only : u0,um,v0,vm,w0,wm,rhobf,rhobh
-    use modhypre, only : inithypre_grid, inithypre_solver, solve_hypre,set_zero_guess,exithypre_solver
-    !use modchecksim, only : chkdiv
     implicit none
-    real :: sumdiv,divold,divnew,div,divpart
-    integer :: i,j,k,it,iter
-    real,parameter :: maxdiv = 1e-10
-    real,dimension(i2,j2,k1) :: pcorr
-    logical :: converged
-    real :: divmax,divmaxl,divtot,divtotl
+    real :: sumdiv,div,divpart,divnew,divold
+    integer :: i,j,k,it,icalc
+    ! Create 1/int(rho)
+    allocate(rhointi(k1))
+    rhointi = 1./(rhobf*dzf)
     ! Divergence correction
-    if(myid==0) print *, "Start divergence correction"
+    if(myid==0) print *, "Start divergence correction boundaries"
     do it = 1,ntboundary
-      iter = 0
-      do while(.True.)
+      do icalc=1,2
         ! Calculate divergence
         div = 0.
         if(lboundary(1)) then
@@ -486,17 +480,14 @@ contains
           end do
         endif
         call MPI_ALLREDUCE(div,sumdiv,1,MY_REAL,MPI_SUM,comm3d,mpierr)
-        if(iter==0) then
-          divold = sumdiv
-        else
-          divnew = sumdiv
-        endif
-        if(abs(sumdiv)<maxdiv .or. iter>=20) then
-          if(myid==0) print *, 't,input,corrected,niter',tboundary(it),divold,divnew,iter
-          exit
-        endif
-        iter = iter+1
-        ! Start correction, spread divergence over lateral boundaries
+        if(icalc==1) then
+           divold=sumdiv
+         else
+           divnew=sumdiv
+           if(myid==0) print *, 't,input,corrected;',tboundary(it),divold,divnew
+           exit
+         endif
+        ! Apply correction, spread divergence over lateral boundaries
         if(lboundary(1)) then
           do k = 1,kmax
             divpart = sumdiv*ysize*dzf(k)/(2*xsize*zh(k1)+2*ysize*zh(k1))
@@ -523,7 +514,7 @@ contains
         endif
       end do
     end do
-    if(myid==0) print *, "Finished divergence correction"
+    if(myid==0) print *, "Finished divergence correction boundaries"
     ! Copy data to boundary information
     if(.not.lwarmstart) then
       if(lboundary(1).and..not.lperiodic(1)) then
@@ -566,78 +557,6 @@ contains
           end do
         end do
       endif
-    endif
-    ! Create 1/int(rho)
-    allocate(rhointi(k1))
-    rhointi = 1./(rhobf*dzf)
-    if(linithetero) then
-      if(myid==0) print *, "Start divergence correction initial field"
-      if(solver_id_init == -1) solver_id_init = solver_id
-      if(maxiter_init == -1) maxiter_init = maxiter
-      if(tolerance_init == -1) tolerance_init = tolerance
-      if(precond_id_init == -1) precond_id_init = precond_id
-      if(n_pre_init == -1) n_pre_init = n_pre
-      if(n_post_init == -1) n_post_init = n_post
-      if(solver_id == 100) then
-         call inithypre_grid ! if FFTW is used during run, need to init hypre grid here(?)
-      end if
-      call inithypre_solver(initsolver,solver_id_init,maxiter_init,tolerance_init,precond_id_init,n_pre_init,n_post_init,maxiter_precond_init)
-      iter = 0
-      do while(.True.)
-        divmax = 0.
-        divtot = 0.
-        divmaxl= 0.
-        divtotl= 0.
-        do k=1,kmax
-          do j=2,j1
-            do i=2,i1
-              pcorr(i,j,k)  =  rhobf(k)*(( um(i+1,j,k)-um(i,j,k) ) / dx &
-                                        +( vm(i,j+1,k)-vm(i,j,k) ) / dy ) &
-                                        +( wm(i,j,k+1)*rhobh(k+1)-wm(i,j,k)*rhobh(k)) / dzf(k)
-              divmaxl = max(divmaxl,abs(pcorr(i,j,k)))
-              divtotl = divtotl + pcorr(i,j,k)*dx*dy*dzf(k)
-            end do
-          end do
-        end do
-        call MPI_ALLREDUCE(divtotl, divtot, 1,    MY_REAL, &
-                              MPI_SUM, comm3d,mpierr)
-        call MPI_ALLREDUCE(divmaxl, divmax, 1,    MY_REAL, &
-                              MPI_MAX, comm3d,mpierr)
-        if(iter==0) divold = divmax
-        if(divmax<1e-5.or. iter>=5) then
-          if(myid==0) print *, "Finished divergence correction initial field, old/new maximum divergence and iter",divold,divmax,iter
-          exit
-        endif
-        call set_zero_guess()
-        call solve_hypre(initsolver,pcorr,converged)
-        call set_zero_guess()
-        call openboundary_excjs(pcorr   , 2,i1,2,j1,1,kmax,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-        if(lboundary(1).and. .not. lperiodic(1)) pcorr(1,:,:) = pcorr(2,:,:)
-        if(lboundary(2).and. .not. lperiodic(2)) pcorr(i2,:,:) = pcorr(i1,:,:)
-        if(lboundary(3).and. .not. lperiodic(3)) pcorr(:,1,:) = pcorr(:,2,:)
-        if(lboundary(4).and. .not. lperiodic(4)) pcorr(:,j2,:) = pcorr(:,j1,:)
-        do k=1,kmax
-          do j=2,j1
-            do i=2,i1
-              um(i,j,k) = um(i,j,k)-(pcorr(i,j,k)-pcorr(i-1,j,k))/dx
-              vm(i,j,k) = vm(i,j,k)-(pcorr(i,j,k)-pcorr(i,j-1,k))/dy
-            end do
-          end do
-        end do
-        do k=2,kmax
-          do j=2,j1
-            do i=2,i1
-              wm(i,j,k) = wm(i,j,k)-(pcorr(i,j,k)-pcorr(i,j,k-1))/dzh(k)
-            end do
-          end do
-        end do
-        call openboundary_excjs(um   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-        call openboundary_excjs(vm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-        call openboundary_excjs(wm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
-        iter = iter+1
-      end do
-      u0 = um; v0 = vm; w0 = wm
-      call exithypre_solver(initsolver)
     endif
   end subroutine openboundary_divcorr
 
@@ -1436,4 +1355,5 @@ contains
   stop 2
 
   end subroutine handle_err
+
 end module modopenboundary
