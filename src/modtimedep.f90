@@ -257,7 +257,7 @@ contains
                      dqtdxlst(k,t), &
                      dqtdylst(k,t), &
                      dqtdtlst(k,t), &
-                     thlpcart(k,t), &
+                     dthldtlst(k,t), &
                      dudtlst (k,t), &
                      dvdtlst (k,t)
              end do
@@ -272,7 +272,7 @@ contains
                      dqtdxlst(k,t), &
                      dqtdylst(k,t), &
                      dqtdtlst(k,t), &
-                     thlpcart(k,t)
+                     dthldtlst(k,t)
              end do
           end if
        end do
