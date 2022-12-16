@@ -441,7 +441,7 @@ contains
     !-----------------------------------------------------------------
 
       rdt = dtmax / 100.
-      dt  = floor(rdt/tres)
+      dt  = max(floor(rdt/tres), 1)
       timee = 0
       if (myid==0) then
 
