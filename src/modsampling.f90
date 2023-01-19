@@ -41,14 +41,15 @@ private
 PUBLIC :: initsampling, sampling, exitsampling
 save
 !NetCDF variables
-  integer,parameter :: nvar = 32
+  integer,parameter :: nvar = 34
   character(80),allocatable,dimension(:,:,:) :: ncname
   character(80),dimension(1,4) :: tncname
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
   integer :: nsamples,isamp,isamptot
   character(20),dimension(10) :: samplname,longsamplname
-  real, allocatable, dimension(:,:) ::  wfavl,thlfavl,thvfavl,qtfavl,qlfavl,nrsampfl,massflxhavl, &
+  real, allocatable, dimension(:,:) ::  ufavl,vfavl,wfavl,thlfavl,thvfavl,qtfavl,qlfavl,nrsampfl,massflxhavl, &
                                         wthlthavl,wthvthavl,wqtthavl,wqlthavl,uwthavl,vwthavl,qrfavl
+  real, allocatable, dimension(:,:,:) ::  svfavl
   real, allocatable, dimension(:,:) :: wwrhavl,wwsfavl,pfavl,dwdthavl,dwwdzhavl,dpdzhavl, &
                                        duwdxhavl,dtaudxhavl,dtaudzhavl,thvhavl, &
                                        fcorhavl,nrsamphl
@@ -61,14 +62,16 @@ save
 contains
 !> Initialization routine, reads namelists and inits variables
   subroutine initsampling
-    use modmpi,    only : comm3d,mpierr,myid,mpi_logical,D_MPI_BCAST
+    use modmpi,    only : comm3d,mpierr,myid,D_MPI_BCAST
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
-                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
+                           dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror, &
+                           nsv
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
-    integer :: ierr
+    integer :: ierr, i, n
+    character(40) :: name  !cstep for scalar output fields
 
     namelist/NAMSAMPLING/ &
     dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend
@@ -86,13 +89,14 @@ contains
 
     call D_MPI_BCAST(timeav    ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(dtav      ,1,0,comm3d,mpierr)
-!    call D_MPI_BCAST(lsampall  ,1,MPI_LOGICAL,0,comm3d,mpierr)
+!   call D_MPI_BCAST(lsampall  ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsampcl   ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsampco   ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsampup   ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsampbuup ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsampcldup,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsamptend, 1,0,comm3d,mpierr)
+
 
     isamptot = 0
     if (lsampall) then
@@ -141,10 +145,12 @@ contains
     end if
 
     allocate( wfavl     (k1,isamptot),thlfavl  (k1,isamptot),thvfavl   (k1,isamptot), &
+              ufavl     (k1,isamptot),vfavl     (k1,isamptot),&
               qtfavl    (k1,isamptot),qlfavl   (k1,isamptot),nrsampfl  (k1,isamptot), &
               wthlthavl (k1,isamptot),wthvthavl(k1,isamptot),wqtthavl  (k1,isamptot), &
               wqlthavl  (k1,isamptot),uwthavl  (k1,isamptot),vwthavl   (k1,isamptot), &
               qrfavl    (k1,isamptot))
+    allocate( svfavl     (k1,nsv,isamptot))
     allocate( nrsamphl  (k1,isamptot),wwrhavl  (k1,isamptot),wwsfavl   (k1,isamptot), &
               pfavl     (k1,isamptot),dwdthavl (k1,isamptot),dwwdzhavl (k1,isamptot), &
               dpdzhavl  (k1,isamptot),duwdxhavl(k1,isamptot),dtaudxhavl(k1,isamptot), &
@@ -159,6 +165,8 @@ contains
 !initialize variables
     nrsampfl    = 0.0
     wfavl       = 0.0
+    ufavl       = 0.0
+    vfavl       = 0.0
     thlfavl     = 0.0
     thvfavl     = 0.0
     qtfavl      = 0.0
@@ -171,6 +179,8 @@ contains
     uwthavl     = 0.0
     vwthavl     = 0.0
     qrfavl      = 0.0
+
+    svfavl      = 0.0
 
     nrsamphl    = 0.0
     wwrhavl     = 0.0
@@ -200,6 +210,12 @@ contains
         close (ifoutput)
         open (ifoutput,file=trim(samplname(isamp))//'flx.'//cexpnr,status='replace')
         close (ifoutput)
+         do n=1,nsv
+           name = 'svnnn.'//trim(samplname(isamp))//'fld.'//cexpnr
+           write (name(3:5),'(i3.3)') n
+           open (ifoutput,file=name,status='replace')
+           close (ifoutput)
+        enddo
       enddo
     endif
 
@@ -281,6 +297,10 @@ contains
           trim(longsamplname(isamp))//' '//'subplume term in ww budget','m/s^2','mt')
           call ncinfo(ncname(32,:,isamp),'nrtsamphav'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'sampling fraction for gradients','-','mt')
+          call ncinfo(ncname(33,:,isamp),'w'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean U velocity','m/s','mt')
+          call ncinfo(ncname(34,:,isamp),'w'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'mean V velocity','m/s','mt')
           call define_nc( ncid, NVar, ncname(:,:,isamp))
         end do
      end if
@@ -297,7 +317,7 @@ contains
 
     if(isamptot < 2) return
 
-    deallocate( wfavl   ,thlfavl ,thvfavl ,qtfavl   ,qlfavl   ,nrsampfl  ,massflxhavl, &
+    deallocate( wfavl   ,thlfavl ,thvfavl ,qtfavl   ,qlfavl   ,nrsampfl  ,massflxhavl, ufavl, vfavl, svfavl, &
                 wthlthavl,wthvthavl,wqtthavl,wqlthavl ,uwthavl  ,vwthavl   ,qrfavl)
     deallocate( nrsamphl,wwrhavl ,wwsfavl , &
                 pfavl   ,dwdthavl,dwwdzhavl,dpdzhavl,duwdxhavl,dtaudxhavl,dtaudzhavl,  &
@@ -341,6 +361,7 @@ contains
     ! for dynamic time stepping, limit the timestep so we
     ! can write output at the right time
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
+
   return
   end subroutine sampling
 
@@ -352,14 +373,14 @@ contains
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp
     use modsubgriddata,only : ekh,ekm
-    use modmpi,    only : slabsum,mpi_integer,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
+    use modmpi,    only : slabsum,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
     use modpois,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
     implicit none
 
     logical, allocatable, dimension(:,:,:) :: maskf
     real, allocatable, dimension(:,:,:) :: wthlth,wqtth,wqlth,wthvth,uwth,vwth
-    real, allocatable, dimension(:,:,:) :: w0f
+    real, allocatable, dimension(:,:,:) :: w0f, u0f, v0f
     real, allocatable, dimension(:,:,:) :: thv0
     real, allocatable, dimension(:) :: thvav
 
@@ -371,7 +392,7 @@ contains
     real, allocatable, dimension(:) :: whav0 ,wwthav0  ,wwshav0 ,sigh0
     integer, allocatable, dimension (:) :: nrsamph0l, nrsamph0
 
-    integer :: i,j,k,km,kp
+    integer :: i,j,k,km,kp,n
     real :: cqt,cthl,den,ekhalf,c2,c1,t0h,qs0h,ekav
     real :: wthvsh,wthvrh,wthlsh,wthlrh,wqtrh,wqtsh,wqlrh,wqls
 
@@ -384,7 +405,9 @@ contains
               uwth (2-ih:i1+ih,2-jh:j1+jh,k1),&
               vwth (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate( thv0 (2-ih:i1+ih,2-jh:j1+jh,k1),&
-              w0f  (2-ih:i1+ih,2-jh:j1+jh,k1))      !Change to 3D array
+              w0f  (2-ih:i1+ih,2-jh:j1+jh,k1),&  ! Change to 3D array
+              u0f  (2-ih:i1+ih,2-jh:j1+jh,k1),&
+              v0f  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(maskh (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(uwsh  (2-ih:i1+ih,2-jh:j1+jh,k1),&
              vwsh  (2-ih:i1+ih,2-jh:j1+jh,k1),&
@@ -414,6 +437,14 @@ contains
     enddo
     do k=1,kmax
       w0f (2:i1,2:j1,k) = 0.5*(w0 (2:i1,2:j1,k) + w0  (2:i1,2:j1,k+1))
+    end do
+
+    do i=2,i1
+       u0f (i,2:j1,1:k1) = 0.5*(u0 (i,2:j1,1:k1) + u0  (i+1,2:j1,1:k1))
+    end do
+
+     do j=2,j1
+       v0f (2:i1,j,1:k1) = 0.5*(v0 (2:i1,j,1:k1) + v0  (2:i1,j+1,1:k1))
     end do
 
     maskf = .false.
@@ -498,7 +529,6 @@ contains
       enddo
       enddo
       enddo
-
 
     case ('all')
         maskf  = .true.
@@ -629,6 +659,8 @@ contains
       nrsampfl(k,isamp) = nrsampfl(k,isamp)+count(maskf(2:i1,2:j1,k))
       nrsamphl(k,isamp) = nrsamphl(k,isamp)+count(maskh(2:i1,2:j1,k))
       wfavl   (k,isamp) = wfavl   (k,isamp)+sum  (w0f  (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
+      ufavl   (k,isamp) = ufavl   (k,isamp)+sum  (u0f  (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
+      vfavl   (k,isamp) = vfavl   (k,isamp)+sum  (v0f  (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
       thlfavl (k,isamp) = thlfavl (k,isamp)+sum  (thl0 (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
       thvfavl (k,isamp) = thvfavl (k,isamp)+sum  (thv0 (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
       qtfavl  (k,isamp) = qtfavl  (k,isamp)+sum  (qt0  (2:i1,2:j1,k),maskf(2:i1,2:j1,k))
@@ -638,6 +670,9 @@ contains
     end do
     if(nsv>1) then
       do k=1,kmax
+         do n=1,nsv
+            svfavl(k,n,isamp) = svfavl(k,n,isamp) +sum (sv0 (2:i1,2:j1,k,n),maskf(2:i1,2:j1,k))
+         enddo
       do j=2,j1
       do i=2,i2
         if(maskf(i,j,k).eqv..true.) then
@@ -743,7 +778,7 @@ contains
        endif
     enddo
 
-    deallocate(maskf,wthlth,wqtth,wqlth,wthvth,uwth,vwth,thvav,w0f,thv0)
+    deallocate(maskf,wthlth,wqtth,wqlth,wthvth,uwth,vwth,thvav,w0f,u0f,v0f,thv0)
     deallocate(maskh,uwsh,vwsh,uwrh,vwrh)
     deallocate(wwrh,wwsf,thvhav)
 
@@ -757,18 +792,21 @@ contains
 !> Write the statistics to file
   subroutine writesampling
 
-    use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,ijtot
+    use modglobal, only : rtimee,k1,kmax,zf,zh,cexpnr,ifoutput,ijtot, nsv
     use modfields, only : presf,presh
     use modmpi,    only : myid,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
     use modstat_nc, only: lnetcdf, writestat_nc,nc_fillvalue
 
     implicit none
+    character(40) :: name
     real,dimension(k1,nvar) :: vars
 
-    real, allocatable, dimension(:)  :: wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, &
+    real, allocatable, dimension(:)  :: wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, ufmn, vfmn, &
                                         wthlthmn,wthvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn
-    real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
+    real, allocatable, dimension(:,:)  :: svfmn
+    real, allocatable, dimension(:,:):: wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, ufav, vfav, &
                                         wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav
+    real, allocatable, dimension(:,:,:) :: svfav
     real, allocatable, dimension(:)  :: nrsamphmn, wwrhmn,wwsfmn,&
                                         pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                                         dtaudxhmn,dtaudzhmn,thvhmn, &
@@ -781,14 +819,16 @@ contains
     real, allocatable, dimension(:,:):: wadvhav,subphav
 
 
-    integer :: nsecs, nhrs, nminut, k
+    integer :: nsecs, nhrs, nminut, k, i, n
     integer :: inorm
-    allocate( wfmn(k1),thlfmn(k1),thvfmn(k1),qtfmn(k1),qlfmn(k1),nrsampfmn(k1),massflxhmn(k1), &
+    allocate( wfmn(k1),thlfmn(k1),thvfmn(k1),qtfmn(k1),qlfmn(k1),nrsampfmn(k1),massflxhmn(k1), ufmn(k1), vfmn(k1), &
               wthlthmn(k1),wthvthmn(k1),wqtthmn(k1),wqlthmn(k1),uwthmn(k1),vwthmn(k1),qrfmn(k1))
-    allocate( wfav(k1,isamptot),thlfav(k1,isamptot),thvfav(k1,isamptot), &
+    allocate (svfmn(k1,nsv))
+    allocate( wfav(k1,isamptot),thlfav(k1,isamptot),thvfav(k1,isamptot), ufav(k1,isamptot),vfav(k1,isamptot), &
               qtfav(k1,isamptot),qlfav(k1,isamptot),nrsampf(k1,isamptot),massflxhav(k1,isamptot), &
               wthlthav(k1,isamptot),wthvthav(k1,isamptot),wqtthav(k1,isamptot), &
               wqlthav(k1,isamptot),uwthav(k1,isamptot),vwthav(k1,isamptot),qrfav(k1,isamptot))
+    allocate (svfav(k1,nsv,isamptot))
     allocate (nrsamphmn(k1),wwrhmn(k1),wwsfmn(k1))
     allocate( pfmn(k1),dwdthmn(k1),dwwdzhmn(k1),dpdzhmn(k1),duwdxhmn(k1),&
               dtaudxhmn(k1),dtaudzhmn(k1),thvhmn(k1),fcorhmn(k1))
@@ -808,6 +848,8 @@ contains
 
     call D_MPI_ALLREDUCE(nrsampfl   ,nrsampf    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(wfavl      ,wfav       ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(ufavl      ,ufav       ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(vfavl      ,vfav       ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(thlfavl    ,thlfav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(thvfavl    ,thvfav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(qtfavl     ,qtfav      ,isamptot*k1,MPI_SUM,comm3d,mpierr)
@@ -820,6 +862,14 @@ contains
     call D_MPI_ALLREDUCE(uwthavl    ,uwthav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(vwthavl    ,vwthav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(qrfavl     ,qrfav      ,isamptot*k1,MPI_SUM,comm3d,mpierr)
+
+    do n=1,nsv
+    do i=1,isamptot
+       call D_MPI_ALLREDUCE(svfavl(:,n,i) ,svfav(:,n,i)  ,k1,MPI_SUM,comm3d,mpierr)
+    enddo
+    enddo
+
+
 
     call D_MPI_ALLREDUCE(nrsamphl   ,nrsamph    ,isamptot*k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(wwrhavl    ,wwrhav     ,isamptot*k1,MPI_SUM,comm3d,mpierr)
@@ -842,6 +892,8 @@ contains
 !reset variables
     nrsampfl    = 0.0
     wfavl       = 0.0
+    ufavl       = 0.0
+    vfavl       = 0.0
     thlfavl     = 0.0
     thvfavl     = 0.0
     qtfavl      = 0.0
@@ -854,6 +906,8 @@ contains
     uwthavl     = 0.0
     vwthavl     = 0.0
     qrfavl      = 0.0
+
+    svfavl      = 0.0
 
     nrsamphl    = 0.0
     wwrhavl     = 0.0
@@ -881,12 +935,17 @@ contains
       do isamp = 1,isamptot
 
          wfmn     = 0.
+         ufmn     = 0.
+         vfmn     = 0.
          thlfmn   = 0.
          thvfmn   = 0.
          qtfmn    = 0.
          qlfmn    = 0.
          pfmn     = 0.
          qrfmn    = 0.
+
+         svfmn    = 0.
+
          dwdthmn  = 0.
          dwwdzhmn = 0.
          dpdzhmn  = 0.
@@ -905,12 +964,19 @@ contains
         do k=1,kmax
           if (nrsampf(k,isamp)>0) then
             wfmn   (k) = wfav  (k,isamp)/nrsampf(k,isamp)
+            ufmn   (k) = ufav  (k,isamp)/nrsampf(k,isamp)
+            vfmn   (k) = vfav  (k,isamp)/nrsampf(k,isamp)
             thlfmn (k) = thlfav(k,isamp)/nrsampf(k,isamp)
             thvfmn (k) = thvfav(k,isamp)/nrsampf(k,isamp)
             qtfmn  (k) = qtfav (k,isamp)/nrsampf(k,isamp)
             qlfmn  (k) = qlfav (k,isamp)/nrsampf(k,isamp)
             qrfmn  (k) = qrfav (k,isamp)/nrsampf(k,isamp)
             wwsfmn   (k) = wwsfav    (k,isamp)/nrsampf(k,isamp)
+            if (nsv.gt.0) then
+               do n=1,nsv
+                  svfmn (k,n)  = svfav (k,n,isamp)/nrsampf(k,isamp)
+               enddo
+            endif
           endif
 
           if (sigh_e(k,isamp).gt.0) then
@@ -957,16 +1023,18 @@ contains
         write (ifoutput,'(2A/2A)') &
            '#------------------------------------------------------' &
            ,'------------------------------' &
-           ,'#  LEV  HGHT_F HGHT_H   PRES   COV_F  COV_H       W       THL      QT      ' &
-           ,'QL       THV     P   WW_RES_H   WW_SUB_F'
+           ,'#  LEV  HGHT_F HGHT_H   PRES   COV_F     COV_H       U          V          W       THL            ' &
+           ,'QT        QL       THV           P              WW_RES_H      WW_SUB_F'
         do k=1,kmax
-          write(ifoutput,'(i5,2F8.0,F7.1,2F10.5,5F11.5,E14.5,2F14.5)') &
+          write(ifoutput,'(i5,2F8.0,F7.1,2F10.5,7F11.5,E14.5,2F14.5)') &
               k, &
               zf       (k), &
               zh       (k), &
               presf    (k)/100., &
               nrsampfmn(k), &
               nrsamphmn(k),&
+              ufmn     (k), &
+              vfmn     (k), &
               wfmn     (k), &
               thlfmn   (k), &
               qtfmn    (k)*1000., &
@@ -977,6 +1045,34 @@ contains
               wwsfmn   (k)
         end do
         close(ifoutput)
+
+        do n=1,nsv
+            name = 'svnnn.'//trim(samplname(isamp))//'fld.'//cexpnr
+            write (name(3:5),'(i3.3)') n
+            open (ifoutput,file=name,position='append')
+
+             write(ifoutput,'(//3A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
+          '#------------------------------ ',trim(longsamplname(isamp)),' -------------------------------'      &
+          ,'#',timeav,'--- AVERAGING TIMESTEP --- '      &
+          ,nhrs,':',nminut,':',nsecs      &
+          ,'   HRS:MIN:SEC AFTER INITIALIZATION '
+
+        write (ifoutput,'(2A/A)') &
+           '#------------------------------------------------------' &
+           ,'------------------------------' &
+           ,'#  LEV  HGHT_F HGHT_H   PRES   SV(n)      '
+
+        do k=1,kmax
+          write(ifoutput,'(i5,2F8.0,F7.1,F10.5)') &
+              k, &
+              zf       (k), &
+              zh       (k), &
+              presf    (k)/100., &
+              svfmn    (k,n)
+        end do
+        close(ifoutput)
+        enddo
+
 
         open (ifoutput,file=trim(samplname(isamp))//'flx.'//cexpnr,position='append')
         write(ifoutput,'(//3A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
@@ -1081,6 +1177,8 @@ contains
           vars(:,30)=wadvhmn
           vars(:,31)=subphmn
           vars(:,32)=nrtsamphav(:,isamp)
+          vars(:,33)=ufmn
+          vars(:,34)=vfmn
           else
             vars(:,2:nvar)=nc_fillvalue
           end if
@@ -1090,10 +1188,11 @@ contains
       end do
     end if
 
-    deallocate( wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, &
+    deallocate( wfmn,thlfmn,thvfmn,qtfmn,qlfmn,nrsampfmn,massflxhmn, ufmn, vfmn, &
                 wthlthmn,wthvthmn,wqtthmn,wqlthmn,uwthmn,vwthmn,qrfmn)
-    deallocate( wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, &
+    deallocate( wfav,thlfav,thvfav,qtfav,qlfav,nrsampf,massflxhav, ufav, vfav, &
                 wthlthav,wthvthav,wqtthav,wqlthav,uwthav,vwthav,qrfav)
+    deallocate( svfav,svfmn)
     deallocate (nrsamphmn,wwrhmn,wwsfmn,pfmn,dwdthmn,dwwdzhmn,dpdzhmn,duwdxhmn,&
                  dtaudzhmn,dtaudxhmn,thvhmn,fcorhmn)
     deallocate (nrsamph,wwrhav,wwsfav)
