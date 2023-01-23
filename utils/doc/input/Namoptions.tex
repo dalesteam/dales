@@ -328,6 +328,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   randu		& 0.5		& $x \in \mathbb{R}, \quad x \geq 0$		& Amplitude of randomnization of wind speed 	& m s$^{-1}$\\
   \hypertarget{nprocx}{nprocx}	& 1	& $x = N_{\text{processors}} / n, \quad n,x \in \mathbb{N}^*$	& Number of processors in $x$ direction; if set to 0, MPI will determine suitable value	& - \\
   \hypertarget{nprocy}{nprocy}	& 0	& $x = N_{\text{processors}} / \text{nprocx}$	& Number of processors in $y$ direction; if set to 0, MPI will determine suitable value	& - \\
+  loutdirs	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& If .true., per-task output files are stored in subdirectory myidy/ & -\\
 \end{supertabular}
 $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any value of\hyperlink{iadvtke}{\text{iadv\_tke}}, \hyperlink{iadvthl}{\text{iadv\_thl}}, \hyperlink{iadvqt}{\text{iadv\_qt}} or \hyperlink{iadvsv}{\text{iadv\_sv}} $\in \lbrace6, 62, 7\rbrace$, courant = 0.7 as standard. Otherwise default value is 1.
 \end{center}

@@ -69,7 +69,8 @@ contains
 !> Initializing lsmcrosssection. Read out the namelist, initializing the variables
   subroutine initlsmcrosssection
     use modmpi,   only :myid,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,D_MPI_BCAST
-    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modglobal,only :imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror,&
+                        output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf
    implicit none
@@ -121,7 +122,7 @@ contains
         call nctiminfo(tncname1(1,:))
         call ncinfo(ncname1( 1,:),'tsoil', 'xz crosssection of the Soil temperature','K','t0tts')
         call ncinfo(ncname1( 2,:),'phiw', 'xz crosssection of the Soil moisture','m3/m3','t0tts')
-        call open_nc(fname1,  ncid1,nrec1,n1=imax,ns=ksoilmax)
+        call open_nc(trim(output_prefix)//fname1,  ncid1,nrec1,n1=imax,ns=ksoilmax)
         if (nrec1==0) then
           call define_nc( ncid1, 1, tncname1)
           call writestat_dims_nc(ncid1)
@@ -135,7 +136,7 @@ contains
         call nctiminfo(tncname2(1,:))
         call ncinfo(ncname2( 1,:),'tsoil', 'xy crosssection of the Soil temperature','K','tt0t')
         call ncinfo(ncname2( 2,:),'phiw', 'xy crosssection of the Soil moisture','m3/m3','tt0t')
-        call open_nc(fname2,  ncid2,nrec2,n1=imax,n2=jmax)
+        call open_nc(trim(output_prefix)//fname2,  ncid2,nrec2,n1=imax,n2=jmax)
         if (nrec2==0) then
           call define_nc( ncid2, 1, tncname2)
           call writestat_dims_nc(ncid2)
@@ -158,7 +159,7 @@ contains
         call ncinfo(ncname3(10,:),'Wl','Liquid water reservoir','m','tt0t')
         call ncinfo(ncname3(11,:),'rssoil','Soil evaporation resistance','s/m','tt0t')
         call ncinfo(ncname3(12,:),'rsveg','Vegitation resistance','s/m','tt0t')
-        call open_nc(fname3,  ncid3,nrec3,n1=imax,n2=jmax)
+        call open_nc(trim(output_prefix)//fname3,  ncid3,nrec3,n1=imax,n2=jmax)
         if (nrec3==0) then
           call define_nc( ncid3, 1, tncname3)
           call writestat_dims_nc(ncid3)

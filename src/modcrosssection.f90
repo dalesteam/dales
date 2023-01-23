@@ -74,7 +74,8 @@ contains
   subroutine initcrosssection
     use modmpi,   only :myid,mpierr,comm3d,mpi_logical,mpi_integer,cmyid,cmyidx,cmyidy,myidx,myidy &
                        , D_MPI_BCAST
-    use modglobal,only :imax,jmax,itot,jtot,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,tres,btime,checknamelisterror
+    use modglobal,only :imax,jmax,itot,jtot,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,kmax,i1,dt_lim,cexpnr,&
+                        tres,btime,checknamelisterror,output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
 
    implicit none
@@ -169,7 +170,7 @@ contains
                 call ncinfo(ncname1( 9,:),'qrxz','xz crosssection of the Rain water specific humidity','kg/kg','t0tt')
                 call ncinfo(ncname1( 10,:),'nrxz','xz crosssection of the Number concentration','-','t0tt')
                 call ncinfo(ncname1( 11,:),'e120xz','xz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','t0tt')
-                call open_nc(fname1,ncid1(cross),nrec1(cross),n1=imax,n3=kmax)
+                call open_nc(trim(output_prefix)//fname1,ncid1(cross),nrec1(cross),n1=imax,n3=kmax)
                 if (nrec1(cross) == 0) then
                    call define_nc(ncid1(cross), 1, tncname1)
                    call writestat_dims_nc(ncid1(cross))
@@ -196,7 +197,7 @@ contains
           call ncinfo(ncname2( 9,:),'qrxy','xy crosssection of the Rain water specific humidity','kg/kg','tt0t')
           call ncinfo(ncname2(10,:),'nrxy','xy crosssection of the rain droplet number concentration','-','tt0t')
           call ncinfo(ncname2(11,:),'e120xy','xy crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','tt0t')
-          call open_nc(fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
+          call open_nc(trim(output_prefix)//fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
           if (nrec2(cross)==0) then
              call define_nc(ncid2(cross), 1, tncname2)
              call writestat_dims_nc(ncid2(cross))
@@ -225,7 +226,7 @@ contains
              call ncinfo(ncname3( 9,:),'qryz','yz crosssection of the Rain water specific humidity','kg/kg','0ttt')
              call ncinfo(ncname3(10,:),'nryz','yz crosssection of the Number concentration','-','0ttt')
              call ncinfo(ncname3(11,:),'e120yz','yz crosssection of sqrt(turbulent kinetic energy)','m^2/s^2','0ttt')
-             call open_nc(fname3,  ncid3(cross),nrec3(cross),n2=jmax,n3=kmax)
+             call open_nc(trim(output_prefix)//fname3,  ncid3(cross),nrec3(cross),n2=jmax,n3=kmax)
              if (nrec3(cross)==0) then
                 call define_nc(ncid3(cross), 1, tncname3)
                 call writestat_dims_nc(ncid3(cross))
