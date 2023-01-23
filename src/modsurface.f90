@@ -1419,35 +1419,22 @@ contains
     return
   end function phih
 
-  
-  function E1(x)
-  implicit none
+  pure function E1(x)
+    ! Elliptic integral E1() approximation, from: https://doi.org/10.1016/S0022-1694(99)00184-5
+    implicit none
     real             :: E1
     real, intent(in) :: x
-    real             :: E1sum!, factorial
-    integer          :: k
 
-    E1sum = 0.0
-    do k=1,99
-      !E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
-       E1sum = E1sum + (-1.0 * x) ** k / ( k * factorial(k) )  ! FJ changed this for compilation with cray fortran
-                                                          
-    end do
-    E1 = -0.57721566490153286060 - log(x) - E1sum
+    real, parameter :: euler = 0.5772156649015329
+    real, parameter :: G = exp(-euler)
+    real, parameter :: b = (2*(1-G)/(G*(2-G)))**0.5
+    real, parameter :: h_inf = (1-G)*(G**2 - 6*G+12) / (3*G*(2-G)**2*b)
+    real :: q, h
 
-    return
+    q = 20/47*x**((31/26.)**0.5)
+    h = 1.0 / (1+x*x**0.5)
+    E1 = exp(-x) / (G+(1-G)*exp(-x/(1-G))) * log(1+G/x-(1-G)/(h+b*x)**2)
   end function E1
-
-  function factorial(k)
-  implicit none
-    real                :: factorial
-    integer, intent(in) :: k
-    integer             :: n
-    factorial = 1.0
-    do n = 2, k
-      factorial = factorial * n
-    enddo
-  end function factorial
 
   function patchxnr(xpos)
     use modmpi,     only : myidx
