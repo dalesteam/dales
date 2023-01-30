@@ -63,69 +63,36 @@ contains
   use modglobal, only : i1,j1,kmax,dzh,dzf,grav, lpressgrad
   use modfields, only : sv0,up,vp,wp,thv0h,dpdxl,dpdyl,thvh
   use moduser,   only : force_user
-  use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
+  use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice, imicro_sice2, iqr
   implicit none
 
-  integer i, j, k, jm, jp, km, kp
+  integer i, j, k
 
   if (lforce_user) call force_user
 
-  if((imicro==imicro_sice).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+  if (lpressgrad) then
+     do k=1,kmax
+        up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
+        vp(:,:,k) = vp(:,:,k) - dpdyl(k)
+     end do
+  end if
+
+  if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
     do k=2,kmax
-      kp=k+1
-      km=k-1
-    do j=2,j1
-      jp=j+1
-      jm=j-1
-    do i=2,i1
-    
-    if (lpressgrad) then
-      up(i,j,k) = up(i,j,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
-      vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-    end if
-      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k) - &
-                  grav*(sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2.0*dzh(k))
-    end do
-    end do
+       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
+                  grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
   else
     do k=2,kmax
-      kp=k+1
-      km=k-1
-    do j=2,j1
-      jp=j+1
-      jm=j-1
-    do i=2,i1
-      up(i,j,k) = up(i,j,k) - dpdxl(k)
-      vp(i,j,k) = vp(i,j,k) - dpdyl(k)
-      wp(i,j,k) = wp(i,j,k) + grav*(thv0h(i,j,k)-thvh(k))/thvh(k)
-    end do
-    end do
+      wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
     end do
   end if
 
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
+  wp(:,:,1) = 0.0
 
-  do j=2,j1
-    jp = j+1
-    jm = j-1
-  do i=2,i1
-
-    if (lpressgrad) then
-      up(i,j,1) = up(i,j,1) - dpdxl(1)
-      vp(i,j,1) = vp(i,j,1) - dpdyl(1)
-    end if
-
-    wp(i,j,1) = 0.0
-
-  end do
-  end do
-!     ----------------------------------------------end i,j-loop
-
-
-  return
   end subroutine forces
   subroutine coriolis
 
@@ -152,7 +119,7 @@ contains
   integer i, j, k, jm, jp, km, kp
 
   if (lcoriol .eqv. .false.) return
-  
+
   do k=2,kmax
     kp=k+1
     km=k-1
@@ -270,7 +237,7 @@ contains
     qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
     up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
-    
+
   enddo
 
   return
