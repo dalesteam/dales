@@ -152,6 +152,10 @@ program DALES
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use modadvection,    only : advection
 
+  !cstep IBM for urban terrain
+  use modibm,          only : applyibm, exitibm, zerowallvelocity ! cstep cibm 
+  use modibmdata,      only : lpoislast !cstep cibm 
+
 
   implicit none
 
@@ -255,7 +259,17 @@ program DALES
     call grwdamp !damping at top of the model
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
+
+    !< MK: Ordering of the Poisson Solver and the IBM, (lpoislast==.true.): 
+           !IBM -> Pois, (lpoislast==.false.): zerowallvelocity -> Pois -> IBM
+    !< MK: If lapply_ibm is not defined or set to .false., the Immersed boundary functions will not be applied
+    if(lpoislast .eqv. .true.)  call applyibm(0) !Apply ibm, argument is needed if concurrent precursor method is used
+    if(lpoislast .eqv. .false.) call zerowallvelocity(0)   !Apply correction on the walls before poisson to reduce loss of mass due to removal of leaking
+
     call poisson
+
+    if(lpoislast .eqv. .false.) call applyibm(0) !Apply ibm
+
     call samptend(tend_pois,lastterm=.true.)
 
     ! Apply tendencies to all variables

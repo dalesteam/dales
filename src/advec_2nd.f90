@@ -37,13 +37,15 @@ subroutine advecc_2nd(a_in,a_out)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0, rhobf
+
   implicit none
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
 
-  integer :: i,j,k
+   integer :: i,j,k
 
 !  do k=1,k1
 !    do j=2-jh,j1+jh

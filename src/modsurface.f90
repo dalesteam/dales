@@ -74,6 +74,7 @@ contains
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
     use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
+    use modibmdata, only : lapply_ibm
 
     implicit none
 
@@ -171,6 +172,15 @@ contains
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
+
+    if (lapply_ibm)  then
+       if(myid==0) print *,"Immersed Boundary method is applied"
+       if(myid==0) print *,"This implies that local MOST should be used, isurf=2,lhetero=false and lsmoothflux=false"
+       isurf = 2
+       lmostlocal = .true.
+       lsmoothflux = .false.
+       lhetero     = .false.
+    endif
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
@@ -707,14 +717,16 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
-    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
+    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee,zh,dzf  !cibm
+    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av,ksfc                 !cibm
     use modmpi,     only : mpierr, comm3d, mpi_sum, excjs &
                          , D_MPI_ALLREDUCE, D_MPI_BCAST
     use moduser,    only : surf_user
+    use modibmdata, only : lapply_ibm,  libm, thlroof                         !cstep at this ibm point set to saturation value 
+
     implicit none
 
-    integer  :: i, j, n, patchx, patchy
+    integer  :: i, j, n, patchx, patchy, kmin !step IBM: k for applying surface parameterization at the height of the ground
     real     :: upcu, vpcv, horv, horvav, horvpatch(xpatches,ypatches)
     real     :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
     real     :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
@@ -726,6 +738,7 @@ contains
 
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
+    real     :: z_MO    !cstep height above top obstacle for MOST ibm
 
     patchx = 0
     patchy = 0
@@ -745,7 +758,7 @@ contains
           patchx = patchxnr(i)
           patchy = patchynr(j)
           upatch(patchx,patchy) = upatch(patchx,patchy) + 0.5 * (u0(i,j,1) + u0(i+1,j,1))
-          vpatch(patchx,patchy) = vpatch(patchx,patchy) + 0.5 * (v0(i,j,1) + v0(i,j+1,1))
+          vpatch(patchx,patchy) = vpatch(patchx,patchy) + 0.5 * (v0(i,j,1) + v0(i,j+1,1)) 
           Npatch(patchx,patchy) = Npatch(patchx,patchy) + 1
         enddo
       enddo
@@ -776,26 +789,37 @@ contains
 
       do j = 2, j1
         do i = 2, i1
+
+          kmin = ksfc(i,j)  
+          z_MO = zf(kmin) - zh(kmin)
+ 
           if(lhetero) then
             patchx = patchxnr(i)
             patchy = patchynr(j)
           endif
 
           ! 3     -   Calculate the drag coefficient and aerodynamic resistance
-          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
-          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
-          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+!cibm          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
+!cibm          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
+!cibm          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+
+          Cm(i,j) = fkar ** 2. / (log(z_MO / z0m(i,j)) - psim(z_MO / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
+          Cs(i,j) = fkar ** 2. / (log(z_MO / z0m(i,j)) - psim(z_MO / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
+           (log(z_MO / z0h(i,j)) - psih(z_MO / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+
 
           if(lmostlocal) then
-            upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-            vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+!cibm            upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+!cibm            vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+            upcu  = 0.5 * (u0(i,j,kmin) + u0(i+1,j,kmin)) + cu !cstep IBM
+            vpcv  = 0.5 * (v0(i,j,kmin) + v0(i,j+1,kmin)) + cv !cstep IBM
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
             horv  = max(horv, 0.1)
             ra(i,j) = 1. / ( Cs(i,j) * horv )
           else
             if (lhetero) then
               ra(i,j) = 1. / ( Cs(i,j) * horvpatch(patchx,patchy) )
-            else
+            else  !cibm below is OK to apply to k=1, since lapply_ibm sets lmostlocal to true
               horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
               horvav  = max(horvav, 0.1)
               ra(i,j) = 1. / ( Cs(i,j) * horvav )
@@ -811,6 +835,7 @@ contains
       call do_lsm
 
     elseif(isurf == 2) then
+     if (.not.lapply_ibm) then
       do j = 2, j1
         do i = 2, i1
           if(lhetero) then
@@ -820,8 +845,20 @@ contains
           endif
         end do
       end do
+     else
+        do j = 2, j1
+        do i = 2, i1
+           if (libm(i,j,1)) then !this means that the lower point contains an obstacle such that thlroof should be used
+                                 !as a lower boundary condition
+               tskin(i,j) = thlroof ! 
+           else
+               tskin(i,j) = thls    
+           endif
+        enddo
+        enddo
+      endif
 
-      call qtsurf
+      call qtsurf    !computes saturated humidity qskin based on skin temperature (so could be roof temperature)
 
     end if
 
@@ -834,11 +871,17 @@ contains
     if(isurf <= 2) then
       do j = 2, j1
         do i = 2, i1
-          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+          kmin = ksfc(i,j) !cstep this ensures that ustar(i,j) is based on the level just above an obstacle
+          z_MO = zf(kmin) - zh(kmin)  !heigth wrt surface height of obstacle, needed to apply MOST
+ 
+!cibm          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+!cibm          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+          upcu   = 0.5 * (u0(i,j,kmin) + u0(i+1,j,kmin)) + cu !cstep IBM, cu should actually be zero
+          vpcv   = 0.5 * (v0(i,j,kmin) + v0(i,j+1,kmin)) + cv !cstep IBM
+
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
           horv   = max(horv, 0.1)
-          horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
+          horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)  !OK for IBM, since not used for IBM
           horvav = max(horvav, 0.1)
 
           if(lhetero) then
@@ -856,8 +899,12 @@ contains
             endif
           end if
 
-          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j)
-          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+!cibm          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j)
+!cibm          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
+
+          thlflux(i,j) = - ( thl0(i,j,kmin) - tskin(i,j) ) / ra(i,j)   !cstep IBM
+          qtflux(i,j) = - (qt0(i,j,kmin)  - qskin(i,j)) / ra(i,j)      !cstep IBM
+
 
           if(lhetero) then
             do n=1,nsv
@@ -871,13 +918,22 @@ contains
 
           if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
 
-          phimzf = phim(zf(1)/obl(i,j))
-          phihzf = phih(zf(1)/obl(i,j))
+!cibm          phimzf = phim(zf(1)/obl(i,j))
+!cibm          phihzf = phih(zf(1)/obl(i,j))
           
-          dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
-          dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+!cibm          dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
+!cibm          dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
+!cibm          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
+!cibm          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+
+          phimzf = phim(z_MO/obl(i,j))
+          phihzf = phih(z_MO/obl(i,j))
+
+          dudz  (i,j) = ustar(i,j) * phimzf / (fkar*z_MO)*(upcu/horv)
+          dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*z_MO)*(vpcv/horv)
+          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*z_MO)
+          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*z_MO)
+
         end do
       end do
 
@@ -921,7 +977,7 @@ contains
 
       end if
 
-    else
+    else   !cstep isurf = 3 or 4, flux boundary condition is not used for ibm
 
       if(lneutral) then
         obl(:,:) = -1.e10
@@ -1050,13 +1106,13 @@ contains
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf
     use modglobal,   only : tmelt,bt,at,rd,rv,cp,es0,pref0,ijtot,i1,j1
-    use modfields,   only : qt0
+    use modfields,   only : qt0 ,ksfc !cstep IBM 
     !use modsurfdata, only : rs, ra
     use modmpi,      only : mpierr,comm3d,mpi_sum, D_MPI_ALLREDUCE
 
     implicit none
     real       :: exner, tsurf, qsatsurf, surfwet, es, qtsl
-    integer    :: i,j, patchx, patchy
+    integer    :: i,j, patchx, patchy, kmin!cstep IBM
     integer    :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
     real       :: lqts_patch(xpatches,ypatches)
 
@@ -1067,12 +1123,13 @@ contains
       qtsl = 0.
       do j = 2, j1
         do i = 2, i1
+          kmin       = ksfc(i,j)
           exner      = (ps / pref0)**(rd/cp)
           tsurf      = tskin(i,j) * exner
           es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
           qsatsurf   = rd / rv * es / ps
           surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
-          qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
+          qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,kmin)
           qtsl       = qtsl + qskin(i,j)
         end do
       end do
@@ -1086,6 +1143,7 @@ contains
         Npatch     = 0
         do j = 2, j1
           do i = 2, i1
+            kmin       = ksfc(i,j)
             patchx     = patchxnr(i)
             patchy     = patchynr(j)
             exner      = (ps_patch(patchx,patchy) / pref0)**(rd/cp)
@@ -1093,7 +1151,7 @@ contains
             es         = es0 * exp(at*(tsurf-tmelt) / (tsurf-bt))
             qsatsurf   = rd / rv * es / ps_patch(patchx,patchy)
             surfwet    = ra(i,j) / (ra(i,j) + rs(i,j))
-            qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,1)
+            qskin(i,j) = surfwet * qsatsurf + (1. - surfwet) * qt0(i,j,kmin)
 
             lqts_patch(patchx,patchy) = lqts_patch(patchx,patchy) + qskin(i,j)
             Npatch(patchx,patchy)     = Npatch(patchx,patchy)     + 1
@@ -1114,12 +1172,12 @@ contains
 
 !> Calculates the Obukhov length iteratively.
   subroutine getobl
-    use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
-    use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
+    use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv, zh !cibm
+    use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av, ksfc !cibm
     use modmpi,    only : mpierr,comm3d,mpi_sum,D_MPI_ALLREDUCE
     implicit none
 
-    integer             :: i,j,iter,patchx,patchy
+    integer             :: i,j,iter,patchx,patchy, kmin !cibm
     real                :: thv, thvsl, horv2, oblavl, thvpatch(xpatches,ypatches), horvpatch(xpatches,ypatches)
     real                :: L, Lend, Lstart, Lold
     real                :: Rib, fx, fxdif
@@ -1130,6 +1188,7 @@ contains
     real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches),&
                            lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
     real                :: loblpatch(xpatches,ypatches)
+    real                :: z_MO  !cibm , first full level above obstacle
 
     if(lmostlocal) then
 
@@ -1137,10 +1196,12 @@ contains
 
       do i=2,i1
         do j=2,j1
-          thv     =   thl0(i,j,1)  * (1. + (rv/rd - 1.) * qt0(i,j,1))
+          kmin    = ksfc(i,j)         !cibm
+          z_MO = zf(kmin) - zh(kmin)  !cibm
+          thv     =   thl0(i,j,kmin)  * (1. + (rv/rd - 1.) * qt0(i,j,kmin))
           thvsl   =   tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
-          upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-          vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+          upcu    =   0.5 * (u0(i,j,kmin) + u0(i+1,j,kmin)) + cu
+          vpcv    =   0.5 * (v0(i,j,kmin) + v0(i,j+1,kmin)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
           horv2   =   max(horv2, 0.01)
 
@@ -1149,7 +1210,8 @@ contains
             patchy = patchynr(j)
             Rib    = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvsl) / horv2
           else
-            Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
+            !cibm Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
+            Rib = grav / thvs * z_MO * (thv - thvsl) / horv2
           endif
 
           if (Rib == 0) then
@@ -1169,14 +1231,21 @@ contains
              do while (.true.)
                 iter    = iter + 1
                 Lold    = L
-                fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) /&
-                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
+!cibm                fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) /&
+!cibm                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
+                fx      = Rib - z_MO / L * (log(z_MO / z0h(i,j)) - psih(z_MO / L) + psih(z0h(i,j) / L)) /&
+                     (log(z_MO / z0m(i,j)) - psim(z_MO / L) + psim(z0m(i,j) / L)) ** 2.
                 Lstart  = L - 0.001*L
                 Lend    = L + 0.001*L
-                fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) /&
-                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * &
-                     (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
+!cibm                fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) /&
+!cibm                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * &
+!cibm                     (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
+!cibm                     + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
+                fxdif   = ( (- z_MO / Lstart * (log(z_MO / z0h(i,j)) - psih(z_MO / Lstart) + psih(z0h(i,j) / Lstart)) /&
+                     (log(z_MO / z0m(i,j)) - psim(z_MO / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-z_MO / Lend * &
+                     (log(z_MO / z0h(i,j)) - psih(z_MO / Lend) + psih(z0h(i,j) / Lend)) / (log(z_MO / z0m(i,j)) - psim(z_MO / Lend)&
                      + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
+
                 L = L - fx / fxdif
                 if(Rib * L < 0. .or. abs(L) == 1e5) then
                    if(Rib > 0) L = 0.01

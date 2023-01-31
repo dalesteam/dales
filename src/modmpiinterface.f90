@@ -43,6 +43,15 @@ contains
     call MPI_ISEND(buf,count,MPI_REAL8,dest,tag,comm,request,ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ISEND_REAL64_R1
+  subroutine D_MPI_ISEND_LOGICAL_R1(buf, count, dest, tag, comm, request, ierror)
+    implicit none
+    logical, contiguous, asynchronous, intent(inout) ::   buf(:)
+    integer       ::   count, dest, tag, ierror
+    type(MPI_COMM):: comm
+    type(MPI_REQUEST) :: request
+    call MPI_ISEND(buf,count,MPI_LOGICAL,dest,tag,comm,request,ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ISEND_LOGICAL_R1
 
 !>D_MPI_IRECV
   subroutine D_MPI_IRECV_REAL32_R1(buf, count, source, tag, comm, request, ierror)
@@ -63,6 +72,15 @@ contains
     call MPI_IRECV(buf,count,MPI_REAL8,source,tag,comm,request,ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_IRECV_REAL64_R1
+  subroutine D_MPI_IRECV_LOGICAL_R1(buf, count, source, tag, comm, request, ierror)
+    implicit none
+    logical, contiguous, asynchronous, intent(inout)  ::   buf(:)
+    integer        :: count, source, tag, ierror
+    type(MPI_COMM) :: comm
+    type(MPI_REQUEST) :: request
+    call MPI_IRECV(buf,count,MPI_LOGICAL,source,tag,comm,request,ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_IRECV_LOGICAL_R1
   
 !>D_MPI_RECV
   subroutine D_MPI_RECV_REAL32_R1(buf, count, source, tag, comm, status, ierror)

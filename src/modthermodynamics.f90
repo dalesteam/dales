@@ -60,10 +60,14 @@ contains
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds
-    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
-    use modmpi, only : slabsum
+    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof,ksfc
+    use modmpi, only : slabsum,airslabsum
+    use modsurfdata, only : thls, qts  !cibm
+    use modibm, only     : lapply_ibm
+
     implicit none
-    integer:: k
+    integer:: k,i,j,kmin !cibm
+
     if (timee < 0.01) then
       call diagfld
     end if
@@ -80,19 +84,29 @@ contains
     ! recalculate thv and rho on the basis of results
     call calthv
     thvh=0.
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-    thvh = thvh/ijtot
-    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    do k=1,k1
-      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                 *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-    enddo
     thvf = 0.0
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    thvf = thvf/ijtot
+
+   do k=1,k1
+      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
+               *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
+   enddo
+
+   if (.not.lapply_ibm) then
+      call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+      call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      thvh = thvh/ijtot
+      thvf = thvf/ijtot
+   else
+     call airslabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)   !thv0h(k=1) not defined
+     call airslabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+   endif
+   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+
+
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
+
 
   end subroutine thermodynamics
 !> Cleans up after the run
@@ -105,11 +119,11 @@ contains
 !> Calculate thetav and dthvdz
   subroutine calthv
     use modglobal, only : lmoist,i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
-    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
+    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz,ksfc !cibm
     use modsurfdata,only : dthldz,dqtdz
     implicit none
 
-    integer i, j, k
+    integer i, j, k, kmin !cibm
     real    qs
     real    a_surf,b_surf,dq,dth,dthv,temp
     real    a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi
@@ -126,7 +140,7 @@ contains
         end do
       end do
 
-      do k=2,kmax
+      do k=2,kmax   !this may include ibm points, but for these points dthvdz will not be used
         do j=2,j1
           do i=2,i1
 !
@@ -172,23 +186,24 @@ contains
 
       do j=2,j1
         do i=2,i1
-          if(ql0(i,j,1)>0) then
-            temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
-            qs   = qt0(i,j,1) - ql0(i,j,1)
-            a_surf   = (1.-qt0(i,j,1)+rv/rd*qs*(1.+rlv/(rv*temp))) &
+         kmin = ksfc(i,j)
+          if(ql0(i,j,kmin)>0) then
+            temp = thl0(i,j,kmin)*exnf(kmin)+(rlv/cp)*ql0(i,j,kmin)
+            qs   = qt0(i,j,kmin) - ql0(i,j,kmin)
+            a_surf   = (1.-qt0(i,j,kmin)+rv/rd*qs*(1.+rlv/(rv*temp))) &
                       /(1.+rlv**2*qs/(cp*rv*temp**2))
             b_surf   = a_surf*rlv/(temp*cp)-1.
 
           else
-            a_surf = 1.+(rv/rd-1)*qt0(i,j,1)
+            a_surf = 1.+(rv/rd-1)*qt0(i,j,kmin)
             b_surf = rv/rd-1
 
           end if
-          dthvdz(i,j,1) = a_surf*dthldz(i,j) + b_surf*thl0(i,j,1)*dqtdz(i,j)
+          dthvdz(i,j,kmin) = a_surf*dthldz(i,j) + b_surf*thl0(i,j,kmin)*dqtdz(i,j)
         end do
       end do
 
-    else
+    else !lmoist = .false.
       thv0h = thl0h
       do k=2,kmax
         do j=2,j1
@@ -199,7 +214,8 @@ contains
       end do
       do  j=2,j1
         do  i=2,i1
-          dthvdz(i,j,1) = dthldz(i,j)
+          kmin = ksfc(i,j)
+          dthvdz(i,j,kmin) = dthldz(i,j)
         end do
       end do
     end if
@@ -226,9 +242,10 @@ contains
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0
   use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh,rhof,thvf
+                        presf,presh,exnf,exnh,rhof,thvf,ksfc
   use modsurfdata,only : thls,ps
-  use modmpi,    only : slabsum
+  use modmpi,    only : slabsum,airslabsum
+  use modibmdata,only : lapply_ibm 
   implicit none
 
   integer :: k,n
@@ -249,23 +266,39 @@ contains
     sv0av = 0.
 
 !  !CvH changed momentum array dimensions to same value as scalars!
-  call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   u0av  = u0av  /ijtot + cu
-   v0av  = v0av  /ijtot + cv
-   thl0av = thl0av/ijtot
-   qt0av = qt0av /ijtot
-   ql0av = ql0av /ijtot
+   if (.not.lapply_ibm) then
+     call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+     call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+     call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+     call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+     call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+     u0av  = u0av  /ijtot + cu
+     v0av  = v0av  /ijtot + cv
+     thl0av = thl0av/ijtot
+     qt0av = qt0av /ijtot
+     ql0av = ql0av /ijtot
+     do n=1,nsv
+        call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+     end do
+     sv0av = sv0av/ijtot
+   else
+     call airslabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+     call airslabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+     call airslabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+     call airslabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+     call airslabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+     u0av  = u0av   + cu
+     v0av  = v0av   + cv
+     do n=1,nsv
+      call airslabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,ksfc)
+     end do
+   endif
+
+
    exnf   = 1-grav*zf/(cp*thls)
    exnh  = 1-grav*zh/(cp*thls)
    th0av  = thl0av + (rlv/cp)*ql0av/exnf
-   do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   end do
-   sv0av = sv0av/ijtot
+
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
