@@ -53,6 +53,7 @@ subroutine tstep_update
   use modsubgrid,only : ekm,ekh
   use mpi
   use modmpi,    only : comm3d,mpierr,mpi_max,my_real
+  use modsubgriddata, only: anis_fac
   implicit none
 
   real, allocatable, dimension (:) :: courtotl,courtot
@@ -60,7 +61,7 @@ subroutine tstep_update
   real,save     :: courtotmax=-1,peclettot=-1
   real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
-
+  real          :: sqrta
   allocate(courtotl(kmax),courtot(kmax))
 
   if(lwarmstart) spinup = .false.
@@ -85,8 +86,10 @@ subroutine tstep_update
         courtotmax=sqrt(courtotmax)
         do k=1,kmax
            ! limit by the larger of ekh, ekm. ekh is generally larger.
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           ! with anisotropic diffusion, horizontal_ekm = ekm * anis_fac(k)
+           sqrta = sqrt(anis_fac(k))
+           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2) 
+           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2) 
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
@@ -125,8 +128,10 @@ subroutine tstep_update
         enddo
         do k=1,kmax
            ! limit by the larger of ekh, ekm. ekh is generally larger.
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+           ! with anisotropic diffusion, horizontal_ekm = ekm * anis_fac(k)
+           sqrta = sqrt(anis_fac(k))
+           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2) 
+           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2) 
         end do
         call MPI_ALLREDUCE(peclettotl,peclettot,1,MY_REAL,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
