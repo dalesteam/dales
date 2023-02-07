@@ -1,0 +1,5 @@
+#local emissions
+#scalar_nr , ipos , jpos, kpos, emission(d/dt sv)
+1 12 12 2 1
+2 23 23 5 2
+3 12 12 8 3

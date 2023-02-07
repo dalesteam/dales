@@ -1,0 +1,42 @@
+#!/bin/bash
+#SBATCH --ntasks=8
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks-per-node=8
+#SBATCH --partition inf
+#SBATCH --time=1000000
+#SBATCH --mem=5G
+#SBATCH -J job.005
+#SBATCH --output %x.o%j
+#SBATCH --error %x.e%j
+
+module restore intel
+ulimit -s unlimited
+
+rm fielddump*
+
+expnr=005
+Exp_dir=$(pwd)
+branch=~/Dales/dales_sderoode/src
+Les_Exe_dir=/net/labdata/stephan/dales.builds/dales4.5_ibm/src
+Case_dir=/net/labdata/stephan/Les/Cases/IBM/CBL
+case_ext=.ibm_bl_lifted
+
+mkdir $Exp_dir/INIT
+
+cp $Case_dir/prof.inp$case_ext $Exp_dir/prof.inp.$expnr
+cp $Case_dir/lscale.inp$case_ext $Exp_dir/lscale.inp.$expnr
+cp $Case_dir/scalar.inp$case_ext $Exp_dir/scalar.inp.$expnr
+cp /net/labdata/stephan/Les/Cases/IBM/Buildings/two_buildings_heights_64.dat ibm.inp.$expnr
+cp /net/labdata/stephan/Les/Experiments/IBM_Strip/H127/sv_local_fluxes.inp.127 sv_local_fluxes.inp.$expnr
+
+cp $Exp_dir/namoptions.$expnr $Exp_dir/namoptions
+cp $Les_Exe_dir/dales4.4 $Exp_dir/dales4.4
+
+mkdir $Exp_dir/Code
+cp $branch/* $Exp_dir/Code/.
+
+mpirun dales4.4
+
+#mv init* $Exp_dir/INIT
+rm init*
+

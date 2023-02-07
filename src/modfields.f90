@@ -133,7 +133,7 @@ save
   integer, allocatable :: ksfc (:,:)                !< cibm lowest surface point
  
    ! Local emissions
-  real :: nsv_loc = 0  !nr of local emissions in a subdomain
+  integer :: nsv_loc = 0  !nr of local emissions in a subdomain
   integer, allocatable :: isv_loc(:),jsv_loc(:),ksv_loc(:)  !the local grid locations
   real   , allocatable :: svtend_loc(:)   !the local scalar emission (dsv/dt)
   integer, allocatable :: nsv_glob_nr(:)  !the locations and fluxes apply to the scalar with this number (1...nsv)

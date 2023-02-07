@@ -1,0 +1,100 @@
+&RUN
+iexpnr     =  005
+runtime    =  3600
+dtmax      =  1.
+ladaptive  =  .false.
+irandom    =  43
+randthl    =  0.1
+randqt     =  0e-5
+nsv        = 3
+/
+&DOMAIN
+itot       =  64 
+jtot       =  64
+kmax       =  64
+xsize      =  320.
+ysize      =  320.
+xlat       =  32.
+xlon       =  129.
+/
+&PHYSICS
+ps         =  101900.00
+thls       =  293.
+lmoist     =  .true.
+lcoriol    =  .true.
+iradiation = 0
+z0         = 0.1
+/
+&NAMSURFACE
+wtsurf     = 0.001 
+wqsurf     =  0e-5
+isurf      = 2
+lmostlocal = .true.
+/
+&DYNAMICS
+lqlnr      =  .true.
+cu         =  0
+cv         =  0.
+iadv_mom    =  2
+iadv_tke    =  2
+iadv_thl    =  2
+iadv_qt     =  2
+iadv_sv     =  2 2 2
+ibas_prf    = 2
+/
+&NAMSUBGRID
+ldelta      = .true.
+/
+&NAMCHECKSIM
+tcheck      = 0
+/
+&NAMTIMESTAT
+ltimestat   = .true.
+dtav        = 60
+/
+&NAMGENSTAT
+lstat       = .true.
+dtav        = 10
+timeav      = 600
+/
+&NAMBUDGET
+lbudget     = .true.
+dtav        = 10
+timeav      = 600
+/
+&NUDGEBOUNDARY
+lnudgeboundary=  .false.
+lstatref = .false.
+nudgedepthgr = 10.
+/
+&NAMIBM
+lapply_ibm = .true.
+lreadfile_obstacles = .true.
+thlibm = 293.
+thlwall = 293.
+thlroof = 293.
+/
+&
+&NAMSAMPLING
+dtav = 60
+timeav = 600.
+lsampup=.true.
+lsampibm = .true.
+/
+&NAMFIELDDUMP
+ DTAV        =   3600
+ LFIELDDUMP  = .true.
+ LDIRACC     = .true.
+ LBINARY     = .false.
+ KLOW        =   1
+ KHIGH       =   64
+/
+&NAMCROSSSECTION
+lcross     = .true.
+lxz        = .true.
+lyz        = .true.
+crossheight = 1, 2
+crossplane = 31     ! y of xz crosssection
+crossortho = 32     ! x of yz crosssection
+dtav       = 30
+/
