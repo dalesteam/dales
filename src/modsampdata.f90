@@ -40,5 +40,6 @@ SAVE
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampcldup = .false. !< switch for condtional sampling cloudy updraft (on/off)
   logical :: lsamptend  = .false. !< switch to also sample tendencies
+  logical :: lsampibm   = .false. !< switch to sample values within obstacles
 
 end module modsampdata

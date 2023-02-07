@@ -196,10 +196,11 @@ contains
   use modfields, only : up,vp,thlp,qtp,svp,&
                         whls, u0av,v0av,thl0,qt0,sv0,u0,v0,&
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
-                        dqtdtls, dthldtls, dudtls, dvdtls
+                        dqtdtls, dthldtls, dudtls, dvdtls,&
+                        isv_loc,jsv_loc,ksv_loc,svtend_loc,nsv_glob_nr,nsv_loc  !cstep , local emissions used for cibm mode
   implicit none
 
-  integer k,kp,km
+  integer k,kp,km,n
 
 !     1. DETERMINE LARGE SCALE TENDENCIES
 !        --------------------------------
@@ -239,6 +240,14 @@ contains
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
 
   enddo
+
+  if (nsv_loc.gt.0) then   !cstep local emission. perhaps this subroutine is not present in the most appropriate subroutine (since it is not a ls forcing)
+     do n=1,nsv_loc        !cibm
+       svp(isv_loc(n),jsv_loc(n),ksv_loc(n),nsv_glob_nr(n)) = &
+       svp(isv_loc(n),jsv_loc(n),ksv_loc(n),nsv_glob_nr(n)) + svtend_loc(n)
+     enddo
+  endif
+
 
   return
   end subroutine lstend

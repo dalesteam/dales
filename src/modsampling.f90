@@ -74,7 +74,7 @@ contains
     character(40) :: name  !cstep for scalar output fields
 
     namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend
+    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend,lsampibm
 
     dtav=dtav_glob;timeav=timeav_glob
 
@@ -96,6 +96,7 @@ contains
     call D_MPI_BCAST(lsampbuup ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsampcldup,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lsamptend, 1,0,comm3d,mpierr)
+    call D_MPI_BCAST(lsampibm , 1,0,comm3d,mpierr)
 
 
     isamptot = 0
@@ -129,6 +130,12 @@ contains
       samplname(isamptot) = 'cldup'
       longsamplname(isamptot) = 'Cloud Updraft '
     end if
+    if (lsampibm) then
+      isamptot = isamptot + 1
+      samplname(isamptot) = 'ibm'
+      longsamplname(isamptot) = 'Building Average '
+    endif
+
 
     if(isamptot < 2) return
     idtav = dtav/tres
@@ -179,6 +186,8 @@ contains
     uwthavl     = 0.0
     vwthavl     = 0.0
     qrfavl      = 0.0
+    
+    svfavl      = 0.0
 
     svfavl      = 0.0
 
@@ -376,6 +385,7 @@ contains
     use modmpi,    only : slabsum,comm3d,mpierr,mpi_sum,D_MPI_ALLREDUCE
     use modpois,   only : p
     use modmicrodata, only : imicro, imicro_bulk, imicro_bin, imicro_sice,iqr
+    use modibmdata,   only : libm
     implicit none
 
     logical, allocatable, dimension(:,:,:) :: maskf
@@ -529,6 +539,19 @@ contains
       enddo
       enddo
       enddo
+
+    case ('ibm')
+      do i=2,i1
+      do j=2,j1
+      do k=1,kmax
+         if (libm(i,j,k)) then
+             maskf(i,j,k) = .true.  
+             maskh(i,j,k) = .true.
+         endif
+      enddo
+      enddo
+      enddo
+
 
     case ('all')
         maskf  = .true.

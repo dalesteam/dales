@@ -90,6 +90,7 @@ contains
     use modmpi,            only : initmpi,commwrld,myid,myidx,cmyidy,nprocx,nprocy,mpierr &
                                 , D_MPI_BCAST
     use modchem,           only : initchem
+    use modibm,            only : initibm !cstep IBM
     use modversion,        only : git_version
 
     implicit none
@@ -277,6 +278,9 @@ contains
     call initfields
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
+    call initibm        !MK Initialize for IBM !cstep should be called before initsurface
+                        !cstep IBM here ibas_prf will be changed to 2 if ibm is applied
+
     call initboundary
     call initthermodynamics
     call initradiation
@@ -321,9 +325,12 @@ contains
   !-----------------------------------------------------------------|
 
     use modsurfdata,only : wtsurf,wqsurf,ustin,thls,isurf,ps,lhetero
-    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
+    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax,&
+                          cu, cv !cibm
     use modmpi,    only : myid,nprocx,nprocy,mpierr, MPI_FINALIZE
     use modtimedep, only : ltimedep
+    use modibmdata, only : lapply_ibm !cibm
+    use modsampdata, only : lsampibm
 
 
       if(mod(jtot,nprocy) /= 0) then
@@ -390,6 +397,13 @@ contains
       'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
     endif
 
+     if (.not.lapply_ibm) then
+       lsampibm = .false.   !if this switch is true in namoptions but not obstacles are present will lead to a crash
+    else
+       if (cu > 0) stop 'cu should be zero for IBM'
+       if (cv > 0) stop 'cv should be zero for IBM'
+    endif
+
   end subroutine checkinitvalues
 
   subroutine readinitfiles
@@ -399,24 +413,27 @@ contains
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
-                                  thlpcar,thvh,thvf
+                                  thlpcar,thvh,thvf,&
+                                  isv_loc,jsv_loc,ksv_loc,svtend_loc,nsv_loc,nsv_glob_nr !cibm , cstep local emissions
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,&
+                                  imax,jmax !cibm cstep  local emissions
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz,ps
     use modboundary,       only : boundary
-    use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST
+    use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST,myidx,myidy !cibm, cstep local emissions
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+    use modibmdata,        only : libm, thlibm, lapply_ibm
 
     integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
@@ -424,12 +441,16 @@ contains
     real, allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
 
+    integer, allocatable ::  ntest(:),isv_glob(:),jsv_glob(:),ksv_glob(:) !cibm, cstep , local emissions
+    real,allocatable:: svtend_glob(:) !cstep, cibm
+
     character(80) chmess
 
     allocate (height(k1))
     allocate (th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
 
+    allocate (ntest(nsv),isv_glob(nsv),jsv_glob(nsv),ksv_glob(nsv),svtend_glob(nsv)) !cstep cibm local emissions
 
     if (.not. lwarmstart) then
 
@@ -562,6 +583,7 @@ contains
       end do
 
       svprof = 0.
+      if(.not.lapply_ibm) then 
       if(myid==0)then
         if (nsv>0) then
           open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
@@ -583,13 +605,85 @@ contains
                   height (k), &
                 (svprof (k,n),n=1,nsv)
           end do
-
-        end if
-      end if ! end if myid==0
+        endif
+      endif
+      endif
 
       call D_MPI_BCAST(wsvsurf,nsv   ,0,comm3d,mpierr)
-
       call D_MPI_BCAST(svprof ,k1*nsv,0,comm3d,mpierr)
+
+      !cstep cibm : define thl inside obstacles, overrules thls and randomnization
+      if (lapply_ibm) then
+       write (6,*) 'global scalar settings are modified in ibm mode, zero scalar concentrations, zero slab-mean surface fluxes'
+       svprof = 0.
+       wsvsurf = 0.
+       do i=2,i1
+         do j=2,j1
+           do k=1,kmax
+             if (libm(i,j,k)) then
+              thlm(i,j,k)  = thlibm !set to thl_ibm value
+              thl0(i,j,k)  = thlibm
+              qtm(i,j,k)   = qts     !set to qt_ibm value
+              qt0(i,j,k)   = qts
+              um (i:i+1,j,k)   = 0.
+              u0 (i:i+1,j,k)   = 0.
+              vm (i,j:j+1,k)   = 0.
+              v0 (i,j:j+1,k)   = 0.
+              wm (i,j,k:k+1)   = 0.
+              w0 (i,j,k:k+1)   = 0.
+              e12m(i,j,k)  = e12min
+              e120(i,j,k)  = e12min
+             endif
+           end do
+         end do
+        end do
+
+        if(myid==0)then
+          if (nsv>0) then
+           open (ifinput,file='sv_local_fluxes.inp.'//cexpnr) !cstep local emissions
+           read (ifinput,'(a80)') chmess
+           read (ifinput,'(a80)') chmess
+           do n=1,nsv
+            read (ifinput,*) &
+                  ntest(n), isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
+            write(6,*) 'cibm local emission locations',ntest(n),isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
+           end do
+           isv_glob(:) = isv_glob(:) + 1
+           jsv_glob(:) = jsv_glob(:) + 1
+          end if
+
+        end if ! end if myid==0
+
+        call D_MPI_BCAST(ntest,nsv,0,comm3d,mpierr)
+        call D_MPI_BCAST(isv_glob,nsv,0,comm3d,mpierr)
+        call D_MPI_BCAST(jsv_glob,nsv,0,comm3d,mpierr)
+        call D_MPI_BCAST(ksv_glob,nsv,0,comm3d,mpierr)
+        call D_MPI_BCAST(svtend_glob,nsv,0,comm3d,mpierr)
+
+        do n=1,nsv
+         write(6,*) 'cstep after broadcasting',myid,ntest(n),isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
+        enddo
+
+        nsv_loc = 0
+        do n=1,nsv
+          do i=2,i1
+            do j=2,j1
+              if (isv_glob(n).eq.(i+myidx*imax).and.jsv_glob(n).eq.(j+myidy*jmax)) then
+                nsv_loc = nsv_loc + 1  !cstep nr of local scalar emissions
+                isv_loc (nsv_loc) = i
+                jsv_loc (nsv_loc) = j
+                ksv_loc (nsv_loc) = ksv_glob(n)
+                svtend_loc (nsv_loc) = svtend_glob(n)
+                nsv_glob_nr(nsv_loc) = n
+                write(6,*) 'local source present at ',myid,i,j,i+myidx*imax,j+myidy*jmax,isv_glob(n),jsv_glob(n)
+              endif
+            enddo
+          enddo
+        enddo
+
+      endif   !lapply_ibm
+
+
       do k=1,kmax
         do j=1,j2
           do i=1,i2
@@ -600,6 +694,10 @@ contains
           end do
         end do
       end do
+
+   
+      deallocate (ntest,isv_glob,jsv_glob,ksv_glob,svtend_glob)
+
 
 !-----------------------------------------------------------------
 !    2.2 Initialize surface layer and base profiles

@@ -145,6 +145,10 @@ save
     procedure :: slabsum_real32
     procedure :: slabsum_real64
   end interface
+  interface airslabsum
+    procedure :: airslabsum_real32
+    procedure :: airslabsum_real64 
+  end interface
 
 contains
 
@@ -729,6 +733,84 @@ contains
 
     return
   end subroutine slabsum_real64
+
+  subroutine airslabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,ksfc)
+    !use modfields, only: ksfc 
+    use modibmdata, only: Nair
+    !use modmpi, only: mpi_sum,comm3d,mpierr ,  D_MPI_ALLREDUCE
+    implicit none
+
+    integer :: ks,kf
+    integer :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,i1,j1
+    integer :: ksfc(ib:ie,jb:je)
+    real(real32) :: aver(ks:kf)
+    real(real32) :: var (ib:ie,jb:je,kb:ke)
+    real(real32) :: averl(ks:kf)
+    real(real32) :: avers(ks:kf)
+    integer :: i,j,k
+
+    averl(:)   = 0.
+    aver(:)    = 0.
+
+    do i=2,ies
+    do j=2,jes
+    do k=ksfc(i,j),kes
+      averl(k) = averl(k)+var(i,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLREDUCE(averl, avers, kf-ks+1, MPI_REAL4, &
+                       MPI_SUM, comm3d,mpierr)
+
+    do k=kb,ke
+          avers(k) = avers(k)/Nair(k)
+    enddo
+
+    aver = aver + avers
+
+    return
+  end subroutine airslabsum_real32
+
+  subroutine airslabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,ksfc)
+    !use modglobal, only: i1,j1
+    !use modfields, only: ksfc
+    use modibmdata, only: Nair
+    !use modmpi, only: mpi_sum,comm3d,mpierr ,  D_MPI_ALLREDUCE
+    implicit none
+
+    integer :: ks,kf
+    integer :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,i1,j1
+    integer :: ksfc(ib:ie,jb:je)
+    real(real64) :: aver(ks:kf)
+    real(real64) :: var (ib:ie,jb:je,kb:ke)
+    real(real64) :: averl(ks:kf)
+    real(real64) :: avers(ks:kf)
+    integer :: i,j,k
+
+    averl(:)   = 0.
+    aver(:)    = 0.
+
+    do i=2,ies
+    do j=2,jes
+    do k=ksfc(i,j),kes
+      averl(k) = averl(k)+var(i,j,k)
+    enddo
+    enddo
+    enddo
+
+    call MPI_ALLREDUCE(averl, avers, kf-ks+1, MPI_REAL8, &
+                       MPI_SUM, comm3d,mpierr)
+
+    do k=kb,ke
+          avers(k) = avers(k)/Nair(k)
+    enddo
+
+    aver = aver + avers
+
+    return
+  end subroutine airslabsum_real64
+
 
   subroutine mpi_get_time(val)
    real(real32), intent(out) :: val
