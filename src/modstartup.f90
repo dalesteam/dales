@@ -78,7 +78,7 @@ contains
     use modpois,           only : initpois
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
-                                  rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+                                  rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,sw0,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
     use modtimedep,        only : inittimedep,ltimedep,ltimedepuv
     use modtimedepsv,      only : inittimedepsv,ltimedepsv
@@ -109,7 +109,8 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
+        irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,sw0,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
@@ -224,6 +225,7 @@ contains
     call D_MPI_BCAST(rad_shortw ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(rad_smoke  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(useMcIca   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(sw0        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(rka        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(dlwtop     ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(dlwbot     ,1,0,commwrld,mpierr)

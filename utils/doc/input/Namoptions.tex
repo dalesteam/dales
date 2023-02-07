@@ -268,7 +268,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   rka		& 130		& $x \in \mathbb{R}, \quad x>0$		& Extinction coefficient (used if $iradiation = 2$)	& m$^2$ kg$^{-1}$\\
   dlwbot	& 0		& $x \in \mathbb{R}, \quad x \ge 0$		& Longwave radiative flux jump at cloud bottom	& W m$^{-2}$\\
   dlwtop	& 74		& $x \in \mathbb{R}, \quad x \ge 0$	& Longwave radiative flux jump at cloud top	& W m$^{-2}$\\
-  sw0		& 1100		& $x \in \mathbb{R}, \quad x \ge 0$	& Direct solar radiative component cloud top (assumes zero diffusive contribution)	& W m$^{-2}$\\
+  sw0		& 1368.22	& $x \in \mathbb{R}, \quad x \ge 0$	& Solar constant (TOA).  SWD at TOA = $\text{sw0}*\cos(\mu)$  & W m$^{-2}$\\
   gc		& 0.85		& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Asymmetry factor of droplet scattering angle distribution; overwritten to 0.64 if \hyperlink{laero}{laero} = .true. & -\\
 %  sfc\_albedo	& 	& 	& Obsolete & \\
   reff		& 1e-5		& $x \in \mathbb{R}, \quad x>0$	& Cloud drop effective radius					& m\\
