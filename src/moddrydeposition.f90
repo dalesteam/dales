@@ -300,10 +300,12 @@ subroutine calc_depfield
         ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
         do j = 2, j1
            do i = 2, i1
-            Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
-            vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
-        ! Deposition flux in ug * m / (g * s)
-            depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,isv)
+            if (tile(ilu)%frac(i,j) > 0.) then
+              Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
+              vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
+              ! Deposition flux in ug * m / (g * s)
+              depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,isv)
+            endif
           end do
         end do
       end do  ! ilu = 1, nlu

@@ -999,7 +999,8 @@ subroutine integrate_theta_soil
     do j=2,j1
         do i=2,i1
           do ilu=1,nlu
-            if (trim(tile(ilu)%lushort) == 'bs') then
+            !if (trim(tile(ilu)%lushort) == 'bs') then
+            if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
               flux_top = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * fac + throughfall(i,j)
               tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
                     - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
