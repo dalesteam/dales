@@ -137,20 +137,28 @@ contains
   subroutine calcpeclet
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
-    use modsubgrid,only : ekm
+    use modsubgrid,only : ekm,ekh
     use mpi
     use modmpi,    only : myid,comm3d,mpierr,mpi_max,my_real
+    use modsubgriddata,only: anis_fac
     implicit none
 
 
     real, allocatable, dimension (:) :: peclettotl,peclettot
+    real          :: sqrta
     integer       :: k
 
     allocate(peclettotl(k1),peclettot(k1))
     peclettotl = 0.
     peclettot  = 0.
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+       !peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+
+       sqrta = sqrt(anis_fac(k))
+       peclettotl(k)=max( &
+            maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2, &
+            maxval(ekh(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2  &
+            )
     end do
 
     call MPI_ALLREDUCE(peclettotl,peclettot,k1,MY_REAL,MPI_MAX,comm3d,mpierr)
