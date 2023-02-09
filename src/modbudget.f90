@@ -33,8 +33,27 @@ module modbudget
   PUBLIC :: initbudget,budgetstat,exitbudget
   save
 !NetCDF variables
-  integer,parameter :: nvar = 18
+  integer,parameter :: Ntkeb  = 18
+  integer,parameter :: Nmbudg = 14
+  integer,parameter :: nvar = Ntkeb + Nmbudg
   character(80),dimension(nvar,4) :: ncname
+
+  integer,parameter :: iuth = 1   !< u'thv'
+  integer,parameter :: ivth = 2   !< v'thv'
+  integer,parameter :: iup = 3   !< - w'^2 d/dz Umean
+  integer,parameter :: ivp = 4   !< - w'^2 d/dz Vmean
+  integer,parameter :: iupres1h  = 5
+  integer,parameter :: ivpres1h  = 6
+  integer,parameter :: iupres2h  = 7
+  integer,parameter :: ivpres2h  = 8
+  integer,parameter :: iddzwwuh = 9   !<
+  integer,parameter :: iddzwwvh = 10
+  integer,parameter :: iwwuf = 11   !<
+  integer,parameter :: iwwvf = 12
+  integer,parameter :: iwwuh = iwwuf  !< parameter used only for clarification , interpolate results from full to half level
+  integer,parameter :: iwwvh = iwwvf
+  integer,parameter :: iuwrh = 13     !< resolved resolved uw flux at the beginning of averaging period
+  integer,parameter :: ivwrh = 14
 
   real    :: dtav, timeav
   integer(kind=longint) :: idtav, itimeav,tnext,tnextwrite
@@ -68,9 +87,13 @@ module modbudget
   real, allocatable :: ekmmn(:)     !< Turbulent exchange coefficient momentum
   real, allocatable :: khkmmn(:)    !< Kh / Km, in post-processing used to determine filter-grid ratio
 
+  real, allocatable :: mombudg_term_mn(:,:)
+  real, allocatable :: uwrhb  (:), vwrhb (:)
+
 
   logical :: ltkeb     !Switch to tell if the tke   at beg of av periode has been stored
   logical :: lsbtkeb   !Switch to tell if the sbtke at beg of av periode has been stored
+  logical :: luwrb     !Switch to tell if the uw resolved flux at beg of av periode has been stored
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -126,6 +149,9 @@ contains
     allocate(sbstormn(k1),sbbudgmn(k1),sbresidmn(k1),&
          sbdissmn(k1),ekmmn(k1),khkmmn(k1))
 
+    allocate(mombudg_term_mn(k1,Nmbudg))
+    allocate(uwrhb(k1),vwrhb(k1))
+
 
     !Setting time mean variables to zero
     tkemn=0.;shrmn=0.;buomn=0.;trspmn=0.;dissmn=0.
@@ -136,12 +162,18 @@ contains
        ekmmn=0.;khkmmn=0.
     sbtkeb=0.;
     ltkeb=.false. ; lsbtkeb=.false.
+    luwrb =.false.
+
+    mombudg_term_mn = 0.
+    uwrhb = 0. ;vwrhb = 0.
 
    !Preparing output files
     if(myid==0 .and. .not. lwarmstart) then
        open (ifoutput,file='budget.'//cexpnr,status='replace')
        close (ifoutput)
        open (ifoutput,file='sbbudget.'//cexpnr,status='replace')
+       close (ifoutput)
+       open (ifoutput,file='mombudget.'//cexpnr,status='replace')
        close (ifoutput)
     endif
     if (lnetcdf) then
@@ -169,8 +201,32 @@ contains
         call ncinfo(ncname(16,:),'sbresid','Subgrid Residual = budget - storage','m/s^2','tt')
         call ncinfo(ncname(17,:),'ekm','Turbulent exchange coefficient momentum','m/s^2','tt')
         call ncinfo(ncname(18,:),'khkm   ','Kh / Km, in post-processing used to determine filter-grid ratio','m/s^2','tt')
+
+! ,'#LEV HEIGHT  |  beta*UTHV     beta*VTHV   -w2d/dzUmean  -w2d/dzVmean ' &
+!          ,'    -WDDX_P       -WDDY_P        -UDDZ_P       -VDDZ_P     -DDZ_WWU      - DDZ_WWV        WWU          WWV '&
+!          ,'    UW_RES_BEGIN    VW_RES_BEGIN           '
+
+        call ncinfo(ncname(Ntkeb+1,:),'buthv','Resolved beta*UTHV','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+2,:),'bvthv','Resolved beta*VTHV','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+3,:),'Produw','Resolved -w2*dU/dz ','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+4,:),'Prodvw','Resolved -w2*d~V/dz','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+5,:),'mwdpdx','Resolved -wdpi/dx','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+6,:),'mwdpdy','Resolved -wdpi/dy','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+7,:),'mudpdz','Resolved -udpi/dz','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+8,:),'mvdpdz','Resolved -vdpi/dz','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+9,:),'mddzwwu','Resolved -d/dz wwu','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+10,:),'mddzwwv','Resolved -d/dz wwv','m2/s^3','mt')
+        call ncinfo(ncname(Ntkeb+11,:),'wwu','Resolved wwu','m3/s^3','tt')
+        call ncinfo(ncname(Ntkeb+12,:),'wwv','Resolved wwv','m3/s^3','tt')
+        call ncinfo(ncname(Ntkeb+13,:),'uwrb','Resolved uw begin','m2/s^2','mt')
+        call ncinfo(ncname(Ntkeb+14,:),'vwrb','Resolved vw begin','m2/s^2','mt')
+
+
         call define_nc( ncid_prof, NVar, ncname)
+
      end if
+
+
 
    end if
 
@@ -205,19 +261,23 @@ contains
   subroutine do_genbudget
     use modglobal,  only : i1,j1,k1,kmax,dzf,dzh, &
                           ijtot,cu,cv,grav, &
-                          dxi,dyi,dx2i,dy2i
+                          dxi,dyi,dx2i,dy2i, dxi5,dyi5,&
+                          ih, jh
     use modsurfdata,only : ustar
-    use modsubgriddata, only : ekm,anis_fac
+    use modsubgriddata, only : ekm
     use modpois,    only : p
-    use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
+    use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh,thvf
 !cstep    use modtilt,    only : adjustbudget,ltilted
-    use modmpi,     only : comm3d,mpi_sum,mpierr, D_MPI_ALLREDUCE
+    use modmpi,     only : comm3d,mpi_sum,mpierr, D_MPI_ALLREDUCE,slabsum,myid
+    use modprecision, only : field_r, pois_r
 
     implicit none
-    integer :: i,j,k,km,kp,jm,jp
+    integer :: i,j,k,km,kp,jm,jp,n
     real    :: uwrs,vwrs,egp,ph
     real    :: emom,emmo,emop,epom,eopm,epmo,eomp,eomm,empo
     real    :: fu,fv
+
+    real    :: uh, vh, wuh, wvh, wf, uf ,vf, dpdzh  ! interpolated velocity at mid points at full levels (for u'thv', w'w'u')
 
     !horizontal mean fields, resolved TKE
     real, allocatable,dimension(:) :: &
@@ -233,7 +293,11 @@ contains
     real,allocatable, dimension(:) :: &
          subx,suby,subz,subxl,subyl,subzl
 
+    real,allocatable, dimension(:,:) :: &
+        mombudg_term_av,mombudg_term_avl
 
+    real(pois_r), allocatable, dimension(:) :: pmav   !slab averaged pressure field at full level
+    real, allocatable, dimension(:) :: w2avl,w2av
 
     !help variables
 
@@ -250,6 +314,11 @@ contains
     allocate(tau1j(i1+1,j1+1,k1),tau2j(i1+1,j1+1,k1),tau3j(i1+1,j1+1,k1))
     allocate(subx(k1),suby(k1),subz(k1),subxl(k1),subyl(k1),subzl(k1))
 
+    allocate(mombudg_term_av(k1,Nmbudg),mombudg_term_avl(k1,Nmbudg))
+    allocate (pmav(k1),w2av(k1),w2avl(k1))
+
+
+
     !**************************************************
     ! 2.1 RESET ARRAYS FOR SLAB AVERAGES
     !**************************************************
@@ -257,11 +326,26 @@ contains
     tkeav=0.;shrav=0.;buoav=0.;trspav=0.;ptrspav=0.;dissav=0.;
     tkeavl=0.;shravl=0.;buoavl=0.;trspavl=0.; ptrspavl=0.
 
+    pmav  = 0.
+    mombudg_term_av = 0.
+    mombudg_term_avl = 0.
+    w2av = 0.
+    w2avl=0.
+
 
 
     !**************************************
     ! 3: Calculation of individual terms
     !**************************************
+
+    call slabsum(pmav,  1,k1,p   ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    pmav   = pmav / ijtot
+
+   ! if (myid.eq.0) then
+   !    do k=1,k1
+   !       write (6,*) 'k, pmav(k), p(2,2,k) ',k,pmav(k),p(2,2,k)
+   !    enddo
+   ! endif
 
     !-------------------------------------------------
     ! 3.1  Buoyancy
@@ -323,17 +407,22 @@ contains
                  +(0.5*(v0(i,j,k)+v0(i,j+1,k))-(v0av(k)-cv))**2 &
                  +(0.5*(w0(i,j,k)+w0(i,j,k+1))             )**2 )
 
+      w2avl(k)  = w2avl(k) + w0(i,j,k)**2
+
       tkeavl(k) = tkeavl(k) + egp
       weresl(k) = weresl(k) + egp*0.5*(w0(i,j,k)+w0(i,j,k+1))
     end do
     end do
     tkeavl(k)   = tkeavl(k)/ijtot
     weresl(k) = weresl(k)/ijtot
+    w2avl(k)  = w2avl(k)/ijtot
   end do
 
   call D_MPI_ALLREDUCE(tkeavl, tkeav, k1,  &
          MPI_SUM, comm3d,mpierr)
   call D_MPI_ALLREDUCE(weresl, weres, k1,  &
+         MPI_SUM, comm3d,mpierr)
+  call D_MPI_ALLREDUCE(w2avl, w2av, k1,  &
          MPI_SUM, comm3d,mpierr)
 
   do k=2,kmax
@@ -401,12 +490,12 @@ contains
 
       tau1j(i,j,k) = &
                ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
-                -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i * anis_fac(k) &
+                -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
                + &
                ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
                          +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
                 -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
-			+(v0(i,j,k)-v0(i-1,j,k))  *dxi) ) * dyi * anis_fac(k) &
+                         +(v0(i,j,k)-v0(i-1,j,k))  *dxi) ) * dyi &
                + &
                ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                          +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
@@ -449,10 +538,10 @@ contains
                ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                          +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
                 -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
-                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)  ) * dxi * anis_fac(k) &
+                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)  ) * dxi &
                + &
                ( ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
-                -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i * anis_fac(k) &
+                -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
                + &
                ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                          +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
@@ -495,12 +584,12 @@ contains
                  ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
                   -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
-                           +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))*dxi * anis_fac(k) &
+                           +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))*dxi &
                  + &
                  ( eopm * ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
                            +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
                   -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
-                           +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))*dyi * anis_fac(k) &
+                           +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))*dyi &
                  + &
                   ( rhobf(k)/rhobh(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
                   - rhobf(km)/rhobh(k) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
@@ -512,6 +601,67 @@ contains
     enddo
     tau3ml(k) = tau3ml(k)/ijtot
   enddo
+
+  !-------------------------------------------------
+  !  3.6 Horizontal momentum budget terms
+  !-------------------------------------------------
+   do k=2,kmax
+       km = k-1
+       do j=2,j1
+       do i=2,i1
+
+! old code first version
+
+
+!          mombudg_term_avl (k,iupres1) = mombudg_term_avl (k,iupres1) - &
+!             0.5 * w0(i,j,k) * ((p(i+1,j,k) - p(i-1,j,k)) / (2*dx) + (p(i+1,j,k-1) - p(i-1,j,k-1)) / (2*dx))
+!          mombudg_term_avl (k,ivpres1) = mombudg_term_avl (k,ivpres1) - &
+!             0.5 * w0(i,j,k) * ((p(i,j+1,k) - p(i,j-1,k)) / (2*dy) + (p(i,j+1,k-1) - p(i,j-1,k-1)) / (2*dy))
+
+!          mombudg_term_avl (k,iupres2) = mombudg_term_avl (k,iupres2)  &
+!            - uh * (p(i,j,k) -pmav(k))  - (p(i,j,k-1) - pmav(k-1)) / dzh(k)
+!          mombudg_term_avl (k,ivpres2) = mombudg_term_avl (k,ivpres2)  &
+!            - vh * (p(i,j,k) -pmav(k))  - (p(i,j,k-1) - pmav(k-1)) / dzh(k)
+
+!          uh = 0.5*(u0(i,j,k-1)+u0(i,j,k) - u0av(k-1) - u0av(k)) + cu   !interpolated u-fluctuation at half level k, but at cell face left of w-point
+!          vh = 0.5*(v0(i,j,k-1)+v0(i,j,k) - v0av(k-1) - v0av(k)) + cv   !these six lines tested a different interpolation
+!          wuh = 0.5*(w0(i,j,k)+w0(i-1,j,k))   !w at interpolated u position
+!          wvh = 0.5*(w0(i,j,k)+w0(i,j-1,k))   !w at interpolated v position
+!          mombudg_term_avl (k,iwwu) = mombudg_term_avl (k,iwwu)  + wuh*wuh*uh
+!          mombudg_term_avl (k,iwwv) = mombudg_term_avl (k,iwwv)  + wvh*wvh*vh
+
+          uh =  (dzf(k-1)*(u0(i,j,k)   + u0(i+1,j,k)   - 2* (u0av(k)-cu)) &  !interpolated u at w half level
+              +  dzf(k)  *(u0(i,j,k-1) + u0(i+1,j,k-1) - 2* (u0av(k-1)-cu))) / (4 * dzh(k))
+          vh =  (dzf(k-1)* (v0(i,j,k)   + v0(i,j+1,k)   - 2* (v0av(k)-cv)) &  !interpolated v at w half level
+              +  dzf(k)  * (v0(i,j,k-1) + v0(i,j+1,k-1) - 2* (v0av(k-1)-cv))) / (4 * dzh(k))
+          dpdzh = (p(i,j,k) -pmav(k) - (p(i,j,k-1) - pmav(k-1))) / dzh(k)  !vertical gradient pressure perturbation at half level k (at w point k)
+
+          wf = (dzh(k+1) * w0(i,j,k) + dzh(k) * w0(i,j,k+1))/ (2 *dzf(k))                 !interpolated w at full level k
+          uf = 0.5 * (u0(i,j,k) + u0(i+1,j,k)) - (u0av(k) -cu) !interpolated u fluctuation at mid point grid box (full level)
+          vf = 0.5 * (v0(i,j,k) + v0(i,j+1,k)) - (v0av(k) -cv)
+
+          mombudg_term_avl (k,iuth) = mombudg_term_avl (k,iuth) + uh * (thv0h(i,j,k)-thvh(k))
+          mombudg_term_avl (k,ivth) = mombudg_term_avl (k,ivth) + vh * (thv0h(i,j,k)-thvh(k))
+
+          mombudg_term_avl (k,iupres1h) = mombudg_term_avl (k,iupres1h) - &
+             0.5 * w0(i,j,k) * (p(i+1,j,k) - p(i-1,j,k) + p(i+1,j,k-1) - p(i-1,j,k-1)) * dxi5   !dxi5 = 1/(2 dx)
+          mombudg_term_avl (k,ivpres1h) = mombudg_term_avl (k,ivpres1h) - &
+             0.5 * w0(i,j,k) * (p(i,j+1,k) - p(i,j-1,k) + p(i,j+1,k-1) - p(i,j-1,k-1)) * dyi5
+
+          mombudg_term_avl (k,iupres2h) = mombudg_term_avl (k,iupres2h)  - uh * dpdzh
+          mombudg_term_avl (k,ivpres2h) = mombudg_term_avl (k,ivpres2h)  - vh * dpdzh
+
+          mombudg_term_avl (k,iup)     = mombudg_term_avl (k,iup) - w2av(k) * (u0av(k)-u0av(k-1)) / dzh(k)
+          mombudg_term_avl (k,ivp)     = mombudg_term_avl (k,ivp) - w2av(k) * (v0av(k)-v0av(k-1)) / dzh(k)
+
+          mombudg_term_avl (k,iwwuf) = mombudg_term_avl (k,iwwuf)  + wf*wf*uf   !flux value at full level, is convenient for evaluating its vertical gradient at half levels
+          mombudg_term_avl (k,iwwvf) = mombudg_term_avl (k,iwwvf)  + wf*wf*vf
+
+          mombudg_term_avl (k,iuwrh) = mombudg_term_avl (k,iuwrh)+(w0(i,j,k)+w0(i-1,j,k))*(u0(i,j,k-1)+u0(i,j,k))/4.
+          mombudg_term_avl (k,ivwrh) = mombudg_term_avl (k,ivwrh)+(w0(i,j,k)+w0(i-1,j,k))*(v0(i,j,k-1)+v0(i,j,k))/4.
+       enddo
+       enddo
+   enddo
 
 
 !     --------------------------------------------
@@ -547,12 +697,12 @@ contains
 
     tau1j(i,j,1) = &
              ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
-              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i * anis_fac(k) &
+              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i &
              + &
              ( empo * ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
                        +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
              - emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
-                       +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) * dyi * anis_fac(k) &
+                       +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) * dyi &
              + &
              ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                        +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
@@ -578,10 +728,10 @@ contains
             ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                       +(u0(i+1,j,1)-u0(i+1,jm,1))*dyi) &
              -emmo * ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
-                      +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) * dxi * anis_fac(k) &
+                      +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) * dxi &
             + &
             ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
-             -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i * anis_fac(k) &
+             -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
             + &
             ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                       +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
@@ -636,6 +786,18 @@ contains
     dissav(k) = subx(k)+suby(k)+0.5*(subz(k+1)+subz(k))
   end do
 
+  do n=1,Nmbudg
+     call D_MPI_ALLREDUCE(mombudg_term_avl(:,n),mombudg_term_av(:,n),k1, MPI_SUM, comm3d,mpierr)
+  enddo
+  mombudg_term_av = mombudg_term_av /ijtot
+
+
+ !storage: resolved momentum fluxes at beginning of averaging period
+  if (.not.(luwrb)) then
+     uwrhb (:) = mombudg_term_av (:,iuwrh)
+     vwrhb (:) = mombudg_term_av (:,ivwrh)
+     luwrb = .true.
+  endif
 
   !**************************************************
   ! 4.1 Add slab averages to time mean
@@ -647,6 +809,8 @@ contains
      trspmn(k)  = trspmn(k)  + 0.5*(trspav(k+1)+trspav(k))
      ptrspmn(k) = ptrspmn(k) + ptrspav(k)
      dissmn(k)  = dissmn(k)  + dissav(k)
+
+     mombudg_term_mn(k,1:Nmbudg) = mombudg_term_mn(k,1:Nmbudg) + mombudg_term_av(k,1:Nmbudg)
   enddo
 
   !**************************************************
@@ -659,6 +823,10 @@ contains
   deallocate(tau1m,tau2m,tau3m,tau1ml,tau2ml,tau3ml)
   deallocate(tau1j,tau2j,tau3j)
   deallocate(subx,suby,subz,subxl,subyl,subzl)
+
+  deallocate(mombudg_term_av,mombudg_term_avl)
+  deallocate(pmav,w2avl,w2av)
+
 end subroutine do_genbudget
 
 !> Performs the SFS - budget calculations
@@ -741,10 +909,11 @@ end subroutine do_genbudget
 
 !> Write the budgets to file
   subroutine writebudget
-    use modglobal, only : kmax,k1,zf,rtimee,cexpnr,ifoutput
+    use modfields, only : thvh, rhobf, rhobh
+    use modglobal, only : kmax,k1,zh,zf,dzh,dzf,rtimee,cexpnr,ifoutput,grav
     use modmpi,    only : myid
     use modstat_nc,only : writestat_nc,lnetcdf
-      use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
+    use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
     implicit none
     real,dimension(k1,nvar) :: vars
     integer nsecs, nhrs, nminut,k
@@ -775,6 +944,7 @@ end subroutine do_genbudget
     sbbudgmn  = sbshrmn+sbbuomn+sbdissmn
     sbresidmn = sbbudgmn - sbstormn
 
+    mombudg_term_mn = mombudg_term_mn / nsamples
 
     if(myid==0) then
        open (ifoutput,file='budget.'//cexpnr,position='append')
@@ -839,6 +1009,41 @@ end subroutine do_genbudget
             k=1,kmax)
        close(ifoutput)
 
+       open (ifoutput,file='mombudget.'//cexpnr,position='append')
+
+       write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
+           '#-------------------------------------------------------------------' &
+            ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
+            ,nhrs,':',nminut,':',nsecs &
+            ,'   HRS:MIN:SEC AFTER INITIALIZATION '
+       write (ifoutput,'(A/3A/3A)') &
+            '#-------------------------------------------------------------------' &
+          ,'#LEV HEIGHT  |  beta*UTHV     beta*VTHV   -w2d/dzUmean  -w2d/dzVmean ' &
+          ,'    -WDDX_P       -WDDY_P        -UDDZ_P       -VDDZ_P     -DDZ_WWU      - DDZ_WWV        WWU          WWV '&
+          ,'    UW_RES_BEGIN    VW_RES_BEGIN           '&
+          ,'#     (M)    |   ' &
+          ,'(<------------------------------------------------------------- (M2/S3) -------------------------------------------------------------->' &
+          ,'<--------(M3/S3)-----------><--------(M2/S2)----------->'
+
+
+       do k=2,kmax
+          mombudg_term_mn(k,1:2) = mombudg_term_mn(k,1:2) *  grav/thvh(k)
+          mombudg_term_mn(k,iddzwwuh:iddzwwvh) = -(rhobf(k) * mombudg_term_mn(k,iwwuf:iwwvf) - rhobf(k-1)*mombudg_term_mn(k-1,iwwuf:iwwvf)) / dzh(k) / rhobh(k)
+               !dzh(k) = zf(k) - zf(k-1), flux divergence at half level, based on fluxes at full levels
+          mombudg_term_mn(k,iwwuh) = (dzf(k)*mombudg_term_mn(k-1,iwwuf) + dzf(k-1) * mombudg_term_mn(k,iwwuf))/(2. * dzh(k))  !in final step full level results interpolated to half levels
+          mombudg_term_mn(k,iwwvh) = (dzf(k)*mombudg_term_mn(k-1,iwwvf) + dzf(k-1) * mombudg_term_mn(k,iwwvf))/(2. * dzh(k))
+          mombudg_term_mn(k,iuwrh) = uwrhb (k)  !store instantaneous flux in 'time mean' array, is convenient for writing
+          mombudg_term_mn(k,ivwrh) = vwrhb (k)
+       enddo
+
+       write(ifoutput,'(I3,F9.3,14E14.4)') &
+            (k, &
+            zh      (k), &
+            mombudg_term_mn  (k,1:14), &
+            k=1,kmax)
+       close(ifoutput)
+
+
        if (lnetcdf) then
           vars(:, 1) =tkemn
           vars(:, 2) =shrmn
@@ -858,18 +1063,25 @@ end subroutine do_genbudget
           vars(:,16) =sbresidmn
           vars(:,17) =ekmmn
           vars(:,18) =khkmmn
+
+          vars(:,Ntkeb+1:Ntkeb+Nmbudg) = mombudg_term_mn(:,1:Nmbudg)
+
           call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
        end if
     endif !endif myid==0
-    
+
       !Reset time mean variables; resolved TKE
       tkemn=0.;tkeb=0.;shrmn=0.;buomn=0.;trspmn=0.;ptrspmn=0.;
       dissmn=0.;stormn=0.;budgmn=0.;residmn=0.
       ltkeb=.false.
+      luwrb=.false.
       !Reset time mean variables; subgrid TKE
       sbtkemn=0.;sbtkeb=0.;sbshrmn=0.;sbbuomn=0.;sbdissmn=0.;sbtkeb=0.
       sbstormn=0.;sbbudgmn=0.;sbresidmn=0.;ekmmn=0.;khkmmn=0.;
       lsbtkeb=.false.
+
+      mombudg_term_mn = 0.
+      uwrhb=0. ;vwrhb=0.
   end subroutine writebudget
 
 
@@ -882,7 +1094,8 @@ end subroutine do_genbudget
     deallocate(tkemn,tkeb,tkeav,shrmn,buomn,trspmn,ptrspmn,stormn,budgmn,residmn,dissmn)
     deallocate(sbtkemn,sbshrmn,sbbuomn,sbstormn,sbbudgmn,sbresidmn,sbdissmn,sbtkeb,sbtkeav)
     deallocate(ekmmn,khkmmn)
+
+    deallocate(mombudg_term_mn,uwrhb, vwrhb)
   end subroutine exitbudget
 
 end module modbudget
-
