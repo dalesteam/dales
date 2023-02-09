@@ -311,7 +311,7 @@ contains
   ! do TKE scheme
  else
     ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
-    if (ldelta) then
+    if (ldelta .and. .not. lmason) then
        do k=1,kmax
           do j=2,j1
              do i=2,i1
@@ -325,7 +325,7 @@ contains
              end do
           end do
        end do
-    else if (lmason) then ! delta scheme with Mason length scale correction
+    else if (ldelta .and. lmason) then ! delta scheme with Mason length scale correction
        do k=1,kmax
           do j=2,j1
              do i=2,i1
