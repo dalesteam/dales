@@ -39,7 +39,7 @@ module modchecksim
 
   ! explanations for dt_limit, determined in tstep_update()
   character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
-  
+
   save
 contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
@@ -135,19 +135,27 @@ contains
   subroutine calcpeclet
 
     use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
-    use modsubgrid,only : ekm
+    use modsubgrid,only : ekm,ekh
     use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
+    use modsubgriddata,only: anis_fac
     implicit none
 
 
     real, allocatable, dimension (:) :: peclettotl,peclettot
+    real          :: sqrta
     integer       :: k
 
     allocate(peclettotl(k1),peclettot(k1))
     peclettotl = 0.
     peclettot  = 0.
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+       !peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+
+       sqrta = sqrt(anis_fac(k))
+       peclettotl(k)=max( &
+            maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2, &
+            maxval(ekh(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx/sqrta,dy/sqrta/))**2  &
+            )
     end do
 
     call D_MPI_ALLREDUCE(peclettotl,peclettot,k1,MPI_MAX,comm3d,mpierr)
@@ -200,9 +208,8 @@ contains
       write(6 ,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  '       dt limited by ', dt_reasons(dt_reason)
    end if
 
-   return    
-    
+   return
+
   end subroutine chkdiv
 
 end module modchecksim
-
