@@ -475,15 +475,6 @@ contains
           vars(:,:, 9) =     e120(2:i1,2:j1, crossheight(cross))
           vars(:,:,10) =  cloudnr(2:i1,2:j1, crossheight(cross))
           vars(:,:,11:nvar) = svm(2:i1,2:j1, crossheight(cross), :)
-
-          if(nsv>1) then
-             vars(:,:,9) = svm(2:i1,2:j1,crossheight(cross),iqr)
-             vars(:,:,10) = svm(2:i1,2:j1,crossheight(cross),inr)
-          else
-             vars(:,:,9) = 0.
-             vars(:,:,10) = 0.
-          end if
-          vars(:,:,11) = e120(2:i1,2:j1,crossheight(cross))
           call writestat_nc(ncid2(cross),1,tncname2,(/rtimee/),nrec2(cross),.true.)
           call writestat_nc(ncid2(cross),nvar,ncname2(1:nvar,:),vars,nrec2(cross),imax,jmax)
        end do
