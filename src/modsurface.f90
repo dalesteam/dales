@@ -739,6 +739,7 @@ contains
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
     real     :: z_MO    !cstep height above top obstacle for MOST ibm
+    real, pointer :: ustar_3D(:,:,:)
 
     patchx = 0
     patchy = 0
@@ -1096,11 +1097,9 @@ contains
 
     end if
 
-    ! Transfer ustar to neighbouring cells, reshape since excjs is a 3d function
-    call excjs(reshape(ustar, (/i1+1,j1+1,1/)),2,i1,2,j1,1,1,1,1)
-
-    return
-
+    ! Transfer ustar to neighbouring cells, do this like a 3D field
+    ustar_3D(1:size(ustar,1),1:size(ustar,2),1:1) => ustar
+    call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
   end subroutine surface
 
 !> Calculate the surface humidity assuming saturation.
