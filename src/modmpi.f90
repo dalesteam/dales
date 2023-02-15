@@ -139,6 +139,8 @@ save
   interface excjs
     procedure :: excjs_real32
     procedure :: excjs_real64
+    procedure :: excjs_real32_2d
+    procedure :: excjs_real64_2d
     procedure :: excjs_logical
   end interface
   interface slabsum
@@ -559,6 +561,226 @@ contains
 
   endif
   end subroutine excjs_real64
+
+  subroutine excjs_real32_2d(a,sx,ex,sy,ey,ih,jh)
+  implicit none
+  integer sx, ex, sy, ey, ih, jh
+  real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh)
+  type(MPI_STATUS)  :: status
+  integer ii, i, j
+  type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
+  integer nssize, ewsize
+  real(real32),allocatable, dimension(:) :: sendn,recvn &
+                                          , sends,recvs &
+                                          , sende,recve &
+                                          , sendw,recvw
+
+!   Calculate buffer size
+  nssize = jh*(ex - sx + 1 + 2*ih)
+  ewsize = ih*(ey - sy + 1 + 2*jh)
+
+!   Allocate send / receive buffers
+  allocate(sendn(nssize),sends(nssize))
+  allocate(sende(ewsize),sendw(ewsize))
+
+  allocate(recvn(nssize),recvs(nssize))
+  allocate(recve(ewsize),recvw(ewsize))
+
+  if(nprocy .gt. 1)then
+    !   Send north/south
+    ii = 0
+    do j=1,jh
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      sendn(ii) = a(i,ey-j+1)
+      sends(ii) = a(i,sy+j-1)
+    enddo
+    enddo
+
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+
+    !   Receive south/north
+    call D_MPI_RECV(recvs, nssize, nbrsouth, 4, comm3d, status, mpierr)
+    call D_MPI_RECV(recvn, nssize, nbrnorth, 5, comm3d, status, mpierr)
+
+    ii = 0
+    do j=1,jh
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      a(i,sy-j) = recvs(ii)
+      a(i,ey+j) = recvn(ii)
+    enddo
+    enddo
+  else
+    ! Single processor, make sure the field is periodic
+    do j=1,jh
+    do i=sx-ih,ex+ih
+      a(i,sy-j) = a(i,ey-j+1)
+      a(i,ey+j) = a(i,sy+j-1)
+    enddo
+    enddo
+  endif
+
+  if(nprocx .gt. 1)then
+    !   Send east/west
+    ii = 0
+    do i=1,ih
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      sende(ii) = a(ex-i+1,j)
+      sendw(ii) = a(sx+i-1,j)
+    enddo
+    enddo
+
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
+    call D_MPI_RECV(recvw, ewsize, nbrwest, 6, comm3d, status, mpierr)
+    call D_MPI_RECV(recve, ewsize, nbreast, 7, comm3d, status, mpierr)
+
+    ii = 0
+    do i=1,ih
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      a(sx-i,j) = recvw(ii)
+      a(ex+i,j) = recve(ii)
+    enddo
+    enddo
+  else
+    ! Single processor, make sure the field is periodic
+    do i=1,ih
+    do j=sy-jh,ey+jh
+      a(sx-i,j) = a(ex-i+1,j)
+      a(ex+i,j) = a(sx+i-1,j)
+    enddo
+    enddo
+  endif
+
+  if(nprocx.gt.1)then
+    call MPI_WAIT(reqe, status, mpierr)
+    call MPI_WAIT(reqw, status, mpierr)
+  endif
+
+  if(nprocy.gt.1)then
+    call MPI_WAIT(reqn, status, mpierr)
+    call MPI_WAIT(reqs, status, mpierr)
+  endif
+
+  deallocate (sendn, sends, sende, sendw)
+  deallocate (recvn, recvs, recve, recvw)
+  end subroutine excjs_real32_2d
+
+  subroutine excjs_real64_2d(a,sx,ex,sy,ey,ih,jh)
+  implicit none
+  integer sx, ex, sy, ey, ih, jh
+  real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh)
+  type(MPI_STATUS)  :: status
+  integer ii, i, j
+  type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
+  integer nssize, ewsize
+  real(real64),allocatable, dimension(:) :: sendn,recvn &
+                                          , sends,recvs &
+                                          , sende,recve &
+                                          , sendw,recvw
+
+!   Calculate buffer size
+  nssize = jh*(ex - sx + 1 + 2*ih)
+  ewsize = ih*(ey - sy + 1 + 2*jh)
+
+!   Allocate send / receive buffers
+  allocate(sendn(nssize),sends(nssize))
+  allocate(sende(ewsize),sendw(ewsize))
+
+  allocate(recvn(nssize),recvs(nssize))
+  allocate(recve(ewsize),recvw(ewsize))
+
+  if(nprocy .gt. 1)then
+    !   Send north/south
+    ii = 0
+    do j=1,jh
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      sendn(ii) = a(i,ey-j+1)
+      sends(ii) = a(i,sy+j-1)
+    enddo
+    enddo
+
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+
+    !   Receive south/north
+    call D_MPI_RECV(recvs, nssize, nbrsouth, 4, comm3d, status, mpierr)
+    call D_MPI_RECV(recvn, nssize, nbrnorth, 5, comm3d, status, mpierr)
+
+    ii = 0
+    do j=1,jh
+    do i=sx-ih,ex+ih
+      ii = ii + 1
+      a(i,sy-j) = recvs(ii)
+      a(i,ey+j) = recvn(ii)
+    enddo
+    enddo
+  else
+    ! Single processor, make sure the field is periodic
+    do j=1,jh
+    do i=sx-ih,ex+ih
+      a(i,sy-j) = a(i,ey-j+1)
+      a(i,ey+j) = a(i,sy+j-1)
+    enddo
+    enddo
+  endif
+
+  if(nprocx .gt. 1)then
+    !   Send east/west
+    ii = 0
+    do i=1,ih
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      sende(ii) = a(ex-i+1,j)
+      sendw(ii) = a(sx+i-1,j)
+    enddo
+    enddo
+
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
+    call D_MPI_RECV(recvw, ewsize, nbrwest, 6, comm3d, status, mpierr)
+    call D_MPI_RECV(recve, ewsize, nbreast, 7, comm3d, status, mpierr)
+
+    ii = 0
+    do i=1,ih
+    do j=sy-jh,ey+jh
+      ii = ii + 1
+      a(sx-i,j) = recvw(ii)
+      a(ex+i,j) = recve(ii)
+    enddo
+    enddo
+  else
+    ! Single processor, make sure the field is periodic
+    do i=1,ih
+    do j=sy-jh,ey+jh
+      a(sx-i,j) = a(ex-i+1,j)
+      a(ex+i,j) = a(sx+i-1,j)
+    enddo
+    enddo
+  endif
+
+  if(nprocx.gt.1)then
+    call MPI_WAIT(reqe, status, mpierr)
+    call MPI_WAIT(reqw, status, mpierr)
+  endif
+
+  if(nprocy.gt.1)then
+    call MPI_WAIT(reqn, status, mpierr)
+    call MPI_WAIT(reqs, status, mpierr)
+  endif
+
+  deallocate (sendn, sends, sende, sendw)
+  deallocate (recvn, recvs, recve, recvw)
+  end subroutine excjs_real64_2d
 
   subroutine excjs_logical(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none

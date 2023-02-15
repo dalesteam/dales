@@ -1040,11 +1040,8 @@ contains
 
     end if
 
-    ! Transfer ustar to neighbouring cells, reshape since excjs is a 3d function
-    call excjs(reshape(ustar, (/i1+1,j1+1,1/)),2,i1,2,j1,1,1,1,1)
-
-    return
-
+    ! Transfer ustar to neighbouring cells,
+    call excjs(ustar,2,i1,2,j1,1,1)
   end subroutine surface
 
 !> Calculate the surface humidity assuming saturation.
