@@ -231,7 +231,6 @@ contains
 
       do i = 2,i1
         do j = 2,j1
- 
           kmin = ksfc(i,j)
 
           kp=k+1
@@ -554,22 +553,27 @@ contains
 
 ! **  Include shear and buoyancy production terms and dissipation **
 
-    sbshr(i,j,kmin)  = ekm(i,j,kmin)*tdef2/ ( 2*e120(i,j,kmin))
+    sbshr(i,j,1)  = ekm(i,j,kmin)*tdef2/ ( 2*e120(i,j,kmin))
     if (sgs_surface_fix) then
           ! Replace the -ekh *  dthvdz by the surface flux of thv
           ! (but we only have the thlflux , which seems at the surface to be
           ! equivalent
           local_dthvdz = -thlflux(i,j)/ekh(i,j,kmin)
-          sbbuo(i,j,kmin)  = -ekh(i,j,kmin)*grav/thvf(kmin)*local_dthvdz/ ( 2*e120(i,j,kmin))
+          sbbuo(i,j,1)  = -ekh(i,j,kmin)*grav/thvf(kmin)*local_dthvdz/ ( 2*e120(i,j,kmin))
     else
-          sbbuo(i,j,kmin)  = -ekh(i,j,kmin)*grav/thvf(kmin)*dthvdz(i,j,kmin)/ ( 2*e120(i,j,kmin))
+          sbbuo(i,j,1)  = -ekh(i,j,kmin)*grav/thvf(kmin)*dthvdz(i,j,kmin)/ ( 2*e120(i,j,kmin))
     endif
-    sbdiss(i,j,kmin) = - (ce1 + ce2*zlt(i,j,kmin)*deltai(kmin)) * e120(i,j,kmin)**2 /(2.*zlt(i,j,kmin))
+    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,kmin)*deltai(kmin)) * e120(i,j,kmin)**2 /(2.*zlt(i,j,kmin))
   end do
   end do
 
-  e12p(2:i1,2:j1,kmin) = e12p(2:i1,2:j1,kmin) + &
-            sbshr(2:i1,2:j1,kmin)+sbbuo(2:i1,2:j1,kmin)+sbdiss(2:i1,2:j1,kmin)  
+  do j=2,j1
+     do i=2,i1
+        kmin = ksfc(i,j)
+        e12p(i,j,kmin) = e12p(i,j,kmin) + &
+             sbshr(i,j,1)+sbbuo(i,j,1)+sbdiss(i,j,1)
+     end do
+  end do
 
   return
   end subroutine sources

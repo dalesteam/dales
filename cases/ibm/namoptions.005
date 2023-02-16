@@ -7,6 +7,8 @@ irandom    =  43
 randthl    =  0.1
 randqt     =  0e-5
 nsv        = 3
+nprocx     = 0
+nprocy     = 0
 /
 &DOMAIN
 itot       =  64 
@@ -46,7 +48,7 @@ ibas_prf    = 2
 ldelta      = .true.
 /
 &NAMCHECKSIM
-tcheck      = 0
+tcheck      = 10
 /
 &NAMTIMESTAT
 ltimestat   = .true.
@@ -89,12 +91,17 @@ lsampibm = .true.
  KLOW        =   1
  KHIGH       =   64
 /
+
 &NAMCROSSSECTION
 lcross     = .true.
 lxz        = .true.
 lyz        = .true.
 crossheight = 1, 2
-crossplane = 31     ! y of xz crosssection
+crossplane = 31     ! y of xz crosssection, through the buildings
 crossortho = 32     ! x of yz crosssection
-dtav       = 30
+dtav       = 20
 /
+
+!&SOLVER
+!solver_id=100  ! FFTW
+!/

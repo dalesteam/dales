@@ -41,7 +41,7 @@ contains
     implicit none
 
      !< Field for the immersed boundary height
-    integer, allocatable :: bc_height(:,:)     !< Height of immersed boundary at grid pos x,y
+    real(field_r), allocatable :: bc_height(:,:)     !< Height of immersed boundary at grid pos x,y
     integer, allocatable :: Nairl(:)
     integer       :: i, j, k, ierr,ii,jj,kk  !cstep , kmin
     integer       :: advarr(4)
@@ -403,6 +403,7 @@ contains
     !integer  :: maxlocx(3)
     integer, intent(in) :: simid
 
+    if (.not. lapply_ibm) return
     !clater if (.not. (lapply_ibm .and. simid == Nsim)) return  !cstep ensures buildings are not applied for precursor run
                !cstep run if lapply_ibm = true AND simid=1 without precursor simulation (so Nsim=1)
                !      or  if lapplY_ibm = true AND simid=2 with    precursor simulation (Nsim=2)
