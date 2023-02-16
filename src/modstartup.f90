@@ -69,8 +69,9 @@ contains
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
     use moddrydeposition,  only : initdrydep
-    use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp
-    use modpois,           only : initpois,poisson
+    use modfields,         only : initfields
+    use modtracers,        only : inittracers
+    use modpois,           only : initpois
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
@@ -309,6 +310,7 @@ contains
     ! Allocate and initialize core modules
     call initglobal
     call initfields
+    call inittracers
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     if(.not.lopenbc) then
