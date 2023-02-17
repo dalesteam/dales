@@ -71,14 +71,18 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror,&
+                           pref0,cp,rd,imax,jmax
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
-    use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
+    use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST, myidx, myidy
 
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
+    real      :: exner, var
+    character(2000) :: readstring
+
  character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
@@ -88,6 +92,8 @@ contains
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
       z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
+      ! Heterogeneous surface temperature only
+      lhetero_sfc_temp, &
       ! Heterogeneous variables
       lhetero, xpatches, ypatches, land_use, loldtable, &
       ! AGS variables
@@ -164,9 +170,8 @@ contains
     call D_MPI_BCAST(phiwp                      ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(R10                        ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lsplitleaf                 ,            1,  0, comm3d, mpierr)
-    
+    call D_MPI_BCAST(lhetero_sfc_temp           ,            1,  0, comm3d, mpierr)
     call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, comm3d, mpierr)
-    
     call D_MPI_BCAST(i_expemis                  ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
@@ -217,6 +222,50 @@ contains
           planttype = 3
       end select
     endif
+
+    if(lhetero_sfc_temp) then
+       allocate(dthl_sfc_domain(itot,jtot))
+       allocate(thls_hetero(i1,j1))
+       allocate(dthls_hetero(i1,j1))
+       !cstep allocate(tempsfc_hetero(i1,j1))
+
+       if  (myid==0) then
+
+          write(6,*) 'Reading heterogeneous surface potential temperature'
+          open (ifinput,file='sfc_thl.inp.'//cexpnr)
+          read (ifinput,'(a400)') readstring
+            !< If the program is unable to read the full line of points increasing the length of the string might help
+         ! do while (readstring(1:1)=='#')  ! Skip the lines that are commented (like headers)
+             read (ifinput,'(a400)') readstring
+         ! end do
+
+          do i=1,itot
+          do j=1,jtot
+            read(ifinput,'(F13.7)') var
+            dthl_sfc_domain(i,j) = var
+            write(6,*) i,j,'read line',dthl_sfc_domain(i,j)
+          end do
+          end do
+          close(ifinput)
+       endif
+
+       call D_MPI_BCAST(dthl_sfc_domain(1:itot,1:jtot),itot*jtot,0,comm3d,mpierr)
+
+       exner      = (ps / pref0)**(rd/cp)
+       do i=2,i1
+       do j=2,j1
+        ! tempsfc_hetero (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) !maps global to local domains
+        ! thls_hetero    (i,j) = tempsfc_hetero(i,j) / exner
+         !thls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) / exner  !maps global to local domains
+         dthls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
+         thls_hetero    (i,j) = thls + dthls_hetero    (i,j)  !dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
+       end do
+       end do
+
+       deallocate(dthl_sfc_domain)
+
+    endif
+
 
     if(lhetero) then
 
@@ -817,7 +866,11 @@ contains
           if(lhetero) then
             tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
           else
-            tskin(i,j) = thls
+            if(lhetero_sfc_temp) then
+               tskin(i,j) = thls_hetero (i,j) !this is the potential temperature 
+            else
+               tskin(i,j) = thls
+            endif
           endif
         end do
       end do
@@ -1148,7 +1201,7 @@ contains
             patchy = patchynr(j)
             Rib    = grav / thvs_patch(patchx,patchy) * zf(1) * (thv - thvsl) / horv2
           else
-            Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2
+            Rib    = grav / thvs * zf(1) * (thv - thvsl) / horv2  !cstep I treat thvs as a constant and ignore small local changes
           endif
 
           if (Rib == 0) then
@@ -1483,6 +1536,10 @@ contains
 
   subroutine exitsurface
     implicit none
+    if (lhetero_sfc_temp) then
+        !deallocate(thls_hetero,tempsfc_hetero) 
+        deallocate(dthls_hetero,thls_hetero)
+    endif
     return
   end subroutine exitsurface
 
