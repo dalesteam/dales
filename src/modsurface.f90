@@ -62,6 +62,7 @@
 
 module modsurface
   use modsurfdata
+  use netcdf
   implicit none
   !public  :: initsurface, surface, exitsurface
 
@@ -81,9 +82,8 @@ contains
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
     real      :: exner, var
-    character(2000) :: readstring
-
- character(len=1500) :: readbuffer
+    integer   :: ncid, varid
+    character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -224,46 +224,15 @@ contains
     endif
 
     if(lhetero_sfc_temp) then
-       allocate(dthl_sfc_domain(itot,jtot))
-       allocate(thls_hetero(i1,j1))
-       allocate(dthls_hetero(i1,j1))
-       !cstep allocate(tempsfc_hetero(i1,j1))
+       allocate(thls_hetero(2:i1,2:j1))
 
-       if  (myid==0) then
-
-          write(6,*) 'Reading heterogeneous surface potential temperature'
-          open (ifinput,file='sfc_thl.inp.'//cexpnr)
-          read (ifinput,'(a400)') readstring
-            !< If the program is unable to read the full line of points increasing the length of the string might help
-         ! do while (readstring(1:1)=='#')  ! Skip the lines that are commented (like headers)
-             read (ifinput,'(a400)') readstring
-         ! end do
-
-          do i=1,itot
-          do j=1,jtot
-            read(ifinput,'(F13.7)') var
-            dthl_sfc_domain(i,j) = var
-            write(6,*) i,j,'read line',dthl_sfc_domain(i,j)
-          end do
-          end do
-          close(ifinput)
-       endif
-
-       call D_MPI_BCAST(dthl_sfc_domain(1:itot,1:jtot),itot*jtot,0,comm3d,mpierr)
-
-       exner      = (ps / pref0)**(rd/cp)
-       do i=2,i1
-       do j=2,j1
-        ! tempsfc_hetero (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) !maps global to local domains
-        ! thls_hetero    (i,j) = tempsfc_hetero(i,j) / exner
-         !thls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax) / exner  !maps global to local domains
-         dthls_hetero    (i,j) = dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
-         thls_hetero    (i,j) = thls + dthls_hetero    (i,j)  !dthl_sfc_domain(i-1+myidx*imax,j-1+myidy*jmax)
-       end do
-       end do
-
-       deallocate(dthl_sfc_domain)
-
+       call check( nf90_open('surface.inp.'//cexpnr//'.nc', NF90_NOWRITE, ncid))
+       call check( nf90_inq_varid( ncid, 'ssta', varid) )
+       call check( nf90_get_var  ( ncid, varid, thls_hetero(2:i1,2:j1), &
+            start = (/1 + myidx * imax, 1 + myidy * jmax/), &
+            count = (/imax, jmax/) ) )
+       call check( nf90_close( ncid ) )
+       thls_hetero = thls_hetero + thls  ! treat the read values as deviations from thls
     endif
 
 
@@ -749,7 +718,7 @@ contains
       if (lsplitleaf) then
         allocate(PARdirField   (2:i1,2:j1))
         allocate(PARdifField   (2:i1,2:j1))
-      endif  
+      endif
     endif
     return
   end subroutine initsurface
@@ -867,7 +836,7 @@ contains
             tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
           else
             if(lhetero_sfc_temp) then
-               tskin(i,j) = thls_hetero (i,j) !this is the potential temperature 
+               tskin(i,j) = thls_hetero (i,j) !this is the potential temperature
             else
                tskin(i,j) = thls
             endif
@@ -927,7 +896,7 @@ contains
 
           phimzf = phim(zf(1)/obl(i,j))
           phihzf = phih(zf(1)/obl(i,j))
-          
+
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -960,7 +929,7 @@ contains
 
             phimzf = phim(zf(1)/obl(i,j))
             phihzf = phih(zf(1)/obl(i,j))
-            
+
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
@@ -1043,10 +1012,10 @@ contains
               svflux(i,j,n) = wsvsurf(n)
             enddo
           endif
-         
+
           phimzf = phim(zf(1)/obl(i,j))
           phihzf = phih(zf(1)/obl(i,j))
-          
+
           dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
           dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
           dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -1164,6 +1133,15 @@ contains
 
   end subroutine qtsurf
 
+  subroutine check(status)
+    integer, intent(in) :: status
+
+    if(status /= nf90_noerr) then
+       print *, trim(nf90_strerror(status))
+       stop 'NetCDF error in modsurface.'
+    end if
+  end subroutine check
+
 !> Calculates the Obukhov length iteratively.
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
@@ -1217,7 +1195,7 @@ contains
                 if(Rib > 0) L = 0.01
                 if(Rib < 0) L = -0.01
              end if
-             
+
              do while (.true.)
                 iter    = iter + 1
                 Lold    = L
@@ -1356,7 +1334,7 @@ contains
           if(Rib > 0) L = 0.01
           if(Rib < 0) L = -0.01
        end if
-       
+
        do while (.true.)
           iter    = iter + 1
           Lold    = L
@@ -1433,7 +1411,7 @@ contains
 
   ! stability function Phi for momentum.
   ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
-  ! Phi and Psi above are related by an integral and should in principle match, 
+  ! Phi and Psi above are related by an integral and should in principle match,
   ! currently they do not.
   ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
  function phim(zeta)
@@ -1453,7 +1431,7 @@ contains
     return
   end function phim
 
-   ! stability function Phi for heat.  
+   ! stability function Phi for heat.
  function phih(zeta)
     implicit none
     real             :: phih
@@ -1537,8 +1515,7 @@ contains
   subroutine exitsurface
     implicit none
     if (lhetero_sfc_temp) then
-        !deallocate(thls_hetero,tempsfc_hetero) 
-        deallocate(dthls_hetero,thls_hetero)
+       deallocate(thls_hetero)
     endif
     return
   end subroutine exitsurface
@@ -1713,7 +1690,7 @@ contains
     real     :: Ag, PARdir, PARdif !Variables for 2leaf AGS
     real     :: MW_Air = 28.97
     real     :: MW_CO2 = 44
- 
+
     real     :: sinbeta, kdrbl, kdf, kdr, ref, ref_dir
     real     :: iLAI, fSL
     real     :: PARdfU, PARdfD, PARdfT, PARdrU, PARdrD, PARdrT, dirPAR, difPAR
@@ -2005,7 +1982,7 @@ contains
             gc_inf   = LAI(i,j) * sum(weight_g * gnet)
 
           else !lsplitleaf
-          
+
           ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
           AGSa1    = 1.0 / (1 - f0)
           Dstar    = D0 / (AGSa1 * (f0 - fmin))

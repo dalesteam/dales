@@ -248,9 +248,7 @@ SAVE
 
   ! Heterogeneous surface for temperature only
   logical           :: lhetero_sfc_temp       = .false. !< Switch to use heterogeneous temperature field sfc_temp.inp.xxx 
-  real, allocatable :: dthl_sfc_domain(:,:)             !< Heterogeneous surface potential temperature perturbation defined at full domain (K)
   real, allocatable :: thls_hetero(:,:)                 !< Heterogeneous surface potential temperature defined at subdomain (K)
-  real, allocatable :: dthls_hetero(:,:)                !< 2D field of thl perturbations (K)
 
   ! Heterogeneous surfaces
   integer, parameter:: max_lands                   = 10 !<  Amount of land types that can be defined
