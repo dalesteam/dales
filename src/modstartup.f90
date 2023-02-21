@@ -1306,6 +1306,7 @@ contains
     use modtimedep,        only : exittimedep
     use modradiation,      only : exitradiation
     use modsubgrid,        only : exitsubgrid
+    use modtracers,        only : exittracers
     use modsurface,        only : exitsurface
     use modlsm,            only : exitlsm
     use moddrydeposition,  only : exitdrydep
@@ -1315,6 +1316,7 @@ contains
 
     call exittimedep
     call exitthermodynamics
+    call exittracers
     call exitsurface
     call exitlsm
     call exitdrydep
