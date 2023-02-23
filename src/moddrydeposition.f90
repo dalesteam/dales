@@ -28,6 +28,7 @@ module moddrydeposition
   use modfields, only : svp   ! tracer tendency array
   use modglobal, only : nsv, i1, j1
   use modlsm, only : llsm
+  use modtracers, only: tracer_prop
 
   implicit none
 
@@ -58,15 +59,6 @@ module moddrydeposition
 ! Unfortunately, there is no other way to get the parameters from DEPAC (lai_par, laitype)
 #include "depac_lu.inc"
  
-  ! ---------------------------------------------------------------------!
-  ! Namelist variables                                                   !
-  ! ---------------------------------------------------------------------!
-   
-  character(len = 6), dimension(100) :: & 
-            tracernames = (/ ('      ', iname=1, 100) /) !< list with scalar names,
-                            ! each name must(!) be 6 characters long for now  
-
-
 contains
 
 !> Initialize deposition calculation.
@@ -82,22 +74,18 @@ subroutine initdrydep
                         checknamelisterror, imax, jmax
   use modmpi,    only : myid, comm3d, mpi_logical, mpi_integer, &
                         mpi_character
-  use modemisdata, only : emisnames
 
   implicit none
 
   ! Auxiliary variables
-  integer  :: ierr
+  integer  :: ierr, isv
 
   ! ---------------------------------------------------------------------!
   ! Main variables                                                       !
   ! ---------------------------------------------------------------------!
 
   ! --- Read & broadcast namelist DEPOSITION -----------------------------------
-  namelist/NAMDEPOSITION/ ldrydep, ldeptracers, tracernames
-
-  ! Default, the tracers are equal to the emitted species
-  tracernames = emisnames
+  namelist/NAMDEPOSITION/ ldrydep
 
   if (myid == 0) then
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -108,17 +96,19 @@ subroutine initdrydep
   endif
 
   call mpi_bcast(ldrydep,              1, mpi_logical,   0, comm3d, ierr)
-  call mpi_bcast(ldeptracers(1:100), 100, mpi_logical,   0, comm3d, ierr)
-  call mpi_bcast(tracernames(1:100), 100, mpi_character, 0, comm3d, ierr)
 
-  ndeptracers = count(ldeptracers)  ! Number of tracers that deposits
+  do isv = 1,nsv
+    if (.not. tracer_prop(isv)%ldep) cycle
+    ndeptracers = ndeptracers + 1
+    write(*,*) 'tracer is deposited: ', tracer_prop(isv)%tracname
+  enddo
 
   ! --- Local pre-calculations and settings
   if (ldrydep .and. ndeptracers == 0) then
-    write (*,*) "initdrydep: WARNING .. drydeposition switched on, but no tracers to deposit selected &
-      & (ldeptracers). Continuing without deposition model"
+    write (*,*) "initdrydep: WARNING .. drydeposition switched on, but no tracers to deposit. &
+      Continuing without deposition model"
   end if
-  if (.not. (ldrydep) .or. .not. (llsm) .or. count(ldeptracers) == 0) return
+  if (.not. (ldrydep) .or. .not. (llsm) .or. ndeptracers == 0)  return
 
   allocate(depfield(i2, j2, ndeptracers))
   allocate(Rb(i2, j2))
@@ -143,9 +133,9 @@ subroutine drydep  ! called in program.f90
   implicit none
   integer :: isv, idt, i, j ! isv = sv index, idt = deptracer index
 
-  if (ldrydep .and. ndeptracers == 0) then
-    write (*, *) "drydep: Skipping deposition calculation, since no tracers selected (ldeptracers all .false.)"
-  end if
+  ! if (ldrydep .and. ndeptracers == 0) then
+  !   write (*, *) "drydep: Skipping deposition calculation, since no tracers selected (ndeptracers = 0)"
+  ! end if
   if (.not. llsm .or. .not. ldrydep .or. ndeptracers == 0) return  ! Dry deposition cannot be run if LSM not activated
   
   call calc_depfield
@@ -155,14 +145,13 @@ subroutine drydep  ! called in program.f90
   ! limit memory usage. 
   idt = 1  ! deposition tracers have their own index
   do isv = 1, nsv
-    if (ldeptracers(isv)) then
-      do j = 2, j1
-        do i = 2, i1
-          svp(i,j,1,isv) = svp(i,j,1,isv) + depfield(i,j,idt) / dzf(1)
-        end do
+    if (.not. tracer_prop(isv)%ldep) cycle
+    do j = 2, j1
+      do i = 2, i1
+        svp(i,j,1,tracer_prop(isv)%trac_idx) = svp(i,j,1,tracer_prop(isv)%trac_idx) + depfield(i,j,idt) / dzf(1)
       end do
-      idt = idt + 1
-    end if
+    end do
+    idt = idt + 1
   end do
 
 end subroutine drydep    
@@ -259,7 +248,8 @@ end subroutine depac_call
 subroutine exitdrydep
   implicit none
 
-  if (.not. llsm .or. .not. ldrydep .or. count(ldeptracers) == 0) return
+  ! if (.not. llsm .or. .not. ldrydep .or. count(ldeptracers) == 0) return
+  if (.not. llsm .or. .not. ldrydep .or. ndeptracers == 0) return
 
   deallocate(depfield)
   deallocate(Rb)
@@ -289,28 +279,27 @@ subroutine calc_depfield
 
   idt = 1
   do isv = 1, nsv
-    if (ldeptracers(isv)) then
-      depfield(:, :, idt) = 0.0
-      Sc = nu_air / findval(tracernames(isv), species, diffusivity, defltvalue=.22e-4)  ! Default is O2 in air
-      ScPrfac = (Sc/Pr_air) ** (2/3.)
-      ! HACK: now running only on non-wet tiles. Wet surfaces still to be covered.
-      do ilu = 1, nlu - 1
-        ! ilu = 5
-        call depac_call(ilu, tracernames(isv)) ! Update Rc
-        ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
-        do j = 2, j1
-           do i = 2, i1
-            if (tile(ilu)%frac(i,j) > 0.) then
-              Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
-              vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
-              ! Deposition flux in ug * m / (g * s)
-              depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,isv)
-            endif
-          end do
+    if (.not. tracer_prop(isv)%ldep) cycle
+    depfield(:, :, idt) = 0.0
+    Sc = nu_air / findval(tracer_prop(isv)%tracname, species, diffusivity, defltvalue=.22e-4)  ! Default is O2 in air
+    ScPrfac = (Sc/Pr_air) ** (2/3.)
+    ! HACK: now running only on non-wet tiles. Wet surfaces still to be covered.
+    do ilu = 1, nlu - 1
+      ! ilu = 5
+      call depac_call(ilu, tracer_prop(isv)%tracname) ! Update Rc
+      ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
+      do j = 2, j1
+        do i = 2, i1
+          if (tile(ilu)%frac(i,j) > 0.) then
+            Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
+            vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
+            ! Deposition flux in ug * m / (g * s)
+            depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,tracer_prop(isv)%trac_idx)
+          endif
         end do
-      end do  ! ilu = 1, nlu
-      idt = idt + 1
-    end if  ! (ldeptracers(isv))
+      end do
+    end do  ! ilu = 1, nlu
+    idt = idt + 1
   end do  ! isv = i, nsv
 
 end subroutine calc_depfield

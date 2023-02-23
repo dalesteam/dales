@@ -2,7 +2,7 @@
 !!  Dumps fields of deposition data of scalars
 !!
 !!  Dumps fields of deposition data of scalars to depo_*.myidx.myidy.expnr
-!! If netcdf is true, this module leads the depcrosssection.myidx.myidy.expnr.nc output
+!! If netcdf is true, this module leads the depcross.myidx.myidy.expnr.nc output
 !!
 !!  \author Leon Geers, TNO
 !!  \par Revision list
@@ -22,12 +22,13 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 !
-!  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
+!  Copyright 1993-2023 Delft University of Technology, Wageningen University, Utrecht University, KNMI, TNO
 !
 module moddepcrosssection
   use modlsm, only : llsm
-  use moddrydeposition, only : ldrydep, ldeptracers, tracernames  !, svskip
+  use moddrydeposition, only : ldrydep
   use modglobal, only : longint, nsv
+  use modtracers, only: tracer_prop
 
   implicit none
   private
@@ -43,6 +44,8 @@ module moddepcrosssection
   real :: dtav
   integer(kind=longint) :: idtav, tnext
   logical :: ldepcrosssection = .false.  !< Switch for doing depcrosssection (on/off)
+  logical :: lbinary = .false.  !< Switch for binary output (on/off)
+
 
 contains
   !> Initializing depcrosssection. Read out the namelist, initializing the variables
@@ -55,14 +58,15 @@ contains
         dtmax, iexpnr, imax, jmax
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, &
         nctiminfo, writestat_dims_nc
+    use moddrydeposition, only : ndeptracers
+
     implicit none
 
-    integer :: ierr, isv, idt, ndeptracers
+    integer :: ierr, isv, idt
     character(80) :: varname, varlongname 
 
-    namelist/NAMDEPCROSSSECTION/ ldepcrosssection, dtav
+    namelist/NAMDEPCROSSSECTION/ ldepcrosssection, lbinary, dtav
 
-    ndeptracers = count(ldeptracers)
     dtav = dtav_glob
     if (myid==0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -80,6 +84,7 @@ contains
 
     call MPI_BCAST(dtav,             1, MY_REAL,     0, comm3d, mpierr)
     call MPI_BCAST(ldepcrosssection, 1, MPI_LOGICAL, 0, comm3d, mpierr)
+    call MPI_BCAST(lbinary,          1, MPI_LOGICAL, 0, comm3d, mpierr)
 
     idtav = dtav/tres
     tnext   = idtav+btime
@@ -99,12 +104,11 @@ contains
       call nctiminfo(tncname(1, :))
       idt = 1
       do isv = 1, nsv
-        if (ldeptracers(isv)) then
-          write (varname, '(a,a)') 'drydep_', trim(tracernames(isv))
-          write (varlongname, '(a,a)')  'Dry deposition flux of ', trim(tracernames(isv))
-          call ncinfo(ncname(idt, :), varname, varlongname, 'kg / (m2 * s)', 'tt0t')
-          idt = idt+1
-        end if
+        if (.not. tracer_prop(isv)%ldep) cycle
+        write (varname, '(a,a)') 'drydep_', trim(tracer_prop(isv)%tracname)
+        write (varlongname, '(a,a)')  'Dry deposition flux of ', trim(tracer_prop(isv)%tracname)
+        call ncinfo(ncname(idt, :), varname, varlongname, 'kg / (m2 * s)', 'tt0t')
+        idt = idt+1
       end do
       call open_nc(fname, ncid, nrec, n1=imax, n2=jmax)
       if (nrec==0) then
@@ -140,30 +144,31 @@ contains
                           rtimee
     use modfields, only : rhof
     use modstat_nc, only : lnetcdf, writestat_nc
+    use moddrydeposition, only : ndeptracers
+
     implicit none
 
     real, allocatable :: depfield_massflux(:, :, :)
     character(80) :: txtfname
-    integer :: isv, idt, i, j, ndeptracers
+    integer :: isv, idt, i, j
     
-    ndeptracers = count(ldeptracers)
-
     allocate(depfield_massflux(1:imax, 1:jmax, ndeptracers))
 
     ! Store the flux as a positive number
     depfield_massflux(1:imax, 1:jmax, 1:ndeptracers) = -depfield(2:i1, 2:j1, 1:ndeptracers) &
         * rhof(1) * 1e-6  ! to go from ug*m/(s*g) to kg/(m2*s)
     
-    idt = 1
-    do isv = 1, nsv
-      if (ldeptracers(isv)) then
+    if (lbinary) then
+      idt = 1
+      do isv = 1, nsv
+        if (.not. tracer_prop(isv)%ldep) cycle
         write(txtfname, '("movh_depsv",i3.3,"."i3.3)') isv, iexpnr
         open(ifoutput, file=txtfname, position='append', action='write')
         write(ifoutput, '(es12.5)') ((depfield_massflux(i, j, idt), i=1, imax), j=1, jmax)
         close(ifoutput)
         idt = idt + 1
-      end if
-    end do
+      end do
+    end if
     
     if (lnetcdf) then
       call writestat_nc(ncid, 1, tncname, (/rtimee/), nrec, .true.)

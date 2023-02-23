@@ -194,7 +194,7 @@ module modtracdata
                             .false. , &   ! co2
                             .false. , &   ! co2veg
                             .false. , &   ! co2sum
-                            .false. , &   ! nox
+                            .true.  , &   ! nox
                             .true.  , &   ! nh3
                             .true.  , &   ! so2
                             .false. , &   ! INERT
