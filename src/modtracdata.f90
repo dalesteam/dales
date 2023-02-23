@@ -80,7 +80,7 @@ module modtracdata
                               'Nitrogen dioxide              ', &   ! NO2
                               'Methane                       ', &   ! CH4
                               'Formaldehyde                  ', &   ! CH2O
-                              'ch3o2                         ', &   ! CH3O2
+                              'Methyl peroxy radical         ', &   ! CH3O2
                               'Methyl vinyl ketone           ', &   ! MVK
                               'Isoprene                      ', &   ! ISO
                               'Peroxy radical                ', &   ! RO2
