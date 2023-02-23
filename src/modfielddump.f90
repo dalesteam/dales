@@ -112,10 +112,6 @@ contains
       call ncinfo(ncname( 6,:),'thl','Liquid water potential temperature above 300K','K','tttt')
 !       call ncinfo(ncname( 7,:),'qr','Rain water mixing ratio','1e-5kg/kg','tttt')
       call ncinfo(ncname( 7,:),'buoy','Buoyancy','K','tttt')
-      ! do n=1,nsv
-      !   write (csvname(1:3),'(i3.3)') n
-      !   call ncinfo(ncname(7+n,:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(ug/g)','tttt')
-      ! end do
       do n=1,nsv
         call ncinfo(ncname(7+n,:), tracer_prop(n)%tracname, tracer_prop(n)%traclong, tracer_prop(n)%unit, 'tttt')
       end do

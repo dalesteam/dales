@@ -97,7 +97,7 @@ module modtracdata
   ! tracer units:
   character(len=8), parameter  ::  tracer_unit(nsv_all) = (/ &
                               'kg/kg   ', &   ! qr
-                              'kg/kg   ', &   ! nr
+                              '-       ', &   ! nr
                               'kg/kg   ', &   ! co2
                               'kg/kg   ', &   ! co2veg
                               'kg/kg   ', &   ! co2sum

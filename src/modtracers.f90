@@ -134,11 +134,8 @@ contains
     implicit none
 
     ! First assign tracer index values
-    ! They are equal to the sv index
+    ! They are equal to the sv index by default
     do isv=1,nsv
-      ! tracer_prop(isv) % tracname = 'Dummy name'
-      ! tracer_prop(isv) % traclong = 'Dummy long name'
-      ! tracer_prop(isv) % unit     = 'Dummy unit'
       tracer_prop(isv) % trac_idx = isv
     end do
 
