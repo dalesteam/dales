@@ -30,7 +30,7 @@ module modtracdata
   implicit none
   save
 
-  integer, parameter :: nsv_all = 27       ! number of all available tracers
+  integer, parameter :: nsv_all = 28       ! number of all available tracers
 
   ! tracer names:
   character(len=6), parameter  ::  tracname_short(nsv_all) = (/ &
@@ -38,6 +38,7 @@ module modtracdata
                               'nr    ', &   ! nr
                               'co2   ', &   ! co2
                               'co2veg', &   ! co2veg
+                              'co2sum', &   ! co2sum
                               'nox   ', &   ! nox
                               'nh3   ', &   ! nh3
                               'so2   ', &   ! so2
@@ -60,7 +61,7 @@ module modtracdata
                               'o2    ', &   ! O2
                               'n2    ', &   ! N2
                               'hno3  ', &   ! HNO3
-                              'h2o2  ' /)    ! H2O2
+                              'h2o2  ' /)   ! H2O2
 
   ! tracer long names:
   character(len=30), parameter  ::  tracname_long(nsv_all) = (/ &
@@ -68,6 +69,7 @@ module modtracdata
                               'Number concentration          ', &   ! nr
                               'Carbon dioxide                ', &   ! co2
                               'Carbon dioxide - vegetation   ', &   ! co2veg
+                              'Carbon dioxide - sum          ', &   ! co2sum
                               'Nitrogen oxides               ', &   ! nox
                               'Ammonia                       ', &   ! nh3
                               'Sulphur dioxide               ', &   ! so2
@@ -90,7 +92,7 @@ module modtracdata
                               'Oxygen                        ', &   ! O2
                               'Nitrogen                      ', &   ! N2
                               'Nitric acid                   ', &   ! HNO3
-                              'Hydrogen peroxide             '  /)    ! H2O2
+                              'Hydrogen peroxide             '/)    ! H2O2
 
   ! tracer units:
   character(len=8), parameter  ::  tracer_unit(nsv_all) = (/ &
@@ -98,6 +100,7 @@ module modtracdata
                               'kg/kg   ', &   ! nr
                               'kg/kg   ', &   ! co2
                               'kg/kg   ', &   ! co2veg
+                              'kg/kg   ', &   ! co2sum
                               'kg/kg   ', &   ! nox
                               'kg/kg   ', &   ! nh3
                               'kg/kg   ', &   ! so2
@@ -120,7 +123,7 @@ module modtracdata
                               'kg/kg   ', &   ! O2
                               'kg/kg   ', &   ! N2
                               'kg/kg   ', &   ! HNO3
-                              'kg/kg   ' /)    ! H2O2
+                              'kg/kg   '/)    ! H2O2
 
   ! flag to check if tracer has "emission" property:
   logical, parameter  ::  tracer_is_emitted(nsv_all) = (/ &
@@ -128,6 +131,7 @@ module modtracdata
                             .false.  , &   ! nr
                             .true.   , &   ! co2
                             .false.  , &   ! co2veg
+                            .false.  , &   ! co2sum
                             .true.   , &   ! nox
                             .true.   , &   ! nh3
                             .true.   , &   ! so2
@@ -158,6 +162,7 @@ module modtracdata
                             .false. , &   ! nr
                             .false. , &   ! co2
                             .false. , &   ! co2veg
+                            .false. , &   ! co2sum
                             .false. , &   ! nox
                             .false. , &   ! nh3
                             .false. , &   ! so2
@@ -188,6 +193,7 @@ module modtracdata
                             .false. , &   ! nr
                             .false. , &   ! co2
                             .false. , &   ! co2veg
+                            .false. , &   ! co2sum
                             .false. , &   ! nox
                             .true.  , &   ! nh3
                             .true.  , &   ! so2
@@ -218,6 +224,7 @@ module modtracdata
                             .false. , &   ! nr
                             .true.  , &   ! co2
                             .true.  , &   ! co2veg
+                            .false. , &   ! co2sum
                             .false. , &   ! nox
                             .false. , &   ! nh3
                             .false. , &   ! so2
@@ -248,6 +255,7 @@ module modtracdata
                             .true.  , &   ! nr
                             .false. , &   ! co2
                             .false. , &   ! co2veg
+                            .false. , &   ! co2sum
                             .false. , &   ! nox
                             .false. , &   ! INERT
                             .false. , &   ! nh3

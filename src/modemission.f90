@@ -25,14 +25,17 @@
 module modemission
 
 use modemisdata
+use modtracers,       only : tracernames, tracer_prop
 
 implicit none
+
+! integer :: nemis
 
 contains
 
   subroutine initemission
 
-    use modglobal,    only : i2, j2,kmax, nsv, ifnamopt, fname_options, checknamelisterror
+    use modglobal,    only : i2, j2, kmax, nsv, ifnamopt, fname_options, checknamelisterror
     use modmpi,       only : myid, comm3d, mpi_logical, mpi_integer, mpi_character
     use moddatetime,  only : datex, prevday, nextday
 
@@ -42,7 +45,8 @@ contains
     integer :: ierr
 
     ! --- Read & broadcast namelist EMISSION -----------------------------------
-    namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames, svco2sum
+    ! namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames, svco2sum
+    namelist/NAMEMISSION/ l_emission, kemis, nemis, emisnames
 
     if (myid == 0) then
 
@@ -56,8 +60,9 @@ contains
 
     call mpi_bcast(l_emission,    1,   mpi_logical,   0, comm3d, ierr)
     call mpi_bcast(kemis,         1,   mpi_integer,   0, comm3d, ierr)
-    call mpi_bcast(svskip,        1,   mpi_integer,   0, comm3d, ierr)
-    call mpi_bcast(svco2sum,      1,   mpi_integer,   0, comm3d, ierr)
+    ! call mpi_bcast(svskip,        1,   mpi_integer,   0, comm3d, ierr)
+    ! call mpi_bcast(svco2sum,      1,   mpi_integer,   0, comm3d, ierr)
+    call mpi_bcast(nemis,         1,   mpi_integer,   0, comm3d, ierr)
     call mpi_bcast(emisnames(1:100), 100, mpi_character, 0, comm3d, ierr)
 
     ! -- Interaction with AGs   ----------------------------------------------------
@@ -65,13 +70,17 @@ contains
     allocate(co2fields(nsv))
 
     co2fields = 0
-    co2fields(svskip+1:nsv) = index(emisnames(1:nsv-svskip), "co2")
+    ! co2fields(svskip+1:nsv) = index(emisnames(1:nsv-svskip), "co2")
+    co2fields = index(emisnames, "co2")
 
-    svco2ags = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
-    svco2ags = svco2ags + svskip
 
-    svco2veg = findloc(emisnames(1:nsv-svskip), value = "co2veg", dim = 1)
-    svco2veg = svco2veg + svskip
+    ! svco2ags = findloc(emisnames(1:nsv-svskip), value = "co2ags", dim = 1)
+    ! svco2ags = svco2ags + svskip
+    svco2ags = findloc(emisnames, value = "co2ags", dim = 1)
+
+    ! svco2veg = findloc(emisnames(1:nsv-svskip), value = "co2veg", dim = 1)
+    ! svco2veg = svco2veg + svskip
+    svco2veg = findloc(emisnames, value = "co2veg", dim = 1)
 
     if (myid == 0) then
       write(6,*) 'modemission: co2fields (scalar fields with CO2 0=no, 1=yes)'
@@ -80,6 +89,8 @@ contains
       write(6,*) svco2ags
       write(6,*) 'modemission: svco2veg (scalar field number for AGS emissions)'
       write(6,*) svco2veg
+      write(6,*) 'number of emitted species'
+      write(6,*) nemis
     endif
 
     ! --- Local pre-calculations and settings
@@ -92,7 +103,9 @@ contains
     ! Two hourly emission fields are loaded at all times:
     ! (1) before model time,   t_field < t_model, "in-the-past"
     ! (2) ahead of model time, t_field > t_model, "in-the-future"
-    allocate(emisfield(i2, j2, kemis, svskip+1:nsv, 2))
+    ! allocate(emisfield(i2, j2, kemis, svskip+1:nsv, 2))
+    allocate(emisfield(i2, j2, kemis, nemis, 2))
+
 
     if (datex(5) >= 30) then
       call reademission(    datex(1),   datex(2),   datex(3),   datex(4), emisfield(:,:,:,:,1))
@@ -131,12 +144,14 @@ contains
     implicit none
 
     integer, intent(in)  :: iyear, imonth, iday, ihour
-    real, intent(out)    :: emisfield(i2, j2, kemis, 1+svskip:nsv)
+    ! real, intent(out)    :: emisfield(i2, j2, kemis, 1+svskip:nsv)
+    real, intent(out)    :: emisfield(i2, j2, kemis, nemis)
+
 
     integer, parameter   :: ndim = 3
     integer              :: start(ndim), count(ndim)
     integer              :: ncid, varid
-    integer              :: isv
+    integer              :: isv, iem
 
     character(len=12)    :: sdatetime
 
@@ -145,28 +160,48 @@ contains
 
     write(6,"(A18, A12)") "Reading emission: ", sdatetime
 
-    do isv = 1+svskip, nsv
-write(6,"(A17, A6)") "Reading species: ", trim(emisnames(isv-svskip))
-      call check( nf90_open( 'emissions/'//trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
+!     do isv = 1+svskip, nsv
+! write(6,"(A17, A6)") "Reading species: ", trim(emisnames(isv-svskip))
+!       call check( nf90_open( 'emissions/'//trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
 
-      call check( nf90_inq_varid( ncid, emisnames(isv-svskip), varid) )
-      call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), &
-                                  start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
-                                  count = (/imax, jmax, kemis, 1/) ) )
-      call check( nf90_close( ncid ) )
+!       call check( nf90_inq_varid( ncid, emisnames(isv-svskip), varid) )
+!       call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), &
+!                                   start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
+!                                   count = (/imax, jmax, kemis, 1/) ) )
+!       call check( nf90_close( ncid ) )
 
+!     end do
+    iem = 1
+    do isv = 1, nsv
+      if (tracer_prop(isv)%lemis) then
+        ! give warning when emission file is not available for a species which is emitted  
+        if (iem > nemis) then
+          write(6,"(A52, I2, A3, I2)") "More emitted species than declared in NAMEMISSION: ", iem, " > ", nemis
+        endif
+        write(6,"(A17, I2, A7)") "Reading tracer: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname)
+        call check( nf90_open( 'emissions/'//trim(tracer_prop(isv)%tracname)//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
+        call check( nf90_inq_varid( ncid, tracer_prop(isv)%tracname, varid) )
+        call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,iem), &
+                                    start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
+                                    count = (/imax, jmax, kemis, 1/) ) )
+        call check( nf90_close( ncid ) )
+      write(*,*) 'emisfield read ', emisfield(10,10,1,iem)
+        iem = iem + 1
+      else 
+        write(6,"(A20, I2, A7)") "Tracer not emitted: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname)  
+      endif
     end do
 
   contains
 
-    subroutine check(status)
-      integer, intent(in) :: status
+  subroutine check(status)
+    integer, intent(in) :: status
 
-      if(status /= nf90_noerr) then
-        print *, trim(nf90_strerror(status))
-        stop 'NetCDF error in modemission. See outputfile for more information.'
-      end if
-    end subroutine check
+    if(status /= nf90_noerr) then
+      print *, trim(nf90_strerror(status))
+      stop 'NetCDF error in modemission. See outputfile for more information.'
+    end if
+  end subroutine check
 
   end subroutine reademission
 
@@ -177,7 +212,7 @@ write(6,"(A17, A6)") "Reading species: ", trim(emisnames(isv-svskip))
   ! NOTES
   ! 1. Emission files (currently) in kg per gridbox per hour!
   !    What results from this routine now is ug/g, i.e. we scale for time,
-  !    gridbx size and air density AND apply a factor of 1e6.
+  !    gridbox size and air density AND apply a factor of 1e6.
   ! 
   !    Note that svp is tracer tendency in ug g-1 s-1
   !
@@ -196,7 +231,7 @@ write(6,"(A17, A6)") "Reading species: ", trim(emisnames(isv-svskip))
 
     implicit none
 
-    integer         :: i, j, k, l
+    integer         :: i, j, k, l, iem
 
     real            :: emistime_s, emistime_e ! Emission timers
     real, parameter :: div3600 = 1./3600.     ! Quick division
@@ -216,17 +251,26 @@ write(6,"(A17, A6)") "Reading species: ", trim(emisnames(isv-svskip))
     do k = 1, kemis
       do i = 2, i1
         do j = 2, j1
-          do l = svskip+1, nsv
-            tend = ((1. - emistime_s)*emisfield(i,j,k,l,1) + &
-                          emistime_s *emisfield(i,j,k,l,2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
-
-            ! Add tendency to specific CO2 field
-            svp(i,j,k,l) = svp(i,j,k,l) + tend
-
+          ! do l = svskip+1, nsv
+          iem = 1
+          do l = 1, nsv
+            if (.not. tracer_prop(l)%lemis)  cycle
+            tend = ((1. - emistime_s)*emisfield(i,j,k,iem,1) + &
+                          emistime_s *emisfield(i,j,k,iem,2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
+            ! Add tendency to tracer field
+            svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend
+            if (i==10 .and. j==10 .and. k==1) then
+            write(6,"(A18, I2, A7)") "applying species: ", tracer_prop(l)%trac_idx, trim(tracer_prop(l)%tracname)
+            write(*,*) 'indices   ', i,j,k,tracer_prop(l)%trac_idx
+            write(*,*) 'emisfield ', emisfield(i,j,k,iem,1)
+            write(*,*) 'tend      ', tend
+            write(*,*) 'svp       ', svp(i,j,k,tracer_prop(l)%trac_idx)
+            endif
             if (lags) then
               ! Add tendency to CO2 sum field
               svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend
             endif
+            iem = iem + 1
           end do
         end do
       end do

@@ -45,7 +45,7 @@ module modtracers
       ! Tracer long name
       character(len=64) :: traclong 
       ! Tracer unit
-      character(len=64) :: unit     
+      character(len=16) :: unit     
       ! Tracer index in sv0, svm, svp
       integer           :: trac_idx 
       ! Boolean if tracer is emitted 
@@ -78,10 +78,6 @@ contains
 
     use modglobal,        only : ifnamopt, fname_options, checknamelisterror
     use modmpi,           only : myid, comm3d, mpierr, mpi_logical, mpi_integer, my_real, mpi_character
-    use modemisdata,      only : l_emission
-    use moddrydeposition, only : ldrydep
-    use modchem,          only : lchem  
-    use modlsm,           only : lags
 
     implicit none
 
@@ -125,7 +121,7 @@ contains
 
     if (.not. ltracers) return
 
-    ! Tracer properties`:
+    ! Tracer properties:
     deallocate(tracer_prop)
 
   end subroutine exittracers
@@ -137,23 +133,24 @@ contains
 
     implicit none
 
-    ! First assign some default values
+    ! First assign tracer index values
+    ! They are equal to the sv index
     do isv=1,nsv
-      tracer_prop(isv) % tracname = 'Dummy name'
-      tracer_prop(isv) % traclong = 'Dummy long name'
-      tracer_prop(isv) % unit     = 'Dummy unit'
+      ! tracer_prop(isv) % tracname = 'Dummy name'
+      ! tracer_prop(isv) % traclong = 'Dummy long name'
+      ! tracer_prop(isv) % unit     = 'Dummy unit'
       tracer_prop(isv) % trac_idx = isv
     end do
-    ! Look up species by name
+
     do isv=1,nsv
       ! match species by short name and 
       ! look up species props in modtracdata arrays
       tracer_prop(isv) % tracname = trim(tracernames(isv))
       tracer_prop(isv) % traclong = trim(findval_character(tracernames(isv), tracname_short, &
-                                      tracname_long, defltvalue='dummy '))  ! Default is 'dummy '
+                                      tracname_long, defltvalue='dummy longname'))  ! Default is 'dummy '
       ! TODO: write general find_character function to find string of of arbitrary lenght
-      ! tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
-      !                                 tracer_unit, defltvalue='dummy unit'))  ! Default is 'dummy unit'
+      tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
+                                      tracer_unit, defltvalue='dummy unit'))  ! Default is 'dummy unit'
       tracer_prop(isv) % lemis    = findval_logical(tracernames(isv), tracname_short, &
                                       tracer_is_emitted, defltvalue=.false.)  ! Default is False
       tracer_prop(isv) % lreact   = findval_logical(tracernames(isv), tracname_short, &
@@ -165,8 +162,7 @@ contains
       tracer_prop(isv) % lmicro   = findval_logical(tracernames(isv), tracname_short, &
                                       tracer_is_microphys, defltvalue=.false.)  ! Default is False
 
-      ! write(*,*) 'tracer props ', tracer_prop(isv) % trac_idx, tracer_prop(isv) % tracname, tracer_prop(isv) % traclong, tracer_prop(isv) % lemis, tracer_prop(isv) % ldep, tracer_prop(isv) % lreact, tracer_prop(isv) % lags, tracer_prop(isv) % lmicro
-
+      write(*,*) 'tracer props ', tracer_prop(isv) % trac_idx, tracer_prop(isv) % tracname, tracer_prop(isv) % traclong, tracer_prop(isv) % unit, tracer_prop(isv) % lemis, tracer_prop(isv) % ldep, tracer_prop(isv) % lreact, tracer_prop(isv) % lags, tracer_prop(isv) % lmicro
     end do
 
   end subroutine assign_tracer_props
@@ -301,7 +297,7 @@ contains
       if (present(defltvalue)) then
         findval_character = defltvalue 
       else
-        findval_character = 'dummy '
+        findval_character = 'dummy'
       end if
     end if
   end function findval_character
