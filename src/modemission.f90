@@ -259,13 +259,13 @@ contains
                           emistime_s *emisfield(i,j,k,iem,2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
             ! Add tendency to tracer field
             svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend
-            if (i==10 .and. j==10 .and. k==1) then
-            write(6,"(A18, I2, A7)") "applying species: ", tracer_prop(l)%trac_idx, trim(tracer_prop(l)%tracname)
-            write(*,*) 'indices   ', i,j,k,tracer_prop(l)%trac_idx
-            write(*,*) 'emisfield ', emisfield(i,j,k,iem,1)
-            write(*,*) 'tend      ', tend
-            write(*,*) 'svp       ', svp(i,j,k,tracer_prop(l)%trac_idx)
-            endif
+            ! if (i==10 .and. j==10 .and. k==1) then
+            ! write(6,"(A18, I2, A7)") "applying species: ", tracer_prop(l)%trac_idx, trim(tracer_prop(l)%tracname)
+            ! write(*,*) 'indices   ', i,j,k,tracer_prop(l)%trac_idx
+            ! write(*,*) 'emisfield ', emisfield(i,j,k,iem,1)
+            ! write(*,*) 'tend      ', tend
+            ! write(*,*) 'svp       ', svp(i,j,k,tracer_prop(l)%trac_idx)
+            ! endif
             if (lags) then
               ! Add tendency to CO2 sum field
               svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend
