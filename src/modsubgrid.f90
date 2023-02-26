@@ -79,6 +79,13 @@ contains
       csz(:)  = cs
     end if
 
+    if(ldeltaz) then
+      do k = 1,k1
+        delta(k) = dzf(k)
+        deltai(k)= 1./dzf(k)
+      end do
+    endif
+
     if(lmason) then
       do k = 1,k1
         mlen   = (1. / (csz(k) * delta(k))**nmason + 1. / (fkar * zf(k))**nmason)**(-1./nmason)
@@ -126,7 +133,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,lanisotrop
+        ldelta,lmason,ldeltaz,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,lanisotrop
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -141,6 +148,7 @@ contains
 
     call MPI_BCAST(ldelta     ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lmason     ,1,MPI_LOGICAL,0,comm3d,mpierr)
+    call MPI_BCAST(ldeltaz    ,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(nmason     ,1,MY_REAL    ,0,comm3d,mpierr)
     call MPI_BCAST(lsmagorinsky,1,MPI_LOGICAL,0,comm3d,mpierr)
     call MPI_BCAST(lanisotrop,1,MPI_LOGICAL,0,comm3d,mpierr)

@@ -33,6 +33,7 @@ implicit none
 save
 ! private
   logical :: ldelta       = .false. !<  switch for subgrid length formulation (on/off)
+  logical :: ldeltaz      = .false. !<  switch for sbgrid length scale equal to dz
   logical :: lmason       = .false. !<  switch for decreased length scale near the surface
   logical :: lsmagorinsky = .false. !<  switch for smagorinsky subgrid scheme
   logical :: lanisotrop   = .false. !<  switch for anisotropic diffusion
