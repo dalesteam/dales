@@ -105,7 +105,6 @@ subroutine initdrydep
     call checknamelisterror(ierr, ifnamopt, 'NAMDEPOSITION')
     write(6, NAMDEPOSITION)
     close(ifnamopt)
-
   endif
 
   call mpi_bcast(ldrydep,              1, mpi_logical,   0, comm3d, ierr)
@@ -130,7 +129,6 @@ subroutine initdrydep
   Rc = 0.0
   vd = 0.0
 
-
 end subroutine initdrydep
 
 !> Run deposition calculation.
@@ -143,7 +141,7 @@ subroutine drydep  ! called in program.f90
   use modglobal, only : dzf
 
   implicit none
-  integer :: isv, idt ! isv = sv index, idt = deptracer index
+  integer :: isv, idt, i, j ! isv = sv index, idt = deptracer index
 
   if (ldrydep .and. ndeptracers == 0) then
     write (*, *) "drydep: Skipping deposition calculation, since no tracers selected (ldeptracers all .false.)"
@@ -158,7 +156,11 @@ subroutine drydep  ! called in program.f90
   idt = 1  ! deposition tracers have their own index
   do isv = 1, nsv
     if (ldeptracers(isv)) then
-      svp(2:i1, 2:j1, 1, isv) = svp(2:i1, 2:j1, 1, isv) + depfield(2:i1, 2:j1, idt) / dzf(1)
+      do j = 2, j1
+        do i = 2, i1
+          svp(i,j,1,isv) = svp(i,j,1,isv) + depfield(i,j,idt) / dzf(1)
+        end do
+      end do
       idt = idt + 1
     end if
   end do
@@ -278,7 +280,7 @@ subroutine calc_depfield
   ! Necessary to retrieve/calculate all parameters necessary for the DEPAC routine
   implicit none
  
-  integer :: ilu, isv, idt ! Indices for land use type (ilu), scalar variable (isv) and deposited tracer (idt)
+  integer :: ilu, isv, idt, i, j ! Indices for land use type (ilu), scalar variable (isv) and deposited tracer (idt)
   real :: Sc, ScPrfac
   real, parameter :: Pr_air = 0.71  !< Prandtl number of air at atmospheric conditions (+/- 1.5%)
   real, parameter :: nu_air = 15e-6 !< Kinematic viscosity of air [m2/s]
@@ -296,10 +298,16 @@ subroutine calc_depfield
         ! ilu = 5
         call depac_call(ilu, tracernames(isv)) ! Update Rc
         ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
-        Rb = 1/(fkar*tile(ilu)%ra) * ScPrfac
-        vd = (tile(ilu)%ra + Rb + Rc) ** (-1)
-        ! Deposition flux in ug * m / (g * s)
-        depfield(:, :, idt) = depfield(:, :, idt) - tile(ilu)%frac * vd * sv0(:, :, 1, isv)
+        do j = 2, j1
+           do i = 2, i1
+            if (tile(ilu)%frac(i,j) > 0.) then
+              Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
+              vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
+              ! Deposition flux in ug * m / (g * s)
+              depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,isv)
+            endif
+          end do
+        end do
       end do  ! ilu = 1, nlu
       idt = idt + 1
     end if  ! (ldeptracers(isv))
