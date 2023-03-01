@@ -390,22 +390,22 @@ contains
     ! Author: Marco de Bruine (VU), 2020
 
     implicit none
-    integer sx,ex,hx, sy,ey,hy, sz,ez,hz 
+    integer sx,ex,hx, sy,ey,hy, sz,ez
     real :: field(sx-hx:ex+hx,sy-hy:ey+hy,sz:ez)
     real :: fillvalue = 0
     real,optional :: fillvalue_in
     if(present(fillvalue_in)) fillvalue=fillvalue_in
 
     if      (myidx == 0) then        ! WEST boundary
-      field(sx-hx:sx,  sy-hy:ey+hy, sz:ez) = fillvalue
+      field(sx-hx:sx-1,  sy-hy:ey+hy, sz:ez) = fillvalue
     else if (myidx == nprocx-1) then ! EAST boundary
-      field(ex :ex+hx, sy-hy:ey+hy, sz:ez) = fillvalue
+      field(ex+1 :ex+hx, sy-hy:ey+hy, sz:ez) = fillvalue
     end if
 
     if      (myidy == 0) then        ! SOUTH boundary
-      field(sx-hx:ex+hx, sy-hy:sy,  sz:ez) = fillvalue
+      field(sx-hx:ex+hx, sy-hy:sy-1,  sz:ez) = fillvalue
     else if (myidy == nprocy-1) then ! NORTH boundary
-      field(sx-hx:ex+hx, ey :ey+hy, sz:ez) = fillvalue
+      field(sx-hx:ex+hx, ey+1:ey+hy, sz:ez) = fillvalue
     end if
 
   end subroutine closeboundaries

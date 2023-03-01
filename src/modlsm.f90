@@ -1005,7 +1005,8 @@ subroutine integrate_theta_soil
     do j=2,j1
         do i=2,i1
           do ilu=1,nlu
-            if (trim(tile(ilu)%lushort) == 'bs') then
+            !if (trim(tile(ilu)%lushort) == 'bs') then
+            if (trim(tile(ilu)%lushort) == 'bs' .or. trim(tile(ilu)%lushort) == 'brn') then !TODO; special function for bare soil
               flux_top = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * fac + throughfall(i,j)
               tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
                     - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
@@ -1972,36 +1973,36 @@ subroutine init_heterogeneous_nc
     wl_max(:,:) = wl_max(:,:) * wmax/land_frac(:,:) 
     where (wl_max == 0) wl_max = eps1
 
-    !! debugging: some checks
-    write(*,*) '...checking LU inputs: mean, min and max, accounting for ghost cells'
-    do ilu=1,nlu
-      write(*,*) 'lushort       ', tile(ilu)%lushort
-      write(*,*) 'base_frac     ', sum(tile(ilu)%base_frac(2:i1,2:j1))/size(tile(ilu)%base_frac(2:i1,2:j1)), minval(tile(ilu)%base_frac(2:i1,2:j1)), maxval(tile(ilu)%base_frac(2:i1,2:j1)) 
-      write(*,*) 'z0h           ', sum(tile(ilu)%z0h(2:i1,2:j1))/size(tile(ilu)%z0h(2:i1,2:j1)), minval(tile(ilu)%z0h(2:i1,2:j1)), maxval(tile(ilu)%z0h(2:i1,2:j1)) 
-      write(*,*) 'z0m           ', sum(tile(ilu)%z0m(2:i1,2:j1))/size(tile(ilu)%z0m(2:i1,2:j1)), minval(tile(ilu)%z0m(2:i1,2:j1)), maxval(tile(ilu)%z0m(2:i1,2:j1)) 
-      write(*,*) 'rs_min        ', sum(tile(ilu)%rs_min(2:i1,2:j1))/size(tile(ilu)%rs_min(2:i1,2:j1)), minval(tile(ilu)%rs_min(2:i1,2:j1)), maxval(tile(ilu)%rs_min(2:i1,2:j1)) 
-      write(*,*) 'gD            ', sum(tile(ilu)%gD(2:i1,2:j1))/size(tile(ilu)%gD(2:i1,2:j1)), minval(tile(ilu)%gD(2:i1,2:j1)), maxval(tile(ilu)%gD(2:i1,2:j1)) 
+    ! !! debugging: some checks
+    ! write(*,*) '...checking LU inputs: mean, min and max, accounting for ghost cells'
+    ! do ilu=1,nlu
+    !   write(*,*) 'lushort       ', tile(ilu)%lushort
+    !   write(*,*) 'base_frac     ', sum(tile(ilu)%base_frac(2:i1,2:j1))/size(tile(ilu)%base_frac(2:i1,2:j1)), minval(tile(ilu)%base_frac(2:i1,2:j1)), maxval(tile(ilu)%base_frac(2:i1,2:j1))
+    !   write(*,*) 'z0h           ', sum(tile(ilu)%z0h(2:i1,2:j1))/size(tile(ilu)%z0h(2:i1,2:j1)), minval(tile(ilu)%z0h(2:i1,2:j1)), maxval(tile(ilu)%z0h(2:i1,2:j1))
+    !   write(*,*) 'z0m           ', sum(tile(ilu)%z0m(2:i1,2:j1))/size(tile(ilu)%z0m(2:i1,2:j1)), minval(tile(ilu)%z0m(2:i1,2:j1)), maxval(tile(ilu)%z0m(2:i1,2:j1))
+    !   write(*,*) 'rs_min        ', sum(tile(ilu)%rs_min(2:i1,2:j1))/size(tile(ilu)%rs_min(2:i1,2:j1)), minval(tile(ilu)%rs_min(2:i1,2:j1)), maxval(tile(ilu)%rs_min(2:i1,2:j1))
+    !   write(*,*) 'gD            ', sum(tile(ilu)%gD(2:i1,2:j1))/size(tile(ilu)%gD(2:i1,2:j1)), minval(tile(ilu)%gD(2:i1,2:j1)), maxval(tile(ilu)%gD(2:i1,2:j1))
 
-      write(*,*) 'lambda_stable ', sum(tile(ilu)%lambda_stable(2:i1,2:j1))/size(tile(ilu)%lambda_stable(2:i1,2:j1)), minval(tile(ilu)%lambda_stable(2:i1,2:j1)), maxval(tile(ilu)%lambda_stable(2:i1,2:j1)) 
-      write(*,*) 'lambda_unstab ', sum(tile(ilu)%lambda_unstable(2:i1,2:j1))/size(tile(ilu)%lambda_unstable(2:i1,2:j1)), minval(tile(ilu)%lambda_unstable(2:i1,2:j1)), maxval(tile(ilu)%lambda_unstable(2:i1,2:j1)) 
+    !   write(*,*) 'lambda_stable ', sum(tile(ilu)%lambda_stable(2:i1,2:j1))/size(tile(ilu)%lambda_stable(2:i1,2:j1)), minval(tile(ilu)%lambda_stable(2:i1,2:j1)), maxval(tile(ilu)%lambda_stable(2:i1,2:j1))
+    !   write(*,*) 'lambda_unstab ', sum(tile(ilu)%lambda_unstable(2:i1,2:j1))/size(tile(ilu)%lambda_unstable(2:i1,2:j1)), minval(tile(ilu)%lambda_unstable(2:i1,2:j1)), maxval(tile(ilu)%lambda_unstable(2:i1,2:j1))
 
-      write(*,*) 'lai           ', sum(tile(ilu)%lai(2:i1,2:j1))/size(tile(ilu)%lai(2:i1,2:j1)), minval(tile(ilu)%lai(2:i1,2:j1)), maxval(tile(ilu)%lai(2:i1,2:j1))
-      write(*,*) 'a_r           ', sum(tile(ilu)%a_r(2:i1,2:j1))/size(tile(ilu)%a_r(2:i1,2:j1)), minval(tile(ilu)%a_r(2:i1,2:j1)), maxval(tile(ilu)%a_r(2:i1,2:j1))
-      write(*,*) 'b_r           ', sum(tile(ilu)%b_r(2:i1,2:j1))/size(tile(ilu)%b_r(2:i1,2:j1)), minval(tile(ilu)%b_r(2:i1,2:j1)), maxval(tile(ilu)%b_r(2:i1,2:j1))
-      write(*,*) 'tskin         ', sum(tile(ilu)%tskin(2:i1,2:j1))/size(tile(ilu)%tskin(2:i1,2:j1)), minval(tile(ilu)%tskin(2:i1,2:j1)), maxval(tile(ilu)%tskin(2:i1,2:j1)) 
-      write(*,*) 'R_inc_b       ', sum(tile(ilu)%R_inc_b(2:i1,2:j1))/size(tile(ilu)%R_inc_b(2:i1,2:j1)), minval(tile(ilu)%R_inc_b(2:i1,2:j1)), maxval(tile(ilu)%R_inc_b(2:i1,2:j1)) 
-      write(*,*) ''
-    end do
+    !   write(*,*) 'lai           ', sum(tile(ilu)%lai(2:i1,2:j1))/size(tile(ilu)%lai(2:i1,2:j1)), minval(tile(ilu)%lai(2:i1,2:j1)), maxval(tile(ilu)%lai(2:i1,2:j1))
+    !   write(*,*) 'a_r           ', sum(tile(ilu)%a_r(2:i1,2:j1))/size(tile(ilu)%a_r(2:i1,2:j1)), minval(tile(ilu)%a_r(2:i1,2:j1)), maxval(tile(ilu)%a_r(2:i1,2:j1))
+    !   write(*,*) 'b_r           ', sum(tile(ilu)%b_r(2:i1,2:j1))/size(tile(ilu)%b_r(2:i1,2:j1)), minval(tile(ilu)%b_r(2:i1,2:j1)), maxval(tile(ilu)%b_r(2:i1,2:j1))
+    !   write(*,*) 'tskin         ', sum(tile(ilu)%tskin(2:i1,2:j1))/size(tile(ilu)%tskin(2:i1,2:j1)), minval(tile(ilu)%tskin(2:i1,2:j1)), maxval(tile(ilu)%tskin(2:i1,2:j1))
+    !   write(*,*) 'R_inc_b       ', sum(tile(ilu)%R_inc_b(2:i1,2:j1))/size(tile(ilu)%R_inc_b(2:i1,2:j1)), minval(tile(ilu)%R_inc_b(2:i1,2:j1)), maxval(tile(ilu)%R_inc_b(2:i1,2:j1))
+    !   write(*,*) ''
+    ! end do
 
-    write(*,*) 'soil_index top', sum(soil_index(2:i1,2:j1,4))/size(soil_index(2:i1,2:j1,4)), minval(soil_index(2:i1,2:j1,4)), maxval(soil_index(2:i1,2:j1,4)) 
+    ! write(*,*) 'soil_index top', sum(soil_index(2:i1,2:j1,4))/size(soil_index(2:i1,2:j1,4)), minval(soil_index(2:i1,2:j1,4)), maxval(soil_index(2:i1,2:j1,4))
 
-    write(*,*) 'tsoil top     ', sum(tsoil(2:i1,2:j1,4))/size(tsoil(2:i1,2:j1,4)), minval(tsoil(2:i1,2:j1,4)), maxval(tsoil(2:i1,2:j1,4)) 
-    write(*,*) 'phiw top      ', sum(phiw(2:i1,2:j1,4))/size(phiw(2:i1,2:j1,4)), minval(phiw(2:i1,2:j1,4)), maxval(phiw(2:i1,2:j1,4)) 
-    write(*,*) 'cveg     ', sum(cveg)/size(cveg), minval(cveg), maxval(cveg) 
-    write(*,*) 'land_frac', sum(land_frac)/size(land_frac), minval(land_frac), maxval(land_frac) 
-    write(*,*) 'wl_max   ', sum(wl_max)/size(wl_max), minval(wl_max), maxval(wl_max) 
-    write(*,*) 'wmax     ', wmax 
-    !call flush()
+    ! write(*,*) 'tsoil top     ', sum(tsoil(2:i1,2:j1,4))/size(tsoil(2:i1,2:j1,4)), minval(tsoil(2:i1,2:j1,4)), maxval(tsoil(2:i1,2:j1,4))
+    ! write(*,*) 'phiw top      ', sum(phiw(2:i1,2:j1,4))/size(phiw(2:i1,2:j1,4)), minval(phiw(2:i1,2:j1,4)), maxval(phiw(2:i1,2:j1,4))
+    ! write(*,*) 'cveg     ', sum(cveg)/size(cveg), minval(cveg), maxval(cveg)
+    ! write(*,*) 'land_frac', sum(land_frac)/size(land_frac), minval(land_frac), maxval(land_frac)
+    ! write(*,*) 'wl_max   ', sum(wl_max)/size(wl_max), minval(wl_max), maxval(wl_max)
+    ! write(*,*) 'wmax     ', wmax
+    ! !call flush()
 
 end subroutine init_heterogeneous_nc
 
