@@ -53,16 +53,16 @@ save
   real, allocatable :: e12p(:,:,:)      !<   tendency of e12m
   real, allocatable :: qtp(:,:,:)       !<   tendency of qtm
 
-  real, allocatable :: svm(:,:,:,:)   !<  scalar sv(n) at time step t-1
-  real, allocatable :: sv0(:,:,:,:)   !<  scalar sv(n) at time step t
-  real, allocatable :: svp(:,:,:,:)   !<  tendency of sv(n)
+  real, allocatable :: svm(:,:,:,:)     !<  scalar sv(n) at time step t-1
+  real, allocatable :: sv0(:,:,:,:)     !<  scalar sv(n) at time step t
+  real, allocatable :: svp(:,:,:,:)     !<  tendency of sv(n)
 
   ! Base state variables
-  real, allocatable :: rhobf(:)       !<   Base state density, full level
-  real, allocatable :: rhobh(:)       !<   Base state density, half level
+  real, allocatable :: rhobf(:)         !<   Base state density, full level
+  real, allocatable :: rhobh(:)         !<   Base state density, half level
 
-  real, allocatable :: drhobdzf(:)       !<   Base state density, derivative at full level
-  real, allocatable :: drhobdzh(:)       !<   Base state density, derivative at half level
+  real, allocatable :: drhobdzf(:)      !<   Base state density, derivative at full level
+  real, allocatable :: drhobdzh(:)      !<   Base state density, derivative at half level
 
   ! Cloud edge variables
   real, allocatable :: cloudarea(:,:,:)
@@ -245,9 +245,9 @@ subroutine initfields
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
 
-    allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
-             ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
-             ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))     ! es-liquid
+    allocate(qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
+            ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv ice
+            ,esl(2-ih:i1+ih,2-jh:j1+jh,k1))      ! es-liquid
     allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(surf_rain(2-ih:i1+ih,2-jh:j1+jh))
