@@ -146,7 +146,7 @@ contains
         if (isurf == 1) then
             nvar3 = 12
         else if (isurf == 11) then
-            nvar3 = 16
+            nvar3 = 13
             if (lags) nvar3 = nvar3 + 2
         end if
 
@@ -186,17 +186,13 @@ contains
             call ncinfo(ncname3(10,:),'rssoil', 'Soil evaporation resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(11,:),'rsveg', 'Vegetation resistance', 's/m', 'tt0t')
             call ncinfo(ncname3(12,:),'f1', 'f1(SWD) function vegetation resistance', 's/m', 'tt0t')
-            call ncinfo(ncname3(13,:),'f2_lv', 'f2(theta) function low vegetation resistance', 's/m', 'tt0t')
-            call ncinfo(ncname3(14,:),'f2_hv', 'f2(theta) function high vegetation resistance', 's/m', 'tt0t')
-            call ncinfo(ncname3(15,:),'f2_b', 'f2(theta) function soil resistance', 's/m', 'tt0t')
-            call ncinfo(ncname3(16,:),'f3', 'f3(VPD) function vegetation resistance', 's/m', 'tt0t')
+            call ncinfo(ncname3(13,:),'f2_b', 'f2(theta) function soil resistance', 's/m', 'tt0t')
             if (lags) then
-              call ncinfo(ncname3(17,:),'an_co2', 'Net CO2 assimilation', 'ppb m s-1', 'tt0t')
-              call ncinfo(ncname3(18,:),'resp_co2', 'CO2 respiration soil', 'ppb m s-1', 'tt0t')
+              call ncinfo(ncname3(14,:),'an_co2', 'Net CO2 assimilation', 'ppb m s-1', 'tt0t')
+              call ncinfo(ncname3(15,:),'resp_co2', 'CO2 respiration soil', 'ppb m s-1', 'tt0t')
             end if
 
             call open_nc(trim(output_prefix)//fname3,  ncid3,nrec3,n1=imax,n2=jmax)
-
             if (nrec3==0) then
               call define_nc(ncid3, 1, tncname3)
               call writestat_dims_nc(ncid3)
@@ -297,7 +293,7 @@ contains
     use modglobal, only : imax,jmax,i1,j1,cexpnr,ifoutput,rtimee
     use modsurfdata, only : Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq, rsveg, rssoil, Wl, isurf, obl, ustar
-    use modlsm, only : f1, f2_lv, f2_hv, f2b, f3, lags, an_co2, resp_co2
+    use modlsm, only : f1, f2b, lags, an_co2, resp_co2
     use modstat_nc, only : lnetcdf, writestat_nc
     implicit none
 
@@ -382,13 +378,10 @@ contains
             vars(:,:,10) = rssoil(2:i1,2:j1)
             vars(:,:,11) = rsveg(2:i1,2:j1)
             vars(:,:,12) = f1(2:i1,2:j1)
-            vars(:,:,13) = f2_lv(2:i1,2:j1)
-            vars(:,:,14) = f2_hv(2:i1,2:j1)
-            vars(:,:,15) = f2b(2:i1,2:j1)
-            vars(:,:,16) = f3(2:i1,2:j1)
+            vars(:,:,13) = f2b(2:i1,2:j1)
             if (lags) then
-              vars(:,:,17) = an_co2(2:i1,2:j1)
-              vars(:,:,18) = resp_co2(2:i1,2:j1)
+              vars(:,:,14) = an_co2(2:i1,2:j1)
+              vars(:,:,15) = resp_co2(2:i1,2:j1)
             endif
         end if
 

@@ -178,6 +178,8 @@ contains
   ! 1. Emission files (currently) in kg per gridbox per hour!
   !    What results from this routine now is ug/g, i.e. we scale for time,
   !    gridbx size and air density AND apply a factor of 1e6.
+  ! 
+  !    Note that svp is tracer tendency in ug g-1 s-1
   !
   ! TODO
   ! 1. MDB Align properly with "non-emitted" tracers, i.e. cloud scalars from e.g.
@@ -190,6 +192,7 @@ contains
                             dzf, dx, dy
     use modfields,   only : rhof
     use moddatetime, only : datex, nextday
+    use modlsm,      only : lags        
 
     implicit none
 
@@ -220,8 +223,10 @@ contains
             ! Add tendency to specific CO2 field
             svp(i,j,k,l) = svp(i,j,k,l) + tend
 
-            ! Add tendency to CO2 sum field
-            svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend
+            if (lags) then
+              ! Add tendency to CO2 sum field
+              svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend
+            endif
           end do
         end do
       end do
