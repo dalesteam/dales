@@ -80,7 +80,7 @@ contains
     use moddatetime,       only : initdatetime
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
-    use moddeposition,     only : initdrydep
+    use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp
     use modpois,           only : initpois,poisson
     use modradiation,      only : initradiation
@@ -1379,7 +1379,7 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modlsm,            only : exitlsm
-    use moddeposition,     only : exitdrydep
+    use moddrydeposition,  only : exitdrydep
     use modthermodynamics, only : exitthermodynamics
     use modemission,       only : exitemission
     use modopenboundary,   only : exitopenboundary
