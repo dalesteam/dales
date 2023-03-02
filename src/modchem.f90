@@ -1091,12 +1091,12 @@ SUBROUTINE read_chem(chem_name)
   do i=1,nsv
     if (trim(tracer_prop(i)%tracname) == 'co2')   then; CO2loc   = i; endif ! location in svm
     if (trim(tracer_prop(i)%tracname) == 'h2o')   then; H2Oloc   = i; endif ! location in svm
-    if (trim(tracer_prop(i)%tracname) == 'inert') then; INERTloc = i; endif ! location in svm    
+    if (trim(tracer_prop(i)%tracname) == 'inert') then; INERTloc = i; endif ! location in svm
     if (.not. tracer_prop(i)%lreact) cycle
     do j=1,nchsp
-      if ( trim(tracer_prop(i)%tracname) == to_lower(trim(chem_name(j))) ) then 
+      if ( trim(tracer_prop(i)%tracname) == to_lower(trim(chem_name(j))) ) then
         tracer_prop(i)%chem_idx = j ! tracer index in chemistry input (chem.inp)
-write (*,*) 'tracer location in namtracers and chem.inp, resp. ', trim(tracer_prop(i)%tracname), i, j
+! write (*,*) 'tracer location in namtracers and chem.inp, resp. ', trim(tracer_prop(i)%tracname), i, j
       endif
     enddo
   enddo
