@@ -24,7 +24,6 @@
 
 module modtracers
 
-  use modfields, only : svm, sv0, svp  
   use modglobal, only : nsv
 
   implicit none
@@ -34,8 +33,8 @@ module modtracers
 
   integer  :: iname
   logical  :: ltracers = .false. ! tracer switch
-  character(len = 6), dimension(100) :: & 
-              tracernames = (/ ('      ', iname=1, 100) /) ! list with scalar names,
+  character(len = 6), dimension(200) :: &
+              tracernames = (/ ('      ', iname=1, 200) /) ! list with scalar names,
 
   ! Data structure for tracers
   type T_tracer
@@ -48,6 +47,8 @@ module modtracers
       character(len=16) :: unit     
       ! Tracer index in sv0, svm, svp
       integer           :: trac_idx 
+      ! Tracer index in chem.inp
+      integer           :: chem_idx
       ! Boolean if tracer is emitted 
       logical           :: lemis
       ! Boolean if tracer is reactive
@@ -99,7 +100,7 @@ contains
 
     ! Broadcast namelist values to all MPI tasks
     call MPI_BCAST(ltracers,             1, mpi_logical, 0, comm3d, mpierr)
-    call mpi_bcast(tracernames(1:100), 100, mpi_character, 0, comm3d, ierr)
+    call mpi_bcast(tracernames(1:200), 200, mpi_character, 0, comm3d, ierr)
 
     allocate(tracer_prop(nsv), stat=ierr)
     if (ierr/=0) stop
@@ -133,10 +134,11 @@ contains
 
     implicit none
 
-    ! First assign tracer index values
-    ! They are equal to the sv index by default
+    ! First assign tracer index values. They are equal to the sv index by default and to order of tracers in scalar.inp.
+    ! Chem indices are assigned when reading in chemp.inp. Here initialized with dummy value.
     do isv=1,nsv
       tracer_prop(isv) % trac_idx = isv
+      tracer_prop(isv) % chem_idx = -1
     end do
 
     do isv=1,nsv
@@ -159,7 +161,7 @@ contains
       tracer_prop(isv) % lmicro   = findval_logical(tracernames(isv), tracname_short, &
                                       tracer_is_microphys, defltvalue=.false.)  ! Default is False
 
-      write(*,*) 'tracer props ', tracer_prop(isv) % trac_idx, tracer_prop(isv) % tracname, tracer_prop(isv) % traclong, tracer_prop(isv) % unit, tracer_prop(isv) % lemis, tracer_prop(isv) % ldep, tracer_prop(isv) % lreact, tracer_prop(isv) % lags, tracer_prop(isv) % lmicro
+      ! write(*,*) 'tracer props ', tracer_prop(isv) % trac_idx, tracer_prop(isv) % tracname, tracer_prop(isv) % traclong, tracer_prop(isv) % unit, tracer_prop(isv) % lemis, tracer_prop(isv) % ldep, tracer_prop(isv) % lreact, tracer_prop(isv) % lags, tracer_prop(isv) % lmicro
     end do
 
   end subroutine assign_tracer_props

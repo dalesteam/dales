@@ -66,7 +66,7 @@ module modtracdata
   ! tracer long names:
   character(len=30), parameter  ::  tracname_long(nsv_all) = (/ &
                               'Rain water mixing ratio       ', &   ! qr
-                              'Number concentration          ', &   ! nr
+                              'Cloud droplet number          ', &   ! nr
                               'Carbon dioxide                ', &   ! co2
                               'Carbon dioxide - vegetation   ', &   ! co2veg
                               'Carbon dioxide - sum          ', &   ! co2sum

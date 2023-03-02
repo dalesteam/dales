@@ -206,7 +206,6 @@ subroutine calc_tile_fractions
 
     integer :: i, j
     real :: c_liq
-    character(len=3) :: lushort
     real :: base_frac_sum
     real :: sum_frac, sum_basefrac
 
@@ -1086,8 +1085,11 @@ subroutine initlsm
         call MPI_BCAST(co2_index,      1, mpi_integer, 0, comm3d, mpierr)
         call MPI_BCAST(dz_soil, kmax_soil, my_real, 0, comm3d, mpierr)
 
-    ! write(*,*) 'nlu from namoptions ', nlu 
-    ! call flush()
+        ! check if nlu_file==nlu-1 ('wet skin' is not in file)
+        if (.not. lheterogeneous) then
+          write(6,"(A100, i3)") "Homogeneous land use; Note that 1 additional LU type (ws) is added on runtime. &
+                                    Include it in nlu  ", nlu
+        end if
 
         allocate(tile(nlu), stat=ierr)
         if (ierr/=0) stop

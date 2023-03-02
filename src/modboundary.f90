@@ -80,7 +80,7 @@ contains
 
     call cyclicm
     call cyclich
-    call setboundaries
+    ! call setboundaries
   
     call topm
     call toph
