@@ -175,7 +175,6 @@ contains
                 call ncinfo(ncname1( 8,:),   'buoyxz', 'xz crosssection of the buoyancy',                          'K',       't0tt')
                 call ncinfo(ncname1( 9,:),   'e120xz', 'xz crosssection of sqrt(turbulent kinetic energy)',        'm^2/s^2', 't0tt')
                 call ncinfo(ncname1(10,:),'cloudnrxz', 'xz crosssection of the cloud number',                      '-',       't0tt')
-                enddo
                 do n = 1,nsv
                   call ncinfo(ncname1(10+n,:), tracer_prop(n)%tracname, tracer_prop(n)%traclong//' specific concentration', tracer_prop(n)%unit, 't0tt')
                 enddo

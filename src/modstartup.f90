@@ -69,9 +69,9 @@ contains
     use modemission,       only : initemission
     use modlsm,            only : initlsm, kmax_soil
     use moddrydeposition,  only : initdrydep
-    use modfields,         only : initfields
+    use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp
     use modtracers,        only : inittracers
-    use modpois,           only : initpois
+    use modpois,           only : initpois,poisson
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
