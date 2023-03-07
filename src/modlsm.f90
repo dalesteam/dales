@@ -1682,8 +1682,8 @@ subroutine init_heterogeneous_nc
     use netcdf
     use modglobal,   only : i1, j1, lwarmstart, iexpnr, eps1
     use modglobal,   only : i2, j2
-    use modmpi,      only : myidx, myidy
-    use modglobal,   only : imax, jmax
+    use modmpi,      only : myid, myidx, myidy
+    use modglobal,   only : imax, jmax, itot, jtot
 
     use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
     implicit none
@@ -1695,20 +1695,36 @@ subroutine init_heterogeneous_nc
     integer       :: ncid , varid
     character     :: lvegs(nlu-1)
     character     :: laqus(nlu-1)
-    integer       :: nlu_file
+    integer       :: nlu_file, len_x, len_y
     
     write(input_file(9:11), '(i3.3)') iexpnr
 
     write(6,"(A18, A32)") "Reading LSM input: ", input_file
     call check( nf90_open(input_file, nf90_nowrite, ncid) )
 
-    call check( nf90_inq_dimid(ncid, 'nlu', varid) )
-    call check( nf90_inquire_dimension(ncid, varid, len=nlu_file) )
-    
-    ! check if nlu_file==nlu-1 ('wet skin' is not in file)
-    if (nlu-1 /= nlu_file) then
-      write(6,"(A58, i3, A3, i3)") "STOPPED. Number of LU types in file differs from nlu-1:  ", nlu-1, " /=", nlu_file
-      stop
+    if (myid==0) then
+      call check( nf90_inq_dimid(ncid, 'nlu', varid) )
+      call check( nf90_inquire_dimension(ncid, varid, len=nlu_file) )
+      
+      ! check if nlu_file==nlu-1 ('wet skin' is not in file)
+      if (nlu-1 /= nlu_file) then
+        write(6,"(A58, i3, A3, i3)") "STOPPED. Number of LU types in file differs from nlu-1:  ", nlu-1, " /=", nlu_file
+        stop
+      end if
+
+      ! check if dimensions of lsm.inp_xxx.nc agree with the DALES domain
+      call check( nf90_inq_dimid(ncid, 'x', varid) )
+      call check( nf90_inquire_dimension(ncid, varid, len=len_x) )
+      if (len_x /= itot) then
+        write(6,"(A62, i3, A3, i3)") "STOPPED. x-dimension of lsm.inp differs from DALES domain: ", len_x, " /=", itot
+        stop
+      end if
+      call check( nf90_inq_dimid(ncid, 'y', varid) )
+      call check( nf90_inquire_dimension(ncid, varid, len=len_y) )
+      if (len_y /= jtot) then
+        write(6,"(A62, i3, A3, i3)") "STOPPED. y-dimension of lsm.inp differs from DALES domain: ", len_y, " /=", jtot
+        stop
+      end if
     end if
 
     ! set land use names and indices, and whether it's vegetation or not
