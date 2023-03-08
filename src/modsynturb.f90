@@ -24,7 +24,7 @@
 !
 module modsynturb
 use netcdf
-use modglobal,only: lsynturb,iturb,lboundary,lperiodic,boundary,nmodes,lambda,tau,dxint,dyint,itot,jtot,dx,dy,kmax
+use modglobal,only: lsynturb,iturb,lboundary,lperiodic,boundary,nmodes,lambda,tau,dxturb,dyturb,itot,jtot,dx,dy,kmax
 use RandomNumbers, only : getRandomReal,randomNumberSequence,new_RandomNumberSequence
 use modprecision, only: field_r
 implicit none
@@ -33,7 +33,7 @@ real, allocatable, dimension(:) :: omega,omega_thl,omega_qt,p_thl,p_qt,q_thl,q_q
 real, allocatable, dimension(:) :: xf,xh,yf,yh
 real :: nisqrt,ctot,nisqrt2
 real, dimension(3) :: lambdasxyz
-integer :: nxpatch,nypatch,nzpatch
+integer :: nxturb,nyturb,nzturb
 integer, parameter :: isepsim_mom = 10,isepsim_all=11, isynturb_mom = 0, isynturb_all = 1
 integer :: ntturb,itimestep=1
 real, allocatable, dimension(:) :: tturb
@@ -69,9 +69,9 @@ contains
         nisqrt2 = sqrt(1./nmodes)
         ctot = lambda/tau
         noise = new_RandomNumberSequence(seed = 100)
-        nxpatch = int(dx/dxint*real(itot));
-        nypatch = int(dy/dyint*real(jtot));
-        nzpatch = kmax
+        nxturb = int(dx/dxturb*real(itot));
+        nyturb = int(dy/dyturb*real(jtot));
+        nzturb = kmax
         lambdas = merge(lambda,lambdas,lambdas==-1.)
         lambdasxyz = (/merge(lambdas,lambdas_x,lambdas_x==-1.), &
                     & merge(lambdas,lambdas_y,lambdas_y==-1.), &
@@ -403,7 +403,7 @@ contains
   end subroutine calc_eigdec
 
   subroutine calc_pert(ib,x,y,z,nx,ny,nz,uturb,iuturb)
-    use modglobal, only : rtimee,dxint,dyint
+    use modglobal, only : rtimee,dxturb,dyturb
     use modmpi, only : myidx,myidy
     implicit none
     real, dimension(:), intent(in) :: x,y,z
@@ -425,11 +425,11 @@ contains
       pi1 => i; pi2 => j; pi1patch => ipatch; pi2patch => jpatch
     end select
     do i = 1,nx
-      xx(1) = x(i); ipatch = min(int(x(i)/dxint)+1,nxpatch)
+      xx(1) = x(i); ipatch = min(int(x(i)/dxturb)+1,nxturb)
     do j = 1,ny
-      xx(2) = y(j); jpatch = min(int(y(j)/dyint)+1,nypatch)
+      xx(2) = y(j); jpatch = min(int(y(j)/dyturb)+1,nyturb)
     do k = 1,nz
-      xx(3) = z(k); kpatch = min(k,nzpatch)
+      xx(3) = z(k); kpatch = min(k,nzturb)
       ci     = boundary(ib)%ci(pi1patch,pi2patch,:)
       eigvec = boundary(ib)%eigvec(pi1patch,pi2patch,:,:)
       utemp = 0.; vtemp = 0.; wtemp = 0.
@@ -492,11 +492,11 @@ contains
       pi1 => i; pi2 => j; pi1patch => ipatch; pi2patch => jpatch
     end select
     do i = 1,nx
-      xx(1) = x(i); ipatch = min(int(x(i)/dxint)+1,nxpatch)
+      xx(1) = x(i); ipatch = min(int(x(i)/dxturb)+1,nxturb)
     do j = 1,ny
-      xx(2) = y(j); jpatch = min(int(y(j)/dyint)+1,nypatch)
+      xx(2) = y(j); jpatch = min(int(y(j)/dyturb)+1,nyturb)
     do k = 1,nz
-      xx(3) = z(k); kpatch = min(k,nzpatch)
+      xx(3) = z(k); kpatch = min(k,nzturb)
       ci     = boundary(ib)%ci(pi1patch,pi2patch,:)
       eigvec = boundary(ib)%eigvec(pi1patch,pi2patch,:,:)
       utemp = 0.; vtemp = 0.; wtemp = 0.; thltemp = 0.; qttemp = 0.
