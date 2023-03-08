@@ -53,7 +53,7 @@ contains
     use mpi
     use modmpi,   only :myid,my_real,comm3d,mpi_logical,mpi_integer,myidx,myidy
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
-    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc
+    use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,writestat_dims_nc, nctiminfo
     use modtracers, only : tracer_prop
     implicit none
     integer :: ierr, n
@@ -103,7 +103,7 @@ contains
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
       allocate(ncname(nvar,4))
-      call ncinfo(tncname(1,:),'time','Time','s','time')
+      call nctiminfo(tncname(1, :))
       call ncinfo(ncname( 1,:),'u','West-East velocity','m/s','mttt')
       call ncinfo(ncname( 2,:),'v','South-North velocity','m/s','tmtt')
       call ncinfo(ncname( 3,:),'w','Vertical velocity','m/s','ttmt')
