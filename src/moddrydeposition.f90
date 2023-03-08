@@ -224,9 +224,6 @@ subroutine depac_call(ilu, species)
       if (missing_real(Rc(i, j), -9999.)) then
         Rc(i,j) = 1.e5
       endif
-if (i==3 .and. j==3) then
-write(*,*) 'after depac call ', tile(ilu)%lushort, depac_ilu, depac_species, lai, sai, rc(i,j)                  
-endif
     end do
   end do
 
