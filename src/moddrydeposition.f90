@@ -220,6 +220,13 @@ subroutine depac_call(ilu, species)
       call DryDepos_Gas_DEPAC(depac_species, int(xday), xlat, T, &
                               tile(ilu)%ustar(i, j), -swd(i, j, 1), sinphi, RH, lai, sai, nwet, &
                               depac_ilu, iratns, Rc(i, j), ccomp_tot, 0.0, 0.0, status, tsea=tile(ilu)%tskin(i, j))
+      ! check for missing Rc values, i.e. -9999, and return huge resistance, so virtually no deposition takes place
+      if (missing_real(Rc(i, j), -9999.)) then
+        Rc(i,j) = 1.e5
+      endif
+if (i==3 .and. j==3) then
+write(*,*) 'after depac call ', tile(ilu)%lushort, depac_ilu, depac_species, lai, sai, rc(i,j)                  
+endif
     end do
   end do
 
@@ -368,7 +375,7 @@ subroutine calc_lai_sai(luclass, doy, latitude, SAI_a, SAI_b, lai, sai)
   tab_data = lai_par(idx)
 
   ! In case the values are not defined, return zero for LAI and SAI
-  if (missing_int(tab_data%sgs50)) then
+  if (missing_int(tab_data%sgs50, -999)) then
     lai = 0.0
     sai = 0.0
     return
@@ -418,7 +425,7 @@ subroutine SGS_MGS_EGS(tab_data, latitude, sgs, mgs, egs)
   real, intent(out) :: sgs, mgs, egs
 
   ! If no data is defined, return sensible data
-  if (missing_int(tab_data%sgs50)) then
+  if (missing_int(tab_data%sgs50, -999)) then
     sgs = 0.0
     mgs = 0.0
     egs = 365.0
@@ -467,19 +474,20 @@ end function get_depac_luindex
 !!
 !! Apalling way to check for missing values...
 !!
-!! @param[in] x Check whether x is 'missing', i.e. -999
-logical function missing_real(x)
+!! @param[in] x Check whether x is 'missing'
+!! @param[in] val Value to check x against. e.g. -999
+logical function missing_real(x, val)
   implicit none
-  real, intent(in) :: x
+  real, intent(in) :: x, val
   ! bandwidth for checking (in)equalities of floats
   real, parameter :: EPS = 1.0e-5
-  missing_real = (abs(x + 999.) .le. EPS)
+  missing_real = (abs(x - val) .le. EPS)
 end function missing_real
 
-logical function missing_int(x)
+logical function missing_int(x, val)
   implicit none
-  integer, intent(in) :: x
-  missing_int = missing_real(real(x))
+  integer, intent(in) :: x, val
+  missing_int = missing_real(real(x), real(val))
 end function missing_int
 
 end module moddrydeposition
