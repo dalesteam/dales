@@ -85,7 +85,7 @@ contains
     use modmpi,            only : initmpi,commwrld,my_real,myid,nprocx,nprocy,mpierr,periods
     use modchem,           only : initchem
     use modversion,        only : git_version
-    use modopenboundary,   only : initopenboundary,openboundary_divcorr,openboundary_excjs
+    use modopenboundary,   only : initopenboundary,openboundary_divcorr,openboundary_excjs,lbuoytop
     use modchecksim,       only : chkdiv
 
     implicit none
@@ -116,7 +116,7 @@ contains
     namelist/SOLVER/ &
         solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond, hypre_logging
     namelist/OPENBC/ &
-        lopenbc,linithetero,lper,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z
+        lopenbc,linithetero,lper,lbuoytop,dxint,dyint,dzint,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z,lbuoytop
 
 
     ! get myid
@@ -288,6 +288,7 @@ contains
     call MPI_BCAST(lopenbc,1,MPI_LOGICAL,0,commwrld,mpierr)
     call MPI_BCAST(linithetero,1,MPI_LOGICAL,0,commwrld,mpierr)
     call MPI_BCAST(lperiodic,5,MPI_LOGICAL,0,commwrld,mpierr)
+    call MPI_BCAST(lbuoytop,1,MPI_LOGICAL,0,commwrld,mpierr)
     call MPI_BCAST(dxint,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(dyint,1,MY_REAL   ,0,commwrld,mpierr)
     call MPI_BCAST(dzint,1,MY_REAL   ,0,commwrld,mpierr)

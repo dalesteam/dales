@@ -43,6 +43,8 @@ integer :: nxpatch, nypatch, nzpatch
 real, dimension(:,:), allocatable :: uturbtemp,vturbtemp,wturbtemp
 real, dimension(:), allocatable :: rhointi
 real, dimension(:,:,:), allocatable :: thls_hetero,ps_hetero
+real :: ibuoy = 0.
+logical :: lbuoytop = .false.
 integer :: nx1max,nx2max
 
 contains
@@ -65,6 +67,8 @@ contains
     if(any(iadv_sv(1:nsv)/=2)) stop 'Only second order advection scheme supported with openboundaries, change iadv_sv to 2'
     if(cu/=0.) stop 'Translation velocity not allowed in combination with open boundaries, set cu to 0'
     if(cv/=0.) stop 'Translation velocity not allowed in combination with open boundaries, set cv to 0'
+    ! Set buoyancy term at top boundary on or off (off default)
+    if(lbuoytop) ibuoy = 1.
     ! Check if boundary is present on process
     if(myidx==0)        lboundary(1) = .true.
     if(myidx==nprocx-1) lboundary(2) = .true.
@@ -1161,7 +1165,7 @@ contains
           if(uwallcurrent>=0.) then ! Outflow (Radiation)
             wp(i+1,j+1,k1) = -min(max(boundary(5)%uphase(ipatch,jpatch),uwallcurrent),dzf(kmax)/rdt) * &
               (rhobh(k1)*w0(i+1,j+1,k1)-rhobh(kmax)*w0(i+1,j+1,kmax))/(dzf(kmax)*rhobh(k1)) + &
-              grav*(thv0h(i+1,j+1,k1)-thvh(k1))/thvh(k1)
+              ibuoy*(grav*(thv0h(i+1,j+1,k1)-thvh(k1))/thvh(k1))
           else ! Inflow (Dirichlet)
             unext = fpn*boundary(5)%w(i,j,itpn)+fmn*boundary(5)%w(i,j,itmn)
             wp(i+1,j+1,k1) = ((unext+turb(i,j)) - w0(i+1,j+1,k1))/tau

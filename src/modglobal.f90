@@ -154,7 +154,7 @@ save
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
       logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
-      
+
       ! Poisson solver: modpois / modhypre
       integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
                                      !                                     FFT  SMG PFMG BiCGSTAB GMRES
