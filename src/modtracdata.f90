@@ -203,9 +203,9 @@ module modtracdata
                             .true.  , &   ! NO
                             .true.  , &   ! NO2
                             .false. , &   ! CH4
-                            .true.  , &   ! CH2O
-                            .true.  , &   ! CH3O2
-                            .true.  , &   ! MVK
+                            .false.  , &   ! CH2O ! todo: not available in DEPAC yet
+                            .false.  , &   ! CH3O2 ! todo: not available in DEPAC yet
+                            .false.  , &   ! MVK ! todo: not available in DEPAC yet
                             .false. , &   ! ISO
                             .false. , &   ! RO2
                             .false. , &   ! OH

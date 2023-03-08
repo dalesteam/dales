@@ -46,9 +46,7 @@ module modtracers
       ! Tracer unit
       character(len=16) :: unit     
       ! Tracer index in sv0, svm, svp
-      integer           :: trac_idx 
-      ! Tracer index in chem.inp
-      integer           :: chem_idx
+      integer           :: trac_idx
       ! Boolean if tracer is emitted 
       logical           :: lemis
       ! Boolean if tracer is reactive
@@ -138,7 +136,6 @@ contains
     ! Chem indices are assigned when reading in chemp.inp. Here initialized with dummy value.
     do isv=1,nsv
       tracer_prop(isv) % trac_idx = isv
-      tracer_prop(isv) % chem_idx = -1
     end do
 
     do isv=1,nsv
@@ -147,7 +144,6 @@ contains
       tracer_prop(isv) % tracname = trim(tracernames(isv))
       tracer_prop(isv) % traclong = trim(findval_character(tracernames(isv), tracname_short, &
                                       tracname_long, defltvalue='dummy longname'))  ! Default is 'dummy '
-      ! TODO: write general find_character function to find string of of arbitrary lenght
       tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
                                       tracer_unit, defltvalue='dummy unit'))  ! Default is 'dummy unit'
       tracer_prop(isv) % lemis    = findval_logical(tracernames(isv), tracname_short, &
