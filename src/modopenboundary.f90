@@ -35,11 +35,11 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modopenboundary
-use modglobal, only : boundary_type,boundary,lopenbc,linithetero,lboundary,lperiodic,lsynturb,dzint,dxint,dyint,ntboundary,tboundary
+use modglobal, only : boundary_type,boundary,lopenbc,linithetero,lboundary,lperiodic,lsynturb,dzint,dxint,dyint,ntboundary,tboundary,dxturb,dyturb
 use modsynturb, only : synturb,initsynturb,exitsynturb
 use netcdf
 implicit none
-integer :: nxpatch, nypatch, nzpatch
+integer :: nxpatch, nypatch, nzpatch, nxturb, nyturb, nzturb
 real, dimension(:,:), allocatable :: uturbtemp,vturbtemp,wturbtemp
 real, dimension(:), allocatable :: rhointi
 real, dimension(:,:,:), allocatable :: thls_hetero,ps_hetero
@@ -104,16 +104,27 @@ contains
     boundary(5)%nx1w = imax; boundary(5)%nx2w = jmax
     ! Set number of patches for correction factor for radiation boundary conditions
     if(dxint == -1.) dxint = real(itot)*dx ! Set dxint to entire width as default
-    if(dyint == -1.) dxint = real(jtot)*dy ! Set dyint to entire width as default
+    if(dyint == -1.) dyint = real(jtot)*dy ! Set dyint to entire width as default
+    if(dxturb == -1.) dxturb = real(itot)*dx ! Set dxint to entire width as default
+    if(dyturb == -1.) dyturb = real(jtot)*dy ! Set dyint to entire width as default
     nxpatch = int(dx/dxint*real(itot));
     nypatch = int(dy/dyint*real(jtot));
     nzpatch = kmax ! For now vertical integration scale is set equal to dz
+    nxturb = int(dx/dxturb*real(itot));
+    nyturb = int(dy/dyturb*real(jtot));
+    nzturb = kmax ! For now vertical resolution turbulence input must equal dz
     if(mod(dxint,dx)/=0 .or. mod(dyint,dy)/=0) stop 'dxint and dyint should be multiples of dx and dy respectively.'
+    if(mod(dxturb,dx)/=0 .or. mod(dyturb,dy)/=0) stop 'dxturb and dyturb should be multiples of dx and dy respectively.'
     boundary(1)%nx1patch = nypatch; boundary(1)%nx2patch = nzpatch
     boundary(2)%nx1patch = nypatch; boundary(2)%nx2patch = nzpatch
     boundary(3)%nx1patch = nxpatch; boundary(3)%nx2patch = nzpatch
     boundary(4)%nx1patch = nxpatch; boundary(4)%nx2patch = nzpatch
     boundary(5)%nx1patch = nxpatch; boundary(5)%nx2patch = nypatch
+    boundary(1)%nx1turb = nyturb; boundary(1)%nx2turb = nzturb
+    boundary(2)%nx1turb = nyturb; boundary(2)%nx2turb = nzturb
+    boundary(3)%nx1turb = nxturb; boundary(3)%nx2turb = nzturb
+    boundary(4)%nx1turb = nxturb; boundary(4)%nx2turb = nzturb
+    boundary(5)%nx1turb = nxturb; boundary(5)%nx2turb = nyturb
     if(myid==0) print *,"dxint/dx,dyint/dy,nxpatch,nypatch",int(dxint/dx),int(dyint/dy),nxpatch,nypatch
     ! Allocate phase velocity, correction term radiation boundaries and pertubation fields
     do i = 1,5
@@ -293,16 +304,16 @@ contains
         allocate(boundary(ib)%sv(boundary(ib)%nx1,boundary(ib)%nx2,ntboundary,nsv))
       endif
       if(lsynturb .and. iturb<10) then ! Allocate turbulent input fields
-        allocate(boundary(ib)%u2(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%v2(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%w2(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%uv(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%uw(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%vw(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%thl2(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary),&
-        & boundary(ib)%qt2(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%wthl(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary), &
-        & boundary(ib)%wqt(boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary))
+        allocate(boundary(ib)%u2(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%v2(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%w2(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%uv(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%uw(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%vw(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%thl2(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary),&
+        & boundary(ib)%qt2(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%wthl(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary), &
+        & boundary(ib)%wqt(boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary))
       endif
       ! Read fields
       select case(ib)
@@ -367,61 +378,61 @@ contains
         STATUS = NF90_INQ_VARID(NCID, 'u2'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%u2, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read v2
         STATUS = NF90_INQ_VARID(NCID, 'v2'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%v2, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read w2
         STATUS = NF90_INQ_VARID(NCID, 'w2'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%w2, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read uv
         STATUS = NF90_INQ_VARID(NCID, 'uv'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%uv, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read uw
         STATUS = NF90_INQ_VARID(NCID, 'uw'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%uw, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read vw
         STATUS = NF90_INQ_VARID(NCID, 'vw'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%vw, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read thl2
         STATUS = NF90_INQ_VARID(NCID, 'thl2'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%thl2, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read qt2
         STATUS = NF90_INQ_VARID(NCID, 'qt2'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%qt2, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read wthl
         STATUS = NF90_INQ_VARID(NCID, 'wthl'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%wthl, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         ! Read wqt
         STATUS = NF90_INQ_VARID(NCID, 'wqt'//boundary(ib)%name, VARID)
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
         STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%wqt, start=(/1,1,1/), &
-          & count=(/boundary(ib)%nx1patch,boundary(ib)%nx2patch,ntboundary/))
+          & count=(/boundary(ib)%nx1turb,boundary(ib)%nx2turb,ntboundary/))
         if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       endif
     end do
