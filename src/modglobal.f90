@@ -215,7 +215,7 @@ save
       ! Variables for modopenboundary.f90
       logical :: lopenbc = .false., lsynturb = .false.,linithetero = .false.
       type boundary_type
-        integer :: nx1,nx2,nx1patch,nx2patch,nx1u,nx2u,nx1v,nx2v,nx1w,nx2w
+        integer :: nx1,nx2,nx1patch,nx2patch,nx1u,nx2u,nx1v,nx2v,nx1w,nx2w,nx1turb,nx2turb
         real(field_r), allocatable, dimension(:,:,:) :: u,v,w,thl,qt,e12, &
           & u2,v2,w2,uv,uw,vw,thl2,qt2,wthl,wqt,ci,svturb
         real(field_r), allocatable, dimension(:,:,:,:) :: sv
@@ -227,7 +227,7 @@ save
       type(boundary_type), dimension(5) :: boundary
       logical, dimension(5) :: lboundary = .false.
       logical, dimension(5) :: lperiodic =  (/.true., .true., .true., .true., .false./)
-      real :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.
+      real :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.,dxturb=-1.,dyturb=-1.
       integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
       real,dimension(:),allocatable :: tboundary
 
