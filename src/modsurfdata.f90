@@ -304,4 +304,9 @@ SAVE
   real              :: gD_land(max_lands)          = -1 !< Response factor vegetation to vapor pressure deficit [-]
   real, allocatable :: oblpatch(:,:)                    !<  Obukhov length [m]
 
+    !< Boolean and array for applying heterogeneous surface fluxes
+  logical :: lwsv_sfc_flux_hetero = .false.     !if this switch is true a file will be read with a sfc flux value
+  real, allocatable :: wsv_sfc_flux_hetero(:,:,:)
+  real, allocatable :: wsv_read(:,:)
+
 end module modsurfdata

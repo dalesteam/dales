@@ -29,6 +29,5 @@ module modibmdata
   integer, allocatable :: Nair (:)
   integer :: kibm_max                        !< index of vertical layer that contains the highest obstacle        
 
- 
 
 end module modibmdata

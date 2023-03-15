@@ -509,11 +509,11 @@ contains
           sbbuo(i,j,kmin)  = -ekh(i,j,kmin)*grav/thvf(kmin)*dthvdz(i,j,kmin)/ ( 2*e120(i,j,kmin))
     endif
     sbdiss(i,j,kmin) = - (ce1 + ce2*zlt(i,j,kmin)*deltai(kmin)) * e120(i,j,kmin)**2 /(2.*zlt(i,j,kmin))
+    e12p(i,j,kmin) = e12p(i,j,kmin) + &
+            sbshr(i,j,kmin)+sbbuo(i,j,kmin)+sbdiss(i,j,kmin)
   end do
   end do
 
-  e12p(2:i1,2:j1,kmin) = e12p(2:i1,2:j1,kmin) + &
-            sbshr(2:i1,2:j1,kmin)+sbbuo(2:i1,2:j1,kmin)+sbdiss(2:i1,2:j1,kmin)  
 
   return
   end subroutine sources

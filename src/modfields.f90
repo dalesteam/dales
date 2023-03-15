@@ -132,11 +132,11 @@ save
   !cstep cibm IBM variables
   integer, allocatable :: ksfc (:,:)                !< cibm lowest surface point
  
-   ! Local emissions
-  real :: nsv_loc = 0  !nr of local emissions in a subdomain
-  integer, allocatable :: isv_loc(:),jsv_loc(:),ksv_loc(:)  !the local grid locations
-  real   , allocatable :: svtend_loc(:)   !the local scalar emission (dsv/dt)
-  integer, allocatable :: nsv_glob_nr(:)  !the locations and fluxes apply to the scalar with this number (1...nsv)
+!cstep   ! Local emissions
+!cstep  real :: nsv_loc = 0  !nr of local emissions in a subdomain
+!cstep  integer, allocatable :: isv_loc(:),jsv_loc(:),ksv_loc(:)  !the local grid locations
+!cstep  real   , allocatable :: svtend_loc(:)   !the local scalar emission (dsv/dt)
+!cstep  integer, allocatable :: nsv_glob_nr(:)  !the locations and fluxes apply to the scalar with this number (1...nsv)
 
 
 
@@ -247,12 +247,12 @@ subroutine initfields
 
     allocate(surf_rain(2-ih:i1+ih,2-jh:j1+jh))
 
-    allocate(ksfc(2-ih:i1+ih,2-jh:j1+jh)) !cibm
-    allocate(isv_loc(nsv))
-    allocate(jsv_loc(nsv))
-    allocate(ksv_loc(nsv))
-    allocate(nsv_glob_nr(nsv))
-    allocate(svtend_loc(nsv))
+    allocate(ksfc     (2-ih:i1+ih,2-jh:j1+jh)) !cibm
+ !cstep   allocate(isv_loc(nsv))
+ !cstep   allocate(jsv_loc(nsv))
+ !cstep   allocate(ksv_loc(nsv))
+ !cstep   allocate(nsv_glob_nr(nsv))
+ !cstep   allocate(svtend_loc(nsv))
 
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.
@@ -281,7 +281,7 @@ subroutine initfields
     surf_rain = 0
     
     ksfc = 1    !cibm .this is the default value, if not IBM, then all k-loops are executed from k=ksfc=1
-    isv_loc=0 ;jsv_loc=0;ksv_loc=0;svtend_loc=0.;nsv_glob_nr=0
+ !cstep   isv_loc=0 ;jsv_loc=0;ksv_loc=0;svtend_loc=0.;nsv_glob_nr=0
   end subroutine initfields
 
 !> Deallocate the fields
@@ -303,7 +303,7 @@ subroutine initfields
     deallocate(qsat)
     deallocate(surf_rain)
     deallocate(ksfc)     !cibm
-    deallocate(isv_loc,jsv_loc,ksv_loc,svtend_loc,nsv_glob_nr) !cibm
+!cstep    deallocate(isv_loc,jsv_loc,ksv_loc,svtend_loc,nsv_glob_nr) !cibm
     end subroutine exitfields
 
 end module modfields

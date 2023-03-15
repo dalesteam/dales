@@ -71,16 +71,17 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror,&
+                           ih,jh,imax,jmax
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
-    use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
+    use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST, myidx,myidy
     use modibmdata, only : lapply_ibm
 
     implicit none
 
-    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
+    integer   :: i,j,k, n,landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
- character(len=1500) :: readbuffer
+    character(len=1500) :: readbuffer
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -100,7 +101,9 @@ contains
       !2leaf AGS, sunlit/shaded
       lsplitleaf, &
       ! Exponential emission function
-      i_expemis, expemis0, expemis1, expemis2
+      i_expemis, expemis0, expemis1, expemis2,&
+      ! Heterogeneous scalar fluxes
+       lwsv_sfc_flux_hetero
 
 
     ! 1    -   Initialize soil
@@ -172,6 +175,8 @@ contains
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
+  
+    call D_MPI_BCAST(lwsv_sfc_flux_hetero,   1, 0, comm3d, mpierr)
 
     if (lapply_ibm)  then
        if(myid==0) print *,"Immersed Boundary method is applied"
@@ -712,6 +717,52 @@ contains
         allocate(PARdifField   (2:i1,2:j1))
       endif  
     endif
+
+   if (lwsv_sfc_flux_hetero) then
+      allocate(wsv_read                (itot+1,jtot+1))
+      allocate(wsv_sfc_flux_hetero     (2-ih:i1+ih,2-jh:j1+jh,nsv))
+    
+       if (myid==0) then
+        write(6,*) 'Reading inputfile of heterogeneous surface fluxes'
+        open (ifinput,file='wsv.inp.'//cexpnr)
+      endif
+
+      do n=1,nsv
+
+        if (myid==0) then
+          do j=jtot,1,-1  !cstep
+            read (ifinput,'(a1000)') readbuffer
+
+            do while (readbuffer(1:1)=='#')  ! Skip the lines that are commented (like headers)
+              read (ifinput,'(a1000)') readbuffer
+            end do
+            read(readbuffer,*) (wsv_read(i+1,j+1),i=1,itot)
+          end do
+
+          wsv_read(1,:)=wsv_read(itot+1,:)
+          wsv_read(:,1)=wsv_read(:,jtot+1)
+
+        endif  !myid=0
+
+        call D_MPI_BCAST(wsv_read,(itot+1)*(jtot+1),0,comm3d,mpierr)
+
+        do i=2,i1
+        do j=2,j1
+          wsv_sfc_flux_hetero(i,j,n) = wsv_read(i+myidx*imax,j+myidy*jmax)
+          if (wsv_sfc_flux_hetero(i,j,n).ne.0) then
+             write (6,*) 'sfc_flux',myid,i,j,n,wsv_sfc_flux_hetero(i,j,n)
+          endif
+        enddo
+        enddo
+      enddo !nsv
+
+      if (myid==0) then
+        close(ifinput)
+      endif
+
+      deallocate(wsv_read)
+    endif !lwsv_sfc_flux_hetero
+
     return
   end subroutine initsurface
 
@@ -911,9 +962,17 @@ contains
               svflux(i,j,n) = wsv_patch(n,patchx,patchy)
             enddo
           else
-            do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n)
-            enddo
+            if(.not. lwsv_sfc_flux_hetero) then
+              do n=1,nsv
+                 svflux(i,j,n) = wsvsurf(n)
+              !   write (6,*) 'doe 1',i,j,n,svflux(i,j,n)
+              enddo
+            else
+              do n=1,nsv
+                 svflux(i,j,n) = wsv_sfc_flux_hetero(i,j,n)
+              !   write (6,*) 'doe 2',i,j,n,svflux(i,j,n)
+              enddo
+            endif
           endif
 
           if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
@@ -1041,9 +1100,17 @@ contains
               svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j))
             enddo
           else
-            do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n)
-            enddo
+            if(.not. lwsv_sfc_flux_hetero) then
+              do n=1,nsv
+                 svflux(i,j,n) = wsvsurf(n)
+              !   write (6,*) 'doe 1',i,j,n,svflux(i,j,n)
+              enddo
+            else
+              do n=1,nsv
+                 svflux(i,j,n) = wsv_sfc_flux_hetero(i,j,n)
+              !   write (6,*) 'doe 2',i,j,n,svflux(i,j,n)
+              enddo
+            endif
           endif
          
           phimzf = phim(zf(1)/obl(i,j))
@@ -1566,6 +1633,9 @@ contains
 
   subroutine exitsurface
     implicit none
+    if (lwsv_sfc_flux_hetero) then
+      deallocate(wsv_sfc_flux_hetero)
+    endif
     return
   end subroutine exitsurface
 

@@ -221,7 +221,7 @@ contains
     use modglobal, only : nsv
     implicit none
     if (nsv==0 .or. .not.ltimedepsv) return
-    deallocate(timesvz,svzt,timesvsurf)
+    deallocate(timesvz,svzt,timesvsurf,svst)
   end subroutine exittimedepsv
 
 end module modtimedepsv

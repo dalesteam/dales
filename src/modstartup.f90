@@ -391,8 +391,8 @@ contains
                                   dqtdxls,dqtdyls,dqtdtls,dpdxl,dpdyl,&
                                   wfls,whls,ug,vg,uprof,vprof,thlprof, qtprof,e12prof, svprof,&
                                   v0av,u0av,qt0av,ql0av,thl0av,sv0av,exnf,exnh,presf,presh,initial_presf,initial_presh,rhof,&
-                                  thlpcar,thvh,thvf,&
-                                  isv_loc,jsv_loc,ksv_loc,svtend_loc,nsv_loc,nsv_glob_nr !cibm , cstep local emissions
+                                  thlpcar,thvh,thvf !,&
+                                  !cstep isv_loc,jsv_loc,ksv_loc,svtend_loc,nsv_loc,nsv_glob_nr !cibm , cstep local emissions
     use modglobal,         only : i1,i2,ih,j1,j2,jh,kmax,k1,dtmax,idtmax,dt,rdt,runtime,timeleft,tres,&
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
@@ -609,48 +609,48 @@ contains
          end do
         end do
 
-        if(myid==0)then
-          if (nsv>0) then
-           open (ifinput,file='sv_local_fluxes.inp.'//cexpnr) !cstep local emissions
-           read (ifinput,'(a80)') chmess
-           read (ifinput,'(a80)') chmess
-           do n=1,nsv
-            read (ifinput,*) &
-                  ntest(n), isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
-            write(6,*) 'cibm local emission locations',ntest(n),isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
-           end do
-           isv_glob(:) = isv_glob(:) + 1
-           jsv_glob(:) = jsv_glob(:) + 1
-          end if
+ !cstep       if(myid==0)then
+ !cstep         if (nsv>0) then
+ !cstep          open (ifinput,file='sv_local_fluxes.inp.'//cexpnr) !cstep local emissions
+ !cstep          read (ifinput,'(a80)') chmess
+ !cstep          read (ifinput,'(a80)') chmess
+ !cstep          do n=1,nsv
+ !cstep           read (ifinput,*) &
+ !cstep                 ntest(n), isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
+ !cstep           write(6,*) 'cibm local emission locations',ntest(n),isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
+ !cstep          end do
+ !cstep          isv_glob(:) = isv_glob(:) + 1
+ !cstep          jsv_glob(:) = jsv_glob(:) + 1
+ !cstep         end if
 
-        end if ! end if myid==0
+ !cstep       end if ! end if myid==0
 
-        call D_MPI_BCAST(ntest,nsv,0,comm3d,mpierr)
-        call D_MPI_BCAST(isv_glob,nsv,0,comm3d,mpierr)
-        call D_MPI_BCAST(jsv_glob,nsv,0,comm3d,mpierr)
-        call D_MPI_BCAST(ksv_glob,nsv,0,comm3d,mpierr)
-        call D_MPI_BCAST(svtend_glob,nsv,0,comm3d,mpierr)
+ !cstep       call D_MPI_BCAST(ntest,nsv,0,comm3d,mpierr)
+ !cstep       call D_MPI_BCAST(isv_glob,nsv,0,comm3d,mpierr)
+ !cstep       call D_MPI_BCAST(jsv_glob,nsv,0,comm3d,mpierr)
+ !cstep       call D_MPI_BCAST(ksv_glob,nsv,0,comm3d,mpierr)
+ !cstep       call D_MPI_BCAST(svtend_glob,nsv,0,comm3d,mpierr)
 
-        do n=1,nsv
-         write(6,*) 'cstep after broadcasting',myid,ntest(n),isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
-        enddo
+ !cstep       do n=1,nsv
+ !cstep        write(6,*) 'cstep after broadcasting',myid,ntest(n),isv_glob(n),jsv_glob(n),ksv_glob(n),svtend_glob(n)
+ !cstep       enddo
 
-        nsv_loc = 0
-        do n=1,nsv
-          do i=2,i1
-            do j=2,j1
-              if (isv_glob(n).eq.(i+myidx*imax).and.jsv_glob(n).eq.(j+myidy*jmax)) then
-                nsv_loc = nsv_loc + 1  !cstep nr of local scalar emissions
-                isv_loc (nsv_loc) = i
-                jsv_loc (nsv_loc) = j
-                ksv_loc (nsv_loc) = ksv_glob(n)
-                svtend_loc (nsv_loc) = svtend_glob(n)
-                nsv_glob_nr(nsv_loc) = n
-                write(6,*) 'local source present at ',myid,i,j,i+myidx*imax,j+myidy*jmax,isv_glob(n),jsv_glob(n)
-              endif
-            enddo
-          enddo
-        enddo
+ !cstep       nsv_loc = 0
+ !cstep       do n=1,nsv
+ !cstep         do i=2,i1
+ !cstep           do j=2,j1
+ !cstep             if (isv_glob(n).eq.(i+myidx*imax).and.jsv_glob(n).eq.(j+myidy*jmax)) then
+ !cstep               nsv_loc = nsv_loc + 1  !cstep nr of local scalar emissions
+ !cstep               isv_loc (nsv_loc) = i
+ !cstep               jsv_loc (nsv_loc) = j
+ !cstep               ksv_loc (nsv_loc) = ksv_glob(n)
+ !cstep               svtend_loc (nsv_loc) = svtend_glob(n)
+ !cstep               nsv_glob_nr(nsv_loc) = n
+ !cstep               write(6,*) 'local source present at ',myid,i,j,i+myidx*imax,j+myidy*jmax,isv_glob(n),jsv_glob(n)
+ !cstep             endif
+ !cstep           enddo
+ !cstep         enddo
+ !cstep       enddo
 
       endif   !lapply_ibm
 
