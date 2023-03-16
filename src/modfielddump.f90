@@ -40,7 +40,7 @@ save
   character(80),dimension(:,:), allocatable :: ncname
   character(80),dimension(1,4) :: tncname
 
-  real    :: dtav, tmin, tmax
+  real    :: dtav, tmin, tmax, qrminout
   integer(kind=longint) :: idtav,tnext,itmax,itmin
   integer :: klow,khigh,ncoarse=-1
   logical :: lfielddump= .false. !< switch to enable the fielddump (on/off)
@@ -62,21 +62,24 @@ contains
   subroutine initfielddump
     use modmpi,   only :myid,comm3d,mpi_logical,mpi_integer,myidx,myidy &
                        , D_MPI_BCAST
-    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,checknamelisterror
+    use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
+         checknamelisterror, output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modmicrodata,only: qrmin
+
     implicit none
     integer :: ierr, n
     character(3) :: csvname
-
     namelist/NAMFIELDDUMP/ &
          dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lsv
+         lu, lv, lw, lqt, lql, lthl, lbuoy, lsv, qrminout
 
     dtav=dtav_glob
     klow=1
     khigh=kmax
     tmin = 0.
     tmax = 1e8
+    qrminout=qrmin
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMFIELDDUMP,iostat=ierr)
@@ -101,6 +104,7 @@ contains
     call D_MPI_BCAST(lthl        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lbuoy       ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
+    call D_MPI_BCAST(qrminout    ,1,0,comm3d,ierr)
 
     if (ncoarse==-1) then
       ncoarse = 1
@@ -170,7 +174,8 @@ contains
       end do
       nvar = ind - 1 ! total number of fields actually in use
 
-      call open_nc(fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
+      call open_nc(trim(output_prefix)//fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)
+
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
         call writestat_dims_nc(ncid, ncoarse)
@@ -356,6 +361,14 @@ contains
        do n=1,nsv
           if (lsv(n)) then
              vars(:,:,:,ind_sv(n)) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,n)
+
+             if(imicro/=imicro_none .and. n == iqr) then
+                ! round small qr to 0 at output, for better compression
+                where (vars(:,:,:,ind_sv(n)) < qrminout)
+                   vars(:,:,:,ind_sv(n)) = 0
+                end where
+             end if
+
           end if
        end do
     end if

@@ -402,7 +402,8 @@ contains
   subroutine applyibm(simid)   !< apply immersed boundary method
     use modfields,      only : um, vm, wm, thlm, qtm, e12m, svm, &
                                u0, v0, w0, thl0, qt0, e120, sv0, &
-                               up, vp, wp, thlp, qtp, e12p, svp
+                               up, vp, wp, thlp, qtp, e12p, svp, &
+                               thl0av
     use modglobal,      only : rk3step,   kmax, i1, j1, k1, ih, jh, rdt, timee, dx, dy, dzh, dzf, nsv, e12min
     use modsubgriddata, only : ekm
     use modmpi,         only : excjs 
@@ -425,6 +426,7 @@ contains
                !cstep run if lapply_ibm = true AND simid=1 without precursor simulation (so Nsim=1)
                !      or  if lapplY_ibm = true AND simid=2 with    precursor simulation (Nsim=2)
 
+    thlibm = thl0av(1) !assumes inside air has the same temperature as the air outside
 
     rk3coef = rdt / (4. - dble(rk3step))
     rk3coefi = 1. / rk3coef
@@ -691,7 +693,7 @@ contains
     call excjs( thlp  , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( qtp   , 2,i1,2,j1,1,k1,ih,jh)
     do nc=1,nsv
-      svp(:,:,:,nc)=svp(:,:,:,nc)+tempsvp(:,:,:,nc)
+     ! svp(:,:,:,nc)=svp(:,:,:,nc)+tempsvp(:,:,:,nc)  !done above
       call excjs( svp(:,:,:,nc)  , 2,i1,2,j1,1,k1,ih,jh)
     enddo
 

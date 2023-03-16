@@ -790,6 +790,7 @@ contains
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
     real     :: z_MO    !cstep height above top obstacle for MOST ibm
+    real, pointer :: ustar_3D(:,:,:)
 
     patchx = 0
     patchy = 0
@@ -954,7 +955,9 @@ contains
 !cibm          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
 
           thlflux(i,j) = - ( thl0(i,j,kmin) - tskin(i,j) ) / ra(i,j)   !cstep IBM
-          qtflux(i,j) = - (qt0(i,j,kmin)  - qskin(i,j)) / ra(i,j)      !cstep IBM
+          !qtflux(i,j) = - (qt0(i,j,kmin)  - qskin(i,j)) / ra(i,j)      !cstep IBM
+
+          qtflux(i,j) = 0
 
 
           if(lhetero) then
@@ -1163,8 +1166,10 @@ contains
 
     end if
 
-    ! Transfer ustar to neighbouring cells, reshape since excjs is a 3d function
-    call excjs(reshape(ustar, (/i1+1,j1+1,1/)),2,i1,2,j1,1,1,1,1)
+    ! Transfer ustar to neighbouring cells, do this like a 3D field
+    ustar_3D(1:size(ustar,1),1:size(ustar,2),1:1) => ustar
+    call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+
 
     return
 

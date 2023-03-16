@@ -37,14 +37,14 @@ save
 
 contains
   subroutine initsubgrid
-    use modglobal, only : ih,i1,jh,j1,k1,delta,zf,fkar,pi
+    use modglobal, only : ih,i1,jh,j1,k1,delta,deltai,dx,dy,zf,dzf,fkar,pi
     use modmpi, only : myid
 
     implicit none
 
     integer   :: k
 
-    real :: ceps, ch
+    real :: ceps
     real :: mlen
 
     call subgridnamelist
@@ -56,9 +56,12 @@ contains
     allocate(sbshr(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(csz(k1))
+    allocate(anis_fac(k1))
 
     ! Initialize variables to avoid problems when not using subgrid scheme JvdD
+    ! Determination of subgrid constants is explained in De Roode et al. 2017
     ekm=0.; ekh=0.; zlt=0.; sbdiss=0.; sbshr=0.; sbbuo=0.; csz=0.
+    anis_fac = 0.
 
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
@@ -82,6 +85,21 @@ contains
         csz(k) = mlen / delta(k)
       end do
     end if
+
+    if(lanisotrop) then
+       ! Anisotropic diffusion scheme  https://doi.org/10.1029/2022MS003095
+       ! length scale in TKE equation is delta z (private communication with Marat)
+       if ((dx.ne.dy) .and. myid == 0) stop "The anisotropic diffusion assumes dx=dy."
+       do k = 1,k1
+          deltai   (k) = 1./dzf(k)       !overrules deltai (k) = 1/delta(k) as defined in initglobal
+          anis_fac (k) = (dx/dzf(k))**2  !assumes dx=dy. is used to enhance horizontal diffusion
+       end do
+    else
+       do k = 1,k1
+          anis_fac (k) = 1.   !horizontal = vertical diffusion
+       end do
+    endif
+
 
     if (myid==0) then
       write (6,*) 'cf    = ',cf
@@ -107,7 +125,7 @@ contains
     integer :: ierr
 
     namelist/NAMSUBGRID/ &
-        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,ch1
+        ldelta,lmason,cf,cn,Rigc,Prandtl,lsmagorinsky,cs,nmason,sgs_surface_fix,ch1,lanisotrop
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -115,12 +133,16 @@ contains
       call checknamelisterror(ierr, ifnamopt, 'NAMSUBGRID')
       write(6 ,NAMSUBGRID)
       close(ifnamopt)
+
+      if (lmason .and. .not. ldelta) stop "lmason = .true. requires ldelta = .true."
+      if (lmason .and. lanisotrop) stop "lmason = .true. is not compatible with lanisotropic = .true."
     end if
 
     call D_MPI_BCAST(ldelta          ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lmason          ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(nmason          ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lsmagorinsky    ,1, 0,comm3d,mpierr)
+    call D_MPI_BCAST(lanisotrop      ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(cs              ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(cf              ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(cn              ,1, 0,comm3d,mpierr)
@@ -128,7 +150,6 @@ contains
     call D_MPI_BCAST(Prandtl         ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(sgs_surface_fix ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(ch1             ,1, 0,comm3d,mpierr)
-
   end subroutine subgridnamelist
 
   subroutine subgrid
@@ -210,7 +231,6 @@ contains
 
       do i = 2,i1
         do j = 2,j1
- 
           kmin = ksfc(i,j)
 
           kp=k+1
@@ -291,44 +311,79 @@ contains
     end do
 
   ! do TKE scheme
-  else
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-         kmin = ksfc(i,j) !cibm
-         if (k.ge.kmin) then
+ else
+    ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
+    if (ldelta) then
+       do k=1,kmax
+          do j=2,j1
+             do i=2,i1
+                zlt(i,j,k) = delta(k)
+                
+                ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+                ekh(i,j,k) = ch * ekm(i,j,k)
 
-          if (ldelta .or. (dthvdz(i,j,k)<=0)) then
-            zlt(i,j,k) = delta(k)
-            if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
-            ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
-            ekh(i,j,k) = (ch1 + ch2) * ekm(i,j,k)
+                ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+                ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+             end do
+          end do
+       end do
+    else if (lmason) then ! delta scheme with Mason length scale correction
+       do k=1,kmax
+          do j=2,j1
+             do i=2,i1
+                zlt(i,j,k) = delta(k)
+                zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)                
+                
+                ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+                ekh(i,j,k) = ch * ekm(i,j,k)
+                            
+                ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+                ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+             end do
+          end do
+       end do
+    else if (lanisotrop) then ! Anisotropic diffusion,  https://doi.org/10.1029/2022MS003095
+       do k=1,kmax
+          do j=2,j1
+             do i=2,i1
+                zlt(i,j,k) = dzf(k)
+                
+                ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+                ekh(i,j,k) = ch * ekm(i,j,k)
+                
+                ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+                ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+             end do
+          end do
+       end do
+    else ! Deardorff lengthscale correction
+       do k=1,kmax
+          do j=2,j1
+             do i=2,i1
+                zlt(i,j,k) = delta(k)
 
-            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
-            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-          else
-             ! zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
-             ! faster calculation: evaluate sqrt only if the second argument is actually smaller
-             zlt(i,j,k) = delta(k)
-             if ( grav*abs(dthvdz(i,j,k)) * delta(k)**2 > (cn*e120(i,j,k))**2 * thvf(k) ) then
-                zlt(i,j,k) = cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k)))
-             end if
-             
-            if (lmason) zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
-
-            ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
-            ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
-
-            ekm(i,j,k) = max(ekm(i,j,k),ekmin)
-            ekh(i,j,k) = max(ekh(i,j,k),ekmin)
-          endif
-         else   !ibm point
-           ekm(i,j,k) = ekmin
-           ekh(i,j,k) = ekmin
-         endif
-        end do
-      end do
-    end do
+                !original
+                !if (dthvdz(i,j,k) > 0) then
+                !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+                !end if
+                
+                ! alternative without if
+                zlt(i,j,k) = min(delta(k), &                                                     
+                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &               
+                     delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))                           
+                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)                        
+                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as                        
+                ! in the original scheme.            
+                
+                ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
+                ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
+                
+                ekm(i,j,k) = max(ekm(i,j,k),ekmin)
+                ekh(i,j,k) = max(ekh(i,j,k),ekmin)
+             end do
+          end do
+       end do
+    end if
   end if
 
 !*************************************************************
@@ -498,22 +553,27 @@ contains
 
 ! **  Include shear and buoyancy production terms and dissipation **
 
-    sbshr(i,j,kmin)  = ekm(i,j,kmin)*tdef2/ ( 2*e120(i,j,kmin))
+    sbshr(i,j,1)  = ekm(i,j,kmin)*tdef2/ ( 2*e120(i,j,kmin))
     if (sgs_surface_fix) then
           ! Replace the -ekh *  dthvdz by the surface flux of thv
           ! (but we only have the thlflux , which seems at the surface to be
           ! equivalent
           local_dthvdz = -thlflux(i,j)/ekh(i,j,kmin)
-          sbbuo(i,j,kmin)  = -ekh(i,j,kmin)*grav/thvf(kmin)*local_dthvdz/ ( 2*e120(i,j,kmin))
+          sbbuo(i,j,1)  = -ekh(i,j,kmin)*grav/thvf(kmin)*local_dthvdz/ ( 2*e120(i,j,kmin))
     else
-          sbbuo(i,j,kmin)  = -ekh(i,j,kmin)*grav/thvf(kmin)*dthvdz(i,j,kmin)/ ( 2*e120(i,j,kmin))
+          sbbuo(i,j,1)  = -ekh(i,j,kmin)*grav/thvf(kmin)*dthvdz(i,j,kmin)/ ( 2*e120(i,j,kmin))
     endif
-    sbdiss(i,j,kmin) = - (ce1 + ce2*zlt(i,j,kmin)*deltai(kmin)) * e120(i,j,kmin)**2 /(2.*zlt(i,j,kmin))
-    e12p(i,j,kmin) = e12p(i,j,kmin) + &
-            sbshr(i,j,kmin)+sbbuo(i,j,kmin)+sbdiss(i,j,kmin)
+    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,kmin)*deltai(kmin)) * e120(i,j,kmin)**2 /(2.*zlt(i,j,kmin))
   end do
   end do
 
+  do j=2,j1
+     do i=2,i1
+        kmin = ksfc(i,j)
+        e12p(i,j,kmin) = e12p(i,j,kmin) + &
+             sbshr(i,j,1)+sbbuo(i,j,1)+sbdiss(i,j,1)
+     end do
+  end do
 
   return
   end subroutine sources
@@ -545,10 +605,10 @@ contains
           a_out(i,j,k) = a_out(i,j,k) &
                     +  0.5 * ( &
                   ( (ekh(i+1,j,k)+ekh(i,j,k))*(a_in(i+1,j,k)-a_in(i,j,k)) &
-                    -(ekh(i,j,k)+ekh(i-1,j,k))*(a_in(i,j,k)-a_in(i-1,j,k)))*dx2i &
+                    -(ekh(i,j,k)+ekh(i-1,j,k))*(a_in(i,j,k)-a_in(i-1,j,k)))*dx2i * anis_fac(k) &
                     + &
                   ( (ekh(i,jp,k)+ekh(i,j,k)) *(a_in(i,jp,k)-a_in(i,j,k)) &
-                    -(ekh(i,j,k)+ekh(i,jm,k)) *(a_in(i,j,k)-a_in(i,jm,k)) )*dy2i &
+                    -(ekh(i,j,k)+ekh(i,jm,k)) *(a_in(i,j,k)-a_in(i,jm,k)) )*dy2i * anis_fac(k) &
                   + &
                   ( rhobh(kp)/rhobf(k) * (dzf(kp)*ekh(i,j,k) + dzf(k)*ekh(i,j,kp)) &
                     *  (a_in(i,j,kp)-a_in(i,j,k)) / dzh(kp)**2 &
@@ -566,11 +626,11 @@ contains
         kmin = ksfc(i,j)
         a_out(i,j,kmin) = a_out(i,j,kmin) &
                   + 0.5 * ( &
-                ( (ekh(i+1,j,kmin)+ekh(i,j,kmin))*(a_in(i+1,j,kmin)-a_in(i,j,kmin)) &
-                  -(ekh(i,j,kmin)+ekh(i-1,j,kmin))*(a_in(i,j,kmin)-a_in(i-1,j,kmin)) )*dx2i &
+                ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1)-a_in(i,j,1)) &
+                  -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1)-a_in(i-1,j,1)) )*dx2i * anis_fac(k) &
                   + &
-                ( (ekh(i,j+1,kmin)+ekh(i,j,kmin))*(a_in(i,j+1,kmin)-a_in(i,j,kmin)) &
-                  -(ekh(i,j,kmin)+ekh(i,j-1,kmin))*(a_in(i,j,kmin)-a_in(i,j-1,kmin)) )*dy2i &
+                ( (ekh(i,j+1,1)+ekh(i,j,1))*(a_in(i,j+1,1)-a_in(i,j,1)) &
+                  -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1)-a_in(i,j-1,1)) )*dy2i * anis_fac(k) &
                   + &
                 ( rhobh(kmin+1)/rhobf(kmin) * (dzf(kmin+1)*ekh(i,j,kmin) + dzf(kmin)*ekh(i,j,kmin+1)) &
                   *  (a_in(i,j,kmin+1)-a_in(i,j,kmin)) / dzh(kmin+1)**2 &
@@ -608,10 +668,10 @@ contains
           a_out(i,j,k) = a_out(i,j,k) &
                   +  ( &
               ((ekm(i+1,j,k)+ekm(i,j,k))*(e120(i+1,j,k)-e120(i,j,k)) &
-              -(ekm(i,j,k)+ekm(i-1,j,k))*(e120(i,j,k)-e120(i-1,j,k)))*dx2i &
+              -(ekm(i,j,k)+ekm(i-1,j,k))*(e120(i,j,k)-e120(i-1,j,k)))*dx2i * anis_fac(k) &
                   + &
               ((ekm(i,jp,k)+ekm(i,j,k)) *(e120(i,jp,k)-e120(i,j,k)) &
-              -(ekm(i,j,k)+ekm(i,jm,k)) *(e120(i,j,k)-e120(i,jm,k)) )*dy2i &
+              -(ekm(i,j,k)+ekm(i,jm,k)) *(e120(i,j,k)-e120(i,jm,k)) )*dy2i * anis_fac(k) &
                   + &
               (rhobh(kp)/rhobf(k) * (dzf(kp)*ekm(i,j,k) + dzf(k)*ekm(i,j,kp)) &
               *(e120(i,j,kp)-e120(i,j,k)) / dzh(kp)**2 &
@@ -632,10 +692,10 @@ contains
         kmin = ksfc(i,j) 
         a_out(i,j,kmin) = a_out(i,j,kmin) + &
             ( (ekm(i+1,j,kmin)+ekm(i,j,kmin))*(e120(i+1,j,kmin)-e120(i,j,kmin)) &
-              -(ekm(i,j,kmin)+ekm(i-1,j,kmin))*(e120(i,j,kmin)-e120(i-1,j,kmin)) )*dx2i &
+              -(ekm(i,j,kmin)+ekm(i-1,j,kmin))*(e120(i,j,kmin)-e120(i-1,j,kmin)) )*dx2i * anis_fac(k) &
             + &
             ( (ekm(i,j+1,kmin)+ekm(i,j,kmin))*(e120(i,j+1,kmin)-e120(i,j,kmin)) &
-              -(ekm(i,j,kmin)+ekm(i,j-1,kmin))*(e120(i,j,kmin)-e120(i,j-1,kmin)) )*dy2i &
+              -(ekm(i,j,kmin)+ekm(i,j-1,kmin))*(e120(i,j,kmin)-e120(i,j-1,kmin)) )*dy2i * anis_fac(k) &
             + &
               ( rhobh(kmin+1)/rhobf(kmin) * (dzf(kmin+1)*ekm(i,j,kmin) + dzf(kmin)*ekm(i,j,kmin+1)) &
               *  (e120(i,j,kmin+1)-e120(i,j,kmin)) / dzh(kmin+1)**2              )/dzf(kmin)
@@ -689,12 +749,12 @@ contains
           a_out(i,j,k) = a_out(i,j,k) &
                   + &
                   ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
-                    -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
+                    -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i * anis_fac(k) &
                   + &
                   ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
                             +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
                     -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
-                            +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) / dy &
+                            +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) / dy * anis_fac(k) &
                   + &
                   ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                             +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
@@ -744,12 +804,12 @@ contains
         a_out(i,j,kmin) = a_out(i,j,kmin) &
                 + &
               ( ekm(i,j,kmin)  * (u0(i+1,j,kmin)-u0(i,j,kmin)) &
-              -ekm(i-1,j,kmin)* (u0(i,j,kmin)-u0(i-1,j,kmin)) ) * 2. * dx2i &
+              -ekm(i-1,j,kmin)* (u0(i,j,kmin)-u0(i-1,j,kmin)) ) * 2. * dx2i * anis_fac(k) &
                 + &
               ( empo * ( (u0(i,jp,kmin)-u0(i,j,kmin))   *dyi &
                         +(v0(i,jp,kmin)-v0(i-1,jp,kmin))*dxi) &
               -emmo * ( (u0(i,j,kmin)-u0(i,jm,kmin))   *dyi &
-                        +(v0(i,j,kmin)-v0(i-1,j,kmin))  *dxi)   ) / dy &
+                        +(v0(i,j,kmin)-v0(i-1,j,kmin))  *dxi)   ) / dy * anis_fac(k) &
                + &
               ( rhobh(kmin+1)/rhobf(kmin) * emop * ( (u0(i,j,kmin+1)-u0(i,j,kmin))    /dzh(kmin+1) &
                         +(w0(i,j,kmin+1)-w0(i-1,j,kmin+1))  *dxi) &
@@ -805,10 +865,10 @@ contains
               ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                         +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
                 -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
-                        +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) / dx &
+                        +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) / dx * anis_fac(k) &
                 + &
               (ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
-              -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
+              -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i * anis_fac(k) &
                 + &
               ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                         +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
@@ -857,10 +917,10 @@ contains
                   ( epmo * ( (v0(i+1,j,kmin)-v0(i,j,kmin))   *dxi &
                             +(u0(i+1,j,kmin)-u0(i+1,jm,kmin))*dyi) &
                     -emmo * ( (v0(i,j,kmin)-v0(i-1,j,kmin))   *dxi &
-                            +(u0(i,j,kmin)-u0(i,jm,kmin))    *dyi)   ) / dx &
+                            +(u0(i,j,kmin)-u0(i,jm,kmin))    *dyi)   ) / dx * anis_fac(k) &
                   + &
                 ( ekm(i,j,kmin) * (v0(i,jp,kmin)-v0(i,j,kmin)) &
-                  -ekm(i,jm,kmin)* (v0(i,j,kmin)-v0(i,jm,kmin))  ) * 2. * dy2i &
+                  -ekm(i,jm,kmin)* (v0(i,j,kmin)-v0(i,jm,kmin))  ) * 2. * dy2i * anis_fac(k) &
                   + &
                 ( rhobh(kmin+1)/rhobf(kmin) * eomp * ( (v0(i,j,kmin+1)-v0(i,j,kmin))     /dzh(kmin+1) &
                           +(w0(i,j,kmin+1)-w0(i,jm,kmin+1))    *dyi) &
@@ -916,12 +976,12 @@ contains
                   ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
                             +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
                     -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
-                            +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))/dx &
+                            +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))/dx * anis_fac(k) &
                 + &
                   ( eopm * ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
                             +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
                     -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
-                            +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))/dy &
+                            +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))/dy * anis_fac(k) &
                 + (1./rhobh(k))*&
                   ( rhobf(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
                   - rhobf(km) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &

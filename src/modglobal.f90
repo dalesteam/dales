@@ -39,7 +39,6 @@ save
       integer ::  i2
       integer ::  j2
       integer ::  nsv = 0       !< Number of additional scalar fields
-      integer ::  ncosv = 0
 
       integer ::  ih=3
       integer ::  jh=3
@@ -188,6 +187,9 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
+      integer :: outdirs = 0    !< 1 - create output directories using myidy
+      character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory 
+
 
 
 
@@ -233,7 +235,7 @@ contains
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
-    integer :: k, n, m
+    integer :: k, n, m, ierr
     character(80) chmess
 
     !timestepping
@@ -319,7 +321,6 @@ contains
       kh = 1
     end if
 
-    ncosv = max(2*nsv-3,0)
 
     ! Global constants
 
@@ -397,7 +398,11 @@ contains
 
 
     if(myid==0)then
-      open (ifinput,file='prof.inp.'//cexpnr)
+      open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+      if (ierr /= 0) then
+         write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+         STOP
+      end if
       read(ifinput,'(a72)') chmess
       read(ifinput,'(a72)') chmess
 
@@ -475,6 +480,12 @@ contains
       write (6,*) 'lev    dz     zf      zh       dzh    delta'
       do k=k1,1,-1
         write(6,'(i4,5f10.2)') k,dzf(k),zf(k),zh(k),dzh(k),delta(k)
+      end do
+
+      do k=1,k1
+        if (dzf(k) <= 0 .or. dzh(k) <= 0) then
+          stop "Zero or negative level spacing found in dzf or dzh."
+        end if
       end do
     end if
 !     tnextrestart = trestart/tres

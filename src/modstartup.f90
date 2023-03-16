@@ -30,6 +30,7 @@
 !
 
 module modstartup
+use iso_c_binding
 use modprecision,      only : field_r
 
 implicit none
@@ -42,6 +43,16 @@ save
   real :: randthl= 0.1,randqt=1e-5                 !    * thl and qt amplitude of randomnization
   real :: randu = 0.5
   real :: wctime=8640000.   !<     * The maximum wall clock time of a simulation (set to 100 days by default)
+
+interface ! interface to use UNIX C mkdir function. Otherwise different compilers have different incompatible variants
+   function mkdir(path,mode) bind(c,name="mkdir")
+     use iso_c_binding
+     integer(c_int) :: mkdir
+     character(kind=c_char,len=1) :: path(*)
+     integer(c_int16_t), value :: mode
+   end function mkdir
+end interface
+
 
 contains
   subroutine startup(path)
@@ -59,7 +70,8 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,lnoclouds,lrigidlid,unudge,ntimedep, &
-                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror
+                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, &
+                                  outdirs, output_prefix
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -67,7 +79,7 @@ contains
     use modpois,           only : initpois
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
-                                  rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+                                  rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,sw0,&
                                   timerad,rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lcloudshading
     use modtimedep,        only : inittimedep,ltimedep,ltimedepuv
     use modtimedepsv,      only : inittimedepsv,ltimedepsv
@@ -76,7 +88,7 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use modmpi,            only : initmpi,commwrld,myid,nprocx,nprocy,mpierr &
+    use modmpi,            only : initmpi,commwrld,myid,nprocx,myidx,cmyidy,nprocy,mpierr &
                                 , D_MPI_BCAST
     use modchem,           only : initchem
     use modibm,            only : initibm !cstep IBM
@@ -91,7 +103,7 @@ contains
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
-        nprocx,nprocy
+        nprocx,nprocy,outdirs
     namelist/DOMAIN/ &
         itot,jtot,kmax,&
         xsize,ysize,&
@@ -171,6 +183,7 @@ contains
     call D_MPI_BCAST(wctime     ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timeav_glob,1,0,commwrld,mpierr)
     call D_MPI_BCAST(nsv        ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(outdirs    ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
@@ -275,6 +288,15 @@ contains
     call initsubgrid
 
     call initmicrophysics
+
+    if (outdirs == 1) then
+       output_prefix(1:3) = cmyidy
+       output_prefix(4:4) = '/'
+       if (myidx == 0) then
+            ierr = mkdir(cmyidy//c_null_char, int(o'772',c_int16_t))
+       end if
+    end if
+
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
@@ -413,7 +435,7 @@ contains
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modibmdata,        only : libm, thlibm, lapply_ibm
 
-    integer i,j,k,n
+    integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
@@ -442,7 +464,7 @@ contains
     !-----------------------------------------------------------------
 
       rdt = dtmax / 100.
-      dt  = floor(rdt/tres)
+      dt  = max(floor(rdt/tres), 1)
       timee = 0
       if (myid==0) then
 
@@ -467,7 +489,11 @@ contains
          
         else
 
-          open (ifinput,file='prof.inp.'//cexpnr)
+          open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+             STOP
+          end if
           read (ifinput,'(a80)') chmess
           write(*,     '(a80)') chmess
           read (ifinput,'(a80)') chmess
@@ -561,7 +587,11 @@ contains
       if(.not.lapply_ibm) then 
       if(myid==0)then
         if (nsv>0) then
-          open (ifinput,file='scalar.inp.'//cexpnr)
+          open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file ', 'scalar.inp.'//cexpnr
+             STOP
+          end if
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
           do k=1,kmax
@@ -826,7 +856,11 @@ contains
          
       else
 
-        open (ifinput,file='lscale.inp.'//cexpnr)
+        open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
+        if (ierr /= 0) then
+           write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
+           STOP
+        end if
         read (ifinput,'(a80)') chmess
         read (ifinput,'(a80)') chmess
         do  k=1,kmax
@@ -933,7 +967,7 @@ contains
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
     use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                           tres,ifinput,nsv,dt
+                           tres,ifinput,nsv,dt,output_prefix
     use modmpi,     only : myid, cmyid
     use modsubgriddata, only : ekm,ekh
 
@@ -948,7 +982,8 @@ contains
     name(5:5) = 'd'
     name(13:20)=cmyid
     if (myid == 0) write(6,*) 'loading ',name
-    open(unit=ifinput,file=name,form='unformatted', status='old')
+    open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
+
 
       read(ifinput)  (((u0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
 !       u0 = u0-cu
@@ -1019,7 +1054,7 @@ contains
     if (nsv>0) then
       name(5:5) = 's'
       if (myid == 0) write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
+      open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted')
       read(ifinput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
       read(ifinput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
       read(ifinput) (dsv(n),n=1,nsv)
@@ -1030,7 +1065,7 @@ contains
     if (isurf == 1) then
       name(5:5) = 'l'
       if (myid == 0) write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
+      open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
       read(ifinput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
       read(ifinput) ((tskin(i,j),i=1,i2),j=1,j2)
@@ -1081,7 +1116,7 @@ contains
                           SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt,output_prefix
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
 
@@ -1098,7 +1133,7 @@ contains
       write (name(10:11),'(i2.2)') imin
       name(13:20)= cmyid
       name(22:24)= cexpnr
-      open  (ifoutput,file=name,form='unformatted',status='replace')
+      open  (ifoutput,file=trim(output_prefix)//name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((v0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -1165,11 +1200,11 @@ contains
       close (ifoutput)
       linkname = name
       linkname(6:11) = "latest"
-      call system("ln -s -f "//name //" "//linkname)
+      call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       if (nsv>0) then
         name(5:5)='s'
-        open  (ifoutput,file=name,form='unformatted')
+        open  (ifoutput,file=trim(output_prefix)//name,form='unformatted')
         write(ifoutput) ((((sv0(i,j,k,n),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1),n=1,nsv)
         write(ifoutput) (((svflux(i,j,n),i=1,i2),j=1,j2),n=1,nsv)
         write(ifoutput) (dsv(n),n=1,nsv)
@@ -1178,13 +1213,13 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -s -f "//name //" "//linkname)
+        call system("ln -s -f "//name //" "//trim(output_prefix)//linkname) 
 
       end if
 
       if (isurf == 1) then
         name(5:5)='l'
-        open  (ifoutput,file=name,form='unformatted')
+        open  (ifoutput,file=trim(output_prefix)//name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) (((phiw(i,j,k),i=1,i2),j=1,j2),k=1,ksoilmax)
         write(ifoutput) ((tskin(i,j),i=1,i2),j=1,j2)
@@ -1201,7 +1236,7 @@ contains
         close (ifoutput)
         linkname = name
         linkname(6:11) = "latest"
-        call system("ln -s -f "//name //" "//linkname)
+        call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       end if
 
 
