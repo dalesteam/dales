@@ -332,6 +332,7 @@ contains
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       STATUS = NF90_GET_VAR (NCID, VARID, boundary(ib)%u, start=istart, &
         & count=(/boundary(ib)%nx1u,boundary(ib)%nx2u,ntboundary/))
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       ! Read v
       STATUS = NF90_INQ_VARID(NCID, 'v'//boundary(ib)%name, VARID)
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
