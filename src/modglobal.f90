@@ -801,4 +801,14 @@ subroutine checknamelisterror (ierr, ifnamopt, namelist)
   endif
 end subroutine checknamelisterror
 
+! Subroutine to check for netcdf error
+subroutine handle_err(errcode)
+use netcdf
+implicit none
+integer errcode
+
+write(6,*) 'Error: ', nf90_strerror(errcode)
+stop 2
+end subroutine handle_err
+
 end module modglobal
