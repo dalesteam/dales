@@ -71,14 +71,17 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
 
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
-    use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
+    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
+    use netcdf
 
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
+    integer   :: VARID,STATUS,NCID,timeID
+    character(len = nf90_max_name) :: RecordDimName
     character(len=1500) :: readbuffer
 
     namelist/NAMSURFACE/ & !< Soil related variables
@@ -100,8 +103,9 @@ contains
       !2leaf AGS, sunlit/shaded
       lsplitleaf, &
       ! Exponential emission function
-      i_expemis, expemis0, expemis1, expemis2
-
+      i_expemis, expemis0, expemis1, expemis2, &
+      ! heterogeneous tskin
+      ltskininp
 
     ! 1    -   Initialize soil
 
@@ -172,6 +176,8 @@ contains
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
+
+    call D_MPI_BCAST(ltskininp                  ,            1, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
@@ -703,12 +709,39 @@ contains
         allocate(PARdifField   (2:i1,2:j1))
       endif
     endif
+
+    if(ltskininp) then ! Use tskin.inp.iexpnr.nc to define surface skin temperature
+      !--- open tskin.inp.xxx.nc ---
+      STATUS = NF90_OPEN('tskin.inp.'//cexpnr//'.nc', nf90_nowrite, NCID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !--- get time dimensions
+      STATUS = NF90_INQ_DIMID(NCID, "time", timeID)
+      if (STATUS /= nf90_noerr) call handle_err(status)
+      STATUS = nf90_INQUIRE_DIMENSION(NCID, timeID, len=nttskin, name=RecordDimName)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !--- read time
+      allocate(ttskin(nttskin))
+      STATUS = NF90_INQ_VARID(NCID, 'time', VARID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      STATUS = NF90_GET_VAR (NCID, VARID, ttskin, start=(/1/), count=(/nttskin/) )
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !--- read tskin input
+      allocate(tskininp(imax,jmax,nttskin))
+      STATUS = NF90_INQ_VARID(NCID,'tskin', VARID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      STATUS = NF90_GET_VAR (NCID, VARID, tskininp, start=(/myidx*imax+1,myidy*jmax+1,1/), &
+        & count=(/imax,jmax,nttskin/))
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      STATUS = NF90_CLOSE(NCID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+    endif
+
     return
   end subroutine initsurface
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,i2,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee,lopenbc,lboundary,lperiodic
+    use modglobal,  only : i1,j1,i2,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee,lopenbc,lboundary,lperiodic,rdt
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : mpierr, comm3d, mpi_sum, excjs &
                          , D_MPI_ALLREDUCE, D_MPI_BCAST
@@ -729,6 +762,8 @@ contains
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
     real, pointer :: ustar_3D(:,:,:)
+    integer  :: itp,itm
+    real     :: tp,tm,fp,fm
 
     patchx = 0
     patchy = 0
@@ -819,10 +854,32 @@ contains
       call do_lsm
 
     elseif(isurf == 2) then
+      if(ltskininp) then ! Get interpolation coefficients for tskin.inp.xxx.nc
+        itm=1
+        if(nttskin>1) then
+          do while(rtimee-rdt>ttskin(itm))
+            itm=itm+1
+          end do
+          if (rtimee-rdt>ttskin(1)) then
+            itm=itm-1
+          end if
+          itp = itm+1
+          tm = ttskin(itm)
+          tp = ttskin(itp)
+          fm = (tp-rtimee+rdt)/(tp-tm)
+          fp = (rtimee-rdt-tm)/(tp-tm)
+        else
+          itp = 1
+          fp  = 0.
+          fm  = 1.
+        endif
+      endif
       do j = 2, j1
         do i = 2, i1
           if(lhetero) then
             tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
+          elseif(ltskininp) then ! use tskin.inp.xxx.nc for tskin
+            tskin(i,j) = fm*tskininp(i-1,j-1,itm)+fp*tskininp(i-1,j-1,itp)
           else
             tskin(i,j) = thls
           endif
