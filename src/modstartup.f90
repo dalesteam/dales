@@ -470,26 +470,36 @@ contains
     use modsurface,        only : surface,qtsurf,dthldz,ps
     use modlsm,            only : init_lsm_tiles
     use modboundary,       only : boundary
-    use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real
+    use modmpi,            only : slabsum,myid,comm3d,mpierr,my_real, MPI_INTEGER
     use modthermodynamics, only : thermodynamics,calc_halflev
     use moduser,           only : initsurf_user
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
+    use modtracers,        only : tracer_prop
+    use go,                only : to_lower, goSplitString_s
 
     integer i,j,k,n
+    integer isv, sdx
     logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
     real, allocatable :: thv0(:,:,:)
+    integer, allocatable :: scalar_indices(:)
 
-    character(80) chmess
+    character(len=512) :: chmess
+    integer            :: status, nheader, ifield
+    integer, parameter :: maxcol = 30
+    character(len=6)   :: headers(maxcol)
+    !character(len=1)   :: sep
+    character(len=6)   ::  header
+    logical            :: found
 
     allocate (height(k1))
     allocate (th0av(k1))
-    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-
+    allocate (thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate (scalar_indices(nsv))
 
     if (.not. lwarmstart) then
 
@@ -529,9 +539,9 @@ contains
         else
 
           open (ifinput,file='prof.inp.'//cexpnr)
-          read (ifinput,'(a80)') chmess
-          write(*,     '(a80)') chmess
-          read (ifinput,'(a80)') chmess
+          read (ifinput,'(a512)') chmess
+          write(*,     '(a512)') chmess
+          read (ifinput,'(a512)') chmess
 
           do k=1,kmax
             read (ifinput,*) &
@@ -578,16 +588,46 @@ contains
       if(myid==0)then
         if (nsv>0) then
           open (ifinput,file='scalar.inp.'//cexpnr)
-          read (ifinput,'(a80)') chmess
-          read (ifinput,'(a80)') chmess
+          ! reading header (2 lines)
+          read (ifinput,'(a512)') chmess
+          read (ifinput,'(a512)') chmess
+          call goSplitString_s( chmess, nheader, headers, status, sep=' ')
+          ! check if nheader equals the number of tracers in simulation (skipping first header item "#z")
+          if (nheader-1 /= nsv) then
+            write(6,"(A58, i3, A3, i3)") "STOPPED. Number of tracers in scalar.inp differs from nsv:  ", nheader-1, " /=", nsv
+            stop
+          end if
+
+          do isv=1,nsv
+            found = .false.
+            do ifield = 1, nheader
+              ! current
+              header = headers(ifield)
+              ! write(*,*) 'header: ', ifield, header
+                if (trim(to_lower(header)) == tracer_prop(isv)%tracname) then
+                  found = .true.
+                  write(6,*) 'found tracer in scalar.inp: ', tracer_prop(isv)%tracname
+                  scalar_indices(isv) = ifield -1
+                  continue
+                endif
+            enddo
+            if (.not. found) then
+              write(6,*) 'tracer not found in scalar.inp: ', tracer_prop(isv)%tracname
+              stop
+            endif
+          enddo
+          ! write(*,*) 'scalar_indices: ', scalar_indices
+
           do k=1,kmax
             read (ifinput,*) &
                   height (k), &
                   (svprof (k,n),n=1,nsv)
           end do
+
           open (ifinput,file='scalar.inp.'//cexpnr)
           write (6,*) 'height   sv(1) --------- sv(nsv) '
           do k=kmax,1,-1
+            if ( .not. k==1 ) continue
             write (6,*) &
                   height (k), &
                 (svprof (k,n),n=1,nsv)
@@ -599,6 +639,8 @@ contains
       call MPI_BCAST(wsvsurf,nsv   ,MY_REAL   ,0,comm3d,mpierr)
 
       call MPI_BCAST(svprof ,k1*nsv,MY_REAL   ,0,comm3d,mpierr)
+      call MPI_BCAST(scalar_indices, nsv, MPI_INTEGER,0,comm3d,mpierr)
+
       ! Initialize fields
       if(lopenbc .and. linithetero) then! Openboundaries with heterogeneous initialisation
         call openboundary_initfields()
@@ -642,8 +684,14 @@ contains
             do j=1,j2
               do i=1,i2
                 do n=1,nsv
-                  sv0(i,j,k,n) = svprof(k,n)
-                  svm(i,j,k,n) = svprof(k,n)
+                  ! if (i==1 .and. j==1 .and. k==1) then
+                  !   write(*,*) 'filling tracer ', tracer_prop(n)%tracname, n, sdx, i,j,k
+                  !   call flush()
+                  !   write(*,*) 'with values    ', svprof(k,sdx)
+                  ! endif
+                  sdx = scalar_indices(n)
+                  sv0(i,j,k,n) = svprof(k,sdx)
+                  svm(i,j,k,n) = svprof(k,sdx)
                 end do
               end do
             end do

@@ -160,17 +160,6 @@ contains
 
     write(6,"(A18, A12)") "Reading emission: ", sdatetime
 
-!     do isv = 1+svskip, nsv
-! write(6,"(A17, A6)") "Reading species: ", trim(emisnames(isv-svskip))
-!       call check( nf90_open( 'emissions/'//trim(emisnames(isv-svskip))//'_emis_'//sdatetime//'_3d.nc', NF90_NOWRITE, ncid))
-
-!       call check( nf90_inq_varid( ncid, emisnames(isv-svskip), varid) )
-!       call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,isv), &
-!                                   start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
-!                                   count = (/imax, jmax, kemis, 1/) ) )
-!       call check( nf90_close( ncid ) )
-
-!     end do
     iem = 1
     do isv = 1, nsv
       if (tracer_prop(isv)%lemis) then
@@ -185,7 +174,6 @@ contains
                                     start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
                                     count = (/imax, jmax, kemis, 1/) ) )
         call check( nf90_close( ncid ) )
-      write(*,*) 'emisfield read ', emisfield(10,10,1,iem)
         iem = iem + 1
       else 
         write(6,"(A20, I2, A7)") "Tracer not emitted: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname)  
