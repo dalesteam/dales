@@ -1,0 +1,9 @@
+Input files used for the initialization of each of the 3 experiments presented (+2 for the review process) in Pedruzo-Bagazgoitia et al., 2020 (https://doi.org/10.5194/acp-20-2735-2020)
+718: REF
+719: MEAN
+720: SHEAR
+--
+726: 719 + cu=3 m/s, cv=0
+728: 727 + cu=6 m/s
+
+

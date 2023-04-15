@@ -1,0 +1,9 @@
+Input files used for the initialization of each of the 6 experiments presented in Pedruzo-Bagazgoitia et al., 2017 (https://doi.org/10.1175/JHM-D-16-0279.1)
+REF:482
+DIR:473
+DIF: 474
+LAI5: 483
+AER: 479
+LAG: 478
+It also includes the inputs for the DALES simulation used in Pedruzo-Bagazgoitia et al., 2019 (https://doi.org/10.1175/MWR-D-19-0030.1) with runID 556
+

@@ -1,0 +1,22 @@
+#!/bin/bash
+#SBATCH -t 30:00:00
+#SBATCH -n 120
+#SBATCH -e errorfile.482
+#SBATCH -o errorfile.482
+iexpnr=482
+
+
+workdir=`pwd`
+rm -rf /scratch-shared/xpedruzo/R${iexpnr}
+mkdir /scratch-shared/xpedruzo/R${iexpnr}
+
+ulimit -s unlimited
+cp  dales4.1_condAGS_June07 *inp.$iexpnr namoptions.$iexpnr /scratch-shared/xpedruzo/R${iexpnr}/
+#cp /archive/xpedruzo/R${irestnr}/initd05h00* /scratch-shared/xpedruzo/R${iexpnr}/
+#cp /archive/xpedruzo/R${irestnr}/initl05h00* /scratch-shared/xpedruzo/R${iexpnr}/
+#cp /archive/xpedruzo/R${irestnr}/inits05h00* /scratch-shared/xpedruzo/R${iexpnr}/
+cd /scratch-shared/xpedruzo/R${iexpnr}
+srun ./dales4.1_condAGS_June07 namoptions.$iexpnr >output.$iexpnr
+
+#mv errorfile.$iexpnr /scratch-shared/xpedruzo/R${iexpnr}/
+

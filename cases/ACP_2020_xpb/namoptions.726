@@ -1,0 +1,196 @@
+&RUN
+iexpnr     =  726
+lwarmstart =  .false.
+startfile  =  'initd06h00m000.017'  
+runtime    =  54000 
+trestart   =  800000
+dtmax      =  10
+ladaptive  =  .true.
+irandom    =  43
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  3 
+nprocx     =  20
+nprocy     =  24
+/
+
+&DOMAIN
+itot       =  240 
+jtot       =  240 
+kmax       =  800 
+
+xsize      =  12000.
+ysize      =  12000.
+
+xlat       =  8.001
+xlon       =  2.428056
+xday       =  177.
+xtime      =  3.5
+/
+
+&PHYSICS
+isurf      =  1
+
+ps         =  99800.00
+thls       =  300.0
+lmoist     =  .true.
+lcoriol    =  .true.
+iradiation = 4
+useMcICA   = .false.
+timerad    = 60
+rad_longw  = .true.
+rad_shortw = .true.
+ltimedep   = .false.
+ltimedepz  = .false.
+ltimedepsurf = .false.
+ltimedepsvz   = .false.
+ltimedepsvsurf= .false.
+/
+
+&NAMRADIATION
+lCnstAlbedo = .true.
+/
+
+&NAMRADSTAT
+dtav        = 60
+timeav      = 60.
+lstat       = .true.
+/
+&DYNAMICS
+lqlnr      =  .true.
+cu         =  3.
+cv         =  0.
+
+iadv_mom    =  52
+iadv_tke    =  52
+iadv_thl    =  52
+iadv_qt     =  52
+iadv_sv     =  52
+/
+&NAMMICROPHYSICS
+imicro = 2
+Nc_0 = 300e6
+l_rain = .true.
+l_sedc = .true.
+l_sb = .false.
+/
+&NAMBULKMICROSTAT
+lmicrostat = .true.
+dtav = 60
+timeav = 60
+/
+&NAMSUBGRID
+sgs_surface_fix = .false.
+/
+&SUBGRID
+ldelta      = .false.
+/
+&NAMBUDGET 
+lbudget     = .true.
+dtav        = 60.
+timeav      = 60.
+/
+&NAMCHECKSIM
+tcheck      = 6
+/
+&NAMSAMPLING
+dtav        = 60
+timeav      = 60.
+lsampcl     = .true.
+lsampco     = .false.
+lsampup     = .false.
+lsampbuup   = .false.
+lsampcldup  = .false.
+/
+&NAMTIMESTAT
+ltimestat   = .true.
+dtav        = 60
+blh_nsamp = 1
+iblh_var = -2
+iblh_meth = 4
+hminthres  = 0.08
+hplusthres = 0.3
+/
+&NAMCROSSSECTION
+lcross      = .false.
+dtav        = 60
+/
+&NAMAGScross
+lAGScross   = .true.
+dtav        = 60.
+/
+&NAMGENSTAT
+lstat       = .true.
+dtav        = 60
+timeav      = 60
+/
+&NAMFIELDDUMP
+lfielddump  = .true.
+dtav        = 60
+khigh       = 600 
+/
+&NAMSTATTEND
+dtav = 60
+ltend = .true.
+timeav = 60.
+/
+&NAMHETEROSTATS
+lheterostats = .false.
+dtav = 60
+/
+&NAMDZBUDGET
+ldzbudget   = .true.
+dtav        = 60.
+timeav      = 60.
+myblh_nsamp = 1
+myhminthres  = 0.08
+myhplusthres = 0.3
+
+/
+&NAMSURFACE
+tsoilav(1)   = 301.00
+tsoilav(2)   = 301.50
+tsoilav(3)   = 302.00
+tsoilav(4)   = 303.00
+tsoildeepav  = 304.00
+
+phiwav(1)    = 0.385
+phiwav(2)    = 0.385
+phiwav(3)    = 0.385
+phiwav(4)    = 0.385
+
+rootfav(1)   = 0.35
+rootfav(2)   = 0.38
+rootfav(3)   = 0.23
+rootfav(4)   = 0.04
+
+phi          = 0.600
+phifc        = 0.491
+phiwp        = 0.314
+
+lmostlocal   = .true.
+lsmoothflux  = .false.
+rsisurf2     = 50.
+
+z0mav        = 0.05
+z0hav        = 0.01
+Cskinav      = 0.
+lambdaskinav = 3.0
+albedoav     = 0.24
+Qnetav       = -99999
+
+rsminav      = 110.
+rssoilminav  = 50.
+cvegav       = 0.9
+LAIav        = 2.
+gDav         = 0.
+Wlav         = 1.4e-4
+
+lrsAgs       = .true.
+lCO2Ags      = .true.
+lsplitleaf   = .true.
+
+R10          = 0.13
+lrelaxgc     = .false.
+kgc          = 0.00
+/
