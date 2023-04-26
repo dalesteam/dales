@@ -1,3 +1,5 @@
+cmake_minimum_required(VERSION 3.2)
+
 ### Choose CMAKE Type
 if(NOT CMAKE_BUILD_TYPE)
   set (CMAKE_BUILD_TYPE RELEASE CACHE STRING
@@ -97,10 +99,9 @@ endif()
 
 ## Project parameters
 PROJECT(DALES Fortran)
-cmake_minimum_required(VERSION 3.2)
 set(VERSION_MAJOR "4")
 set(VERSION_MINOR "4")
-set(VERSION_PATCH "0")
+set(VERSION_PATCH "1")
 
 # use nf-config to find paths to netcdf. Broken on Fedora due to module path missing.
 execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
