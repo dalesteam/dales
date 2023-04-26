@@ -108,42 +108,42 @@ contains
          call nchandle_error(nf90_def_dim(ncID, 'xt', n1, xtID))
          call nchandle_error(nf90_def_dim(ncID, 'xm', n1, xmID))
          call nchandle_error(nf90_def_var(ncID,'xt',NF90_FLOAT,xtID ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','West-East displacement of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell centers'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
          call nchandle_error(nf90_def_var(ncID,'xm',NF90_FLOAT,xmID,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','West-East displacement of cell edges'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','West-East displacement of cell edges'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(n2)) then
          call nchandle_error(nf90_def_dim(ncID, 'yt', n2, ytID))
          call nchandle_error(nf90_def_dim(ncID, 'ym', n2, ymID))
          call nchandle_error(nf90_def_var(ncID,'yt',NF90_FLOAT,ytID ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','South-North displacement of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell centers'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
          call nchandle_error(nf90_def_var(ncID,'ym',NF90_FLOAT,ymID,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','South-North displacement of cell edges'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','South-North displacement of cell edges'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(n3)) then
          call nchandle_error(nf90_def_dim(ncID, 'zt', n3, ztID))
          call nchandle_error(nf90_def_dim(ncID, 'zm', n3, zmID))
          call nchandle_error(nf90_def_var(ncID,'zt',NF90_FLOAT,(/ztID/) ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Vertical displacement of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell centers'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
          call nchandle_error(nf90_def_var(ncID,'zm',NF90_FLOAT,(/zmID/),VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Vertical displacement of cell edges'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Vertical displacement of cell edges'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(ns)) then
          call nchandle_error(nf90_def_dim(ncID, 'zts', ns, ztsID))
          call nchandle_error(nf90_def_var(ncID,'zts',NF90_FLOAT,(/ztsID/) ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Soil level depth of cell centers'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Soil level depth of cell centers'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
       if (present(nq)) then
          call nchandle_error(nf90_def_dim(ncID, 'zq', nq, zqID))
          call nchandle_error(nf90_def_var(ncID,'zq',NF90_FLOAT,(/zqID/) ,VarID))
-         call nchandle_error(nf90_put_att(ncID,VarID,'longname','Heights of interface levels'))
+         call nchandle_error(nf90_put_att(ncID,VarID,'long_name','Heights of interface levels'))
          call nchandle_error(nf90_put_att(ncID,VarID,'units','m'))
       end if
 
@@ -313,7 +313,7 @@ contains
          call nchandle_error(nf90_def_var_deflate(ncid,varID, 0, 1, deflate_level = deflate))
          ! NETCDF4 only
       end if
-      call nchandle_error(nf90_put_att(ncID,VarID,'longname',sx(n,2)))
+      call nchandle_error(nf90_put_att(ncID,VarID,'long_name',sx(n,2)))
       call nchandle_error(nf90_put_att(ncID,VarID,'units',sx(n,3)))
       call nchandle_error(nf90_put_att(ncid, VarID, '_FillValue',nc_fillvalue))
       !fails "NetCDF: Not a valid data type or _FillValue type mismatch"
