@@ -150,25 +150,31 @@ contains
       tnext      = idtav+btime
       tnextwrite = itimeav+btime
       nsamples = itimeav/idtav
-     if (myid==0) then
-        call ncinfo(ncname( 1,:),'tker','Resolved TKE','m/s^2','tt')
-        call ncinfo(ncname( 2,:),'shr','Resolved Shear','m/s^2','tt')
-        call ncinfo(ncname( 3,:),'buo','Resolved Buoyancy','m/s^2','tt')
-        call ncinfo(ncname( 4,:),'trsp','Resolved Transport','m/s^2','tt')
-        call ncinfo(ncname( 5,:),'ptrsp','Resolved Pressure transport (redistribution)','m/s^2','tt')
-        call ncinfo(ncname( 6,:),'diss','Resolved Dissipation','m/s^2','tt')
-        call ncinfo(ncname( 7,:),'budg','Resolved Storage = dE/dt','m/s^2','tt')
-        call ncinfo(ncname( 8,:),'stor','Resolved Budget = sum of contributions excl storage','m/s^2','tt')
-        call ncinfo(ncname( 9,:),'resid','Resolved Residual = budget - storage','m/s^2','tt')
-        call ncinfo(ncname(10,:),'sbtke','Subgrid TKE','m/s^2','tt')
-        call ncinfo(ncname(11,:),'sbshr','Subgrid Shear','m/s^2','tt')
-        call ncinfo(ncname(12,:),'sbbuo','Subgrid Buoyancy','m/s^2','tt')
-        call ncinfo(ncname(13,:),'sbdiss','Subgrid Dissipation','m/s^2','tt')
-        call ncinfo(ncname(14,:),'sbstor','Subgrid Storage = dE/dt','m/s^2','tt')
-        call ncinfo(ncname(15,:),'sbbudg','Subgrid Budget = sum of contributions excl storage','m/s^2','tt')
-        call ncinfo(ncname(16,:),'sbresid','Subgrid Residual = budget - storage','m/s^2','tt')
-        call ncinfo(ncname(17,:),'ekm','Turbulent exchange coefficient momentum','m/s^2','tt')
-        call ncinfo(ncname(18,:),'khkm   ','Kh / Km, in post-processing used to determine filter-grid ratio','m/s^2','tt')
+      if (myid==0) then
+         ! 1) the subgrid budget quantities are for the e12 variable = sqrt(TKE)
+         !    (the subgrid TKE itself is a proper TKE, not the root).
+         ! 2) subgrid budget terms sbshr, sbbuo, sbdiss are currently only stored at the surface (for speed).
+         !
+         ! unit of TKE when weighted by rho: kg/m^3 * m^2/s^2 = kg/ms^2 = J/m^3
+         !
+        call ncinfo(ncname( 1,:),'tker','Resolved TKE','kg/ms^2','tt')
+        call ncinfo(ncname( 2,:),'shr','Resolved Shear','kg/ms^3','tt')
+        call ncinfo(ncname( 3,:),'buo','Resolved Buoyancy','kg/ms^3','tt')
+        call ncinfo(ncname( 4,:),'trsp','Resolved Transport','kg/ms^3','tt')
+        call ncinfo(ncname( 5,:),'ptrsp','Resolved Pressure transport (redistribution)','kg/ms^3','tt')
+        call ncinfo(ncname( 6,:),'diss','Resolved Dissipation','kg/ms^3','tt')
+        call ncinfo(ncname( 7,:),'budg','Resolved Storage = dE/dt','kg/ms^3','tt')
+        call ncinfo(ncname( 8,:),'stor','Resolved Budget = sum of contributions excl storage','kg/ms^3','tt')
+        call ncinfo(ncname( 9,:),'resid','Resolved Residual = budget - storage','kg/ms^3','tt')
+        call ncinfo(ncname(10,:),'sbtke','Subgrid TKE','kg/ms^2','tt')
+        call ncinfo(ncname(11,:),'sbshr','Subgrid Shear','kg/m^2s^2','tt')
+        call ncinfo(ncname(12,:),'sbbuo','Subgrid Buoyancy','kg/m^2s^2','tt')
+        call ncinfo(ncname(13,:),'sbdiss','Subgrid Dissipation','kg/m^2s^2','tt')
+        call ncinfo(ncname(14,:),'sbstor','Subgrid Storage','kg/m^2s^2','tt')
+        call ncinfo(ncname(15,:),'sbbudg','Subgrid Budget = sum of contributions excl storage','kg/m^2s^2','tt')
+        call ncinfo(ncname(16,:),'sbresid','Subgrid Residual = budget - storage','kg/m^2s^2','tt')
+        call ncinfo(ncname(17,:),'ekm','Turbulent exchange coefficient momentum','m^2/s','tt')
+        call ncinfo(ncname(18,:),'khkm','Kh / Km, in post-processing used to determine filter-grid ratio','-','tt')
         call define_nc( ncid_prof, NVar, ncname)
      end if
 
@@ -784,14 +790,12 @@ end subroutine do_genbudget
             ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
             ,nhrs,':',nminut,':',nsecs &
             ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-       write (ifoutput,'(A/2A/3A)') &
-            '#-------------------------------------------------------------------' &
-          ,'#LEV HEIGHT   |   TKE        SHEAR      BUOYANCY   ' &
-          ,'  TRANSP     PRES_TRSP     DISS      BUDGET      STORAGE      RESID'&
-          ,'#     (M)    |   ' &
-          ,'(---------------------------------- (M/S)^2  ------------------' &
-          ,'-------)'
-
+       write (ifoutput,'(A/2A/2A)'), &
+            '#-------------------------------------------------------------------', &
+            '#LEV HEIGHT  |   TKE        SHEAR      BUOYANCY     TRANSP',&
+            '     PRES_TRSP     DISS      BUDGET      STORAGE      RESID',&
+            '#     (m)    | (kg/ms^2)  ',&
+            '(-------------------------------- (kg/ms^3) -------------------------------------------------)'
 
        write(ifoutput,'(I3,F9.3,9E12.4)') &
             (k, &
@@ -815,13 +819,12 @@ end subroutine do_genbudget
             ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
             ,nhrs,':',nminut,':',nsecs &
             ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-       write (ifoutput,'(A/2A/3A)') &
+       write (ifoutput,'(A/2A/A)') &
             '#---------------------------------------------------------------' &
-          ,'#LEV HEIGHT   |   SBTKE     SBSHEAR     BUOYANCY     SBDISS' &
+          ,'#LEV HEIGHT  |   SBTKE     SBSHEAR     BUOYANCY     SBDISS' &
           ,'     SBSTORAGE    SBBUDGET   SBRESID    EKM          KH/KM '&
-          ,'#       (M)   | ' &
-          ,'(-------------------------------------------------- (M/S)^2 -------------' &
-          ,'-----------------------------------)'
+          ,'#       (m)  | (kg/ms^2)  (--------------------------- (kg/m^2s^2) ----------------------------)   (m^2/s)'
+
 
 
        write(ifoutput,'(I3,F9.3,9E12.4)') &
@@ -861,7 +864,7 @@ end subroutine do_genbudget
           call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
        end if
     endif !endif myid==0
-    
+
       !Reset time mean variables; resolved TKE
       tkemn=0.;tkeb=0.;shrmn=0.;buomn=0.;trspmn=0.;ptrspmn=0.;
       dissmn=0.;stormn=0.;budgmn=0.;residmn=0.
@@ -885,4 +888,3 @@ end subroutine do_genbudget
   end subroutine exitbudget
 
 end module modbudget
-
