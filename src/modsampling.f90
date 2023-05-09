@@ -378,7 +378,7 @@ contains
   subroutine dosampling
     use modglobal, only : i1,i2,j1,j2,kmax,k1,ih,jh,&
                           dx,dy,dzh,dzf,cp,rv,rlv,rd,ijtot, &
-                          grav,om22,cu,nsv,zh
+                          grav,om22,cu,cv,nsv,zh
     use modfields, only : u0,v0,w0,thl0,thl0h,qt0,qt0h,ql0,ql0h,thv0h,exnf,exnh,rhobf,rhobh,thvh, &
                           sv0,wp
     use modsubgriddata,only : ekh,ekm
@@ -450,11 +450,11 @@ contains
     end do
 
     do i=2,i1
-       u0f (i,2:j1,1:k1) = 0.5*(u0 (i,2:j1,1:k1) + u0  (i+1,2:j1,1:k1))
+       u0f (i,2:j1,1:k1) = 0.5*(u0 (i,2:j1,1:k1) + u0  (i+1,2:j1,1:k1)) + cu
     end do
 
      do j=2,j1
-       v0f (2:i1,j,1:k1) = 0.5*(v0 (2:i1,j,1:k1) + v0  (2:i1,j+1,1:k1))
+       v0f (2:i1,j,1:k1) = 0.5*(v0 (2:i1,j,1:k1) + v0  (2:i1,j+1,1:k1)) + cv
     end do
 
     maskf = .false.

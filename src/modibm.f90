@@ -28,8 +28,8 @@ module modibm
 
 contains
   subroutine initibm
-    use modglobal,  only : zh,itot, jtot, ih, i1, jh, j1, k1, imax, jmax, kmax, cexpnr, ifnamopt, ifinput, &
-                           fname_options, nsv, cu, cv, &
+    use modglobal,  only : zh, zf, itot, jtot, ih, i1, jh, j1, k1, imax, jmax, kmax, cexpnr, ifnamopt, ifinput, &
+                           fname_options, nsv, cu, cv, ijtot, &
                            iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
                            iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,&
                            iadv_hybrid_f,ibas_prf,&
@@ -43,12 +43,12 @@ contains
      !< Field for the immersed boundary height
     real(field_r), allocatable :: bc_height(:,:)     !< Height of immersed boundary at grid pos x,y
     integer, allocatable :: Nairl(:)
-    integer       :: i, j, k, ierr,ii,jj,kk  !cstep , kmin
+    integer       :: i, j, k, ierr,ii,jj,kk,n  !cstep , kmin
     integer       :: advarr(4)
     integer       :: ibm_adv_mask_imin, ibm_adv_mask_imax, & !< use 2nd order advection near obstacles
                      ibm_adv_mask_kmin, ibm_adv_mask_kmax
     integer          :: kibm_maxl
-    character(1000) :: readstring
+    character(100) :: readstring
 
     namelist/NAMIBM/ lapply_ibm, lreadfile_obstacles, &
                                lwallheat, &
@@ -133,7 +133,6 @@ contains
     allocate(lnorm_z (2-ih:i1+ih,2-jh:j1+jh,k1))
 
 
-
     write(6,*) 'succesfully allocated fields in modibm'
 
     ibm_adv_mask (:,:,:) = 0.
@@ -146,17 +145,27 @@ contains
       if (lreadfile_obstacles) then  !< Profile prescribed by use in the file ibm.inp.<expnr>
         write(6,*) 'Reading inputfile in modibm'
         open (ifinput,file='ibm.inp.'//cexpnr)
-          do j=jtot,1,-1  !cstep
-            read (ifinput,'(a1000)') readstring
-        !cstep     write (6,*) 'j1',j, readstring
+          do k=1,7 
+           read (ifinput,'(a100)') readstring
+           !  read (ifinput,*) readstring
+           write (6,*) readstring
+          enddo
+
+          do j=jtot+1,2,-1  !cstep
+!            read (ifinput,'(a1000)') readstring
+            !cstep     write (6,*) 'j1',j, readstring
             !< If the program is unable to read the full line of points increasing the length of the string (a400) might help
 
-            do while (readstring(1:1)=='#')  ! Skip the lines that are commented (like headers)
-              read (ifinput,'(a1000)') readstring
-         !cstep     write (6,*) '#', readstring
-            end do
-            read(readstring,*) (bc_height(i+1,j+1),i=1,itot)
-           !cstep write (6,*) 'j2',j,bc_height(1:itot,j+1)
+!            do while (readstring(1:1)=='#')  ! Skip the lines that are commented (like headers)
+!              read (ifinput,'(a1000)') readstring
+!              write (6,*) 'readstring', readstring
+!            end do
+!            read(readstring,*) (bc_height(i+1,j+1),i=1,itot)
+!            write (6,*) 'j2',j,bc_height(1:itot+1,j+1)
+
+            do i=2,itot+1
+               read(ifinput,'(F6.1)') bc_height(i,j)
+            enddo
           end do
         close(ifinput)
 
@@ -176,23 +185,30 @@ contains
     endif  !myid==0
 
 
+
     call D_MPI_BCAST(bc_height,(itot+1)*(jtot+1),0,comm3d,mpierr)
 
     kibm_maxl = 0. !cstep  the index of the highest obstacle in the entire domain
     do i=2,i1
       do j=2,j1
-        do k=1,kmax  !skip zero values which are ground surface points
-          if (zh(k+1).LE.bc_height(i+myidx*imax,j+myidy*jmax)) then  !cstep read in heights rather than indices
+       ! do k=1,kmax  !skip zero values which are ground surface points
+       !   if (zh(k+1).LE.bc_height(i+myidx*imax,j+myidy*jmax)) then  !cstep read in heights rather than indices
               !if zh is 1 mm above building height, height is set to dz below (maybe better use zf as a criterion for nicer rounding off)
 
-            libm (i,j,k) = .true.
-            ksfc (i,j)   = k + 1
-            if (ksfc(i,j).gt.kibm_maxl) then
+       !     libm (i,j,k) = .true.
+       !     ksfc (i,j)   = k + 1
+
+         do k=1,kmax
+            if (zf(k).LE.bc_height(i+myidx*imax,j+myidy*jmax)) then  !obstacle height is above mid point of vertical grid
+              libm (i,j,k) = .true.
+              ksfc (i,j)   = k + 1   !half (flux) level
+              if (ksfc(i,j).gt.kibm_maxl) then
                 kibm_maxl = k
-            endif
-            !cstep write (6,*) 'libm',i,j,k,libm(i,j,k),bc_height(i+myidx*imax,j+myidy*jmax),zh(ksfc(i,j))
-          endif
+              endif
+              write (6,*) 'libm',i+myidx*imax,j+myidy*jmax,i,j,k,libm(i,j,k),bc_height(i+myidx*imax,j+myidy*jmax),zh(ksfc(i,j))
+           endif
         end do
+
       end do
     end do
 
@@ -385,8 +401,9 @@ contains
   subroutine applyibm(simid)   !< apply immersed boundary method
     use modfields,      only : um, vm, wm, thlm, qtm, e12m, svm, &
                                u0, v0, w0, thl0, qt0, e120, sv0, &
-                               up, vp, wp, thlp, qtp, e12p, svp
-    use modglobal,      only : rk3step,   kmax, i1, j1, k1, ih, jh, rdt, dx, dy, dzh, dzf, nsv, e12min
+                               up, vp, wp, thlp, qtp, e12p, svp, &
+                               thl0av, qt0av
+    use modglobal,      only : rk3step,   kmax, i1, j1, k1, ih, jh, rdt, timee, dx, dy, dzh, dzf, nsv, e12min
     use modsubgriddata, only : ekm
     use modmpi,         only : excjs
     !clater use modnudgeboundary, only : Nsim
@@ -404,10 +421,13 @@ contains
     integer, intent(in) :: simid
 
     if (.not. lapply_ibm) return
-    !clater if (.not. (lapply_ibm .and. simid == Nsim)) return  !cstep ensures buildings are not applied for precursor run
+
+    !if (.not. (lapply_ibm .and. simid == Nsim)) return  !cstep ensures buildings are not applied for precursor run
                !cstep run if lapply_ibm = true AND simid=1 without precursor simulation (so Nsim=1)
                !      or  if lapplY_ibm = true AND simid=2 with    precursor simulation (Nsim=2)
 
+    thlibm = thl0av(1) !assumes inside air has the same temperature as the air outside
+    qtibm  = qt0av (1) 
 
     rk3coef = rdt / (4. - dble(rk3step))
     rk3coefi = 1. / rk3coef
@@ -485,7 +505,7 @@ contains
               do nc=1,nsv
                 call xwallscalar(i,j,k,sv0(:,:,:,nc),tempsvp(:,:,:,nc))
               end do
-              call xwalle12(i,j,k)
+              !call xwalle12(i,j,k)   ! correction is ignored assuming u,v,w,subgrid TKE are near zero inside buildings
             endif
 
             if (lnorm_y(i,j,k)) then     !< Wall in y-direction
@@ -542,7 +562,7 @@ contains
               do nc=1,nsv
                 call ywallscalar(i,j,k,sv0(:,:,:,nc),tempsvp(:,:,:,nc))
               end do
-              call ywalle12(i,j,k)
+              !call ywalle12(i,j,k)
             endif
 
 
@@ -586,7 +606,7 @@ contains
             do nc=1,nsv
               call xwallscalar(i,j,1,sv0(:,:,:,nc),tempsvp(:,:,:,nc))
             end do
-            call xwalle12(i,j,1)
+            !call xwalle12(i,j,1)
           endif
 
           if (lnorm_y(i,j,1)) then     !< Wall in y-direction
@@ -623,7 +643,7 @@ contains
             do nc=1,nsv
               call ywallscalar(i,j,1,sv0(:,:,:,nc),tempsvp(:,:,:,nc))
             end do
-            call ywalle12(i,j,1)
+            !call ywalle12(i,j,1)
 
           endif
 
@@ -674,7 +694,7 @@ contains
     call excjs( thlp  , 2,i1,2,j1,1,k1,ih,jh)
     call excjs( qtp   , 2,i1,2,j1,1,k1,ih,jh)
     do nc=1,nsv
-      svp(:,:,:,nc)=svp(:,:,:,nc)+tempsvp(:,:,:,nc)
+     ! svp(:,:,:,nc)=svp(:,:,:,nc)+tempsvp(:,:,:,nc)  !done above
       call excjs( svp(:,:,:,nc)  , 2,i1,2,j1,1,k1,ih,jh)
     enddo
 

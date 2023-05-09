@@ -51,7 +51,7 @@ save
   real :: nmason  = 2.   !< exponent in Mason correction function
   real :: alpha_kolm  = 1.5     !< factor in Kolmogorov expression for spectral energy
   real :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
-  logical :: sgs_surface_fix = .false.  !< which fix to apply to coupling of SGSTKE to surface
+  logical :: sgs_surface_fix = .true.  !< which fix to apply to coupling of SGSTKE to surface
 
 
   real, allocatable :: ekm(:,:,:)   !< k-coefficient for momentum

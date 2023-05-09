@@ -231,6 +231,7 @@ contains
 
       do i = 2,i1
         do j = 2,j1
+          strain2 = 0.
           kmin = ksfc(i,j)
 
           kp=k+1
@@ -314,9 +315,13 @@ contains
  else
     ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
     if (ldelta) then
-       do k=1,kmax
-          do j=2,j1
-             do i=2,i1
+       !do k=1,kmax
+       ekm(:,:,:) = ekmin
+       ekh(:,:,:) = ekmin
+       do j=2,j1
+          do i=2,i1
+             do k=ksfc(i,j),kmax
+        
                 zlt(i,j,k) = delta(k)
                 
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
@@ -626,11 +631,11 @@ contains
         kmin = ksfc(i,j)
         a_out(i,j,kmin) = a_out(i,j,kmin) &
                   + 0.5 * ( &
-                ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1)-a_in(i,j,1)) &
-                  -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1)-a_in(i-1,j,1)) )*dx2i * anis_fac(k) &
+                ( (ekh(i+1,j,kmin)+ekh(i,j,kmin))*(a_in(i+1,j,kmin)-a_in(i,j,kmin)) &
+                  -(ekh(i,j,kmin)+ekh(i-1,j,kmin))*(a_in(i,j,kmin)-a_in(i-1,j,kmin)) )*dx2i * anis_fac(kmin) &
                   + &
-                ( (ekh(i,j+1,1)+ekh(i,j,1))*(a_in(i,j+1,1)-a_in(i,j,1)) &
-                  -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1)-a_in(i,j-1,1)) )*dy2i * anis_fac(k) &
+                ( (ekh(i,j+1,kmin)+ekh(i,j,kmin))*(a_in(i,j+1,kmin)-a_in(i,j,kmin)) &
+                  -(ekh(i,j,kmin)+ekh(i,j-1,kmin))*(a_in(i,j,kmin)-a_in(i,j-1,kmin)) )*dy2i * anis_fac(kmin) &
                   + &
                 ( rhobh(kmin+1)/rhobf(kmin) * (dzf(kmin+1)*ekh(i,j,kmin) + dzf(kmin)*ekh(i,j,kmin+1)) &
                   *  (a_in(i,j,kmin+1)-a_in(i,j,kmin)) / dzh(kmin+1)**2 &
@@ -692,10 +697,10 @@ contains
         kmin = ksfc(i,j) 
         a_out(i,j,kmin) = a_out(i,j,kmin) + &
             ( (ekm(i+1,j,kmin)+ekm(i,j,kmin))*(e120(i+1,j,kmin)-e120(i,j,kmin)) &
-              -(ekm(i,j,kmin)+ekm(i-1,j,kmin))*(e120(i,j,kmin)-e120(i-1,j,kmin)) )*dx2i * anis_fac(k) &
+              -(ekm(i,j,kmin)+ekm(i-1,j,kmin))*(e120(i,j,kmin)-e120(i-1,j,kmin)) )*dx2i * anis_fac(kmin) &
             + &
             ( (ekm(i,j+1,kmin)+ekm(i,j,kmin))*(e120(i,j+1,kmin)-e120(i,j,kmin)) &
-              -(ekm(i,j,kmin)+ekm(i,j-1,kmin))*(e120(i,j,kmin)-e120(i,j-1,kmin)) )*dy2i * anis_fac(k) &
+              -(ekm(i,j,kmin)+ekm(i,j-1,kmin))*(e120(i,j,kmin)-e120(i,j-1,kmin)) )*dy2i * anis_fac(kmin) &
             + &
               ( rhobh(kmin+1)/rhobf(kmin) * (dzf(kmin+1)*ekm(i,j,kmin) + dzf(kmin)*ekm(i,j,kmin+1)) &
               *  (e120(i,j,kmin+1)-e120(i,j,kmin)) / dzh(kmin+1)**2              )/dzf(kmin)
@@ -804,12 +809,12 @@ contains
         a_out(i,j,kmin) = a_out(i,j,kmin) &
                 + &
               ( ekm(i,j,kmin)  * (u0(i+1,j,kmin)-u0(i,j,kmin)) &
-              -ekm(i-1,j,kmin)* (u0(i,j,kmin)-u0(i-1,j,kmin)) ) * 2. * dx2i * anis_fac(k) &
+              -ekm(i-1,j,kmin)* (u0(i,j,kmin)-u0(i-1,j,kmin)) ) * 2. * dx2i * anis_fac(kmin) &
                 + &
               ( empo * ( (u0(i,jp,kmin)-u0(i,j,kmin))   *dyi &
                         +(v0(i,jp,kmin)-v0(i-1,jp,kmin))*dxi) &
               -emmo * ( (u0(i,j,kmin)-u0(i,jm,kmin))   *dyi &
-                        +(v0(i,j,kmin)-v0(i-1,j,kmin))  *dxi)   ) / dy * anis_fac(k) &
+                        +(v0(i,j,kmin)-v0(i-1,j,kmin))  *dxi)   ) / dy * anis_fac(kmin) &
                + &
               ( rhobh(kmin+1)/rhobf(kmin) * emop * ( (u0(i,j,kmin+1)-u0(i,j,kmin))    /dzh(kmin+1) &
                         +(w0(i,j,kmin+1)-w0(i-1,j,kmin+1))  *dxi) &
@@ -917,10 +922,10 @@ contains
                   ( epmo * ( (v0(i+1,j,kmin)-v0(i,j,kmin))   *dxi &
                             +(u0(i+1,j,kmin)-u0(i+1,jm,kmin))*dyi) &
                     -emmo * ( (v0(i,j,kmin)-v0(i-1,j,kmin))   *dxi &
-                            +(u0(i,j,kmin)-u0(i,jm,kmin))    *dyi)   ) / dx * anis_fac(k) &
+                            +(u0(i,j,kmin)-u0(i,jm,kmin))    *dyi)   ) / dx * anis_fac(kmin) &
                   + &
                 ( ekm(i,j,kmin) * (v0(i,jp,kmin)-v0(i,j,kmin)) &
-                  -ekm(i,jm,kmin)* (v0(i,j,kmin)-v0(i,jm,kmin))  ) * 2. * dy2i * anis_fac(k) &
+                  -ekm(i,jm,kmin)* (v0(i,j,kmin)-v0(i,jm,kmin))  ) * 2. * dy2i * anis_fac(kmin) &
                   + &
                 ( rhobh(kmin+1)/rhobf(kmin) * eomp * ( (v0(i,j,kmin+1)-v0(i,j,kmin))     /dzh(kmin+1) &
                           +(w0(i,j,kmin+1)-w0(i,jm,kmin+1))    *dyi) &

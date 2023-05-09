@@ -182,11 +182,13 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : rdt,rk3step,e12min
+  use modglobal, only : rdt,rk3step,e12min,i1,j1,k1
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
+  use modibmdata,        only : libm
   implicit none
+  integer:: i,j,k
 
   real rk3coef
 
@@ -215,7 +217,14 @@ subroutine tstep_integrate
      sv0 = svm
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
-
   end if
+
+  do i=2,i1
+  do j=2,j1
+  do k=1,k1
+!     write (6,*) i,j,k,libm(i,j,k),u0(i,j,k),v0(i,j,k),w0(i,j,k),thl0(i,j,k),qt0(i,j,k),e120(i,j,k)
+  enddo
+  enddo
+  enddo
 end subroutine tstep_integrate
 end module tstep

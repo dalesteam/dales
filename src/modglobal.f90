@@ -190,6 +190,7 @@ save
       integer :: outdirs = 0    !< 1 - create output directories using myidy
       character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory 
 
+
       ! modphsgrd.f90
 
       real :: dx              !<  grid spacing in x-direction
@@ -318,9 +319,8 @@ contains
       kh = 1
     end if
 
+
     ! Global constants
-
-
 
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice

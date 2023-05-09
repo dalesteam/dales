@@ -100,7 +100,8 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
+  use modglobal,         only : rk3step,timeleft,i1,j1,k1
+  use modfields, only: um,vm,wm,thlm,qtm,e12m
   use modmpi,            only : initmpicomm
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
@@ -155,10 +156,14 @@ program DALES
 
   !cstep IBM for urban terrain
   use modibm,          only : applyibm, exitibm, zerowallvelocity ! cstep cibm 
-  use modibmdata,      only : lpoislast !cstep cibm 
+  use modibmdata,      only : libm,lpoislast !cstep cibm 
+
+    !cstep  the following modules are needed if the concurrent precursor method is applied
+  use modnudgeboundary, only : initnudgeboundary, nudgeboundary, exitnudgeboundary, lnudgeboundary !PVD
 
 
   implicit none
+  integer::i,j,k
 
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
@@ -200,6 +205,7 @@ program DALES
 
   !call initspectra2
   call initcape
+  call initnudgeboundary !cstep  IBM with concurrent precursor
 
 
 !------------------------------------------------------
@@ -255,6 +261,7 @@ program DALES
 !    call tiltedgravity
 
     call samptend(tend_addon)
+    if (lnudgeboundary ) call nudgeboundary 
 
 !-----------------------------------------------------------------------
 !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
@@ -263,6 +270,16 @@ program DALES
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
 
+   ! write(6,*) 'before pois'
+
+  do i=2,i1
+  do j=2,j1
+  do k=1,k1
+   !  write (6,*) i,j,k,libm(i,j,k),um(i,j,k),vm(i,j,k),wm(i,j,k),thlm(i,j,k),qtm(i,j,k),e12m(i,j,k)
+  enddo
+  enddo
+  enddo
+
     !< MK: Ordering of the Poisson Solver and the IBM, (lpoislast==.true.): 
            !IBM -> Pois, (lpoislast==.false.): zerowallvelocity -> Pois -> IBM
     !< MK: If lapply_ibm is not defined or set to .false., the Immersed boundary functions will not be applied
@@ -270,8 +287,10 @@ program DALES
     if(lpoislast .eqv. .false.) call zerowallvelocity(0)   !Apply correction on the walls before poisson to reduce loss of mass due to removal of leaking
 
     call poisson
+   ! write(6,*) 'after pois'
 
     if(lpoislast .eqv. .false.) call applyibm(0) !Apply ibm
+     !write(6,*) 'after pois 2'
 
     call samptend(tend_pois,lastterm=.true.)
 
@@ -351,5 +370,6 @@ program DALES
   call exitcanopy
   call exittimestat
   call exitmodules
+  call exitnudgeboundary  !cstep
 
 end program DALES

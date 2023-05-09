@@ -483,6 +483,7 @@ contains
     if (.not. ltimedep) return
     deallocate(timels,ugt,vgt,wflst,dqtdxlst,dqtdylst,dqtdtlst,dthldtlst,dudtlst,dvdtlst,thlpcart)
     deallocate(timeflux, wtsurft,wqsurft,thlst,qtst,pst,Qnetavt)
+    deallocate(thlproft,qtproft)
     call exittimedepsv
 
   end subroutine
