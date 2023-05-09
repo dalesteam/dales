@@ -403,7 +403,7 @@ contains
     use modfields,      only : um, vm, wm, thlm, qtm, e12m, svm, &
                                u0, v0, w0, thl0, qt0, e120, sv0, &
                                up, vp, wp, thlp, qtp, e12p, svp, &
-                               thl0av
+                               thl0av, qt0av
     use modglobal,      only : rk3step,   kmax, i1, j1, k1, ih, jh, rdt, timee, dx, dy, dzh, dzf, nsv, e12min
     use modsubgriddata, only : ekm
     use modmpi,         only : excjs 
@@ -427,6 +427,7 @@ contains
                !      or  if lapplY_ibm = true AND simid=2 with    precursor simulation (Nsim=2)
 
     thlibm = thl0av(1) !assumes inside air has the same temperature as the air outside
+    qtibm  = qt0av (1) 
 
     rk3coef = rdt / (4. - dble(rk3step))
     rk3coefi = 1. / rk3coef

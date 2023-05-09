@@ -730,13 +730,15 @@ contains
       do n=1,nsv
 
         if (myid==0) then
-          do j=jtot,1,-1  !cstep
-            read (ifinput,'(a1000)') readbuffer
+          do j=jtot+1,2,-1  !cstep
+           do i=2,itot+1 
+            read (ifinput,'(F5.2)') wsv_read(i,j)   ! readbuffer
 
-            do while (readbuffer(1:1)=='#')  ! Skip the lines that are commented (like headers)
-              read (ifinput,'(a1000)') readbuffer
-            end do
-            read(readbuffer,*) (wsv_read(i+1,j+1),i=1,itot)
+            !do while (readbuffer(1:1)=='#')  ! Skip the lines that are commented (like headers)
+            !  read (ifinput,'(a1000)') readbuffer
+            !end do
+            !read(readbuffer,*) (wsv_read(i+1,j+1),i=1,itot)
+           enddo
           end do
 
           wsv_read(1,:)=wsv_read(itot+1,:)
@@ -902,7 +904,7 @@ contains
         do i = 2, i1
            if (libm(i,j,1)) then !this means that the lower point contains an obstacle such that thlroof should be used
                                  !as a lower boundary condition
-               tskin(i,j) = thlroof ! 
+               tskin(i,j) = thls! thlroof ! 
            else
                tskin(i,j) = thls    
            endif
@@ -955,9 +957,7 @@ contains
 !cibm          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
 
           thlflux(i,j) = - ( thl0(i,j,kmin) - tskin(i,j) ) / ra(i,j)   !cstep IBM
-          !qtflux(i,j) = - (qt0(i,j,kmin)  - qskin(i,j)) / ra(i,j)      !cstep IBM
-
-          qtflux(i,j) = 0
+          qtflux(i,j) = - (qt0(i,j,kmin)  - qskin(i,j)) / ra(i,j)      !cstep IBM
 
 
           if(lhetero) then
