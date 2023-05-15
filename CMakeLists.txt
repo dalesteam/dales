@@ -77,6 +77,14 @@ elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    #        128 gives good speedup
    # -Koptmsg=2 prints a lot of optimization information
    #
+
+# nVidia Fortran compiler
+elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
+    set(CMAKE_Fortran_COMPILER "mpif90")
+    # Includes (temporary) flags for linking to nVidia-built NetCDF
+    set(CMAKE_Fortran_FLAGS "-W -Wall -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE String :"")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -Mbounds -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
    # don't set any compilation flags here, allows setting them outside CMake
 else()
@@ -108,7 +116,6 @@ execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPU
 execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 # execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NFCONFIG_FORTRAN_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
 # not used at the moment - not just a path but several compiler flags
-
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
 EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
@@ -259,6 +266,12 @@ if(USE_FFTW)
   list(APPEND OPTIONAL_LIBS ${FFTW_LIB} ${FFTWF_LIB})
 	set(opt_flags "${opt_flags} -DUSE_FFTW")
 endif(USE_FFTW)
+if(NETCDF_C_LIB)
+    set(opt_flags "${opt_flags} -lnetcdf")
+endif(NETCDF_C_LIB)
+if(NETCDF_FORTRAN_LIB)
+    set(opt_flags "${opt_flags} -lnetcdff")
+endif(NETCDF_FORTRAN_LIB)
 
 ### Precision 
 set(POIS_PRECISION 64 CACHE STRING  "Precision for poisson solver (default 64 bit) [32,64]")
