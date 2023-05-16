@@ -11,7 +11,7 @@ module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
   use mpi
 #if defined(_USE_NVTX)
-  use mod_nvtx
+  use modnvtx
 #endif
   implicit none
   private
