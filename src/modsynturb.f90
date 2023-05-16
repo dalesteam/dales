@@ -31,7 +31,7 @@ implicit none
 real, allocatable, dimension(:,:) :: kn,p,q,vturb,wturb,k_thl,k_qt
 real, allocatable, dimension(:) :: omega,omega_thl,omega_qt,p_thl,p_qt,q_thl,q_qt
 real, allocatable, dimension(:) :: xf,xh,yf,yh
-real :: nisqrt,ctot,nisqrt2
+real :: nisqrt,ctot
 real, dimension(3) :: lambdasxyz
 integer :: nxturb,nyturb,nzturb
 integer, parameter :: isepsim_mom = 10,isepsim_all=11, isynturb_mom = 0, isynturb_all = 1
@@ -66,7 +66,6 @@ contains
       if(iturb == isynturb_all .or. iturb == isynturb_mom) then
         ! Constants
         nisqrt  = sqrt(2./nmodes)
-        nisqrt2 = sqrt(1./nmodes)
         ctot = lambda/tau
         noise = new_RandomNumberSequence(seed = 100)
         nxturb = int(dx/dxturb*real(itot));
@@ -534,8 +533,8 @@ contains
       ! Reproject to cartesian velocity pertubations
       uturb(pi1,pi2)  = nisqrt*dot(eigvec(iuturb,:),(/utemp,vtemp,wtemp/))
       ! Calculate thlturb and qtturb
-      thltemp = thltemp * nisqrt2
-      qttemp  = qttemp * nisqrt2
+      thltemp = thltemp * nisqrt
+      qttemp  = qttemp * nisqrt
       wturbf = nisqrt*dot(eigvec(3,:),(/utemp,vtemp,wtemp/))
       wthl   = fp*boundary(ib)%wthl(pi1patch,pi2patch,itp) + fm*boundary(ib)%wthl(pi1patch,pi2patch,itm)
       wqt    = fp*boundary(ib)%wqt(pi1patch,pi2patch,itp)  + fm*boundary(ib)%wqt(pi1patch,pi2patch,itm)
