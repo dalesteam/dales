@@ -7,7 +7,7 @@
 !
 ! a simple timer, see https://github.com/p-costa/first-timer
 !
-module mod_timer
+module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
   use mpi
 #if defined(_USE_NVTX)
@@ -257,4 +257,4 @@ contains
     deallocate(arr); allocate(arr(n+1))
     arr(1:n) = arr_tmp(:); arr(n+1) = val
   end subroutine concatenate_c
-end module mod_timer
+end module modtimer

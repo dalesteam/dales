@@ -7,7 +7,7 @@
 !
 ! NVTX Fortran Module, adapted from https://github.com/maxcuda/NVTX_example (MIT)
 !
-module mod_nvtx
+module modnvtx
 #if defined(_USE_NVTX)
   use, intrinsic :: iso_c_binding
   implicit none
@@ -109,4 +109,4 @@ contains
     call nvtxRangePop
   end subroutine
 #endif
-end module mod_nvtx
+end module modnvtx
