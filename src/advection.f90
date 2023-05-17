@@ -57,8 +57,8 @@ subroutine advection
       call advecv_5th(v0,vp)
       call advecw_5th(w0,wp)
     case(iadv_52)
-      call advecu_52(u0,up)
-      call advecv_52(v0,vp)
+      call advecu_52(u0,up,sx)
+      call advecv_52(v0,vp,sy)
       call advecw_52(w0,wp)
     case(iadv_cd6)
       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
