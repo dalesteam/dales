@@ -10,7 +10,7 @@
 module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
   use mpi
-#if defined(_USE_NVTX)
+#if defined(USE_NVTX)
   use modnvtx
 #endif
   implicit none
@@ -127,7 +127,7 @@ contains
       idx = ntimers
     end if
     timer_tictoc(idx) = MPI_WTIME()
-#if defined(_USE_NVTX)
+#if defined(USE_NVTX)
     is_nvtx = .false.
     if(     present(nvtx_id_inc)) then
       nvtx_id = nvtx_id_inc
@@ -211,7 +211,7 @@ contains
 #endif
           end if
         end if
-#if defined(_USE_NVTX)
+#if defined(USE_NVTX)
         call nvtxEndRange
 #endif
       end if

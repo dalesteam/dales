@@ -8,7 +8,7 @@
 ! NVTX Fortran Module, adapted from https://github.com/maxcuda/NVTX_example (MIT)
 !
 module modnvtx
-#if defined(_USE_NVTX)
+#if defined(USE_NVTX)
   use, intrinsic :: iso_c_binding
   implicit none
   private
