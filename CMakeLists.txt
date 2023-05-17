@@ -83,7 +83,7 @@ elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
     set(CMAKE_Fortran_COMPILER "mpif90")
     # Includes (temporary) flags for linking to nVidia-built NetCDF
     set(CMAKE_Fortran_FLAGS "-W -Wall -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
-    set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE String :"")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -Mbounds -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
    # don't set any compilation flags here, allows setting them outside CMake
