@@ -266,6 +266,7 @@ if(USE_FFTW)
   list(APPEND OPTIONAL_LIBS ${FFTW_LIB} ${FFTWF_LIB})
 	set(opt_flags "${opt_flags} -DUSE_FFTW")
 endif(USE_FFTW)
+# Flags for linking to custom netcdf
 if(NETCDF_C_LIB)
     set(opt_flags "${opt_flags} -lnetcdf")
 endif(NETCDF_C_LIB)
