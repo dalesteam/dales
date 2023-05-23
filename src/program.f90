@@ -215,8 +215,12 @@ program DALES
   do while (timeleft>0 .or. rk3step < 3)
     call timer_tic('Time step', istep)
     ! Calculate new timestep, and reset tendencies to 0.
+    call timer_tic('Time step update', 0)
     call tstep_update
+    call timer_toc('Time step update')
+    call timer_tic('Time dep', 0)
     call timedep
+    call timer_toc('Time dep')
     call samptend(tend_start,firstterm=.true.)
 
 !-----------------------------------------------------
