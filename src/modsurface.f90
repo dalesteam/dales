@@ -165,9 +165,9 @@ contains
     call D_MPI_BCAST(phiwp                      ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(R10                        ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lsplitleaf                 ,            1,  0, comm3d, mpierr)
-    
+
     call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, comm3d, mpierr)
-    
+
     call D_MPI_BCAST(i_expemis                  ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
@@ -708,11 +708,12 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,i2,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
+    use modglobal,  only : i1,j1,i2,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee,lopenbc,lboundary,lperiodic
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : mpierr, comm3d, mpi_sum, excjs &
                          , D_MPI_ALLREDUCE, D_MPI_BCAST
     use moduser,    only : surf_user
+    use modopenboundary, only : openboundary_excjs
     implicit none
 
     integer  :: i, j, n, patchx, patchy
@@ -1050,7 +1051,15 @@ contains
 
     ! Transfer ustar to neighbouring cells, do this like a 3D field
     ustar_3D(1:i2,1:j2,1:1) => ustar
-    call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+
+    if(lopenbc) then ! Only use periodicity for non-domain boundaries when openboundaries are used
+      call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
+        & (.not.lboundary(1:4)).or.lperiodic(1:4))
+    else
+       call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+       !call excjs(ustar, 2,i1,2,j1,1,1,1,1)
+    endif
+    return
   end subroutine surface
 
 !> Calculate the surface humidity assuming saturation.

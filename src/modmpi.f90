@@ -49,6 +49,7 @@ save
   integer  :: nprocx = 1
   integer  :: nprocy = 0
   integer  :: mpierr
+  logical  :: periods(2) = .true.
 
   real     :: CPU_program    !end time
   real     :: CPU_program0   !start time
@@ -141,7 +142,13 @@ save
     procedure :: excjs_real32
     procedure :: excjs_real64
     procedure :: excjs_logical
-  end interface
+  end interface excjs
+
+  interface openboundary_excjs
+    procedure :: openboundary_excjs_real32
+    procedure :: openboundary_excjs_real64
+  end interface openboundary_excjs
+
   interface slabsum
     procedure :: slabsum_real32
     procedure :: slabsum_real64
@@ -443,6 +450,234 @@ contains
 
   endif
   end subroutine excjs_real32
+
+  subroutine openboundary_excjs_real32(a,sx,ex,sy,ey,sz,ez,ih,jh,switch)
+  implicit none
+  integer sx, ex, sy, ey, sz, ez, ih, jh
+  real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  logical, dimension(4), intent(in) :: switch ! flags for which boundaries need exchange
+  type(MPI_STATUS)  :: status
+  integer :: xl, yl, zl
+  type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
+  type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
+  integer nssize, ewsize
+  real(real32),allocatable, dimension(:) :: sendn,recvn &
+                                          , sends,recvs &
+                                          , sende,recve &
+                                          , sendw,recvw
+
+! Calulate buffer lengths
+  xl = size(a,1)
+  yl = size(a,2)
+  zl = size(a,3)
+
+!   Calculate buffer size
+  nssize = xl*jh*zl
+  ewsize = ih*yl*zl
+
+
+  if(nprocy .gt. 1)then
+
+    !   Allocate send / receive buffers
+    allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
+
+    if(switch(4)) sendn = reshape(a(:,ey-jh+1:ey,:),(/nssize/))
+    if(switch(3)) sends = reshape(a(:,sy:sy+jh-1,:),(/nssize/))
+
+    !   Send north/south
+    if(switch(4)) call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
+    if(switch(3)) call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+
+    !   Receive south/north
+    if(switch(3)) call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
+    if(switch(4)) call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
+
+    ! Wait until data is received
+    if(switch(3)) call MPI_WAIT(reqrs, status, mpierr)
+    if(switch(4)) call MPI_WAIT(reqrn, status, mpierr)
+
+    ! Write back buffers
+    if(switch(3)) a(:,sy-jh:sy-1,:) = reshape(recvs,(/xl,jh,zl/))
+    if(switch(4)) a(:,ey+1:ey+jh,:) = reshape(recvn,(/xl,jh,zl/))
+
+  else
+
+    ! Single processor, make sure the field is periodic
+    if(switch(3)) a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
+    if(switch(3)) a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
+
+  endif
+
+  if(nprocx .gt. 1)then
+
+    !   Allocate send / receive buffers
+    allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
+
+    if(switch(2)) sende = reshape(a(ex-ih+1:ex,:,:),(/ewsize/))
+    if(switch(1)) sendw = reshape(a(sx:sx+ih-1,:,:),(/ewsize/))
+
+    !   Send east/west
+    if(switch(2)) call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
+    if(switch(1)) call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
+    if(switch(1)) call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
+    if(switch(2)) call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
+
+    ! Wait until data is received
+    if(switch(1)) call MPI_WAIT(reqrw, status, mpierr)
+    if(switch(2)) call MPI_WAIT(reqre, status, mpierr)
+
+    ! Write back buffers
+    if(switch(1)) a(sx-ih:sx-1,:,:) = reshape(recvw,(/ih,yl,zl/))
+    if(switch(2)) a(ex+1:ex+ih,:,:) = reshape(recve,(/ih,yl,zl/))
+
+  else
+
+    ! Single processor, make sure the field is periodic
+    if(switch(1)) a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
+    if(switch(1)) a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
+
+  endif
+
+  if(nprocy.gt.1)then
+
+    ! Make sure data is sent
+    if(switch(4)) call MPI_WAIT(reqn, status, mpierr)
+    if(switch(3)) call MPI_WAIT(reqs, status, mpierr)
+
+    deallocate (sendn, sends)
+    deallocate (recvn, recvs)
+
+  endif
+
+  if(nprocx.gt.1)then
+
+    ! Make sure data is sent
+    if(switch(2)) call MPI_WAIT(reqe, status, mpierr)
+    if(switch(1)) call MPI_WAIT(reqw, status, mpierr)
+
+    ! Deallocate buffers
+    deallocate (sende, sendw)
+    deallocate (recve, recvw)
+
+  endif
+  end subroutine openboundary_excjs_real32
+
+
+  subroutine openboundary_excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh,switch)
+  implicit none
+  integer sx, ex, sy, ey, sz, ez, ih, jh
+  real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  logical, dimension(4), intent(in) :: switch ! flags for which boundaries need exchange
+  type(MPI_STATUS)  :: status
+  integer :: xl, yl, zl
+  type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
+  type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
+  integer nssize, ewsize
+  real(real32),allocatable, dimension(:) :: sendn,recvn &
+                                          , sends,recvs &
+                                          , sende,recve &
+                                          , sendw,recvw
+
+! Calulate buffer lengths
+  xl = size(a,1)
+  yl = size(a,2)
+  zl = size(a,3)
+
+!   Calculate buffer size
+  nssize = xl*jh*zl
+  ewsize = ih*yl*zl
+
+
+  if(nprocy .gt. 1)then
+
+    !   Allocate send / receive buffers
+    allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
+
+    if(switch(4)) sendn = reshape(a(:,ey-jh+1:ey,:),(/nssize/))
+    if(switch(3)) sends = reshape(a(:,sy:sy+jh-1,:),(/nssize/))
+
+    !   Send north/south
+    if(switch(4)) call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
+    if(switch(3)) call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+
+    !   Receive south/north
+    if(switch(3)) call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
+    if(switch(4)) call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
+
+    ! Wait until data is received
+    if(switch(3)) call MPI_WAIT(reqrs, status, mpierr)
+    if(switch(4)) call MPI_WAIT(reqrn, status, mpierr)
+
+    ! Write back buffers
+    if(switch(3)) a(:,sy-jh:sy-1,:) = reshape(recvs,(/xl,jh,zl/))
+    if(switch(4)) a(:,ey+1:ey+jh,:) = reshape(recvn,(/xl,jh,zl/))
+
+  else
+
+    ! Single processor, make sure the field is periodic
+    if(switch(3)) a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
+    if(switch(3)) a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
+
+  endif
+
+  if(nprocx .gt. 1)then
+
+    !   Allocate send / receive buffers
+    allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
+
+    if(switch(2)) sende = reshape(a(ex-ih+1:ex,:,:),(/ewsize/))
+    if(switch(1)) sendw = reshape(a(sx:sx+ih-1,:,:),(/ewsize/))
+
+    !   Send east/west
+    if(switch(2)) call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
+    if(switch(1)) call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+
+    !   Receive west/east
+    if(switch(1)) call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
+    if(switch(2)) call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
+
+    ! Wait until data is received
+    if(switch(1)) call MPI_WAIT(reqrw, status, mpierr)
+    if(switch(2)) call MPI_WAIT(reqre, status, mpierr)
+
+    ! Write back buffers
+    if(switch(1)) a(sx-ih:sx-1,:,:) = reshape(recvw,(/ih,yl,zl/))
+    if(switch(2)) a(ex+1:ex+ih,:,:) = reshape(recve,(/ih,yl,zl/))
+
+  else
+
+    ! Single processor, make sure the field is periodic
+    if(switch(1)) a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
+    if(switch(1)) a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
+
+  endif
+
+  if(nprocy.gt.1)then
+
+    ! Make sure data is sent
+    if(switch(4)) call MPI_WAIT(reqn, status, mpierr)
+    if(switch(3)) call MPI_WAIT(reqs, status, mpierr)
+
+    deallocate (sendn, sends)
+    deallocate (recvn, recvs)
+
+  endif
+
+  if(nprocx.gt.1)then
+
+    ! Make sure data is sent
+    if(switch(2)) call MPI_WAIT(reqe, status, mpierr)
+    if(switch(1)) call MPI_WAIT(reqw, status, mpierr)
+
+    ! Deallocate buffers
+    deallocate (sende, sendw)
+    deallocate (recve, recvw)
+
+  endif
+  end subroutine openboundary_excjs_real64
+
 
   subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none

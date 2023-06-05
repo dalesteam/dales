@@ -22,6 +22,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modglobal
+use iso_c_binding
 use modprecision
 implicit none
 save
@@ -148,6 +149,7 @@ save
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lfast_thermo = .false. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
+      logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
 
       ! Poisson solver: modpois / modhypre
       integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
@@ -156,7 +158,16 @@ save
       real(real64):: tolerance = 1E-8! Convergence threshold                .    X   X     X       X
       integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
+      integer :: precond_id = 1      ! Preconditioner ID                    .    .  12   0189     0189
+      integer :: maxiter_precond = 1 ! Number of iterations for precondition per iteration
+      integer :: hypre_logging = 1   ! HYPRE logging and print level - set higher value for more messages
+      type solver_type
+         !integer*8 solver,precond
+        type(c_ptr) solver, precond
+        integer   solver_id, precond_id, maxiter, n_post, n_pre, maxiter_precond
+        real      tolerance
+      end type
+      type(solver_type) :: psolver
 
       ! Global variables (modvar.f90)
       integer :: xyear  = 0     !<     * year, only for time units in netcdf
@@ -197,8 +208,28 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
+
       logical :: loutdirs = .false.       !< if true, create output directories using myidy
       character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory
+
+      ! Variables for modopenboundary.f90
+      logical :: lopenbc = .false., lsynturb = .false.,linithetero = .false.
+      type boundary_type
+        integer :: nx1,nx2,nx1patch,nx2patch,nx1u,nx2u,nx1v,nx2v,nx1w,nx2w
+        real(field_r), allocatable, dimension(:,:,:) :: u,v,w,thl,qt,e12, &
+          & u2,v2,w2,uv,uw,vw,thl2,qt2,wthl,wqt,ci,svturb
+        real(field_r), allocatable, dimension(:,:,:,:) :: sv
+        real(field_r), allocatable, dimension(:,:) :: radcorr,uphase,uphasesingle, &
+          radcorrsingle,uturb,vturb,wturb,thlturb,qtturb,e12turb!,randqt,randthl
+        real(field_r), allocatable, dimension(:,:,:,:) :: eigvec
+        character (len=:), allocatable :: name
+      end type
+      type(boundary_type), dimension(5) :: boundary
+      logical, dimension(5) :: lboundary = .false.
+      logical, dimension(5) :: lperiodic =  (/.true., .true., .true., .true., .false./)
+      real :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.
+      integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
+      real,dimension(:),allocatable :: tboundary
 
       ! modphsgrd.f90
 

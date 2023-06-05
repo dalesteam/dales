@@ -81,7 +81,7 @@ subroutine advecc_2nd(a_in,a_out)
     end do
 
     do j=2,j1
-    do k=2,kmax         
+    do k=2,kmax
        do i=2,i1
           a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
                 w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
@@ -118,12 +118,12 @@ end subroutine advecc_2nd
 
 
 !> Advection at the u point.
-subroutine advecu_2nd(a_in, a_out)
-
+subroutine advecu_2nd(a_in, a_out, sx)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
+  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
@@ -144,7 +144,7 @@ subroutine advecu_2nd(a_in, a_out)
     do j=2,j1
     jm=j-1
     jp=j+1
-      do i=2,i1
+      do i=sx,i1
       im=i-1
       ip=i+1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -166,7 +166,7 @@ subroutine advecu_2nd(a_in, a_out)
     do j=2,j1
     jm=j-1
     jp=j+1
-      do i=2,i1
+      do i=sx,i1
       im=i-1
       ip=i+1
         a_out(i,j,1)  = a_out(i,j,1)-(1./rhobf(1))*( &
@@ -181,7 +181,7 @@ subroutine advecu_2nd(a_in, a_out)
     do k=2,kmax
        km=k-1
        kp=k+1
-       do i=2,i1
+       do i=sx,i1
           im=i-1
           ip=i+1
           a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
@@ -197,7 +197,7 @@ subroutine advecu_2nd(a_in, a_out)
     do j=2,j1
     jm=j-1
     jp=j+1
-      do i=2,i1
+      do i=sx,i1
       im=i-1
       ip=i+1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -212,7 +212,7 @@ subroutine advecu_2nd(a_in, a_out)
     do k=2,kmax
        km=k-1
        kp=k+1
-       do i=2,i1
+       do i=sx,i1
           im=i-1
           ip=i+1
           a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
@@ -234,12 +234,13 @@ end subroutine advecu_2nd
 
 
 !> Advection at the v point.
-subroutine advecv_2nd(a_in, a_out)
-
+subroutine advecv_2nd(a_in, a_out, sy)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
+
+  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
 !  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
@@ -257,7 +258,7 @@ subroutine advecv_2nd(a_in, a_out)
   do k=1,kmax
   km=k-1
   kp=k+1
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
       do i=2,i1
@@ -279,7 +280,7 @@ subroutine advecv_2nd(a_in, a_out)
 
   if (leq) then
 
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
       do i=2,i1
@@ -291,7 +292,7 @@ subroutine advecv_2nd(a_in, a_out)
       end do
     end do
 
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
     do k=2,kmax
@@ -309,7 +310,7 @@ subroutine advecv_2nd(a_in, a_out)
     end do
 
   else
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
       do i=2,i1
@@ -322,7 +323,7 @@ subroutine advecv_2nd(a_in, a_out)
       end do
     end do
 
-    do j=2,j1
+    do j=sy,j1
     jm=j-1
     jp=j+1
     do k=2,kmax
