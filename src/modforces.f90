@@ -112,63 +112,56 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol
+  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol,lopenbc,lboundary,lperiodic
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
-  integer i, j, k, jm, jp, km, kp
+  integer :: i, j, k,im,ip, jm, jp, km, kp,sx=2,sy=2
 
   if (lcoriol .eqv. .false.) return
 
-  do k=2,kmax
-    kp=k+1
+  ! Only calculate interior tendencies when open boundaries are used
+  if(lopenbc) then
+    if(lboundary(1).and..not.lperiodic(1)) sx = 3
+    if(lboundary(3).and..not.lperiodic(3)) sy = 3
+  endif
+
+  ! u tendency
+  do k = 1,kmax
+    kp = k+1
+    do j = 2,j1
+      jp = j+1
+      do i = sx,i1
+        im = i-1
+        up(i,j,k) = up(i,j,k)+ cv*om23 &
+              +(v0(i,j,k)+v0(i,jp,k)+v0(im,j,k)+v0(im,jp,k))*om23*0.25 &
+              -(w0(i,j,k)+w0(i,j,kp)+w0(im,j,kp)+w0(im,j,k))*om22*0.25
+      end do
+    end do
+  end do
+  ! v tendency
+  do k = 1,kmax
+    do j = sy,j1
+      jm = j -1
+      do i = 2,i1
+        ip = i+1
+        vp(i,j,k) = vp(i,j,k)  - cu*om23 &
+              -(u0(i,j,k)+u0(i,jm,k)+u0(ip,jm,k)+u0(ip,j,k))*om23*0.25
+      end do
+    end do
+  end do
+  ! w tendency
+  do k=2,kmax ! wp(:,:,1)=0
     km=k-1
-  do j=2,j1
-    jp=j+1
-    jm=j-1
-  do i=2,i1
-
-    up(i,j,k) = up(i,j,k)+ cv*om23 &
-          +(v0(i,j,k)+v0(i,jp,k)+v0(i-1,j,k)+v0(i-1,jp,k))*om23*0.25 &
-          -(w0(i,j,k)+w0(i,j,kp)+w0(i-1,j,kp)+w0(i-1,j,k))*om22*0.25
-
-    vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-          -(u0(i,j,k)+u0(i,jm,k)+u0(i+1,jm,k)+u0(i+1,j,k))*om23*0.25
-
-
-    wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(km) * (u0(i,j,k)  + u0(i+1,j,k) )    &
-                +    dzf(k)  * (u0(i,j,km) + u0(i+1,j,km))  ) / dzh(k) ) &
+    do j=2,j1
+      do i=2,i1
+        ip = i+1
+        wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(km) * (u0(i,j,k)  + u0(ip,j,k) )    &
+                +    dzf(k)  * (u0(i,j,km) + u0(ip,j,km))  ) / dzh(k) ) &
                 * om22*0.25
+      end do
+    end do
   end do
-  end do
-!     -------------------------------------------end i&j-loop
-  end do
-!     -------------------------------------------end k-loop
-
-!     --------------------------------------------
-!     special treatment for lowest full level: k=1
-!     --------------------------------------------
-
-  do j=2,j1
-    jp = j+1
-    jm = j-1
-  do i=2,i1
-
-    up(i,j,1) = up(i,j,1)  + cv*om23 &
-          +(v0(i,j,1)+v0(i,jp,1)+v0(i-1,j,1)+v0(i-1,jp,1))*om23*0.25 &
-          -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25
-
-    vp(i,j,1) = vp(i,j,1) - cu*om23 &
-          -(u0(i,j,1)+u0(i,jm,1)+u0(i+1,jm,1)+u0(i+1,j,1))*om23*0.25
-
-    wp(i,j,1) = 0.0
-
-  end do
-  end do
-!     ----------------------------------------------end i,j-loop
-
-
-  return
   end subroutine coriolis
 
   subroutine lstend
@@ -211,17 +204,16 @@ contains
     kp=k+1
     km=k-1
 
-    if (whls(kp).lt.0) then   !downwind scheme for subsidence
+    if (whls(kp).lt.0) then   !upwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(kp) * (thl0(2:i1,2:j1,kp) - thl0(2:i1,2:j1,k))/dzh(kp)
        qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(kp) * (qt0 (2:i1,2:j1,kp) - qt0 (2:i1,2:j1,k))/dzh(kp)
        if (lmomsubs) then
           up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(kp) * (u0(2:i1,2:j1,kp) - u0(2:i1,2:j1,k))/dzh(kp)
           vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(kp) * (v0(2:i1,2:j1,kp) - v0(2:i1,2:j1,k))/dzh(kp)
        endif
-
        svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(kp) * (sv0(2:i1,2:j1,kp,:) - sv0(2:i1,2:j1,k,:))/dzh(kp)
 
-    else !downwind scheme for mean upward motions
+    else !upwind scheme for mean upward motions
        if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
           thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,km))/dzh(k)
           qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k) * (qt0 (2:i1,2:j1,k) - qt0 (2:i1,2:j1,km))/dzh(k)
@@ -237,10 +229,7 @@ contains
     qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
     up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
-
   enddo
-
-  return
   end subroutine lstend
 
 end module modforces

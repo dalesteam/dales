@@ -31,7 +31,7 @@ module modchecksim
 
   implicit none
   private
-  public initchecksim,checksim
+  public initchecksim,checksim,chkdiv
 
   real    :: tcheck = 0.
   integer(kind=longint) :: tnext = 3600.,itcheck
@@ -39,7 +39,7 @@ module modchecksim
 
   ! explanations for dt_limit, determined in tstep_update()
   character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
-  
+
   save
 contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
@@ -200,9 +200,8 @@ contains
       write(6 ,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  '       dt limited by ', dt_reasons(dt_reason)
    end if
 
-   return    
-    
+   return
+
   end subroutine chkdiv
 
 end module modchecksim
-
