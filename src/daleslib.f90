@@ -106,6 +106,7 @@ module daleslib
             !use modtilt,           only : inittilt
             !use modparticles,      only : initparticles
             use modnudge,           only : initnudge
+            use modnudgeboundary,   only : initnudgeboundary
             !use modprojection,     only : initprojection
             use modchem,            only : initchem
             use modcanopy,          only : initcanopy
@@ -170,6 +171,7 @@ module daleslib
             call initlsmstat
             !call initparticles
             call initnudge
+            call initnudgeboundary
             call initbulkmicrostat
             call initbudget
             call initvarbudget
@@ -466,6 +468,7 @@ module daleslib
             !use modtilt,           only : tiltedgravity, tiltedboundary
             !use modparticles,      only : particles
             use modnudge,           only : nudge
+            use modnudgeboundary,   only : nudgeboundary
             !use modprojection,     only : projection
             use modchem,            only : twostep
             use modcanopy,          only : canopy
@@ -525,6 +528,7 @@ module daleslib
             !   3.4   EXECUTE ADD ONS
             !------------------------------------------------------
             call nudge
+            call nudgeboundary
             !    call dospecs
             !    call tiltedgravity
 
@@ -669,6 +673,7 @@ module daleslib
             !use modtilt,           only : exittilt
             !use modparticles,      only : exitparticles
             use modnudge,           only : exitnudge
+            use modnudgeboundary,   only : exitnudgeboundary
             use modcanopy,          only : exitcanopy
 
             implicit none
@@ -681,6 +686,7 @@ module daleslib
             call exitlsmstat
             !call exitparticles
             call exitnudge
+            call exitnudgeboundary
             call exitsampling
             call exitquadrant
             call exitsamptend

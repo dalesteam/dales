@@ -107,7 +107,8 @@ program DALES
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microsources
-  use modsurface,        only : surface
+  use modsurface,        only : surface 
+  use modlsm,            only : lsm
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
@@ -147,12 +148,14 @@ program DALES
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
+  use modnudgeboundary, only : initnudgeboundary, nudgeboundary, exitnudgeboundary
   use modtestbed,      only : testbednudge, exittestbed
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use modadvection,    only : advection
-
+  use moddatetime,     only : datetime
+  use modemission,     only : emission
 
   implicit none
 
@@ -186,6 +189,7 @@ program DALES
   call initlsmstat
   !call initparticles
   call initnudge
+  call initnudgeboundary
   call initbulkmicrostat
   call initbudget
   call initvarbudget
@@ -208,6 +212,7 @@ program DALES
     call tstep_update
     call timedep
     call samptend(tend_start,firstterm=.true.)
+    call datetime
 
 !-----------------------------------------------------
 !   3.1   RADIATION
@@ -216,8 +221,9 @@ program DALES
     call samptend(tend_rad)
 
 !-----------------------------------------------------
-!   3.2   THE SURFACE LAYER
+!   3.2   THE SURFACE LAYER / LAND-SURFACE
 !-----------------------------------------------------
+    call lsm
     call surface
 
 !-----------------------------------------------------
@@ -241,11 +247,13 @@ program DALES
     call samptend(tend_ls)
     call microsources !Drizzle etc.
     call samptend(tend_micro)
+    call emission
 
 !------------------------------------------------------
 !   3.4   EXECUTE ADD ONS
 !------------------------------------------------------
     call nudge
+    call nudgeboundary
     call testbednudge
 !    call dospecs
 !    call tiltedgravity
@@ -319,6 +327,7 @@ program DALES
   call exitlsmstat
   !call exitparticles
   call exitnudge
+  call exitnudgeboundary
   call exittestbed
   call exitsampling
   call exitquadrant

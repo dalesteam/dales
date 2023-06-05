@@ -26,8 +26,6 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
-
-
 module modsurfdata
 
 ! implicit none
@@ -38,13 +36,13 @@ SAVE
   ! Soil properties
 
   ! Domain-uniform properties
-  integer, parameter  :: ksoilmax = 4       !<  Number of soil layers [-]
+  integer, parameter :: ksoilmax = 4      !<  Number of soil layers [-]
 
   real              :: lambdasat          !<  heat conductivity saturated soil [W/m/K]
   real              :: Ke                 !<  Kersten number [-]
 
   real, allocatable :: zsoil  (:)         !<  Height of bottom soil layer from surface [m]
-  real, allocatable :: zsoilc (:)        !<  Height of center soil layer from surface [m]
+  real, allocatable :: zsoilc (:)         !<  Height of center soil layer from surface [m]
   real, allocatable :: dzsoil (:)         !<  Depth of soil layer [m]
   real, allocatable :: dzsoilh(:)         !<  Depth of soil layer between center of layers [m]
 

@@ -99,6 +99,7 @@ save
     procedure :: D_MPI_BCAST_INT32_R2
     procedure :: D_MPI_BCAST_LOGICAL_R1
     procedure :: D_MPI_BCAST_STRING
+    procedure :: D_MPI_BCAST_STRING_R1
   end interface
   interface D_MPI_ALLREDUCE
     procedure :: D_MPI_ALLREDUCE_REAL32_S
@@ -777,6 +778,5 @@ contains
     endif
 
   end subroutine gatherrow
-
 
 end module

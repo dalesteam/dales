@@ -127,7 +127,7 @@ save
   real(field_r), allocatable :: esl(:,:,:)
 
   real(field_r), allocatable :: qsat(:,:,:)
-  real(field_r), allocatable :: surf_rain(:,:)               !< integrated surface rain 
+  real(field_r), allocatable :: surf_rain(:,:)               !< integrated surface rain
 
 contains
 !> Allocate and initialize the prognostic variables
@@ -137,33 +137,32 @@ subroutine initfields
     ! Allocation of prognostic variables
     implicit none
 
-    allocate(um   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vm   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wm   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlm (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e12m (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtm  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(um      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(vm      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(wm      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlm    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e12m    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qtm     (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(u0   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(v0   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(w0   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thl0 (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e120 (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(u0      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(v0      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(w0      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thl0    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thl0h   (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e120    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qt0     (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qt0h    (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(up   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(vp   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(wp   (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thlp (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(e12p (2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qtp  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(up      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(vp      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(wp      (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thlp    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(e12p    (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(qtp     (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(svm  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(sv0  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(svp  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-
-    allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(qt0h (2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(svm     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(sv0     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    allocate(svp     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
 
     ! Allocation of base state variables
     allocate(rhobf   (k1))
