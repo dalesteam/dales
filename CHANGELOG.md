@@ -1,6 +1,38 @@
 Changes in DALES
 ================
 
+Version 4.4.1 - 2023-06-07
+--------------------------
+
+A minor release with fixes, improved error reporting and statistics output.
+
+### Bugs fixed
+
+* Fix unsafe boundary exchange of ustar, commits f2d07e82, 45e38ace1
+* Fix output units and long_name attribute, commits 3358143c, 0744378c0, c8fdb21
+* fix #79: dtmax < 0.1 leads to crash, commit 4df5e0e1f1
+
+### Improvements
+
+* 2D radiation statistics, commit 7e58773660e
+* Add variance budget module, commit 4646ff8e
+* modgenstat: add per-level cloud fraction, cfrac, to profiles.nnn.nc, commit 8aee2cb63c47
+* Make lCnstAlbedo true by default for less surprising behavior,  commit 989e13a33675
+* Allow multiple planes for crossxz, crossyz and in any MPI tile, commit a4640bd20b
+* Add namelist option RUN/loutdirs to save model output in separate directories for each row, commit 3576a917ef
+
+### Improved error checking
+
+* Stop with error message if any dzh or dzf is zero or negative, commit 5f9f67046c
+* Add error checking when opening *.inp.nnn files, commit f1a38f24d
+* Print MPI error string on error, catch and explain nprocx * nprocy != nprocs, commit b6c5887ad8
+* Add MPI error checking in initialization, commit 6060f13a2ad
+* Check FFTW plan creation result for errors, commit a2666269b6
+
+### Optimization
+
+* bulkmicrophysics: give more of the temporary 3D fields configurable precision (field_r), commit fe5f0ea9
+
 
 Version 4.4 - 2022-06-20
 ------------------------
