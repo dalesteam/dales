@@ -707,7 +707,7 @@ contains
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
+    use modglobal,  only : i1,j1,i2,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
     use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
     use modmpi,     only : mpierr, comm3d, mpi_sum, excjs &
                          , D_MPI_ALLREDUCE, D_MPI_BCAST
@@ -1042,7 +1042,7 @@ contains
     end if
 
     ! Transfer ustar to neighbouring cells, do this like a 3D field
-    ustar_3D(1:size(ustar,1),1:size(ustar,2),1:1) => ustar
+    ustar_3D(1:i2,1:j2,1:1) => ustar
     call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
   end subroutine surface
 
