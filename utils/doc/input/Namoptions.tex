@@ -18,7 +18,13 @@
 \usepackage{mdwlist}		% Kan dingen met lijsten. Geeft ook de optie itemize* (geen witregels tussen items)
 \usepackage{multirow}		% Combine multiple rows within a tabular
 %\usepackage{array}
-
+\usepackage{xcolor}             %
+\hypersetup{                    % color text of links instead of surrounding them with red or green boxes
+    colorlinks,
+    linkcolor={red!50!black},
+    citecolor={blue!50!black},
+    urlcolor={blue!80!black}
+}
 
 \topmargin= -5 mm
 \textwidth 15.5cm
@@ -163,7 +169,7 @@ All options that can be set for the LES experiments will be discussed in the fol
 \end{tabular}} & \multirow{11}{*}{\begin{tabular}{@{\hspace{0cm}}p{4cm}}$x \in \{1,$ $2,$ $5,$ $52,$ $55,$ $6,$ $62,$ $7\}$\end{tabular}}	& Advection scheme for momentum, TKE, $\theta_l$, $q_t$ and scalars: & \multirow{11}{*}{-}\\
   	&		&				& 1 = 1$^{\text{st}}$ order upwind					&\\
   	&		&				& 2 = 2$^{\text{nd}}$ order central difference			&\\
-  	&		&				& 5 = Option 6 + 5$^{\text{th}}$ order upwind	&\\
+  	&		&				& 5 = 6$^{\text{th}}$ order central + 5$^{\text{th}}$ order upwind	&\\
   	&		&				& 52 = Horizontal 5$^{\text{th}}$ \& vertical 2$^{\text{nd}}$	&\\
   	&		&				& 55 = Hybrid scheme	&\\
   	&		&				& 555 = Alternative hybrid scheme	&\\
@@ -330,7 +336,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   \hypertarget{nprocy}{nprocy}	& 0	& $x = N_{\text{processors}} / \text{nprocx}$	& Number of processors in $y$ direction; if set to 0, MPI will determine suitable value	& - \\
   loutdirs	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$		& If .true., per-task output files are stored in subdirectory myidy/ & -\\
 \end{supertabular}
-$^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any value of\hyperlink{iadvtke}{\text{iadv\_tke}}, \hyperlink{iadvthl}{\text{iadv\_thl}}, \hyperlink{iadvqt}{\text{iadv\_qt}} or \hyperlink{iadvsv}{\text{iadv\_sv}} $\in \lbrace6, 62, 7\rbrace$, courant = 0.7 as standard. Otherwise default value is 1.
+$^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any value of \hyperlink{iadvtke}{\text{iadv\_tke}}, \hyperlink{iadvthl}{\text{iadv\_thl}}, \hyperlink{iadvqt}{\text{iadv\_qt}} or \hyperlink{iadvsv}{\text{iadv\_sv}} $\in \lbrace6, 62, 7\rbrace$, courant = 0.7 as standard. Otherwise default value is 1.
 \end{center}
 
 %\newpage
@@ -719,11 +725,14 @@ tolerance = 1E-12
   }
 \begin{supertabular}{|l|p{1.6cm}|p{4cm}|p{6cm}|l|}
   lcross	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for dumping of crosssections of the field	& -\\
-  lbinary	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to dump crosssections in binary files	& -\\
+  lbinary	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to dump crosssections in binary files	        & -\\
+  lxy           & .true.        & $x\in\{\text{.false.},\text{.true.}\}$	& Enable horizontal xy crosssection                     & -\\
+  lxz           & .true.        & $x\in\{\text{.false.},\text{.true.}\}$	& Enable vertical xz crosssection	                & -\\
+  lyz           & .true.        & $x\in\{\text{.false.},\text{.true.}\}$	& Enable vertical yz crosssection         	        & -\\
   dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
-  crossheight(1:100)& 1: $x=2$ & $x \in \mathbb{N}, \quad 1 \leq x \leq \text{kmax}$	& Heights of the horizontal crosssection		& -\\
-  crossplane	& 2		& $x \in \mathbb{N}, \quad 1 \leq x \leq {\text{jtot}}/{N_\text{processors}}$	& Location of the vertical (xz) plane on every processor& -\\
-  crossortho	& 2	& $x \in \mathbb{N}, \quad 1 \leq x \leq \text{itot}$	& Location of the vertical (yz) plane & - \\
+  crossheight(1:100)& 1: $x=2$ & $x \in \mathbb{N}, \quad 1 \leq x \leq \text{kmax}$	& Heights of the horizontal crosssection	& -\\
+  crossplane	& 2		& $x \in \mathbb{N}, \quad 1 \leq x \leq {\text{jtot}}/{N_\text{processors}}$	& List of locations of vertical (xz) planes& -\\
+  crossortho	& 2	& $x \in \mathbb{N}, \quad 1 \leq x \leq \text{itot}$	& List of locations of vertical (yz) planes & - \\
 \end{supertabular}
 \end{center}
 
@@ -789,8 +798,16 @@ tolerance = 1E-12
   klow		& 1		& $x \in \mathbb{N}, \quad 1 \le x \le \text{khigh}$	& Lowest level of the 3d-field output		& -\\
   khigh		& $kmax$	& $x \in \mathbb{N}, \quad \text{klow} \le x \le \text{kmax}$	& Highest level of the 3d-field output		& -\\
   ncoarse		& 1	& $x \in \mathbb{N}, \quad x \geq 1 $	& Factor by which to reduce (sample) the 3d-field to be written (in each horizontal direction)	& -\\
-  tmin		& 0.0		& $x \in \mathbb{R}, \quad x \geq 0$	& Start time of field dump; not active yet	& s \\
-  tmax		& $10^8$	& $x \in \mathbb{R}, \quad x \geq 0$	& End time of field dump; not active yet	& s \\
+  tmin		& 0.0		& $x \in \mathbb{R}, \quad x \geq 0$	& Start time of field dump	& s \\
+  tmax		& $10^8$	& $x \in \mathbb{R}, \quad x \geq 0$	& End time of field dump	& s \\
+  lu	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $u$ 	& -\\
+  lv	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $v$ 	& -\\
+  lw	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $w$ 	& -\\
+  lqt	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $q_t$ 	& -\\
+  lql	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $q_l$ 	& -\\
+  lthl	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $\theta_l$ & -\\
+  lbuoy	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save buoyancy field & -\\
+  lsv	       & .true.         & $x\in\{\text{.false.},\text{.true.}\}$	& List of booleans for saving sv001, sv002, ... & -\\
 \end{supertabular}
 \end{center}
 
@@ -1180,6 +1197,34 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
   lradfield	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	        & Switch to turn 2D radiation field output & -\\
   dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of statistics	& s\\
+  timeav	& timeav\_glob	& $x = n \cdot \text{dtav},  \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+\end{supertabular}
+\end{center}
+
+\subsection{Namelist NAMVARBUDGET}\label{par:varbudget}
+
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  lvarbudget	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	        & Switch to turn on variance budget output      & -\\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of variance budget	& s\\
   timeav	& timeav\_glob	& $x = n \cdot \text{dtav},  \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
 \end{supertabular}
 \end{center}
