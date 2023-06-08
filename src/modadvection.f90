@@ -87,7 +87,7 @@ subroutine advection
     case default
       stop "Unknown advection scheme "
   end select
-
+  !$acc wait
   if (.not. lsmagorinsky) then
     select case(iadv_tke)
       case(iadv_cd2)
@@ -211,6 +211,7 @@ subroutine advection
       stop "Unknown advection scheme "
     end select
   end do
+  !$acc wait
   !$acc end data
 end subroutine advection
 end module modadvection

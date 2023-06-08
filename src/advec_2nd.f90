@@ -140,7 +140,7 @@ subroutine advecu_2nd(a_in, a_out)
 !  end do
     
 
-  !$acc parallel loop collapse(3) default(present)
+  !$acc parallel loop collapse(3) default(present) async(1)
   do k=1,kmax
     do j=2,j1
       do i=2,i1
@@ -160,7 +160,7 @@ subroutine advecu_2nd(a_in, a_out)
 
   if (leq) then
      
-!$acc parallel loop collapse(2) default(present)
+!$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)-(1./rhobf(1))*( &
@@ -169,7 +169,7 @@ subroutine advecu_2nd(a_in, a_out)
       end do
     end do
      
-!$acc parallel loop collapse(3) default(present)
+!$acc parallel loop collapse(3) default(present) async(1)
     do j=2,j1
     do k=2,kmax
        do i=2,i1
@@ -183,7 +183,7 @@ subroutine advecu_2nd(a_in, a_out)
 
   else
 
-!$acc parallel loop collapse(2) default(present)
+!$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -192,7 +192,7 @@ subroutine advecu_2nd(a_in, a_out)
       end do
     end do
 
-!$acc parallel loop collapse(3) default(present)
+!$acc parallel loop collapse(3) default(present) async(1)
     do j=2,j1
     do k=2,kmax
        do i=2,i1
@@ -232,7 +232,7 @@ subroutine advecv_2nd(a_in, a_out)
 !      end do
 !    end do
 !  end do
-  !$acc parallel loop collapse(3) default(present) 
+  !$acc parallel loop collapse(3) default(present) async(2)
   do k=1,kmax
     do j=2,j1
       do i=2,i1
@@ -250,7 +250,7 @@ subroutine advecv_2nd(a_in, a_out)
   end do
 
   if (leq) then
-    !$acc parallel loop collapse(2) default(present) 
+    !$acc parallel loop collapse(2) default(present) async(2)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -259,7 +259,7 @@ subroutine advecv_2nd(a_in, a_out)
       end do
     end do
     
-    !$acc parallel loop collapse(3) default(present) 
+    !$acc parallel loop collapse(3) default(present) async(2)
     do j=2,j1
         do k=2,kmax
             do i=2,i1
@@ -272,7 +272,7 @@ subroutine advecv_2nd(a_in, a_out)
     end do
 
   else
-    !$acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present) async(2) 
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -282,7 +282,7 @@ subroutine advecv_2nd(a_in, a_out)
       end do
     end do
     
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async(2)
     do j=2,j1
     do k=2,kmax
        do i=2,i1
@@ -325,7 +325,7 @@ subroutine advecw_2nd(a_in,a_out)
 
   if (leq) then
 
-    !$acc parallel loop collapse(3) default(present)     
+    !$acc parallel loop collapse(3) default(present) async(3)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
@@ -351,7 +351,7 @@ subroutine advecw_2nd(a_in,a_out)
       end do
     end do
   else
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async(3)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
