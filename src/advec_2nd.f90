@@ -138,9 +138,8 @@ subroutine advecu_2nd(a_in, a_out)
 !    end do
 !  end do
     
-  !$acc data copy(u0, v0, w0, rhobf, up, vp, wp) copyin(dzf, dzh)
 
-  !$acc parallel loop collapse(3)
+  !$acc parallel loop collapse(3) default(present)
   do k=1,kmax
     do j=2,j1
       do i=2,i1
@@ -160,7 +159,7 @@ subroutine advecu_2nd(a_in, a_out)
 
   if (leq) then
      
-!$acc parallel loop collapse(2)
+!$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)-(1./rhobf(1))*( &
@@ -169,7 +168,7 @@ subroutine advecu_2nd(a_in, a_out)
       end do
     end do
      
-!$acc parallel loop collapse(3)
+!$acc parallel loop collapse(3) default(present)
     do j=2,j1
     do k=2,kmax
        do i=2,i1
@@ -183,7 +182,7 @@ subroutine advecu_2nd(a_in, a_out)
 
   else
 
-!$acc parallel loop collapse(2)
+!$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -192,7 +191,7 @@ subroutine advecu_2nd(a_in, a_out)
       end do
     end do
 
-!$acc parallel loop collapse(3)
+!$acc parallel loop collapse(3) default(present)
     do j=2,j1
     do k=2,kmax
        do i=2,i1
@@ -209,7 +208,6 @@ subroutine advecu_2nd(a_in, a_out)
 
   end if
 
-!$acc end data
 end subroutine advecu_2nd
 
 
@@ -233,7 +231,7 @@ subroutine advecv_2nd(a_in, a_out)
 !      end do
 !    end do
 !  end do
-   
+  !$acc parallel loop collapse(3) default(present) 
   do k=1,kmax
   km=k-1
   kp=k+1
@@ -258,7 +256,7 @@ subroutine advecv_2nd(a_in, a_out)
   end do
 
   if (leq) then
-     
+    !$acc parallel loop collapse(2) default(present) 
     do j=2,j1
     jm=j-1
     jp=j+1
@@ -270,7 +268,8 @@ subroutine advecv_2nd(a_in, a_out)
             )*dziq
       end do
     end do
-     
+    
+    !$acc parallel loop collapse(3) default(present) 
     do j=2,j1
     jm=j-1
     jp=j+1
@@ -289,6 +288,7 @@ subroutine advecv_2nd(a_in, a_out)
     end do
 
   else
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
     jm=j-1
     jp=j+1
@@ -301,7 +301,8 @@ subroutine advecv_2nd(a_in, a_out)
           ) / (4. * dzf(1))
       end do
     end do
-
+    
+    !$acc parallel loop collapse(3) default(present)
     do j=2,j1
     jm=j-1
     jp=j+1
@@ -350,7 +351,7 @@ subroutine advecw_2nd(a_in,a_out)
 
   if (leq) then
 
-     
+    !$acc parallel loop collapse(3) default(present)     
     do k=2,kmax
     km=k-1
     kp=k+1
@@ -382,6 +383,7 @@ subroutine advecw_2nd(a_in,a_out)
       end do
     end do
   else
+    !$acc parallel loop collapse(3) default(present)
     do k=2,kmax
     km=k-1
     kp=k+1
