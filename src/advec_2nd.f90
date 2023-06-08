@@ -71,7 +71,6 @@ subroutine advecc_2nd(a_in,a_out)
   end do
 
   if (leq) then ! equidistant grid
-     
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -79,7 +78,7 @@ subroutine advecc_2nd(a_in,a_out)
                 ) * dzi5
       end do
     end do
-     
+    
     do j=2,j1
     do k=2,kmax         
        do i=2,i1
@@ -92,7 +91,6 @@ subroutine advecc_2nd(a_in,a_out)
     end do
 
   else   ! non-equidistant grid
-
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -100,7 +98,6 @@ subroutine advecc_2nd(a_in,a_out)
                 ) / dzf(1)
       end do
     end do
-
     do j=2,j1
     do k=2,kmax
        do i=2,i1
@@ -233,23 +230,16 @@ subroutine advecv_2nd(a_in, a_out)
 !  end do
   !$acc parallel loop collapse(3) default(present) 
   do k=1,kmax
-  km=k-1
-  kp=k+1
     do j=2,j1
-    jm=j-1
-    jp=j+1
       do i=2,i1
-      im=i-1
-      ip=i+1
-
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
-              ( u0(ip,j,k)+u0(ip,jm,k))*(a_in(i,j,k)+a_in(ip,j,k)) &
-              -(u0(i ,j,k)+u0(i ,jm,k))*(a_in(i,j,k)+a_in(im,j,k)) &
+              ( u0(i+1,j,k)+u0(i+1,j-1,k))*(a_in(i,j,k)+a_in(i+1,j,k)) &
+              -(u0(i ,j,k)+u0(i ,j-1,k))*(a_in(i,j,k)+a_in(i-1,j,k)) &
               )*dxiq &
               +( &
-              ( v0(i,jp,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,jp,k)) &
-              -(v0(i,jm,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,jm,k)) &
+              ( v0(i,j+1,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,j+1,k)) &
+              -(v0(i,j-1,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,j-1,k)) &
               )*dyiq )
       end do
     end do
@@ -258,31 +248,21 @@ subroutine advecv_2nd(a_in, a_out)
   if (leq) then
     !$acc parallel loop collapse(2) default(present) 
     do j=2,j1
-    jm=j-1
-    jp=j+1
       do i=2,i1
-      im=i-1
-      ip=i+1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-           (w0(i,j,2)+w0(i,jm,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
+           (w0(i,j,2)+w0(i,j-1,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
             )*dziq
       end do
     end do
     
     !$acc parallel loop collapse(3) default(present) 
     do j=2,j1
-    jm=j-1
-    jp=j+1
-    do k=2,kmax
-       km=k-1
-       kp=k+1
-       do i=2,i1
-          im=i-1
-          ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-                ( w0(i,j,kp)+w0(i,jm,kp))*(rhobf(kp) * a_in(i,j,kp) + rhobf(k) * a_in(i,j,k)) &
-                -(w0(i,j,k) +w0(i,jm,k)) *(rhobf(km) * a_in(i,j,km) + rhobf(k) * a_in(i,j,k)) &
-                )*dziq
+        do k=2,kmax
+            do i=2,i1
+                a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+                      ( w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
+                      -(w0(i,j,k) +w0(i,j-1,k)) *(rhobf(k-1) * a_in(i,j,k-1) + rhobf(k) * a_in(i,j,k)) &
+                      )*dziq
         end do
       end do
     end do
@@ -290,13 +270,9 @@ subroutine advecv_2nd(a_in, a_out)
   else
     !$acc parallel loop collapse(2) default(present)
     do j=2,j1
-    jm=j-1
-    jp=j+1
       do i=2,i1
-        im=i-1
-        ip=i+1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-          (w0(i,j,2)+w0(i,jm,2)) &
+          (w0(i,j,2)+w0(i,j-1,2)) &
           *(rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) )/ dzh(2) &
           ) / (4. * dzf(1))
       end do
@@ -304,19 +280,13 @@ subroutine advecv_2nd(a_in, a_out)
     
     !$acc parallel loop collapse(3) default(present)
     do j=2,j1
-    jm=j-1
-    jp=j+1
     do k=2,kmax
-       km=k-1
-       kp=k+1
        do i=2,i1
-          im=i-1
-          ip=i+1
           a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-            (w0(i,j,kp)+w0(i,jm,kp)) &
-            *(rhobf(kp) * a_in(i,j,kp)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(kp) )/ dzh(kp) &
-            -(w0(i,j,k)+w0(i,jm,k)) &
-            *(rhobf(km) * a_in(i,j,km)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(km)) / dzh(k) &
+            (w0(i,j,k+1)+w0(i,j-1,k+1)) &
+            *(rhobf(k+1) * a_in(i,j,k+1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k+1) )/ dzh(k+1) &
+            -(w0(i,j,k)+w0(i,j-1,k)) &
+            *(rhobf(k-1) * a_in(i,j,k-1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k-1)) / dzh(k) &
             ) / (4. * dzf(k))
         end do
       end do
@@ -353,29 +323,23 @@ subroutine advecw_2nd(a_in,a_out)
 
     !$acc parallel loop collapse(3) default(present)     
     do k=2,kmax
-    km=k-1
-    kp=k+1
       do j=2,j1
-      jm=j-1
-      jp=j+1
         do i=2,i1
-        im=i-1
-        ip=i+1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
-                (a_in(ip,j,k)+a_in(i,j,k))*(u0(ip,j,k)+u0(ip,j,km)) &
-              -(a_in(im,j,k)+a_in(i,j,k))*(u0(i  ,j,k)+u0(i  ,j,km)) &
+                (a_in(i+1,j,k)+a_in(i,j,k))*(u0(i+1,j,k)+u0(i+1,j,k-1)) &
+              -(a_in(i-1,j,k)+a_in(i,j,k))*(u0(i  ,j,k)+u0(i  ,j,k-1)) &
                 )*dxiq &
               + &
                 ( &
-                (a_in(i,jp,k)+a_in(i,j,k))*(v0(i,jp,k)+v0(i,jp,km)) &
-              -(a_in(i,jm,k)+a_in(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,km)) &
+                (a_in(i,j+1,k)+a_in(i,j,k))*(v0(i,j+1,k)+v0(i,j+1,k-1)) &
+              -(a_in(i,j-1,k)+a_in(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,k-1)) &
                 )*dyiq &
               + &
                 (1./rhobh(k))*( &
-                (rhobh(k) * a_in(i,j,k) + rhobh(kp) * a_in(i,j,kp) )*(w0(i,j,k) + w0(i,j,kp)) &
-               -(rhobh(k) * a_in(i,j,k) + rhobh(km) * a_in(i,j,km) )*(w0(i,j,k) + w0(i,j,km)) &
+                (rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
+               -(rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
                 )*dziq &
                 )
 
@@ -385,33 +349,27 @@ subroutine advecw_2nd(a_in,a_out)
   else
     !$acc parallel loop collapse(3) default(present)
     do k=2,kmax
-    km=k-1
-    kp=k+1
       do j=2,j1
-        jm=j-1
-        jp=j+1
         do i=2,i1
-        im=i-1
-        ip=i+1
 
           a_out(i,j,k)  = a_out(i,j,k) - (1./rhobh(k))*( &
                 ( &
-                ( rhobh(k) * a_in(ip,j,k) + rhobh(k) * a_in(i,j,k) ) &
-              *( dzf(km)*u0(ip,j,k) + dzf(k)*u0(ip,j,km) ) &
-              -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(im,j,k) ) &
-              *( dzf(km)*u0(i,j,k)+dzf(k)*u0(i ,j,km) ) &
+                ( rhobh(k) * a_in(i+1,j,k) + rhobh(k) * a_in(i,j,k) ) &
+              *( dzf(k-1)*u0(i+1,j,k) + dzf(k)*u0(i+1,j,k-1) ) &
+              -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(i-1,j,k) ) &
+              *( dzf(k-1)*u0(i,j,k)+dzf(k)*u0(i ,j,k-1) ) &
                 )*dxiq / dzh(k) &
               + &
                 ( &
-                ( rhobh(k) * a_in(i,jp,k) + rhobh(k) * a_in(i,j,k) ) &
-              *( dzf(km)*v0(i,jp,k) + dzf(k)*v0(i,jp,km) ) &
+                ( rhobh(k) * a_in(i,j+1,k) + rhobh(k) * a_in(i,j,k) ) &
+              *( dzf(k-1)*v0(i,j+1,k) + dzf(k)*v0(i,j+1,k-1) ) &
               -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(i,j-1,k) ) &
-              *( dzf(km)*v0(i,j,k) + dzf(k)*v0(i,j,km) ) &
+              *( dzf(k-1)*v0(i,j,k) + dzf(k)*v0(i,j,k-1) ) &
                 ) *dyiq / dzh(k) &
               + &
                 ( &
-                ( rhobh(k) * a_in(i,j,k) + rhobh(kp) * a_in(i,j,kp) ) * (w0(i,j,k) + w0(i,j,kp) ) &
-               -( rhobh(k) * a_in(i,j,k) + rhobh(km) * a_in(i,j,km) ) * (w0(i,j,k) + w0(i,j,km) ) &
+                ( rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) ) * (w0(i,j,k) + w0(i,j,k+1) ) &
+               -( rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) ) * (w0(i,j,k) + w0(i,j,k-1) ) &
                 ) / (4. *dzh(k) ) &
                 )
 
