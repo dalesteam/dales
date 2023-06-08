@@ -30,8 +30,8 @@ contains
 subroutine advection
 
   use modglobal,      only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
-                             iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq
-  use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
+                             iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq,dzf,dzh
+  use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp,rhobf,rhobh
   use modsubgrid,     only : lsmagorinsky
   use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, advecc_2nd
   use advec_52,       only : advecu_52, advecv_52, advecw_52, advecc_52
@@ -47,12 +47,13 @@ subroutine advection
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
-  
   select case(iadv_mom)
     case(iadv_cd2)
+      !$acc data copyin(u0, v0, w0, dzf, dzh, rhobf, rhobh) copy(up, vp, wp)
       call advecu_2nd(u0,up)
       call advecv_2nd(v0,vp)
       call advecw_2nd(w0,wp)
+      !$acc end data
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecu_5th(u0,up)
