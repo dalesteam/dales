@@ -9,6 +9,7 @@ The following documents are included in the DALES repository (but are not fully 
 * Documentation of the configuration options [Namoptions.pdf](https://github.com/dalesteam/dales/blob/master/utils/doc/input/Namoptions.pdf)
 * [readme.pdf](https://github.com/dalesteam/dales/blob/master/utils/doc/input/readme.pdf)
 * [INSTALL.md](https://github.com/dalesteam/dales/blob/master/INSTALL.md) contains installation instructions
+* [CHANGELOG.md](https://github.com/dalesteam/dales/blob/master/CHANGELOG.md) documents the changes between versions
 * The [DALES Wiki](https://github.com/dalesteam/dales/wiki/) contains [Installation instructions](https://github.com/dalesteam/dales/wiki/Installation-notes) for various systems and notes for [visualizing and processing](https://github.com/dalesteam/dales/wiki/Visualizing-and-processing-output) the model output
 
 ## License
