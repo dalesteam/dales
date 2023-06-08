@@ -47,13 +47,12 @@ subroutine advection
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
+  !$acc data copyin(u0, v0, w0, dzf, dzh, rhobf, rhobh) copy(up, vp, wp)
   select case(iadv_mom)
     case(iadv_cd2)
-      !$acc data copyin(u0, v0, w0, dzf, dzh, rhobf, rhobh) copy(up, vp, wp)
       call advecu_2nd(u0,up)
       call advecv_2nd(v0,vp)
       call advecw_2nd(w0,wp)
-      !$acc end data
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecu_5th(u0,up)
@@ -90,6 +89,7 @@ subroutine advection
   end select
 
   if (.not. lsmagorinsky) then
+    !$acc data copyin(e120) copy(e12p)
     select case(iadv_tke)
       case(iadv_cd2)
         call advecc_2nd(e120,e12p)
@@ -117,8 +117,9 @@ subroutine advection
       case default
         stop "Unknown advection scheme "
     end select
+    !$acc end data
   end if
-
+  !$acc data copyin(thl0) copy(thlp)
   select case(iadv_thl)
     case(iadv_cd2)
       call advecc_2nd(thl0,thlp)
@@ -149,7 +150,9 @@ subroutine advection
     case default
       stop "Unknown advection scheme "
   end select
+  !$acc end data
   if (lmoist) then
+    !$acc data copyin(qt0) copy(qtp)
     select case(iadv_qt)
       case(iadv_cd2)
         call advecc_2nd(qt0,qtp)
@@ -180,7 +183,9 @@ subroutine advection
       case default
         stop "Unknown advection scheme "
     end select
+    !$acc end data
   end if
+
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)
@@ -212,6 +217,6 @@ subroutine advection
       stop "Unknown advection scheme "
     end select
   end do
-
+  !$acc end data
 end subroutine advection
 end module modadvection
