@@ -52,7 +52,7 @@ subroutine advecc_2nd(a_in,a_out)
 !      end do
 !    end do
 !  end do
-
+  !$acc parallel loop collapse(3) default(present)
   do k=1,kmax
     do j=2,j1
       do i=2,i1
@@ -71,6 +71,7 @@ subroutine advecc_2nd(a_in,a_out)
   end do
 
   if (leq) then ! equidistant grid
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -79,9 +80,10 @@ subroutine advecc_2nd(a_in,a_out)
       end do
     end do
     
+    !$acc parallel loop collapse(3) default(present)
     do j=2,j1
-    do k=2,kmax         
-       do i=2,i1
+      do k=2,kmax         
+        do i=2,i1
           a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
                 w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
                 -w0(i,j,k)   * (rhobf(k-1) * a_in(i,j,k-1)+ rhobf(k) * a_in(i,j,k)) &
@@ -91,6 +93,7 @@ subroutine advecc_2nd(a_in,a_out)
     end do
 
   else   ! non-equidistant grid
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
@@ -98,9 +101,10 @@ subroutine advecc_2nd(a_in,a_out)
                 ) / dzf(1)
       end do
     end do
+    !$acc parallel loop collapse(3) default(present)
     do j=2,j1
-    do k=2,kmax
-       do i=2,i1
+      do k=2,kmax
+        do i=2,i1
           a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
                 w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
                -w0(i,j,k ) * (rhobf(k-1) * a_in(i,j,k-1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k-1) ) / dzh(k) &
