@@ -235,7 +235,7 @@ contains
         if (isurf == 1) then
           nvar = 34
         else if (isurf == 11) then
-          nvar = 78
+          nvar = 77
           if (lags) nvar = nvar + 2
         else
           nvar = 23
