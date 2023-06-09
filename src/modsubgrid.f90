@@ -205,78 +205,80 @@ contains
   integer :: i,j,k,kp,km,jp,jm
 
   if(lsmagorinsky) then
-    do k = 1,kmax
-      mlen        = csz(k) * delta(k)
+    ! First level
+    mlen = csz(1) * delta(1)
+    do i = 2,i1
+      do j = 2,j1
+        strain2 =  ( &
+          ((u0(i+1,j,1)-u0(i,j,1))   *dxi        )**2    + &
+          ((v0(i,j+1,1)-v0(i,j,1))   *dyi        )**2    + &
+          ((w0(i,j,2)-w0(i,j,1))     /dzf(1)     )**2    )
 
+        strain2 = strain2 + 0.5 * ( &
+          ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
+          dudz(i,j)   )**2 )
+
+        strain2 = strain2 + 0.125 * ( &
+          ((u0(i,j+1,1)-u0(i,j,1))     *dyi     + &
+           (v0(i,j+1,1)-v0(i-1,j+1,1)) *dxi        )**2    + &
+          ((u0(i,j,1)-u0(i,j-1,1))     *dyi     + &
+           (v0(i,j,1)-v0(i-1,j,1))     *dxi        )**2    + &
+          ((u0(i+1,j,1)-u0(i+1,j-1,1)) *dyi     + &
+           (v0(i+1,j,1)-v0(i,j,1))     *dxi        )**2    + &
+          ((u0(i+1,j+1,1)-u0(i+1,j,1)) *dyi     + &
+           (v0(i+1,j+1,1)-v0(i,j+1,1)) *dxi        )**2    )
+
+        strain2 = strain2 + 0.5 * ( &
+          (0.25*(w0(i,j+1,2)-w0(i,j-1,2))*dyi + &
+           dvdz(i,j)   )**2 )
+
+        ekm(i,j,1)  = mlen ** 2. * sqrt(2. * strain2)
+        ekh(i,j,1)  = ekm(i,j,1) / Prandtl
+
+        ekm(i,j,1) = max(ekm(i,j,1),ekmin)
+        ekh(i,j,1) = max(ekh(i,j,1),ekmin)
+      end do
+    end do
+    
+    ! Other levels
+    do k = 2,kmax
+      mlen = csz(k) * delta(k)
       do i = 2,i1
         do j = 2,j1
+          strain2 =  ( &
+            ((u0(i+1,j,k)-u0(i,j,k))    *dxi        )**2    + &
+            ((v0(i,j+1,k)-v0(i,j,k))    *dyi        )**2    + &
+            ((w0(i,j,k+1)-w0(i,j,k))    /dzf(k)     )**2    )
 
-          kp=k+1
-          km=k-1
-          jp=j+1
-          jm=j-1
+          strain2 = strain2 + 0.125 * ( &
+            ((w0(i,j,k+1)-w0(i-1,j,k+1)) *dxi     + &
+             (u0(i,j,k+1)-u0(i,j,k))     /dzh(k+1)  )**2    + &
+            ((w0(i,j,k)-w0(i-1,j,k))     *dxi     + &
+             (u0(i,j,k)-u0(i,j,k-1))     /dzh(k)    )**2    + &
+            ((w0(i+1,j,k)-w0(i,j,k))     *dxi     + &
+             (u0(i+1,j,k)-u0(i+1,j,k-1)) /dzh(k)    )**2    + &
+            ((w0(i+1,j,k+1)-w0(i,j,k+1)) *dxi     + &
+             (u0(i+1,j,k+1)-u0(i+1,j,k)) /dzh(k+1)  )**2    )
 
-          if(k == 1) then
-            strain2 =  ( &
-              ((u0(i+1,j,k)-u0(i,j,k))   *dxi        )**2    + &
-              ((v0(i,jp,k)-v0(i,j,k))    *dyi        )**2    + &
-              ((w0(i,j,kp)-w0(i,j,k))    /dzf(k)     )**2    )
+          strain2 = strain2 + 0.125 * ( &
+            ((u0(i,j+1,k)-u0(i,j,k))     *dyi     + &
+             (v0(i,j+1,k)-v0(i-1,j+1,k)) *dxi        )**2    + &
+            ((u0(i,j,k)-u0(i,j-1,k))     *dyi     + &
+             (v0(i,j,k)-v0(i-1,j,k))     *dxi        )**2    + &
+            ((u0(i+1,j,k)-u0(i+1,j-1,k)) *dyi     + &
+             (v0(i+1,j,k)-v0(i,j,k))     *dxi        )**2    + &
+            ((u0(i+1,j+1,k)-u0(i+1,j,k)) *dyi     + &
+             (v0(i+1,j+1,k)-v0(i,j+1,k)) *dxi        )**2    )
 
-            strain2 = strain2 + 0.5 * ( &
-              ( 0.25*(w0(i+1,j,kp)-w0(i-1,j,kp))*dxi + &
-              dudz(i,j)   )**2 )
-
-            strain2 = strain2 + 0.125 * ( &
-              ((u0(i,jp,k)-u0(i,j,k))     *dyi     + &
-              (v0(i,jp,k)-v0(i-1,jp,k))  *dxi        )**2    + &
-              ((u0(i,j,k)-u0(i,jm,k))     *dyi     + &
-              (v0(i,j,k)-v0(i-1,j,k))    *dxi        )**2    + &
-              ((u0(i+1,j,k)-u0(i+1,jm,k)) *dyi     + &
-              (v0(i+1,j,k)-v0(i,j,k))    *dxi        )**2    + &
-              ((u0(i+1,jp,k)-u0(i+1,j,k)) *dyi     + &
-              (v0(i+1,jp,k)-v0(i,jp,k))  *dxi        )**2    )
-
-            strain2 = strain2 + 0.5 * ( &
-              ( 0.25*(w0(i,jp,kp)-w0(i,jm,kp))*dyi + &
-              dvdz(i,j)   )**2 )
-
-          else
-
-            strain2 =  ( &
-              ((u0(i+1,j,k)-u0(i,j,k))   *dxi        )**2    + &
-              ((v0(i,jp,k)-v0(i,j,k))    *dyi        )**2    + &
-              ((w0(i,j,kp)-w0(i,j,k))    /dzf(k)     )**2    )
-
-            strain2 = strain2 + 0.125 * ( &
-              ((w0(i,j,kp)-w0(i-1,j,kp))  *dxi     + &
-              (u0(i,j,kp)-u0(i,j,k))     / dzh(kp)  )**2    + &
-              ((w0(i,j,k)-w0(i-1,j,k))    *dxi     + &
-              (u0(i,j,k)-u0(i,j,km))     / dzh(k)   )**2    + &
-              ((w0(i+1,j,k)-w0(i,j,k))    *dxi     + &
-              (u0(i+1,j,k)-u0(i+1,j,km)) / dzh(k)   )**2    + &
-              ((w0(i+1,j,kp)-w0(i,j,kp))  *dxi     + &
-              (u0(i+1,j,kp)-u0(i+1,j,k)) / dzh(kp)  )**2    )
-
-            strain2 = strain2 + 0.125 * ( &
-              ((u0(i,jp,k)-u0(i,j,k))     *dyi     + &
-              (v0(i,jp,k)-v0(i-1,jp,k))  *dxi        )**2    + &
-              ((u0(i,j,k)-u0(i,jm,k))     *dyi     + &
-              (v0(i,j,k)-v0(i-1,j,k))    *dxi        )**2    + &
-              ((u0(i+1,j,k)-u0(i+1,jm,k)) *dyi     + &
-              (v0(i+1,j,k)-v0(i,j,k))    *dxi        )**2    + &
-              ((u0(i+1,jp,k)-u0(i+1,j,k)) *dyi     + &
-              (v0(i+1,jp,k)-v0(i,jp,k))  *dxi        )**2    )
-
-            strain2 = strain2 + 0.125 * ( &
-              ((v0(i,j,kp)-v0(i,j,k))     / dzh(kp) + &
-              (w0(i,j,kp)-w0(i,jm,kp))   *dyi        )**2    + &
-              ((v0(i,j,k)-v0(i,j,km))     / dzh(k)+ &
-              (w0(i,j,k)-w0(i,jm,k))     *dyi        )**2    + &
-              ((v0(i,jp,k)-v0(i,jp,km))   / dzh(k)+ &
-              (w0(i,jp,k)-w0(i,j,k))     *dyi        )**2    + &
-              ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp) + &
-              (w0(i,jp,kp)-w0(i,j,kp))   *dyi        )**2    )
-          end if
+          strain2 = strain2 + 0.125 * ( &
+            ((v0(i,j,k+1)-v0(i,j,k))     /dzh(k+1) + &
+            (w0(i,j,k+1)-w0(i,j-1,k+1))  *dyi        )**2    + &
+            ((v0(i,j,k)-v0(i,j,k-1))     /dzh(k)   + &
+            (w0(i,j,k)-w0(i,j-1,k))      *dyi        )**2    + &
+            ((v0(i,j+1,k)-v0(i,j+1,k-1)) /dzh(k)   + &
+            (w0(i,j+1,k)-w0(i,j,k))      *dyi        )**2    + &
+            ((v0(i,j+1,k+1)-v0(i,j+1,k)) /dzh(k+1) + &
+            (w0(i,j+1,k+1)-w0(i,j,k+1))  *dyi        )**2    )
 
           ekm(i,j,k)  = mlen ** 2. * sqrt(2. * strain2)
           ekh(i,j,k)  = ekm(i,j,k) / Prandtl
