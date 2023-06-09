@@ -272,13 +272,13 @@ contains
 
           strain2 = strain2 + 0.125 * ( &
             ((v0(i,j,k+1)-v0(i,j,k))     /dzh(k+1) + &
-            (w0(i,j,k+1)-w0(i,j-1,k+1))  *dyi        )**2    + &
+             (w0(i,j,k+1)-w0(i,j-1,k+1)) *dyi        )**2    + &
             ((v0(i,j,k)-v0(i,j,k-1))     /dzh(k)   + &
-            (w0(i,j,k)-w0(i,j-1,k))      *dyi        )**2    + &
+             (w0(i,j,k)-w0(i,j-1,k))     *dyi        )**2    + &
             ((v0(i,j+1,k)-v0(i,j+1,k-1)) /dzh(k)   + &
-            (w0(i,j+1,k)-w0(i,j,k))      *dyi        )**2    + &
+             (w0(i,j+1,k)-w0(i,j,k))     *dyi        )**2    + &
             ((v0(i,j+1,k+1)-v0(i,j+1,k)) /dzh(k+1) + &
-            (w0(i,j+1,k+1)-w0(i,j,k+1))  *dyi        )**2    )
+             (w0(i,j+1,k+1)-w0(i,j,k+1)) *dyi        )**2    )
 
           ekm(i,j,k)  = mlen ** 2. * sqrt(2. * strain2)
           ekh(i,j,k)  = ekm(i,j,k) / Prandtl
