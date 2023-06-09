@@ -132,11 +132,13 @@ save
       real, dimension(1:2000) :: ttab
       real, dimension(1:2000) :: esatltab
       real, dimension(1:2000) :: esatitab
+      real, dimension(1:2000) :: esatmtab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
+      logical :: lfast_thermo = .false. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
 
       ! Poisson solver: modpois / modhypre
@@ -188,7 +190,7 @@ save
 
       character(3) cexpnr
       logical :: loutdirs = .false.       !< if true, create output directories using myidy
-      character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory 
+      character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory
 
       ! modphsgrd.f90
 
@@ -232,6 +234,7 @@ contains
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
+    real :: ilratio
     integer :: k, n, m, ierr
     character(80) chmess
 
@@ -324,6 +327,7 @@ contains
 
     ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
     ! esatitab(m) is the same over ice
+    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
     ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
     ! Murphy and Koop 2005 parameterization formula.
     do m=1,2000
@@ -332,6 +336,8 @@ contains
          tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
 
     esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
+    ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
+    esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
     end do
 
     mygamma251(-100)=0.

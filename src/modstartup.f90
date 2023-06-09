@@ -69,7 +69,7 @@ contains
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
-                                  lnoclouds,lrigidlid,unudge,ntimedep,&
+                                  lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, loutdirs, output_prefix
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -110,7 +110,7 @@ contains
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
@@ -169,7 +169,7 @@ contains
     call initmpi
 
   !broadcast namelists
-    call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr) ! RUN
     call D_MPI_BCAST(lwarmstart ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(startfile  ,50,0,commwrld,mpierr)
     call D_MPI_BCAST(author     ,80,0,commwrld,mpierr)
@@ -183,7 +183,7 @@ contains
     call D_MPI_BCAST(nsv        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(loutdirs   ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr) ! DOMAIN
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(kmax       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xsize      ,1,0,commwrld,mpierr)
@@ -194,27 +194,28 @@ contains
     call D_MPI_BCAST(xday       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xtime      ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(z0         ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ustin      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(z0          ,1,0,commwrld,mpierr) ! PHYSICS
+    call D_MPI_BCAST(ustin       ,1,0,commwrld,mpierr)
     !call D_MPI_BCAST(lneutraldrag ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(wtsurf     ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(wqsurf     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(wtsurf      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(wqsurf      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(wsvsurf(1:nsv),nsv,0,commwrld,mpierr)
-    call D_MPI_BCAST(ps         ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(thls       ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(chi_half   ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lmoist     ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lcoriol    ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lpressgrad ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(igrw_damp  ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(geodamptime,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lforce_user,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lmomsubs   ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ltimedep   ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ltimedepuv ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ltimedepsv ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lrigidlid  ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(unudge     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ps          ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(thls        ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(chi_half    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lmoist      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lcoriol     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lpressgrad  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(igrw_damp   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(geodamptime ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ltimedepuv  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ltimedepsv  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lrigidlid   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
@@ -234,7 +235,7 @@ contains
     call D_MPI_BCAST(isvsmoke   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lcloudshading,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr) ! DYNAMICS
     call D_MPI_BCAST(lqlnr      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lambda_crit,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cu         ,1,0,commwrld,mpierr)
@@ -248,7 +249,7 @@ contains
     call D_MPI_BCAST(randqt     ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(randu      ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(ladaptive  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ladaptive  ,1,0,commwrld,mpierr) ! RUN
     call D_MPI_BCAST(courant,1,0,commwrld,mpierr)
     call D_MPI_BCAST(peclet,1,0,commwrld,mpierr)
 
