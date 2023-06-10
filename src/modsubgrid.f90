@@ -223,7 +223,7 @@ contains
   implicit none
 
   real    :: strain2,mlen
-  integer :: i,j,k,kp,km,jp,jm
+  integer :: i,j,k
 
   if(lsmagorinsky) then
     ! First level
