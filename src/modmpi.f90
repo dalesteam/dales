@@ -358,6 +358,7 @@ contains
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
+  !$acc end kernels 
 
 !   Calculate buffer size
   nssize = xl*jh*zl
