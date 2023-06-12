@@ -31,6 +31,7 @@
 module modsubgrid
 use modsubgriddata
 use modprecision, only: field_r
+use modtimer, only: timer_tic, timer_toc
 implicit none
 save
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
@@ -162,8 +163,10 @@ contains
     use modsurfdata,only : thlflux,qtflux,svflux
     implicit none
     integer n
-
+    
+    call timer_tic("closure", 0)
     call closure
+    call timer_toc("closure")
     call diffu(up)
     call diffv(vp)
     call diffw(wp)
@@ -226,6 +229,7 @@ contains
   integer :: i,j,k
 
   if(lsmagorinsky) then
+    call timer_tic("Smagorinsky", 1)
     ! First level
     mlen = csz(1) * delta(1)
     do i = 2,i1
@@ -309,7 +313,7 @@ contains
         end do
       end do
     end do
-
+    call timer_toc("Smagorinsky")
   ! do TKE scheme
  else
     ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
@@ -385,20 +389,22 @@ contains
        end do
     end if
   end if
-
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
-
+  call timer_tic("Boundary conditions", 2)
   call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  call timer_toc("Boundary conditions") 
 
+  call timer_tic("Write buffer", 3)
   do j=1,j2
     do i=1,i2
       ekm(i,j,k1)  = ekm(i,j,kmax)
       ekh(i,j,k1)  = ekh(i,j,kmax)
     end do
   end do
+  call timer_toc("Write buffer")
 
   return
   end subroutine closure
