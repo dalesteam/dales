@@ -440,7 +440,7 @@ contains
   implicit none
 
   real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz, horv
-  integer i,j,k,jm,jp,km,kp
+  integer i,j,k
 
   do k=2,kmax
     do j=2,j1
@@ -651,16 +651,10 @@ contains
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real, intent(in)    :: flux (i2,j2)
 
-    integer i,j,k,jm,jp,km,kp
-
+    integer i,j,k
+    
     do k=2,kmax
-      kp=k+1
-      km=k-1
-
       do j=2,j1
-        jp=j+1
-        jm=j-1
-
         do i=2,i1
           a_out(i,j,k) = a_out(i,j,k) &
                     +  0.5 * ( &
@@ -711,16 +705,9 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    integer             :: i,j,k,jm,jp,km,kp
-
+    integer             :: i,j,k
     do k=2,kmax
-      kp=k+1
-      km=k-1
-
       do j=2,j1
-        jp=j+1
-        jm=j-1
-
         do i=2,i1
 
           a_out(i,j,k) = a_out(i,j,k) &
@@ -775,7 +762,7 @@ contains
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
-    integer             :: i,j,k,jm,jp,km,kp
+    integer             :: i,j,k
 
     do k=2,kmax
       do j=2,j1
@@ -880,7 +867,7 @@ contains
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
-    integer             :: i,j,k,jm,jp,km,kp
+    integer             :: i,j,k
 
     do k=2,kmax
       do j=2,j1
@@ -983,8 +970,7 @@ contains
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
-    integer             :: i,j,k,jm,jp,km,kp
-
+    integer             :: i,j,k
     do k=2,kmax
       do j=2,j1
         do i=2,i1
