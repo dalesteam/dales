@@ -368,6 +368,11 @@ module modbulkmicro
             phi    (i,j,k) = k_1 * tau(i,j,k)**k_2 * (1.0 -tau(i,j,k)**k_2)**3
             au     (i,j,k) = au(i,j,k) * (1.0 + phi(i,j,k)/(1.0 -tau(i,j,k))**2)
 
+            if (ql0(i,j,k) .lt. au(i,j,k)*delt) then
+               write(6,*)'au too large (SB)', i, j, k, myid, delt, au(i,j,k), ql0(i,j,k), nuc(i,j,k), xc(i,j,k), tau(i,j,k), phi(i,j,k)
+               au(i,j,k) = ql0(i,j,k)/delt
+            end if
+
             qrp    (i,j,k) = qrp    (i,j,k) + au (i,j,k)
             Nrp    (i,j,k) = Nrp    (i,j,k) + au (i,j,k)/x_s
             qtpmcr (i,j,k) = qtpmcr (i,j,k) - au (i,j,k)
@@ -389,6 +394,11 @@ module modbulkmicro
          if (qcmask(i,j,k)) then
             au     (i,j,k) = 1350.0 * ql0(i,j,k)**(2.47) * (Nc(i,j,k)/1.0E6)**(-1.79)
 
+            if (ql0(i,j,k) .lt. au(i,j,k)*delt) then
+               write(6,*)'au too large (KK)', i, j, k, myid, delt, au(i,j,k), ql0(i,j,k)
+               au(i,j,k) = ql0(i,j,k)/delt
+            end if
+
             qrp    (i,j,k) = qrp    (i,j,k) + au(i,j,k)
             Nrp    (i,j,k) = Nrp    (i,j,k) + au(i,j,k) * rhof(k)/(pirhow*D0_kk**3.)
             qtpmcr (i,j,k) = qtpmcr (i,j,k) - au(i,j,k)
@@ -400,11 +410,6 @@ module modbulkmicro
       enddo
 
     end if !l_sb
-
-
-    if (any(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.)) then
-      write(6,*)'au too large', count(ql0(2:i1,2:j1,1:kmax)/delt - au(2:i1,2:j1,1:kmax) .lt. 0.),myid
-    end if
 
   end subroutine autoconversion
 
@@ -967,5 +972,3 @@ module modbulkmicro
 
 
 end module modbulkmicro
-
-
