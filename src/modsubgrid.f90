@@ -697,10 +697,10 @@ contains
         a_out(i,j,1) = a_out(i,j,1) &
                   + 0.5 * ( &
                 ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1)-a_in(i,j,1)) &
-                  -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1)-a_in(i-1,j,1)) )*dx2i * anis_fac(k) &
+                  -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1)-a_in(i-1,j,1)) )*dx2i * anis_fac(1) &
                   + &
                 ( (ekh(i,j+1,1)+ekh(i,j,1))*(a_in(i,j+1,1)-a_in(i,j,1)) &
-                  -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1)-a_in(i,j-1,1)) )*dy2i * anis_fac(k) &
+                  -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1)-a_in(i,j-1,1)) )*dy2i * anis_fac(1) &
                   + &
                 ( rhobh(2)/rhobf(1) * (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
                   *  (a_in(i,j,2)-a_in(i,j,1)) / dzh(2)**2 &
@@ -756,10 +756,10 @@ contains
 
         a_out(i,j,1) = a_out(i,j,1) + &
             ( (ekm(i+1,j,1)+ekm(i,j,1))*(e120(i+1,j,1)-e120(i,j,1)) &
-              -(ekm(i,j,1)+ekm(i-1,j,1))*(e120(i,j,1)-e120(i-1,j,1)) )*dx2i * anis_fac(k) &
+              -(ekm(i,j,1)+ekm(i-1,j,1))*(e120(i,j,1)-e120(i-1,j,1)) )*dx2i * anis_fac(1) &
             + &
             ( (ekm(i,j+1,1)+ekm(i,j,1))*(e120(i,j+1,1)-e120(i,j,1)) &
-              -(ekm(i,j,1)+ekm(i,j-1,1))*(e120(i,j,1)-e120(i,j-1,1)) )*dy2i * anis_fac(k) &
+              -(ekm(i,j,1)+ekm(i,j-1,1))*(e120(i,j,1)-e120(i,j-1,1)) )*dy2i * anis_fac(1) &
             + &
               ( rhobh(2)/rhobf(1) * (dzf(2)*ekm(i,j,1) + dzf(1)*ekm(i,j,2)) &
               *  (e120(i,j,2)-e120(i,j,1)) / dzh(2)**2              )/dzf(1)
@@ -860,12 +860,12 @@ contains
         a_out(i,j,1) = a_out(i,j,1) &
                 + &
               ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
-              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i * anis_fac(k) &
+              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i * anis_fac(1) &
                 + &
               ( empo * ( (u0(i,j+1,1)-u0(i,j,1))   *dyi &
                         +(v0(i,j+1,1)-v0(i-1,j+1,1))*dxi) &
               -emmo * ( (u0(i,j,1)-u0(i,j-1,1))   *dyi &
-                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) / dy * anis_fac(k) &
+                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) / dy * anis_fac(1) &
                + &
               ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                         +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
@@ -967,10 +967,10 @@ contains
                   ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                             +(u0(i+1,j,1)-u0(i+1,j-1,1))*dyi) &
                     -emmo * ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
-                            +(u0(i,j,1)-u0(i,j-1,1))    *dyi)   ) / dx * anis_fac(k) &
+                            +(u0(i,j,1)-u0(i,j-1,1))    *dyi)   ) / dx * anis_fac(1) &
                   + &
                 ( ekm(i,j,1) * (v0(i,j+1,1)-v0(i,j,1)) &
-                  -ekm(i,j-1,1)* (v0(i,j,1)-v0(i,j-1,1))  ) * 2. * dy2i * anis_fac(k) &
+                  -ekm(i,j-1,1)* (v0(i,j,1)-v0(i,j-1,1))  ) * 2. * dy2i * anis_fac(1) &
                   + &
                 ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                           +(w0(i,j,2)-w0(i,j-1,2))    *dyi) &
