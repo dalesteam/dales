@@ -114,7 +114,8 @@ contains
       write (6,*) 'cs    = ',cs
       write (6,*) 'Rigc  = ',Rigc
     endif
-
+  
+  !$acc enter data create(anis_fac)
   end subroutine initsubgrid
 
   subroutine subgridnamelist
@@ -158,15 +159,24 @@ contains
  ! Diffusion subroutines
 ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
-    use modglobal, only : nsv, lmoist
-    use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
-    use modsurfdata,only : thlflux,qtflux,svflux
+    use modglobal, only : nsv, lmoist, deltai, delta, dzf, dzh
+    use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp,u0,v0,w0,rhobh,rhobf,e120,dthvdz, thvf
+    use modsurfdata,only : thlflux,qtflux,svflux,ustar,dudz,dvdz
+
     implicit none
     integer n
+
+    ! Already on GPU: u0, v0, w0, 120, thl0, qt0, dzf, dzh, rhobf, rhobh,
+    ! up, vp, wp, e12p, thlp, qtp
     
+    !$acc enter data copyin(thvf, thlflux, dthvdz, qtflux, delta, deltai, ustar)
+    !$acc enter data copyin(dudz, dvdz)
+    !$acc enter data copyin(ekm, ekh, zlt, sbdiss, sbbuo, sbshr, csz) 
+
     call timer_tic("closure", 0)
     call closure
     call timer_toc("closure")
+    !$acc wait
     call diffu(up)
     call diffv(vp)
     call diffw(wp)
@@ -177,11 +187,17 @@ contains
       call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
     end do
     if (.not. lsmagorinsky) call sources
+
+    !$acc exit data copyout(up, vp, wp)
+    !$acc exit data copyout(e12p, thlp, qtp)
+    !$acc exit data copyout(ekm, ekh, zlt)
+    !$acc exit data delete(u0, v0, w0, e120, thl0, qt0, dzf, dzh, rhobf, rhobh)
+    !$acc exit data delete(csz)
   end subroutine
 
   subroutine exitsubgrid
     implicit none
-    deallocate(ekm,ekh,zlt,sbdiss,sbbuo,sbshr,csz)
+    deallocate(ekm,ekh,zlt,sbdiss,sbbuo,sbshr,csz,anis_fac)
   end subroutine exitsubgrid
 
    subroutine closure
