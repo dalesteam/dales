@@ -335,6 +335,9 @@ contains
   end subroutine exitmpi
 
   subroutine excjs_real32(a,sx,ex,sy,ey,sz,ez,ih,jh)
+  #if defined(_OPENACC)
+  use openacc
+  #endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -354,7 +357,7 @@ contains
   #endif
 
 ! Calulate buffer lengths
-  !$acc kernels if(is_present) async
+  !$acc kernels default(present) if(is_present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
@@ -392,7 +395,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present)
+    !$acc kernels default(present) if(is_present)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -426,7 +429,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present)
+    !$acc kernels default(present) if(is_present)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
@@ -457,6 +460,9 @@ contains
   end subroutine excjs_real32
 
   subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
+  #if defined(_OPENACC)
+  use openacc
+  #endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -476,7 +482,7 @@ contains
   #endif
 
 ! Calulate buffer lengths
-  !$acc kernels default(present) if(is_present) async(1)
+  !$acc kernels default(present) if(is_present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
@@ -515,7 +521,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(is_present) async(1)
+    !$acc kernels default(present) if(is_present)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -549,7 +555,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(is_present) async(1)
+    !$acc kernels default(present) if(is_present)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
