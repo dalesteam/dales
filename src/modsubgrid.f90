@@ -232,6 +232,7 @@ contains
     call timer_tic("Smagorinsky", 1)
     ! First level
     mlen = csz(1) * delta(1)
+    !$acc parallel loop collapse(2) private(strain2) async(1)
     do i = 2,i1
       do j = 2,j1
         strain2 =  ( &
@@ -266,8 +267,11 @@ contains
     end do
     
     ! Other levels
+    ! TODO: make this collapsable
+    !$acc loop private(mlen)
     do k = 2,kmax
       mlen = csz(k) * delta(k)
+      !$acc parallel loop collapse(2) private(strain2) async(1)
       do i = 2,i1
         do j = 2,j1
           strain2 =  ( &
@@ -318,6 +322,7 @@ contains
  else
     ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
     if (ldelta .and. .not. lmason) then
+       !$acc parallel loop collapse(3) default(present)
        do k=1,kmax
           do j=2,j1
              do i=2,i1
@@ -332,6 +337,7 @@ contains
           end do
        end do
     else if (ldelta .and. lmason) then ! delta scheme with Mason length scale correction
+       !$acc parallel loop collapse(3) default(present)
        do k=1,kmax
           do j=2,j1
              do i=2,i1
@@ -347,6 +353,7 @@ contains
           end do
        end do
     else if (lanisotrop) then ! Anisotropic diffusion,  https://doi.org/10.1029/2022MS003095
+       !$acc parallel loop collapse(3) default(present)
        do k=1,kmax
           do j=2,j1
              do i=2,i1
@@ -361,6 +368,7 @@ contains
           end do
        end do
     else ! Deardorff lengthscale correction
+       !$acc parallel loop collapse(3) default(present)
        do k=1,kmax
           do j=2,j1
              do i=2,i1
@@ -398,6 +406,7 @@ contains
   call timer_toc("Boundary conditions") 
 
   call timer_tic("Write buffer", 3)
+  !$acc parallel loop collapse(2) default(present)
   do j=1,j2
     do i=1,i2
       ekm(i,j,k1)  = ekm(i,j,kmax)
@@ -442,6 +451,7 @@ contains
   real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz, horv
   integer i,j,k
 
+  !$acc parallel loop collapse(3) default(present) private(tdef2)
   do k=2,kmax
     do j=2,j1
       do i=2,i1
@@ -493,6 +503,7 @@ contains
 !     --------------------------------------------
 
   if (sgs_surface_fix) then
+    !$acc parallel loop collapse(2) default(present) private(tdef2,horv,uwflux,vwflux,local_dudz,local_dvdz,local_dthvdz)
     do j=2,j1
       do i=2,i1
         tdef2 = 2. * ( &
@@ -542,6 +553,7 @@ contains
       end do
     end do
   else
+    !$acc parallel loop collapse(2) default(present) private(tdef2)
     do j=2,j1
       do i=2,i1
         tdef2 = 2. * ( &
@@ -634,9 +646,11 @@ contains
 !    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
 !  end do
 !  end do
-
+  
+  !$acc kernels default(present)
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
             sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+  !$acc end kernels
 
   return
   end subroutine sources
@@ -653,6 +667,7 @@ contains
 
     integer i,j,k
     
+    !$acc parallel loop collapse(3) default(present)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
@@ -674,7 +689,8 @@ contains
         end do
       end do
     end do
-
+    
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
 
@@ -706,6 +722,8 @@ contains
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     integer             :: i,j,k
+    
+    !$acc parallel loop collapse(3) default(present)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
@@ -732,6 +750,7 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
+    !$acc parallel loop collapse(2)
     do j=2,j1
       do i=2,i1
 
@@ -764,6 +783,7 @@ contains
     real                :: ucu, upcu
     integer             :: i,j,k
 
+    !$acc parallel loop collapse(3) default(present) private(emom, emop, empo, emmo)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
@@ -806,6 +826,7 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
+    !$acc parallel loop collapse(2) default(present) private(empo, emmo, emop, ucu, upcu, fu)
     do j=2,j1
       do i=2,i1
 
@@ -869,6 +890,7 @@ contains
     real                :: fv, vcv,vpcv
     integer             :: i,j,k
 
+    !$acc parallel loop collapse(3) default(present) private(eomm, eomp, emmo, epmo)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
@@ -911,6 +933,7 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
+    !$acc parallel loop collapse(2) default(present) private(emmo, epmo, eomp, vcv, vpcv, fv)
     do j=2,j1
       do i=2,i1
 
@@ -971,6 +994,8 @@ contains
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k
+    
+    !$acc parallel loop collapse(3) default(present) private(emom, eomm, eopm, epom)
     do k=2,kmax
       do j=2,j1
         do i=2,i1
