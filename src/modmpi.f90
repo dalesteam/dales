@@ -35,7 +35,7 @@
 
 module modmpi
 use modmpiinterface
-#ifdef _OPENACC
+#if defined(_OPENACC)
 use openacc
 #endif
 implicit none
@@ -348,7 +348,7 @@ contains
                                           , sende,recve &
                                           , sendw,recvw
   ! Check if the data is on the gpu
-  #ifdef _OPENACC
+  #if defined(_OPENACC)
   integer :: is_present
   is_present = acc_is_present(a)
   #endif
@@ -470,7 +470,7 @@ contains
                                           , sende,recve &
                                           , sendw,recvw
   ! Check if the data is on the gpu
-  #ifdef _OPENACC
+  #if defined(_OPENACC)
   integer :: is_present
   is_present = acc_is_present(a)
   #endif
