@@ -352,7 +352,7 @@ contains
                                           , sendw,recvw
   ! Check if the data is on the gpu
 #if defined(_OPENACC)
-  integer :: is_present
+  logical :: is_present
   is_present = acc_is_present(a)
 #endif
 
@@ -477,7 +477,7 @@ contains
                                           , sendw,recvw
   ! Check if the data is on the gpu
 #if defined(_OPENACC)
-  integer :: is_present
+  logical :: is_present
   is_present = acc_is_present(a)
 #endif
 
