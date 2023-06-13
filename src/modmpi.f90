@@ -335,9 +335,9 @@ contains
   end subroutine exitmpi
 
   subroutine excjs_real32(a,sx,ex,sy,ey,sz,ez,ih,jh)
-  #if defined(_OPENACC)
+#if defined(_OPENACC)
   use openacc
-  #endif
+#endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -351,10 +351,10 @@ contains
                                           , sende,recve &
                                           , sendw,recvw
   ! Check if the data is on the gpu
-  #if defined(_OPENACC)
+#if defined(_OPENACC)
   integer :: is_present
   is_present = acc_is_present(a)
-  #endif
+#endif
 
 ! Calulate buffer lengths
   !$acc kernels default(present) if(is_present)
@@ -460,9 +460,9 @@ contains
   end subroutine excjs_real32
 
   subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
-  #if defined(_OPENACC)
+#if defined(_OPENACC)
   use openacc
-  #endif
+#endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -476,10 +476,10 @@ contains
                                           , sende,recve &
                                           , sendw,recvw
   ! Check if the data is on the gpu
-  #if defined(_OPENACC)
+#if defined(_OPENACC)
   integer :: is_present
   is_present = acc_is_present(a)
-  #endif
+#endif
 
 ! Calulate buffer lengths
   !$acc kernels default(present) if(is_present)
