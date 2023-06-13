@@ -213,7 +213,7 @@ contains
                           ijtot,cu,cv,grav, &
                           dxi,dyi,dx2i,dy2i
     use modsurfdata,only : ustar
-    use modsubgriddata, only : ekm
+    use modsubgriddata, only : ekm,anis_fac
     use modpois,    only : p
     use modfields,  only : u0,v0,w0,thv0h,u0av,v0av,rhobf,rhobh,thvh
 !cstep    use modtilt,    only : adjustbudget,ltilted
@@ -407,12 +407,12 @@ contains
 
       tau1j(i,j,k) = &
                ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
-                -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i &
+                -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i * anis_fac(k) &
                + &
                ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
                          +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
                 -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
-                         +(v0(i,j,k)-v0(i-1,j,k))  *dxi) ) * dyi &
+			+(v0(i,j,k)-v0(i-1,j,k))  *dxi) ) * dyi * anis_fac(k) &
                + &
                ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
                          +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
@@ -455,10 +455,10 @@ contains
                ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                          +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
                 -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
-                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)  ) * dxi &
+                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)  ) * dxi * anis_fac(k) &
                + &
                ( ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
-                -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i &
+                -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i * anis_fac(k) &
                + &
                ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
                          +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
@@ -501,12 +501,12 @@ contains
                  ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
                   -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
-                           +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))*dxi &
+                           +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))*dxi * anis_fac(k) &
                  + &
                  ( eopm * ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
                            +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
                   -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
-                           +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))*dyi &
+                           +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))*dyi * anis_fac(k) &
                  + &
                   ( rhobf(k)/rhobh(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
                   - rhobf(km)/rhobh(k) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
@@ -553,12 +553,12 @@ contains
 
     tau1j(i,j,1) = &
              ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
-              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i &
+              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i * anis_fac(k) &
              + &
              ( empo * ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
                        +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
              - emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
-                       +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) * dyi &
+                       +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) * dyi * anis_fac(k) &
              + &
              ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                        +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
@@ -584,10 +584,10 @@ contains
             ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                       +(u0(i+1,j,1)-u0(i+1,jm,1))*dyi) &
              -emmo * ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
-                      +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) * dxi &
+                      +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) * dxi * anis_fac(k) &
             + &
             ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
-             -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i &
+             -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i * anis_fac(k) &
             + &
             ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                       +(w0(i,j,2)-w0(i,jm,2))    *dyi) &

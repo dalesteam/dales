@@ -35,6 +35,9 @@
 
 module modmpi
 use modmpiinterface
+#if defined(_OPENACC)
+use openacc
+#endif
 implicit none
 save
   type(MPI_COMM) :: commwrld, comm3d, commrow, commcol
@@ -332,6 +335,9 @@ contains
   end subroutine exitmpi
 
   subroutine excjs_real32(a,sx,ex,sy,ey,sz,ez,ih,jh)
+#if defined(_OPENACC)
+  use openacc
+#endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -344,11 +350,18 @@ contains
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
+  ! Check if the data is on the gpu
+#if defined(_OPENACC)
+  logical :: is_present
+  is_present = acc_is_present(a)
+#endif
 
 ! Calulate buffer lengths
+  !$acc kernels default(present) if(is_present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
+  !$acc end kernels 
 
 !   Calculate buffer size
   nssize = xl*jh*zl
@@ -382,8 +395,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
+    !$acc kernels default(present) if(is_present)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
+    !$acc end kernels
 
   endif
 
@@ -414,9 +429,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
+    !$acc kernels default(present) if(is_present)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
-
+    !$acc end kernels
   endif
 
   if(nprocy.gt.1)then
@@ -444,6 +460,9 @@ contains
   end subroutine excjs_real32
 
   subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
+#if defined(_OPENACC)
+  use openacc
+#endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -456,11 +475,18 @@ contains
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
+  ! Check if the data is on the gpu
+#if defined(_OPENACC)
+  logical :: is_present
+  is_present = acc_is_present(a)
+#endif
 
 ! Calulate buffer lengths
+  !$acc kernels default(present) if(is_present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
+  !$acc end kernels
 
 !   Calculate buffer size
   nssize = xl*jh*zl
@@ -495,8 +521,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
+    !$acc kernels default(present) if(is_present)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
+    !$acc end kernels
 
   endif
 
@@ -527,8 +555,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
+    !$acc kernels default(present) if(is_present)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
+    !$acc end kernels
 
   endif
 

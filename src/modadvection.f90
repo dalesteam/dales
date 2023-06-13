@@ -47,7 +47,7 @@ subroutine advection
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
-  !$acc data copyin(u0, v0, w0, e120, thl0, qt0, dzf, dzh, rhobf, rhobh) copy(up, vp, wp, e12p, thlp, qtp)
+  !$acc enter data copyin(u0, v0, w0, e120, thl0, qt0, dzf, dzh, rhobf, rhobh, up, vp, wp, e12p, thlp, qtp)
   select case(iadv_mom)
     case(iadv_cd2)
       call advecu_2nd(u0,up)
@@ -212,6 +212,5 @@ subroutine advection
     end select
   end do
   !$acc wait
-  !$acc end data
 end subroutine advection
 end module modadvection
