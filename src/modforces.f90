@@ -71,27 +71,35 @@ contains
   if (lforce_user) call force_user
 
   if (lpressgrad) then
+     !$acc kernels
      do k=1,kmax
         up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
         vp(:,:,k) = vp(:,:,k) - dpdyl(k)
      end do
+     !$acc end kernels
   end if
 
   if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+    !$acc kernels
     do k=2,kmax
        wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
+    !$acc end kernels
   else
+    !$acc kernels
     do k=2,kmax
       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
     end do
+    !$acc end kernels
   end if
 
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
+  !$acc kernels
   wp(:,:,1) = 0.0
+  !$acc end kernels
 
   end subroutine forces
   subroutine coriolis
