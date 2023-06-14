@@ -128,6 +128,7 @@ contains
 
   if (lcoriol .eqv. .false.) return
 
+  !$acc parallel loop collapse(3)
   do k=2,kmax
     do j=2,j1
       do i=2,i1
@@ -152,7 +153,7 @@ contains
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
-
+  !$acc parallel loop collapse(2)
   do j=2,j1
     do i=2,i1
 
