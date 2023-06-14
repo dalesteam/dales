@@ -210,6 +210,7 @@ contains
 !     1.1 lowest model level above surface : only downward component
 !     1.2 other model levels twostream
 
+  !$acc kernels
   do k=1,kmax
     if (whls(k+1).lt.0) then   !downwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k+1) * (thl0(2:i1,2:j1,k+1) - thl0(2:i1,2:j1,k))/dzh(k+1)
@@ -239,6 +240,7 @@ contains
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
 
   enddo
+  !$acc end kernels
 
   return
   end subroutine lstend
