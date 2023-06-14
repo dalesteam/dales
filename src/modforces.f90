@@ -70,6 +70,10 @@ contains
 
   if (lforce_user) call force_user
 
+  !$acc enter data copyin(dpdxl, dpdyl)
+  !$acc enter data copyin(thvh)
+  !$acc enter data copyin(sv0)
+
   if (lpressgrad) then
      !$acc kernels
      do k=1,kmax
@@ -101,6 +105,8 @@ contains
   wp(:,:,1) = 0.0
   !$acc end kernels
 
+  !$acc exit data delete(dpdxl, dpdyl, thvh)
+
   end subroutine forces
   subroutine coriolis
 
@@ -128,7 +134,7 @@ contains
 
   if (lcoriol .eqv. .false.) return
 
-  !$acc parallel loop collapse(3)
+  !$acc parallel loop collapse(3) default(present)
   do k=2,kmax
     do j=2,j1
       do i=2,i1
@@ -153,7 +159,7 @@ contains
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
-  !$acc parallel loop collapse(2)
+  !$acc parallel loop collapse(2) default(present)
   do j=2,j1
     do i=2,i1
 
@@ -170,7 +176,9 @@ contains
   end do
 !     ----------------------------------------------end i,j-loop
 
-
+  !$acc exit data delete(dzh, dzf) async
+  !$acc exit data delete(w0) async
+  !$acc exit data copyout(wp) async
   return
   end subroutine coriolis
 
@@ -209,8 +217,12 @@ contains
 
 !     1.1 lowest model level above surface : only downward component
 !     1.2 other model levels twostream
+  !$acc enter data copyin(svp, whls, u0av, v0av)
+  !$acc enter data copyin(dudxls, dudyls, dvdxls, dvdyls)
+  !$acc enter data copyin(dthldxls, dthldyls, dqtdxls, dqtdyls)
+  !$acc enter data copyin(dqtdtls, dthldtls, dudtls, dvdtls)
 
-  !$acc kernels
+  !$acc kernels 
   do k=1,kmax
     if (whls(k+1).lt.0) then   !downwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k+1) * (thl0(2:i1,2:j1,k+1) - thl0(2:i1,2:j1,k))/dzh(k+1)
@@ -241,6 +253,14 @@ contains
 
   enddo
   !$acc end kernels
+
+  !$acc exit data copyout(up, vp, svp, thlp, qtp)
+  !$acc exit data delete(u0, v0, sv0)
+  !$acc exit data delete(whls, u0av, v0av)
+  !$acc exit data delete(dudxls, dudyls, dvdxls, dvdyls)
+  !$acc exit data delete(dthldxls, dthldyls, dqtdxls, dqtdyls)
+  !$acc exit data delete(dqtdtls, dthldtls, dudtls, dvdtls)
+
 
   return
   end subroutine lstend
