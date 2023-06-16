@@ -70,28 +70,42 @@ contains
 
   if (lforce_user) call force_user
 
+  !$acc enter data copyin(dpdxl, dpdyl)
+  !$acc enter data copyin(thvh)
+  !$acc enter data copyin(sv0)
+
   if (lpressgrad) then
+     !$acc kernels
      do k=1,kmax
         up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
         vp(:,:,k) = vp(:,:,k) - dpdyl(k)
      end do
+     !$acc end kernels
   end if
 
   if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+    !$acc kernels
     do k=2,kmax
        wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
+    !$acc end kernels
   else
+    !$acc kernels
     do k=2,kmax
       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
     end do
+    !$acc end kernels
   end if
 
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
+  !$acc kernels
   wp(:,:,1) = 0.0
+  !$acc end kernels
+
+  !$acc exit data delete(dpdxl, dpdyl, thvh)
 
   end subroutine forces
   subroutine coriolis
@@ -116,31 +130,28 @@ contains
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
-  integer i, j, k, jm, jp, km, kp
+  integer i, j, k
 
   if (lcoriol .eqv. .false.) return
 
+  !$acc parallel loop collapse(3) default(present)
   do k=2,kmax
-    kp=k+1
-    km=k-1
-  do j=2,j1
-    jp=j+1
-    jm=j-1
-  do i=2,i1
+    do j=2,j1
+      do i=2,i1
 
-    up(i,j,k) = up(i,j,k)+ cv*om23 &
-          +(v0(i,j,k)+v0(i,jp,k)+v0(i-1,j,k)+v0(i-1,jp,k))*om23*0.25 &
-          -(w0(i,j,k)+w0(i,j,kp)+w0(i-1,j,kp)+w0(i-1,j,k))*om22*0.25
+        up(i,j,k) = up(i,j,k)+ cv*om23 &
+              +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25 &
+              -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25
 
-    vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-          -(u0(i,j,k)+u0(i,jm,k)+u0(i+1,jm,k)+u0(i+1,j,k))*om23*0.25
+        vp(i,j,k) = vp(i,j,k)  - cu*om23 &
+              -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25
 
 
-    wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(km) * (u0(i,j,k)  + u0(i+1,j,k) )    &
-                +    dzf(k)  * (u0(i,j,km) + u0(i+1,j,km))  ) / dzh(k) ) &
-                * om22*0.25
-  end do
-  end do
+        wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+                    +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                    * om22*0.25
+      end do
+    end do
 !     -------------------------------------------end i&j-loop
   end do
 !     -------------------------------------------end k-loop
@@ -148,26 +159,26 @@ contains
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
-
+  !$acc parallel loop collapse(2) default(present)
   do j=2,j1
-    jp = j+1
-    jm = j-1
-  do i=2,i1
+    do i=2,i1
 
-    up(i,j,1) = up(i,j,1)  + cv*om23 &
-          +(v0(i,j,1)+v0(i,jp,1)+v0(i-1,j,1)+v0(i-1,jp,1))*om23*0.25 &
-          -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25
+      up(i,j,1) = up(i,j,1)  + cv*om23 &
+            +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25 &
+            -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25
 
-    vp(i,j,1) = vp(i,j,1) - cu*om23 &
-          -(u0(i,j,1)+u0(i,jm,1)+u0(i+1,jm,1)+u0(i+1,j,1))*om23*0.25
+      vp(i,j,1) = vp(i,j,1) - cu*om23 &
+            -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25
 
-    wp(i,j,1) = 0.0
+      wp(i,j,1) = 0.0
 
-  end do
+    end do
   end do
 !     ----------------------------------------------end i,j-loop
 
-
+  !$acc exit data delete(dzh, dzf) async
+  !$acc exit data delete(w0) async
+  !$acc exit data copyout(wp) async
   return
   end subroutine coriolis
 
@@ -199,37 +210,39 @@ contains
                         dqtdtls, dthldtls, dudtls, dvdtls
   implicit none
 
-  integer k,kp,km
+  integer k
 
 !     1. DETERMINE LARGE SCALE TENDENCIES
 !        --------------------------------
 
 !     1.1 lowest model level above surface : only downward component
 !     1.2 other model levels twostream
+  !$acc enter data copyin(svp, whls, u0av, v0av)
+  !$acc enter data copyin(dudxls, dudyls, dvdxls, dvdyls)
+  !$acc enter data copyin(dthldxls, dthldyls, dqtdxls, dqtdyls)
+  !$acc enter data copyin(dqtdtls, dthldtls, dudtls, dvdtls)
 
+  !$acc kernels 
   do k=1,kmax
-    kp=k+1
-    km=k-1
-
-    if (whls(kp).lt.0) then   !downwind scheme for subsidence
-       thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(kp) * (thl0(2:i1,2:j1,kp) - thl0(2:i1,2:j1,k))/dzh(kp)
-       qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(kp) * (qt0 (2:i1,2:j1,kp) - qt0 (2:i1,2:j1,k))/dzh(kp)
+    if (whls(k+1).lt.0) then   !downwind scheme for subsidence
+       thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k+1) * (thl0(2:i1,2:j1,k+1) - thl0(2:i1,2:j1,k))/dzh(k+1)
+       qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k+1) * (qt0 (2:i1,2:j1,k+1) - qt0 (2:i1,2:j1,k))/dzh(k+1)
        if (lmomsubs) then
-          up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(kp) * (u0(2:i1,2:j1,kp) - u0(2:i1,2:j1,k))/dzh(kp)
-          vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(kp) * (v0(2:i1,2:j1,kp) - v0(2:i1,2:j1,k))/dzh(kp)
+          up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k+1) * (u0(2:i1,2:j1,k+1) - u0(2:i1,2:j1,k))/dzh(k+1)
+          vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k+1) * (v0(2:i1,2:j1,k+1) - v0(2:i1,2:j1,k))/dzh(k+1)
        endif
 
-       svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(kp) * (sv0(2:i1,2:j1,kp,:) - sv0(2:i1,2:j1,k,:))/dzh(kp)
+       svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(k+1) * (sv0(2:i1,2:j1,k+1,:) - sv0(2:i1,2:j1,k,:))/dzh(k+1)
 
     else !downwind scheme for mean upward motions
        if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
-          thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,km))/dzh(k)
-          qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k) * (qt0 (2:i1,2:j1,k) - qt0 (2:i1,2:j1,km))/dzh(k)
+          thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,k-1))/dzh(k)
+          qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k) * (qt0 (2:i1,2:j1,k) - qt0 (2:i1,2:j1,k-1))/dzh(k)
           if (lmomsubs) then
-             up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k) * (u0(2:i1,2:j1,k) - u0(2:i1,2:j1,km))/dzh(k)
-             vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k) * (v0(2:i1,2:j1,k) - v0(2:i1,2:j1,km))/dzh(k)
+             up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k) * (u0(2:i1,2:j1,k) - u0(2:i1,2:j1,k-1))/dzh(k)
+             vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k) * (v0(2:i1,2:j1,k) - v0(2:i1,2:j1,k-1))/dzh(k)
           endif
-          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,km,:))/dzh(k)
+          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,k-1,:))/dzh(k)
        endif
     endif
 
@@ -239,6 +252,15 @@ contains
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
 
   enddo
+  !$acc end kernels
+
+  !$acc exit data copyout(up, vp, svp, thlp, qtp)
+  !$acc exit data delete(u0, v0, sv0)
+  !$acc exit data delete(whls, u0av, v0av)
+  !$acc exit data delete(dudxls, dudyls, dvdxls, dvdyls)
+  !$acc exit data delete(dthldxls, dthldyls, dqtdxls, dqtdyls)
+  !$acc exit data delete(dqtdtls, dthldtls, dudtls, dvdtls)
+
 
   return
   end subroutine lstend

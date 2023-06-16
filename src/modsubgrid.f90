@@ -115,7 +115,7 @@ contains
       write (6,*) 'Rigc  = ',Rigc
     endif
   
-  !$acc enter data create(anis_fac)
+  !$acc enter data copyin(anis_fac)
   end subroutine initsubgrid
 
   subroutine subgridnamelist
@@ -188,11 +188,10 @@ contains
     end do
     if (.not. lsmagorinsky) call sources
 
-    !$acc exit data copyout(up, vp, wp)
-    !$acc exit data copyout(e12p, thlp, qtp)
-    !$acc exit data copyout(ekm, ekh, zlt)
-    !$acc exit data delete(u0, v0, w0, e120, thl0, qt0, dzf, dzh, rhobf, rhobh)
-    !$acc exit data delete(csz)
+    !$acc exit data copyout(e12p) async
+    !$acc exit data copyout(ekm, ekh, zlt) async
+    !$acc exit data delete(e120, rhobf, rhobh) async
+    !$acc exit data delete(csz, thvf, thlflux, dthvdz, qtflux, delta, deltai, ustar) async
   end subroutine
 
   subroutine exitsubgrid
