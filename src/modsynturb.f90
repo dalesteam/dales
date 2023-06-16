@@ -414,7 +414,7 @@ contains
     integer, pointer :: pi1, pi2,pi1patch,pi2patch
     real, dimension(3) :: xx,ci
     real, dimension(3,3) :: eigvec
-    real :: t,utemp,vtemp,wtemp
+    real :: t,utemp,vtemp,wtemp,d
     t = rtimee
     select case(ib)
     case(1,2)
@@ -424,22 +424,27 @@ contains
     case(5)
       pi1 => i; pi2 => j; pi1patch => ipatch; pi2patch => jpatch
     end select
-    do i = 1,nx
-      xx(1) = x(i); ipatch = min(int(x(i)/dxturb)+1,nxturb)
-    do j = 1,ny
-      xx(2) = y(j); jpatch = min(int(y(j)/dyturb)+1,nyturb)
     do k = 1,nz
-      xx(3) = z(k); kpatch = min(k,nzturb)
+       !xx(3) = z(k);
+       kpatch = min(k,nzturb)
+    do j = 1,ny
+       !xx(2) = y(j);
+       jpatch = min(int(y(j)/dyturb)+1,nyturb)
+    do i = 1,nx
+       !xx(1) = x(i);
+       ipatch = min(int(x(i)/dxturb)+1,nxturb)
       ci     = boundary(ib)%ci(pi1patch,pi2patch,:)
       eigvec = boundary(ib)%eigvec(pi1patch,pi2patch,:,:)
       utemp = 0.; vtemp = 0.; wtemp = 0.
       do ii = 1,nmodes
-        utemp = utemp + p(ii,1)*cos(dot(kn(ii,:)/ci(1)*ctot,xx/lambda)+omega(ii)*t/tau) + &
-                      & q(ii,1)*sin(dot(kn(ii,:)/ci(1)*ctot,xx/lambda)+omega(ii)*t/tau)
-        vtemp = vtemp + p(ii,2)*cos(dot(kn(ii,:)/ci(2)*ctot,xx/lambda)+omega(ii)*t/tau) + &
-                      & q(ii,2)*sin(dot(kn(ii,:)/ci(2)*ctot,xx/lambda)+omega(ii)*t/tau)
-        wtemp = wtemp + p(ii,3)*cos(dot(kn(ii,:)/ci(3)*ctot,xx/lambda)+omega(ii)*t/tau) + &
-                      & q(ii,3)*sin(dot(kn(ii,:)/ci(3)*ctot,xx/lambda)+omega(ii)*t/tau)
+       !d = dot(kn(ii,:),xx) * ctot/lambda
+        d = (kn(ii,1)*x(i) + kn(ii,2)*y(j) + kn(ii,3)*z(k))  * ctot/lambda
+        utemp = utemp + p(ii,1)*cos(d/ci(1)+omega(ii)*t/tau) + &
+                      & q(ii,1)*sin(d/ci(1)+omega(ii)*t/tau)
+        vtemp = vtemp + p(ii,2)*cos(d/ci(2)+omega(ii)*t/tau) + &
+                      & q(ii,2)*sin(d/ci(2)+omega(ii)*t/tau)
+        wtemp = wtemp + p(ii,3)*cos(d/ci(3)+omega(ii)*t/tau) + &
+                      & q(ii,3)*sin(d/ci(3)+omega(ii)*t/tau)
       end do
       ! Scale velocity fields
       utemp = utemp*ci(1)
@@ -466,7 +471,7 @@ contains
     real, dimension(3) :: xx,ci
     real, dimension(3,3) :: eigvec
     real :: wthl,wqt,w2,thl2,qt2,utemp,vtemp,wtemp,wturbf,thltemp,qttemp
-    real :: t,fp,fm,rho
+    real :: t,fp,fm,rho,d,dthl,dqt
     t = rtimee
     itm = 1
     ! Interpolate covariance to current time
@@ -491,26 +496,36 @@ contains
     case(5)
       pi1 => i; pi2 => j; pi1patch => ipatch; pi2patch => jpatch
     end select
-    do i = 1,nx
-      xx(1) = x(i); ipatch = min(int(x(i)/dxturb)+1,nxturb)
-    do j = 1,ny
-      xx(2) = y(j); jpatch = min(int(y(j)/dyturb)+1,nyturb)
     do k = 1,nz
-      xx(3) = z(k); kpatch = min(k,nzturb)
+       !xx(3) = z(k);
+       kpatch = min(k,nzturb)
+    do j = 1,ny
+       !xx(2) = y(j);
+       jpatch = min(int(y(j)/dyturb)+1,nyturb)
+    do i = 1,nx
+       !xx(1) = x(i);
+       ipatch = min(int(x(i)/dxturb)+1,nxturb)
       ci     = boundary(ib)%ci(pi1patch,pi2patch,:)
       eigvec = boundary(ib)%eigvec(pi1patch,pi2patch,:,:)
       utemp = 0.; vtemp = 0.; wtemp = 0.; thltemp = 0.; qttemp = 0.
       do ii = 1,nmodes
-        utemp = utemp + p(ii,1)*cos(dot(kn(ii,:)/ci(1)*ctot,xx/lambda)+omega(ii)*t/tau) + &
-                      & q(ii,1)*sin(dot(kn(ii,:)/ci(1)*ctot,xx/lambda)+omega(ii)*t/tau)
-        vtemp = vtemp + p(ii,2)*cos(dot(kn(ii,:)/ci(2)*ctot,xx/lambda)+omega(ii)*t/tau) + &
-                      & q(ii,2)*sin(dot(kn(ii,:)/ci(2)*ctot,xx/lambda)+omega(ii)*t/tau)
-        wtemp = wtemp + p(ii,3)*cos(dot(kn(ii,:)/ci(3)*ctot,xx/lambda)+omega(ii)*t/tau) + &
-                      & q(ii,3)*sin(dot(kn(ii,:)/ci(3)*ctot,xx/lambda)+omega(ii)*t/tau)
-        thltemp = thltemp + p_thl(ii)*cos(dot(k_thl(ii,:),xx/lambdasxyz)+omega_thl(ii)*t/tau) + &
-                          & q_thl(ii)*sin(dot(k_thl(ii,:),xx/lambdasxyz)+omega_thl(ii)*t/tau)
-        qttemp = qttemp + p_qt(ii)*cos(dot(k_qt(ii,:),xx/lambdasxyz)+omega_qt(ii)*t/tau) + &
-                        & q_qt(ii)*sin(dot(k_qt(ii,:),xx/lambdasxyz)+omega_qt(ii)*t/tau)
+       !d = dot(kn(ii,:),xx) * ctot/lambda
+       !dthl = dot(k_thl(ii,:),xx/lambdasxyz)
+       !dqt  = dot(k_qt(ii,:), xx/lambdasxyz)
+        d = (kn(ii,1)*x(i) + kn(ii,2)*y(j) + kn(ii,3)*z(k))  * ctot/lambda
+        dthl = k_thl(ii,1)*x(i)/lambdasxyz(1) + k_thl(ii,2)*y(j)/lambdasxyz(2) + k_thl(ii,3)*z(k)/lambdasxyz(3)
+        dqt  = k_qt (ii,1)*x(i)/lambdasxyz(1) + k_qt (ii,2)*y(j)/lambdasxyz(2) + k_qt (ii,3)*z(k)/lambdasxyz(3)
+
+        utemp = utemp + p(ii,1)*cos(d/ci(1)+omega(ii)*t/tau) + &
+                      & q(ii,1)*sin(d/ci(1)+omega(ii)*t/tau)
+        vtemp = vtemp + p(ii,2)*cos(d/ci(2)+omega(ii)*t/tau) + &
+                      & q(ii,2)*sin(d/ci(2)+omega(ii)*t/tau)
+        wtemp = wtemp + p(ii,3)*cos(d/ci(3)+omega(ii)*t/tau) + &
+                      & q(ii,3)*sin(d/ci(3)+omega(ii)*t/tau)
+        thltemp = thltemp + p_thl(ii)*cos(dthl+omega_thl(ii)*t/tau) + &
+                          & q_thl(ii)*sin(dthl+omega_thl(ii)*t/tau)
+        qttemp = qttemp + p_qt(ii)*cos(dqt+omega_qt(ii)*t/tau) + &
+                        & q_qt(ii)*sin(dqt+omega_qt(ii)*t/tau)
       end do
       ! Scale velocity fields
       utemp = utemp*ci(1)
