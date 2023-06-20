@@ -175,9 +175,6 @@ contains
   end do
 !     ----------------------------------------------end i,j-loop
 
-  !$acc exit data delete(dzh, dzf) async
-  !$acc exit data delete(w0) async
-  !$acc exit data copyout(wp) async
   return
   end subroutine coriolis
 
@@ -216,10 +213,6 @@ contains
 
 !     1.1 lowest model level above surface : only downward component
 !     1.2 other model levels twostream
-  !$acc enter data copyin(svp, whls, u0av, v0av)
-  !$acc enter data copyin(dudxls, dudyls, dvdxls, dvdyls)
-  !$acc enter data copyin(dthldxls, dthldyls, dqtdxls, dqtdyls)
-  !$acc enter data copyin(dqtdtls, dthldtls, dudtls, dvdtls)
 
   !$acc kernels default(present)
   do k=1,kmax
@@ -252,14 +245,6 @@ contains
 
   enddo
   !$acc end kernels
-
-  !$acc exit data copyout(up, vp, svp, thlp, qtp)
-  !$acc exit data delete(u0, v0, sv0)
-  !$acc exit data delete(whls, u0av, v0av)
-  !$acc exit data delete(dudxls, dudyls, dvdxls, dvdyls)
-  !$acc exit data delete(dthldxls, dthldyls, dqtdxls, dqtdyls)
-  !$acc exit data delete(dqtdtls, dthldtls, dudtls, dvdtls)
-
 
   return
   end subroutine lstend
