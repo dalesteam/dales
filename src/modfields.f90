@@ -96,6 +96,7 @@ save
   real(field_r), allocatable :: dthldyls(:)                   !<   large scale y-gradient of th_liq
   real(field_r), allocatable :: dthldtls(:)                   !<   large scale tendency of thl
 
+
   real(field_r), allocatable :: dqtdxls(:)                    !<   large scale x-gradient of q_tot
   real(field_r), allocatable :: dqtdyls(:)                    !<   large scale y-gradient of q_tot
   real(field_r), allocatable :: dqtdtls(:)                    !<   large scale tendency of q_tot
@@ -129,6 +130,7 @@ save
   real(field_r), allocatable :: qsat(:,:,:)
   real(field_r), allocatable :: surf_rain(:,:)               !< integrated surface rain 
 
+
 contains
 !> Allocate and initialize the prognostic variables
 subroutine initfields
@@ -143,6 +145,7 @@ subroutine initfields
     allocate(thlm (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12m (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtm  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    !$acc enter data create(um, vm, wm, thlm, e12m, qtm)
 
     allocate(u0   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(v0   (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -150,6 +153,7 @@ subroutine initfields
     allocate(thl0 (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e120 (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    !$acc enter data create(u0, v0, w0, thl0, e120, qt0)
 
     allocate(up   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(vp   (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -157,19 +161,23 @@ subroutine initfields
     allocate(thlp (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12p (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtp  (2-ih:i1+ih,2-jh:j1+jh,k1))
+    !$acc enter data create(up, vp, wp, thlp, e12p, qtp)
 
     allocate(svm  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    !$acc enter data create(svm, sv0, svp)
 
     allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0h (2-ih:i1+ih,2-jh:j1+jh,k1))
+    !$acc enter data create (thl0h, qt0h)
 
     ! Allocation of base state variables
     allocate(rhobf   (k1))
     allocate(rhobh   (k1))
     allocate(drhobdzf(k1))
     allocate(drhobdzh(k1))
+    !$acc enter data create(rhobf, rhobh)
 
     ! Allocation of diagnostic variables
     allocate(ql0   (2-ih:i1+ih,2-jh:j1+jh,k1))
