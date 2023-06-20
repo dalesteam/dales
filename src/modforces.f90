@@ -70,12 +70,11 @@ contains
 
   if (lforce_user) call force_user
 
-  !$acc enter data copyin(dpdxl, dpdyl)
   !$acc enter data copyin(thvh)
   !$acc enter data copyin(sv0)
 
   if (lpressgrad) then
-     !$acc kernels
+     !$acc kernels default(present)
      do k=1,kmax
         up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
         vp(:,:,k) = vp(:,:,k) - dpdyl(k)
@@ -84,14 +83,14 @@ contains
   end if
 
   if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
-    !$acc kernels
+    !$acc kernels default(present)
     do k=2,kmax
        wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
     !$acc end kernels
   else
-    !$acc kernels
+    !$acc kernels default(present)
     do k=2,kmax
       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
     end do
@@ -101,11 +100,11 @@ contains
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
-  !$acc kernels
+  !$acc kernels default(present)
   wp(:,:,1) = 0.0
   !$acc end kernels
 
-  !$acc exit data delete(dpdxl, dpdyl, thvh)
+  !$acc exit data delete(thvh)
 
   end subroutine forces
   subroutine coriolis
@@ -222,7 +221,7 @@ contains
   !$acc enter data copyin(dthldxls, dthldyls, dqtdxls, dqtdyls)
   !$acc enter data copyin(dqtdtls, dthldtls, dudtls, dvdtls)
 
-  !$acc kernels 
+  !$acc kernels default(present)
   do k=1,kmax
     if (whls(k+1).lt.0) then   !downwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k+1) * (thl0(2:i1,2:j1,k+1) - thl0(2:i1,2:j1,k))/dzh(k+1)
