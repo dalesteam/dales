@@ -60,6 +60,9 @@ contains
       tsc(k) = rnu0*sin(0.5*pi*(zf(k)-zspb)/(zspt-zspb))**2
     end do
    tsc(k1)=tsc(kmax)
+
+   !$acc enter data copyin(tsc)
+
   end subroutine initboundary
 
 !>
