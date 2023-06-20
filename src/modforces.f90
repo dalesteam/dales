@@ -104,8 +104,6 @@ contains
   wp(:,:,1) = 0.0
   !$acc end kernels
 
-  !$acc exit data delete(thvh)
-
   end subroutine forces
   subroutine coriolis
 

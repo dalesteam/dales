@@ -188,10 +188,6 @@ contains
     end do
     if (.not. lsmagorinsky) call sources
 
-    !$acc exit data copyout(e12p) async
-    !$acc exit data copyout(ekm, ekh, zlt) async
-    !$acc exit data delete(e120, rhobf, rhobh) async
-    !$acc exit data delete(csz, thvf, thlflux, dthvdz, qtflux, delta, deltai, ustar) async
   end subroutine
 
   subroutine exitsubgrid
