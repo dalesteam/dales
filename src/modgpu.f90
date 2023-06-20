@@ -12,7 +12,12 @@ contains
                          svm, sv0, svp, &
                          rhobf, rhobh, &
                          ql0, ql0h, tmp0, thv0h, dthvdz, &
-                         dpdxl, dpdyl
+                         whls, ug, vg, &
+                         dpdxl, dpdyl, &
+                         dthldxls, dthldyls, dthldtls, &
+                         dqtdxls, dqtdyls, dqtdtls, &
+                         dudxls, dudyls, dudtls, &
+                         dvdxls, dvdyls, dvdtls
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai
     implicit none
 
@@ -28,6 +33,10 @@ contains
     ! Diagnostic variables
     !$acc update device(ql0, ql0h, tmp0, thv0h, dthvdz)
     !$acc update device(dpdxl, dpdyl)
+    !$acc update device(dthldxls, dthldyls, dthldtls, &
+    !$acc update device(dqtdxls, dqtdyls, dqtdtls)
+    !$acc update device(dudxls, dudyls, dudtls)
+    !$acc update device(dvdxls, dvdyls, dvdtls)
 
     ! Global
     !$acc update device(dzf, dzh, zh, zf, delta, deltai)

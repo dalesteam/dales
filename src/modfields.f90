@@ -206,23 +206,28 @@ subroutine initfields
     allocate(vg           (k1))
     allocate(dpdxl        (k1))
     allocate(dpdyl        (k1))
+    !$acc enter data create(whls, ug, vg)
     !$acc enter data create(dpdxl, dpdyl)
 
     allocate(dthldxls(k1))
     allocate(dthldyls(k1))
     allocate(dthldtls(k1))
+    !$acc enter data create(dthldxls, dthldyls, dthldtls)
 
     allocate(dqtdxls(k1))
     allocate(dqtdyls(k1))
     allocate(dqtdtls(k1))
+    !$acc enter data create(dqtdxls, dqtdyls, dqtdtls)
 
     allocate(dudxls(k1))
     allocate(dudyls(k1))
     allocate(dudtls(k1))
+    !$acc enter data create(dudxls, dudyls, dudtls)
 
     allocate(dvdxls(k1))
     allocate(dvdyls(k1))
     allocate(dvdtls(k1))
+    !$acc enter data create(dvdxls, dvdyls, dvdtls)
 
     allocate(wfls   (k1))
     allocate(thlprof(k1))
