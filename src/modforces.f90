@@ -223,9 +223,6 @@ contains
           up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k+1) * (u0(2:i1,2:j1,k+1) - u0(2:i1,2:j1,k))/dzh(k+1)
           vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k+1) * (v0(2:i1,2:j1,k+1) - v0(2:i1,2:j1,k))/dzh(k+1)
        endif
-
-       svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(k+1) * (sv0(2:i1,2:j1,k+1,:) - sv0(2:i1,2:j1,k,:))/dzh(k+1)
-
     else !downwind scheme for mean upward motions
        if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
           thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,k-1))/dzh(k)
@@ -234,7 +231,6 @@ contains
              up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k) * (u0(2:i1,2:j1,k) - u0(2:i1,2:j1,k-1))/dzh(k)
              vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k) * (v0(2:i1,2:j1,k) - v0(2:i1,2:j1,k-1))/dzh(k)
           endif
-          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,k-1,:))/dzh(k)
        endif
     endif
 
@@ -242,9 +238,23 @@ contains
     qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
     up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
-
   enddo
   !$acc end kernels
+  
+  ! Only do above for scalars if there are any scalar fields
+  if (nsv > 0) then
+    !$acc kernels default(present)
+    do k=1,kmax
+      if (whls(k+1).lt.0) then
+         svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(k+1) * (sv0(2:i1,2:j1,k+1,:) - sv0(2:i1,2:j1,k,:))/dzh(k+1)
+      else
+        if (k > 1) then
+          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,k-1,:))/dzh(k)
+        endif
+      endif
+    enddo
+    !$acc end kernels
+  endif
 
   return
   end subroutine lstend
