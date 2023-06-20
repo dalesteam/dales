@@ -185,6 +185,7 @@ subroutine initfields
     allocate(tmp0  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
+    !$acc enter data create(ql0, ql0h, tmp0, thv0h, dthvdz)
 
     allocate(whls         (k1))
     allocate(presf        (k1))

@@ -11,6 +11,7 @@ contains
                          up, vp, wp, thlp, e12p, qtp, &
                          svm, sv0, svp, &
                          rhobf, rhobh, &
+                         ql0, ql0h, tmp0, thv0h, dthvdz, &
                          dpdxl, dpdyl
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai
     implicit none
@@ -25,6 +26,7 @@ contains
     !$acc update device(rhobf, rhobh)
 
     ! Diagnostic variables
+    !$acc update device(ql0, ql0h, tmp0, thv0h, dthvdz)
     !$acc update device(dpdxl, dpdyl)
 
     ! Global
