@@ -13,6 +13,7 @@ contains
                          rhobf, rhobh, &
                          ql0, ql0h, tmp0, thv0h, dthvdz, &
                          whls, ug, vg, &
+                         qt0av, ql0av, thl0av, u0av, v0av, &
                          dpdxl, dpdyl, &
                          dthldxls, dthldyls, dthldtls, &
                          dqtdxls, dqtdyls, dqtdtls, &
@@ -32,8 +33,10 @@ contains
 
     ! Diagnostic variables
     !$acc update device(ql0, ql0h, tmp0, thv0h, dthvdz)
+    !$acc update device(whls, ug, vg)
+    !$acc update device(qt0av, ql0av, thl0av, u0av, v0av)
     !$acc update device(dpdxl, dpdyl)
-    !$acc update device(dthldxls, dthldyls, dthldtls, &
+    !$acc update device(dthldxls, dthldyls, dthldtls)
     !$acc update device(dqtdxls, dqtdyls, dqtdtls)
     !$acc update device(dudxls, dudyls, dudtls)
     !$acc update device(dvdxls, dvdyls, dvdtls)

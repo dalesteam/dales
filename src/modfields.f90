@@ -207,6 +207,7 @@ subroutine initfields
     allocate(dpdxl        (k1))
     allocate(dpdyl        (k1))
     !$acc enter data create(whls, ug, vg)
+    !$acc enter data create(qt0av, ql0av, thl0av, u0av, v0av)
     !$acc enter data create(dpdxl, dpdyl)
 
     allocate(dthldxls(k1))
