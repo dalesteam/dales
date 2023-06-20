@@ -207,7 +207,7 @@ contains
   qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
   !$acc end kernels
 
-  !$acc kernels default(present)
+  !$acc kernels default(present) if(nsv > 0)
   do n=1,nsv
     sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
   end do
