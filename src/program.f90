@@ -160,6 +160,14 @@ program DALES
 
   use modtimer,       only : timer_tic, timer_toc, timer_print
 
+!----------------------------------------------------------------
+!     0.3     USE STATEMENTS FOR GPU UTILITIES
+!----------------------------------------------------------------
+
+#if defined(_OPENACC)
+  use modgpu, only: initgpu
+#endif
+
   implicit none
 
   integer :: istep
@@ -204,6 +212,11 @@ program DALES
 
   !call initspectra2
   call initcape
+
+#if defined(_OPENACC)
+  call initgpu
+#endif
+
   call timer_toc('Initialization')
 
 !------------------------------------------------------
