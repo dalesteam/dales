@@ -164,6 +164,9 @@ contains
     integer i,j,k
     real(pois_r) :: rk3coef
 
+    ! Temporary
+    !$acc update self(up, vp, wp, um, vm, wm)
+
     allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
     allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -267,6 +270,8 @@ contains
     end do
     end do
     end do
+
+    !$acc update device(up, vp, wp)
 
     return
   end subroutine tderive
