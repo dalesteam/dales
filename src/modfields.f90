@@ -239,6 +239,7 @@ subroutine initfields
     allocate(sv0av  (k1,nsv))
     allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
+    !$acc enter data create(thlpcar)
 
     allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))

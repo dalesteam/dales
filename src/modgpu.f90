@@ -18,7 +18,8 @@ contains
                          dthldxls, dthldyls, dthldtls, &
                          dqtdxls, dqtdyls, dqtdtls, &
                          dudxls, dudyls, dudtls, &
-                         dvdxls, dvdyls, dvdtls
+                         dvdxls, dvdyls, dvdtls, &
+                         thlpcar
 
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai
 
@@ -28,6 +29,8 @@ contains
 
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
+
+    use modradiation, only: thlprad
     implicit none
 
     ! Prognostic variables
@@ -60,7 +63,9 @@ contains
     ! Subgrid
     !$acc update device(ekm, ekh, zlt, csz, anis_fac)
     !$acc update device(sbdiss, sbshr, sbbuo)
-
+    
+    ! Radiation
+    !$acc update device(thlpcar, thlprad)
     
   end subroutine initgpu
 end module modgpu
