@@ -58,6 +58,7 @@ contains
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(csz(k1))
     allocate(anis_fac(k1))
+    !$acc enter data create(ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, anis_fac)
 
     ! Initialize variables to avoid problems when not using subgrid scheme JvdD
     ! Determination of subgrid constants is explained in De Roode et al. 2017
@@ -114,8 +115,7 @@ contains
       write (6,*) 'cs    = ',cs
       write (6,*) 'Rigc  = ',Rigc
     endif
-  
-  !$acc enter data copyin(anis_fac)
+
   end subroutine initsubgrid
 
   subroutine subgridnamelist
@@ -165,13 +165,6 @@ contains
 
     implicit none
     integer n
-
-    ! Already on GPU: u0, v0, w0, 120, thl0, qt0, dzf, dzh, rhobf, rhobh,
-    ! up, vp, wp, e12p, thlp, qtp
-    
-    !$acc enter data copyin(thvf, thlflux, dthvdz, qtflux, delta, deltai, ustar)
-    !$acc enter data copyin(dudz, dvdz)
-    !$acc enter data copyin(ekm, ekh, zlt, sbdiss, sbbuo, sbshr, csz) 
 
     call timer_tic("closure", 0)
     call closure

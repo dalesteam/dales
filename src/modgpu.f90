@@ -19,7 +19,15 @@ contains
                          dqtdxls, dqtdyls, dqtdtls, &
                          dudxls, dudyls, dudtls, &
                          dvdxls, dvdyls, dvdtls
+
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai
+
+    use modsurfdata, only: ustar, dudz, dvdz, &
+                           thlflux, qtflux, dqtdz, dthldz, &
+                           svflux, svs
+
+    use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
+                              sbdiss, sbshr, sbbuo
     implicit none
 
     ! Prognostic variables
@@ -44,8 +52,15 @@ contains
     ! Global
     !$acc update device(dzf, dzh, zh, zf, delta, deltai)
 
+    ! Surface
+    !$acc update device(ustar, dudz, dvdz)
+    !$acc update device(thlflux, qtflux, dqtdz, dthldz)
+    !$acc update device(svflux, svs)
 
-    write(*,*) "GPU fields updated"
+    ! Subgrid
+    !$acc update device(ekm, ekh, zlt, csz, anis_fac)
+    !$acc update device(sbdiss, sbshr, sbbuo)
+
     
   end subroutine initgpu
 end module modgpu
