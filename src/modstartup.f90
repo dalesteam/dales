@@ -89,6 +89,7 @@ contains
     use modsubgrid,        only : initsubgrid
     use modmpi,            only : initmpi,commwrld,myid,myidx,cmyidy,nprocx,nprocy,mpierr &
                                 , D_MPI_BCAST
+    use tstep,             only : inittstep
     use modchem,           only : initchem
     use modversion,        only : git_version
 
@@ -296,6 +297,8 @@ contains
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
+
+    call inittstep
 
     call checkinitvalues
 
@@ -854,6 +857,7 @@ contains
     tnextrestart = btime + itrestart
 
     deallocate (height,th0av,thv0)
+
   end subroutine readinitfiles
 
   subroutine readrestartfiles
@@ -1179,6 +1183,7 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modthermodynamics, only : exitthermodynamics
+    use tstep,             only : exittstep
 
     call exittimedep
     call exitthermodynamics

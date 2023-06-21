@@ -42,8 +42,26 @@
 !! \endlatexonly
 module tstep
 implicit none
+save
+  real, allocatable, dimension(:) :: courtotl
+  real, allocatable, dimension(:) :: courtot
 
 contains
+!> Allocate arrays
+subroutine inittstep
+  use modglobal, only : kmax
+  implicit none
+  allocate(courtotl(kmax))
+  allocate(courtot(kmax))
+end subroutine inittstep
+
+!> Deallocate arrays
+subroutine exittstep
+  implicit none
+  deallocate(courtotl)
+  deallocate(courtot)
+end subroutine exittstep  
+
 subroutine tstep_update
   use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
@@ -52,13 +70,10 @@ subroutine tstep_update
   use modmpi,    only : comm3d,mpierr,mpi_max,D_MPI_ALLREDUCE
   implicit none
 
-  real, allocatable, dimension (:) :: courtotl,courtot
   integer       :: k
   real,save     :: courtotmax=-1,peclettot=-1
   real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
-
-  allocate(courtotl(kmax),courtot(kmax))
 
   if(lwarmstart) spinup = .false.
 
@@ -144,8 +159,6 @@ subroutine tstep_update
       end if
     end if
   end if
-
-  deallocate(courtotl,courtot)
 
   ! set all tendencies to zero
   up=0.
