@@ -215,6 +215,7 @@ subroutine tstep_integrate
   rk3coef = rdt / (4. - dble(rk3step))
 
   if(rk3step /= 3) then
+     !$acc kernels default(present)
      u0   = um   + rk3coef * up
      v0   = vm   + rk3coef * vp
      w0   = wm   + rk3coef * wp
@@ -222,7 +223,9 @@ subroutine tstep_integrate
      qt0  = qtm  + rk3coef * qtp
      sv0  = svm  + rk3coef * svp
      e120 = max(e12min,e12m + rk3coef * e12p)
+     !$acc end kernels
   else ! step 3 - store result in both ..0 and ..m
+     !$acc kernels default(present)
      um   = um   + rk3coef * up
      u0 = um
      vm   = vm   + rk3coef * vp
@@ -237,7 +240,7 @@ subroutine tstep_integrate
      sv0 = svm
      e12m = max(e12min,e12m + rk3coef * e12p)
      e120 = e12m
-
+     !$acc end kernels
   end if
 end subroutine tstep_integrate
 end module tstep
