@@ -405,8 +405,8 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
   call timer_tic("Boundary conditions", 2)
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.true.)
   call timer_toc("Boundary conditions") 
 
   call timer_tic("Write buffer", 3)

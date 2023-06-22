@@ -459,7 +459,7 @@ contains
   endif
   end subroutine excjs_real32
 
-  subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
+  subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh,on_gpu)
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -468,17 +468,27 @@ contains
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
+  logical, optional :: on_gpu
+  logical :: do_on_device
   real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
+  
+  ! Ad-hoc solution for startup and other routines that use host data
+  ! Specify on_gpu=.true. if halo exchange has to be done on the gpu
+  if ( present(on_gpu) ) then
+    do_on_device = on_gpu
+  else
+    do_on_device = .false.
+  endif
 
 ! Calulate buffer lengths
-  !$acc serial default(present)
+  !$acc kernels default(present) if(do_on_device)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
-  !$acc end serial
+  !$acc end kernels
 
 !   Calculate buffer size
   nssize = xl*jh*zl
@@ -513,10 +523,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc serial default(present)
+    !$acc kernels default(present) if(do_on_device)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
-    !$acc end serial
+    !$acc end kernels
 
   endif
 
@@ -547,10 +557,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc serial default(present)
+    !$acc kernels default(present) if(do_on_device)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
-    !$acc end serial
+    !$acc end kernels
   endif
 
   if(nprocy.gt.1)then
