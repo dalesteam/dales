@@ -101,12 +101,14 @@ contains
 
   integer n
 
-  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh,.true.)
 
-  do n=1,nsv
-    call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
-  enddo
+  if ( nsv > 0 ) then
+    do n=1,nsv
+      call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh,.true.)
+    enddo
+  endif
 
   return
   end subroutine cyclich
@@ -118,10 +120,10 @@ contains
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : excjs
 
-  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh,.true.)
 
   return
   end subroutine cyclicm
@@ -229,24 +231,38 @@ contains
 ! **  Top conditions :
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 !JvdD
+  
+  !$acc kernels default(present)
   dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
-  do n=1,nsv
-    dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
-               dzh(kmax-kav:kmax-1))/kav
-  enddo
-
+  !$acc end kernels
+  if ( nsv > 0 ) then
+    do n=1,nsv
+      !$acc kernels default(present)
+      dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
+                 dzh(kmax-kav:kmax-1))/kav
+      !$acc end kernels
+    enddo
+  endif
+  
+  !$acc kernels default(present) 
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
 
   thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
   qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
-  do n=1,nsv
-    sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
-    svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
-  enddo
+  !$acc end kernels
+  
+  if ( nsv > 0) then
+    !$acc kernels default(present)
+    do n=1,nsv
+      sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
+      svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
+    enddo
+    !$acc end kernels
+  endif
 
   return
   end subroutine toph
@@ -256,17 +272,31 @@ contains
     use modglobal, only : kmax,k1,e12min,lrigidlid
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
+    !$acc kernels default(present)
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
-    if (lrigidlid) e120(:,:,k1) = e120(:,:,kmax)
+    !$acc end kernels
 
+    if (lrigidlid) then
+        !$acc kernels default(present)
+        e120(:,:,k1) = e120(:,:,kmax)
+        !$acc end kernels
+    endif
+    
+    !$acc kernels default(present)
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)
     wm(:,:,k1)   = 0.0
     e12m(:,:,k1) = e12min
-    if (lrigidlid) e12m(:,:,k1) = e12m(:,:,kmax)
+    !$acc end kernels
+
+    if (lrigidlid) then
+        !$acc kernels default(present)
+        e12m(:,:,k1) = e12m(:,:,kmax)
+        !$acc end kernels
+    endif
 
   return
   end subroutine topm
