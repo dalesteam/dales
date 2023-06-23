@@ -657,7 +657,7 @@ module modbulkmicro
               wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
               wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
 
-              sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
+              sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k) ! m/s * kg/m3
               sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
 
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))

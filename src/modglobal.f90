@@ -68,8 +68,8 @@ save
       real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
       real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
       real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
-      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation
-      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation
+      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation (J/kg)
+      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation  (J/kg)
       real,parameter :: tup     = 268.             !<    * Temperature range over which mixed phase occurs (high)
       real,parameter :: tdn     = 253.             !<    * Temperature range over which mixed phase occurs (low)
       real,parameter :: ep       = rd/rv            !<    0.622
