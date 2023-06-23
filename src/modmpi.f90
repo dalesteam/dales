@@ -709,54 +709,73 @@ contains
   end subroutine excjs_logical
 
 
-  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
     implicit none
 
-    integer      :: ks,kf
-    integer      :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
-    real(real32) :: aver(ks:kf)
-    real(real32) :: var (ib:ie,jb:je,kb:ke)
-    real(real32) :: averl(ks:kf)
-    real(real32) :: avers(ks:kf)
-    integer      :: k
+    integer           :: ks,kf
+    integer           :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
+    real(real32)      :: aver(ks:kf)
+    real(real32)      :: var (ib:ie,jb:je,kb:ke)
+    real(real32)      :: averl(ks:kf)
+    real(real32)      :: avers(ks:kf)
+    integer           :: k
+    logical, optional :: on_gpu
 
+    on_gpu = present(on_gpu)
+
+    !$acc kernels default(present)
     averl       = 0.
     avers       = 0.
+    !$acc end kernels
 
+    !$acc kernels default(present)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
+    !$acc end kernels
 
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
                        MPI_SUM, comm3d,mpierr)
 
+    !$acc kernels default(present)
     aver = aver + avers
+    !$acc end kernels
 
     return
   end subroutine slabsum_real32
 
-  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
     implicit none
 
-    integer      :: ks,kf
-    integer      :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
-    real(real64) :: aver(ks:kf)
-    real(real64) :: var (ib:ie,jb:je,kb:ke)
-    real(real64) :: averl(ks:kf)
-    real(real64) :: avers(ks:kf)
-    integer      :: k
+    integer           :: ks,kf
+    integer           :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
+    real(real64)      :: aver(ks:kf)
+    real(real64)      :: var (ib:ie,jb:je,kb:ke)
+    real(real64)      :: averl(ks:kf)
+    real(real64)      :: avers(ks:kf)
+    integer           :: k
+    logical, optional :: on_gpu
 
+    on_gpu = present(on_gpu)
+ 
+    !$acc kernels default(present) if(on_gpu)
     averl       = 0.
     avers       = 0.
-
+    !$acc end kernels
+    
+    !$acc kernels default(present) if(on_gpu)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
+    !$acc end kernels
 
+    ! CUDA-aware MPI should figure out that is has to move data from the GPU
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
                        MPI_SUM, comm3d,mpierr)
 
+    !$acc kernels default(present) if(on_gpu)
     aver = aver + avers
+    !$acc end kernels
 
     return
   end subroutine slabsum_real64
