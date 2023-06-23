@@ -186,7 +186,8 @@ end subroutine calc_tile_fractions
 subroutine calc_liquid_reservoir
     use modglobal,    only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata,  only : wl, wlm
-    use modmicrodata, only : imicro, sed_qr
+    use modmicrodata, only : imicro, precep
+    use modfields,    only : rhof
     implicit none
 
     integer :: i, j
@@ -221,7 +222,8 @@ subroutine calc_liquid_reservoir
             if (imicro == 0) then
                 rainrate = 0.
             else
-                rainrate = -sed_qr(i,j,1)/rhow
+               !rainrate = -sed_qr(i,j,1)/rhow
+                rainrate = -precep(i,j,1)*rhof(1)/rhow
             end if
 
             wl_tend_precip = intercept_eff * c_veg * rainrate
