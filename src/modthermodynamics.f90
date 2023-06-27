@@ -345,12 +345,14 @@ contains
   real,allocatable,dimension (:) :: thetah, qth, qlh
 
   allocate(thetah(k1), qth(k1), qlh(k1))
+  ! TODO: save these arrays
+  !$acc enter data create(thetah, qth, qlh)
   rdocp = rd/cp
 
 !**************************************************
 !    1.0 Determine theta and qt at half levels    *
 !**************************************************
-
+  !$acc parallel loop default(present)
   do k=2,k1
     thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
     qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
@@ -363,16 +365,16 @@ contains
 !**************************************************
 
 !     1: lowest level: use first level value for safety!
-
+  !$acc kernels default(present)
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - &
                  grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
-
+  !$acc end kernels
 !     2: higher levels
 
+  !$acc parallel loop default(present)
   do k=2,k1
-
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
@@ -384,8 +386,12 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
+  !$acc kernels default(present)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+  !$acc end kernels
+
+  !$acc parallel loop default(present)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
@@ -393,7 +399,9 @@ contains
     presh(k) = presh(k)**(1./rdocp)
   end do
 
+  !$acc exit data delete(thetah, qth, qlh)
   deallocate(thetah, qth, qlh)
+  
 
   return
   end subroutine fromztop
