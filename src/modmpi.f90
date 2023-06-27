@@ -759,7 +759,11 @@ contains
     integer           :: k
     logical, optional :: on_gpu
 
-    on_gpu = present(on_gpu)
+    if ( present(on_gpu) ) then
+        on_gpu = on_gpu
+    else
+        on_gpu = .false.
+    endif
  
     !$acc kernels default(present) if(on_gpu)
     averl       = 0.
