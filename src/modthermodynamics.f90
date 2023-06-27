@@ -529,6 +529,7 @@ contains
     use modglobal, only : esatmtab
 
     implicit none
+    !$acc routine seq
     real(field_r), intent(in) :: T
     integer :: tlonr
     real(field_r) :: tlo, thi, es
@@ -547,6 +548,7 @@ contains
     use modglobal, only : esatmtab
 
     implicit none
+    !$acc routine seq
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
     integer :: tlonr
@@ -605,6 +607,8 @@ contains
     real(field_r) :: Tl_min, Tl_max, qt_max
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
+
+    !$acc parallel loop gang private(Tl_min, Tl_max, qt_max, qsat_) default(present)
     do k=1,k1
        ! Optimization: if the whole horizontal slab at k is unsaturated,
        ! the calculation of this slab can be skipped.
@@ -622,6 +626,7 @@ contains
 
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat_) then
+          !$acc loop vector collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) 
           do j=2,j1
              do i=2,i1
                 Tl = exnf(k)*thl0(i,j,k)
@@ -669,9 +674,10 @@ contains
        else
           ! possibly faster option when the whole layer is below saturation
           ! If many of the els, qsvl, qsvi are stored in arrays, they still need to be saved here
-          ql0(2:i1,2:j1,k) = 0
+          !$acc loop vector collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr)
           do j=2,j1
              do i=2,i1
+                ql0(i,j,k) = 0
                 T = exnf(k)*thl0(i,j,k) ! + (rlv/cp) * ql omitted because ql is 0
                 tmp0(i,j,k) = T
                 qsat(i,j,k) = qsat_tab(T, presf(k))

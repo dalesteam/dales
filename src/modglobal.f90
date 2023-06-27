@@ -91,6 +91,8 @@ save
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
+      !$acc declare copyin(rd, rv)
+
       logical :: lcoriol  = .true.  !<  switch for coriolis force
       logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
 
@@ -135,6 +137,7 @@ save
       real, dimension(1:2000) :: esatmtab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
+      !$acc declare create(esatmtab)
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations

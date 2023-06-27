@@ -21,7 +21,8 @@ contains
                          dvdxls, dvdyls, dvdtls, &
                          thlpcar
 
-    use modglobal, only: dzf, dzh, zh, zf, delta, deltai
+    use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
+                         rd, rv, esatmtab
 
     use modsurfdata, only: ustar, dudz, dvdz, &
                            thlflux, qtflux, dqtdz, dthldz, &
@@ -54,6 +55,7 @@ contains
 
     ! Global
     !$acc update device(dzf, dzh, zh, zf, delta, deltai)
+    !$acc update device(esatmtab)
 
     ! Surface
     !$acc update device(ustar, dudz, dvdz)
