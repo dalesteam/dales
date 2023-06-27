@@ -100,7 +100,7 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
+  use modglobal,         only : rk3step,timeleft,is_starting
   use modmpi,            only : initmpicomm!, myid
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
@@ -216,6 +216,9 @@ program DALES
 #if defined(_OPENACC)
   call initgpu
 #endif
+
+  ! Startup is done, set flag to false
+  is_starting = .false.
 
   call timer_toc('Initialization')
 

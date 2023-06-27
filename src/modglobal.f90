@@ -223,6 +223,9 @@ save
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
       character(80) :: author='', version='DALES 4.4'
+
+      logical :: is_starting = .true. !< flag for knowing if a routine is called during startup
+
 contains
 
 !> Initialize global settings.

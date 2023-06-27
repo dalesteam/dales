@@ -469,7 +469,6 @@ contains
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
   logical, optional :: on_gpu
-  logical :: do_on_device
   real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
@@ -478,13 +477,13 @@ contains
   ! Ad-hoc solution for startup and other routines that use host data
   ! Specify on_gpu=.true. if halo exchange has to be done on the gpu
   if ( present(on_gpu) ) then
-    do_on_device = on_gpu
+    on_gpu = on_gpu
   else
-    do_on_device = .false.
+    on_gpu = .false.
   endif
 
 ! Calulate buffer lengths
-  !$acc kernels default(present) if(do_on_device)
+  !$acc kernels default(present) if(on_gpu)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
@@ -523,7 +522,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(do_on_device)
+    !$acc kernels default(present) if(on_gpu)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -557,7 +556,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(do_on_device)
+    !$acc kernels default(present) if(on_gpu)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
@@ -721,7 +720,11 @@ contains
     integer           :: k
     logical, optional :: on_gpu
 
-    on_gpu = present(on_gpu)
+    if ( present(on_gpu) ) then
+        on_gpu = on_gpu
+    else
+        on_gpu = .false.
+    endif
 
     !$acc kernels default(present)
     averl       = 0.
@@ -769,7 +772,7 @@ contains
     enddo
     !$acc end kernels
 
-    ! CUDA-aware MPI should figure out that is has to move data from the GPU
+    ! CUDA-aware MPI should figure out that it has to move data from the GPU
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
                        MPI_SUM, comm3d,mpierr)
 

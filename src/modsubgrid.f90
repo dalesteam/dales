@@ -223,7 +223,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
-                          dxi,dyi,dzf,dzh
+                          dxi,dyi,dzf,dzh,is_starting
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
   use modmpi,      only : excjs
@@ -405,9 +405,11 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
   call timer_tic("Boundary conditions", 2)
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.true.)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
   call timer_toc("Boundary conditions") 
+  write(*,*) 'Min, max of ekm', minval(ekm), maxval(ekm)
+  write(*,*) 'Min, max of ekh', minval(ekh), maxval(ekh)
 
   call timer_tic("Write buffer", 3)
   !$acc parallel loop collapse(2) default(present)

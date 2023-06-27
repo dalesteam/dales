@@ -95,18 +95,18 @@ contains
 !> Sets lateral periodic boundary conditions for the scalars
  subroutine cyclich
 
-  use modglobal, only : i1,ih,j1,jh,k1,nsv
+  use modglobal, only : i1,ih,j1,jh,k1,nsv,is_starting
   use modfields, only : thl0,qt0,sv0
   use modmpi,    only : excjs
 
   integer n
 
-  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh,.true.)
-  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
 
   if ( nsv > 0 ) then
     do n=1,nsv
-      call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh,.true.)
+      call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
     enddo
   endif
 
@@ -116,14 +116,14 @@ contains
 !>set lateral periodic boundary conditions for momentum
  subroutine cyclicm
 
-  use modglobal, only : i1,ih,j1,jh,k1
+  use modglobal, only : i1,ih,j1,jh,k1,is_starting
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : excjs
 
-  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
-  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
-  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh,.true.)
-  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh,.true.)
+  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
 
   return
   end subroutine cyclicm
