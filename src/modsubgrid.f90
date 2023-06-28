@@ -157,15 +157,19 @@ contains
  ! Diffusion subroutines
 ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
-    use modglobal, only : nsv, lmoist
+    use modglobal, only : nsv, lmoist, lopenbc,lboundary,lperiodic
     use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp
     use modsurfdata,only : thlflux,qtflux,svflux
     implicit none
-    integer n
+    integer :: n,sx=2,sy=2
 
+    if(lopenbc) then ! If openbounaries are used only calculate tendencies for non-domain boundary cells
+      if(lboundary(1).and. .not. lperiodic(1)) sx = 3
+      if(lboundary(3).and. .not. lperiodic(3)) sy = 3
+    endif
     call closure
-    call diffu(up)
-    call diffv(vp)
+    call diffu(up,sx)
+    call diffv(vp,sy)
     call diffw(wp)
     if (.not. lsmagorinsky) call diffe(e12p)
     call diffc(thl0,thlp,thlflux)
@@ -216,10 +220,11 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
-                          dxi,dyi,dzf,dzfi,dzhi
+                          dxi,dyi,dzf,dzfi,dzhi,dzh,lopenbc,lboundary,lperiodic
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
   use modmpi,      only : excjs
+  use modopenboundary, only : openboundary_excjs
   implicit none
 
   real    :: strain2,mlen
@@ -316,7 +321,7 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = delta(k)
-                
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
 
@@ -330,11 +335,11 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = delta(k)
-                zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)                
-                
+                zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
-                            
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -345,10 +350,10 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = dzf(k)
-                
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
-                
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -364,18 +369,18 @@ contains
                 !if (dthvdz(i,j,k) > 0) then
                 !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
                 !end if
-                
+
                 ! alternative without if
-                zlt(i,j,k) = min(delta(k), &                                                     
-                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &               
-                     delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))                           
-                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)                        
-                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as                        
-                ! in the original scheme.            
-                
+                zlt(i,j,k) = min(delta(k), &
+                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
+                     delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))
+                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)
+                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as
+                ! in the original scheme.
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
-                
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -387,9 +392,15 @@ contains
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
-
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+   if(lopenbc) then ! Set cyclic conditions only for non-domain boundaries if openboundaries are used
+    call openboundary_excjs(ekm   , 2,i1,2,j1,1,k1,ih,jh, &
+      & (.not.lboundary(1:4)).or.lperiodic(1:4))
+    call openboundary_excjs(ekh   , 2,i1,2,j1,1,k1,ih,jh, &
+      & (.not.lboundary(1:4)).or.lperiodic(1:4))
+  else
+    call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
+    call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  endif
 
   do j=1,j2
     do i=1,i2
@@ -481,7 +492,7 @@ contains
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
                 - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
-    
+
   end do
   end do
   end do
@@ -507,8 +518,8 @@ contains
           + ((w0(i,j,2)-w0(i,j,1))*dzfi(1))**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
+          ! Use known surface flux and exchange coefficient to derive
+          ! consistent gradient (such that correct flux will occur in
           ! shear production term)
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
@@ -531,8 +542,8 @@ contains
                                  (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
+          ! Use known surface flux and exchange coefficient to derive
+          ! consistent gradient (such that correct flux will occur in
           ! shear production term)
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
@@ -564,7 +575,7 @@ contains
   end do
 
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
-            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)
 
   return
   end subroutine sources
@@ -692,7 +703,7 @@ contains
   end subroutine diffe
 
 
-  subroutine diffu (a_out)
+  subroutine diffu (a_out,sx)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dzfi,dyi,dzhi,cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
@@ -700,6 +711,7 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
+    integer, intent(in) :: sx
     real                :: emmo,emom,emop,empo
     real                :: fu
     real                :: ucu, upcu
@@ -713,7 +725,7 @@ contains
         jp=j+1
         jm=j-1
 
-        do i=2,i1
+        do i=sx,i1
 
           emom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) * &
@@ -757,7 +769,7 @@ contains
       jp = j+1
       jm = j-1
 
-      do i=2,i1
+      do i=sx,i1
 
         empo = 0.25 * ( &
               ekm(i,j,1)+ekm(i,jp,1)+ekm(i-1,jp,1)+ekm(i-1,j,1)  )
@@ -803,7 +815,7 @@ contains
   end subroutine diffu
 
 
-  subroutine diffv (a_out)
+  subroutine diffv (a_out,sy)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dzf,dzfi,dyi,dy2i,dzhi,cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
@@ -812,6 +824,7 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
+    integer,intent(in)  :: sy
     real                :: emmo, eomm,eomp,epmo
     real                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
@@ -820,7 +833,7 @@ contains
       kp=k+1
       km=k-1
 
-      do j=2,j1
+      do j=sy,j1
         jp=j+1
         jm=j-1
 
@@ -864,7 +877,7 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
-    do j=2,j1
+    do j=sy,j1
       jp = j+1
       jm = j-1
       do i=2,i1
