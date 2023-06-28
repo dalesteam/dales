@@ -265,21 +265,22 @@ contains
    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
    call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
    call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+   do n=1,nsv
+      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+   end do
 
    !$acc kernels default(present)
-   u0av  = u0av  /ijtot + cu
-   v0av  = v0av  /ijtot + cv
+   u0av   = u0av  /ijtot + cu
+   v0av   = v0av  /ijtot + cv
    thl0av = thl0av/ijtot
-   qt0av = qt0av /ijtot
-   ql0av = ql0av /ijtot
+   qt0av  = qt0av /ijtot
+   ql0av  = ql0av /ijtot
+   sv0av  = sv0av /ijtot
    exnf   = 1-grav*zf/(cp*thls)
-   exnh  = 1-grav*zh/(cp*thls)
-   th0av  = thl0av + (rlv/cp)*ql0av/exnf
+   exnh   = 1-grav*zh/(cp*thls)
+   th0av  = thl0av+ (rlv/cp)*ql0av/exnf
    !$acc end kernels
-   do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   end do
-   sv0av = sv0av/ijtot
+
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
@@ -287,8 +288,11 @@ contains
 
 !    2.1 Use first guess of theta, then recalculate theta
    call fromztop
+
+   !$acc parallel default(present)
    exnf = (presf/pref0)**(rd/cp)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
+   !$acc end parallel
 
 !    2.2 Use new updated value of theta for determination of pressure
 
@@ -302,17 +306,25 @@ contains
 
 !    3.1 determine exner
 
+   !$acc parallel default(present)
    exnh(1) = (ps/pref0)**(rd/cp)
    exnf(1) = (presf(1)/pref0)**(rd/cp)
+   !$acc end parallel
+
+   !$acc parallel loop default(present)
    do k=2,k1
      exnf(k) = (presf(k)/pref0)**(rd/cp)
      exnh(k) = (presh(k)/pref0)**(rd/cp)
    end do
+   
+   !$acc parallel default(present)
    thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
    rhof(1) = presf(1)/(rd*thvf(1))
+   !$acc end parallel
 
 !    3.2 determine rho
 
+   !$acc parallel loop default(present)
    do k=2,k1
      thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
      rhof(k) = presf(k)/(rd*thvf(k))
