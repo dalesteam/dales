@@ -125,6 +125,7 @@ contains
     dthvdz = 0
     if (lmoist) then
 
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -134,6 +135,9 @@ contains
         end do
       end do
 
+      !TODO: fix the branching in this loop
+      !$acc parallel loop collapse(3) default(present) 
+      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth)
       do k=2,kmax
         do j=2,j1
           do i=2,i1
@@ -177,7 +181,8 @@ contains
           end do
         end do
       end do
-
+      
+      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -197,14 +202,17 @@ contains
       end do
 
     else
-      thv0h = thl0h
+      !$acc parallel loop collapse(3) default(present)
       do k=2,kmax
         do j=2,j1
           do i=2,i1
+            thv0h(i,j,k)  = thl0h(i,j,k)
             dthvdz(i,j,k) = (thl0(i,j,k+1)-thl0(i,j,k-1))/(dzh(k+1)+dzh(k))
           end do
         end do
       end do
+
+      !$acc parallel loop collapse(2) default(present)
       do  j=2,j1
         do  i=2,i1
           dthvdz(i,j,1) = dthldz(i,j)
@@ -212,6 +220,7 @@ contains
       end do
     end if
 
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -221,8 +230,6 @@ contains
         end do
       end do
     end do
-
-
 
   end subroutine calthv
 !> Calculate diagnostic slab averaged fields.
