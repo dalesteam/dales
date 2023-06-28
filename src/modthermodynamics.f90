@@ -59,11 +59,11 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo,is_starting
     use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmpi, only : slabsum
     implicit none
-    integer:: k
+    integer:: i, j, k
     if (timee < 0.01) then
       call diagfld
     end if
@@ -87,17 +87,39 @@ contains
 
     ! recalculate thv and rho on the basis of results
     call calthv
+
+    !$acc kernels default(present)
     thvh=0.
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+    !$acc end kernels
+
+    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting) ! redefine halflevel thv using calculated thv
+
+    !$acc kernels default(present)
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+    !$acc end kernels
+    
+    !$acc parallel loop collapse(3) default(present)
     do k=1,k1
-      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                 *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-    enddo
+      do j=2,j1
+        do i=2,i1
+          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                      * (1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+        end do
+      end do
+    end do
+
+    !$acc kernels default(present)
     thvf = 0.0
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end kernels
+
+    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+
+    !$acc kernels default(present)
     thvf = thvf/ijtot
+    !$acc end kernels
+
+    !$acc parallel loop default(present)
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
@@ -136,7 +158,7 @@ contains
       end do
 
       !TODO: fix the branching in this loop
-      !$acc parallel loop collapse(3) default(present) 
+      !$acc parallel loop collapse(3) default(present) &
       !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth)
       do k=2,kmax
         do j=2,j1
