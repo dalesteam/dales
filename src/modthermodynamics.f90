@@ -608,7 +608,7 @@ contains
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
 
-    !$acc parallel loop gang private(Tl_min, Tl_max, qt_max, qsat_) default(present)
+    !$acc parallel loop private(Tl_min, Tl_max, qt_max, qsat_) default(present)
     do k=1,k1
        ! Optimization: if the whole horizontal slab at k is unsaturated,
        ! the calculation of this slab can be skipped.
@@ -626,7 +626,7 @@ contains
 
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat_) then
-          !$acc loop vector collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) 
+          !$acc loop collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) 
           do j=2,j1
              do i=2,i1
                 Tl = exnf(k)*thl0(i,j,k)
@@ -674,7 +674,7 @@ contains
        else
           ! possibly faster option when the whole layer is below saturation
           ! If many of the els, qsvl, qsvi are stored in arrays, they still need to be saved here
-          !$acc loop vector collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr)
+          !$acc loop collapse(2) private(T, esi1, tlo, thi, tlonr)
           do j=2,j1
              do i=2,i1
                 ql0(i,j,k) = 0
@@ -719,7 +719,8 @@ contains
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
     real(field_r) :: Tl_min, Tl_max, qt_max
-
+    
+    !$acc parallel loop default(present) private(Tl_min, Tl_max, qt_max)
     do k=1,k1
        ! find highest qt and lowest thl in the slab.
        ! if they in combination are not saturated, the whole slab is below saturation
@@ -730,6 +731,7 @@ contains
        qt_max = maxval(qt0h(2:i1,2:j1,k))
        qsat = qsat_tab(Tl_min, presh(k))
        if (qt_max > qsat) then
+          !$acc loop collapse(2) private(Tl, qsat, qt, ql, b)
           do j=2,j1
              do i=2,i1
                 Tl = exnh(k)*thl0h(i,j,k)
@@ -757,7 +759,12 @@ contains
              end do
           end do
        else
-          ql0h(2:i1,2:j1,k) = 0
+         !$acc loop collapse(2)
+         do j=2,j1
+           do i=2,i1
+             ql0h(i,j,k) = 0
+           end do
+         end do
        end if
     end do
   end subroutine icethermoh_fast
