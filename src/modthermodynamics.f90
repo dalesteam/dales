@@ -993,6 +993,7 @@ contains
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1001,11 +1002,18 @@ contains
         end do
       end do
     end if
-    thl0h(2:i1,2:j1,1) = thls
+
+    !$acc parallel loop collapse(2) default(present)
+    do j=2,j1
+      do i=2,i1
+        thl0h(i,j,1) = thls
+      end do
+    end do
 
     if (iadv_qt==iadv_kappa) then
         call halflev_kappa(qt0,qt0h)
     else
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1013,7 +1021,13 @@ contains
           end do
         end do
       end do
-      qt0h(2:i1,2:j1,1)  = qts
+      
+      !$acc parallel loop collapse(2) default(present)
+      do j=2,j1
+        do i=2,i1
+          qt0h(i,j,1) = qts
+        end do
+      end do
     end if
   end subroutine calc_halflev
 
