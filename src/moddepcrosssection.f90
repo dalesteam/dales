@@ -48,8 +48,8 @@ contains
   !> Initializing depcrosssection. Read out the namelist, initializing the variables
   subroutine initdepcrosssection
     use mpi
-    use modmpi, only : myid, comm3d, MPI_LOGICAL, MY_REAL, myidx, myidy, &
-        mpierr
+    use modmpi, only : myid, comm3d, myidx, myidy, &
+        mpierr, D_MPI_BCAST
     use modglobal, only : dtav_glob, ifnamopt, fname_options, &
         checknamelisterror, tres, btime, dt_lim, ladaptive, &
         dtmax, iexpnr, imax, jmax
@@ -76,10 +76,10 @@ contains
       ldepcrosssection = .false.
       write (6, *) "Ignoring ldepcrosssection, since no dry deposition &
         & and/or land surface model defined"
-    end if
-
-    call MPI_BCAST(dtav,             1, MY_REAL,     0, comm3d, mpierr)
-    call MPI_BCAST(ldepcrosssection, 1, MPI_LOGICAL, 0, comm3d, mpierr)
+   end if
+   
+    call D_MPI_BCAST(dtav,             1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(ldepcrosssection, 1, 0, comm3d, mpierr)
 
     idtav = dtav/tres
     tnext   = idtav+btime

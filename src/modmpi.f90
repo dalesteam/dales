@@ -1018,10 +1018,10 @@ contains
 
     ! Clears halo cells of domain edges
     ! Author: Marco de Bruine (VU), 2020
-
+    use modprecision, only: field_r
     implicit none
     integer sx,ex,hx, sy,ey,hy, sz,ez
-    real :: field(sx-hx:ex+hx,sy-hy:ey+hy,sz:ez)
+    real(field_r) :: field(sx-hx:ex+hx,sy-hy:ey+hy,sz:ez)
     real :: fillvalue = 0
     real,optional :: fillvalue_in
     if(present(fillvalue_in)) fillvalue=fillvalue_in

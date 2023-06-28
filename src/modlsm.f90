@@ -1420,7 +1420,7 @@ subroutine deallocate_tile(tile)
     deallocate( tile%R_inc_b, tile%R_inc_h)
     deallocate( tile%SAI_a, tile%SAI_b) 
     deallocate( tile%fmin, tile%alpha)
-    deallocate( tile%Tmin, tile%Topt, tile%Tmax,)
+    deallocate( tile%Tmin, tile%Topt, tile%Tmax)
     deallocate( tile%gs_max, tile%vpd_min, tile%vpd_max)
     deallocate( tile%gamma_stom, tile%gamma_soil_c_fac, tile%gamma_soil_default)
 

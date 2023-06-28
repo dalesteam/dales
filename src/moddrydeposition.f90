@@ -80,8 +80,7 @@ subroutine initdrydep
 
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
                         checknamelisterror, imax, jmax
-  use modmpi,    only : myid, comm3d, mpi_logical, mpi_integer, &
-                        mpi_character
+  use modmpi,    only : myid, comm3d, d_mpi_bcast
   use modemisdata, only : emisnames
 
   implicit none
@@ -107,9 +106,9 @@ subroutine initdrydep
     close(ifnamopt)
   endif
 
-  call mpi_bcast(ldrydep,              1, mpi_logical,   0, comm3d, ierr)
-  call mpi_bcast(ldeptracers(1:100), 100, mpi_logical,   0, comm3d, ierr)
-  call mpi_bcast(tracernames(1:100), 100, mpi_character, 0, comm3d, ierr)
+  call d_mpi_bcast(ldrydep,              1, 0, comm3d, ierr)
+  call d_mpi_bcast(ldeptracers(1:100), 100, 0, comm3d, ierr)
+  call d_mpi_bcast(tracernames(1:100), 100, 0, comm3d, ierr)
 
   ndeptracers = count(ldeptracers)  ! Number of tracers that deposits
 
