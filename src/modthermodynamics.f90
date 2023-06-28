@@ -249,6 +249,7 @@ contains
 !*********************************************************
 
 ! initialise local MPI arrays
+
     !$acc kernels default(present)
     u0av = 0.0
     v0av = 0.0
@@ -364,6 +365,7 @@ contains
 !**************************************************
 !    1.0 Determine theta and qt at half levels    *
 !**************************************************
+
   !$acc parallel loop default(present)
   do k=2,k1
     thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
@@ -377,39 +379,43 @@ contains
 !**************************************************
 
 !     1: lowest level: use first level value for safety!
-  !$acc kernels default(present)
+
+  !$acc parallel default(present)
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  presf(1) = ps**rdocp - &
-                 grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
+  presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
-  !$acc end kernels
+  !$acc end parallel
+
 !     2: higher levels
 
-  !$acc parallel loop default(present)
+  ! TODO: see if a parallel loop with an atomic update is faster here
+  !$acc serial default(present)
   do k=2,k1
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
     presf(k) = presf(k)**(1./rdocp)
   end do
+  !$acc end serial
 
 !**************************************************
 !     2.2   calculate pressures at half levels    *
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
-  !$acc kernels default(present)
+  !$acc parallel default(present)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  !$acc end kernels
+  !$acc end parallel
 
-  !$acc parallel loop default(present)
+  !$acc serial default(present)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
     presh(k) = presh(k)**(1./rdocp)
   end do
+  !$acc end serial
 
   !$acc exit data delete(thetah, qth, qlh)
   deallocate(thetah, qth, qlh)
