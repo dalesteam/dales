@@ -404,7 +404,7 @@ contains
   if(lopenbc) then ! Set cyclic conditions only for non-domain boundaries if openboundaries are used
     call openboundary_excjs(ekm   , 2,i1,2,j1,1,k1,ih,jh, &
       & (.not.lboundary(1:4)).or.lperiodic(1:4))
-    call openboundary_excjs(ekm   , 2,i1,2,j1,1,k1,ih,jh, &
+    call openboundary_excjs(ekh   , 2,i1,2,j1,1,k1,ih,jh, &
       & (.not.lboundary(1:4)).or.lperiodic(1:4))
   else
     call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
