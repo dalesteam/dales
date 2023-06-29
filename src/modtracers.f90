@@ -29,7 +29,18 @@ module modtracers
   implicit none
 
   save
-  public  :: inittracers, assign_tracer_props
+  public  :: inittracers, read_tracer_props, assign_tracer_props
+
+  integer, parameter:: max_tracs  =  30 !<  Max. number of tracers that can be defined
+  character(len=10),dimension(max_tracs) :: tracname_short = "NA" ! Short tracer name
+  character(len=32),dimension(max_tracs) :: tracname_long  = "NA" ! Long tracer name
+  character(len=10),dimension(max_tracs) :: tracer_unit = "NA" ! Unit of tracer
+  real     :: molar_mass(max_tracs)       = -1.0 ! Molar mass of tracer (g mol-1)
+  logical  :: tracer_is_emitted(max_tracs) = .false. ! Tracer is emitted (T/F)
+  logical  :: tracer_is_reactive(max_tracs) = .false. ! Tracer is reactive (T/F)
+  logical  :: tracer_is_deposited(max_tracs) = .false. ! Tracer is deposited (T/F)
+  logical  :: tracer_is_photosynth(max_tracs) = .false. ! Tracer is photosynthesized (T/F)
+  logical  :: tracer_is_microphys(max_tracs) = .false. ! Tracer is involved in cloud microphysics (T/F)
 
   integer  :: iname
   logical  :: ltracers = .false. ! tracer switch
@@ -76,7 +87,7 @@ contains
     ! init tracer type
 
     use modglobal,        only : ifnamopt, fname_options, checknamelisterror
-    use modmpi,           only : myid, comm3d, mpierr, mpi_logical, mpi_integer, my_real, mpi_character
+    use modmpi,           only : myid, comm3d, mpierr, mpi_logical, mpi_character
 
     implicit none
 
@@ -103,6 +114,7 @@ contains
     allocate(tracer_prop(nsv), stat=ierr)
     if (ierr/=0) stop
 
+    call read_tracer_props
     call assign_tracer_props
 
     ! do isv = 1, nsv
@@ -125,20 +137,58 @@ contains
 
   end subroutine exittracers
 
-  !! For each tracer in 'tracernames', get the properties as defined in 'modtracdata.f90'
-  !! Fill the 'tracer_prop' data structure with these properties
-  subroutine assign_tracer_props
-    use modtracdata ! arrays with tracer properties
+  !! Read the list of available tracers from tracerdata.inp
+  !! and their properties
+  subroutine read_tracer_props
+
+    use modglobal,  only : ifinput
+    use modmpi,     only : myid
 
     implicit none
 
-    ! First assign tracer index values. They are equal to the sv index by default and to order of tracers in scalar.inp.
-    ! Chem indices are assigned when reading in chemp.inp. Here initialized with dummy value.
-    do isv=1,nsv
-      tracer_prop(isv) % trac_idx = isv
-    end do
+    integer   :: tdx, ierr, defined_tracers
+    character(len=1500) :: readbuffer
+
+    defined_tracers = 0
+    open (ifinput,file='tracerdata.inp')
+    ierr = 0
+    do while (ierr == 0)
+      read(ifinput, '(A)', iostat=ierr) readbuffer
+
+      if (ierr == 0) then   !So no end of file is encountered
+        if (readbuffer(1:1)=='#') then
+          if (myid == 0)   print *, trim(readbuffer)
+        else
+          if (myid == 0)   print *, trim(readbuffer)
+          defined_tracers = defined_tracers + 1
+          tdx = defined_tracers
+          read(readbuffer, *, iostat=ierr) tracname_short(tdx), tracname_long(tdx), tracer_unit(tdx), molar_mass(tdx), &
+                                            tracer_is_emitted(tdx), tracer_is_reactive(tdx), tracer_is_deposited(tdx), &
+                                            tracer_is_photosynth(tdx), tracer_is_microphys(tdx)
+
+          if ( (molar_mass(tdx) .lt. 0) .and. (molar_mass(tdx) .gt. -1.1) ) then
+            if (myid == 0) stop "MODTRACERS: a molar mass value is not set in the tracer input file"
+          end if
+        endif
+      endif
+    enddo
+    close(ifinput)
+
+  end subroutine read_tracer_props
+
+
+  !! For each tracer in 'tracernames', get the properties as defined in 'tracerdata.inp' and
+  !! read by 'read_tracer_props'
+  !! Fill the 'tracer_prop' data structure with these properties
+  subroutine assign_tracer_props
+    !!! ! use modtracdata ! arrays with tracer properties
+
+    implicit none
 
     do isv=1,nsv
+      ! First assign tracer index values. They are equal to the sv index by default
+      tracer_prop(isv) % trac_idx = isv
+
       ! match species by short name and 
       ! look up species props in modtracdata arrays
       tracer_prop(isv) % tracname = trim(tracernames(isv))
@@ -153,7 +203,7 @@ contains
       tracer_prop(isv) % ldep     = findval_logical(tracernames(isv), tracname_short, &
                                       tracer_is_deposited, defltvalue=.false.)  ! Default is False
       tracer_prop(isv) % lags     = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_photosynthesized, defltvalue=.false.)  ! Default is False
+                                      tracer_is_photosynth, defltvalue=.false.)  ! Default is False
       tracer_prop(isv) % lmicro   = findval_logical(tracernames(isv), tracname_short, &
                                       tracer_is_microphys, defltvalue=.false.)  ! Default is False
 

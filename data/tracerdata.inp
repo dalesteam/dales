@@ -1,0 +1,31 @@
+#tracname_short tracname_long                    tracer_unit molar_mass is_emitted is_reactive is_deposited is_photosynth is_microphys
+'qr    '        'Rain water mixing ratio       ' 'kg/kg   '  -999.      .false.    .false.     .false.      .false.       .true.
+'nr    '        'Cloud droplet number          ' '-       '  -999.      .false.    .false.     .false.      .false.       .true.
+'co2   '        'Carbon dioxide                ' 'ppm     '  44.009     .true.     .false.     .false.      .true.        .false.
+'co2veg'        'Carbon dioxide - vegetation   ' 'ppm     '  44.009     .false.    .false.     .false.      .true.        .false.
+'co2sum'        'Carbon dioxide - sum          ' 'ppm     '  44.009     .false.    .false.     .false.      .false.       .false.
+'nox   '        'Nitrogen oxides               ' 'ppb     '  -999.      .true.     .false.     .true.       .false.       .false.
+'nh3   '        'Ammonia                       ' 'ppb     '  17.031     .true.     .false.     .true.       .false.       .false.
+'so2   '        'Sulphur dioxide               ' 'ppb     '  64.066     .true.     .true.      .false.      .false.       .false. 
+'inert '        'INERT                         ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.
+'o3    '        'Ozone                         ' 'ppb     '  47.997     .false.    .true.      .true.       .false.       .false.
+'o1d   '        'Excited oxygen                ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.   
+'no    '        'Nitrogen oxide                ' 'ppb     '  30.006     .true.     .true.      .true.       .false.       .false.
+'no2   '        'Nitrogen dioxide              ' 'ppb     '  46.006     .true.     .true.      .true.       .false.       .false.
+'ch4   '        'Methane                       ' 'ppb     '  16.043     .true.     .true.      .false.      .false.       .false.
+'ch2o  '        'Formaldehyde                  ' 'ppb     '  30.026     .false.    .true.      .false.      .false.       .false.
+'ch3o2 '        'Methyl peroxy radical         ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.
+'mvk   '        'Methyl vinyl ketone           ' 'ppb     '  70.09      .false.    .true.      .false.      .false.       .false.      
+'iso   '        'Isoprene                      ' 'ppb     '  68.12      .true.     .true.      .false.      .false.       .false.
+'ro2   '        'Peroxy radical                ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.   
+'oh    '        'Hydroxyl radical              ' 'ppb     '  17.007     .false.    .true.      .false.      .false.       .false. 
+'ho2   '        'Hydroperoxyl radical          ' 'ppb     '  33.006     .false.    .true.      .false.      .false.       .false. 
+'co    '        'Carbon monoxide               ' 'ppb     '  28.010     .true.     .true.      .true.       .false.       .false.
+'h2o   '        'Water                         ' 'ppb     '  18.015     .false.    .true.      .false.      .false.       .false.
+'produc'        'PRODUC                        ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.
+'o2    '        'Oxygen                        ' 'ppb     '  31.998     .false.    .true.      .false.      .false.       .false.
+'n2    '        'Nitrogen                      ' 'ppb     '  28.012     .false.    .true.      .false.      .false.       .false.
+'hno3  '        'Nitric acid                   ' 'ppb     '  63.012     .false.    .true.      .true.       .false.       .false.
+'h2o2  '        'Hydrogen peroxide             ' 'ppb     '  34.015     .false.    .true.      .true.       .false.       .false.
+'no3   '        'Nitrate radical               ' 'ppb     '  62.004     .false.    .true.      .false.      .false.       .false.
+'n2o5  '        'Dinitrogen pentoxide          ' 'ppb     '  108.01     .false.    .true.      .true.       .false.       .false.
