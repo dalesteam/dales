@@ -575,7 +575,7 @@ contains
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
-  real(real32),allocatable, dimension(:) :: sendn,recvn &
+  real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
