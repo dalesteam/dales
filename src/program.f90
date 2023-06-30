@@ -171,6 +171,9 @@ program DALES
   implicit none
 
   integer :: istep
+
+  ! Select CPU for execution of startup routines
+  !$acc set device_type(host)
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
@@ -212,6 +215,8 @@ program DALES
 
   !call initspectra2
   call initcape
+
+  !$acc set device_type(nvidia)
 
 #if defined(_OPENACC)
   call initgpu
