@@ -145,7 +145,6 @@ subroutine initfields
     allocate(thlm (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12m (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtm  (2-ih:i1+ih,2-jh:j1+jh,k1))
-    !$acc enter data create(um, vm, wm, thlm, e12m, qtm)
 
     allocate(u0   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(v0   (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -153,7 +152,6 @@ subroutine initfields
     allocate(thl0 (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e120 (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0  (2-ih:i1+ih,2-jh:j1+jh,k1))
-    !$acc enter data create(u0, v0, w0, thl0, e120, qt0)
 
     allocate(up   (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(vp   (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -161,23 +159,19 @@ subroutine initfields
     allocate(thlp (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(e12p (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtp  (2-ih:i1+ih,2-jh:j1+jh,k1))
-    !$acc enter data create(up, vp, wp, thlp, e12p, qtp)
 
     allocate(svm  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(sv0  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
     allocate(svp  (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    !$acc enter data create(svm, sv0, svp)
 
     allocate(thl0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qt0h (2-ih:i1+ih,2-jh:j1+jh,k1))
-    !$acc enter data create (thl0h, qt0h)
 
     ! Allocation of base state variables
     allocate(rhobf   (k1))
     allocate(rhobh   (k1))
     allocate(drhobdzf(k1))
     allocate(drhobdzh(k1))
-    !$acc enter data create(rhobf, rhobh)
 
     ! Allocation of diagnostic variables
     allocate(ql0   (2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -185,7 +179,6 @@ subroutine initfields
     allocate(tmp0  (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thv0h (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(dthvdz(2-ih:i1+ih,2-jh:j1+jh,k1))
-    !$acc enter data create(ql0, ql0h, tmp0, thv0h, dthvdz)
 
     allocate(whls         (k1))
     allocate(presf        (k1))
@@ -206,29 +199,22 @@ subroutine initfields
     allocate(vg           (k1))
     allocate(dpdxl        (k1))
     allocate(dpdyl        (k1))
-    !$acc enter data create(whls, ug, vg)
-    !$acc enter data create(qt0av, ql0av, thl0av, u0av, v0av)
-    !$acc enter data create(dpdxl, dpdyl)
 
     allocate(dthldxls(k1))
     allocate(dthldyls(k1))
     allocate(dthldtls(k1))
-    !$acc enter data create(dthldxls, dthldyls, dthldtls)
 
     allocate(dqtdxls(k1))
     allocate(dqtdyls(k1))
     allocate(dqtdtls(k1))
-    !$acc enter data create(dqtdxls, dqtdyls, dqtdtls)
 
     allocate(dudxls(k1))
     allocate(dudyls(k1))
     allocate(dudtls(k1))
-    !$acc enter data create(dudxls, dudyls, dudtls)
 
     allocate(dvdxls(k1))
     allocate(dvdyls(k1))
     allocate(dvdtls(k1))
-    !$acc enter data create(dvdxls, dvdyls, dvdtls)
 
     allocate(wfls   (k1))
     allocate(thlprof(k1))
@@ -239,7 +225,6 @@ subroutine initfields
     allocate(sv0av  (k1,nsv))
     allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
-    !$acc enter data create(thlpcar)
 
     allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
     allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))

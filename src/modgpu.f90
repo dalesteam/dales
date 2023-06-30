@@ -12,17 +12,20 @@ contains
                          svm, sv0, svp, &
                          rhobf, rhobh, &
                          ql0, ql0h, tmp0, thv0h, dthvdz, &
-                         whls, ug, vg, &
+                         whls, ug, vg, thvf, thvh, &
+                         presf, presh,exnf, exnh, &
+                         rhof, &
                          qt0av, ql0av, thl0av, u0av, v0av, &
                          dpdxl, dpdyl, &
                          dthldxls, dthldyls, dthldtls, &
                          dqtdxls, dqtdyls, dqtdtls, &
                          dudxls, dudyls, dudtls, &
                          dvdxls, dvdyls, dvdtls, &
-                         thlpcar
+                         thlpcar, sv0av, &
+                         qvsl, qvsi, esl, qsat
 
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab
+                         rd, rv, esatmtab, esatitab, esatltab
 
     use modsurfdata, only: ustar, dudz, dvdz, &
                            thlflux, qtflux, dqtdz, dthldz, &
@@ -32,43 +35,58 @@ contains
                               sbdiss, sbshr, sbbuo
 
     use modradiation, only: thlprad
+
+    use modthermodynamics, only: th0av, thv0
+
+    use modboundary, only: tsc
+
     implicit none
 
     ! Prognostic variables
-    !$acc update device(um, vm, wm, thlm, e12m, qtm)
-    !$acc update device(u0, v0, w0, thl0, thl0h, qt0h, e120, qt0)
-    !$acc update device(up, vp, wp, thlp, e12p, qtp)
-    !$acc update device(svm, sv0, svp)
+    !$acc enter data copyin(um, vm, wm, thlm, e12m, qtm)
+    !$acc enter data copyin(u0, v0, w0, thl0, thl0h, qt0h, e120, qt0)
+    !$acc enter data copyin(up, vp, wp, thlp, e12p, qtp)
+    !$acc enter data copyin(svm, sv0, svp)
 
     ! Base state variables
-    !$acc update device(rhobf, rhobh)
+    !$acc enter data copyin(rhobf, rhobh)
 
     ! Diagnostic variables
-    !$acc update device(ql0, ql0h, tmp0, thv0h, dthvdz)
-    !$acc update device(whls, ug, vg)
-    !$acc update device(qt0av, ql0av, thl0av, u0av, v0av)
-    !$acc update device(dpdxl, dpdyl)
-    !$acc update device(dthldxls, dthldyls, dthldtls)
-    !$acc update device(dqtdxls, dqtdyls, dqtdtls)
-    !$acc update device(dudxls, dudyls, dudtls)
-    !$acc update device(dvdxls, dvdyls, dvdtls)
+    !$acc enter data copyin(ql0, ql0h, tmp0, thv0h, dthvdz)
+    !$acc enter data copyin(whls, ug, vg)
+    !$acc enter data copyin(thvf, thvh)
+    !$acc enter data copyin(qt0av, ql0av, thl0av, u0av, v0av, sv0av)
+    !$acc enter data copyin(dpdxl, dpdyl)
+    !$acc enter data copyin(dthldxls, dthldyls, dthldtls)
+    !$acc enter data copyin(dqtdxls, dqtdyls, dqtdtls)
+    !$acc enter data copyin(dudxls, dudyls, dudtls)
+    !$acc enter data copyin(dvdxls, dvdyls, dvdtls)
 
     ! Global
-    !$acc update device(dzf, dzh, zh, zf, delta, deltai)
-    !$acc update device(esatmtab)
+    !$acc enter data copyin(dzf, dzh, zh, zf, delta, deltai)
 
     ! Surface
-    !$acc update device(ustar, dudz, dvdz)
-    !$acc update device(thlflux, qtflux, dqtdz, dthldz)
-    !$acc update device(svflux, svs)
+    !$acc enter data copyin(ustar, dudz, dvdz)
+    !$acc enter data copyin(thlflux, qtflux, dqtdz, dthldz)
+    !$acc enter data copyin(svflux, svs)
+
+    ! Boundary
+    !$acc enter data copyin(tsc)
 
     ! Subgrid
-    !$acc update device(ekm, ekh, zlt, csz, anis_fac)
-    !$acc update device(sbdiss, sbshr, sbbuo)
+    !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac)
+    !$acc enter data copyin(sbdiss, sbshr, sbbuo)
     
     ! Radiation
-    !$acc update device(thlpcar, thlprad)
-    
+    !$acc enter data copyin(thlpcar, thlprad)
+
+    ! Thermodynamics
+    !$acc enter data copyin(th0av, thv0)
+    !$acc enter data copyin(presf, presh, exnf, exnh)
+    !$acc enter data copyin(rhof) 
+    !$acc enter data copyin(qvsl, qvsi, esl, qsat)
+    !$acc enter data copyin(esatmtab, esatitab, esatltab)
+
   end subroutine initgpu
 end module modgpu
 #endif

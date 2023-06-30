@@ -392,8 +392,6 @@ contains
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1),deltai(k1))
-    !$acc enter data create(dzf, dzh, zh, zf, delta, deltai)
-
 
     ijtot = real(itot*jtot)
 
