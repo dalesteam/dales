@@ -1043,13 +1043,14 @@ contains
 
     end if
 
+    !$acc update device(ustar, dudz, dvdz)
+    !$acc update device(thlflux, qtflux, dqtdz, dthldz)
+    !$acc update device(svflux, svs)
+
     ! Transfer ustar to neighbouring cells, do this like a 3D field
     ustar_3D(1:i2,1:j2,1:1) => ustar
     call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
     
-    !$acc update device(ustar, dudz, dvdz)
-    !$acc update device(thlflux, qtflux, dqtdz, dthldz)
-    !$acc update device(svflux, svs)
 
   end subroutine surface
 
