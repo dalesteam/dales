@@ -476,14 +476,9 @@ contains
   
   ! Ad-hoc solution for startup and other routines that use host data
   ! Specify on_gpu=.true. if halo exchange has to be done on the gpu
-  if ( present(on_gpu) ) then
-    on_gpu = on_gpu
-  else
-    on_gpu = .false.
-  endif
 
 ! Calulate buffer lengths
-  !$acc kernels default(present) if(on_gpu)
+  !$acc kernels default(present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
@@ -522,7 +517,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(on_gpu)
+    !$acc kernels default(present)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -556,7 +551,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(on_gpu)
+    !$acc kernels default(present)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
@@ -720,12 +715,6 @@ contains
     integer           :: k
     logical, optional :: on_gpu
 
-    if ( present(on_gpu) ) then
-        on_gpu = on_gpu
-    else
-        on_gpu = .false.
-    endif
-
     !$acc kernels default(present)
     averl       = 0.
     avers       = 0.
@@ -759,30 +748,30 @@ contains
     integer           :: k
     logical, optional :: on_gpu
 
-    if ( present(on_gpu) ) then
-        on_gpu = on_gpu
-    else
-        on_gpu = .false.
-    endif
+    !$acc enter data copyin(averl, avers)
  
-    !$acc kernels default(present) if(on_gpu)
+    !$acc kernels default(present)
     averl       = 0.
     avers       = 0.
     !$acc end kernels
     
-    !$acc kernels default(present) if(on_gpu)
+    !$acc kernels default(present)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
     !$acc end kernels
 
     ! CUDA-aware MPI should figure out that it has to move data from the GPU
+    !$acc update host(averl)
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
                        MPI_SUM, comm3d,mpierr)
+    !$acc update device(avers)
 
-    !$acc kernels default(present) if(on_gpu)
+    !$acc kernels default(present)
     aver = aver + avers
     !$acc end kernels
+
+    !$acc exit data delete(averl, avers)
 
     return
   end subroutine slabsum_real64
