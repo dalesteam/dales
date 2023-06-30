@@ -70,9 +70,6 @@ contains
 
   if (lforce_user) call force_user
 
-  !$acc enter data copyin(thvh)
-  !$acc enter data copyin(sv0)
-
   if (lpressgrad) then
      !$acc kernels default(present)
      do k=1,kmax

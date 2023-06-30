@@ -32,7 +32,7 @@ module modboundary
 implicit none
 save
 private
-public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
+public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real :: rnu0 = 2.75e-3
@@ -60,8 +60,6 @@ contains
       tsc(k) = rnu0*sin(0.5*pi*(zf(k)-zspb)/(zspt-zspb))**2
     end do
    tsc(k1)=tsc(kmax)
-
-   !$acc enter data copyin(tsc)
 
   end subroutine initboundary
 
