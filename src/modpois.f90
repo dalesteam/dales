@@ -199,9 +199,12 @@ contains
         pwp(i,j,k1) = 0.
       end do
     end do
-
+    
+    ! Very, very temporary
+    !$acc enter data copyin(pup, pvp)
     call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
     call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
+    !$acc exit data copyout(pup, pvp)
 
     do k=1,kmax
       do j=2,j1
@@ -247,7 +250,9 @@ contains
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
+  !$acc enter data copyin(p)
   call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  !$acc exit data copyout(p)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
