@@ -51,6 +51,7 @@ contains
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+
     th0av = 0.
 
   end subroutine initthermodynamics
@@ -64,6 +65,7 @@ contains
     use modmpi, only : slabsum
     implicit none
     integer:: i, j, k
+
     if (timee < 0.01) then
       call diagfld
     end if
@@ -310,24 +312,24 @@ contains
    exnh   = 1-grav*zh/(cp*thls)
    th0av  = thl0av+ (rlv/cp)*ql0av/exnf
    !$acc end kernels
-
+    
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
 !***********************************************************
 
 !    2.1 Use first guess of theta, then recalculate theta
+
    call fromztop
 
-   !$acc parallel default(present)
+   !$acc serial default(present)
    exnf = (presf/pref0)**(rd/cp)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
-   !$acc end parallel
+   !$acc end serial
 
 !    2.2 Use new updated value of theta for determination of pressure
 
    call fromztop
-
 
 !***********************************************************
 !  3.0   Construct density profiles and exner function     *
@@ -336,10 +338,10 @@ contains
 
 !    3.1 determine exner
 
-   !$acc parallel default(present)
+   !$acc serial default(present)
    exnh(1) = (ps/pref0)**(rd/cp)
    exnf(1) = (presf(1)/pref0)**(rd/cp)
-   !$acc end parallel
+   !$acc end serial
 
    !$acc parallel loop default(present)
    do k=2,k1
@@ -347,10 +349,10 @@ contains
      exnh(k) = (presh(k)/pref0)**(rd/cp)
    end do
    
-   !$acc parallel default(present)
+   !$acc serial default(present)
    thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
    rhof(1) = presf(1)/(rd*thvf(1))
-   !$acc end parallel
+   !$acc end serial
 
 !    3.2 determine rho
 
@@ -409,42 +411,40 @@ contains
 
 !     1: lowest level: use first level value for safety!
 
-  !$acc parallel default(present)
+  !$acc serial default(present)
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
-  !$acc end parallel
+  !$acc end serial
 
 !     2: higher levels
 
   ! TODO: see if a parallel loop with an atomic update is faster here
-  !$acc serial default(present)
+  !$acc serial loop default(present)
   do k=2,k1
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
     presf(k) = presf(k)**(1./rdocp)
   end do
-  !$acc end serial
 
 !**************************************************
 !     2.2   calculate pressures at half levels    *
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
-  !$acc parallel default(present)
+  !$acc serial default(present)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  !$acc end parallel
+  !$acc end serial
 
-  !$acc serial default(present)
+  !$acc serial loop default(present)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
     presh(k) = presh(k)**(1./rdocp)
   end do
-  !$acc end serial
 
   !$acc exit data delete(thetah, qth, qlh)
   deallocate(thetah, qth, qlh)
@@ -655,7 +655,7 @@ contains
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
 
-    !$acc parallel loop private(Tl_min, Tl_max, qt_max, qsat_) default(present)
+    !$acc parallel loop gang private(Tl_min, Tl_max, qt_max, qsat_) default(present)
     do k=1,k1
        ! Optimization: if the whole horizontal slab at k is unsaturated,
        ! the calculation of this slab can be skipped.
@@ -767,7 +767,7 @@ contains
     real(field_r) :: Tl, qsat, qt, ql, b
     real(field_r) :: Tl_min, Tl_max, qt_max
     
-    !$acc parallel loop default(present) private(Tl_min, Tl_max, qt_max)
+    !$acc parallel loop gang default(present) private(Tl_min, Tl_max, qt_max, qsat)
     do k=1,k1
        ! find highest qt and lowest thl in the slab.
        ! if they in combination are not saturated, the whole slab is below saturation
@@ -778,7 +778,7 @@ contains
        qt_max = maxval(qt0h(2:i1,2:j1,k))
        qsat = qsat_tab(Tl_min, presh(k))
        if (qt_max > qsat) then
-          !$acc loop collapse(2) private(Tl, qsat, qt, ql, b)
+          !$acc loop collapse(2) private(Tl, qt, ql, b)
           do j=2,j1
              do i=2,i1
                 Tl = exnh(k)*thl0h(i,j,k)
