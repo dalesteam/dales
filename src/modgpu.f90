@@ -1,7 +1,9 @@
 #if defined(_OPENACC)
 module modgpu
 
+
 public :: initgpu
+
 
 contains
   !< Initialize fields on the GPU post-startup  
@@ -39,6 +41,8 @@ contains
     use modthermodynamics, only: th0av, thv0
 
     use modboundary, only: tsc
+
+    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
     implicit none
 
@@ -87,6 +91,11 @@ contains
     !$acc enter data copyin(qvsl, qvsi, esl, qsat)
     !$acc enter data copyin(esatmtab, esatitab, esatltab)
 
+    ! Statistics
+    !$acc enter data copyin(courxl, couryl, courzl, courtotl, &
+    !$acc&                  peclettotl)
+
   end subroutine initgpu
+
 end module modgpu
 #endif
