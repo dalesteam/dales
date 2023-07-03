@@ -56,6 +56,8 @@ module modtracers
       character(len=64) :: traclong 
       ! Tracer unit
       character(len=16) :: unit     
+      ! Moleculare mass of tracer (g mol-1)
+      real              :: molar_mass
       ! Tracer index in sv0, svm, svp
       integer           :: trac_idx
       ! Boolean if tracer is emitted 
@@ -163,8 +165,8 @@ contains
           defined_tracers = defined_tracers + 1
           tdx = defined_tracers
           read(readbuffer, *, iostat=ierr) tracname_short(tdx), tracname_long(tdx), tracer_unit(tdx), molar_mass(tdx), &
-                                            tracer_is_emitted(tdx), tracer_is_reactive(tdx), tracer_is_deposited(tdx), &
-                                            tracer_is_photosynth(tdx), tracer_is_microphys(tdx)
+                                           tracer_is_emitted(tdx), tracer_is_reactive(tdx), tracer_is_deposited(tdx), &
+                                           tracer_is_photosynth(tdx), tracer_is_microphys(tdx)
 
           if ( (molar_mass(tdx) .lt. 0) .and. (molar_mass(tdx) .gt. -1.1) ) then
             if (myid == 0) stop "MODTRACERS: a molar mass value is not set in the tracer input file"
@@ -172,6 +174,7 @@ contains
         endif
       endif
     enddo
+
     close(ifinput)
 
   end subroutine read_tracer_props
@@ -196,6 +199,8 @@ contains
                                       tracname_long, defltvalue='dummy longname'))  ! Default is 'dummy '
       tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
                                       tracer_unit, defltvalue='dummy unit'))  ! Default is 'dummy unit'
+      tracer_prop(isv) % molar_mass = findval_real(tracernames(isv), tracname_short, &
+                                      molar_mass, defltvalue=-999.)  ! Default is -999.
       tracer_prop(isv) % lemis    = findval_logical(tracernames(isv), tracname_short, &
                                       tracer_is_emitted, defltvalue=.false.)  ! Default is False
       tracer_prop(isv) % lreact   = findval_logical(tracernames(isv), tracname_short, &

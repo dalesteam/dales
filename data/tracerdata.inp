@@ -4,17 +4,17 @@
 'co2   '        'Carbon dioxide                ' 'ppm     '  44.009     .true.     .false.     .false.      .true.        .false.
 'co2veg'        'Carbon dioxide - vegetation   ' 'ppm     '  44.009     .false.    .false.     .false.      .true.        .false.
 'co2sum'        'Carbon dioxide - sum          ' 'ppm     '  44.009     .false.    .false.     .false.      .false.       .false.
-'nox   '        'Nitrogen oxides               ' 'ppb     '  -999.      .true.     .false.     .true.       .false.       .false.
+'nox   '        'Nitrogen oxides               ' 'ppb     '  38.006     .true.     .false.     .true.       .false.       .false.
 'nh3   '        'Ammonia                       ' 'ppb     '  17.031     .true.     .false.     .true.       .false.       .false.
 'so2   '        'Sulphur dioxide               ' 'ppb     '  64.066     .true.     .true.      .false.      .false.       .false. 
 'inert '        'INERT                         ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.
 'o3    '        'Ozone                         ' 'ppb     '  47.997     .false.    .true.      .true.       .false.       .false.
-'o1d   '        'Excited oxygen                ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.   
+'o1d   '        'Excited oxygen                ' 'ppb     '  15.999     .false.    .true.      .false.      .false.       .false.
 'no    '        'Nitrogen oxide                ' 'ppb     '  30.006     .true.     .true.      .true.       .false.       .false.
 'no2   '        'Nitrogen dioxide              ' 'ppb     '  46.006     .true.     .true.      .true.       .false.       .false.
 'ch4   '        'Methane                       ' 'ppb     '  16.043     .true.     .true.      .false.      .false.       .false.
 'ch2o  '        'Formaldehyde                  ' 'ppb     '  30.026     .false.    .true.      .false.      .false.       .false.
-'ch3o2 '        'Methyl peroxy radical         ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.
+'ch3o2 '        'Methyl peroxy radical         ' 'ppb     '  47.033     .false.    .true.      .false.      .false.       .false.
 'mvk   '        'Methyl vinyl ketone           ' 'ppb     '  70.09      .false.    .true.      .false.      .false.       .false.      
 'iso   '        'Isoprene                      ' 'ppb     '  68.12      .true.     .true.      .false.      .false.       .false.
 'ro2   '        'Peroxy radical                ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.   

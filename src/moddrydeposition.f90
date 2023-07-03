@@ -71,9 +71,8 @@ subroutine initdrydep
   ! init drydep fields
 
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
-                        checknamelisterror, imax, jmax
-  use modmpi,    only : myid, comm3d, mpi_logical, mpi_integer, &
-                        mpi_character
+                        checknamelisterror
+  use modmpi,    only : myid, comm3d, mpi_logical
 
   implicit none
 
@@ -170,7 +169,7 @@ end subroutine drydep
 subroutine depac_call(ilu, species)
   use modlsm, only : tile
   use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee
-  use modfields, only : thl0, exnf, presf, qt0, qsat
+  use modfields, only : thl0, exnf, qt0, qsat
   use le_drydepos_gas_depac, only : DryDepos_Gas_DEPAC
   use modraddata, only : zenith, swd
   use go, only : to_upper
@@ -268,7 +267,7 @@ end subroutine exitdrydep
 !! calculated from the aerodynamic resistance, the quasilaminar layer resistance 
 !! and the canopy resistance.
 subroutine calc_depfield
-  use modglobal, only : i1, j1, i2, j2, fkar
+  use modglobal, only : i1, j1, fkar
   use modfields, only : sv0
   use modlsm, only : tile, nlu
   ! Necessary to retrieve/calculate all parameters necessary for the DEPAC routine
@@ -297,7 +296,7 @@ subroutine calc_depfield
           if (tile(ilu)%frac(i,j) > 0.) then
             Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
             vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
-            ! Deposition flux in ug * m / (g * s)
+            ! Deposition flux in ppb m s-1
             depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,tracer_prop(isv)%trac_idx)
           endif
         end do

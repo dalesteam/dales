@@ -135,11 +135,9 @@ contains
   ! Multiple/all tracers
   ! ----------------------------------------------------------------------
 
-    use mpi,         only : MPI_INFO_NULL
     use netcdf
-    use modmpi,      only : myid, myidx, myidy
+    use modmpi,      only : myidx, myidy
     use modglobal,   only : i1, j1, i2, j2, imax, jmax, nsv
-    use moddatetime, only : datex
 
     implicit none
 
@@ -147,13 +145,11 @@ contains
     ! real, intent(out)    :: emisfield(i2, j2, kemis, 1+svskip:nsv)
     real, intent(out)    :: emisfield(i2, j2, kemis, nemis)
 
-
-    integer, parameter   :: ndim = 3
-    integer              :: start(ndim), count(ndim)
     integer              :: ncid, varid
     integer              :: isv, iem
-
+    integer              :: unitlength = 64
     character(len=12)    :: sdatetime
+    character (len = 80) :: unit
 
     ! Create string from given date
     write(sdatetime, "(I0.4,2I0.2,2I0.2)") iyear, imonth, iday, ihour, 0
@@ -163,6 +159,7 @@ contains
     iem = 1
     do isv = 1, nsv
       if (tracer_prop(isv)%lemis) then
+        ! check tracer unit
         ! give warning when emission file is not available for a species which is emitted  
         if (iem > nemis) then
           write(6,"(A52, I2, A3, I2)") "More emitted species than declared in NAMEMISSION: ", iem, " > ", nemis
@@ -173,7 +170,14 @@ contains
         call check( nf90_get_var  ( ncid, varid, emisfield(2:i1,2:j1,1:kemis,iem), &
                                     start = (/1 + myidx * imax, 1 + myidy * jmax, 1, 1/), &
                                     count = (/imax, jmax, kemis, 1/) ) )
+        call check( nf90_inquire_attribute(ncid, varid, 'units',  len = unitlength) )
+        call check( nf90_get_att( ncid, varid, 'units', unit) )
         call check( nf90_close( ncid ) )
+        ! write(6,"(A22, A22)") "Reading tracer unit: ", trim(unit)
+        if ( trim(unit) /= 'kg hour-1' ) then
+          !!! TODO: make this an ERROR after updating the emission pre-processor
+          write(6,"(A38, A36, A14)") "WARNING: emission units do not match: " , trim(unit), " /= kg hour-1"
+        endif
         iem = iem + 1
       else 
         write(6,"(A20, I2, A7)") "Tracer not emitted: ", tracer_prop(isv)%trac_idx, trim(tracer_prop(isv)%tracname)  
@@ -204,18 +208,22 @@ contains
   ! 
   !    Note that svp is tracer tendency in ug g-1 s-1
   !
-  ! TODO
-  ! 1. MDB Align properly with "non-emitted" tracers, i.e. cloud scalars from e.g.
-  ! microphysics/chemistry
+  ! 2. R. Janssen 2023/06/29
+  !    Convention applied to read emissions in kg hour-1 (per grid cell). 
+  !    In this routine, we convert to mixing ratios (i.e. ppm or ppb), 
+  !    because this is the unit that the chemistry scheme needs.
+  !
+  !    Emitted tracers now align properly with "non-emitted" tracers, e.g.
+  !    cloud scalars and secondary chemical components
   ! ----------------------------------------------------------------------
 
     use modfields,   only : svp
-    use modglobal,   only : i1, j1, ih, jh, nsv, &
+    use modglobal,   only : i1, j1, nsv, &
                             rdt, rtimee, rk3step, &
                             dzf, dx, dy
     use modfields,   only : rhof
     use moddatetime, only : datex, nextday
-    use modlsm,      only : lags        
+    use modlsm,      only : lags
 
     implicit none
 
@@ -224,6 +232,8 @@ contains
     real            :: emistime_s, emistime_e ! Emission timers
     real, parameter :: div3600 = 1./3600.     ! Quick division
     real            :: tend
+    real            :: conv_factor, factor
+    real, parameter :: MW_air = 28.97
 
     if (.not. (l_emission)) return
 
@@ -244,9 +254,31 @@ contains
           do l = 1, nsv
             if (.not. tracer_prop(l)%lemis)  cycle
             tend = ((1. - emistime_s)*emisfield(i,j,k,iem,1) + &
-                          emistime_s *emisfield(i,j,k,iem,2))/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
+                          emistime_s *emisfield(i,j,k,iem,2))
+
+            ! old unit conversion: from kg/hour to ug/g
+            ! conv_factor = 1/(3600.*rhof(k)*dzf(k)*dx*dy*1e-6)
+
+            ! new unit conversion: from kg hour-1 to ppb or ppm
+            if ( trim(tracer_prop(l)%unit) == 'ppb' ) then
+              factor = 1.e9
+            elseif ( trim(tracer_prop(l)%unit) == 'ppm' ) then
+              factor = 1.e6
+            else
+              print *, trim(tracer_prop(l)%unit)
+              STOP 'factor not defined for this unit'
+            endif
+
+            if (tracer_prop(l)%molar_mass < 0. ) then
+              print *, trim(tracer_prop(l)%tracname)
+              STOP 'molar mass not defined for this tracer'
+            endif
+            conv_factor = 1/(rhof(k)*dzf(k)*dx*dy) * div3600 * MW_air/tracer_prop(l)%molar_mass * factor
+            ! write(*,*) 'trac ', trim(tracer_prop(l)%tracname)
+            ! write(*,*) 'tend ', tend
+            ! write(*,*) 'facteur ', conv_factor/(1/(rhof(k)*dzf(k)*dx*dy) * div3600)
             ! Add tendency to tracer field
-            svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend
+            svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend * conv_factor
             ! if (i==10 .and. j==10 .and. k==1) then
             ! write(6,"(A18, I2, A7)") "applying species: ", tracer_prop(l)%trac_idx, trim(tracer_prop(l)%tracname)
             ! write(*,*) 'indices   ', i,j,k,tracer_prop(l)%trac_idx
@@ -256,7 +288,7 @@ contains
             ! endif
             if (lags) then
               ! Add tendency to CO2 sum field
-              svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend
+              svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend * conv_factor
             endif
             iem = iem + 1
           end do
