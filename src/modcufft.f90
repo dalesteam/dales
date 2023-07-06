@@ -90,14 +90,16 @@ module modcufft
 
     !< Exit routine
     subroutine cufftexit
-    implicit none
+      use cufft
 
-    deallocate(fftsize)
+      implicit none
 
-    if (method == 2) then
-      istat = cufftDestroy(planxy)
-      istat = cufftDestroy(planxyi)
-    end if
+      deallocate(fftsize)
+
+      if (method == 2) then
+        istat = cufftDestroy(planxy)
+        istat = cufftDestroy(planxyi)
+      end if
       
     end subroutine cufftexit
 
