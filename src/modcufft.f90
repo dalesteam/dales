@@ -2,7 +2,9 @@ module modcufft
   use, intrinsic :: iso_c_binding 
 
   use modmpi, only: nprocx, nprocy 
-  use modglobal, only: itot, jtot, ktot
+  use modglobal, only: itot, jtot, ktot, i1, j1, kmax, &
+                       ih, jh, dxi, dyi, pi
+  use modprecision, only: pois_r
 
   implicit none
 
@@ -23,6 +25,8 @@ module modcufft
       use cufft
 
       implicit none
+
+      real(pois_r), allocatable :: xyrt(:,:) !< Array of eigenvalues
 
       if (nprocx == 1 .and. nprocy == 1) then
         method = 2 ! Single GPU, can do 2D transforms
@@ -84,7 +88,12 @@ module modcufft
 
         call check_exitcode(istat)
 
+        allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
+
       end if      
+
+
+      call init_factors(xyrt)
 
     end subroutine cufftinit
 
@@ -102,6 +111,46 @@ module modcufft
       end if
       
     end subroutine cufftexit
+
+    subroutine init_factors(xyrt)
+      implicit none
+
+      real(pois_r), allocatable :: xyrt(:,:)
+      real(pois_r) :: xrt(itot), yrt(jtot)
+
+      integer i,j
+      
+      ! x direction, use FFTW order as in modfftw.f90
+      xrt(1) = 0
+      do i=2,(itot/2)
+        xrt(i) = -4.*dxi*dxi*(sin((i-1)*pi/itot))**2 
+        xrt(itot-i+2) = xrt(i)
+      end do
+      if (mod(itot,2) == 0) then
+        xrt(1+itot/2) = -4.*dxi*dxi
+      end if
+
+      ! y direction
+      yrt(1) = 0
+      do j=2,(jtot/2)
+        yrt(j) = -4.*dyi*dyi*(sin((j-1)*pi/jtot))**2
+        yrt(jtot-j+2) = yrt(j) 
+      end do
+      if (mod(jtot,2) == 0) then
+        yrt(1+jtot/2) = -4*dyi*dyi
+      end if
+
+      if (method == 2) then
+        do j=2,j1
+          do i=2,i1
+            xyrt(i,j) = (xrt(i-1)+yrt(j-1))
+          end do
+        end do
+      else
+        stop "init_factors: illegal method"
+      end if
+
+    end subroutine init_factors
 
     !< Forward transforms 
     subroutine cufftf
