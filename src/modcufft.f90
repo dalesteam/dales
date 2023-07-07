@@ -118,26 +118,36 @@ module modcufft
       real(pois_r), allocatable :: xyrt(:,:)
       real(pois_r) :: xrt(itot), yrt(jtot)
 
-      integer i,j
+      integer i,j,ii,jj
       
-      ! x direction, use FFTW order as in modfftw.f90
+      ! cuFFT orders the Fourier coefficients like this:
+      !   
+      !   r[0],r[1],i[1],r[2],i[2],...,r[n/2],i[n/2],r[n/2+1]
+      ! 
+      ! So we order the eigenvalues in the same way here
+      !
+      ! TODO: this needs to work for uneven number of grid points too
+
+      ! x direction
       xrt(1) = 0
       do i=2,(itot/2)
-        xrt(i) = -4.*dxi*dxi*(sin((i-1)*pi/itot))**2 
-        xrt(itot-i+2) = xrt(i)
+        ii = (i-2)*2+2
+        xrt(ii) = -4.*dxi*dxi*(sin((i-1)*pi/itot))**2 
+        xrt(ii+1) = xrt(ii)
       end do
       if (mod(itot,2) == 0) then
-        xrt(1+itot/2) = -4.*dxi*dxi
+        xrt(itot) = -4.*dxi*dxi
       end if
 
       ! y direction
       yrt(1) = 0
       do j=2,(jtot/2)
-        yrt(j) = -4.*dyi*dyi*(sin((j-1)*pi/jtot))**2
-        yrt(jtot-j+2) = yrt(j) 
+        jj = (j-2)*2+2
+        yrt(jj) = -4.*dyi*dyi*(sin((j-1)*pi/jtot))**2
+        yrt(jj+1) = yrt(jj) 
       end do
       if (mod(jtot,2) == 0) then
-        yrt(1+jtot/2) = -4*dyi*dyi
+        yrt(jtot) = -4.*dyi*dyi
       end if
 
       if (method == 2) then
