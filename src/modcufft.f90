@@ -18,15 +18,20 @@ module modcufft
     ! 2D transforms
     integer :: planxy, planxyi !< Plan handles
     integer(int_ptr_kind()) :: worksize !< Pointer to the size of the required workspace
+    real(pois_r), allocatable, target :: p_nohalo(:,:,:)
+
 
   contains
     !< Setup plans, workspace, etc
-    subroutine cufftinit
+    subroutine cufftinit(p, Fp, xyrt, ps, pe, qs, qe)
       use cufft
 
       implicit none
 
+      real(pois_r), pointer :: p(:,:,:) !< Pressure, spatial domain
+      real(pois_r), pointer :: Fp(:,:,:) !< Pressure, spectral domain
       real(pois_r), allocatable :: xyrt(:,:) !< Array of eigenvalues
+      integer, intent(out) :: ps, pe, qs, qe
 
       if (nprocx == 1 .and. nprocy == 1) then
         method = 2 ! Single GPU, can do 2D transforms
@@ -90,8 +95,18 @@ module modcufft
 
         allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
 
-      end if      
+        ! Allocate (contiguous) array for pressure fluctuations
+        ! without the halo, but with a padding of 1, then point to it
+        allocate(p_nohalo(1:i1,1:j1,1:kmax))
+        p(2:i1,2:j1,1:kmax) => p_nohalo
+        Fp(2:i1,2:j1,1:kmax) => p_nohalo
 
+        ps = 2
+        pe = i1
+        qs = 2
+        qe = j1
+
+      end if      
 
       call init_factors(xyrt)
 
