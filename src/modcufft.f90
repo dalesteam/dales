@@ -3,7 +3,7 @@ module modcufft
 
   use modmpi, only: nprocx, nprocy 
   use modglobal, only: itot, jtot, ktot, i1, j1, kmax, &
-                       ih, jh, dxi, dyi, pi
+                       ih, jh, dxi, dyi, pi, ijtot
   use modprecision, only: pois_r
 
   implicit none
@@ -12,6 +12,8 @@ module modcufft
     integer :: method
 
     integer, allocatable, dimension(:) :: fftsize
+
+    real :: norm_fac !< Normalization factor
 
     integer :: istat !< cuFFT return status 
     
@@ -110,6 +112,8 @@ module modcufft
 
       call init_factors(xyrt)
 
+      norm_fac = 1/sqrt(ijtot)
+
     end subroutine cufftinit
 
     !< Exit routine
@@ -178,13 +182,63 @@ module modcufft
     end subroutine init_factors
 
     !< Forward transforms 
-    subroutine cufftf
-    implicit none
+    subroutine cufftf(p, Fp)
+      use cufft
+
+      implicit none
+
+      real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
+      integer :: i, j, k
+
+      if (method == 2) then
+        !$acc host_data use_device(p_nohalo)
+        istat = cufftExecD2Z(planxy, p_nohalo, p_nohalo)
+        !$acc end host_data
+        call check_exitcode(istat)
+      else
+        stop
+      end if
+
+      ! Normalization
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,j1
+          do i=1,i1
+            Fp(i,j,k) = Fp(i,j,k) * norm_fac
+          end do
+        end do
+      end do
+
     end subroutine cufftf
 
     !< Backward transforms
-    subroutine cufftb
-    implicit none
+    subroutine cufftb(p, Fp)
+      use cufft
+
+      implicit none
+      
+      real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
+      integer :: i, j, k
+
+      ! Normalization
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,j1
+          do i=1,i1
+            Fp(i,j,k) = Fp(i,j,k) * norm_fac
+          end do
+        end do
+      end do
+
+      if (method == 2) then
+        !$acc host_data use_device(p_nohalo)
+        istat = cufftExecZ2D(planxyi, p_nohalo, p_nohalo)
+        !$acc end host_data
+        call check_exitcode(istat)
+      else
+        stop
+      end if
+
     end subroutine cufftb
 
     !< Checks the exitcode of cuFFT calls
