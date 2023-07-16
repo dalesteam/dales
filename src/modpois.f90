@@ -227,6 +227,7 @@ contains
       end do
     end do
 
+    !$acc exit data delete(pup, pvp, pwp)
     deallocate( pup,pvp,pwp )
 
   end subroutine fillps
