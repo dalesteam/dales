@@ -2,7 +2,7 @@ module modcufft
   use, intrinsic :: iso_c_binding 
 
   use modmpi, only: nprocx, nprocy 
-  use modglobal, only: itot, jtot, ktot, i1, j1, kmax, &
+  use modglobal, only: itot, jtot, ktot, kmax, &
                        ih, jh, dxi, dyi, pi, ijtot
   use modprecision, only: pois_r
 
@@ -11,8 +11,6 @@ module modcufft
   save
     integer :: method
 
-    integer, allocatable, dimension(:) :: fftsize
-
     real :: norm_fac !< Normalization factor
 
     integer :: istat !< cuFFT return status 
@@ -20,12 +18,13 @@ module modcufft
     ! 2D transforms
     integer :: planxy, planxyi !< Plan handles
     integer(int_ptr_kind()) :: worksize !< Pointer to the size of the required workspace
-    real(pois_r), allocatable, target :: p_nohalo(:,:,:)
-
+    real(pois_r), allocatable, target :: p_in_h(:,:,:) !< Pressure, with halo
+    real(pois_r), allocatable :: p_in_nh(:,:,:) !< Pressure, no halo
+    real(pois_r), allocatable :: p_out(:,:,:) !< Fourier coefficients
 
   contains
     !< Setup plans, workspace, etc
-    subroutine cufftinit(p, Fp, xyrt, ps, pe, qs, qe)
+    subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
       use cufft
 
       implicit none
@@ -33,7 +32,12 @@ module modcufft
       real(pois_r), pointer :: p(:,:,:) !< Pressure, spatial domain
       real(pois_r), pointer :: Fp(:,:,:) !< Pressure, spectral domain
       real(pois_r), allocatable :: xyrt(:,:) !< Array of eigenvalues
+      real(pois_r), allocatable :: d(:,:,:)
       integer, intent(out) :: ps, pe, qs, qe
+
+      integer :: jtot12
+      integer :: idist, odist, istride, ostride
+      integer :: inembed(2), onembed(2)
 
       if (nprocx == 1 .and. nprocy == 1) then
         method = 2 ! Single GPU, can do 2D transforms
@@ -42,73 +46,10 @@ module modcufft
       end if
       
       if (method == 2) then
-        allocate(fftsize(2))
-        
-        fftsize(1) = itot ! Size of the x-dimension
-        fftsize(2) = jtot ! Size of the y-dimension
-
-        ! Forward transforms 
-
-        istat = cufftCreate(planxy)
-        
-        ! TODO: disable this for cuDecomp
-        istat = cufftSetAutoAllocation(planxy, 1)
-
-        istat = cufftMakePlanMany(&
-          planxy, &    ! Plan handle
-          2, &         ! Dimensionality
-          fftsize, &   ! Sizes
-          null(), &    ! inembed
-          1, &         ! istride
-          1, &         ! idist
-          null(), &    ! onembed
-          1, &         ! ostride
-          1, &         ! odist
-          CUFFT_D2Z, & ! Double real to double complex transform
-          ktot, &      ! Batch size
-          worksize &   ! Size of temporary workspace
-        )
-      
-        call check_exitcode(istat)
-
-        ! Backward transforms
-        
-        istat = cufftCreate(planxyi)
-        
-        ! TODO: disable this for cuDecomp
-        istat = cufftSetAutoAllocation(planxyi, 1)
-
-        istat = cufftMakePlanMany(&
-          planxyi, &   ! Plan handle
-          2, &         ! Dimensionality
-          fftsize, &   ! Sizes
-          null(), &    ! inembed
-          1, &         ! istride
-          1, &         ! idist
-          null(), &    ! onembed
-          1, &         ! ostride
-          1, &         ! odist
-          CUFFT_Z2D, & ! Double complex to double real transform
-          ktot, &      ! Batch size
-          worksize &   ! Size of temporary work space 
-        )
-
-        call check_exitcode(istat)
-
-        allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
-
-        ! Allocate (contiguous) array for pressure fluctuations
-        ! without the halo, but with a padding of 1, then point to it
-        allocate(p_nohalo(1:i1,1:j1,1:kmax))
-        p(2:i1,2:j1,1:kmax) => p_nohalo
-        Fp(2:i1,2:j1,1:kmax) => p_nohalo
-
-        ps = 2
-        pe = i1
-        qs = 2
-        qe = j1
-
-      end if      
+        call setup_plan_2D(p, Fp, d, xyrt, ps, pe, qs, qe)
+      else
+        stop
+      end if
 
       call init_factors(xyrt)
 
@@ -117,12 +58,17 @@ module modcufft
     end subroutine cufftinit
 
     !< Exit routine
-    subroutine cufftexit
+    subroutine cufftexit(p, Fp, d, xyrt)
       use cufft
 
       implicit none
 
-      deallocate(fftsize)
+      real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
+      real(pois_r), allocatable :: d(:,:,:), xyrt(:,:,:)
+
+      deallocate(d, xyrt)
+
+      nullify(p, Fp)
 
       if (method == 2) then
         istat = cufftDestroy(planxy)
@@ -170,8 +116,8 @@ module modcufft
       end if
 
       if (method == 2) then
-        do j=2,j1
-          do i=2,i1
+        do j=2,jtot
+          do i=2,itot
             xyrt(i,j) = (xrt(i-1)+yrt(j-1))
           end do
         end do
@@ -190,9 +136,19 @@ module modcufft
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k
 
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            p_in_nh(i,j,k) = p_in_h(i+1,j+1,k)
+          end do
+        end do
+      end do
+
+
       if (method == 2) then
-        !$acc host_data use_device(p_nohalo)
-        istat = cufftExecD2Z(planxy, p_nohalo, p_nohalo)
+        !$acc host_data use_device(p_in_nh, p_out)
+        istat = cufftExecD2Z(planxy, p_in_nh, p_out)
         !$acc end host_data
         call check_exitcode(istat)
       else
@@ -202,8 +158,8 @@ module modcufft
       ! Normalization
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
-        do j=1,j1
-          do i=1,i1
+        do j=1,jtot
+          do i=1,itot
             Fp(i,j,k) = Fp(i,j,k) * norm_fac
           end do
         end do
@@ -223,23 +179,115 @@ module modcufft
       ! Normalization
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
-        do j=1,j1
-          do i=1,i1
+        do j=1,jtot
+          do i=1,itot
             Fp(i,j,k) = Fp(i,j,k) * norm_fac
           end do
         end do
       end do
 
       if (method == 2) then
-        !$acc host_data use_device(p_nohalo)
-        istat = cufftExecZ2D(planxyi, p_nohalo, p_nohalo)
+        !$acc host_data use_device(p_in_nh, p_out)
+        istat = cufftExecZ2D(planxyi, p_out, p_in_nh)
         !$acc end host_data
         call check_exitcode(istat)
       else
         stop
       end if
 
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            p_in_h(i+1,j+1,k) = p_in_nh(i,j,k)
+          end do
+        end do
+      end do
+
+
     end subroutine cufftb
+
+    subroutine setup_plan_2D(p, Fp, d, xyrt, ps, pe, qs, qe)
+      use cufft
+
+      implicit none
+
+      real(pois_r), pointer :: p(:,:,:)
+      !double complex, pointer :: Fp(:,:,:)
+      real(pois_r), pointer :: Fp(:,:,:)
+      real(pois_r), allocatable :: xyrt(:,:), d(:,:,:)
+      integer, intent(out) :: ps, pe, qs, qe
+
+      integer :: fftsize(2)
+      integer :: jtot12
+      integer :: inembed(2), onembed(2), idist, odist, istride, ostride
+
+      ! Setup arrays for pressure fluctuations
+      allocate(p_in_h(2-ih:itot+ih,2-jh:jtot+jh,1:kmax))
+      allocate(p_in_nh(1:itot,1:jtot,1:kmax))
+
+      p => p_in_h
+
+      ! Allocate complex array for the Fourier coefficients
+      ! From cuFFT documentation: the output of a 2D FFT of N1*N2 values has
+      ! N1*(floor(N2/2)+1) elements 
+      !jtot12 = jtot/2 + 1
+      allocate(p_out(itot,jtot,kmax))
+        
+      ! Data layout
+      fftsize = (/ itot, jtot /)
+      inembed = (/ itot, jtot /)
+      onembed = (/ itot, jtot /)
+      idist = itot*jtot
+      odist = itot*jtot
+      istride = 1
+      ostride = 1
+
+      ! Forward transforms 
+      istat = cufftCreate(planxy)
+      istat = cufftPlanMany(&
+        planxy, &    ! Plan handle
+        2, &         ! Dimensionality
+        fftsize, &   ! Sizes
+        inembed, &   ! inembed
+        istride, &   ! istride
+        idist, &     ! idist
+        onembed, &   ! onembed
+        ostride, &   ! ostride
+        odist, &     ! odist
+        CUFFT_D2Z, & ! Double real to double complex transform
+        kmax &       ! Batch size
+      )
+      
+      call check_exitcode(istat)
+
+      ! Backward transforms
+      istat = cufftCreate(planxyi)
+      istat = cufftPlanMany(&
+        planxyi, &    ! Plan handle
+        2, &         ! Dimensionality
+        fftsize, &   ! Sizes
+        onembed, &   ! inembed
+        ostride, &   ! istride
+        odist, &     ! idist
+        inembed, &   ! onembed
+        istride, &   ! ostride
+        odist, &     ! odist
+        CUFFT_Z2D, & ! Double real to double complex transform
+        kmax &       ! Batch size
+      )
+
+      call check_exitcode(istat)
+
+      allocate(xyrt(2-ih:itot+ih,2-jh:jtot+jh))
+      allocate(d(2-ih:itot+ih,2-jh:jtot+jh,1:kmax))
+
+      ps = 2
+      pe = itot
+      qs = 2
+      qe = jtot
+
+    end subroutine setup_plan_2D
 
     !< Checks the exitcode of cuFFT calls
     subroutine check_exitcode(istat)
