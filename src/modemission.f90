@@ -36,7 +36,7 @@ contains
   subroutine initemission
 
     use modglobal,    only : i2, j2, kmax, nsv, ifnamopt, fname_options, checknamelisterror
-    use modmpi,       only : myid, comm3d, mpi_logical, mpi_integer, mpi_character
+    use modmpi,       only : myid, comm3d, mpi_logical, mpi_integer, mpi_character, mpi_real
     use moddatetime,  only : datex, prevday, nextday
 
     implicit none
@@ -46,7 +46,7 @@ contains
 
     ! --- Read & broadcast namelist EMISSION -----------------------------------
     ! namelist/NAMEMISSION/ l_emission, kemis, svskip, emisnames, svco2sum
-    namelist/NAMEMISSION/ l_emission, kemis, nemis, emisnames
+    namelist/NAMEMISSION/ l_emission, kemis, nemis, emisnames, l_scale, scalefactor
 
     if (myid == 0) then
 
@@ -64,6 +64,9 @@ contains
     ! call mpi_bcast(svco2sum,      1,   mpi_integer,   0, comm3d, ierr)
     call mpi_bcast(nemis,         1,   mpi_integer,   0, comm3d, ierr)
     call mpi_bcast(emisnames(1:100), 100, mpi_character, 0, comm3d, ierr)
+    call mpi_bcast(l_scale,    1,   mpi_logical,   0, comm3d, ierr)
+    call mpi_bcast(scalefactor(1:100), 100,   mpi_real,   0, comm3d, ierr)
+
 
     ! -- Interaction with AGs   ----------------------------------------------------
 
@@ -232,7 +235,7 @@ contains
     real            :: emistime_s, emistime_e ! Emission timers
     real, parameter :: div3600 = 1./3600.     ! Quick division
     real            :: tend
-    real            :: conv_factor, factor
+    real            :: conv_factor, factor, sf
     real, parameter :: MW_air = 28.97
 
     if (.not. (l_emission)) return
@@ -274,21 +277,25 @@ contains
               STOP 'molar mass not defined for this tracer'
             endif
             conv_factor = 1/(rhof(k)*dzf(k)*dx*dy) * div3600 * MW_air/tracer_prop(l)%molar_mass * factor
-            ! write(*,*) 'trac ', trim(tracer_prop(l)%tracname)
-            ! write(*,*) 'tend ', tend
-            ! write(*,*) 'facteur ', conv_factor/(1/(rhof(k)*dzf(k)*dx*dy) * div3600)
+
+            if (l_scale) then
+              sf = scalefactor(iem)
+            else
+              sf = 1.
+            endif
+
             ! Add tendency to tracer field
-            svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend * conv_factor
-            ! if (i==10 .and. j==10 .and. k==1) then
+            svp(i,j,k,tracer_prop(l)%trac_idx) = svp(i,j,k,tracer_prop(l)%trac_idx) + tend * conv_factor * sf
+            !if (i==10 .and. j==10 .and. k==1) then
             ! write(6,"(A18, I2, A7)") "applying species: ", tracer_prop(l)%trac_idx, trim(tracer_prop(l)%tracname)
             ! write(*,*) 'indices   ', i,j,k,tracer_prop(l)%trac_idx
             ! write(*,*) 'emisfield ', emisfield(i,j,k,iem,1)
             ! write(*,*) 'tend      ', tend
             ! write(*,*) 'svp       ', svp(i,j,k,tracer_prop(l)%trac_idx)
-            ! endif
+            !endif
             if (lags) then
               ! Add tendency to CO2 sum field
-              svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend * conv_factor
+              svp(i,j,k,svco2sum) = svp(i,j,k,svco2sum) + tend * conv_factor * sf
             endif
             iem = iem + 1
           end do
