@@ -30,7 +30,7 @@ module modtracdata
   implicit none
   save
 
-  integer, parameter :: nsv_all = 28       ! number of all available tracers
+  integer, parameter :: nsv_all = 30       ! number of all available tracers
 
   ! tracer names:
   character(len=6), parameter  ::  tracname_short(nsv_all) = (/ &
@@ -61,7 +61,9 @@ module modtracdata
                               'o2    ', &   ! O2
                               'n2    ', &   ! N2
                               'hno3  ', &   ! HNO3
-                              'h2o2  ' /)   ! H2O2
+                              'h2o2  ', &   ! H2O2
+                              'no3   ', &   ! NO3
+                              'n2o5  ' /)   ! N2O5
 
   ! tracer long names:
   character(len=30), parameter  ::  tracname_long(nsv_all) = (/ &
@@ -92,7 +94,9 @@ module modtracdata
                               'Oxygen                        ', &   ! O2
                               'Nitrogen                      ', &   ! N2
                               'Nitric acid                   ', &   ! HNO3
-                              'Hydrogen peroxide             '/)    ! H2O2
+                              'Hydrogen peroxide             ', &   ! H2O2
+                              'Nitrate radical               ', &   ! NO3
+                              'Dinitrogen pentoxide          '/)    ! N2O5
 
   ! tracer units:
   character(len=8), parameter  ::  tracer_unit(nsv_all) = (/ &
@@ -123,7 +127,9 @@ module modtracdata
                               'kg/kg   ', &   ! O2
                               'kg/kg   ', &   ! N2
                               'kg/kg   ', &   ! HNO3
-                              'kg/kg   '/)    ! H2O2
+                              'kg/kg   ', &   ! H2O2
+                              'kg/kg   ', &   ! NO3
+                              'kg/kg   '/)    ! N2O5
 
   ! flag to check if tracer has "emission" property:
   logical, parameter  ::  tracer_is_emitted(nsv_all) = (/ &
@@ -154,7 +160,9 @@ module modtracdata
                             .false.  , &   ! O2
                             .false.  , &   ! N2
                             .false.  , &   ! HNO3
-                            .false.  /)    ! H2O2
+                            .false.  , &   ! H2O2
+                            .false.  , &   ! NO3
+                            .false.  /)    ! N2O5
 
   ! flag to check if tracer has "reactivity" property (i.e. it is part of the chemical mechanism):
   logical, parameter  ::  tracer_is_reactive(nsv_all) = (/ &
@@ -185,7 +193,9 @@ module modtracdata
                             .true.  , &   ! O2
                             .true.  , &   ! N2
                             .true.  , &   ! HNO3
-                            .true.  /)    ! H2O2
+                            .true.  , &   ! H2O2
+                            .true.  , &   ! NO3
+                            .true.  /)    ! N2O5
 
   ! flag to check if tracer has "deposition" property:
   logical, parameter  ::  tracer_is_deposited(nsv_all) = (/ &
@@ -216,7 +226,9 @@ module modtracdata
                             .false. , &   ! O2
                             .false. , &   ! N2
                             .true.  , &   ! HNO3
-                            .true.  /)    ! H2O2
+                            .true.  , &   ! H2O2
+                            .false. , &   ! NO3
+                            .true.  /)    ! N2O5
 
   ! flag to check if tracer has "photosynthesis" property, i.e. it is included in A-gs:
   logical, parameter  ::  tracer_is_photosynthesized(nsv_all) = (/ &
@@ -247,7 +259,9 @@ module modtracdata
                             .false. , &   ! O2
                             .false. , &   ! N2
                             .false. , &   ! HNO3
-                            .false. /)    ! H2O2
+                            .false. , &   ! H2O2
+                            .false. , &   ! NO3
+                            .false. /)    ! N2O5
 
   ! flag to check if tracer has "micro physics" property:
   logical, parameter  ::  tracer_is_microphys(nsv_all) = (/ &
@@ -278,6 +292,8 @@ module modtracdata
                             .false. , &   ! O2
                             .false. , &   ! N2
                             .false. , &   ! HNO3
-                            .false. /)    ! H2O2
+                            .false. , &   ! H2O2
+                            .false. , &   ! NO3
+                            .false. /)    ! N2O5
 
 end module modtracdata

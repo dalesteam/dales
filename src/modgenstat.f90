@@ -179,7 +179,6 @@ contains
 
     integer n, ierr
     character(40) :: name
-    character(3) :: csvname
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
 

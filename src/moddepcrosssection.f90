@@ -145,18 +145,26 @@ contains
     use modfields, only : rhof
     use modstat_nc, only : lnetcdf, writestat_nc
     use moddrydeposition, only : ndeptracers
-
+    use modtracers, only : tracer_prop
     implicit none
 
     real, allocatable :: depfield_massflux(:, :, :)
     character(80) :: txtfname
     integer :: isv, idt, i, j
+    real    :: MW_air = 28.9644
     
     allocate(depfield_massflux(1:imax, 1:jmax, ndeptracers))
 
     ! Store the flux as a positive number
-    depfield_massflux(1:imax, 1:jmax, 1:ndeptracers) = -depfield(2:i1, 2:j1, 1:ndeptracers) &
-        * rhof(1) * 1e-6  ! to go from ug*m/(s*g) to kg/(m2*s)
+    ! depfield_massflux(1:imax, 1:jmax, 1:ndeptracers) = -depfield(2:i1, 2:j1, 1:ndeptracers) &
+    !     * rhof(1) * 1e-6  ! to go from ug*m/(s*g) to kg/(m2*s)
+    idt = 1
+    do isv = 1, nsv
+      if (.not. tracer_prop(isv)%ldep) cycle
+      depfield_massflux(1:imax, 1:jmax, idt) = -depfield(2:i1, 2:j1, idt) &
+          * rhof(1) * (tracer_prop(isv)%molar_mass/MW_air) * 1e-9  ! from ppb m s-1 to kg/(m2*s)
+      idt = idt + 1
+    end do
     
     if (lbinary) then
       idt = 1

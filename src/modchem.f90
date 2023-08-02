@@ -1026,9 +1026,9 @@ SUBROUTINE read_chem(chem_name)
     if (trim(tracer_prop(i)%tracname) == 'co2')   then; CO2loc   = i; endif ! location in svm
     if (trim(tracer_prop(i)%tracname) == 'h2o')   then; H2Oloc   = i; endif ! location in svm
     if (trim(tracer_prop(i)%tracname) == 'inert') then; INERTloc = i; endif ! location in svm
-    if (.not. tracer_prop(i)%lreact) cycle
+    ! if (.not. tracer_prop(i)%lreact) cycle
   enddo
-write (*,*) 'H2Oloc CO2loc INERTloc ', H2Oloc, CO2loc, INERTloc
+! write (*,*) 'H2Oloc CO2loc INERTloc ', H2Oloc, CO2loc, INERTloc
 
   read(10,'(a)',err=100)scalarline
   read(scalarline,*)(atol(j),j=1,nchsp)

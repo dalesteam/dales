@@ -73,9 +73,8 @@ subroutine initdrydep
   ! init drydep fields
 
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
-                        checknamelisterror, imax, jmax
-  use modmpi,    only : myid, comm3d, mpi_logical, mpi_integer, &
-                        mpi_character
+                        checknamelisterror
+  use modmpi,    only : myid, comm3d, mpi_logical
 
   implicit none
 
@@ -176,7 +175,7 @@ end subroutine drydep
 !! @see DryDepos_Gas_DEPAC
 subroutine depac_call(ilu, species, species_idx)		!GT added variable of species_idx for trac_id to allow looping in the calculations of ccomp
   use modlsm, only : tile
-  use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee, dzh
+  use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee
   use modfields, only : thl0, exnf, presf, qt0, qsat, sv0             !GT added sv0
   use le_drydepos_gas_depac, only : DryDepos_Gas_DEPAC
   use modraddata, only : zenith, swd
@@ -281,7 +280,7 @@ end subroutine exitdrydep
 !! calculated from the aerodynamic resistance, the quasilaminar layer resistance 
 !! and the canopy resistance.
 subroutine calc_depfield
-  use modglobal, only : i1, j1, i2, j2, fkar
+  use modglobal, only : i1, j1, fkar
   use modfields, only : sv0
   use modlsm, only : tile, nlu
   ! Necessary to retrieve/calculate all parameters necessary for the DEPAC routine
