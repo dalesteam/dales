@@ -74,7 +74,7 @@ subroutine initdrydep
 
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
                         checknamelisterror
-  use modmpi,    only : myid, comm3d, mpi_logical
+  use modmpi,    only : myid, comm3d, mpi_logical, mpi_integer
 
   implicit none
 
