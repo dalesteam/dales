@@ -100,7 +100,7 @@ contains
     boundary(5)%nx1w = imax; boundary(5)%nx2w = jmax
     ! Set number of patches for correction factor for radiation boundary conditions
     if(dxint == -1.) dxint = real(itot)*dx ! Set dxint to entire width as default
-    if(dyint == -1.) dxint = real(jtot)*dy ! Set dyint to entire width as default
+    if(dyint == -1.) dyint = real(jtot)*dy ! Set dyint to entire width as default
     nxpatch = int(dx/dxint*real(itot));
     nypatch = int(dy/dyint*real(jtot));
     nzpatch = kmax ! For now vertical integration scale is set equal to dz
