@@ -4,7 +4,7 @@
 'co2   '        'Carbon dioxide                ' 'ppm     '  44.009     .true.     .false.     .false.      .true.        .false.
 'co2veg'        'Carbon dioxide - vegetation   ' 'ppm     '  44.009     .false.    .false.     .false.      .true.        .false.
 'co2sum'        'Carbon dioxide - sum          ' 'ppm     '  44.009     .false.    .false.     .false.      .false.       .false.
-'nox   '        'Nitrogen oxides               ' 'ppb     '  38.006     .true.     .false.     .true.       .false.       .false.
+'nox   '        'Nitrogen oxides               ' 'ppb     '  30.480     .true.     .false.     .true.       .false.       .false.
 'nh3   '        'Ammonia                       ' 'ppb     '  17.031     .true.     .false.     .true.       .false.       .false.
 'so2   '        'Sulphur dioxide               ' 'ppb     '  64.066     .true.     .true.      .false.      .false.       .false. 
 'inert '        'INERT                         ' 'ppb     '  -999.      .false.    .true.      .false.      .false.       .false.
@@ -29,3 +29,4 @@
 'h2o2  '        'Hydrogen peroxide             ' 'ppb     '  34.015     .false.    .true.      .true.       .false.       .false.
 'no3   '        'Nitrate radical               ' 'ppb     '  62.004     .false.    .true.      .false.      .false.       .false.
 'n2o5  '        'Dinitrogen pentoxide          ' 'ppb     '  108.01     .false.    .true.      .true.       .false.       .false.
+'sox   '        'Sulfur oxides                 ' 'ppb     '  64.006     .true.     .true.      .false.      .false.       .false.
