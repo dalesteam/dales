@@ -31,7 +31,7 @@ module modtracers
   save
   public  :: inittracers, read_tracer_props, assign_tracer_props
 
-  integer, parameter:: max_tracs  =  30 !<  Max. number of tracers that can be defined
+  integer, parameter:: max_tracs  =  31 !<  Max. number of tracers that can be defined
   character(len=10),dimension(max_tracs) :: tracname_short = "NA" ! Short tracer name
   character(len=32),dimension(max_tracs) :: tracname_long  = "NA" ! Long tracer name
   character(len=10),dimension(max_tracs) :: tracer_unit = "NA" ! Unit of tracer
