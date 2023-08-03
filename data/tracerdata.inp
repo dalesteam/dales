@@ -29,4 +29,4 @@
 'h2o2  '        'Hydrogen peroxide             ' 'ppb     '  34.015     .false.    .true.      .true.       .false.       .false.
 'no3   '        'Nitrate radical               ' 'ppb     '  62.004     .false.    .true.      .false.      .false.       .false.
 'n2o5  '        'Dinitrogen pentoxide          ' 'ppb     '  108.01     .false.    .true.      .true.       .false.       .false.
-'sox   '        'Sulfur oxides                 ' 'ppb     '  64.006     .true.     .true.      .false.      .false.       .false.
+'sox   '        'Sulfur oxides                 ' 'ppb     '  64.006     .true.     .false.     .false.      .false.       .false.
