@@ -1,7 +1,10 @@
 #if defined(_OPENACC)
 module modgpu
+  use modprecision, only: pois_r
+  implicit none
 
-public :: initgpu
+save
+  real(pois_r), allocatable, target :: workspace(:,:,:)
 
 contains
   !< Initialize fields on the GPU post-startup  
@@ -88,5 +91,17 @@ contains
     !$acc enter data copyin(esatmtab, esatitab, esatltab)
 
   end subroutine initgpu
+
+  !> Allocate reusable workspace for transposes and FFT
+  subroutine allocate_workspace(nx, ny, nz)
+    implicit none
+    
+    integer, intent(in) :: nx, ny, nz
+
+    allocate(workspace(1:nx,1:ny,1:nz))
+
+    !$acc enter data create(workspace)
+  
+  end subroutine allocate_workspace
 end module modgpu
 #endif

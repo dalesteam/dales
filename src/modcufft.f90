@@ -2,25 +2,22 @@ module modcufft
   use, intrinsic :: iso_c_binding 
 
   use modmpi, only: nprocx, nprocy 
-  use modglobal, only: itot, jtot, ktot, kmax, &
-                       ih, jh, dxi, dyi, pi, ijtot
+  use modglobal, only: itot, jtot, kmax, i1, j1, &
+                       imax, jmax, ih, jh, dxi, dyi, pi, ijtot
   use modprecision, only: pois_r
+  use modgpu, only: allocate_workspace, workspace
 
   implicit none
 
   save
-    integer :: method
-
     real :: norm_fac !< Normalization factor
-
     integer :: istat !< cuFFT return status 
-    
-    ! 2D transforms
-    integer :: planxy, planxyi !< Plan handles
-    integer(int_ptr_kind()) :: worksize !< Pointer to the size of the required workspace
-    real(pois_r), allocatable, target :: p_in_h(:,:,:) !< Pressure, with halo
-    real(pois_r), allocatable :: p_in_nh(:,:,:) !< Pressure, no halo
-    real(pois_r), allocatable :: p_out(:,:,:) !< Fourier coefficients
+
+    real(pois_r), allocatable, target :: p_halo(:) !< Pressure with halos
+    real(pois_r), allocatable, target :: p_nohalo(:)
+    real(pois_r), pointer :: px(:,:,:), py(:,:,:)
+
+    integer :: planx, planxi, plany, planyi !< Plan handles
 
   contains
     !< Setup plans, workspace, etc
@@ -29,31 +26,143 @@ module modcufft
 
       implicit none
 
-      real(pois_r), pointer :: p(:,:,:) !< Pressure, spatial domain
-      real(pois_r), pointer :: Fp(:,:,:) !< Pressure, spectral domain
+      real(pois_r), pointer :: p(:,:,:) !< Pressure, spatial domain, with halos
+      real(pois_r), pointer :: Fp(:,:,:) !< Pressure, spectral domain, with halos
       real(pois_r), allocatable :: xyrt(:,:) !< Array of eigenvalues
       real(pois_r), allocatable :: d(:,:,:)
       integer, intent(out) :: ps, pe, qs, qe
 
-      integer :: jtot12
-      integer :: idist, odist, istride, ostride
-      integer :: inembed(2), onembed(2)
-
-      if (nprocx == 1 .and. nprocy == 1) then
-        method = 2 ! Single GPU, can do 2D transforms
-      else
-        method = 1 ! Multi GPU, do 1D transforms + transposes
-      end if
+      integer :: itot12, jtot12
+      integer :: fftsize, inembed, onembed, idist, odist, istride, ostride
+      integer :: CUFFT_FWD_TYPE, CUFFT_BWD_TYPE
       
-      if (method == 2) then
-        call setup_plan_2D(p, Fp, d, xyrt, ps, pe, qs, qe)
-      else
-        stop
-      end if
+      ! Setup pressure array
+      allocate(p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax))
+      !$acc enter data create(p_halo)
+      p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => P_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+      Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => P_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+
+      ! TODO: use cufftMakePlanMany and manually allocate workspace
+
+      ! Number of complex coefficients
+      itot12 = itot/2 + 1
+      jtot12 = jtot/2 + 1
+
+      ! Allocate workspace
+      ! Keep in mind that cuFFT does real to complex transforms, where one complex number
+      ! consists of two real numbers
+      allocate(p_nohalo(kmax*(itot12*2)*(jtot12*2)))
+      !$acc enter data create(p_nohalo)
+      call allocate_workspace(itot12*2, jtot12*2, kmax)
+
+      px(1:itot12*2,1:jtot,1:kmax) => p_nohalo(1:kmax*jtot*(itot12*2))
+      py(1:jtot12*2,1:itot,1:kmax) => p_nohalo(1:kmax*itot*(jtot12*2))
+
+      ! Precision
+#if POIS_PRECISION==32
+      CUFFT_FWD_TYPE = CUFFT_R2C
+      CUFFT_BWD_TYPE = CUFFT_C2R
+#else
+      CUFFT_FWD_TYPE = CUFFT_D2Z
+      CUFFT_BWD_TYPE = CUFFT_Z2D
+#endif
+
+      ! x-direction
+      fftsize = itot
+      inembed = itot12
+      onembed = itot12
+      idist = itot12*2
+      odist = itot12
+      istride = 1
+      ostride = 1
+
+      istat = cufftPlanMany( &
+        planx, &
+        1, &
+        fftsize, &
+        inembed, &
+        istride, &
+        idist, &
+        onembed, &
+        ostride, &
+        odist, &
+        CUFFT_FWD_TYPE, &
+        jtot*kmax &
+      )
+
+      call check_exitcode(istat)
+
+      istat = cufftPlanMany( &
+        planxi, &
+        1, &
+        fftsize, &
+        onembed, &
+        ostride, &
+        odist, &
+        inembed, &
+        istride, &
+        idist, &
+        CUFFT_BWD_TYPE, &
+        jtot*kmax &
+      )
+
+      call check_exitcode(istat)
+
+      ! y-direction
+
+      fftsize = jtot
+      inembed = jtot
+      onembed = jtot12
+      idist = jtot12*2
+      odist = jtot12
+      istride = 1
+      ostride = 1
+
+      istat = cufftPlanMany( &
+        plany, &
+        1, &
+        fftsize, &
+        inembed, &
+        istride, &
+        idist, &
+        onembed, &
+        ostride, &
+        odist, &
+        CUFFT_FWD_TYPE, &
+        itot*kmax &
+      )
+
+      call check_exitcode(istat)
+
+      istat = cufftPlanMany( &
+        planyi, &
+        1, &
+        fftsize, &
+        onembed, &
+        ostride, &
+        odist, &
+        inembed, &
+        istride, &
+        idist, &
+        CUFFT_BWD_TYPE, &
+        itot*kmax &
+      )
+
+      call check_exitcode(istat)
+
+      allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
+      allocate(d(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
       call init_factors(xyrt)
 
-      norm_fac = 1/sqrt(ijtot)
+      ps = 2
+      pe = i1
+      qs = 2
+      qe = j1
+
+      norm_fac = 1 / real((itot*jtot))
+
+      !$acc enter data copyin(xyrt, d)
 
     end subroutine cufftinit
 
@@ -70,10 +179,10 @@ module modcufft
 
       nullify(p, Fp)
 
-      if (method == 2) then
-        istat = cufftDestroy(planxy)
-        istat = cufftDestroy(planxyi)
-      end if
+      istat = cufftDestroy(planx)
+      istat = cufftDestroy(planxi)
+      istat = cufftDestroy(plany)
+      istat = cufftDestroy(planyi)
       
     end subroutine cufftexit
 
@@ -82,48 +191,60 @@ module modcufft
 
       real(pois_r), allocatable :: xyrt(:,:)
       real(pois_r) :: xrt(itot), yrt(jtot)
-
-      integer i,j,ii,jj
+      integer :: iswap(itot), jswap(jtot)
+      integer i,j,nh
       
       ! cuFFT orders the Fourier coefficients like this:
       !   
-      !   r[0],r[1],i[1],r[2],i[2],...,r[n/2],i[n/2],r[n/2+1]
+      !   r[0],i[0],r[1],i[1],r[2],i[2],...,r[n/2],i[n/2],r[n/2+1],i[n/2+1]
       ! 
-      ! So we order the eigenvalues in the same way here
+      ! i[0] and i[n/2+1] are 0, so data is reordered like this:
+      ! 
+      !   r[0],r[n/2+1],r[1],i[1],...,r[n/2],i[n/2]
       !
       ! TODO: this needs to work for uneven number of grid points too
 
-      ! x direction
-      xrt(1) = 0
-      do i=2,(itot/2)
-        ii = (i-2)*2+2
-        xrt(ii) = -4.*dxi*dxi*(sin((i-1)*pi/itot))**2 
-        xrt(ii+1) = xrt(ii)
+      do i=1,itot
+        xrt(i) = -4.*dxi*dxi*(sin(float(i-1)*pi/itot))**2
       end do
-      if (mod(itot,2) == 0) then
-        xrt(itot) = -4.*dxi*dxi
-      end if
 
-      ! y direction
-      yrt(1) = 0
-      do j=2,(jtot/2)
-        jj = (j-2)*2+2
-        yrt(jj) = -4.*dyi*dyi*(sin((j-1)*pi/jtot))**2
-        yrt(jj+1) = yrt(jj) 
+      ! Swap order
+      nh = (itot+1) / 2
+      iswap(1) = 1
+      iswap(2) = nh + (1-mod(itot,2))
+      do i=2,itot-1
+        if (i <= nh) then
+          iswap(2*i-1) = i
+        else
+          iswap(itot-2*(i-(nh+1))-mod(itot,2)) = i+1
+        end if
       end do
-      if (mod(jtot,2) == 0) then
-        yrt(jtot) = -4.*dyi*dyi
-      end if
+      xrt(:) = xrt(iswap(:))
 
-      if (method == 2) then
-        do j=2,jtot
-          do i=2,itot
-            xyrt(i,j) = (xrt(i-1)+yrt(j-1))
-          end do
+      do j=1,jtot
+        yrt(j) = -4.*dxi*dxi*(sin(float(i-1)*pi/jtot))**2
+      end do
+
+      ! Swap order
+      nh = (jtot+1) / 2
+      jswap(1) = 1
+      jswap(2) = nh + (1-mod(jtot,2))
+      do j=2,jtot-1
+        if (j <= nh) then
+          jswap(2*j-1) = j
+        else
+          jswap(jtot-2*(j-(nh+1))-mod(jtot,2)) = j+1
+        end if
+      end do
+      yrt(:) = yrt(jswap(:))
+
+      xyrt = 0
+
+      do j=2,j1
+        do i=2,i1
+          xyrt(i,j) = (xrt(i-1) + yrt(i-1))
         end do
-      else
-        stop "init_factors: illegal method"
-      end if
+      end do
 
     end subroutine init_factors
 
@@ -135,32 +256,91 @@ module modcufft
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k
-
+      
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            p_in_nh(i,j,k) = p_in_h(i+1,j+1,k)
+            px(i,j,k) = p(i+1,j+1,k)
           end do
         end do
       end do
 
+      !$acc host_data use_device(px)
+#if POIS_PRECISION==32
+      istat = cufftExecR2C(planx, px, px)
+#else
+      istat = cufftExecD2Z(planx, px, px)
+#endif
+      !$acc end host_data
+      
+      ! Reorder
+      !$acc parallel loop collapse(2) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          px(2,j,k) = px(itot+1,j,k)
+        end do
+      end do
 
-      if (method == 2) then
-        !$acc host_data use_device(p_in_nh, p_out)
-        istat = cufftExecD2Z(planxy, p_in_nh, p_out)
-        !$acc end host_data
-        call check_exitcode(istat)
-      else
-        stop
-      end if
-
-      ! Normalization
+      ! Transpose to y-contiguous
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            Fp(i,j,k) = Fp(i,j,k) * norm_fac
+            workspace(j,i,k) = px(i,j,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            px(i,j,k) = workspace(i,j,k)
+          end do
+        end do
+      end do
+      
+      !$acc host_data use_device(py)
+#if POIS_PRECISION==32
+      istat = cufftExecR2C(plany, py, py)
+#else
+      istat = cufftExecD2Z(plany, py, py)
+#endif
+      !$acc end host_data
+
+      ! Reorder
+      !$acc parallel loop collapse(2) default(present)
+      do k=1,kmax
+        do i=1,itot
+          py(2,i,k) = py(jtot+1,i,k)
+        end do
+      end do
+
+      ! Transpose
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            workspace(i,j,k) = py(j,i,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            py(i,j,k) = workspace(i,j,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            p(i+1,j+1,k) = py(i,j,k)
           end do
         end do
       end do
@@ -175,119 +355,117 @@ module modcufft
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k
-
-      ! Normalization
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            Fp(i,j,k) = Fp(i,j,k) * norm_fac
-          end do
-        end do
-      end do
-
-      if (method == 2) then
-        !$acc host_data use_device(p_in_nh, p_out)
-        istat = cufftExecZ2D(planxyi, p_out, p_in_nh)
-        !$acc end host_data
-        call check_exitcode(istat)
-      else
-        stop
-      end if
-
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            p_in_h(i+1,j+1,k) = p_in_nh(i,j,k)
-          end do
-        end do
-      end do
-
-
-    end subroutine cufftb
-
-    subroutine setup_plan_2D(p, Fp, d, xyrt, ps, pe, qs, qe)
-      use cufft
-
-      implicit none
-
-      real(pois_r), pointer :: p(:,:,:)
-      !double complex, pointer :: Fp(:,:,:)
-      real(pois_r), pointer :: Fp(:,:,:)
-      real(pois_r), allocatable :: xyrt(:,:), d(:,:,:)
-      integer, intent(out) :: ps, pe, qs, qe
-
-      integer :: fftsize(2)
-      integer :: jtot12
-      integer :: inembed(2), onembed(2), idist, odist, istride, ostride
-
-      ! Setup arrays for pressure fluctuations
-      allocate(p_in_h(2-ih:itot+ih,2-jh:jtot+jh,1:kmax))
-      allocate(p_in_nh(1:itot,1:jtot,1:kmax))
-
-      p => p_in_h
-
-      ! Allocate complex array for the Fourier coefficients
-      ! From cuFFT documentation: the output of a 2D FFT of N1*N2 values has
-      ! N1*(floor(N2/2)+1) elements 
-      !jtot12 = jtot/2 + 1
-      allocate(p_out(itot,jtot,kmax))
-        
-      ! Data layout
-      fftsize = (/ itot, jtot /)
-      inembed = (/ itot, jtot /)
-      onembed = (/ itot, jtot /)
-      idist = itot*jtot
-      odist = itot*jtot
-      istride = 1
-      ostride = 1
-
-      ! Forward transforms 
-      istat = cufftCreate(planxy)
-      istat = cufftPlanMany(&
-        planxy, &    ! Plan handle
-        2, &         ! Dimensionality
-        fftsize, &   ! Sizes
-        inembed, &   ! inembed
-        istride, &   ! istride
-        idist, &     ! idist
-        onembed, &   ! onembed
-        ostride, &   ! ostride
-        odist, &     ! odist
-        CUFFT_D2Z, & ! Double real to double complex transform
-        kmax &       ! Batch size
-      )
       
+      ! 1. Fill in workspace
+      ! 2. Reorder data to original cuFFT format
+      ! 3. Backwards transform
+      ! 4. Transpose
+      ! 5. Reorder data
+      ! 6. Backwards transform
+      ! 7. Transpose
+      ! 8. Fill in pressure array
+      
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            px(i,j,k) = Fp(i+1,j+1,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(2) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          px(itot+1,j,k) = px(2,j,k)
+          px(2,j,k) = 0.
+        end do
+      end do
+
+      !$acc host_data use_device(px)
+#if POIS_PRECISION==32
+      istat = cufftExecC2R(planxi, px, px)
+#else
+      istat = cufftExecZ2D(planxi, px, px)
+#endif
+      !$acc end host_data
+
       call check_exitcode(istat)
 
-      ! Backward transforms
-      istat = cufftCreate(planxyi)
-      istat = cufftPlanMany(&
-        planxyi, &    ! Plan handle
-        2, &         ! Dimensionality
-        fftsize, &   ! Sizes
-        onembed, &   ! inembed
-        ostride, &   ! istride
-        odist, &     ! idist
-        inembed, &   ! onembed
-        istride, &   ! ostride
-        odist, &     ! odist
-        CUFFT_Z2D, & ! Double real to double complex transform
-        kmax &       ! Batch size
-      )
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            workspace(j,i,k) = px(i,j,k)
+          end do
+        end do
+      end do
+
+      ! TODO: Hier klopt natuurlijk helemaal niets van
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            py(i,j,k) = workspace(i,j,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(2) default(present)
+      do k=1,kmax
+        do i=1,itot
+          py(jtot+1,i,k) = py(2,i,k)
+          py(2,i,k) = 0
+        end do
+      end do
+
+      !$acc host_data use_device(py)
+#if POIS_PRECISION==32
+      istat = cufftExecR2C(planyi, py, py)
+#else
+      istat = cufftExecZ2D(planyi, py,  py)
+#endif
+      !$acc end host_data
 
       call check_exitcode(istat)
 
-      allocate(xyrt(2-ih:itot+ih,2-jh:jtot+jh))
-      allocate(d(2-ih:itot+ih,2-jh:jtot+jh,1:kmax))
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do i=1,itot
+          do j=1,jtot
+            workspace(j,i,k) = py(i,j,k)
+          end do
+        end do
+      end do
 
-      ps = 2
-      pe = itot
-      qs = 2
-      qe = jtot
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            px(i,j,k) = workspace(i,j,k)
+          end do
+        end do
+      end do
 
-    end subroutine setup_plan_2D
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            px(i,j,k) = px(i,j,k) * norm_fac
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(3) default(present)
+      do k=1,kmax
+        do j=1,jtot
+          do i=1,itot
+            p(i+1,j+1,k) = px(i,j,k)
+          end do
+        end do
+      end do
+      
+    end subroutine cufftb
 
     !< Checks the exitcode of cuFFT calls
     subroutine check_exitcode(istat)
