@@ -99,12 +99,12 @@ contains
 
   integer n
 
-  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
-  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
 
   if ( nsv > 0 ) then
     do n=1,nsv
-      call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+      call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
     enddo
   endif
 
@@ -118,10 +118,10 @@ contains
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : excjs
 
-  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
-  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
-  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
-  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( u0  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( v0  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( w0  , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( e120  , 2,i1,2,j1,1,k1,ih,jh)
 
   return
   end subroutine cyclicm
