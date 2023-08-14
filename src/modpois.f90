@@ -205,7 +205,7 @@ contains
 
   !**************************************************************
 
-    !acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
@@ -344,7 +344,7 @@ contains
       c(k)=rhobh(k+1)/(dzf(k)*dzh(k+1))
       b(k)=-(a(k)+c(k))
     end do
-    
+
     !$acc serial default(present)
     b(1   )=b(1)+a(1)        ! -c(1)
     a(1   )=0.
@@ -377,7 +377,6 @@ contains
     ! Upward sweep i=2..(n-1)
     ! c'(i) = c(i) / [ b(i) - c'(i-1) a(i) ]
     ! d'(i) = [ d(i) - d'(i-1) a(i) ] / [ b(i) - c'(i-1) a(i) ]
-
     !$acc parallel loop collapse(2) default(present) private(bbk, z)
     do  j=qs,qe
       do  i=ps,pe
@@ -393,19 +392,14 @@ contains
 
     ! Upward sweep i=n and backsubstitution i=n
     ! x(n) = d'(n)
-    
-    !$acc serial default(present)
-    ak = a(kmax)
-    bk = b(kmax)
-    !$acc end serial
 
     !$acc parallel loop collapse(2) default(present) private(bbk, z)
     do j=qs,qe
       do i=ps,pe
-        bbk = bk + rhobf(kmax)*xyrt(i,j)
-        z        = bbk-ak*d(i,j,kmax-1)
+        bbk = b(kmax) + rhobf(kmax)*xyrt(i,j)
+        z        = bbk-a(kmax)*d(i,j,kmax-1)
         if(z/=0.) then
-          Fp(i,j,kmax) = (Fp(i,j,kmax)-ak*Fp(i,j,kmax-1))/z
+          Fp(i,j,kmax) = (Fp(i,j,kmax)-a(kmax)*Fp(i,j,kmax-1))/z
         else
           Fp(i,j,kmax) =0.
         end if
@@ -414,7 +408,7 @@ contains
 
     ! Backsubstitution i=n-1..1
     ! x(i) = d'(i) - c'(i) x(i+1)
-    
+
     !$acc parallel loop collapse(2) default(present)
     do j=qs,qe
       do i=ps,pe
@@ -425,5 +419,5 @@ contains
       end do
     end do
   end subroutine solmpj
-
+  
 end module modpois
