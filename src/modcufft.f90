@@ -519,7 +519,7 @@ module modcufft
       real(pois_r), pointer :: p(:,:,:)
       real(pois_r), pointer :: Fp(:,:,:)
       call error_and_exit()
-    end subroutine cufftinit
+    end subroutine cufftf
 
     subroutine cufftb(p, Fp)
       real(pois_r), pointer :: p(:,:,:)
