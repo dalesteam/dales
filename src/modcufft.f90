@@ -5,8 +5,8 @@ module modcufft
   use modglobal, only: itot, jtot, kmax, i1, j1, &
                        imax, jmax, ih, jh, dxi, dyi, pi, ijtot
   use modprecision, only: pois_r
-  use modgpu, only: allocate_workspace, workspace
 
+#if defined(_OPENACC)
   implicit none
 
   save
@@ -23,6 +23,7 @@ module modcufft
     !< Setup plans, workspace, etc
     subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
       use cufft
+      use modgpu, only: allocate_workspace
 
       implicit none
 
@@ -251,6 +252,7 @@ module modcufft
     !< Forward transforms 
     subroutine cufftf(p, Fp)
       use cufft
+      use modgpu, only: workspace
 
       implicit none
 
@@ -354,6 +356,7 @@ module modcufft
     !< Backward transforms
     subroutine cufftb(p, Fp)
       use cufft
+      use modgpu, only: workspace
 
       implicit none
       
@@ -486,5 +489,7 @@ module modcufft
       end if
 
     end subroutine check_exitcode
+
+#endif
 
 end module modcufft
