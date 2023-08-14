@@ -222,7 +222,7 @@ module modcufft
       xrt(:) = xrt(iswap(:))
 
       do j=1,jtot
-        yrt(j) = -4.*dxi*dxi*(sin(float(i-1)*pi/jtot))**2
+        yrt(j) = -4.*dxi*dxi*(sin(float(j-1)*pi/jtot))**2
       end do
 
       ! Swap order
@@ -242,7 +242,7 @@ module modcufft
 
       do j=2,j1
         do i=2,i1
-          xyrt(i,j) = (xrt(i-1) + yrt(i-1))
+          xyrt(i,j) = (xrt(i-1) + yrt(j-1))
         end do
       end do
 
@@ -256,7 +256,6 @@ module modcufft
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
-      integer :: i, j, k
       
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
