@@ -6,8 +6,9 @@ module modcufft
                        imax, jmax, ih, jh, dxi, dyi, pi, ijtot
   use modprecision, only: pois_r
 
-#if defined(_OPENACC)
   implicit none
+
+#if defined(_OPENACC)
 
   save
     real :: norm_fac !< Normalization factor
@@ -489,6 +490,48 @@ module modcufft
       end if
 
     end subroutine check_exitcode
+
+#else
+  contains
+
+    subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
+      real(pois_r), pointer :: p(:,:,:)
+      real(pois_r), pointer :: Fp(:,:,:)
+      real(pois_r), allocatable :: d(:,:,:)
+      real(pois_r), allocatable :: xyrt(:,:)
+      integer, intent(out) :: ps, pe, qs, qe
+      call error_and_exit()
+      ps=0
+      pe=0
+      qs=0
+      qe=0
+    end subroutine cufftinit
+
+    subroutine cufftexit(p, Fp, d, xyrt)
+      real(pois_r), pointer :: p(:,:,:)
+      real(pois_r), pointer :: Fp(:,:,:)
+      real(pois_r), allocatable :: d(:,:,:)
+      real(pois_r), allocatable :: xyrt(:,:)
+      call error_and_exit()
+    end subroutine cufftexit
+
+    subroutine cufftf(p, Fp)
+      real(pois_r), pointer :: p(:,:,:)
+      real(pois_r), pointer :: Fp(:,:,:)
+      call error_and_exit()
+    end subroutine cufftinit
+
+    subroutine cufftb(p, Fp)
+      real(pois_r), pointer :: p(:,:,:)
+      real(pois_r), pointer :: Fp(:,:,:)
+      call error_and_exit()
+    end subroutine cufftb
+
+    subroutine error_and_exit
+      write(*,*) "DALES was compiled without GPU support, but cuFFT solver was selected"
+      write(*,*) "Use another solver (solver_id), or compile with SYST=NV-OpenACC"
+      call exit(-1)
+    end subroutine
 
 #endif
 
