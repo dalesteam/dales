@@ -51,6 +51,7 @@ contains
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+
     th0av = 0.
 
   end subroutine initthermodynamics
@@ -59,11 +60,12 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo,is_starting
     use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
     use modmpi, only : slabsum
     implicit none
-    integer:: k
+    integer:: i, j, k
+
     if (timee < 0.01) then
       call diagfld
     end if
@@ -87,17 +89,39 @@ contains
 
     ! recalculate thv and rho on the basis of results
     call calthv
+
+    !$acc kernels default(present)
     thvh=0.
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+    !$acc end kernels
+
+    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting) ! redefine halflevel thv using calculated thv
+
+    !$acc kernels default(present)
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+    !$acc end kernels
+    
+    !$acc parallel loop collapse(3) default(present)
     do k=1,k1
-      thv0(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                 *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-    enddo
+      do j=2,j1
+        do i=2,i1
+          thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                      * (1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+        end do
+      end do
+    end do
+
+    !$acc kernels default(present)
     thvf = 0.0
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end kernels
+
+    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+
+    !$acc kernels default(present)
     thvf = thvf/ijtot
+    !$acc end kernels
+
+    !$acc parallel loop default(present)
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
@@ -125,6 +149,7 @@ contains
     dthvdz = 0
     if (lmoist) then
 
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -134,6 +159,9 @@ contains
         end do
       end do
 
+      !TODO: fix the branching in this loop
+      !$acc parallel loop collapse(3) default(present) &
+      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth)
       do k=2,kmax
         do j=2,j1
           do i=2,i1
@@ -177,7 +205,8 @@ contains
           end do
         end do
       end do
-
+      
+      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -197,14 +226,17 @@ contains
       end do
 
     else
-      thv0h = thl0h
+      !$acc parallel loop collapse(3) default(present)
       do k=2,kmax
         do j=2,j1
           do i=2,i1
+            thv0h(i,j,k)  = thl0h(i,j,k)
             dthvdz(i,j,k) = (thl0(i,j,k+1)-thl0(i,j,k-1))/(dzh(k+1)+dzh(k))
           end do
         end do
       end do
+
+      !$acc parallel loop collapse(2) default(present)
       do  j=2,j1
         do  i=2,i1
           dthvdz(i,j,1) = dthldz(i,j)
@@ -212,6 +244,7 @@ contains
       end do
     end if
 
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -222,8 +255,6 @@ contains
       end do
     end do
 
-
-
   end subroutine calthv
 !> Calculate diagnostic slab averaged fields.
 !!     Calculates slab averaged fields assuming
@@ -232,7 +263,8 @@ contains
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
 
-  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0
+  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0, &
+                        is_starting
   use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf
   use modsurfdata,only : thls,ps
@@ -248,6 +280,8 @@ contains
 !*********************************************************
 
 ! initialise local MPI arrays
+
+    !$acc kernels default(present)
     u0av = 0.0
     v0av = 0.0
     thl0av = 0.0
@@ -255,39 +289,47 @@ contains
     qt0av  = 0.0
     ql0av  = 0.0
     sv0av = 0.
+    !$acc end kernels
 
 !  !CvH changed momentum array dimensions to same value as scalars!
-  call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-  call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   u0av  = u0av  /ijtot + cu
-   v0av  = v0av  /ijtot + cv
-   thl0av = thl0av/ijtot
-   qt0av = qt0av /ijtot
-   ql0av = ql0av /ijtot
-   exnf   = 1-grav*zf/(cp*thls)
-   exnh  = 1-grav*zh/(cp*thls)
-   th0av  = thl0av + (rlv/cp)*ql0av/exnf
+   call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+   call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+   call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+   call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
+   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
    do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.not.is_starting)
    end do
-   sv0av = sv0av/ijtot
+
+   !$acc kernels default(present)
+   u0av   = u0av  /ijtot + cu
+   v0av   = v0av  /ijtot + cv
+   thl0av = thl0av/ijtot
+   qt0av  = qt0av /ijtot
+   ql0av  = ql0av /ijtot
+   sv0av  = sv0av /ijtot
+   exnf   = 1-grav*zf/(cp*thls)
+   exnh   = 1-grav*zh/(cp*thls)
+   th0av  = thl0av+ (rlv/cp)*ql0av/exnf
+   !$acc end kernels
+    
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
 !***********************************************************
 
 !    2.1 Use first guess of theta, then recalculate theta
+
    call fromztop
+
+   !$acc serial default(present)
    exnf = (presf/pref0)**(rd/cp)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
+   !$acc end serial
 
 !    2.2 Use new updated value of theta for determination of pressure
 
    call fromztop
-
 
 !***********************************************************
 !  3.0   Construct density profiles and exner function     *
@@ -296,17 +338,25 @@ contains
 
 !    3.1 determine exner
 
+   !$acc serial default(present)
    exnh(1) = (ps/pref0)**(rd/cp)
    exnf(1) = (presf(1)/pref0)**(rd/cp)
+   !$acc end serial
+
+   !$acc parallel loop default(present)
    do k=2,k1
      exnf(k) = (presf(k)/pref0)**(rd/cp)
      exnh(k) = (presh(k)/pref0)**(rd/cp)
    end do
+   
+   !$acc serial default(present)
    thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
    rhof(1) = presf(1)/(rd*thvf(1))
+   !$acc end serial
 
 !    3.2 determine rho
 
+   !$acc parallel loop default(present)
    do k=2,k1
      thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
      rhof(k) = presf(k)/(rd*thvf(k))
@@ -339,12 +389,15 @@ contains
   real,allocatable,dimension (:) :: thetah, qth, qlh
 
   allocate(thetah(k1), qth(k1), qlh(k1))
+  ! TODO: save these arrays
+  !$acc enter data create(thetah, qth, qlh)
   rdocp = rd/cp
 
 !**************************************************
 !    1.0 Determine theta and qt at half levels    *
 !**************************************************
 
+  !$acc parallel loop default(present)
   do k=2,k1
     thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
     qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
@@ -358,15 +411,17 @@ contains
 
 !     1: lowest level: use first level value for safety!
 
+  !$acc serial default(present)
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  presf(1) = ps**rdocp - &
-                 grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
+  presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
+  !$acc end serial
 
 !     2: higher levels
 
+  ! TODO: see if a parallel loop with an atomic update is faster here
+  !$acc serial loop default(present)
   do k=2,k1
-
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzh(k) /(cp*thvh(k))
@@ -378,8 +433,12 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
+  !$acc serial default(present)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
+  !$acc end serial
+
+  !$acc serial loop default(present)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
@@ -387,7 +446,9 @@ contains
     presh(k) = presh(k)**(1./rdocp)
   end do
 
+  !$acc exit data delete(thetah, qth, qlh)
   deallocate(thetah, qth, qlh)
+  
 
   return
   end subroutine fromztop
@@ -515,6 +576,7 @@ contains
     use modglobal, only : esatmtab
 
     implicit none
+    !$acc routine seq
     real(field_r), intent(in) :: T
     integer :: tlonr
     real(field_r) :: tlo, thi, es
@@ -533,6 +595,7 @@ contains
     use modglobal, only : esatmtab
 
     implicit none
+    !$acc routine seq
     real(field_r), intent(in) :: T, p
     real(field_r) :: qsat
     integer :: tlonr
@@ -591,6 +654,8 @@ contains
     real(field_r) :: Tl_min, Tl_max, qt_max
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
+
+    !$acc parallel loop gang private(Tl_min, Tl_max, qt_max, qsat_) default(present)
     do k=1,k1
        ! Optimization: if the whole horizontal slab at k is unsaturated,
        ! the calculation of this slab can be skipped.
@@ -608,6 +673,7 @@ contains
 
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat_) then
+          !$acc loop collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) 
           do j=2,j1
              do i=2,i1
                 Tl = exnf(k)*thl0(i,j,k)
@@ -655,9 +721,10 @@ contains
        else
           ! possibly faster option when the whole layer is below saturation
           ! If many of the els, qsvl, qsvi are stored in arrays, they still need to be saved here
-          ql0(2:i1,2:j1,k) = 0
+          !$acc loop collapse(2) private(T, esi1, tlo, thi, tlonr)
           do j=2,j1
              do i=2,i1
+                ql0(i,j,k) = 0
                 T = exnf(k)*thl0(i,j,k) ! + (rlv/cp) * ql omitted because ql is 0
                 tmp0(i,j,k) = T
                 qsat(i,j,k) = qsat_tab(T, presf(k))
@@ -699,7 +766,8 @@ contains
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
     real(field_r) :: Tl_min, Tl_max, qt_max
-
+    
+    !$acc parallel loop gang default(present) private(Tl_min, Tl_max, qt_max, qsat)
     do k=1,k1
        ! find highest qt and lowest thl in the slab.
        ! if they in combination are not saturated, the whole slab is below saturation
@@ -710,6 +778,7 @@ contains
        qt_max = maxval(qt0h(2:i1,2:j1,k))
        qsat = qsat_tab(Tl_min, presh(k))
        if (qt_max > qsat) then
+          !$acc loop collapse(2) private(Tl, qt, ql, b)
           do j=2,j1
              do i=2,i1
                 Tl = exnh(k)*thl0h(i,j,k)
@@ -737,7 +806,12 @@ contains
              end do
           end do
        else
-          ql0h(2:i1,2:j1,k) = 0
+         !$acc loop collapse(2)
+         do j=2,j1
+           do i=2,i1
+             ql0h(i,j,k) = 0
+           end do
+         end do
        end if
     end do
   end subroutine icethermoh_fast
@@ -966,6 +1040,7 @@ contains
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -974,11 +1049,18 @@ contains
         end do
       end do
     end if
-    thl0h(2:i1,2:j1,1) = thls
+
+    !$acc parallel loop collapse(2) default(present)
+    do j=2,j1
+      do i=2,i1
+        thl0h(i,j,1) = thls
+      end do
+    end do
 
     if (iadv_qt==iadv_kappa) then
         call halflev_kappa(qt0,qt0h)
     else
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -986,7 +1068,13 @@ contains
           end do
         end do
       end do
-      qt0h(2:i1,2:j1,1)  = qts
+      
+      !$acc parallel loop collapse(2) default(present)
+      do j=2,j1
+        do i=2,i1
+          qt0h(i,j,1) = qts
+        end do
+      end do
     end if
   end subroutine calc_halflev
 

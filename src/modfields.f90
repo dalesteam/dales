@@ -96,6 +96,7 @@ save
   real(field_r), allocatable :: dthldyls(:)                   !<   large scale y-gradient of th_liq
   real(field_r), allocatable :: dthldtls(:)                   !<   large scale tendency of thl
 
+
   real(field_r), allocatable :: dqtdxls(:)                    !<   large scale x-gradient of q_tot
   real(field_r), allocatable :: dqtdyls(:)                    !<   large scale y-gradient of q_tot
   real(field_r), allocatable :: dqtdtls(:)                    !<   large scale tendency of q_tot
@@ -128,6 +129,7 @@ save
 
   real(field_r), allocatable :: qsat(:,:,:)
   real(field_r), allocatable :: surf_rain(:,:)               !< integrated surface rain 
+
 
 contains
 !> Allocate and initialize the prognostic variables

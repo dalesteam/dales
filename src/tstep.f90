@@ -42,8 +42,33 @@
 !! \endlatexonly
 module tstep
 implicit none
+save
+  real, allocatable, dimension(:) :: courtotl
+  real, allocatable, dimension(:) :: courtot
+
+  ! Arrays for keeping track of maximum values
+!  real, allocatable, dimension(:) :: ummax
+!  real, allocatable, dimension(:) :: vmmax
+!  real, allocatable, dimension(:) :: wmmax
+!  real, allocatable, dimension(:) :: ekhmax
 
 contains
+!> Allocate arrays
+subroutine inittstep
+  use modglobal, only : kmax
+  implicit none
+  allocate(courtotl(kmax))
+  allocate(courtot(kmax))
+  !$acc enter data create(courtotl, courtot)
+end subroutine inittstep
+
+!> Deallocate arrays
+subroutine exittstep
+  implicit none
+  deallocate(courtotl)
+  deallocate(courtot)
+end subroutine exittstep  
+
 subroutine tstep_update
   use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
@@ -52,13 +77,10 @@ subroutine tstep_update
   use modmpi,    only : comm3d,mpierr,mpi_max,D_MPI_ALLREDUCE
   implicit none
 
-  real, allocatable, dimension (:) :: courtotl,courtot
   integer       :: k
   real,save     :: courtotmax=-1,peclettot=-1
   real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
-
-  allocate(courtotl(kmax),courtot(kmax))
 
   if(lwarmstart) spinup = .false.
 
@@ -70,6 +92,7 @@ subroutine tstep_update
         courold = courtotmax
         pecletold = peclettot
         peclettotl=0.0
+        !$acc update self(um, vm, wm)
         do k=1,kmax
           courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
           wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
@@ -80,10 +103,11 @@ subroutine tstep_update
           courtotmax=max(courtotmax,courtot(k))
         enddo
         courtotmax=sqrt(courtotmax)
+        !$acc update self(ekm, ekh)
         do k=1,kmax
-           ! limit by the larger of ekh, ekm. ekh is generally larger.
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          ! limit by the larger of ekh, ekm. ekh is generally larger.
+          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
         if ( pecletold>0) then
@@ -111,6 +135,7 @@ subroutine tstep_update
     else
       if (ladaptive) then
         peclettotl = 1e-5
+        !$acc update self(um, vm, wm)
         do k=1,kmax
           courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
           (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
@@ -120,10 +145,11 @@ subroutine tstep_update
         do k=1,kmax
             courtotmax=max(courtotmax,sqrt(courtot(k)))
         enddo
+        !$acc update self(ekm, ekh)
         do k=1,kmax
-           ! limit by the larger of ekh, ekm. ekh is generally larger.
-           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-           peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          ! limit by the larger of ekh, ekm. ekh is generally larger.
+          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl=max(peclettotl,maxval(ekh(1:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
@@ -145,9 +171,8 @@ subroutine tstep_update
     end if
   end if
 
-  deallocate(courtotl,courtot)
-
   ! set all tendencies to zero
+  !$acc kernels default(present)
   up=0.
   vp=0.
   wp=0.
@@ -155,6 +180,7 @@ subroutine tstep_update
   qtp=0.
   svp=0.
   e12p=0.
+  !$acc end kernels
 
 end subroutine tstep_update
 
@@ -176,40 +202,89 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : rdt,rk3step,e12min
+  use modglobal, only : rdt,rk3step,e12min,i1,j1,kmax,nsv
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
+
+  integer :: i,j,k,n
 
   real rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
 
   if(rk3step /= 3) then
-     u0   = um   + rk3coef * up
-     v0   = vm   + rk3coef * vp
-     w0   = wm   + rk3coef * wp
-     thl0 = thlm + rk3coef * thlp
-     qt0  = qtm  + rk3coef * qtp
-     sv0  = svm  + rk3coef * svp
-     e120 = max(e12min,e12m + rk3coef * e12p)
-  else ! step 3 - store result in both ..0 and ..m
-     um   = um   + rk3coef * up
-     u0 = um
-     vm   = vm   + rk3coef * vp
-     v0 = vm
-     wm   = wm   + rk3coef * wp
-     w0 = wm
-     thlm = thlm + rk3coef * thlp
-     thl0 = thlm
-     qtm  = qtm  + rk3coef * qtp
-     qt0  = qtm
-     svm  = svm  + rk3coef * svp
-     sv0 = svm
-     e12m = max(e12min,e12m + rk3coef * e12p)
-     e120 = e12m
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,kmax
+      do j=2,j1
+        do i=1,i1
+          u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
+          v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
+          w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
+          thl0(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
+          qt0(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
+          e120(i,j,k) = max(e12min, e12m(i,j,k) + rk3coef * e12p(i,j,k))
+        end do
+      end do
+    end do
 
+    ! Scalars
+    if (nsv > 0) then
+      !$acc parallel loop collapse(4) default(present)
+      do n=1,nsv
+        do k=1,kmax
+          do j=2,j1
+            do i=1,i1
+              sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+            end do
+          end do
+        end do
+      end do
+    endif
+  else ! step 3 - store result in both ..0 and ..m
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,kmax
+      do j=2,j1
+        do i=1,i1
+          um(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
+          u0(i,j,k)   = um(i,j,k)
+          vm(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
+          v0(i,j,k)   = vm(i,j,k)
+          wm(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
+          w0(i,j,k)   = wm(i,j,k)
+          thlm(i,j,k) = thlm(i,j,k) + rk3coef * thlp(i,j,k)
+          thl0(i,j,k) = thlm(i,j,k)
+          qtm(i,j,k)  = qtm(i,j,k)  + rk3coef * qtp(i,j,k)
+          qt0(i,j,k)  = qtm(i,j,k)
+          e12m(i,j,k) = max(e12min, e12m(i,j,k) + rk3coef * e12p(i,j,k))
+          e120(i,j,k) = e12m(i,j,k)
+        end do
+      end do
+    end do
+
+    ! Scalars
+    if (nsv > 0) then
+      !$acc parallel loop collapse(4) default(present)
+      do n=1,nsv
+        do k=1,kmax
+          do j=2,j1
+            do i=1,i1
+              svm(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
+              sv0(i,j,k,n) = svm(i,j,k,n)
+            end do
+          end do
+        end do
+      end do
+    endif
   end if
 end subroutine tstep_integrate
+
+!> Calculate the maximum per vertical level for serveral fields
+!subroutine calc_max
+!  use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
+!  implicit none
+!
+!end subroutine calc_max
+
 end module tstep

@@ -89,6 +89,7 @@ contains
     allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
+    !$acc enter data create(thlprad)
 
     allocate(swdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -234,8 +235,11 @@ contains
          write (*,*) 'Radiation', timee, 'Time spent:', wtime, 's'
       end if
     end if
-
+    
+    !$acc kernels default(present)
     thlp = thlp + thlprad
+    !$acc end kernels
+
   end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
@@ -470,10 +474,12 @@ subroutine radpar
   use modfields,    only : thlpcar
   implicit none
   integer k
-
+    
+  !$acc kernels default(present)
   do k=1,kmax
     thlprad(2:i1,2:j1,k) = thlprad(2:i1,2:j1,k) + thlpcar(k)
   end do
+  !$acc end kernels
 
   return
   end subroutine radprof

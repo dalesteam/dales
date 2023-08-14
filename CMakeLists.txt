@@ -200,11 +200,11 @@ FIND_LIBRARY(FFTWF_LIB fftw3f
   DOC "FFTW single precision library"
 )
 
-FIND_LIBRARY(NVTX_LIB nvToolsExt
-  PATHS
-  $ENV{NVTX_LIB}
-  DOC "NVTX library"
-)
+#FIND_LIBRARY(NVTX_LIB nvToolsExt
+#  PATHS
+#  $ENV{NVTX_LIB}
+#  DOC "NVTX library"
+#)
 
 if(NETCDF_INCLUDE_DIR)
   include_directories(${NETCDF_INCLUDE_DIR})
@@ -285,6 +285,14 @@ endif(NETCDF_FORTRAN_LIB)
 if(USE_NVTX)
     set(opt_flags "${opt_flags} -DUSE_NVTX -L${NVTX_LIB} -lnvToolsExt")
 endif(USE_NVTX)
+
+# Find CUDA Toolkit
+if("$ENV{SYST}" STREQUAL "NV-OpenACC")
+  include(FindCUDAToolkit REQUIRED)
+  include_directories(${CUDAToolkit_INCLUDE_DIRS})
+  set(opt_flags "${opt_flags} -cudalib=cufft")
+endif()
+
 
 ### Precision 
 set(POIS_PRECISION 64 CACHE STRING  "Precision for poisson solver (default 64 bit) [32,64]")

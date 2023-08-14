@@ -58,6 +58,7 @@ contains
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(csz(k1))
     allocate(anis_fac(k1))
+    !$acc enter data create(ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, anis_fac)
 
     ! Initialize variables to avoid problems when not using subgrid scheme JvdD
     ! Determination of subgrid constants is explained in De Roode et al. 2017
@@ -114,8 +115,7 @@ contains
       write (6,*) 'cs    = ',cs
       write (6,*) 'Rigc  = ',Rigc
     endif
-  
-  !$acc enter data copyin(anis_fac)
+
   end subroutine initsubgrid
 
   subroutine subgridnamelist
@@ -166,13 +166,6 @@ contains
     implicit none
     integer n
 
-    ! Already on GPU: u0, v0, w0, 120, thl0, qt0, dzf, dzh, rhobf, rhobh,
-    ! up, vp, wp, e12p, thlp, qtp
-    
-    !$acc enter data copyin(thvf, thlflux, dthvdz, qtflux, delta, deltai, ustar)
-    !$acc enter data copyin(dudz, dvdz)
-    !$acc enter data copyin(ekm, ekh, zlt, sbdiss, sbbuo, sbshr, csz) 
-
     call timer_tic("closure", 0)
     call closure
     call timer_toc("closure")
@@ -188,10 +181,6 @@ contains
     end do
     if (.not. lsmagorinsky) call sources
 
-    !$acc exit data copyout(e12p) async
-    !$acc exit data copyout(ekm, ekh, zlt) async
-    !$acc exit data delete(e120, rhobf, rhobh) async
-    !$acc exit data delete(csz, thvf, thlflux, dthvdz, qtflux, delta, deltai, ustar) async
   end subroutine
 
   subroutine exitsubgrid
@@ -234,7 +223,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
-                          dxi,dyi,dzf,dzh
+                          dxi,dyi,dzf,dzh,is_starting
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
   use modmpi,      only : excjs
@@ -416,8 +405,8 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
   call timer_tic("Boundary conditions", 2)
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
   call timer_toc("Boundary conditions") 
 
   call timer_tic("Write buffer", 3)

@@ -100,7 +100,7 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
+  use modglobal,         only : rk3step,timeleft,is_starting
   use modmpi,            only : initmpicomm!, myid
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
@@ -160,9 +160,19 @@ program DALES
 
   use modtimer,       only : timer_tic, timer_toc, timer_print
 
+!----------------------------------------------------------------
+!     0.3     USE STATEMENTS FOR GPU UTILITIES
+!----------------------------------------------------------------
+
+#if defined(_OPENACC)
+  use modgpu, only: initgpu
+#endif
+
   implicit none
 
   integer :: istep
+
+  ! Select CPU for execution of startup routines
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
@@ -204,6 +214,15 @@ program DALES
 
   !call initspectra2
   call initcape
+
+
+#if defined(_OPENACC)
+  call initgpu
+#endif
+
+  ! Startup is done, set flag to false
+  is_starting = .false.
+
   call timer_toc('Initialization')
 
 !------------------------------------------------------

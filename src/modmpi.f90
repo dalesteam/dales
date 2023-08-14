@@ -459,10 +459,7 @@ contains
   endif
   end subroutine excjs_real32
 
-  subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
-#if defined(_OPENACC)
-  use openacc
-#endif
+  subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh,on_gpu)
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -471,22 +468,19 @@ contains
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
+  logical, optional :: on_gpu
   real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
-  ! Check if the data is on the gpu
-#if defined(_OPENACC)
-  logical :: is_present
-  is_present = acc_is_present(a)
-#endif
+  
+  ! Ad-hoc solution for startup and other routines that use host data
+  ! Specify on_gpu=.true. if halo exchange has to be done on the gpu
 
 ! Calulate buffer lengths
-  !$acc kernels default(present) if(is_present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
-  !$acc end kernels
 
 !   Calculate buffer size
   nssize = xl*jh*zl
@@ -521,7 +515,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(is_present)
+    !$acc kernels default(present)
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -555,11 +549,10 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(is_present)
+    !$acc kernels default(present)
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
-
   endif
 
   if(nprocy.gt.1)then
@@ -708,54 +701,75 @@ contains
   end subroutine excjs_logical
 
 
-  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
     implicit none
 
-    integer      :: ks,kf
-    integer      :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
-    real(real32) :: aver(ks:kf)
-    real(real32) :: var (ib:ie,jb:je,kb:ke)
-    real(real32) :: averl(ks:kf)
-    real(real32) :: avers(ks:kf)
-    integer      :: k
+    integer           :: ks,kf
+    integer           :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
+    real(real32)      :: aver(ks:kf)
+    real(real32)      :: var (ib:ie,jb:je,kb:ke)
+    real(real32)      :: averl(ks:kf)
+    real(real32)      :: avers(ks:kf)
+    integer           :: k
+    logical, optional :: on_gpu
 
+    !$acc kernels default(present)
     averl       = 0.
     avers       = 0.
+    !$acc end kernels
 
+    !$acc kernels default(present)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
+    !$acc end kernels
 
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
                        MPI_SUM, comm3d,mpierr)
 
+    !$acc kernels default(present)
     aver = aver + avers
+    !$acc end kernels
 
     return
   end subroutine slabsum_real32
 
-  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
     implicit none
 
-    integer      :: ks,kf
-    integer      :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
-    real(real64) :: aver(ks:kf)
-    real(real64) :: var (ib:ie,jb:je,kb:ke)
-    real(real64) :: averl(ks:kf)
-    real(real64) :: avers(ks:kf)
-    integer      :: k
+    integer           :: ks,kf
+    integer           :: ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes
+    real(real64)      :: aver(ks:kf)
+    real(real64)      :: var (ib:ie,jb:je,kb:ke)
+    real(real64)      :: averl(ks:kf)
+    real(real64)      :: avers(ks:kf)
+    integer           :: k
+    logical, optional :: on_gpu
 
+    !$acc enter data copyin(averl, avers)
+ 
+    !$acc kernels default(present)
     averl       = 0.
     avers       = 0.
-
+    !$acc end kernels
+    
+    !$acc kernels default(present)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
+    !$acc end kernels
 
+    ! CUDA-aware MPI should figure out that it has to move data from the GPU
+    !$acc update host(averl)
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
                        MPI_SUM, comm3d,mpierr)
+    !$acc update device(avers)
 
+    !$acc kernels default(present)
     aver = aver + avers
+    !$acc end kernels
+
+    !$acc exit data delete(averl, avers)
 
     return
   end subroutine slabsum_real64

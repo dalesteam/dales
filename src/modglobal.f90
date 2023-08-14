@@ -91,6 +91,8 @@ save
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
+      !$acc declare copyin(rd, rv, pref0)
+
       logical :: lcoriol  = .true.  !<  switch for coriolis force
       logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
 
@@ -135,6 +137,8 @@ save
       real, dimension(1:2000) :: esatmtab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
+
+      !$acc declare copyin(esatltab, esatitab, esatmtab)
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
@@ -223,6 +227,9 @@ save
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
       character(80) :: author='', version='DALES 4.4'
+
+      logical :: is_starting = .true. !< flag for knowing if a routine is called during startup
+
 contains
 
 !> Initialize global settings.
@@ -386,7 +393,6 @@ contains
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1),deltai(k1))
-
 
     ijtot = real(itot*jtot)
 

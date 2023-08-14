@@ -70,12 +70,8 @@ contains
 
   if (lforce_user) call force_user
 
-  !$acc enter data copyin(dpdxl, dpdyl)
-  !$acc enter data copyin(thvh)
-  !$acc enter data copyin(sv0)
-
   if (lpressgrad) then
-     !$acc kernels
+     !$acc kernels default(present)
      do k=1,kmax
         up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
         vp(:,:,k) = vp(:,:,k) - dpdyl(k)
@@ -84,14 +80,14 @@ contains
   end if
 
   if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
-    !$acc kernels
+    !$acc kernels default(present)
     do k=2,kmax
        wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
     !$acc end kernels
   else
-    !$acc kernels
+    !$acc kernels default(present)
     do k=2,kmax
       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
     end do
@@ -101,11 +97,9 @@ contains
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
-  !$acc kernels
+  !$acc kernels default(present)
   wp(:,:,1) = 0.0
   !$acc end kernels
-
-  !$acc exit data delete(dpdxl, dpdyl, thvh)
 
   end subroutine forces
   subroutine coriolis
@@ -176,9 +170,6 @@ contains
   end do
 !     ----------------------------------------------end i,j-loop
 
-  !$acc exit data delete(dzh, dzf) async
-  !$acc exit data delete(w0) async
-  !$acc exit data copyout(wp) async
   return
   end subroutine coriolis
 
@@ -217,12 +208,8 @@ contains
 
 !     1.1 lowest model level above surface : only downward component
 !     1.2 other model levels twostream
-  !$acc enter data copyin(svp, whls, u0av, v0av)
-  !$acc enter data copyin(dudxls, dudyls, dvdxls, dvdyls)
-  !$acc enter data copyin(dthldxls, dthldyls, dqtdxls, dqtdyls)
-  !$acc enter data copyin(dqtdtls, dthldtls, dudtls, dvdtls)
 
-  !$acc kernels 
+  !$acc kernels default(present)
   do k=1,kmax
     if (whls(k+1).lt.0) then   !downwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k+1) * (thl0(2:i1,2:j1,k+1) - thl0(2:i1,2:j1,k))/dzh(k+1)
@@ -231,9 +218,6 @@ contains
           up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k+1) * (u0(2:i1,2:j1,k+1) - u0(2:i1,2:j1,k))/dzh(k+1)
           vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k+1) * (v0(2:i1,2:j1,k+1) - v0(2:i1,2:j1,k))/dzh(k+1)
        endif
-
-       svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(k+1) * (sv0(2:i1,2:j1,k+1,:) - sv0(2:i1,2:j1,k,:))/dzh(k+1)
-
     else !downwind scheme for mean upward motions
        if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
           thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,k-1))/dzh(k)
@@ -242,7 +226,6 @@ contains
              up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k) * (u0(2:i1,2:j1,k) - u0(2:i1,2:j1,k-1))/dzh(k)
              vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k) * (v0(2:i1,2:j1,k) - v0(2:i1,2:j1,k-1))/dzh(k)
           endif
-          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,k-1,:))/dzh(k)
        endif
     endif
 
@@ -250,17 +233,23 @@ contains
     qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
     up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
-
   enddo
   !$acc end kernels
-
-  !$acc exit data copyout(up, vp, svp, thlp, qtp)
-  !$acc exit data delete(u0, v0, sv0)
-  !$acc exit data delete(whls, u0av, v0av)
-  !$acc exit data delete(dudxls, dudyls, dvdxls, dvdyls)
-  !$acc exit data delete(dthldxls, dthldyls, dqtdxls, dqtdyls)
-  !$acc exit data delete(dqtdtls, dthldtls, dudtls, dvdtls)
-
+  
+  ! Only do above for scalars if there are any scalar fields
+  if (nsv > 0) then
+    !$acc kernels default(present)
+    do k=1,kmax
+      if (whls(k+1).lt.0) then
+         svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(k+1) * (sv0(2:i1,2:j1,k+1,:) - sv0(2:i1,2:j1,k,:))/dzh(k+1)
+      else
+        if (k > 1) then
+          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,k-1,:))/dzh(k)
+        endif
+      endif
+    enddo
+    !$acc end kernels
+  endif
 
   return
   end subroutine lstend
