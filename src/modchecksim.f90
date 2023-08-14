@@ -111,6 +111,7 @@ contains
     courzl = 0.0
     courz  = 0.0
     courtot  = 0.0
+    !$acc parallel loop copy(courxl, couryl, courzl, courtotl)
     do k=1,kmax
       courxl(k)=maxval(abs(u0(2:i1,2:j1,k)))*dtmn/dx
       couryl(k)=maxval(abs(v0(2:i1,2:j1,k)))*dtmn/dy
@@ -146,15 +147,22 @@ contains
     allocate(peclettotl(k1),peclettot(k1))
     peclettotl = 0.
     peclettot  = 0.
+
+    !$acc enter data copyin(peclettotl)
+
+    !$acc kernels default(present)
     do k=1,kmax
       peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
     end do
+    !$acc end kernels
 
+  !$acc update self(peclettotl)
     call D_MPI_ALLREDUCE(peclettotl,peclettot,k1,MPI_MAX,comm3d,mpierr)
     if (myid==0) then
       write(6,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
     end if
 
+    !$acc exit data delete(peclettotl)
     deallocate(peclettotl,peclettot)
 
     return
@@ -178,6 +186,7 @@ contains
     divmaxl= 0.
     divtotl= 0.
 
+    !$acc parallel loop collapse(3) default(present) reduction(max:divmaxl) reduction(+:divtotl)
     do k=1,kmax
     do j=2,j1
     do i=2,i1
@@ -191,6 +200,7 @@ contains
     end do
     end do
 
+    
     call D_MPI_ALLREDUCE(divtotl, divtot, 1,     &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(divmaxl, divmax, 1,     &
