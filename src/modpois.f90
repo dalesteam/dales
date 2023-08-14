@@ -333,7 +333,7 @@ contains
     real(pois_r) :: z,ak,bk,bbk
     integer :: i, j, k
 
-    !$acc enter data create(a, b, c)
+    !$acc enter data copyin(a, b, c)
 
   ! Generate tridiagonal matrix
 
@@ -365,7 +365,7 @@ contains
     ! c'(1) = c(1) / b(1)
     ! d'(1) = d(1) / b(1)
 
-    !$acc parallel loop collapse(2) private(z)
+    !$acc parallel loop collapse(2) default(present) private(z)
     do j=qs,qe
       do i=ps,pe
         z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
@@ -418,6 +418,42 @@ contains
         end do
       end do
     end do
+
+    !$acc exit data delete(a,b,c)
   end subroutine solmpj
   
+  subroutine write_pointer(array)
+    implicit none
+    real, pointer, intent(in), dimension(:,:,:) :: array
+    integer :: i,j,k
+
+    do k=1, size(array, dim=3)
+      write(*,*) "k = ", k
+      do i=1, size(array, dim=1)
+        do j=1, size(array, dim=2)
+          write(*, ' (F10.4)', advance='no') array(i,j,k)
+        end do
+        write(*,*)
+      end do
+    end do
+  
+  end subroutine write_pointer
+
+  subroutine write_array(array)
+    implicit none
+    real, allocatable, intent(in), dimension(:,:,:) :: array
+    integer :: i,j,k
+
+    do k=1, size(array, dim=3)
+      write(*,*) "k = ", k
+      do i=1, size(array, dim=1)
+        do j=1, size(array, dim=2)
+          write(*, ' (F10.4)', advance='no') array(i,j,k)
+        end do
+        write(*,*)
+      end do
+    end do
+  
+  end subroutine write_array
+
 end module modpois
