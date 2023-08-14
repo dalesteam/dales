@@ -4,7 +4,7 @@ module modgpu
   implicit none
 
 save
-  real(pois_r), allocatable, target :: workspace(:,:,:)
+  real(pois_r), allocatable, target :: workspace(:)
 
 contains
   !< Initialize fields on the GPU post-startup  
@@ -98,7 +98,7 @@ contains
     
     integer, intent(in) :: nx, ny, nz
 
-    allocate(workspace(1:nx,1:ny,1:nz))
+    allocate(workspace(nx*ny*nz))
 
     !$acc enter data create(workspace)
   

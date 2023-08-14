@@ -39,8 +39,8 @@ module modcufft
       ! Setup pressure array
       allocate(p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax))
       !$acc enter data create(p_halo)
-      p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => P_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
-      Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => P_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+      p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+      Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
 
       ! TODO: use cufftMakePlanMany and manually allocate workspace
 
@@ -255,6 +255,7 @@ module modcufft
       implicit none
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
+      integer :: i, j, k, ii
       integer :: i, j, k
       
       !$acc parallel loop collapse(3) default(present)
@@ -287,7 +288,8 @@ module modcufft
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            workspace(j,i,k) = px(i,j,k)
+            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            workspace(ii) = px(i,j,k)
           end do
         end do
       end do
@@ -295,8 +297,9 @@ module modcufft
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
         do j=1,jtot
-          do i=1,itot
-            px(i,j,k) = workspace(i,j,k)
+         do i=1,itot
+            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            py(j,i,k) = workspace(ii)
           end do
         end do
       end do
@@ -322,7 +325,8 @@ module modcufft
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            workspace(i,j,k) = py(j,i,k)
+            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            workspace(ii) = py(j,i,k)
           end do
         end do
       end do
@@ -331,7 +335,8 @@ module modcufft
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            py(i,j,k) = workspace(i,j,k)
+            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            px(i,j,k) = workspace(ii)
           end do
         end do
       end do
@@ -340,7 +345,7 @@ module modcufft
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            p(i+1,j+1,k) = py(i,j,k)
+            p(i+1,j+1,k) = px(i,j,k)
           end do
         end do
       end do
@@ -354,7 +359,7 @@ module modcufft
       implicit none
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
-      integer :: i, j, k
+      integer :: i, j, k, ii
       
       ! 1. Fill in workspace
       ! 2. Reorder data to original cuFFT format
@@ -396,7 +401,8 @@ module modcufft
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            workspace(j,i,k) = px(i,j,k)
+            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            workspace(ii) = px(i,j,k)
           end do
         end do
       end do
@@ -406,7 +412,8 @@ module modcufft
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            py(i,j,k) = workspace(i,j,k)
+            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            py(j,i,k) = workspace(ii)
           end do
         end do
       end do
@@ -431,18 +438,20 @@ module modcufft
 
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
-        do i=1,itot
-          do j=1,jtot
-            workspace(j,i,k) = py(i,j,k)
+        do j=1,jtot
+         do i=1,itot
+            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            workspace(ii) = py(j,i,k)
           end do
         end do
       end do
-
+      
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
         do j=1,jtot
           do i=1,itot
-            px(i,j,k) = workspace(i,j,k)
+            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
+            px(i,j,k) = workspace(ii)
           end do
         end do
       end do
