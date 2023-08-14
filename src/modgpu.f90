@@ -1,4 +1,3 @@
-#if defined(_OPENACC)
 module modgpu
   use modprecision, only: pois_r
   implicit none
@@ -6,6 +5,7 @@ module modgpu
 save
   real(pois_r), allocatable, target :: workspace(:)
 
+#if defined(_OPENACC)
 contains
   !< Initialize fields on the GPU post-startup  
   subroutine initgpu
@@ -103,5 +103,5 @@ contains
     !$acc enter data create(workspace)
   
   end subroutine allocate_workspace
-end module modgpu
 #endif
+end module modgpu
