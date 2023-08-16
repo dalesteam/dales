@@ -464,7 +464,7 @@ contains
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
-    use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
+    use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE,myid
     use advec_kappa, only : halflev_kappa
     implicit none
 
@@ -524,6 +524,8 @@ contains
     real(field_r),allocatable, dimension(:,:,:)::  thv0
     real(field_r),allocatable, dimension(:)::   thvmav
     real(field_r),allocatable, dimension(:,:,:):: sv0h
+    real, allocatable, dimension(:) :: test
+    real, allocatable, dimension(:,:,:) :: test3d
 
     integer i, j, k, n, km
     real    tsurf, qsat, c1, c2
@@ -585,6 +587,7 @@ contains
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thvmav(k1))
     allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(test(k1),test3d(2-ih:i1+ih,2-jh:j1+jh,k1))
 
 
 
@@ -655,6 +658,19 @@ contains
 
     cszav = 0.
 
+    test = 0.
+    test3d = 0.
+
+    !$acc enter data copyin(qlhavl, cfracavl, qlptavl, wqlsubl, wqlresl, &
+    !$acc&                  wthltot, wqtsubl, wqtresl, wqttot, wthvsubl, &
+    !$acc&                  wthvresl, wthvtot, wsvsubl, wsvresl, sv2avl, &
+    !$acc&                  uwresl, vwresl, uwtot, uwsubl, vwsubl, vwtot, &
+    !$acc&                  u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, &
+    !$acc&                  thl2avl, thv2avl, th2avl, ql2avl, thvmav, sv2av, &
+    !$acc&                  umav, vmav, thlmav, qtmav, qlmav, cfracav, svmav, &
+    !$acc&                  cszav, sv0h, thv0, test, test3d)
+
+    !$acc parallel loop collapse(3) default(present)
     do  k=1,k1
       do  j=2,j1
         do  i=2,i1
@@ -766,6 +782,15 @@ contains
         sv2avl(1,n)  = sv2avl(1,n) + (svm(i,j,1,n)-svmav(1,n))**2
       end do
     end do
+    end do
+    
+    !$acc parallel loop collapse(3) reduction(+: test)
+    do k=1,kmax
+      do j=2,j1
+        do i=2,i1
+          test(k) = test(k) + (um(i,j,k) + cu - umav(1))**2
+        end do 
+      end do
     end do
 
   !      --------------------------
@@ -1071,6 +1096,11 @@ contains
 !       rav      = rav      /ijtot
 !       r2av     = r2av     /ijtot
 !       r3av     = r3av     /ijtot
+      
+    if (myid == 0) then
+      print *, "Original:",u2av
+      print *, "Better:", test/ijtot
+    end if
 
 
         sv2av = sv2av/ijtot
@@ -1135,6 +1165,15 @@ contains
       skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
 
       cszmn = cszmn + cszav
+
+    !$acc enter data copyin(qlhavl, cfracavl, qlptavl, wqlsubl, wqlresl, &
+    !$acc&                  wthltot, wqtsubl, wqtresl, wqttot, wthvsubl, &
+    !$acc&                  wthvresl, wthvtot, wsvsubl, wsvresl, sv2avl, &
+    !$acc&                  uwresl, vwresl, uwtot, uwsubl, vwsubl, vwtot, &
+    !$acc&                  u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, &
+    !$acc&                  thl2avl, thv2avl, th2avl, ql2avl, thvmav, sv2av, &
+    !$acc&                  umav, vmav, thlmav, qtmav, qlmav, cfracav, svmav, &
+    !$acc&                  cszav, sv0h, test, test3d)
 
     deallocate( &
         qlhavl , & ! slab averaged ql_0 at half level &
