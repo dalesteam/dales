@@ -54,6 +54,8 @@ contains
 
     th0av = 0.
 
+    !$acc enter data copyin(th0av, thv0)
+
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
