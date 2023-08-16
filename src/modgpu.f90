@@ -46,49 +46,51 @@ contains
     implicit none
 
     ! Prognostic variables
-    !$acc enter data copyin(um, vm, wm, thlm, e12m, qtm)
-    !$acc enter data copyin(u0, v0, w0, thl0, thl0h, qt0h, e120, qt0)
-    !$acc enter data copyin(up, vp, wp, thlp, e12p, qtp)
-    !$acc enter data copyin(svm, sv0, svp)
+    !$acc enter data copyin(um, vm, wm, thlm, e12m, qtm) async
+    !$acc enter data copyin(u0, v0, w0, thl0, thl0h, qt0h, e120, qt0) async
+    !$acc enter data copyin(up, vp, wp, thlp, e12p, qtp) async
+    !$acc enter data copyin(svm, sv0, svp) async
 
     ! Base state variables
-    !$acc enter data copyin(rhobf, rhobh)
+    !$acc enter data copyin(rhobf, rhobh) async
 
     ! Diagnostic variables
-    !$acc enter data copyin(ql0, ql0h, tmp0, thv0h, dthvdz)
-    !$acc enter data copyin(whls, ug, vg)
-    !$acc enter data copyin(thvf, thvh)
-    !$acc enter data copyin(qt0av, ql0av, thl0av, u0av, v0av, sv0av)
-    !$acc enter data copyin(dpdxl, dpdyl)
-    !$acc enter data copyin(dthldxls, dthldyls, dthldtls)
-    !$acc enter data copyin(dqtdxls, dqtdyls, dqtdtls)
-    !$acc enter data copyin(dudxls, dudyls, dudtls)
-    !$acc enter data copyin(dvdxls, dvdyls, dvdtls)
+    !$acc enter data copyin(ql0, ql0h, tmp0, thv0h, dthvdz) async
+    !$acc enter data copyin(whls, ug, vg) async
+    !$acc enter data copyin(thvf, thvh) async
+    !$acc enter data copyin(qt0av, ql0av, thl0av, u0av, v0av, sv0av) async
+    !$acc enter data copyin(dpdxl, dpdyl) async
+    !$acc enter data copyin(dthldxls, dthldyls, dthldtls) async
+    !$acc enter data copyin(dqtdxls, dqtdyls, dqtdtls) async
+    !$acc enter data copyin(dudxls, dudyls, dudtls) async
+    !$acc enter data copyin(dvdxls, dvdyls, dvdtls) async
 
     ! Global
-    !$acc enter data copyin(dzf, dzh, zh, zf, delta, deltai)
+    !$acc enter data copyin(dzf, dzh, zh, zf, delta, deltai) async
 
     ! Surface
-    !$acc enter data copyin(ustar, dudz, dvdz)
-    !$acc enter data copyin(thlflux, qtflux, dqtdz, dthldz)
-    !$acc enter data copyin(svflux, svs)
+    !$acc enter data copyin(ustar, dudz, dvdz) async
+    !$acc enter data copyin(thlflux, qtflux, dqtdz, dthldz) async
+    !$acc enter data copyin(svflux, svs) async
 
     ! Boundary
-    !$acc enter data copyin(tsc)
+    !$acc enter data copyin(tsc) async
 
     ! Subgrid
-    !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac)
-    !$acc enter data copyin(sbdiss, sbshr, sbbuo)
+    !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac) async
+    !$acc enter data copyin(sbdiss, sbshr, sbbuo) async
     
     ! Radiation
-    !$acc enter data copyin(thlpcar, thlprad)
+    !$acc enter data copyin(thlpcar, thlprad) async
 
     ! Thermodynamics
-    !$acc enter data copyin(th0av, thv0)
-    !$acc enter data copyin(presf, presh, exnf, exnh)
-    !$acc enter data copyin(rhof) 
-    !$acc enter data copyin(qvsl, qvsi, esl, qsat)
-    !$acc enter data copyin(esatmtab, esatitab, esatltab)
+    !$acc enter data copyin(th0av, thv0) async
+    !$acc enter data copyin(presf, presh, exnf, exnh) async
+    !$acc enter data copyin(rhof) async
+    !$acc enter data copyin(qvsl, qvsi, esl, qsat) async
+    !$acc enter data copyin(esatmtab, esatitab, esatltab) async
+
+    !$acc wait
 
   end subroutine initgpu
 
