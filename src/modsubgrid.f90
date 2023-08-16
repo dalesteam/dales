@@ -408,8 +408,6 @@ contains
   call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
   call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
   call timer_toc("Boundary conditions") 
-  write(*,*) 'Min, max of ekm', minval(ekm), maxval(ekm)
-  write(*,*) 'Min, max of ekh', minval(ekh), maxval(ekh)
 
   call timer_tic("Write buffer", 3)
   !$acc parallel loop collapse(2) default(present)

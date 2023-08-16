@@ -478,11 +478,9 @@ contains
   ! Specify on_gpu=.true. if halo exchange has to be done on the gpu
 
 ! Calulate buffer lengths
-  !$acc kernels default(present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
-  !$acc end kernels
 
 !   Calculate buffer size
   nssize = xl*jh*zl

@@ -50,6 +50,7 @@ contains
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre
+    use modcufft, only : cufftinit
 
     implicit none
 
@@ -59,6 +60,8 @@ contains
     else if (solver_id == 100) then
       ! FFTW based solver
       call fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+    else if (solver_id == 200) then
+      call cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
     else
       ! HYPRE based solver
 
@@ -77,6 +80,7 @@ contains
     use modfft2d, only : fft2dexit
     use modhypre, only : exithypre
     use modfftw, only : fftwexit
+    use modcufft, only : cufftexit
 
     implicit none
 
@@ -86,6 +90,8 @@ contains
     else if (solver_id == 100) then
       ! FFTW based solver
       call fftwexit(p,Fp,d,xyrt)
+    else if (solver_id == 200) then
+      call cufftexit(p, Fp, d, xyrt)
     else
       ! HYPRE based solver
       call fft2dexit(p,Fp,d,xyrt)
@@ -99,6 +105,7 @@ contains
     use modhypre, only : solve_hypre, set_initial_guess
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
+    use modcufft, only : cufftf, cufftb
 
     implicit none
 
@@ -122,6 +129,12 @@ contains
 
       ! Backward FFT
       call fftwb(p, Fp)
+    else if (solver_id == 200) then
+      call cufftf(p, Fp)
+
+      call solmpj
+
+      call cufftb(p, Fp)
     else
       call solve_hypre(p, converged)
       if (.not. converged) then
@@ -164,15 +177,15 @@ contains
     integer i,j,k
     real(pois_r) :: rk3coef
 
-    ! Temporary
-    !$acc update self(up, vp, wp, um, vm, wm)
-
+    ! TODO: allocate these in initpois
     allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
     allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
+    !$acc enter data create(pup, pvp, pwp)
 
     rk3coef = rdt / (4. - dble(rk3step))
-
+    
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -192,7 +205,7 @@ contains
 
   !**************************************************************
 
-
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
@@ -200,12 +213,10 @@ contains
       end do
     end do
     
-    ! Very, very temporary
-    !$acc enter data copyin(pup, pvp)
     call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
     call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
-    !$acc exit data copyout(pup, pvp)
 
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -216,6 +227,7 @@ contains
       end do
     end do
 
+    !$acc exit data delete(pup, pvp, pwp)
     deallocate( pup,pvp,pwp )
 
   end subroutine fillps
@@ -250,33 +262,32 @@ contains
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
-  !$acc enter data copyin(p)
+
   call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
-  !$acc exit data copyout(p)
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****
   ! **  pressure gradients.  ***************************************
   !*****************************************************************
 
+    !$acc parallel loop collapse(3) default(present) 
     do k=1,kmax
-    do j=2,j1
-    do i=2,i1
-      up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
-      vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
-    end do
-    end do
+      do j=2,j1
+        do i=2,i1
+          up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
+          vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
+        end do
+      end do
     end do
 
+    !$acc parallel loop collapse(3) default(present)
     do k=2,kmax
-    do j=2,j1
-    do i=2,i1
-      wp(i,j,k) = wp(i,j,k)-(p(i,j,k)-p(i,j,k-1))/dzh(k)
+      do j=2,j1
+        do i=2,i1
+          wp(i,j,k) = wp(i,j,k)-(p(i,j,k)-p(i,j,k-1))/dzh(k)
+        end do
+      end do
     end do
-    end do
-    end do
-
-    !$acc update device(up, vp, wp)
 
     return
   end subroutine tderive
@@ -322,8 +333,11 @@ contains
     real(pois_r) :: z,ak,bk,bbk
     integer :: i, j, k
 
+    !$acc enter data copyin(a, b, c)
+
   ! Generate tridiagonal matrix
 
+    !$acc parallel loop default(present)
     do k=1,kmax
       ! SB fixed the coefficients
       a(k)=rhobh(k)  /(dzf(k)*dzh(k  ))
@@ -331,10 +345,12 @@ contains
       b(k)=-(a(k)+c(k))
     end do
 
+    !$acc serial default(present)
     b(1   )=b(1)+a(1)        ! -c(1)
     a(1   )=0.
     b(kmax)=b(kmax)+c(kmax)  ! -a(kmax)
     c(kmax)=0.
+    !$acc end serial
 
     ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     ! a(i) x(i-1) + b(i) x(i) + c(i) x(i+1) = d(i)
@@ -348,6 +364,8 @@ contains
     ! Upward sweep i=1
     ! c'(1) = c(1) / b(1)
     ! d'(1) = d(1) / b(1)
+
+    !$acc parallel loop collapse(2) default(present) private(z)
     do j=qs,qe
       do i=ps,pe
         z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
@@ -359,9 +377,11 @@ contains
     ! Upward sweep i=2..(n-1)
     ! c'(i) = c(i) / [ b(i) - c'(i-1) a(i) ]
     ! d'(i) = [ d(i) - d'(i-1) a(i) ] / [ b(i) - c'(i-1) a(i) ]
-    do k=2,kmax-1
-      do  j=qs,qe
-        do  i=ps,pe
+    !$acc parallel loop collapse(2) default(present) private(bbk, z)
+    do  j=qs,qe
+      do  i=ps,pe
+        !$acc loop seq
+        do k=2,kmax-1
           bbk      = b(k)+rhobf(k)*xyrt(i,j)
           z        = 1./(bbk-a(k)*d(i,j,k-1))
           d(i,j,k) = c(k)*z
@@ -372,14 +392,14 @@ contains
 
     ! Upward sweep i=n and backsubstitution i=n
     ! x(n) = d'(n)
-    ak = a(kmax)
-    bk = b(kmax)
+
+    !$acc parallel loop collapse(2) default(present) private(bbk, z)
     do j=qs,qe
       do i=ps,pe
-        bbk = bk + rhobf(kmax)*xyrt(i,j)
-        z        = bbk-ak*d(i,j,kmax-1)
+        bbk = b(kmax) + rhobf(kmax)*xyrt(i,j)
+        z        = bbk-a(kmax)*d(i,j,kmax-1)
         if(z/=0.) then
-          Fp(i,j,kmax) = (Fp(i,j,kmax)-ak*Fp(i,j,kmax-1))/z
+          Fp(i,j,kmax) = (Fp(i,j,kmax)-a(kmax)*Fp(i,j,kmax-1))/z
         else
           Fp(i,j,kmax) =0.
         end if
@@ -388,13 +408,52 @@ contains
 
     ! Backsubstitution i=n-1..1
     ! x(i) = d'(i) - c'(i) x(i+1)
-    do k=kmax-1,1,-1
-      do j=qs,qe
-        do i=ps,pe
+
+    !$acc parallel loop collapse(2) default(present)
+    do j=qs,qe
+      do i=ps,pe
+        !$acc loop seq
+        do k=kmax-1,1,-1
           Fp(i,j,k) = Fp(i,j,k)-d(i,j,k)*Fp(i,j,k+1)
         end do
       end do
     end do
+
+    !$acc exit data delete(a,b,c)
   end subroutine solmpj
+  
+  subroutine write_pointer(array)
+    implicit none
+    real, pointer, intent(in), dimension(:,:,:) :: array
+    integer :: i,j,k
+
+    do k=1, size(array, dim=3)
+      write(*,*) "k = ", k
+      do i=1, size(array, dim=1)
+        do j=1, size(array, dim=2)
+          write(*, ' (F10.4)', advance='no') array(i,j,k)
+        end do
+        write(*,*)
+      end do
+    end do
+  
+  end subroutine write_pointer
+
+  subroutine write_array(array)
+    implicit none
+    real, allocatable, intent(in), dimension(:,:,:) :: array
+    integer :: i,j,k
+
+    do k=1, size(array, dim=3)
+      write(*,*) "k = ", k
+      do i=1, size(array, dim=1)
+        do j=1, size(array, dim=2)
+          write(*, ' (F10.4)', advance='no') array(i,j,k)
+        end do
+        write(*,*)
+      end do
+    end do
+  
+  end subroutine write_array
 
 end module modpois

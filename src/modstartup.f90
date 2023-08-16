@@ -640,6 +640,8 @@ contains
       svs = svprof(1,:)
 
       call baseprofs ! call baseprofs before thermodynamics
+
+      !$acc set device_type(host)
       call boundary
       call thermodynamics
       call surface
@@ -653,6 +655,7 @@ contains
 
       call boundary
       call thermodynamics
+      !$acc set device_type(nvidia)
 
       ! save initial pressure profiles
       ! used for initialising radiation scheme at restart, to reproduce the same state

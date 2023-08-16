@@ -92,18 +92,20 @@ subroutine tstep_update
         courold = courtotmax
         pecletold = peclettot
         peclettotl=0.0
-        !$acc update self(um, vm, wm)
+        !$acc kernels default(present)
         do k=1,kmax
           courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
           wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
         end do
+        !$acc end kernels
+        !$acc update self(courtotl)
         call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
         do k=1,kmax
           courtotmax=max(courtotmax,courtot(k))
         enddo
         courtotmax=sqrt(courtotmax)
-        !$acc update self(ekm, ekh)
+        !$acc parallel loop default(present) reduction(max: peclettotl)
         do k=1,kmax
           ! limit by the larger of ekh, ekm. ekh is generally larger.
           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
@@ -135,17 +137,19 @@ subroutine tstep_update
     else
       if (ladaptive) then
         peclettotl = 1e-5
-        !$acc update self(um, vm, wm)
+        !$acc kernels default(present)
         do k=1,kmax
           courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
           (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
         end do
+        !$acc end kernels
+        !$acc update self(courtotl)
         call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
         do k=1,kmax
             courtotmax=max(courtotmax,sqrt(courtot(k)))
         enddo
-        !$acc update self(ekm, ekh)
+        !$acc parallel loop default(present) reduction(max: peclettotl)
         do k=1,kmax
           ! limit by the larger of ekh, ekm. ekh is generally larger.
           peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
