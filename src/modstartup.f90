@@ -655,7 +655,7 @@ contains
 
       call boundary
       call thermodynamics
-      !$acc set device_type(default)
+      !$acc set device_type(nvidia)
 
       ! save initial pressure profiles
       ! used for initialising radiation scheme at restart, to reproduce the same state
