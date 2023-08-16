@@ -100,9 +100,6 @@ contains
 
   end subroutine initgpu
 
-<<<<<<< HEAD
-end module modgpu
-=======
   !> Allocate reusable workspace for transposes and FFT
   subroutine allocate_workspace(nx, ny, nz)
     implicit none
@@ -114,6 +111,5 @@ end module modgpu
     !$acc enter data create(workspace)
   
   end subroutine allocate_workspace
->>>>>>> OpenACC-data
 #endif
 end module modgpu

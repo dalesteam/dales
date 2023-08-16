@@ -127,21 +127,9 @@ contains
     courxl = 0.0
     couryl = 0.0
     courzl = 0.0
-<<<<<<< HEAD
-    courtotl = 0.0
     !$acc end kernels
 
-    courx = 0.0
-    coury = 0.0
-    courz = 0.0
-    courtot = 0.0
-    
-    !$acc kernels default(present)
-=======
-    courz  = 0.0
-    courtot  = 0.0
     !$acc parallel loop copy(courxl, couryl, courzl, courtotl)
->>>>>>> OpenACC-data
     do k=1,kmax
       courxl(k)=maxval(abs(u0(2:i1,2:j1,k)))*dtmn/dx
       couryl(k)=maxval(abs(v0(2:i1,2:j1,k)))*dtmn/dy
@@ -149,9 +137,6 @@ contains
       courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
       w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*dtmn*dtmn
     end do
-    !$acc end kernels
-
-    !$acc update host(courxl, couryl, courzl, courtotl)
 
     call D_MPI_ALLREDUCE(courxl  ,courx  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(couryl  ,coury  ,kmax,MPI_MAX,comm3d,mpierr)
