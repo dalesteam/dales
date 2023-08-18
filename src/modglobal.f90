@@ -211,8 +211,8 @@ save
 
 
       real :: ijtot
-      real, allocatable :: dzf(:)         !<  thickness of full level
-      real, allocatable :: dzh(:)         !<  thickness of half level
+      real, allocatable :: dzf(:), dzfi(:) !<  thickness of full level, and inverse
+      real, allocatable :: dzh(:), dzhi(:) !<  thickness of half level, and inverse
       real, allocatable :: zh(:)          !<  height of half level [m]
       real, allocatable :: zf(:)          !<  height of full level [m]
       real :: xsize    = -1 !<  domain size in x-direction
@@ -381,8 +381,8 @@ contains
 
 
     ! Create the physical grid variables
-    allocate(dzf(k1))
-    allocate(dzh(k1))
+    allocate(dzf(k1), dzfi(k1))
+    allocate(dzh(k1), dzhi(k1))
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1),deltai(k1))
@@ -435,6 +435,9 @@ contains
     do k=2,k1
       dzh(k) = zf(k) - zf(k-1)
     end do
+
+    dzfi = 1.0 / dzf
+    dzhi = 1.0 / dzh
 
     do k=1,k1
 
@@ -496,7 +499,7 @@ contains
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    deallocate(dsv,dzf,dzh,zh,zf,delta,deltai)
+    deallocate(dsv,dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)

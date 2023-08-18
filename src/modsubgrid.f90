@@ -216,7 +216,7 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
-                          dxi,dyi,dzf,dzh
+                          dxi,dyi,dzf,dzfi,dzhi
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
   use modmpi,      only : excjs
@@ -241,7 +241,7 @@ contains
             strain2 =  ( &
               ((u0(i+1,j,k)-u0(i,j,k))   *dxi        )**2    + &
               ((v0(i,jp,k)-v0(i,j,k))    *dyi        )**2    + &
-              ((w0(i,j,kp)-w0(i,j,k))    /dzf(k)     )**2    )
+              ((w0(i,j,kp)-w0(i,j,k))    *dzfi(k)     )**2    )
 
             strain2 = strain2 + 0.5 * ( &
               ( 0.25*(w0(i+1,j,kp)-w0(i-1,j,kp))*dxi + &
@@ -266,17 +266,17 @@ contains
             strain2 =  ( &
               ((u0(i+1,j,k)-u0(i,j,k))   *dxi        )**2    + &
               ((v0(i,jp,k)-v0(i,j,k))    *dyi        )**2    + &
-              ((w0(i,j,kp)-w0(i,j,k))    /dzf(k)     )**2    )
+              ((w0(i,j,kp)-w0(i,j,k))    *dzfi(k)     )**2    )
 
             strain2 = strain2 + 0.125 * ( &
               ((w0(i,j,kp)-w0(i-1,j,kp))  *dxi     + &
-              (u0(i,j,kp)-u0(i,j,k))     / dzh(kp)  )**2    + &
+              (u0(i,j,kp)-u0(i,j,k))     * dzhi(kp)  )**2    + &
               ((w0(i,j,k)-w0(i-1,j,k))    *dxi     + &
-              (u0(i,j,k)-u0(i,j,km))     / dzh(k)   )**2    + &
+              (u0(i,j,k)-u0(i,j,km))     * dzhi(k)   )**2    + &
               ((w0(i+1,j,k)-w0(i,j,k))    *dxi     + &
-              (u0(i+1,j,k)-u0(i+1,j,km)) / dzh(k)   )**2    + &
+              (u0(i+1,j,k)-u0(i+1,j,km)) * dzhi(k)   )**2    + &
               ((w0(i+1,j,kp)-w0(i,j,kp))  *dxi     + &
-              (u0(i+1,j,kp)-u0(i+1,j,k)) / dzh(kp)  )**2    )
+              (u0(i+1,j,kp)-u0(i+1,j,k)) * dzhi(kp)  )**2    )
 
             strain2 = strain2 + 0.125 * ( &
               ((u0(i,jp,k)-u0(i,j,k))     *dyi     + &
@@ -289,13 +289,13 @@ contains
               (v0(i+1,jp,k)-v0(i,jp,k))  *dxi        )**2    )
 
             strain2 = strain2 + 0.125 * ( &
-              ((v0(i,j,kp)-v0(i,j,k))     / dzh(kp) + &
+              ((v0(i,j,kp)-v0(i,j,k))     * dzhi(kp) + &
               (w0(i,j,kp)-w0(i,jm,kp))   *dyi        )**2    + &
-              ((v0(i,j,k)-v0(i,j,km))     / dzh(k)+ &
+              ((v0(i,j,k)-v0(i,j,km))     * dzhi(k)+ &
               (w0(i,j,k)-w0(i,jm,k))     *dyi        )**2    + &
-              ((v0(i,jp,k)-v0(i,jp,km))   / dzh(k)+ &
+              ((v0(i,jp,k)-v0(i,jp,km))  * dzhi(k)+ &
               (w0(i,jp,k)-w0(i,j,k))     *dyi        )**2    + &
-              ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp) + &
+              ((v0(i,jp,kp)-v0(i,jp,k))   * dzhi(kp) + &
               (w0(i,jp,kp)-w0(i,j,kp))   *dyi        )**2    )
           end if
 
@@ -424,7 +424,7 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal,   only : i1,j1,kmax,dx,dy,dxi,dyi,dzf,dzh,grav,cu,cv,deltai
+  use modglobal,   only : i1,j1,kmax,dxi,dyi,dzfi,dzhi,grav,cu,cv,deltai
   use modfields,   only : u0,v0,w0,e120,e12p,dthvdz,thvf
   use modsurfdata,  only : dudz,dvdz,ustar,thlflux
   use modsubgriddata, only: sgs_surface_fix
@@ -444,39 +444,39 @@ contains
     jm=j-1
 
     tdef2 = 2. * ( &
-             ((u0(i+1,j,k)-u0(i,j,k))   /dx         )**2    + &
-             ((v0(i,jp,k)-v0(i,j,k))    /dy         )**2    + &
-             ((w0(i,j,kp)-w0(i,j,k))    /dzf(k)     )**2    )
+             ((u0(i+1,j,k)-u0(i,j,k))   *dxi         )**2    + &
+             ((v0(i,jp,k)-v0(i,j,k))    *dyi         )**2    + &
+             ((w0(i,j,kp)-w0(i,j,k))    *dzfi(k)     )**2    )
 
     tdef2 = tdef2 + 0.25 * ( &
-              ((w0(i,j,kp)-w0(i-1,j,kp))  / dx     + &
-               (u0(i,j,kp)-u0(i,j,k))     / dzh(kp)  )**2    + &
-              ((w0(i,j,k)-w0(i-1,j,k))    / dx     + &
-               (u0(i,j,k)-u0(i,j,km))     / dzh(k)   )**2    + &
-              ((w0(i+1,j,k)-w0(i,j,k))    / dx     + &
-               (u0(i+1,j,k)-u0(i+1,j,km)) / dzh(k)   )**2    + &
-              ((w0(i+1,j,kp)-w0(i,j,kp))  / dx     + &
-               (u0(i+1,j,kp)-u0(i+1,j,k)) / dzh(kp)  )**2    )
+              ((w0(i,j,kp)-w0(i-1,j,kp))  * dxi     + &
+               (u0(i,j,kp)-u0(i,j,k))     * dzhi(kp)  )**2    + &
+              ((w0(i,j,k)-w0(i-1,j,k))    * dxi     + &
+               (u0(i,j,k)-u0(i,j,km))     * dzhi(k)   )**2    + &
+              ((w0(i+1,j,k)-w0(i,j,k))    * dxi     + &
+               (u0(i+1,j,k)-u0(i+1,j,km)) * dzhi(k)   )**2    + &
+              ((w0(i+1,j,kp)-w0(i,j,kp))  * dxi     + &
+               (u0(i+1,j,kp)-u0(i+1,j,k)) * dzhi(kp)  )**2    )
 
     tdef2 = tdef2 + 0.25 * ( &
-              ((u0(i,jp,k)-u0(i,j,k))     / dy     + &
-               (v0(i,jp,k)-v0(i-1,jp,k))  / dx        )**2    + &
-              ((u0(i,j,k)-u0(i,jm,k))     / dy     + &
-               (v0(i,j,k)-v0(i-1,j,k))    / dx        )**2    + &
-              ((u0(i+1,j,k)-u0(i+1,jm,k)) / dy     + &
-               (v0(i+1,j,k)-v0(i,j,k))    / dx        )**2    + &
-              ((u0(i+1,jp,k)-u0(i+1,j,k)) / dy     + &
-               (v0(i+1,jp,k)-v0(i,jp,k))  / dx        )**2    )
+              ((u0(i,jp,k)-u0(i,j,k))     * dyi     + &
+               (v0(i,jp,k)-v0(i-1,jp,k))  * dxi        )**2    + &
+              ((u0(i,j,k)-u0(i,jm,k))     * dyi     + &
+               (v0(i,j,k)-v0(i-1,j,k))    * dxi        )**2    + &
+              ((u0(i+1,j,k)-u0(i+1,jm,k)) * dyi     + &
+               (v0(i+1,j,k)-v0(i,j,k))    * dxi        )**2    + &
+              ((u0(i+1,jp,k)-u0(i+1,j,k)) * dyi     + &
+               (v0(i+1,jp,k)-v0(i,jp,k))  * dxi        )**2    )
 
     tdef2 = tdef2 + 0.25 * ( &
-              ((v0(i,j,kp)-v0(i,j,k))     / dzh(kp) + &
-               (w0(i,j,kp)-w0(i,jm,kp))   / dy        )**2    + &
-              ((v0(i,j,k)-v0(i,j,km))     / dzh(k)+ &
-               (w0(i,j,k)-w0(i,jm,k))     / dy        )**2    + &
-              ((v0(i,jp,k)-v0(i,jp,km))   / dzh(k)+ &
-               (w0(i,jp,k)-w0(i,j,k))     / dy        )**2    + &
-              ((v0(i,jp,kp)-v0(i,jp,k))   / dzh(kp) + &
-               (w0(i,jp,kp)-w0(i,j,kp))   / dy        )**2    )
+              ((v0(i,j,kp)-v0(i,j,k))     * dzhi(kp) + &
+               (w0(i,j,kp)-w0(i,jm,kp))   * dyi        )**2    + &
+              ((v0(i,j,k)-v0(i,j,km))     * dzhi(k)+ &
+               (w0(i,j,k)-w0(i,jm,k))     * dyi        )**2    + &
+              ((v0(i,jp,k)-v0(i,jp,km))   * dzhi(k)+ &
+               (w0(i,jp,k)-w0(i,j,k))     * dyi        )**2    + &
+              ((v0(i,jp,kp)-v0(i,jp,k))   * dzhi(kp) + &
+               (w0(i,jp,kp)-w0(i,j,kp))   * dyi        )**2    )
 
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
@@ -504,7 +504,7 @@ contains
     tdef2 =  2. * ( &
             ((u0(i+1,j,1)-u0(i,j,1))*dxi)**2 &
           + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
-          + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
+          + ((w0(i,j,2)-w0(i,j,1))*dzfi(1))**2   )
 
     if (sgs_surface_fix) then
           ! Use known surface flux and exchange coefficient to derive 
@@ -571,7 +571,7 @@ contains
 
   subroutine diffc (a_in,a_out,flux)
 
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dzfi,dy2i,dzhi
     use modfields, only : rhobf,rhobh
     implicit none
 
@@ -599,10 +599,10 @@ contains
                     -(ekh(i,j,k)+ekh(i,jm,k)) *(a_in(i,j,k)-a_in(i,jm,k)) )*dy2i * anis_fac(k) &
                   + &
                   ( rhobh(kp)/rhobf(k) * (dzf(kp)*ekh(i,j,k) + dzf(k)*ekh(i,j,kp)) &
-                    *  (a_in(i,j,kp)-a_in(i,j,k)) / dzh(kp)**2 &
+                    *  (a_in(i,j,kp)-a_in(i,j,k)) * dzhi(kp)**2 &
                     - &
                     rhobh(k)/rhobf(k) * (dzf(km)*ekh(i,j,k) + dzf(k)*ekh(i,j,km)) &
-                    *  (a_in(i,j,k)-a_in(i,j,km)) / dzh(k)**2           )/dzf(k) &
+                    *  (a_in(i,j,k)-a_in(i,j,km)) * dzhi(k)**2           )*dzfi(k) &
                             )
 
         end do
@@ -621,8 +621,8 @@ contains
                   -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1)-a_in(i,j-1,1)) )*dy2i * anis_fac(1) &
                   + &
                 ( rhobh(2)/rhobf(1) * (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
-                  *  (a_in(i,j,2)-a_in(i,j,1)) / dzh(2)**2 &
-                  + rhobh(1)/rhobf(1)*flux(i,j) *2.                        )/dzf(1) &
+                  *  (a_in(i,j,2)-a_in(i,j,1)) * dzhi(2)**2 &
+                  + rhobh(1)/rhobf(1)*flux(i,j) *2.                        )*dzfi(1) &
                           )
 
       end do
@@ -634,7 +634,7 @@ contains
 
   subroutine diffe(a_out)
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx2i,dzf,dy2i,dzh
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx2i,dzf,dzfi,dy2i,dzhi
     use modfields, only : e120,rhobf,rhobh
     implicit none
 
@@ -660,9 +660,9 @@ contains
               -(ekm(i,j,k)+ekm(i,jm,k)) *(e120(i,j,k)-e120(i,jm,k)) )*dy2i * anis_fac(k) &
                   + &
               (rhobh(kp)/rhobf(k) * (dzf(kp)*ekm(i,j,k) + dzf(k)*ekm(i,j,kp)) &
-              *(e120(i,j,kp)-e120(i,j,k)) / dzh(kp)**2 &
+              *(e120(i,j,kp)-e120(i,j,k)) * dzhi(kp)**2 &
               - rhobh(k)/rhobf(k) * (dzf(km)*ekm(i,j,k) + dzf(k)*ekm(i,j,km)) &
-              *(e120(i,j,k)-e120(i,j,km)) / dzh(k)**2        )/dzf(k) &
+              *(e120(i,j,k)-e120(i,j,km)) * dzhi(k)**2        )*dzfi(k) &
                             )
 
         end do
@@ -684,7 +684,7 @@ contains
               -(ekm(i,j,1)+ekm(i,j-1,1))*(e120(i,j,1)-e120(i,j-1,1)) )*dy2i * anis_fac(1) &
             + &
               ( rhobh(2)/rhobf(1) * (dzf(2)*ekm(i,j,1) + dzf(1)*ekm(i,j,2)) &
-              *  (e120(i,j,2)-e120(i,j,1)) / dzh(2)**2              )/dzf(1)
+              *  (e120(i,j,2)-e120(i,j,1)) * dzhi(2)**2              )*dzfi(1)
 
       end do
     end do
@@ -694,7 +694,7 @@ contains
 
   subroutine diffu (a_out)
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dy,dyi,dzh, cu,cv
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dzfi,dyi,dzhi,cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
@@ -716,12 +716,12 @@ contains
         do i=2,i1
 
           emom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
-                    ( 4.   * dzh(k) )
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) * &
+                    ( .25   * dzhi(k) )
 
           emop = ( dzf(kp) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,kp) + ekm(i-1,j,kp) ) ) / &
-                    ( 4.   * dzh(kp) )
+                      dzf(k)  * ( ekm(i,j,kp) + ekm(i-1,j,kp) ) ) * &
+                    ( .25   * dzhi(kp) )
 
           empo = 0.25 * ( &
                   ekm(i,j,k)+ekm(i,jp,k)+ekm(i-1,jp,k)+ekm(i-1,j,k)  )
@@ -738,12 +738,12 @@ contains
                   ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
                             +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
                     -emmo * ( (u0(i,j,k)-u0(i,jm,k))   *dyi &
-                            +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) / dy * anis_fac(k) &
+                            +(v0(i,j,k)-v0(i-1,j,k))  *dxi)   ) * dyi * anis_fac(k) &
                   + &
-                  ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   /dzh(kp) &
+                  ( rhobh(kp)/rhobf(k) * emop * ( (u0(i,j,kp)-u0(i,j,k))   *dzhi(kp) &
                             +(w0(i,j,kp)-w0(i-1,j,kp))*dxi) &
-                    - rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k)-u0(i,j,km))   /dzh(k) &
-                            +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) /dzf(k)
+                    - rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k)-u0(i,j,km))   *dzhi(k) &
+                            +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) *dzfi(k)
 
         end do
       end do
@@ -766,8 +766,8 @@ contains
               ekm(i,j,1)+ekm(i,jm,1)+ekm(i-1,jm,1)+ekm(i-1,j,1)  )
 
         emop = ( dzf(2) * ( ekm(i,j,1) + ekm(i-1,j,1) )  + &
-                    dzf(1) * ( ekm(i,j,2) + ekm(i-1,j,2) ) ) / &
-                  ( 4.   * dzh(2) )
+                    dzf(1) * ( ekm(i,j,2) + ekm(i-1,j,2) ) ) * &
+                  ( .25   * dzhi(2) )
 
 
         ucu   = 0.5*(u0(i,j,1)+u0(i+1,j,1))+cu
@@ -791,11 +791,11 @@ contains
               ( empo * ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
                         +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
               -emmo * ( (u0(i,j,1)-u0(i,jm,1))   *dyi &
-                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) / dy * anis_fac(1) &
+                        +(v0(i,j,1)-v0(i-1,j,1))  *dxi)   ) * dyi * anis_fac(1) &
                + &
-              ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
+              ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    *dzhi(2) &
                         +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
-                -rhobh(1)/rhobf(1)*fu   ) / dzf(1)
+                -rhobh(1)/rhobf(1)*fu   ) * dzfi(1)
 
       end do
     end do
@@ -805,7 +805,7 @@ contains
 
   subroutine diffv (a_out)
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dzf,dyi,dy2i,dzh, cu,cv
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dzf,dzfi,dyi,dy2i,dzhi,cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
 
@@ -827,12 +827,12 @@ contains
         do i=2,i1
 
           eomm = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,jm,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,jm,km) ) ) / &
-                    ( 4.   * dzh(k) )
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i,jm,km) ) ) * &
+                    ( .25   * dzhi(k) )
 
           eomp = ( dzf(kp) * ( ekm(i,j,k)  + ekm(i,jm,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,kp) + ekm(i,jm,kp) ) ) / &
-                    ( 4.   * dzh(kp) )
+                      dzf(k)  * ( ekm(i,j,kp) + ekm(i,jm,kp) ) ) * &
+                    ( .25   * dzhi(kp) )
 
           emmo = 0.25  * ( &
                 ekm(i,j,k)+ekm(i,jm,k)+ekm(i-1,jm,k)+ekm(i-1,j,k)  )
@@ -846,15 +846,15 @@ contains
               ( epmo * ( (v0(i+1,j,k)-v0(i,j,k))   *dxi &
                         +(u0(i+1,j,k)-u0(i+1,jm,k))*dyi) &
                 -emmo * ( (v0(i,j,k)-v0(i-1,j,k))   *dxi &
-                        +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) / dx * anis_fac(k) &
+                        +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) * dxi * anis_fac(k) &
                 + &
               (ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
               -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i * anis_fac(k) &
                 + &
-              ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    /dzh(kp) &
+              ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    *dzhi(kp) &
                         +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
-                - rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k)-v0(i,j,km))    /dzh(k) &
-                        +(w0(i,j,k)-w0(i,jm,k))    *dyi)   ) / dzf(k)
+                - rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k)-v0(i,j,km))    *dzhi(k) &
+                        +(w0(i,j,k)-w0(i,jm,k))    *dyi)   ) * dzfi(k)
 
         end do
       end do
@@ -876,8 +876,8 @@ contains
               ekm(i,j,1)+ekm(i,jm,1)+ekm(i+1,jm,1)+ekm(i+1,j,1)  )
 
         eomp = ( dzf(2) * ( ekm(i,j,1) + ekm(i,jm,1)  )  + &
-                    dzf(1) * ( ekm(i,j,2) + ekm(i,jm,2) ) ) / &
-                  ( 4.   * dzh(2) )
+                    dzf(1) * ( ekm(i,j,2) + ekm(i,jm,2) ) ) * &
+                  ( .25   * dzhi(2) )
 
         vcv   = 0.5*(v0(i,j,1)+v0(i,j+1,1))+cv
         if(vcv >= 0.) then
@@ -896,14 +896,14 @@ contains
                   ( epmo * ( (v0(i+1,j,1)-v0(i,j,1))   *dxi &
                             +(u0(i+1,j,1)-u0(i+1,jm,1))*dyi) &
                     -emmo * ( (v0(i,j,1)-v0(i-1,j,1))   *dxi &
-                            +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) / dx * anis_fac(1) &
+                            +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) * dxi * anis_fac(1) &
                   + &
                 ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
                   -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i * anis_fac(1) &
                   + &
-                ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
+                ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     *dzhi(2) &
                           +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
-                  -rhobh(1)/rhobf(1)*fv   ) / dzf(1)
+                  -rhobh(1)/rhobf(1)*fv   ) * dzfi(1)
 
       end do
     end do
@@ -914,7 +914,7 @@ contains
 
   subroutine diffw(a_out)
 
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,dx,dxi,dy,dyi,dzf,dzh
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf,dzfi,dzhi
     use modfields, only : u0,v0,w0,rhobh,rhobf
     implicit none
 
@@ -933,37 +933,37 @@ contains
         do i=2,i1
 
           emom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
-                    ( 4.   * dzh(k) )
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) * &
+                    ( .25   * dzhi(k) )
 
           eomm = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,jm,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,jm,km) ) ) / &
-                    ( 4.   * dzh(k) )
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i,jm,km) ) ) * &
+                    ( .25   * dzhi(k) )
 
           eopm = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,jp,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,jp,km) ) ) / &
-                    ( 4.   * dzh(k) )
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i,jp,km) ) ) * &
+                    ( .25   * dzhi(k) )
 
           epom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i+1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i+1,j,km) ) ) / &
-                    ( 4.   * dzh(k) )
+                      dzf(k)  * ( ekm(i,j,km) + ekm(i+1,j,km) ) ) * &
+                    ( .25   * dzhi(k) )
 
 
           a_out(i,j,k) = a_out(i,j,k) &
                 + &
                   ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
-                            +(u0(i+1,j,k)-u0(i+1,j,km)) /dzh(k) ) &
+                            +(u0(i+1,j,k)-u0(i+1,j,km)) *dzhi(k) ) &
                     -emom * ( (w0(i,j,k)-w0(i-1,j,k))    *dxi &
-                            +(u0(i,j,k)-u0(i,j,km))     /dzh(k) ))/dx * anis_fac(k) &
+                            +(u0(i,j,k)-u0(i,j,km))     *dzhi(k) ))*dxi * anis_fac(k) &
                 + &
                   ( eopm * ( (w0(i,jp,k)-w0(i,j,k))     *dyi &
-                            +(v0(i,jp,k)-v0(i,jp,km))   /dzh(k) ) &
+                            +(v0(i,jp,k)-v0(i,jp,km))   *dzhi(k) ) &
                     -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
-                            +(v0(i,j,k)-v0(i,j,km))     /dzh(k) ))/dy * anis_fac(k) &
+                            +(v0(i,j,k)-v0(i,j,km))     *dzhi(k) ))*dyi * anis_fac(k) &
                 + (1./rhobh(k))*&
-                  ( rhobf(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) /dzf(k) &
-                  - rhobf(km) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) /dzf(km) ) * 2. &
-                                                              / dzh(k)
+                  ( rhobf(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) *dzfi(k) &
+                  - rhobf(km) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) *dzfi(km) ) * 2. &
+                                                              * dzhi(k)
 
         end do
       end do
