@@ -455,7 +455,7 @@ contains
     end if
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
   end subroutine genstat
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
@@ -759,17 +759,6 @@ contains
           ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
 
 
-      !Higher order moments
-      u2avl    (1) = u2avl    (1) + (um (i,j,1)+cu - umav(1))**2
-      v2avl    (1) = v2avl    (1) + (vm (i,j,1)+cv - vmav(1))**2
-      w2avl    (1) = w2avl    (1) + (wm  (i,j,1)**2)
-      w3avl    (1) = w3avl    (1) + (wm  (i,j,1)**3)
-      w2subavl (1) = w2subavl (1) + (e12m(i,j,1)**2)
-      qt2avl   (1) = qt2avl   (1) + (qtm (i,j,1) - qtmav (1))**2
-      thl2avl  (1) = thl2avl  (1) + (thlm(i,j,1) - thlmav(1))**2
-      thv2avl  (1) = thv2avl  (1) + (thv0(i,j,1) - thvmav(1))**2
-      th2avl   (1) = th2avl   (1) + (thlm(i,j,1) - thmav (1))**2
-      ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
 !       qs2avl   (1) = qs2avl   (1) + qs0**2
 !       qsavl    (1) = qsavl    (1) + qs0
 !       rhavl    (1) = rhavl    (1) + qtm (i,j,1)/qs0
@@ -783,16 +772,6 @@ contains
       end do
     end do
     end do
-    
-    !$acc parallel loop collapse(3) reduction(+: test)
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          test(k) = test(k) + (um(i,j,k) + cu - umav(1))**2
-        end do 
-      end do
-    end do
-
   !      --------------------------
   !      4.2 higher levels
   !      --------------------------
@@ -891,17 +870,6 @@ contains
     !     -----------------------------------------------------------
     !     calculate various moments
     !     -----------------------------------------------------------
-
-        u2avl    (k) = u2avl    (k) + (um (i,j,k)+cu - umav(k))**2
-        v2avl    (k) = v2avl    (k) + (vm (i,j,k)+cv - vmav(k))**2
-        w2avl    (k) = w2avl    (k) + (wm  (i,j,k)**2)
-        w3avl    (k) = w3avl    (k) + (wm  (i,j,k)**3)
-        w2subavl (k) = w2subavl (k) + (e12m(i,j,k)**2)
-        qt2avl   (k) = qt2avl   (k) + (qtm (i,j,k) - qtmav (k))**2
-        thl2avl  (k) = thl2avl  (k) + (thlm(i,j,k) - thlmav(k))**2
-        thv2avl  (k) = thv2avl  (k) + (thv0(i,j,k) - thvmav(k))**2
-        th2avl   (k) = th2avl   (k) + (thlm(i,j,k) - thmav (k))**2 !thlm, no thm !?!
-        ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
 !         qs2avl   (k) = qs2avl   (k) + qs0**2
 !         qsavl    (k) = qsavl    (k) + qs0
 !         rhavl    (k) = rhavl    (k) + qtm (i,j,k)/qs0
@@ -913,6 +881,16 @@ contains
     end do
     end do
   !     -------------------
+    call calc_moment(u2avl, um, 2, 1, kmax, 2, i1, 2, j1, umav, cu)
+    call calc_moment(v2avl, vm, 2, 1, kmax, 2, i1, 2, j1, vmav, cv)
+    call calc_moment(w2avl, wm, 2, 1, kmax, 2, i1, 2, j1)
+    call calc_moment(w3avl, wm, 3, 1, kmax, 2, i1, 2, j1)
+    call calc_moment(w2subavl, e12m, 2, 1, kmax, 2, i1, 2, j1)
+    call calc_moment(qt2avl, qtm, 2, 1, kmax, 2, i1, 2, j1, qtmav)
+    call calc_moment(thl2avl, thlm, 2, 1, kmax, 2, i1, 2, j1, thlmav)
+    call calc_moment(thv2avl, thv0, 2, 1, kmax, 2, i1, 2, j1, thvmav)
+    call calc_moment(th2avl, thlm, 2, 1, kmax, 2, i1, 2, j1, thmav)
+    call calc_moment(ql2avl, ql0, 2, 1, kmax, 2, i1, 2, j1, qlmav)
 
     do n=1,nsv
       do k=2,kmax
@@ -1079,16 +1057,6 @@ contains
       uwtot    = uwres + uwsub
       vwtot    = vwres + vwsub
 
-      u2av     = u2av     /ijtot
-      v2av     = v2av     /ijtot
-      w2av     = w2av     /ijtot
-      w3av     = w3av     /ijtot
-      w2subav  = w2subav  /ijtot
-      qt2av    = qt2av    /ijtot
-      thl2av   = thl2av   /ijtot
-      thv2av   = thv2av   /ijtot
-      th2av    = th2av    /ijtot
-      ql2av    = ql2av    /ijtot
 !       qs2av    = qs2av    /ijtot
 !       qsav     = qsav     /ijtot
 !       qs2av    = qs2av    - qsav**2
@@ -1096,11 +1064,6 @@ contains
 !       rav      = rav      /ijtot
 !       r2av     = r2av     /ijtot
 !       r3av     = r3av     /ijtot
-      
-    if (myid == 0) then
-      print *, "Original:",u2av
-      print *, "Better:", test/ijtot
-    end if
 
 
         sv2av = sv2av/ijtot
@@ -1230,6 +1193,45 @@ contains
     deallocate(thvmav)
     deallocate(sv0h)
   end subroutine do_genstat
+
+  subroutine calc_moment(prof, var, n, kb, ke, ib, ie, jb, je, mean_in, c_in)
+    use modglobal, only: ijtot
+
+    implicit none
+
+    integer, intent(in) :: kb, ke, ib, ie, jb, je
+    integer, intent(in) :: n
+    real(field_r), intent(out) :: prof(kb:ke)
+    real(field_r), intent(in) :: var(:, :, :)
+    real(field_r), optional, intent(in) :: mean_in(kb:ke)
+    real(field_r), optional, intent(in) :: c_in !< Translational velocity
+    real(field_r) :: mean(kb:ke)
+    real(field_r) :: c 
+    integer :: i, j, k
+
+    if (.not.present(c_in)) then
+      c = 0.
+    else
+      c = c_in
+    end if
+
+    if (.not.present(mean_in)) then
+      mean = 0.
+    else
+      mean = mean_in
+    end if
+    
+    do k = kb, ke
+      do j = jb, je
+        do i = ib, ie
+          prof(k) = prof(k) + (var(i, j, k) + c - mean(k))**n
+        end do
+      end do 
+    end do
+
+    prof = prof / ijtot
+
+  end subroutine calc_moment
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writestat
