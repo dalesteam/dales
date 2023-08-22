@@ -701,7 +701,7 @@ contains
   end subroutine excjs_logical
 
 
-  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
+  subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
     implicit none
 
     integer           :: ks,kf
@@ -711,7 +711,6 @@ contains
     real(real32)      :: averl(ks:kf)
     real(real32)      :: avers(ks:kf)
     integer           :: k
-    logical, optional :: on_gpu
 
     !$acc kernels default(present)
     averl       = 0.
@@ -734,7 +733,7 @@ contains
     return
   end subroutine slabsum_real32
 
-  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes,on_gpu)
+  subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
     implicit none
 
     integer           :: ks,kf
@@ -744,7 +743,6 @@ contains
     real(real64)      :: averl(ks:kf)
     real(real64)      :: avers(ks:kf)
     integer           :: k
-    logical, optional :: on_gpu
 
     !$acc enter data copyin(averl, avers)
  
