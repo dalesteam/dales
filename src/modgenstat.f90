@@ -703,184 +703,165 @@ contains
     thvmav = thvmav/ijtot
 
     cszav  = csz
-  !
 
     do n=1,nsv
       call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     enddo
     svmav = svmav/ijtot
+
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
-!         4.1 special treatment for lowest level
+  !        4.1 special treatment for lowest level
   !     -------------------------------------------------
 
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
     qsat  = qts - qls
+
     if (qls< eps1) then  ! TH: Should always be true
-      c1  = 1.+(rv/rd-1)*qts
-      c2  = (rv/rd-1)
+      c1 = 1.+(rv/rd-1)*qts
+      c2 = (rv/rd-1)
     else
-      c1    = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) &
-                /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
-      c2    = c1*rlv/(tsurf*cp)-1.
+      c1 = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) &
+           / (1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
+      c2 = c1*rlv/(tsurf*cp)-1.
     end if
-    den   = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
-    cthl  = (exnh(1)*cp/rlv)*((1-den)/den)
-    cqt   = 1./den
-    do j=2,j1
-    do i=2,i1
-      qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
-  !     thv(1) = thlm(i,j,1) * (1.+(rv/rd-1)*qtm(i,j,1))
 
-      wthlsubl(1) = wthlsubl(1) + thlflux(i,j)
-      wqtsubl(1) = wqtsubl(1) + qtflux (i,j)
-      wqlsubl(1) = 0
-      wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+    den = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
+    cthl = (exnh(1)*cp/rlv)*((1-den)/den)
+    cqt = 1./den
 
-      !Momentum flux
-      if (abs(um(i,j,1)+cu)<eps1) then
-        upcu = sign(eps1,um(i,j,1)+cu)
-      else
-        upcu = um(i,j,1)+cu
-      end if
-      uwsubl(1) = uwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
-                upcu/sqrt(upcu**2  + &
-          ((vm(i,j,1)+vm(i-1,j,1)+vm(i,j+1,1)+vm(i-1,j+1,1))/4.+cv)**2)
+    do j = 2, j1
+      do i = 2, i1
+        qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
+        wthlsubl(1) = wthlsubl(1) + thlflux(i,j)
+        wqtsubl(1) = wqtsubl(1) + qtflux (i,j)
+        wqlsubl(1) = 0
+        wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
 
-      if (abs(vm(i,j,1)+cv)<eps1) then
-        vpcv = sign(eps1,vm(i,j,1)+cv)
-      else
-        vpcv = vm(i,j,1)+cv
-      end if
-      vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
-                vpcv/sqrt(vpcv**2  + &
-          ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
+        !Momentum flux
+        upcu = um(i, j, 1) + cu
+        upcu = sign(1., upcu) * max(abs(upcu), eps1)
 
+        uwsubl(1) = uwsubl(1) - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
+                    * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
 
-!       qs2avl   (1) = qs2avl   (1) + qs0**2
-!       qsavl    (1) = qsavl    (1) + qs0
-!       rhavl    (1) = rhavl    (1) + qtm (i,j,1)/qs0
-!       ravl     (1) = ravl     (1) + ((qt0(i,j,1) - qs0))
-!       r2avl    (1) = r2avl    (1) + ((qt0(i,j,1) - qs0)**2)
-!       r3avl    (1) = r3avl    (1) + ((qt0(i,j,1) - qs0)**3)
+        vpcv = vm(i, j, 1) + cv
+        vpcv = sign(1., vpcv) * max(abs(vpcv), eps1)
 
-      do n=1,nsv
+        vwsubl(1) = vwsubl(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
+                    * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
+      end do
+    end do
+
+    ! Scalars
+    do n = 1, nsv
+      do j = 2, j1
+        do i = 2, i1
         wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
         sv2avl(1,n)  = sv2avl(1,n) + (svm(i,j,1,n)-svmav(1,n))**2
       end do
     end do
     end do
+
   !      --------------------------
   !      4.2 higher levels
   !      --------------------------
 
-    do j=2,j1
-    do i=2,i1
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
 
-  !     --------------------------------------------------------
-  !      Calculate half level fields for thl and qt consistent
-  !      with the used advection scheme ( kappa or cent. diff.)
-  !     ---------------
+  !       --------------------------------------------------------
+  !        Calculate half level fields for thl and qt consistent
+  !        with the used advection scheme ( kappa or cent. diff.)
+  !       ---------------
 
-  !     --------------------------------------------------------
-
-      do k=2,kmax
-        km = k-1
-
-
+  !       --------------------------------------------------------
     !     ------------------------------------------------------
     !     calculate ql and thv at time t0 at full and half level
     !      ----------------------------------------------------
-        qlhavl(k) = qlhavl(k)  + ql0h(i,j,k)
+          qlhavl(k) = qlhavl(k)  + ql0h(i,j,k)
+    !       -----------------------------------------------------------
+    !       calculate prefactors for subgrid wthv and wql fluxes
+    !        at half levels
+    !       -----------------------------------------------------------
+          qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
+          t0h   =  exnh(k)*thl0h(i,j,k) + (rlv/cp)*ql0h(i,j,k)
 
-    !     -----------------------------------------------------------
-    !     calculate prefactors for subgrid wthv and wql fluxes
-    !      at half levels
-    !     -----------------------------------------------------------
-        qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
-        t0h   =  exnh(k)*thl0h(i,j,k) + (rlv/cp)*ql0h(i,j,k)
+          den   = 1. + (rlv**2)*qs0h/(rv*cp*(t0h**2))
+          cthl  = (exnh(k)*cp/rlv)*((1-den)/den)
+          cqt   =  (1./den)
 
-        den   = 1. + (rlv**2)*qs0h/(rv*cp*(t0h**2))
-        cthl  = (exnh(k)*cp/rlv)*((1-den)/den)
-        cqt   =  (1./den)
-        if (ql0h(i,j,k)>0) then
-          c1    = (1.-qt0h(i,j,k)+rv/rd*qs0h &
-                  * (1.+rd/rv*rlv/(rd*t0h)))/den
-          c2    =  c1*rlv/(t0h*cp)-1.
-        else
-          c1 = 1. + (rv/rd-1)*qt0h(i,j,k)
-          c2 = (rv/rd-1)
-        end if
+          ! TODO: fix the branching here
+          if (ql0h(i,j,k)>0) then
+            c1    = (1.-qt0h(i,j,k)+rv/rd*qs0h &
+                    * (1.+rd/rv*rlv/(rd*t0h)))/den
+            c2    =  c1*rlv/(t0h*cp)-1.
+          else
+            c1 = 1. + (rv/rd-1)*qt0h(i,j,k)
+            c2 = (rv/rd-1)
+          end if
 
-    !     -----------------------------------------------------------
-    !     calculate resolved and subgrid fluxes at half levels
-    !     -----------------------------------------------------------
+    !       -----------------------------------------------------------
+    !       calculate resolved and subgrid fluxes at half levels
+    !       -----------------------------------------------------------
 
-        ekhalf  = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-        euhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
-                    ( 4.   * dzh(k) )
-        evhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) ) ) / &
-                    ( 4.   * dzh(k) )
+          ekhalf  = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+          euhalf = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
+                          dzf(k)  * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) / &
+                      ( 4.   * dzh(k) )
+          evhalf = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
+                          dzf(k)  * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) / &
+                      ( 4.   * dzh(k) )
 
-        wthls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
-        wthlr    = w0(i,j,k)*thl0h(i,j,k)
+          wthls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,k-1))/dzh(k)
+          wthlr    = w0(i,j,k)*thl0h(i,j,k)
 
-        wqts    = -ekhalf*(qt0(i,j,k)-qt0(i,j,km))/dzh(k)
-        wqtr    = w0(i,j,k)*qt0h(i,j,k)
+          wqts    = -ekhalf*(qt0(i,j,k)-qt0(i,j,k-1))/dzh(k)
+          wqtr    = w0(i,j,k)*qt0h(i,j,k)
 
-        wqls    = cthl*wthls+ cqt*wqts
-        wqlr    = w0(i,j,k)*ql0h(i,j,k)
+          wqls    = cthl*wthls+ cqt*wqts
+          wqlr    = w0(i,j,k)*ql0h(i,j,k)
 
-        wthvs    = c1*wthls + c2*thl0h(i,j,k)*wqts
-        wthvr    = w0(i,j,k)*thv0h(i,j,k)
+          wthvs    = c1*wthls + c2*thl0h(i,j,k)*wqts
+          wthvr    = w0(i,j,k)*thv0h(i,j,k)
 
-        uwr     = (w0(i,j,k)+w0(i-1,j,k)) &
-                  *((u0(i,j,k-1)+cu)*dzf(k)+(u0(i,j,k)+cu)*dzf(k-1))/(4*dzh(k))
-        vwr     = (w0(i,j,k)+w0(i,j-1,k)) &
-                  *((v0(i,j,k-1)+cv)*dzf(k)+(v0(i,j,k)+cv)*dzf(k-1))/(4*dzh(k))
-        uws     = -euhalf &
-                  *((u0(i,j,k)-u0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i-1,j,k))*dxi)
-        vws     = -evhalf &
-                  *((v0(i,j,k)-v0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i,j-1,k))*dyi)
+          uwr     = (w0(i,j,k)+w0(i-1,j,k)) &
+                    *((u0(i,j,k-1)+cu)*dzf(k)+(u0(i,j,k)+cu)*dzf(k-1))/(4*dzh(k))
+          vwr     = (w0(i,j,k)+w0(i,j-1,k)) &
+                    *((v0(i,j,k-1)+cv)*dzf(k)+(v0(i,j,k)+cv)*dzf(k-1))/(4*dzh(k))
+          uws     = -euhalf &
+                    *((u0(i,j,k)-u0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i-1,j,k))*dxi)
+          vws     = -evhalf &
+                    *((v0(i,j,k)-v0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i,j-1,k))*dyi)
 
 
-        if (ql0h(i,j,k)>0) then
-          wqlsubl(k) = wqlsubl(k) + wqls
-        end if
+          if (ql0h(i,j,k)>0) then
+            wqlsubl(k) = wqlsubl(k) + wqls
+          end if
 
-        wqlresl(k) = wqlresl(k) + wqlr
+          wqlresl(k) = wqlresl(k) + wqlr
 
-        wthlsubl(k) = wthlsubl(k) + wthls
-        wthlresl(k) = wthlresl(k) + wthlr
+          wthlsubl(k) = wthlsubl(k) + wthls
+          wthlresl(k) = wthlresl(k) + wthlr
 
-        wthvsubl(k) = wthvsubl(k) + wthvs
-        wthvresl(k) = wthvresl(k) + wthvr
+          wthvsubl(k) = wthvsubl(k) + wthvs
+          wthvresl(k) = wthvresl(k) + wthvr
 
-        wqtsubl(k) = wqtsubl(k) + wqts
-        wqtresl(k) = wqtresl(k) + wqtr
+          wqtsubl(k) = wqtsubl(k) + wqts
+          wqtresl(k) = wqtresl(k) + wqtr
 
-        uwresl(k) = uwresl(k) + uwr
-        vwresl(k) = vwresl(k) + vwr
-        uwsubl(k) = uwsubl(k) + uws
-        vwsubl(k) = vwsubl(k) + vws
-    !     -----------------------------------------------------------
-    !     calculate various moments
-    !     -----------------------------------------------------------
-!         qs2avl   (k) = qs2avl   (k) + qs0**2
-!         qsavl    (k) = qsavl    (k) + qs0
-!         rhavl    (k) = rhavl    (k) + qtm (i,j,k)/qs0
-!         ravl     (k) = ravl     (k) + (qt0(i,j,k) - qs0)
-!         r2avl    (k) = r2avl    (k) + (qt0(i,j,k) - qs0)**2
-!         r3avl    (k) = r3avl    (k) + (qt0(i,j,k) - qs0)**3
-
+          uwresl(k) = uwresl(k) + uwr
+          vwresl(k) = vwresl(k) + vwr
+          uwsubl(k) = uwsubl(k) + uws
+          vwsubl(k) = vwsubl(k) + vws
+        end do
       end do
     end do
-    end do
   !     -------------------
+
     call calc_moment(u2avl, um, 2, 1, kmax, 2, i1, 2, j1, umav, cu)
     call calc_moment(v2avl, vm, 2, 1, kmax, 2, i1, 2, j1, vmav, cv)
     call calc_moment(w2avl, wm, 2, 1, kmax, 2, i1, 2, j1)
@@ -925,11 +906,10 @@ contains
       end do
 
       do k=2,kmax
-        km = k-1
       do j=2,j1
       do i=2,i1
-        ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-        wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
+        ekhalf      = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+        wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,k-1,n)) &
                                                         /dzh(k)
       end do
       end do
