@@ -661,14 +661,10 @@ contains
     test = 0.
     test3d = 0.
 
-    !$acc enter data copyin(qlhavl, cfracavl, qlptavl, wqlsubl, wqlresl, &
-    !$acc&                  wthltot, wqtsubl, wqtresl, wqttot, wthvsubl, &
-    !$acc&                  wthvresl, wthvtot, wsvsubl, wsvresl, sv2avl, &
-    !$acc&                  uwresl, vwresl, uwtot, uwsubl, vwsubl, vwtot, &
-    !$acc&                  u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, &
-    !$acc&                  thl2avl, thv2avl, th2avl, ql2avl, thvmav, sv2av, &
-    !$acc&                  umav, vmav, thlmav, qtmav, qlmav, cfracav, svmav, &
-    !$acc&                  cszav, sv0h, thv0, test, test3d)
+    !$acc enter data copyin(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
+    !$acc&                  uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
+    !$acc&                  thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, thv0, &
+    !$acc&                  thmav)
 
     !$acc parallel loop collapse(3) default(present)
     do  k=1,k1
@@ -680,11 +676,15 @@ contains
       enddo
     enddo
 
+    !$acc parallel loop default(present) reduction(+: cfracavl)
     do k=1,k1
       cfracavl(k)    = cfracavl(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
 
+    !$acc update self(cfracavl)
     call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
+
+    cfracav = cfracav / ijtot
 
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -693,27 +693,29 @@ contains
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
+    do n=1,nsv
+      call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    enddo
+
+    !$acc kernels default(present)
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
     thlmav = thlmav/ijtot
     qtmav = qtmav /ijtot
     qlmav = qlmav /ijtot
-    cfracav = cfracav / ijtot
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
+    svmav = svmav/ijtot
+    !$acc end kernels
 
     cszav  = csz
-
-    do n=1,nsv
-      call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    enddo
-    svmav = svmav/ijtot
-
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
   !        4.1 special treatment for lowest level
   !     -------------------------------------------------
+
+    !$acc update self(exnh(1))
 
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
@@ -732,6 +734,8 @@ contains
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
 
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
+    !$acc& reduction(+: qlhavl, wthlsubl, wqtsubl, wthvsubl, uwsubl, vwsubl)
     do j = 2, j1
       do i = 2, i1
         qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
@@ -758,7 +762,11 @@ contains
   !      --------------------------
   !      4.2 higher levels
   !      --------------------------
-
+    !$acc parallel loop collapse(3) default(present) &
+    !$acc& private(qs0h, t0h, den, cthl, cqt, c1, c2, ekhalf, euhalf, evhalf, wthls, wthlr, wqts, &
+    !$acc&         wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
+    !$acc& reduction(+: qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wthvsubl, wthvresl, &
+    !$acc&              wqtsubl, wqtresl, uwresl, vwresl, uwsubl, vwsubl)
     do k = 2, kmax
       do j = 2, j1
         do i = 2, i1
@@ -872,6 +880,7 @@ contains
         if (iadv_sv(n)==iadv_kappa) then
            call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
         else
+          !$acc parallel loop collapse(3) default(present)
           do k = 2, k1
             do j = 2, j1
               do i = 2, i1
@@ -879,9 +888,12 @@ contains
               enddo
             enddo
           enddo
+          !$acc kernels default(present)
           sv0h(2:i1,2:j1,1) = svs(n)
+          !$acc end kernels
         end if
 
+        !$acc parallel loop collapse(3) default(present) reduction(+: wsvresl)
         do k = 2, kmax
           do j = 2, j1
             do i = 2, i1
@@ -890,12 +902,14 @@ contains
           end do
         end do
 
+        !$acc parallel loop collapse(2) default(present) reduction(+: wsvsubl)
         do j = 2, j1
           do i = 2, i1
             wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
           end do
         end do
 
+        !$acc parallel loop collapse(3) default(present) private(ekhalf) reduction(+: wsvsubl)
         do k = 2, kmax
           do j = 2, j1
             do i= 2, i1
@@ -918,6 +932,11 @@ contains
   !     5.2 higher levels by vert. integr. of the mom. tendencies
   !     ---------------------------------------------------------
   !         DEPRECATED
+
+    !$acc exit data copyout(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
+    !$acc&                  uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
+    !$acc&                  thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, thv0, &
+    !$acc&                  thmav)
 
   ! MPI communication
     call D_MPI_ALLREDUCE(qlhavl, qlhav, k1,     &
@@ -1094,14 +1113,6 @@ contains
 
       cszmn = cszmn + cszav
 
-    !$acc enter data copyin(qlhavl, cfracavl, qlptavl, wqlsubl, wqlresl, &
-    !$acc&                  wthltot, wqtsubl, wqtresl, wqttot, wthvsubl, &
-    !$acc&                  wthvresl, wthvtot, wsvsubl, wsvresl, sv2avl, &
-    !$acc&                  uwresl, vwresl, uwtot, uwsubl, vwsubl, vwtot, &
-    !$acc&                  u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, &
-    !$acc&                  thl2avl, thv2avl, th2avl, ql2avl, thvmav, sv2av, &
-    !$acc&                  umav, vmav, thlmav, qtmav, qlmav, cfracav, svmav, &
-    !$acc&                  cszav, sv0h, test, test3d)
 
     deallocate( &
         qlhavl , & ! slab averaged ql_0 at half level &
@@ -1186,6 +1197,7 @@ contains
       mean = mean_in
     end if
     
+    !$acc parallel loop collapse(3) default(present) copyin(mean) reduction(+: prof)
     do k = kb, ke
       do j = jb, je
         do i = ib, ie

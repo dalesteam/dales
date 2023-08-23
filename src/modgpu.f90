@@ -73,7 +73,6 @@ contains
     ! Surface
     !$acc enter data copyin(ustar, dudz, dvdz) async
     !$acc enter data copyin(thlflux, qtflux, dqtdz, dthldz) async
-    !$acc enter data copyin(svflux, svs) async
 
     ! Boundary
     !$acc enter data copyin(tsc) async
@@ -81,6 +80,7 @@ contains
     ! Subgrid
     !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac) async
     !$acc enter data copyin(sbdiss, sbshr, sbbuo) async
+    !$acc update device(svflux) async
     
     ! Radiation
     !$acc enter data copyin(thlpcar, thlprad) async
