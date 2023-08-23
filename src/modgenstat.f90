@@ -752,8 +752,6 @@ contains
 
         vwsubl(1) = vwsubl(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
-
-        wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
       end do
     end do
 
@@ -865,42 +863,49 @@ contains
     call calc_moment(th2avl, thlm, 2, 1, kmax, 2, i1, 2, j1, thmav)
     call calc_moment(ql2avl, ql0, 2, 1, kmax, 2, i1, 2, j1, qlmav)
 
-    do n = 1, nsv
-      call calc_moment(sv2avl(:, n), svm(:, :, :, n), 2, 1, kmax, 2, i1, 2, j1, svmav(:, n))
-    end do
+    if (nsv > 0) then
+      do n = 1, nsv
+        call calc_moment(sv2avl(:, n), svm(:, :, :, n), 2, 1, kmax, 2, i1, 2, j1, svmav(:, n))
+      end do
 
-    do n = 1, nsv
-      if (iadv_sv(n)==iadv_kappa) then
-         call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
-      else
-        do k = 2, k1
-          do j = 2, j1
-            do i = 2, i1
-              sv0h(i,j,k) = (sv0(i,j,k,n)*dzf(k-1)+sv0(i,j,k-1,n)*dzf(k))/(2*dzh(k))
+      do n = 1, nsv
+        if (iadv_sv(n)==iadv_kappa) then
+           call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
+        else
+          do k = 2, k1
+            do j = 2, j1
+              do i = 2, i1
+                sv0h(i,j,k) = (sv0(i,j,k,n)*dzf(k-1)+sv0(i,j,k-1,n)*dzf(k))/(2*dzh(k))
+              enddo
             enddo
           enddo
-        enddo
-        sv0h(2:i1,2:j1,1) = svs(n)
-      end if
+          sv0h(2:i1,2:j1,1) = svs(n)
+        end if
 
-      do k = 2, kmax
+        do k = 2, kmax
+          do j = 2, j1
+            do i = 2, i1
+              wsvresl(k,n) = wsvresl(k,n) + w0(i,j,k)*sv0h(i,j,k)
+            end do
+          end do
+        end do
+
         do j = 2, j1
           do i = 2, i1
-            wsvresl(k,n) = wsvresl(k,n) + w0(i,j,k)*sv0h(i,j,k)
+            wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
+          end do
+        end do
+
+        do k = 2, kmax
+          do j = 2, j1
+            do i= 2, i1
+              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+              wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,k-1,n)) / dzh(k)
+            end do
           end do
         end do
       end do
-
-      do k = 2, kmax
-        do j = 2, j1
-          do i= 2, i1
-            ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
-            wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,k-1,n)) / dzh(k)
-          end do
-        end do
-      end do
-    end do
-
+    end if
   !     -------------------------------
   !     5   CALCULATE MOMENTUM FLUXES
   !     -------------------------------
