@@ -431,7 +431,7 @@ module modcufft
 
       !$acc host_data use_device(py)
 #if POIS_PRECISION==32
-      istat = cufftExecR2C(planyi, py, py)
+      istat = cufftExecC2R(planyi, py, py)
 #else
       istat = cufftExecZ2D(planyi, py,  py)
 #endif
