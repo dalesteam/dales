@@ -61,6 +61,8 @@ contains
     end do
    tsc(k1)=tsc(kmax)
 
+   !$acc enter data copyin(tsc)
+
   end subroutine initboundary
 
 !>

@@ -715,9 +715,9 @@ contains
     real(real32)      :: avers(ks:kf)
     integer           :: k
 #if defined(_OPENACC)
-    logical :: is _present
+    logical :: is_present
 
-    is _present = acc_is_present(var)
+    is_present = acc_is_present(var)
 #endif
    !$acc enter data copyin(averl, avers) if(is_present)
 
