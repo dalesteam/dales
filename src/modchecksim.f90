@@ -123,11 +123,9 @@ contains
 
     integer       :: k
     
-    !$acc kernels default(present)
     courxl = 0.0
     couryl = 0.0
     courzl = 0.0
-    !$acc end kernels
 
     !$acc parallel loop copy(courxl, couryl, courzl, courtotl)
     do k=1,kmax
@@ -160,18 +158,14 @@ contains
 
     integer       :: k
 
-    !$acc kernels default(present)
     peclettotl = 0.
-    !$acc end kernels
-
     peclettot  = 0.
 
-    !$acc parallel loop default(present)
+    !$acc parallel loop copy(peclettotl)
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/min(dzh(k),dx,dy)**2
     end do
     
-    !$acc update host(peclettotl)
     call D_MPI_ALLREDUCE(peclettotl,peclettot,k1,MPI_MAX,comm3d,mpierr)
 
     if (myid==0) then
@@ -188,8 +182,6 @@ contains
     use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,mpierr, D_MPI_ALLREDUCE
     implicit none
 
-
-
     real div, divmax, divtot
     real divmaxl, divtotl
     integer i, j, k
@@ -199,7 +191,7 @@ contains
     divmaxl= 0.
     divtotl= 0.
     
-    !$acc parallel loop collapse(3) default(present) private(div) &
+    !$acc parallel loop collapse(3) default(present) private(div, divmaxl, divtotl) &
     !$acc& reduction(max:divmaxl) reduction(+:divtotl)
     do k=1,kmax
       do j=2,j1
@@ -214,7 +206,6 @@ contains
       end do
     end do
 
-    
     call D_MPI_ALLREDUCE(divtotl, divtot, 1,     &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(divmaxl, divmax, 1,     &
@@ -225,7 +216,6 @@ contains
    end if
 
    return    
-    
   end subroutine chkdiv
 
 end module modchecksim
