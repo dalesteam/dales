@@ -89,7 +89,6 @@ contains
     allocate(swu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(lwu       (2-ih:i1+ih,2-jh:j1+jh,k1) )
-    !$acc enter data create(thlprad)
 
     allocate(swdca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swuca     (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -168,6 +167,8 @@ contains
       rad_smoke  = .false.
     end if
 
+    !$acc enter data copyin(thlprad)
+
     if (iradiation == 0) return
 
     itimerad = floor(timerad/tres)
@@ -204,7 +205,11 @@ contains
       tnext = tnext+itimerad
 
       wtime = MPI_Wtime()
+
+      !$acc kernels default(present)
       thlprad = 0.0
+      !$acc end kernels
+
       select case (iradiation)
           case (irad_none)
           case (irad_full)
