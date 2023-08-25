@@ -693,9 +693,11 @@ contains
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
+    if (nsv > 0) then
     do n=1,nsv
       call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     enddo
+    end if
 
     !$acc kernels default(present)
     umav  = umav  /ijtot + cu
@@ -1000,6 +1002,7 @@ contains
     call D_MPI_ALLREDUCE(qlptavl, qlptav, k1,     &
                       MPI_SUM, comm3d,mpierr)
 
+    if (nsv > 0) then
     do n=1,nsv
   call D_MPI_ALLREDUCE(sv2avl(:,n),sv2av(:,n),k1, &
                         MPI_SUM, comm3d,mpierr)
@@ -1008,6 +1011,7 @@ contains
   call D_MPI_ALLREDUCE(wsvresl(:,n),wsvres(:,n), k1,     &
       MPI_SUM, comm3d,mpierr)
     end do
+    end if
 
   !     -----------------------------------------------
   !     6   NORMALIZATION OF THE FIELDS AND FLUXES
