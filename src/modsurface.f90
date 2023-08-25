@@ -730,6 +730,8 @@ contains
     real     :: wtsurfl, wqsurfl
     real, pointer :: ustar_3D(:,:,:)
 
+    !$acc update self(u0, v0, thl0, qt0, u0av, v0av)
+
     patchx = 0
     patchy = 0
 
