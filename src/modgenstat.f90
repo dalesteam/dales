@@ -1181,7 +1181,7 @@ contains
 
     integer, intent(in) :: kb, ke, ib, ie, jb, je
     integer, intent(in) :: n
-    real(field_r), intent(out) :: prof(kb:ke)
+    real, intent(out) :: prof(kb:ke)
     real(field_r), intent(in) :: var(:, :, :)
     real(field_r), optional, intent(in) :: mean_in(kb:ke)
     real(field_r), optional, intent(in) :: c_in !< Translational velocity
