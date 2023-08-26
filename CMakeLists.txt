@@ -81,7 +81,6 @@ elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
 # nVidia Fortran compiler
 elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
     set(CMAKE_Fortran_COMPILER "mpif90")
-    # Includes (temporary) flags for linking to nVidia-built NetCDF
     set(CMAKE_Fortran_FLAGS "-W -Wall -acc -Minfo=accel -gpu=ccall -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
@@ -287,16 +286,17 @@ endif(NETCDF_C_LIB)
 if(NETCDF_FORTRAN_LIB)
     set(opt_flags "${opt_flags} -L${NETCDF_FORTRAN_LIB} -lnetcdff")
 endif(NETCDF_FORTRAN_LIB)
-# Compile with NVTX markers for profiling
-if(USE_NVTX)
-    set(opt_flags "${opt_flags} -DUSE_NVTX -L${NVTX_LIB} -lnvToolsExt")
-endif(USE_NVTX)
 
-# Find CUDA Toolkit
+# Find CUDA Toolkit and set flags
+set(cuda_libs "")
 if("$ENV{SYST}" STREQUAL "NV-OpenACC")
   include(FindCUDAToolkit REQUIRED)
   include_directories(${CUDAToolkit_INCLUDE_DIRS})
-  set(opt_flags "${opt_flags} -cudalib=cufft")
+  set(cuda_libs "cufft")
+  if(USE_NVTX)
+    set(cuda_libs "${cuda_libs},nvtx3")
+  endif(USE_NVTX)
+  set(opt_flags "${opt_flags} -cudalib=${cuda_libs}")
 endif()
 
 if("$ENV{SYST}" STREQUAL "NV-multicore")
