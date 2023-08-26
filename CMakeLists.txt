@@ -85,6 +85,12 @@ elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
     set(CMAKE_Fortran_FLAGS "-W -Wall -acc -Minfo=accel -gpu=ccall -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+elseif("$ENV{SYST}" STREQUAL "NV-multicore")
+    set(CMAKE_Fortran_COMPILER "mpif90")
+    # Includes (temporary) flags for linking to nVidia-built NetCDF
+    set(CMAKE_Fortran_FLAGS "-W -Wall -acc=multicore -Minfo=accel -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
    # don't set any compilation flags here, allows setting them outside CMake
 else()
@@ -288,6 +294,12 @@ endif(USE_NVTX)
 
 # Find CUDA Toolkit
 if("$ENV{SYST}" STREQUAL "NV-OpenACC")
+  include(FindCUDAToolkit REQUIRED)
+  include_directories(${CUDAToolkit_INCLUDE_DIRS})
+  set(opt_flags "${opt_flags} -cudalib=cufft")
+endif()
+
+if("$ENV{SYST}" STREQUAL "NV-multicore")
   include(FindCUDAToolkit REQUIRED)
   include_directories(${CUDAToolkit_INCLUDE_DIRS})
   set(opt_flags "${opt_flags} -cudalib=cufft")
