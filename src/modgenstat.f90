@@ -68,10 +68,10 @@ module modgenstat
     !-----------------------------------------------------------------|
   use modprecision
 
-implicit none
-! private
-PUBLIC :: initgenstat, genstat, exitgenstat
-save
+  implicit none
+  ! private
+  PUBLIC :: initgenstat, genstat, exitgenstat
+  save
 
 !NetCDF variables
   integer :: nvar = 40
@@ -110,66 +110,123 @@ save
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
 
- real(field_r), allocatable :: umav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: vmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: thmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: umav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: vmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: thmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
+  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
   real, allocatable :: uptav(:)                      !  slab averaged tendency for u
   real, allocatable :: vptav(:)                      !  slab averaged tendency for v
 
- real, allocatable :: thptav(:)     ! slab averaged turbulence tendency of theta
- real, allocatable :: qlptav(:)     ! slab averaged turbulence tendency of q_liq
- real, allocatable :: uwtot (:)     ! slab averaged tot w-u flux at half levels
- real, allocatable :: vwtot (:)     ! slab averaged tot w-v flux at half levels
- real, allocatable :: uwsub (:)     ! slab averaged sgs w-u flux at half levels
- real, allocatable :: vwsub (:)     ! slab averaged sgs w-v flux at half levels
- real, allocatable :: uwres (:)     ! slab averaged res w-u flux at half levels
- real, allocatable :: vwres (:)     ! slab averaged res w-v flux at half levels
+  real, allocatable :: thptav(:)     ! slab averaged turbulence tendency of theta
+  real, allocatable :: qlptav(:)     ! slab averaged turbulence tendency of q_liq
+  real, allocatable :: uwtot (:)     ! slab averaged tot w-u flux at half levels
+  real, allocatable :: vwtot (:)     ! slab averaged tot w-v flux at half levels
+  real, allocatable :: uwsub (:)     ! slab averaged sgs w-u flux at half levels
+  real, allocatable :: vwsub (:)     ! slab averaged sgs w-v flux at half levels
+  real, allocatable :: uwres (:)     ! slab averaged res w-u flux at half levels
+  real, allocatable :: vwres (:)     ! slab averaged res w-v flux at half levels
 
 
   real, allocatable :: thvhav(:)
   real, allocatable :: th0av(:)
- real, allocatable :: wthlsub(:)     ! slab averaged sub w-theta_l flux at half levels
- real, allocatable :: wthlres(:)     ! slab averaged res w-theta_l flux at half levels
- real, allocatable :: wthltot(:)     ! slab averaged tot w-theta_l flux at half levels
+  real, allocatable :: wthlsub(:)     ! slab averaged sub w-theta_l flux at half levels
+  real, allocatable :: wthlres(:)     ! slab averaged res w-theta_l flux at half levels
+  real, allocatable :: wthltot(:)     ! slab averaged tot w-theta_l flux at half levels
 
- real, allocatable :: wqtsub(:)    ! slab averaged sub w-qtot    flux at half levels
- real, allocatable :: wqtres(:)    ! slab averaged res w-qtot    flux at half levels
- real, allocatable :: wqttot(:)    ! slab averaged tot w-qtot    flux at half levels
+  real, allocatable :: wqtsub(:)    ! slab averaged sub w-qtot    flux at half levels
+  real, allocatable :: wqtres(:)    ! slab averaged res w-qtot    flux at half levels
+  real, allocatable :: wqttot(:)    ! slab averaged tot w-qtot    flux at half levels
 
- real, allocatable :: wqlsub(:)    ! slab averaged sub w-ql      flux at half levels
- real, allocatable :: wqlres(:)    ! slab averaged tot w-ql      flux at half levels
- real, allocatable :: wqltot(:)    ! slab averaged tot w-ql      flux at half levels
+  real, allocatable :: wqlsub(:)    ! slab averaged sub w-ql      flux at half levels
+  real, allocatable :: wqlres(:)    ! slab averaged tot w-ql      flux at half levels
+  real, allocatable :: wqltot(:)    ! slab averaged tot w-ql      flux at half levels
 
- real, allocatable :: wthvtot(:)    !  slab averaged total wthv-flux
- real, allocatable :: wthvres(:)    !  slab averaged res   wthv-flux
- real, allocatable :: wthvsub(:)    !  slab averaged sub   wthv-flux
+  real, allocatable :: wthvtot(:)    !  slab averaged total wthv-flux
+  real, allocatable :: wthvres(:)    !  slab averaged res   wthv-flux
+  real, allocatable :: wthvsub(:)    !  slab averaged sub   wthv-flux
 
- real, allocatable :: wsvsub(:,:)! slab averaged sub w-sv(n)  flux
- real, allocatable :: wsvres(:,:)! slab averaged res w-sv(n)  flux
- real, allocatable :: wsvtot(:,:)! slab averaged tot w-sv(n)  flux
+  real, allocatable :: wsvsub(:,:)! slab averaged sub w-sv(n)  flux
+  real, allocatable :: wsvres(:,:)! slab averaged res w-sv(n)  flux
+  real, allocatable :: wsvtot(:,:)! slab averaged tot w-sv(n)  flux
 
- real, allocatable :: cszmn(:)    ! Smagorinsky constant
- real, allocatable :: cszav(:)    ! Smagorinsky constant
+  real, allocatable :: cszmn(:)    ! Smagorinsky constant
+  real, allocatable :: cszav(:)    ! Smagorinsky constant
 
- real, allocatable :: qlmnlast(:)
- real, allocatable :: wthvtmnlast(:)
+  real, allocatable :: qlmnlast(:)
+  real, allocatable :: wthvtmnlast(:)
+
+    ! Local fields
+  real,allocatable, dimension(:) :: &
+      qlhavl , & ! slab averaged ql_0 at half level &
+      u2avl    , &
+      v2avl    , &
+      w2avl    , &
+      w3avl    , &
+      w2subavl , &
+      qt2avl   , &
+      thl2avl  , &
+      thv2avl  , &
+      ql2avl   , &
+      th2avl
+  real,allocatable, dimension(:,:) :: &
+      wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
+      wsvresl,&   ! slab averaged res w-sv(n)  flux &
+      sv2avl,&
+      sv2av
+
+  real,allocatable, dimension(:) :: wqlsubl
+  real,allocatable, dimension(:) :: wqlresl
+
+  real,allocatable, dimension(:):: wthlsubl
+  real,allocatable, dimension(:):: wthlresl
+
+  real,allocatable, dimension(:):: wqtsubl
+  real,allocatable, dimension(:):: wqtresl
+
+  real,allocatable, dimension(:):: wthvsubl
+  real,allocatable, dimension(:) ::wthvresl
+
+  real,allocatable, dimension(:):: cfracavl ! cloudfraction    at full level
+
+
+  real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
+  real,allocatable, dimension(:):: uwsubl
+  real,allocatable, dimension(:):: vwsubl
+  real,allocatable, dimension(:):: uwresl
+  real,allocatable, dimension(:):: vwresl
+  real,allocatable, dimension(:):: qlhav
+  real,allocatable, dimension(:):: u2av    , &
+            v2av    , &
+            w2av    , &
+            w3av    , &
+            w2subav , &
+            qt2av   , &
+            thl2av  , &
+            thv2av  , &
+            th2av   , &
+            ql2av
+  real(field_r),allocatable, dimension(:,:,:)::  thv0
+  real(field_r),allocatable, dimension(:)::   thvmav
+  real(field_r),allocatable, dimension(:,:,:):: sv0h
+  real, allocatable, dimension(:) :: test
+  real, allocatable, dimension(:,:,:) :: test3d
 
 contains
 
   subroutine initgenstat
-    use modmpi,    only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
-    use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
-    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
-    use modsurfdata, only : isurf,ksoilmax
+    use modmpi, only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
+    use modglobal, only : i1, ih, j1, jh, kmax, k1, nsv, ifnamopt, fname_options, ifoutput, &
+                          cexpnr, dtav_glob, timeav_glob, dt_lim, btime, tres, &
+                          lwarmstart, checknamelisterror
+    use modstat_nc, only : lnetcdf, open_nc, ncinfo, define_nc, nctiminfo, writestat_dims_nc
+    use modsurfdata, only : isurf, ksoilmax
 
     implicit none
 
@@ -267,74 +324,133 @@ contains
     allocate(qlmnlast(k1))
     allocate(wthvtmnlast(k1))
 
-      umn      = 0.
-      vmn      = 0.
-      thlmn    = 0.
-      thvmn    = 0.
-      qtmn     = 0.
-      qlmn     = 0.
-      qlhmn    = 0.
-      cfracmn  = 0.
-
-      wthlsmn =  0.
-      wthlrmn =  0.
-      wthltmn =  0.
-
-      wthvsmn =  0.
-      wthvrmn =  0.
-      wthvtmn =  0.
-
-      wqtsmn =  0.
-      wqtrmn =  0.
-      wqttmn =  0.
-
-      wqlsmn =  0.
-      wqlrmn =  0.
-      wqltmn =  0.
-
-      uwtmn  = 0.
-      vwtmn  = 0.
-      uwrmn  = 0.
-      vwrmn  = 0.
-      uwsmn  = 0.
-      vwsmn  = 0.
+    allocate( &
+        qlhavl (k1), & ! slab averaged ql_0 at half level &
+        wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
+        wsvresl(k1,nsv),&   ! slab averaged res w-sv(n)  flux &
+        u2avl    (k1), &
+        v2avl    (k1), &
+        w2avl    (k1), &
+        w3avl    (k1), &
+        w2subavl (k1), &
+        qt2avl   (k1), &
+        thl2avl  (k1), &
+        thv2avl  (k1), &
+        th2avl   (k1))
+    allocate( &
+        ql2avl   (k1), &
+        sv2avl   (k1,nsv))
 
 
-      u2mn     = 0.
-      v2mn     = 0.
-      w2mn     = 0.
-      w2submn  = 0.
-      skewmn   = 0.
-      qt2mn    = 0.
-      thl2mn   = 0.
-      thv2mn   = 0.
-      th2mn    = 0.
-      ql2mn    = 0.
-!       qs2mn    = 0.
-!       qsmn     = 0.
-!       rhmn     = 0.
-!       rmn      = 0.
-!       r2mn     = 0.
-!       r3mn     = 0.
+    allocate( wqlsubl    (k1))
+    allocate( wqlresl    (k1))
 
-      svmmn   = 0.
-      svpmn   = 0.
-      svpav   = 0.
-!       svplsmn = 0.
-      svptmn  = 0.
-      svptav  = 0.
+    allocate( wthlsubl    (k1))
+    allocate( wthlresl    (k1))
 
-      sv2mn = 0.
+    allocate( wqtsubl    (k1))
+    allocate( wqtresl    (k1))
 
-      wsvsmn = 0.
-      wsvrmn = 0.
-      wsvtmn = 0.
+    allocate( wthvsubl    (k1))
+    allocate( wthvresl    (k1))
 
-      cszav = 0.
-      cszmn = 0.
+    allocate( cfracavl(k1))  ! slab averaged cloud fraction
 
-      qlmnlast = 0.
-      wthvtmnlast = 0.
+
+    allocate( qlptavl(k1))   ! slab averaged turbulence tendency of q_liq
+    allocate( uwsubl(k1))
+    allocate( vwsubl(k1))
+    allocate( uwresl(k1))
+    allocate( vwresl(k1))
+    allocate( qlhav(k1))
+    allocate( u2av    (k1), &
+              v2av    (k1), &
+              w2av    (k1), &
+              w3av    (k1), &
+              w2subav (k1), &
+              qt2av   (k1), &
+              thl2av  (k1), &
+              thv2av  (k1), &
+              th2av   (k1), &
+              ql2av   (k1), &
+              sv2av   (k1,nsv))
+    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thvmav(k1))
+    allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    umn      = 0.
+    vmn      = 0.
+    thlmn    = 0.
+    thvmn    = 0.
+    qtmn     = 0.
+    qlmn     = 0.
+    qlhmn    = 0.
+    cfracmn  = 0.
+
+    wthlsmn =  0.
+    wthlrmn =  0.
+    wthltmn =  0.
+
+    wthvsmn =  0.
+    wthvrmn =  0.
+    wthvtmn =  0.
+
+    wqtsmn =  0.
+    wqtrmn =  0.
+    wqttmn =  0.
+
+    wqlsmn =  0.
+    wqlrmn =  0.
+    wqltmn =  0.
+
+    uwtmn  = 0.
+    vwtmn  = 0.
+    uwrmn  = 0.
+    vwrmn  = 0.
+    uwsmn  = 0.
+    vwsmn  = 0.
+
+
+    u2mn     = 0.
+    v2mn     = 0.
+    w2mn     = 0.
+    w2submn  = 0.
+    skewmn   = 0.
+    qt2mn    = 0.
+    thl2mn   = 0.
+    thv2mn   = 0.
+    th2mn    = 0.
+    ql2mn    = 0.
+!     qs2mn    = 0.
+!     qsmn     = 0.
+!     rhmn     = 0.
+!     rmn      = 0.
+!     r2mn     = 0.
+!     r3mn     = 0.
+
+    svmmn   = 0.
+    svpmn   = 0.
+    svpav   = 0.
+!     svplsmn = 0.
+    svptmn  = 0.
+    svptav  = 0.
+
+    sv2mn = 0.
+
+    wsvsmn = 0.
+    wsvrmn = 0.
+    wsvtmn = 0.
+
+    cszav = 0.
+    cszmn = 0.
+
+    qlmnlast = 0.
+    wthvtmnlast = 0.
+
+    !$acc enter data create(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
+    !$acc&                  uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
+    !$acc&                  thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, sv2avl, &
+    !$acc&                  thv0, thmav)
 
       if(myid==0)then
          if (.not. lwarmstart) then
@@ -468,64 +584,7 @@ contains
     use advec_kappa, only : halflev_kappa
     implicit none
 
-
-
     real cthl,cqt,den
-
-    real,allocatable, dimension(:) :: &
-        qlhavl , & ! slab averaged ql_0 at half level &
-        u2avl    , &
-        v2avl    , &
-        w2avl    , &
-        w3avl    , &
-        w2subavl , &
-        qt2avl   , &
-        thl2avl  , &
-        thv2avl  , &
-        ql2avl   , &
-        th2avl
-    real,allocatable, dimension(:,:) :: &
-        wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
-        wsvresl,&   ! slab averaged res w-sv(n)  flux &
-        sv2avl,&
-        sv2av
-
-    real,allocatable, dimension(:) :: wqlsubl
-    real,allocatable, dimension(:) :: wqlresl
-
-    real,allocatable, dimension(:):: wthlsubl
-    real,allocatable, dimension(:):: wthlresl
-
-    real,allocatable, dimension(:):: wqtsubl
-    real,allocatable, dimension(:):: wqtresl
-
-    real,allocatable, dimension(:):: wthvsubl
-    real,allocatable, dimension(:) ::wthvresl
-
-    real,allocatable, dimension(:):: cfracavl ! cloudfraction    at full level
-
-
-    real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
-    real,allocatable, dimension(:):: uwsubl
-    real,allocatable, dimension(:):: vwsubl
-    real,allocatable, dimension(:):: uwresl
-    real,allocatable, dimension(:):: vwresl
-    real,allocatable, dimension(:):: qlhav
-    real,allocatable, dimension(:):: u2av    , &
-              v2av    , &
-              w2av    , &
-              w3av    , &
-              w2subav , &
-              qt2av   , &
-              thl2av  , &
-              thv2av  , &
-              th2av   , &
-              ql2av
-    real(field_r),allocatable, dimension(:,:,:)::  thv0
-    real(field_r),allocatable, dimension(:)::   thvmav
-    real(field_r),allocatable, dimension(:,:,:):: sv0h
-    real, allocatable, dimension(:) :: test
-    real, allocatable, dimension(:,:,:) :: test3d
 
     integer i, j, k, n, km
     real    tsurf, qsat, c1, c2
@@ -534,62 +593,6 @@ contains
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
-    allocate( &
-        qlhavl (k1), & ! slab averaged ql_0 at half level &
-        wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
-        wsvresl(k1,nsv),&   ! slab averaged res w-sv(n)  flux &
-        u2avl    (k1), &
-        v2avl    (k1), &
-        w2avl    (k1), &
-        w3avl    (k1), &
-        w2subavl (k1), &
-        qt2avl   (k1), &
-        thl2avl  (k1), &
-        thv2avl  (k1), &
-        th2avl   (k1))
-    allocate( &
-        ql2avl   (k1), &
-        sv2avl   (k1,nsv))
-
-
-    allocate( wqlsubl    (k1))
-    allocate( wqlresl    (k1))
-
-    allocate( wthlsubl    (k1))
-    allocate( wthlresl    (k1))
-
-    allocate( wqtsubl    (k1))
-    allocate( wqtresl    (k1))
-
-    allocate( wthvsubl    (k1))
-    allocate( wthvresl    (k1))
-
-    allocate( cfracavl(k1))  ! slab averaged cloud fraction
-
-
-    allocate( qlptavl(k1))   ! slab averaged turbulence tendency of q_liq
-    allocate( uwsubl(k1))
-    allocate( vwsubl(k1))
-    allocate( uwresl(k1))
-    allocate( vwresl(k1))
-    allocate( qlhav(k1))
-    allocate( u2av    (k1), &
-              v2av    (k1), &
-              w2av    (k1), &
-              w3av    (k1), &
-              w2subav (k1), &
-              qt2av   (k1), &
-              thl2av  (k1), &
-              thv2av  (k1), &
-              th2av   (k1), &
-              ql2av   (k1), &
-              sv2av   (k1,nsv))
-    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thvmav(k1))
-    allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(test(k1),test3d(2-ih:i1+ih,2-jh:j1+jh,k1))
-
-
 
   !-----------------------------------------------------------------------
   !     1.    INITIALISE LOCAL CONSTANTS
@@ -599,40 +602,9 @@ contains
   !     3.0    RESET ARRAYS FOR SLAB AVERAGES
   !     ---    ------------------------------
   !     --------------------------------------------------------
+    !$acc kernels default(present)
     qlhavl      = 0.0
     cfracavl    = 0.0
-
-
-    qlptavl     = 0.0
-
-    wqlsubl     = 0.0
-    wqlresl     = 0.0
-    wqltot      = 0.0
-
-    wthlsubl     = 0.0
-    wthlresl     = 0.0
-    wthltot      = 0.0
-
-    wqtsubl     = 0.0
-    wqtresl     = 0.0
-    wqttot      = 0.0
-
-    wthvsubl     = 0.0
-    wthvresl     = 0.0
-    wthvtot      = 0.0
-
-
-    wsvsubl = 0.
-    wsvresl = 0.
-    sv2avl  = 0.
-
-    uwresl  = 0.
-    vwresl  = 0.
-    uwtot   = 0.
-    uwsubl  = 0.
-    vwsubl  = 0.
-    vwtot   = 0.
-
     u2avl     = 0.0
     v2avl     = 0.0
     w2avl     = 0.0
@@ -644,27 +616,40 @@ contains
     th2avl    = 0.0
     ql2avl    = 0.0
     thvmav    = 0.0
-
-    sv2av   = 0.0
-
+    wqtsubl     = 0.0
+    wqtresl     = 0.0
+    wqlsubl     = 0.0
+    wqlresl     = 0.0
     umav = 0.0
     vmav = 0.0
     thlmav = 0.0
     thmav  = 0.0
     qtmav  = 0.0
     qlmav  = 0.0
-    cfracav= 0.0
+    wthlsubl     = 0.0
+    wthlresl     = 0.0
+    wthvsubl     = 0.0
+    wthvresl     = 0.0
+    sv2avl  = 0.
+    uwresl  = 0.
+    vwresl  = 0.
+    uwsubl  = 0.
+    vwsubl  = 0.
     svmav = 0.
+    !$acc end kernels
 
+    qlptavl     = 0.0
+    wqltot      = 0.0
+    wqttot      = 0.0
+    wthvtot      = 0.0
+    wthltot      = 0.0
+    uwtot   = 0.
+    vwtot   = 0.
+    wsvsubl = 0.
+    wsvresl = 0.
+    sv2av   = 0.0
+    cfracav= 0.0
     cszav = 0.
-
-    test = 0.
-    test3d = 0.
-
-    !$acc enter data copyin(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
-    !$acc&                  uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
-    !$acc&                  thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, thv0, &
-    !$acc&                  thmav)
 
     !$acc parallel loop collapse(3) default(present)
     do  k=1,k1
@@ -694,9 +679,9 @@ contains
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
     if (nsv > 0) then
-    do n=1,nsv
-      call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    enddo
+      do n=1,nsv
+        call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      enddo
     end if
 
     !$acc kernels default(present)
@@ -935,10 +920,10 @@ contains
   !     ---------------------------------------------------------
   !         DEPRECATED
 
-    !$acc exit data copyout(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
-    !$acc&                  uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
-    !$acc&                  thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, thv0, &
-    !$acc&                  thmav)
+    !$acc update self(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
+    !$acc&            uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
+    !$acc&            thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, thv0, &
+    !$acc&            thmav)
 
   ! MPI communication
     call D_MPI_ALLREDUCE(qlhavl, qlhav, k1,     &
@@ -1118,60 +1103,6 @@ contains
       cszmn = cszmn + cszav
 
 
-    deallocate( &
-        qlhavl , & ! slab averaged ql_0 at half level &
-        wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
-        wsvresl,&   ! slab averaged res w-sv(n)  flux &
-        u2avl    , &
-        v2avl    , &
-        w2avl    , &
-        w3avl    , &
-        w2subavl , &
-        qt2avl   , &
-        thl2avl  , &
-        thv2avl  , &
-        th2avl   )
-    deallocate( &
-        ql2avl   , &
-        sv2avl   )
-
-
-    deallocate( wqlsubl    )
-    deallocate( wqlresl    )
-
-    deallocate( wthlsubl    )
-    deallocate( wthlresl    )
-
-    deallocate( wqtsubl    )
-    deallocate( wqtresl    )
-
-    deallocate( wthvsubl    )
-    deallocate( wthvresl    )
-
-    deallocate( cfracavl )
-
-
-    deallocate( qlptavl)   ! slab averaged turbulence tendency of q_liq
-    deallocate( uwsubl)
-    deallocate( vwsubl)
-    deallocate( uwresl)
-    deallocate( vwresl)
-
-    deallocate( qlhav)
-    deallocate( u2av    , &
-              v2av    , &
-              w2av    , &
-              w3av    , &
-              w2subav , &
-              qt2av   , &
-              thl2av  , &
-              thv2av  , &
-              th2av   , &
-              ql2av   , &
-              sv2av   )
-    deallocate(thv0)
-    deallocate(thvmav)
-    deallocate(sv0h)
   end subroutine do_genstat
 
   subroutine calc_moment(prof, var, n, kb, ke, ib, ie, jb, je, mean_in, c_in)
@@ -1676,6 +1607,11 @@ contains
 
     if(lnetcdf .and. myid==0) call exitstat_nc(ncid)
 
+    !$acc exit data delete(qlhavl, wqlsubl, wqlresl, wthlsubl, wthlresl, wqtsubl, wqtresl, wthvsubl, wthvresl, &
+    !$acc&                 uwsubl, vwsubl, uwresl, vwresl, u2avl, v2avl, w2avl, w3avl, w2subavl, qt2avl, thl2avl, &
+    !$acc&                 thv2avl, th2avl, ql2avl, umav, vmav, thlmav, qtmav, qlmav, cfracavl, thvmav, svmav, thv0, &
+    !$acc&                 thmav)
+
     deallocate(umn       ,vmn   )
     deallocate(thlmn        ,thvmn )
     deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn)
@@ -1738,6 +1674,61 @@ contains
 
     deallocate(qlmnlast)
     deallocate(wthvtmnlast)
+
+    deallocate( &
+        qlhavl , & ! slab averaged ql_0 at half level &
+        wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
+        wsvresl,&   ! slab averaged res w-sv(n)  flux &
+        u2avl    , &
+        v2avl    , &
+        w2avl    , &
+        w3avl    , &
+        w2subavl , &
+        qt2avl   , &
+        thl2avl  , &
+        thv2avl  , &
+        th2avl   )
+    deallocate( &
+        ql2avl   , &
+        sv2avl   )
+
+
+    deallocate( wqlsubl    )
+    deallocate( wqlresl    )
+
+    deallocate( wthlsubl    )
+    deallocate( wthlresl    )
+
+    deallocate( wqtsubl    )
+    deallocate( wqtresl    )
+
+    deallocate( wthvsubl    )
+    deallocate( wthvresl    )
+
+    deallocate( cfracavl )
+
+
+    deallocate( qlptavl)   ! slab averaged turbulence tendency of q_liq
+    deallocate( uwsubl)
+    deallocate( vwsubl)
+    deallocate( uwresl)
+    deallocate( vwresl)
+
+    deallocate( qlhav)
+    deallocate( u2av    , &
+              v2av    , &
+              w2av    , &
+              w3av    , &
+              w2subav , &
+              qt2av   , &
+              thl2av  , &
+              thv2av  , &
+              th2av   , &
+              ql2av   , &
+              sv2av   )
+    deallocate(thv0)
+    deallocate(thvmav)
+    deallocate(sv0h)
 
   end subroutine exitgenstat
 
