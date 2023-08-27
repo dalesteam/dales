@@ -704,6 +704,10 @@ contains
         allocate(PARdifField   (2:i1,2:j1))
       endif  
     endif
+
+    !$acc enter data copyin(ustar, dudz, dvdz, thlflux, qtflux, &
+    !$acc&                  dqtdz, dthldz, svflux, svs)
+
     return
   end subroutine initsurface
 
@@ -729,6 +733,8 @@ contains
     real     :: ust,ustl
     real     :: wtsurfl, wqsurfl
     real, pointer :: ustar_3D(:,:,:)
+
+    !$acc update self(u0, v0, thl0, qt0, u0av, v0av)
 
     patchx = 0
     patchy = 0
@@ -1050,7 +1056,6 @@ contains
     ! Transfer ustar to neighbouring cells, do this like a 3D field
     ustar_3D(1:i2,1:j2,1:1) => ustar
     call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
-    
 
   end subroutine surface
 
@@ -1137,6 +1142,8 @@ contains
     real                :: lthlpatch(xpatches,ypatches), thlpatch(xpatches,ypatches),&
                            lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
     real                :: loblpatch(xpatches,ypatches)
+
+    !$acc update self(thl0av, qt0av)
 
     if(lmostlocal) then
 
@@ -1342,7 +1349,6 @@ contains
     oblav = L
 
     return
-
   end subroutine getobl
 
   function psim(zeta)

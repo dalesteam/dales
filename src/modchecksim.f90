@@ -41,11 +41,22 @@ module modchecksim
   character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
   
   save
+    real, public, allocatable, dimension (:) :: courxl
+    real, public, allocatable, dimension (:) :: courx
+    real, public, allocatable, dimension (:) :: couryl
+    real, public, allocatable, dimension (:) :: coury
+    real, public, allocatable, dimension (:) :: courzl
+    real, public, allocatable, dimension (:) :: courz
+    real, public, allocatable, dimension (:) :: courtotl
+    real, public, allocatable, dimension (:) :: courtot
+    real, public, allocatable, dimension (:) :: peclettotl
+    real, public, allocatable, dimension (:) :: peclettot
+
 contains
 !> Initializing Checksim. Read out the namelist, initializing the variables
   subroutine initchecksim
-    use modglobal, only : ifnamopt, fname_options,dtmax,ladaptive,btime,tres,checknamelisterror
-    use modmpi,    only : myid,comm3d,mpierr, D_MPI_BCAST
+    use modglobal, only : kmax,k1,ifnamopt,fname_options,dtmax,ladaptive,btime,tres,checknamelisterror
+    use modmpi,    only : myid,comm3d,mpierr,D_MPI_BCAST
     implicit none
     integer :: ierr
     namelist/NAMCHECKSIM/ &
@@ -67,6 +78,16 @@ contains
     itcheck = floor(tcheck/tres)
     tnext = itcheck+btime
 
+    allocate(courxl(kmax))
+    allocate(courx(kmax))
+    allocate(couryl(kmax))
+    allocate(coury(kmax))
+    allocate(courzl(kmax))
+    allocate(courz(kmax))
+    allocate(courtotl(kmax))
+    allocate(courtot(kmax))
+    allocate(peclettotl(k1))
+    allocate(peclettot(k1))
 
   end subroutine initchecksim
 !>Run checksim. Timekeeping, and output
@@ -100,17 +121,12 @@ contains
     use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
     implicit none
 
-    real, allocatable, dimension (:) :: courxl,courx,couryl,coury,courzl,courz,courtotl,courtot
     integer       :: k
-
-    allocate(courxl(kmax),courx(kmax),couryl(kmax),coury(kmax),courzl(kmax),courz(kmax),courtotl(kmax),courtot(kmax))
+    
     courxl = 0.0
-    courx  = 0.0
     couryl = 0.0
-    coury  = 0.0
     courzl = 0.0
-    courz  = 0.0
-    courtot  = 0.0
+
     !$acc parallel loop copy(courxl, couryl, courzl, courtotl)
     do k=1,kmax
       courxl(k)=maxval(abs(u0(2:i1,2:j1,k)))*dtmn/dx
@@ -119,16 +135,16 @@ contains
       courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
       w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*dtmn*dtmn
     end do
+
     call D_MPI_ALLREDUCE(courxl  ,courx  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(couryl  ,coury  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(courzl  ,courz  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
+
     if (myid==0) then
       write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
       maxval(courx(1:kmax)),maxval(coury(1:kmax)),maxval(courz(1:kmax)),maxloc(courz(1:kmax)),sqrt(maxval(courtot(1:kmax))),maxloc(courtot(1:kmax))
     end if
-
-    deallocate(courxl,courx,couryl,coury,courzl,courz,courtotl,courtot)
 
     return
   end subroutine calccourant
@@ -140,30 +156,21 @@ contains
     use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
     implicit none
 
-
-    real, allocatable, dimension (:) :: peclettotl,peclettot
     integer       :: k
 
-    allocate(peclettotl(k1),peclettot(k1))
     peclettotl = 0.
     peclettot  = 0.
 
-    !$acc enter data copyin(peclettotl)
-
-    !$acc kernels default(present)
+    !$acc parallel loop copy(peclettotl)
     do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/minval((/dzh(k),dx,dy/))**2
+      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/min(dzh(k),dx,dy)**2
     end do
-    !$acc end kernels
-
-  !$acc update self(peclettotl)
+    
     call D_MPI_ALLREDUCE(peclettotl,peclettot,k1,MPI_MAX,comm3d,mpierr)
+
     if (myid==0) then
       write(6,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
     end if
-
-    !$acc exit data delete(peclettotl)
-    deallocate(peclettotl,peclettot)
 
     return
   end subroutine calcpeclet
@@ -175,8 +182,6 @@ contains
     use modmpi,    only : myid,comm3d,mpi_sum,mpi_max,mpierr, D_MPI_ALLREDUCE
     implicit none
 
-
-
     real div, divmax, divtot
     real divmaxl, divtotl
     integer i, j, k
@@ -185,22 +190,22 @@ contains
     divtot = 0.
     divmaxl= 0.
     divtotl= 0.
-
-    !$acc parallel loop collapse(3) default(present) reduction(max:divmaxl) reduction(+:divtotl)
-    do k=1,kmax
-    do j=2,j1
-    do i=2,i1
-       div = &
-                rhobf(k) * (u0(i+1,j,k) - u0(i,j,k) )/dx + &
-                rhobf(k) * (v0(i,j+1,k) - v0(i,j,k) )/dy + &
-                (rhobh(k+1)*w0(i,j,k+1) - rhobh(k)*w0(i,j,k) )/dzf(k)
-      divmaxl = max(divmaxl,abs(div))
-      divtotl = divtotl + div*dx*dy*dzf(k)
-    end do
-    end do
-    end do
-
     
+    !$acc parallel loop collapse(3) default(present) private(div, divmaxl, divtotl) &
+    !$acc& reduction(max:divmaxl) reduction(+:divtotl)
+    do k=1,kmax
+      do j=2,j1
+        do i=2,i1
+           div = &
+                    rhobf(k) * (u0(i+1,j,k) - u0(i,j,k) )/dx + &
+                    rhobf(k) * (v0(i,j+1,k) - v0(i,j,k) )/dy + &
+                    (rhobh(k+1)*w0(i,j,k+1) - rhobh(k)*w0(i,j,k) )/dzf(k)
+          divmaxl = max(divmaxl,abs(div))
+          divtotl = divtotl + div*dx*dy*dzf(k)
+        end do
+      end do
+    end do
+
     call D_MPI_ALLREDUCE(divtotl, divtot, 1,     &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(divmaxl, divmax, 1,     &
@@ -211,7 +216,6 @@ contains
    end if
 
    return    
-    
   end subroutine chkdiv
 
 end module modchecksim

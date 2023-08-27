@@ -61,6 +61,8 @@ contains
     end do
    tsc(k1)=tsc(kmax)
 
+   !$acc enter data copyin(tsc)
+
   end subroutine initboundary
 
 !>
@@ -230,18 +232,18 @@ contains
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 !JvdD
   
-  !$acc kernels default(present)
+  !$acc serial default(present)
   dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
-  !$acc end kernels
+  !$acc end serial
+
   if ( nsv > 0 ) then
+    !$acc parallel loop default(present)
     do n=1,nsv
-      !$acc kernels default(present)
       dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
                  dzh(kmax-kav:kmax-1))/kav
-      !$acc end kernels
     enddo
   endif
   

@@ -58,12 +58,13 @@ contains
     allocate(sbbuo(2-ih:i1+ih,2-jh:j1+jh,1))
     allocate(csz(k1))
     allocate(anis_fac(k1))
-    !$acc enter data create(ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, anis_fac)
 
     ! Initialize variables to avoid problems when not using subgrid scheme JvdD
     ! Determination of subgrid constants is explained in De Roode et al. 2017
     ekm=0.; ekh=0.; zlt=0.; sbdiss=0.; sbshr=0.; sbbuo=0.; csz=0.
     anis_fac = 0.
+
+    !$acc enter data copyin(ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, anis_fac)
 
     cm = cf / (2. * pi) * (1.5*alpha_kolm)**(-1.5)
 
@@ -115,6 +116,9 @@ contains
       write (6,*) 'cs    = ',cs
       write (6,*) 'Rigc  = ',Rigc
     endif
+
+    !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac, &
+    !$acc&                  sbdiss, sbshr, sbbuo)
 
   end subroutine initsubgrid
 
@@ -271,13 +275,11 @@ contains
     end do
     
     ! Other levels
-    ! TODO: make this collapsable
-    !$acc loop private(mlen)
+    !$acc parallel loop collapse(3) default(present) private(mlen, strain2)
     do k = 2,kmax
-      mlen = csz(k) * delta(k)
-      !$acc parallel loop collapse(2) private(strain2) async(1)
       do i = 2,i1
         do j = 2,j1
+          mlen = csz(k) * delta(k)
           strain2 =  ( &
             ((u0(i+1,j,k)-u0(i,j,k))    *dxi        )**2    + &
             ((v0(i,j+1,k)-v0(i,j,k))    *dyi        )**2    + &
@@ -405,8 +407,8 @@ contains
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
   call timer_tic("Boundary conditions", 2)
-  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
-  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh,.not.is_starting)
+  call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
+  call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
   call timer_toc("Boundary conditions") 
 
   call timer_tic("Write buffer", 3)

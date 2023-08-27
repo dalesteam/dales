@@ -165,7 +165,7 @@ program DALES
 !----------------------------------------------------------------
 
 #if defined(_OPENACC)
-  use modgpu, only: initgpu
+  use modgpu, only: update_gpu
 #endif
 
   implicit none
@@ -176,7 +176,6 @@ program DALES
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
-
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call initmpicomm
   call startup
@@ -215,9 +214,8 @@ program DALES
   !call initspectra2
   call initcape
 
-
 #if defined(_OPENACC)
-  call initgpu
+  call update_gpu
 #endif
 
   ! Startup is done, set flag to false

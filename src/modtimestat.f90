@@ -966,165 +966,176 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : mpierr, comm3d,mpi_sum, D_MPI_ALLREDUCE
     use advec_kappa,only : halflev_kappa
+
     implicit none
+
     real    :: zil, dhdt,locval,oldlocval
     integer :: location,i,j,k,nsamp,stride
     real, allocatable,dimension(:,:,:) :: blh_fld, blh_fld2
     real(field_r), allocatable,dimension(:,:,:) :: sv0h
     real, allocatable, dimension(:) :: profile, gradient, dgrad
+
     allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(profile(k1),gradient(k1),dgrad(k1))
+
     if (lhetero) then
       allocate(blh_fld2(2:i1,2:j1,k1))
     endif
+
     zil = 0.0
     gradient = 0.0
     dgrad = 0.0
+
     select case (iblh_meth)
-    case (iblh_flux)
-      select case (iblh_var)
-      case(iblh_qt)
-        blh_fld = w0*qt0h
-      case(iblh_thl)
-        blh_fld = w0*thl0h
-      case(iblh_thv)
-        blh_fld = w0*thv0h
-      case(1:)
-        if (iadv_sv(iblh_var)==iadv_kappa) then
-          call halflev_kappa(sv0(:,:,:,iblh_var),sv0h)
-        else
-          do  k=2,k1
-          do  j=2,j1
-          do  i=2,i1
-            sv0h(i,j,k) = (sv0(i,j,k,iblh_var)*dzf(k-1)+sv0(i,j,k-1,iblh_var)*dzf(k))/(2*dzh(k))
-          enddo
-          enddo
-          enddo
-          sv0h(2:i1,2:j1,1) = svs(iblh_var)
-          blh_fld = w0*sv0h
-        end if
-      end select
-    case (iblh_grad,iblh_thres)
-      select case (iblh_var)
-      case(iblh_qt)
-        blh_fld = qt0
-      case(iblh_thl)
-        blh_fld = thl0
-      case(iblh_thv)
-        do k=1,k1
-          blh_fld(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                      *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-        end do
-      case(1:)
-        blh_fld = sv0(2:i1,2:j1,1:k1,iblh_var)
-      end select
+      case (iblh_flux)
+        select case (iblh_var)
+          case(iblh_qt)
+            blh_fld = w0*qt0h
+          case(iblh_thl)
+            blh_fld = w0*thl0h
+          case(iblh_thv)
+            blh_fld = w0*thv0h
+          case(1:)
+            if (iadv_sv(iblh_var)==iadv_kappa) then
+              call halflev_kappa(sv0(:,:,:,iblh_var),sv0h)
+            else
+              do  k=2,k1
+                do  j=2,j1
+                  do  i=2,i1
+                    sv0h(i,j,k) = (sv0(i,j,k,iblh_var)*dzf(k-1)+sv0(i,j,k-1,iblh_var)*dzf(k))/(2*dzh(k))
+                  enddo
+                enddo
+              enddo
+              sv0h(2:i1,2:j1,1) = svs(iblh_var)
+              blh_fld = w0*sv0h
+            end if
+        end select
+
+      case (iblh_grad,iblh_thres)
+        select case (iblh_var)
+          case(iblh_qt)
+            blh_fld = qt0
+          case(iblh_thl)
+            blh_fld = thl0
+          case(iblh_thv)
+            do k=1,k1
+              do j=2,j1
+                do i=2,i1
+                  blh_fld(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                              *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+                end do
+              end do
+            end do
+          case(1:)
+            blh_fld = sv0(2:i1,2:j1,1:k1,iblh_var)
+        end select
+
     end select
 
     select case (iblh_meth)
-
-    case (iblh_flux)
-      stride = ceiling(real(imax)/real(blh_nsamp))
-      do i=2,stride+1
-        nsamp =  ceiling(real(i1-i+1)/real(stride))
-        do j=2,j1
-          zil = zil + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
+      case (iblh_flux)
+        stride = ceiling(real(imax)/real(blh_nsamp))
+        do i=2,stride+1
+          nsamp =  ceiling(real(i1-i+1)/real(stride))
+          do j=2,j1
+            zil = zil + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
+          end do
         end do
-      end do
 
-    case (iblh_grad)
-      stride = ceiling(real(imax)/real(blh_nsamp))
-      do i=2,stride+1
-        nsamp =  ceiling(real(i1-i+1)/real(stride))
-        do j=2,j1
-          profile  = sum(blh_fld(i:i1:stride,j,:),1)
-          select case (iblh_var)
-          case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
-            gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-          case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
-            gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-          case default
-            gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-          end select
-          dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
-          location = maxloc(gradient,1)
-          zil  = zil + nsamp*(zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-        enddo
-      enddo
-    case (iblh_thres)
-      stride = ceiling(real(imax)/real(blh_nsamp))
-      do i=2,stride+1
-        nsamp =  ceiling(real(i1-i+1)/real(stride))
-        do j=2,j1
-          locval = 0.0
-          do k=kmax,1,-1
-            oldlocval = locval
-            locval = blh_sign*sum(blh_fld(i:i1:stride,j,k))/nsamp
-            if (locval < blh_sign*blh_thres) then
-              zil = zil + nsamp *(zf(k) +  (blh_sign*blh_thres-locval) &
-                        *dzh(k+1)/(oldlocval-locval))
-              exit
-            endif
+      case (iblh_grad)
+        stride = ceiling(real(imax)/real(blh_nsamp))
+        do i=2,stride+1
+          nsamp =  ceiling(real(i1-i+1)/real(stride))
+          do j=2,j1
+            profile  = sum(blh_fld(i:i1:stride,j,:),1)
+            select case (iblh_var)
+              case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
+                gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case default
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+            end select
+            dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
+            location = maxloc(gradient,1)
+            zil  = zil + nsamp*(zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
           enddo
         enddo
-      enddo
+
+      case (iblh_thres)
+        stride = ceiling(real(imax)/real(blh_nsamp))
+        do i=2,stride+1
+          nsamp =  ceiling(real(i1-i+1)/real(stride))
+          do j=2,j1
+            locval = 0.0
+            do k=kmax,1,-1
+              oldlocval = locval
+              locval = blh_sign*sum(blh_fld(i:i1:stride,j,k))/nsamp
+              if (locval < blh_sign*blh_thres) then
+                zil = zil + nsamp *(zf(k) +  (blh_sign*blh_thres-locval) &
+                          *dzh(k+1)/(oldlocval-locval))
+                exit
+              endif
+            enddo
+          enddo
+        enddo
 
     end select
 
     if (lhetero) then !Not using stride, instead use adjacent grid points in x-direction (to prevent processor communication)
 
       select case (iblh_meth)
+        case (iblh_flux)
+          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
 
-      case (iblh_flux)
-        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-        do i=2,i1
-          do j=2,j1
-            zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
+          do i=2,i1
+            do j=2,j1
+              zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
+            end do
           end do
-        end do
 
-      case (iblh_grad)
-        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+        case (iblh_grad)
+          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
 
-        do i=2,i1
-          do j=2,j1
-            profile  = blh_fld2(i,j,:)
-            select case (iblh_var)
-            case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
-              gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-            case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
-              gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-            case default
-              gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-            end select
-            dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
-            location = maxloc(gradient,1)
-            zi_field(i,j) = (zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-          enddo
-        enddo
-
-      case (iblh_thres)
-        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-        do i=2,i1
-          do j=2,j1
-            locval = 0.0
-            do k=kmax,1,-1
-              oldlocval = locval
-              locval = blh_sign*blh_fld2(i,j,k)/3
-              if (locval < blh_sign*blh_thres) then
-                zi_field(i,j) = (zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
-                exit
-              endif
+          do i=2,i1
+            do j=2,j1
+              profile  = blh_fld2(i,j,:)
+              select case (iblh_var)
+              case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
+                gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case default
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              end select
+              dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
+              location = maxloc(gradient,1)
+              zi_field(i,j) = (zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
             enddo
           enddo
-        enddo
+
+        case (iblh_thres)
+          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+
+          do i=2,i1
+            do j=2,j1
+              locval = 0.0
+              do k=kmax,1,-1
+                oldlocval = locval
+                locval = blh_sign*blh_fld2(i,j,k)/3
+                if (locval < blh_sign*blh_thres) then
+                  zi_field(i,j) = (zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
+                  exit
+                endif
+              enddo
+            enddo
+          enddo
 
       end select
 
@@ -1149,14 +1160,14 @@ contains
 
     if (lhetero) then
       do j=1,ypatches
-      do i=1,xpatches
-        if (ziold_patch(i,j)<0) ziold_patch(i,j) = zi_patch(i,j)
-        k=2
-        do while (zh(k)<zi_patch(i,j) .and. k < kmax)
-          k=k+1
-        end do
-        we_patch(i,j) = ((zi_patch(i,j)-ziold_patch(i,j))/dtav) - whls(k)
-      enddo
+        do i=1,xpatches
+          if (ziold_patch(i,j)<0) ziold_patch(i,j) = zi_patch(i,j)
+          k=2
+          do while (zh(k)<zi_patch(i,j) .and. k < kmax)
+            k=k+1
+          end do
+          we_patch(i,j) = ((zi_patch(i,j)-ziold_patch(i,j))/dtav) - whls(k)
+        enddo
       enddo
       if(store_zi) ziold_patch = zi_patch
     endif

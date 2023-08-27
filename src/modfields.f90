@@ -263,11 +263,36 @@ subroutine initfields
     qsat=0.
 
     surf_rain = 0
+
+    !$acc enter data copyin(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$acc&                  thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$acc&                  e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&                  rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&                  thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$acc&                  thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$acc&                  u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&                  wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&                  dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$acc&                  dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$acc&                  dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
+
   end subroutine initfields
 
 !> Deallocate the fields
   subroutine exitfields
   implicit none
+    !$acc exit data delete(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$acc&                 thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$acc&                 e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&                 rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&                 thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$acc&                 thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$acc&                 u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&                 wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&                 dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$acc&                 dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$acc&                 dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
+
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
