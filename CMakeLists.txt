@@ -288,15 +288,13 @@ if(NETCDF_FORTRAN_LIB)
 endif(NETCDF_FORTRAN_LIB)
 
 # Find CUDA Toolkit and set flags
-set(cuda_libs "")
 if("$ENV{SYST}" STREQUAL "NV-OpenACC")
   include(FindCUDAToolkit REQUIRED)
   include_directories(${CUDAToolkit_INCLUDE_DIRS})
-  set(cuda_libs "cufft")
+  set(opt_flags "${opt_flags} -cudalib=cufft")
   if(USE_NVTX)
-    set(cuda_libs "${cuda_libs},nvtx3")
+    set(opt_flags "${opt_flags} -DUSE_NVTX -lnvToolsExt")
   endif(USE_NVTX)
-  set(opt_flags "${opt_flags} -cudalib=${cuda_libs}")
 endif()
 
 if("$ENV{SYST}" STREQUAL "NV-multicore")
