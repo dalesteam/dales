@@ -67,7 +67,7 @@ timeav      = 600
 &NUDGEBOUNDARY
 lnudgeboundary=  .false.
 lstatref = .false.
-nudgedepthgr = 10.
+nudgedepthgr = 10
 /
 &NAMIBM
 lapply_ibm = .true.
