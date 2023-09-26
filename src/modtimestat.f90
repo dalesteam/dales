@@ -33,7 +33,6 @@
 
 module modtimestat
 
-
   use modprecision, only : longint, field_r
 
 implicit none
@@ -350,6 +349,9 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
@@ -378,6 +380,10 @@ contains
     end if
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
+
+#if defined(_OPENACC)
+    call update_host
+#endif
 
     if (lhetero) then
       zbase_field    = 0

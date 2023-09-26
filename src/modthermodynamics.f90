@@ -39,7 +39,7 @@ module modthermodynamics
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
-
+  real, allocatable :: thetah(:), qth(:), qlh(:)
 
 contains
 
@@ -51,10 +51,11 @@ contains
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thetah(k1), qth(k1), qlh(k1))
 
     th0av = 0.
 
-    !$acc enter data copyin(th0av, thv0)
+    !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
 
   end subroutine initthermodynamics
 
@@ -92,18 +93,20 @@ contains
     ! recalculate thv and rho on the basis of results
     call calthv
 
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     thvh=0.
     !$acc end kernels
-
+    
+    !$acc host_data use_device(thvh, thv0h)
     call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+    !$acc end host_data
 
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
     !$acc end kernels
     
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async
     do k=1,k1
       do j=2,j1
         do i=2,i1
@@ -113,17 +116,19 @@ contains
       end do
     end do
 
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     thvf = 0.0
     !$acc end kernels
 
+    !$acc host_data use_device(thvf, thv0)
     call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
 
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     thvf = thvf/ijtot
     !$acc end kernels
 
-    !$acc parallel loop default(present)
+    !$acc parallel loop default(present) async
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
@@ -131,9 +136,9 @@ contains
   end subroutine thermodynamics
 !> Cleans up after the run
   subroutine exitthermodynamics
-  implicit none
-    deallocate(th0av)
-    deallocate(thv0)
+    implicit none
+    !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
+    deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
 
 !> Calculate thetav and dthvdz
@@ -294,6 +299,8 @@ contains
     !$acc end kernels
 
 !  !CvH changed momentum array dimensions to same value as scalars!
+   !$acc host_data use_device(u0av, u0, v0av, v0, thl0av, thl0, qt0av, qt0, &
+   !$acc&                     ql0av, ql0, sv0av, sv0)
    call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
    call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
    call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -302,8 +309,9 @@ contains
    do n=1,nsv
       call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
    end do
+   !$acc end host_data
 
-   !$acc kernels default(present)
+   !$acc kernels default(present) async(1)
    u0av   = u0av  /ijtot + cu
    v0av   = v0av  /ijtot + cv
    thl0av = thl0av/ijtot
@@ -324,10 +332,10 @@ contains
 
    call fromztop
 
-   !$acc serial default(present)
+   !$acc kernels default(present) async(1)
    exnf = (presf/pref0)**(rd/cp)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
-   !$acc end serial
+   !$acc end kernels
 
 !    2.2 Use new updated value of theta for determination of pressure
 
@@ -340,29 +348,31 @@ contains
 
 !    3.1 determine exner
 
-   !$acc serial default(present)
+   !$acc serial default(present) async(1)
    exnh(1) = (ps/pref0)**(rd/cp)
    exnf(1) = (presf(1)/pref0)**(rd/cp)
    !$acc end serial
 
-   !$acc parallel loop default(present)
+   !$acc parallel loop default(present) async(2)
    do k=2,k1
      exnf(k) = (presf(k)/pref0)**(rd/cp)
      exnh(k) = (presh(k)/pref0)**(rd/cp)
    end do
    
-   !$acc serial default(present)
+   !$acc serial default(present) async(1)
    thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
    rhof(1) = presf(1)/(rd*thvf(1))
    !$acc end serial
 
 !    3.2 determine rho
 
-   !$acc parallel loop default(present)
+   !$acc parallel loop default(present) async(2)
    do k=2,k1
      thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
      rhof(k) = presf(k)/(rd*thvf(k))
    end do
+
+   !$acc wait
 
    return
   end subroutine diagfld
@@ -388,18 +398,14 @@ contains
 
   integer   k
   real      rdocp
-  real,allocatable,dimension (:) :: thetah, qth, qlh
 
-  allocate(thetah(k1), qth(k1), qlh(k1))
-  ! TODO: save these arrays
-  !$acc enter data create(thetah, qth, qlh)
   rdocp = rd/cp
 
 !**************************************************
 !    1.0 Determine theta and qt at half levels    *
 !**************************************************
 
-  !$acc parallel loop default(present)
+  !$acc parallel loop default(present) async(1)
   do k=2,k1
     thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
     qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
@@ -413,7 +419,7 @@ contains
 
 !     1: lowest level: use first level value for safety!
 
-  !$acc serial default(present)
+  !$acc serial default(present) async(2) wait(1)
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
@@ -421,8 +427,7 @@ contains
 
 !     2: higher levels
 
-  ! TODO: see if a parallel loop with an atomic update is faster here
-  !$acc serial loop default(present)
+  !$acc serial loop default(present) async(2) wait(1)
   do k=2,k1
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
@@ -435,22 +440,18 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
-  !$acc serial default(present)
+  !$acc serial default(present) async(3) wait(1)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   !$acc end serial
 
-  !$acc serial loop default(present)
+  !$acc serial loop default(present) async(3) wait(1)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
     presh(k) = presh(k)**(1./rdocp)
   end do
-
-  !$acc exit data delete(thetah, qth, qlh)
-  deallocate(thetah, qth, qlh)
-  
 
   return
   end subroutine fromztop
@@ -1042,7 +1043,7 @@ contains
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1052,7 +1053,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present) async
     do j=2,j1
       do i=2,i1
         thl0h(i,j,1) = thls
@@ -1062,7 +1063,7 @@ contains
     if (iadv_qt==iadv_kappa) then
         call halflev_kappa(qt0,qt0h)
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1071,13 +1072,15 @@ contains
         end do
       end do
       
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) async
       do j=2,j1
         do i=2,i1
           qt0h(i,j,1) = qts
         end do
       end do
     end if
+
+    !$acc wait
   end subroutine calc_halflev
 
 end module modthermodynamics

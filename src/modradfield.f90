@@ -138,6 +138,9 @@ contains
 
   subroutine radfield
     use modglobal, only : rk3step,timee,dt_lim
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     if (.not. lradfield) return
@@ -149,6 +152,9 @@ contains
     end if
     if (timee>=tnext) then
       tnext = tnext+idtav
+#if defined(_OPENACC)
+      call update_host
+#endif
       call sample_radfield
     end if
     if (timee>=tnextwrite) then

@@ -231,6 +231,7 @@ contains
       if (mod(itot,xpatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the x-direction"
       if (mod(jtot,ypatches) .ne. 0) stop "NAMSURFACE: Not an integer amount of grid points per patch in the y-direction"
 
+      allocate(horvpatch(xpatches,ypatches))
       allocate(z0mav_patch(xpatches,ypatches))
       allocate(z0hav_patch(xpatches,ypatches))
       allocate(thls_patch(xpatches,ypatches))
@@ -674,6 +675,7 @@ contains
 
     ! 3. Initialize surface layer
     allocate(ustar   (i2,j2))
+    ustar_3D(1:i2, 1:j2, 1:1) => ustar
 
     allocate(dudz    (i2,j2))
     allocate(dvdz    (i2,j2))
@@ -684,8 +686,8 @@ contains
     allocate(dthldz  (i2,j2))
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
-    !$acc enter data create(ustar, dudz, dvdz)
-    !$acc enter data create(thlflux, qtflux, dqtdz, dthldz, svflux, svs)
+
+    allocate(horv(2:i1,2:j1))
 
     if (lrsAgs) then
       allocate(AnField   (2:i1,2:j1))
@@ -705,46 +707,223 @@ contains
       endif  
     endif
 
-    !$acc enter data copyin(ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                  dqtdz, dthldz, svflux, svs)
+    !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
+    !$acc&                  dqtdz, dthldz, svflux, svs, horv)
 
     return
   end subroutine initsurface
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
   subroutine surface
-    use modglobal,  only : i1,j1,i2,j2,fkar,zf,cu,cv,nsv,ijtot,rd,rv,rtimee
-    use modfields,  only : thl0, qt0, u0, v0, u0av, v0av
-    use modmpi,     only : mpierr, comm3d, mpi_sum, excjs &
-                         , D_MPI_ALLREDUCE, D_MPI_BCAST
     use moduser,    only : surf_user
     implicit none
+    
+    select case (isurf)
+      case (1) ! Interactive land surface model
+        call calc_mean_wind
+        call getobl
+        call calc_drag_coefficients
+        call calc_aerodynamic_resistance
+        call do_lsm
+        call calc_friction_velocity
+        call calc_surface_flux
+        call calc_surface_gradients
+      case (2) ! Forced surface temperature, fluxes calculated
+        call calc_mean_wind
+        call getobl
+        call calc_drag_coefficients
+        call calc_aerodynamic_resistance
+        call presc_skin_temperature
+        call qtsurf
+        call calc_friction_velocity
+        call calc_surface_flux
+        call calc_surface_gradients
+      case (3) ! Forced fluxes, surface temperature calculated
+        call calc_mean_wind
+        call calc_drag_coefficients
+        call getobl
+        call presc_friction_velocity
+        call presc_surface_flux
+        call calc_surface_gradients
+        call calc_surface_scalars
+      case (4) ! Forced moisture and heat flux, u_star and surface temperature calculated
+        call calc_mean_wind
+        call calc_drag_coefficients
+        call getobl
+        call calc_friction_velocity
+        call presc_surface_flux
+        call calc_surface_gradients
+        call calc_surface_scalars
+      case (10) ! User defined surface scheme
+        call surf_user
+      case default
+        stop "Invalid option selected for isurf"
+    end select
 
-    integer  :: i, j, n, patchx, patchy
-    real     :: upcu, vpcv, horv, horvav, horvpatch(xpatches,ypatches)
-    real     :: upatch(xpatches,ypatches), vpatch(xpatches,ypatches)
-    real     :: Supatch(xpatches,ypatches), Svpatch(xpatches,ypatches)
-    integer  :: Npatch(xpatches,ypatches), SNpatch(xpatches,ypatches)
-    real     :: lthls_patch(xpatches,ypatches)
-    real     :: lqts_patch(xpatches,ypatches)!, qts_patch(xpatches,ypatches)
-    real     :: phimzf, phihzf
-    real     :: thlsl, qtsl
+  end subroutine surface
 
-    real     :: ust,ustl
-    real     :: wtsurfl, wqsurfl
-    real, pointer :: ustar_3D(:,:,:)
+  !> Calculates the drag coefficients \f$C_m\f$ and \f$C_s\f$
+  subroutine calc_drag_coefficients
+    use modglobal, only: i1, j1, fkar, zf, cu, cv
+    use modfields, only: u0, v0, u0av, v0av
+    implicit none
 
-    !$acc update self(u0, v0, thl0, qt0, u0av, v0av)
+    integer :: i, j
+    real :: upcu, vpcv
+    
+   !$acc parallel loop collapse(2) default(present)
+    do j = 2, j1
+      do i = 2, i1 
+        Cm(i,j) = fkar**2 / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))**2 
+        Cs(i,j) = fkar**2 / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
+                  (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
+      end do
+    end do
 
-    patchx = 0
-    patchy = 0
+  end subroutine calc_drag_coefficients
+  
+  !> Calculates the aerodynamic resistance \f$r_a\f$
+  subroutine calc_aerodynamic_resistance
+    use modglobal, only: i1, j1
+    implicit none
 
-    if (isurf==10) then
-      call surf_user
-      return
+    integer :: i, j 
+    integer :: patchx, patchy
+    
+    if (lmostlocal) then
+      do j = 2, j1
+        do i = 2, i1
+          ra(i,j) = 1. / (Cs(i,j) * horv(i,j))
+        end do
+      end do
+    else if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1
+          patchx = patchxnr(i)
+          patchy = patchynr(j)
+          ra(i,j) = 1. / (Cs(i,j) * horvpatch(patchx, patchy))
+        end do
+      end do
+    else
+      do j = 2, j1
+        do i = 2, i1
+          ra(i,j) = 1. / (Cs(i,j) * horvav)
+        end do
+      end do
     end if
 
-    if(lhetero) then
+  end subroutine calc_aerodynamic_resistance
+
+  !> Prescribes the skin temperature
+  subroutine presc_skin_temperature
+    use modglobal, only: i1, j1
+    implicit none
+    
+    integer :: i, j
+
+    if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1
+          tskin(i,j) = thls_patch(patchxnr(i), patchynr(j))
+        end do
+      end do
+    else
+      do j = 2, j1
+        do i = 2, i1
+          tskin(i,j) = thls
+        end do
+      end do
+    end if
+
+  end subroutine presc_skin_temperature
+
+  !> Calculates the surface temperature and specific humidity
+  subroutine calc_surface_scalars
+    use modglobal, only: i1, j1, rv, rd, ijtot
+    use modfields, only: thl0, qt0
+    use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
+    implicit none
+
+    integer :: i, j
+    integer :: patchx, patchy
+    real :: thlsl, qtsl
+    real :: lthls_patch(xpatches, ypatches)
+    real :: lqts_patch(xpatches, ypatches)
+    integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
+    
+    ! TODO: check if splitting these loops speeds things up on the GPU (async)
+    !$acc parallel loop collapse(2) default(present)
+    do j = 2, j1
+      do i = 2, i1
+        tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1) 
+        qskin(i,j) = min(max(qtflux(i,j) / (Cs(i,j) * horv(i,j)), -5.e-2), 5.e-2) + qt0(i,j,1)
+      end do
+    end do
+    
+    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qtsl) 
+    do j = 2, j1
+      do i = 2, i1
+        thlsl = thlsl + tskin(i,j)
+        qtsl = qtsl + qskin(i,j)
+      end do
+    end do
+
+    call D_MPI_ALLREDUCE(thlsl, thls, 1, MPI_SUM, comm3d, mpierr)
+    call D_MPI_ALLREDUCE(qtsl, qts, 1, MPI_SUM, comm3d, mpierr)
+
+    thls = thls / ijtot
+    qts = qts / ijtot
+    thvs = thls * (1. + (rv/rd - 1.) * qts)
+
+    if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1
+          patchx = patchxnr(i)
+          patchy = patchynr(j)
+          lthls_patch(patchx, patchy) = lthls_patch(patchx, patchy) + tskin(i,j)
+          lqts_patch(patchx, patchy) = lqts_patch(patchx, patchy) + qskin(i,j)
+          Npatch(patchx, patchy) = Npatch(patchx, patchy) + 1
+        end do
+      end do
+      
+      call D_MPI_ALLREDUCE(lthls_patch(1:xpatches, 1:ypatches), thls_patch(1:xpatches, 1:ypatches), &
+                           xpatches*ypatches, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(lqts_patch(1:xpatches, 1:ypatches), qts_patch(1:xpatches, 1:ypatches), &
+                           xpatches*ypatches, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(Npatch(1:xpatches, 1:ypatches), SNpatch(1:xpatches, 1:ypatches), &
+                           xpatches*ypatches, MPI_SUM, comm3d, mpierr)
+      thls_patch = thls_patch / SNpatch
+      qts_patch = qts_patch / SNpatch
+      thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
+    end if
+
+  end subroutine calc_surface_scalars
+  
+  !> Calculates the maginitude of the wind vector at the first level
+  subroutine calc_mean_wind
+    use modglobal, only: i1, j1, cu, cv
+    use modfields, only: u0, v0, u0av, v0av
+    use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
+    implicit none
+    
+    integer :: i, j, patchx, patchy
+    real :: upcu, vpcv
+    real :: upatch(xpatches, ypatches), vpatch(xpatches, ypatches)
+    real :: Supatch(xpatches, ypatches), Svpatch(xpatches, ypatches)
+    integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
+    
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv)
+    do j = 2, j1
+      do i = 2, i1
+        upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+        vpcv = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+        horv(i,j) = sqrt(upcu**2. + vpcv**2.)
+        horv(i,j) = max(horv(i,j), 0.1)
+      end do
+    end do
+
+    if (lhetero) then
       upatch = 0
       vpatch = 0
       Npatch = 0
@@ -759,305 +938,247 @@ contains
         enddo
       enddo
 
-      call D_MPI_ALLREDUCE(upatch(1:xpatches,1:ypatches),Supatch(1:xpatches,1:ypatches),&
-      xpatches*ypatches,MPI_SUM, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(vpatch(1:xpatches,1:ypatches),Svpatch(1:xpatches,1:ypatches),&
-      xpatches*ypatches,MPI_SUM, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches),SNpatch(1:xpatches,1:ypatches),&
-      xpatches*ypatches,MPI_SUM, comm3d,mpierr)
+      call D_MPI_ALLREDUCE(upatch(1:xpatches, 1:ypatches), Supatch(1:xpatches, 1:ypatches), &
+                           xpatches*ypatches, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(vpatch(1:xpatches, 1:ypatches), Svpatch(1:xpatches, 1:ypatches), &
+                           xpatches*ypatches, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(Npatch(1:xpatches, 1:ypatches), SNpatch(1:xpatches, 1:ypatches), &
+                           xpatches*ypatches, MPI_SUM, comm3d, mpierr)
 
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
       horvpatch = max(horvpatch, 0.1)
-    endif
+    else
+      !$acc update self(u0av(1), v0av(1))
+      horvav = sqrt(u0av(1)**2. + v0av(1)**2.)
+      horvav = max(horvav, 0.1)
+    end if
 
+  end subroutine calc_mean_wind
 
-    ! CvH start with computation of drag coefficients to allow for implicit solver
-    if(isurf <= 2) then
+  !> Calculates the friction velocity \f$u_*\f$
+  subroutine calc_friction_velocity
+    use modglobal, only: i1 ,j1
+    use modmpi, only: excjs
+    implicit none
 
-      if(lneutral) then
-        obl(:,:) = -1.e10
-        oblav    = -1.e10
-      else
-        call getobl
+    integer :: i, j
+
+    if (lmostlocal) then
+      do j = 2, j1
+        do i = 2, i1
+          ustar(i,j) = sqrt(Cm(i,j)) * horv(i,j)
+        end do
+      end do
+    else if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1
+          ustar(i,j) = sqrt(Cm(i,j)) * horvpatch(patchxnr(i), patchynr(j))
+        end do
+      end do
+    else
+      do j = 2, j1
+        do i = 2, i1
+          ustar(i,j) = sqrt(Cm(i,j)) * horvav
+        end do
+      end do
+    end if
+
+    do j = 2, j1
+      do i = 2, i1
+        ustar(i,j) = max(ustar(i,j), 1.e-2)
+      end do
+    end do
+
+    call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
+      
+  end subroutine calc_friction_velocity
+
+  !> Prescribes the friction velocity \f$u_*\f$
+  subroutine presc_friction_velocity
+    use modglobal, only: i1, j1
+    use modmpi, only: excjs
+    implicit none 
+
+    integer :: i, j
+    
+    if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1      
+          ustar(i,j) = ustin_patch(patchxnr(i), patchynr(j))
+        end do
+      end do
+    else
+      !$acc parallel loop collapse(2) default(present)
+      do j = 2, j1
+        do i = 2, i1
+          ustar(i,j) = ustin
+        end do
+      end do
+    end if
+    
+    !$acc parallel loop collapse(2) default(present)
+    do j = 2, j1
+      do i = 2, i1
+        ustar(i,j) = max(ustar(i,j), 1.e-2)
+      end do
+    end do
+    
+    call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
+
+  end subroutine presc_friction_velocity
+
+  !> Calculates the surfaces fluxes using the scalar values at the surface and
+  !> the calculated aerodynamic resistance
+  subroutine calc_surface_flux
+    use modglobal, only: i1, j1, nsv, ijtot
+    use modfields, only: thl0, qt0 
+    use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
+    implicit none
+
+    integer :: i, j, n
+    real :: ust, ustl, wtsurfl, wqsurfl
+
+    ! Uniform sensible and latent heat flux
+    if (lsmoothflux) then
+      ustl = sum(ustar(2:i1,2:j1))
+      wtsurfl = sum(thlflux(2:i1,2:j1))
+      wqsurfl = sum(qtflux(2:i1,2:j1))
+
+      call D_MPI_ALLREDUCE(ustl, ust, 1, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(wtsurfl, wtsurf, 1, MPI_SUM, comm3d, mpierr)
+      call D_MPI_ALLREDUCE(wqsurfl, wqsurf, 1, MPI_SUM, comm3d, mpierr)
+      
+      ust = ust / ijtot
+      wtsurf = wtsurf / ijtot
+      wqsurf = wqsurf / ijtot
+
+      call presc_surface_flux
+    else
+      do j = 2, j1
+        do i = 2, i1
+          thlflux(i,j) = - (thl0(i,j,1) - tskin(i,j)) / ra(i,j)
+        end do
+      end do
+
+      do j = 2, j1    
+        do i = 2, i1
+          qtflux(i,j) = - (qt0(i,j,1) - qskin(i,j)) / ra(i,j)
+        end do
+      end do
+
+      ! Passive scalars
+      if (nsv > 0) then
+        if (lhetero) then
+          do n = 1, nsv
+            do j = 2, j1 
+              do i = 2, i1
+                svflux(i,j,n) = wsv_patch(n, patchxnr(i), patchynr(j))
+              end do
+            end do
+          end do
+        else
+          do n = 1, nsv
+            do j = 2, j1 
+              do i = 2, i1
+                svflux(i,j,n) = wsvsurf(n)
+              end do
+            end do
+          end do
+        end if
       end if
 
-      call D_MPI_BCAST(oblav ,1 ,0,comm3d,mpierr)
-
-      do j = 2, j1
-        do i = 2, i1
-          if(lhetero) then
-            patchx = patchxnr(i)
-            patchy = patchynr(j)
-          endif
-
-          ! 3     -   Calculate the drag coefficient and aerodynamic resistance
-          Cm(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) ** 2.
-          Cs(i,j) = fkar ** 2. / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
-          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
-
-          if(lmostlocal) then
-            upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-            vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-            horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 0.1)
-            ra(i,j) = 1. / ( Cs(i,j) * horv )
-          else
-            if (lhetero) then
-              ra(i,j) = 1. / ( Cs(i,j) * horvpatch(patchx,patchy) )
-            else
-              horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-              horvav  = max(horvav, 0.1)
-              ra(i,j) = 1. / ( Cs(i,j) * horvav )
-            endif
-          end if
-
-        end do
-      end do
+      if (lCO2Ags) then
+        do n = 1, indCO2
+          do j = 2, j1
+            do i = 2, i1
+              svflux(i,j,n) = CO2flux(i,j)
+            end do
+          end do
+        end do 
+      end if
     end if
 
-    ! Solve the surface energy balance and the heat and moisture transport in the soil
-    if(isurf == 1) then
-      call do_lsm
+  end subroutine calc_surface_flux
 
-    elseif(isurf == 2) then
+  !> Prescribes the surface fluxes
+  subroutine presc_surface_flux
+    use modglobal, only: i1, j1, nsv
+    implicit none
+
+    integer :: i, j, n
+
+    if (lhetero) then
       do j = 2, j1
         do i = 2, i1
-          if(lhetero) then
-            tskin(i,j) = thls_patch(patchxnr(i),patchynr(j))
-          else
-            tskin(i,j) = thls
-          endif
+          thlflux(i,j) = wt_patch(patchxnr(i), patchynr(j))
+          qtflux(i,j) = wq_patch(patchxnr(i), patchynr(j))
         end do
       end do
 
-      call qtsurf
-
-    end if
-
-    ! 2     -   Calculate the surface fluxes
-    if( (i_expemis .gt. 0) .and. (i_expemis .le. nsv) ) then
-      wsvsurf(i_expemis) = expemis0 * exp(-(0.5*((rtimee-expemis1)/expemis2)**2.))
-      if(lhetero) wsv_patch(i_expemis,:,:) = wsvsurf(i_expemis)
-    endif
-
-    if(isurf <= 2) then
-      do j = 2, j1
-        do i = 2, i1
-          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-          horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
-          horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 0.1)
-
-          if(lhetero) then
-            patchx = patchxnr(i)
-            patchy = patchynr(j)
-          endif
-
-          if(lmostlocal) then
-            ustar  (i,j) = sqrt(Cm(i,j)) * horv
-          else
-            if(lhetero) then
-              ustar  (i,j) = sqrt(Cm(i,j)) * horvpatch(patchx,patchy)
-            else
-              ustar  (i,j) = sqrt(Cm(i,j)) * horvav
-            endif
-          end if
-
-          thlflux(i,j) = - ( thl0(i,j,1) - tskin(i,j) ) / ra(i,j)
-          qtflux(i,j) = - (qt0(i,j,1)  - qskin(i,j)) / ra(i,j)
-
-          if(lhetero) then
-            do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchy)
-            enddo
-          else
-            do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n)
-            enddo
-          endif
-
-          if(lCO2Ags) svflux(i,j,indCO2) = CO2flux(i,j)
-
-          phimzf = phim(zf(1)/obl(i,j))
-          phihzf = phih(zf(1)/obl(i,j))
-          
-          dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
-          dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
-        end do
-      end do
-
-      if(lsmoothflux) then
-
-        ustl    = sum(ustar  (2:i1,2:j1))
-        wtsurfl = sum(thlflux(2:i1,2:j1))
-        wqsurfl = sum(qtflux (2:i1,2:j1))
-
-        call D_MPI_ALLREDUCE(ustl  ,  ust   , 1, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(wtsurfl, wtsurf, 1, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(wqsurfl, wqsurf, 1, MPI_SUM, comm3d,mpierr)
-
-        wtsurf = wtsurf / ijtot
-        wqsurf = wqsurf / ijtot
-
-        do j = 2, j1
-          do i = 2, i1
-
-            thlflux(i,j) = wtsurf
-            qtflux (i,j) = wqsurf
-
-            do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n)
-            enddo
-
-            phimzf = phim(zf(1)/obl(i,j))
-            phihzf = phih(zf(1)/obl(i,j))
-            
-            upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-            vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-            horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 0.1)
-
-            dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
-            dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-            dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-            dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
+      if (nsv > 0) then
+        do n = 1, nsv
+          do j = 2, j1
+            do i = 2, i1
+              svflux(i,j,n) = wsv_patch(n, patchxnr(i), patchynr(j))
+            end do
           end do
         end do
-
       end if
-
-    else
-
-      if(lneutral) then
-        obl(:,:) = -1.e10
-        oblav    = -1.e10
-      else
-        call getobl
-      end if
-
-      thlsl = 0.
-      qtsl  = 0.
-
-      if(lhetero) then
-        lthls_patch = 0.0
-        lqts_patch  = 0.0
-        Npatch      = 0
-      endif
-
+    else 
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
-          if(lhetero) then
-            patchx = patchxnr(i)
-            patchy = patchynr(j)
-          endif
-
-          upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-          vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-          horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
-          horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 0.1)
-          if( isurf == 4) then
-            if(lmostlocal) then
-              ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
-            else
-              if(lhetero) then
-                ustar (i,j) = fkar * horvpatch(patchx,patchy) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j))&
-                + psim(z0m(i,j) / obl(i,j)))
-              else
-                ustar (i,j) = fkar * horvav / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
-              endif
-            end if
-          else
-            if(lhetero) then
-              ustar (i,j) = ustin_patch(patchx,patchy)
-            else
-              ustar (i,j) = ustin
-            endif
-          end if
-
-          ustar  (i,j) = max(ustar(i,j), 1.e-2)
-          if(lhetero) then
-            thlflux(i,j) = wt_patch(patchx,patchynr(j))
-            qtflux (i,j) = wq_patch(patchx,patchynr(j))
-          else
-            thlflux(i,j) = wtsurf
-            qtflux (i,j) = wqsurf
-          endif
-
-          if(lhetero) then
-            do n=1,nsv
-              svflux(i,j,n) = wsv_patch(n,patchx,patchynr(j))
-            enddo
-          else
-            do n=1,nsv
-              svflux(i,j,n) = wsvsurf(n)
-            enddo
-          endif
-         
-          phimzf = phim(zf(1)/obl(i,j))
-          phihzf = phih(zf(1)/obl(i,j))
-          
-          dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
-          dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
-          dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
-          dqtdz (i,j) = - qtflux(i,j)  / ustar(i,j) * phihzf / (fkar*zf(1))
-
-          Cs(i,j) = fkar ** 2. / ((log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) * &
-          (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j))))
-
-          tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv),-10.),10.)  + thl0(i,j,1)
-          qskin(i,j) = min(max( qtflux(i,j) / (Cs(i,j) * horv),-5e-2),5e-2) + qt0(i,j,1)
-
-          thlsl      = thlsl + tskin(i,j)
-          qtsl       = qtsl  + qskin(i,j)
-          if (lhetero) then
-            lthls_patch(patchx,patchy) = lthls_patch(patchx,patchy) + tskin(i,j)
-            lqts_patch(patchx,patchy)  = lqts_patch(patchx,patchy)  + qskin(i,j)
-            Npatch(patchx,patchy)      = Npatch(patchx,patchy)      + 1
-          endif
+          thlflux(i,j) = wtsurf
+          qtflux(i,j) = wqsurf
         end do
       end do
 
-      call D_MPI_ALLREDUCE(thlsl, thls, 1, MPI_SUM, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(qtsl , qts , 1, MPI_SUM, comm3d,mpierr)
-
-      thls = thls / ijtot
-      qts  = qts  / ijtot
-      thvs = thls * (1. + (rv/rd - 1.) * qts)
-
-      if (lhetero) then
-        call D_MPI_ALLREDUCE(lthls_patch(1:xpatches,1:ypatches), thls_patch(1:xpatches,1:ypatches),&
-        xpatches*ypatches, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(lqts_patch(1:xpatches,1:ypatches),  qts_patch(1:xpatches,1:ypatches),&
-        xpatches*ypatches, MPI_SUM, comm3d,mpierr)
-        call D_MPI_ALLREDUCE(Npatch(1:xpatches,1:ypatches)     , SNpatch(1:xpatches,1:ypatches),&
-        xpatches*ypatches, MPI_SUM, comm3d,mpierr)
-        thls_patch = thls_patch / SNpatch
-        qts_patch  = qts_patch  / SNpatch
-        thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
-      endif
-
-    !if (lhetero) then
-    !  thvs_patch = thls_patch * (1. + (rv/rd - 1.) * qts_patch)
-    !endif
-      !call qtsurf
-
+      if (nsv > 0) then
+        !$acc parallel loop collapse(3) default(present)
+        do n = 1, nsv
+          do j = 2, j1
+            do i = 2, i1
+              svflux(i,j,n) = wsvsurf(n)
+            end do
+          end do
+        end do
+      end if
     end if
+  end subroutine presc_surface_flux
+  
+  !> Calculates the surface gradients
+  subroutine calc_surface_gradients
+    use modglobal, only: i1, j1, cu, cv, zf, fkar
+    use modfields, only: u0, v0 
+    implicit none 
 
-    !$acc update device(ustar, dudz, dvdz)
-    !$acc update device(thlflux, qtflux, dqtdz, dthldz)
-    !$acc update device(svflux, svs)
+    integer :: i, j
+    real :: upcu, vpcv
+    real :: phimzf, phihzf
 
-    ! Transfer ustar to neighbouring cells, do this like a 3D field
-    ustar_3D(1:i2,1:j2,1:1) => ustar
-    call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+    ! Momentum fluxes
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, phimzf)
+    do j = 2, j1
+      do i = 2, i1
+        upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
+        vpcv = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
+        phimzf = phim(zf(1) / obl(i,j))
+        dudz(i,j) = ustar(i,j) * phimzf / (fkar * zf(1)) * (upcu / horv(i,j))
+        dvdz(i,j) = ustar(i,j) * phimzf / (fkar * zf(1)) * (vpcv / horv(i,j))
+      end do
+    end do
 
-  end subroutine surface
+    ! Scalar fluxes
+    !$acc parallel loop collapse(2) default(present) private(phihzf)
+    do j = 2, j1
+      do i = 2, i1
+        phihzf = phih(zf(1) / obl(i,j))
+        dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar * zf(1))
+        dqtdz(i,j) = - qtflux(i,j) / ustar(i,j) * phihzf / (fkar * zf(1))
+      end do
+    end do
+
+  end subroutine calc_surface_gradients
 
 !> Calculate the surface humidity assuming saturation.
   subroutine qtsurf
@@ -1128,7 +1249,8 @@ contains
   subroutine getobl
     use modglobal, only : zf, rv, rd, grav, i1, j1, i2, j2, cu, cv
     use modfields, only : thl0av, qt0av, u0, v0, thl0, qt0, u0av, v0av
-    use modmpi,    only : mpierr,comm3d,mpi_sum,D_MPI_ALLREDUCE
+    use modmpi,    only : mpierr,comm3d,mpi_sum,D_MPI_ALLREDUCE, &
+                          D_MPI_BCAST
     implicit none
 
     integer             :: i,j,iter,patchx,patchy
@@ -1143,7 +1265,12 @@ contains
                            lqpatch(xpatches,ypatches), qpatch(xpatches,ypatches)
     real                :: loblpatch(xpatches,ypatches)
 
-    !$acc update self(thl0av, qt0av)
+
+    if (lneutral) then
+      obl(:,:) = -1.e10
+      oblav = -1.e10
+      return
+    endif
 
     if(lmostlocal) then
 
@@ -1299,6 +1426,7 @@ contains
     endif
 
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
+    !$acc update self(thl0av(1), qt0av(1))
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
     horv2 = u0av(1)**2. + v0av(1)**2.
@@ -1342,11 +1470,18 @@ contains
        if (abs(L)>1e6) L = sign(1.0e6,L)
        if(.not. lmostlocal) then
           if(.not. lhetero) then
-             obl(:,:) = L
+            !$acc parallel loop collapse(2) default(present)
+            do j = 2, j1
+              do i = 2, i1 
+                obl(i,j) = L
+              end do
+            end do
           endif
        end if
     end if
     oblav = L
+
+    call D_MPI_BCAST(oblav, 1, 0, comm3d, mpierr)
 
     return
   end subroutine getobl
@@ -1397,7 +1532,8 @@ contains
   ! Phi and Psi above are related by an integral and should in principle match, 
   ! currently they do not.
   ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
- function phim(zeta)
+  function phim(zeta)
+    !$acc routine seq
     implicit none
     real             :: phim
     real, intent(in) :: zeta
@@ -1414,8 +1550,9 @@ contains
     return
   end function phim
 
-   ! stability function Phi for heat.  
- function phih(zeta)
+  ! stability function Phi for heat.  
+  function phih(zeta)
+    !$acc routine seq
     implicit none
     real             :: phih
     real, intent(in) :: zeta
@@ -1510,6 +1647,11 @@ contains
 
   subroutine exitsurface
     implicit none
+
+    !$acc exit data delete(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !$acc&                 ustar, dudz, dvdz, thlflux, qtflux, &
+    !$acc&                 dqtdz, dthldz, svflux, svs, horv)
+
     return
   end subroutine exitsurface
 

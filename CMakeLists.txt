@@ -81,7 +81,7 @@ elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
 # nVidia Fortran compiler
 elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
     set(CMAKE_Fortran_COMPILER "mpif90")
-    set(CMAKE_Fortran_FLAGS "-W -Wall -acc -Minfo=accel -gpu=ccall -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS "-W -Wall -acc=gpu,host -cuda -Minfo=accel -gpu=ccnative,fastmath -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "NV-multicore")

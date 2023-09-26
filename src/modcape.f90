@@ -121,6 +121,9 @@ contains
     use modgenstat, only : qlmnlast,wthvtmnlast
     use modmicrodata, only : iqr, precep, imicro
     use modmpi
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
@@ -143,6 +146,10 @@ contains
     end if
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
+
+#if defined(_OPENACC)
+    call update_host
+#endif
 
     allocate(dcape(2:i1,2:j1),dscape(2:i1,2:j1),dcin(2:i1,2:j1),dscin(2:i1,2:j1),dcintot(2:i1,2:j1))
     allocate(capemax(2:i1,2:j1),cinmax(2:i1,2:j1),hw2cb(2:i1,2:j1))

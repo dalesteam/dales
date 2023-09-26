@@ -20,11 +20,13 @@ module modcufft
 
     integer :: planx, planxi, plany, planyi !< Plan handles
 
+    integer(int_ptr_kind()) :: worksize, max_worksize !< Size of the required workspace
+
   contains
     !< Setup plans, workspace, etc
     subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
       use cufft
-      use modgpu, only: allocate_workspace
+      use modgpu, only: workspace, allocate_workspace
 
       implicit none
 
@@ -44,8 +46,6 @@ module modcufft
       p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
       Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
 
-      ! TODO: use cufftMakePlanMany and manually allocate workspace
-
       ! Number of complex coefficients
       itot12 = itot/2 + 1
       jtot12 = jtot/2 + 1
@@ -55,7 +55,6 @@ module modcufft
       ! consists of two real numbers
       allocate(p_nohalo(kmax*(itot12*2)*(jtot12*2)))
       !$acc enter data create(p_nohalo)
-      call allocate_workspace(itot12*2, jtot12*2, kmax)
 
       px(1:itot12*2,1:jtot,1:kmax) => p_nohalo(1:kmax*jtot*(itot12*2))
       py(1:jtot12*2,1:itot,1:kmax) => p_nohalo(1:kmax*itot*(jtot12*2))
@@ -78,6 +77,7 @@ module modcufft
       istride = 1
       ostride = 1
 
+      istat = cufftSetAutoAllocation(planx, 0)
       istat = cufftPlanMany( &
         planx, &
         1, &
@@ -91,9 +91,9 @@ module modcufft
         CUFFT_FWD_TYPE, &
         jtot*kmax &
       )
-
       call check_exitcode(istat)
 
+      istat = cufftSetAutoAllocation(planxi, 0)
       istat = cufftPlanMany( &
         planxi, &
         1, &
@@ -120,6 +120,7 @@ module modcufft
       istride = 1
       ostride = 1
 
+      istat = cufftSetAutoAllocation(plany, 0)
       istat = cufftPlanMany( &
         plany, &
         1, &
@@ -136,6 +137,7 @@ module modcufft
 
       call check_exitcode(istat)
 
+      istat = cufftSetAutoAllocation(planyi, 0)
       istat = cufftPlanMany( &
         planyi, &
         1, &
@@ -149,6 +151,34 @@ module modcufft
         CUFFT_BWD_TYPE, &
         itot*kmax &
       )
+
+      call check_exitcode(istat)
+
+      ! Determine the workspace needed for FFTs and transposes
+      max_worksize = -1
+      
+      istat = cufftGetSize(planx, worksize)
+      max_worksize = max(max_worksize, worksize)
+      istat = cufftGetSize(planxi, worksize)
+      max_worksize = max(max_worksize, worksize)
+      istat = cufftGetSize(plany, worksize)
+      max_worksize = max(max_worksize, worksize)
+      istat = cufftGetSize(planyi, worksize)
+      max_worksize = max(max_worksize, worksize)
+      
+      ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
+      worksize = max_worksize / (storage_size(1._pois_r) / 8)
+
+      worksize = max(worksize, ((itot12*2)*(jtot12*2)*kmax))
+
+      call allocate_workspace(int(worksize))
+
+      !$acc host_data use_device(workspace)
+      istat = cufftSetWorkArea(planx, workspace)
+      istat = cufftSetWorkArea(planxi, workspace)
+      istat = cufftSetWorkArea(plany, workspace)
+      istat = cufftSetWorkArea(planyi, workspace)
+      !$acc end host_data
 
       call check_exitcode(istat)
 
@@ -177,7 +207,9 @@ module modcufft
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       real(pois_r), allocatable :: d(:,:,:), xyrt(:,:,:)
 
-      deallocate(d, xyrt)
+      !$acc exit data delete(xyrt, d, p_halo, p_nohalo)
+
+      deallocate(d, xyrt, p_halo, p_nohalo)
 
       nullify(p, Fp)
 

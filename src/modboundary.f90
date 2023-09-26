@@ -89,7 +89,8 @@ contains
 !> Cleans up after the run
   subroutine exitboundary
   implicit none
-    deallocate(tsc)
+  !$acc exit data delete(tsc)
+  deallocate(tsc)
   end subroutine exitboundary
 
 !> Sets lateral periodic boundary conditions for the scalars
@@ -154,7 +155,7 @@ contains
   select case(igrw_damp)
   case(0) !do nothing
   case(1)
-    !$acc kernels default(present)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -164,7 +165,7 @@ contains
     end do
     !$acc end kernels
     if(lcoriol) then
-    !$acc kernels default(present)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*((1./(geodamptime*rnu0))*tsc(k))
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*((1./(geodamptime*rnu0))*tsc(k))
@@ -172,7 +173,7 @@ contains
     !$acc end kernels
     end if
   case(2)
-    !$acc kernels default(present)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*tsc(k)
@@ -182,7 +183,7 @@ contains
     end do
     !$acc end kernels
   case(3)
-    !$acc kernels default(present)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -192,7 +193,7 @@ contains
     end do
     !$acc end kernels
   case(-1)
-    !$acc kernels default(present)
+    !$acc kernels default(present) async(1)
     up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     !$acc end kernels
@@ -204,16 +205,20 @@ contains
   ! at level kmax.
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
 
-  !$acc kernels default(present)
+  !$acc kernels default(present) async(1)
   thl0(2:i1,2:j1,kmax) = thl0av(kmax)
   qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
   !$acc end kernels
 
-  !$acc kernels default(present) if(nsv > 0)
-  do n=1,nsv
-    sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
-  end do
-  !$acc end kernels
+  if (nsv > 0) then
+    !$acc kernels default(present) async(1)
+    do n=1,nsv
+      sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+    end do
+    !$acc end kernels
+  end if
+
+  !$acc wait
 
   return
   end subroutine grwdamp

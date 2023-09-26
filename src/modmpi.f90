@@ -147,6 +147,10 @@ save
   interface slabsum
     procedure :: slabsum_real32
     procedure :: slabsum_real64
+#if defined(_OPENACC)
+    procedure :: slabsum_real32_gpu
+    procedure :: slabsum_real64_gpu
+#endif
   end interface
 
 contains
@@ -246,6 +250,15 @@ contains
  ! if either nprocx = 0 or nprocy = 0 a value is computed automatically
  ! considering the total number of processors but not the itot,jtot grid size
     call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr)
+
+#if defined(_OPENACC)
+    if (nprocs > 1) then
+      if (myid == 0) then
+        stop "GPU runs with more than 1 CPU are not supported yet!"
+      end if
+    end if
+#endif
+
     call checkmpierror(mpierr, 'MPI_COMM_SIZE')
 
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
@@ -335,9 +348,6 @@ contains
   end subroutine exitmpi
 
   subroutine excjs_real32(a,sx,ex,sy,ey,sz,ez,ih,jh)
-#if defined(_OPENACC)
-  use openacc
-#endif
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -350,18 +360,11 @@ contains
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
-  ! Check if the data is on the gpu
-#if defined(_OPENACC)
-  logical :: is_present
-  is_present = acc_is_present(a)
-#endif
 
 ! Calulate buffer lengths
-  !$acc kernels default(present) if(is_present)
   xl = size(a,1)
   yl = size(a,2)
   zl = size(a,3)
-  !$acc end kernels 
 
 !   Calculate buffer size
   nssize = xl*jh*zl
@@ -395,7 +398,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(is_present)
+    !$acc kernels default(present) async
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -429,7 +432,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present) if(is_present)
+    !$acc kernels default(present) async
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
@@ -457,9 +460,12 @@ contains
     deallocate (recve, recvw)
 
   endif
+
+  !$acc wait
+
   end subroutine excjs_real32
 
-  subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh,on_gpu)
+  subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none
   integer sx, ex, sy, ey, sz, ez, ih, jh
   real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
@@ -468,14 +474,10 @@ contains
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
-  logical, optional :: on_gpu
   real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
                                           , sendw,recvw
-  
-  ! Ad-hoc solution for startup and other routines that use host data
-  ! Specify on_gpu=.true. if halo exchange has to be done on the gpu
 
 ! Calulate buffer lengths
   xl = size(a,1)
@@ -515,7 +517,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     a(:,sy-jh:sy-1,:) = a(:,ey-jh+1:ey,:)
     a(:,ey+1:ey+jh,:) = a(:,sy:sy+jh-1,:)
     !$acc end kernels
@@ -549,7 +551,7 @@ contains
   else
 
     ! Single processor, make sure the field is periodic
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
@@ -581,6 +583,9 @@ contains
     deallocate (recve, recvw)
 
   endif
+
+  !$acc wait
+
   end subroutine excjs_real64
 
   subroutine excjs_logical(a,sx,ex,sy,ey,sz,ez,ih,jh)
@@ -700,11 +705,7 @@ contains
   endif
   end subroutine excjs_logical
 
-
   subroutine slabsum_real32(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
-#if defined(_OPENACC)
-    use openacc
-#endif
     implicit none
 
     integer           :: ks,kf
@@ -714,42 +715,23 @@ contains
     real(real32)      :: averl(ks:kf)
     real(real32)      :: avers(ks:kf)
     integer           :: k
-#if defined(_OPENACC)
-    logical :: is_present
 
-    is_present = acc_is_present(var)
-#endif
-   !$acc enter data copyin(averl, avers) if(is_present)
-
-    !$acc kernels if(is_present)
     averl       = 0.
     avers       = 0.
-    !$acc end kernels
 
-    !$acc kernels if(is_present)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
-    !$acc end kernels
 
-    !$acc update self(averl) if(is_present)
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
                        MPI_SUM, comm3d,mpierr)
-    !$acc update device(avers) if(is_present)
     
-    !$acc kernels if(is_present)
     aver = aver + avers
-    !$acc end kernels
-
-    !$acc exit data delete(averl, avers) if(is_present)
 
     return
   end subroutine slabsum_real32
 
   subroutine slabsum_real64(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
-#if defined(_OPENACC)
-    use openacc
-#endif
     implicit none
 
     integer           :: ks,kf
@@ -759,40 +741,70 @@ contains
     real(real64)      :: averl(ks:kf)
     real(real64)      :: avers(ks:kf)
     integer           :: k
-#if defined(_OPENACC)
-    logical :: is_present
 
-    is_present = acc_is_present(var)
-#endif
-
-   !$acc enter data copyin(averl, avers) if(is_present)
- 
-    !$acc kernels if(is_present)
     averl       = 0.
     avers       = 0.
-    !$acc end kernels
     
-    !$acc kernels if(is_present)
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
-    !$acc end kernels
 
-    ! CUDA-aware MPI should figure out that it has to move data from the GPU
-    !$acc update host(averl) if(is_present)
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL8, &
                        MPI_SUM, comm3d,mpierr)
-    !$acc update device(avers) if(is_present)
 
-    !$acc kernels if(is_present)
     aver = aver + avers
-    !$acc end kernels
-
-    !$acc exit data delete(averl, avers) if(is_present)
 
     return
   end subroutine slabsum_real64
+#if defined(_OPENACC)
+  subroutine slabsum_real32_gpu(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+    implicit none
 
+    integer :: ks, kf
+    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
+    real(real32), device :: aver(ks:kf)
+    real(real32), device :: var(ib:ie, jb:je, kb:ke)
+    real(real32) :: averl(ks:kf)
+    real(real32) :: avers(ks:kf)
+    integer :: k
+
+    if (nprocs == 1) then
+      ! Single processor, no need for MPI calls  
+
+      !$acc kernels default(present)
+      do k = kbs, kes
+        aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
+      end do
+      !$acc end kernels
+    else
+      stop "The program should have stopped already"
+    end if
+  end subroutine slabsum_real32_gpu
+
+  subroutine slabsum_real64_gpu(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
+    implicit none
+
+    integer :: ks, kf
+    integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
+    real(real64), device :: aver(ks:kf)
+    real(real64), device :: var(ib:ie, jb:je, kb:ke)
+    real(real64) :: averl(ks:kf)
+    real(real64) :: avers(ks:kf)
+    integer :: k
+
+    if (nprocs == 1) then
+      ! Single processor, no need for MPI calls  
+
+      !$acc kernels default(present)
+      do k = kbs, kes
+        aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
+      end do
+      !$acc end kernels
+    else
+      stop "The program should have stopped already"
+    end if
+  end subroutine slabsum_real64_gpu
+#endif
   subroutine mpi_get_time(val)
    real(real32), intent(out) :: val
 

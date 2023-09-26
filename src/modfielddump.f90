@@ -195,6 +195,9 @@ contains
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr, imicro, imicro_none
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -217,6 +220,10 @@ contains
 
     ! Only write fields if time is in the range (tmin, tmax)
     if (timee < itmin .or. timee > itmax) return
+
+#if defined(_OPENACC)
+    call update_host
+#endif
 
     if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
     if (lnetcdf) allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))

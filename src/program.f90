@@ -165,7 +165,7 @@ program DALES
 !----------------------------------------------------------------
 
 #if defined(_OPENACC)
-  use modgpu, only: update_gpu
+  use modgpu, only: update_gpu, host_is_updated
 #endif
 
   implicit none
@@ -368,6 +368,9 @@ program DALES
     call timer_toc('Restartfiles')
     call timer_toc('Time step') 
     istep = istep + 1
+#if defined(_OPENACC)
+    host_is_updated = .false.
+#endif
   end do
 
 !-------------------------------------------------------

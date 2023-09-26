@@ -219,6 +219,7 @@ SAVE
   real, allocatable :: Cm    (:,:)            !<  Drag coefficient for momentum [-]
   real, allocatable :: Cs    (:,:)            !<  Drag coefficient for scalars [-]
   real, allocatable, target :: ustar (:,:)    !<  Friction velocity [m/s]
+  real, pointer     :: ustar_3D(:,:,:)        !<  Pointer for halo exchange
   real, allocatable :: thlflux (:,:)          !<  Kinematic temperature flux [K m/s]
   real, allocatable :: qtflux  (:,:)          !<  Kinematic specific humidity flux [kg/kg m/s]
   real, allocatable :: svflux  (:,:,:)        !<  Kinematic scalar flux [- m/s]
@@ -278,6 +279,9 @@ SAVE
   real              :: rsisurf2_land(max_lands)    = 0  !< Vegetation resistance [s/m] if isurf2 is used
   real, allocatable :: albedo_patch(:,:)                !< Albedo
   real              :: albedo_land(max_lands)      = -1 !< Albedo
+  real, allocatable :: horv(:,:)                        !< Horizontal wind velocity [m/s]
+  real, allocatable :: horvpatch(:,:)                   !< Horizontal wind velocity [m/s]
+  real              :: horvav                           !< Horizontal wind velocity [m/s]
   real, allocatable :: tsoil_patch(:,:,:)               !< Soil temperature [K]
   real, allocatable :: tsoildeep_patch(:,:)             !< Soil temperature [K]
   real, allocatable :: phiw_patch(:,:,:)                !<

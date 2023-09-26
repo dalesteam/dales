@@ -672,7 +672,9 @@ contains
       qtm  = qt0
       svm  = sv0
       e12m = e120
+      !$acc set device_type(host)
       call calc_halflev
+      !$acc set device_type(nvidia)
       exnf = (presf/pref0)**(rd/cp)
       exnh = (presh/pref0)**(rd/cp)
 
@@ -995,6 +997,9 @@ contains
   !  if trestart = 0, no periodic restart files will be written.
   subroutine writerestartfiles
     use modglobal, only : trestart,itrestart,tnextrestart,dt_lim,timee,timeleft,rk3step
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     if (timee == 0) return
@@ -1006,8 +1011,11 @@ contains
     ! if trestart = 0, write restart files only at the end of the simulation
     ! if trestart < 0, don't write any restart files
     if ((timee>=tnextrestart .and. trestart > 0) .or. (timeleft==0 .and. trestart >= 0)) then
-       tnextrestart = tnextrestart+itrestart
-       call do_writerestartfiles
+      tnextrestart = tnextrestart+itrestart
+#if defined(_OPENACC)
+      call update_host 
+#endif
+      call do_writerestartfiles
     end if
   end subroutine writerestartfiles
 

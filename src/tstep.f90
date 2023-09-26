@@ -65,6 +65,7 @@ end subroutine inittstep
 !> Deallocate arrays
 subroutine exittstep
   implicit none
+  !$acc exit data delete(courtotl, courtot)
   deallocate(courtotl)
   deallocate(courtot)
 end subroutine exittstep  
@@ -283,12 +284,5 @@ subroutine tstep_integrate
     endif
   end if
 end subroutine tstep_integrate
-
-!> Calculate the maximum per vertical level for serveral fields
-!subroutine calc_max
-!  use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
-!  implicit none
-!
-!end subroutine calc_max
 
 end module tstep
