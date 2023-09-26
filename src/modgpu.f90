@@ -130,8 +130,6 @@ contains
   subroutine deallocate_workspace
     implicit none
 
-    integer, intent(in) :: n
-
     !$acc exit data delete(workspace)
     deallocate(workspace)
 
