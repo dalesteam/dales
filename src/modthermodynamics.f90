@@ -93,20 +93,26 @@ contains
     ! recalculate thv and rho on the basis of results
     call calthv
 
-    !$acc kernels default(present) async
+    !$acc kernels default(present)
     thvh=0.
+    thvf = 0.0
     !$acc end kernels
     
     !$acc host_data use_device(thvh, thv0h)
     call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
     !$acc end host_data
 
-    !$acc kernels default(present) async
+    !$acc host_data use_device(thvf, thv0)
+    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
+
+    !$acc kernels default(present) async(1)
     thvh = thvh/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+    thvf = thvf/ijtot
     !$acc end kernels
     
-    !$acc parallel loop collapse(3) default(present) async
+    !$acc parallel loop collapse(3) default(present) async(2)
     do k=1,k1
       do j=2,j1
         do i=2,i1
@@ -116,22 +122,12 @@ contains
       end do
     end do
 
-    !$acc kernels default(present) async
-    thvf = 0.0
-    !$acc end kernels
-
-    !$acc host_data use_device(thvf, thv0)
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
-
-    !$acc kernels default(present) async
-    thvf = thvf/ijtot
-    !$acc end kernels
-
-    !$acc parallel loop default(present) async
+    !$acc parallel loop default(present) async(1)
     do k=1,k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
+
+    !$acc wait
 
   end subroutine thermodynamics
 !> Cleans up after the run
@@ -156,7 +152,7 @@ contains
     dthvdz = 0
     if (lmoist) then
 
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -168,7 +164,8 @@ contains
 
       !TODO: fix the branching in this loop
       !$acc parallel loop collapse(3) default(present) &
-      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth)
+      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
+      !$acc& async(2)
       do k=2,kmax
         do j=2,j1
           do i=2,i1
@@ -213,7 +210,7 @@ contains
         end do
       end do
       
-      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf)
+      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(3)
       do j=2,j1
         do i=2,i1
           if(ql0(i,j,1)>0) then
@@ -251,7 +248,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async wait(2, 3)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -261,6 +258,8 @@ contains
         end do
       end do
     end do
+    
+    !$acc wait
 
   end subroutine calthv
 !> Calculate diagnostic slab averaged fields.
@@ -311,7 +310,7 @@ contains
    end do
    !$acc end host_data
 
-   !$acc kernels default(present) async(1)
+   !$acc kernels default(present)
    u0av   = u0av  /ijtot + cu
    v0av   = v0av  /ijtot + cv
    thl0av = thl0av/ijtot
@@ -332,7 +331,7 @@ contains
 
    call fromztop
 
-   !$acc kernels default(present) async(1)
+   !$acc kernels default(present)
    exnf = (presf/pref0)**(rd/cp)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
    !$acc end kernels
@@ -359,15 +358,10 @@ contains
      exnh(k) = (presh(k)/pref0)**(rd/cp)
    end do
    
-   !$acc serial default(present) async(1)
-   thvf(1) = th0av(1)*exnf(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-   rhof(1) = presf(1)/(rd*thvf(1))
-   !$acc end serial
-
 !    3.2 determine rho
 
-   !$acc parallel loop default(present) async(2)
-   do k=2,k1
+   !$acc parallel loop default(present) async wait(1, 2)
+   do k=1,k1
      thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
      rhof(k) = presf(k)/(rd*thvf(k))
    end do
@@ -419,7 +413,7 @@ contains
 
 !     1: lowest level: use first level value for safety!
 
-  !$acc serial default(present) async(2) wait(1)
+  !$acc serial default(present) async(2)
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
@@ -440,19 +434,19 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
-  !$acc serial default(present) async(3) wait(1)
+  !$acc serial default(present) async(3)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   !$acc end serial
 
-  !$acc serial loop default(present) async(3) wait(1)
+  !$acc serial loop default(present) async(3)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
     presh(k) = presh(k)**(1./rdocp)
   end do
-
+  !$acc wait
   return
   end subroutine fromztop
 
@@ -671,9 +665,11 @@ contains
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
        Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
-       if (Tl_min < 150) STOP 'icethermo0_fast: Tl_min below limit 150K'
+       if (Tl_min < 150) then
+       write(*, *) "Tl_min: ", Tl_min
+       stop
+       end if
        if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
-
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat_) then
           !$acc loop collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) 
@@ -1043,7 +1039,7 @@ contains
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
-      !$acc parallel loop collapse(3) default(present) async
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1053,7 +1049,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(2) default(present) async
+    !$acc parallel loop collapse(2) default(present)
     do j=2,j1
       do i=2,i1
         thl0h(i,j,1) = thls
@@ -1063,7 +1059,7 @@ contains
     if (iadv_qt==iadv_kappa) then
         call halflev_kappa(qt0,qt0h)
     else
-      !$acc parallel loop collapse(3) default(present) async
+      !$acc parallel loop collapse(3) default(present)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1072,7 +1068,7 @@ contains
         end do
       end do
       
-      !$acc parallel loop collapse(2) default(present) async
+      !$acc parallel loop collapse(2) default(present)
       do j=2,j1
         do i=2,i1
           qt0h(i,j,1) = qts
