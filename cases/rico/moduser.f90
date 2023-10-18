@@ -120,7 +120,7 @@ subroutine surf_user
 
   ! excjs is a 3D function, reshape ustar
   ustar_3D(1:i2, 1:j2, 1:1) => ustar
-  call excjs(ustar_3D, 2, i2, 2, j2, 1, 1, 1, 1)
+  call excjs(ustar_3D, 1, i2, 1, j2, 1, 1, 1, 1)
 
   do n=1,nsv
     do j=2,j1
