@@ -860,8 +860,8 @@ contains
         qskin(i,j) = min(max(qtflux(i,j) / (Cs(i,j) * horv(i,j)), -5.e-2), 5.e-2) + qt0(i,j,1)
       end do
     end do
-    
-    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qtsl) 
+
+    !$acc parallel loop collapse(2) default(present) reduction(+: thlsl, qtsl) 
     do j = 2, j1
       do i = 2, i1
         thlsl = thlsl + tskin(i,j)
