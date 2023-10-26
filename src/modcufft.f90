@@ -207,7 +207,6 @@ module modcufft
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       real(pois_r), allocatable :: d(:,:,:), xyrt(:,:,:)
 
-      !$acc exit data delete(xyrt, d, p_halo, p_nohalo)
 
       deallocate(d, xyrt, p_halo, p_nohalo)
 

@@ -419,6 +419,9 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+#if defined(_OPENACC) 
+    use modgpu, only: update_gpu, update_host, host_is_updated
+#endif
 
     integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
@@ -641,7 +644,10 @@ contains
 
       call baseprofs ! call baseprofs before thermodynamics
 
-      !$acc set device_type(host)
+#if defined(_OPENACC)
+      call update_gpu
+#endif
+
       call boundary
       call thermodynamics
       call surface
@@ -655,7 +661,11 @@ contains
 
       call boundary
       call thermodynamics
-      !$acc set device_type(nvidia)
+
+#if defined(_OPENACC)
+      call update_host
+      host_is_updated = .false.
+#endif
 
       ! save initial pressure profiles
       ! used for initialising radiation scheme at restart, to reproduce the same state

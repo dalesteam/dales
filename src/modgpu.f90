@@ -29,7 +29,7 @@ contains
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
     use modradiation, only: thlprad
-    use modthermodynamics, only: th0av, thv0
+    use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
@@ -52,8 +52,8 @@ contains
     !$acc&              dqtdz, dthldz, svflux, svs, horv, &
     !$acc&              ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
     !$acc&              anis_fac, tsc, thlpcar, thlprad, presf, & 
-    !$acc&              presh, exnf, exnh, rhof, &
-    !$acc&              qvsl, qvsi, esl, qsat, &
+    !$acc&              presh, exnf, exnh, rhof, thetah, &
+    !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&              esatmtab, esatitab, esatltab)
 
   end subroutine update_gpu
@@ -79,7 +79,7 @@ contains
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
     use modradiation, only: thlprad
-    use modthermodynamics, only: th0av, thv0
+    use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
@@ -104,8 +104,8 @@ contains
     !$acc&            dqtdz, dthldz, svflux, svs, horv, &
     !$acc&            ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
     !$acc&            anis_fac, tsc, thlpcar, thlprad, presf, & 
-    !$acc&            presh, exnf, exnh, rhof, &
-    !$acc&            qvsl, qvsi, esl, qsat, &
+    !$acc&            presh, exnf, exnh, rhof, thetah, &
+    !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&            esatmtab, esatitab, esatltab)
 
     host_is_updated = .true.
