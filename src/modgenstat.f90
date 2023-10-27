@@ -389,7 +389,7 @@ contains
         call ncinfo(ncname(22,:),'wqlt','Total liquid water flux','kg/kg m/s','mt')
         call ncinfo(ncname(23,:),'uws','SFS-momentum flux (uw)','m^2/s^2','mt')
         call ncinfo(ncname(24,:),'uwr','Resolved momentum flux (uw)','m^2/s^2','mt')
-        call ncinfo(ncname(25,:),'uwt','Total momentum flux (vw)','m^2/s^2','mt')
+        call ncinfo(ncname(25,:),'uwt','Total momentum flux (uw)','m^2/s^2','mt')
         call ncinfo(ncname(26,:),'vws','SFS-momentum flux (vw)','m^2/s^2','mt')
         call ncinfo(ncname(27,:),'vwr','Resolved momentum flux (vw)','m^2/s^2','mt')
         call ncinfo(ncname(28,:),'vwt','Total momentum flux (vw)','m^2/s^2','mt')

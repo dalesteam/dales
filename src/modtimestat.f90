@@ -247,7 +247,7 @@ contains
         call ncinfo(ncname( 8,:),'lwp_bar','Liquid-water path','kg/m^2','time')
         call ncinfo(ncname( 9,:),'lwp_max','Maximum Liquid-water path','kg/m^2','time')
         call ncinfo(ncname(10,:),'wmax','Maximum vertical velocity','m/s','time')
-        call ncinfo(ncname(11,:),'vtke','Vertical integral of total TKE','kg/s','time')
+        call ncinfo(ncname(11,:),'vtke','Vertical integral of total TKE','kg/s^2','time')
         call ncinfo(ncname(12,:),'lmax','Maximum liquid water specific humidity','kg/kg','time')
         call ncinfo(ncname(13,:),'ustar','Surface friction velocity','m/s','time')
         call ncinfo(ncname(14,:),'tstr','Turbulent temperature scale','K','time')
@@ -638,18 +638,22 @@ contains
           patchx = patchxnr(i)
         endif
 
-        tke_totl = tke_totl + 0.5*( &
-                            (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av(k))**2 &
-                            +(0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av(k))**2 &
-                            +(0.5*(w0(i,j,k)+w0(i,j,k+1))           )**2 &
-                                  ) + e120(i,j,k)**2
+        tke_totl = tke_totl + ( &
+             0.5*( &
+              (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av(k))**2 &
+             +(0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av(k))**2 &
+             +(0.5*(w0(i,j,k)+w0(i,j,k+1))           )**2 &
+             ) + e120(i,j,k)**2                           &
+             ) * dzf(k) * rhof(k)
 
         if (lhetero) then
-          tke_tot_field(i,j) = tke_tot_field(i,j) + 0.5*( &
-                                   (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
-                                   (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
-                                   (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
-                                       ) + e120(i,j,k)**2
+           tke_tot_field(i,j) = tke_tot_field(i,j) + ( &
+                0.5*( &
+                (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
+                (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
+                (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
+                ) + e120(i,j,k)**2                                            &
+                ) * dzf(k) * rhof(k)
         endif
       end do
       end do
@@ -796,7 +800,7 @@ contains
           qlintav*1000., &
           qlintmax*1000., &
           wmax, &
-          tke_tot*dzf(1), &
+          tke_tot, &
           qlmax*1000.
       close(ifoutput)
 
@@ -853,7 +857,7 @@ contains
         vars( 8) = qlintav
         vars( 9) = qlintmax
         vars(10) = wmax
-        vars(11) = tke_tot*dzf(1)
+        vars(11) = tke_tot
         vars(12) = qlmax
         vars(13) = ust
         vars(14) = tst
@@ -902,7 +906,7 @@ contains
               qlint_patch(i,j)*1000., &
               qlintmax_patch(i,j)*1000., &
               wmax_patch(i,j), &
-              tke_tot_patch(i,j)*dzf(1), &
+              tke_tot_patch(i,j), &
               qlmax_patch(i,j)*1000.
             close(ifoutput)
 

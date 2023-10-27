@@ -185,7 +185,7 @@ contains
         call ncinfo(ncname( 1,:),'thltend','Total radiative tendency','K/s','tt')
         call ncinfo(ncname( 2,:),'thllwtend','Long wave radiative tendency','K/s','tt')
         call ncinfo(ncname( 3,:),'thlswtend','Short wave radiative tendency','K/s','tt')
-        call ncinfo(ncname( 4,:),'thlradls','Large scale radiative tendency','K/s','tt')
+        call ncinfo(ncname( 4,:),'thlradls','Prescribed large scale radiative tendency','K/s','tt')
         call ncinfo(ncname( 5,:),'lwu','Long wave upward radiative flux','W/m^2','mt')
         call ncinfo(ncname( 6,:),'lwd','Long wave downward radiative flux','W/m^2','mt')
         call ncinfo(ncname( 7,:),'swu','Short wave upward radiative flux','W/m^2','mt')
