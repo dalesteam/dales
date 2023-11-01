@@ -83,9 +83,9 @@ SAVE
   integer :: liqflgsw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
   logical :: ocean  = .false.            ! if true, run is over ocean.
   logical :: usero3 = .false.            ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
-  real    :: co2factor = 1.              ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
-  real    :: ch4factor = 1.              ! The CH4 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor  (RCEMIP)
-  real    :: n2ofactor = 1.              ! The N2O concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor  (RCEMIP)
+  real    :: co2_fraction = -1.          ! If given in namoptions, the CO2 volume fraction is set to this value for RRTMG (CGILS)
+  real    :: ch4_fraction = -1.          ! If given in namoptions, the CH4 volume fraction is set to this value for RRTMG (RCEMIP)
+  real    :: n2o_fraction = -1.          ! If given in namoptions, the N2O volume fraction is set to this value for RRTMG (RCEMIP)
   logical :: doperpetual = .false.       ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
   logical :: doseasons = .true.          ! if false, the same day will be repeated, otherwise, next day is taken
   integer(SHR_KIND_IN) :: iyear = 1992   ! The year of the simulation
