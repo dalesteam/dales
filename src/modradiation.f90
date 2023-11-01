@@ -46,7 +46,7 @@ contains
     namelist/NAMRADIATION/ &
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
-      ocean, usero3, co2factor, doperpetual, doseasons, iyear
+      ocean, usero3, co2_fraction, ch4_fraction, n2o_fraction, doperpetual, doseasons, iyear
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -79,7 +79,9 @@ contains
     call D_MPI_BCAST(liqflgsw,   1,0,comm3d,ierr)
     call D_MPI_BCAST(ocean,      1,0,comm3d,ierr)
     call D_MPI_BCAST(usero3,     1,0,comm3d,ierr)
-    call D_MPI_BCAST(co2factor,  1, 0,comm3d,ierr)
+    call D_MPI_BCAST(co2_fraction,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ch4_fraction,1,0,comm3d,ierr)
+    call D_MPI_BCAST(n2o_fraction,1,0,comm3d,ierr)
     call D_MPI_BCAST(doperpetual,1,0,comm3d,ierr)
     call D_MPI_BCAST(doseasons,  1,0,comm3d,ierr)
     call D_MPI_BCAST(iyear,      1,0,comm3d,ierr)
