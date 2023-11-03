@@ -53,10 +53,22 @@ save
   logical :: lql = .true.        !< switch for saving the ql field
   logical :: lthl = .true.       !< switch for saving the thl field
   logical :: lbuoy = .true.      !< switch for saving the buoy field
+  logical :: lcli = .false.       !< switch for saving the cli field
+  logical :: lclw = .false.       !< switch for saving the clw field
+  logical :: lta = .false.        !< switch for saving the ta field
+  logical :: lplw = .false.       !< switch for saving the plw field
+  logical :: lpli = .false.       !< switch for saving the pli field
+  logical :: lhus = .false.       !< switch for saving the hus field
+  logical :: lhur = .false.       !< switch for saving the hur field
+  logical :: ltntr = .false.      !< switch for saving the tntr field
+  logical :: ltntrs = .false.     !< switch for saving the tntrs field
+  logical :: ltntrl = .false.     !< switch for saving the tntrl field
   logical :: lsv(100) = .true.   !< switches for saving the sv fields
 
   ! indices for the variables in the netCDF vars array
   integer :: ind, ind_u=-1, ind_v=-1, ind_w=-1, ind_qt=-1, ind_ql=-1, ind_thl=-1, ind_buoy=-1, ind_sv(100)=-1
+  integer :: ind_cli=-1, ind_clw=-1, ind_ta=-1, ind_plw=-1, ind_pli=-1, ind_hus=-1, ind_hur=-1, ind_tntr=-1, ind_tntrs=-1, ind_tntrl=-1
+
 contains
 !> Initializing fielddump. Read out the namelist, initializing the variables
   subroutine initfielddump
@@ -65,13 +77,14 @@ contains
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
          checknamelisterror, output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modmicrodata, only : imicro, imicro_sice, imicro_sice2
     implicit none
     integer :: ierr, n
     character(3) :: csvname
 
     namelist/NAMFIELDDUMP/ &
          dtav,lfielddump,ldiracc,lbinary,klow,khigh,ncoarse, tmin, tmax,&
-         lu, lv, lw, lqt, lql, lthl, lbuoy, lsv
+         lu, lv, lw, lqt, lql, lthl, lbuoy, lcli, lclw, lta, lplw, lpli, lhus, lhur, ltntr, ltntrs, ltntrl, lsv
 
     dtav=dtav_glob
     klow=1
@@ -84,6 +97,12 @@ contains
       call checknamelisterror(ierr, ifnamopt, 'NAMFIELDDUMP')
       write(6 ,NAMFIELDDUMP)
       close(ifnamopt)
+
+      if ((lcli .or. lclw) .and. .not. (imicro ==  imicro_sice .or. imicro == imicro_sice2)) then
+         write (*,*) "FIELDDUMP: cli and clw output works only with simpleice microphysics. Turning off."
+         lcli = .false.
+         lclw = .false.
+      end if
     end if
     call D_MPI_BCAST(ncoarse     ,1,0,comm3d,ierr)
     call D_MPI_BCAST(klow        ,1,0,comm3d,ierr)
@@ -101,6 +120,16 @@ contains
     call D_MPI_BCAST(lql         ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lthl        ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lbuoy       ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lcli        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lclw        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lta         ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lplw        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lpli        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lhus        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(lhur        ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ltntr       ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ltntrs      ,1,0,comm3d,ierr)
+    call D_MPI_BCAST(ltntrl      ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
 
     if (ncoarse==-1) then
@@ -160,6 +189,56 @@ contains
          ind = ind + 1
          call ncinfo(ncname(ind_buoy,:),'buoy','Buoyancy','K','tttt')
       end if
+      if (lcli) then
+         ind_cli = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_cli,   :),'cli','mass fraction of cloud ice','kg/kg','tttt') ! new
+      end if
+      if (lclw) then
+         ind_clw = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_clw,   :),'clw','mass fraction of cloud liquid water','kg/kg','tttt') ! new
+      end if
+      if (lta) then
+         ind_ta = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_ta,    :),'ta','air temperature ','K','tttt') ! new
+      end if
+      if (lplw) then
+         ind_plw = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_plw,   :),'plw','mass fraction of precipitating liquid water','kg/kg','tttt') !new
+      end if
+      if (lpli) then
+         ind_pli = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_pli,   :),'pli','mass fraction of precipitating ice','kg/kg','tttt')   !new
+      end if
+      if (lhus) then
+         ind_hus = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_hus,   :),'hus','specific humidity','kg/kg','tttt')   !new
+      end if
+      if (lhur) then
+         ind_hur = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_hur,   :),'hur','relative humidity','%','tttt')      !new
+      end if
+      if (ltntr) then
+         ind_tntr = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_tntr,  :),'tntr','tendency of air temperature due to radiative heating','K/s','tttt')   !new
+      end if
+      if (ltntrs) then
+         ind_tntrs = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_tntrs, :),'tntrs','tendency of air temperature due to shortwave radiative heating','K/s','tttt')  !new
+      end if
+      if (ltntrl) then
+         ind_tntrl = ind
+         ind = ind + 1
+         call ncinfo(ncname(ind_tntrl, :),'tntrl','tendency of air temperature due to longwave radiative heating','K/s','tttt')   !new
+      end if
 
       do n=1,nsv
         if (lsv(n)) then
@@ -188,13 +267,14 @@ contains
 !> if lbinary, collect data to truncated (2 byte) integers, and write them to file
 !> if lnetcdf, write to netCDF (as float32).
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,rhof,exnf,qsat
     use modsurfdata,only : thls,qts,thvs
-    use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,&
-                          timee,dt_lim,cexpnr,ifoutput,rtimee
+    use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,dzf, &
+                          timee,dt_lim,cexpnr,ifoutput,rtimee,cp,tdn,tup
     use modmpi,    only : myid,cmyidx, cmyidy
     use modstat_nc, only : lnetcdf, writestat_nc
-    use modmicrodata, only : iqr, imicro, imicro_none
+    use modmicrodata, only : iqr, imicro, imicro_none, tuprsg, tdnrsg
+    use modraddata, only   :lwu,lwd,swu,swd
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -352,6 +432,52 @@ contains
       end if
       close (ifoutput)
     endif
+
+    if (lnetcdf .and. lcli) vars(:,:,:,ind_cli) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) * &
+         (1 - max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn))))
+
+    if (lnetcdf .and. lclw) vars(:,:,:,ind_clw) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) * &
+         max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn)))
+
+    if (lnetcdf .and. lta) vars(:,:,:,ind_ta) = tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+
+    ! liquid and ice precip
+    ! assuming simpleice is used
+    !rsgratio_= max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+    if (lnetcdf .and. lplw) vars(:,:,:,ind_plw) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr) * &
+         max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg)))
+    if (lnetcdf .and. lpli) vars(:,:,:,ind_pli) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr)  * &
+         (1 - max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg))))
+
+    if (lnetcdf .and. lhus) vars(:,:,:,ind_hus) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+
+    if (lnetcdf .and. lhur) vars(:,:,:,ind_hur) = 100 * (qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)) / &
+         qsat(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+
+    if (lnetcdf .and. ltntr) vars(:,:,:,ind_tntr) = ( &
+         -swd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         -swu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         +swd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+         +swu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+         -lwd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         -lwu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         +lwd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+         +lwu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+    )  / (rhof(k)*exnf(k)*cp*dzf(k))
+
+    if (lnetcdf .and. ltntrs) vars(:,:,:,ind_tntrs) = ( &
+         -swd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         -swu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         +swd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+         +swu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+    )  / (rhof(k)*exnf(k)*cp*dzf(k))
+
+    if (lnetcdf .and. ltntrl) vars(:,:,:,ind_tntrl) = ( &
+         -lwd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         -lwu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
+         +lwd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+         +lwu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
+         )  / (rhof(k)*exnf(k)*cp*dzf(k))
 
     ! scalar variables
     if (lnetcdf) then
