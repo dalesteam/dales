@@ -85,11 +85,11 @@ subroutine advecc_kappa(a_in,a_out)
   endif
 
   nonZeroFound = 0
-  do k=k1,1,-1
+  do k = k1, 1, -1
      !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
-     do j=2,j1
-        do i=2,i1
-           if ((a_in(i,k,k).ne.0.)) then
+     do j = 2, j1
+        do i = 2, i1
+           if ((a_in(i,j,k).ne.0.)) then
               nonZeroFound = 1
            endif
         enddo
