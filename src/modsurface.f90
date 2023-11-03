@@ -168,9 +168,9 @@ contains
     call D_MPI_BCAST(phiwp                      ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(R10                        ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(lsplitleaf                 ,            1,  0, comm3d, mpierr)
-    
+
     call D_MPI_BCAST(land_use(1:mpatch,1:mpatch),mpatch*mpatch,  0, comm3d, mpierr)
-    
+
     call D_MPI_BCAST(i_expemis                  ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
@@ -708,12 +708,12 @@ contains
       if (lsplitleaf) then
         allocate(PARdirField   (2:i1,2:j1))
         allocate(PARdifField   (2:i1,2:j1))
-      endif  
+      endif
     endif
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                  dqtdz, dthldz, svflux, svs, horv)
+    !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
 
     call timer_toc('modsurface/initsurface')
 
@@ -726,7 +726,6 @@ contains
     implicit none
 
     call timer_tic('modsurface/surface', 0)
-    
     select case (isurf)
       case (1) ! Interactive land surface model
         call calc_mean_wind
@@ -780,28 +779,30 @@ contains
     implicit none
 
     integer :: i, j
-    real :: upcu, vpcv
-    
-   !$acc parallel loop collapse(2) default(present) 
+    real :: logz
+
+    !$acc parallel loop collapse(2) default(present)
     do j = 2, j1
-      do i = 2, i1 
-        Cm(i,j) = fkar**2 / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))**2 
-        Cs(i,j) = fkar**2 / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
+      do i = 2, i1
+        logz = log(zf(1) / z0m(i,j))
+        Cm(i,j) = fkar**2 / (logz - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))**2
+        Cs(i,j) = fkar**2 / (logz - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j))) / &
                   (log(zf(1) / z0h(i,j)) - psih(zf(1) / obl(i,j)) + psih(z0h(i,j) / obl(i,j)))
       end do
     end do
 
   end subroutine calc_drag_coefficients
-  
+
   !> Calculates the aerodynamic resistance \f$r_a\f$
   subroutine calc_aerodynamic_resistance
     use modglobal, only: i1, j1
     implicit none
 
-    integer :: i, j 
+    integer :: i, j
     integer :: patchx, patchy
-    
+
     if (lmostlocal) then
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           ra(i,j) = 1. / (Cs(i,j) * horv(i,j))
@@ -816,6 +817,7 @@ contains
         end do
       end do
     else
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           ra(i,j) = 1. / (Cs(i,j) * horvav)
@@ -829,7 +831,7 @@ contains
   subroutine presc_skin_temperature
     use modglobal, only: i1, j1
     implicit none
-    
+
     integer :: i, j
 
     if (lhetero) then
@@ -839,6 +841,7 @@ contains
         end do
       end do
     else
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           tskin(i,j) = thls
@@ -861,17 +864,17 @@ contains
     real :: lthls_patch(xpatches, ypatches)
     real :: lqts_patch(xpatches, ypatches)
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
-    
+
     ! TODO: check if splitting these loops speeds things up on the GPU (async)
     !$acc parallel loop collapse(2) default(present) 
     do j = 2, j1
       do i = 2, i1
-        tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1) 
+        tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1)
         qskin(i,j) = min(max(qtflux(i,j) / (Cs(i,j) * horv(i,j)), -5.e-2), 5.e-2) + qt0(i,j,1)
       end do
     end do
 
-    !$acc parallel loop collapse(2) default(present) reduction(+: thlsl, qtsl) 
+    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qtsl)
     do j = 2, j1
       do i = 2, i1
         thlsl = thlsl + tskin(i,j)
@@ -896,7 +899,7 @@ contains
           Npatch(patchx, patchy) = Npatch(patchx, patchy) + 1
         end do
       end do
-      
+
       call D_MPI_ALLREDUCE(lthls_patch(1:xpatches, 1:ypatches), thls_patch(1:xpatches, 1:ypatches), &
                            xpatches*ypatches, MPI_SUM, comm3d, mpierr)
       call D_MPI_ALLREDUCE(lqts_patch(1:xpatches, 1:ypatches), qts_patch(1:xpatches, 1:ypatches), &
@@ -909,21 +912,21 @@ contains
     end if
 
   end subroutine calc_surface_scalars
-  
+
   !> Calculates the maginitude of the wind vector at the first level
   subroutine calc_mean_wind
     use modglobal, only: i1, j1, cu, cv
     use modfields, only: u0, v0, u0av, v0av
     use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
     implicit none
-    
+
     integer :: i, j, patchx, patchy
     real :: upcu, vpcv
     real :: upatch(xpatches, ypatches), vpatch(xpatches, ypatches)
     real :: Supatch(xpatches, ypatches), Svpatch(xpatches, ypatches)
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
-    
-    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) 
+
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv)
     do j = 2, j1
       do i = 2, i1
         upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -976,47 +979,47 @@ contains
     integer :: i, j
 
     if (lmostlocal) then
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horv(i,j)
+          ustar(i,j) = max(ustar(i,j), 1.e-2)
         end do
       end do
     else if (lhetero) then
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horvpatch(patchxnr(i), patchynr(j))
+          ustar(i,j) = max(ustar(i,j), 1.e-2)
         end do
       end do
     else
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = sqrt(Cm(i,j)) * horvav
+          ustar(i,j) = max(ustar(i,j), 1.e-2)
         end do
       end do
     end if
 
-    do j = 2, j1
-      do i = 2, i1
-        ustar(i,j) = max(ustar(i,j), 1.e-2)
-      end do
-    end do
-
     call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
-      
+
   end subroutine calc_friction_velocity
 
   !> Prescribes the friction velocity \f$u_*\f$
   subroutine presc_friction_velocity
     use modglobal, only: i1, j1
     use modmpi, only: excjs
-    implicit none 
+    implicit none
 
     integer :: i, j
-    
+
     if (lhetero) then
       do j = 2, j1
-        do i = 2, i1      
+        do i = 2, i1
           ustar(i,j) = ustin_patch(patchxnr(i), patchynr(j))
+          ustar(i,j) = max(ustar(i,j), 1.e-2)
         end do
       end do
     else
@@ -1024,18 +1027,10 @@ contains
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = ustin
+          ustar(i,j) = max(ustar(i,j), 1.e-2)
         end do
       end do
     end if
-    
-    !$acc parallel loop collapse(2) default(present) 
-    do j = 2, j1
-      do i = 2, i1
-        ustar(i,j) = max(ustar(i,j), 1.e-2)
-      end do
-    end do
-    
-    !$acc wait 
     call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
 
   end subroutine presc_friction_velocity
@@ -1044,7 +1039,7 @@ contains
   !> the calculated aerodynamic resistance
   subroutine calc_surface_flux
     use modglobal, only: i1, j1, nsv, ijtot
-    use modfields, only: thl0, qt0 
+    use modfields, only: thl0, qt0
     use modmpi, only: D_MPI_ALLREDUCE, mpi_sum, comm3d, mpierr
     implicit none
 
@@ -1053,28 +1048,29 @@ contains
 
     ! Uniform sensible and latent heat flux
     if (lsmoothflux) then
-      ustl = sum(ustar(2:i1,2:j1))
-      wtsurfl = sum(thlflux(2:i1,2:j1))
-      wqsurfl = sum(qtflux(2:i1,2:j1))
+      !$acc parallel loop collapse(2) default(present) reduction(+: ustl, wtsurfl, wqsurfl)
+      do j = 2, j1
+        do i = 2, i1
+          ustl = ustl + ustar(i,j)
+          wtsurfl = wtsurfl + thlflux(i,j)
+          wqsurfl = wqsurfl + qtflux(i,j)
+        end do
+      end do
 
       call D_MPI_ALLREDUCE(ustl, ust, 1, MPI_SUM, comm3d, mpierr)
       call D_MPI_ALLREDUCE(wtsurfl, wtsurf, 1, MPI_SUM, comm3d, mpierr)
       call D_MPI_ALLREDUCE(wqsurfl, wqsurf, 1, MPI_SUM, comm3d, mpierr)
-      
+
       ust = ust / ijtot
       wtsurf = wtsurf / ijtot
       wqsurf = wqsurf / ijtot
 
       call presc_surface_flux
     else
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           thlflux(i,j) = - (thl0(i,j,1) - tskin(i,j)) / ra(i,j)
-        end do
-      end do
-
-      do j = 2, j1    
-        do i = 2, i1
           qtflux(i,j) = - (qt0(i,j,1) - qskin(i,j)) / ra(i,j)
         end do
       end do
@@ -1083,15 +1079,16 @@ contains
       if (nsv > 0) then
         if (lhetero) then
           do n = 1, nsv
-            do j = 2, j1 
+            do j = 2, j1
               do i = 2, i1
                 svflux(i,j,n) = wsv_patch(n, patchxnr(i), patchynr(j))
               end do
             end do
           end do
         else
+          !$acc parallel loop collapse(3) default(present)
           do n = 1, nsv
-            do j = 2, j1 
+            do j = 2, j1
               do i = 2, i1
                 svflux(i,j,n) = wsvsurf(n)
               end do
@@ -1107,7 +1104,7 @@ contains
               svflux(i,j,n) = CO2flux(i,j)
             end do
           end do
-        end do 
+        end do
       end if
     end if
 
@@ -1137,8 +1134,8 @@ contains
           end do
         end do
       end if
-    else 
-      !$acc parallel loop collapse(2) default(present) 
+    else
+      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           thlflux(i,j) = wtsurf
@@ -1160,36 +1157,39 @@ contains
     
     !$acc wait
   end subroutine presc_surface_flux
-  
+
   !> Calculates the surface gradients
   subroutine calc_surface_gradients
     use modglobal, only: i1, j1, cu, cv, zf, fkar
-    use modfields, only: u0, v0 
-    implicit none 
+    use modfields, only: u0, v0
+    implicit none
 
     integer :: i, j
+    real :: scaling
     real :: upcu, vpcv
     real :: phimzf, phihzf
 
+    scaling = 1.0 / (fkar * zf(1))
+
     ! Momentum fluxes
-    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, phimzf) 
+    !$acc parallel loop collapse(2) default(present)
     do j = 2, j1
       do i = 2, i1
         upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
         vpcv = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
         phimzf = phim(zf(1) / obl(i,j))
-        dudz(i,j) = ustar(i,j) * phimzf / (fkar * zf(1)) * (upcu / horv(i,j))
-        dvdz(i,j) = ustar(i,j) * phimzf / (fkar * zf(1)) * (vpcv / horv(i,j))
+        dudz(i,j) = ustar(i,j) * phimzf * scaling * (upcu / horv(i,j))
+        dvdz(i,j) = ustar(i,j) * phimzf * scaling * (vpcv / horv(i,j))
       end do
     end do
 
     ! Scalar fluxes
-    !$acc parallel loop collapse(2) default(present) private(phihzf) 
+    !$acc parallel loop collapse(2) default(present)
     do j = 2, j1
       do i = 2, i1
         phihzf = phih(zf(1) / obl(i,j))
-        dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar * zf(1))
-        dqtdz(i,j) = - qtflux(i,j) / ustar(i,j) * phihzf / (fkar * zf(1))
+        dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf * scaling
+        dqtdz(i,j) = - qtflux(i,j) / ustar(i,j) * phihzf * scaling
       end do
     end do
 
@@ -1215,6 +1215,7 @@ contains
 
     if(isurf <= 2) then
       qtsl = 0.
+      !$acc parallel loop collapse(2) default(present) reduction(+: qtsl)
       do j = 2, j1
         do i = 2, i1
           exner      = (ps / pref0)**(rd/cp)
@@ -1284,7 +1285,12 @@ contains
 
 
     if (lneutral) then
-      obl(:,:) = -1.e10
+      !$acc parallel loop collapse(2) default(present)
+      do i=1,i2
+        do j=1,j2
+          obl(i,j) = -1.e10
+        end do
+      end do
       oblav = -1.e10
       return
     endif
@@ -1323,7 +1329,7 @@ contains
                 if(Rib > 0) L = 0.01
                 if(Rib < 0) L = -0.01
              end if
-             
+
              do while (.true.)
                 iter    = iter + 1
                 Lold    = L
@@ -1440,12 +1446,13 @@ contains
           enddo
         enddo
       endif
-    endif
+    endif ! if lhetero
 
     !CvH also do a global evaluation if lmostlocal = .true. to get an appropriate local mean
     !$acc update self(thl0av(1), qt0av(1))
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
+    !$acc update self(u0av(1), v0av(1))
     horv2 = u0av(1)**2. + v0av(1)**2.
     horv2 = max(horv2, 0.01)
 
@@ -1463,7 +1470,7 @@ contains
           if(Rib > 0) L = 0.01
           if(Rib < 0) L = -0.01
        end if
-       
+
        do while (.true.)
           iter    = iter + 1
           Lold    = L
@@ -1489,7 +1496,7 @@ contains
           if(.not. lhetero) then
             !$acc parallel loop collapse(2) default(present)
             do j = 2, j1
-              do i = 2, i1 
+              do i = 2, i1
                 obl(i,j) = L
               end do
             end do
@@ -1546,7 +1553,7 @@ contains
 
   ! stability function Phi for momentum.
   ! Many functional forms of Phi have been suggested, see e.g. Optis 2015
-  ! Phi and Psi above are related by an integral and should in principle match, 
+  ! Phi and Psi above are related by an integral and should in principle match,
   ! currently they do not.
   ! FJ 2018: For very stable situations, zeta > 1 add cap to phi - the linear expression is valid only for zeta < 1
   function phim(zeta)
@@ -1567,7 +1574,7 @@ contains
     return
   end function phim
 
-  ! stability function Phi for heat.  
+  ! stability function Phi for heat.
   function phih(zeta)
     !$acc routine seq
     implicit none
@@ -1586,7 +1593,7 @@ contains
     return
   end function phih
 
-  
+
   function E1(x)
   implicit none
     real             :: E1
@@ -1598,7 +1605,7 @@ contains
     do k=1,99
       !E1sum = E1sum + (-1.0) ** (k + 0.0) * x ** (k + 0.0) / ( (k + 0.0) * factorial(k) )
        E1sum = E1sum + (-1.0 * x) ** k / ( k * factorial(k) )  ! FJ changed this for compilation with cray fortran
-                                                          
+
     end do
     E1 = -0.57721566490153286060 - log(x) - E1sum
 
@@ -1667,7 +1674,7 @@ contains
 
     !$acc exit data delete(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                 ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&                 dqtdz, dthldz, svflux, svs, horv)
+    !$acc&                 dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
 
     return
   end subroutine exitsurface
@@ -1842,7 +1849,7 @@ contains
     real     :: Ag, PARdir, PARdif !Variables for 2leaf AGS
     real     :: MW_Air = 28.97
     real     :: MW_CO2 = 44
- 
+
     real     :: sinbeta, kdrbl, kdf, kdr, ref, ref_dir
     real     :: iLAI, fSL
     real     :: PARdfU, PARdfD, PARdfT, PARdrU, PARdrD, PARdrT, dirPAR, difPAR
@@ -2134,7 +2141,7 @@ contains
             gc_inf   = LAI(i,j) * sum(weight_g * gnet)
 
           else !lsplitleaf
-          
+
           ! Calculate upscaling from leaf to canopy: net flow CO2 into the plant (An)
           AGSa1    = 1.0 / (1 - f0)
           Dstar    = D0 / (AGSa1 * (f0 - fmin))
