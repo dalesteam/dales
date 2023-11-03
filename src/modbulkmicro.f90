@@ -84,6 +84,10 @@ module modbulkmicro
     gamma25=lacz_gamma(2.5)
     gamma3=2.
     gamma35=lacz_gamma(3.5)
+
+    !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, &
+    !$acc&                  thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+
   end subroutine initbulkmicro
 
 !> Cleaning up after the run
@@ -95,6 +99,9 @@ module modbulkmicro
                              Dvr,xr,mur,lbdr, &
                              precep,qrmask,qcmask
     implicit none
+
+    !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, &
+    !$acc&                 thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
     deallocate(Dvr,xr,mur,lbdr)
@@ -109,75 +116,74 @@ module modbulkmicro
                              qrmask, xrmin, xrmax, xrmaxkk
     use modglobal, only : i1,j1,k1
     use modfields, only : rhof
+
     implicit none
+
     real(field_r), intent(in)    :: Nr  (2:i1, 2:j1, 1:k1), &
                                     qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
     if (l_sb) then
+      !TODO-ACC: instead of if, do mult with qrmask
+      !$acc parallel loop collapse(3) default(present)
       do k=qrbase,qrroof
         do j=2,j1
           do i=2,i1
             if (qrmask(i,j,k)) then
-              xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
+              xr(i,j,k) = rhof(k) * qr(i,j,k) / Nr(i,j,k)
 
               ! to ensure xr is within borders
-              xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
-              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-            !else
-            !  xr (i,j,k) = 0.
-            !  Dvr(i,j,k) = 0.
+              xr (i,j,k) = min(max(xr(i,j,k), xrmin), xrmax)
+              Dvr(i,j,k) = (xr(i,j,k) / pirhow)**(1./3.)
             endif
           enddo
         enddo
       enddo
 
       if (l_mur_cst) then
-        mur = mur_cst
+        !TODO-ACC: instead of if, do mult with qrmask
+        !$acc parallel loop collapse(3) default(present)
         do k=qrbase,qrroof
           do j=2,j1
             do i=2,i1
               if (qrmask(i,j,k)) then
+                mur(i,j,k) = mur_cst
                 lbdr(i,j,k) = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr(i,j,k)
-              !else
-              !  lbdr = 0.
               endif
             enddo
           enddo
         enddo
       else
         ! mur = f(Dv)
+        !TODO-ACC: instead of if, do mult with qrmask
+        !$acc parallel loop collapse(3) default(present)
         do k=qrbase,qrroof
           do j=2,j1
             do i=2,i1
               if (qrmask(i,j,k)) then
                 mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
                 lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-              !else
-              !  mur (i,j,k) = 0.
-              !  lbdr(i,j,k) = 0.
               endif
             enddo
           enddo
         enddo
       endif
     else ! l_sb
-       do k=qrbase,qrroof
-         do j=2,j1
-           do i=2,i1
-             if (qrmask(i,j,k)) then
-               xr(i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
+      !TODO-ACC: instead of if, do mult with qrmask
+      !$acc parallel loop collapse(3) default(present)
+      do k=qrbase,qrroof
+        do j=2,j1
+          do i=2,i1
+            if (qrmask(i,j,k)) then
+              xr(i,j,k) = rhof(k) * qr(i,j,k) / Nr(i,j,k)
 
-               ! to ensure x_pw is within borders
-               xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
-               Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-             !else
-             !  xr(i,j,k) = 0.
-             !  Dvr(i,j,k) = 0.
-             endif
-           enddo
-         enddo
-       enddo
+              ! to ensure x_pw is within borders
+              xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
+              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+            endif
+          enddo
+        enddo
+      enddo
     endif ! l_sb
   end subroutine calculate_rain_parameters
 
@@ -194,14 +200,21 @@ module modbulkmicro
     implicit none
     integer :: i,j,k
     real :: qrtest,nr_cor,qr_cor
+    real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
 
-    Nr = sv0(2:i1,2:j1,1:k1,inr)
-    qr = sv0(2:i1,2:j1,1:k1,iqr)
-
-    Nrp    = 0.0
-    qrp    = 0.0
-    thlpmcr = 0.0
-    qtpmcr  = 0.0
+    !$acc parallel loop collapse(3) default(present)
+    do k=1,k1
+      do j=2,j1
+        do i=2,i1
+          Nr(i,j,k) = sv0(i,j,k,inr)
+          qr(i,j,k) = sv0(i,j,k,iqr)
+          Nrp(i,j,k)     = 0.0
+          qrp(i,j,k)     = 0.0
+          thlpmcr(i,j,k) = 0.0
+          qtpmcr(i,j,k)  = 0.0
+        enddo
+      enddo
+    enddo
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -216,21 +229,40 @@ module modbulkmicro
     ! remove neg. values of Nr and qr
     !*********************************************************************
     if (l_rain) then
-       if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-       if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
+      qrsum_neg = 0.0
+      qrsum = 0.0
+      Nrsum_neg = 0.0
+      Nrsum = 0.00
+      !$acc parallel loop collapse(3) default(present) reduction(+: qrsum_neg, qrsum, Nrsum_neg, Nrsum)
+      do k=1,k1
+        do j=2,j1
+          do i=2,i1
+            qrsum = qrsum + qr(i,j,k)
+            Nrsum = Nrsum + Nr(i,j,k)
+            if qr(i,j,k) < 0.0 then
+              qrsum_neg = qrsum_neg + qr(i,j,k)
+              qr(i,j,k) = 0.0
+            end if
+            if Nr(i,j,k) < 0.0 then
+              Nrsum_neg = Nrsum_neg + Nr(i,j,k)
+              Nr(i,j,k) = 0.0
+            end if
+          enddo
+        enddo
+      enddo
 
-       Nr = max(0.,Nr)
-       qr = max(0.,qr)
+      if ( -qrsum_neg > 0.000001*qrsum) then
+        write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
+      end if
+      if ( -Nrsum_neg > 0.000001*Nrsum) then
+         write(*,*)'amount of neg. Nr thrown away is too high  ',timee,' sec'
+      end if
 
-       ! BUG: why write back these values here?
-       !      negative values in svm + svp are corrected for at the end
-       !      of bulkmicro, and tstep integrate does svm + svp
-       ! sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
-       ! sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
+      ! BUG: why write back these values here?
+      !      negative values in svm + svp are corrected for at the end
+      !      of bulkmicro, and tstep integrate does svm + svp
+      ! sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
+      ! sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
     end if   ! l_rain
 
     !*********************************************************************
