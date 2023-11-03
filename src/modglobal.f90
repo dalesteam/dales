@@ -170,7 +170,6 @@ save
       real :: dqt               !<     * applied gradient of qt at top of model
       real :: dtheta            !<     * applied gradient of theta at top of model
       real,allocatable :: dsv(:)          !<     * applied gradient of sv(n) at top of model
-    !<     real :: dsv(nsv)          !<     * applied gradient of sv(n) at top of model
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real :: rdt                !<     * time integration interval
@@ -500,13 +499,13 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, zh, zf, delta, deltai, rd, rv, &
-    !$acc&                  esatmtab, esatitab, esatltab)
+    !$acc&                  dsv, esatmtab, esatitab, esatltab)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, rd, rv, &
-    !$acc&                 esatmtab, esatitab, esatltab)
+    !$acc&                 dsv, esatmtab, esatitab, esatltab)
 
     deallocate(dsv,dzf,dzh,zh,zf,delta,deltai)
   end subroutine exitglobal
