@@ -1048,6 +1048,9 @@ contains
 
     ! Uniform sensible and latent heat flux
     if (lsmoothflux) then
+      ustl = 0.0
+      wtsurfl = 0.0
+      wqsurfl = 0.0
       !$acc parallel loop collapse(2) default(present) reduction(+: ustl, wtsurfl, wqsurfl)
       do j = 2, j1
         do i = 2, i1
