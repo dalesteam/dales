@@ -49,10 +49,10 @@ contains
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
                          dvdtls, dthvdz, qvsl, qvsi, esl, qsat
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab, esatitab, esatltab
+                         dsv, rd, rv, esatmtab, esatitab, esatltab
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
                            ustar, dudz, dvdz, thlflux, qtflux, &
-                           dqtdz, dthldz, svflux, svs, horv
+                           dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
     use modradiation, only: thlprad
@@ -73,13 +73,13 @@ contains
     !$acc&              dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&              dudxls, dudyls, dudtls, dvdxls, dvdyls, &
     !$acc&              dvdtls, dthvdz, qvsl, qvsi, esl, qsat, &
-    !$acc&              dzf, dzh, zh, zf, delta, deltai, &
+    !$acc&              dzf, dzh, zh, zf, delta, deltai, dsv, &
     !$acc&              z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&              ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&              dqtdz, dthldz, svflux, svs, horv, &
+    !$acc&              dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
     !$acc&              ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
     !$acc&              anis_fac, tsc, thlpcar, thlprad, presf, & 
-    !$acc&              presh, exnf, exnh, rhof, thetah, &
+    !$acc&              presh, exnf, exnh, thetah, &
     !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&              esatmtab, esatitab, esatltab)
 
@@ -99,10 +99,10 @@ contains
                          dudxls, dudyls, dudtls, dvdxls, dvdyls, &
                          dvdtls, dthvdz, qvsl, qvsi, esl, qsat
     use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
-                         rd, rv, esatmtab, esatitab, esatltab
+                         dsv, rd, rv, esatmtab, esatitab, esatltab
     use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
                            ustar, dudz, dvdz, thlflux, qtflux, &
-                           dqtdz, dthldz, svflux, svs, horv
+                           dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
     use modradiation, only: thlprad
@@ -125,13 +125,13 @@ contains
     !$acc&            dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&            dudxls, dudyls, dudtls, dvdxls, dvdyls, &
     !$acc&            dvdtls, dthvdz, qvsl, qvsi, esl, qsat, &
-    !$acc&            dzf, dzh, zh, zf, delta, deltai, &
+    !$acc&            dzf, dzh, zh, zf, delta, deltai, dsv, &
     !$acc&            z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&            ustar, dudz, dvdz, thlflux, qtflux, &
-    !$acc&            dqtdz, dthldz, svflux, svs, horv, &
+    !$acc&            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
     !$acc&            ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
     !$acc&            anis_fac, tsc, thlpcar, thlprad, presf, & 
-    !$acc&            presh, exnf, exnh, rhof, thetah, &
+    !$acc&            presh, exnf, exnh, thetah, &
     !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&            esatmtab, esatitab, esatltab)
 
