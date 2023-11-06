@@ -499,13 +499,13 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, zh, zf, delta, deltai, rd, rv, &
-    !$acc&                  dsv, esatmtab, esatitab, esatltab)
+    !$acc&                  dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, rd, rv, &
-    !$acc&                 dsv, esatmtab, esatitab, esatltab)
+    !$acc&                 dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
     deallocate(dsv,dzf,dzh,zh,zf,delta,deltai)
   end subroutine exitglobal
