@@ -58,6 +58,8 @@ contains
     use modradiation, only: thlprad
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
+    use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+                            qtpmcr, xr, mur, lbdr, qrmask, qcmask
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
     implicit none
@@ -81,7 +83,10 @@ contains
     !$acc&              anis_fac, tsc, thlpcar, thlprad, presf, & 
     !$acc&              presh, exnf, exnh, thetah, &
     !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
-    !$acc&              esatmtab, esatitab, esatltab)
+    !$acc&              esatmtab, esatitab, esatltab, &
+    !$acc&              th0av, thv0, thetah, qth, qlh, &
+    !$acc&              Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+    !$acc&              qtpmcr, xr, mur, lbdr, qrmask, qcmask)
 
   end subroutine update_gpu
   
@@ -108,6 +113,8 @@ contains
     use modradiation, only: thlprad
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
+    use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+                            qtpmcr, xr, mur, lbdr, qrmask, qcmask
     use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
 
     implicit none
@@ -133,7 +140,10 @@ contains
     !$acc&            anis_fac, tsc, thlpcar, thlprad, presf, & 
     !$acc&            presh, exnf, exnh, thetah, &
     !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
-    !$acc&            esatmtab, esatitab, esatltab)
+    !$acc&            esatmtab, esatitab, esatltab, &
+    !$acc&            th0av, thv0, thetah, qth, qlh, &
+    !$acc&            Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+    !$acc&            qtpmcr, xr, mur, lbdr, qrmask, qcmask)
 
     host_is_updated = .true.
 
