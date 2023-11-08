@@ -696,7 +696,7 @@ module modbulkmicro
     allocate(qr_spl(2:i1,2:j1,1:k1))
     allocate(Nr_spl(2:i1,2:j1,1:k1))
 
-    !$acc enter data copyin(qr_spl, Nr_spl)
+    !$acc enter data create(qr_spl, Nr_spl)
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
