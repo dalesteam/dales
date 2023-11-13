@@ -99,7 +99,8 @@ contains
       !2leaf AGS, sunlit/shaded
       lsplitleaf, &
       ! Exponential emission function
-      i_expemis, expemis0, expemis1, expemis2
+      i_expemis, expemis0, expemis1, expemis2, &
+      min_horv
 
 
     ! 1    -   Initialize soil
@@ -171,6 +172,8 @@ contains
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
+
+    call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
