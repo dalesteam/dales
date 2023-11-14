@@ -150,7 +150,7 @@ contains
     if (lnetcdf) then
       write(fname,'(A,i3.3,A,i3.3,A)') 'fielddump.', myidx, '.', myidy, '.xxx.nc'
       fname(19:21) = cexpnr
-      nvar = 7+nsv ! maximum number of variables
+      nvar = 17+nsv ! maximum number of variables
       allocate(ncname(nvar,4))
       call nctiminfo(tncname(1,:))
       ind = 1
@@ -454,30 +454,42 @@ contains
     if (lnetcdf .and. lhur) vars(:,:,:,ind_hur) = 100 * (qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)) / &
          qsat(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
 
-    if (lnetcdf .and. ltntr) vars(:,:,:,ind_tntr) = ( &
-         -swd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         -swu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         +swd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-         +swu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-         -lwd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         -lwu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         +lwd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-         +lwu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-    )  / (rhof(k)*exnf(k)*cp*dzf(k))
+    if (lnetcdf .and. ltntr) then
+       do k = klow,khigh
+          vars(:,:,k,ind_tntr) = ( &    !! need to loop over k here
+               -swd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               -swu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               +swd(2:i1:ncoarse,2:j1:ncoarse,k) &
+               +swu(2:i1:ncoarse,2:j1:ncoarse,k) &
+               -lwd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               -lwu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               +lwd(2:i1:ncoarse,2:j1:ncoarse,k) &
+               +lwu(2:i1:ncoarse,2:j1:ncoarse,k) &
+               )  / (rhof(k)*exnf(k)*cp*dzf(k))
+       end do
+    end if
 
-    if (lnetcdf .and. ltntrs) vars(:,:,:,ind_tntrs) = ( &
-         -swd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         -swu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         +swd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-         +swu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-    )  / (rhof(k)*exnf(k)*cp*dzf(k))
+    if (lnetcdf .and. ltntrs) then
+       do k = klow,khigh
+          vars(:,:,k,ind_tntrs) = ( & !! need to loop over k here
+               -swd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               -swu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               +swd(2:i1:ncoarse,2:j1:ncoarse,k) &
+               +swu(2:i1:ncoarse,2:j1:ncoarse,k) &
+               )  / (rhof(k)*exnf(k)*cp*dzf(k))
+       end do
+    end if
 
-    if (lnetcdf .and. ltntrl) vars(:,:,:,ind_tntrl) = ( &
-         -lwd(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         -lwu(2:i1:ncoarse,2:j1:ncoarse,klow+1:khigh+1) &
-         +lwd(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-         +lwu(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) &
-         )  / (rhof(k)*exnf(k)*cp*dzf(k))
+    if (lnetcdf .and. ltntrl) then
+       do k = klow,khigh
+          vars(:,:,k,ind_tntrl) = ( & !! need to loop over k here
+               -lwd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               -lwu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
+               +lwd(2:i1:ncoarse,2:j1:ncoarse,k) &
+               +lwu(2:i1:ncoarse,2:j1:ncoarse,k) &
+               )  / (rhof(k)*exnf(k)*cp*dzf(k))
+       end do
+    end if
 
     ! scalar variables
     if (lnetcdf) then
