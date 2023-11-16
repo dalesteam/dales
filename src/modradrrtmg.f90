@@ -595,7 +595,7 @@ contains
   ! ============================================================================!
 
       use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0,tup,tdn
-      use modfields, only: thl0,ql0,qt0,exnf
+      use modfields, only: thl0,ql0,qt0,exnf,rhof
       use modsurfdata, only: tskin,ps
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
@@ -658,6 +658,7 @@ contains
            qci_slice (im,k) = ql0(i,j,k) * (1-ilratio)
 
            o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
+           rho_slice (im,k) = rhof(k)
 
            h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
 !           h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
@@ -786,7 +787,10 @@ contains
              cloudFrac(i,k) = 1.
              B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
-
+             if (isnan(iceRe(i,k))) then
+                write (*,*) "B", B_function, "iceRe", iceRe(i,k), "qci_slice", qci_slice(i,k), "layerT", layerT(i,k)
+                stop "modradrrtmg: iceRe is nan."
+             end if
              if (iceRe(i,k).lt.5.) then
                 iceRe(i,k) = 5.
              endif
