@@ -37,7 +37,7 @@ implicit none
 PUBLIC :: initradstat, radstat, exitradstat
 save
 !NetCDF variables
-  integer,parameter :: nvar = 12
+  integer,parameter :: nvar = 14
   character(80),dimension(nvar,4) :: ncname
 
   real    :: dtav, timeav
@@ -52,6 +52,8 @@ save
   real(field_r), allocatable :: thltendav(:)
   real(field_r), allocatable :: thllwtendav(:)
   real(field_r), allocatable :: thlswtendav(:)
+  real(field_r), allocatable :: thllwtendcaav(:)
+  real(field_r), allocatable :: thlswtendcaav(:)
   real, allocatable :: lwuav(:)
   real, allocatable :: lwdav(:)
   real, allocatable :: swdav(:)
@@ -67,6 +69,8 @@ save
   real, allocatable :: thltendmn(:)
   real, allocatable :: thllwtendmn(:)
   real, allocatable :: thlswtendmn(:)
+  real, allocatable :: thllwtendcamn(:)
+  real, allocatable :: thlswtendcamn(:)
   real, allocatable :: lwumn(:)
   real, allocatable :: lwdmn(:)
   real, allocatable :: swdmn(:)
@@ -139,6 +143,8 @@ contains
     allocate(thllwtendav(k1))
     allocate(thltendav(k1))
     allocate(thlswtendav(k1))
+    allocate(thllwtendcaav(k1))
+    allocate(thlswtendcaav(k1))
 
     allocate(lwumn(k1))
     allocate(lwdmn(k1))
@@ -154,6 +160,8 @@ contains
     allocate(thltendmn(k1))
     allocate(thlswtendmn(k1))
     allocate(thlradlsmn(k1))
+    allocate(thllwtendcamn(k1))
+    allocate(thlswtendcamn(k1))
 
     lwumn = 0.0
     lwdmn = 0.0
@@ -169,6 +177,8 @@ contains
     thllwtendmn = 0.0
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
+    thllwtendcamn = 0.0
+    thlswtendcamn = 0.0
 
     if(myid==0 .and. .not. lwarmstart)then
       open (ifoutput,file='radstat.'//cexpnr,status='replace')
@@ -194,7 +204,8 @@ contains
         call ncinfo(ncname(10,:),'lwdca','Long wave clear air downward radiative flux','W/m^2','mt')
         call ncinfo(ncname(11,:),'swuca','Short wave clear air upward radiative flux','W/m^2','mt')
         call ncinfo(ncname(12,:),'swdca','Short wave clear air downward radiative flux','W/m^2','mt')
-
+        call ncinfo(ncname(13,:),'thllwtendca','Long wave clear air radiative tendency','K/s','tt')
+        call ncinfo(ncname(14,:),'thlswtendca','Short wave clear air radiative tendency','K/s','tt')
 
         call define_nc( ncid_prof, NVar, ncname)
       end if
@@ -245,6 +256,8 @@ contains
     thllwtendav = 0.
     thlswtendav = 0.
     thltendav = 0.
+    thllwtendcaav = 0.
+    thlswtendcaav = 0.
 
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -273,7 +286,18 @@ contains
     thlswtendmn = thlswtendmn + thlswtendav / ijtot
     thlradlsmn  = thlradlsmn  + thlpcar
 
-    if (lradclearair) call radclearair
+  if (lradclearair) then
+        call radclearair
+        do k=1,kmax
+          thllwtendcaav(k) = (-lwdcaav(k+1) - lwucaav(k+1) + lwdcaav(k) + lwucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
+          thlswtendcaav(k) = (-swdcaav(k+1) - swucaav(k+1) + swdcaav(k) + swucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
+        enddo
+
+        thllwtendcamn = thllwtendcamn + thllwtendcaav / ijtot
+        thlswtendcamn = thlswtendcamn + thlswtendcaav / ijtot
+    endif
+
+
   end subroutine do_radstat
 
       subroutine radclearair
@@ -283,6 +307,7 @@ contains
     use modsurfdata,  only : albedo, tskin, qskin, thvs, ps
     use modmicrodata, only : Nc_0
     use modmpi,    only :  slabsum
+    use modraddata, only: irad_full, iradiation
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b,swdca,swuca,lwdca,lwuca
@@ -294,7 +319,8 @@ contains
     swdcaav  = 0.
     swucaav  = 0.
 
-!take care of UCLALES z-shift for thermo variables.
+    if (iradiation.eq.irad_full) then   !rrtmg has calculated lwdca already
+       !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax
         rhof_b(k+1)     = rhof(k)
         exnf_b(k+1)     = exnf(k)
@@ -325,7 +351,7 @@ contains
       end do
 
       call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
-
+    end if
 
     call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwucaav ,1,k1,lwuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -369,6 +395,8 @@ contains
       swucamn   = swucamn    /nsamples
       thllwtendmn = thllwtendmn /nsamples
       thlswtendmn = thlswtendmn /nsamples
+      thllwtendcamn = thllwtendcamn /nsamples
+      thlswtendcamn = thlswtendcamn /nsamples
       thlradlsmn  = thlradlsmn  /nsamples
       thltendmn   = thltendmn   /nsamples
   !     ----------------------
@@ -446,6 +474,9 @@ contains
         vars(:,10) = lwdcamn
         vars(:,11) = swucamn
         vars(:,12) = swdcamn
+        vars(:,13) = thllwtendcamn
+        vars(:,14) = thlswtendcamn
+
        call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
     end if ! end if(myid==0)
@@ -453,8 +484,8 @@ contains
     lwumn = 0.0
     lwdmn = 0.0
     swdmn = 0.0
-    swdirmn = 0.0
-    swdifmn = 0.0
+    swdirmn = 0.0 ! not in netCDF yet
+    swdifmn = 0.0 ! not in netCDF yet
     swumn = 0.0
     lwucamn = 0.0
     lwdcamn = 0.0
@@ -464,6 +495,8 @@ contains
     thlswtendmn = 0.0
     thlradlsmn  = 0.0
     thltendmn  = 0.0
+    thllwtendcamn = 0.0
+    thlswtendcamn = 0.0
 
   end subroutine writeradstat
 
@@ -479,8 +512,8 @@ contains
     deallocate(thllwtendav,thlswtendav)
     deallocate(lwumn,lwdmn,swdmn,swdirmn,swdifmn,swumn)
     deallocate(thllwtendmn,thlswtendmn,thlradlsmn)
-
-
+    deallocate(thllwtendcaav,thlswtendcaav)
+    deallocate(thllwtendcamn,thlswtendcamn)
 
   end subroutine exitradstat
 
