@@ -72,13 +72,13 @@ jobs:
           cd netcdf-fortran
           NCDIR=/usr FC=/usr/bin/ifx ./configure
           #fix weird bug where libmf et al are not found
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libimf.so \
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libimf.so \
              /opt/intel/oneapi/compiler/latest/linux/lib/
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libintlc.so.5 \
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libintlc.so.5 \
              /opt/intel/oneapi/compiler/latest/linux/lib/
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libsvml.so \
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libsvml.so \
              /opt/intel/oneapi/compiler/latest/linux/lib/
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libirng.so \
+          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libirng.so \
              /opt/intel/oneapi/compiler/latest/linux/lib/
           sudo make -j2
           sudo make install
