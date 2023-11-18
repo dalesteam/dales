@@ -71,17 +71,6 @@ jobs:
           sudo ln -s `which ifx` /usr/bin/ifx
           cd netcdf-fortran
           NCDIR=/usr FC=/usr/bin/ifx ./configure
-          echo "Check path:"
-          ls /opt/intel/oneapi/compiler/latest/lib
-          #fix weird bug where libmf et al are not found
-          #sudo cp /opt/intel/oneapi/compiler/latest/lib/libimf.so \
-           #  /opt/intel/oneapi/compiler/latest/linux/lib/
-          #sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libintlc.so.5 \
-          #   /opt/intel/oneapi/compiler/latest/linux/lib/
-          #sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libsvml.so \
-          #   /opt/intel/oneapi/compiler/latest/linux/lib/
-          #sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin/libirng.so \
-          #   /opt/intel/oneapi/compiler/latest/linux/lib/
           sudo make -j2
           sudo make install
 
