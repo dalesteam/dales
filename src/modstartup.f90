@@ -423,6 +423,8 @@ contains
     use modgpu, only: update_gpu, update_host, host_is_updated
 #endif
 
+    use modgpu, only: update_gpu, update_host, host_is_updated
+
     integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
 
@@ -643,6 +645,7 @@ contains
       svs = svprof(1,:)
 
       call baseprofs ! call baseprofs before thermodynamics
+
 
 #if defined(_OPENACC)
       call update_gpu
