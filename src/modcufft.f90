@@ -1,7 +1,7 @@
 module modcufft
   use, intrinsic :: iso_c_binding 
 
-  use modmpi, only: nprocx, nprocy 
+  use modmpi
   use modglobal, only: itot, jtot, kmax, i1, j1, &
                        imax, jmax, ih, jh, dxi, dyi, pi, ijtot
   use modprecision, only: pois_r
@@ -18,6 +18,9 @@ module modcufft
     real(pois_r), allocatable, target :: p_nohalo(:)
     real(pois_r), pointer :: px(:,:,:), py(:,:,:)
 
+    integer :: nphix, nphiy
+    integer :: konx, kony, iony, jonx
+
     integer :: planx, planxi, plany, planyi !< Plan handles
 
     integer(int_ptr_kind()) :: worksize, max_worksize !< Size of the required workspace
@@ -26,7 +29,7 @@ module modcufft
     !< Setup plans, workspace, etc
     subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
       use cufft
-      use modgpu, only: workspace, allocate_workspace
+      use modgpu, only: workspace_0, allocate_workspace
 
       implicit none
 
@@ -36,28 +39,57 @@ module modcufft
       real(pois_r), allocatable :: d(:,:,:)
       integer, intent(out) :: ps, pe, qs, qe
 
-      integer :: itot12, jtot12
+      integer(kind=8) :: sz
       integer :: fftsize, inembed, onembed, idist, odist, istride, ostride
       integer :: CUFFT_FWD_TYPE, CUFFT_BWD_TYPE
-      
-      ! Setup pressure array
-      allocate(p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax))
-      !$acc enter data create(p_halo)
-      p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
-      Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax)
+
+      ! Dimensions of the transposes
+      ! For explanation of the variables, see modfftw.f90/fftwinit
+
+      konx = kmax / nprocx
+      if (mod(kmax, nprocx) > 0) then
+        konx = konx + 1
+      end if
+
+      kony = kmax / nprocy
+      if (mod(kmax, nprocy) > 0) then
+        kony = kony + 1
+      end if
+
+      iony = itot / nprocy
+      if (mod(itot, nprocy) > 0) then
+        iony = iony + 1
+      end if
+
+      jonx = jtot / nprocx
+      if (mod(jtot, nprocx) > 0) then
+        jonx = jonx + 1
+      end if
 
       ! Number of complex coefficients
-      itot12 = itot/2 + 1
-      jtot12 = jtot/2 + 1
+      nphix = itot/2 + 1
+      nphiy = jtot/2 + 1
+      
+      sz = max(imax * jmax * konx * nprocx, & ! z-aligned
+               iony * jmax * konx * nprocy, & ! x-aligned
+               iony * jonx * konx * nprocx)   ! y-aligned 
 
-      ! Allocate workspace
-      ! Keep in mind that cuFFT does real to complex transforms, where one complex number
-      ! consists of two real numbers
-      allocate(p_nohalo(kmax*(itot12*2)*(jtot12*2)))
-      !$acc enter data create(p_nohalo)
+      ! Allocate memory for the pressure
+      allocate(p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax))
+      allocate(p_nohalo(kmax*(nphix*2)*(nphiy*2)))
 
-      px(1:itot12*2,1:jtot,1:kmax) => p_nohalo(1:kmax*jtot*(itot12*2))
-      py(1:jtot12*2,1:itot,1:kmax) => p_nohalo(1:kmax*itot*(jtot12*2))
+      !$acc enter data create(p_halo, p_nohalo)
+
+      p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax) ! z-aligned
+      px(1:nphix*2,1:jmax,1:konx) => p_nohalo(1:konx*jmax*(nphix*2)) ! x-aligned
+      py(1:nphiy*2,1:konx,1:iony) => p_nohalo(1:konx*iony*(nphiy*2)) ! y-aligned
+
+      if (nprocs == 1) then
+        Fp(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax) ! z-aligned
+      else
+        Fp(1:iony,1:jonx,1:kmax) => p_halo(1:iony*jonx*kmax)
+      end if
+        
 
       ! Precision
 #if POIS_PRECISION==32
@@ -70,10 +102,10 @@ module modcufft
 
       ! x-direction
       fftsize = itot
-      inembed = itot12
-      onembed = itot12
-      idist = itot12*2
-      odist = itot12
+      inembed = itot
+      onembed = nphiy
+      idist = nphix*2
+      odist = nphix
       istride = 1
       ostride = 1
 
@@ -89,7 +121,7 @@ module modcufft
         ostride, &
         odist, &
         CUFFT_FWD_TYPE, &
-        jtot*kmax &
+        jmax*konx &
       )
       call check_exitcode(istat)
 
@@ -105,7 +137,7 @@ module modcufft
         istride, &
         idist, &
         CUFFT_BWD_TYPE, &
-        jtot*kmax &
+        jmax*konx &
       )
 
       call check_exitcode(istat)
@@ -114,9 +146,9 @@ module modcufft
 
       fftsize = jtot
       inembed = jtot
-      onembed = jtot12
-      idist = jtot12*2
-      odist = jtot12
+      onembed = nphiy
+      idist = nphiy*2
+      odist = nphiy
       istride = 1
       ostride = 1
 
@@ -132,7 +164,7 @@ module modcufft
         ostride, &
         odist, &
         CUFFT_FWD_TYPE, &
-        itot*kmax &
+        iony*konx&
       )
 
       call check_exitcode(istat)
@@ -149,7 +181,7 @@ module modcufft
         istride, &
         idist, &
         CUFFT_BWD_TYPE, &
-        itot*kmax &
+        iony*konx&
       )
 
       call check_exitcode(istat)
@@ -169,28 +201,36 @@ module modcufft
       ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
       worksize = max_worksize / (storage_size(1._pois_r) / 8)
 
-      worksize = max(worksize, ((itot12*2)*(jtot12*2)*kmax))
+      worksize = max(worksize, ((nphix*2)*(nphiy*2)*kmax))
 
       call allocate_workspace(int(worksize))
 
-      !$acc host_data use_device(workspace)
-      istat = cufftSetWorkArea(planx, workspace)
-      istat = cufftSetWorkArea(planxi, workspace)
-      istat = cufftSetWorkArea(plany, workspace)
-      istat = cufftSetWorkArea(planyi, workspace)
+      !$acc host_data use_device(workspace_0)
+      istat = cufftSetWorkArea(planx, workspace_0)
+      istat = cufftSetWorkArea(planxi, workspace_0)
+      istat = cufftSetWorkArea(plany, workspace_0)
+      istat = cufftSetWorkArea(planyi, workspace_0)
       !$acc end host_data
 
       call check_exitcode(istat)
 
-      allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
-      allocate(d(2-ih:i1+ih,2-jh:j1+jh,kmax))
+      if (nprocs == 1) then
+        allocate(xyrt(2-ih:i1+ih,2-jh:j1+jh))
+        allocate(d(2-ih:i1+ih,2-jh:j1+jh,kmax))
+        ps = 2
+        pe = i1
+        qs = 2
+        qe = j1
+      else
+        allocate(xyrt(iony,jonx))
+        allocate(d(iony,jonx,kmax))
+        ps = 1
+        pe = iony
+        qs = 1
+        qe = jonx
+      end if
 
       call init_factors(xyrt)
-
-      ps = 2
-      pe = i1
-      qs = 2
-      qe = j1
 
       norm_fac = 1 / real((itot*jtot))
 
@@ -274,32 +314,32 @@ module modcufft
 
       xyrt = 0
 
-      do j=2,j1
-        do i=2,i1
-          xyrt(i,j) = (xrt(i-1) + yrt(j-1))
+      if (nprocs == 1) then
+        do j=2,j1
+          do i=2,i1
+            xyrt(i,j) = (xrt(i-1) + yrt(j-1))
+          end do
         end do
-      end do
+      else
+        do j = 1, jonx
+          do i = 1, iony
+            xyrt(i,j) = xrt(myidy*iony+i) + yrt(myidx*jonx+j)
+          end do
+        end do
+      end if
 
     end subroutine init_factors
 
     !< Forward transforms 
     subroutine cufftf(p, Fp)
       use cufft
-      use modgpu, only: workspace
 
       implicit none
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
       
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            px(i,j,k) = p(i+1,j+1,k)
-          end do
-        end do
-      end do
+      call transpose_a1(p, px)
 
       !$acc host_data use_device(px)
 #if POIS_PRECISION==32
@@ -309,34 +349,8 @@ module modcufft
 #endif
       !$acc end host_data
       
-      ! Reorder
-      !$acc parallel loop collapse(2) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          px(2,j,k) = px(itot+1,j,k)
-        end do
-      end do
-
-      ! Transpose to y-contiguous
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            workspace(ii) = px(i,j,k)
-          end do
-        end do
-      end do
-
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-         do i=1,itot
-            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            py(j,i,k) = workspace(ii)
-          end do
-        end do
-      end do
+      call postprocess_f_fft(px, (/2*nphix, jmax, konx/), itot)
+      call transpose_a2(px, py)
       
       !$acc host_data use_device(py)
 #if POIS_PRECISION==32
@@ -345,121 +359,23 @@ module modcufft
       istat = cufftExecD2Z(plany, py, py)
 #endif
       !$acc end host_data
+      call postprocess_f_fft(py, (/2*nphiy, konx, iony/), jtot)
 
-      ! Reorder
-      !$acc parallel loop collapse(2) default(present)
-      do k=1,kmax
-        do i=1,itot
-          py(2,i,k) = py(jtot+1,i,k)
-        end do
-      end do
-
-      ! Transpose
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            workspace(ii) = py(j,i,k)
-          end do
-        end do
-      end do
-
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            px(i,j,k) = workspace(ii)
-          end do
-        end do
-      end do
-
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            p(i+1,j+1,k) = px(i,j,k)
-          end do
-        end do
-      end do
+      call transpose_a3(py, Fp)
 
     end subroutine cufftf
 
     !< Backward transforms
     subroutine cufftb(p, Fp)
       use cufft
-      use modgpu, only: workspace
 
       implicit none
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
-      
-      ! 1. Fill in workspace
-      ! 2. Reorder data to original cuFFT format
-      ! 3. Backwards transform
-      ! 4. Transpose
-      ! 5. Reorder data
-      ! 6. Backwards transform
-      ! 7. Transpose
-      ! 8. Fill in pressure array
-      
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            px(i,j,k) = Fp(i+1,j+1,k)
-          end do
-        end do
-      end do
 
-      !$acc parallel loop collapse(2) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          px(itot+1,j,k) = px(2,j,k)
-          px(2,j,k) = 0.
-        end do
-      end do
-
-      !$acc host_data use_device(px)
-#if POIS_PRECISION==32
-      istat = cufftExecC2R(planxi, px, px)
-#else
-      istat = cufftExecZ2D(planxi, px, px)
-#endif
-      !$acc end host_data
-
-      call check_exitcode(istat)
-
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            workspace(ii) = px(i,j,k)
-          end do
-        end do
-      end do
-
-      ! TODO: Hier klopt natuurlijk helemaal niets van
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            ii = i + ((j-1)*2*(itot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            py(j,i,k) = workspace(ii)
-          end do
-        end do
-      end do
-
-      !$acc parallel loop collapse(2) default(present)
-      do k=1,kmax
-        do i=1,itot
-          py(jtot+1,i,k) = py(2,i,k)
-          py(2,i,k) = 0
-        end do
-      end do
+      call transpose_a3inv(py, Fp)
+      call preprocess_b_fft(py, (/2*nphiy, konx, iony/), jtot)
 
       !$acc host_data use_device(py)
 #if POIS_PRECISION==32
@@ -470,46 +386,412 @@ module modcufft
       !$acc end host_data
 
       call check_exitcode(istat)
+      call transpose_a2inv(px, py)
+      call preprocess_b_fft(px, (/2*nphix, jmax, konx/), itot)
 
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-         do i=1,itot
-            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            workspace(ii) = py(j,i,k)
-          end do
-        end do
-      end do
+      !$acc host_data use_device(px)
+#if POIS_PRECISION==32
+      istat = cufftExecC2R(planxi, px, px)
+#else
+      istat = cufftExecZ2D(planxi, px, px)
+#endif
+      !$acc end host_data
+
+      call check_exitcode(istat)
+      call transpose_a1inv(p, px)
       
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            ii = j + ((i-1)*2*(jtot/2+1)) + ((k-1)*2*(itot/2+1)*2*(jtot/2+1))
-            px(i,j,k) = workspace(ii)
+        do j=2,j1
+          do i=2,i1
+            p(i,j,k) = p(i,j,k) * norm_fac
           end do
         end do
       end do
 
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            px(i,j,k) = px(i,j,k) * norm_fac
-          end do
-        end do
-      end do
-
-      !$acc parallel loop collapse(3) default(present)
-      do k=1,kmax
-        do j=1,jtot
-          do i=1,itot
-            p(i+1,j+1,k) = px(i,j,k)
-          end do
-        end do
-      end do
-      
     end subroutine cufftb
+
+    subroutine transpose_a1(p, px)
+      use modgpu, only: workspace_0, workspace_1
+      implicit none
+
+      real(pois_r), pointer, intent(in) :: p(:,:,:)
+      real(pois_r), pointer, intent(out) :: px(:,:,:)
+
+      integer :: i, j, k, n, ii
+
+      if (nprocs == 1) then
+        !$acc parallel loop collapse(3) default(present)
+        do k=1,kmax
+          do j=1,jtot
+            do i=1,itot
+              px(i,j,k) = p(i+1,j+1,k)
+            end do
+          end do
+        end do
+      else
+        ! TODO: clean this one up
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do j = 2, j1
+              do i = 2, i1
+                ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
+                if (k+n*konx <= kmax) workspace_0(ii) = p(i,j,k+n*konx) 
+              end do
+            end do
+          end do
+        end do
+
+        !$acc host_data use_device(workspace_0, workspace_1)
+        call D_MPI_ALLTOALL(workspace_0, imax*jmax*konx, &
+                            workspace_1, imax*jmax*konx, &
+                            commrow, mpierr)
+        !$acc end host_data
+
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do j = 1, jmax
+              do i = 1, imax
+                ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
+                px(i+n*imax,j,k) = workspace_1(ii)
+              end do
+            end do
+          end do
+        end do
+      end if
+
+    end subroutine transpose_a1
+
+    subroutine transpose_a1inv(p, px)
+      use modgpu, only: workspace_0, workspace_1
+      implicit none
+
+      real(pois_r), pointer, intent(in) :: px(:,:,:)
+      real(pois_r), pointer, intent(out) :: p(:,:,:)
+
+      integer :: i, j, k, n, ii
+
+      if (nprocs == 1) then
+        !$acc parallel loop collapse(3) default(present)
+        do k = 1, kmax
+          do j = 1, jtot
+            do i = 1, itot
+              p(i+1,j+1,k) = px(i,j,k)
+            end do
+          end do
+        end do
+      else
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do j = 1, jmax
+              do i = 1, imax
+                ii = i + (j-1)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
+                workspace_0(ii) = px(i+n*imax,j,k)
+              end do
+            end do
+          end do
+        end do
+
+        !$acc host_data use_device(workspace_0, workspace_1)
+        call D_MPI_ALLTOALL(workspace_0, imax*jmax*konx, &
+                            workspace_1, imax*jmax*konx, &
+                            commrow, mpierr)
+        !$acc end host_data
+
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do j = 2, j1
+              do i = 2, i1
+                ii = (i-1) + (j-2)*imax + (k-1)*imax*jmax + n*imax*jmax*konx
+                if (k+n*konx <= kmax) p(i,j,k+n*konx) = workspace_1(ii)
+              end do
+            end do
+          end do
+        end do
+      end if
+
+    end subroutine transpose_a1inv
+
+    subroutine transpose_a2(px, py)
+      use modgpu, only: workspace_0, workspace_1
+      implicit none
+
+      real(pois_r), pointer, intent(in) :: px(:,:,:)
+      real(pois_r), pointer, intent(out) :: py(:,:,:)
+
+      integer :: i, j, k, n, ii
+
+      if (nprocs == 1) then
+        !$acc parallel loop collapse(3) default(present) private(ii)
+        do k = 1, kmax
+          do j = 1, jtot
+            do i = 1, itot
+              ii = i + (j-1)*itot + (k-1)*itot*jtot
+              workspace_0(ii) = px(i,j,k)
+            end do
+          end do
+        end do
+
+        !$acc parallel loop collapse(3) default(present) private(ii)
+        do k = 1, kmax
+          do j = 1, jtot
+           do i = 1, itot
+              ii = i + (j-1)*itot + (k-1)*itot*jtot
+              py(j,k,i) = workspace_0(ii)
+            end do
+          end do
+        end do
+      else
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocy-1
+          do k = 1, konx
+            do j = 1, jmax
+              do i = 1, iony
+                ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
+                if (i <= itot) workspace_0(ii) = px(i+n*iony,j,k)
+              end do
+            end do
+          end do
+        end do
+
+        !$acc host_data use_device(workspace_0, workspace_1)
+        call D_MPI_ALLTOALL(workspace_0, iony*jmax*konx, &
+                            workspace_1, iony*jmax*konx, &
+                            commcol, mpierr)
+        !$acc end host_data
+
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocy-1
+          do k = 1, konx
+            do i = 1, iony
+              do j = 1, jmax
+                ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
+                py(j+n*jmax,k,i) = workspace_1(ii)
+              end do
+            end do
+          end do
+        end do
+                
+      end if
+
+    end subroutine transpose_a2
+
+    subroutine transpose_a2inv(px, py)
+      use modgpu, only: workspace_0, workspace_1
+      implicit none
+
+      real(pois_r), pointer, intent(in) :: px(:,:,:)
+      real(pois_r), pointer, intent(out) :: py(:,:,:)
+
+      integer :: i, j, k, n, ii
+
+      if (nprocs == 1) then
+        !$acc parallel loop collapse(3) default(present) private(ii)
+        do k = 1, kmax
+          do j = 1, jtot
+            do i = 1, itot
+              ii = j + (i-1)*jtot + (k-1)*itot*jtot
+              workspace_0(ii) = py(j,k,i)
+            end do
+          end do
+        end do
+
+        !$acc parallel loop collapse(3) default(present) private(ii)
+        do k = 1, kmax
+          do j = 1, jtot
+            do i = 1, itot
+              ii = j + (i-1)*jtot + (k-1)*itot*jtot
+              px(i,j,k) = workspace_0(ii)
+            end do
+          end do
+        end do
+      else
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocy-1
+          do k = 1, konx
+            do i = 1, iony
+              do j = 1, jmax
+                ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
+                workspace_0(ii) = py(j+n*jmax,k,i)
+              end do
+            end do
+          end do
+        end do
+
+        !$acc host_data use_device(workspace_0, workspace_1)
+        call D_MPI_ALLTOALL(workspace_0, iony*jmax*konx, &
+                            workspace_1, iony*jmax*konx, &
+                            commcol, mpierr)
+        !$acc end host_data
+
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocy-1
+          do k = 1, konx
+            do j = 1, jmax
+              do i = 1, iony
+                ii = i + (j-1)*iony + (k-1)*iony*jmax + n*iony*jmax*konx
+                if (i+n*iony <= itot) px(i+n*iony,j,k) = workspace_1(ii)
+              end do
+            end do
+          end do
+        end do
+      end if
+
+    end subroutine transpose_a2inv
+
+    subroutine transpose_a3(py, Fp)
+      use modgpu, only: workspace_0, workspace_1
+      implicit none
+
+      real(pois_r), pointer, intent(in) :: py(:,:,:)
+      real(pois_r), pointer, intent(out) :: Fp(:,:,:)
+
+      integer :: i, j, k, n, ii
+
+      if (nprocs == 1) then
+        !$acc parallel loop collapse(3) default(present)
+        do k = 1, kmax
+          do j = 1, jtot
+            do i = 1, itot
+              Fp(i+1,j+1,k) = py(j,k,i)
+            end do
+          end do
+        end do
+      else
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do i = 1, iony
+              do j = 1, jonx
+                ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
+                if (j+n*jonx <= jtot) workspace_0(ii) = py(j+n*jonx,k,i)
+              end do
+            end do
+          end do
+        end do
+
+        !$acc host_data use_device(workspace_0, workspace_1)
+        call D_MPI_ALLTOALL(workspace_0, iony*jonx*konx, &
+                            workspace_1, iony*jonx*konx, &
+                            commrow, mpierr)
+        !$acc end host_data
+
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do j = 1, jonx
+              do i = 1, iony
+                ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
+                if (k+n*konx <= kmax) Fp(i,j,k+n*konx) = workspace_1(ii)
+              end do
+            end do
+          end do
+        end do
+
+      end if
+
+    end subroutine transpose_a3
+
+    subroutine transpose_a3inv(py, Fp)
+      use modgpu, only: workspace_0, workspace_1
+      implicit none
+
+      real(pois_r), pointer, intent(in) :: Fp(:,:,:)
+      real(pois_r), pointer, intent(out) :: py(:,:,:)
+
+      integer :: i, j, k, n, ii
+
+      if (nprocs == 1) then
+        !$acc parallel loop collapse(3) default(present)
+        do k=1,kmax
+          do j=1,jtot
+            do i=1,itot
+              py(j,k,i) = Fp(i+1,j+1,k)
+            end do
+          end do
+        end do
+      else
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do j = 1, jonx
+              do i = 1, iony
+                ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
+                if (k+n*konx <= kmax) workspace_0(ii) = Fp(i,j,k+n*konx)
+              end do
+            end do
+          end do
+        end do
+
+        !$acc host_data use_device(workspace_0, workspace_1)
+        call D_MPI_ALLTOALL(workspace_0, iony*jonx*konx, &
+                            workspace_1, iony*jonx*konx, &
+                            commrow, mpierr)
+        !$acc end host_data
+
+        !$acc parallel loop collapse(4) default(present) private(ii)
+        do n = 0, nprocx-1
+          do k = 1, konx
+            do i = 1, iony
+              do j = 1, jonx
+                ii = j + (i-1)*jonx + (k-1)*iony*jonx + n*iony*jonx*konx
+                if (j+n*jonx <= jtot) py(j+n*jonx,k,i) = workspace_1(ii)
+              end do
+            end do
+          end do
+        end do
+      end if
+
+    end subroutine transpose_a3inv
+
+    !> Postprocess signal after forward FFT
+    subroutine postprocess_f_fft(arr, dim, len)
+      implicit none
+
+      real(pois_r), pointer, intent(inout) :: arr(:,:,:)
+      integer, intent(in) :: dim(:)
+      integer, intent(in) :: len
+
+      integer :: j, k, sz_2, sz_3
+
+      sz_2 = dim(2)
+      sz_3 = dim(3)
+
+      !$acc parallel loop collapse(2) default(present)
+      do k = 1, sz_3
+        do j = 1, sz_2
+          arr(2,j,k) = arr(len+1,j,k)
+        end do
+      end do
+    
+    end subroutine postprocess_f_fft
+
+    !< Preprocess signal before inverse FFT
+    subroutine preprocess_b_fft(arr, dim, len)
+      implicit none
+
+      real(pois_r), pointer, intent(inout) :: arr(:,:,:)
+      integer, intent(in) :: dim(:)
+      integer, intent(in) :: len
+
+      integer :: i, j, k, sz_2, sz_3
+
+      sz_2 = dim(2)
+      sz_3 = dim(3)
+
+      !$acc parallel loop collapse(2) default(present)
+      do k = 1, sz_3
+        do j = 1, sz_2
+          arr(len+1,j,k) = arr(2,j,k)
+          arr(2,j,k) = 0.
+        end do
+      end do
+
+    end subroutine preprocess_b_fft
 
     !< Checks the exitcode of cuFFT calls
     subroutine check_exitcode(istat)
