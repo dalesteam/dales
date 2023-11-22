@@ -167,6 +167,8 @@ save
 #if defined(_OPENACC)
     procedure :: D_MPI_ALLTOALL_REAL32_R1_GPU
     procedure :: D_MPI_ALLTOALL_REAL64_R1_GPU
+    procedure :: D_MPI_ALLTOALL_REAL32_R1_IP_GPU
+    procedure :: D_MPI_ALLTOALL_REAL64_R1_IP_GPU
 #endif
   end interface
   interface D_MPI_REDUCE
@@ -314,14 +316,6 @@ contains
  ! considering the total number of processors but not the itot,jtot grid size
     call MPI_COMM_SIZE( MPI_COMM_WORLD, nprocs, mpierr)
 
-#if defined(_OPENACC)
-    if (nprocs > 1) then
-      if (myid == 0) then
-        stop "GPU runs with more than 1 CPU are not supported yet!"
-      end if
-    end if
-#endif
-
     call checkmpierror(mpierr, 'MPI_COMM_SIZE')
 
     call MPI_DIMS_CREATE( nprocs, 2, dims, mpierr )
@@ -412,13 +406,14 @@ contains
 
   subroutine excjs_real32(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none
-  integer sx, ex, sy, ey, sz, ez, ih, jh
-  real(real32) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
-  type(MPI_STATUS)  :: status
+  integer :: sx, ex, sy, ey, sz, ez, ih, jh
+  real(real32) :: a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  type(MPI_STATUS) :: status
   integer :: xl, yl, zl
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
-  integer nssize, ewsize
+  integer :: nssize, ewsize
+  integer :: i, j, k, ii
   real(real32),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
@@ -438,25 +433,46 @@ contains
 
     !   Allocate send / receive buffers
     allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
+    !$acc enter data copyin(sendn, sends, recvn, recvs)
 
-    sendn = reshape(a(:,ey-jh+1:ey,:),(/nssize/))
-    sends = reshape(a(:,sy:sy+jh-1,:),(/nssize/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, jh
+        do i = 1, xl
+          ii = i + (j-1)*xl + (k-1)*xl*jh
+          sends(ii) = a(i,ey-jh+j,k)
+          sendn(ii) = a(i,sy+j-1,k)
+        end do
+      end do
+    end do
 
     !   Send north/south
+    !$acc host_data use_device(sendn, sends)
     call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
     call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+    !$acc end host_data
 
     !   Receive south/north
+    !$acc host_data use_device(recvs, recvn)
     call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
     call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
+    !$acc end host_data
 
     ! Wait until data is received
     call MPI_WAIT(reqrs, status, mpierr)
     call MPI_WAIT(reqrn, status, mpierr)
 
     ! Write back buffers
-    a(:,sy-jh:sy-1,:) = reshape(recvs,(/xl,jh,zl/))
-    a(:,ey+1:ey+jh,:) = reshape(recvn,(/xl,jh,zl/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, jh
+        do i = 1, xl
+          ii = i + (j-1)*xl + (k-1)*xl*jh
+          a(i,ey+j,k) = recvn(ii)
+          a(i,sy-jh+(j-1),k) = recvs(ii)
+        end do
+      end do
+    end do
 
   else
 
@@ -472,25 +488,46 @@ contains
 
     !   Allocate send / receive buffers
     allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
+    !$acc enter data copyin(sende, sendw, recve, recvw)
 
-    sende = reshape(a(ex-ih+1:ex,:,:),(/ewsize/))
-    sendw = reshape(a(sx:sx+ih-1,:,:),(/ewsize/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, yl
+        do i = 1, ih
+          ii = i + (j-1)*ih + (k-1)*ih*yl
+          sende(ii) = a(ex-ih+i,j,k)
+          sendw(ii) = a(sx+i-1,j,k)
+        end do
+      end do
+    end do
 
     !   Send east/west
+    !$acc host_data use_device(sende, sendw)
     call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
     call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+    !$acc end host_data
 
     !   Receive west/east
+    !$acc host_data use_device(recvw, recve)
     call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
     call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
+    !$acc end host_data
 
     ! Wait until data is received
     call MPI_WAIT(reqrw, status, mpierr)
     call MPI_WAIT(reqre, status, mpierr)
 
     ! Write back buffers
-    a(sx-ih:sx-1,:,:) = reshape(recvw,(/ih,yl,zl/))
-    a(ex+1:ex+ih,:,:) = reshape(recve,(/ih,yl,zl/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, yl
+        do i = 1, ih
+          ii = i + (j-1)*ih + (k-1)*ih*yl
+          a(sx-jh+(i-1),j,k) = recvw(ii)
+          a(ex+i,j,k) = recve(ii)
+        end do
+      end do
+    end do
 
   else
 
@@ -499,6 +536,7 @@ contains
     a(sx-ih:sx-1,:,:) = a(ex-ih+1:ex,:,:)
     a(ex+1:ex+ih,:,:) = a(sx:sx+ih-1,:,:)
     !$acc end kernels
+
   endif
 
   if(nprocy.gt.1)then
@@ -507,6 +545,7 @@ contains
     call MPI_WAIT(reqn, status, mpierr)
     call MPI_WAIT(reqs, status, mpierr)
 
+    !$acc exit data delete(sendn, sends, recvn, recvs)
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -519,6 +558,7 @@ contains
     call MPI_WAIT(reqw, status, mpierr)
 
     ! Deallocate buffers
+    !$acc exit data delete(sende, sendw, recve, recvw)
     deallocate (sende, sendw)
     deallocate (recve, recvw)
 
@@ -530,13 +570,14 @@ contains
 
   subroutine excjs_real64(a,sx,ex,sy,ey,sz,ez,ih,jh)
   implicit none
-  integer sx, ex, sy, ey, sz, ez, ih, jh
-  real(real64) a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
-  type(MPI_STATUS)  :: status
+  integer :: sx, ex, sy, ey, sz, ez, ih, jh
+  real(real64) :: a(sx-ih:ex+ih, sy-jh:ey+jh, sz:ez)
+  type(MPI_STATUS) :: status
   integer :: xl, yl, zl
   type(MPI_REQUEST) :: reqn, reqs, reqe, reqw
   type(MPI_REQUEST) :: reqrn, reqrs, reqre, reqrw
   integer nssize, ewsize
+  integer :: i, j, k, ii
   real(real64),allocatable, dimension(:) :: sendn,recvn &
                                           , sends,recvs &
                                           , sende,recve &
@@ -551,22 +592,35 @@ contains
   nssize = xl*jh*zl
   ewsize = ih*yl*zl
 
-
   if(nprocy .gt. 1)then
 
     !   Allocate send / receive buffers
+    ! TODO: allocate these once
     allocate(sendn(nssize),sends(nssize),recvn(nssize),recvs(nssize))
+    !$acc enter data copyin(sendn, sends, recvn, recvs)
 
-    sendn = reshape(a(:,ey-jh+1:ey,:),(/nssize/))
-    sends = reshape(a(:,sy:sy+jh-1,:),(/nssize/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, jh
+        do i = 1, xl
+          ii = i + (j-1)*xl + (k-1)*xl*jh
+          sendn(ii) = a(i,ey-jh+j,k)
+          sends(ii) = a(i,sy+j-1,k)
+        end do
+      end do
+    end do
 
     !   Send north/south
+    !$acc host_data use_device(sendn, sends)
     call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
     call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
+    !$acc end host_data
 
     !   Receive south/north
+    !$acc host_data use_device(recvs, recvn)
     call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
     call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
+    !$acc end host_data
 
     ! Wait until data is received
     call MPI_WAIT(reqrs, status, mpierr)
@@ -574,9 +628,17 @@ contains
 
 
     ! Write back buffers
-    a(:,sy-jh:sy-1,:) = reshape(recvs,(/xl,jh,zl/))
-    a(:,ey+1:ey+jh,:) = reshape(recvn,(/xl,jh,zl/))
-
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, jh
+        do i = 1, xl
+          ii = i + (j-1)*xl + (k-1)*xl*jh
+          a(i,ey+j,k) = recvn(ii)
+          a(i,sy-jh+(j-1),k) = recvs(ii)
+        end do
+      end do
+    end do
+    
   else
 
     ! Single processor, make sure the field is periodic
@@ -591,25 +653,46 @@ contains
 
     !   Allocate send / receive buffers
     allocate(sende(ewsize),sendw(ewsize),recve(ewsize),recvw(ewsize))
+    !$acc enter data copyin(sende, sendw, recve, recvw)
 
-    sende = reshape(a(ex-ih+1:ex,:,:),(/ewsize/))
-    sendw = reshape(a(sx:sx+ih-1,:,:),(/ewsize/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, yl
+        do i = 1, ih
+          ii = i + (j-1)*ih + (k-1)*ih*yl
+          sende(ii) = a(ex-ih+i,j,k)
+          sendw(ii) = a(sx+i-1,j,k)
+        end do
+      end do
+    end do
 
     !   Send east/west
+    !$acc host_data use_device(sende, sendw)
     call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
     call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
+    !$acc end host_data
 
     !   Receive west/east
+    !$acc host_data use_device(recvw, recve)
     call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
     call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
+    !$acc end host_data
 
     ! Wait until data is received
     call MPI_WAIT(reqrw, status, mpierr)
     call MPI_WAIT(reqre, status, mpierr)
 
     ! Write back buffers
-    a(sx-ih:sx-1,:,:) = reshape(recvw,(/ih,yl,zl/))
-    a(ex+1:ex+ih,:,:) = reshape(recve,(/ih,yl,zl/))
+    !$acc parallel loop collapse(3) default(present) private(ii)
+    do k = 1, zl
+      do j = 1, yl
+        do i = 1, ih
+          ii = i + (j-1)*ih + (k-1)*ih*yl
+          a(sx-ih+(i-1),j,k) = recvw(ii)
+          a(ex+i,j,k) = recve(ii)
+        end do
+      end do
+    end do
 
   else
 
@@ -628,6 +711,7 @@ contains
     call MPI_WAIT(reqs, status, mpierr)
     if (mpierr /= MPI_SUCCESS) call abort
 
+    !$acc exit data delete(sendn, sends, recvn, recvs)
     deallocate (sendn, sends)
     deallocate (recvn, recvs)
 
@@ -642,6 +726,7 @@ contains
     if (mpierr /= MPI_SUCCESS) call abort
 
     ! Deallocate buffers
+    !$acc exit data delete(sende, sendw, recve, recvw)
     deallocate (sende, sendw)
     deallocate (recve, recvw)
 
@@ -827,21 +912,16 @@ contains
     integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
     real(real32), device :: aver(ks:kf)
     real(real32), device :: var(ib:ie, jb:je, kb:ke)
-    real(real32) :: averl(ks:kf)
-    real(real32) :: avers(ks:kf)
     integer :: k
 
-    if (nprocs == 1) then
-      ! Single processor, no need for MPI calls  
+    !$acc kernels default(present)
+    do k = kbs, kes
+      aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
+    end do
+    !$acc end kernels
 
-      !$acc kernels default(present)
-      do k = kbs, kes
-        aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
-      end do
-      !$acc end kernels
-    else
-      stop "The program should have stopped already"
-    end if
+    call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+
   end subroutine slabsum_real32_gpu
 
   subroutine slabsum_real64_gpu(aver,ks,kf,var,ib,ie,jb,je,kb,ke,ibs,ies,jbs,jes,kbs,kes)
@@ -855,17 +935,14 @@ contains
     real(real64) :: avers(ks:kf)
     integer :: k
 
-    if (nprocs == 1) then
-      ! Single processor, no need for MPI calls  
+    !$acc kernels default(present)
+    do k = kbs, kes
+      aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
+    end do
+    !$acc end kernels
 
-      !$acc kernels default(present)
-      do k = kbs, kes
-        aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
-      end do
-      !$acc end kernels
-    else
-      stop "The program should have stopped already"
-    end if
+    call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+
   end subroutine slabsum_real64_gpu
 #endif
   subroutine mpi_get_time(val)

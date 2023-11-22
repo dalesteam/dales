@@ -327,6 +327,22 @@ contains
     call MPI_ALLTOALL(sendbuf, sendcount, MPI_REAL8, recvbuf, recvcount, MPI_REAL8, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ALLTOALL_REAL64_R1_GPU
+  subroutine D_MPI_ALLTOALL_REAL32_R1_IP_GPU(recvbuf, recvcount, comm, ierror)
+    implicit none
+    real(real32), device, contiguous, intent(inout)   :: recvbuf(:)
+    integer        :: recvcount, ierror
+    type(MPI_COMM) :: comm
+    call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, recvbuf, recvcount, MPI_REAL4, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLTOALL_REAL32_R1_IP_GPU
+  subroutine D_MPI_ALLTOALL_REAL64_R1_IP_GPU(recvbuf, recvcount, comm, ierror)
+    implicit none
+    real(real64), device, contiguous, intent(inout)   :: recvbuf(:)
+    integer        :: recvcount, ierror
+    type(MPI_COMM) :: comm
+    call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, recvbuf, recvcount, MPI_REAL8, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_ALLTOALL_REAL64_R1_IP_GPU
 
 !>D_MPI_REDUCE
   subroutine D_MPI_REDUCE_REAL32_R1_GPU(sendbuf, recvbuf, count, op, root, comm, ierror)
