@@ -3,7 +3,7 @@ module modgpu
   implicit none
 
 save
-  real(pois_r), allocatable, target :: workspace(:)
+  real(pois_r), allocatable, target :: workspace_0(:), workspace_1(:)
   logical :: host_is_updated = .false.
 
 #if defined(_OPENACC)
@@ -114,25 +114,47 @@ contains
 
   !> @brief Allocate reusable workspace for transposes and FFT
   subroutine allocate_workspace(n)
+    use modmpi, only: nprocs
     implicit none
     
     integer, intent(in) :: n
 
-    allocate(workspace(n))
+    allocate(workspace_0(n))
+    workspace_0 = 0
+    !$acc enter data copyin(workspace_0)
 
-    workspace = 0
+    ! Allocate another workspace for the all-to-all operations
+    if (nprocs > 1) then
+      allocate(workspace_1(n))
+      workspace_1 = 0
+      !$acc enter data copyin(workspace_1)
+    end if
 
-    !$acc enter data copyin(workspace)
-  
   end subroutine allocate_workspace
 
   !> @brief Deallocate GPU workspaces
   subroutine deallocate_workspace
+    use modmpi, only: nprocs
     implicit none
 
-    !$acc exit data delete(workspace)
-    deallocate(workspace)
+    !$acc exit data delete(workspace_0)
+    deallocate(workspace_0)
+
+    if (nprocs > 1) then
+      !$acc exit data delete (workspace_1)
+      deallocate(workspace_1)
+    end if
 
   end subroutine deallocate_workspace
+#else
+contains
+  ! Dummies because CI/CD complains
+  subroutine update_host
+    implicit none
+  end subroutine update_host
+
+  subroutine update_gpu
+    implicit none
+  end subroutine update_gpu
 #endif
 end module modgpu
