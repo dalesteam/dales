@@ -1,0 +1,6 @@
+[submodule "src/RRTMG/RRTMG_LW"]
+	path = src/RRTMG/RRTMG_LW
+	url = https://github.com/AER-RC/RRTMG_LW
+[submodule "src/RRTMG/RRTMG_SW"]
+	path = src/RRTMG/RRTMG_SW
+	url = https://github.com/AER-RC/RRTMG_SW
