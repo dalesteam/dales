@@ -605,7 +605,7 @@ contains
     wsvsub_s = 0.0
     wsvres_s = 0.0
 
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async
     do  k=1,k1
       do  j=2,j1
         do  i=2,i1
@@ -615,11 +615,12 @@ contains
       enddo
     enddo
 
-    !$acc parallel loop default(present)
+    !$acc parallel loop default(present) async(1)
     do k=1,k1
       cfracav(k)    = cfracav(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
 
+    !$acc wait(1)
     !$acc host_data use_device(cfracav)
     call D_MPI_ALLREDUCE(cfracav,k1,MPI_SUM,comm3d,mpierr)
     !$acc end host_data
@@ -643,7 +644,7 @@ contains
       enddo
     end if
         
-    !$acc kernels default(present)
+    !$acc kernels default(present) async
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
     thlmav = thlmav/ijtot
@@ -682,7 +683,7 @@ contains
     cqt = 1./den
         
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
-    !$acc& reduction(+: qlhav_s, wthlsub_s, wqtsub_s, wthvsub_s, uwsub_s, vwsub_s)
+    !$acc& reduction(+: qlhav_s, wthlsub_s, wqtsub_s, wthvsub_s, uwsub_s, vwsub_s) async(1)
     do j = 2, j1
       do i = 2, i1
         qlhav_s = qlhav_s + ql0h(i,j,1)
@@ -705,7 +706,7 @@ contains
       end do
     end do
 
-    !$acc kernels default(present)
+    !$acc kernels default(present) async(1)
     qlhav(1) = qlhav_s
     wthlsub(1) = wthlsub_s
     wqtsub(1) = wqtsub_s
@@ -720,7 +721,7 @@ contains
   !      --------------------------
     !$acc parallel loop gang default(present) &
     !$acc& private(qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
-    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s)
+    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s) async
     do k = 2, kmax
       qlhav_s = 0.0
       wthlsub_s = 0.0
@@ -861,7 +862,7 @@ contains
         if (iadv_sv(n)==iadv_kappa) then
            call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
         else
-          !$acc parallel loop collapse(3) default(present)
+          !$acc parallel loop collapse(3) default(present) async
           do k = 2, k1
             do j = 2, j1
               do i = 2, i1
@@ -869,12 +870,12 @@ contains
               enddo
             enddo
           enddo
-          !$acc kernels default(present)
+          !$acc kernels default(present) async
           sv0h(2:i1,2:j1,1) = svs(n)
           !$acc end kernels
         end if
 
-        !$acc parallel loop default(present) private(wsvres_s)
+        !$acc parallel loop default(present) private(wsvres_s) async
         do k = 2, kmax
           wsvres_s = 0.0
           !$acc loop collapse(2) reduction(+: wsvres)
@@ -887,7 +888,7 @@ contains
         end do
 
         wsvsub_s = 0.0
-        !$acc kernels default(present)
+        !$acc kernels default(present) async
         do j = 2, j1
           do i = 2, i1
             wsvsub_s = wsvsub_s + svflux(i,j,n)
@@ -896,7 +897,7 @@ contains
         wsvsub(1,n) = wsvsub_s
         !$acc end kernels
 
-        !$acc parallel loop private(wsvsub_s)
+        !$acc parallel loop private(wsvsub_s) async
         do k = 2, kmax
           wsvsub_s = 0.0
           !$acc loop collapse(2) private(ekhalf) reduction(+: wsvsub_s)
@@ -924,6 +925,7 @@ contains
   !         DEPRECATED
 
   ! MPI communication
+    !$acc wait
     !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
     !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
     !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
@@ -977,7 +979,7 @@ contains
   !     -----------------------------------------------
   !     6   NORMALIZATION OF THE FIELDS AND FLUXES
   !     -----------------------------------------------
-      !$acc kernels default(present)
+      !$acc kernels default(present) async(1)
       qlhav   = qlhav  /ijtot
 
       wqlsub  = wqlsub /ijtot
@@ -1023,7 +1025,7 @@ contains
 
   !     4.0   ADD SLAB AVERAGES TO TIME MEAN
   !           ------------------------------
-      !$acc kernels default(present)
+      !$acc kernels default(present) async(1)
       umn    = umn   + umav
       vmn    = vmn   + vmav
       thvmn  = thvmn + thvmav
@@ -1107,7 +1109,7 @@ contains
     end if
 
     if (.not.present(mean)) then
-      !$acc parallel loop default(present) private(prof_s)
+      !$acc parallel loop default(present) private(prof_s) async
       do k = kb, ke
         !$acc loop collapse(2) reduction(+: prof_s)
         do j = jb, je
@@ -1118,7 +1120,7 @@ contains
         prof(k) = prof_s / ijtot
       end do
     else
-      !$acc parallel loop default(present) private(prof_s)
+      !$acc parallel loop default(present) private(prof_s) async
       do k = kb, ke
         !$acc loop collapse(2) reduction(+: prof_s)
         do j = jb, je
