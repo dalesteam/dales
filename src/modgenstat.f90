@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 40
+  integer :: nvar = 41
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -88,7 +88,7 @@ save
 
   real, allocatable  :: umn   (:)       ,vmn   (:)
   real, allocatable  :: thlmn (:)       ,thvmn (:)
-  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:)
+  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:)
 
 ! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
   real, allocatable  :: wthlsmn (:),wthlrmn (:),wthltmn(:)
@@ -117,6 +117,7 @@ save
  real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
  real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
+ real, allocatable :: hurav (:)
  real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
@@ -207,7 +208,7 @@ contains
 
     allocate(umn(k1)       ,vmn   (k1))
     allocate(thlmn (k1)       ,thvmn (k1))
-    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1))
+    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1))
     allocate(wthlsmn (k1),wthlrmn (k1),wthltmn(k1))
     allocate(wthvsmn (k1),wthvrmn (k1),wthvtmn(k1))
     allocate(wqlsmn (k1),wqlrmn (k1),wqltmn(k1))
@@ -230,6 +231,7 @@ contains
     allocate(qtmav (k1))
     allocate(qlmav (k1))
     allocate(cfracav(k1))
+    allocate(hurav(k1))
     allocate(svmav (k1,nsv))
     allocate(uptav(k1))
     allocate(vptav(k1))
@@ -275,6 +277,7 @@ contains
       qlmn     = 0.
       qlhmn    = 0.
       cfracmn  = 0.
+      hurmn    = 0.
 
       wthlsmn =  0.
       wthlrmn =  0.
@@ -359,7 +362,7 @@ contains
                close (ifoutput)
             end do
          end if
-         
+
       if (lnetcdf) then
         fname(10:12) = cexpnr
         nvar = nvar + 7*nsv
@@ -406,15 +409,16 @@ contains
         call ncinfo(ncname(38,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         call ncinfo(ncname(40,:),'cfrac','Cloud fraction','-','tt')
+        call ncinfo(ncname(41,:),'hur','Relative humidity','%','tt')
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(40+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(40+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(40+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(41+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(41+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(41+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(41+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(41+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(41+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(41+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -459,7 +463,7 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
+                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,qsat
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -503,7 +507,7 @@ contains
     real,allocatable, dimension(:) ::wthvresl
 
     real,allocatable, dimension(:):: cfracavl ! cloudfraction    at full level
-
+    real,allocatable, dimension(:):: huravl
 
     real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
     real,allocatable, dimension(:):: uwsubl
@@ -526,7 +530,7 @@ contains
     real(field_r),allocatable, dimension(:,:,:):: sv0h
 
     integer i, j, k, n, km
-    real    tsurf, qsat, c1, c2
+    real    tsurf, qsat_, c1, c2
     real    qs0h, t0h, ekhalf, euhalf, evhalf
     real    wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
     real    uws,vws,uwr,vwr
@@ -563,7 +567,7 @@ contains
     allocate( wthvresl    (k1))
 
     allocate( cfracavl(k1))  ! slab averaged cloud fraction
-
+    allocate( huravl(k1))
 
     allocate( qlptavl(k1))   ! slab averaged turbulence tendency of q_liq
     allocate( uwsubl(k1))
@@ -598,7 +602,7 @@ contains
   !     --------------------------------------------------------
     qlhavl      = 0.0
     cfracavl    = 0.0
-
+    huravl      = 0.0
 
     qlptavl     = 0.0
 
@@ -651,6 +655,7 @@ contains
     qtmav  = 0.0
     qlmav  = 0.0
     cfracav= 0.0
+    hurav  = 0.0
     svmav = 0.
 
     cszav = 0.
@@ -660,6 +665,7 @@ contains
         do  i=2,i1
           thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                         *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          huravl(k) = huravl(k) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat(i,j,k)
         enddo
       enddo
     enddo
@@ -669,6 +675,7 @@ contains
     end do
 
     call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(huravl,hurav,k1,MPI_SUM,comm3d,mpierr)
 
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -683,6 +690,7 @@ contains
     qtmav = qtmav /ijtot
     qlmav = qlmav /ijtot
     cfracav = cfracav / ijtot
+    hurav  = hurav / ijtot
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
 
@@ -701,16 +709,16 @@ contains
 
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
-    qsat  = qts - qls
+    qsat_  = qts - qls
     if (qls< eps1) then  ! TH: Should always be true
       c1  = 1.+(rv/rd-1)*qts
       c2  = (rv/rd-1)
     else
-      c1    = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) &
-                /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
+      c1    = (1.-qts+rv/rd*qsat_*(1.+rlv/(rv*tsurf))) &
+                /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat_)
       c2    = c1*rlv/(tsurf*cp)-1.
     end if
-    den   = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
+    den   = 1. + (rlv**2)*qsat_/(rv*cp*(tsurf**2))
     cthl  = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt   = 1./den
     do j=2,j1
@@ -1086,6 +1094,7 @@ contains
       qtmn   = qtmn  + qtmav
       qlmn   = qlmn  + qlmav
       cfracmn= cfracmn+cfracav
+      hurmn  = hurmn + hurav
       qlhmn  = qlhmn + qlhav
 
       wthlsmn = wthlsmn + wthlsub
@@ -1167,7 +1176,7 @@ contains
     deallocate( wthvresl    )
 
     deallocate( cfracavl )
-
+    deallocate( huravl   )
 
     deallocate( qlptavl)   ! slab averaged turbulence tendency of q_liq
     deallocate( uwsubl)
@@ -1222,6 +1231,7 @@ contains
       qtmn   = qtmn   /nsamples
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
+      hurmn  = hurmn  /nsamples
       qlhmn  = qlhmn  /nsamples
 
 
@@ -1560,14 +1570,15 @@ contains
         vars(:,38)=ql2mn
         vars(:,39)=csz
         vars(:,40)=cfracmn
+        vars(:,41)=hurmn
         do n=1,nsv
-          vars(:,40+7*(n-1)+1)=svmmn(:,n)
-          vars(:,40+7*(n-1)+2)=svpmn(:,n)
-          vars(:,40+7*(n-1)+3)=svptmn(:,n)
-          vars(:,40+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,40+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,40+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,40+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,41+7*(n-1)+1)=svmmn(:,n)
+          vars(:,41+7*(n-1)+2)=svpmn(:,n)
+          vars(:,41+7*(n-1)+3)=svptmn(:,n)
+          vars(:,41+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,41+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,41+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,41+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
@@ -1586,7 +1597,7 @@ contains
       qlmn     = 0.
       qlhmn    = 0.
       cfracmn  = 0.
-
+      hurmn    = 0.0
       wthlsmn =  0.
       wthlrmn =  0.
       wthltmn =  0.
@@ -1656,7 +1667,7 @@ contains
 
     deallocate(umn       ,vmn   )
     deallocate(thlmn        ,thvmn )
-    deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn)
+    deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn, hurmn)
     deallocate(wthlsmn ,wthlrmn ,wthltmn)
     deallocate(wthvsmn ,wthvrmn ,wthvtmn)
     deallocate(wqlsmn ,wqlrmn ,wqltmn)
@@ -1679,6 +1690,7 @@ contains
     deallocate(qtmav )
     deallocate(qlmav )
     deallocate(cfracav )
+    deallocate(hurav )
     deallocate(svmav )
     deallocate(uptav)
     deallocate(vptav)
