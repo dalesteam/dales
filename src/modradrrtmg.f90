@@ -22,7 +22,7 @@ contains
     implicit none
 
     integer                :: npatch    ! Sounding levels above domain
-    integer                :: i,j,k,ierr(3)
+    integer                :: i,j,k,ierr(4)
     logical                :: sunUp
     real(SHR_KIND_R4),save ::  eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
                                obliq, & ! Earth's obliquity angle (deg) (-90 to +90) (typically 22-26)
@@ -120,7 +120,19 @@ contains
       allocate(solarZenithAngleCos(imax), asdir(imax), asdif(imax), aldir(imax),       &
                  aldif(imax),                                                          &
                  STAT=ierr(3))
-
+      !Extra input for RRTMG, number of bands is hardcoded but will not change
+      allocate(emis(imax,16),           &
+               taucldlw(16,imax,krad1), &
+               taucldsw(14,imax,krad1), &
+               ssacldsw(14,imax,krad1), &
+               asmcldsw(14,imax,krad1), &
+               fsfcldsw(14,imax,krad1), &
+               tauaerlw(imax,krad1,16), &
+               tauaersw(imax,krad1,14), &
+               ssaaersw(imax,krad1,14), &
+               asmaersw(imax,krad1,14), &
+               ecaersw(imax,krad1,14),  &
+               STAT=ierr(4))
       if(any(ierr(:)/=0)) then
         if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrrtmg'
         stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90'
@@ -162,6 +174,18 @@ contains
 
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
 
+    ! initialize some RRTMG input arrays
+    emis = 0.95
+    taucldlw = 0
+    tauaerlw = 0
+    taucldsw = 0
+    ssacldsw = 0
+    asmcldsw = 0
+    fsfcldsw = 0
+    tauaersw = 0
+    ssaaersw = 0
+    asmaersw = 0
+    ecaersw = 0
     ! zero the RRTMG output arrays here, in case rrtmg_lw or rrtmg_sw is not executed
     swUp_slice = 0
     swDown_slice = 0
@@ -181,15 +205,33 @@ contains
            LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe )             !output
 
       if (rad_longw) then
-        call rrtmg_lw &
-             ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )!input
+        call rrtmg_lw & !comments = corresponding variable names in the RRTMGP library
+                (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, int(0,kind_im), & !ncol, nlay, icld, idrv
+                 layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
+                 h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
+                 cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis, & !cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis
+                 inflglw, iceflglw, liqflglw, cloudFrac, & !inflglw, iceflglw, liqflglw, cldfr,
+                 taucldlw, IWP_slice, LWP_slice, iceRe, liquidRe, & !taucld, cicewp, cliqwp, reice, reliq
+                 tauaerlw, lwUp_slice, lwDown_slice, lwHR_slice, & !tauaer, uflx, dflx, hr
+                 lwUpCS_slice, lwDownCS_slice, lwHRCS_slice) !uflxc, dflxc, hrc
+                 !duflx_dt,duflxc_dt (extra optional arguments only if idrv=1)
         !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
          call setupSW(sunUp)
          if (sunUp) then
-           call rrtmg_sw &
-                ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )
+           call rrtmg_sw & !comments = corresponding variable names in the RRTMGP library
+                   (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, int(0,kind_im), & !ncol, nlay, icld, iaer
+                    layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
+                    h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
+                    asdir, asdif, aldir, aldif, & !asdir, asdif, aldir, aldif
+                    solarZenithAngleCos, real(eccf,kind_rb), int(0,kind_im), real(sw0,kind_rb), int(0,kind_im), & !coszen, adjes, dyofyr, scon, isolvar
+                    inflgsw, iceflgsw, liqflgsw, cloudFrac, & !inflgsw, iceflgsw, liqflgsw, cldfr
+                    taucldsw, ssacldsw, asmcldsw, fsfcldsw, & !taucld, ssacld, asmcld, fsfcld
+                    IWP_slice, LWP_slice, iceRe, liquidRe, & !cicewp, cliqwp, reice, reliq
+                    tauaersw, ssaaersw, asmaersw, ecaersw, & !tauaer, ssaaer, asmaer, ecaer
+                    swUp_slice, swDown_slice, swHR_slice, swUpCS_slice, swDownCS_slice, swHRCS_slice) !swuflx, swdflx, swhr, swuflxc, swdflxc, swhrc
+                    !bndsolvar, indsolvar, solcycfrac (extra optional inputs)
          end if
       end if
 

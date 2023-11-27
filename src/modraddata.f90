@@ -31,7 +31,7 @@
 module modraddata
 
 ! implicit none
-  use modglobal, only : longint,kind_rb,SHR_KIND_IN,SHR_KIND_R4
+  use modglobal, only : longint,kind_rb,SHR_KIND_IN,SHR_KIND_R4,kind_im
   use modprecision, only : field_r
 SAVE
 
@@ -74,13 +74,13 @@ SAVE
   real :: cnstZenith=0.                  !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
   ! Options in NAMRADIATION that apply to the rrtmg script
-  integer :: ioverlap = 2                ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
-  integer :: inflglw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer :: iceflglw = 3                ! 0,1,2,3: ice influence calculations
-  integer :: liqflglw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
-  integer :: inflgsw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer :: iceflgsw = 3                ! 0,1,2,3: ice influence calculations
-  integer :: liqflgsw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer(kind=kind_im) :: ioverlap = 2                ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
+  integer(kind=kind_im) :: inflglw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer(kind=kind_im) :: iceflglw = 3                ! 0,1,2,3: ice influence calculations
+  integer(kind=kind_im) :: liqflglw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer(kind=kind_im) :: inflgsw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer(kind=kind_im) :: iceflgsw = 3                ! 0,1,2,3: ice influence calculations
+  integer(kind=kind_im) :: liqflgsw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
   logical :: ocean  = .false.            ! if true, run is over ocean.
   logical :: usero3 = .false.            ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
   real    :: co2factor = 1.              ! The co2 concentration that is read from the NetCDF input file by RRTMG is multiplied by this factor (CGILS)
@@ -118,11 +118,13 @@ SAVE
                                                    swHR_slice,     &    ! Heating rate due to shortwave rad         (2D slice)
                                                    swHRCS_slice         ! Heating rate due to shortwave rad,clear sky value         (2D slice)
 
-  real,allocatable,dimension(:) ::                 solarZenithAngleCos  ! The zenith angle of a slice
+  real(kind=kind_rb),allocatable,dimension(:) :: solarZenithAngleCos  ! The zenith angle of a slice
   real(kind=kind_rb),allocatable,dimension(:) :: asdir,asdif,aldir,aldif                         ! Albedos ...
 
   real(kind=kind_rb),allocatable,dimension(:,:) :: layerP,    &
                                                    layerT,    &
+                                                   interfaceP,&
+                                                   interfaceT,&
                                                    h2ovmr,    &
                                                    o3vmr,     &
                                                    co2vmr,    &
@@ -132,10 +134,19 @@ SAVE
                                                    cfc11vmr,  &
                                                    cfc12vmr,  &
                                                    cfc22vmr,  &
-                                                   ccl4vmr
+                                                   ccl4vmr,   &
+                                                   emis
   real(kind=kind_rb),allocatable,dimension(:,:) :: LWP_slice,IWP_slice ,cloudFrac,liquidRe,iceRe
-  real(kind=kind_rb),allocatable,dimension(:,:) :: interfaceP,    &
-                                                   interfaceT
+  real(kind=kind_rb),allocatable,dimension(:,:,:) :: taucldlw, &
+                                                     tauaerlw, &
+                                                     taucldsw, &
+                                                     ssacldsw, &
+                                                     asmcldsw, &
+                                                     fsfcldsw, &
+                                                     tauaersw, &
+                                                     ssaaersw, &
+                                                     asmaersw, &
+                                                     ecaersw
   real(SHR_KIND_R4)                             :: eccen,     &  ! Eccentricity
                                                    obliqr,    &  ! Earths obliquity in radians
                                                    lambm0,    &  ! Mean long of perihelion at the vernal equinox (radians)
