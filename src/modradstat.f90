@@ -54,16 +54,16 @@ save
   real(field_r), allocatable :: thlswtendav(:)
   real(field_r), allocatable :: thllwtendcaav(:)
   real(field_r), allocatable :: thlswtendcaav(:)
-  real, allocatable :: lwuav(:)
-  real, allocatable :: lwdav(:)
-  real, allocatable :: swdav(:)
+  real(field_r), allocatable :: lwuav(:)
+  real(field_r), allocatable :: lwdav(:)
+  real(field_r), allocatable :: swdav(:)
   real(field_r), allocatable :: swdirav(:)
   real(field_r), allocatable :: swdifav(:)
-  real, allocatable :: swuav(:)
-  real, allocatable :: lwucaav(:)
-  real, allocatable :: lwdcaav(:)
-  real, allocatable :: swdcaav(:)
-  real, allocatable :: swucaav(:)
+  real(field_r), allocatable :: swuav(:)
+  real(field_r), allocatable :: lwucaav(:)
+  real(field_r), allocatable :: lwdcaav(:)
+  real(field_r), allocatable :: swdcaav(:)
+  real(field_r), allocatable :: swucaav(:)
 
 !
   real, allocatable :: thltendmn(:)
@@ -307,10 +307,10 @@ contains
     use modsurfdata,  only : albedo, tskin, qskin, thvs, ps
     use modmicrodata, only : Nc_0
     use modmpi,    only :  slabsum
-    use modraddata, only: irad_full, iradiation
+    use modraddata, only: irad_full, iradiation, swdca,swuca,lwdca,lwuca
       implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
-    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b,swdca,swuca,lwdca,lwuca
+    real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b
     integer :: i,j,k
 
     real :: exnersurf
@@ -466,14 +466,14 @@ contains
         vars(:, 2) = thllwtendmn
         vars(:, 3) = thlswtendmn
         vars(:, 4) = thlradlsmn
-        vars(:, 5) = lwumn
-        vars(:, 6) = lwdmn
-        vars(:, 7) = swumn
-        vars(:, 8) = swdmn
-        vars(:, 9) = lwucamn
-        vars(:,10) = lwdcamn
-        vars(:,11) = swucamn
-        vars(:,12) = swdcamn
+        vars(:, 5) = abs(lwumn)
+        vars(:, 6) = abs(lwdmn)
+        vars(:, 7) = abs(swumn)
+        vars(:, 8) = abs(swdmn)
+        vars(:, 9) = abs(lwucamn)
+        vars(:,10) = abs(lwdcamn)
+        vars(:,11) = abs(swucamn)
+        vars(:,12) = abs(swdcamn)
         vars(:,13) = thllwtendcamn
         vars(:,14) = thlswtendcamn
 
