@@ -4,3 +4,6 @@
 [submodule "src/RRTMG/RRTMG_SW"]
 	path = src/RRTMG/RRTMG_SW
 	url = https://github.com/AER-RC/RRTMG_SW
+[submodule "src/RTE-RRTMGP"]
+	path = src/RTE-RRTMGP
+	url = https://github.com/earth-system-radiation/rte-rrtmgp.git
