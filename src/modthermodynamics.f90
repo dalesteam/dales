@@ -652,93 +652,63 @@ contains
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
 
-    !$acc parallel loop gang private(Tl_min, Tl_max, qt_max, qsat_) default(present)
-    do k=1,k1
-       ! Optimization: if the whole horizontal slab at k is unsaturated,
-       ! the calculation of this slab can be skipped.
-       ! Find highest qt and lowest thl in the slab.
-       ! If they in combination are not saturated, the whole slab is below saturation.
-       ! Also do range checks of Tl here. Tl must be within the range of the table,
-       ! and below the boiling point of water at this level.
-       ! Setting the limit at 5K below the boiling point here. Crossing the boiling point
-       ! is detected by esat > presf(k)
+    ! Sanity checks
+    !$acc parallel loop vector private(Tl_min, Tl_max, qt_max) default(present) async
+    do k = 1, k1
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
        Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
-       if (Tl_min < 150) then
-       write(*, *) "Tl_min: ", Tl_min
-       stop
-       end if
+       if (Tl_min < 150) stop
        if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
-       qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
-       if (qt_max > qsat_) then
-          !$acc loop collapse(2) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) 
-          do j=2,j1
-             do i=2,i1
-                Tl = exnf(k)*thl0(i,j,k)
-                qt = qt0(i,j,k)
+    end do
 
-                ! first step
-                qsat_ = qsat_tab(Tl, presf(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+    !$acc parallel loop collapse(3) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) default(present)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          qsat_ = qsat_tab(Tl_min, presf(k))
+          Tl = exnf(k)*thl0(i,j,k)
+          qt = qt0(i,j,k)
 
-                ql = max(qt0(i,j,k) - qsat_, 0.)
+          ! first step
+          qsat_ = qsat_tab(Tl, presf(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
 
-                ! update the starting point
-                Tl = Tl + (rlv/cp) * ql
-                qt = qt - ql
+          ql = max(qt0(i,j,k) - qsat_, 0.)
 
-                ! second step
-                qsat_ = qsat_tab(Tl, presf(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+          ! update the starting point
+          Tl = Tl + (rlv/cp) * ql
+          qt = qt - ql
 
-                ! save results
-                ql = max(qt0(i,j,k) - qsat_, 0.)
-                ql0(i,j,k) = ql
+          ! second step
+          qsat_ = qsat_tab(Tl, presf(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
 
-                !!!!!!!!!!!!!!!!!
-                ! The following could
-                ! be done on the fly to save
-                ! precious memory
-                qsat(i,j,k) = qsat_
-                T = exnf(k)*thl0(i,j,k) + (rlv/cp) * ql
-                tmp0(i,j,k) = T
+          ! save results
+          ql = max(qt0(i,j,k) - qsat_, 0.)
+          ql0(i,j,k) = ql
 
-                ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
-                tlonr=int((T-150.)*5.)
-                tlo = 150. + 0.2*tlonr
-                thi = tlo + 0.2
-                esl(i,j,k) = (thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(tlonr+1) ! saturation vapor pressure liquid
-                esi1       = (thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(tlonr+1) ! saturation vapor pressure ice
-                qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
-                qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1.-rd/rv)*esi1)              ! saturation humidity ice
-                !!!!!!!!!!!
-             end do
-          end do
-       else
-          ! possibly faster option when the whole layer is below saturation
-          ! If many of the els, qsvl, qsvi are stored in arrays, they still need to be saved here
-          !$acc loop collapse(2) private(T, esi1, tlo, thi, tlonr)
-          do j=2,j1
-             do i=2,i1
-                ql0(i,j,k) = 0
-                T = exnf(k)*thl0(i,j,k) ! + (rlv/cp) * ql omitted because ql is 0
-                tmp0(i,j,k) = T
-                qsat(i,j,k) = qsat_tab(T, presf(k))
+          !!!!!!!!!!!!!!!!!
+          ! The following could
+          ! be done on the fly to save
+          ! precious memory
+          qsat(i,j,k) = qsat_
+          T = exnf(k)*thl0(i,j,k) + (rlv/cp) * ql
+          tmp0(i,j,k) = T
 
-                ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
-                tlonr=int((T-150.)*5.)
-                tlo = 150. + 0.2*tlonr
-                thi = tlo + 0.2
-                esl(i,j,k) = (thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(tlonr+1) ! saturation vapor pressure liquid
-                esi1       = (thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(tlonr+1) ! saturation vapor pressure ice
-                qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
-                qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1.-rd/rv)*esi1)              ! saturation humidity ice
-             end do
-          end do
-       end if
+          ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
+          tlonr=int((T-150.)*5.)
+          tlo = 150. + 0.2*tlonr
+          thi = tlo + 0.2
+          esl(i,j,k) = (thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(tlonr+1) ! saturation vapor pressure liquid
+          esi1       = (thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(tlonr+1) ! saturation vapor pressure ice
+          qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
+          qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1.-rd/rv)*esi1)              ! saturation humidity ice
+          !!!!!!!!!!!
+        end do
+      end do
     end do
   end subroutine icethermo0_fast
 
@@ -764,54 +734,44 @@ contains
     implicit none
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
-    real(field_r) :: Tl_min, Tl_max, qt_max
+    real(field_r) :: Tl_min, Tl_max
+
+    !$acc parallel loop vector default(present) private(Tl_min, Tl_max) async
+    do k = 1, k1
+      Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
+      Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
+      if (Tl_min < 150) STOP 'icethermoh_fast: Tl_min below limit 150K'
+      if (esat_tab(Tl_max + 5) > presh(k)) STOP 'icethermoh_fast: Tl_max too close to boiling point'
+    end do
     
-    !$acc parallel loop gang default(present) private(Tl_min, Tl_max, qt_max, qsat)
-    do k=1,k1
-       ! find highest qt and lowest thl in the slab.
-       ! if they in combination are not saturated, the whole slab is below saturation
-       Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
-       Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
-       if (Tl_min < 150) STOP 'icethermoh_fast: Tl_min below limit 150K'
-       if (esat_tab(Tl_max + 5) > presh(k)) STOP 'icethermoh_fast: Tl_max too close to boiling point'
-       qt_max = maxval(qt0h(2:i1,2:j1,k))
-       qsat = qsat_tab(Tl_min, presh(k))
-       if (qt_max > qsat) then
-          !$acc loop collapse(2) private(Tl, qt, ql, b)
-          do j=2,j1
-             do i=2,i1
-                Tl = exnh(k)*thl0h(i,j,k)
-                qt = qt0h(i,j,k)
+    !$acc parallel loop collapse(3) default(present) private(Tl, qt, qsat, b, ql)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          Tl = exnh(k)*thl0h(i,j,k)
+          qt = qt0h(i,j,k)
 
-                ! first step
-                qsat = qsat_tab(Tl, presh(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
+          ! first step
+          qsat = qsat_tab(Tl, presh(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
-                ql = max(qt0h(i,j,k) - qsat, 0.)
+          ql = max(qt0h(i,j,k) - qsat, 0.)
 
-                ! update the starting point
-                Tl = Tl + (rlv/cp) * ql
-                qt = qt - ql
+          ! update the starting point
+          Tl = Tl + (rlv/cp) * ql
+          qt = qt - ql
 
-                ! second step
-                qsat = qsat_tab(Tl, presh(k))
-                b = rlv**2 / (rv * cp * Tl**2)
-                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
+          ! second step
+          qsat = qsat_tab(Tl, presh(k))
+          b = rlv**2 / (rv * cp * Tl**2)
+          qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
-                ! save results
-                ql = max(qt0h(i,j,k) - qsat, 0.)
-                ql0h(i,j,k) = ql
-             end do
-          end do
-       else
-         !$acc loop collapse(2)
-         do j=2,j1
-           do i=2,i1
-             ql0h(i,j,k) = 0
-           end do
-         end do
-       end if
+          ! save results
+          ql = max(qt0h(i,j,k) - qsat, 0.)
+          ql0h(i,j,k) = ql
+        end do
+      end do
     end do
   end subroutine icethermoh_fast
 !!!!!!!!! new thermo
