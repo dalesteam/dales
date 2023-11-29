@@ -89,6 +89,17 @@ contains
     !$acc&              qtpmcr, xr, mur, lbdr, qrmask, qcmask)
 
   end subroutine update_gpu
+
+  !> @brief Copies surface data to GPU containers
+  subroutine update_gpu_surface
+
+    use modsurfdata, only: obl, tskin, qskin
+
+    implicit none
+
+    !$acc update device(tskin, qskin, obl)
+
+  end subroutine update_gpu_surface
   
   !> @brief Copies data from GPU to host, mostly for debugging
   subroutine update_host
@@ -148,6 +159,17 @@ contains
     host_is_updated = .true.
 
   end subroutine update_host
+
+  !> @brief Copies surface data to host containers
+  subroutine update_host_surface
+
+    use modsurfdata, only: obl, tskin, qskin
+
+    implicit none
+
+    !$acc update self(tskin, qskin, obl)
+
+  end subroutine update_host_surface
 
   !> @brief Allocate reusable workspace for transposes and FFT
   subroutine allocate_workspace(n)
