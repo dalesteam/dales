@@ -53,7 +53,7 @@ contains
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(thetah(k1), qth(k1), qlh(k1))
 
-    th0av = 0.
+    th0av(:) = 0.
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
 
@@ -64,8 +64,8 @@ contains
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo,is_starting
-    use modfields, only : thl0,qt0,ql0,presf,exnf,thvh,thv0h,qt0av,ql0av,thvf,rhof
-    use modmpi, only : slabsum
+    use modfields, only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
+    use modmpi, only : slabsum, myid
     implicit none
     integer:: i, j, k
 
@@ -82,6 +82,7 @@ contains
        end if
     end if
     call diagfld
+
     call calc_halflev !calculate halflevel values of qt0 and thl0
 
     if (lmoist .and. (.not. lnoclouds)) then
@@ -96,8 +97,8 @@ contains
     call calthv
 
     !$acc kernels default(present)
-    thvh=0.
-    thvf = 0.0
+    thvh(:) = 0.0
+    thvf(:) = 0.0
     !$acc end kernels
     
     !$acc host_data use_device(thvh, thv0h)
@@ -109,15 +110,15 @@ contains
     !$acc end host_data
 
     !$acc kernels default(present) async(1)
-    thvh = thvh/ijtot
+    thvh(:) = thvh(:)/ijtot
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    thvf = thvf/ijtot
+    thvf(:) = thvf(:)/ijtot
     !$acc end kernels
     
     !$acc parallel loop collapse(3) default(present) async(2)
-    do k=1,k1
-      do j=2,j1
-        do i=2,i1
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
           thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                       * (1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
         end do
@@ -125,15 +126,14 @@ contains
     end do
 
     !$acc parallel loop default(present) async(1)
-    do k=1,k1
+    do k = 1, k1
       rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
     end do
 
     !$acc wait
-
     call timer_toc('modthermodynamics/thermodynamics')
-
   end subroutine thermodynamics
+
 !> Cleans up after the run
   subroutine exitthermodynamics
     implicit none
@@ -745,8 +745,8 @@ contains
 ! alternatively merge with calc_halflev and calthv
 ! to eliminate qt0h, thl0h, ql0h fields
 
-    use modglobal, only : i1,j1,k1,rv,rlv,cp
-    use modfields, only : qt0h,thl0h,exnh,presh,ql0h
+    use modglobal, only : i1, j1, k1, rv, rlv, cp
+    use modfields, only : qt0h, thl0h, exnh, presh, ql0h
 
     implicit none
     integer :: i, j, k
@@ -1008,13 +1008,13 @@ contains
 !> Calculates the scalars at half levels.
 !! If the kappa advection scheme is active, interpolation needs to be done consistently.
   subroutine calc_halflev
-    use modglobal, only : i1,j1,k1,dzf,dzh,iadv_thl, iadv_qt, iadv_kappa
-    use modfields, only : thl0,thl0h,qt0,qt0h
-    use modsurfdata,only: qts,thls
+    use modglobal, only : i1, j1, k1, dzf, dzh, iadv_thl, iadv_qt, iadv_kappa
+    use modfields, only : thl0, thl0h, qt0, qt0h
+    use modsurfdata,only: qts, thls
     use advec_kappa,only: halflev_kappa
     implicit none
 
-    integer :: i,j,k
+    integer :: i, j, k
 
     call timer_tic('modthermodynamics/calc_halflev', 1)
 
@@ -1022,9 +1022,9 @@ contains
       call halflev_kappa(thl0,thl0h)
     else
       !$acc parallel loop collapse(3) default(present)
-      do  k=2,k1
-        do  j=2,j1
-          do  i=2,i1
+      do k = 2, k1
+        do j = 2 ,j1
+          do i = 2 ,i1
             thl0h(i,j,k) = (thl0(i,j,k)*dzf(k-1)+thl0(i,j,k-1)*dzf(k))/(2*dzh(k))
           end do
         end do
@@ -1032,27 +1032,30 @@ contains
     end if
 
     !$acc parallel loop collapse(2) default(present)
-    do j=2,j1
-      do i=2,i1
+    do j = 2, j1
+      do i = 2, i1
         thl0h(i,j,1) = thls
       end do
     end do
 
     if (iadv_qt==iadv_kappa) then
-        call halflev_kappa(qt0,qt0h)
+      call halflev_kappa(qt0,qt0h)
     else
       !$acc parallel loop collapse(3) default(present)
-      do  k=2,k1
-        do  j=2,j1
-          do  i=2,i1
-            qt0h(i,j,k)  = (qt0 (i,j,k)*dzf(k-1)+qt0 (i,j,k-1)*dzf(k))/(2*dzh(k))
+      do k = 2, k1
+        do j = 2, j1
+          do i = 2, i1
+            qt0h(i,j,k)  = (qt0(i,j,k)*dzf(k-1)+qt0(i,j,k-1)*dzf(k))/(2*dzh(k))
           end do
         end do
       end do
-      
+
       !$acc parallel loop collapse(2) default(present)
-      do j=2,j1
-        do i=2,i1
+      do j = 2, j1
+        do i = 2, i1
+          if (i==2 .and. j==2) then
+            write(*,*) qts
+          endif
           qt0h(i,j,1) = qts
         end do
       end do
