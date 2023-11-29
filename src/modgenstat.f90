@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 41
+  integer :: nvar = 42
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -88,7 +88,7 @@ save
 
   real, allocatable  :: umn   (:)       ,vmn   (:)
   real, allocatable  :: thlmn (:)       ,thvmn (:)
-  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:)
+  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:),tamn(:)
 
 ! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
   real, allocatable  :: wthlsmn (:),wthlrmn (:),wthltmn(:)
@@ -119,6 +119,7 @@ save
  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
  real, allocatable :: hurav (:)
  real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: taav (:)
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
@@ -208,7 +209,7 @@ contains
 
     allocate(umn(k1)       ,vmn   (k1))
     allocate(thlmn (k1)       ,thvmn (k1))
-    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1))
+    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1), tamn(k1))
     allocate(wthlsmn (k1),wthlrmn (k1),wthltmn(k1))
     allocate(wthvsmn (k1),wthvrmn (k1),wthvtmn(k1))
     allocate(wqlsmn (k1),wqlrmn (k1),wqltmn(k1))
@@ -232,6 +233,7 @@ contains
     allocate(qlmav (k1))
     allocate(cfracav(k1))
     allocate(hurav(k1))
+    allocate(taav(k1))
     allocate(svmav (k1,nsv))
     allocate(uptav(k1))
     allocate(vptav(k1))
@@ -278,6 +280,7 @@ contains
       qlhmn    = 0.
       cfracmn  = 0.
       hurmn    = 0.
+      tamn     = 0.
 
       wthlsmn =  0.
       wthlrmn =  0.
@@ -410,15 +413,17 @@ contains
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         call ncinfo(ncname(40,:),'cfrac','Cloud fraction','-','tt')
         call ncinfo(ncname(41,:),'hur','Relative humidity','%','tt')
+        call ncinfo(ncname(42,:),'ta', 'Temperature','K','tt')
+
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(41+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(41+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(41+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(41+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(41+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(41+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(41+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(42+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(42+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(42+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(42+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(42+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -463,7 +468,7 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,qsat
+                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,qsat,tmp0
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -656,6 +661,7 @@ contains
     qlmav  = 0.0
     cfracav= 0.0
     hurav  = 0.0
+    taav   = 0.0
     svmav = 0.
 
     cszav = 0.
@@ -683,6 +689,7 @@ contains
     call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
@@ -691,6 +698,7 @@ contains
     qlmav = qlmav /ijtot
     cfracav = cfracav / ijtot
     hurav  = hurav / ijtot
+    taav   = taav  / ijtot
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
 
@@ -1095,6 +1103,7 @@ contains
       qlmn   = qlmn  + qlmav
       cfracmn= cfracmn+cfracav
       hurmn  = hurmn + hurav
+      tamn   = tamn  + taav
       qlhmn  = qlhmn + qlhav
 
       wthlsmn = wthlsmn + wthlsub
@@ -1232,6 +1241,7 @@ contains
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
       hurmn  = hurmn  /nsamples
+      tamn  =  tamn   /nsamples
       qlhmn  = qlhmn  /nsamples
 
 
@@ -1571,14 +1581,15 @@ contains
         vars(:,39)=csz
         vars(:,40)=cfracmn
         vars(:,41)=hurmn
+        vars(:,42)=tamn
         do n=1,nsv
-          vars(:,41+7*(n-1)+1)=svmmn(:,n)
-          vars(:,41+7*(n-1)+2)=svpmn(:,n)
-          vars(:,41+7*(n-1)+3)=svptmn(:,n)
-          vars(:,41+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,41+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,41+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,41+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,42+7*(n-1)+1)=svmmn(:,n)
+          vars(:,42+7*(n-1)+2)=svpmn(:,n)
+          vars(:,42+7*(n-1)+3)=svptmn(:,n)
+          vars(:,42+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,42+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,42+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,42+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
