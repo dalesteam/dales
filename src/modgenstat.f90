@@ -467,8 +467,8 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine do_genstat
 
-    use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh,qsat,tmp0
+    use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
+                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,qsat,tmp0
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -683,10 +683,10 @@ contains
     call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(huravl,hurav,k1,MPI_SUM,comm3d,mpierr)
 
-    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(umav  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(vmav  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thlmav,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qtmav ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -706,7 +706,7 @@ contains
   !
 
     do n=1,nsv
-      call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(svmav(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     enddo
     svmav = svmav/ijtot
   !------------------------------------------------------------------
@@ -740,35 +740,35 @@ contains
       wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
 
       !Momentum flux
-      if (abs(um(i,j,1)+cu)<eps1) then
-        upcu = sign(eps1,um(i,j,1)+cu)
+      if (abs(u0(i,j,1)+cu)<eps1) then
+        upcu = sign(eps1,u0(i,j,1)+cu)
       else
-        upcu = um(i,j,1)+cu
+        upcu = u0(i,j,1)+cu
       end if
       uwsubl(1) = uwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
                 upcu/sqrt(upcu**2  + &
-          ((vm(i,j,1)+vm(i-1,j,1)+vm(i,j+1,1)+vm(i-1,j+1,1))/4.+cv)**2)
+          ((v0(i,j,1)+v0(i-1,j,1)+v0(i,j+1,1)+v0(i-1,j+1,1))/4.+cv)**2)
 
-      if (abs(vm(i,j,1)+cv)<eps1) then
-        vpcv = sign(eps1,vm(i,j,1)+cv)
+      if (abs(v0(i,j,1)+cv)<eps1) then
+        vpcv = sign(eps1,v0(i,j,1)+cv)
       else
-        vpcv = vm(i,j,1)+cv
+        vpcv = v0(i,j,1)+cv
       end if
       vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                 vpcv/sqrt(vpcv**2  + &
-          ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
+          ((u0(i,j,1)+u0(i+1,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1))/4.+cu)**2)
 
 
       !Higher order moments
-      u2avl    (1) = u2avl    (1) + (um (i,j,1)+cu - umav(1))**2
-      v2avl    (1) = v2avl    (1) + (vm (i,j,1)+cv - vmav(1))**2
-      w2avl    (1) = w2avl    (1) + (wm  (i,j,1)**2)
-      w3avl    (1) = w3avl    (1) + (wm  (i,j,1)**3)
-      w2subavl (1) = w2subavl (1) + (e12m(i,j,1)**2)
-      qt2avl   (1) = qt2avl   (1) + (qtm (i,j,1) - qtmav (1))**2
-      thl2avl  (1) = thl2avl  (1) + (thlm(i,j,1) - thlmav(1))**2
+      u2avl    (1) = u2avl    (1) + (u0 (i,j,1)+cu - umav(1))**2
+      v2avl    (1) = v2avl    (1) + (v0 (i,j,1)+cv - vmav(1))**2
+      w2avl    (1) = w2avl    (1) + (w0  (i,j,1)**2)
+      w3avl    (1) = w3avl    (1) + (w0  (i,j,1)**3)
+      w2subavl (1) = w2subavl (1) + (e120(i,j,1)**2)
+      qt2avl   (1) = qt2avl   (1) + (qt0 (i,j,1) - qtmav (1))**2
+      thl2avl  (1) = thl2avl  (1) + (thl0(i,j,1) - thlmav(1))**2
       thv2avl  (1) = thv2avl  (1) + (thv0(i,j,1) - thvmav(1))**2
-      th2avl   (1) = th2avl   (1) + (thlm(i,j,1) - thmav (1))**2
+      th2avl   (1) = th2avl   (1) + (thl0(i,j,1) - thmav (1))**2
       ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
 !       qs2avl   (1) = qs2avl   (1) + qs0**2
 !       qsavl    (1) = qsavl    (1) + qs0
@@ -779,7 +779,7 @@ contains
 
       do n=1,nsv
         wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
-        sv2avl(1,n)  = sv2avl(1,n) + (svm(i,j,1,n)-svmav(1,n))**2
+        sv2avl(1,n)  = sv2avl(1,n) + (sv0(i,j,1,n)-svmav(1,n))**2
       end do
     end do
     end do
@@ -883,15 +883,15 @@ contains
     !     calculate various moments
     !     -----------------------------------------------------------
 
-        u2avl    (k) = u2avl    (k) + (um (i,j,k)+cu - umav(k))**2
-        v2avl    (k) = v2avl    (k) + (vm (i,j,k)+cv - vmav(k))**2
-        w2avl    (k) = w2avl    (k) + (wm  (i,j,k)**2)
-        w3avl    (k) = w3avl    (k) + (wm  (i,j,k)**3)
-        w2subavl (k) = w2subavl (k) + (e12m(i,j,k)**2)
-        qt2avl   (k) = qt2avl   (k) + (qtm (i,j,k) - qtmav (k))**2
-        thl2avl  (k) = thl2avl  (k) + (thlm(i,j,k) - thlmav(k))**2
+        u2avl    (k) = u2avl    (k) + (u0 (i,j,k)+cu - umav(k))**2
+        v2avl    (k) = v2avl    (k) + (v0 (i,j,k)+cv - vmav(k))**2
+        w2avl    (k) = w2avl    (k) + (w0  (i,j,k)**2)
+        w3avl    (k) = w3avl    (k) + (w0  (i,j,k)**3)
+        w2subavl (k) = w2subavl (k) + (e120(i,j,k)**2)
+        qt2avl   (k) = qt2avl   (k) + (qt0 (i,j,k) - qtmav (k))**2
+        thl2avl  (k) = thl2avl  (k) + (thl0(i,j,k) - thlmav(k))**2
         thv2avl  (k) = thv2avl  (k) + (thv0(i,j,k) - thvmav(k))**2
-        th2avl   (k) = th2avl   (k) + (thlm(i,j,k) - thmav (k))**2 !thlm, no thm !?!
+        th2avl   (k) = th2avl   (k) + (thl0(i,j,k) - thmav (k))**2 !thlm, no thm !?!
         ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
 !         qs2avl   (k) = qs2avl   (k) + qs0**2
 !         qsavl    (k) = qsavl    (k) + qs0
@@ -909,7 +909,7 @@ contains
       do k=2,kmax
       do j=2,j1
       do i=2,i1
-        sv2avl(k,n)  = sv2avl(k,n) + (svm(i,j,k,n)-svmav(k,n))**2
+        sv2avl(k,n)  = sv2avl(k,n) + (sv0(i,j,k,n)-svmav(k,n))**2
       end do
       end do
       end do
