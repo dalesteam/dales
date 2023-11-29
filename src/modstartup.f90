@@ -758,6 +758,17 @@ contains
 
       call update_gpu
 
+      call boundary
+      call thermodynamics
+      call surface
+
+      call boundary
+      call thermodynamics
+
+      call update_host
+
+      host_is_updated = .false.
+
     end if  ! end if (.not. warmstart)
 
 !-----------------------------------------------------------------
