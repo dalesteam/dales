@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 42
+  integer :: nvar = 47
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -89,6 +89,7 @@ save
   real, allocatable  :: umn   (:)       ,vmn   (:)
   real, allocatable  :: thlmn (:)       ,thvmn (:)
   real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:),tamn(:)
+  real, allocatable  :: clwmn(:), climn(:), plwmn(:), plimn(:)
 
 ! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
   real, allocatable  :: wthlsmn (:),wthlrmn (:),wthltmn(:)
@@ -118,6 +119,7 @@ save
  real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
  real, allocatable :: hurav (:)
+ real, allocatable :: clwav(:), cliav(:), plwav(:), pliav(:)
  real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
  real(field_r), allocatable :: taav (:)
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
@@ -167,7 +169,7 @@ save
 contains
 
   subroutine initgenstat
-    use modmpi,    only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
+    use modmpi,    only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -194,12 +196,12 @@ contains
     call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lstat      ,1,0,comm3d,mpierr)
-    idtav = dtav/tres
-    itimeav = timeav/tres
+    idtav = int(dtav/tres,kind=longint)
+    itimeav = int(timeav/tres,kind=longint)
 
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
-    nsamples = itimeav/idtav
+    nsamples = int(itimeav/idtav)
     if(.not.(lstat)) return
     dt_lim = min(dt_lim,tnext)
 
@@ -210,6 +212,7 @@ contains
     allocate(umn(k1)       ,vmn   (k1))
     allocate(thlmn (k1)       ,thvmn (k1))
     allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1), tamn(k1))
+    allocate(clwmn(k1), climn(k1), plwmn(k1), plimn(k1))
     allocate(wthlsmn (k1),wthlrmn (k1),wthltmn(k1))
     allocate(wthvsmn (k1),wthvrmn (k1),wthvtmn(k1))
     allocate(wqlsmn (k1),wqlrmn (k1),wqltmn(k1))
@@ -233,6 +236,7 @@ contains
     allocate(qlmav (k1))
     allocate(cfracav(k1))
     allocate(hurav(k1))
+    allocate(clwav(k1), cliav(k1), plwav(k1), pliav(k1))
     allocate(taav(k1))
     allocate(svmav (k1,nsv))
     allocate(uptav(k1))
@@ -280,6 +284,10 @@ contains
       qlhmn    = 0.
       cfracmn  = 0.
       hurmn    = 0.
+      clwmn    = 0.
+      climn    = 0.
+      plwmn    = 0.
+      plimn    = 0.
       tamn     = 0.
 
       wthlsmn =  0.
@@ -413,17 +421,22 @@ contains
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         call ncinfo(ncname(40,:),'cfrac','Cloud fraction','-','tt')
         call ncinfo(ncname(41,:),'hur','Relative humidity','%','tt')
-        call ncinfo(ncname(42,:),'ta', 'Temperature','K','tt')
+        call ncinfo(ncname(42,:),'hus','Specific humidity','kg/kg','tt')
+        call ncinfo(ncname(43,:),'ta', 'Temperature','K','tt')
+        call ncinfo(ncname(44,:),'clw', 'Specific cloud liquid water content','kg/kg','tt')
+        call ncinfo(ncname(45,:),'cli', 'Specific cloud ice content','kg/kg','tt')
+        call ncinfo(ncname(46,:),'plw', 'Specific precipitation liquid water content','kg/kg','tt')
+        call ncinfo(ncname(47,:),'pli', 'Specific precipitation ice content','kg/kg','tt')
 
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(42+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(42+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(42+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(42+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(42+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(42+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(42+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(47+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(47+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(47+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(47+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(47+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(47+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(47+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -472,9 +485,10 @@ contains
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
+                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
+    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
     implicit none
 
 
@@ -541,6 +555,8 @@ contains
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
+    real(field_r) :: ilratio
+
     allocate( &
         qlhavl (k1), & ! slab averaged ql_0 at half level &
         wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
@@ -661,6 +677,10 @@ contains
     qlmav  = 0.0
     cfracav= 0.0
     hurav  = 0.0
+    clwav  = 0.0
+    cliav  = 0.0
+    plwav  = 0.0
+    pliav  = 0.0
     taav   = 0.0
     svmav = 0.
 
@@ -676,9 +696,41 @@ contains
       enddo
     enddo
 
+    do  k=1,k1
+      do  j=2,j1
+         do  i=2,i1
+            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))
+            clwav(k) = clwav(k) + ql0(i,j,k) * ilratio
+            cliav(k) = cliav(k) + ql0(i,j,k) * (1-ilratio)
+         end do
+      end do
+   end do
+
+   if (imicro == imicro_sice .or. imicro == imicro_sice2) then
+      do  k=1,k1
+         do  j=2,j1
+            do  i=2,i1
+               ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+               plwav(k) = plwav(k) + ql0(i,j,k) * ilratio
+               pliav(k) = pliav(k) + ql0(i,j,k) * (1-ilratio)
+            end do
+         end do
+      end do
+   end if
+
+
     do k=1,k1
       cfracavl(k)    = cfracavl(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
+
+    call D_MPI_ALLREDUCE(clwav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(cliav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(plwav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(pliav,k1,MPI_SUM,comm3d,mpierr)
+    clwav = clwav / ijtot
+    cliav = cliav / ijtot
+    plwav = plwav / ijtot
+    pliav = pliav / ijtot
 
     call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
     call D_MPI_ALLREDUCE(huravl,hurav,k1,MPI_SUM,comm3d,mpierr)
@@ -1103,6 +1155,12 @@ contains
       qlmn   = qlmn  + qlmav
       cfracmn= cfracmn+cfracav
       hurmn  = hurmn + hurav
+
+      clwmn  = clwmn + clwav
+      climn  = climn + cliav
+      plwmn  = plwmn + plwav
+      plimn  = plimn + pliav
+
       tamn   = tamn  + taav
       qlhmn  = qlhmn + qlhav
 
@@ -1240,7 +1298,11 @@ contains
       qtmn   = qtmn   /nsamples
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
-      hurmn  = hurmn  /nsamples
+      hurmn  = hurmn
+      clwmn  = clwmn /nsamples
+      climn  = climn /nsamples
+      plwmn  = plwmn /nsamples
+      plimn  = plimn /nsamples
       tamn  =  tamn   /nsamples
       qlhmn  = qlhmn  /nsamples
 
@@ -1581,15 +1643,21 @@ contains
         vars(:,39)=csz
         vars(:,40)=cfracmn
         vars(:,41)=hurmn
-        vars(:,42)=tamn
+        vars(:,42)=qtmn-qlmn
+        vars(:,43)=tamn
+        vars(:,44)=clwmn
+        vars(:,45)=climn
+        vars(:,46)=plwmn
+        vars(:,47)=plimn
+
         do n=1,nsv
-          vars(:,42+7*(n-1)+1)=svmmn(:,n)
-          vars(:,42+7*(n-1)+2)=svpmn(:,n)
-          vars(:,42+7*(n-1)+3)=svptmn(:,n)
-          vars(:,42+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,42+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,42+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,42+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,47+7*(n-1)+1)=svmmn(:,n)
+          vars(:,47+7*(n-1)+2)=svpmn(:,n)
+          vars(:,47+7*(n-1)+3)=svptmn(:,n)
+          vars(:,47+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,47+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,47+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,47+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
@@ -1679,6 +1747,7 @@ contains
     deallocate(umn       ,vmn   )
     deallocate(thlmn        ,thvmn )
     deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn, hurmn)
+    deallocate(clwmn,climn,plwmn,plimn)
     deallocate(wthlsmn ,wthlrmn ,wthltmn)
     deallocate(wthvsmn ,wthvrmn ,wthvtmn)
     deallocate(wqlsmn ,wqlrmn ,wqltmn)
@@ -1702,6 +1771,7 @@ contains
     deallocate(qlmav )
     deallocate(cfracav )
     deallocate(hurav )
+    deallocate(clwav,cliav,plwav,pliav)
     deallocate(svmav )
     deallocate(uptav)
     deallocate(vptav)
