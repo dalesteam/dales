@@ -41,6 +41,7 @@
 !! and the diffusion number $d$. The timestep is further limited by the needs of other modules, e.g. the statistics.
 !! \endlatexonly
 module tstep
+use modtimer
 implicit none
 save
   real, allocatable, dimension(:) :: courtotl
@@ -82,6 +83,8 @@ subroutine tstep_update
   real,save     :: courtotmax=-1,peclettot=-1
   real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
+
+  call timer_tic('tstep/tstep_update', 0)
 
   if(lwarmstart) spinup = .false.
 
@@ -187,6 +190,8 @@ subroutine tstep_update
   e12p=0.
   !$acc end kernels
 
+  call timer_toc('tstep/tstep_update')
+
 end subroutine tstep_update
 
 
@@ -216,6 +221,8 @@ subroutine tstep_integrate
   integer :: i,j,k,n
 
   real rk3coef
+
+  call timer_tic('tstep/tstep_integrate', 0)
 
   rk3coef = rdt / (4. - dble(rk3step))
 
@@ -283,6 +290,7 @@ subroutine tstep_integrate
       end do
     endif
   end if
+  call timer_toc('tstep/tstep_integrate')
 end subroutine tstep_integrate
 
 end module tstep

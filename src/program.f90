@@ -183,7 +183,6 @@ program DALES
 !---------------------------------------------------------
 !      2     INITIALIZE STATISTICAL ROUTINES AND ADD-ONS
 !---------------------------------------------------------
-  call timer_tic('Initialization', 0)
   call initchecksim
   call initstat_nc   ! Should be called before stat-routines that might do netCDF
   call inittimestat  ! Timestat must preceed all other timeseries that could write in the same netCDF file (unless stated otherwise
@@ -221,74 +220,49 @@ program DALES
   ! Startup is done, set flag to false
   is_starting = .false.
 
-  call timer_toc('Initialization')
-
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
   call testwctime
-
   istep = 1
   do while (timeleft>0 .or. rk3step < 3)
-    call timer_tic('Time step', istep)
+    call timer_tic('program/timestep', istep)
     ! Calculate new timestep, and reset tendencies to 0.
-    call timer_tic('Time step update', 0)
     call tstep_update
-    call timer_toc('Time step update')
-    call timer_tic('Time dep', 0)
     call timedep
-    call timer_toc('Time dep')
     call samptend(tend_start,firstterm=.true.)
 
 !-----------------------------------------------------
 !   3.1   RADIATION
 !-----------------------------------------------------
-    call timer_tic('Radiation', 0)
     call radiation !radiation scheme
-    call timer_toc('Radiation')
     call samptend(tend_rad)
 
 !-----------------------------------------------------
 !   3.2   THE SURFACE LAYER
 !-----------------------------------------------------
-    call timer_tic('Surface', 0)
     call surface
-    call timer_toc('Surface')
 
 !-----------------------------------------------------
 !   3.3   ADVECTION AND DIFFUSION
 !-----------------------------------------------------
-    call timer_tic('Advection', nvtx_color='g')
     call advection
-    call timer_toc('Advection')
     call samptend(tend_adv)
-    call timer_tic('Subgrid', nvtx_color='b')
     call subgrid
-    call timer_toc('Subgrid')
-    call timer_tic('Canopy', 0)
     call canopy
-    call timer_toc('Canopy')
     call samptend(tend_subg)
 
 !-----------------------------------------------------
 !   3.4   REMAINING TERMS
 !-----------------------------------------------------
-    call timer_tic('Coriolis', 0)
     call coriolis !remaining terms of ns equation
-    call timer_toc('Coriolis')
     call samptend(tend_coriolis)
-    call timer_tic('Forces', 0)
     call forces !remaining terms of ns equation
-    call timer_toc('Forces')
     call samptend(tend_force)
 
-    call timer_tic('LStend', 0)
     call lstend !large scale forcings
-    call timer_toc('LStend')
     call samptend(tend_ls)
-    call timer_tic('Microsources', 0)
     call microsources !Drizzle etc.
-    call timer_toc('Microsources')
     call samptend(tend_micro)
 
 !------------------------------------------------------
@@ -304,37 +278,26 @@ program DALES
 !-----------------------------------------------------------------------
 !   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
-    call timer_tic('GRWdamp', 0)
     call grwdamp !damping at top of the model
-    call timer_toc('GRWdamp')
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
-    call timer_tic('Poisson', nvtx_color='y')
     call poisson
-    call timer_toc('Poisson')
     call samptend(tend_pois,lastterm=.true.)
 
     ! Apply tendencies to all variables
-    call timer_tic('Tstep integrate', nvtx_color='c')
     call tstep_integrate
-    call timer_toc('Tstep integrate')
     ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
     !       Do not change them below this point.
-    call timer_tic('Boundary', 0)
     call boundary
-    call timer_toc('Boundary')
     !call tiltedboundary
 !-----------------------------------------------------
 !   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
 !-----------------------------------------------------
-    call timer_tic('Thermodynamics', 0)
     call thermodynamics
-    call timer_toc('Thermodynamics')
     call leibniztend
 !-----------------------------------------------------
 !   3.7  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
-    call timer_tic('Statistics', 0)
     call twostep
     !call coldedge
     call checksim
@@ -360,17 +323,14 @@ program DALES
     call varbudget
     !call stressbudgetstat
     call heterostats
-    call timer_toc('Statistics')
     
-    call timer_tic('Restartfiles', 0)
     call testwctime
     call writerestartfiles
-    call timer_toc('Restartfiles')
-    call timer_toc('Time step') 
-    istep = istep + 1
 #if defined(_OPENACC)
     host_is_updated = .false.
 #endif
+    call timer_toc('program/timestep')
+    istep = istep + 1
   end do
 
 !-------------------------------------------------------
