@@ -484,10 +484,6 @@ contains
           end do
 
           ps         = tb_ps(1)
-          !qts
-          !thls
-          !wtsurf
-          !wqsurf
 
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
@@ -499,7 +495,7 @@ contains
           write(*,     '(a80)') chmess
           read (ifinput,'(a80)') chmess
 
-          do k=1,kmax
+          do k = 1, kmax
             read (ifinput,*) &
                 height (k), &
                 thlprof(k), &
@@ -514,7 +510,7 @@ contains
         end if   !ltestbed
 
         write(*,*) 'height    thl      qt         u      v     e12'
-        do k=kmax,1,-1
+        do k = kmax, 1, -1
           write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
                 height (k), &
                 thlprof(k), &
@@ -522,60 +518,60 @@ contains
                 uprof  (k), &
                 vprof  (k), &
                 e12prof(k)
-
         end do
 
         if (minval(e12prof(1:kmax)) < e12min) then
           write(*,*)  'e12 value is zero (or less) in prof.inp'
-          do k=1,kmax
+          do k = 1, kmax
             e12prof(k) = max(e12prof(k),e12min)
           end do
         end if
 
       end if ! end if myid==0
-    ! MPI broadcast numbers reading
+
+      ! MPI broadcast numbers reading
       call D_MPI_BCAST(thlprof,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(qtprof ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(uprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(vprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(e12prof,kmax,0,comm3d,mpierr)
-      do k=1,kmax
-      do j=1,j2
-      do i=1,i2
-        thl0(i,j,k) = thlprof(k)
-        thlm(i,j,k) = thlprof(k)
-        qt0 (i,j,k) = qtprof (k)
-        qtm (i,j,k) = qtprof (k)
-        u0  (i,j,k) = uprof  (k) - cu
-        um  (i,j,k) = uprof  (k) - cu
-        v0  (i,j,k) = vprof  (k) - cv
-        vm  (i,j,k) = vprof  (k) - cv
-        w0  (i,j,k) = 0.0
-        wm  (i,j,k) = 0.0
-        e120(i,j,k) = e12prof(k)
-        e12m(i,j,k) = e12prof(k)
-        ekm (i,j,k) = 0.0
-        ekh (i,j,k) = 0.0
+      do k = 1, kmax
+        do j = 1, j2
+          do i = 1, i2
+            thl0(i,j,k) = thlprof(k)
+            thlm(i,j,k) = thlprof(k)
+            qt0 (i,j,k) = qtprof (k)
+            qtm (i,j,k) = qtprof (k)
+            u0  (i,j,k) = uprof  (k) - cu
+            um  (i,j,k) = uprof  (k) - cu
+            v0  (i,j,k) = vprof  (k) - cv
+            vm  (i,j,k) = vprof  (k) - cv
+            w0  (i,j,k) = 0.0
+            wm  (i,j,k) = 0.0
+            e120(i,j,k) = e12prof(k)
+            e12m(i,j,k) = e12prof(k)
+            ekm (i,j,k) = 0.0
+            ekh (i,j,k) = 0.0
+          end do
+        end do
       end do
-      end do
-      end do
-    !---------------------------------------------------------------
-    !  1.2 randomnize fields
-    !---------------------------------------------------------------
+      !---------------------------------------------------------------
+      !  1.2 randomnize fields
+      !---------------------------------------------------------------
 
       krand  = min(krand,kmax)
       negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
-      do k = 1,krand
+      do k = 1, krand
         call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
         call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
       end do
       negval = .True. ! negative perturbations allowed
-      do k = 1,krand
+      do k = 1, krand
         call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
         call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
       end do
 
-      do k=krandumin,krandumax
+      do k = krandumin, krandumax
         call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
         call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
         call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
@@ -594,14 +590,14 @@ contains
           end if
           read (ifinput,'(a80)') chmess
           read (ifinput,'(a80)') chmess
-          do k=1,kmax
+          do k = 1, kmax
             read (ifinput,*) &
                   height (k), &
                   (svprof (k,n),n=1,nsv)
           end do
           open (ifinput,file='scalar.inp.'//cexpnr)
           write (6,*) 'height   sv(1) --------- sv(nsv) '
-          do k=kmax,1,-1
+          do k = kmax, 1, -1
             write (6,*) &
                   height (k), &
                 (svprof (k,n),n=1,nsv)
@@ -611,12 +607,11 @@ contains
       end if ! end if myid==0
 
       call D_MPI_BCAST(wsvsurf,nsv   ,0,comm3d,mpierr)
-
       call D_MPI_BCAST(svprof ,k1*nsv,0,comm3d,mpierr)
-      do k=1,kmax
-        do j=1,j2
-          do i=1,i2
-            do n=1,nsv
+      do k = 1, kmax
+        do j = 1, j2
+          do i = 1, i2
+            do n = 1, nsv
               sv0(i,j,k,n) = svprof(k,n)
               svm(i,j,k,n) = svprof(k,n)
             end do
@@ -624,9 +619,9 @@ contains
         end do
       end do
 
-!-----------------------------------------------------------------
-!    2.2 Initialize surface layer and base profiles
-!-----------------------------------------------------------------
+      !-----------------------------------------------------------------
+      !    2.2 Initialize surface layer and base profiles
+      !-----------------------------------------------------------------
 
       select case(isurf)
       case(1)
@@ -688,78 +683,80 @@ contains
     else !if lwarmstart
 
       call readrestartfiles
-      um   = u0
-      vm   = v0
-      wm   = w0
-      thlm = thl0
-      qtm  = qt0
-      svm  = sv0
-      e12m = e120
+      um(:,:,:) = u0(:,:,:)
+      vm(:,:,:) = v0(:,:,:)
+      wm(:,:,:) = w0(:,:,:)
+      thlm(:,:,:) = thl0(:,:,:)
+      qtm(:,:,:)  = qt0(:,:,:)
+      svm(:,:,:,:)  = sv0(:,:,:,:)
+      e12m(:,:,:) = e120(:,:,:)
+
       !$acc set device_type(host)
       call calc_halflev
       !$acc set device_type(nvidia)
-      exnf = (presf/pref0)**(rd/cp)
-      exnh = (presh/pref0)**(rd/cp)
 
-      do  j=2,j1
-      do  i=2,i1
-      do  k=2,k1
-        thv0h(i,j,k) = (thl0h(i,j,k)+rlv*ql0h(i,j,k)/(cp*exnh(k))) &
-                      *(1+(rv/rd-1)*qt0h(i,j,k)-rv/rd*ql0h(i,j,k))
-      end do
-      end do
-      end do
+      exnf(:) = (presf(:)/pref0)**(rd/cp)
+      exnh(:) = (presh(:)/pref0)**(rd/cp)
 
-      do  j=2,j1
-      do  i=2,i1
-      do  k=1,k1
-        thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                      *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
-      end do
-      end do
+      do k = 2, k1
+        do j = 2, j1
+          do i = 2, i1
+            thv0h(i,j,k) = (thl0h(i,j,k)+rlv*ql0h(i,j,k)/(cp*exnh(k))) &
+                          *(1+(rv/rd-1)*qt0h(i,j,k)-rv/rd*ql0h(i,j,k))
+          end do
+        end do
       end do
 
-      thvh=0.
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2 ,i1
+            thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                          *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          end do
+        end do
+      end do
+
+      thvh(:) = 0.0
+      thvf(:) = 0.0
+      u0av(:) = 0.0
+      v0av(:) = 0.0
+      thl0av(:) = 0.0
+      th0av(:) = 0.0
+      qt0av(:) = 0.0
+      ql0av(:) = 0.0
+      sv0av(:,:) = 0.0
+
       call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-      thvh = thvh/ijtot
 
-      thvf = 0.0
       call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      thvf = thvf/ijtot
-
-      u0av = 0.0
-      v0av = 0.0
-      thl0av = 0.0
-      th0av  = 0.0
-      qt0av  = 0.0
-      ql0av  = 0.0
-      sv0av = 0.
 
       call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-      do n=1,nsv
+      do n = 1, nsv
         call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
       end do
 
-      u0av  = u0av  /ijtot + cu
-      v0av  = v0av  /ijtot + cv
-      thl0av = thl0av/ijtot
-      qt0av = qt0av /ijtot
-      ql0av = ql0av /ijtot
-      sv0av = sv0av /ijtot
-      th0av  = thl0av + (rlv/cp)*ql0av/exnf
+      thvh(:) = thvh(:) / ijtot
+      thvf(:) = thvf(:) / ijtot
+      u0av(:) = u0av(:) / ijtot + cu
+      v0av(:) = v0av(:) / ijtot + cv
+      thl0av(:) = thl0av(:) / ijtot
+      qt0av(:) = qt0av(:) / ijtot
+      ql0av(:) = ql0av(:) / ijtot
+      sv0av(:,:) = sv0av(:,:) / ijtot
+      th0av(:) = thl0av(:) + (rlv/cp) * ql0av(:) / exnf(:)
       thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-
-      do k=1,k1
-        rhof(k) = presf(k)/(rd*thvf(k)*exnf(k))
-      end do
+      rhof(:) = presf(:)/(rd*thvf(:)*exnf(:))
 
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
+
       call baseprofs !call baseprofs
+
+      call update_gpu
 
     end if  ! end if (.not. warmstart)
 
@@ -826,7 +823,7 @@ contains
 
     end if ! end myid==0
 
-! MPI broadcast variables read in
+    ! MPI broadcast variables read in
 
     call D_MPI_BCAST(ug       ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(vg       ,kmax,0,comm3d,mpierr)
@@ -836,29 +833,29 @@ contains
     call D_MPI_BCAST(dqtdtls  ,kmax,0,comm3d,mpierr)
     call D_MPI_BCAST(thlpcar  ,kmax,0,comm3d,mpierr)
 
-!-----------------------------------------------------------------
-!    2.3 make large-scale horizontal pressure gradient
-!-----------------------------------------------------------------
+    !-----------------------------------------------------------------
+    !    2.3 make large-scale horizontal pressure gradient
+    !-----------------------------------------------------------------
 
-!******include rho if rho = rho(z) /= 1.0 ***********
+    !******include rho if rho = rho(z) /= 1.0 ***********
 
-    do k=1,kmax
+    do k = 1, kmax
       dpdxl(k) =  om23_gs*vg(k)
       dpdyl(k) = -om23_gs*ug(k)
     end do
 
-  !-----------------------------------------------------------------
-  !    2.5 make large-scale horizontal gradients
-  !-----------------------------------------------------------------
+    !-----------------------------------------------------------------
+    !    2.5 make large-scale horizontal gradients
+    !-----------------------------------------------------------------
 
     whls(1)  = 0.0
-    do k=2,kmax
+    do k = 2, kmax
       whls(k) = ( wfls(k)*dzf(k-1) +  wfls(k-1)*dzf(k) )/(2*dzh(k))
     end do
     whls(k1) = (wfls(kmax)+0.5*dzf(kmax)*(wfls(kmax)-wfls(kmax-1)) &
                                                   /dzh(kmax))
 
-  !******include rho if rho = rho(z) /= 1.0 ***********
+    !******include rho if rho = rho(z) /= 1.0 ***********
 
     if (llsadv) then
       if (myid==0) stop 'llsadv should not be used anymore. Large scale gradients were calculated in a non physical way (and lmomsubs had to be set to true to retain conservation of mass)'
