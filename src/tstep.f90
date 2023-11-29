@@ -72,14 +72,14 @@ subroutine exittstep
 end subroutine exittstep  
 
 subroutine tstep_update
-  use modglobal, only : i1,j1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
+  use modglobal, only : i1,j1,k1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
   use modsubgrid,only : ekm,ekh
   use modmpi,    only : comm3d,mpierr,mpi_max,D_MPI_ALLREDUCE
   implicit none
 
-  integer       :: k
+  integer       :: i, j, k
   real,save     :: courtotmax=-1,peclettot=-1
   real          :: courold,peclettotl,pecletold
   logical,save  :: spinup=.true.
@@ -90,32 +90,36 @@ subroutine tstep_update
 
   rk3step = mod(rk3step,3) + 1
   if(rk3step == 1) then
+
     ! Initialization
     if (spinup) then
       if (ladaptive) then
         courold = courtotmax
         pecletold = peclettot
-        peclettotl=0.0
+        peclettotl = 0.0
         !$acc kernels default(present)
-        do k=1,kmax
+        do k = 1, kmax
           courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
-          wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
+                             wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
         end do
         !$acc end kernels
+
         !$acc update self(courtotl)
         call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
-        do k=1,kmax
+        do k = 1, kmax
           courtotmax=max(courtotmax,courtot(k))
         enddo
         courtotmax=sqrt(courtotmax)
+
         !$acc parallel loop default(present) reduction(max: peclettotl)
-        do k=1,kmax
+        do k = 1, kmax
           ! limit by the larger of ekh, ekm. ekh is generally larger.
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-          peclettotl=max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl = max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl = max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
+
         if ( pecletold>0) then
            dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
            dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
@@ -137,29 +141,33 @@ subroutine tstep_update
         end if
         rdt = dble(dt)*tres
       end if
+
     ! Normal time loop
     else
       if (ladaptive) then
         peclettotl = 1e-5
         !$acc kernels default(present)
-        do k=1,kmax
+        do k = 1, kmax
           courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
-          (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
+                             (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
         end do
         !$acc end kernels
+
         !$acc update self(courtotl)
         call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
         courtotmax=0.0
-        do k=1,kmax
+        do k = 1, kmax
             courtotmax=max(courtotmax,sqrt(courtot(k)))
         enddo
+
         !$acc parallel loop default(present) reduction(max: peclettotl)
-        do k=1,kmax
+        do k = 1, kmax
           ! limit by the larger of ekh, ekm. ekh is generally larger.
-          peclettotl=max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-          peclettotl=max(peclettotl,maxval(ekh(1:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl = max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
+          peclettotl = max(peclettotl,maxval(ekh(1:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
         end do
         call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
+
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
         dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
         rdt = dble(dt)*tres
@@ -180,18 +188,22 @@ subroutine tstep_update
   end if
 
   ! set all tendencies to zero
-  !$acc kernels default(present)
-  up=0.
-  vp=0.
-  wp=0.
-  thlp=0.
-  qtp=0.
-  svp=0.
-  e12p=0.
-  !$acc end kernels
+  !$acc parallel loop collapse(3) default(present)
+  do k = 1, k1
+    do j = 2, j1
+      do i = 1, i1
+        up(i,j,k)=0.
+        vp(i,j,k)=0.
+        wp(i,j,k)=0.
+        thlp(i,j,k)=0.
+        e12p(i,j,k)=0.
+        qtp(i,j,k)=0.
+        svp(i,j,k,:)=0.
+      enddo
+    enddo
+  enddo
 
   call timer_toc('tstep/tstep_update')
-
 end subroutine tstep_update
 
 
@@ -228,9 +240,9 @@ subroutine tstep_integrate
 
   if(rk3step /= 3) then
     !$acc parallel loop collapse(3) default(present)
-    do k=1,kmax
-      do j=2,j1
-        do i=1,i1
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 1, i1
           u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
           v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
           w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
@@ -244,10 +256,10 @@ subroutine tstep_integrate
     ! Scalars
     if (nsv > 0) then
       !$acc parallel loop collapse(4) default(present)
-      do n=1,nsv
-        do k=1,kmax
-          do j=2,j1
-            do i=1,i1
+      do n = 1, nsv
+        do k = 1, kmax
+          do j = 2, j1
+            do i = 1, i1
               sv0(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
             end do
           end do
@@ -256,9 +268,9 @@ subroutine tstep_integrate
     endif
   else ! step 3 - store result in both ..0 and ..m
     !$acc parallel loop collapse(3) default(present)
-    do k=1,kmax
-      do j=2,j1
-        do i=1,i1
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 1, i1
           um(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
           u0(i,j,k)   = um(i,j,k)
           vm(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
@@ -278,10 +290,10 @@ subroutine tstep_integrate
     ! Scalars
     if (nsv > 0) then
       !$acc parallel loop collapse(4) default(present)
-      do n=1,nsv
-        do k=1,kmax
-          do j=2,j1
-            do i=1,i1
+      do n = 1, nsv
+        do k = 1, kmax
+          do j = 2, j1
+            do i = 1, i1
               svm(i,j,k,n) = svm(i,j,k,n) + rk3coef * svp(i,j,k,n)
               sv0(i,j,k,n) = svm(i,j,k,n)
             end do
