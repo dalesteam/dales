@@ -439,7 +439,7 @@ contains
 
     use modgpu, only: update_gpu, update_host, host_is_updated
 
-    use modgpu, only: update_gpu, update_host, host_is_updated
+    use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface, update_host_surface
 
     integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
@@ -630,31 +630,33 @@ contains
 
       select case(isurf)
       case(1)
-        tskin  = thls
-        tskinm = tskin
-        tsoilm = tsoil
-        phiwm  = phiw
-        Wlm    = Wl
+        tskin(:,:)  = thls
+        tskinm(:,:) = tskin(:,:)
+        tsoilm(:,:,:) = tsoil(:,:,:)
+        phiwm(:,:,:)  = phiw(:,:,:)
+        Wlm(:,:)    = Wl(:,:)
       case(2)
-        tskin  = thls
+        tskin(:,:)  = thls
       case(3,4)
         thls = thlprof(1)
         qts  = qtprof(1)
-        tskin  = thls
-        qskin  = qts
+        tskin(:,:)  = thls
+        qskin(:,:)  = qts
       case(10)
         call initsurf_user
       end select
 
       ! Set initial Obukhov length to -0.1 for iteration
-      obl   = -0.1
-      oblav = -0.1
+      obl(:,:) = -0.1
+      oblav    = -0.1
 
+      ! qtsurf act on device data.
+      call update_gpu_surface
       call qtsurf
 
-      dthldz = (thlprof(1) - thls)/zf(1)
+      dthldz(:,:) = (thlprof(1) - thls) / zf(1)
       thvs = thls * (1. + (rv/rd - 1.) * qts)
-      if(lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
+      if (lhetero) thvs_patch = thvs  !Needed for initialization: thls_patch and qt_patch not yet calculated
 
       u0av(1)   = uprof(1)
       thl0av(1) = thlprof(1)
@@ -669,13 +671,6 @@ contains
       call boundary
       call thermodynamics
       call surface
-
-       ! Gradients at the top are now calculated in modboundary, every timestep
-!      dtheta = (thlprof(kmax)-thlprof(kmax-1)) / dzh(kmax)
-!      dqt    = (qtprof (kmax)-qtprof (kmax-1)) / dzh(kmax)
-!      do n=1,nsv
-!        dsv(n) = (svprof(kmax,n)-svprof(kmax-1,n)) / dzh(kmax)
-!      end do
 
       call boundary
       call thermodynamics
@@ -1458,34 +1453,34 @@ contains
 
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
 
-    ! calculate derivatives
-    do  k=1,kmax
-      drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
-    end do
+      ! calculate derivatives
+      do  k=1,kmax
+        drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
+      end do
 
-    drhobdzf(k1) = drhobdzf(kmax)
+      drhobdzf(k1) = drhobdzf(kmax)
 
-    drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
+      drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
 
-    do k=2,k1
-      drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
-    end do
+      do k=2,k1
+        drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
+      end do
 
-    ! write profiles and derivatives to standard output
-    write (6,*) ' height   rhobf       rhobh'
-    do k=k1,1,-1
-        write (6,'(1f7.1,2E25.17)') &
-              height (k), &
-              rhobf (k), &
-              rhobh (k)
-    end do
-    write (6,*) ' height   drhobdzf    drhobdzh'
-    do k=k1,1,-1
-        write (6,'(1f7.1,2E25.17)') &
-              height (k), &
-              drhobdzf (k), &
-              drhobdzh (k)
-    end do
+      ! write profiles and derivatives to standard output
+      write (6,*) ' height   rhobf       rhobh'
+      do k=k1,1,-1
+          write (6,'(1f7.1,2E25.17)') &
+                height (k), &
+                rhobf (k), &
+                rhobh (k)
+      end do
+      write (6,*) ' height   drhobdzf    drhobdzh'
+      do k=k1,1,-1
+          write (6,'(1f7.1,2E25.17)') &
+                height (k), &
+                drhobdzf (k), &
+                drhobdzh (k)
+      end do
 
     end if ! ENDIF MYID=0
 
