@@ -1053,9 +1053,6 @@ contains
       !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
-          if (i==2 .and. j==2) then
-            write(*,*) qts
-          endif
           qt0h(i,j,1) = qts
         end do
       end do
