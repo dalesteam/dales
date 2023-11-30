@@ -10,12 +10,13 @@
 module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
   use mpi
+  use modglobal, only : checknamelisterror, ifnamopt, fname_options
 #if defined(USE_NVTX)
   use modnvtx
 #endif
   implicit none
   private
-  public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write
+  public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write, inittimer
   !
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
@@ -26,7 +27,27 @@ module modtimer
                                            timer_elapsed_max(:)
   logical , allocatable :: timer_is_nvtx(:)
   integer :: ntimers = 0
+  logical :: ltimer = .false. ! Switch for enabling/disabling timings
+  logical :: ltimer_print = .true. ! Switch for printing timing results to std out
+  logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
 contains
+  subroutine inittimer
+    implicit none
+    integer :: myid, ierr
+
+    call MPI_COMM_RANK(MPI_COMM_WORLD, myid, ierr)
+
+    namelist /TIMER/ ltimer, ltimer_print, ltimer_write
+
+    if (myid == 0) then
+      open(ifnamopt, file=fname_options, status='old', iostat=ierr)
+      read(ifnamopt, TIMER, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt , 'TIMER')
+      write(6, TIMER)
+      close(ifnamopt)
+    end if
+
+  end subroutine inittimer
   subroutine timer_print(myid_arg)
     use, intrinsic :: iso_fortran_env, only: stdo => output_unit
     integer , parameter :: MYID_PRINT = 0
@@ -38,6 +59,9 @@ contains
                              timing_results_max(:,:)
     integer  :: i,myid,nproc,ierr,iend
     !
+    if (.not. ltimer) return
+    if (.not. ltimer_print) return
+
     if(present(myid_arg)) then
       myid = myid_arg
     else
@@ -105,6 +129,9 @@ contains
     integer  :: i,myid,nproc,ierr,iend
     integer :: file
     !
+    if (.not. ltimer) return
+    if (.not. ltimer_write) return
+
     if(present(myid_arg)) then
       myid = myid_arg
     else
@@ -153,6 +180,9 @@ contains
     integer :: idx,nvtx_id
     logical :: is_nvtx,is_gpu_sync
     !@cuf integer :: istat
+
+    if (.not. ltimer) return
+    
     if(.not.allocated(timer_names)) then
       allocate(timer_names(      0), &
                timer_counts(     0), &
@@ -230,6 +260,9 @@ contains
     integer :: idx
     logical :: is_gpu_sync
     !@cuf integer :: istat
+
+    if (.not. ltimer) return
+    
     if(present(ierror)) ierror = 0
     idx = timer_search(timer_name)
     if (idx > 0) then

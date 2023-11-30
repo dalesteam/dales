@@ -155,7 +155,7 @@ program DALES
 
 
 !----------------------------------------------------------------
-!     0.2     USE STATEMENTS FOR NVTX TIMER MODULE
+!     0.2     USE STATEMENTS FOR TIMER MODULE
 !----------------------------------------------------------------
 
   use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write
