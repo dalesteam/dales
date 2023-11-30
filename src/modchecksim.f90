@@ -60,10 +60,10 @@ contains
     implicit none
     integer :: ierr
 
-    call timer_tic('modchecksim/initchecksim', 0)
-
     namelist/NAMCHECKSIM/ &
     tcheck
+
+    call timer_tic('modchecksim/initchecksim', 0)
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)

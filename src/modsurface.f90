@@ -82,8 +82,6 @@ contains
     integer   :: tempx,tempy
     character(len=1500) :: readbuffer
 
-    call timer_tic('modsurface/initsurface', 0)
-    
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -104,6 +102,8 @@ contains
       lsplitleaf, &
       ! Exponential emission function
       i_expemis, expemis0, expemis1, expemis2
+
+    call timer_tic('modsurface/initsurface', 0)
 
 
     ! 1    -   Initialize soil

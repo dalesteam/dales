@@ -201,11 +201,11 @@ contains
     integer n, ierr
     character(40) :: name
     character(3) :: csvname
-
-    call timer_tic('modgenstat/initgenstat', 0)
     
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
+
+    call timer_tic('modgenstat/initgenstat', 0)
 
     dtav=dtav_glob;timeav=timeav_glob
 

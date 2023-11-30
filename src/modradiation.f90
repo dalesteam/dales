@@ -41,8 +41,6 @@ contains
 
     integer :: ierr
 
-    call timer_tic('modradiation/initradiation', 0)
-
     namelist/NAMDE/ &
       SSA,iDE,laero
 
@@ -50,6 +48,8 @@ contains
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
       ocean, usero3, co2factor, doperpetual, doseasons, iyear
+
+    call timer_tic('modradiation/initradiation', 0)
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
