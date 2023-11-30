@@ -61,6 +61,7 @@
 
 
 module modsurface
+  use modtimer
   use modsurfdata
   implicit none
   !public  :: initsurface, surface, exitsurface
@@ -79,7 +80,8 @@ contains
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
- character(len=1500) :: readbuffer
+    character(len=1500) :: readbuffer
+
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -100,6 +102,8 @@ contains
       lsplitleaf, &
       ! Exponential emission function
       i_expemis, expemis0, expemis1, expemis2
+
+    call timer_tic('modsurface/initsurface', 0)
 
 
     ! 1    -   Initialize soil
@@ -711,6 +715,8 @@ contains
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                  dqtdz, dthldz, svflux, svs, horv)
 
+    call timer_toc('modsurface/initsurface')
+
     return
   end subroutine initsurface
 
@@ -718,6 +724,8 @@ contains
   subroutine surface
     use moduser,    only : surf_user
     implicit none
+
+    call timer_tic('modsurface/surface', 0)
     
     select case (isurf)
       case (1) ! Interactive land surface model
@@ -760,6 +768,8 @@ contains
       case default
         stop "Invalid option selected for isurf"
     end select
+
+    call timer_toc('modsurface/surface')
 
   end subroutine surface
 

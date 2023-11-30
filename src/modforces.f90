@@ -33,6 +33,7 @@
 
 
 module modforces
+use modtimer
 !Calculates additional forces and large scale tendencies
 implicit none
 save
@@ -67,6 +68,8 @@ contains
   implicit none
 
   integer i, j, k
+
+  call timer_tic('modforces/forces', 0)
 
   if (lforce_user) call force_user
 
@@ -103,6 +106,8 @@ contains
 
   !$acc wait
 
+  call timer_toc('modforces/forces')
+
   end subroutine forces
   subroutine coriolis
 
@@ -129,6 +134,8 @@ contains
   integer i, j, k
 
   if (lcoriol .eqv. .false.) return
+
+  call timer_tic('modforces/coriolis', 0)
 
   !$acc parallel loop collapse(3) default(present) async
   do k=2,kmax
@@ -172,6 +179,7 @@ contains
   end do
 !     ----------------------------------------------end i,j-loop
   !$acc wait
+  call timer_toc('modforces/coriolis')
   return
   end subroutine coriolis
 
@@ -204,6 +212,8 @@ contains
   implicit none
 
   integer i, j, k, n
+
+  call timer_tic('modforces/lstend', 0)
 
 !     1. DETERMINE LARGE SCALE TENDENCIES
 !        --------------------------------
@@ -298,6 +308,8 @@ contains
   end if
   
   !$acc wait
+
+  call timer_toc('modforces/lstend')
 
   return
   end subroutine lstend

@@ -28,6 +28,7 @@
 
 module modradiation
 use modraddata
+use modtimer
 implicit none
 
 contains
@@ -47,6 +48,8 @@ contains
       lCnstZenith, cnstZenith, lCnstAlbedo, ioverlap, &
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
       ocean, usero3, co2factor, doperpetual, doseasons, iyear
+
+    call timer_tic('modradiation/initradiation', 0)
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -169,19 +172,21 @@ contains
 
     !$acc enter data copyin(thlprad)
 
-    if (iradiation == 0) return
+    if (iradiation /= 0) then
+      itimerad = floor(timerad/tres)
+      !setting tnext is done in modstartup, after btime has been set
+      !tnext = itimerad+btime
+      !dt_lim = min(dt_lim,tnext)
 
-    itimerad = floor(timerad/tres)
-    !setting tnext is done in modstartup, after btime has been set
-    !tnext = itimerad+btime
-    !dt_lim = min(dt_lim,tnext)
-
-    if (rad_smoke.and.isvsmoke>nsv) then
-      if (rad_shortw) then
-         stop 'you want to compute solar radiative transfer through a smoke cloud'
+      if (rad_smoke.and.isvsmoke>nsv) then
+        if (rad_shortw) then
+           stop 'you want to compute solar radiative transfer through a smoke cloud'
+        endif
+        stop 'Smoke radiation with wrong (non-existent?) scalar field'
       endif
-      stop 'Smoke radiation with wrong (non-existent?) scalar field'
-    endif
+    end if
+
+    call timer_toc('modradiation/initradiation')
 
   end subroutine
 
@@ -201,6 +206,7 @@ contains
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
+    call timer_tic('modradiation/radiation', 0)
     if((itimerad==0 .or. timee>=tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
 
@@ -244,6 +250,8 @@ contains
     !$acc kernels default(present)
     thlp = thlp + thlprad
     !$acc end kernels
+
+    call timer_toc('modradiation/radiation')
 
   end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -480,12 +488,16 @@ subroutine radpar
   use modfields,    only : thlpcar
   implicit none
   integer k
+
+  call timer_tic('modradiation/radprof', 1)
     
   !$acc kernels default(present)
   do k=1,kmax
     thlprad(2:i1,2:j1,k) = thlprad(2:i1,2:j1,k) + thlpcar(k)
   end do
   !$acc end kernels
+
+  call timer_toc('modradiation/radprof')
 
   return
   end subroutine radprof

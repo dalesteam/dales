@@ -32,6 +32,7 @@
 module modstartup
 use iso_c_binding
 use modprecision,      only : field_r
+use modtimer
 
 implicit none
 ! private
@@ -96,6 +97,7 @@ contains
     implicit none
     integer :: ierr
     character(256), optional, intent(in) :: path
+
 
     !declare namelists
     namelist/RUN/ &
@@ -274,6 +276,8 @@ contains
     call testwctime
     ! Allocate and initialize core modules
     call initglobal
+    call inittimer
+    call timer_tic('modstartup/startup', 0)
     call initfields
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
@@ -301,6 +305,8 @@ contains
     call inittstep
 
     call checkinitvalues
+
+    call timer_toc('modstartup/startup')
 
   end subroutine startup
 

@@ -28,7 +28,7 @@
 !
 module modchecksim
   use modglobal, only : longint
-
+  use modtimer
   implicit none
   private
   public initchecksim,checksim
@@ -59,8 +59,11 @@ contains
     use modmpi,    only : myid,comm3d,mpierr,D_MPI_BCAST
     implicit none
     integer :: ierr
+
     namelist/NAMCHECKSIM/ &
     tcheck
+
+    call timer_tic('modchecksim/initchecksim', 0)
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -89,6 +92,8 @@ contains
     allocate(peclettotl(k1))
     allocate(peclettot(k1))
 
+    call timer_toc('modchecksim/initchecksim')
+
   end subroutine initchecksim
 !>Run checksim. Timekeeping, and output
   subroutine checksim
@@ -100,6 +105,7 @@ contains
     if (rk3step/=3) return
     dtmn = dtmn +rdt; ndt =ndt+1.
     if(timee<tnext) return
+    call timer_tic('modchecksim/checksim', 0)
     tnext = tnext+itcheck
     dtmn  = dtmn / ndt
     if (myid==0) then
@@ -112,6 +118,8 @@ contains
     call chkdiv
     dtmn  = 0.
     ndt   = 0.
+
+    call timer_toc('modchecksim/checksim')
 
   end subroutine checksim
 !>      Calculates the courant number as in max(w)*deltat/deltaz

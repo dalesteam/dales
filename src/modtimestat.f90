@@ -32,7 +32,7 @@
 
 
 module modtimestat
-
+  use modtimer
   use modprecision, only : longint, field_r
 
 implicit none
@@ -97,6 +97,8 @@ contains
 
     namelist/NAMTIMESTAT/ & !< namelist
     dtav,ltimestat,blh_thres,iblh_meth,iblh_var,blh_nsamp !! namelist contents
+
+    call timer_tic('modtimestat/inittimestat', 0)
 
     dtav=dtav_glob
     if(myid==0)then
@@ -341,6 +343,8 @@ contains
 
     !$acc enter data copyin(blh_fld, sv0h, profile, gradient, dgrad)
 
+    call timer_toc('modtimestat/inittimestat')
+
   end subroutine inittimestat
 
 !>Run timestat. Calculate and write the statistics
@@ -386,6 +390,9 @@ contains
       dt_lim = min(dt_lim,tnext-timee)
       return
     end if
+
+    call timer_tic('modtimestat/timestat', 0)
+    
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
@@ -1012,6 +1019,8 @@ contains
       endif
 
     end if
+
+    call timer_toc('modtimestat/timestat')
 
   end subroutine timestat
 

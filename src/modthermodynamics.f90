@@ -30,7 +30,7 @@
 
 module modthermodynamics
   use modprecision, only : field_r
-
+  use modtimer
   implicit none
 !   private
   public :: thermodynamics,calc_halflev
@@ -68,6 +68,8 @@ contains
     use modmpi, only : slabsum
     implicit none
     integer:: i, j, k
+
+    call timer_tic('modthermodynamics/thermodynamics', 0)
 
     if (timee < 0.01) then
       call diagfld
@@ -129,6 +131,8 @@ contains
 
     !$acc wait
 
+    call timer_toc('modthermodynamics/thermodynamics')
+
   end subroutine thermodynamics
 !> Cleans up after the run
   subroutine exitthermodynamics
@@ -149,6 +153,9 @@ contains
     real    a_surf,b_surf,dq,dth,dthv,temp
     real    a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi
     real    del_thv_sat, del_thv_dry
+
+    call timer_tic('modthermodynamics/calthv', 1)
+    
     dthvdz = 0
     if (lmoist) then
 
@@ -261,6 +268,8 @@ contains
     
     !$acc wait
 
+    call timer_toc('modthermodynamics/calthv')
+
   end subroutine calthv
 !> Calculate diagnostic slab averaged fields.
 !!     Calculates slab averaged fields assuming
@@ -278,6 +287,8 @@ contains
   implicit none
 
   integer :: k,n
+
+  call timer_tic('modthermodynamics/diagfld', 1)
 
 
 !*********************************************************
@@ -368,6 +379,8 @@ contains
 
    !$acc wait
 
+   call timer_toc('modthermodynamics/diagfld')
+
    return
   end subroutine diagfld
 
@@ -392,6 +405,8 @@ contains
 
   integer   k
   real      rdocp
+
+  call timer_tic('modthermodynamics/fromztop', 1)
 
   rdocp = rd/cp
 
@@ -447,6 +462,7 @@ contains
     presh(k) = presh(k)**(1./rdocp)
   end do
   !$acc wait
+  call timer_toc('modthermodynamics/fromztop')
   return
   end subroutine fromztop
 
@@ -652,6 +668,8 @@ contains
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
 
+    call timer_tic('modthermodynamics/icethermo0_fast', 1)
+
     ! Sanity checks
     !$acc parallel loop vector private(Tl_min, Tl_max, qt_max) default(present) async
     do k = 1, k1
@@ -710,6 +728,7 @@ contains
         end do
       end do
     end do
+    call timer_toc('modthermodynamics/icethermo0_fast')
   end subroutine icethermo0_fast
 
 !> Calculates liquid water content ql for halflevels
@@ -735,6 +754,8 @@ contains
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
     real(field_r) :: Tl_min, Tl_max
+
+    call timer_tic('modthermodynamics/icethermoh_fast', 1)
 
     !$acc parallel loop vector default(present) private(Tl_min, Tl_max) async
     do k = 1, k1
@@ -773,6 +794,7 @@ contains
         end do
       end do
     end do
+    call timer_toc('modthermodynamics/icethermoh_fast')
   end subroutine icethermoh_fast
 !!!!!!!!! new thermo
 
@@ -996,6 +1018,8 @@ contains
 
     integer :: i,j,k
 
+    call timer_tic('modthermodynamics/calc_halflev', 1)
+
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
@@ -1037,6 +1061,7 @@ contains
     end if
 
     !$acc wait
+    call timer_toc('modthermodynamics/calc_halflev')
   end subroutine calc_halflev
 
 end module modthermodynamics

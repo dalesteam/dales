@@ -29,7 +29,7 @@
 
 module modpois
 use modprecision, only : pois_r
-
+use modtimer
 implicit none
 private
 public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
@@ -124,6 +124,8 @@ contains
 
     logical converged
 
+    call timer_tic('modpois/poisson', 0)
+
     call fillps
 
     if (solver_id == 0) then
@@ -170,6 +172,8 @@ contains
 
     call tderive
 
+    call timer_toc('modpois/poisson')
+
   end subroutine poisson
 
   subroutine fillps
@@ -188,6 +192,8 @@ contains
     implicit none
     integer i,j,k
     real(pois_r) :: rk3coef
+
+    call timer_tic('modpois/fillps', 1)
 
     ! TODO: allocate these in initpois
     rk3coef = rdt / (4. - dble(rk3step))
@@ -236,6 +242,8 @@ contains
 
     !$acc wait
 
+    call timer_toc('modpois/fillps')
+
   end subroutine fillps
 
   subroutine tderive
@@ -265,6 +273,8 @@ contains
     use modmpi,    only : excjs
     implicit none
     integer i,j,k
+
+    call timer_tic('modpois/tderive', 1)
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
@@ -297,6 +307,8 @@ contains
 
     !$acc wait
 
+    call timer_toc('modpois/tderive')
+    
     return
   end subroutine tderive
 
@@ -340,8 +352,10 @@ contains
     real(pois_r) :: z,ak,bk,bbk
     integer :: i, j, k
 
+    call timer_tic('modpois/solmpj', 1)
+    
   ! Generate tridiagonal matrix
-
+    
     !$acc parallel loop default(present) async(1)
     do k=1,kmax
       ! SB fixed the coefficients
@@ -425,6 +439,8 @@ contains
     end do
 
     !$acc wait
+
+    call timer_toc('modpois/solmpj')
   end subroutine solmpj
 
 end module modpois

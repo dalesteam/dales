@@ -67,6 +67,7 @@ module modgenstat
     !    lstat      SWITCH TO ENABLE TIMESERIES                       |
     !-----------------------------------------------------------------|
   use modprecision
+  use modtimer
 
   implicit none
   ! private
@@ -200,8 +201,11 @@ contains
     integer n, ierr
     character(40) :: name
     character(3) :: csvname
+    
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
+
+    call timer_tic('modgenstat/initgenstat', 0)
 
     dtav=dtav_glob;timeav=timeav_glob
 
@@ -482,6 +486,8 @@ contains
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
     !$acc&                  ql2av, thvmav, thmav, qlptav, thv0)
 
+    call timer_toc('modgenstat/initgenstat')
+
   end subroutine initgenstat
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine genstat
@@ -491,10 +497,14 @@ contains
     if (.not. lstat) return
     if (rk3step/=3) return
 
+
     if(timee<tnext .and. timee<tnextwrite) then
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
     end if
+
+    call timer_tic('modgenstat/genstat', 0)
+
     if (timee>=tnext) then
       tnext = tnext+idtav
       call do_genstat
@@ -504,6 +514,9 @@ contains
       call writestat
     end if
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
+
+    call timer_toc('modgenstat/genstat')
+    
   end subroutine genstat
 
   subroutine do_genstat
@@ -516,7 +529,6 @@ contains
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE,myid
     use advec_kappa, only : halflev_kappa
-    use modtimer, only: timer_tic, timer_toc
     implicit none
 
     real cthl,cqt,den
@@ -533,6 +545,8 @@ contains
     real :: uwsub_s, vwsub_s, uwres_s, vwres_s
     real :: wqlres_s, wthlres_s, wthvres_s, wqtres_s
     real :: wsvsub_s, wsvres_s
+
+    call timer_tic('modgenstat/do_genstat', 1)
 
   !-----------------------------------------------------------------------
   !     1.    INITIALISE LOCAL CONSTANTS
@@ -1085,6 +1099,8 @@ contains
       cszmn = cszmn + cszav
       !$acc end kernels
 
+      call timer_toc('modgenstat/do_genstat')
+
   end subroutine do_genstat
 
   subroutine calc_moment(prof, var, n, kb, ke, ib, ie, jb, je, mean, c_in)
@@ -1149,6 +1165,8 @@ contains
       integer nsecs, nhrs, nminut,k,n
       real convt, convq
       character(40) :: name
+
+      call timer_tic('modgenstat/writestat', 1)
 
       nsecs   = nint(rtimee)
       nhrs    = int(nsecs/3600)
@@ -1601,6 +1619,7 @@ contains
 
       deallocate(tmn, thmn)
 
+      call timer_toc('modgenstat/writestat')
 
   end subroutine writestat
   subroutine exitgenstat

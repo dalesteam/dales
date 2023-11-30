@@ -1,6 +1,7 @@
 module modcufft
   use, intrinsic :: iso_c_binding 
 
+  use modtimer
   use modmpi
   use modglobal, only: itot, jtot, kmax, i1, j1, &
                        imax, jmax, ih, jh, dxi, dyi, pi, ijtot
@@ -337,6 +338,8 @@ module modcufft
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
+
+      call timer_tic('modcufft/cufftf', 1)
       
       call transpose_a1(p, px)
 
@@ -362,6 +365,8 @@ module modcufft
 
       call transpose_a3(py, Fp)
 
+      call timer_toc('modcufft/cufftf')
+
     end subroutine cufftf
 
     !< Backward transforms
@@ -372,6 +377,8 @@ module modcufft
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
+
+      call timer_tic('modcufft/cufftb', 1)
 
       call transpose_a3inv(py, Fp)
       call preprocess_b_fft(py, (/2*nphiy, konx, iony/), jtot)
@@ -407,6 +414,8 @@ module modcufft
           end do
         end do
       end do
+
+      call timer_toc('modcufft/cufftb')
 
     end subroutine cufftb
 

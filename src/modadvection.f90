@@ -25,6 +25,7 @@
 !
 
 module modadvection
+use modtimer
 contains
 !> Advection redirection function
 subroutine advection
@@ -44,6 +45,8 @@ subroutine advection
   use advec_upw,      only : advecc_upw
   implicit none
   integer :: n
+
+  call timer_tic('modadvection/advection', 0)
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
@@ -211,5 +214,6 @@ subroutine advection
     end select
   end do
   !$acc wait
+  call timer_toc('modadvection/advection')
 end subroutine advection
 end module modadvection
