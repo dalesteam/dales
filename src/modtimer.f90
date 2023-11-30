@@ -15,7 +15,7 @@ module modtimer
 #endif
   implicit none
   private
-  public :: timer_tic,timer_toc,timer_print,timer_cleanup
+  public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write
   !
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
@@ -94,6 +94,55 @@ contains
       end if
     end if
   end subroutine timer_print
+  subroutine timer_write(myid_arg)
+    integer , parameter :: MYID_PRINT = 0
+    logical , parameter :: is_verbose_level_1 = .false.
+    logical , parameter :: is_verbose_level_2 = .false.
+    integer , intent(in), optional :: myid_arg
+    real(dp), allocatable :: timing_results_acc(:,:), &
+                             timing_results_min(:,:), &
+                             timing_results_max(:,:)
+    integer  :: i,myid,nproc,ierr,iend
+    integer :: file
+    !
+    if(present(myid_arg)) then
+      myid = myid_arg
+    else
+      call MPI_COMM_RANK(MPI_COMM_WORLD,myid,ierr)
+    end if
+    allocate(timing_results_acc(ntimers,3), &
+             timing_results_min(ntimers,3), &
+             timing_results_max(ntimers,3))
+    call MPI_COMM_SIZE(MPI_COMM_WORLD,nproc,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    timing_results_acc(:,3) = timing_results_acc(:,3)/nproc
+    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    timing_results_min(:,3) = timing_results_min(:,3)/nproc
+    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    timing_results_max(:,3) = timing_results_max(:,3)/nproc
+
+    if (myid == MYID_PRINT) then
+
+      open(newunit=file, file="timing.csv")
+      write(file, '(A)') "Label;Elapsed time;Number of calls;Time per call"
+      do i = 1, ntimers
+        write(file, '(A,A,1E15.7,A,I7,A,1E15.7)') &
+              trim(timer_names(i)),  ";", &
+              timing_results_acc(i,3:3), ";", &
+              timer_counts(i) , ";", &
+              timing_results_acc(i,3:3)/timer_counts(i) 
+      end do
+      close(file)
+
+    end if
+
+  end subroutine timer_write
   subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
     !@cuf use cudafor
     character(*), intent(in) :: timer_name

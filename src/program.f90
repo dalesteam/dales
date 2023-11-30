@@ -158,7 +158,7 @@ program DALES
 !     0.2     USE STATEMENTS FOR NVTX TIMER MODULE
 !----------------------------------------------------------------
 
-  use modtimer,       only : timer_tic, timer_toc, timer_print
+  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write
 
 !----------------------------------------------------------------
 !     0.3     USE STATEMENTS FOR GPU UTILITIES
@@ -338,6 +338,7 @@ program DALES
 !-------------------------------------------------------
 
   call timer_print
+  call timer_write
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
