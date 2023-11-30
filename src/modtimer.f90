@@ -34,10 +34,9 @@ contains
   subroutine inittimer
     implicit none
     integer :: myid, ierr
+    namelist /TIMER/ ltimer, ltimer_print, ltimer_write
 
     call MPI_COMM_RANK(MPI_COMM_WORLD, myid, ierr)
-
-    namelist /TIMER/ ltimer, ltimer_print, ltimer_write
 
     if (myid == 0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
