@@ -206,7 +206,7 @@ contains
 
       if (rad_longw) then
         call rrtmg_lw & !comments = corresponding variable names in the RRTMGP library
-                (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, int(0,kind_im), & !ncol, nlay, icld, idrv
+                (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, & !ncol, nlay, icld, (+ idrv in later versions !)
                  layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
                  h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
                  cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis, & !cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis
@@ -214,24 +214,24 @@ contains
                  taucldlw, IWP_slice, LWP_slice, iceRe, liquidRe, & !taucld, cicewp, cliqwp, reice, reliq
                  tauaerlw, lwUp_slice, lwDown_slice, lwHR_slice, & !tauaer, uflx, dflx, hr
                  lwUpCS_slice, lwDownCS_slice, lwHRCS_slice) !uflxc, dflxc, hrc
-                 !duflx_dt,duflxc_dt (extra optional arguments only if idrv=1)
+                 !duflx_dt,duflxc_dt (extra optional arguments only if idrv=1 for later versions)
         !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
          call setupSW(sunUp)
          if (sunUp) then
            call rrtmg_sw & !comments = corresponding variable names in the RRTMGP library
-                   (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, int(0,kind_im), & !ncol, nlay, icld, iaer
+                   (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, & !ncol, nlay, icld, (+ iaer in later versions !)
                     layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
                     h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
                     asdir, asdif, aldir, aldif, & !asdir, asdif, aldir, aldif
-                    solarZenithAngleCos, real(eccf,kind_rb), int(0,kind_im), real(sw0,kind_rb), int(0,kind_im), & !coszen, adjes, dyofyr, scon, isolvar
+                    solarZenithAngleCos, real(eccf,kind_rb), int(0,kind_im), real(sw0,kind_rb), & !coszen, adjes, dyofyr, scon, (+ isolvar in later versions)
                     inflgsw, iceflgsw, liqflgsw, cloudFrac, & !inflgsw, iceflgsw, liqflgsw, cldfr
                     taucldsw, ssacldsw, asmcldsw, fsfcldsw, & !taucld, ssacld, asmcld, fsfcld
                     IWP_slice, LWP_slice, iceRe, liquidRe, & !cicewp, cliqwp, reice, reliq
                     tauaersw, ssaaersw, asmaersw, ecaersw, & !tauaer, ssaaer, asmaer, ecaer
                     swUp_slice, swDown_slice, swHR_slice, swUpCS_slice, swDownCS_slice, swHRCS_slice) !swuflx, swdflx, swhr, swuflxc, swdflxc, swhrc
-                    !bndsolvar, indsolvar, solcycfrac (extra optional inputs)
+                    !bndsolvar, indsolvar, solcycfrac (extra optional inputs in later versions)
          end if
       end if
 
