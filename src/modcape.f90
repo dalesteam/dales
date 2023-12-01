@@ -101,7 +101,7 @@ contains
     call ncinfo(ncname( 17,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
     call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
-    call ncinfo(ncname( 20,:),'surfprec','surface precipitation','-','tt0t')
+    call ncinfo(ncname( 20,:),'surfprec','surface precipitation','kg/m^2/s','tt0t')
     call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
     call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
     call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','tt0t')

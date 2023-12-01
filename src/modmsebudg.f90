@@ -77,7 +77,7 @@ contains
       fname(20:22) = cexpnr
       call ncinfo(tmsencname(1,:),'time','Time','s','time')
       call ncinfo(ncmsename( 1,:),'fmse'     ,'mass-weighted vertical integral of frozen moist static energy','J/m2','tt0t')
-      call ncinfo(ncmsename( 2,:),'hadvmse'  ,'mass-weighted vertical integral of horizontal advective tendency of frozen moist static energy','J/m2/','tt0t')
+      call ncinfo(ncmsename( 2,:),'hadvmse'  ,'mass-weighted vertical integral of horizontal advective tendency of frozen moist static energy','J/m2/s','tt0t')
       call ncinfo(ncmsename( 3,:),'vadvmse'  ,'mass-weighted vertical integral of vertical advective tendency of frozen moist static energy','J/m2/s','tt0t')
       call ncinfo(ncmsename( 4,:),'tnfmse'   ,'total tendency of mass-weighted vertical integral of frozen moist static energy','J/m2/s','tt0t')
 !      call ncinfo(ncmsename( 5,:),'tnfmsevar','total tendency of spatial variance of mass-weighted vertical integral of frozen moist static energy','J2/m4/s','tt0t')
