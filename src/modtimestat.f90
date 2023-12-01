@@ -61,6 +61,7 @@ save
   real    :: blh_thres=-1 ,blh_sign=1.0
   real   :: zbaseav, ztopav, ztopmax,zbasemin
   real   :: qlintav, qlintmax, tke_tot
+  real(field_r) :: prav, pravl
   real   :: qtintav, qrintav
   real   :: cc, wmax, qlmax
   real   :: qlint, qtint, qrint
@@ -118,8 +119,8 @@ contains
 
     tnext = idtav+btime
 
-    nvar = 23
-    ivar_rad = 24
+    nvar = 24
+    ivar_rad = 25
     if(isurf == 1) then
        nvar = nvar + 11
        ivar_rad = ivar_rad + 11
@@ -127,7 +128,7 @@ contains
     if (iradiation /= 0) then
        nvar = nvar + 19
     end if
-    
+
     if(.not.(ltimestat)) return
     dt_lim = min(dt_lim,tnext)
 
@@ -266,19 +267,20 @@ contains
         call ncinfo(ncname(21,:),'wq','Surface kinematic moisture flux','kg/kg m/s','time')
         call ncinfo(ncname(22,:),'twp_bar','Total water path','kg/m^2','time')
         call ncinfo(ncname(23,:),'rwp_bar','Rain water path','kg/m^2','time')
+        call ncinfo(ncname(24,:),'pr','surface precipitation rate','kg/m^2/s','time')
 
         if(isurf==1) then
-          call ncinfo(ncname(24,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(25,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(26,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(27,:),'G0','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(28,:),'tendskin','Skin tendency','W/m^2','time')
-          call ncinfo(ncname(29,:),'rs','Surface resistance','s/m','time')
-          call ncinfo(ncname(30,:),'ra','Aerodynamic resistance','s/m','time')
-          call ncinfo(ncname(31,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
-          call ncinfo(ncname(32,:),'Wl','Liquid water reservoir','m','time')
-          call ncinfo(ncname(33,:),'rssoil','Soil evaporation resistance','s/m','time')
-          call ncinfo(ncname(34,:),'rsveg','Vegitation resistance','s/m','time')
+          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(28,:),'G0','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(29,:),'tendskin','Skin tendency','W/m^2','time')
+          call ncinfo(ncname(30,:),'rs','Surface resistance','s/m','time')
+          call ncinfo(ncname(31,:),'ra','Aerodynamic resistance','s/m','time')
+          call ncinfo(ncname(32,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
+          call ncinfo(ncname(33,:),'Wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(34,:),'rssoil','Soil evaporation resistance','s/m','time')
+          call ncinfo(ncname(35,:),'rsveg','Vegitation resistance','s/m','time')
         end if
 
         if (iradiation /= 0) then
@@ -370,10 +372,10 @@ contains
 !>Run timestat. Calculate and write the statistics
   subroutine timestat
 
-    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
+    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1, &
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
-    use modmicrodata, only : imicro, iqr
-    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhof,u0,v0,w0,sv0
+    use modmicrodata, only : imicro, iqr, imicro_sice, imicro_sice2, imicro_bulk, precep
+    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -472,7 +474,6 @@ contains
     zbaseavl = 0.0
     ztopavl = 0.0
     zbaseminl = zf(kmax)
-
     store_zi = .true.
 
     call calcblheight
@@ -553,7 +554,10 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseminl, zbasemin, 1, &
                           MPI_MIN, comm3d,mpierr)
-
+    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
+       pravl = sum(precep(2:i1,2:j1,1))
+       call D_MPI_ALLREDUCE(pravl, prav, 1, MPI_SUM, comm3d,mpierr)
+    end if
     if (lhetero) then
       cc_patch    = patchsum_1level(cc_field   )
       qlint_patch = patchsum_1level(qlint_field)
@@ -635,6 +639,7 @@ contains
     qlintav = qlintav / ijtot !domain averaged liquid water path
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
+    prav    = prav*rhobf(1) / ijtot !domain averaged precipitation rate
 
     if (lhetero) then
       do j=1,ypatches
@@ -933,19 +938,20 @@ contains
         vars(21) = wqls
         vars(22) = qtintav
         vars(23) = qrintav
+        vars(24) = prav
 
         if (isurf == 1) then
-          vars(24) = Qnetav
-          vars(25) = Hav
-          vars(26) = LEav
-          vars(27) = G0av
-          vars(28) = tendskinav
-          vars(29) = rsav
-          vars(30) = raav
-          vars(31) = cliqav
-          vars(32) = wlav
-          vars(33) = rssoilav
-          vars(34) = rsvegav
+          vars(25) = Qnetav
+          vars(26) = Hav
+          vars(27) = LEav
+          vars(28) = G0av
+          vars(29) = tendskinav
+          vars(30) = rsav
+          vars(31) = raav
+          vars(32) = cliqav
+          vars(33) = wlav
+          vars(34) = rssoilav
+          vars(35) = rsvegav
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
