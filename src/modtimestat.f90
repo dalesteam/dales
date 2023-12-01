@@ -913,7 +913,6 @@ contains
       if (lnetcdf) then
         vars( 1) = rtimee
         vars( 2) = cc
-        if (vars(2)<eps1) vars(2) = nc_fillvalue
         vars( 3) = zbaseav
         if (vars(3)<eps1) vars(3) = nc_fillvalue
         vars( 4) = ztopav
