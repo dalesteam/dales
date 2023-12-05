@@ -414,7 +414,7 @@ contains
 !    1.0 Determine theta and qt at half levels    *
 !**************************************************
 
-  !$acc parallel loop default(present) async(1)
+  !$acc parallel loop default(present)
   do k=2,k1
     thetah(k) = (th0av(k)*dzf(k-1) + th0av(k-1)*dzf(k))/(2*dzh(k))
     qth   (k) = (qt0av(k)*dzf(k-1) + qt0av(k-1)*dzf(k))/(2*dzh(k))
@@ -428,15 +428,14 @@ contains
 
 !     1: lowest level: use first level value for safety!
 
-  !$acc serial default(present) async(2)
+  !$acc update self(thetah, qth, qlh, th0av, qt0av, ql0av)
+
   thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
   presf(1) = ps**rdocp - grav*(pref0**rdocp)*zf(1) /(cp*thvh(1))
   presf(1) = presf(1)**(1./rdocp)
-  !$acc end serial
 
 !     2: higher levels
 
-  !$acc serial loop default(present) async(2) wait(1)
   do k=2,k1
     thvh(k)  = thetah(k)*(1+(rv/rd-1)*qth(k)-rv/rd*qlh(k))
     presf(k) = presf(k-1)**rdocp - &
@@ -449,19 +448,17 @@ contains
 !           assuming hydrostatic equilibrium      *
 !**************************************************
 
-  !$acc serial default(present) async(3)
   presh(1) = ps
   thvf(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1))
-  !$acc end serial
 
-  !$acc serial loop default(present) async(3)
   do k=2,k1
     thvf(k)  = th0av(k)*(1+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
     presh(k) = presh(k-1)**rdocp - &
                    grav*(pref0**rdocp)*dzf(k-1) / (cp*thvf(k-1))
     presh(k) = presh(k)**(1./rdocp)
   end do
-  !$acc wait
+
+  !$acc update device(thvh, presf, thvf, presh)
   call timer_toc('modthermodynamics/fromztop')
   return
   end subroutine fromztop
