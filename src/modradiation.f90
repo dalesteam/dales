@@ -193,6 +193,7 @@ contains
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
+    use modradrte_rrtmgp, only : radrte_rrtmgp
     implicit none
     real wtime
 
@@ -216,6 +217,8 @@ contains
             call radlsm
           case (irad_rrtmg)
             call radrrtmg
+          case (irad_rte_rrtmgp)
+            call radrte_rrtmgp
           case (irad_user)
 ! EWB: the if statement should came first because moduser uses a radpar variable
             if(rad_longw.or.rad_shortw) then

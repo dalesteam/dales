@@ -3,7 +3,7 @@ module modradrrtmg
   implicit none
 
   private
-  public :: radrrtmg
+  public :: radrrtmg, readSounding
 
 contains
 

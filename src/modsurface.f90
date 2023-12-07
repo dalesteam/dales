@@ -72,7 +72,7 @@ contains
   subroutine initsurface
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg, irad_rte_rrtmgp
     use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
 
     implicit none
@@ -177,7 +177,9 @@ contains
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
       lCO2Ags = .false.
     endif
-    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) .or. (iradiation .eq. irad_rrtmg))))) then
+    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) &
+                                                                          .or.(iradiation .eq. irad_rrtmg) &
+                                                                          .or.(iradiation .eq. irad_rte_rrtmgp))))) then
       if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw"
       if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
       lsplitleaf = .false.

@@ -3,7 +3,17 @@ set(target_lib dales)
 
 # Add all Fortran90 files from this directory
 # This will also add some unwated files, which we will remove again below
-FILE(GLOB sourcefiles "*.f90" "RRTMG/RRTMG_LW/modules/*.f90" "RRTMG/RRTMG_LW/src/*.f90" "RRTMG/RRTMG_SW/modules/*.f90" "RRTMG/RRTMG_SW/src/*.f90")
+FILE(GLOB sourcefiles "*.f90" 
+	"RRTMG/RRTMG_LW/modules/*.f90"
+	"RRTMG/RRTMG_LW/src/*.f90"
+	"RRTMG/RRTMG_SW/modules/*.f90"
+	"RRTMG/RRTMG_SW/src/*.f90"
+	"RTE-RRTMGP/rte/*.f90"
+	"RTE-RRTMGP/rte/kernels/*.f90"
+	"RTE-RRTMGP/rrtmgp/*.f90" 
+	"RTE-RRTMGP/rrtmgp/kernels/*.f90" 
+	"RTE-RRTMGP/examples/mo_simple_netcdf.f90"
+	"RTE-RRTMGP/examples/mo_load_coefficients.f90")
 
 # TODO: make more concise
 list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/test_transposes.f90)

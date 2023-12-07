@@ -41,6 +41,7 @@ SAVE
   integer, parameter :: irad_lsm   = 3   !< 3=simple surface radiation for land surface model
   integer, parameter :: irad_rrtmg = 4   !< 4=radiation using the rapid radiative transfer model
   integer, parameter :: irad_user  = 10  !< 10=user specified radiation
+  integer, parameter :: irad_rte_rrtmgp = 5 !< 5=radiation using the rapid radiative transfer model parallel
 
   logical :: rad_ls      = .true.        !< prescribed radiative forcing
   logical :: rad_longw   = .true.        !< parameterized longwave radiative forcing
@@ -104,8 +105,6 @@ SAVE
                                                    qci_slice,      &    ! Ice content          (2D slice)
                                                    o3_slice,       &    ! Ozon content         (2D slice)
                                                    rho_slice,      &    ! Density              (2D slice)
-                                                   lwUp_slice,     &    ! Upwelling longwave rad                    (2D slice)
-                                                   lwDown_slice,   &    ! Downwelling longwave rad                  (2D slice)
                                                    lwUpCS_slice,   &    ! Upwelling longwave rad, clear sky value   (2D slice)
                                                    lwDownCS_slice, &    ! Downwelling longwave rad, clear sky value (2D slice)
                                                    lwHR_slice,     &    ! Heating rate due to longwave rad          (2D slice)
@@ -118,6 +117,8 @@ SAVE
                                                    swDownCS_slice, &    ! Downwelling shortwave rad, clear sky value(2D slice)
                                                    swHR_slice,     &    ! Heating rate due to shortwave rad         (2D slice)
                                                    swHRCS_slice         ! Heating rate due to shortwave rad,clear sky value         (2D slice)
+  real(kind=kind_rb),allocatable,target,dimension(:,:) :: lwUp_slice,  & ! Upwelling longwave rad                    (2D slice)
+                                                          lwDown_slice   ! Downwelling longwave rad                  (2D slice)
 
   real(kind=kind_rb),allocatable,dimension(:) :: solarZenithAngleCos  ! The zenith angle of a slice
   real(kind=kind_rb),allocatable,dimension(:) :: asdir,asdif,aldir,aldif                         ! Albedos ...
