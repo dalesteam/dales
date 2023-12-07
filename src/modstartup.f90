@@ -659,6 +659,9 @@ contains
     else !if lwarmstart
 
       call readrestartfiles
+      call baseprofs         ! reads rhobf, rhobh. Needed before calc_halflev,
+                             ! which needs base densities
+                             ! in case of kappa scheme for thl or qt
       um   = u0
       vm   = v0
       wm   = w0
@@ -728,7 +731,6 @@ contains
 
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
-      call baseprofs !call baseprofs
 
     end if  ! end if (.not. warmstart)
 
