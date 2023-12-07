@@ -67,19 +67,10 @@ jobs:
         if: matrix.toolchain == 'intel'
         run: |
           source /opt/intel/oneapi/setvars.sh
-          #make sure ifort is found
-          sudo ln -s `which ifort` /usr/bin/ifort
+          #make sure ifx is found
+          sudo ln -s `which ifx` /usr/bin/ifx
           cd netcdf-fortran
-          NCDIR=/usr FC=/usr/bin/ifort ./configure
-          #fix weird bug where libmf et al are not found
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libimf.so \
-             /opt/intel/oneapi/compiler/latest/linux/lib/
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libintlc.so.5 \
-             /opt/intel/oneapi/compiler/latest/linux/lib/
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libsvml.so \
-             /opt/intel/oneapi/compiler/latest/linux/lib/
-          sudo cp /opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64/libirng.so \
-             /opt/intel/oneapi/compiler/latest/linux/lib/
+          NCDIR=/usr FC=/usr/bin/ifx ./configure
           sudo make -j2
           sudo make install
 
