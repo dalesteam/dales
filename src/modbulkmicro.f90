@@ -199,7 +199,7 @@ module modbulkmicro
                              mur_cst, inr, iqr
     implicit none
     integer :: i,j,k
-    logical :: nonZeroFound
+    integer :: nonZeroFound
     real :: qrtest,nr_cor,qr_cor
     real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
 
@@ -279,12 +279,12 @@ module modbulkmicro
       !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
       do j=2,j1
         do i=2,i1
-          if (qrmask(i,j,k).ne.0.) then
+          if (qrmask(i,j,k)) then
             nonZeroFound = 1
           endif
         enddo
       enddo
-      if (nonZeroFound) then
+      if (nonZeroFound == 1) then
         qrbase = max(1, k)
         exit
       endif
@@ -296,12 +296,12 @@ module modbulkmicro
         !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
         do j = 2, j1
           do i = 2, i1
-            if (qrmask(i,j,k).ne.0.) then
+            if (qrmask(i,j,k)) then
               nonZeroFound = 1
             endif
           enddo
         enddo
-        if (nonZeroFound) then
+        if (nonZeroFound == 1) then
           qrroof = min(k1, k)
           exit
         endif
@@ -319,32 +319,34 @@ module modbulkmicro
 
     qcbase = k1 + 1
     qcroof = 1 - 1
+    nonZeroFound = 0
     do k = 1, k1
       !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
       do j=2,j1
         do i=2,i1
-          if (qcmask(i,j,k).ne.0.) then
+          if (qcmask(i,j,k)) then
             nonZeroFound = 1
           endif
         enddo
       enddo
-      if (nonZeroFound) then
+      if (nonZeroFound == 1) then
         qcbase = max(1, k)
         exit
       endif
     enddo
 
+    nonZeroFound = 0
     if (qcbase.le.k1) then
       do k = k1, qcbase, -1
         !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
         do j = 2, j1
           do i = 2, i1
-            if (qcmask(i,j,k).ne.0.) then
+            if (qcmask(i,j,k)) then
               nonZeroFound = 1
             endif
           enddo
         enddo
-        if (nonZeroFound) then
+        if (nonZeroFound == 1) then
           qcroof = min(k1, k)
           exit
         endif
