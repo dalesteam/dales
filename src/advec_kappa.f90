@@ -73,7 +73,7 @@ subroutine advecc_kappa(a_in,a_out)
            endif
         enddo
      enddo
-     if (nonZeroFound) then
+     if (nonZeroFound == 1) then
         k_low = k
         exit
      endif
@@ -94,7 +94,7 @@ subroutine advecc_kappa(a_in,a_out)
            endif
         enddo
      enddo
-     if (nonZeroFound) then
+     if (nonZeroFound == 1) then
         k_high = k
         exit
      endif
