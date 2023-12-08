@@ -439,7 +439,9 @@ contains
 
     use modgpu, only: update_gpu, update_host, host_is_updated
 
+#if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface, update_host_surface
+#endif
 
     integer i,j,k,n,ierr
     logical negval !switch to allow or not negative values in randomnization
@@ -646,7 +648,9 @@ contains
       oblav    = -0.1
 
       ! qtsurf act on device data.
+#if defined(_OPENACC)
       call update_gpu_surface
+#endif
       call qtsurf
 
       dthldz(:,:) = (thlprof(1) - thls) / zf(1)
@@ -666,7 +670,6 @@ contains
       call boundary
       call thermodynamics
       call surface
-
       call boundary
       call thermodynamics
 
@@ -756,18 +759,20 @@ contains
 
       call baseprofs !call baseprofs
 
+#if defined(_OPENACC)
       call update_gpu
+#endif
 
       call boundary
       call thermodynamics
       call surface
-
       call boundary
       call thermodynamics
 
+#if defined(_OPENACC)
       call update_host
-
       host_is_updated = .false.
+#endif
 
     end if  ! end if (.not. warmstart)
 
