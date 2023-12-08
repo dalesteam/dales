@@ -1258,6 +1258,7 @@ contains
     implicit none
 
     if(ltimestat .and. lnetcdf .and. myid==0) call exitstat_nc(ncid)
+    if(.not.ltimestat) return
 
     !$acc exit data delete(blh_fld, sv0h, profile, gradient, dgrad)
 
