@@ -874,7 +874,9 @@ contains
 
       do n = 1, nsv
         if (iadv_sv(n)==iadv_kappa) then
+           !$acc set device_type(host)
            call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
+           !$acc set device_type(nvidia)
         else
           !$acc parallel loop collapse(3) default(present) async
           do k = 2, k1
