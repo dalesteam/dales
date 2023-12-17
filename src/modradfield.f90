@@ -161,12 +161,13 @@ contains
 
 
   subroutine sample_radfield
-    use modfields, only : rhof,qt0,ql0,tmp0,qsat,u0,v0
+    use modfields, only : rhof,qt0,ql0,tmp0,u0,v0,presf
     use modsurfdata, only: qtflux,thlflux
     use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp
     use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif,&
                             SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
                             SW_up_ca_TOA,LW_up_ca_TOA
+    use modthermodynamics, only : qsat_tab
 
     implicit none
     integer :: i,j,k
@@ -201,7 +202,7 @@ contains
              field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + rhof(k) *  ql0(i,j,k) * dzf(k)
              ilratio=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
              field_2D_mn (i,j,21) = field_2D_mn (i,j,21) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio)
-             field_2D_mn (i,j,22) = field_2D_mn (i,j,22) + rhof(k) *  qsat(i,j,k) * dzf(k)
+             field_2D_mn (i,j,22) = field_2D_mn (i,j,22) + rhof(k) *  qsat_tab(tmp0(i,j,k), presf(k)) * dzf(k)
           end do
        end do
     end do
