@@ -267,7 +267,7 @@ contains
 !> if lbinary, collect data to truncated (2 byte) integers, and write them to file
 !> if lnetcdf, write to netCDF (as float32).
   subroutine fielddump
-    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,rhof,exnf,qsat
+    use modfields, only : u0,v0,w0,thl0,qt0,ql0,sv0,thv0h,thvh,tmp0,rhof,exnf,presf
     use modsurfdata,only : thls,qts,thvs
     use modglobal, only : imax,i1,ih,jmax,j1,jh,k1,rk3step,dzf, &
                           timee,dt_lim,cexpnr,ifoutput,rtimee,cp,tdn,tup
@@ -275,6 +275,7 @@ contains
     use modstat_nc, only : lnetcdf, writestat_nc
     use modmicrodata, only : iqr, imicro, imicro_none, tuprsg, tdnrsg
     use modraddata, only   :lwu,lwd,swu,swd
+    use modthermodynamics, only: qsat_tab
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -451,8 +452,16 @@ contains
 
     if (lnetcdf .and. lhus) vars(:,:,:,ind_hus) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
 
-    if (lnetcdf .and. lhur) vars(:,:,:,ind_hur) = 100 * (qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)) / &
-         qsat(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
+    if (lnetcdf .and. lhur) then
+       do k = klow, khigh
+          do j = 2, j1, ncoarse
+             do i = 2, i1, ncoarse
+                vars(i,j,k,ind_hur) = 100 * (qt0(i,j,k) - ql0(i,j,k)) / &
+                     qsat_tab(tmp0(i,j,k), presf(k))
+             end do
+          end do
+       end do
+    end if
 
     if (lnetcdf .and. ltntr) then
        do k = klow,khigh

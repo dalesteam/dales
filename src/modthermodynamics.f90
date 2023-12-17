@@ -637,7 +637,9 @@ contains
                 ! The following could
                 ! be done on the fly to save
                 ! precious memory
-                qsat(i,j,k) = qsat_
+
+                !qsat(i,j,k) = qsat_ ! qsat_ is not a good approximation when not saturated
+                                     ! but ql is still good in that case.
                 T = exnf(k)*thl0(i,j,k) + (rlv/cp) * ql
                 tmp0(i,j,k) = T
 

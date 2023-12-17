@@ -481,7 +481,7 @@ contains
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
-                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,qsat,tmp0
+                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
@@ -489,6 +489,7 @@ contains
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
     use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
+    use modthermodynamics, only: qsat_tab
     implicit none
 
 
@@ -691,7 +692,7 @@ contains
         do  i=2,i1
           thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                         *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
-          huravl(k) = huravl(k) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat(i,j,k)
+          huravl(k) = huravl(k) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
         enddo
       enddo
     enddo
