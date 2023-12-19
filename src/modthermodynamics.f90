@@ -187,10 +187,20 @@ contains
       epsilon = rv/rd
       eps_I = epsilon - 1.
 
+      !$acc serial default(present) async(1)
+      temp = thl0av(1) * exnf(1) + (rlv / cp) * ql0av(1)
+      qs = qt0av(1) - ql0av(1)
+      a_dry = 1. + eps_I * qt0av(1)
+      b_dry = eps_I 
+      a_moist = (1. - qt0av(1) + epsilon * qs * (1. + rlv / (rv * temp))) / &
+                (1. + rlv * rlv * qs / (cp * rv * temp * temp))
+      b_moist = a_moist * rlv / (temp * cp) - 1.
+      !$acc end serial
+
       ! Calculate coefficients of Eq's 14 & 15 of Heus et al. (2010) based on slab-averages
       ! of moisture and temperature
       !$acc parallel loop vector default(present) private(qs, temp, a_dry, b_dry, a_moist, b_moist, &
-      !$acc&                                              c_liquid, dth, dq)
+      !$acc&                                              c_liquid, dth, dq) async(1)
       do k = 2, kmax
         qs = qt0av(k) - ql0av(k)
         temp = thl0av(k) * exnf(k) + (rlv / cp) * ql0av(k)
@@ -204,8 +214,8 @@ contains
 
         c_liquid = a_dry * rlv / cp - thl0av(k) * epsilon
 
-        dth = thl0(i,j,k+1) - thl0(i,j,k-1)
-        dq = qt0(i,j,k+1) - qt0(i,j,k-1)
+        dth = thl0av(k+1) - thl0av(k-1)
+        dq = qt0av(k+1) - qt0av(k-1)
 
         del_thv_dry(k) = a_dry * dth + b_dry * dq
         del_thv_sat(k) = a_moist * dth + b_moist * dq
@@ -214,6 +224,7 @@ contains
       end do
 
       ! Locally determine which coefficients to use
+      !$acc parallel loop collapse(2) default(present) private(dthv) async(1)
       do k = 2, kmax
         do j = 2, j1
           do i = 2, i1
@@ -223,18 +234,7 @@ contains
         end do
       end do
       
-
-      ! TODO: see if this calculation can be put in the kernel above
-      !$acc serial default(present)
-      temp = thl0av(1) * exnf(1) + (rlv / cp) * ql0av(1)
-      qs = qt0av(1) - ql0av(1)
-      a_dry = 1. + eps_I * qt0av(1)
-      b_dry = eps_I 
-      a_moist = (1. - qt0av(1) + epsilon * qs * (1. + rlv / (rv * temp))) / &
-                (1. + rlv * rlv * qs / (cp * rv * temp * temp))
-      b_moist = a_moist * rlv / (temp * cp) - 1.
-
-      !$acc parallel loop collapse(2) default(present) private(a_surf, b_surf)
+      !$acc parallel loop collapse(2) default(present) private(a_surf, b_surf) async(1)
       do j = 2, j1
         do i = 2, i1
           a_surf = merge(a_moist, a_dry, ql0(i,j,1) > 0.)
@@ -262,7 +262,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(3) default(present) async wait(2, 3)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -273,7 +273,6 @@ contains
       end do
     end do
     
-    !$acc wait
 
     call timer_toc('modthermodynamics/calthv')
 
