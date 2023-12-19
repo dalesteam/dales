@@ -33,21 +33,23 @@ module modthermodynamics
   use modtimer
   implicit none
 !   private
-  public :: thermodynamics,calc_halflev
+  public :: thermodynamics, initthermodynamics, exitthermodynamics, calc_halflev
   public :: lqlnr
   logical :: lqlnr    = .true. !< switch for ql calc. with Newton-Raphson (on/off)
   real, allocatable :: th0av(:)
   real(field_r), allocatable :: thv0(:,:,:)
   real :: chi_half=0.5  !< set wet, dry or intermediate (default) mixing over the cloud edge
   real, allocatable :: thetah(:), qth(:), qlh(:)
+  real, allocatable, dimension(:) :: chi, chi_sat, del_thv_dry, del_thv_sat
 
 contains
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1
-
+    use modglobal, only : ih, i1, jh, j1, k1, kmax, zf, dzh
     implicit none
+
+    integer :: k
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -55,7 +57,17 @@ contains
 
     th0av = 0.
 
-    !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
+    allocate(chi(kmax))
+    allocate(chi_sat(kmax))
+    allocate(del_thv_dry(kmax))
+    allocate(del_thv_sat(kmax))
+
+    do k = 1, kmax
+      chi(k) = 2 * chi_half * (zf(k) - zf(k-1)) / (dzh(k) + dzh(k+1))
+    end do
+
+    !$acc enter data create(th0av, thv0, thetah, qth, qlh, chi, chi_sat, &
+    !$acc&                  del_thv_dry, del_thv_sat)
 
   end subroutine initthermodynamics
 
@@ -144,18 +156,21 @@ contains
 !> Calculate thetav and dthvdz
   subroutine calthv
     use modglobal, only : lmoist,i1,j1,k1,kmax,zf,dzh,rlv,rd,rv,cp,eps1
-    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz
+    use modfields, only : thl0,thl0h,ql0,ql0h,qt0,qt0h,exnf,exnh,thv0h,dthvdz, &
+                          qt0av, thl0av, ql0av
     use modsurfdata,only : dthldz,dqtdz
     implicit none
 
     integer i, j, k
     real    qs
-    real    a_surf,b_surf,dq,dth,dthv,temp
-    real    a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi
-    real    del_thv_sat, del_thv_dry
+    real    a_surf,b_surf,dq,dth,dthv
+    real :: a_dry, a_moist, b_dry, b_moist, c_liquid
+    real :: epsilon, eps_I
+    real :: temp
+    real(8) :: time
 
     call timer_tic('modthermodynamics/calthv', 1)
-    
+
     dthvdz = 0
     if (lmoist) then
 
@@ -169,70 +184,62 @@ contains
         end do
       end do
 
-      !TODO: fix the branching in this loop
-      !$acc parallel loop collapse(3) default(present) &
-      !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
-      !$acc& async(2)
-      do k=2,kmax
-        do j=2,j1
-          do i=2,i1
-!
-!         default thv jump computed unsaturated
-!
-            epsilon = rd/rv
-            eps_I = 1/epsilon - 1.  !cstep approx 0.608
+      epsilon = rv/rd
+      eps_I = epsilon - 1.
 
-            a_dry = 1. + eps_I * qt0(i,j,k)
-            b_dry = eps_I * thl0(i,j,k)
+      ! Calculate coefficients of Eq's 14 & 15 of Heus et al. (2010) based on slab-averages
+      ! of moisture and temperature
+      !$acc parallel loop vector default(present) private(qs, temp, a_dry, b_dry, a_moist, b_moist, &
+      !$acc&                                              c_liquid, dth, dq)
+      do k = 2, kmax
+        qs = qt0av(k) - ql0av(k)
+        temp = thl0av(k) * exnf(k) + (rlv / cp) * ql0av(k)
 
-            dth = thl0(i,j,k+1)-thl0(i,j,k-1)
-            dq  = qt0(i,j,k+1)-qt0(i,j,k-1)
+        a_dry = 1. + eps_I * qt0av(k)
+        b_dry = eps_I * thl0av(k)
 
-            del_thv_dry = a_dry   * dth + b_dry * dq
+        a_moist = (1. - qt0av(k) + qs * epsilon * (1. + rlv / (rv * temp))) / &
+                  (1. + rlv * rlv * qs / (cp * rv * temp * temp))
+        b_moist = a_moist * rlv / cp - temp
 
-            dthv = del_thv_dry
+        c_liquid = a_dry * rlv / cp - thl0av(k) * epsilon
 
-            if  (ql0(i,j,k)> 0) then  !include moist thermodynamics
+        dth = thl0(i,j,k+1) - thl0(i,j,k-1)
+        dq = qt0(i,j,k+1) - qt0(i,j,k-1)
 
-               temp = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
-               qs   = qt0(i,j,k) - ql0(i,j,k)
+        del_thv_dry(k) = a_dry * dth + b_dry * dq
+        del_thv_sat(k) = a_moist * dth + b_moist * dq
 
-               a_moist = (1.-qt0(i,j,k)+qs/epsilon*(1.+rlv/(rv*temp))) &
-                        /(1.+rlv**2*qs/(cp*rv*temp**2))
-               b_moist = a_moist*rlv/cp-temp
-               c_liquid = a_dry * rlv / cp - thl0(i,j,k) / epsilon
+        chi_sat(k) = c_liquid * ql0av(k) / (del_thv_dry(k) - del_thv_sat(k))
+      end do
 
-               del_thv_sat = a_moist * dth + b_moist * dq
-
-               chi     = 2*chi_half*(zf(k) - zf(k-1))/(dzh(k)+dzh(k+1))
-               chi_sat = c_liquid * ql0(i,j,k) / (del_thv_dry - del_thv_sat)
-
-               if (chi < chi_sat) then  !mixed parcel is saturated
-                 dthv = del_thv_sat
-              end if
-            end if
-
-            dthvdz(i,j,k) = dthv/(dzh(k+1)+dzh(k))
+      ! Locally determine which coefficients to use
+      do k = 2, kmax
+        do j = 2, j1
+          do i = 2, i1
+            dthv = merge(del_thv_sat(k), del_thv_dry(k), (ql0(i,j,k) > 0.) .and. (chi(k) < chi_sat(k)))
+            dthvdz(i,j,k) = dthv / (dzh(k+1) + dzh(k))
           end do
         end do
       end do
       
-      !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(3)
-      do j=2,j1
-        do i=2,i1
-          if(ql0(i,j,1)>0) then
-            temp = thl0(i,j,1)*exnf(1)+(rlv/cp)*ql0(i,j,1)
-            qs   = qt0(i,j,1) - ql0(i,j,1)
-            a_surf   = (1.-qt0(i,j,1)+rv/rd*qs*(1.+rlv/(rv*temp))) &
-                      /(1.+rlv**2*qs/(cp*rv*temp**2))
-            b_surf   = a_surf*rlv/(temp*cp)-1.
 
-          else
-            a_surf = 1.+(rv/rd-1)*qt0(i,j,1)
-            b_surf = rv/rd-1
+      ! TODO: see if this calculation can be put in the kernel above
+      !$acc serial default(present)
+      temp = thl0av(1) * exnf(1) + (rlv / cp) * ql0av(1)
+      qs = qt0av(1) - ql0av(1)
+      a_dry = 1. + eps_I * qt0av(1)
+      b_dry = eps_I 
+      a_moist = (1. - qt0av(1) + epsilon * qs * (1. + rlv / (rv * temp))) / &
+                (1. + rlv * rlv * qs / (cp * rv * temp * temp))
+      b_moist = a_moist * rlv / (temp * cp) - 1.
 
-          end if
-          dthvdz(i,j,1) = a_surf*dthldz(i,j) + b_surf*thl0(i,j,1)*dqtdz(i,j)
+      !$acc parallel loop collapse(2) default(present) private(a_surf, b_surf)
+      do j = 2, j1
+        do i = 2, i1
+          a_surf = merge(a_moist, a_dry, ql0(i,j,1) > 0.)
+          b_surf = merge(b_moist, b_dry, ql0(i,j,1) > 0.)
+          dthvdz(i,j,1) = a_surf * dthldz(i,j) + b_surf * thl0(i,j,1) * dqtdz(i,j)
         end do
       end do
 
