@@ -931,8 +931,6 @@ contains
     integer :: ib, ie, jb, je, kb, ke, ibs, ies, jbs, jes, kbs, kes
     real(real64), device :: aver(ks:kf)
     real(real64), device :: var(ib:ie, jb:je, kb:ke)
-    real(real64) :: averl(ks:kf)
-    real(real64) :: avers(ks:kf)
     integer :: k
 
     !$acc kernels default(present)
