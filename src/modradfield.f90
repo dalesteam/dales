@@ -109,8 +109,8 @@ contains
     call ncinfo(ncname(12,:),'rsuscs','surface upwelling shortwave flux - clear sky','W/m2','tt0t')
     call ncinfo(ncname(13,:),'rldscs','surface downwelling longwave flux - clear sky','W/m2','tt0t')
     call ncinfo(ncname(14,:),'rluscs','surface upwelling longwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(15,:),'rsutomcs','TOM outgoing shortwave flux - clear sky','W/m2','tt0t')
-    call ncinfo(ncname(16,:),'rlutomcs','TOM outgoing longwave flux - clear sky','W/m2','tt0t')
+    call ncinfo(ncname(15,:),'rsutmcs','TOM outgoing shortwave flux - clear sky','W/m2','tt0t')
+    call ncinfo(ncname(16,:),'rlutmcs','TOM outgoing longwave flux - clear sky','W/m2','tt0t')
     call ncinfo(ncname(17,:),'rsds_dir','surface downwellling shortwave direct flux','W/m2','tt0t')
     call ncinfo(ncname(18,:),'rsds_dif','surface downwellling shortwave diffuse flux','W/m2','tt0t')
 
@@ -215,7 +215,7 @@ contains
     field_2D_mn (2:i1,2:j1,27) = field_2D_mn (2:i1,2:j1,27) + abs(SW_up_TOA(2:i1,2:j1))    !rsut,  TOA outgoing shortwave flux
     field_2D_mn (2:i1,2:j1,28) = field_2D_mn (2:i1,2:j1,28) + abs(LW_up_TOA(2:i1,2:j1))    !rlut,  TOA outgoing longwave flux
     field_2D_mn (2:i1,2:j1,29) = field_2D_mn (2:i1,2:j1,29) + abs(SW_up_ca_TOA(2:i1,2:j1)) !rsutcs,TOA outgoing shortwave flux - clear sky
-    field_2D_mn (2:i1,2:j1,30) = field_2D_mn (2:i1,2:j1,20) + abs(LW_up_ca_TOA(2:i1,2:j1)) !rlutcs,TOA outgoing longwave flux - clear sky
+    field_2D_mn (2:i1,2:j1,30) = field_2D_mn (2:i1,2:j1,30) + abs(LW_up_ca_TOA(2:i1,2:j1)) !rlutcs,TOA outgoing longwave flux - clear sky
   end subroutine sample_radfield
 
 
