@@ -882,7 +882,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(13:20)=cmyid
+    name(14:21)=cmyid
     if (myid == 0) write(6,*) 'loading ',name
     open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
 
@@ -1031,11 +1031,11 @@ contains
 
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initdXXXhXXmXXXXXXXX.XXX'
-      write (name(6:8)  ,'(i3.3)') ihour
-      write (name(10:11),'(i2.2)') imin
-      name(13:20)= cmyid
-      name(22:24)= cexpnr
+      name = 'initdXXXXhXXmXXXXXXXX.XXX'
+      write (name(6:9)  ,'(i4.4)') ihour
+      write (name(11:12),'(i2.2)') imin
+      name(14:21)= cmyid
+      name(23:25)= cexpnr
       open  (ifoutput,file=trim(output_prefix)//name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -1102,7 +1102,7 @@ contains
       endif
       close (ifoutput)
       linkname = name
-      linkname(6:11) = "latest"
+      linkname(6:13) = "_latest_"
       call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       if (nsv>0) then
@@ -1115,7 +1115,7 @@ contains
 
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       end if
@@ -1138,7 +1138,7 @@ contains
 
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       end if
 
