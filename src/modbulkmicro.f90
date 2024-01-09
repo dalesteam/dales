@@ -246,7 +246,7 @@ module modbulkmicro
       endif
     enddo
     if (qrbase.le.k1) then
-      do k=k1,qcbase,-1
+      do k=k1,qrbase,-1
         if (any(qrmask(:,:,k))) then
           qrroof = min(k1, k)
           exit
