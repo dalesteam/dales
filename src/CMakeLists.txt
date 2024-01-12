@@ -33,6 +33,7 @@ list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/RRTMG/RRTMG_SW/src/rrtm
 list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/RRTMG/RRTMG_SW/src/rrtmg_sw_k_g.f90)
 list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/RRTMG/RRTMG_SW/src/rrtmg_sw_rad.f90)
 list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/RRTMG/RRTMG_SW/src/rrtmg_sw_spcvmc.f90)
+list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/RRTMG/RRTMG_SW/modules/parkind.f90) # remove one parkind, RRTMG_LW has an identical one
 
 # Still a hack and only works for GCC
 set_source_files_properties(${CMAKE_CURRENT_SOURCE_DIR}/RRTMG/RRTMG_LW/src/rrtmg_lw_init.f90 PROPERTIES COMPILE_FLAGS -Wno-error=implicit-interface)
