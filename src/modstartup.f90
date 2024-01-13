@@ -93,6 +93,9 @@ contains
     use tstep,             only : inittstep
     use modchem,           only : initchem
     use modversion,        only : git_version
+#if defined(_OPENACC)
+    use modgpu,             only : initgpu
+#endif
 
     implicit none
     integer :: ierr
@@ -170,6 +173,11 @@ contains
 
     ! Initialize MPI
     call initmpi
+
+    ! Initialize OpenACC
+#if defined(_OPENACC)
+    call initgpu(commwrld)
+#endif
 
   !broadcast namelists
     call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr) ! RUN

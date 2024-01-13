@@ -8,6 +8,33 @@ save
 
 #if defined(_OPENACC)
 contains
+
+  !> @brief Binds devices to MPI ranks
+  subroutine initgpu(commwrld)
+    use openacc
+    use mpi_f08
+    implicit none
+    type(MPI_COMM), intent(in) :: commwrld
+    type(MPI_COMM) :: commlocal
+    integer(acc_device_kind) :: device_type
+    integer :: num_devices, my_device_num, ierr
+
+    ! Make a shared memory communicator that contains all ranks local to a node
+    call MPI_Comm_split_type(commwrld, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, commlocal, ierr)
+    
+    ! Who am I?
+    call MPI_Comm_rank(commlocal, my_device_num, ierr)
+
+    device_type = acc_get_device_type()
+    num_devices = acc_get_num_devices(device_type)
+    
+    my_device_num = mod(my_device_num, num_devices)
+
+    call acc_set_device_num(my_device_num, device_type)
+    call acc_init(device_type)
+     
+  end subroutine initgpu
+
   !> @brief Copies fields and arrays to GPU  
   subroutine update_gpu
     use modfields, only: um, u0, up, vm, v0, vp, wm, w0, wp, &
