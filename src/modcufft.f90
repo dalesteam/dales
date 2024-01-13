@@ -71,13 +71,14 @@ module modcufft
       nphix = itot/2 + 1
       nphiy = jtot/2 + 1
       
-      sz = max(imax * jmax * konx * nprocx, & ! z-aligned
-               iony * jmax * konx * nprocy, & ! x-aligned
-               iony * jonx * konx * nprocx)   ! y-aligned 
+      sz = max(kmax * imax * jmax, &
+               konx * (2 * nphix) * jmax, &
+               konx * imax * (2 * nphiy))
+      
 
       ! Allocate memory for the pressure
       allocate(p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax))
-      allocate(p_nohalo(kmax*(nphix*2)*(nphiy*2)))
+      allocate(p_nohalo(sz))
 
       !$acc enter data create(p_halo, p_nohalo)
 
@@ -91,6 +92,9 @@ module modcufft
         Fp(1:iony,1:jonx,1:kmax) => p_halo(1:iony*jonx*kmax)
       end if
         
+      sz = max(imax * jmax * konx * nprocx, & ! z-aligned
+               iony * jmax * konx * nprocy, & ! x-aligned
+               iony * jonx * konx * nprocx)   ! y-aligned 
 
       ! Precision
 #if POIS_PRECISION==32
@@ -202,7 +206,7 @@ module modcufft
       ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
       worksize = max_worksize / (storage_size(1._pois_r) / 8)
 
-      worksize = max(worksize, ((nphix*2)*(nphiy*2)*kmax))
+      worksize = max(worksize, sz)
 
       call allocate_workspace(int(worksize))
 
