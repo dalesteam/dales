@@ -66,7 +66,8 @@ contains
       chi(k) = 2 * chi_half * (zf(k) - zf(k-1)) / (dzh(k) + dzh(k+1))
     end do
 
-    !$acc enter data create(th0av, thv0, thetah, qth, qlh, chi, chi_sat, &
+    !$acc enter data copyin(chi)
+    !$acc enter data create(th0av, thv0, thetah, qth, qlh, chi_sat, &
     !$acc&                  del_thv_dry, del_thv_sat)
 
   end subroutine initthermodynamics
@@ -187,15 +188,6 @@ contains
       epsilon = rv/rd
       eps_I = epsilon - 1.
 
-      !$acc serial default(present) async(1)
-      temp = thl0av(1) * exnf(1) + (rlv / cp) * ql0av(1)
-      qs = qt0av(1) - ql0av(1)
-      a_dry = 1. + eps_I * qt0av(1)
-      b_dry = eps_I 
-      a_moist = (1. - qt0av(1) + epsilon * qs * (1. + rlv / (rv * temp))) / &
-                (1. + rlv * rlv * qs / (cp * rv * temp * temp))
-      b_moist = a_moist * rlv / (temp * cp) - 1.
-      !$acc end serial
 
       ! Calculate coefficients of Eq's 14 & 15 of Heus et al. (2010) based on slab-averages
       ! of moisture and temperature
@@ -233,8 +225,18 @@ contains
           end do
         end do
       end do
-      
-      !$acc parallel loop collapse(2) default(present) private(a_surf, b_surf) async(1)
+
+      !$acc update self(thl0av(1), exnf(1), ql0av(1), qt0av(1))
+      temp = thl0av(1) * exnf(1) + (rlv / cp) * ql0av(1)
+      qs = qt0av(1) - ql0av(1)
+      a_dry = 1. + eps_I * qt0av(1)
+      b_dry = eps_I 
+      a_moist = (1. - qt0av(1) + epsilon * qs * (1. + rlv / (rv * temp))) / &
+                (1. + rlv * rlv * qs / (cp * rv * temp * temp))
+      b_moist = a_moist * rlv / (temp * cp) - 1.
+
+      !$acc parallel loop collapse(2) default(present) private(a_surf, b_surf) &
+      !$acc& copyin(a_dry, a_moist, b_dry, b_moist) async(1)
       do j = 2, j1
         do i = 2, i1
           a_surf = merge(a_moist, a_dry, ql0(i,j,1) > 0.)
