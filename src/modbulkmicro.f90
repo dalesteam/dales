@@ -570,32 +570,15 @@ module modbulkmicro
     use modmicrodata, only : csed,c_St,rhow,sig_g,Nc_0, &
                              qtpmcr,thlpmcr,qcmask
     implicit none
-    integer :: i, j, k, sedimbase
+    integer :: i, j, k
     real :: sedc
 
     if (qcbase .gt. qcroof) return
 
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
-    sedimbase = qcbase
-
-    if (qcbase == 1) then
-      sedimbase = sedimbase + 1
-      k = 1
-      !$acc parallel loop collapse(2) default(present)
-      do j = 2, j1
-        do i = 2, i1
-          if (qcmask(i,j,k)) then
-            sedc = csed*Nc_0**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
-            qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
-          endif
-        enddo
-      enddo
-    endif
-
     !$acc parallel loop collapse(3) default(present)
-    do k = sedimbase, qcroof
+    do k = qcbase, qcroof
       do j = 2, j1
         do i = 2, i1
           if (qcmask(i,j,k)) then
@@ -606,10 +589,12 @@ module modbulkmicro
             !$acc atomic update
             thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
 
-            !$acc atomic update
-            qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
-            !$acc atomic update
-            thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
+            if (k > 1) then
+              !$acc atomic update
+              qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
+              !$acc atomic update
+              thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
+            end if
           endif
         enddo
       enddo
@@ -695,16 +680,8 @@ module modbulkmicro
             do i = 2, i1
               qr_spl(i,j,k) = qr_tmp(i,j,k)
               Nr_spl(i,j,k) = Nr_tmp(i,j,k)
-            enddo
-          enddo
-        enddo
 
-        ! update parameters after the first iteration
-        ! a new mask
-        !$acc parallel loop collapse(3) default(present)
-        do k = 1, k1
-          do j = 2, j1
-            do i = 2, i1
+              ! Update mask
               qrmask(i,j,k) = (qr_spl(i,j,k) > qrmin .and. Nr_spl(i,j,k) > 0.0)
             enddo
           enddo
