@@ -594,18 +594,21 @@ module modbulkmicro
       enddo
     endif
 
-    !TODO-ACC: try collapse(3) with atomics
+    !$acc parallel loop collapse(3) default(present)
     do k = sedimbase, qcroof
-      !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
         do i = 2, i1
           if (qcmask(i,j,k)) then
             sedc = csed*Nc_0**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
 
+            !$acc atomic update
             qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
+            !$acc atomic update
             thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
 
+            !$acc atomic update
             qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
+            !$acc atomic update
             thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
           endif
         enddo
@@ -641,6 +644,7 @@ module modbulkmicro
     real :: sed_qr
     real :: sed_Nr
     real(field_r), allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
+    real(field_r), allocatable     :: qr_tmp(:,:,:), Nr_tmp(:,:,:)
 
     real,save :: dt_spl,wfallmax
 
@@ -660,8 +664,10 @@ module modbulkmicro
 
     allocate(qr_spl(2:i1,2:j1,1:k1))
     allocate(Nr_spl(2:i1,2:j1,1:k1))
+    allocate(qr_tmp(2:i1,2:j1,1:k1))
+    allocate(Nr_tmp(2:i1,2:j1,1:k1))
 
-    !$acc enter data create(qr_spl, Nr_spl)
+    !$acc enter data create(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 
     wfallmax = 9.9
     n_spl = ceiling(wfallmax*delt/(minval(dzf)))
@@ -676,10 +682,23 @@ module modbulkmicro
             do i = 2, i1
               qr_spl(i,j,k) = qr(i,j,k)
               Nr_spl(i,j,k) = Nr(i,j,k)
+              qr_tmp(i,j,k) = qr(i,j,k)
+              Nr_tmp(i,j,k) = Nr(i,j,k)
             enddo
           enddo
         enddo
       else
+        !Copy from tmp into spl
+        !$acc parallel loop collapse(3) default(present)
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              qr_spl(i,j,k) = qr_tmp(i,j,k)
+              Nr_spl(i,j,k) = Nr_tmp(i,j,k)
+            enddo
+          enddo
+        enddo
+
         ! update parameters after the first iteration
         ! a new mask
         !$acc parallel loop collapse(3) default(present)
@@ -772,8 +791,8 @@ module modbulkmicro
                     ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
                   endif
 
-                  qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
-                  Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
                 endif
               enddo
             enddo
@@ -788,8 +807,8 @@ module modbulkmicro
                   sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
                   sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
 
-                  qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
-                  Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
                 endif
               enddo
             enddo
@@ -805,8 +824,8 @@ module modbulkmicro
                 sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
                 sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
 
-                qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
-                Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
               endif
             enddo
           enddo
@@ -818,10 +837,10 @@ module modbulkmicro
         ! SB rain sedimentation
         !
         if (l_lognormal) then
+          !$acc parallel loop collapse(3) default(present) private(Dgr)
           do k = sedimbase, qrroof
-            !$acc parallel loop collapse(2) default(present) private(Dgr)
-            do j = 2,j1
-              do i = 2,i1
+            do j = 2, j1
+              do i = 2, i1
                 if (qrmask(i,j,k)) then
                   ! correction for width of DSD
                   Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
@@ -837,18 +856,22 @@ module modbulkmicro
                     ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
                   endif
 
-                  qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
-                  Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                  !$acc atomic update
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
 
-                  qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
-                  Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
-                endif ! qr_spl threshold statement
+                  !$acc atomic update
+                  qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+                endif
               enddo
             enddo
           enddo
         else
+          !$acc parallel loop collapse(3) default(present)
           do k = sedimbase, qrroof
-            !$acc parallel loop collapse(2) default(present)
             do j = 2, j1
               do i = 2, i1
                 if (qrmask(i,j,k)) then
@@ -858,11 +881,15 @@ module modbulkmicro
                   sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
                   sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
 
-                  qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
-                  Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                  !$acc atomic update
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
 
-                  qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
-                  Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+                  !$acc atomic update
+                  qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
                 endif
               enddo
             enddo
@@ -872,19 +899,23 @@ module modbulkmicro
         !
         ! KK00 rain sedimentation
         !
+        !$acc parallel loop collapse(3) default(present)
         do k = sedimbase, qrroof
-          !$acc parallel loop collapse(2) default(present)
           do j = 2, j1
             do i = 2, i1
               if (qrmask(i,j,k)) then
                 sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
                 sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
 
-                qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
-                Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                !$acc atomic update
+                qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                !$acc atomic update
+                Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
 
-                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
-                Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+                !$acc atomic update
+                qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                !$acc atomic update
+                Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
               endif
             enddo
           enddo
@@ -902,15 +933,15 @@ module modbulkmicro
     do k = qrbase, qrroof
       do j = 2, j1
         do i = 2, i1
-          Nrp(i,j,k) = Nrp(i,j,k) + (Nr_spl(i,j,k) - Nr(i,j,k)) * delt_inv
-          qrp(i,j,k) = qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k)) * delt_inv
+          Nrp(i,j,k) = Nrp(i,j,k) + (Nr_tmp(i,j,k) - Nr(i,j,k)) * delt_inv
+          qrp(i,j,k) = qrp(i,j,k) + (qr_tmp(i,j,k) - qr(i,j,k)) * delt_inv
         enddo
       enddo
     enddo
 
-    !$acc exit data delete(qr_spl, Nr_spl)
+    !$acc exit data delete(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 
-    deallocate(qr_spl, Nr_spl)
+    deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 
   end subroutine sedimentation_rain
 
