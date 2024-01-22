@@ -206,8 +206,7 @@ module modbulkmicro
                              qrmask, qrmin, qcmask, qcmin, &
                              mur_cst, inr, iqr
     implicit none
-    integer :: i,j,k
-    integer :: nonZeroFound
+    integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
     real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
 
@@ -271,94 +270,45 @@ module modbulkmicro
     !*********************************************************************
     ! Find gridpoints where the microphysics scheme should run
     !*********************************************************************
-    !$acc parallel loop collapse(3) default(present)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
-        enddo
-      enddo
-    enddo
-
     qrbase = k1 + 1
     qrroof = 1 - 1
-    nonZeroFound = 0
+    qcbase = k1 + 1
+    qcroof = 1 - 1
+    !$acc parallel loop collapse(3) default(present) reduction(min:qrbase,qcbase)
     do k = 1, k1
-      !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
       do j = 2, j1
         do i = 2, i1
+          ! Update mask prior to using it
+          qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
+          qcmask(i,j,k) = ql0(i,j,k) > qcmin
           if (qrmask(i,j,k)) then
-            nonZeroFound = 1
+            qrbase = k
+          endif
+          if (qcmask(i,j,k)) then
+            qcbase = k
           endif
         enddo
       enddo
-      if (nonZeroFound == 1) then
-        qrbase = max(1, k)
-        exit
-      endif
     enddo
+    qrbase = max(1, qrbase)
+    qcbase = max(1, qcbase)
 
-    if (qrbase.le.k1) then
-      nonZeroFound = 0
-      do k = k1, qrbase, -1
-        !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
+    if (qrbase.le.k1 .or. qcbase.le.k1) then
+      !$acc parallel loop collapse(3) default(present) reduction(max:qrroof,qcroof)
+      do k = min(qrbase,qcbase), k1
         do j = 2, j1
           do i = 2, i1
             if (qrmask(i,j,k)) then
-              nonZeroFound = 1
+              qrroof = k
             endif
-          enddo
-        enddo
-        if (nonZeroFound == 1) then
-          qrroof = min(k1, k)
-          exit
-        endif
-      enddo
-    endif
-
-    !$acc parallel loop collapse(3) default(present)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          qcmask(i,j,k) = ql0(i,j,k) > qcmin
-        enddo
-      enddo
-    enddo
-
-    qcbase = k1 + 1
-    qcroof = 1 - 1
-    nonZeroFound = 0
-    do k = 1, k1
-      !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
-      do j = 2, j1
-        do i = 2, i1
-          if (qcmask(i,j,k)) then
-            nonZeroFound = 1
-          endif
-        enddo
-      enddo
-      if (nonZeroFound == 1) then
-        qcbase = max(1, k)
-        exit
-      endif
-    enddo
-
-    nonZeroFound = 0
-    if (qcbase.le.k1) then
-      do k = k1, qcbase, -1
-        !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
-        do j = 2, j1
-          do i = 2, i1
             if (qcmask(i,j,k)) then
-              nonZeroFound = 1
+              qcroof = k
             endif
           enddo
         enddo
-        if (nonZeroFound == 1) then
-          qcroof = min(k1, k)
-          exit
-        endif
       enddo
+      qrroof = min(k1, qrroof)
+      qcroof = min(k1, qcroof)
     endif
 
     ! if there is nothing to do, we can return at this point
