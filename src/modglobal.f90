@@ -194,20 +194,20 @@ save
 
       ! modphsgrd.f90
 
-      real :: dx              !<  grid spacing in x-direction
-      real :: dy              !<  grid spacing in y-direction
-      real :: dz              !<  grid spacing in z-direction
-      real :: dxi             !<  1/dx
-      real :: dyi             !<  1/dy
-      real :: dzi             !<  1/dz
-      real :: dxiq            !<  1/(dx*4)
-      real :: dyiq            !<  1/(dy*4)
-      real :: dziq            !<  1/(dz*4)
-      real :: dxi5            !<  1/(dx*2)
-      real :: dyi5            !<  1/(dy*2)
-      real :: dzi5            !<  1/(dz*2)
-      real :: dx2i            !<  (1/dx)**2
-      real :: dy2i            !<  (1/dy)**2
+      real(field_r) :: dx              !<  grid spacing in x-direction
+      real(field_r) :: dy              !<  grid spacing in y-direction
+      real(field_r) :: dz              !<  grid spacing in z-direction
+      real(field_r) :: dxi             !<  1/dx
+      real(field_r) :: dyi             !<  1/dy
+      real(field_r) :: dzi             !<  1/dz
+      real(field_r) :: dxiq            !<  1/(dx*4)
+      real(field_r) :: dyiq            !<  1/(dy*4)
+      real(field_r) :: dziq            !<  1/(dz*4)
+      real(field_r) :: dxi5            !<  1/(dx*2)
+      real(field_r) :: dyi5            !<  1/(dy*2)
+      real(field_r) :: dzi5            !<  1/(dz*2)
+      real(field_r) :: dx2i            !<  (1/dx)**2
+      real(field_r) :: dy2i            !<  (1/dy)**2
 
 
       real :: ijtot
