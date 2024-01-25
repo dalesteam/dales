@@ -211,8 +211,8 @@ save
 
 
       real :: ijtot
-      real, allocatable :: dzf(:), dzfi(:) !<  thickness of full level, and inverse
-      real, allocatable :: dzh(:), dzhi(:) !<  thickness of half level, and inverse
+      real(field_r), allocatable :: dzf(:), dzfi(:) !<  thickness of full level, and inverse
+      real(field_r), allocatable :: dzh(:), dzhi(:) !<  thickness of half level, and inverse
       real, allocatable :: zh(:)          !<  height of half level [m]
       real, allocatable :: zf(:)          !<  height of full level [m]
       real :: xsize    = -1 !<  domain size in x-direction
