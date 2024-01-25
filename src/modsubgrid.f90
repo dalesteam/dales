@@ -700,9 +700,9 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emmo,emom,emop,empo
-    real                :: fu
-    real                :: ucu, upcu
+    real(field_r)                :: emmo,emom,emop,empo
+    real(field_r)                :: fu
+    real(field_r)                :: ucu, upcu
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -812,8 +812,8 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emmo, eomm,eomp,epmo
-    real                :: fv, vcv,vpcv
+    real(field_r)                :: emmo, eomm,eomp,epmo
+    real(field_r)                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -921,7 +921,7 @@ contains
   !*****************************************************************
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emom, eomm, eopm, epom
+    real(field_r)                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
