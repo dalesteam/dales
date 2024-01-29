@@ -27,7 +27,7 @@ module modradrte_rrtmgp
   implicit none
 
   private
-  integer :: nlay, nlev, ncol, nbnblw
+  integer :: nlay, nlev, ncol
   public :: radrte_rrtmgp
 
 contains
@@ -70,9 +70,9 @@ contains
 
     logical                                   :: top_at_1 = .false.
     integer                                   :: nbndlw, npatch, ierr(2)=0
-    integer, parameter                        :: ngas = 1
-    character(len=256)                        :: k_dist_file_lw, k_dist_file_sw
-    character(len=3), dimension(ngas)         :: gas_names = ['h2o']!, 'co2', 'o3 ', 'n2o', 'co ', 'ch4', 'o2 ', 'n2 ']
+    integer, parameter                        :: ngas = 5
+    character(len=256)                        :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc", k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
+    character(len=3), dimension(ngas)         :: gas_names = ['h2o', 'o3 ', 'co2', 'ch4', 'n2o']
 
     ! Reading sounding (patch above Dales domain), only once
     if(.not.isReadSounding) then
@@ -98,6 +98,10 @@ contains
       allocate(layerP(ncol,nlay), &
                layerT(ncol,nlay), &
                h2ovmr(ncol,nlay), &
+               o3vmr(ncol,nlay), &
+               co2vmr(ncol,nlay), &
+               ch4vmr(ncol,nlay), &
+               n2ovmr(ncol,nlay), &
                tg_slice(ncol), &
                presf_input(nlay-1), &
                STAT=ierr(1))
@@ -129,6 +133,10 @@ contains
                                  1.5*psnd(npatch_end)-0.5*psnd(npatch_end-1))
       end if
       !call readTraceProfs ! Disable it for now, only H2O!!!
+      o3vmr(:,:) = 0.0
+      co2vmr(:,:) = 0.0
+      ch4vmr(:,:) = 0.0
+      n2ovmr(:,:) = 0.0
 
       if(myid==0) write(*,*) 'Trace gas profile have been read'
       isReadTraceProfiles = .true.
@@ -161,7 +169,7 @@ contains
 
         ! Allocate source term and define BC
         call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
-        allocate(emis(nbnblw,ncol))
+        allocate(emis(nbndlw,ncol))
         emis=0.95
 
       endif
@@ -172,7 +180,12 @@ contains
     end if
 
     call setupColumnProfiles()
+    !order of the species is hardcoded for now, this can be improved
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), o3vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), co2vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), ch4vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), n2ovmr))
 
     if(rad_longw) then
  
