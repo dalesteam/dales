@@ -72,7 +72,9 @@ contains
     integer                                   :: nbndlw, npatch, ierr(2)=0
     integer, parameter                        :: ngas = 5
     character(len=256)                        :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc", k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
-    character(len=3), dimension(ngas)         :: gas_names = ['h2o', 'o3 ', 'co2', 'ch4', 'n2o']
+    !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
+    character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ']
+    integer :: ilay, icol
 
     ! Reading sounding (patch above Dales domain), only once
     if(.not.isReadSounding) then
@@ -143,38 +145,43 @@ contains
     end if
 
     ! Specific RRTMGP initialization
+    ! To be done at each call of the subroutine unless variables (gas_concs, kdist_lw,...) become module variable
+    call stop_on_err(gas_concs%init(gas_names))
+
+    if (rad_longw) then
+
+      ! Load k distributions
+      call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
+      if(.not. k_dist_lw%source_is_internal()) &
+        stop "modradrte_rrtmgp: k-distribution file isn't LW"
+      nbndlw = k_dist_lw%get_nband()
+
+      ! Initialize gas optical properties
+      allocate(ty_optical_props_1scl::atmos_lw)
+
+      select type(atmos_lw)
+        class is (ty_optical_props_1scl)
+          call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
+        class default
+          call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
+      end select
+
+      ! Initialize cloud optical properties
+      !allocate(ty_optical_props_1scl::clouds)
+
+      ! Allocate source term and define BC
+      call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
+
+    endif
+
+    if (rad_shortw) then
+      ! Some sw init
+    endif
+
     if(.not.isInitializedRrtmg) then
-      call stop_on_err(gas_concs%init(gas_names))
-
       if (rad_longw) then
-
-        ! Load k distributions      
-        call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
-        if(.not. k_dist_lw%source_is_internal()) &
-          stop "modradrte_rrtmgp: k-distribution file isn't LW"
-        nbndlw = k_dist_lw%get_nband()
-
-        ! Initialize gas optical properties
-        allocate(ty_optical_props_1scl::atmos_lw)
-
-        select type(atmos_lw)
-          class is (ty_optical_props_1scl)
-            call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
-          class default
-            call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
-        end select
- 
-        ! Initialize cloud optical properties
-        !allocate(ty_optical_props_1scl::clouds)
-
-        ! Allocate source term and define BC
-        call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
         allocate(emis(nbndlw,ncol))
         emis=0.95
-
-      endif
-      if (rad_shortw) then
-        ! Some sw init 
       endif
       isInitializedRrtmg = .true.
     end if
@@ -186,6 +193,7 @@ contains
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), co2vmr))
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), ch4vmr))
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), n2ovmr))
+
 
     if(rad_longw) then
  
@@ -270,6 +278,17 @@ contains
         interfaceP(icol, nlay+1) = min(1.e-4_kind_rb , 0.25*layerP(1,nlay))
       enddo
     enddo
+
+    !!!!!!!!!!!!!!!!!!!!!!
+    ! hard fixes for now !
+    !!!!!!!!!!!!!!!!!!!!!!
+    ! pressures are in SI unit, i.e. Pa
+    layerP(:,:)=layerP(:,:)*100.00
+    interfaceP(:,:)=interfaceP(:,:)*100.00
+    ! minimum pressure for RRTMGP is 1 Pa, also produces a bug when two pressure values following each other are equal
+    layerP(:,nlay)=1.01
+    interfaceP(:,nlay)=1.05
+    interfaceP(:,nlay+1)=1.01
 
   end subroutine setupColumnProfiles
 
