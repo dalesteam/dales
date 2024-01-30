@@ -3,7 +3,7 @@ module modradrrtmg
   implicit none
 
   private
-  public :: radrrtmg, readSounding
+  public :: radrrtmg, readSounding, readTraceProfs
 
 contains
 

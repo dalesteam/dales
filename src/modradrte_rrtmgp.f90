@@ -56,7 +56,7 @@ contains
     use mo_rte_sw,             only: rte_sw
     use mo_load_coefficients,  only: load_and_init  
     ! DALES modules
-    use modradrrtmg,           only: readSounding
+    use modradrrtmg,           only: readSounding, readTraceProfs
     use modmpi,                only: myid
     use modglobal,             only: imax, jmax, kmax, k1 
     use modfields,             only: initial_presh, initial_presf
@@ -70,10 +70,10 @@ contains
 
     logical                                   :: top_at_1 = .false.
     integer                                   :: nbndlw, npatch, ierr(2)=0
-    integer, parameter                        :: ngas = 5
+    integer, parameter                        :: ngas = 10
     character(len=256)                        :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc", k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
     !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
-    character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ']
+    character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
     integer :: ilay, icol
 
     ! Reading sounding (patch above Dales domain), only once
@@ -91,6 +91,9 @@ contains
       nlay = kmax + npatch + 1
       nlev = nlay + 1 ! necessary?
       ncol = imax*jmax
+      !the two indices below are necessary for the readTraceProfs routine
+      krad1=nlay
+      krad2=nlev
 
       isReadSounding = .true.
     end if
@@ -104,6 +107,11 @@ contains
                co2vmr(ncol,nlay), &
                ch4vmr(ncol,nlay), &
                n2ovmr(ncol,nlay), &
+               o2vmr(ncol,nlay), &
+               cfc11vmr(ncol,nlay), &
+               cfc12vmr(ncol,nlay), &
+               cfc22vmr(ncol,nlay), &
+               ccl4vmr(ncol,nlay), &
                tg_slice(ncol), &
                presf_input(nlay-1), &
                STAT=ierr(1))
@@ -134,11 +142,7 @@ contains
         presh_input(krad1) = max(0.5*psnd(npatch_end),            &
                                  1.5*psnd(npatch_end)-0.5*psnd(npatch_end-1))
       end if
-      !call readTraceProfs ! Disable it for now, only H2O!!!
-      o3vmr(:,:) = 0.0
-      co2vmr(:,:) = 0.0
-      ch4vmr(:,:) = 0.0
-      n2ovmr(:,:) = 0.0
+      call readTraceProfs
 
       if(myid==0) write(*,*) 'Trace gas profile have been read'
       isReadTraceProfiles = .true.
@@ -193,7 +197,11 @@ contains
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), co2vmr))
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), ch4vmr))
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), n2ovmr))
-
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), o2vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), cfc11vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), cfc12vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), cfc22vmr))
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), ccl4vmr))
 
     if(rad_longw) then
  
@@ -262,6 +270,19 @@ contains
         layerP(icol,nlay) = 0.5*presh_input(nlay)
         layerT(icol,nlay) = 2.*layerT(icol,nlay-1)-layerT(icol, nlay-2)
       enddo
+    enddo
+
+    !Set up trace gases
+    do k=1,nlay
+      o3vmr   (:, k) = o3(k)
+      co2vmr  (:, k) = co2(k)
+      ch4vmr  (:, k) = ch4(k)
+      n2ovmr  (:, k) = n2o(k)
+      o2vmr   (:, k) = o2(k)
+      cfc11vmr(:, k) = cfc11(k)
+      cfc12vmr(:, k) = cfc12(k)
+      cfc22vmr(:, k) = cfc22(k)
+      ccl4vmr (:, k) = ccl4(k)
     enddo
 
     ! Set up interface values // use table assignment?
