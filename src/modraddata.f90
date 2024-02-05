@@ -109,16 +109,16 @@ SAVE
                                                    lwDownCS_slice, &    ! Downwelling longwave rad, clear sky value (2D slice)
                                                    lwHR_slice,     &    ! Heating rate due to longwave rad          (2D slice)
                                                    lwHRCS_slice,   &    ! Heating rate due to longwave rad,clear sky value          (2D slice)
-                                                   swUp_slice,     &    ! Upwelling shortwave rad                   (2D slice)
-                                                   swDown_slice,   &    ! Downwelling shortwave rad                 (2D slice)
-                                                   swDownDir_slice,&    ! Downwelling shortwave direct rad          (2D slice)
                                                    swDownDif_slice,&    ! Downwelling shortwave diffuse rad         (2D slice)
                                                    swUpCS_slice,   &    ! Upwelling shortwave rad, clear sky value  (2D slice)
                                                    swDownCS_slice, &    ! Downwelling shortwave rad, clear sky value(2D slice)
                                                    swHR_slice,     &    ! Heating rate due to shortwave rad         (2D slice)
                                                    swHRCS_slice         ! Heating rate due to shortwave rad,clear sky value         (2D slice)
-  real(kind=kind_rb),allocatable,target,dimension(:,:) :: lwUp_slice,  & ! Upwelling longwave rad                    (2D slice)
-                                                          lwDown_slice   ! Downwelling longwave rad                  (2D slice)
+  real(kind=kind_rb),allocatable,target,dimension(:,:) :: lwUp_slice,     & ! Upwelling longwave rad                    (2D slice)
+                                                          lwDown_slice,   & ! Downwelling longwave rad                  (2D slice)
+                                                          swUp_slice,     & ! Upwelling shortwave rad                   (2D slice)
+                                                          swDown_slice,   & ! Downwelling shortwave rad                 (2D slice)
+                                                          swDownDir_slice   ! Downwelling shortwave direct rad          (2D slice)
 
   real(kind=kind_rb),allocatable,dimension(:) :: solarZenithAngleCos  ! The zenith angle of a slice
   real(kind=kind_rb),allocatable,dimension(:) :: asdir,asdif,aldir,aldif                         ! Albedos ...

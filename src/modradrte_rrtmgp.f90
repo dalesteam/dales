@@ -27,6 +27,7 @@ module modradrte_rrtmgp
   implicit none
 
   private
+  real(kind=kind_rb), dimension(:,:), allocatable :: inc_sw_flux, sfc_alb_dir, sfc_alb_dif
   integer :: nlay, nlev, ncol
   public :: radrte_rrtmgp
 
@@ -62,14 +63,14 @@ contains
     use modfields,             only: initial_presh, initial_presf
 
     type(ty_source_func_lw), save             :: sources_lw
-    type(ty_gas_optics_rrtmgp)                :: k_dist_lw!, k_dist_sw
+    type(ty_gas_optics_rrtmgp)                :: k_dist_lw, k_dist_sw
     !type(ty_cloud_optics)                     :: cloud_optics
     type(ty_gas_concs)                        :: gas_concs
-    class(ty_optical_props_arry), allocatable :: atmos_lw!, clouds_lw
-    type(ty_fluxes_broadband)                 :: fluxes_lw
+    class(ty_optical_props_arry), allocatable :: atmos_lw, atmos_sw!, clouds_lw, clouds_sw
+    type(ty_fluxes_broadband)                 :: fluxes_lw, fluxes_sw
 
-    logical                                   :: top_at_1 = .false.
-    integer                                   :: nbndlw, npatch, ierr(2)=0
+    logical                                   :: top_at_1 = .false., sunUp = .false.
+    integer                                   :: nbndlw, nbndsw, ngptsw, npatch, ierr(2)=0
     integer, parameter                        :: ngas = 10
     character(len=256)                        :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc", k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
     !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
@@ -114,11 +115,15 @@ contains
                ccl4vmr(ncol,nlay), &
                tg_slice(ncol), &
                presf_input(nlay-1), &
+               solarZenithAngleCos(ncol), &
                STAT=ierr(1))
       allocate(interfaceP(ncol,nlay+1), &
                interfaceT(ncol,nlay+1), &
                lwUp_slice(ncol,nlay+1), &
                lwDown_slice(ncol,nlay+1), &
+               swUp_slice(ncol,nlay+1), &
+               swDown_slice(ncol,nlay+1), &
+               swDownDir_slice(ncol,nlay+1), &
                presh_input(nlay), &
                STAT=ierr(2))
       if(any(ierr(:)/=0)) then
@@ -152,7 +157,7 @@ contains
     ! To be done at each call of the subroutine unless variables (gas_concs, kdist_lw,...) become module variable
     call stop_on_err(gas_concs%init(gas_names))
 
-    if (rad_longw) then
+    if(rad_longw) then
 
       ! Load k distributions
       call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
@@ -171,21 +176,46 @@ contains
       end select
 
       ! Initialize cloud optical properties
-      !allocate(ty_optical_props_1scl::clouds)
+      !allocate(ty_optical_props_1scl::clouds_lw)
 
       ! Allocate source term and define BC
       call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
 
     endif
 
-    if (rad_shortw) then
-      ! Some sw init
+    if(rad_shortw) then
+
+      ! Load k distributions
+      call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
+      if(k_dist_sw%source_is_internal()) &
+        stop "modradrte_rrtmgp: k-distribution file isn't SW"
+      nbndsw = k_dist_sw%get_nband()
+      ngptsw = k_dist_sw%get_ngpt()
+
+      ! Initialize gas optical properties
+      allocate(ty_optical_props_2str::atmos_sw)
+
+      select type(atmos_sw)
+        class is (ty_optical_props_2str)
+          call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
+        class default
+          call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
+      end select
+
+      ! Initialize cloud optical properties
+      !allocate(ty_optical_props_2str::clouds_sw)
+
+
     endif
 
     if(.not.isInitializedRrtmg) then
-      if (rad_longw) then
+      if(rad_longw) then
         allocate(emis(nbndlw,ncol))
         emis=0.95
+      endif
+      if(rad_shortw) then
+        allocate(inc_sw_flux(ncol,ngptsw))
+        allocate(sfc_alb_dir(nbndsw,ncol), sfc_alb_dif(nbndsw,ncol))
       endif
       isInitializedRrtmg = .true.
     end if
@@ -225,6 +255,38 @@ contains
                               sources_lw, & ! source function
                               emis, & ! emissivity at surface
                               fluxes_lw)) ! fluxes
+    endif
+
+    if(rad_shortw) then
+
+      call setupSW(sunUp)
+
+      if(sunUp) then
+        fluxes_sw%flux_up => swUp_slice(:,:)
+        fluxes_sw%flux_dn => swDown_slice(:,:)
+        fluxes_sw%flux_dn_dir => swDownDir_slice(:,:)
+
+        ! Compute optical properties and ???
+        call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & !p_lay, p_lev (in)
+                                           layerT, & !t_lay (in)
+                                           gas_concs, & !gas volume mixing ratios (in)
+                                           atmos_sw, & !
+                                           inc_sw_flux))
+
+        ! Add cloud properties
+        !call stop_on_err(clouds_sw%delta_scale())
+        !call stop_on_err(clouds_sw%increment(atmos))
+
+        ! Solve radiation transport
+        call stop_on_err(rte_sw(atmos_sw, & ! optical properties
+                                top_at_1, & ! Is the top of the domain at index 1?
+                                solarZenithAngleCos, & ! cosine of the solar zenith angle
+                                inc_sw_flux, & ! solar incoming flux
+                                sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse
+                                fluxes_sw)) ! fluxes
+
+      endif
+
     endif
 
     call getFluxProfiles()
@@ -328,17 +390,23 @@ contains
         do k=1,k1
           lwu(i,j,k) = lwUp_slice(icol,k)
           lwd(i,j,k) =-lwDown_slice(icol,k)
+          swu(i,j,k) = swUp_slice(icol,k)
+          swd(i,j,k) =-swDown_slice(icol,k)
+          swdir(i,j,k)= -swDownDir_slice(icol,k)
+          swdif(i,j,k) = -(swDown_slice(icol,k) - swDownDir_slice(icol,k))
         enddo
         LW_up_TOA(i,j) =  lwUp_slice(icol,nlay+1)
         LW_dn_TOA(i,j) = -lwDown_slice(icol,nlay+1)
+        SW_up_TOA(i,j) =  swUp_slice(icol,nlay+1)
+        SW_dn_TOA(i,j) = -swDown_slice(icol,nlay+1)
       enddo
     enddo
 
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          thlprad(i,j,k) = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k))&
-                                         !+swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
+          thlprad(i,j,k) = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)&
+                                         +swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
                                           /(rhof(k)*cp*exnf(k)*dzf(k))
         end do
       end do
@@ -346,5 +414,41 @@ contains
 
 
   end subroutine
+
+  subroutine setupSW(sunUp)
+
+    use modglobal,   only : xday,xlat,xlon,imax,xtime,rtimee
+    use shr_orb_mod, only : shr_orb_decl
+    use modsurfdata, only : albedoav
+
+    implicit none
+
+    logical,intent(out) :: sunUp
+    real                :: dayForSW
+
+    if(doseasons) then
+      ! The diurnal cycle of insolation will vary
+      ! according to time of year of the current day.
+      dayForSW = xday + (xtime + rtimee/3600) / 24
+    end if
+
+    call shr_orb_decl(dayForSW) ! Saves some orbital values to modraddata
+    solarZenithAngleCos(:) =  &
+         zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
+
+    sunUp = .false.
+    ! if all values in solarZenithAngleCos are >= its smallest positive, non-zero element
+    if (all(solarZenithAngleCos(:) >= tiny(solarZenithAngleCos))) then
+      sunUp = .true.
+
+      ! Constant albedo for now
+      ! Albedos can be computed as a function of solarZenithAngleCos,
+      ! so it makes sense to keep the init here
+      sfc_alb_dir=albedoav
+      sfc_alb_dif=albedoav
+
+    end if
+
+  end subroutine setupSW
 
 end module modradrte_rrtmgp
