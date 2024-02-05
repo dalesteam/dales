@@ -43,9 +43,6 @@
 module tstep
 use modtimer
 implicit none
-save
-  real, allocatable, dimension(:) :: courtotl
-  real, allocatable, dimension(:) :: courtot
 
   ! Arrays for keeping track of maximum values
 !  real, allocatable, dimension(:) :: ummax
@@ -58,30 +55,25 @@ contains
 subroutine inittstep
   use modglobal, only : kmax
   implicit none
-  allocate(courtotl(kmax))
-  allocate(courtot(kmax))
-  !$acc enter data create(courtotl, courtot)
 end subroutine inittstep
 
 !> Deallocate arrays
 subroutine exittstep
   implicit none
-  !$acc exit data delete(courtotl, courtot)
-  deallocate(courtotl)
-  deallocate(courtot)
-end subroutine exittstep  
+end subroutine exittstep
 
 subroutine tstep_update
-  use modglobal, only : i1,j1,k1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason, &
+  use modglobal, only : i1,j1,k1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason,nsv, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
   use modsubgrid,only : ekm,ekh
   use modmpi,    only : comm3d,mpierr,mpi_max,D_MPI_ALLREDUCE
+  use modtimer,       only : timer_tic, timer_toc
   implicit none
 
-  integer       :: i, j, k
+  integer       :: i, j, k, n
   real,save     :: courtotmax=-1,peclettot=-1
-  real          :: courold,peclettotl,pecletold
+  real          :: courold, cfl_sq_l, cfl_sq, peclettotl, pecletold, pe_ekm, pe_ekh, min_size_sq
   logical,save  :: spinup=.true.
 
   call timer_tic('tstep/tstep_update', 0)
@@ -97,32 +89,28 @@ subroutine tstep_update
         courold = courtotmax
         pecletold = peclettot
         peclettotl = 0.0
-        !$acc kernels default(present)
+        cfl_sq_l = -1.0
+        !$acc parallel loop collapse(3) default(present) reduction(max:cfl_sq_l, peclettotl)
         do k = 1, kmax
-          courtotl(k)=maxval(um(2:i1,2:j1,k)*um(2:i1,2:j1,k)/(dx*dx)+vm(2:i1,2:j1,k)*vm(2:i1,2:j1,k)/(dy*dy)+&
-                             wm(2:i1,2:j1,k)*wm(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*rdt*rdt
-        end do
-        !$acc end kernels
-
-        !$acc update self(courtotl)
-        call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
-        courtotmax=0.0
-        do k = 1, kmax
-          courtotmax=max(courtotmax,courtot(k))
+          do j = 2, j1
+            do i = 2, i1
+              cfl_sq_l =  (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
+                        + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
+                        + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k))
+              min_size_sq = min(dzh(k),min(dx,dy))**2
+              pe_ekm = ekm(i,j,k)*rdt/min_size_sq
+              pe_ekh = ekh(i,j,k)*rdt/min_size_sq
+              peclettotl = max(pe_ekm, pe_ekh)
+            enddo
+          enddo
         enddo
-        courtotmax=sqrt(courtotmax)
-
-        !$acc parallel loop default(present) reduction(max: peclettotl)
-        do k = 1, kmax
-          ! limit by the larger of ekh, ekm. ekh is generally larger.
-          peclettotl = max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-          peclettotl = max(peclettotl,maxval(ekh(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-        end do
+        call D_MPI_ALLREDUCE(cfl_sq_l,cfl_sq,1,MPI_MAX,comm3d,mpierr)
         call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
+        courtotmax = sqrt(cfl_sq)
 
         if ( pecletold>0) then
-           dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
-           dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
+          dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
+          dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
           if (abs(courtotmax-courold)/courold<0.1 .and. (abs(peclettot-pecletold)/pecletold<0.1)) then
             spinup = .false.
           end if
@@ -146,27 +134,24 @@ subroutine tstep_update
     else
       if (ladaptive) then
         peclettotl = 1e-5
-        !$acc kernels default(present)
+        cfl_sq_l = -1.0
+        !$acc parallel loop collapse(3) default(present) reduction(max:cfl_sq_l, peclettotl)
         do k = 1, kmax
-          courtotl(k)=maxval((um(2:i1,2:j1,k)*rdt/dx)*(um(2:i1,2:j1,k)*rdt/dx)+(vm(2:i1,2:j1,k)*rdt/dy)*&
-                             (vm(2:i1,2:j1,k)*rdt/dy)+(wm(2:i1,2:j1,k)*rdt/dzh(k))*(wm(2:i1,2:j1,k)*rdt/dzh(k)))
-        end do
-        !$acc end kernels
-
-        !$acc update self(courtotl)
-        call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
-        courtotmax=0.0
-        do k = 1, kmax
-            courtotmax=max(courtotmax,sqrt(courtot(k)))
+          do j = 2, j1
+            do i = 2, i1
+              cfl_sq_l =  (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
+                        + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
+                        + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k))
+              min_size_sq = min(dzh(k),min(dx,dy))**2
+              pe_ekm = ekm(i,j,k)*rdt/min_size_sq
+              pe_ekh = ekh(i,j,k)*rdt/min_size_sq
+              peclettotl = max(pe_ekm, pe_ekh)
+            enddo
+          enddo
         enddo
-
-        !$acc parallel loop default(present) reduction(max: peclettotl)
-        do k = 1, kmax
-          ! limit by the larger of ekh, ekm. ekh is generally larger.
-          peclettotl = max(peclettotl,maxval(ekm(2:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-          peclettotl = max(peclettotl,maxval(ekh(1:i1,2:j1,k))*rdt/minval((/dzh(k),dx,dy/))**2)
-        end do
+        call D_MPI_ALLREDUCE(cfl_sq_l,cfl_sq,1,MPI_MAX,comm3d,mpierr)
         call D_MPI_ALLREDUCE(peclettotl,peclettot,1,MPI_MAX,comm3d,mpierr)
+        courtotmax = sqrt(cfl_sq)
 
         dt = min(timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint))
         dt_reason = minloc((/timee,dt_lim,idtmax,floor(rdt/tres*courant/courtotmax,longint),floor(rdt/tres*peclet/peclettot,longint)/),1)
@@ -198,7 +183,16 @@ subroutine tstep_update
         thlp(i,j,k)=0.
         e12p(i,j,k)=0.
         qtp(i,j,k)=0.
-        svp(i,j,k,:)=0.
+      enddo
+    enddo
+  enddo
+  !$acc parallel loop collapse(4) default(present)
+  do n = 1, nsv
+    do k = 1, k1
+      do j = 2, j1
+        do i = 1, i1
+          svp(i,j,k,n)=0.
+        enddo
       enddo
     enddo
   enddo
