@@ -62,42 +62,34 @@ subroutine advecc_kappa(a_in,a_out)
   integer :: nonZeroFound
 
   ! find the lowest and highest k level with a non-zero value in a_in
-  k_low = -1
-  nonZeroFound = 0
+  k_low = k1 + 1
+
+  !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
   do k=1,k1
-     !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
      do j=2,j1
         do i=2,i1
            if (a_in(i,j,k).ne.0.) then
-              nonZeroFound = 1
+             k_low = k
            endif
         enddo
      enddo
-     if (nonZeroFound == 1) then
-        k_low = k
-        exit
-     endif
   enddo
 
-  if (k_low == -1) then
-     ! a_in == zero
+  ! a_in == zero
+  if (k_low == (k1 + 1)) then
      return
   endif
 
-  nonZeroFound = 0
-  do k = k1, 1, -1
-     !$acc parallel loop collapse(2) default(present) reduction(max:nonZeroFound)
+  k_high = 0
+  !$acc parallel loop collapse(3) default(present) reduction(max:k_high)
+  do k = k_low, k1
      do j = 2, j1
         do i = 2, i1
            if ((a_in(i,j,k).ne.0.)) then
-              nonZeroFound = 1
+             k_high = k
            endif
         enddo
      enddo
-     if (nonZeroFound == 1) then
-        k_high = k
-        exit
-     endif
   enddo
 
   ! vertical advection from layer 1 to 2, special case. k=2
@@ -248,12 +240,12 @@ subroutine  halflev_kappa(a_in,a_out)
     integer   i,j,k
 
     !$acc parallel loop collapse(3) private(d1,d2,cf) default(present) async(1)
-    do k=3,k1
-      do j=2,j1
-        do i=2,i1
+    do k = 3, k1
+      do j = 2, j1
+        do i = 2, i1
           if (w0(i,j,k)>=0) then
             d1 = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
-            d2 = rhobf(k) * a_in(i,j,k  )   - rhobf(k-1) * a_in(i,j,k-1)
+            d2 = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
             cf = rhobf(k-1) * a_in(i,j,k-1)
           else
             d1 = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
@@ -266,8 +258,8 @@ subroutine  halflev_kappa(a_in,a_out)
     end do
 
     !$acc parallel loop collapse(2) private(d1,d2,cf) default(present) async(2)
-    do j=2,j1
-      do i=2,i1
+    do j = 2, j1
+      do i = 2, i1
         if (w0(i,j,2)>=0) then
           d1 = 0
           d2 = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
@@ -280,6 +272,8 @@ subroutine  halflev_kappa(a_in,a_out)
         a_out(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
       end do
     end do
+
+    !$acc wait
 
   end subroutine halflev_kappa
 
