@@ -186,16 +186,20 @@ subroutine tstep_update
       enddo
     enddo
   enddo
-  !$acc parallel loop collapse(4) default(present)
-  do n = 1, nsv
-    do k = 1, k1
-      do j = 2, j1
-        do i = 1, i1
-          svp(i,j,k,n)=0.
+
+  ! Scalars
+  if (nsv > 0) then
+    !$acc parallel loop collapse(4) default(present)
+    do n = 1, nsv
+      do k = 1, k1
+        do j = 2, j1
+          do i = 1, i1
+            svp(i,j,k,n)=0.
+          enddo
         enddo
       enddo
     enddo
-  enddo
+  endif
 
   call timer_toc('tstep/tstep_update')
 end subroutine tstep_update
