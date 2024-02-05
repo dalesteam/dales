@@ -68,7 +68,6 @@ subroutine tstep_update
   use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
   use modsubgrid,only : ekm,ekh
   use modmpi,    only : comm3d,mpierr,mpi_max,D_MPI_ALLREDUCE
-  use modtimer,       only : timer_tic, timer_toc
   implicit none
 
   integer       :: i, j, k, n
@@ -94,13 +93,15 @@ subroutine tstep_update
         do k = 1, kmax
           do j = 2, j1
             do i = 2, i1
-              cfl_sq_l =  (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
-                        + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
-                        + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k))
+              cfl_sq_l = max(cfl_sq_l, &
+                               (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
+                             + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
+                             + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k)))
               min_size_sq = min(dzh(k),min(dx,dy))**2
               pe_ekm = ekm(i,j,k)*rdt/min_size_sq
               pe_ekh = ekh(i,j,k)*rdt/min_size_sq
-              peclettotl = max(pe_ekm, pe_ekh)
+              peclettotl = max(peclettotl, &
+                               max(pe_ekm, pe_ekh))
             enddo
           enddo
         enddo
@@ -139,13 +140,15 @@ subroutine tstep_update
         do k = 1, kmax
           do j = 2, j1
             do i = 2, i1
-              cfl_sq_l =  (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
-                        + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
-                        + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k))
+              cfl_sq_l = max(cfl_sq_l, &
+                               (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
+                             + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
+                             + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k)))
               min_size_sq = min(dzh(k),min(dx,dy))**2
               pe_ekm = ekm(i,j,k)*rdt/min_size_sq
               pe_ekh = ekh(i,j,k)*rdt/min_size_sq
-              peclettotl = max(pe_ekm, pe_ekh)
+              peclettotl = max(peclettotl, &
+                               max(pe_ekm, pe_ekh))
             enddo
           enddo
         enddo
