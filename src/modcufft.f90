@@ -91,10 +91,6 @@ module modcufft
       else
         Fp(1:iony,1:jonx,1:kmax) => p_halo(1:iony*jonx*kmax)
       end if
-        
-      sz = max(imax * jmax * konx * nprocx, & ! z-aligned
-               iony * jmax * konx * nprocy, & ! x-aligned
-               iony * jonx * konx * nprocx)   ! y-aligned 
 
       ! Precision
 #if POIS_PRECISION==32
