@@ -138,7 +138,7 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,uvdamprate,nsv,rdt,unudge,dzf
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
@@ -193,6 +193,14 @@ contains
   do n=1,nsv
     sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
   end do
+
+  ! damp layer-average horizontal velocity towards geowind with udvamprate
+  if (uvdamprate > 0) then
+     do k=1,kmax
+        up(:,:,k)  = up(:,:,k) - (u0av(k)-(ug(k)-cu)) * uvdamprate
+        vp(:,:,k)  = vp(:,:,k) - (v0av(k)-(vg(k)-cv)) * uvdamprate
+     end do
+  end if
 
   return
   end subroutine grwdamp
