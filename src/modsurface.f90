@@ -61,6 +61,7 @@
 
 
 module modsurface
+  use modtimer
   use modsurfdata
   implicit none
   !public  :: initsurface, surface, exitsurface
@@ -79,7 +80,8 @@ contains
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
- character(len=1500) :: readbuffer
+    character(len=1500) :: readbuffer
+
     namelist/NAMSURFACE/ & !< Soil related variables
       isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
@@ -100,6 +102,8 @@ contains
       lsplitleaf, &
       ! Exponential emission function
       i_expemis, expemis0, expemis1, expemis2
+
+    call timer_tic('modsurface/initsurface', 0)
 
 
     ! 1    -   Initialize soil
@@ -711,6 +715,8 @@ contains
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                  dqtdz, dthldz, svflux, svs, horv)
 
+    call timer_toc('modsurface/initsurface')
+
     return
   end subroutine initsurface
 
@@ -718,6 +724,8 @@ contains
   subroutine surface
     use moduser,    only : surf_user
     implicit none
+
+    call timer_tic('modsurface/surface', 0)
     
     select case (isurf)
       case (1) ! Interactive land surface model
@@ -761,6 +769,8 @@ contains
         stop "Invalid option selected for isurf"
     end select
 
+    call timer_toc('modsurface/surface')
+
   end subroutine surface
 
   !> Calculates the drag coefficients \f$C_m\f$ and \f$C_s\f$
@@ -772,7 +782,7 @@ contains
     integer :: i, j
     real :: upcu, vpcv
     
-   !$acc parallel loop collapse(2) default(present)
+   !$acc parallel loop collapse(2) default(present) 
     do j = 2, j1
       do i = 2, i1 
         Cm(i,j) = fkar**2 / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))**2 
@@ -853,15 +863,15 @@ contains
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
     
     ! TODO: check if splitting these loops speeds things up on the GPU (async)
-    !$acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present) 
     do j = 2, j1
       do i = 2, i1
         tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1) 
         qskin(i,j) = min(max(qtflux(i,j) / (Cs(i,j) * horv(i,j)), -5.e-2), 5.e-2) + qt0(i,j,1)
       end do
     end do
-    
-    !$acc parallel loop collapse(2) default(present) reduction(+: thls, qtsl) 
+
+    !$acc parallel loop collapse(2) default(present) reduction(+: thlsl, qtsl) 
     do j = 2, j1
       do i = 2, i1
         thlsl = thlsl + tskin(i,j)
@@ -913,7 +923,7 @@ contains
     real :: Supatch(xpatches, ypatches), Svpatch(xpatches, ypatches)
     integer :: Npatch(xpatches, ypatches), SNpatch(xpatches, ypatches)
     
-    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv)
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) 
     do j = 2, j1
       do i = 2, i1
         upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -952,6 +962,8 @@ contains
       horvav = sqrt(u0av(1)**2. + v0av(1)**2.)
       horvav = max(horvav, 0.1)
     end if
+
+    !$acc wait
 
   end subroutine calc_mean_wind
 
@@ -1008,7 +1020,7 @@ contains
         end do
       end do
     else
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) 
       do j = 2, j1
         do i = 2, i1
           ustar(i,j) = ustin
@@ -1016,13 +1028,14 @@ contains
       end do
     end if
     
-    !$acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present) 
     do j = 2, j1
       do i = 2, i1
         ustar(i,j) = max(ustar(i,j), 1.e-2)
       end do
     end do
     
+    !$acc wait 
     call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
 
   end subroutine presc_friction_velocity
@@ -1125,7 +1138,7 @@ contains
         end do
       end if
     else 
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) 
       do j = 2, j1
         do i = 2, i1
           thlflux(i,j) = wtsurf
@@ -1144,6 +1157,8 @@ contains
         end do
       end if
     end if
+    
+    !$acc wait
   end subroutine presc_surface_flux
   
   !> Calculates the surface gradients
@@ -1157,7 +1172,7 @@ contains
     real :: phimzf, phihzf
 
     ! Momentum fluxes
-    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, phimzf)
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv, phimzf) 
     do j = 2, j1
       do i = 2, i1
         upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
@@ -1169,7 +1184,7 @@ contains
     end do
 
     ! Scalar fluxes
-    !$acc parallel loop collapse(2) default(present) private(phihzf)
+    !$acc parallel loop collapse(2) default(present) private(phihzf) 
     do j = 2, j1
       do i = 2, i1
         phihzf = phih(zf(1) / obl(i,j))
@@ -1177,6 +1192,8 @@ contains
         dqtdz(i,j) = - qtflux(i,j) / ustar(i,j) * phihzf / (fkar * zf(1))
       end do
     end do
+
+    !$acc wait
 
   end subroutine calc_surface_gradients
 

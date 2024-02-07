@@ -10,12 +10,13 @@
 module modtimer
   use, intrinsic :: iso_fortran_env, only: dp => real64
   use mpi
+  use modglobal, only : checknamelisterror, ifnamopt, fname_options
 #if defined(USE_NVTX)
   use modnvtx
 #endif
   implicit none
   private
-  public :: timer_tic,timer_toc,timer_print,timer_cleanup
+  public :: timer_tic,timer_toc,timer_print,timer_cleanup, timer_write, inittimer
   !
   logical, parameter :: GPU_DEFAULT_SYNC = .true.
   integer, parameter :: max_name_len = 50
@@ -26,7 +27,26 @@ module modtimer
                                            timer_elapsed_max(:)
   logical , allocatable :: timer_is_nvtx(:)
   integer :: ntimers = 0
+  logical :: ltimer = .false. ! Switch for enabling/disabling timings
+  logical :: ltimer_print = .true. ! Switch for printing timing results to std out
+  logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
 contains
+  subroutine inittimer
+    implicit none
+    integer :: myid, ierr
+    namelist /TIMER/ ltimer, ltimer_print, ltimer_write
+
+    call MPI_COMM_RANK(MPI_COMM_WORLD, myid, ierr)
+
+    if (myid == 0) then
+      open(ifnamopt, file=fname_options, status='old', iostat=ierr)
+      read(ifnamopt, TIMER, iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt , 'TIMER')
+      write(6, TIMER)
+      close(ifnamopt)
+    end if
+
+  end subroutine inittimer
   subroutine timer_print(myid_arg)
     use, intrinsic :: iso_fortran_env, only: stdo => output_unit
     integer , parameter :: MYID_PRINT = 0
@@ -38,6 +58,9 @@ contains
                              timing_results_max(:,:)
     integer  :: i,myid,nproc,ierr,iend
     !
+    if (.not. ltimer) return
+    if (.not. ltimer_print) return
+
     if(present(myid_arg)) then
       myid = myid_arg
     else
@@ -94,6 +117,58 @@ contains
       end if
     end if
   end subroutine timer_print
+  subroutine timer_write(myid_arg)
+    integer , parameter :: MYID_PRINT = 0
+    logical , parameter :: is_verbose_level_1 = .false.
+    logical , parameter :: is_verbose_level_2 = .false.
+    integer , intent(in), optional :: myid_arg
+    real(dp), allocatable :: timing_results_acc(:,:), &
+                             timing_results_min(:,:), &
+                             timing_results_max(:,:)
+    integer  :: i,myid,nproc,ierr,iend
+    integer :: file
+    !
+    if (.not. ltimer) return
+    if (.not. ltimer_write) return
+
+    if(present(myid_arg)) then
+      myid = myid_arg
+    else
+      call MPI_COMM_RANK(MPI_COMM_WORLD,myid,ierr)
+    end if
+    allocate(timing_results_acc(ntimers,3), &
+             timing_results_min(ntimers,3), &
+             timing_results_max(ntimers,3))
+    call MPI_COMM_SIZE(MPI_COMM_WORLD,nproc,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_acc(:),timing_results_acc(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    timing_results_acc(:,3) = timing_results_acc(:,3)/nproc
+    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_min(:),timing_results_min(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    timing_results_min(:,3) = timing_results_min(:,3)/nproc
+    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,1),ntimers,MPI_DOUBLE_PRECISION,MPI_MIN,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,2),ntimers,MPI_DOUBLE_PRECISION,MPI_MAX,MPI_COMM_WORLD,ierr)
+    call MPI_ALLREDUCE(timer_elapsed_max(:),timing_results_max(:,3),ntimers,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierr)
+    timing_results_max(:,3) = timing_results_max(:,3)/nproc
+
+    if (myid == MYID_PRINT) then
+
+      open(newunit=file, file="timing.csv")
+      write(file, '(A)') "Label;Elapsed time;Number of calls;Time per call"
+      do i = 1, ntimers
+        write(file, '(A,A,1E15.7,A,I7,A,1E15.7)') &
+              trim(timer_names(i)),  ";", &
+              timing_results_acc(i,3:3), ";", &
+              timer_counts(i) , ";", &
+              timing_results_acc(i,3:3)/timer_counts(i) 
+      end do
+      close(file)
+
+    end if
+
+  end subroutine timer_write
   subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
     !@cuf use cudafor
     character(*), intent(in) :: timer_name
@@ -104,6 +179,9 @@ contains
     integer :: idx,nvtx_id
     logical :: is_nvtx,is_gpu_sync
     !@cuf integer :: istat
+
+    if (.not. ltimer) return
+    
     if(.not.allocated(timer_names)) then
       allocate(timer_names(      0), &
                timer_counts(     0), &
@@ -181,6 +259,9 @@ contains
     integer :: idx
     logical :: is_gpu_sync
     !@cuf integer :: istat
+
+    if (.not. ltimer) return
+    
     if(present(ierror)) ierror = 0
     idx = timer_search(timer_name)
     if (idx > 0) then
