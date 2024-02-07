@@ -269,7 +269,6 @@ contains
     !$acc wait
 
     call timer_toc('modthermodynamics/calthv')
->>>>>>> OpenACC-Dev
 
   end subroutine calthv
 !> Calculate diagnostic slab averaged fields.
