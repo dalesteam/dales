@@ -67,7 +67,7 @@ contains
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, loutdirs, output_prefix
@@ -109,7 +109,8 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
+        irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
         rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
@@ -208,6 +209,7 @@ contains
     call D_MPI_BCAST(lpressgrad  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(igrw_damp   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(geodamptime ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(uvdamprate  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)

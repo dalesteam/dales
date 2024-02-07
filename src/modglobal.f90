@@ -96,6 +96,7 @@ save
 
       integer :: igrw_damp = 2 !< switch to enable gravity wave damping
       real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
+      real(field_r) :: uvdamprate = 0.  !< rate for damping mean horizontal wind
       real    :: om22                       !<    *2.*omega_earth*cos(lat)
       real    :: om23                       !<    *2.*omega_earth*sin(lat)
       real    :: om22_gs                       !<    *2.*omega_earth*cos(lat)
