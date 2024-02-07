@@ -31,7 +31,7 @@
 module modsubgrid
 use modsubgriddata
 use modprecision, only: field_r
-use modtimer, only: timer_tic, timer_toc
+use modtimer
 implicit none
 save
   public :: subgrid, initsubgrid, exitsubgrid, subgridnamelist
@@ -47,6 +47,8 @@ contains
 
     real :: ceps
     real :: mlen
+
+    call timer_tic('modsubgrid/initsubgrid', 0)
 
     call subgridnamelist
 
@@ -118,6 +120,7 @@ contains
     !$acc enter data copyin(ekm, ekh, zlt, csz, anis_fac, &
     !$acc&                  sbdiss, sbshr, sbbuo)
 
+    call timer_toc('modsubgrid/initsubgrid')
   end subroutine initsubgrid
 
   subroutine subgridnamelist
@@ -168,9 +171,9 @@ contains
     implicit none
     integer n
 
-    call timer_tic("closure", 0)
+    call timer_tic('modsubgrid/subgrid', 0)
+
     call closure
-    call timer_toc("closure")
     !$acc wait
     call diffu(up)
     call diffv(vp)
@@ -182,6 +185,8 @@ contains
       call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
     end do
     if (.not. lsmagorinsky) call sources
+
+    call timer_toc('modsubgrid/subgrid')
 
   end subroutine
 
@@ -237,7 +242,6 @@ contains
   integer :: i,j,k
 
   if(lsmagorinsky) then
-    call timer_tic("Smagorinsky", 1)
     ! First level
     mlen = csz(1) * delta(1)
     !$acc parallel loop collapse(2) private(strain2) async(1)
@@ -323,7 +327,6 @@ contains
         end do
       end do
     end do
-    call timer_toc("Smagorinsky")
   ! do TKE scheme
  else
     ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
@@ -406,12 +409,9 @@ contains
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
-  call timer_tic("Boundary conditions", 2)
   call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
-  call timer_toc("Boundary conditions") 
 
-  call timer_tic("Write buffer", 3)
   !$acc parallel loop collapse(2) default(present)
   do j=1,j2
     do i=1,i2
@@ -419,7 +419,6 @@ contains
       ekh(i,j,k1)  = ekh(i,j,kmax)
     end do
   end do
-  call timer_toc("Write buffer")
 
   return
   end subroutine closure

@@ -32,6 +32,7 @@
 module modstartup
 use iso_c_binding
 use modprecision,      only : field_r
+use modtimer
 
 implicit none
 ! private
@@ -92,10 +93,14 @@ contains
     use tstep,             only : inittstep
     use modchem,           only : initchem
     use modversion,        only : git_version
+#if defined(_OPENACC)
+    use modgpu,             only : initgpu
+#endif
 
     implicit none
     integer :: ierr
     character(256), optional, intent(in) :: path
+
 
     !declare namelists
     namelist/RUN/ &
@@ -168,6 +173,11 @@ contains
 
     ! Initialize MPI
     call initmpi
+
+    ! Initialize OpenACC
+#if defined(_OPENACC)
+    call initgpu(commwrld)
+#endif
 
   !broadcast namelists
     call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr) ! RUN
@@ -274,6 +284,8 @@ contains
     call testwctime
     ! Allocate and initialize core modules
     call initglobal
+    call inittimer
+    call timer_tic('modstartup/startup', 0)
     call initfields
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
@@ -301,6 +313,8 @@ contains
     call inittstep
 
     call checkinitvalues
+
+    call timer_toc('modstartup/startup')
 
   end subroutine startup
 
@@ -419,6 +433,11 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+#if defined(_OPENACC) 
+    use modgpu, only: update_gpu, update_host, host_is_updated
+#endif
+
+    use modgpu, only: update_gpu, update_host, host_is_updated
 
     use modgpu, only: update_gpu, update_host, host_is_updated
 
@@ -643,7 +662,10 @@ contains
 
       call baseprofs ! call baseprofs before thermodynamics
 
+#if defined(_OPENACC)
       call update_gpu
+#endif
+
       call boundary
       call thermodynamics
       call surface
@@ -657,9 +679,11 @@ contains
 
       call boundary
       call thermodynamics
-      call update_host
 
+#if defined(_OPENACC)
+      call update_host
       host_is_updated = .false.
+#endif
 
       ! save initial pressure profiles
       ! used for initialising radiation scheme at restart, to reproduce the same state

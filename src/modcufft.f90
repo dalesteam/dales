@@ -1,6 +1,7 @@
 module modcufft
   use, intrinsic :: iso_c_binding 
 
+  use modtimer
   use modmpi
   use modglobal, only: itot, jtot, kmax, i1, j1, &
                        imax, jmax, ih, jh, dxi, dyi, pi, ijtot
@@ -70,13 +71,14 @@ module modcufft
       nphix = itot/2 + 1
       nphiy = jtot/2 + 1
       
-      sz = max(imax * jmax * konx * nprocx, & ! z-aligned
-               iony * jmax * konx * nprocy, & ! x-aligned
-               iony * jonx * konx * nprocx)   ! y-aligned 
+      sz = max(kmax * imax * jmax, &
+               konx * (2 * nphix) * jmax, &
+               konx * imax * (2 * nphiy))
+      
 
       ! Allocate memory for the pressure
       allocate(p_halo(1:(imax+2*ih)*(jmax+2*jh)*kmax))
-      allocate(p_nohalo(kmax*(nphix*2)*(nphiy*2)))
+      allocate(p_nohalo(sz))
 
       !$acc enter data create(p_halo, p_nohalo)
 
@@ -89,7 +91,6 @@ module modcufft
       else
         Fp(1:iony,1:jonx,1:kmax) => p_halo(1:iony*jonx*kmax)
       end if
-        
 
       ! Precision
 #if POIS_PRECISION==32
@@ -201,7 +202,7 @@ module modcufft
       ! max_worksize is in bytes, so convert it to number of elements by dividing by the size of a real number
       worksize = max_worksize / (storage_size(1._pois_r) / 8)
 
-      worksize = max(worksize, ((nphix*2)*(nphiy*2)*kmax))
+      worksize = max(worksize, sz)
 
       call allocate_workspace(int(worksize))
 
@@ -247,7 +248,6 @@ module modcufft
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       real(pois_r), allocatable :: d(:,:,:), xyrt(:,:,:)
 
-      !$acc exit data delete(xyrt, d, p_halo, p_nohalo)
 
       deallocate(d, xyrt, p_halo, p_nohalo)
 
@@ -338,6 +338,8 @@ module modcufft
 
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
+
+      call timer_tic('modcufft/cufftf', 1)
       
       call transpose_a1(p, px)
 
@@ -363,6 +365,8 @@ module modcufft
 
       call transpose_a3(py, Fp)
 
+      call timer_toc('modcufft/cufftf')
+
     end subroutine cufftf
 
     !< Backward transforms
@@ -373,6 +377,8 @@ module modcufft
       
       real(pois_r), pointer :: p(:,:,:), Fp(:,:,:)
       integer :: i, j, k, ii
+
+      call timer_tic('modcufft/cufftb', 1)
 
       call transpose_a3inv(py, Fp)
       call preprocess_b_fft(py, (/2*nphiy, konx, iony/), jtot)
@@ -408,6 +414,8 @@ module modcufft
           end do
         end do
       end do
+
+      call timer_toc('modcufft/cufftb')
 
     end subroutine cufftb
 

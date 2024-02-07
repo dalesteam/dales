@@ -27,7 +27,7 @@
 !! \par Authors
 !!
 module modboundary
-
+use modtimer
 
 implicit none
 save
@@ -46,6 +46,9 @@ contains
 
     real    :: zspb, zspt
     integer :: k
+
+    call timer_tic('modboundary/initboundary', 0)
+    
     allocate(tsc(k1))
 ! Sponge layer
     if (ksp==-1) then
@@ -62,6 +65,8 @@ contains
    tsc(k1)=tsc(kmax)
 
    !$acc enter data copyin(tsc)
+
+   call timer_toc('modboundary/initboundary')
 
   end subroutine initboundary
 
@@ -80,11 +85,14 @@ contains
 !! \endlatexonly
   subroutine boundary
   implicit none
+    call timer_tic('modboundary/boundary', 0)
 
     call cyclicm
     call cyclich
     call topm
     call toph
+
+    call timer_toc('modboundary/boundary')
   end subroutine boundary
 !> Cleans up after the run
   subroutine exitboundary
@@ -151,6 +159,8 @@ contains
   implicit none
 
   integer k,n
+
+  call timer_tic('modboundary/grwdamp', 0)
 
   select case(igrw_damp)
   case(0) !do nothing
@@ -219,6 +229,8 @@ contains
   end if
 
   !$acc wait
+
+  call timer_toc('modboundary/grwdamp')
 
   return
   end subroutine grwdamp
