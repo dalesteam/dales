@@ -277,7 +277,7 @@ contains
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
     real, allocatable :: vars(:,:,:,:)
-    integer i,j,k,n
+    integer i,j,k,n,ii,jj
     integer :: writecounter = 1
     integer :: reclength
 
@@ -451,10 +451,12 @@ contains
 
     if (lnetcdf .and. lhur) then
        do k = klow, khigh
-          do j = 2, j1, ncoarse
-             do i = 2, i1, ncoarse
-                vars(i/ncoarse,j/ncoarse,k-klow+1,ind_hur) = 100 * (qt0(i,j,k) - ql0(i,j,k)) / &
-                     qsat_tab(tmp0(i,j,k), presf(k))
+          do j = 1, ceiling(1.0*jmax/ncoarse)
+             jj = 2 + (j-1) * ncoarse
+             do i = 1, ceiling(1.0*imax/ncoarse)
+                ii = 2 + (i-1) * ncoarse
+                vars(i,j,k-klow+1,ind_hur) = 100 * (qt0(ii,jj,k) - ql0(ii,jj,k)) / &
+                     qsat_tab(tmp0(ii,jj,k), presf(k))
              end do
           end do
        end do
