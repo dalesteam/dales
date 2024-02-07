@@ -67,7 +67,8 @@ contains
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
+                                  ifnamopt,fname_options,llsadv,lconstexner,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, loutdirs, output_prefix
@@ -111,7 +112,7 @@ contains
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
         lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
         irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
@@ -218,6 +219,7 @@ contains
     call D_MPI_BCAST(lrigidlid   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
@@ -405,7 +407,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -672,9 +674,14 @@ contains
       svm  = sv0
       e12m = e120
       call calc_halflev
-      exnf = (presf/pref0)**(rd/cp)
-      exnh = (presh/pref0)**(rd/cp)
-
+      if (lconstexner) then
+         exnf = (initial_presf/pref0)**(rd/cp)
+         exnh = (initial_presh/pref0)**(rd/cp)
+      else
+         exnf = (presf/pref0)**(rd/cp)
+         exnh = (presh/pref0)**(rd/cp)
+      end if
+ 
       do  j=2,j1
       do  i=2,i1
       do  k=2,k1
