@@ -1163,6 +1163,7 @@ contains
       plimn  = plimn + pliav
 
       tamn   = tamn  + taav
+
       qlhmn  = qlhmn + qlhav
 
       wthlsmn = wthlsmn + wthlsub
@@ -1299,7 +1300,7 @@ contains
       qtmn   = qtmn   /nsamples
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
-      hurmn  = hurmn
+      hurmn  = hurmn /nsamples
       clwmn  = clwmn /nsamples
       climn  = climn /nsamples
       plwmn  = plwmn /nsamples
@@ -1677,7 +1678,13 @@ contains
       qlmn     = 0.
       qlhmn    = 0.
       cfracmn  = 0.
-      hurmn    = 0.0
+      hurmn    = 0.
+      clwmn    = 0.
+      climn    = 0.
+      plwmn    = 0.
+      plimn    = 0.
+      tamn     = 0.
+
       wthlsmn =  0.
       wthlrmn =  0.
       wthltmn =  0.
@@ -1733,9 +1740,8 @@ contains
       cszmn  = 0.
 
       deallocate(tmn, thmn)
-
-
   end subroutine writestat
+
   subroutine exitgenstat
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
