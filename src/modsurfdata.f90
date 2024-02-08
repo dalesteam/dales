@@ -29,7 +29,7 @@
 
 
 module modsurfdata
-
+use modprecision, only: field_r
 ! implicit none
 
 SAVE
@@ -233,7 +233,7 @@ SAVE
   real              :: thls  = -1             !<  Surface liquid water potential temperature [K]
   real              :: qts                    !<  Surface specific humidity [kg/kg]
   real              :: thvs                   !<  Surface virtual temperature [K]
-  real, allocatable :: svs   (:)              !<  Surface scalar concentration [-]
+  real(field_r), allocatable :: svs   (:)              !<  Surface scalar concentration [-]
   real              :: z0    = -1             !<  Surface roughness length [m]
 
   ! prescribed surface fluxes

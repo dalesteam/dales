@@ -56,8 +56,8 @@ subroutine advecc_kappa(a_in,a_out)
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
   
-  real      d1,d2,cf
-  real :: d1m, d2m, d1p, cfm, cfp, work
+  real(field_r) :: d1,d2,cf
+  real(field_r) :: d1m, d2m, d1p, cfm, cfp, work
   integer   i,j,k,k_low,k_high
 
   ! find the lowest and highest k level with a non-zero value in a_in 
@@ -101,8 +101,8 @@ subroutine advecc_kappa(a_in,a_out)
            end if
 
            work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+                min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+                (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
            work = work * w0(i,j,2)
            a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
@@ -132,8 +132,8 @@ subroutine advecc_kappa(a_in,a_out)
            end if
 
            work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+                min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+                (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
            work = work * u0(i,j,k) * dxi
            a_out(i-1,j,k) = a_out(i-1,j,k) - work
@@ -162,8 +162,8 @@ subroutine advecc_kappa(a_in,a_out)
            end if
 
            work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+                min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+                (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
            work = work * v0(i,j,k) * dyi
            a_out(i,j-1,k) = a_out(i,j-1,k) - work
@@ -193,8 +193,8 @@ subroutine advecc_kappa(a_in,a_out)
               end if
 
               work = cf + &
-                   min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                   (sign(0.5, d1) + sign(0.5, d2))
+                   min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+                   (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
               work = work * w0(i,j,k)
               a_out(i,j,k-1) = a_out(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
