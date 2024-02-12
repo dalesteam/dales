@@ -41,6 +41,7 @@
 !! and the diffusion number $d$. The timestep is further limited by the needs of other modules, e.g. the statistics.
 !! \endlatexonly
 module tstep
+use modprecision, only: field_r
 implicit none
 
 contains
@@ -182,7 +183,7 @@ subroutine tstep_integrate
                         e120,e12m,e12p,sv0,svm,svp
   implicit none
 
-  real rk3coef
+  real(field_r) rk3coef
 
   rk3coef = rdt / (4. - dble(rk3step))
 

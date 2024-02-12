@@ -33,6 +33,7 @@
 
 
 module modforces
+use modprecision, only : field_r
 !Calculates additional forces and large scale tendencies
 implicit none
 save
@@ -91,7 +92,7 @@ contains
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
-  wp(:,:,1) = 0.0
+  wp(:,:,1) = 0
 
   end subroutine forces
   subroutine coriolis
@@ -129,16 +130,16 @@ contains
   do i=2,i1
 
     up(i,j,k) = up(i,j,k)+ cv*om23 &
-          +(v0(i,j,k)+v0(i,jp,k)+v0(i-1,j,k)+v0(i-1,jp,k))*om23*0.25 &
-          -(w0(i,j,k)+w0(i,j,kp)+w0(i-1,j,kp)+w0(i-1,j,k))*om22*0.25
+          +(v0(i,j,k)+v0(i,jp,k)+v0(i-1,j,k)+v0(i-1,jp,k))*om23*0.25_field_r &
+          -(w0(i,j,k)+w0(i,j,kp)+w0(i-1,j,kp)+w0(i-1,j,k))*om22*0.25_field_r
 
     vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-          -(u0(i,j,k)+u0(i,jm,k)+u0(i+1,jm,k)+u0(i+1,j,k))*om23*0.25
+          -(u0(i,j,k)+u0(i,jm,k)+u0(i+1,jm,k)+u0(i+1,j,k))*om23*0.25_field_r
 
 
     wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(km) * (u0(i,j,k)  + u0(i+1,j,k) )    &
                 +    dzf(k)  * (u0(i,j,km) + u0(i+1,j,km))  ) / dzh(k) ) &
-                * om22*0.25
+                * om22*0.25_field_r
   end do
   end do
 !     -------------------------------------------end i&j-loop
@@ -155,13 +156,13 @@ contains
   do i=2,i1
 
     up(i,j,1) = up(i,j,1)  + cv*om23 &
-          +(v0(i,j,1)+v0(i,jp,1)+v0(i-1,j,1)+v0(i-1,jp,1))*om23*0.25 &
-          -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25
+          +(v0(i,j,1)+v0(i,jp,1)+v0(i-1,j,1)+v0(i-1,jp,1))*om23*0.25_field_r &
+          -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r
 
     vp(i,j,1) = vp(i,j,1) - cu*om23 &
-          -(u0(i,j,1)+u0(i,jm,1)+u0(i+1,jm,1)+u0(i+1,j,1))*om23*0.25
+          -(u0(i,j,1)+u0(i,jm,1)+u0(i+1,jm,1)+u0(i+1,j,1))*om23*0.25_field_r
 
-    wp(i,j,1) = 0.0
+    wp(i,j,1) = 0
 
   end do
   end do

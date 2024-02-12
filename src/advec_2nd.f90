@@ -74,7 +74,7 @@ subroutine advecc_2nd(a_in,a_out)
 
     do j=2,j1
       do i=2,i1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
                 w0(i,j,2) * (rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1) ) &
                 ) * dzi5
       end do
@@ -83,7 +83,7 @@ subroutine advecc_2nd(a_in,a_out)
     do j=2,j1
     do k=2,kmax         
        do i=2,i1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
                 -w0(i,j,k)   * (rhobf(k-1) * a_in(i,j,k-1)+ rhobf(k) * a_in(i,j,k)) &
                 )*dzi5
@@ -95,8 +95,8 @@ subroutine advecc_2nd(a_in,a_out)
 
     do j=2,j1
       do i=2,i1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-                w0(i,j,2) * (rhobf(2) * a_in(i,j,2) * dzf(1) + rhobf(1) * a_in(i,j,1) * dzf(2) ) / (2.*dzh(2)) &
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
+                w0(i,j,2) * (rhobf(2) * a_in(i,j,2) * dzf(1) + rhobf(1) * a_in(i,j,1) * dzf(2) ) / (2*dzh(2)) &
                 ) / dzf(1)
       end do
     end do
@@ -104,10 +104,10 @@ subroutine advecc_2nd(a_in,a_out)
     do j=2,j1
     do k=2,kmax
        do i=2,i1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
                -w0(i,j,k ) * (rhobf(k-1) * a_in(i,j,k-1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k-1) ) / dzh(k) &
-                )/ (2. * dzf(k))
+                )/ (2 * dzf(k))
         end do
       end do
     end do
@@ -169,7 +169,7 @@ subroutine advecu_2nd(a_in, a_out)
       do i=2,i1
       im=i-1
       ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)-(1./rhobf(1))*( &
+        a_out(i,j,1)  = a_out(i,j,1)-(1/rhobf(1))*( &
             ( rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
             ) *dziq
       end do
@@ -184,7 +184,7 @@ subroutine advecu_2nd(a_in, a_out)
        do i=2,i1
           im=i-1
           ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
               (rhobf(k) * a_in(i,j,k) + rhobf(kp) * a_in(i,j,kp) )*(w0(i,j,kp)+w0(im,j,kp)) &
               -(rhobf(k) * a_in(i,j,k) + rhobf(km) * a_in(i,j,km) )*(w0(i,j,k )+w0(im,j,k )) &
                   )*dziq
@@ -200,9 +200,9 @@ subroutine advecu_2nd(a_in, a_out)
       do i=2,i1
       im=i-1
       ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
               ( rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) / dzh(2) &
-                *( w0(i,j,2)+ w0(im,j,2) ))/ (4.*dzf(1))
+                *( w0(i,j,2)+ w0(im,j,2) ))/ (4*dzf(1))
       end do
     end do
 
@@ -215,12 +215,12 @@ subroutine advecu_2nd(a_in, a_out)
        do i=2,i1
           im=i-1
           ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 ( rhobf(kp) * a_in(i,j,kp)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(kp) ) / dzh(kp) &
                   *( w0(i,j,kp)+ w0(im,j,kp) ) &
                -( rhobf(k) * a_in(i,j,k)*dzf(km) + rhobf(km) * a_in(i,j,km)*dzf(k) ) / dzh(k) &
                   *( w0(i,j,k)  + w0(im,j,k)   ) &
-                )/ (4.*dzf(k))
+                )/ (4*dzf(k))
         end do
       end do
     end do
@@ -285,7 +285,7 @@ subroutine advecv_2nd(a_in, a_out)
       do i=2,i1
       im=i-1
       ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
            (w0(i,j,2)+w0(i,jm,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
             )*dziq
       end do
@@ -300,7 +300,7 @@ subroutine advecv_2nd(a_in, a_out)
        do i=2,i1
           im=i-1
           ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 ( w0(i,j,kp)+w0(i,jm,kp))*(rhobf(kp) * a_in(i,j,kp) + rhobf(k) * a_in(i,j,k)) &
                 -(w0(i,j,k) +w0(i,jm,k)) *(rhobf(km) * a_in(i,j,km) + rhobf(k) * a_in(i,j,k)) &
                 )*dziq
@@ -315,10 +315,10 @@ subroutine advecv_2nd(a_in, a_out)
       do i=2,i1
         im=i-1
         ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
           (w0(i,j,2)+w0(i,jm,2)) &
           *(rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) )/ dzh(2) &
-          ) / (4. * dzf(1))
+          ) / (4 * dzf(1))
       end do
     end do
 
@@ -331,12 +331,12 @@ subroutine advecv_2nd(a_in, a_out)
        do i=2,i1
           im=i-1
           ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
             (w0(i,j,kp)+w0(i,jm,kp)) &
             *(rhobf(kp) * a_in(i,j,kp)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(kp) )/ dzh(kp) &
             -(w0(i,j,k)+w0(i,jm,k)) &
             *(rhobf(km) * a_in(i,j,km)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(km)) / dzh(k) &
-            ) / (4. * dzf(k))
+            ) / (4 * dzf(k))
         end do
       end do
     end do
@@ -392,7 +392,7 @@ subroutine advecw_2nd(a_in,a_out)
               -(a_in(i,jm,k)+a_in(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,km)) &
                 )*dyiq &
               + &
-                (1./rhobh(k))*( &
+                (1/rhobh(k))*( &
                 (rhobh(k) * a_in(i,j,k) + rhobh(kp) * a_in(i,j,kp) )*(w0(i,j,k) + w0(i,j,kp)) &
                -(rhobh(k) * a_in(i,j,k) + rhobh(km) * a_in(i,j,km) )*(w0(i,j,k) + w0(i,j,km)) &
                 )*dziq &
@@ -412,7 +412,7 @@ subroutine advecw_2nd(a_in,a_out)
         im=i-1
         ip=i+1
 
-          a_out(i,j,k)  = a_out(i,j,k) - (1./rhobh(k))*( &
+          a_out(i,j,k)  = a_out(i,j,k) - (1/rhobh(k))*( &
                 ( &
                 ( rhobh(k) * a_in(ip,j,k) + rhobh(k) * a_in(i,j,k) ) &
               *( dzf(km)*u0(ip,j,k) + dzf(k)*u0(ip,j,km) ) &
@@ -430,7 +430,7 @@ subroutine advecw_2nd(a_in,a_out)
                 ( &
                 ( rhobh(k) * a_in(i,j,k) + rhobh(kp) * a_in(i,j,kp) ) * (w0(i,j,k) + w0(i,j,kp) ) &
                -( rhobh(k) * a_in(i,j,k) + rhobh(km) * a_in(i,j,km) ) * (w0(i,j,k) + w0(i,j,km) ) &
-                ) / (4. *dzh(k) ) &
+                ) / (4 *dzh(k) ) &
                 )
 
         end do

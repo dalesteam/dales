@@ -243,11 +243,11 @@ contains
               ((v0(i,jp,k)-v0(i,j,k))    *dyi        )**2    + &
               ((w0(i,j,kp)-w0(i,j,k))    *dzfi(k)     )**2    )
 
-            strain2 = strain2 + 0.5 * ( &
-              ( 0.25*(w0(i+1,j,kp)-w0(i-1,j,kp))*dxi + &
+            strain2 = strain2 + 0.5_field_r * ( &
+              ( 0.25_field_r*(w0(i+1,j,kp)-w0(i-1,j,kp))*dxi + &
               dudz(i,j)   )**2 )
 
-            strain2 = strain2 + 0.125 * ( &
+            strain2 = strain2 + 0.125_field_r * ( &
               ((u0(i,jp,k)-u0(i,j,k))     *dyi     + &
               (v0(i,jp,k)-v0(i-1,jp,k))  *dxi        )**2    + &
               ((u0(i,j,k)-u0(i,jm,k))     *dyi     + &
@@ -257,8 +257,8 @@ contains
               ((u0(i+1,jp,k)-u0(i+1,j,k)) *dyi     + &
               (v0(i+1,jp,k)-v0(i,jp,k))  *dxi        )**2    )
 
-            strain2 = strain2 + 0.5 * ( &
-              ( 0.25*(w0(i,jp,kp)-w0(i,jm,kp))*dyi + &
+            strain2 = strain2 + 0.5_field_r * ( &
+              ( 0.25_field_r*(w0(i,jp,kp)-w0(i,jm,kp))*dyi + &
               dvdz(i,j)   )**2 )
 
           else
@@ -268,7 +268,7 @@ contains
               ((v0(i,jp,k)-v0(i,j,k))    *dyi        )**2    + &
               ((w0(i,j,kp)-w0(i,j,k))    *dzfi(k)     )**2    )
 
-            strain2 = strain2 + 0.125 * ( &
+            strain2 = strain2 + 0.125_field_r * ( &
               ((w0(i,j,kp)-w0(i-1,j,kp))  *dxi     + &
               (u0(i,j,kp)-u0(i,j,k))     * dzhi(kp)  )**2    + &
               ((w0(i,j,k)-w0(i-1,j,k))    *dxi     + &
@@ -278,7 +278,7 @@ contains
               ((w0(i+1,j,kp)-w0(i,j,kp))  *dxi     + &
               (u0(i+1,j,kp)-u0(i+1,j,k)) * dzhi(kp)  )**2    )
 
-            strain2 = strain2 + 0.125 * ( &
+            strain2 = strain2 + 0.125_field_r * ( &
               ((u0(i,jp,k)-u0(i,j,k))     *dyi     + &
               (v0(i,jp,k)-v0(i-1,jp,k))  *dxi        )**2    + &
               ((u0(i,j,k)-u0(i,jm,k))     *dyi     + &
@@ -288,7 +288,7 @@ contains
               ((u0(i+1,jp,k)-u0(i+1,j,k)) *dyi     + &
               (v0(i+1,jp,k)-v0(i,jp,k))  *dxi        )**2    )
 
-            strain2 = strain2 + 0.125 * ( &
+            strain2 = strain2 + 0.125_field_r * ( &
               ((v0(i,j,kp)-v0(i,j,k))     * dzhi(kp) + &
               (w0(i,j,kp)-w0(i,jm,kp))   *dyi        )**2    + &
               ((v0(i,j,k)-v0(i,j,km))     * dzhi(k)+ &
@@ -299,7 +299,7 @@ contains
               (w0(i,jp,kp)-w0(i,j,kp))   *dyi        )**2    )
           end if
 
-          ekm(i,j,k)  = mlen ** 2. * sqrt(2. * strain2)
+          ekm(i,j,k)  = mlen ** 2 * sqrt(2 * strain2)
           ekh(i,j,k)  = ekm(i,j,k) / Prandtl
 
           ekm(i,j,k) = max(ekm(i,j,k),ekmin)
@@ -316,7 +316,7 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = delta(k)
-                
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
 
@@ -330,11 +330,11 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = delta(k)
-                zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)                
-                
+                zlt(i,j,k) = (1 / zlt(i,j,k) ** nmason + 1 / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
-                            
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -345,10 +345,10 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = dzf(k)
-                
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
-                
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -364,18 +364,18 @@ contains
                 !if (dthvdz(i,j,k) > 0) then
                 !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
                 !end if
-                
+
                 ! alternative without if
-                zlt(i,j,k) = min(delta(k), &                                                     
-                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &               
-                     delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))                           
-                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)                        
-                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as                        
-                ! in the original scheme.            
-                
+                zlt(i,j,k) = min(delta(k), &
+                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
+                     delta(k) * (1-sign(1.0_field_r,dthvdz(i,j,k))))
+                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)
+                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as
+                ! in the original scheme.
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
-                
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -443,12 +443,12 @@ contains
     jp=j+1
     jm=j-1
 
-    tdef2 = 2. * ( &
+    tdef2 = 2 * ( &
              ((u0(i+1,j,k)-u0(i,j,k))   *dxi         )**2    + &
              ((v0(i,jp,k)-v0(i,j,k))    *dyi         )**2    + &
              ((w0(i,j,kp)-w0(i,j,k))    *dzfi(k)     )**2    )
 
-    tdef2 = tdef2 + 0.25 * ( &
+    tdef2 = tdef2 + 0.25_field_r * ( &
               ((w0(i,j,kp)-w0(i-1,j,kp))  * dxi     + &
                (u0(i,j,kp)-u0(i,j,k))     * dzhi(kp)  )**2    + &
               ((w0(i,j,k)-w0(i-1,j,k))    * dxi     + &
@@ -458,7 +458,7 @@ contains
               ((w0(i+1,j,kp)-w0(i,j,kp))  * dxi     + &
                (u0(i+1,j,kp)-u0(i+1,j,k)) * dzhi(kp)  )**2    )
 
-    tdef2 = tdef2 + 0.25 * ( &
+    tdef2 = tdef2 + 0.25_field_r * ( &
               ((u0(i,jp,k)-u0(i,j,k))     * dyi     + &
                (v0(i,jp,k)-v0(i-1,jp,k))  * dxi        )**2    + &
               ((u0(i,j,k)-u0(i,jm,k))     * dyi     + &
@@ -468,7 +468,7 @@ contains
               ((u0(i+1,jp,k)-u0(i+1,j,k)) * dyi     + &
                (v0(i+1,jp,k)-v0(i,jp,k))  * dxi        )**2    )
 
-    tdef2 = tdef2 + 0.25 * ( &
+    tdef2 = tdef2 + 0.25_field_r * ( &
               ((v0(i,j,kp)-v0(i,j,k))     * dzhi(kp) + &
                (w0(i,j,kp)-w0(i,jm,kp))   * dyi        )**2    + &
               ((v0(i,j,k)-v0(i,j,km))     * dzhi(k)+ &
@@ -480,8 +480,8 @@ contains
 
     e12p(i,j,k) = e12p(i,j,k) &
                 + (ekm(i,j,k)*tdef2 - ekh(i,j,k)*grav/thvf(k)*dthvdz(i,j,k) ) / (2*e120(i,j,k)) &  !  sbshr and sbbuo
-                - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2.*zlt(i,j,k))               !  sbdiss
-    
+                - (ce1 + ce2*zlt(i,j,k)*deltai(k)) * e120(i,j,k)**2 /(2*zlt(i,j,k))               !  sbdiss
+
   end do
   end do
   end do
@@ -501,14 +501,14 @@ contains
 
 ! **  Calculate "shear" production term: tdef2  ****************
 
-    tdef2 =  2. * ( &
+    tdef2 =  2 * ( &
             ((u0(i+1,j,1)-u0(i,j,1))*dxi)**2 &
           + ((v0(i,jp,1)-v0(i,j,1))*dyi)**2 &
           + ((w0(i,j,2)-w0(i,j,1))*dzfi(1))**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
+          ! Use known surface flux and exchange coefficient to derive
+          ! consistent gradient (such that correct flux will occur in
           ! shear production term)
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
@@ -516,14 +516,14 @@ contains
           horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
           uwflux = -ustar(i,j)*ustar(i,j)* ((u0(i,j,1)+cu)/horv)
           local_dudz = -uwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
+          tdef2 = tdef2 + ( 0.25_field_r*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
                local_dudz )**2
     else
-          tdef2 = tdef2 + ( 0.25*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
+          tdef2 = tdef2 + ( 0.25_field_r*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
                                   dudz(i,j)   )**2
     endif
 
-    tdef2 = tdef2 +   0.25 *( &
+    tdef2 = tdef2 +   0.25_field_r *( &
           ((u0(i,jp,1)-u0(i,j,1))*dyi+(v0(i,jp,1)-v0(i-1,jp,1))*dxi)**2 &
          +((u0(i,j,1)-u0(i,jm,1))*dyi+(v0(i,j,1)-v0(i-1,j,1))*dxi)**2 &
          +((u0(i+1,j,1)-u0(i+1,jm,1))*dyi+(v0(i+1,j,1)-v0(i,j,1))*dxi)**2 &
@@ -531,8 +531,8 @@ contains
                                  (v0(i+1,jp,1)-v0(i,jp,1))*dxi)**2   )
 
     if (sgs_surface_fix) then
-          ! Use known surface flux and exchange coefficient to derive 
-          ! consistent gradient (such that correct flux will occur in 
+          ! Use known surface flux and exchange coefficient to derive
+          ! consistent gradient (such that correct flux will occur in
           ! shear production term)
           ! Make sure that no division by zero occurs in determination of the
           ! directional component; ekm should already be >= ekmin
@@ -540,10 +540,10 @@ contains
           horv = max(sqrt((u0(i,j,1)+cu)**2+(v0(i,j,1)+cv)**2),  0.01)
           vwflux = -ustar(i,j)*ustar(i,j)* ((v0(i,j,1)+cv)/horv)
           local_dvdz = -vwflux / ekm(i,j,1)
-          tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
+          tdef2 = tdef2 + ( 0.25_field_r*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
                         local_dvdz  )**2
     else
-         tdef2 = tdef2 + ( 0.25*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
+         tdef2 = tdef2 + ( 0.25_field_r*(w0(i,jp,2)-w0(i,jm,2))*dyi + &
                                 dvdz(i,j)   )**2
     endif
 
@@ -559,12 +559,12 @@ contains
     else
           sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
     endif
-    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
+    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2*zlt(i,j,1))
   end do
   end do
 
   e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
-            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
+            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)
 
   return
   end subroutine sources
@@ -591,7 +591,7 @@ contains
 
         do i=2,i1
           a_out(i,j,k) = a_out(i,j,k) &
-                    +  0.5 * ( &
+                    +  0.5_field_r * ( &
                   ( (ekh(i+1,j,k)+ekh(i,j,k))*(a_in(i+1,j,k)-a_in(i,j,k)) &
                     -(ekh(i,j,k)+ekh(i-1,j,k))*(a_in(i,j,k)-a_in(i-1,j,k)))*dx2i * anis_fac(k) &
                     + &
@@ -613,7 +613,7 @@ contains
       do i=2,i1
 
         a_out(i,j,1) = a_out(i,j,1) &
-                  + 0.5 * ( &
+                  + 0.5_field_r * ( &
                 ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1)-a_in(i,j,1)) &
                   -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1)-a_in(i-1,j,1)) )*dx2i * anis_fac(1) &
                   + &
@@ -622,7 +622,7 @@ contains
                   + &
                 ( rhobh(2)/rhobf(1) * (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
                   *  (a_in(i,j,2)-a_in(i,j,1)) * dzhi(2)**2 &
-                  + rhobh(1)/rhobf(1)*flux(i,j) *2.                        )*dzfi(1) &
+                  + rhobh(1)/rhobf(1)*flux(i,j) *2                        )*dzfi(1) &
                           )
 
       end do
@@ -700,9 +700,9 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emmo,emom,emop,empo
-    real                :: fu
-    real                :: ucu, upcu
+    real(field_r)                :: emmo,emom,emop,empo
+    real(field_r)                :: fu
+    real(field_r)                :: ucu, upcu
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -717,23 +717,23 @@ contains
 
           emom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) * &
-                    ( .25   * dzhi(k) )
+                    ( .25_field_r   * dzhi(k) )
 
           emop = ( dzf(kp) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,kp) + ekm(i-1,j,kp) ) ) * &
-                    ( .25   * dzhi(kp) )
+                    ( .25_field_r   * dzhi(kp) )
 
-          empo = 0.25 * ( &
+          empo = 0.25_field_r * ( &
                   ekm(i,j,k)+ekm(i,jp,k)+ekm(i-1,jp,k)+ekm(i-1,j,k)  )
 
-          emmo = 0.25 * ( &
+          emmo = 0.25_field_r * ( &
                   ekm(i,j,k)+ekm(i,jm,k)+ekm(i-1,jm,k)+ekm(i-1,j,k)  )
 
 
           a_out(i,j,k) = a_out(i,j,k) &
                   + &
                   ( ekm(i,j,k)  * (u0(i+1,j,k)-u0(i,j,k)) &
-                    -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2. * dx2i * anis_fac(k) &
+                    -ekm(i-1,j,k)* (u0(i,j,k)-u0(i-1,j,k)) ) * 2 * dx2i * anis_fac(k) &
                   + &
                   ( empo * ( (u0(i,jp,k)-u0(i,j,k))   *dyi &
                             +(v0(i,jp,k)-v0(i-1,jp,k))*dxi) &
@@ -759,18 +759,18 @@ contains
 
       do i=2,i1
 
-        empo = 0.25 * ( &
+        empo = 0.25_field_r * ( &
               ekm(i,j,1)+ekm(i,jp,1)+ekm(i-1,jp,1)+ekm(i-1,j,1)  )
 
-        emmo = 0.25 * ( &
+        emmo = 0.25_field_r * ( &
               ekm(i,j,1)+ekm(i,jm,1)+ekm(i-1,jm,1)+ekm(i-1,j,1)  )
 
         emop = ( dzf(2) * ( ekm(i,j,1) + ekm(i-1,j,1) )  + &
                     dzf(1) * ( ekm(i,j,2) + ekm(i-1,j,2) ) ) * &
-                  ( .25   * dzhi(2) )
+                  ( .25_field_r   * dzhi(2) )
 
 
-        ucu   = 0.5*(u0(i,j,1)+u0(i+1,j,1))+cu
+        ucu   = 0.5_field_r*(u0(i,j,1)+u0(i+1,j,1))+cu
 
         if(ucu >= 0.) then
           upcu  = max(ucu,1.e-10)
@@ -779,14 +779,14 @@ contains
         end if
 
 
-        fu = ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
+        fu = ( 0.5_field_r*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
                 upcu/sqrt(upcu**2  + &
-                ((v0(i,j,1)+v0(i-1,j,1)+v0(i,jp,1)+v0(i-1,jp,1))/4.+cv)**2)
+                ((v0(i,j,1)+v0(i-1,j,1)+v0(i,jp,1)+v0(i-1,jp,1))/4+cv)**2)
 
         a_out(i,j,1) = a_out(i,j,1) &
                 + &
               ( ekm(i,j,1)  * (u0(i+1,j,1)-u0(i,j,1)) &
-              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2. * dx2i * anis_fac(1) &
+              -ekm(i-1,j,1)* (u0(i,j,1)-u0(i-1,j,1)) ) * 2 * dx2i * anis_fac(1) &
                 + &
               ( empo * ( (u0(i,jp,1)-u0(i,j,1))   *dyi &
                         +(v0(i,jp,1)-v0(i-1,jp,1))*dxi) &
@@ -812,8 +812,8 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emmo, eomm,eomp,epmo
-    real                :: fv, vcv,vpcv
+    real(field_r)                :: emmo, eomm,eomp,epmo
+    real(field_r)                :: fv, vcv,vpcv
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -828,16 +828,16 @@ contains
 
           eomm = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,jm,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i,jm,km) ) ) * &
-                    ( .25   * dzhi(k) )
+                    ( .25_field_r   * dzhi(k) )
 
           eomp = ( dzf(kp) * ( ekm(i,j,k)  + ekm(i,jm,k)  )  + &
                       dzf(k)  * ( ekm(i,j,kp) + ekm(i,jm,kp) ) ) * &
-                    ( .25   * dzhi(kp) )
+                    ( .25_field_r   * dzhi(kp) )
 
-          emmo = 0.25  * ( &
+          emmo = 0.25_field_r  * ( &
                 ekm(i,j,k)+ekm(i,jm,k)+ekm(i-1,jm,k)+ekm(i-1,j,k)  )
 
-          epmo = 0.25  * ( &
+          epmo = 0.25_field_r  * ( &
                 ekm(i,j,k)+ekm(i,jm,k)+ekm(i+1,jm,k)+ekm(i+1,j,k)  )
 
 
@@ -849,7 +849,7 @@ contains
                         +(u0(i,j,k)-u0(i,jm,k))    *dyi)   ) * dxi * anis_fac(k) &
                 + &
               (ekm(i,j,k) * (v0(i,jp,k)-v0(i,j,k)) &
-              -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2. * dy2i * anis_fac(k) &
+              -ekm(i,jm,k)* (v0(i,j,k)-v0(i,jm,k))  ) * 2 * dy2i * anis_fac(k) &
                 + &
               ( rhobh(kp)/rhobf(k) * eomp * ( (v0(i,j,kp)-v0(i,j,k))    *dzhi(kp) &
                         +(w0(i,j,kp)-w0(i,jm,kp))  *dyi) &
@@ -869,17 +869,17 @@ contains
       jm = j-1
       do i=2,i1
 
-        emmo = 0.25 * ( &
+        emmo = 0.25_field_r * ( &
               ekm(i,j,1)+ekm(i,jm,1)+ekm(i-1,jm,1)+ekm(i-1,j,1)  )
 
-        epmo = 0.25  * ( &
+        epmo = 0.25_field_r  * ( &
               ekm(i,j,1)+ekm(i,jm,1)+ekm(i+1,jm,1)+ekm(i+1,j,1)  )
 
         eomp = ( dzf(2) * ( ekm(i,j,1) + ekm(i,jm,1)  )  + &
                     dzf(1) * ( ekm(i,j,2) + ekm(i,jm,2) ) ) * &
-                  ( .25   * dzhi(2) )
+                  ( .25_field_r   * dzhi(2) )
 
-        vcv   = 0.5*(v0(i,j,1)+v0(i,j+1,1))+cv
+        vcv   = 0.5_field_r*(v0(i,j,1)+v0(i,j+1,1))+cv
         if(vcv >= 0.) then
           vpcv  = max(vcv,1.e-10)
         else
@@ -887,9 +887,9 @@ contains
         end if
 
 
-        fv    = ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
+        fv    = ( 0.5_field_r*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                     vpcv/sqrt(vpcv**2  + &
-                ((u0(i,j,1)+u0(i+1,j,1)+u0(i,jm,1)+u0(i+1,jm,1))/4.+cu)**2)
+                ((u0(i,j,1)+u0(i+1,j,1)+u0(i,jm,1)+u0(i+1,jm,1))/4+cu)**2)
 
         a_out(i,j,1) = a_out(i,j,1) &
                   + &
@@ -899,7 +899,7 @@ contains
                             +(u0(i,j,1)-u0(i,jm,1))    *dyi)   ) * dxi * anis_fac(1) &
                   + &
                 ( ekm(i,j,1) * (v0(i,jp,1)-v0(i,j,1)) &
-                  -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2. * dy2i * anis_fac(1) &
+                  -ekm(i,jm,1)* (v0(i,j,1)-v0(i,jm,1))  ) * 2 * dy2i * anis_fac(1) &
                   + &
                 ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     *dzhi(2) &
                           +(w0(i,j,2)-w0(i,jm,2))    *dyi) &
@@ -921,7 +921,7 @@ contains
   !*****************************************************************
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-    real                :: emom, eomm, eopm, epom
+    real(field_r)                :: emom, eomm, eopm, epom
     integer             :: i,j,k,jm,jp,km,kp
 
     do k=2,kmax
@@ -934,19 +934,19 @@ contains
 
           emom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) * &
-                    ( .25   * dzhi(k) )
+                    ( .25_field_r   * dzhi(k) )
 
           eomm = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,jm,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i,jm,km) ) ) * &
-                    ( .25   * dzhi(k) )
+                    ( .25_field_r   * dzhi(k) )
 
           eopm = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,jp,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i,jp,km) ) ) * &
-                    ( .25   * dzhi(k) )
+                    ( .25_field_r   * dzhi(k) )
 
           epom = ( dzf(km) * ( ekm(i,j,k)  + ekm(i+1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,km) + ekm(i+1,j,km) ) ) * &
-                    ( .25   * dzhi(k) )
+                    ( .25_field_r   * dzhi(k) )
 
 
           a_out(i,j,k) = a_out(i,j,k) &
@@ -960,9 +960,9 @@ contains
                             +(v0(i,jp,k)-v0(i,jp,km))   *dzhi(k) ) &
                     -eomm * ( (w0(i,j,k)-w0(i,jm,k))     *dyi &
                             +(v0(i,j,k)-v0(i,j,km))     *dzhi(k) ))*dyi * anis_fac(k) &
-                + (1./rhobh(k))*&
+                + (1/rhobh(k))*&
                   ( rhobf(k) * ekm(i,j,k) * (w0(i,j,kp)-w0(i,j,k)) *dzfi(k) &
-                  - rhobf(km) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) *dzfi(km) ) * 2. &
+                  - rhobf(km) * ekm(i,j,km)* (w0(i,j,k)-w0(i,j,km)) *dzfi(km) ) * 2 &
                                                               * dzhi(k)
 
         end do

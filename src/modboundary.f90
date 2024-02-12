@@ -27,15 +27,14 @@
 !! \par Authors
 !!
 module modboundary
-
-
+use modprecision, only: field_r
 implicit none
 save
 private
 public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
-  real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
-  real :: rnu0 = 2.75e-3
+  real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
+  real(field_r) :: rnu0 = 2.75e-3
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
