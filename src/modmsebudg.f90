@@ -9,7 +9,7 @@
 !! \author Fredrik Jansson
 
 module modmsebudg
-  use modglobal, only : longint
+  use modglobal, only : longint, output_prefix
   use modprecision, only : longint, field_r
 
 implicit none
@@ -82,7 +82,7 @@ contains
       call ncinfo(ncmsename( 4,:),'tnfmse'   ,'total tendency of mass-weighted vertical integral of frozen moist static energy','J/m2/s','tt0t')
 !      call ncinfo(ncmsename( 5,:),'tnfmsevar','total tendency of spatial variance of mass-weighted vertical integral of frozen moist static energy','J2/m4/s','tt0t')
 
-      call open_nc(fname,  ncid3,nrec3,n1=imax,n2=jmax)
+      call open_nc(trim(output_prefix)//fname, ncid3,nrec3,n1=imax,n2=jmax)
       if (nrec3==0) then
         call define_nc( ncid3, 1, tmsencname)
         call writestat_dims_nc(ncid3)
