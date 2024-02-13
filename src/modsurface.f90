@@ -99,7 +99,8 @@ contains
       !2leaf AGS, sunlit/shaded
       lsplitleaf, &
       ! Exponential emission function
-      i_expemis, expemis0, expemis1, expemis2
+      i_expemis, expemis0, expemis1, expemis2, &
+      min_horv
 
 
     ! 1    -   Initialize soil
@@ -171,6 +172,8 @@ contains
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
+
+    call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
@@ -759,7 +762,7 @@ contains
       xpatches*ypatches,MPI_SUM, comm3d,mpierr)
 
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
-      horvpatch = max(horvpatch, 0.1)
+      horvpatch = max(horvpatch, min_horv)
     endif
 
 
@@ -791,14 +794,14 @@ contains
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 0.1)
+            horv  = max(horv, min_horv)
             ra(i,j) = 1. / ( Cs(i,j) * horv )
           else
             if (lhetero) then
               ra(i,j) = 1. / ( Cs(i,j) * horvpatch(patchx,patchy) )
             else
               horvav  = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-              horvav  = max(horvav, 0.1)
+              horvav  = max(horvav, min_horv)
               ra(i,j) = 1. / ( Cs(i,j) * horvav )
             endif
           end if
@@ -838,9 +841,9 @@ contains
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
+          horv   = max(horv, min_horv)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 0.1)
+          horvav = max(horvav, min_horv)
 
           if(lhetero) then
             patchx = patchxnr(i)
@@ -911,7 +914,7 @@ contains
             upcu  = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
             vpcv  = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
             horv  = sqrt(upcu ** 2. + vpcv ** 2.)
-            horv  = max(horv, 0.1)
+            horv  = max(horv, min_horv)
 
             dudz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(upcu/horv)
             dvdz  (i,j) = ustar(i,j) * phimzf / (fkar*zf(1))*(vpcv/horv)
@@ -950,9 +953,9 @@ contains
           upcu   = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv   = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv   = sqrt(upcu ** 2. + vpcv ** 2.)
-          horv   = max(horv, 0.1)
+          horv   = max(horv, min_horv)
           horvav = sqrt(u0av(1) ** 2. + v0av(1) ** 2.)
-          horvav = max(horvav, 0.1)
+          horvav = max(horvav, min_horv)
           if( isurf == 4) then
             if(lmostlocal) then
               ustar (i,j) = fkar * horv  / (log(zf(1) / z0m(i,j)) - psim(zf(1) / obl(i,j)) + psim(z0m(i,j) / obl(i,j)))
@@ -1141,7 +1144,7 @@ contains
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
-          horv2   =   max(horv2, 0.01)
+          horv2   =   max(horv2, min_horv**2)
 
           if(lhetero) then
             patchx = patchxnr(i)
@@ -1228,7 +1231,7 @@ contains
       MPI_SUM, comm3d,mpierr)
 
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
-      horvpatch = max(horvpatch, 0.1)
+      horvpatch = max(horvpatch, min_horv)
 
       thlpatch  = thlpatch / SNpatch
       qpatch    = qpatch   / SNpatch
@@ -1287,7 +1290,7 @@ contains
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
     horv2 = u0av(1)**2. + v0av(1)**2.
-    horv2 = max(horv2, 0.01)
+    horv2 = max(horv2, min_horv**2)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
     if (Rib == 0) then
