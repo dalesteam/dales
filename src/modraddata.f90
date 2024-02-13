@@ -171,13 +171,13 @@ SAVE
   real mu                            !< cosine of the solar zenith angle
 
   real(field_r), allocatable :: thlprad(:,:,:)!<   the radiative tendencies
-  real, allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
+  real(field_r), allocatable :: swd(:,:,:)    !<   shortwave downward radiative flux
   real(field_r), allocatable :: swdir(:,:,:)  !<   Direct shortwave downward radiative flux
   real(field_r), allocatable :: swdif(:,:,:)  !<   Difuse shortwave downward radiative flux
   real(field_r), allocatable :: lwc(:,:,:)    !<   Liquid water content calculated in rrtmg
-  real, allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
-  real, allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
-  real, allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
+  real(field_r), allocatable :: swu(:,:,:)    !<   shortwave upward radiative flux
+  real(field_r), allocatable :: lwd(:,:,:)    !<   longwave downward radiative flux
+  real(field_r), allocatable :: lwu(:,:,:)    !<   longwave upward radiative flux
 !
   real(field_r), allocatable :: swdca(:,:,:)  !<  clear air shortwave downward radiative flux
   real(field_r), allocatable :: swuca(:,:,:)  !<  clear air shortwave upward radiative flux
