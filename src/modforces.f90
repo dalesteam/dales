@@ -205,25 +205,36 @@ contains
 !     1. DETERMINE LARGE SCALE TENDENCIES
 !        --------------------------------
 
-!     1.1 lowest model level above surface : only downward component
-!     1.2 other model levels twostream
+  !     1.1 lowest model level above surface : only downward component
+  if (whls(2).lt.0) then   !upwind scheme for subsidence
+     thlp(2:i1,2:j1,1) = thlp(2:i1,2:j1,1) - 0.5_field_r * whls(2) * (thl0(2:i1,2:j1,2) - thl0(2:i1,2:j1,1))/dzh(2)
+     qtp (2:i1,2:j1,1) = qtp (2:i1,2:j1,1) - 0.5_field_r * whls(2) * (qt0 (2:i1,2:j1,2) - qt0 (2:i1,2:j1,1))/dzh(2)
+     if (lmomsubs) then
+        up(2:i1,2:j1,1) = up(2:i1,2:j1,1) - 0.5_field_r * whls(2) * (u0(2:i1,2:j1,2) - u0(2:i1,2:j1,1))/dzh(2)
+        vp(2:i1,2:j1,1) = vp(2:i1,2:j1,1) - 0.5_field_r * whls(2) * (v0(2:i1,2:j1,2) - v0(2:i1,2:j1,1))/dzh(2)
+     endif
+     svp(2:i1,2:j1,1,:) = svp(2:i1,2:j1,1,:) - 0.5_field_r * whls(2) * (sv0(2:i1,2:j1,2,:) - sv0(2:i1,2:j1,1,:))/dzh(2)
+  end if
+  thlp(2:i1,2:j1,1) = thlp(2:i1,2:j1,1)-u0av(1)*dthldxls(1)-v0av(1)*dthldyls(1) + dthldtls(1)
+  qtp (2:i1,2:j1,1) = qtp (2:i1,2:j1,1)-u0av(1)*dqtdxls (1)-v0av(1)*dqtdyls (1) + dqtdtls(1)
+  up  (2:i1,2:j1,1) = up  (2:i1,2:j1,1)-u0av(1)*dudxls  (1)-v0av(1)*dudyls  (1) + dudtls(1)
+  vp  (2:i1,2:j1,1) = vp  (2:i1,2:j1,1)-u0av(1)*dvdxls  (1)-v0av(1)*dvdyls  (1) + dvdtls(1)
 
-  do k=1,kmax
+!     1.2 other model levels twostream
+  do k=2,kmax
     kp=k+1
     km=k-1
 
-    if (whls(kp).lt.0) then   !downwind scheme for subsidence
+    if (whls(kp).lt.0) then   !upwind scheme for subsidence
        thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(kp) * (thl0(2:i1,2:j1,kp) - thl0(2:i1,2:j1,k))/dzh(kp)
        qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(kp) * (qt0 (2:i1,2:j1,kp) - qt0 (2:i1,2:j1,k))/dzh(kp)
        if (lmomsubs) then
           up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(kp) * (u0(2:i1,2:j1,kp) - u0(2:i1,2:j1,k))/dzh(kp)
           vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(kp) * (v0(2:i1,2:j1,kp) - v0(2:i1,2:j1,k))/dzh(kp)
        endif
-
        svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(kp) * (sv0(2:i1,2:j1,kp,:) - sv0(2:i1,2:j1,k,:))/dzh(kp)
 
-    else !downwind scheme for mean upward motions
-       if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
+    else !upwind scheme for mean upward motions
           thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,km))/dzh(k)
           qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k) * (qt0 (2:i1,2:j1,k) - qt0 (2:i1,2:j1,km))/dzh(k)
           if (lmomsubs) then
@@ -231,7 +242,6 @@ contains
              vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k) * (v0(2:i1,2:j1,k) - v0(2:i1,2:j1,km))/dzh(k)
           endif
           svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,km,:))/dzh(k)
-       endif
     endif
 
     thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k) + dthldtls(k)
@@ -240,8 +250,6 @@ contains
     vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
 
   enddo
-
-  return
   end subroutine lstend
 
 end module modforces
