@@ -42,7 +42,7 @@ save
 
   real    :: dtav, tmin, tmax
   integer(kind=longint) :: idtav,tnext,itmax,itmin
-  integer :: klow,khigh,ncoarse=-1
+  integer :: klow,khigh,ncoarse=1
   logical :: lfielddump= .false. !< switch to enable the fielddump (on/off)
   logical :: ldiracc   = .false. !< switch for doing direct access writing (on/off)
   logical :: lbinary   = .false. !< switch for doing direct access writing (on/off)
@@ -132,9 +132,6 @@ contains
     call D_MPI_BCAST(ltntrl      ,1,0,comm3d,ierr)
     call D_MPI_BCAST(lsv       ,100,0,comm3d,ierr)
 
-    if (ncoarse==-1) then
-      ncoarse = 1
-    end if
     idtav = dtav/tres
     itmin = tmin/tres
     itmax = tmax/tres
@@ -254,7 +251,7 @@ contains
 
       if (nrec==0) then
         call define_nc( ncid, 1, tncname)
-        call writestat_dims_nc(ncid, ncoarse)
+        call writestat_dims_nc(ncid, ncoarse, klow)
      end if
      call define_nc( ncid, NVar, ncname(1:NVar,:))
      ! must slice ncname here because define_nc expects first dimension to be NVar
@@ -280,7 +277,7 @@ contains
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
     real, allocatable :: vars(:,:,:,:)
-    integer i,j,k,n
+    integer i,j,k,n,ii,jj
     integer :: writecounter = 1
     integer :: reclength
 
@@ -411,7 +408,7 @@ contains
     if (lnetcdf .and. lbuoy) then
       vars(:,:,:,ind_buoy) = thv0h(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
       do k=klow,khigh
-        vars(:,:,k,ind_buoy) = vars(:,:,k,ind_buoy) - thvh(k)
+        vars(:,:,k-klow+1,ind_buoy) = vars(:,:,k-klow+1,ind_buoy) - thvh(k)
       end do
     end if
 
@@ -454,10 +451,12 @@ contains
 
     if (lnetcdf .and. lhur) then
        do k = klow, khigh
-          do j = 2, j1, ncoarse
-             do i = 2, i1, ncoarse
-                vars(i,j,k,ind_hur) = 100 * (qt0(i,j,k) - ql0(i,j,k)) / &
-                     qsat_tab(tmp0(i,j,k), presf(k))
+          do j = 1, ceiling(1.0*jmax/ncoarse)
+             jj = 2 + (j-1) * ncoarse
+             do i = 1, ceiling(1.0*imax/ncoarse)
+                ii = 2 + (i-1) * ncoarse
+                vars(i,j,k-klow+1,ind_hur) = 100 * (qt0(ii,jj,k) - ql0(ii,jj,k)) / &
+                     qsat_tab(tmp0(ii,jj,k), presf(k))
              end do
           end do
        end do
@@ -465,7 +464,7 @@ contains
 
     if (lnetcdf .and. ltntr) then
        do k = klow,khigh
-          vars(:,:,k,ind_tntr) = ( &    !! need to loop over k here
+          vars(:,:,k-klow+1,ind_tntr) = ( &    !! need to loop over k here
                -swd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
                -swu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
                +swd(2:i1:ncoarse,2:j1:ncoarse,k) &
@@ -480,7 +479,7 @@ contains
 
     if (lnetcdf .and. ltntrs) then
        do k = klow,khigh
-          vars(:,:,k,ind_tntrs) = ( & !! need to loop over k here
+          vars(:,:,k-klow+1,ind_tntrs) = ( & !! need to loop over k here
                -swd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
                -swu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
                +swd(2:i1:ncoarse,2:j1:ncoarse,k) &
@@ -491,7 +490,7 @@ contains
 
     if (lnetcdf .and. ltntrl) then
        do k = klow,khigh
-          vars(:,:,k,ind_tntrl) = ( & !! need to loop over k here
+          vars(:,:,k-klow+1,ind_tntrl) = ( & !! need to loop over k here
                -lwd(2:i1:ncoarse,2:j1:ncoarse,k+1) &
                -lwu(2:i1:ncoarse,2:j1:ncoarse,k+1) &
                +lwd(2:i1:ncoarse,2:j1:ncoarse,k) &
