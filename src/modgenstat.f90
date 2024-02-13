@@ -74,7 +74,7 @@ PUBLIC :: initgenstat, genstat, exitgenstat
 save
 
 !NetCDF variables
-  integer :: nvar = 40
+  integer :: nvar = 47
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -88,7 +88,8 @@ save
 
   real, allocatable  :: umn   (:)       ,vmn   (:)
   real, allocatable  :: thlmn (:)       ,thvmn (:)
-  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:)
+  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:),tamn(:)
+  real, allocatable  :: clwmn(:), climn(:), plwmn(:), plimn(:)
 
 ! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
   real, allocatable  :: wthlsmn (:),wthlrmn (:),wthltmn(:)
@@ -117,7 +118,10 @@ save
  real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
  real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
+ real, allocatable :: hurav (:)
+ real, allocatable :: clwav(:), cliav(:), plwav(:), pliav(:)
  real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+ real(field_r), allocatable :: taav (:)
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
@@ -165,7 +169,7 @@ save
 contains
 
   subroutine initgenstat
-    use modmpi,    only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
+    use modmpi,    only : myid,mpierr, comm3d, D_MPI_BCAST
     use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
     cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -192,12 +196,12 @@ contains
     call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lstat      ,1,0,comm3d,mpierr)
-    idtav = dtav/tres
-    itimeav = timeav/tres
+    idtav = int(dtav/tres,kind=longint)
+    itimeav = int(timeav/tres,kind=longint)
 
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
-    nsamples = itimeav/idtav
+    nsamples = int(itimeav/idtav)
     if(.not.(lstat)) return
     dt_lim = min(dt_lim,tnext)
 
@@ -207,7 +211,8 @@ contains
 
     allocate(umn(k1)       ,vmn   (k1))
     allocate(thlmn (k1)       ,thvmn (k1))
-    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1))
+    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1), tamn(k1))
+    allocate(clwmn(k1), climn(k1), plwmn(k1), plimn(k1))
     allocate(wthlsmn (k1),wthlrmn (k1),wthltmn(k1))
     allocate(wthvsmn (k1),wthvrmn (k1),wthvtmn(k1))
     allocate(wqlsmn (k1),wqlrmn (k1),wqltmn(k1))
@@ -230,6 +235,9 @@ contains
     allocate(qtmav (k1))
     allocate(qlmav (k1))
     allocate(cfracav(k1))
+    allocate(hurav(k1))
+    allocate(clwav(k1), cliav(k1), plwav(k1), pliav(k1))
+    allocate(taav(k1))
     allocate(svmav (k1,nsv))
     allocate(uptav(k1))
     allocate(vptav(k1))
@@ -275,6 +283,12 @@ contains
       qlmn     = 0.
       qlhmn    = 0.
       cfracmn  = 0.
+      hurmn    = 0.
+      clwmn    = 0.
+      climn    = 0.
+      plwmn    = 0.
+      plimn    = 0.
+      tamn     = 0.
 
       wthlsmn =  0.
       wthlrmn =  0.
@@ -359,7 +373,7 @@ contains
                close (ifoutput)
             end do
          end if
-         
+
       if (lnetcdf) then
         fname(10:12) = cexpnr
         nvar = nvar + 7*nsv
@@ -406,15 +420,23 @@ contains
         call ncinfo(ncname(38,:),'ql2r','Resolved liquid water variance','(kg/kg)^2','tt')
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         call ncinfo(ncname(40,:),'cfrac','Cloud fraction','-','tt')
+        call ncinfo(ncname(41,:),'hur','Relative humidity','%','tt')
+        call ncinfo(ncname(42,:),'hus','Specific humidity','kg/kg','tt')
+        call ncinfo(ncname(43,:),'ta', 'Temperature','K','tt')
+        call ncinfo(ncname(44,:),'clw', 'Specific cloud liquid water content','kg/kg','tt')
+        call ncinfo(ncname(45,:),'cli', 'Specific cloud ice content','kg/kg','tt')
+        call ncinfo(ncname(46,:),'plw', 'Specific precipitation liquid water content','kg/kg','tt')
+        call ncinfo(ncname(47,:),'pli', 'Specific precipitation ice content','kg/kg','tt')
+
         do n=1,nsv
           write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(40+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(40+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(40+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(47+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
+          call ncinfo(ncname(47+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(47+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
+          call ncinfo(ncname(47+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
+          call ncinfo(ncname(47+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(47+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(47+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
         end do
 
         if (isurf==1) then
@@ -458,14 +480,15 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine do_genstat
 
-    use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
+    use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
+                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,qsat,tmp0
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
+                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
+    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
     implicit none
 
 
@@ -503,7 +526,7 @@ contains
     real,allocatable, dimension(:) ::wthvresl
 
     real,allocatable, dimension(:):: cfracavl ! cloudfraction    at full level
-
+    real,allocatable, dimension(:):: huravl
 
     real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
     real,allocatable, dimension(:):: uwsubl
@@ -526,12 +549,14 @@ contains
     real(field_r),allocatable, dimension(:,:,:):: sv0h
 
     integer i, j, k, n, km
-    real    tsurf, qsat, c1, c2
+    real    tsurf, qsat_, c1, c2
     real    qs0h, t0h, ekhalf, euhalf, evhalf
     real    wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
     real    uws,vws,uwr,vwr
     real    upcu, vpcv
     real    qls
+    real(field_r) :: ilratio
+
     allocate( &
         qlhavl (k1), & ! slab averaged ql_0 at half level &
         wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
@@ -563,7 +588,7 @@ contains
     allocate( wthvresl    (k1))
 
     allocate( cfracavl(k1))  ! slab averaged cloud fraction
-
+    allocate( huravl(k1))
 
     allocate( qlptavl(k1))   ! slab averaged turbulence tendency of q_liq
     allocate( uwsubl(k1))
@@ -598,7 +623,7 @@ contains
   !     --------------------------------------------------------
     qlhavl      = 0.0
     cfracavl    = 0.0
-
+    huravl      = 0.0
 
     qlptavl     = 0.0
 
@@ -651,6 +676,12 @@ contains
     qtmav  = 0.0
     qlmav  = 0.0
     cfracav= 0.0
+    hurav  = 0.0
+    clwav  = 0.0
+    cliav  = 0.0
+    plwav  = 0.0
+    pliav  = 0.0
+    taav   = 0.0
     svmav = 0.
 
     cszav = 0.
@@ -660,22 +691,57 @@ contains
         do  i=2,i1
           thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                         *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          huravl(k) = huravl(k) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat(i,j,k)
         enddo
       enddo
     enddo
+
+    do  k=1,k1
+      do  j=2,j1
+         do  i=2,i1
+            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))
+            clwav(k) = clwav(k) + ql0(i,j,k) * ilratio
+            cliav(k) = cliav(k) + ql0(i,j,k) * (1-ilratio)
+         end do
+      end do
+   end do
+
+   if (imicro == imicro_sice .or. imicro == imicro_sice2) then
+      do  k=1,k1
+         do  j=2,j1
+            do  i=2,i1
+               ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+               plwav(k) = plwav(k) + ql0(i,j,k) * ilratio
+               pliav(k) = pliav(k) + ql0(i,j,k) * (1-ilratio)
+            end do
+         end do
+      end do
+   end if
+
 
     do k=1,k1
       cfracavl(k)    = cfracavl(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
 
-    call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(clwav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(cliav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(plwav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(pliav,k1,MPI_SUM,comm3d,mpierr)
+    clwav = clwav / ijtot
+    cliav = cliav / ijtot
+    plwav = plwav / ijtot
+    pliav = pliav / ijtot
 
-    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(huravl,hurav,k1,MPI_SUM,comm3d,mpierr)
+
+    call slabsum(umav  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(vmav  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thlmav,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qtmav ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
 
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
@@ -683,6 +749,8 @@ contains
     qtmav = qtmav /ijtot
     qlmav = qlmav /ijtot
     cfracav = cfracav / ijtot
+    hurav  = hurav / ijtot
+    taav   = taav  / ijtot
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
 
@@ -690,7 +758,7 @@ contains
   !
 
     do n=1,nsv
-      call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      call slabsum(svmav(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     enddo
     svmav = svmav/ijtot
   !------------------------------------------------------------------
@@ -701,16 +769,16 @@ contains
 
     qls   = 0.0 ! hj: no liquid water at the surface
     tsurf = thls*exnh(1)+(rlv/cp)*qls
-    qsat  = qts - qls
+    qsat_  = qts - qls
     if (qls< eps1) then  ! TH: Should always be true
       c1  = 1.+(rv/rd-1)*qts
       c2  = (rv/rd-1)
     else
-      c1    = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) &
-                /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
+      c1    = (1.-qts+rv/rd*qsat_*(1.+rlv/(rv*tsurf))) &
+                /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat_)
       c2    = c1*rlv/(tsurf*cp)-1.
     end if
-    den   = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
+    den   = 1. + (rlv**2)*qsat_/(rv*cp*(tsurf**2))
     cthl  = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt   = 1./den
     do j=2,j1
@@ -724,35 +792,35 @@ contains
       wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
 
       !Momentum flux
-      if (abs(um(i,j,1)+cu)<eps1) then
-        upcu = sign(eps1,um(i,j,1)+cu)
+      if (abs(u0(i,j,1)+cu)<eps1) then
+        upcu = sign(eps1,u0(i,j,1)+cu)
       else
-        upcu = um(i,j,1)+cu
+        upcu = u0(i,j,1)+cu
       end if
       uwsubl(1) = uwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
                 upcu/sqrt(upcu**2  + &
-          ((vm(i,j,1)+vm(i-1,j,1)+vm(i,j+1,1)+vm(i-1,j+1,1))/4.+cv)**2)
+          ((v0(i,j,1)+v0(i-1,j,1)+v0(i,j+1,1)+v0(i-1,j+1,1))/4.+cv)**2)
 
-      if (abs(vm(i,j,1)+cv)<eps1) then
-        vpcv = sign(eps1,vm(i,j,1)+cv)
+      if (abs(v0(i,j,1)+cv)<eps1) then
+        vpcv = sign(eps1,v0(i,j,1)+cv)
       else
-        vpcv = vm(i,j,1)+cv
+        vpcv = v0(i,j,1)+cv
       end if
       vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                 vpcv/sqrt(vpcv**2  + &
-          ((um(i,j,1)+um(i+1,j,1)+um(i,j-1,1)+um(i+1,j-1,1))/4.+cu)**2)
+          ((u0(i,j,1)+u0(i+1,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1))/4.+cu)**2)
 
 
       !Higher order moments
-      u2avl    (1) = u2avl    (1) + (um (i,j,1)+cu - umav(1))**2
-      v2avl    (1) = v2avl    (1) + (vm (i,j,1)+cv - vmav(1))**2
-      w2avl    (1) = w2avl    (1) + (wm  (i,j,1)**2)
-      w3avl    (1) = w3avl    (1) + (wm  (i,j,1)**3)
-      w2subavl (1) = w2subavl (1) + (e12m(i,j,1)**2)
-      qt2avl   (1) = qt2avl   (1) + (qtm (i,j,1) - qtmav (1))**2
-      thl2avl  (1) = thl2avl  (1) + (thlm(i,j,1) - thlmav(1))**2
+      u2avl    (1) = u2avl    (1) + (u0 (i,j,1)+cu - umav(1))**2
+      v2avl    (1) = v2avl    (1) + (v0 (i,j,1)+cv - vmav(1))**2
+      w2avl    (1) = w2avl    (1) + (w0  (i,j,1)**2)
+      w3avl    (1) = w3avl    (1) + (w0  (i,j,1)**3)
+      w2subavl (1) = w2subavl (1) + (e120(i,j,1)**2)
+      qt2avl   (1) = qt2avl   (1) + (qt0 (i,j,1) - qtmav (1))**2
+      thl2avl  (1) = thl2avl  (1) + (thl0(i,j,1) - thlmav(1))**2
       thv2avl  (1) = thv2avl  (1) + (thv0(i,j,1) - thvmav(1))**2
-      th2avl   (1) = th2avl   (1) + (thlm(i,j,1) - thmav (1))**2
+      th2avl   (1) = th2avl   (1) + (thl0(i,j,1) - thmav (1))**2
       ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
 !       qs2avl   (1) = qs2avl   (1) + qs0**2
 !       qsavl    (1) = qsavl    (1) + qs0
@@ -763,7 +831,7 @@ contains
 
       do n=1,nsv
         wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
-        sv2avl(1,n)  = sv2avl(1,n) + (svm(i,j,1,n)-svmav(1,n))**2
+        sv2avl(1,n)  = sv2avl(1,n) + (sv0(i,j,1,n)-svmav(1,n))**2
       end do
     end do
     end do
@@ -867,15 +935,15 @@ contains
     !     calculate various moments
     !     -----------------------------------------------------------
 
-        u2avl    (k) = u2avl    (k) + (um (i,j,k)+cu - umav(k))**2
-        v2avl    (k) = v2avl    (k) + (vm (i,j,k)+cv - vmav(k))**2
-        w2avl    (k) = w2avl    (k) + (wm  (i,j,k)**2)
-        w3avl    (k) = w3avl    (k) + (wm  (i,j,k)**3)
-        w2subavl (k) = w2subavl (k) + (e12m(i,j,k)**2)
-        qt2avl   (k) = qt2avl   (k) + (qtm (i,j,k) - qtmav (k))**2
-        thl2avl  (k) = thl2avl  (k) + (thlm(i,j,k) - thlmav(k))**2
+        u2avl    (k) = u2avl    (k) + (u0 (i,j,k)+cu - umav(k))**2
+        v2avl    (k) = v2avl    (k) + (v0 (i,j,k)+cv - vmav(k))**2
+        w2avl    (k) = w2avl    (k) + (w0  (i,j,k)**2)
+        w3avl    (k) = w3avl    (k) + (w0  (i,j,k)**3)
+        w2subavl (k) = w2subavl (k) + (e120(i,j,k)**2)
+        qt2avl   (k) = qt2avl   (k) + (qt0 (i,j,k) - qtmav (k))**2
+        thl2avl  (k) = thl2avl  (k) + (thl0(i,j,k) - thlmav(k))**2
         thv2avl  (k) = thv2avl  (k) + (thv0(i,j,k) - thvmav(k))**2
-        th2avl   (k) = th2avl   (k) + (thlm(i,j,k) - thmav (k))**2 !thlm, no thm !?!
+        th2avl   (k) = th2avl   (k) + (thl0(i,j,k) - thmav (k))**2 !thlm, no thm !?!
         ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
 !         qs2avl   (k) = qs2avl   (k) + qs0**2
 !         qsavl    (k) = qsavl    (k) + qs0
@@ -893,7 +961,7 @@ contains
       do k=2,kmax
       do j=2,j1
       do i=2,i1
-        sv2avl(k,n)  = sv2avl(k,n) + (svm(i,j,k,n)-svmav(k,n))**2
+        sv2avl(k,n)  = sv2avl(k,n) + (sv0(i,j,k,n)-svmav(k,n))**2
       end do
       end do
       end do
@@ -1086,6 +1154,15 @@ contains
       qtmn   = qtmn  + qtmav
       qlmn   = qlmn  + qlmav
       cfracmn= cfracmn+cfracav
+      hurmn  = hurmn + hurav
+
+      clwmn  = clwmn + clwav
+      climn  = climn + cliav
+      plwmn  = plwmn + plwav
+      plimn  = plimn + pliav
+
+      tamn   = tamn  + taav
+
       qlhmn  = qlhmn + qlhav
 
       wthlsmn = wthlsmn + wthlsub
@@ -1167,7 +1244,7 @@ contains
     deallocate( wthvresl    )
 
     deallocate( cfracavl )
-
+    deallocate( huravl   )
 
     deallocate( qlptavl)   ! slab averaged turbulence tendency of q_liq
     deallocate( uwsubl)
@@ -1222,6 +1299,12 @@ contains
       qtmn   = qtmn   /nsamples
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
+      hurmn  = hurmn /nsamples
+      clwmn  = clwmn /nsamples
+      climn  = climn /nsamples
+      plwmn  = plwmn /nsamples
+      plimn  = plimn /nsamples
+      tamn  =  tamn   /nsamples
       qlhmn  = qlhmn  /nsamples
 
 
@@ -1560,14 +1643,22 @@ contains
         vars(:,38)=ql2mn
         vars(:,39)=csz
         vars(:,40)=cfracmn
+        vars(:,41)=hurmn
+        vars(:,42)=qtmn-qlmn
+        vars(:,43)=tamn
+        vars(:,44)=clwmn
+        vars(:,45)=climn
+        vars(:,46)=plwmn
+        vars(:,47)=plimn
+
         do n=1,nsv
-          vars(:,40+7*(n-1)+1)=svmmn(:,n)
-          vars(:,40+7*(n-1)+2)=svpmn(:,n)
-          vars(:,40+7*(n-1)+3)=svptmn(:,n)
-          vars(:,40+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,40+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,40+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,40+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,47+7*(n-1)+1)=svmmn(:,n)
+          vars(:,47+7*(n-1)+2)=svpmn(:,n)
+          vars(:,47+7*(n-1)+3)=svptmn(:,n)
+          vars(:,47+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,47+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,47+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,47+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
@@ -1586,6 +1677,12 @@ contains
       qlmn     = 0.
       qlhmn    = 0.
       cfracmn  = 0.
+      hurmn    = 0.
+      clwmn    = 0.
+      climn    = 0.
+      plwmn    = 0.
+      plimn    = 0.
+      tamn     = 0.
 
       wthlsmn =  0.
       wthlrmn =  0.
@@ -1642,9 +1739,8 @@ contains
       cszmn  = 0.
 
       deallocate(tmn, thmn)
-
-
   end subroutine writestat
+
   subroutine exitgenstat
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
@@ -1656,7 +1752,8 @@ contains
 
     deallocate(umn       ,vmn   )
     deallocate(thlmn        ,thvmn )
-    deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn)
+    deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn, hurmn)
+    deallocate(clwmn,climn,plwmn,plimn)
     deallocate(wthlsmn ,wthlrmn ,wthltmn)
     deallocate(wthvsmn ,wthvrmn ,wthvtmn)
     deallocate(wqlsmn ,wqlrmn ,wqltmn)
@@ -1679,6 +1776,8 @@ contains
     deallocate(qtmav )
     deallocate(qlmav )
     deallocate(cfracav )
+    deallocate(hurav )
+    deallocate(clwav,cliav,plwav,pliav)
     deallocate(svmav )
     deallocate(uptav)
     deallocate(vptav)
