@@ -44,6 +44,7 @@ save
 
   integer :: nvar
   integer :: ncid,nrec = 0
+  integer :: ivar_rad = 0  ! starting index for radiation quantities
   character(80) :: fname = 'tmser.xxx.nc'
   !character(80),dimension(nvar,4) :: ncname
   character(80), allocatable, dimension(:,:)    :: ncname
@@ -60,6 +61,7 @@ save
   real    :: blh_thres=-1 ,blh_sign=1.0
   real   :: zbaseav, ztopav, ztopmax,zbasemin
   real   :: qlintav, qlintmax, tke_tot
+  real(field_r) :: prav, pravl
   real   :: qtintav, qrintav
   real   :: cc, wmax, qlmax
   real   :: qlint, qtint, qrint
@@ -82,12 +84,13 @@ save
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
   subroutine inittimestat
-    use modmpi,    only : myid,comm3d,mpi_logical,mpierr,mpi_integer, D_MPI_BCAST
+    use modmpi,    only : myid,comm3d,mpierr,D_MPI_BCAST
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
                           ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
+    use modraddata, only : iradiation
     implicit none
     integer :: ierr,k,location = 1
     real :: gradient = 0.0
@@ -115,6 +118,16 @@ contains
     idtav = dtav/tres
 
     tnext = idtav+btime
+
+    nvar = 24
+    ivar_rad = 25
+    if(isurf == 1) then
+       nvar = nvar + 11
+       ivar_rad = ivar_rad + 11
+    end if
+    if (iradiation /= 0) then
+       nvar = nvar + 19
+    end if
 
     if(.not.(ltimestat)) return
     dt_lim = min(dt_lim,tnext)
@@ -227,13 +240,7 @@ contains
           endif
        endif
 
-      if (lnetcdf) then
-        if(isurf == 1) then
-          nvar = 34
-        else
-          nvar = 23
-        end if
-
+       if (lnetcdf) then
         allocate(ncname(nvar,4))
 
         fname(7:9) = cexpnr
@@ -260,20 +267,46 @@ contains
         call ncinfo(ncname(21,:),'wq','Surface kinematic moisture flux','kg/kg m/s','time')
         call ncinfo(ncname(22,:),'twp_bar','Total water path','kg/m^2','time')
         call ncinfo(ncname(23,:),'rwp_bar','Rain water path','kg/m^2','time')
+        call ncinfo(ncname(24,:),'pr','surface precipitation rate','kg/m^2/s','time')
 
         if(isurf==1) then
-          call ncinfo(ncname(24,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(25,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(26,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(27,:),'G0','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(28,:),'tendskin','Skin tendency','W/m^2','time')
-          call ncinfo(ncname(29,:),'rs','Surface resistance','s/m','time')
-          call ncinfo(ncname(30,:),'ra','Aerodynamic resistance','s/m','time')
-          call ncinfo(ncname(31,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
-          call ncinfo(ncname(32,:),'Wl','Liquid water reservoir','m','time')
-          call ncinfo(ncname(33,:),'rssoil','Soil evaporation resistance','s/m','time')
-          call ncinfo(ncname(34,:),'rsveg','Vegitation resistance','s/m','time')
+          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(28,:),'G0','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(29,:),'tendskin','Skin tendency','W/m^2','time')
+          call ncinfo(ncname(30,:),'rs','Surface resistance','s/m','time')
+          call ncinfo(ncname(31,:),'ra','Aerodynamic resistance','s/m','time')
+          call ncinfo(ncname(32,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
+          call ncinfo(ncname(33,:),'Wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(34,:),'rssoil','Soil evaporation resistance','s/m','time')
+          call ncinfo(ncname(35,:),'rsveg','Vegitation resistance','s/m','time')
         end if
+
+        if (iradiation /= 0) then
+          call ncinfo(ncname(ivar_rad+ 0,:),'rlds',   'surface downwelling longwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 1,:),'rlus',   'surface upwelling longwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 2,:),'rsds',   'surface downwelling shortwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 3,:),'rsus',   'surface upwelling shortwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 4,:),'rsdscs', 'surface downwelling shortwave flux - clear sky','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 5,:),'rsuscs', 'surface upwelling shortwave flux - clear sky','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 6,:),'rldscs', 'surface downwelling longwave flux - clear sky','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 7,:),'rluscs', 'surface upwelling longwave flux - clear sky','W/m^2','time')
+
+          call ncinfo(ncname(ivar_rad+ 8,:),'rsdt',   'TOA incoming shortwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+ 9,:),'rsut',   'TOA outgoing shortwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+10,:),'rlut',   'TOA outgoing longwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+11,:),'rsutcs', 'TOA outgoing shortwave flux -clear sky','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+12,:),'rlutcs', 'TOA outgoing longwave flux -clear sky','W/m^2','time')
+
+          call ncinfo(ncname(ivar_rad+13,:),'rsdtm',  'TOM incoming shortwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+14,:),'rldtm',  'TOM incoming longwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+15,:),'rsutm',  'TOM outgoing shortwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+16,:),'rlutm',  'TOM outgoing longwave flux','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+17,:),'rsutmcs','TOM outgoing shortwave flux -clear sky','W/m^2','time')
+          call ncinfo(ncname(ivar_rad+18,:),'rlutmcs','TOM outgoing longwave flux -clear sky','W/m^2','time')
+        end if
+
         call open_nc(fname,  ncid,nrec)
         if(nrec==0) call define_nc( ncid, NVar, ncname)
       end if
@@ -339,10 +372,10 @@ contains
 !>Run timestat. Calculate and write the statistics
   subroutine timestat
 
-    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1,&
+    use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1, &
                           ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
-    use modmicrodata, only : imicro, iqr
-    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhof,u0,v0,w0,sv0
+    use modmicrodata, only : imicro, iqr, imicro_sice, imicro_sice2, imicro_bulk, precep
+    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -350,6 +383,8 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+    use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
+                            SW_up_ca_TOA,LW_up_ca_TOA,iradiation
     implicit none
 
     real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
@@ -439,7 +474,6 @@ contains
     zbaseavl = 0.0
     ztopavl = 0.0
     zbaseminl = zf(kmax)
-
     store_zi = .true.
 
     call calcblheight
@@ -520,7 +554,10 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseminl, zbasemin, 1, &
                           MPI_MIN, comm3d,mpierr)
-
+    if (imicro == imicro_sice .or. imicro == imicro_sice2 .or. imicro == imicro_bulk) then
+       pravl = sum(precep(2:i1,2:j1,1))
+       call D_MPI_ALLREDUCE(pravl, prav, 1, MPI_SUM, comm3d,mpierr)
+    end if
     if (lhetero) then
       cc_patch    = patchsum_1level(cc_field   )
       qlint_patch = patchsum_1level(qlint_field)
@@ -602,6 +639,7 @@ contains
     qlintav = qlintav / ijtot !domain averaged liquid water path
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
+    prav    = prav*rhobf(1) / ijtot !domain averaged precipitation rate
 
     if (lhetero) then
       do j=1,ypatches
@@ -783,6 +821,36 @@ contains
       endif
     end if
 
+    ! calculate radiation fluxes at surface, TOM, TOA
+    if (iradiation /= 0) then
+       vars(ivar_rad+ 0) = abs(sum(lwd(2:i1,2:j1,1)))  !'rlds',   'surface downwelling longwave flux'
+       vars(ivar_rad+ 1) = abs(sum(lwu(2:i1,2:j1,1)))  !'rlus',   'surface upwelling longwave flux'
+       vars(ivar_rad+ 2) = abs(sum(swd(2:i1,2:j1,1)))  !'rsds',   'surface downwelling shortwave flux'
+       vars(ivar_rad+ 3) = abs(sum(swu(2:i1,2:j1,1)))  !'rsus',   'surface upwelling shortwave flux'
+
+       vars(ivar_rad+ 4) = abs(sum(swdca(2:i1,2:j1,1)))  !'rsdscs', 'surface downwelling shortwave flux - clear sky'
+       vars(ivar_rad+ 5) = abs(sum(swuca(2:i1,2:j1,1)))  !'rsuscs', 'surface upwelling shortwave flux - clear sky'
+       vars(ivar_rad+ 6) = abs(sum(lwdca(2:i1,2:j1,1)))  !'rldscs', 'surface downwelling longwave flux - clear sky'
+       vars(ivar_rad+ 7) = abs(sum(lwuca(2:i1,2:j1,1)))  !'rluscs', 'surface upwelling longwave flux - clear sky'
+
+       vars(ivar_rad+ 8) = abs(sum(SW_dn_TOA(2:i1,2:j1)))    !'rsdt',   'TOA incoming shortwave flux','W/m^2'
+       vars(ivar_rad+ 9) = abs(sum(SW_up_TOA(2:i1,2:j1)))    !'rsut',   'TOA outgoing shortwave flux','W/m^2'
+       vars(ivar_rad+10) = abs(sum(LW_up_TOA(2:i1,2:j1)))    !'rlut',   'TOA outgoing longwave flux','W/m^2'
+       vars(ivar_rad+11) = abs(sum(SW_up_ca_TOA(2:i1,2:j1))) !'rsutcs', 'TOA outgoing shortwave flux -clear sky'
+       vars(ivar_rad+12) = abs(sum(LW_up_ca_TOA(2:i1,2:j1))) !'rlutcs', 'TOA outgoing longwave flux -clear sky'
+
+       vars(ivar_rad+13) = abs(sum(swd(2:i1,2:j1,kmax)))   !'rsdtm',  'TOM incoming shortwave flux'
+       vars(ivar_rad+14) = abs(sum(lwd(2:i1,2:j1,kmax)))   !'rsdtm',  'TOM incoming longwave flux'
+       vars(ivar_rad+15) = abs(sum(swu(2:i1,2:j1,kmax)))   !'rsutm',  'TOM outgoing shortwave flux'
+       vars(ivar_rad+16) = abs(sum(lwu(2:i1,2:j1,kmax)))   !'rlutm',  'TOM outgoing longwave flux'
+       vars(ivar_rad+17) = abs(sum(swuca(2:i1,2:j1,kmax))) !'rsutmcs','TOM outgoing shortwave flux -clear sky'
+       vars(ivar_rad+18) = abs(sum(lwuca(2:i1,2:j1,kmax))) !'rlutmcs','TOM outgoing longwave flux -clear sky'
+
+       call D_MPI_ALLREDUCE(vars(ivar_rad:ivar_rad+18), 19,  MPI_SUM, comm3d,mpierr)
+       vars(ivar_rad:ivar_rad+18) = vars(ivar_rad:ivar_rad+18) / ijtot
+    end if
+
+
   !  9.8  write the results to output file
   !     ---------------------------------------
 
@@ -845,7 +913,6 @@ contains
       if (lnetcdf) then
         vars( 1) = rtimee
         vars( 2) = cc
-        if (vars(2)<eps1) vars(2) = nc_fillvalue
         vars( 3) = zbaseav
         if (vars(3)<eps1) vars(3) = nc_fillvalue
         vars( 4) = ztopav
@@ -870,19 +937,20 @@ contains
         vars(21) = wqls
         vars(22) = qtintav
         vars(23) = qrintav
+        vars(24) = prav
 
         if (isurf == 1) then
-          vars(24) = Qnetav
-          vars(25) = Hav
-          vars(26) = LEav
-          vars(27) = G0av
-          vars(28) = tendskinav
-          vars(29) = rsav
-          vars(30) = raav
-          vars(31) = cliqav
-          vars(32) = wlav
-          vars(33) = rssoilav
-          vars(34) = rsvegav
+          vars(25) = Qnetav
+          vars(26) = Hav
+          vars(27) = LEav
+          vars(28) = G0av
+          vars(29) = tendskinav
+          vars(30) = rsav
+          vars(31) = raav
+          vars(32) = cliqav
+          vars(33) = wlav
+          vars(34) = rssoilav
+          vars(35) = rsvegav
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
