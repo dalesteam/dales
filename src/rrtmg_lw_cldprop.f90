@@ -223,7 +223,10 @@
 ! For iceflag=3 option, ice particle generalized effective size is limited to 5.0 to 140.0 microns
 
                elseif (iceflag .eq. 3) then
-                  if (radice .lt. 5.0_rb .or. radice .gt. 140.0_rb) stop 'ICE GENERALIZED EFFECTIVE SIZE OUT OF BOUNDS'
+                  if (radice .lt. 5.0_rb .or. radice .gt. 140.0_rb) then
+                     write (*,*) 'rrtmg_lw_cldprop.f90: radice =', radice, lay
+                     stop 'ICE GENERALIZED EFFECTIVE SIZE OUT OF BOUNDS'
+                  end if
                      ncbands = 16
                      factor = (radice - 2._rb)/3._rb
                      index = int(factor)
