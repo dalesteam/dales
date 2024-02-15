@@ -24,11 +24,31 @@
 !
 module modradrte_rrtmgp
   use modraddata
+  ! RTE-RRTMGP modules
+  use mo_optical_props,      only: ty_optical_props, &
+                                   ty_optical_props_arry, ty_optical_props_1scl, ty_optical_props_2str
+  use mo_gas_optics_rrtmgp,  only: ty_gas_optics_rrtmgp
+  !use mo_cloud_optics,       only: ty_cloud_optics
+  use mo_source_functions,   only: ty_source_func_lw
+  use mo_fluxes,             only: ty_fluxes_broadband
+  use mo_gas_concentrations, only: ty_gas_concs
+
   implicit none
 
   private
+  ! RRTMGP variables
+  type(ty_gas_concs)                        :: gas_concs
+  type(ty_source_func_lw), save             :: sources_lw
+  type(ty_gas_optics_rrtmgp)                :: k_dist_lw, k_dist_sw
+  !type(ty_cloud_optics)                     :: cloud_optics
+  class(ty_optical_props_arry), allocatable :: atmos_lw, atmos_sw!, clouds_lw, clouds_sw
+  type(ty_fluxes_broadband)                 :: fluxes_lw, fluxes_sw
   real(kind=kind_rb), dimension(:,:), allocatable :: inc_sw_flux, sfc_alb_dir, sfc_alb_dif
-  integer :: nlay, nlev, ncol
+  !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
+  integer, parameter                        :: ngas = 10
+  character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
+  integer                                   :: nlay, nlev, ncol, nbndlw, nbndsw, ngptsw
+
   public :: radrte_rrtmgp
 
 contains
@@ -45,14 +65,6 @@ contains
   end subroutine stop_on_err
 
   subroutine radrte_rrtmgp
-    ! RTE-RRTMGP modules
-    use mo_optical_props,      only: ty_optical_props, &
-                                     ty_optical_props_arry, ty_optical_props_1scl, ty_optical_props_2str
-    use mo_gas_optics_rrtmgp,  only: ty_gas_optics_rrtmgp
-    !use mo_cloud_optics,       only: ty_cloud_optics
-    use mo_gas_concentrations, only: ty_gas_concs
-    use mo_source_functions,   only: ty_source_func_lw
-    use mo_fluxes,             only: ty_fluxes_broadband
     use mo_rte_lw,             only: rte_lw
     use mo_rte_sw,             only: rte_sw
     use mo_load_coefficients,  only: load_and_init  
@@ -62,20 +74,11 @@ contains
     use modglobal,             only: imax, jmax, kmax, k1 
     use modfields,             only: initial_presh, initial_presf
 
-    type(ty_source_func_lw), save             :: sources_lw
-    type(ty_gas_optics_rrtmgp)                :: k_dist_lw, k_dist_sw
-    !type(ty_cloud_optics)                     :: cloud_optics
-    type(ty_gas_concs)                        :: gas_concs
-    class(ty_optical_props_arry), allocatable :: atmos_lw, atmos_sw!, clouds_lw, clouds_sw
-    type(ty_fluxes_broadband)                 :: fluxes_lw, fluxes_sw
 
     logical                                   :: top_at_1 = .false., sunUp = .false.
-    integer                                   :: nbndlw, nbndsw, ngptsw, npatch, ierr(2)=0
-    integer, parameter                        :: ngas = 10
+    integer                                   :: npatch, ierr(2)=0
     character(len=256)                        :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc", k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
-    !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
-    character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
-    integer :: ilay, icol
+    integer                                   :: ilay, icol, k
 
     ! Reading sounding (patch above Dales domain), only once
     if(.not.isReadSounding) then
@@ -149,95 +152,110 @@ contains
       end if
       call readTraceProfs
 
+      !Set up trace gases
+      do k=1,nlay
+        o3vmr   (:, k) = o3(k)
+        co2vmr  (:, k) = co2(k)
+        ch4vmr  (:, k) = ch4(k)
+        n2ovmr  (:, k) = n2o(k)
+        o2vmr   (:, k) = o2(k)
+        cfc11vmr(:, k) = cfc11(k)
+        cfc12vmr(:, k) = cfc12(k)
+        cfc22vmr(:, k) = cfc22(k)
+        ccl4vmr (:, k) = ccl4(k)
+      enddo
+
       if(myid==0) write(*,*) 'Trace gas profile have been read'
       isReadTraceProfiles = .true.
     end if
 
     ! Specific RRTMGP initialization
-    ! To be done at each call of the subroutine unless variables (gas_concs, kdist_lw,...) become module variable
-    call stop_on_err(gas_concs%init(gas_names))
-
-    if(rad_longw) then
-
-      ! Load k distributions
-      call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
-      if(.not. k_dist_lw%source_is_internal()) &
-        stop "modradrte_rrtmgp: k-distribution file isn't LW"
-      nbndlw = k_dist_lw%get_nband()
-
-      ! Initialize gas optical properties
-      allocate(ty_optical_props_1scl::atmos_lw)
-
-      select type(atmos_lw)
-        class is (ty_optical_props_1scl)
-          call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
-        class default
-          call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
-      end select
-
-      ! Initialize cloud optical properties
-      !allocate(ty_optical_props_1scl::clouds_lw)
-
-      ! Allocate source term and define BC
-      call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
-
-    endif
-
-    if(rad_shortw) then
-
-      ! Load k distributions
-      call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
-      if(k_dist_sw%source_is_internal()) &
-        stop "modradrte_rrtmgp: k-distribution file isn't SW"
-      nbndsw = k_dist_sw%get_nband()
-      ngptsw = k_dist_sw%get_ngpt()
-
-      ! Initialize gas optical properties
-      allocate(ty_optical_props_2str::atmos_sw)
-
-      select type(atmos_sw)
-        class is (ty_optical_props_2str)
-          call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
-        class default
-          call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
-      end select
-
-      ! Initialize cloud optical properties
-      !allocate(ty_optical_props_2str::clouds_sw)
-
-
-    endif
-
     if(.not.isInitializedRrtmg) then
+
+      call stop_on_err(gas_concs%init(gas_names))
+      !setup trace gases concentration once for all
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), o3vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), co2vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), ch4vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), n2ovmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), o2vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), cfc11vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), cfc12vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), cfc22vmr))
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), ccl4vmr))
+
+      ! Longwave init
       if(rad_longw) then
+
+        ! Load k distributions
+        call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
+        if(.not. k_dist_lw%source_is_internal()) &
+          stop "modradrte_rrtmgp: k-distribution file isn't LW"
+        nbndlw = k_dist_lw%get_nband()
+
+        ! Initialize gas optical properties
+        allocate(ty_optical_props_1scl::atmos_lw)
+
+        select type(atmos_lw)
+          class is (ty_optical_props_1scl)
+            call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
+          class default
+            call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
+        end select
+
+        ! Initialize cloud optical properties
+        !allocate(ty_optical_props_1scl::clouds_lw)
+
+        ! Allocate source term and define emissivity
+        call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
         allocate(emis(nbndlw,ncol))
         emis=0.95
+
+        ! Define lw fluxes pointers
+        fluxes_lw%flux_up => lwUp_slice(:,:)
+        fluxes_lw%flux_dn => lwDown_slice(:,:)
+
       endif
+
+      ! Shortwave init
       if(rad_shortw) then
+
+        ! Load k distributions
+        call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
+        if(k_dist_sw%source_is_internal()) &
+          stop "modradrte_rrtmgp: k-distribution file isn't SW"
+        nbndsw = k_dist_sw%get_nband()
+        ngptsw = k_dist_sw%get_ngpt()
+
+        ! Initialize gas optical properties
+        allocate(ty_optical_props_2str::atmos_sw)
+
+        select type(atmos_sw)
+          class is (ty_optical_props_2str)
+            call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
+          class default
+            call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
+        end select
+
+        ! Initialize cloud optical properties
+        !allocate(ty_optical_props_2str::clouds_sw)
+
+        ! Define boundary conditions
         allocate(inc_sw_flux(ncol,ngptsw))
         allocate(sfc_alb_dir(nbndsw,ncol), sfc_alb_dif(nbndsw,ncol))
+
+        fluxes_sw%flux_up => swUp_slice(:,:)
+        fluxes_sw%flux_dn => swDown_slice(:,:)
+        fluxes_sw%flux_dn_dir => swDownDir_slice(:,:)
       endif
+
       isInitializedRrtmg = .true.
+
     end if
 
     call setupColumnProfiles()
-    !order of the species is hardcoded for now, this can be improved
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), o3vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), co2vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), ch4vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), n2ovmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), o2vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), cfc11vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), cfc12vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), cfc22vmr))
-    call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), ccl4vmr))
 
     if(rad_longw) then
- 
-      fluxes_lw%flux_up => lwUp_slice(:,:)
-      fluxes_lw%flux_dn => lwDown_slice(:,:)
-
       ! Compute optical properties and source
       call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in)
                                             layerT, tg_slice, & ! t_lay, t_sfc (in)
@@ -259,14 +277,11 @@ contains
 
     if(rad_shortw) then
 
+      ! setup incoming flux and albedo as a function of the zenith angle
       call setupSW(sunUp)
 
       if(sunUp) then
-        fluxes_sw%flux_up => swUp_slice(:,:)
-        fluxes_sw%flux_dn => swDown_slice(:,:)
-        fluxes_sw%flux_dn_dir => swDownDir_slice(:,:)
-
-        ! Compute optical properties and ???
+        ! Compute optical properties and incoming shortwave flux
         call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & !p_lay, p_lev (in)
                                            layerT, & !t_lay (in)
                                            gas_concs, & !gas volume mixing ratios (in)
@@ -334,18 +349,7 @@ contains
       enddo
     enddo
 
-    !Set up trace gases
-    do k=1,nlay
-      o3vmr   (:, k) = o3(k)
-      co2vmr  (:, k) = co2(k)
-      ch4vmr  (:, k) = ch4(k)
-      n2ovmr  (:, k) = n2o(k)
-      o2vmr   (:, k) = o2(k)
-      cfc11vmr(:, k) = cfc11(k)
-      cfc12vmr(:, k) = cfc12(k)
-      cfc22vmr(:, k) = cfc22(k)
-      ccl4vmr (:, k) = ccl4(k)
-    enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
 
     ! Set up interface values // use table assignment?
     do i=2,i1 !i1=imax+1
