@@ -230,7 +230,8 @@ contains
                     taucldsw, ssacldsw, asmcldsw, fsfcldsw, & !taucld, ssacld, asmcld, fsfcld
                     IWP_slice, LWP_slice, iceRe, liquidRe, & !cicewp, cliqwp, reice, reliq
                     tauaersw, ssaaersw, asmaersw, ecaersw, & !tauaer, ssaaer, asmaer, ecaer
-                    swUp_slice, swDown_slice, swHR_slice, swUpCS_slice, swDownCS_slice, swHRCS_slice) !swuflx, swdflx, swhr, swuflxc, swdflxc, swhrc
+                    swUp_slice, swDown_slice, swHR_slice, swUpCS_slice, swDownCS_slice, swHRCS_slice, & !swuflx, swdflx, swhr, swuflxc, swdflxc, swhrc
+                    swDownDir_slice) ! extra optional output only available in the RRTMG_SW fork in dalesteam
                     !bndsolvar, indsolvar, solcycfrac (extra optional inputs in later versions)
          end if
       end if
@@ -248,7 +249,7 @@ contains
       swd(2:i1,j,1:k1) = -swDown_slice(1:imax,1:k1)
 
       swdir(2:i1,j,1:k1) = -swDownDir_slice(1:imax,1:k1)
-      swdif(2:i1,j,1:k1) = -swDownDif_slice(1:imax,1:k1)
+      swdif(2:i1,j,1:k1) = -(swDown_slice(1:imax,1:k1)-swDownDir_slice(1:imax,1:k1))
       lwc  (2:i1,j,1:k1) =  LWP_slice      (1:imax,1:k1)
  
       lwuca(2:i1,j,1:k1) =  lwUpCS_slice  (1:imax,1:k1)
