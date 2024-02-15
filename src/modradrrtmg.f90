@@ -238,7 +238,7 @@ contains
 
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
       lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
-      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
+      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine
         do i=2,i1
           lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
           lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
@@ -251,7 +251,7 @@ contains
       swdir(2:i1,j,1:k1) = -swDownDir_slice(1:imax,1:k1)
       swdif(2:i1,j,1:k1) = -(swDown_slice(1:imax,1:k1)-swDownDir_slice(1:imax,1:k1))
       lwc  (2:i1,j,1:k1) =  LWP_slice      (1:imax,1:k1)
- 
+
       lwuca(2:i1,j,1:k1) =  lwUpCS_slice  (1:imax,1:k1)
       lwdca(2:i1,j,1:k1) = -lwDownCS_slice(1:imax,1:k1)
       swuca(2:i1,j,1:k1) =  swUpCS_slice  (1:imax,1:k1)
@@ -626,8 +626,8 @@ contains
   ! JvdDussen, 24-6-2010                                                        !
   ! ============================================================================!
 
-      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
-      use modfields, only: thl0,ql0,qt0,exnf
+      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0,tup,tdn
+      use modfields, only: thl0,ql0,qt0,exnf,rhof
       use modsurfdata, only: tskin,ps
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
@@ -683,10 +683,14 @@ contains
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
 
         do k=1,kmax
-           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
-           qcl_slice (im,k) = ql0(i,j,k)
-           qci_slice (im,k) = 0.
+           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values
+
+           ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+           qcl_slice (im,k) = ql0(i,j,k) * ilratio
+           qci_slice (im,k) = ql0(i,j,k) * (1-ilratio)
+
            o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
+           rho_slice (im,k) = rhof(k)
 
            h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
 !           h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
@@ -810,15 +814,15 @@ contains
           endif
 
           if (IWP_slice(i,k).gt.0) then
-             cloudFrac(i,k) = 1.
              !cstep Ou Liou: tempC = layerT(i,k)--tmelt
              !cstep Ou Liou  iceRe(i,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
+             cloudFrac(i,k) = 1.
              B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
-             cloudFrac(i,k) = 1.
-             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0)
-             iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998
-
+             if (isnan(iceRe(i,k))) then
+                write (*,*) "B", B_function, "iceRe", iceRe(i,k), "qci_slice", qci_slice(i,k), "layerT", layerT(i,k)
+                stop "modradrrtmg: iceRe is nan."
+             end if
              if (iceRe(i,k).lt.5.) then
                 iceRe(i,k) = 5.
              endif
