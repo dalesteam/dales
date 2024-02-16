@@ -591,7 +591,7 @@ contains
     use modfields, only : qt0,thl0,exnf,presf,ql0
     use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
     use modglobal, only : esatltab, esatitab
-
+    use modmpi,    only : myidx, myidy
     implicit none
     integer :: i, j, k
     real(field_r) :: Tl, qsat_, qt, ql, b, T
@@ -610,9 +610,21 @@ contains
        Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
        Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
        qt_max = maxval(qt0(2:i1,2:j1,k))
-       if (Tl_min < 150) STOP 'icethermo0_fast: Tl_min below limit 150K'
-       if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
-
+       if (Tl_min < 150) then
+          write (*,*) 'icethermo0_fast: Tl_min below limit 150K'
+          write (*,*) 'myid{x,y}', myidx, myidy
+          write (*,*) 'k, exnf(k)', k, exnf(k)
+          write (*,*) 'Tl_max, Tl_min, qt_max = ', Tl_max, Tl_min, qt_max          
+          STOP
+       end if
+       if (esat_tab(Tl_max + 5) > presf(k)) then
+          write (*,*) 'icethermo0_fast: Tl_max too close to boiling point'
+          write (*,*) 'myid{x,y}', myidx, myidy
+          write (*,*) 'k, exnf(k)', k, exnf(k)
+          write (*,*) 'Tl_max, Tl_min, qt_max = ', Tl_max, Tl_min, qt_max
+          write (*,*) 'esat_tab(Tl_max + 5), presf(k)', esat_tab(Tl_max + 5), presf(k)
+          STOP
+       end if
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
        if (qt_max > qsat_) then
           do j=2,j1
