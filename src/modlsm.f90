@@ -1190,7 +1190,7 @@ end subroutine integrate_t_soil
 subroutine integrate_theta_soil
     use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
-
+    use modmpi, only : myidx, myidy
     implicit none
     integer :: i, j, k, si
     real :: tend, rk3coef, flux_top, fac
@@ -1235,6 +1235,15 @@ subroutine integrate_theta_soil
             end do
         end do
     end do
+
+    ! Range check of phiw
+    if (maxval(phiw) > 1 .or. minval(phiw) < 0) then
+       write(*,*) 'phiw out or range 0...1'
+       write(*,*) 'myid{x,y} =', myidx, myidy
+       write(*,*) 'max', maxval(phiw), 'at', maxloc(phiw)
+       write(*,*) 'min', minval(phiw), 'at', minloc(phiw)
+       stop
+    end if
 
 end subroutine integrate_theta_soil
 

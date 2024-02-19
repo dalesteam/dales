@@ -65,7 +65,7 @@ save
 contains
 !> Initializing lsmcrosssection. Read out the namelist, initializing the variables
   subroutine initlsmcrosssection
-    use modmpi,      only : myid,mpierr,comm3d,cmyid,D_MPI_BCAST
+    use modmpi,      only : myid,myidy,mpierr,comm3d,cmyid,D_MPI_BCAST
     use modglobal,   only : imax,jmax,ifnamopt,fname_options,dtmax,dtav_glob,ladaptive,j1,dt_lim,cexpnr,tres,btime,checknamelisterror,&
                             output_prefix
     use modstat_nc,  only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
@@ -113,7 +113,7 @@ contains
       stop 'lsmcrosssection: dtav should be a integer multiple of dtmax'
     end if
     if (lnetcdf) then
-      if (myid==0) then
+      if (myidy==0) then
         fname1(12:19) = cmyid
         fname1(21:23) = cexpnr
         call nctiminfo(tncname1(1,:))
@@ -233,7 +233,7 @@ contains
   subroutine wrtvert
   use modglobal, only : imax,i1,cexpnr,ifoutput,rtimee
   use modsurfdata, only : tsoil, phiw
-  use modmpi,    only : myid
+  use modmpi,    only : myidy
   use modstat_nc, only : lnetcdf, writestat_nc
   implicit none
 
@@ -241,7 +241,7 @@ contains
 
   real, allocatable :: vars(:,:,:)
 
-  if( myid /= 0 ) return
+  if( myidy /= 0 ) return
 
     open(ifoutput,file='movv_tsoil.'//cexpnr,position='append',action='write')
     write(ifoutput,'(es12.5)') ((tsoil(i,crossplane,k),i=2,i1),k=1,ksoilmax)
@@ -403,11 +403,11 @@ contains
 !> Clean up when leaving the run
   subroutine exitlsmcrosssection
     use modstat_nc, only : exitstat_nc,lnetcdf
-    use modmpi, only : myid
+    use modmpi, only : myidy
     implicit none
 
     if(lcross .and. lnetcdf) then
-      if (myid==0) then
+      if (myidy==0) then
         call exitstat_nc(ncid1)
       end if
       call exitstat_nc(ncid2)
