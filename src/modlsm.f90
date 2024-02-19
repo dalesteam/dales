@@ -1063,7 +1063,8 @@ subroutine calc_hydraulic_properties
                 si = soil_index(i,j,k)
 
                 ! Limit soil moisture just above the residual soil moisture content
-                theta_lim = max(phiw(i,j,k), 1.001*theta_res(si))
+                ! and just below saturation
+                theta_lim = min(max(phiw(i,j,k), 1.001*theta_res(si)), theta_sat(si))
 
                 ! Dimensionless soil water content
                 theta_norm = (theta_lim - theta_res(si)) / (theta_sat(si) - theta_res(si))
