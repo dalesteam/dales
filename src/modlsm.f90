@@ -1243,7 +1243,7 @@ subroutine integrate_theta_soil
        write(*,*) 'myid{x,y} =', myidx, myidy
        write(*,*) 'max', maxval(phiw), 'at', maxloc(phiw)
        write(*,*) 'min', minval(phiw), 'at', minloc(phiw)
-       stop
+       !stop
     end if
 
 end subroutine integrate_theta_soil
