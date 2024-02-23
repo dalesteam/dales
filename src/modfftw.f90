@@ -30,7 +30,7 @@ use modprecision, only : pois_r
 use modglobal, only : itot, jtot, imax, jmax, i1, j1, ih, jh, kmax, ijtot &
                     , dxi,dyi,pi, lperiodic
 use modmpi, only : commcol, commrow, mpierr, nprocx, D_MPI_ALLTOALL, nprocy &
-                 , myidx, myidy
+                 ,  myid, myidx, myidy
 implicit none
 
 #ifdef USE_FFTW
@@ -134,15 +134,16 @@ contains
       jonx = jonx + 1
     endif
 
-    write(*,*) "-- modFFTW sizes --"
-    write(*,*) "itot, jtot", itot, jtot
-    write(*,*) "imax, jmax", imax, jmax
-
-    write(*,*) "konx", konx
-    write(*,*) "kony", kony
-    write(*,*) "iony", iony
-    write(*,*) "jonx", jonx
-
+    if (myid == 0) then
+       write(*,*) "-- modFFTW sizes --"
+       write(*,*) "itot, jtot", itot, jtot
+       write(*,*) "imax, jmax", imax, jmax
+       
+       write(*,*) "konx", konx
+       write(*,*) "kony", kony
+       write(*,*) "iony", iony
+       write(*,*) "jonx", jonx
+    end if
 ! Allocate communication buffers for the transpose functions
     sz = max( imax * jmax * konx * nprocx, & ! transpose a1
               iony * jmax * konx * nprocy, & ! transpose a2
@@ -150,7 +151,7 @@ contains
 
     allocate(bufin (sz))
     allocate(bufout(sz))
-    write(*,*) "bufin, bufout sz", sz
+    if (myid == 0) write(*,*) "bufin, bufout sz", sz
 
 ! Allocate temporary arrays to hold transposed matrix
 
@@ -162,7 +163,7 @@ contains
 
     ! get aligned memory for FFTW
     ptr = fftw_alloc_real(sz)
-    write(*,*) "ptr sz", sz
+    if (myid == 0) write(*,*) "ptr sz", sz
 
     ! convert it to a fortran pointer, or 1D array
     call c_f_pointer(ptr, fptr, (/sz/))
@@ -736,8 +737,11 @@ contains
 
     integer      :: i,j,iv,jv
     real(pois_r) :: fac
-    real(pois_r) :: xrt(itot), yrt(jtot)
+    real(pois_r) :: xrt(max(itot,nprocy*iony)), yrt(max(jtot,nprocx*jonx))
 
+    xrt = 0
+    yrt = 0
+    
   ! Generate Eigenvalues xrt and yrt resulting from d**2/dx**2 F = a**2 F
 
   ! We are using FFTW's half-complex format. From the FFTW documentation:
@@ -775,6 +779,9 @@ contains
   ! 1. MPI starts counting at 0 so it should be myidy * jmax
   ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
 
+  ! the last tile in x or y may have fewer elements than the rest
+  ! filling xyrt will then access xrt or yrt beyond itot or jtot. xrt and yrt are padded above.
+    
     if (method == 1) then
       ! nprocx /= 1, nprocy /= 1
       ! we will be working on matrix Fp(1:iony,1:jonx,1:kmax)
