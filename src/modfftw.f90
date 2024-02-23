@@ -150,6 +150,7 @@ contains
               iony * jonx * konx * nprocx  ) ! transpose a3
 
     allocate(bufin (sz))
+    bufin = 0 ! because some elements may not be used, but will be FFTed
     allocate(bufout(sz))
     if (myid == 0) write(*,*) "bufin, bufout sz", sz
 
@@ -582,6 +583,8 @@ contains
       ii = ii + 1
       if (i <= itot) then
         p210(i,j,k) = bufout(ii)
+      else
+        p210(i,j,k) = 0
       endif
     enddo
     enddo
@@ -608,6 +611,8 @@ contains
       ii = ii + 1
       if (j <= jtot) then
         bufin(ii) = p201(j,k,i)
+      else
+        bufin(ii) = 0
       endif
     enddo
     enddo
