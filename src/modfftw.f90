@@ -285,6 +285,11 @@ contains
     qs = 1
     qe = jonx
 
+    ! special case for final task in x or y, which may have fewer elements
+    if (myidx == nprocx-1) qe = jtot - (nprocx-1)*jonx
+    if (myidy == nprocy-1) pe = itot - (nprocy-1)*iony
+    
+    
     else if (method == 2) then
 
     ! Make an array with the halo zone sliced off on the top and the left
