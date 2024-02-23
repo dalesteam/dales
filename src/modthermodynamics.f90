@@ -589,11 +589,12 @@ contains
 
     use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
     use modfields, only : qt0,thl0,exnf,presf,ql0
-    use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
+    use modfields, only : tmp0, qsat, esl, qvsl, qvsi, e120, sv0, ql0, thlp       ! consider not storing these
     use modglobal, only : esatltab, esatitab
     use modmpi,    only : myidx, myidy
     implicit none
-    integer :: i, j, k
+    integer :: i, j, k, kk
+    integer :: ind(3)
     real(field_r) :: Tl, qsat_, qt, ql, b, T
     real(field_r) :: Tl_min, Tl_max, qt_max
     real(field_r) :: esi1, tlo, thi
@@ -614,7 +615,7 @@ contains
           write (*,*) 'icethermo0_fast: Tl_min below limit 150K'
           write (*,*) 'myid{x,y}', myidx, myidy
           write (*,*) 'k, exnf(k)', k, exnf(k)
-          write (*,*) 'Tl_max, Tl_min, qt_max = ', Tl_max, Tl_min, qt_max          
+          write (*,*) 'Tl_max, Tl_min, qt_max = ', Tl_max, Tl_min, qt_max
           STOP
        end if
        if (esat_tab(Tl_max + 5) > presf(k)) then
@@ -623,6 +624,19 @@ contains
           write (*,*) 'k, exnf(k)', k, exnf(k)
           write (*,*) 'Tl_max, Tl_min, qt_max = ', Tl_max, Tl_min, qt_max
           write (*,*) 'esat_tab(Tl_max + 5), presf(k)', esat_tab(Tl_max + 5), presf(k)
+
+          ind = maxloc(thl0(:,:,:)) ! including ghost cells here to get the true index
+          i = ind(1)
+          j = ind(2)
+          kk = ind(3)
+          write (*,*) '---'
+          write (*,*) 'Max thl0 at', ind, i, j, kk
+          write (*,*) 'thl0', thl0(i, j, kk)
+          write (*,*) 'e120', e120(i, j, kk)
+          write (*,*) 'qt0',  qt0(i, j, kk)
+          write (*,*) 'qr ',  sv0(i, j, kk, 2)
+          write (*,*) 'thlp (?)  ', thlp(i, j, kk)
+          write (*,*) 'tmp0 (old)', tmp0(i, j, kk)
           STOP
        end if
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
