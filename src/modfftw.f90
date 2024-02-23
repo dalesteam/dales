@@ -134,6 +134,15 @@ contains
       jonx = jonx + 1
     endif
 
+    write(*,*) "-- modFFTW sizes --"
+    write(*,*) "itot, jtot", itot, jtot
+    write(*,*) "imax, jmax", imax, jmax
+
+    write(*,*) "konx", konx
+    write(*,*) "kony", kony
+    write(*,*) "iony", iony
+    write(*,*) "jonx", jonx
+
 ! Allocate communication buffers for the transpose functions
     sz = max( imax * jmax * konx * nprocx, & ! transpose a1
               iony * jmax * konx * nprocy, & ! transpose a2
@@ -141,6 +150,7 @@ contains
 
     allocate(bufin (sz))
     allocate(bufout(sz))
+    write(*,*) "bufin, bufout sz", sz
 
 ! Allocate temporary arrays to hold transposed matrix
 
@@ -152,6 +162,7 @@ contains
 
     ! get aligned memory for FFTW
     ptr = fftw_alloc_real(sz)
+    write(*,*) "ptr sz", sz
 
     ! convert it to a fortran pointer, or 1D array
     call c_f_pointer(ptr, fptr, (/sz/))
