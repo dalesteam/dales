@@ -164,6 +164,7 @@ contains
 
     ! get aligned memory for FFTW
     ptr = fftw_alloc_real(sz)
+    
     if (myid == 0) write(*,*) "ptr sz", sz
 
     ! convert it to a fortran pointer, or 1D array
@@ -180,6 +181,10 @@ contains
     p201_flat(1:jtot*konx*iony)=> fptr(1:jtot*konx*iony)
     Fp(1:iony,1:jonx,1:kmax) => fptr(1:iony*jonx*kmax)
 
+    p = 0           ! because some elements may not be used, but will be FFTed
+    p201_flat = 0   ! don't know which is the largest...
+    p210_flat = 0
+        
     ! Prepare 1d FFT transforms
     ! TODO: in plan_many, skip part where k > kmax
     embed(1) = itot
