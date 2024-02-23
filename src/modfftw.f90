@@ -164,7 +164,7 @@ contains
     p210(1:itot,1:jmax,1:konx) => fptr(1:itot*jmax*konx)
     p210_flat(1:itot*jmax*konx)=> fptr(1:itot*jmax*konx)
     p201(1:jtot,1:konx,1:iony) => fptr(1:jtot*konx*iony)
-    p201_flat(1:itot*konx*iony)=> fptr(1:itot*konx*iony)
+    p201_flat(1:jtot*konx*iony)=> fptr(1:jtot*konx*iony)
     Fp(1:iony,1:jonx,1:kmax) => fptr(1:iony*jonx*kmax)
 
     ! Prepare 1d FFT transforms
@@ -237,7 +237,7 @@ contains
       kinds, &       ! kind
       FFTW_MEASURE & ! flags (FFTW_MEASURE or FFTW_ESTIMATE)
     )
-    
+
     embed(1) = jtot
      if (lperiodic(3)) then
         kinds(1) = FFTW_HC2R
@@ -690,7 +690,7 @@ contains
     real(pois_r), pointer :: p(:,:,:)
     real(pois_r), pointer :: Fp(:,:,:)
     real :: norm
-    
+
     !Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
 
     if (method == 1) then
