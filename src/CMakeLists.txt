@@ -12,8 +12,10 @@ FILE(GLOB sourcefiles "*.f90"
 	"RTE-RRTMGP/rte/kernels/*.F90"
 	"RTE-RRTMGP/rrtmgp/*.F90"
 	"RTE-RRTMGP/rrtmgp/kernels/*.F90"
+	"RTE-RRTMGP/extensions/cloud_optics/mo_cloud_optics.F90"
 	"RTE-RRTMGP/examples/mo_simple_netcdf.F90"
-	"RTE-RRTMGP/examples/mo_load_coefficients.F90")
+	"RTE-RRTMGP/examples/mo_load_coefficients.F90"
+        "RTE-RRTMGP/examples/all-sky/mo_load_cloud_coefficients.F90")
 
 # TODO: make more concise
 list(REMOVE_ITEM sourcefiles ${CMAKE_CURRENT_SOURCE_DIR}/test_transposes.f90)

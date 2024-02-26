@@ -28,7 +28,7 @@ module modradrte_rrtmgp
   use mo_optical_props,      only: ty_optical_props, &
                                    ty_optical_props_arry, ty_optical_props_1scl, ty_optical_props_2str
   use mo_gas_optics_rrtmgp,  only: ty_gas_optics_rrtmgp
-  !use mo_cloud_optics,       only: ty_cloud_optics
+  use mo_cloud_optics,       only: ty_cloud_optics
   use mo_source_functions,   only: ty_source_func_lw
   use mo_fluxes,             only: ty_fluxes_broadband
   use mo_gas_concentrations, only: ty_gas_concs
@@ -40,8 +40,8 @@ module modradrte_rrtmgp
   type(ty_gas_concs)                        :: gas_concs
   type(ty_source_func_lw), save             :: sources_lw
   type(ty_gas_optics_rrtmgp)                :: k_dist_lw, k_dist_sw
-  !type(ty_cloud_optics)                     :: cloud_optics
-  class(ty_optical_props_arry), allocatable :: atmos_lw, atmos_sw!, clouds_lw, clouds_sw
+  type(ty_cloud_optics)                     :: cloud_optics_lw, cloud_optics_sw
+  class(ty_optical_props_arry), allocatable :: atmos_lw, atmos_sw, clouds_lw, clouds_sw
   type(ty_fluxes_broadband)                 :: fluxes_lw, fluxes_sw
   real(kind=kind_rb), dimension(:,:), allocatable :: inc_sw_flux, sfc_alb_dir, sfc_alb_dif
   !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
@@ -55,6 +55,8 @@ contains
 
   subroutine stop_on_err(error_msg)
     use iso_fortran_env, only : error_unit
+    implicit none
+
     character(len=*), intent(in) :: error_msg
 
     if(error_msg /= "") then
@@ -67,18 +69,23 @@ contains
   subroutine radrte_rrtmgp
     use mo_rte_lw,             only: rte_lw
     use mo_rte_sw,             only: rte_sw
-    use mo_load_coefficients,  only: load_and_init  
+    use mo_load_coefficients,  only: load_and_init
+    use mo_load_cloud_coefficients, &
+                               only: load_cld_lutcoeff, load_cld_padecoeff
     ! DALES modules
     use modradrrtmg,           only: readSounding, readTraceProfs
     use modmpi,                only: myid
     use modglobal,             only: imax, jmax, kmax, k1 
     use modfields,             only: initial_presh, initial_presf
+    implicit none
 
-
-    logical                                   :: top_at_1 = .false., sunUp = .false.
-    integer                                   :: npatch, ierr(2)=0
-    character(len=256)                        :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc", k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
-    integer                                   :: ilay, icol, k
+    logical                 :: top_at_1 = .false., sunUp = .false.
+    integer                 :: npatch, ierr(2)=0
+    character(len=256)      :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc"
+    character(len=256)      :: k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
+    character(len=256)      :: cloud_optics_file_lw = "rrtmgp-cloud-optics-coeffs-lw.nc"
+    character(len=256)      :: cloud_optics_file_sw = "rrtmgp-cloud-optics-coeffs-sw.nc"
+    integer                 :: ilay, icol, k
 
     ! Reading sounding (patch above Dales domain), only once
     if(.not.isReadSounding) then
@@ -116,6 +123,10 @@ contains
                cfc12vmr(ncol,nlay), &
                cfc22vmr(ncol,nlay), &
                ccl4vmr(ncol,nlay), &
+               liquidRe(ncol,nlay), &
+               iceRe(ncol,nlay), &
+               LWP_slice(ncol,nlay), &
+               IWP_slice(ncol,nlay), &
                tg_slice(ncol), &
                presf_input(nlay-1), &
                solarZenithAngleCos(ncol), &
@@ -195,16 +206,23 @@ contains
 
         ! Initialize gas optical properties
         allocate(ty_optical_props_1scl::atmos_lw)
-
         select type(atmos_lw)
           class is (ty_optical_props_1scl)
             call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
-          class default
-            call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
         end select
 
+        ! Load cloud property data
+        call load_cld_lutcoeff (cloud_optics_lw, cloud_optics_file_lw)
+        !call load_cld_padecoeff(cloud_optics_lw, cloud_optics_file_lw)
+        call stop_on_err(cloud_optics_lw%set_ice_roughness(2))
+
         ! Initialize cloud optical properties
-        !allocate(ty_optical_props_1scl::clouds_lw)
+        allocate(ty_optical_props_1scl::clouds_lw)
+        call stop_on_err(clouds_lw%init(k_dist_lw%get_band_lims_wavenumber()))
+        select type(clouds_lw)
+          class is (ty_optical_props_1scl)
+            call stop_on_err(clouds_lw%alloc_1scl(ncol, nlay))
+        end select
 
         ! Allocate source term and define emissivity
         call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
@@ -229,16 +247,23 @@ contains
 
         ! Initialize gas optical properties
         allocate(ty_optical_props_2str::atmos_sw)
-
         select type(atmos_sw)
           class is (ty_optical_props_2str)
             call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
-          class default
-            call stop_on_err("modradrte_rrtmgp.f90: Don't recognize the kind of optical properties ")
         end select
 
+        ! Load cloud property data
+        call load_cld_lutcoeff (cloud_optics_sw, cloud_optics_file_sw)
+        !call load_cld_padecoeff(cloud_optics_sw, cloud_optics_file_sw)
+        call stop_on_err(cloud_optics_sw%set_ice_roughness(2))
+
         ! Initialize cloud optical properties
-        !allocate(ty_optical_props_2str::clouds_sw)
+        allocate(ty_optical_props_2str::clouds_sw)
+        call stop_on_err(clouds_sw%init(k_dist_sw%get_band_lims_wavenumber()))
+        select type(clouds_sw)
+          class is (ty_optical_props_2str)
+            call stop_on_err(clouds_sw%alloc_2str(ncol, nlay))
+        end select
 
         ! Define boundary conditions
         allocate(inc_sw_flux(ncol,ngptsw))
@@ -264,8 +289,9 @@ contains
                                             sources_lw, & ! Planck source (inout)
                                             tlev = interfaceT)) !t_lev (optional input)
 
-      ! Add cloud properties
-      !call stop_on_err(clouds_lw%increment(atmos_lw))
+      ! Compute and add cloud properties
+      call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, IWP_slice, liquidRe, iceRe, clouds_lw))
+      call stop_on_err(clouds_lw%increment(atmos_lw))
 
       ! Solve radiation transport
       call stop_on_err(rte_lw(atmos_lw, & ! optical properties
@@ -282,15 +308,16 @@ contains
 
       if(sunUp) then
         ! Compute optical properties and incoming shortwave flux
-        call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & !p_lay, p_lev (in)
-                                           layerT, & !t_lay (in)
-                                           gas_concs, & !gas volume mixing ratios (in)
-                                           atmos_sw, & !
-                                           inc_sw_flux))
+        call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in)
+                                             layerT, & ! t_lay (in)
+                                             gas_concs, & ! gas volume mixing ratios (in)
+                                             atmos_sw, & ! Optical properties (inout)
+                                             inc_sw_flux)) ! Incoming shortwave flux (inout)
 
-        ! Add cloud properties
-        !call stop_on_err(clouds_sw%delta_scale())
-        !call stop_on_err(clouds_sw%increment(atmos))
+        ! Compute and add cloud properties
+        call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, IWP_slice, liquidRe, iceRe, clouds_sw))
+        call stop_on_err(clouds_sw%delta_scale())
+        call stop_on_err(clouds_sw%increment(atmos_sw))
 
         ! Solve radiation transport
         call stop_on_err(rte_sw(atmos_sw, & ! optical properties
@@ -310,16 +337,21 @@ contains
 
   subroutine setupColumnProfiles
 
-    use modglobal,   only: imax, jmax, kmax, i1, j1, kind_rb, rlv, cp, rd, pref0
-    use modfields,   only: thl0, qt0, ql0, exnf
+    use modglobal,   only: imax, jmax, kmax, i1, j1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
+    use modfields,   only: thl0, qt0, ql0, exnf, rhof
     use modsurfdata, only: tskin, ps
+    use modmicrodata, only : Nc_0,sig_g
 
     implicit none
 
     integer :: i, j, k, icol
-    real(kind=kind_rb) :: exners
+    real(SHR_KIND_R4), parameter :: pi = 3.14159265358979
+    real, parameter :: rho_liq = 1000., IWC0=50e-3 ! both in kg/m3
+
+    real(kind=kind_rb) :: exners, reff_factor, ilratio, layerMass, qci, qcl, B_function
 
     exners = (ps/pref0)**(rd/cp)
+    reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
 
     ! Set up layer values within the DALES domain
     do i=2,i1 !i1=imax+1
@@ -376,6 +408,53 @@ contains
     layerP(:,nlay)=1.01
     interfaceP(:,nlay)=1.05
     interfaceP(:,nlay+1)=1.01
+
+    ! Setup cloud properties (above the DALES domain everyhting is set to zero)
+    LWP_slice = 0.0
+    IWP_slice = 0.0
+    liquidRe = 0.
+    iceRe = 0.
+    do i=2,i1 !i1=imax+1
+      do j=2,j1 !j1=jmax+1
+        icol=j-1+(i-2)*jmax
+        do k=1,kmax
+          ! set up working variables
+          ilratio  = max(0.,min(1.,(layerT(icol,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+          layerMass = interfaceP(icol,k)-interfaceP(icol,k+1)/grav !kg/m2
+          qcl = ql0(i,j,k) * ilratio
+          qci = ql0(i,j,k) * (1.0-ilratio)
+
+          LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m3
+          IWP_slice(icol,k) = qci * layerMass*1e3 !g/m3
+
+
+          if (LWP_slice(icol,k).gt.0.) then
+            !cstep liquidRe(i, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(i,k)/layerMass(i,k) ) &
+            !cstep                  /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
+            !cstep: equation above contains function of many constants, are now absorbed in reff_factor
+            liquidRe(i, k) = reff_factor  * qcl**(1./3.)
+
+            if(liquidRe(icol,k).lt.2.5) liquidRe(icol,k) = 2.5
+            if(liquidRe(icol,k).gt.60.) liquidRe(icol,k) = 60.
+          endif
+
+          if (IWP_slice(i,k).gt.0) then
+             !cstep Ou Liou: tempC = layerT(i,k)--tmelt
+             !cstep Ou Liou  iceRe(i,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
+             B_function =  -2 + 0.001 *(273.-layerT(icol,k))**1.5 * log10(qci*rhof(k)/IWC0) !Eq. 14 Wyser 1998
+             iceRe(icol,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
+             if (isnan(iceRe(icol,k))) then
+                write (*,*) "B", B_function, "iceRe", iceRe(icol,k), "qci", qci, "layerT", layerT(icol,k)
+                stop "modradrte_rrtmgp: iceRe is nan."
+             endif
+
+             if(iceRe(icol,k).lt.5.) iceRe(icol,k) = 5.
+             if(iceRe(icol,k).gt.140.) iceRe(icol,k) = 140.
+          endif
+
+        enddo
+      enddo
+    enddo
 
   end subroutine setupColumnProfiles
 
