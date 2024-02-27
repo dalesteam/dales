@@ -41,6 +41,9 @@ save
   integer                         :: method
   integer                         :: konx, kony
   integer                         :: iony, jonx
+  integer                         :: konx_last, kony_last
+  integer                         :: iony_last, jonx_last
+
   real(pois_r), dimension(:), allocatable :: bufin, bufout
   interface fftw_plan_many_r2r_if
     procedure :: d_fftw_plan_many_r2r
@@ -134,11 +137,16 @@ contains
       jonx = jonx + 1
     endif
 
+    konx_last = kmax - konx*(nprocx-1)
+    kony_last = kmax - kony*(nprocy-1)
+    iony_last = itot - iony*(nprocy-1)
+    jonx_last = jtot - jonx*(nprocx-1)
+
     if (myid == 0) then
        write(*,*) "-- modFFTW sizes --"
        write(*,*) "itot, jtot", itot, jtot
        write(*,*) "imax, jmax", imax, jmax
-       
+
        write(*,*) "konx", konx
        write(*,*) "kony", kony
        write(*,*) "iony", iony
@@ -164,7 +172,7 @@ contains
 
     ! get aligned memory for FFTW
     ptr = fftw_alloc_real(sz)
-    
+
     if (myid == 0) write(*,*) "ptr sz", sz
 
     ! convert it to a fortran pointer, or 1D array
@@ -184,7 +192,7 @@ contains
     p = 0           ! because some elements may not be used, but will be FFTed
     p201_flat = 0   ! don't know which is the largest...
     p210_flat = 0
-        
+
     ! Prepare 1d FFT transforms
     ! TODO: in plan_many, skip part where k > kmax
     embed(1) = itot
@@ -292,10 +300,9 @@ contains
     qe = jonx
 
     ! special case for final task in x or y, which may have fewer elements
-    if (myidx == nprocx-1) qe = jtot - (nprocx-1)*jonx
-    if (myidy == nprocy-1) pe = itot - (nprocy-1)*iony
-    
-    
+    if (myidx == nprocx-1) qe = jonx_last
+    if (myidy == nprocy-1) pe = iony_last
+
     else if (method == 2) then
 
     ! Make an array with the halo zone sliced off on the top and the left
@@ -588,8 +595,6 @@ contains
       ii = ii + 1
       if (i <= itot) then
         p210(i,j,k) = bufout(ii)
-      else
-        p210(i,j,k) = 0
       endif
     enddo
     enddo
@@ -616,8 +621,6 @@ contains
       ii = ii + 1
       if (j <= jtot) then
         bufin(ii) = p201(j,k,i)
-      else
-        bufin(ii) = 0
       endif
     enddo
     enddo
@@ -699,6 +702,12 @@ contains
       call fftw_execute_r2r_if(planx, p210_flat, p210_flat)
 
       call transpose_a2(p210, p201)
+
+      ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
+      if (myidx == nprocx-1) p201(:,konx_last+1:, :) = 0
+      if (myidy == nprocy-1) p201(:,:,iony_last+1:) = 0
+      ! p201(jtot,konx,iony)
+
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
       call transpose_a3(p201, Fp)
@@ -743,7 +752,7 @@ contains
 
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine fftwinit_factors(xyrt)
-    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh,lperiodic
+    use modglobal, only : i1,j1,itot,jtot,dxi,dyi,pi,lperiodic
     use modmpi, only    : myidx, myidy
 
     implicit none
@@ -756,7 +765,7 @@ contains
 
     xrt = 0
     yrt = 0
-    
+
   ! Generate Eigenvalues xrt and yrt resulting from d**2/dx**2 F = a**2 F
 
   ! We are using FFTW's half-complex format. From the FFTW documentation:
@@ -796,7 +805,7 @@ contains
 
   ! the last tile in x or y may have fewer elements than the rest
   ! filling xyrt will then access xrt or yrt beyond itot or jtot. xrt and yrt are padded above.
-    
+
     if (method == 1) then
       ! nprocx /= 1, nprocy /= 1
       ! we will be working on matrix Fp(1:iony,1:jonx,1:kmax)
