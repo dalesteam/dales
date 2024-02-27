@@ -589,9 +589,10 @@ contains
 
     use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
     use modfields, only : qt0,thl0,exnf,presf,ql0
-    use modfields, only : tmp0, qsat, esl, qvsl, qvsi, e120, sv0, ql0, thlp       ! consider not storing these
+    use modfields, only : tmp0, qsat, esl, qvsl, qvsi, e120, sv0, ql0, thlp, u0,v0,w0       ! consider not storing these
     use modglobal, only : esatltab, esatitab
     use modmpi,    only : myidx, myidy
+    use modsubgrid, only: zlt, ekm, ekh
     implicit none
     integer :: i, j, k, kk
     integer :: ind(3)
@@ -637,6 +638,9 @@ contains
           write (*,*) 'qr ',  sv0(i, j, kk, 2)
           write (*,*) 'thlp (?)  ', thlp(i, j, kk)
           write (*,*) 'tmp0 (old)', tmp0(i, j, kk)
+          write (*,*) 'zlt',  zlt(i, j, kk)
+          write (*,*) 'ekm, ekh',  ekm(i, j, kk), ekh(i, j, kk)
+          write (*,*) 'u0, v0, w0', u0(i, j, kk), v0(i, j, kk), w0(i, j, kk)
           STOP
        end if
        qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
