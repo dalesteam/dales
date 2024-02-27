@@ -406,16 +406,9 @@ contains
       enddo
     enddo
 
-    !!!!!!!!!!!!!!!!!!!!!!
-    ! hard fixes for now !
-    !!!!!!!!!!!!!!!!!!!!!!
     ! pressures are in SI unit, i.e. Pa
     layerP(:,:)=layerP(:,:)*100.00
     interfaceP(:,:)=interfaceP(:,:)*100.00
-    ! minimum pressure for RRTMGP is 1 Pa, also produces a bug when two pressure values following each other are equal
-    layerP(:,nlay)=1.01
-    interfaceP(:,nlay)=1.05
-    interfaceP(:,nlay+1)=1.01
 
     ! Setup cloud properties (above the DALES domain everyhting is set to zero)
     LWP_slice = 0.0
