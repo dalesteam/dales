@@ -84,7 +84,7 @@ contains
     character(len=256)      :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc"
     character(len=256)      :: k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
     character(len=256)      :: cloud_optics_file_lw = "rrtmgp-cloud-optics-coeffs-lw.nc"
-    character(len=256)      :: cloud_optics_file_sw = "rrtmgp-cloud-optics-coeffs-sw.nc"
+    character(len=256)      :: cloud_optics_file_sw = "rrtmgp-cloud-optics-coeffs-reordered-sw.nc"
     integer                 :: ilay, icol, k
 
     ! Reading sounding (patch above Dales domain), only once
@@ -282,23 +282,27 @@ contains
 
     if(rad_longw) then
       ! Compute optical properties and source
-      call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in)
-                                            layerT, tg_slice, & ! t_lay, t_sfc (in)
-                                            gas_concs, & ! gas volume mixing ratios
+      call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
+                                            layerT, tg_slice, & ! t_lay, t_sfc (in, K)
+                                            gas_concs, & ! gas volume mixing ratios (in)
                                             atmos_lw, & ! Optical properties (inout)
                                             sources_lw, & ! Planck source (inout)
-                                            tlev = interfaceT)) !t_lev (optional input)
+                                            tlev = interfaceT)) ! t_lev (optional input, K)
 
       ! Compute and add cloud properties
-      call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, IWP_slice, liquidRe, iceRe, clouds_lw))
+      call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
+                                                    IWP_slice, & ! cloud ice water path (in, g/m2)
+                                                    liquidRe, & ! cloud liquid particle effective size (in, microns)
+                                                    iceRe, & ! cloud ice particle effective radius (in, microns)
+                                                    clouds_lw)) ! cloud optical properties lw (inout)
       call stop_on_err(clouds_lw%increment(atmos_lw))
 
       ! Solve radiation transport
-      call stop_on_err(rte_lw(atmos_lw, & ! optical properties
-                              top_at_1, & ! Is the top of the domain at index 1?
-                              sources_lw, & ! source function
-                              emis, & ! emissivity at surface
-                              fluxes_lw)) ! fluxes
+      call stop_on_err(rte_lw(atmos_lw, & ! optical properties (in)
+                              top_at_1, & ! Is the top of the domain at index 1? (in)
+                              sources_lw, & ! source function (in)
+                              emis, & ! emissivity at surface (in)
+                              fluxes_lw)) ! fluxes (W/m2, inout)
     endif
 
     if(rad_shortw) then
@@ -308,24 +312,28 @@ contains
 
       if(sunUp) then
         ! Compute optical properties and incoming shortwave flux
-        call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in)
-                                             layerT, & ! t_lay (in)
-                                             gas_concs, & ! gas volume mixing ratios (in)
-                                             atmos_sw, & ! Optical properties (inout)
-                                             inc_sw_flux)) ! Incoming shortwave flux (inout)
+        call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
+                                              layerT, & ! t_lay (in, K)
+                                              gas_concs, & ! gas volume mixing ratios (in)
+                                              atmos_sw, & ! Optical properties (inout)
+                                              inc_sw_flux)) ! Incoming shortwave flux (inout)
 
         ! Compute and add cloud properties
-        call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, IWP_slice, liquidRe, iceRe, clouds_sw))
+        call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
+                                                      IWP_slice, & ! cloud ice water path (in, g/m2)
+                                                      liquidRe, & ! cloud liquid particle effective size (in, microns)
+                                                      iceRe, & ! cloud ice particle effective radius (in, microns)
+                                                      clouds_sw)) ! cloud optical properties sw (inout)
         call stop_on_err(clouds_sw%delta_scale())
         call stop_on_err(clouds_sw%increment(atmos_sw))
 
         ! Solve radiation transport
-        call stop_on_err(rte_sw(atmos_sw, & ! optical properties
-                                top_at_1, & ! Is the top of the domain at index 1?
-                                solarZenithAngleCos, & ! cosine of the solar zenith angle
-                                inc_sw_flux, & ! solar incoming flux
-                                sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse
-                                fluxes_sw)) ! fluxes
+        call stop_on_err(rte_sw(atmos_sw, & ! optical properties (in)
+                                top_at_1, & ! Is the top of the domain at index 1? (in)
+                                solarZenithAngleCos, & ! cosine of the solar zenith angle (in)
+                                inc_sw_flux, & ! solar incoming flux (in)
+                                sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse (in)
+                                fluxes_sw)) ! fluxes (inout, W/m2)
 
       endif
 
@@ -424,8 +432,8 @@ contains
           qcl = ql0(i,j,k) * ilratio
           qci = ql0(i,j,k) * (1.0-ilratio)
 
-          LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m3
-          IWP_slice(icol,k) = qci * layerMass*1e3 !g/m3
+          LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m2
+          IWP_slice(icol,k) = qci * layerMass*1e3 !g/m2
 
 
           if (LWP_slice(icol,k).gt.0.) then
