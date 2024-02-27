@@ -1025,7 +1025,7 @@ contains
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1035,7 +1035,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
       do i=2,i1
         thl0h(i,j,1) = thls
@@ -1045,7 +1045,7 @@ contains
     if (iadv_qt==iadv_kappa) then
         call halflev_kappa(qt0,qt0h)
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do  k=2,k1
         do  j=2,j1
           do  i=2,i1
@@ -1054,7 +1054,7 @@ contains
         end do
       end do
       
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) async(1)
       do j=2,j1
         do i=2,i1
           qt0h(i,j,1) = qts
@@ -1062,7 +1062,7 @@ contains
       end do
     end if
 
-    !$acc wait
+    !$acc wait(1)
     call timer_toc('modthermodynamics/calc_halflev')
   end subroutine calc_halflev
 
