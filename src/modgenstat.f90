@@ -102,12 +102,10 @@ module modgenstat
   real, allocatable  :: uwrmn  (:),vwrmn  (:) !subgrid  uw, vw
 ! real, allocatable  ::     --- various moments ---
 
-!   real, allocatable  :: rmn        (:), r2mn   (:), r3mn (:), rhmn (:)
   real, allocatable  :: w2mn       (:), skewmn (:)
   real, allocatable  :: w2submn    (:)
   real, allocatable  :: u2mn       (:), v2mn  (:),     qt2mn(:)
   real, allocatable  :: thl2mn     (:), thv2mn(:),     th2mn(:),     ql2mn(:)
-!   real, allocatable  :: qs2mn      (:), qsmn  (:)
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
 
@@ -242,12 +240,10 @@ contains
     allocate(wqtsmn (k1),wqtrmn (k1),wqttmn(k1))
     allocate(wsvsmn (k1,nsv),wsvrmn(k1,nsv),wsvtmn(k1,nsv))
     allocate(uwtmn  (k1),vwtmn  (k1),uwrmn  (k1),  vwrmn(k1),uwsmn(k1),vwsmn(k1))
-!     allocate(rmn(k1), r2mn   (k1), r3mn (k1), rhmn (k1))
     allocate(w2mn       (k1), skewmn (k1))
     allocate(w2submn    (k1))
     allocate(u2mn       (k1), v2mn  (k1),     qt2mn(k1))
     allocate(thl2mn     (k1), thv2mn(k1),     th2mn(k1),     ql2mn(k1))
-!     allocate(qs2mn      (k1), qsmn  (k1))
     allocate(svmmn(k1,nsv),svptmn(k1,nsv),svplsmn(k1,nsv),svpmn(k1,nsv))
     allocate(sv2mn(k1,nsv))
 
@@ -354,12 +350,6 @@ contains
     thv2mn   = 0.
     th2mn    = 0.
     ql2mn    = 0.
-!     qs2mn    = 0.
-!     qsmn     = 0.
-!     rhmn     = 0.
-!     rmn      = 0.
-!     r2mn     = 0.
-!     r3mn     = 0.
 
     svmmn   = 0.
     svpmn   = 0.
@@ -545,6 +535,7 @@ contains
     real :: uwsub_s, vwsub_s, uwres_s, vwres_s
     real :: wqlres_s, wthlres_s, wthvres_s, wqtres_s
     real :: wsvsub_s, wsvres_s
+    real :: a_dry, b_dry, a_moist, b_moist
 
     call timer_tic('modgenstat/do_genstat', 1)
 
@@ -619,7 +610,7 @@ contains
     wsvsub_s = 0.0
     wsvres_s = 0.0
 
-    !$acc parallel loop collapse(3) default(present) async
+    !$acc parallel loop collapse(3) default(present) async(1)
     do  k=1,k1
       do  j=2,j1
         do  i=2,i1
@@ -633,12 +624,6 @@ contains
     do k=1,k1
       cfracav(k)    = cfracav(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
-
-    !$acc wait(1)
-    !$acc host_data use_device(cfracav)
-    call D_MPI_ALLREDUCE(cfracav,k1,MPI_SUM,comm3d,mpierr)
-    !$acc end host_data
-
 
     !$acc host_data use_device(umav, um, vmav, vm, thlmav, thlm, qtmav, qtm, &
     !$acc&                     qlmav, ql0, thvmav, thv0)
@@ -658,7 +643,7 @@ contains
       enddo
     end if
         
-    !$acc kernels default(present) async
+    !$acc kernels default(present) async(1)
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
     thlmav = thlmav/ijtot
@@ -667,7 +652,6 @@ contains
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
     svmav = svmav/ijtot
-    cfracav = cfracav / ijtot
     !$acc end kernels
 
     cszav  = csz
@@ -683,13 +667,17 @@ contains
     tsurf = thls*exnh(1)+(rlv/cp)*qls
     qsat  = qts - qls
 
-    if (qls< eps1) then  ! TH: Should always be true
-      c1 = 1.+(rv/rd-1)*qts
-      c2 = (rv/rd-1)
+    a_dry = 1.+(rv/rd-1)*qts
+    b_dry = (rv/rd-1)
+    a_moist = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) / (1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
+    b_moist = a_moist*rlv/(tsurf*cp)-1.
+
+    if (qls < eps1) then
+      c1 = a_dry
+      c2 = b_dry
     else
-      c1 = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) &
-           / (1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
-      c2 = c1*rlv/(tsurf*cp)-1.
+      c1 = a_moist
+      c2 = b_moist
     end if
 
     den = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
@@ -697,45 +685,36 @@ contains
     cqt = 1./den
         
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
-    !$acc& reduction(+: qlhav_s, wthlsub_s, wqtsub_s, wthvsub_s, uwsub_s, vwsub_s) async(1)
+    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1)) async(1)
     do j = 2, j1
       do i = 2, i1
-        qlhav_s = qlhav_s + ql0h(i,j,1)
-        wthlsub_s = wthlsub_s + thlflux(i,j)
-        wqtsub_s = wqtsub_s + qtflux (i,j)
-        wthvsub_s = wthvsub_s + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+        qlhav(1) = qlhav(1) + ql0h(i,j,1)
+        wthlsub(1) = wthlsub(1) + thlflux(i,j)
+        wqtsub(1) = wqtsub(1) + qtflux (i,j)
+        wthvsub(1) = wthvsub(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+        wqlsub(1) = 0.0
 
         !Momentum flux
         upcu = um(i, j, 1) + cu
         upcu = sign(1., upcu) * max(abs(upcu), eps1)
 
-        uwsub_s = uwsub_s - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
+        uwsub(1) = uwsub(1) - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
                     * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
 
         vpcv = vm(i, j, 1) + cv
         vpcv = sign(1., vpcv) * max(abs(vpcv), eps1)
 
-        vwsub_s = vwsub_s - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
+        vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
       end do
     end do
-
-    !$acc kernels default(present) async(1)
-    qlhav(1) = qlhav_s
-    wthlsub(1) = wthlsub_s
-    wqtsub(1) = wqtsub_s
-    wqlsub(1) = 0.0
-    wthvsub(1) = wthvsub_s
-    uwsub(1) = uwsub_s
-    vwsub(1) = vwsub_s
-    !$acc end kernels
 
   !      --------------------------
   !      4.2 higher levels
   !      --------------------------
     !$acc parallel loop gang default(present) &
     !$acc& private(qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
-    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s) async
+    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s) async(1)
     do k = 2, kmax
       qlhav_s = 0.0
       wthlsub_s = 0.0
@@ -751,19 +730,13 @@ contains
       wthvres_s = 0.0
       wqtres_s = 0.0
       !$acc loop collapse(2) &
-      !$acc& private(qs0h, t0h, den, cthl, cqt, c1, c2, ekhalf, euhalf, evhalf, wthls, wthlr, wqts, &
-      !$acc&         wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
+      !$acc& private(qs0h, t0h, den, cthl, cqt, a_dry, b_dry, a_moist, b_moist, ekhalf, euhalf, evhalf, wthls, wthlr, &
+      !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
       !$acc& reduction(+:qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
       !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s)
       do j = 2, j1
         do i = 2, i1
 
-  !       --------------------------------------------------------
-  !        Calculate half level fields for thl and qt consistent
-  !        with the used advection scheme ( kappa or cent. diff.)
-  !       ---------------
-
-  !       --------------------------------------------------------
     !     ------------------------------------------------------
     !     calculate ql and thv at time t0 at full and half level
     !      ----------------------------------------------------
@@ -779,15 +752,14 @@ contains
           cthl  = (exnh(k)*cp/rlv)*((1-den)/den)
           cqt   =  (1./den)
 
-          ! TODO: fix the branching here
-          if (ql0h(i,j,k)>0) then
-            c1    = (1.-qt0h(i,j,k)+rv/rd*qs0h &
-                    * (1.+rd/rv*rlv/(rd*t0h)))/den
-            c2    =  c1*rlv/(t0h*cp)-1.
-          else
-            c1 = 1. + (rv/rd-1)*qt0h(i,j,k)
-            c2 = (rv/rd-1)
-          end if
+          a_dry = 1. + (rv/rd-1)*qt0h(i,j,k)
+          b_dry = (rv/rd-1)
+          a_moist = (1.-qt0h(i,j,k)+rv/rd*qs0h * (1.+rd/rv*rlv/(rd*t0h)))/den
+          b_moist =  a_moist*rlv/(t0h*cp)-1.
+
+          c1 = merge(a_moist, a_dry, ql0h(i,j,k) > 0.)
+          c2 = merge(b_moist, b_dry, ql0h(i,j,k) > 0.)
+          
 
     !       -----------------------------------------------------------
     !       calculate resolved and subgrid fluxes at half levels
@@ -855,7 +827,7 @@ contains
       uwsub(k) = uwsub_s
       vwsub(k) = vwsub_s
     end do
-  !     -------------------
+
     call calc_moment(u2av, um, 2, 1, kmax, 2, i1, 2, j1, umav, cu)
     call calc_moment(v2av, vm, 2, 1, kmax, 2, i1, 2, j1, vmav, cv)
     call calc_moment(w2av, wm, 2, 1, kmax, 2, i1, 2, j1)
@@ -876,7 +848,7 @@ contains
         if (iadv_sv(n)==iadv_kappa) then
            call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
         else
-          !$acc parallel loop collapse(3) default(present) async
+          !$acc parallel loop collapse(3) default(present) async(1)
           do k = 2, k1
             do j = 2, j1
               do i = 2, i1
@@ -884,12 +856,12 @@ contains
               enddo
             enddo
           enddo
-          !$acc kernels default(present) async
+          !$acc kernels default(present) async(1)
           sv0h(2:i1,2:j1,1) = svs(n)
           !$acc end kernels
         end if
 
-        !$acc parallel loop default(present) private(wsvres_s) async
+        !$acc parallel loop default(present) private(wsvres_s) async(1)
         do k = 2, kmax
           wsvres_s = 0.0
           !$acc loop collapse(2) reduction(+: wsvres)
@@ -901,17 +873,14 @@ contains
           wsvres(k,n) = wsvres_s
         end do
 
-        wsvsub_s = 0.0
-        !$acc kernels default(present) async
+        !$acc parallel loop collapse(2) default(present) reduction(+: wsvsub(1,n)) async(1)
         do j = 2, j1
           do i = 2, i1
-            wsvsub_s = wsvsub_s + svflux(i,j,n)
+            wsvsub(1,n) = wsvsub(1,n) + svflux(i,j,n)
           end do
         end do
-        wsvsub(1,n) = wsvsub_s
-        !$acc end kernels
 
-        !$acc parallel loop private(wsvsub_s) async
+        !$acc parallel loop private(wsvsub_s) async(1)
         do k = 2, kmax
           wsvsub_s = 0.0
           !$acc loop collapse(2) private(ekhalf) reduction(+: wsvsub_s)
@@ -925,25 +894,13 @@ contains
         end do
       end do
     end if
-  !     -------------------------------
-  !     5   CALCULATE MOMENTUM FLUXES
-  !     -------------------------------
 
-  !     5.1 special treatment for lowest level
-  !     -------------------------------------------------
-  !      DEPRECATED
-
-
-  !     5.2 higher levels by vert. integr. of the mom. tendencies
-  !     ---------------------------------------------------------
-  !         DEPRECATED
-
-  ! MPI communication
-    !$acc wait
+    ! MPI communication
+    !$acc wait(1)
     !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
     !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
     !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
-    !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres)
+    !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres, cfracav)
     call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr)
@@ -967,19 +924,8 @@ contains
     call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(qs2avl, qs2av, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(qsavl, qsav, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(rhavl, rhav, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(ravl, rav, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(r2avl, r2av, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(r3avl, r3av, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlptav, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr)
 
     if (nsv > 0) then
       do n=1,nsv
@@ -994,6 +940,7 @@ contains
   !     6   NORMALIZATION OF THE FIELDS AND FLUXES
   !     -----------------------------------------------
       !$acc kernels default(present) async(1)
+      cfracav = cfracav / ijtot
       qlhav   = qlhav  /ijtot
 
       wqlsub  = wqlsub /ijtot
@@ -1026,14 +973,6 @@ contains
       uwtot    = uwres + uwsub
       vwtot    = vwres + vwsub
       !$acc end kernels
-
-!       qs2av    = qs2av    /ijtot
-!       qsav     = qsav     /ijtot
-!       qs2av    = qs2av    - qsav**2
-!       rhav     = rhav     /ijtot
-!       rav      = rav      /ijtot
-!       r2av     = r2av     /ijtot
-!       r3av     = r3av     /ijtot
 
   !********************************************************************
 
@@ -1075,28 +1014,17 @@ contains
       thl2mn   = thl2mn   + thl2av
       thv2mn   = thv2mn   + thv2av
       th2mn    = th2mn    + th2av
-!       ql2mn    = ql2mn    + ql2av
-!       qs2mn    = qs2mn    + qs2av
-!       qsmn     = qsmn     + qsav
-!       rhmn     = rhmn     + rhav
-!       rmn      = rmn      + rav
-!       r2mn     = r2mn     + r2av
-!       r3mn     = r3mn     + r3av
+      skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1))) !
+      cszmn = cszmn + cszav
       if (nsv > 0) then
         svmmn   = svmmn  + svmav
         svpmn   = svpmn  + svpav
-!         svplsmn = svplsmn+ svplsav
         svptmn  = svptmn + svptav
-
         sv2mn  = sv2mn + sv2av
-
         wsvsmn = wsvsmn + wsvsub
         wsvrmn = wsvrmn + wsvres
         wsvtmn = wsvtmn + wsvtot
       end if
-      skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
-
-      cszmn = cszmn + cszav
       !$acc end kernels
 
       call timer_toc('modgenstat/do_genstat')
@@ -1150,7 +1078,6 @@ contains
 
   end subroutine calc_moment
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine writestat
       use modglobal, only : kmax,k1,nsv, zh,zf,rtimee,rlv,cp,cexpnr,ifoutput
       use modfields, only : presf,presh,exnf,exnh,rhof,rhobf,rhobh
@@ -1210,9 +1137,6 @@ contains
       uwsmn  = uwsmn /nsamples
       vwsmn  = vwsmn /nsamples
 
-!       rmn      = rmn    /nsamples
-!       r2mn     = r2mn   /nsamples
-!       rhmn     = rhmn   /nsamples
       w2mn     = w2mn   /nsamples
       skewmn   = skewmn /nsamples
       w2submn  = w2submn/nsamples
@@ -1223,17 +1147,12 @@ contains
       thv2mn   = thv2mn /nsamples
       th2mn    = th2mn  /nsamples
       ql2mn    = ql2mn  /nsamples
-!       qs2mn    = qs2mn  /nsamples
-!       qsmn     = qsmn   /nsamples
 
       if (nsv > 0) then
         svmmn   = svmmn  /nsamples
         svpmn   = svpmn  /nsamples
-!         svplsmn = svplsmn/nsamples
         svptmn  = svptmn /nsamples
-
         sv2mn = sv2mn/nsamples
-
         wsvsmn = wsvsmn/nsamples
         wsvrmn = wsvrmn/nsamples
         wsvtmn = wsvtmn/nsamples
@@ -1596,16 +1515,9 @@ contains
       thv2mn   = 0.
       th2mn    = 0.
       ql2mn    = 0.
-!       qs2mn    = 0.
-!       qsmn     = 0.
-!       rhmn     = 0.
-!       rmn      = 0.
-!       r2mn     = 0.
-!       r3mn     = 0.
 
       svmmn   = 0.
       svpmn   = 0.
-!       svplsmn = 0.
       svptmn  = 0.
 
       sv2mn = 0.
@@ -1640,12 +1552,10 @@ contains
     deallocate(wqtsmn ,wqtrmn ,wqttmn)
     deallocate(wsvsmn ,wsvrmn,wsvtmn)
     deallocate(uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,vwsmn )
-!     deallocate(rmn, r2mn   , r3mn , rhmn )
     deallocate(w2mn       , skewmn )
     deallocate(w2submn    )
     deallocate(u2mn       , v2mn  ,     qt2mn)
     deallocate(thl2mn     , thv2mn,     th2mn,     ql2mn)
-!     deallocate(qs2mn      , qsmn  )
     deallocate(svmmn,svptmn,svplsmn,svpmn)
     deallocate(sv2mn)
 
@@ -1712,6 +1622,4 @@ contains
 
   end subroutine exitgenstat
 
-
 end module modgenstat
-
