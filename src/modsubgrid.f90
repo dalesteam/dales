@@ -361,17 +361,18 @@ contains
                 zlt(i,j,k) = delta(k)
 
                 !original
-                !if (dthvdz(i,j,k) > 0) then
-                !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
-                !end if
+                if (dthvdz(i,j,k) > 0) then
+                   zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
+                end if
 
                 ! alternative without if
-                zlt(i,j,k) = min(delta(k), &
-                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
-                     delta(k) * (1-sign(1.0_field_r,dthvdz(i,j,k))))
+                !zlt(i,j,k) = min(delta(k), &
+                !     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
+                !     delta(k) * (1-sign(1.0_field_r,dthvdz(i,j,k))))
                 ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)
                 ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as
                 ! in the original scheme.
+                ! note: breaks if dthvdz(i,j,k) == 0
 
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
