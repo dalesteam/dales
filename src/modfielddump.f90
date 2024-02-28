@@ -65,6 +65,8 @@ contains
     use modglobal,only :imax,jmax,kmax,cexpnr,ifnamopt,fname_options,dtmax,dtav_glob,kmax, ladaptive,dt_lim,btime,tres,&
          checknamelisterror, output_prefix
     use modstat_nc,only : lnetcdf,open_nc, define_nc,ncinfo,nctiminfo,writestat_dims_nc
+    use modtracers, only : tracer_prop
+
     implicit none
     integer :: ierr, n
     character(3) :: csvname
@@ -123,6 +125,7 @@ contains
       fname(19:21) = cexpnr
       nvar = 7+nsv ! maximum number of variables
       allocate(ncname(nvar,4))
+
       call nctiminfo(tncname(1,:))
       ind = 1
       if (lu) then
@@ -166,9 +169,10 @@ contains
            ind_sv(n) = ind
            ind = ind + 1
            write (csvname(1:3),'(i3.3)') n
-           call ncinfo(ncname(ind_sv(n),:),'sv'//csvname,'Scalar '//csvname//' specific concentration','(kg/kg)','tttt')
+           call ncinfo(ncname(ind_sv(n),:), tracer_prop(n)%tracname, tracer_prop(n)%traclong, tracer_prop(n)%unit, 'tttt')    
         end if
-      end do
+     end do
+     
       nvar = ind - 1 ! total number of fields actually in use
 
       call open_nc(trim(output_prefix)//fname,  ncid,nrec,n1=ceiling(1.0*imax/ncoarse),n2=ceiling(1.0*jmax/ncoarse),n3=khigh-klow+1)

@@ -171,12 +171,12 @@ contains
     use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
     use modsurfdata, only : isurf,ksoilmax
     use modlsm, only : kmax_soil
+    use modtracers, only : tracer_prop
 
     implicit none
 
     integer n, ierr
     character(40) :: name
-    character(3) :: csvname
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
 
@@ -349,13 +349,13 @@ contains
             close (ifoutput)
             do n=1,nsv
                name = 'svnnnfld.'//cexpnr
-               write (name(3:5),'(i3.3)') n
+               write (name(3:5),'(i3.3)') n ! TODO apply tracer_props
                open (ifoutput,file=name,status='replace')
                close (ifoutput)
             end do
             do n=1,nsv
                name = 'svnnnflx.'//cexpnr
-               write (name(3:5),'(i3.3)') n
+               write (name(3:5),'(i3.3)') n ! TODO apply tracer_props
                open (ifoutput,file=name,status='replace')
                close (ifoutput)
             end do
@@ -408,14 +408,13 @@ contains
         call ncinfo(ncname(39,:),'cs','Smagorinsky constant','-','tt')
         call ncinfo(ncname(40,:),'cfrac','Cloud fraction','-','tt')
         do n=1,nsv
-          write (csvname(1:3),'(i3.3)') n
-          call ncinfo(ncname(40+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
-          call ncinfo(ncname(40+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+3,:),'svpt'//csvname,'Scalar '//csvname//' turbulence tendency','(kg/kg/s)','tt')
-          call ncinfo(ncname(40+7*(n-1)+4,:),'sv'//csvname//'2r','Resolved scalar '//csvname//' variance','(kg/kg)^2','tt')
-          call ncinfo(ncname(40+7*(n-1)+5,:),'wsv'//csvname//'s','SFS scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+6,:),'wsv'//csvname//'r','Resolved scalar '//csvname//' flux','kg/kg m/s','mt')
-          call ncinfo(ncname(40+7*(n-1)+7,:),'wsv'//csvname//'t','Total scalar '//csvname//' flux','kg/kg m/s','mt')
+          call ncinfo(ncname(40+7*(n-1)+1,:),trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong)//' specific mixing ratio', trim(tracer_prop(n)%unit),'tt')
+          call ncinfo(ncname(40+7*(n-1)+2,:),trim(tracer_prop(n)%tracname)//'p', trim(tracer_prop(n)%traclong)//' tendency',trim(tracer_prop(n)%unit)//'/s)','tt')
+          call ncinfo(ncname(40+7*(n-1)+3,:),trim(tracer_prop(n)%tracname)//'pt', trim(tracer_prop(n)%traclong)//' turbulence tendency',trim(tracer_prop(n)%unit)//'/s','tt')
+          call ncinfo(ncname(40+7*(n-1)+4,:),trim(tracer_prop(n)%tracname)//'2r','Resolved '//trim(tracer_prop(n)%traclong)//' variance','('//trim(tracer_prop(n)%unit)//')^2','tt')
+          call ncinfo(ncname(40+7*(n-1)+5,:),'w'//trim(tracer_prop(n)%tracname)//'s','SFS '//trim(tracer_prop(n)%traclong)//' flux',trim(tracer_prop(n)%unit)//' m/s','mt')
+          call ncinfo(ncname(40+7*(n-1)+6,:),'w'//trim(tracer_prop(n)%tracname)//'r','Resolved '//trim(tracer_prop(n)%traclong)//' flux',trim(tracer_prop(n)%unit)//' m/s','mt')
+          call ncinfo(ncname(40+7*(n-1)+7,:),'w'//trim(tracer_prop(n)%tracname)//'t','Total '//trim(tracer_prop(n)%traclong)//' flux',trim(tracer_prop(n)%unit)//' m/s','mt')
         end do
 
         if (isurf==1) then
@@ -1450,7 +1449,7 @@ contains
 
       do n=1,nsv
         name = 'svnnnfld.'//cexpnr
-        write (name(3:5),'(i3.3)') n
+        write (name(3:5),'(i3.3)') n ! TODO apply tracer_props
         open (ifoutput,file=name,position='append')
 
         write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
@@ -1466,7 +1465,7 @@ contains
             ,'#               --FIELD &  T E N D E N C I E S  --------    ' &
             ,'#                                                           ' &
             ,'#                  |        SCALAR(' &
-            ,n &
+            ,n & ! TODO apply tracer_props
             ,')                  |' &
             ,'# LEV HEIGHT  PRES      SV(1)      TURB    TOTAL  |' &
             ,'#      (M)   (MB)  |       -----  (KG/KG/DAY) ----- |' &
@@ -1490,7 +1489,7 @@ contains
   !        Write the scalar fluxes
   !        -----------------------
         name = 'svnnnflx.'//cexpnr
-        write (name(3:5),'(i3.3)') n
+        write (name(3:5),'(i3.3)') n ! TODO apply tracer_props
         open (ifoutput,file=name,position='append')
 
         write(ifoutput,'(//2A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
@@ -1503,7 +1502,7 @@ contains
             '#---------------------------------------------------------------' &
             ,'---------------------------------)' &
             ,'#                                                               ' &
-            ,'#                 |         TURBULENT FLUXES (SV=',n,')       |' &
+            ,'#                 |         TURBULENT FLUXES (SV=',n,')       |' & ! TODO apply tracer_props
             ,'#LEV HEIGHT  PRES       WSV_SUB     WSV_RES     WSV_TOT' &
             ,'#     (M)    (MB) | (----------   (KG/KG M/S)   --------------) ' &
             ,'#---------------------------------------------------------------' &

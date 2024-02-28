@@ -27,25 +27,47 @@
 !! \par Authors
 !!
 module modboundary
+  use modglobal, only : nsv
 
-
-implicit none
-save
-private
-public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
+  implicit none
+  
+  save
+!private
+  public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real :: rnu0 = 2.75e-3
+  logical :: lboundopen			!GT added on off switch for open boundary conditions
+  real,allocatable :: fillvalues(:)		!GT added a new array variable
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
 !>
   subroutine initboundary
-    use modglobal, only : k1,kmax,pi,zf
+    use modglobal, only : k1,kmax,pi,zf,nsv, &
+			  ifnamopt, fname_options, checknamelisterror 		!GT added
+    use modmpi,    only : myid, comm3d, d_mpi_bcast                             !GT added
+    
     implicit none
 
     real    :: zspb, zspt
-    integer :: k
+    integer :: k, ierr			!GT added ierr
+      ! --- Read & broadcast namelist DEPOSITION -----------------------------------
+    namelist/NAMBOUNDSET/ lboundopen, fillvalues	!GT added
+      
+    allocate(fillvalues(nsv))		!GT added
+    
+    if (myid == 0) then
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,nml=NAMBOUNDSET,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMBOUNDSET')
+      write(6, NAMBOUNDSET)
+      close(ifnamopt)
+    endif 
+
+    call d_mpi_bcast(lboundopen,          1,  0, comm3d, ierr)	!GT added
+    call d_mpi_bcast(fillvalues,	nsv,  0, comm3d, ierr)	!GT added 
+
     allocate(tsc(k1))
 ! Sponge layer
     if (ksp==-1) then
@@ -80,7 +102,7 @@ contains
 
     call cyclicm
     call cyclich
-    call setboundaries
+    call setboundaries		!was uncommented GT
   
     call topm
     call toph
@@ -89,6 +111,7 @@ contains
   subroutine exitboundary
   implicit none
     deallocate(tsc)
+    deallocate(fillvalues)
   end subroutine exitboundary
 
 !> Sets lateral periodic boundary conditions for the scalars
@@ -132,10 +155,11 @@ contains
   use modmpi,    only : closeboundaries
 
   implicit none
-  integer :: n   
+  integer :: n
+  if(.not. lboundopen) return
   do n=1,nsv
-    call closeboundaries(sv0(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, 0.)
-    call closeboundaries(svm(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, 0.)
+    call closeboundaries(sv0(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, fillvalues(n))		!GT changes 0. (given BC) to fillvalues(n)
+    call closeboundaries(svm(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, fillvalues(n))		!GT changes 0. (given BC) to fillvalues(n)
   enddo     
 
   end subroutine setboundaries

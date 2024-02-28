@@ -43,7 +43,10 @@ module modemisdata
    
   logical  :: l_emission = .false. ! scalar emission switch
   integer  :: kemis    = -1, &     ! no. of layers to include for emission
-              svskip   =  0        ! no. scalars to exclude for emission
+              svskip   =  0, &     ! no. scalars to exclude for emission
+              nemis    = 0         ! no. of emitted scalars  
+  logical  :: l_scale = .false.    ! emission scaling switch
+  real, dimension(100) :: scalefactor
 
   character(len = 6), dimension(100) :: & 
               emisnames = (/ ('      ', iname=1, 100) /) ! list with scalar names,

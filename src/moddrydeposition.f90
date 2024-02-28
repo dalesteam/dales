@@ -28,6 +28,7 @@ module moddrydeposition
   use modfields, only : svp   ! tracer tendency array
   use modglobal, only : nsv, i1, j1
   use modlsm, only : llsm
+  use modtracers, only: tracer_prop
 
   implicit none
 
@@ -38,13 +39,15 @@ module moddrydeposition
   real, allocatable :: depfield(:,:,:) !< deposition flux (i,j,sv) [ug * m / (g * s)]
   logical, dimension(100) :: ldeptracers = .false. !< List of switches determining which of the tracers to deposit
   integer  :: ndeptracers = 0  !< Number of tracers that deposits
-  integer  :: iname
+  integer  :: iname 
+  real :: nh3_avg, so2_avg	!GT added to not have the valiables needed for the calculations of ccomp hardcoded
 
   private :: Rc, Rb, vd
 
   real, allocatable :: Rb(:, :)  ! Temporary storage of the quasilaminar sublayer resistance
   real, allocatable :: Rc(:, :)  ! Temporary storage of the total canopy resistance
   real, allocatable :: vd(:, :)  ! Temporary storage of the deposition velocity
+  real, allocatable :: Ccomp(:, :)  ! Temporary storage of the compensation point
 
   ! Diffusion coefficients (up to 'co', originating from DEPAC, rest from Carl L. Yaws, "Transport Properties of Chemicals
   ! and Hydrocarbons. Viscosity, Thermal Conductivity, and Diffusivity of C1 to C1000 Organics and Ac to Zr Inorganics", 2009)
@@ -58,15 +61,6 @@ module moddrydeposition
 ! Unfortunately, there is no other way to get the parameters from DEPAC (lai_par, laitype)
 #include "depac_lu.inc"
  
-  ! ---------------------------------------------------------------------!
-  ! Namelist variables                                                   !
-  ! ---------------------------------------------------------------------!
-   
-  character(len = 6), dimension(100) :: & 
-            tracernames = (/ ('      ', iname=1, 100) /) !< list with scalar names,
-                            ! each name must(!) be 6 characters long for now  
-
-
 contains
 
 !> Initialize deposition calculation.
@@ -81,22 +75,19 @@ subroutine initdrydep
   use modglobal, only : i2, j2, nsv, ifnamopt, fname_options, &
                         checknamelisterror, imax, jmax
   use modmpi,    only : myid, comm3d, d_mpi_bcast
-  use modemisdata, only : emisnames
 
   implicit none
 
   ! Auxiliary variables
-  integer  :: ierr
+  integer  :: ierr, isv
 
   ! ---------------------------------------------------------------------!
   ! Main variables                                                       !
   ! ---------------------------------------------------------------------!
 
   ! --- Read & broadcast namelist DEPOSITION -----------------------------------
-  namelist/NAMDEPOSITION/ ldrydep, ldeptracers, tracernames
-
-  ! Default, the tracers are equal to the emitted species
-  tracernames = emisnames
+  namelist/NAMDEPOSITION/ ldrydep, nh3_avg, so2_avg	!GT added nh3_avg and so2_avg
+      
 
   if (myid == 0) then
     open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -107,26 +98,32 @@ subroutine initdrydep
   endif
 
   call d_mpi_bcast(ldrydep,              1, 0, comm3d, ierr)
-  call d_mpi_bcast(ldeptracers(1:100), 100, 0, comm3d, ierr)
-  call d_mpi_bcast(tracernames(1:100), 100, 0, comm3d, ierr)
-
-  ndeptracers = count(ldeptracers)  ! Number of tracers that deposits
+  call d_mpi_bcast(nh3_avg,		 1, 0, comm3d, ierr)	!GT added
+  call d_mpi_bcast(so2_avg,		 1, 0, comm3d, ierr)	!GT added
+  
+  do isv = 1,nsv
+    if (.not. tracer_prop(isv)%ldep) cycle
+    ndeptracers = ndeptracers + 1
+    write(*,*) 'tracer is deposited: ', tracer_prop(isv)%tracname
+  enddo
 
   ! --- Local pre-calculations and settings
   if (ldrydep .and. ndeptracers == 0) then
-    write (*,*) "initdrydep: WARNING .. drydeposition switched on, but no tracers to deposit selected &
-      & (ldeptracers). Continuing without deposition model"
+    write (*,*) "initdrydep: WARNING .. drydeposition switched on, but no tracers to deposit. &
+      Continuing without deposition model"
   end if
-  if (.not. (ldrydep) .or. .not. (llsm) .or. count(ldeptracers) == 0) return
+  if (.not. (ldrydep) .or. .not. (llsm) .or. ndeptracers == 0)  return
 
   allocate(depfield(i2, j2, ndeptracers))
   allocate(Rb(i2, j2))
   allocate(Rc(i2, j2))
   allocate(vd(i2, j2))
-
+  allocate(Ccomp(i2, j2))        !added by GT for addition of comp. point
   Rb = 0.0
   Rc = 0.0
   vd = 0.0
+  Ccomp = 0.0
+  
 
 end subroutine initdrydep
 
@@ -142,9 +139,9 @@ subroutine drydep  ! called in program.f90
   implicit none
   integer :: isv, idt, i, j ! isv = sv index, idt = deptracer index
 
-  if (ldrydep .and. ndeptracers == 0) then
-    write (*, *) "drydep: Skipping deposition calculation, since no tracers selected (ldeptracers all .false.)"
-  end if
+  ! if (ldrydep .and. ndeptracers == 0) then
+  !   write (*, *) "drydep: Skipping deposition calculation, since no tracers selected (ndeptracers = 0)"
+  ! end if
   if (.not. llsm .or. .not. ldrydep .or. ndeptracers == 0) return  ! Dry deposition cannot be run if LSM not activated
   
   call calc_depfield
@@ -154,14 +151,13 @@ subroutine drydep  ! called in program.f90
   ! limit memory usage. 
   idt = 1  ! deposition tracers have their own index
   do isv = 1, nsv
-    if (ldeptracers(isv)) then
-      do j = 2, j1
-        do i = 2, i1
-          svp(i,j,1,isv) = svp(i,j,1,isv) + depfield(i,j,idt) / dzf(1)
-        end do
+    if (.not. tracer_prop(isv)%ldep) cycle
+    do j = 2, j1
+      do i = 2, i1
+        svp(i,j,1,tracer_prop(isv)%trac_idx) = svp(i,j,1,tracer_prop(isv)%trac_idx) + depfield(i,j,idt) / dzf(1)
       end do
-      idt = idt + 1
-    end if
+    end do
+    idt = idt + 1
   end do
 
 end subroutine drydep    
@@ -177,20 +173,20 @@ end subroutine drydep
 !!
 !! @see M.C. van Zanten et al., "Description of the DEPAC module", RIVM report nr. 680180001/2010
 !! @see DryDepos_Gas_DEPAC
-subroutine depac_call(ilu, species)
+subroutine depac_call(ilu, species, species_idx)		!GT added variable of species_idx for trac_id to allow looping in the calculations of ccomp
   use modlsm, only : tile
   use modglobal, only : i1, j1, xday, xlat, xlon, xtime, rtimee
-  use modfields, only : thl0, exnf, presf, qt0, qsat
+  use modfields, only : thl0, exnf, presf, qt0, qsat, sv0             !GT added sv0
   use le_drydepos_gas_depac, only : DryDepos_Gas_DEPAC
   use modraddata, only : zenith, swd
   use go, only : to_upper
   implicit none
 
-  integer, intent(in) :: ilu
+  integer, intent(in) :: ilu, species_idx		!GT added species_idx
   character(*), intent(in) :: species
   character(len=6) :: depac_species
-  integer :: i, j, nwet = 0, status, depac_ilu
-  real :: T, RH, ccomp_tot, sinphi, lai, sai
+  integer :: i, j, nwet = 0, status, depac_ilu, isv      !GT added isv as an integer
+  real :: T, RH, sinphi, lai, sai                            !GT removed ccomp_tot as a real variable
 
   ! Temporary values, until something better is available
   ! for now, assuming low NH3/SO2 ratios
@@ -229,11 +225,21 @@ subroutine depac_call(ilu, species)
       ! tsea is a temperature DEPAC needs in case of water LU classes
       call DryDepos_Gas_DEPAC(depac_species, int(xday), xlat, T, &
                               tile(ilu)%ustar(i, j), -swd(i, j, 1), sinphi, RH, lai, sai, nwet, &
-                              depac_ilu, iratns, Rc(i, j), ccomp_tot, 0.0, 0.0, status, tsea=tile(ilu)%tskin(i, j))
+                              depac_ilu, iratns, Rc(i, j), Ccomp(i, j), 0.0, 0.0, status, tsea=tile(ilu)%tskin(i, j), c_ave_prev_nh3=nh3_avg, &
+        		      c_ave_prev_so2=so2_avg, catm=sv0(i,j,1,species_idx))         !GT added everything behind tsea, variables needed to calculate comp. if values are set to 0 no comp is calculated
+      ! check for missing Rc values, i.e. -9999, and return huge resistance, so virtually no deposition takes place
+      if (missing_real(Rc(i, j), -9999.)) then
+        Rc(i,j) = 1.e5
+      endif
+      ! GT added, check for missing ccomp values
+      if (missing_real(Ccomp(i, j), -9999.)) then
+        Ccomp(i,j) = 0.
+      endif
     end do
   end do
+  
 
-  ! ! DEBUG feedback
+  !! DEBUG feedback
   ! write (6, '("DEPAC: Land use class= ",a)') tile(ilu)%lushort
   ! write (6, '("DEPAC: species = ",a)') to_upper(trim(species))
   ! write (6, '("DEPAC: xday = ",i3)') int(xday)
@@ -249,7 +255,7 @@ subroutine depac_call(ilu, species)
   ! write (6, '("DEPAC: SAI= ",f10.1)') sai
   ! write (6, '("DEPAC: DEPAC ilu= ",i3)') depac_ilu
   ! write (6, '("DEPAC: Rc(2, 2)= ",f12.2)') Rc(2, 2)
-
+  ! write (6, '("DEPAC: ccomp_tot= ",f10.3)') ccomp_tot
 end subroutine depac_call
 
 !> Finalize deposition calculation.
@@ -258,13 +264,14 @@ end subroutine depac_call
 subroutine exitdrydep
   implicit none
 
-  if (.not. llsm .or. .not. ldrydep .or. count(ldeptracers) == 0) return
+  ! if (.not. llsm .or. .not. ldrydep .or. count(ldeptracers) == 0) return
+  if (.not. llsm .or. .not. ldrydep .or. ndeptracers == 0) return
 
   deallocate(depfield)
   deallocate(Rb)
   deallocate(Rc)
   deallocate(vd)
-
+  deallocate(Ccomp)      ! GT added
 end subroutine exitdrydep
 
 !> Calculate the deposition flux for species other than water.
@@ -273,7 +280,7 @@ end subroutine exitdrydep
 !! calculated from the aerodynamic resistance, the quasilaminar layer resistance 
 !! and the canopy resistance.
 subroutine calc_depfield
-  use modglobal, only : i1, j1, i2, j2, fkar
+  use modglobal, only : i1, j1, fkar
   use modfields, only : sv0
   use modlsm, only : tile, nlu
   ! Necessary to retrieve/calculate all parameters necessary for the DEPAC routine
@@ -288,28 +295,27 @@ subroutine calc_depfield
 
   idt = 1
   do isv = 1, nsv
-    if (ldeptracers(isv)) then
-      depfield(:, :, idt) = 0.0
-      Sc = nu_air / findval(tracernames(isv), species, diffusivity, defltvalue=.22e-4)  ! Default is O2 in air
-      ScPrfac = (Sc/Pr_air) ** (2/3.)
-      ! HACK: now running only on non-wet tiles. Wet surfaces still to be covered.
-      do ilu = 1, nlu - 1
-        ! ilu = 5
-        call depac_call(ilu, tracernames(isv)) ! Update Rc
-        ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
-        do j = 2, j1
-           do i = 2, i1
-            if (tile(ilu)%frac(i,j) > 0.) then
-              Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
-              vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
-              ! Deposition flux in ug * m / (g * s)
-              depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * sv0(i,j,1,isv)
-            endif
-          end do
+    if (.not. tracer_prop(isv)%ldep) cycle
+    depfield(:, :, idt) = 0.0
+    Sc = nu_air / findval(tracer_prop(isv)%tracname, species, diffusivity, defltvalue=.22e-4)  ! Default is O2 in air
+    ScPrfac = (Sc/Pr_air) ** (2/3.)
+    ! HACK: now running only on non-wet tiles. Wet surfaces still to be covered.
+    do ilu = 1, nlu - 1
+      ! ilu = 5
+      call depac_call(ilu, tracer_prop(isv)%tracname, tracer_prop(isv)%trac_idx) ! Update Rc
+      ! Quasilaminar sublayer resistance according to Hicks et al, Water Air Soil Pollut., v35, p311-330, 1987
+      do j = 2, j1
+        do i = 2, i1
+          if (tile(ilu)%frac(i,j) > 0.) then
+            Rb(i,j) = 1/(fkar*tile(ilu)%ra(i,j)) * ScPrfac
+            vd(i,j) = (tile(ilu)%ra(i,j) + Rb(i,j) + Rc(i,j)) ** (-1)
+            ! Deposition flux in ug * m / (g * s)
+            depfield(i,j,idt) = depfield(i,j,idt) - tile(ilu)%frac(i,j) * vd(i,j) * (sv0(i,j,1,tracer_prop(isv)%trac_idx) - Ccomp(i,j))  !GT added ccomp_tot to the deposition flux
+          endif
         end do
-      end do  ! ilu = 1, nlu
-      idt = idt + 1
-    end if  ! (ldeptracers(isv))
+      end do
+    end do  ! ilu = 1, nlu
+    idt = idt + 1
   end do  ! isv = i, nsv
 
 end subroutine calc_depfield
@@ -378,7 +384,7 @@ subroutine calc_lai_sai(luclass, doy, latitude, SAI_a, SAI_b, lai, sai)
   tab_data = lai_par(idx)
 
   ! In case the values are not defined, return zero for LAI and SAI
-  if (missing_int(tab_data%sgs50)) then
+  if (missing_int(tab_data%sgs50, -999)) then
     lai = 0.0
     sai = 0.0
     return
@@ -428,7 +434,7 @@ subroutine SGS_MGS_EGS(tab_data, latitude, sgs, mgs, egs)
   real, intent(out) :: sgs, mgs, egs
 
   ! If no data is defined, return sensible data
-  if (missing_int(tab_data%sgs50)) then
+  if (missing_int(tab_data%sgs50, -999)) then
     sgs = 0.0
     mgs = 0.0
     egs = 365.0
@@ -477,19 +483,20 @@ end function get_depac_luindex
 !!
 !! Apalling way to check for missing values...
 !!
-!! @param[in] x Check whether x is 'missing', i.e. -999
-logical function missing_real(x)
+!! @param[in] x Check whether x is 'missing'
+!! @param[in] val Value to check x against. e.g. -999
+logical function missing_real(x, val)
   implicit none
-  real, intent(in) :: x
+  real, intent(in) :: x, val
   ! bandwidth for checking (in)equalities of floats
   real, parameter :: EPS = 1.0e-5
-  missing_real = (abs(x + 999.) .le. EPS)
+  missing_real = (abs(x - val) .le. EPS)
 end function missing_real
 
-logical function missing_int(x)
+logical function missing_int(x, val)
   implicit none
-  integer, intent(in) :: x
-  missing_int = missing_real(real(x))
+  integer, intent(in) :: x, val
+  missing_int = missing_real(real(x), real(val))
 end function missing_int
 
 end module moddrydeposition
