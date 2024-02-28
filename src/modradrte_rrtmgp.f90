@@ -421,7 +421,7 @@ contains
         do k=1,kmax
           ! set up working variables
           ilratio  = max(0.,min(1.,(layerT(icol,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
-          layerMass = interfaceP(icol,k)-interfaceP(icol,k+1)/grav !kg/m2
+          layerMass = (interfaceP(icol,k)-interfaceP(icol,k+1))/grav !kg/m2
           qcl = ql0(i,j,k) * ilratio
           qci = ql0(i,j,k) * (1.0-ilratio)
 
@@ -430,18 +430,18 @@ contains
 
 
           if (LWP_slice(icol,k).gt.0.) then
-            !cstep liquidRe(i, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(i,k)/layerMass(i,k) ) &
+            !cstep liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
             !cstep                  /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
             !cstep: equation above contains function of many constants, are now absorbed in reff_factor
-            liquidRe(i, k) = reff_factor  * qcl**(1./3.)
+            liquidRe(icol, k) = reff_factor  * qcl**(1./3.)
 
             if(liquidRe(icol,k).lt.2.5) liquidRe(icol,k) = 2.5
             if(liquidRe(icol,k).gt.60.) liquidRe(icol,k) = 60.
           endif
 
-          if (IWP_slice(i,k).gt.0) then
-             !cstep Ou Liou: tempC = layerT(i,k)--tmelt
-             !cstep Ou Liou  iceRe(i,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
+          if (IWP_slice(icol,k).gt.0) then
+             !cstep Ou Liou: tempC = layerT(icol,k)--tmelt
+             !cstep Ou Liou  iceRe(icol,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
              B_function =  -2 + 0.001 *(273.-layerT(icol,k))**1.5 * log10(qci*rhof(k)/IWC0) !Eq. 14 Wyser 1998
              iceRe(icol,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
              if (isnan(iceRe(icol,k))) then
