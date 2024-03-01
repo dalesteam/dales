@@ -1,15 +1,15 @@
 {
 "creators": [
       {
-        "orcid": "0000-0003-2361-0082", 
-        "affiliation": "Jagiellonian University", 
+        "orcid": "0000-0003-2361-0082",
+        "affiliation": "Jagiellonian University",
         "name": "Sylwester Arabas"
-      }, 
+      },
       {
         "name": "Simon Axelsen"
-      }, 
+      },
       {
-        "orcid": "0000-0002-0948-1176", 
+        "orcid": "0000-0002-0948-1176",
         "affiliation": "Netherlands eScience Center",
         "name": "Jisk Attema"
       },
@@ -17,19 +17,19 @@
         "orcid": "0000-0003-3535-8320",
         "affiliation": "Netherlands eScience Center",
         "name": "Victor Azizi"
-      }, 
+      },
       {
         "name": "Cees Beets"
-      }, 
+      },
       {
         "name": "S. J. Boeing"
-      }, 
+      },
       {
-        "orcid": "0000-0002-9892-8442", 
+        "orcid": "0000-0002-9892-8442",
         "name": "Marco de Bruine"
-      }, 
+      },
       {
-        "orcid": "0000-0002-3677-7861", 
+        "orcid": "0000-0002-3677-7861",
         "name": "Jan Chylik"
       },
       {
@@ -37,88 +37,107 @@
       },
       {
         "name": "Pim van Dorp"
-      }, 
+      },
       {
-        "orcid": "0000-0001-8073-6541", 
+        "orcid": "0000-0001-8073-6541",
         "name": "Johan van der Dussen"
       },
       {
         "name": "Peter Duynkerke"
-      }, 
+      },
+      {
+	"name": "Lucas Esclapez",
+	"affiliation": "Netherlands eScience Center",
+	"orcid":"0000-0002-2438-7292"
+      },
       {
         "orcid": "0000-0001-7202-3525",
         "affiliation": "Wageningen University and Research",
         "name": "Chiel van Heerwaarden"
-      }, 
+      },
       {
-        "orcid": "0000-0003-2650-2423", 
+        "orcid": "0000-0003-2650-2423",
         "name": "Thijs Heus"
       },
       {
         "orcid": "0000-0003-2905-6692",
         "affiliation": "Wageningen University and Research",
         "name": "Martin Janssens"
-      }, 
+      },
       {
-        "orcid": "0000-0003-4712-5938", 
+        "orcid": "0000-0003-4712-5938",
         "affiliation": "Delft University of Technology",
         "name": "Fredrik Jansson"
-      }, 
+      },
       {
         "name": "Harm Jonker"
-      }, 
+      },
       {
-        "orcid": "0000-0003-3614-8544", 
+	"affiliation": "Delft University of Technology",
+        "name": "Caspar Jungbacker"
+      },
+      {
+	"affiliation": "Monash University",
+        "name": "Frans Liqui Lung",
+	"orcid": "0000-0002-7835-2132"
+      },
+      {
+        "orcid": "0000-0003-3614-8544",
         "name": "Arnold Moene"
       },
       {
         "affiliation": "Delft University of Technology",
         "name": "Frans Nieuwstadt"
-      }, 
+      },
       {
-        "orcid": "0000-0002-6327-6720", 
+        "orcid": "0000-0002-6327-6720",
         "name": "Huug Ouwersloot"
-      }, 
+      },
       {
-        "orcid": "0000-0001-8367-1333", 
+        "orcid": "0000-0001-8367-1333",
         "name": "Gijs van den Oord",
         "affiliation": "Netherlands eScience Center"
       },
       {
         "name": "Mathieu Pourquie"
-      }, 
+      },
       {
         "orcid": "0000-0003-3217-8009",
         "affiliation": "Delft University of Technology",
         "name": "Stephan de Roode"
-      }, 
+      },
       {
-        "orcid": "0000-0001-9182-3050", 
+        "orcid": "0000-0001-9182-3050",
         "name": "Roel Neggers"
-      }, 
+      },
       {
-        "orcid": "0000-0001-5129-6364", 
+        "orcid": "0000-0001-5129-6364",
         "name": "Xabier Pedruzo"
-      }, 
+      },
       {
         "orcid": "0000-0002-7751-5999",
 	"affiliation": "Delft University of Technology",
         "name": "Pier Siebesma"
-      }, 
+      },
       {
-        "orcid": "0000-0002-9253-5779", 
+        "orcid": "0000-0002-9253-5779",
         "name": "Martin Sikma"
-      }, 
+      },
       {
-        "orcid": "0000-0002-7176-9875", 
-        "affiliation": "Wageningen University and Research", 
+	"name": "Laurent Soucasse",
+	"affiliation": "Netherlands eScience Center",
+	"orcid": "0000-0002-5422-8794"
+      },
+      {
+        "orcid": "0000-0002-7176-9875",
+        "affiliation": "Wageningen University and Research",
         "name": "Bart van Stratum"
-      }, 
+      },
       {
-        "orcid": "0000-0003-0342-9171", 
-        "affiliation": "Wageningen University", 
+        "orcid": "0000-0003-0342-9171",
+        "affiliation": "Wageningen University",
         "name": "Jordi Vila"
-      }, 
+      },
       {
         "name": "Margreet van Zanten"
       }

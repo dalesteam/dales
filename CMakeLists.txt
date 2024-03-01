@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.2)
+cmake_minimum_required(VERSION 3.5)
 
 ### Choose CMAKE Type
 if(NOT CMAKE_BUILD_TYPE)
@@ -81,7 +81,7 @@ endif()
 PROJECT(DALES Fortran)
 set(VERSION_MAJOR "4")
 set(VERSION_MINOR "4")
-set(VERSION_PATCH "1")
+set(VERSION_PATCH "2")
 
 # use nf-config to find paths to netcdf. Broken on Fedora due to module path missing.
 execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPUT_STRIP_TRAILING_WHITESPACE)
@@ -91,7 +91,7 @@ execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_
 
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
-EXEC_PROGRAM(${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
+#execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
 
 ### Find NetCDF files
 FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
