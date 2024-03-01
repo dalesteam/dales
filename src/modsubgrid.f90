@@ -90,14 +90,10 @@ contains
        ! Anisotropic diffusion scheme  https://doi.org/10.1029/2022MS003095
        ! length scale in TKE equation is delta z (private communication with Marat)
        if ((dx.ne.dy) .and. myid == 0) stop "The anisotropic diffusion assumes dx=dy."
-       do k = 1,k1
-          deltai   (k) = 1./dzf(k)       !overrules deltai (k) = 1/delta(k) as defined in initglobal
-          anis_fac (k) = (dx/dzf(k))**2  !assumes dx=dy. is used to enhance horizontal diffusion
-       end do
+       deltai    = 1./dzf       !overrules deltai (k) = 1/delta(k) as defined in initglobal
+       anis_fac = (dx/dzf)**2  !assumes dx=dy. is used to enhance horizontal diffusion
     else
-       do k = 1,k1
-          anis_fac (k) = 1.   !horizontal = vertical diffusion
-       end do
+       anis_fac = 1.   !horizontal = vertical diffusion
     endif
 
 
