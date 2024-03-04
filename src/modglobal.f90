@@ -273,7 +273,6 @@ contains
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
-    real :: ilratio
     integer :: k, n, m, ierr
     character(80) chmess
 
@@ -361,23 +360,6 @@ contains
     end if
 
     ! Global constants
-
-
-
-    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
-    ! esatitab(m) is the same over ice
-    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
-    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
-    ! Murphy and Koop 2005 parameterization formula.
-    do m=1,2000
-    ttab(m)=150.+0.2*m
-    esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
-         tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-
-    esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
-    ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
-    esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
-    end do
 
     mygamma251(-100)=0.
     mygamma21(-100)=0.

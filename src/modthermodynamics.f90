@@ -45,14 +45,36 @@ contains
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1
-
+    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup,esatltab,esatitab,esatmtab,ttab
+    use modmicrodata, only: imicro,imicro_bulk3
     implicit none
+    real :: ilratio
+    integer :: m
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
     th0av = 0.
 
+    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
+    ! esatitab(m) is the same over ice
+    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
+    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
+    ! Murphy and Koop 2005 parameterization formula.
+    do m=1,2000
+       ttab(m)=150.+0.2*m
+       esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
+            tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+
+       esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
+       ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
+       if(imicro.eq.imicro_bulk3) then
+          ! bulkmicro3 thermodynamics is for liquid only, ice is explicitely accounted for separately.
+          esatmtab(m) = esatltab(m)
+       else
+          ! for all other microphysics, saturation is w.r.t. liquid and ice
+          esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
+       end if
+    end do
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
@@ -527,6 +549,7 @@ contains
     real(field_r) :: tlo, thi, es
 
     ! interpolated ice-liquid saturation vapor pressure from table
+    ! note if imicto==imicro_bulk3, the table is for liquid only
     tlonr=int((T-150.)*5.)
     tlo = 150. + 0.2*tlonr
     thi = tlo + 0.2
