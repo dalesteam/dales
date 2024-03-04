@@ -331,6 +331,8 @@ subroutine initsamptend
     real, allocatable, dimension(:) :: thvav
     integer :: i,j,k
 
+    if (lchecktend) call checktend(tendterm)
+
     if (.not. lsamptend) return
     if(isamptot < 1) return
     if(.not.(lnetcdf)) return !only in netcdf at the moment
@@ -792,5 +794,60 @@ subroutine initsamptend
     deallocate (nrsamptot,nrsamp,nrsamplast,nrsampnew)
 
   end subroutine exitsamptend
+
+
+  subroutine checktend(stage)
+    use modfields, only : qt0,thl0,e120,sv0,u0,v0,w0,ql0,exnf,presf,ql0,tmp0, &
+                          qtp,thlp,e12p,svp,up,vp,wp
+    use modglobal, only : i1,j1,kmax,rdt,rk3step,timee
+
+    implicit none
+    integer :: i,j,k,stage
+    real :: delt
+    delt = rdt/ (4. - dble(rk3step))
+
+    do k=1,min(kmax,50) ! note hardcoded limit 50 here, to avoid detecting qt slightly less than 0 near top
+       do j=2,j1
+          do i=2,i1
+             if (qt0(i,j,k) + qtp(i,j,k) * delt < 0) call printpoint(i,j,k,stage)
+             if (abs(thlp(i,j,k)) > 10)              call printpoint(i,j,k,stage)
+          end do
+       end do
+    end do
+
+
+
+  end subroutine checktend
+
+  subroutine printpoint(i,j,k,stage)
+    use modfields, only : qt0,thl0,e120,sv0,u0,v0,w0,ql0,exnf,presf,ql0,tmp0, &
+         qtp,thlp,e12p,svp,up,vp,wp
+    use modmpi, only : myidx,myidy
+    use modglobal, only : rdt,rk3step,timee
+    use modsubgriddata, only: zlt,ekh,ekm
+
+    implicit none
+    integer :: i,j,k,stage
+    real :: delt
+    delt = rdt/ (4. - dble(rk3step))
+
+    write (*,*) 'stage', stage
+    write (*,*) 'myidx, myidy:', myidx, myidy
+    write (*,*) 'Grid point i, j, k', i, j, k
+    write (*,*) 'thl0, thlp', thl0(i, j, k), thlp(i, j, k)
+    write (*,*) 'e120', e120(i, j, k)
+    write (*,*) 'qt0, qtp',  qt0(i, j, k), qtp(i, j, k)
+    write (*,*) 'ql0 ',  ql0(i, j, k)
+    write (*,*) 'qr , qrp',  sv0(i, j, k, 2), svp(i, j, k, 2)
+    write (*,*) 'nr , nrp',  sv0(i, j, k, 1), svp(i, j, k, 1)
+    write (*,*) 'tmp0', tmp0(i, j, k)
+    write (*,*) 'zlt',  zlt(i, j, k)
+    write (*,*) 'ekm, ekh',  ekm(i, j, k), ekh(i, j, k)
+    write (*,*) 'u0, v0, w0', u0(i, j, k), v0(i, j, k), w0(i, j, k)
+    write (*,*) 'rk3step, rdt, delt', rk3step, rdt, delt
+    STOP
+
+  end subroutine printpoint
+
 
 end module
