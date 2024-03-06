@@ -825,7 +825,7 @@ subroutine initsamptend
     use modmpi, only : myidx,myidy
     use modglobal, only : rdt,rk3step,timee
     use modsubgriddata, only: zlt,ekh,ekm
-    use modmicrodata, only : qtpmcr, thlpmcr
+    use modmicrodata, only : qtpmcr, thlpmcr, qrmask
     implicit none
     integer :: i,j,k,stage
     real :: delt
@@ -840,7 +840,7 @@ subroutine initsamptend
     write (*,*) 'qt0, qtm, qtp',  qt0(i, j, k), qtm(i,j,k), qtp(i, j, k)
     write (*,*) 'qtpmcr', qtpmcr(i, j, k)
     write (*,*) 'ql0 ',  ql0(i, j, k)
-    write (*,*) 'qr , qrp',  sv0(i, j, k, 2), svp(i, j, k, 2)
+    write (*,*) 'qr , qrp, qrmask',  sv0(i, j, k, 2), svp(i, j, k, 2), qrmask(i,j,k)
     write (*,*) 'nr , nrp',  sv0(i, j, k, 1), svp(i, j, k, 1)
     write (*,*) 'tmp0', tmp0(i, j, k)
     write (*,*) 'zlt',  zlt(i, j, k)

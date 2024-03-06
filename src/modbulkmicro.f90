@@ -229,8 +229,16 @@ module modbulkmicro
        ! BUG: why write back these values here?
        !      negative values in svm + svp are corrected for at the end
        !      of bulkmicro, and tstep integrate does svm + svp
-       ! sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
-       ! sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
+       sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
+       sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
+       svm(:,:,:,inr) = max(0.,svm(:,:,:,inr))
+       svm(:,:,:,iqr) = max(0.,svm(:,:,:,iqr))
+       ! FJ put these back +add svm
+       ! the correction below conserves energy and water mass by
+       ! condensing qt to fill the negative qr
+       ! but that can lead to negative qt and high temperatures
+       ! in some extreme cases (2nd order advection)
+
     end if   ! l_rain
 
     !*********************************************************************
@@ -656,7 +664,13 @@ module modbulkmicro
             if (qrmask(i,j,k)) then
               wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
               wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
-
+              if (wfall_qr > wfallmax .or. wfall_Nr > wfallmax) then
+                 write (*,*) "wfall_qr, wfall_Nr", wfall_qr, wfall_Nr
+                 write (*,*) "i,j,k", i,j,k
+                 write (*,*) "lbdr mur qr", lbdr(i,j,k), mur(i,j,k)
+                 write (*,*) "qr, Nr", qr(i,j,k), Nr(i,j,k)
+              end if
+              
               sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k) ! m/s * kg/m3
               sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
 
