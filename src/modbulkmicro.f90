@@ -326,16 +326,16 @@ module modbulkmicro
     do k=min(qrbase,qcbase),max(qrroof, qcroof)
     do j=2,j1
     do i=2,i1
-      qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
-      qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
-      nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
+!      qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
+!      qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
+!      nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
 
       ! correction, after Jerome's implementation in Gales
-      qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) + qr_cor
-      thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - qr_cor * (rlv/(cp*exnf(k)))
+      qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) !+ qr_cor
+      thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) !- qr_cor * (rlv/(cp*exnf(k)))
 
-      svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) - qr_cor
-      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nr_cor
+      svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) !- qr_cor
+      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) !- nr_cor
       ! adjust negative qr tendencies at the end of the time-step
     enddo
     enddo
