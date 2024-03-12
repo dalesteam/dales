@@ -484,7 +484,7 @@ contains
     !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
     !$acc&                  uwtot, vwtot, umav, vmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
-    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0)
+    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h)
 
     call timer_toc('modgenstat/initgenstat')
 
@@ -874,9 +874,7 @@ contains
 
       do n = 1, nsv
         if (iadv_sv(n)==iadv_kappa) then
-           !$acc set device_type(host)
-           call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
-           !$acc set device_type(nvidia)
+           call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
           !$acc parallel loop collapse(3) default(present) async
           do k = 2, k1
