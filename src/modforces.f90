@@ -221,51 +221,39 @@ contains
 !     1.1 lowest model level above surface : only downward component
 !     1.2 other model levels twostream
 
-  !$acc parallel loop gang default(present) async(1)
+  !$acc parallel loop collapse(3) default(present) async(1)
   do k=1,kmax
-    if (whls(k+1) < 0) then   !downwind scheme for subsidence
-      !$acc loop collapse(2)
-      do j=2,j1
-        do i=2,i1
+    do j=2,j1
+      do i=2,i1
+        if (whls(k+1) < 0) then   !downwind scheme for subsidence
           thlp(i,j,k) = thlp(i,j,k) - whls(k+1) * (thl0(i,j,k+1) - thl0(i,j,k))/dzh(k+1)
           qtp (i,j,k) = qtp (i,j,k) - whls(k+1) * (qt0 (i,j,k+1) - qt0 (i,j,k))/dzh(k+1)
-        end do
-      end do
-    else !downwind scheme for mean upward motions
-      if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
-        !$acc loop collapse(2)
-        do j=2,j1
-          do i=2,i1
+        else                      !downwind scheme for mean upward motions
+          if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
             thlp(i,j,k) = thlp(i,j,k) - whls(k) * (thl0(i,j,k) - thl0(i,j,k-1))/dzh(k)
             qtp (i,j,k) = qtp (i,j,k) - whls(k) * (qt0 (i,j,k) - qt0 (i,j,k-1))/dzh(k)
-          end do
-        end do
-      endif
-    endif
+          endif
+        endif
+      end do
+    end do
   end do
 
   if (lmomsubs) then
-    !$acc parallel loop gang default(present) async(2)
-    do k=1,kmax
-      if (whls(k+1) < 0) then
-        !$acc loop collapse(2)
-        do j=1,j1
-          do i=1,i1
+    !$acc parallel loop collapse(3) default(present) async(2)
+    do k = 1, kmax
+      do j = 1, j1
+        do i = 1, i1
+          if (whls(k+1) < 0) then
             up(i,j,k) = up(i,j,k) - whls(k+1) * (u0(i,j,k+1) - u0(i,j,k))/dzh(k+1)
             vp(i,j,k) = vp(i,j,k) - whls(k+1) * (v0(i,j,k+1) - v0(i,j,k))/dzh(k+1)
-          end do
-        end do
-      else
-        if (k > 1) then
-          !$acc loop collapse(2)
-          do j=1,j1
-            do i=1,i1 
+          else
+            if (k > 1) then
               up(i,j,k) = up(i,j,k) - whls(k) * (u0(i,j,k) - u0(i,j,k-1))/dzh(k)
               vp(i,j,k) = vp(i,j,k) - whls(k) * (v0(i,j,k) - v0(i,j,k-1))/dzh(k)
-            end do
-          end do
-        end if
-      end if
+            end if
+          end if
+        end do
+      end do
     end do
   end if 
   
@@ -283,26 +271,20 @@ contains
   
   ! Only do above for scalars if there are any scalar fields
   if (nsv > 0) then
+    !$acc parallel loop collapse(4) default(present) async
     do n=1,nsv
-      !$acc parallel loop gang default(present) async
       do k=1,kmax
-        if (whls(k+1).lt.0) then
-          !$acc loop collapse(2)
-          do j=1,j1
-            do i=1,i1
+        do j=1,j1
+          do i=1,i1
+            if (whls(k+1).lt.0) then
               svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1)
-            end do
-          end do
-        else
-          if (k > 1) then
-            !$acc loop collapse(2)
-            do j=1,j1
-              do i=1,i1
+            else
+              if (k > 1) then
                 svp(i,j,k,n) = svp(i,j,k,n)-whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k)
-              end do
-            end do
-          end if
-        end if
+              end if
+            end if
+          end do
+        end do
       end do
     end do
   end if
