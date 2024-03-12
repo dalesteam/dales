@@ -211,13 +211,13 @@ end subroutine advecc_6th
 
 
 !> Advection at the u point.
-subroutine advecu_6th(a_in,a_out)
+subroutine advecu_6th(a_in,a_out,sx)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
 
   implicit none
-
+  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
@@ -237,7 +237,7 @@ subroutine advecu_6th(a_in,a_out)
 
     do k=1,kmax
       do j=2,j1
-        do i=2,i1
+        do i=sx,i1
 
         if(k==1) then
 
@@ -386,12 +386,12 @@ subroutine advecu_6th(a_in,a_out)
 end subroutine advecu_6th
 
 !> Advection at the v point.
-subroutine advecv_6th(a_in, a_out)
+subroutine advecv_6th(a_in, a_out, sy)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-
+  integer, intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
@@ -409,7 +409,7 @@ subroutine advecv_6th(a_in, a_out)
 !   if (leq) then
 
     do k=1,kmax
-      do j=2,j1
+      do j=sy,j1
         do i=2,i1
 
         if(k==1) then

@@ -63,11 +63,11 @@ contains
     if(.not.lopenbc) return
     ! Check for conflicting options
     if(solver_id == 0) stop 'Openboundaries only possible with HYPRE or FFTW pressure solver, change solver_id'
-    if(iadv_mom /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_mom to 2'
-    if(iadv_thl /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_thl to 2'
-    if(iadv_qt  /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_qt to 2'
-    if(iadv_tke /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_tke to 2'
-    if(any(iadv_sv(1:nsv)/=2)) stop 'Only second order advection scheme supported with openboundaries, change iadv_sv to 2'
+    !if(iadv_mom /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_mom to 2'
+    !if(iadv_thl /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_thl to 2'
+    !if(iadv_qt  /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_qt to 2'
+    !if(iadv_tke /=2) stop 'Only second order advection scheme supported with openboundaries, change iadv_tke to 2'
+    !if(any(iadv_sv(1:nsv)/=2)) stop 'Only second order advection scheme supported with openboundaries, change iadv_sv to 2'
     if(cu/=0.) stop 'Translation velocity not allowed in combination with open boundaries, set cu to 0'
     if(cv/=0.) stop 'Translation velocity not allowed in combination with open boundaries, set cv to 0'
     ! Set buoyancy term at top boundary on or off (off default)
@@ -794,13 +794,13 @@ contains
         do j = 1,nx1
           un = u0(sx,min(j+1,j1),min(k,kmax))
           if(un<=0) then ! Homogeneous Neumann outflow
-            a(sx-1,j+1,k)=a(sx,j+1,k)
+            a(2-ih:sx-1,j+1,k)=a(sx,j+1,k)
           else ! Robin inflow conditions
             e = e120(sx,min(j+1,j1),min(k,kmax))
             coefdir = abs(un)**pbc
             coefneu = -tauh*un*(abs(un)**pbc+e**pbc)
             valtarget = (fp*val(j,k,itp)+fm*val(j,k,itm)+turb(j,k))*coefdir
-            a(sx-1,j+1,k) = ( 2.*dx*valtarget - &
+            a(2-ih:sx-1,j+1,k) = ( 2.*dx*valtarget - &
               a(sx,j+1,k)*(coefdir*dx+2.*coefneu) ) / (coefdir*dx-2.*coefneu)
             if(lmax0==1) a(sx-1,j+1,k) = max(0.,a(sx-1,j+1,k))
           endif
@@ -811,13 +811,13 @@ contains
         do j = 1,nx1
           un = u0(ex+1,min(j+1,j1),min(k,kmax))
           if(un>=0) then ! Homogeneous Neumann outflow
-            a(ex+1,j+1,k)=a(ex,j+1,k)
+            a(ex+1:i1+ih,j+1,k)=a(ex,j+1,k)
           else ! Robin inflow conditions
             e = e120(ex,min(j+1,j1),min(k,kmax))
             coefdir = abs(un)**pbc
             coefneu = -tauh*un*(abs(un)**pbc+e**pbc)
             valtarget = (fp*val(j,k,itp)+fm*val(j,k,itm)+turb(j,k))*coefdir
-            a(ex+1,j+1,k) = ( 2.*dx*valtarget - &
+            a(ex+1:i1+ih,j+1,k) = ( 2.*dx*valtarget - &
               a(ex,j+1,k)*(coefdir*dx-2.*coefneu) ) / (coefdir*dx+2.*coefneu)
             if(lmax0==1) a(ex+1,j+1,k) = max(a(ex+1,j+1,k),0.)
           endif
@@ -828,13 +828,13 @@ contains
         do i = 1,nx1
           un = v0(min(i+1,i1),sy,min(k,kmax))
           if(un<=0) then ! Homogeneous Neumann outflow
-            a(i+1,sy-1,k)=a(i+1,sy,k)
+            a(i+1,2-jh:sy-1,k)=a(i+1,sy,k)
           else ! Robin inflow conditions
             e = e120(min(i+1,i1),sy,min(k,kmax))
             coefdir = abs(un)**pbc
             coefneu = -tauh*un*(abs(un)**pbc+e**pbc)
             valtarget = (fp*val(i,k,itp)+fm*val(i,k,itm)+turb(i,k))*coefdir
-            a(i+1,sy-1,k) = ( 2.*dy*valtarget - &
+            a(i+1,2-jh:sy-1,k) = ( 2.*dy*valtarget - &
               a(i+1,sy,k)*(coefdir*dy+2.*coefneu) ) / (coefdir*dy-2.*coefneu)
             if(lmax0==1) a(i+1,sy-1,k) = max(a(i+1,sy-1,k),0.)
           endif
@@ -845,13 +845,13 @@ contains
         do i = 1,nx1
           un = v0(min(i+1,i1),ey+1,min(k,kmax))
           if(un>=0) then ! Homogeneous Neumann outflow
-            a(i+1,ey+1,k)=a(i+1,ey,k)
+            a(i+1,ey+1:j1+ih,k)=a(i+1,ey,k)
           else ! Robin inflow conditions
             e = e120(min(i+1,i1),ey,min(k,kmax))
             coefdir = abs(un)**pbc
             coefneu = -tauh*un*(abs(un)**pbc+e**pbc)
             valtarget = (fp*val(i,k,itp)+fm*val(i,k,itm)+turb(i,k))*coefdir
-            a(i+1,ey+1,k) = ( 2.*dy*valtarget - &
+            a(i+1,ey+1:j1+jh,k) = ( 2.*dy*valtarget - &
               a(i+1,ey,k)*(coefdir*dy-2.*coefneu) ) / (coefdir*dy+2.*coefneu)
             if(lmax0==1) a(i+1,ey+1,k) = max(a(i+1,ey+1,k),0.)
           endif
@@ -888,8 +888,9 @@ contains
     ! Subroutine that applies the radiation and dirichlet boundary conditions
     ! for the boundary-normal velocity components. Adds turbulence to
     ! the inflow dirichlet boundaries if lsynturb=.true.
+
     use modmpi, only : myidx,myidy,myid
-    use modglobal, only : dx,dy,dzf,dxi,dyi,rdt,i2,j2,k1,i1,j1,kmax,rtimee,rdt,itot,jtot,imax,jmax,grav,taum
+    use modglobal, only : dx,dy,dzf,dxi,dyi,rdt,i2,j2,k1,i1,j1,kmax,ih,jh,rtimee,rdt,itot,jtot,imax,jmax,grav,taum
     use modfields, only : um,u0,up,vm,v0,vp,wm,w0,wp,rhobf,rhobh,thvh,thv0h
     implicit none
     integer, intent(in) :: nx1,nx2,ib
@@ -940,11 +941,11 @@ contains
           kpatch = k
           uwallcurrent = fpc*boundary(1)%u(j,k,itpc)+fmc*boundary(1)%u(j,k,itmc)
           if(uwallcurrent<=0.) then ! Outflow (Radiation)
-            up(2,j+1,k) = -max(min(boundary(1)%uphase(jpatch,kpatch),uwallcurrent),-dx/rdt) * &
+            up(2-ih:2,j+1,k) = -max(min(boundary(1)%uphase(jpatch,kpatch),uwallcurrent),-dx/rdt) * &
               (u0(3,j+1,k)-u0(2,j+1,k))*dxi
           else ! Inflow nudging
             unext = fpn*boundary(1)%u(j,k,itpn)+fmn*boundary(1)%u(j,k,itmn)
-            up(2,j+1,k) = ((unext+turb(j,k)) - u0(2,j+1,k))/tau
+            up(2-ih:2,j+1,k) = ((unext+turb(j,k)) - u0(2,j+1,k))/tau
           endif
         end do
       end do
@@ -957,11 +958,11 @@ contains
           kpatch = k
           uwallcurrent = fpc*boundary(2)%u(j,k,itpc)+fmc*boundary(2)%u(j,k,itmc)
           if(uwallcurrent>=0.) then ! Outflow (Radiation)
-            up(i2,j+1,k) = -min(max(boundary(2)%uphase(jpatch,kpatch),uwallcurrent),dx/rdt) * &
+            up(i2:i1+ih,j+1,k) = -min(max(boundary(2)%uphase(jpatch,kpatch),uwallcurrent),dx/rdt) * &
               (u0(i2,j+1,k)-u0(i1,j+1,k))*dxi
           else ! Inflow (Dirichlet)
             unext = fpn*boundary(2)%u(j,k,itpn)+fmn*boundary(2)%u(j,k,itmn)
-            up(i2,j+1,k) = ((unext+turb(j,k)) - u0(i2,j+1,k))/tau
+            up(i2:i1+ih,j+1,k) = ((unext+turb(j,k)) - u0(i2,j+1,k))/tau
           endif
         end do
       end do
@@ -974,11 +975,11 @@ contains
           kpatch = k
           uwallcurrent = fpc*boundary(3)%v(i,k,itpc)+fmc*boundary(3)%v(i,k,itmc)
           if(uwallcurrent<=0.) then ! Outflow (Radiation)
-            vp(i+1,2,k) = -max(min(boundary(3)%uphase(ipatch,kpatch),uwallcurrent),-dy/rdt) * &
+            vp(i+1,2-jh:2,k) = -max(min(boundary(3)%uphase(ipatch,kpatch),uwallcurrent),-dy/rdt) * &
               (v0(i+1,3,k)-v0(i+1,2,k))*dyi
           else ! Inflow (Dirichlet)
             unext = fpn*boundary(3)%v(i,k,itpn)+fmn*boundary(3)%v(i,k,itmn)
-            vp(i+1,2,k) = ((unext+turb(i,k)) - v0(i+1,2,k))/tau
+            vp(i+1,2-jh:2,k) = ((unext+turb(i,k)) - v0(i+1,2,k))/tau
           endif
         end do
       end do
@@ -991,11 +992,11 @@ contains
           kpatch = k
           uwallcurrent = fpc*boundary(4)%v(i,k,itpc)+fmc*boundary(4)%v(i,k,itmc)
           if(uwallcurrent>=0.) then ! Outflow (Radiation)
-            vp(i+1,j2,k) = -min(max(boundary(4)%uphase(ipatch,kpatch),uwallcurrent),dy/rdt) * &
+            vp(i+1,j2:j1+jh,k) = -min(max(boundary(4)%uphase(ipatch,kpatch),uwallcurrent),dy/rdt) * &
               (v0(i+1,j2,k)-v0(i+1,j1,k))*dyi
           else ! Inflow (Dirichlet)
             unext = fpn*boundary(4)%v(i,k,itpn)+fmn*boundary(4)%v(i,k,itmn)
-            vp(i+1,j2,k) = ((unext+turb(i,k)) - v0(i+1,j2,k))/tau
+            vp(i+1,j2:j1+jh,k) = ((unext+turb(i,k)) - v0(i+1,j2,k))/tau
           endif
         end do
       end do

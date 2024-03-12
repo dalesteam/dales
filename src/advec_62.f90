@@ -167,13 +167,13 @@ end subroutine advecc_62
 
 
 !> Advection at the u point.
-subroutine advecu_62(a_in,a_out)
+subroutine advecu_62(a_in,a_out,sx)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
 
   implicit none
-
+  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r)                                       :: inv4dzfk, rhobf_p, rhobf_m
@@ -186,7 +186,7 @@ subroutine advecu_62(a_in,a_out)
   inv4dzfk = 1./(4. * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
   do j=2,j1
-     do i=2,i1
+     do i=sx,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
@@ -215,7 +215,7 @@ subroutine advecu_62(a_in,a_out)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
       do j=2,j1
-        do i=2,i1
+        do i=sx,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
@@ -244,7 +244,7 @@ subroutine advecu_62(a_in,a_out)
   inv4dzfk = 1./(4. * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
   do j=2,j1
-     do i=2,i1
+     do i=sx,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
@@ -273,7 +273,7 @@ subroutine advecu_62(a_in,a_out)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
       do j=2,j1
-        do i=2,i1
+        do i=sx,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
@@ -305,12 +305,12 @@ end subroutine advecu_62
 
 
 !> Advection at the v point.
-subroutine advecv_62(a_in, a_out)
+subroutine advecv_62(a_in, a_out, sy)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
-
+  integer, intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r)                                       :: inv4dzfk, rhobf_p, rhobf_m
@@ -323,7 +323,7 @@ subroutine advecv_62(a_in, a_out)
   inv4dzfk = 1./(4. * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
 
-    do j=2,j1
+    do j=sy,j1
      do i=2,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -351,7 +351,7 @@ subroutine advecv_62(a_in, a_out)
        rhobf_p = rhobf(k+1)/rhobf(k)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
-      do j=2,j1
+      do j=sy,j1
         do i=2,i1
         
           a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -380,7 +380,7 @@ subroutine advecv_62(a_in, a_out)
   inv4dzfk = 1./(4. * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
 
-    do j=2,j1
+    do j=sy,j1
      do i=2,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -408,7 +408,7 @@ subroutine advecv_62(a_in, a_out)
        rhobf_p = rhobf(k+1)/rhobf(k)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
-      do j=2,j1
+      do j=sy,j1
         do i=2,i1
         
           a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -444,7 +444,6 @@ subroutine advecw_62(a_in, a_out)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzh
   use modfields, only : u0, v0, w0,rhobh
   implicit none
-
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r)                                       :: inv4dzhk, rhobh_p, rhobh_m

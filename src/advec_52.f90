@@ -204,21 +204,19 @@ end subroutine advecc_52
 
 
 !> Advection at the u point.
-subroutine advecu_52(a_in,a_out)
-
+subroutine advecu_52(a_in,a_out,sx)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
-
+  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-
   integer :: i,j,k
 
 if (leq) then
   k = 1
   do j=2,j1
-     do i=2,i1
+     do i=sx,i1
         
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              (&
@@ -250,7 +248,7 @@ if (leq) then
   
   do k=2,kmax
     do j=2,j1
-      do i=2,i1
+      do i=sx,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
@@ -286,7 +284,7 @@ if (leq) then
 else ! non-equidistant grid
      k = 1
   do j=2,j1
-     do i=2,i1
+     do i=sx,i1
         
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              (&
@@ -318,7 +316,7 @@ else ! non-equidistant grid
   
   do k=2,kmax
     do j=2,j1
-      do i=2,i1
+      do i=sx,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
@@ -355,12 +353,11 @@ end subroutine advecu_52
 
 
 !> Advection at the v point.
-subroutine advecv_52(a_in, a_out)
-
+subroutine advecv_52(a_in, a_out, sy)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
-
+  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   integer :: i,j,k
@@ -368,7 +365,7 @@ subroutine advecv_52(a_in, a_out)
   if (leq) then
 
   k = 1
-  do j=2,j1
+  do j=sy,j1
      do i=2,i1      
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
@@ -399,7 +396,7 @@ subroutine advecv_52(a_in, a_out)
   end do
   
   do k=2,kmax
-    do j=2,j1
+    do j=sy,j1
       do i=2,i1      
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
@@ -433,7 +430,7 @@ subroutine advecv_52(a_in, a_out)
   end do
 else ! non-equidistant grid
    k = 1
-  do j=2,j1
+  do j=sy,j1
      do i=2,i1      
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
@@ -464,7 +461,7 @@ else ! non-equidistant grid
   end do
   
   do k=2,kmax
-    do j=2,j1
+    do j=sy,j1
       do i=2,i1      
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &

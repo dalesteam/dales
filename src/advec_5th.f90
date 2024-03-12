@@ -244,12 +244,12 @@ end subroutine advecc_5th
 
 
 !> Advection at the u point.
-subroutine advecu_5th(a_in,a_out)
+subroutine advecu_5th(a_in,a_out,sx)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-
+  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
 
@@ -260,7 +260,7 @@ subroutine advecu_5th(a_in,a_out)
   do k=1,kmax
      if(k==1) then
         do j=2,j1
-           do i=2,i1
+           do i=sx,i1
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -290,7 +290,7 @@ subroutine advecu_5th(a_in,a_out)
     end do
  elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
     do j=2,j1
-       do i=2,i1
+       do i=sx,i1
           
           a_out(i,j,k)  = a_out(i,j,k)-( &
                 ( &
@@ -322,7 +322,7 @@ subroutine advecu_5th(a_in,a_out)
     end do
  elseif(k==3) then
     do j=2,j1
-       do i=2,i1
+       do i=sx,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
@@ -359,7 +359,7 @@ subroutine advecu_5th(a_in,a_out)
     end do
  elseif(k==kmax-2) then
     do j=2,j1
-       do i=2,i1
+       do i=sx,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
@@ -396,7 +396,7 @@ subroutine advecu_5th(a_in,a_out)
     end do
  else
     do j=2,j1
-       do i=2,i1
+       do i=sx,i1
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
                       (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -446,12 +446,12 @@ end subroutine advecu_5th
 
 
 !> Advection at the v point.
-subroutine advecv_5th(a_in, a_out)
+subroutine advecv_5th(a_in, a_out, sy)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-
+  integer, intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
 
@@ -463,7 +463,7 @@ subroutine advecv_5th(a_in, a_out)
   do k=1,kmax
      
      if(k==1) then
-        do j=2,j1
+        do j=sy,j1
            do i=2,i1
               
           a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -495,7 +495,7 @@ subroutine advecv_5th(a_in, a_out)
     end do
     
  elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
-    do j=2,j1
+    do j=sy,j1
        do i=2,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -528,7 +528,7 @@ subroutine advecv_5th(a_in, a_out)
     end do
 
  elseif(k==kmax-2) then
-    do j=2,j1
+    do j=sy,j1
        do i=2,i1
 
            a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -567,7 +567,7 @@ subroutine advecv_5th(a_in, a_out)
      
   elseif(k==3) then
      
-     do j=2,j1
+     do j=sy,j1
         do i=2,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
@@ -604,7 +604,7 @@ subroutine advecv_5th(a_in, a_out)
        end do
     end do
  else
-    do j=2,j1
+    do j=sy,j1
        do i=2,i1
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
