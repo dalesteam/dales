@@ -223,7 +223,7 @@ subroutine calc_liquid_reservoir
                 rainrate = 0.
             else
                !rainrate = -sed_qr(i,j,1)/rhow
-                rainrate = -precep(i,j,1)*rhof(1)/rhow
+                rainrate = precep(i,j,1)*rhof(1)/rhow ! positive for a downward rain flux
             end if
 
             wl_tend_precip = intercept_eff * c_veg * rainrate
@@ -232,7 +232,7 @@ subroutine calc_liquid_reservoir
             wl_tend_sum = wl_tend_liq + wl_tend_dew + wl_tend_precip;
             wl_tend_lim = min(wl_tend_max, max(wl_tend_min,  wl_tend_sum));
 
-            ! Diagnose interception and throughfall
+            ! Diagnose interception and throughfall. Upward flux is positive.
             throughfall(i,j) = &
                 -(1.-c_veg) * rainrate &
                 -(1.-intercept_eff) * c_veg * rainrate &
@@ -1205,7 +1205,7 @@ subroutine integrate_theta_soil
     k = kmax_soil
     do j=2,j1
         do i=2,i1
-            flux_top = tile_bs%frac(i,j) * tile_bs%LE(i,j) * fac + throughfall(i,j)
+            flux_top = tile_bs%frac(i,j) * tile_bs%LE(i,j) * fac + throughfall(i,j) ! positive upwards
             tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
                    - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
 
