@@ -227,7 +227,7 @@ contains
     !$acc update self(qt0) if(lqt) async
     !$acc update self(ql0) if(lql) async
     !$acc update self(thl0) if(lthl) async
-    !$acc update self(sv0) if(lsv) async
+    !$acc update self(sv0) if(any(lsv)) async
     !$acc update self(thv0h, thvh) if(lbuoy) async
     !$acc wait    
 
