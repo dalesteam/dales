@@ -668,6 +668,10 @@ contains
 
     call timer_tic('modthermodynamics/icethermo0_fast', 1)
 
+    ! This version of icethermo0_fast is faster on GPU than the original version on branch to4.4.2_Fredrik, because it does
+    ! not check for each slab if it is below saturation. This makes it slower on CPU however, so maybe we want the original 
+    ! subroutine in here as well, and switch between them depending on if the GPU is used or not.
+
     ! Sanity checks
     !$acc parallel loop vector private(Tl_min, Tl_max, qt_max) default(present) async
     do k = 1, k1
@@ -1021,7 +1025,7 @@ contains
     if (iadv_thl==iadv_kappa) then
       call halflev_kappa(thl0,thl0h)
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, k1
         do j = 2 ,j1
           do i = 2 ,i1
@@ -1031,7 +1035,7 @@ contains
       end do
     end if
 
-    !$acc parallel loop collapse(2) default(present)
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j = 2, j1
       do i = 2, i1
         thl0h(i,j,1) = thls
@@ -1041,7 +1045,7 @@ contains
     if (iadv_qt==iadv_kappa) then
       call halflev_kappa(qt0,qt0h)
     else
-      !$acc parallel loop collapse(3) default(present)
+      !$acc parallel loop collapse(3) default(present) async(1)
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
@@ -1050,7 +1054,7 @@ contains
         end do
       end do
 
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) async(1)
       do j = 2, j1
         do i = 2, i1
           qt0h(i,j,1) = qts
@@ -1058,7 +1062,7 @@ contains
       end do
     end if
 
-    !$acc wait
+    !$acc wait(1)
     call timer_toc('modthermodynamics/calc_halflev')
   end subroutine calc_halflev
 
