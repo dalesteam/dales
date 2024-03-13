@@ -100,7 +100,7 @@ contains
     thvh(:) = 0.0
     thvf(:) = 0.0
     !$acc end kernels
-    
+
     !$acc host_data use_device(thvh, thv0h)
     call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
     !$acc end host_data
@@ -114,7 +114,7 @@ contains
     thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
     thvf(:) = thvf(:)/ijtot
     !$acc end kernels
-    
+
     !$acc parallel loop collapse(3) default(present) async(2)
     do k = 1, k1
       do j = 2, j1
@@ -155,7 +155,7 @@ contains
     real    del_thv_sat, del_thv_dry
 
     call timer_tic('modthermodynamics/calthv', 1)
-    
+
     dthvdz = 0
     if (lmoist) then
 
@@ -216,7 +216,7 @@ contains
           end do
         end do
       end do
-      
+
       !$acc parallel loop collapse(2) default(present) private(temp, qs, a_surf, b_surf) async(3)
       do j=2,j1
         do i=2,i1
@@ -265,7 +265,7 @@ contains
         end do
       end do
     end do
-    
+
     !$acc wait
 
     call timer_toc('modthermodynamics/calthv')
@@ -332,7 +332,7 @@ contains
    exnh   = 1-grav*zh/(cp*thls)
    th0av  = thl0av+ (rlv/cp)*ql0av/exnf
    !$acc end kernels
-    
+
 !***********************************************************
 !  2.0   calculate average profile of pressure at full and *
 !        half levels, assuming hydrostatic equilibrium.    *
@@ -368,7 +368,7 @@ contains
      exnf(k) = (presf(k)/pref0)**(rd/cp)
      exnh(k) = (presh(k)/pref0)**(rd/cp)
    end do
-   
+
 !    3.2 determine rho
 
    !$acc parallel loop default(present) async wait(1, 2)
@@ -662,25 +662,30 @@ contains
     implicit none
     integer :: i, j, k
     real(field_r) :: Tl, qsat_, qt, ql, b, T
-    real(field_r) :: Tl_min, Tl_max, qt_max
+    real(field_r) :: Tl_min, Tl_max, PrDiff_min
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
 
     call timer_tic('modthermodynamics/icethermo0_fast', 1)
 
     ! This version of icethermo0_fast is faster on GPU than the original version on branch to4.4.2_Fredrik, because it does
-    ! not check for each slab if it is below saturation. This makes it slower on CPU however, so maybe we want the original 
+    ! not check for each slab if it is below saturation. This makes it slower on CPU however, so maybe we want the original
     ! subroutine in here as well, and switch between them depending on if the GPU is used or not.
 
     ! Sanity checks
-    !$acc parallel loop vector private(Tl_min, Tl_max, qt_max) default(present) async
+    Tl_min = 400.0
+    PrDiff_min = 100.0
+    !$acc parallel loop collapse(3) reduction(min:Tl_min, PrDiff_min)
     do k = 1, k1
-       Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
-       Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
-       qt_max = maxval(qt0(2:i1,2:j1,k))
-       if (Tl_min < 150) stop
-       if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
+      do j = 2, j1
+        do i = 2, i1
+          Tl_min = min(Tl_min,thl0(i,j,k)*exnf(k))
+          PrDiff_min = min(PrDiff_min, presf(k) - esat_tab(thl0(i,j,k) + 5.0))
+        end do
+      end do
     end do
+    if (Tl_min < 150) stop 'icethermo0_fast: Tl_min below limit 150K'
+    if (PrDiff_min < 0.0) stop 'icethermo0_fast: Tl_max too close to boiling point'
 
     !$acc parallel loop collapse(3) private(Tl, qsat_, qt, ql, b, T, esi1, tlo, thi, tlonr) default(present)
     do k = 1, k1
@@ -755,18 +760,24 @@ contains
     implicit none
     integer :: i, j, k
     real(field_r) :: Tl, qsat, qt, ql, b
-    real(field_r) :: Tl_min, Tl_max
+    real(field_r) :: Tl_min, Tl_max, PrDiff_min
 
     call timer_tic('modthermodynamics/icethermoh_fast', 1)
 
-    !$acc parallel loop vector default(present) private(Tl_min, Tl_max) async
+    Tl_min = 400.0
+    PrDiff_min = 100.0
+    !$acc parallel loop collapse(3) reduction(min:Tl_min, PrDiff_min)
     do k = 1, k1
-      Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
-      Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
-      if (Tl_min < 150) STOP 'icethermoh_fast: Tl_min below limit 150K'
-      if (esat_tab(Tl_max + 5) > presh(k)) STOP 'icethermoh_fast: Tl_max too close to boiling point'
+      do j = 2, j1
+        do i = 2, i1
+          Tl_min = min(Tl_min,thl0h(i,j,k)*exnh(k))
+          PrDiff_min = min(PrDiff_min, presh(k) - esat_tab(thl0h(i,j,k) + 5.0))
+        end do
+      end do
     end do
-    
+    if (Tl_min < 150) stop 'icethermoh_fast: Tl_min below limit 150K'
+    if (PrDiff_min < 0.0) stop 'icethermoh_fast: Tl_max too close to boiling point'
+
     !$acc parallel loop collapse(3) default(present) private(Tl, qt, qsat, b, ql)
     do k = 1, k1
       do j = 2, j1
