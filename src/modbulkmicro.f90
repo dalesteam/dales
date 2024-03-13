@@ -46,6 +46,7 @@ module modbulkmicro
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
   use modprecision, only : field_r
+  use modtimer
   implicit none
   private
   public initbulkmicro, exitbulkmicro, bulkmicro
@@ -123,6 +124,8 @@ module modbulkmicro
                                     qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
+    call timer_tic('modbulkmicro/calculate_rain_parameters', 1)
+
     if (l_sb) then
       !TODO-ACC: instead of if, do mult with qrmask
       !$acc parallel loop collapse(3) default(present)
@@ -193,6 +196,8 @@ module modbulkmicro
         enddo
       enddo
     endif ! l_sb
+
+    call timer_toc('modbulkmicro/calculate_rain_parameters')
   end subroutine calculate_rain_parameters
 
 !> Calculates the microphysical source term.
@@ -397,6 +402,8 @@ module modbulkmicro
     real :: xc   !  mean mass of cloud water droplets
     real :: nuc  !  width parameter of cloud DSD
 
+    call timer_tic('modbulkmicro/autoconversion', 1)
+
     if (qcbase.gt.qcroof) return
 
     if (l_sb) then
@@ -455,6 +462,8 @@ module modbulkmicro
       enddo
     end if !l_sb
 
+    call timer_toc('modbulkmicro/autoconversion')
+
   end subroutine autoconversion
 
   subroutine accretion
@@ -477,6 +486,8 @@ module modbulkmicro
     real :: phi     !  correction function (see SB2001)
     real :: phi_br
     real :: tau     !  internal time scale
+
+    call timer_tic('modbulkmicro/accretion', 1)
 
     if (l_sb) then
       !
@@ -554,6 +565,8 @@ module modbulkmicro
         enddo
       enddo
     end if !l_sb
+
+    call timer_toc('modbulkmicro/accretion')
   end subroutine accretion
 
 !> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
@@ -572,6 +585,8 @@ module modbulkmicro
     implicit none
     integer :: i, j, k
     real :: sedc
+
+    call timer_tic('modbulkmicro/sedimentation_cloud', 1)
 
     if (qcbase .gt. qcroof) return
 
@@ -599,6 +614,9 @@ module modbulkmicro
         enddo
       enddo
     enddo
+
+    call timer_toc('modbulkmicro/sedimentation_cloud')
+
   end subroutine sedimentation_cloud
 
 !> Sedimentaion of rain
@@ -632,6 +650,8 @@ module modbulkmicro
     real(field_r), allocatable     :: qr_tmp(:,:,:), Nr_tmp(:,:,:)
 
     real,save :: dt_spl,wfallmax
+
+    call timer_tic('modbulkmicro/sedimentation_rain', 1)
 
     ! zero the precipitation flux field
     ! the update below is not always performed
@@ -920,6 +940,8 @@ module modbulkmicro
 
     deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 
+    call timer_toc('modbulkmicro/sedimentation_rain')
+
   end subroutine sedimentation_rain
 
   !*********************************************************************
@@ -950,6 +972,8 @@ module modbulkmicro
     real :: G !< cond/evap rate of a drop
 
     real :: evap, Nevap
+
+    call timer_tic('modbulkmicro/evaporation', 1)
 
     if (qrbase.gt.qrroof) return
 
@@ -1016,6 +1040,9 @@ module modbulkmicro
         enddo
       enddo
     endif
+
+    call timer_toc('modbulkmicro/evaporation')
+
   end subroutine evaporation
 
   !*********************************************************************
