@@ -195,6 +195,12 @@ module modbulkmicro
     integer :: i,j,k
     real :: qrtest,nr_cor,qr_cor
 
+    ! enforce qr0, Nr0, qrm, Nrm >= 0
+    sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
+    sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
+    svm(:,:,:,inr) = max(0.,svm(:,:,:,inr))
+    svm(:,:,:,iqr) = max(0.,svm(:,:,:,iqr))
+
     Nr = sv0(2:i1,2:j1,1:k1,inr)
     qr = sv0(2:i1,2:j1,1:k1,iqr)
 
@@ -215,23 +221,23 @@ module modbulkmicro
     !*********************************************************************
     ! remove neg. values of Nr and qr
     !*********************************************************************
-    if (l_rain) then
-       if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-       if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
+    !if (l_rain) then
+       !if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
+       !  write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
+       !if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
+       !   write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
 
-       Nr = max(0.,Nr)
-       qr = max(0.,qr)
+       !Nr = max(0.,Nr)
+       !qr = max(0.,qr)
 
        ! BUG: why write back these values here?
        !      negative values in svm + svp are corrected for at the end
        !      of bulkmicro, and tstep integrate does svm + svp
        ! sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
        ! sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
-    end if   ! l_rain
+    !end if   ! l_rain
 
     !*********************************************************************
     ! Find gridpoints where the microphysics scheme should run
@@ -318,16 +324,16 @@ module modbulkmicro
     do k=min(qrbase,qcbase),max(qrroof, qcroof)
     do j=2,j1
     do i=2,i1
-      qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
-      qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
-      nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
+      !qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
+      !qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
+      !nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
 
       ! correction, after Jerome's implementation in Gales
-      qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) + qr_cor
-      thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - qr_cor * (rlv/(cp*exnf(k)))
+      qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) !+ qr_cor
+      thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) !- qr_cor * (rlv/(cp*exnf(k)))
 
-      svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) - qr_cor
-      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nr_cor
+      svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) !- qr_cor
+      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) !- nr_cor
       ! adjust negative qr tendencies at the end of the time-step
     enddo
     enddo
