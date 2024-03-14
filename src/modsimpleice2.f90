@@ -406,7 +406,7 @@ module modsimpleice2
                  
                  ! total growth by deposition and evaporation
                  ! limit with qr and ql after accretion and autoconversion
-                 devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt+qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
+                 devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt-qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
                  qrp(i,j,k) = qrp(i,j,k)+devap
                  qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
                  thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
