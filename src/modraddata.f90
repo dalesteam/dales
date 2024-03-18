@@ -137,6 +137,7 @@ SAVE
                                                    cfc12vmr,  &
                                                    cfc22vmr,  &
                                                    ccl4vmr,   &
+                                                   tracevmr,  &
                                                    emis
   real(kind=kind_rb),allocatable,dimension(:,:) :: LWP_slice,IWP_slice ,cloudFrac,liquidRe,iceRe
   real(kind=kind_rb),allocatable,dimension(:,:,:) :: taucldlw, &

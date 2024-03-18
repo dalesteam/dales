@@ -114,15 +114,7 @@ contains
       allocate(layerP(ncol,nlay), &
                layerT(ncol,nlay), &
                h2ovmr(ncol,nlay), &
-               o3vmr(ncol,nlay), &
-               co2vmr(ncol,nlay), &
-               ch4vmr(ncol,nlay), &
-               n2ovmr(ncol,nlay), &
-               o2vmr(ncol,nlay), &
-               cfc11vmr(ncol,nlay), &
-               cfc12vmr(ncol,nlay), &
-               cfc22vmr(ncol,nlay), &
-               ccl4vmr(ncol,nlay), &
+               tracevmr(ncol,nlay), &
                liquidRe(ncol,nlay), &
                iceRe(ncol,nlay), &
                LWP_slice(ncol,nlay), &
@@ -163,19 +155,6 @@ contains
       end if
       call readTraceProfs
 
-      !Set up trace gases
-      do k=1,nlay
-        o3vmr   (:, k) = o3(k)
-        co2vmr  (:, k) = co2(k)
-        ch4vmr  (:, k) = ch4(k)
-        n2ovmr  (:, k) = n2o(k)
-        o2vmr   (:, k) = o2(k)
-        cfc11vmr(:, k) = cfc11(k)
-        cfc12vmr(:, k) = cfc12(k)
-        cfc22vmr(:, k) = cfc22(k)
-        ccl4vmr (:, k) = ccl4(k)
-      enddo
-
       if(myid==0) write(*,*) 'Trace gas profile have been read'
       isReadTraceProfiles = .true.
     end if
@@ -185,15 +164,25 @@ contains
 
       call stop_on_err(gas_concs%init(gas_names))
       !setup trace gases concentration once for all
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), o3vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), co2vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), ch4vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), n2ovmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), o2vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), cfc11vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), cfc12vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), cfc22vmr))
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), ccl4vmr))
+      do k=1,nlay; tracevmr(:,k) = o3(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = co2(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = ch4(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = n2o(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = o2(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = cfc11(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = cfc12(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = cfc22(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), tracevmr))
+      do k=1,nlay; tracevmr(:,k) = ccl4(k); enddo
+      call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), tracevmr))
+      deallocate(tracevmr)
 
       ! Longwave init
       if(rad_longw) then
