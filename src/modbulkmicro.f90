@@ -126,8 +126,9 @@ module modbulkmicro
 
     call timer_tic('modbulkmicro/calculate_rain_parameters', 1)
 
+    if (qrbase .gt. qrroof) return
+
     if (l_sb) then
-      !TODO-ACC: instead of if, do mult with qrmask
       !$acc parallel loop collapse(3) default(present)
       do k = qrbase, qrroof
         do j = 2, j1
@@ -145,7 +146,7 @@ module modbulkmicro
 
       if (l_mur_cst) then
         !$acc parallel loop collapse(3) default(present)
-        do k = 1, k1
+        do k = qrbase, qrroof
           do j = 2, j1
             do i = 2, i1
               mur(i,j,k) = mur_cst
@@ -153,7 +154,6 @@ module modbulkmicro
           enddo
         enddo
 
-        !TODO-ACC: instead of if, do mult with qrmask
         !$acc parallel loop collapse(3) default(present)
         do k = qrbase, qrroof
           do j = 2, j1
@@ -166,7 +166,6 @@ module modbulkmicro
         enddo
       else
         ! mur = f(Dv)
-        !TODO-ACC: instead of if, do mult with qrmask
         !$acc parallel loop collapse(3) default(present)
         do k = qrbase, qrroof
           do j = 2, j1
@@ -180,7 +179,6 @@ module modbulkmicro
         enddo
       endif
     else ! l_sb
-      !TODO-ACC: instead of if, do mult with qrmask
       !$acc parallel loop collapse(3) default(present)
       do k = qrbase, qrroof
         do j = 2, j1
@@ -358,6 +356,8 @@ module modbulkmicro
     !    but at those levels qtmpcr/thlpmcr are either zero or
     !    already in the qc boundaries.
     if (qcbase.le.k1) qcbase = max(1, qcbase - 1)
+
+    if (min(qrbase,qcbase) .gt. max(qrroof, qcroof)) return
 
     !$acc parallel loop collapse(3) default(present)
     do k = min(qrbase,qcbase), max(qrroof, qcroof)
