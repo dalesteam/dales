@@ -47,7 +47,7 @@ module modradrte_rrtmgp
   !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
   integer, parameter                        :: ngas = 10
   character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
-  integer                                   :: nlay, nlev, ncol, nbndlw, nbndsw, ngptsw
+  integer                                   :: nlay, nlev, ncol, nbatch, nbndlw, nbndsw, ngptsw
 
   public :: radrte_rrtmgp
 
@@ -80,7 +80,7 @@ contains
     implicit none
 
     logical                 :: top_at_1 = .false., sunUp = .false.
-    integer                 :: npatch, ierr(2)=0
+    integer                 :: npatch, ibatch, ierr(2)=0
     character(len=256)      :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc"
     character(len=256)      :: k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
     character(len=256)      :: cloud_optics_file_lw = "rrtmgp-cloud-optics-coeffs-lw.nc"
@@ -101,10 +101,15 @@ contains
       !old notations nlay-1=kradmax=nzrad, nlay=krad1, nlev=krad2
       nlay = kmax + npatch + 1
       nlev = nlay + 1 ! necessary?
-      ncol = imax*jmax
       !the two indices below are necessary for the readTraceProfs routine
       krad1=nlay
       krad2=nlev
+
+      !Set the number of batch, between 1 and jmax, depending on memory available
+      nbatch = jmax
+      !Check if jmax is a mutliple of nbatch
+      if(mod(jmax,nbatch)/=0) stop 'ERROR: Wrong batch number specified in modradrte_rrtmgp.f90'
+      ncol = imax*jmax/nbatch
 
       isReadSounding = .true.
     end if
@@ -267,72 +272,76 @@ contains
 
     end if
 
-    call setupColumnProfiles()
+    do ibatch = 1, nbatch
 
-    if(rad_longw) then
-      ! Compute optical properties and source
-      call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
-                                            layerT, tg_slice, & ! t_lay, t_sfc (in, K)
-                                            gas_concs, & ! gas volume mixing ratios (in)
-                                            atmos_lw, & ! Optical properties (inout)
-                                            sources_lw, & ! Planck source (inout)
-                                            tlev = interfaceT)) ! t_lev (optional input, K)
+      call setupColumnProfiles(ibatch)
 
-      ! Compute and add cloud properties
-      call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
-                                                    IWP_slice, & ! cloud ice water path (in, g/m2)
-                                                    liquidRe, & ! cloud liquid particle effective size (in, microns)
-                                                    iceRe, & ! cloud ice particle effective radius (in, microns)
-                                                    clouds_lw)) ! cloud optical properties lw (inout)
-      call stop_on_err(clouds_lw%increment(atmos_lw))
-
-      ! Solve radiation transport
-      call stop_on_err(rte_lw(atmos_lw, & ! optical properties (in)
-                              top_at_1, & ! Is the top of the domain at index 1? (in)
-                              sources_lw, & ! source function (in)
-                              emis, & ! emissivity at surface (in)
-                              fluxes_lw)) ! fluxes (W/m2, inout)
-    endif
-
-    if(rad_shortw) then
-
-      ! setup incoming flux and albedo as a function of the zenith angle
-      call setupSW(sunUp)
-
-      if(sunUp) then
-        ! Compute optical properties and incoming shortwave flux
-        call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
-                                              layerT, & ! t_lay (in, K)
+      if(rad_longw) then
+        ! Compute optical properties and source
+        call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
+                                              layerT, tg_slice, & ! t_lay, t_sfc (in, K)
                                               gas_concs, & ! gas volume mixing ratios (in)
-                                              atmos_sw, & ! Optical properties (inout)
-                                              inc_sw_flux)) ! Incoming shortwave flux (inout)
+                                              atmos_lw, & ! Optical properties (inout)
+                                              sources_lw, & ! Planck source (inout)
+                                              tlev = interfaceT)) ! t_lev (optional input, K)
 
         ! Compute and add cloud properties
-        call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
+        call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
                                                       IWP_slice, & ! cloud ice water path (in, g/m2)
                                                       liquidRe, & ! cloud liquid particle effective size (in, microns)
                                                       iceRe, & ! cloud ice particle effective radius (in, microns)
-                                                      clouds_sw)) ! cloud optical properties sw (inout)
-        call stop_on_err(clouds_sw%delta_scale())
-        call stop_on_err(clouds_sw%increment(atmos_sw))
+                                                      clouds_lw)) ! cloud optical properties lw (inout)
+        call stop_on_err(clouds_lw%increment(atmos_lw))
 
         ! Solve radiation transport
-        call stop_on_err(rte_sw(atmos_sw, & ! optical properties (in)
+        call stop_on_err(rte_lw(atmos_lw, & ! optical properties (in)
                                 top_at_1, & ! Is the top of the domain at index 1? (in)
-                                solarZenithAngleCos, & ! cosine of the solar zenith angle (in)
-                                inc_sw_flux, & ! solar incoming flux (in)
-                                sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse (in)
-                                fluxes_sw)) ! fluxes (inout, W/m2)
-
+                                sources_lw, & ! source function (in)
+                                emis, & ! emissivity at surface (in)
+                                fluxes_lw)) ! fluxes (W/m2, inout)
       endif
 
-    endif
+      if(rad_shortw) then
 
-    call getFluxProfiles()
+        ! setup incoming flux and albedo as a function of the zenith angle
+        call setupSW(sunUp)
+
+        if(sunUp) then
+          ! Compute optical properties and incoming shortwave flux
+          call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
+                                                layerT, & ! t_lay (in, K)
+                                                gas_concs, & ! gas volume mixing ratios (in)
+                                                atmos_sw, & ! Optical properties (inout)
+                                                inc_sw_flux)) ! Incoming shortwave flux (inout)
+
+          ! Compute and add cloud properties
+          call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
+                                                        IWP_slice, & ! cloud ice water path (in, g/m2)
+                                                        liquidRe, & ! cloud liquid particle effective size (in, microns)
+                                                        iceRe, & ! cloud ice particle effective radius (in, microns)
+                                                        clouds_sw)) ! cloud optical properties sw (inout)
+          call stop_on_err(clouds_sw%delta_scale())
+          call stop_on_err(clouds_sw%increment(atmos_sw))
+
+          ! Solve radiation transport
+          call stop_on_err(rte_sw(atmos_sw, & ! optical properties (in)
+                                  top_at_1, & ! Is the top of the domain at index 1? (in)
+                                  solarZenithAngleCos, & ! cosine of the solar zenith angle (in)
+                                  inc_sw_flux, & ! solar incoming flux (in)
+                                  sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse (in)
+                                  fluxes_sw)) ! fluxes (inout, W/m2)
+
+          endif
+
+        endif
+
+        call getFluxProfiles(ibatch)
+
+    enddo
 
   end subroutine radrte_rrtmgp
 
-  subroutine setupColumnProfiles
+  subroutine setupColumnProfiles(ibatch)
 
     use modglobal,   only: imax, jmax, kmax, i1, j1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
     use modfields,   only: thl0, qt0, ql0, exnf, rhof
@@ -341,6 +350,8 @@ contains
 
     implicit none
 
+    integer, intent(in) :: ibatch
+    integer :: jstart, jend
     integer :: i, j, k, icol
     real(SHR_KIND_R4), parameter :: pi = 3.14159265358979
     real, parameter :: rho_liq = 1000., IWC0=50e-3 ! both in kg/m3
@@ -350,10 +361,14 @@ contains
     exners = (ps/pref0)**(rd/cp)
     reff_factor = 1e6*(3. /(4.*pi*Nc_0*rho_liq) )**(1./3.) * exp(log(sig_g)**2 )
 
+    ! Set up j indices to be treated
+    jstart = (ibatch-1) * jmax/nbatch + 2
+    jend   =  ibatch    * jmax/nbatch + 1
+
     ! Set up layer values within the DALES domain
-    do i=2,i1 !i1=imax+1
-      do j=2,j1 !j1=jmax+1
-        icol=j-1+(i-2)*jmax
+    do j=jstart, jend
+      do i=2,i1 !i1=imax+1
+        icol=i-1+(j-jstart)*imax
         tg_slice(icol) = tskin(i,j)*exners
         do k=1,kmax
           layerP(icol,k) = presf_input(k)
@@ -364,9 +379,9 @@ contains
     enddo
 
     ! Set up layer values above the DALES domain
-    do i=2,i1 !i1=imax+1
-      do j=2,j1 !j1=jmax+1
-        icol=j-1+(i-2)*jmax
+    do j=jstart, jend
+      do i=2,i1 !i1=imax+1
+        icol=i-1+(j-jstart)*imax
         do k=1,nlay-kmax-1
           layerP(icol,kmax+k) = presf_input(kmax+k)
           layerT(icol,kmax+k) = tsnd(npatch_start+k-1)
@@ -381,9 +396,9 @@ contains
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
 
     ! Set up interface values // use table assignment?
-    do i=2,i1 !i1=imax+1
-      do j=2,j1 !j1=jmax+1
-        icol=j-1+(i-2)*jmax
+    do j=jstart, jend
+      do i=2,i1 !i1=imax+1
+        icol=i-1+(j-jstart)*imax
         interfaceT(icol, 1) = tg_slice(icol) !enforce ground temperature
         interfaceP(icol, 1) = presh_input(1)
         do k=2,nlay
@@ -404,9 +419,9 @@ contains
     IWP_slice = 0.0
     liquidRe = 0.
     iceRe = 0.
-    do i=2,i1 !i1=imax+1
-      do j=2,j1 !j1=jmax+1
-        icol=j-1+(i-2)*jmax
+    do j=jstart, jend
+      do i=2,i1 !i1=imax+1
+        icol=i-1+(j-jstart)*imax
         do k=1,kmax
           ! set up working variables
           ilratio  = max(0.,min(1.,(layerT(icol,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
@@ -448,18 +463,24 @@ contains
 
   end subroutine setupColumnProfiles
 
-  subroutine getFluxProfiles
+  subroutine getFluxProfiles(ibatch)
 
-    use modglobal,   only: i1, j1, k1, jmax, kmax, cp, dzf
+    use modglobal,   only: i1, j1, k1, imax, jmax, kmax, cp, dzf
     use modfields,   only: exnf, rhof
 
     implicit none
 
+    integer, intent(in) :: ibatch
+    integer :: jstart, jend
     integer :: i,j,k,icol
 
-    do i=2,i1
-      do j=2,j1
-        icol=j-1+(i-2)*jmax
+    ! Set up j indices to be treated
+    jstart = (ibatch-1) * jmax/nbatch + 2
+    jend   =  ibatch    * jmax/nbatch + 1
+
+    do j=jstart, jend
+      do i=2,i1 !i1=imax+1
+        icol=i-1+(j-jstart)*imax
         do k=1,k1
           lwu(i,j,k) = lwUp_slice(icol,k)
           lwd(i,j,k) =-lwDown_slice(icol,k)
@@ -476,7 +497,7 @@ contains
     enddo
 
     do k=1,kmax
-      do j=2,j1
+      do j=jstart, jend
         do i=2,i1
           thlprad(i,j,k) = thlprad(i,j,k)-(lwd(i,j,k+1)-lwd(i,j,k)+lwu(i,j,k+1)-lwu(i,j,k)&
                                          +swd(i,j,k+1)-swd(i,j,k)+swu(i,j,k+1)-swu(i,j,k)) &
