@@ -176,7 +176,7 @@ subroutine tstep_update
   end if
 
   ! set all tendencies to zero
-  !$acc parallel loop collapse(3) default(present)
+  !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, k1
     do j = 2, j1
       do i = 1, i1
@@ -192,7 +192,7 @@ subroutine tstep_update
 
   ! Scalars
   if (nsv > 0) then
-    !$acc parallel loop collapse(4) default(present)
+    !$acc parallel loop collapse(4) default(present) async(1)
     do n = 1, nsv
       do k = 1, k1
         do j = 2, j1
@@ -203,6 +203,7 @@ subroutine tstep_update
       enddo
     enddo
   endif
+  !$acc wait(1)
 
   call timer_toc('tstep/tstep_update')
 end subroutine tstep_update
@@ -240,7 +241,7 @@ subroutine tstep_integrate
   rk3coef = rdt / (4. - dble(rk3step))
 
   if(rk3step /= 3) then
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
       do j = 2, j1
         do i = 1, i1
@@ -256,7 +257,7 @@ subroutine tstep_integrate
 
     ! Scalars
     if (nsv > 0) then
-      !$acc parallel loop collapse(4) default(present)
+      !$acc parallel loop collapse(4) default(present) async(1)
       do n = 1, nsv
         do k = 1, kmax
           do j = 2, j1
@@ -268,7 +269,7 @@ subroutine tstep_integrate
       end do
     endif
   else ! step 3 - store result in both ..0 and ..m
-    !$acc parallel loop collapse(3) default(present)
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
       do j = 2, j1
         do i = 1, i1
@@ -290,7 +291,7 @@ subroutine tstep_integrate
 
     ! Scalars
     if (nsv > 0) then
-      !$acc parallel loop collapse(4) default(present)
+      !$acc parallel loop collapse(4) default(present) async(1)
       do n = 1, nsv
         do k = 1, kmax
           do j = 2, j1
@@ -303,6 +304,7 @@ subroutine tstep_integrate
       end do
     endif
   end if
+  !$acc wait(1)
   call timer_toc('tstep/tstep_integrate')
 end subroutine tstep_integrate
 
