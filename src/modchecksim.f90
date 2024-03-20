@@ -31,7 +31,7 @@ module modchecksim
   use modtimer
   implicit none
   private
-  public initchecksim,checksim
+  public initchecksim,exitchecksim,checksim
 
   real    :: tcheck = 0.
   integer(kind=longint) :: tnext = 3600.,itcheck
@@ -39,7 +39,7 @@ module modchecksim
 
   ! explanations for dt_limit, determined in tstep_update()
   character (len=15) :: dt_reasons(0:5) = [character(len=15):: "initial step", "timee", "dt_lim" , "idtmax", "velocity", "diffusion"]
-  
+
   save
     real, public, allocatable, dimension (:) :: courxl
     real, public, allocatable, dimension (:) :: courx
@@ -89,12 +89,32 @@ contains
     allocate(courz(kmax))
     allocate(courtotl(kmax))
     allocate(courtot(kmax))
-    allocate(peclettotl(k1))
-    allocate(peclettot(k1))
+    allocate(peclettotl(kmax))
+    allocate(peclettot(kmax))
+
+    !$acc enter data create(courxl, couryl, courzl, courtotl, peclettotl)
 
     call timer_toc('modchecksim/initchecksim')
 
   end subroutine initchecksim
+
+!> Exiting Checksim: clean out variables
+  subroutine exitchecksim
+
+    !$acc exit data delete(courxl, couryl, courzl, courtotl, peclettotl)
+
+    deallocate(courxl)
+    deallocate(courx)
+    deallocate(couryl)
+    deallocate(coury)
+    deallocate(courzl)
+    deallocate(courz)
+    deallocate(courtotl)
+    deallocate(courtot)
+    deallocate(peclettotl)
+    deallocate(peclettot)
+  end subroutine exitchecksim
+
 !>Run checksim. Timekeeping, and output
   subroutine checksim
     use modglobal, only : timee,rtimee, rk3step, rdt
@@ -113,8 +133,7 @@ contains
       write (*,*) '================================================================='
       write (*,'(3A,F9.2,A,F12.9)') 'Time of Day: ', timeday(1:10),'    Time of Simulation: ', rtimee, '    dt: ',dtmn
     end if
-    call calccourant
-    call calcpeclet
+    call calccourantandpeclet
     call chkdiv
     dtmn  = 0.
     ndt   = 0.
@@ -123,65 +142,59 @@ contains
 
   end subroutine checksim
 !>      Calculates the courant number as in max(w)*deltat/deltaz
-  subroutine calccourant
+!>      and peclet number as max(ekm) *deltat/deltax**2
+  subroutine calccourantandpeclet
     use modglobal, only : i1,j1,kmax,dx,dy,dzh
     use modfields, only : u0,v0,w0
+    use modsubgrid,only : ekm
     use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
     implicit none
 
-    integer       :: k
-    
-    courxl = 0.0
-    couryl = 0.0
-    courzl = 0.0
+    integer :: i, j, k
+    real    :: velx_max, vely_max, velz_max, velmag_max, ekm_max
 
-    !$acc parallel loop copy(courxl, couryl, courzl, courtotl)
-    do k=1,kmax
-      courxl(k)=maxval(abs(u0(2:i1,2:j1,k)))*dtmn/dx
-      couryl(k)=maxval(abs(v0(2:i1,2:j1,k)))*dtmn/dy
-      courzl(k)=maxval(abs(w0(2:i1,2:j1,k)))*dtmn/dzh(k)
-      courtotl(k)=maxval(u0(2:i1,2:j1,k)*u0(2:i1,2:j1,k)/(dx*dx)+v0(2:i1,2:j1,k)*v0(2:i1,2:j1,k)/(dy*dy)+&
-      w0(2:i1,2:j1,k)*w0(2:i1,2:j1,k)/(dzh(k)*dzh(k)))*dtmn*dtmn
+    !$acc parallel loop gang default(present) private(velx_max, vely_max, velz_max, velmag_max, ekm_max)
+    do k = 1, kmax
+      velx_max = 0.0
+      vely_max = 0.0
+      velz_max = 0.0
+      velmag_max = 0.0
+      ekm_max = 0.0
+      !$acc loop collapse(2) reduction(max:velx_max, vely_max, velz_max, velmag_max, ekm_max)
+      do j = 2, j1
+        do i = 2, i1
+          velx_max = max(velx_max, abs(u0(i,j,k)))
+          vely_max = max(vely_max, abs(v0(i,j,k)))
+          velz_max = max(velz_max, abs(w0(i,j,k)))
+          velmag_max = max(velmag_max, u0(i,j,k)*u0(i,j,k)/(dx*dx) + &
+                                       v0(i,j,k)*v0(i,j,k)/(dy*dy) + &
+                                       w0(i,j,k)*w0(i,j,k)/(dzh(k)*dzh(k)))
+          ekm_max = max(ekm_max, ekm(i,j,k))
+        enddo
+      enddo
+      courxl(k)=velx_max*dtmn/dx
+      couryl(k)=vely_max*dtmn/dy
+      courzl(k)=velz_max*dtmn/dzh(k)
+      courtotl(k)=velmag_max*dtmn*dtmn
+      peclettotl(k)=ekm_max*dtmn/min(dzh(k),dx,dy)**2
     end do
+    !$acc update self(courxl, couryl, courzl, courtotl, peclettotl)
 
     call D_MPI_ALLREDUCE(courxl  ,courx  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(couryl  ,coury  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(courzl  ,courz  ,kmax,MPI_MAX,comm3d,mpierr)
     call D_MPI_ALLREDUCE(courtotl,courtot,kmax,MPI_MAX,comm3d,mpierr)
+    call D_MPI_ALLREDUCE(peclettotl,peclettot,kmax,MPI_MAX,comm3d,mpierr)
 
     if (myid==0) then
       write(*,'(A,3ES10.2,I5,ES10.2,I5)') 'Courant numbers (x,y,z,tot):',&
       maxval(courx(1:kmax)),maxval(coury(1:kmax)),maxval(courz(1:kmax)),maxloc(courz(1:kmax)),sqrt(maxval(courtot(1:kmax))),maxloc(courtot(1:kmax))
-    end if
-
-    return
-  end subroutine calccourant
-!> Calculates the cell peclet number as max(ekm) *deltat/deltax**2
-  subroutine calcpeclet
-
-    use modglobal, only : i1,j1,k1,kmax,dx,dy,dzh
-    use modsubgrid,only : ekm
-    use modmpi,    only : myid,comm3d,mpierr,mpi_max, D_MPI_ALLREDUCE
-    implicit none
-
-    integer       :: k
-
-    peclettotl = 0.
-    peclettot  = 0.
-
-    !$acc parallel loop copy(peclettotl)
-    do k=1,kmax
-      peclettotl(k)=maxval(ekm(2:i1,2:j1,k))*dtmn/min(dzh(k),dx,dy)**2
-    end do
-    
-    call D_MPI_ALLREDUCE(peclettotl,peclettot,k1,MPI_MAX,comm3d,mpierr)
-
-    if (myid==0) then
       write(6,'(A,ES10.2,I5)') 'Cell Peclet number:',maxval(peclettot(1:kmax)),maxloc(peclettot(1:kmax))
     end if
 
     return
-  end subroutine calcpeclet
+  end subroutine calccourantandpeclet
+
 !> Checks local and total divergence
   subroutine chkdiv
 
@@ -198,7 +211,7 @@ contains
     divtot = 0.
     divmaxl= 0.
     divtotl= 0.
-    
+
     !$acc parallel loop collapse(3) default(present) private(div, divmaxl, divtotl) &
     !$acc& reduction(max:divmaxl) reduction(+:divtotl)
     do k=1,kmax
@@ -223,7 +236,7 @@ contains
       write(6 ,'(A,2ES11.2,A,A)')'divmax, divtot = ', divmax, divtot,  '       dt limited by ', dt_reasons(dt_reason)
    end if
 
-   return    
+   return
   end subroutine chkdiv
 
 end module modchecksim
