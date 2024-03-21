@@ -42,12 +42,13 @@ module modradrte_rrtmgp
   type(ty_gas_optics_rrtmgp)                :: k_dist_lw, k_dist_sw
   type(ty_cloud_optics)                     :: cloud_optics_lw, cloud_optics_sw
   class(ty_optical_props_arry), allocatable :: atmos_lw, atmos_sw, clouds_lw, clouds_sw
-  type(ty_fluxes_broadband)                 :: fluxes_lw, fluxes_sw
+  type(ty_fluxes_broadband)                 :: fluxes_lw, fluxes_sw, fluxes_cs_lw, fluxes_cs_sw
   real(kind=kind_rb), dimension(:,:), allocatable :: inc_sw_flux, sfc_alb_dir, sfc_alb_dif
   !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
   integer, parameter                        :: ngas = 10
   character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
   integer                                   :: nlay, nlev, ncol, nbatch, nbndlw, nbndsw, ngptsw
+  logical                                   :: doclearsky = .false.
 
   public :: radrte_rrtmgp
 
@@ -80,7 +81,7 @@ contains
     implicit none
 
     logical                 :: top_at_1 = .false., sunUp = .false.
-    integer                 :: npatch, ibatch, ierr(2)=0
+    integer                 :: npatch, ibatch, ierr(3)=0
     character(len=256)      :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc"
     character(len=256)      :: k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
     character(len=256)      :: cloud_optics_file_lw = "rrtmgp-cloud-optics-coeffs-lw.nc"
@@ -137,6 +138,13 @@ contains
                swDownDir_slice(ncol,nlay+1), &
                presh_input(nlay), &
                STAT=ierr(2))
+      if(doclearsky) then
+        allocate(lwUpCS_slice(ncol,nlay+1), &
+                 lwDownCS_slice(ncol,nlay+1), &
+                 swUpCS_slice(ncol,nlay+1), &
+                 swDownCS_slice(ncol,nlay+1), &
+                 STAT=ierr(3))
+      endif
       if(any(ierr(:)/=0)) then
         if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrte_rrtmgp'
         stop 'ERROR: Radiation variables could not be allocated in modradrte_rrtmgp.f90'
@@ -226,7 +234,10 @@ contains
         ! Define lw fluxes pointers
         fluxes_lw%flux_up => lwUp_slice(:,:)
         fluxes_lw%flux_dn => lwDown_slice(:,:)
-
+        if(doclearsky) then
+          fluxes_cs_lw%flux_up => lwUpCS_slice(:,:)
+          fluxes_cs_lw%flux_dn => lwDownCS_slice(:,:)
+        endif
       endif
 
       ! Shortwave init
@@ -266,6 +277,10 @@ contains
         fluxes_sw%flux_up => swUp_slice(:,:)
         fluxes_sw%flux_dn => swDown_slice(:,:)
         fluxes_sw%flux_dn_dir => swDownDir_slice(:,:)
+        if(doclearsky) then
+          fluxes_cs_sw%flux_up => swUpCS_slice(:,:)
+          fluxes_cs_sw%flux_dn => swDownCS_slice(:,:)
+        endif
       endif
 
       isInitializedRrtmg = .true.
@@ -284,6 +299,15 @@ contains
                                               atmos_lw, & ! Optical properties (inout)
                                               sources_lw, & ! Planck source (inout)
                                               tlev = interfaceT)) ! t_lev (optional input, K)
+
+        ! Solve clear sky radiation transport if required
+        if(doclearsky) then
+          call stop_on_err(rte_lw(atmos_lw, & ! optical properties (in)
+                                  top_at_1, & ! Is the top of the domain at index 1? (in)
+                                  sources_lw, & ! source function (in)
+                                  emis, & ! emissivity at surface (in)
+                                  fluxes_cs_lw)) ! fluxes (W/m2, inout)
+        endif
 
         ! Compute and add cloud properties
         call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
@@ -314,6 +338,16 @@ contains
                                                 atmos_sw, & ! Optical properties (inout)
                                                 inc_sw_flux)) ! Incoming shortwave flux (inout)
 
+          ! Solve clear sky radiation transport if required
+          if(doclearsky) then
+            call stop_on_err(rte_sw(atmos_sw, & ! optical properties (in)
+                                    top_at_1, & ! Is the top of the domain at index 1? (in)
+                                    solarZenithAngleCos, & ! cosine of the solar zenith angle (in)
+                                    inc_sw_flux, & ! solar incoming flux (in)
+                                    sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse (in)
+                                    fluxes_cs_sw)) ! fluxes (inout, W/m2)
+          endif
+
           ! Compute and add cloud properties
           call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
                                                         IWP_slice, & ! cloud ice water path (in, g/m2)
@@ -331,11 +365,11 @@ contains
                                   sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse (in)
                                   fluxes_sw)) ! fluxes (inout, W/m2)
 
-          endif
-
         endif
 
-        call getFluxProfiles(ibatch)
+      endif
+
+      call getFluxProfiles(ibatch)
 
     enddo
 
@@ -478,23 +512,51 @@ contains
     jstart = (ibatch-1) * jmax/nbatch + 2
     jend   =  ibatch    * jmax/nbatch + 1
 
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        do k=1,k1
+    do k=1,k1
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
           lwu(i,j,k) = lwUp_slice(icol,k)
           lwd(i,j,k) =-lwDown_slice(icol,k)
           swu(i,j,k) = swUp_slice(icol,k)
           swd(i,j,k) =-swDown_slice(icol,k)
-          swdir(i,j,k)= -swDownDir_slice(icol,k)
+          swdir(i,j,k) = -swDownDir_slice(icol,k)
           swdif(i,j,k) = -(swDown_slice(icol,k) - swDownDir_slice(icol,k))
         enddo
-        LW_up_TOA(i,j) =  lwUp_slice(icol,nlay+1)
-        LW_dn_TOA(i,j) = -lwDown_slice(icol,nlay+1)
-        SW_up_TOA(i,j) =  swUp_slice(icol,nlay+1)
-        SW_dn_TOA(i,j) = -swDown_slice(icol,nlay+1)
       enddo
     enddo
+    do j=jstart, jend
+      do i=2,i1 !i1=imax+1
+        icol=i-1+(j-jstart)*imax
+        LW_up_TOA(i,j) = lwUp_slice(icol,nlay+1)
+        LW_dn_TOA(i,j) =-lwDown_slice(icol,nlay+1)
+        SW_up_TOA(i,j) = swUp_slice(icol,nlay+1)
+        SW_dn_TOA(i,j) =-swDown_slice(icol,nlay+1)
+      enddo
+    enddo
+
+    if(doclearsky) then
+      do k=1,k1
+        do j=jstart, jend
+          do i=2,i1 !i1=imax+1
+            icol=i-1+(j-jstart)*imax
+            lwuca(i,j,k) = lwUpCS_slice(icol,k)
+            lwdca(i,j,k) = -lwDownCS_slice(icol,k)
+            swuca(i,j,k) =  swUpCS_slice(icol,k)
+            swdca(i,j,k) = -swDownCS_slice(icol,k)
+          enddo
+        enddo
+      enddo
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
+          SW_up_ca_TOA(i,j) = swUpCS_slice(icol,k)
+          SW_dn_ca_TOA(i,j) =-swDownCS_slice(icol,k)
+          LW_up_ca_TOA(i,j) = lwUpCS_slice(icol,k)
+          LW_dn_ca_TOA(i,j) =-lwDownCS_slice(icol,k)
+        enddo
+      enddo
+    endif
 
     do k=1,kmax
       do j=jstart, jend
