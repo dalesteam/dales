@@ -474,7 +474,7 @@ contains
             liquidRe(icol, k) = reff_factor  * qcl**(1./3.)
 
             if(liquidRe(icol,k).lt.2.5) liquidRe(icol,k) = 2.5
-            if(liquidRe(icol,k).gt.60.) liquidRe(icol,k) = 60.
+            if(liquidRe(icol,k).gt.20.) liquidRe(icol,k) = 20.
           endif
 
           if (IWP_slice(icol,k).gt.0) then
@@ -487,8 +487,8 @@ contains
                 stop "modradrte_rrtmgp: iceRe is nan."
              endif
 
-             if(iceRe(icol,k).lt.5.) iceRe(icol,k) = 5.
-             if(iceRe(icol,k).gt.140.) iceRe(icol,k) = 140.
+             if(iceRe(icol,k).lt.10.) iceRe(icol,k) = 10.
+             if(iceRe(icol,k).gt.180.) iceRe(icol,k) = 180.
           endif
 
         enddo
