@@ -488,7 +488,7 @@ contains
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
-    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
+    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2, iqr
     use modthermodynamics, only: qsat_tab
     implicit none
 
@@ -712,8 +712,8 @@ contains
          do  j=2,j1
             do  i=2,i1
                ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-               plwav(k) = plwav(k) + ql0(i,j,k) * ilratio
-               pliav(k) = pliav(k) + ql0(i,j,k) * (1-ilratio)
+               plwav(k) = plwav(k) + sv0(i,j,k,iqr) * ilratio
+               pliav(k) = pliav(k) + sv0(i,j,k,iqr) * (1-ilratio)
             end do
          end do
       end do
