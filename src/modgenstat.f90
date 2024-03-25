@@ -466,7 +466,7 @@ contains
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
-                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
+                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,lopenbc
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
     use advec_kappa, only : halflev_kappa
     implicit none
@@ -903,7 +903,8 @@ contains
     end do
 
     do n=1,nsv
-      if (iadv_sv(n)==iadv_kappa) then
+      if (iadv_sv(n)==iadv_kappa .and. .not. lopenbc) then
+         ! halflev_kappa doesn't work with open boundaries - access outside bounds at top
          call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
       else
         do  k=2,k1
