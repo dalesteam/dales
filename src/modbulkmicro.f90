@@ -195,12 +195,6 @@ module modbulkmicro
     integer :: i,j,k
     real :: qrtest,nr_cor,qr_cor
 
-    ! enforce qr0, Nr0, qrm, Nrm >= 0
-    sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
-    sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
-    svm(:,:,:,inr) = max(0.,svm(:,:,:,inr))
-    svm(:,:,:,iqr) = max(0.,svm(:,:,:,iqr))
-
     Nr = sv0(2:i1,2:j1,1:k1,inr)
     qr = sv0(2:i1,2:j1,1:k1,iqr)
 
@@ -335,6 +329,10 @@ module modbulkmicro
       svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) !- qr_cor
       svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) !- nr_cor
       ! adjust negative qr tendencies at the end of the time-step
+
+      ! clip the tendencies so that qr,Nr >= 0 next step
+      svp(i,j,k,iqr) = max(svp(i,j,k,iqr), -svm(i,j,k,iqr)/delt)
+      svp(i,j,k,inr) = max(svp(i,j,k,inr), -svm(i,j,k,inr)/delt)
     enddo
     enddo
     enddo
