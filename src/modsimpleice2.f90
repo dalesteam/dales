@@ -202,7 +202,7 @@ module modsimpleice2
              graupel_present = .false.
 
              ! initialise qr
-             qr(i,j,k)= sv0(i,j,k,iqr)
+             qr(i,j,k)= max(sv0(i,j,k,iqr),0.0_field_r)
              ! initialise qc mask
              if (ql0(i,j,k) > qcmin) then
                 qcmask_ = .true.

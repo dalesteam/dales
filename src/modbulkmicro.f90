@@ -215,7 +215,7 @@ module modbulkmicro
     !*********************************************************************
     ! remove neg. values of Nr and qr
     !*********************************************************************
-!    if (l_rain) then
+    if (l_rain) then
        !if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
        !  write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
        !end if
@@ -223,8 +223,8 @@ module modbulkmicro
        !   write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
        !end if
 
-       !Nr = max(0.,Nr)
-       !qr = max(0.,qr)
+       Nr = max(0.,Nr)
+       qr = max(0.,qr)
 
        ! BUG: why write back these values here?
        !      negative values in svm + svp are corrected for at the end
@@ -239,7 +239,7 @@ module modbulkmicro
        ! but that can lead to negative qt and high temperatures
        ! in some extreme cases (2nd order advection)
 
-!    end if   ! l_rain
+    end if   ! l_rain
 
     !*********************************************************************
     ! Find gridpoints where the microphysics scheme should run
