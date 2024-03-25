@@ -47,8 +47,7 @@ module modradrte_rrtmgp
   !Specify gas names, the first five (h2o, o3, co2, ch4 and n2o) are mandatory as they are major absorbers
   integer, parameter                        :: ngas = 10
   character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
-  integer                                   :: nlay, nlev, ncol, nbatch, nbndlw, nbndsw, ngptsw
-  logical                                   :: doclearsky = .false.
+  integer                                   :: nlay, nlev, ncol, nbndlw, nbndsw, ngptsw
 
   public :: radrte_rrtmgp
 
@@ -106,9 +105,9 @@ contains
       krad1=nlay
       krad2=nlev
 
-      !Set the number of batch, between 1 and jmax, depending on memory available
-      nbatch = jmax
-      !Check if jmax is a mutliple of nbatch
+      !Set the default value of nbatch if not provided in nameoptions
+      if(nbatch==0) nbatch = jmax
+      !Check if jmax is a mutliple of nbatch, if user provided
       if(mod(jmax,nbatch)/=0) stop 'ERROR: Wrong batch number specified in modradrte_rrtmgp.f90'
       ncol = imax*jmax/nbatch
 
@@ -214,8 +213,11 @@ contains
         end select
 
         ! Load cloud property data
-        call load_cld_lutcoeff (cloud_optics_lw, cloud_optics_file_lw)
-        !call load_cld_padecoeff(cloud_optics_lw, cloud_optics_file_lw)
+        if(usepade) then
+          call load_cld_padecoeff(cloud_optics_lw, cloud_optics_file_lw)
+        else
+          call load_cld_lutcoeff (cloud_optics_lw, cloud_optics_file_lw)
+        endif
         call stop_on_err(cloud_optics_lw%set_ice_roughness(2))
 
         ! Initialize cloud optical properties
@@ -258,8 +260,11 @@ contains
         end select
 
         ! Load cloud property data
-        call load_cld_lutcoeff (cloud_optics_sw, cloud_optics_file_sw)
-        !call load_cld_padecoeff(cloud_optics_sw, cloud_optics_file_sw)
+        if(usepade) then
+          call load_cld_padecoeff(cloud_optics_sw, cloud_optics_file_sw)
+        else
+          call load_cld_lutcoeff (cloud_optics_sw, cloud_optics_file_sw)
+        endif
         call stop_on_err(cloud_optics_sw%set_ice_roughness(2))
 
         ! Initialize cloud optical properties

@@ -92,6 +92,11 @@ SAVE
   logical :: doseasons = .true.          ! if false, the same day will be repeated, otherwise, next day is taken
   integer(SHR_KIND_IN) :: iyear = 1992   ! The year of the simulation
 
+  ! Options in NAMRTERRTMGP that apply to the RTE-RRTMGP library
+  logical :: doclearsky = .false.
+  logical :: usepade = .false.
+  integer :: nbatch = 0
+
   ! Logicals and variables that are used in the modradrrtmg module
   logical :: isInitializedRrtmg = .false.           ! used as a initialization check
   logical :: isReadSounding = .false.               ! used as a check for reading the sounding file
