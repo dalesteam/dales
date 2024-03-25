@@ -215,31 +215,31 @@ module modbulkmicro
     !*********************************************************************
     ! remove neg. values of Nr and qr
     !*********************************************************************
-    if (l_rain) then
-       if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-       if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
+!    if (l_rain) then
+       !if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
+       !  write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
+       !if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
+       !   write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
+       !end if
 
-       Nr = max(0.,Nr)
-       qr = max(0.,qr)
+       !Nr = max(0.,Nr)
+       !qr = max(0.,qr)
 
        ! BUG: why write back these values here?
        !      negative values in svm + svp are corrected for at the end
        !      of bulkmicro, and tstep integrate does svm + svp
-       sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
-       sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
-       svm(:,:,:,inr) = max(0.,svm(:,:,:,inr))
-       svm(:,:,:,iqr) = max(0.,svm(:,:,:,iqr))
+       !sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
+       !sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
+       !svm(:,:,:,inr) = max(0.,svm(:,:,:,inr))
+       !svm(:,:,:,iqr) = max(0.,svm(:,:,:,iqr))
        ! FJ put these back +add svm
        ! the correction below conserves energy and water mass by
        ! condensing qt to fill the negative qr
        ! but that can lead to negative qt and high temperatures
        ! in some extreme cases (2nd order advection)
 
-    end if   ! l_rain
+!    end if   ! l_rain
 
     !*********************************************************************
     ! Find gridpoints where the microphysics scheme should run
@@ -337,6 +337,10 @@ module modbulkmicro
       svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) !- qr_cor
       svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) !- nr_cor
       ! adjust negative qr tendencies at the end of the time-step
+
+      ! clip the tendencies so that qr,Nr >= 0 next step
+      svp(i,j,k,iqr) = max(svp(i,j,k,iqr), -svm(i,j,k,iqr)/delt)
+      svp(i,j,k,inr) = max(svp(i,j,k,inr), -svm(i,j,k,inr)/delt)
     enddo
     enddo
     enddo

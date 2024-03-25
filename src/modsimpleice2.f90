@@ -5,12 +5,12 @@
 !>
 !! Calculates ice microphysics in a cheap scheme without prognostic nr
 !!  simpleice is called from *modmicrophysics*
-!! \see  Grabowski, 1998, JAS 
-!! and Khairoutdinov and Randall, 2006, JAS 
+!! \see  Grabowski, 1998, JAS
+!! and Khairoutdinov and Randall, 2006, JAS
 !!  \author Steef B\"oing, TU Delft
 !!  \par Revision list
 !
-! FJ: seems the ref should be Khairoutdinov and Randall, 2003, JAS 
+! FJ: seems the ref should be Khairoutdinov and Randall, 2003, JAS
 !
 ! http://dx.doi.org/10.1175/1520-0469(1998)055%3C3283:TCRMOL%3E2.0.CO;2
 ! http://dx.doi.org/10.1175/JAS3810.1
@@ -37,6 +37,7 @@
 
 module modsimpleice2
   use modfields, only : rhobf
+  use modprecision, only : field_r
   implicit none
   private
   public initsimpleice2, exitsimpleice2, simpleice2
@@ -102,11 +103,11 @@ module modsimpleice2
     gammadds3=lacz_gamma(3.+dds)
     gammaddg3=lacz_gamma(3.+ddg)
 
-    nrp=0. ! not used in this scheme 
+    nrp=0. ! not used in this scheme
     nr=0.  ! set to 0 here in case the statistics use them
-     
+
   end subroutine initsimpleice2
-  
+
 
 !> Cleaning up after the run
   subroutine exitsimpleice2
@@ -121,11 +122,11 @@ module modsimpleice2
     deallocate(ccrz,ccsz,ccgz)
     deallocate(ccrz2,ccsz2,ccgz2)
   end subroutine exitsimpleice2
-  
+
 
 !> Calculates the microphysical source term.
   subroutine simpleice2
-    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
+    use modglobal, only : i1,j1,k1,rdt,rk3step,rtimee,rlv,cp,tup,tdn,pi,tmelt,kmax,dzf,dzh
     use modfields, only : sv0,svm,svp,qtp,thlp,qt0,ql0,exnf,rhof,tmp0,rhobf,qvsl,qvsi,esl,surf_rain
     use modmicrodata, only : sed_qr,qrp,&
                              aag,aar,aas,bbg,bbr,bbs,betag,betar,betas,ccg,ccr,ccs,&
@@ -137,7 +138,7 @@ module modsimpleice2
                              qr_spl,precep,&
                              qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
                              l_berry,l_graupel,l_rain,l_warm,timekessl
-    
+
     use modsimpleicestat, only : simpleicetend
     implicit none
     integer:: i,j,k
@@ -154,15 +155,15 @@ module modsimpleice2
     logical :: qrmask_, qcmask_
     logical :: rain_present, snow_present, graupel_present   ! logicals for presence of different forms of water in the current cell
     logical :: any_qr, any_snow_graupel                      ! logicals for precense of any precipitation, and for presense of snow/graupel in the whole system
-    
+
     delt = rdt/ (4. - dble(rk3step))
-    
+
     wfallmax = 9.9 ! cap for fall velocity
-    n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp)) ! number of sub-timesteps for precipitation 
+    n_spl = ceiling(wfallmax*delt/(minval(dzf)*courantp)) ! number of sub-timesteps for precipitation
     dt_spl = delt/real(n_spl)                              ! fixed time step for precipitation sub-stepping!
-    
+
     sed_qr = 0. ! reset sedimentation fluxes
-  
+
      ! Density corrected fall speed parameters, see Tomita 2008
      ! rhobf is constant in time. could initialize tables in initsimpleice2, but that would requires that
      ! microphysics is initialized AFTER readinitfiles (for rhobf def), which breaks chemistry or surface
@@ -170,13 +171,13 @@ module modsimpleice2
         ccrz(k)=ccr*(1.29/rhobf(k))**0.5
         ccsz(k)=ccs*(1.29/rhobf(k))**0.5
         ccgz(k)=ccg*(1.29/rhobf(k))**0.5
-     
+
         ! these coefficients are used in evapdep - tabulated because of sqrt
         ccrz2(k) = gam2dr*.27*n0rr*sqrt(ccrz(k)/2.e-5)
         ccsz2(k) = gam2ds*.39*n0rs*sqrt(ccsz(k)/2.e-5) ! NOTE: .27 here is suspect -> .39
         ccgz2(k) = gam2dg*.27*n0rg*sqrt(ccgz(k)/2.e-5)
      end do
-    
+
     ! used to check on negative qr and nr
     qrsum=0.
     qrsmall=0.
@@ -192,32 +193,28 @@ module modsimpleice2
     any_qr = .false.
     any_snow_graupel = .false.
     qrmask_ = .false. ! needed if l_rain is false
-    
+
     do k=kmax,1,-1 ! reverse order for upwind scheme at the end
        do j=2,j1
           do i=2,i1
              rain_present = .false.
              snow_present = .false.
              graupel_present = .false.
-             
+
              ! initialise qr
-             qr(i,j,k)= sv0(i,j,k,iqr)             
+             qr(i,j,k)= sv0(i,j,k,iqr)
              ! initialise qc mask
              if (ql0(i,j,k) > qcmin) then
                 qcmask_ = .true.
              else
                 qcmask_ = .false.
              end if
-             
+
              ! initialise qr mask and check if we are not throwing away too much rain
              if (l_rain) then
                 qrsum = qrsum+qr(i,j,k)
                 if (qr(i,j,k) <= qrmin) then
                    qrmask_ = .false.
-                   if(qr(i,j,k)<0.) then
-                      qrsmall = qrsmall-qr(i,j,k)
-                      qr(i,j,k)=0.
-                   end if
                 else
                    qrmask_=.true.  ! this cell
                    any_qr = .true. ! whole system
@@ -236,21 +233,21 @@ module modsimpleice2
              ! qr, qrp  - rain, tendency
              ! qtpmcr   - qt tendency from microphysics
              ! thlpmcr  - thl tendency from microphysics
-             
 
-             
+
+
              !partitioning and determination of intercept parameter
 
              if(qrmask_.eqv..true.) then
                 if(l_warm) then !partitioning and determination of intercept parameter
                    rsgratio_=1.   ! rain vs snow/graupel partitioning
                    rain_present = .true.
-                   
+
                    sgratio_=0.   ! snow versus graupel partitioning
                    lambdar_=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k))))**(1./(1.+bbr)) ! lambda rain
                    !lambdas_=lambdar_ ! lambda snow    ! probably not right but they will not be used
                    !lambdag_=lambdar_ ! lambda graupel
-                elseif(l_graupel) then                  
+                elseif(l_graupel) then
                    rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
                    sgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
                    if (rsgratio_ > 0) then                                                                               ! sg = 0 -> only snow
@@ -262,7 +259,7 @@ module modsimpleice2
                       if (sgratio_ > 0) then
                          graupel_present = .true.
                          lambdag_=(aag*n0rg*gamb1g/(rhof(k)*(qr(i,j,k)*(1.-rsgratio_)*sgratio_)))**(1./(1.+bbg)) ! graupel
-                      endif                      
+                      endif
                       if (sgratio_ < 1) then
                          snow_present = .true.
                          lambdas_=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio_)*(1.-sgratio_))))**(1./(1.+bbs)) ! snow
@@ -273,7 +270,7 @@ module modsimpleice2
                 else ! rain, snow but no graupel
                    rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
                    sgratio_=0.
-                   if (rsgratio_ > 0) then 
+                   if (rsgratio_ > 0) then
                       rain_present = .true.
                       lambdar_=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio_)))**(1./(1.+bbr)) ! lambda rain
                    endif
@@ -282,29 +279,29 @@ module modsimpleice2
                       any_snow_graupel = .true.     ! whole system
                       lambdas_=(aas*n0rs*gamb1s/(rhof(k)*(qr(i,j,k)*(1.-rsgratio_))))**(1./(1.+bbs)) ! lambda snow
                    endif
-                   ! lambdag_=lambdas_ ! FJ: probably wrong - routines below don't always check sgratio                                         
-                end if               
+                   ! lambdag_=lambdas_ ! FJ: probably wrong - routines below don't always check sgratio
+                end if
               endif
-              
-              
-              
+
+
+
               ! Autoconvert
               if (qcmask_.eqv..true.) then
-                 if(l_warm) then 
-                    ilratio_=1.   
+                 if(l_warm) then
+                    ilratio_=1.
                  else
                     ilratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
                  endif
-                 
+
                  ! ql partitioning - used here and in Accrete
                  qll=ql0(i,j,k)*ilratio_
                  qli=ql0(i,j,k)-qll
-                 
+
                  if(l_berry.eqv..true.) then ! Berry/Hsie autoconversion
                     ! ql partitioning
                     ! qll=ql0(i,j,k)*ilratio(i,j,k)
                     ! qli=ql0(i,j,k)-qll
-                    
+
                     ddisp=0.146-5.964e-2*log(Nc_0/2.e9) ! Relative dispersion coefficient for Berry autoconversion
                     lwc=1.e3*rhof(k)*qll ! Liquid water content in g/kg
                     autl=1./rhof(k)*1.67e-5*lwc*lwc/(5. + .0366*Nc_0/(1.e6*ddisp*(lwc+1.e-6)))
@@ -320,7 +317,7 @@ module modsimpleice2
                     ! ql partitioning
                     ! qll=ql0(i,j,k)*ilratio(i,j,k)
                     ! qli=ql0(i,j,k)-qll
-                    
+
                     autl=max(0.,timekessl*(qll-qll0))
                     tc=tmp0(i,j,k)-tmelt
                     auti=max(0.,betakessi*exp(0.025*tc)*(qli-qli0))
@@ -333,7 +330,7 @@ module modsimpleice2
               endif
 
               ! Accrete
-              
+
               if (qrmask_.eqv..true.) then
                  if (qcmask_.eqv..true.) then ! apply mask
                     ! ql partitioning - calculated in Autoconvert
@@ -366,7 +363,7 @@ module modsimpleice2
                        gaccgi=pi/4.*ccgz(k)*ceffgi*rhof(k)*qli*qrg*lambdag_**(bbg-2.-ddg)*gammaddg3/(aag*gamb1g)
                        accg=(gaccgl+gaccgi) !*qrg/(qrg+1.e-9)
                     endif
-                    
+
                     acc= min(accr+accs+accg,ql0(i,j,k)/delt)  ! total growth by accretion
                     qrp(i,j,k) = qrp(i,j,k)+acc
                     qtpmcr(i,j,k) = qtpmcr(i,j,k)-acc
@@ -375,7 +372,7 @@ module modsimpleice2
               end if
 
               ! evapdep
-              
+
               if (qrmask_.eqv..true.) then
                   ! saturation ratios
                  ssl=(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)
@@ -403,17 +400,17 @@ module modsimpleice2
                     ventg=.78*n0rg/lambdag_**2 + ccgz2(k)*lambdag_**(-2.5-0.5*ddg)
                     evapdepg=(4.*pi/(betag*rhof(k)))*(ssi-1.)*ventg*thfun
                  endif
-                 
+
                  ! total growth by deposition and evaporation
                  ! limit with qr and ql after accretion and autoconversion
                  devap= max(min(evapfactor*(evapdepr+evapdeps+evapdepg),ql0(i,j,k)/delt-qrp(i,j,k)),-qr(i,j,k)/delt-qrp(i,j,k))
                  qrp(i,j,k) = qrp(i,j,k)+devap
                  qtpmcr(i,j,k) = qtpmcr(i,j,k)-devap
                  thlpmcr(i,j,k) = thlpmcr(i,j,k)+(rlv/(cp*exnf(k)))*devap
-                 
+
                   ! Grabowski 1998 has different coefficients here for snow
                   ! also ccsz2 table needs to be updated
-                 
+
               end if
 
 
@@ -425,11 +422,11 @@ module modsimpleice2
                  if (rain_present) then
                     vtr=ccrz(k)*(gambd1r/gamb1r)/(lambdar_**ddr)  ! terminal velocity rain
                     vtf = vtf + rsgratio_*vtr
-                 endif                
+                 endif
                  if (snow_present) then
                     vts=ccsz(k)*(gambd1s/gamb1s)/(lambdas_**dds)  ! terminal velocity snow
                     vtf = vtf + (1.-rsgratio_)*(1.-sgratio_)*vts
-                 endif                 
+                 endif
                  if (graupel_present) then
                     vtg=ccgz(k)*(gambd1g/gamb1g)/(lambdag_**ddg)  ! terminal velocity graupel
                     vtf = vtf + (1.-rsgratio_)*sgratio_*vtg
@@ -437,7 +434,7 @@ module modsimpleice2
                  ! vtf=rsgratio_*vtr+(1.-rsgratio_)*(1.-sgratio_)*vts+(1.-rsgratio_)*sgratio(i,j,k)*vtg ! weighted
                  vtf = min(wfallmax,vtf)
                  !write(*,*) 'vtf', vtf
-                 
+
                  precep(i,j,k) = vtf*qr_spl(i,j,k)
                  sed_qr(i,j,k) = precep(i,j,k)*rhobf(k) ! convert to flux
               else
@@ -454,21 +451,21 @@ module modsimpleice2
     enddo
     surf_rain = surf_rain + sed_qr(:,:,1)*dt_spl
 
-    
+
     ! precipitate part 2
-    
+
 !    write (*,*) 'any_qr:', any_qr
 !    write (*,*) 'any_snow_graupel:', any_snow_graupel
 !    write(*,*) 'n_spl', n_spl
-    
+
     ! begin time splitting loop
     IF (n_spl > 1 .and. any_qr) THEN
        DO jn = 2 , n_spl
 
           ! reset fluxes at each step of loop
           ! sed_qr = 0. ! not needed !?
-          
-          if (any_snow_graupel) then 
+
+          if (any_snow_graupel) then
              do k=kmax,1,-1
                 do j=2,j1
                    do i=2,i1
@@ -476,7 +473,7 @@ module modsimpleice2
                          ! re-evaluate lambda and rsgratios
                          rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
                           sgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnsg) /(tupsg -tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
-                         
+
                          !these ifs are here to avoid performing the power calculations unless they are going to be used
                          if (rsgratio_ > 0) then
                             tmp_lambdar=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k)*rsgratio_)))**(1./(1.+bbr)) ! lambda rain
@@ -512,12 +509,12 @@ module modsimpleice2
                    enddo
                 enddo
              enddo
-             
+
           else ! alternative loops when there is only rain
              do k=kmax,1,-1
                 do j=2,j1
                    do i=2,i1
-                      if (qr_spl(i,j,k) > qrmin) then                       
+                      if (qr_spl(i,j,k) > qrmin) then
                          !*rsgratio(i,j,k) removed from here, since it is 1
                          tmp_lambdar=(aar*n0rr*gamb1r/(rhof(k)*(qr_spl(i,j,k))))**(1./(1.+bbr)) ! lambda rain
                          vtf=ccrz(k)*(gambd1r/gamb1r)/(tmp_lambdar**ddr)  ! terminal velocity rain
@@ -537,41 +534,45 @@ module modsimpleice2
           endif
 
           surf_rain = surf_rain + sed_qr(:,:,1)*dt_spl
-          
+
           ! end time splitting loop and if n>1
        ENDDO
     ENDIF
 
     ! no thl and qt tendencies build in, implying no heat transfer between precipitation and air
 
-    
-    if (qrsmall > 0.000001*qrsum) then
-      write(*,*)'amount of neg. qr thrown away is too high  ',timee, ' sec', qrsmall, qrsum
-    end if
 
     do k=1,kmax !was k1
        do j=2,j1
           do i=2,i1
              qrp(i,j,k)= qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k))/delt
-             qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
-             if (qrtest .lt. qrmin) then ! correction, after Jerome's implementation in Gales
-                qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
-                thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
-                svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-             else
-                svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
-                thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
-                qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
-                ! adjust negative qr tendencies at the end of the time-step
-             end if
+             !qrtest=svm(i,j,k,iqr)+(svp(i,j,k,iqr)+qrp(i,j,k))*delt
+             !if (qrtest .lt. qrmin) then ! correction, after Jerome's implementation in Gales
+             !   qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
+             !   thlp(i,j,k) = thlp(i,j,k) +thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
+             !   svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
+             !else
+             svp(i,j,k,iqr)=svp(i,j,k,iqr)+qrp(i,j,k)
+             thlp(i,j,k)=thlp(i,j,k)+thlpmcr(i,j,k)
+             qtp(i,j,k)=qtp(i,j,k)+qtpmcr(i,j,k)
+             ! adjust negative qr tendencies at the end of the time-step
+             !end if
+
+             qrsmall = qrsmall + max (-svm(i,j,k,iqr) - svp(i,j,k,iqr)*delt, 0.0_field_r)
+             ! clip the qr tendency so that qr >= 0 next step
+             svp(i,j,k,iqr) = max(svp(i,j,k,iqr), -svm(i,j,k,iqr)/delt)
           enddo
        enddo
     enddo
+
+    if (qrsmall > 0.000001*qrsum) then
+      write(*,*)'amount of neg. qr thrown away is too high  ',rtimee, ' sec', qrsmall, qrsum
+    end if
 
 !    if (l_rain) then
 !      call simpleicetend !after corrections
 !    endif
   end subroutine simpleice2
-  
+
 
 end module modsimpleice2
