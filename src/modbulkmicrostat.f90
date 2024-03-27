@@ -31,6 +31,7 @@
 !
 module modbulkmicrostat
   use modprecision, only : longint, field_r
+  use modtimer
 
 implicit none
 private
@@ -232,6 +233,8 @@ subroutine initbulkmicrostat
     use modglobal,    only  : rk3step, timee, dt_lim
     use modmicrodata,only: imicro, imicro_bulk3             ! #sb3
     implicit none
+
+    call timer_tic('modbulkmicrostat/bulkmicrostat', 1)
     
     if (imicro.eq.imicro_bulk3) return  ! #sb3 treated separately
     if (.not. lmicrostat)  return
@@ -250,6 +253,8 @@ subroutine initbulkmicrostat
       call writebulkmicrostat
     end if
 
+    call timer_toc('modbulkmicrostat/bulkmicrostat')
+
   end subroutine bulkmicrostat
 
 !------------------------------------------------------------------------------!
@@ -262,6 +267,7 @@ subroutine initbulkmicrostat
     implicit none
 
     integer :: k
+
 
     precav = 0.0
     preccountav = 0.0
@@ -317,6 +323,8 @@ subroutine initbulkmicrostat
     real(field_r), dimension(:), allocatable  :: avfield
     integer        :: ifield = 0
 
+    call timer_tic('modbulkmicrostat/bulkmicrotend', 1)
+
     if (.not. lmicrostat)  return
     if (rk3step /= 3)  return
     if (timee == 0)    return
@@ -352,6 +360,9 @@ subroutine initbulkmicrostat
     end if
 
     deallocate(avfield)
+
+    call timer_toc('modbulkmicrostat/bulkmicrotend')
+
   end subroutine bulkmicrotend
 
 !------------------------------------------------------------------------------!
