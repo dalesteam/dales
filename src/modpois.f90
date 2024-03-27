@@ -191,20 +191,20 @@ contains
     use modmpi,    only : excjs
     implicit none
     integer i,j,k
-    real(pois_r) :: rk3coef
+    real(pois_r) :: rk3coef_inv
 
     call timer_tic('modpois/fillps', 1)
 
     ! TODO: allocate these in initpois
-    rk3coef = rdt / (4. - dble(rk3step))
+    rk3coef_inv = (4. - dble(rk3step)) / rdt
     
     !$acc parallel loop collapse(3) default(present) async(1)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
-          pup(i,j,k) = up(i,j,k) + um(i,j,k) / rk3coef
-          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) / rk3coef
-          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) / rk3coef
+          pup(i,j,k) = up(i,j,k) + um(i,j,k) * rk3coef_inv
+          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) * rk3coef_inv
+          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) * rk3coef_inv
         end do
       end do
     end do
@@ -240,7 +240,7 @@ contains
       end do
     end do
 
-    !$acc wait
+    !$acc wait(1)
 
     call timer_toc('modpois/fillps')
 
@@ -305,7 +305,7 @@ contains
       end do
     end do
 
-    !$acc wait
+    !$acc wait(1)
 
     call timer_toc('modpois/tderive')
     
