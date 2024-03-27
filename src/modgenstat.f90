@@ -199,7 +199,7 @@ contains
     integer n, ierr
     character(40) :: name
     character(3) :: csvname
-    
+
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
 
@@ -393,7 +393,7 @@ contains
              close (ifoutput)
           end do
        end if
-       
+
     if (lnetcdf) then
       fname(10:12) = cexpnr
       nvar = nvar + 7*nsv
@@ -470,7 +470,7 @@ contains
     !$acc&                  uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, u2mn, v2mn, w2mn, w2submn, skewmn, &
     !$acc&                  qt2mn, thl2mn, thv2mn, th2mn, ql2mn, svmmn, svpmn, svpav, svptmn, svptav, &
     !$acc&                  sv2mn, wsvsmn, wsvrmn, wsvtmn, cszav, cszmn, qlmnlast, wthvtmnlast, qlhav, &
-    !$acc&                  wqlsub, wqlres, wthlsub, wthlres, wqtsub, wqtres, wthvsub, wthvres, wqttot, & 
+    !$acc&                  wqlsub, wqlres, wthlsub, wthlres, wqtsub, wqtres, wthvsub, wthvres, wqttot, &
     !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
     !$acc&                  uwtot, vwtot, umav, vmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
@@ -506,7 +506,7 @@ contains
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
 
     call timer_toc('modgenstat/genstat')
-    
+
   end subroutine genstat
 
   subroutine do_genstat
@@ -636,13 +636,13 @@ contains
     !$acc end host_data
 
     if (nsv > 0) then
-      do n=1,nsv
-        !$acc host_data use_device(svmav, svm)
+      !$acc host_data use_device(svmav, svm)
+      do n = 1, nsv
         call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-        !$acc end host_data
       enddo
+      !$acc end host_data
     end if
-        
+
     !$acc kernels default(present) async(1)
     umav  = umav  /ijtot + cu
     vmav  = vmav  /ijtot + cv
@@ -683,7 +683,7 @@ contains
     den = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
-        
+
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
     !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1)) async(1)
     do j = 2, j1
@@ -759,7 +759,7 @@ contains
 
           c1 = merge(a_moist, a_dry, ql0h(i,j,k) > 0.)
           c2 = merge(b_moist, b_dry, ql0h(i,j,k) > 0.)
-          
+
 
     !       -----------------------------------------------------------
     !       calculate resolved and subgrid fluxes at half levels
@@ -1042,7 +1042,7 @@ contains
     real(field_r), intent(in) :: var(:, :, :)
     real(field_r), optional, intent(in) :: mean(kb:ke)
     real(field_r), optional, intent(in) :: c_in !< Translational velocity
-    real(field_r) :: c 
+    real(field_r) :: c
     real(field_r) :: prof_s
     integer :: i, j, k
 
@@ -1055,26 +1055,29 @@ contains
     if (.not.present(mean)) then
       !$acc parallel loop default(present) private(prof_s) async
       do k = kb, ke
+        prof_s = 0.0
         !$acc loop collapse(2) reduction(+: prof_s)
         do j = jb, je
           do i = ib, ie
             prof_s = prof_s + (var(i, j, k) + c)**n
           end do
-        end do 
+        end do
         prof(k) = prof_s / ijtot
       end do
     else
       !$acc parallel loop default(present) private(prof_s) async
       do k = kb, ke
+        prof_s = 0.0
         !$acc loop collapse(2) reduction(+: prof_s)
         do j = jb, je
           do i = ib, ie
             prof_s = prof_s + (var(i, j, k) + c - mean(k))**n
           end do
-        end do 
+        end do
         prof(k) = prof_s / ijtot
       end do
     end if
+    !$acc wait
 
   end subroutine calc_moment
 
@@ -1152,7 +1155,7 @@ contains
         svmmn   = svmmn  /nsamples
         svpmn   = svpmn  /nsamples
         svptmn  = svptmn /nsamples
-        sv2mn = sv2mn/nsamples
+        sv2mn  = sv2mn/nsamples
         wsvsmn = wsvsmn/nsamples
         wsvrmn = wsvrmn/nsamples
         wsvtmn = wsvtmn/nsamples
@@ -1179,7 +1182,7 @@ contains
       !$acc&            cszmn, cfracmn)
 
       !$acc update self(svmmn, svpmn, svptmn, sv2mn, wsvsmn, wsvrmn, wsvtmn) if(nsv > 0)
-        
+
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -1467,7 +1470,7 @@ contains
       end if
 
     end if ! end if(myid==0)
-      
+
       !$acc kernels default(present)
       qlmnlast=qlmn
       wthvtmnlast=wthvtmn
