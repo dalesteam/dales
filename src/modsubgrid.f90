@@ -175,15 +175,21 @@ contains
 
     call closure
     !$acc wait
+
     call diffu(up)
     call diffv(vp)
     call diffw(wp)
+    ! All kernels in diff* are async. Wait here.
+    !$acc wait
+
     if (.not. lsmagorinsky) call diffe(e12p)
-    call diffc(thl0,thlp,thlflux)
+
+    call diffc(thl0, thlp, thlflux)
     if (lmoist) call diffc( qt0, qtp, qtflux)
-    do n=1,nsv
-      call diffc(sv0(:,:,:,n),svp(:,:,:,n),svflux(:,:,n))
-    end do
+    if (nsv > 0 ) then
+      call diffcsv(sv0, svp, svflux)
+    endif
+
     if (.not. lsmagorinsky) call sources
 
     call timer_toc('modsubgrid/subgrid')
@@ -245,8 +251,8 @@ contains
     ! First level
     mlen = csz(1) * delta(1)
     !$acc parallel loop collapse(2) private(strain2) async(1)
-    do i = 2,i1
-      do j = 2,j1
+    do i = 2, i1
+      do j = 2, j1
         strain2 =  ( &
           ((u0(i+1,j,1)-u0(i,j,1))   *dxi        )**2    + &
           ((v0(i,j+1,1)-v0(i,j,1))   *dyi        )**2    + &
@@ -277,9 +283,9 @@ contains
         ekh(i,j,1) = max(ekh(i,j,1),ekmin)
       end do
     end do
-    
+
     ! Other levels
-    !$acc parallel loop collapse(3) default(present) private(mlen, strain2)
+    !$acc parallel loop collapse(3) default(present) private(mlen, strain2) async(2)
     do k = 2,kmax
       do i = 2,i1
         do j = 2,j1
@@ -327,6 +333,7 @@ contains
         end do
       end do
     end do
+    !$acc wait(1,2)
   ! do TKE scheme
  else
     ! choose one of ldelta, ldelta+lmason, lanisotropic, or none of them for Deardorff length scale adjustment
@@ -336,7 +343,7 @@ contains
           do j=2,j1
              do i=2,i1
                 zlt(i,j,k) = delta(k)
-                
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
 
@@ -347,15 +354,15 @@ contains
        end do
     else if (ldelta .and. lmason) then ! delta scheme with Mason length scale correction
        !$acc parallel loop collapse(3) default(present)
-       do k=1,kmax
-          do j=2,j1
-             do i=2,i1
+       do k = 1, kmax
+          do j = 2, j1
+             do i = 2, i1
                 zlt(i,j,k) = delta(k)
-                zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)                
-                
+                zlt(i,j,k) = (1. / zlt(i,j,k) ** nmason + 1. / ( fkar * (zf(k) + z0m(i,j)))**nmason) ** (-1./nmason)
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
-                            
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -363,14 +370,14 @@ contains
        end do
     else if (lanisotrop) then ! Anisotropic diffusion,  https://doi.org/10.1029/2022MS003095
        !$acc parallel loop collapse(3) default(present)
-       do k=1,kmax
-          do j=2,j1
-             do i=2,i1
+       do k = 1, kmax
+          do j = 2, j1
+             do i = 2, i1
                 zlt(i,j,k) = dzf(k)
-                
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = ch * ekm(i,j,k)
-                
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -378,27 +385,27 @@ contains
        end do
     else ! Deardorff lengthscale correction
        !$acc parallel loop collapse(3) default(present)
-       do k=1,kmax
-          do j=2,j1
-             do i=2,i1
+       do k = 1, kmax
+          do j = 2, j1
+             do i = 2, i1
                 zlt(i,j,k) = delta(k)
 
                 !original
                 !if (dthvdz(i,j,k) > 0) then
                 !zlt(i,j,k) = min(delta(k),cn*e120(i,j,k)/sqrt(grav/thvf(k)*abs(dthvdz(i,j,k))))
                 !end if
-                
+
                 ! alternative without if
-                zlt(i,j,k) = min(delta(k), &                                                     
-                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &               
-                     delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))                           
-                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)                        
-                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as                        
-                ! in the original scheme.            
-                
+                zlt(i,j,k) = min(delta(k), &
+                     cn*e120(i,j,k) / sqrt( grav/thvf(k) * abs(dthvdz(i,j,k))) + &
+                     delta(k) * (1.0-sign(1.0_field_r,dthvdz(i,j,k))))
+                ! the final line is 0 if dthvdz(i,j,k) > 0, else 2*delta(k)
+                ! ensuring that zlt(i,j,k) = delta(k) when dthvdz < 0, as
+                ! in the original scheme.
+
                 ekm(i,j,k) = cm * zlt(i,j,k) * e120(i,j,k)
                 ekh(i,j,k) = (ch1 + ch2 * zlt(i,j,k)*deltai(k)) * ekm(i,j,k)
-                
+
                 ekm(i,j,k) = max(ekm(i,j,k),ekmin)
                 ekh(i,j,k) = max(ekh(i,j,k),ekmin)
              end do
@@ -413,8 +420,8 @@ contains
   call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
 
   !$acc parallel loop collapse(2) default(present)
-  do j=1,j2
-    do i=1,i2
+  do j = 1, j2
+    do i = 1, i2
       ekm(i,j,k1)  = ekm(i,j,kmax)
       ekh(i,j,k1)  = ekh(i,j,kmax)
     end do
@@ -422,9 +429,8 @@ contains
 
   return
   end subroutine closure
+
   subroutine sources
-
-
 !-----------------------------------------------------------------|
 !                                                                 |
 !*** *sources*                                                    |
@@ -456,10 +462,10 @@ contains
   real    tdef2, uwflux, vwflux, local_dudz, local_dvdz, local_dthvdz, horv
   integer i,j,k
 
-  !$acc parallel loop collapse(3) default(present) private(tdef2)
-  do k=2,kmax
-    do j=2,j1
-      do i=2,i1
+  !$acc parallel loop collapse(3) default(present) private(tdef2) async(1)
+  do k = 2, kmax
+    do j = 2, j1
+      do i = 2, i1
         tdef2 = 2. * ( &
                  ((u0(i+1,j,k)-u0(i,j,k))    /dx         )**2    + &
                  ((v0(i,j+1,k)-v0(i,j,k))    /dy         )**2    + &
@@ -508,15 +514,15 @@ contains
 !     --------------------------------------------
 
   if (sgs_surface_fix) then
-    !$acc parallel loop collapse(2) default(present) private(tdef2,horv,uwflux,vwflux,local_dudz,local_dvdz,local_dthvdz)
-    do j=2,j1
-      do i=2,i1
+    !$acc parallel loop collapse(2) default(present) private(tdef2,horv,uwflux,vwflux,local_dudz,local_dvdz,local_dthvdz) async(2)
+    do j = 2, j1
+      do i = 2, i1
         tdef2 = 2. * ( &
                 ((u0(i+1,j,1)-u0(i,j,1)) *dxi    )**2 &
               + ((v0(i,j+1,1)-v0(i,j,1)) *dyi    )**2 &
               + ((w0(i,j,2)-w0(i,j,1))   /dzf(1) )**2   )
-        ! Use known surface flux and exchange coefficient to derive 
-        ! consistent gradient (such that correct flux will occur in 
+        ! Use known surface flux and exchange coefficient to derive
+        ! consistent gradient (such that correct flux will occur in
         ! shear production term)
         ! Make sure that no division by zero occurs in determination of the
         ! directional component; ekm should already be >= ekmin
@@ -535,8 +541,8 @@ contains
               +((u0(i+1,j+1,1)-u0(i+1,j,1))*dyi &
               +(v0(i+1,j+1,1)-v0(i,j+1,1))*dxi)**2   )
 
-        ! Use known surface flux and exchange coefficient to derive 
-        ! consistent gradient (such that correct flux will occur in 
+        ! Use known surface flux and exchange coefficient to derive
+        ! consistent gradient (such that correct flux will occur in
         ! shear production term)
         ! Make sure that no division by zero occurs in determination of the
         ! directional component; ekm should already be >= ekmin
@@ -555,12 +561,13 @@ contains
         local_dthvdz = -thlflux(i,j)/ekh(i,j,1)
         sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*local_dthvdz/ ( 2*e120(i,j,1))
         sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
+        e12p(i,j,1) = e12p(i,j,1) + sbshr(i,j,1) + sbbuo(i,j,1) + sbdiss(i,j,1)
       end do
     end do
   else
-    !$acc parallel loop collapse(2) default(present) private(tdef2)
-    do j=2,j1
-      do i=2,i1
+    !$acc parallel loop collapse(2) default(present) private(tdef2) async(2)
+    do j = 2, j1
+      do i = 2, i1
         tdef2 = 2. * ( &
                 ((u0(i+1,j,1)-u0(i,j,1)) *dxi    )**2 &
               + ((v0(i,j+1,1)-v0(i,j,1)) *dyi    )**2 &
@@ -582,9 +589,11 @@ contains
         sbshr(i,j,1)  = ekm(i,j,1)*tdef2/ ( 2*e120(i,j,1))
         sbbuo(i,j,1)  = -ekh(i,j,1)*grav/thvf(1)*dthvdz(i,j,1)/ ( 2*e120(i,j,1))
         sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
-      end do 
+        e12p(i,j,1) = e12p(i,j,1) + sbshr(i,j,1) + sbbuo(i,j,1) + sbdiss(i,j,1)
+      end do
     end do
   endif
+  !$acc wait(1,2)
 
 
 !  do j=2,j1
@@ -596,8 +605,8 @@ contains
 !          + ((w0(i,j,2)-w0(i,j,1))/dzf(1))**2   )
 !
 !    if (sgs_surface_fix) then
-!          ! Use known surface flux and exchange coefficient to derive 
-!          ! consistent gradient (such that correct flux will occur in 
+!          ! Use known surface flux and exchange coefficient to derive
+!          ! consistent gradient (such that correct flux will occur in
 !          ! shear production term)
 !          ! Make sure that no division by zero occurs in determination of the
 !          ! directional component; ekm should already be >= ekmin
@@ -620,8 +629,8 @@ contains
 !                                 (v0(i+1,j+1,1)-v0(i,j+1,1))*dxi)**2   )
 !
 !    if (sgs_surface_fix) then
-!          ! Use known surface flux and exchange coefficient to derive 
-!          ! consistent gradient (such that correct flux will occur in 
+!          ! Use known surface flux and exchange coefficient to derive
+!          ! consistent gradient (such that correct flux will occur in
 !          ! shear production term)
 !          ! Make sure that no division by zero occurs in determination of the
 !          ! directional component; ekm should already be >= ekmin
@@ -651,17 +660,11 @@ contains
 !    sbdiss(i,j,1) = - (ce1 + ce2*zlt(i,j,1)*deltai(1)) * e120(i,j,1)**2 /(2.*zlt(i,j,1))
 !  end do
 !  end do
-  
-  !$acc kernels default(present)
-  e12p(2:i1,2:j1,1) = e12p(2:i1,2:j1,1) + &
-            sbshr(2:i1,2:j1,1)+sbbuo(2:i1,2:j1,1)+sbdiss(2:i1,2:j1,1)  
-  !$acc end kernels
 
   return
   end subroutine sources
 
   subroutine diffc (a_in,a_out,flux)
-
     use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh
     use modfields, only : rhobf,rhobh
     implicit none
@@ -671,11 +674,11 @@ contains
     real, intent(in)    :: flux (i2,j2)
 
     integer i,j,k
-    
-    !$acc parallel loop collapse(3) default(present)
-    do k=2,kmax
-      do j=2,j1
-        do i=2,i1
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
           a_out(i,j,k) = a_out(i,j,k) &
                     +  0.5 * ( &
                   ( (ekh(i+1,j,k)+ekh(i,j,k))*(a_in(i+1,j,k)-a_in(i,j,k)) &
@@ -690,15 +693,13 @@ contains
                     rhobh(k)/rhobf(k) * (dzf(k-1)*ekh(i,j,k) + dzf(k)*ekh(i,j,k-1)) &
                     *  (a_in(i,j,k)-a_in(i,j,k-1)) / dzh(k)**2           )/dzf(k) &
                             )
-
         end do
       end do
     end do
-    
-    !$acc parallel loop collapse(2) default(present)
-    do j=2,j1
-      do i=2,i1
 
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
         a_out(i,j,1) = a_out(i,j,1) &
                   + 0.5 * ( &
                 ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1)-a_in(i,j,1)) &
@@ -711,13 +712,69 @@ contains
                   *  (a_in(i,j,2)-a_in(i,j,1)) / dzh(2)**2 &
                   + rhobh(1)/rhobf(1)*flux(i,j) *2.                        )/dzf(1) &
                           )
+      end do
+    end do
+    !$acc wait(1,2)
+  end subroutine diffc
 
+  subroutine diffcsv (a_in,a_out,flux)
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh,nsv
+    use modfields, only : rhobf,rhobh
+    implicit none
+
+    real(field_r), intent(in)    :: a_in(2-ih:i1+ih,2-jh:j1+jh,k1,nsv)
+    real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1,nsv)
+    real, intent(in)    :: flux (i2,j2,nsv)
+
+    integer i,j,k,n
+
+    !$acc parallel loop collapse(4) default(present) async(1)
+    do n = 1, nsv
+      do k=2,kmax
+        do j=2,j1
+          do i=2,i1
+            a_out(i,j,k,n) = a_out(i,j,k,n) &
+                      +  0.5 * ( &
+                    ( (ekh(i+1,j,k)+ekh(i,j,k))*(a_in(i+1,j,k,n)-a_in(i,j,k,n)) &
+                      -(ekh(i,j,k)+ekh(i-1,j,k))*(a_in(i,j,k,n)-a_in(i-1,j,k,n)))*dx2i * anis_fac(k) &
+                      + &
+                    ( (ekh(i,j+1,k)+ekh(i,j,k)) *(a_in(i,j+1,k,n)-a_in(i,j,k,n)) &
+                      -(ekh(i,j,k)+ekh(i,j-1,k)) *(a_in(i,j,k,n)-a_in(i,j-1,k,n)) )*dy2i * anis_fac(k) &
+                    + &
+                    ( rhobh(k+1)/rhobf(k) * (dzf(k+1)*ekh(i,j,k) + dzf(k)*ekh(i,j,k+1)) &
+                      *  (a_in(i,j,k+1,n)-a_in(i,j,k,n)) / dzh(k+1)**2 &
+                      - &
+                      rhobh(k)/rhobf(k) * (dzf(k-1)*ekh(i,j,k) + dzf(k)*ekh(i,j,k-1)) &
+                      *  (a_in(i,j,k,n)-a_in(i,j,k-1,n)) / dzh(k)**2           )/dzf(k) &
+                              )
+
+          end do
+        end do
       end do
     end do
 
-  end subroutine diffc
+    !$acc parallel loop collapse(3) default(present) async(2)
+    do n = 1, nsv
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,1,n) = a_out(i,j,1,n) &
+                    + 0.5 * ( &
+                  ( (ekh(i+1,j,1)+ekh(i,j,1))*(a_in(i+1,j,1,n)-a_in(i,j,1,n)) &
+                    -(ekh(i,j,1)+ekh(i-1,j,1))*(a_in(i,j,1,n)-a_in(i-1,j,1,n)) )*dx2i * anis_fac(1) &
+                    + &
+                  ( (ekh(i,j+1,1)+ekh(i,j,1))*(a_in(i,j+1,1,n)-a_in(i,j,1,n)) &
+                    -(ekh(i,j,1)+ekh(i,j-1,1))*(a_in(i,j,1,n)-a_in(i,j-1,1,n)) )*dy2i * anis_fac(1) &
+                    + &
+                  ( rhobh(2)/rhobf(1) * (dzf(2)*ekh(i,j,1) + dzf(1)*ekh(i,j,2)) &
+                    *  (a_in(i,j,2,n)-a_in(i,j,1,n)) / dzh(2)**2 &
+                    + rhobh(1)/rhobf(1)*flux(i,j,n) *2.                        )/dzf(1) &
+                            )
 
-
+        end do
+      end do
+    end do
+    !$acc wait(1,2)
+  end subroutine diffcsv
 
   subroutine diffe(a_out)
 
@@ -727,12 +784,11 @@ contains
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     integer             :: i,j,k
-    
-    !$acc parallel loop collapse(3) default(present)
-    do k=2,kmax
-      do j=2,j1
-        do i=2,i1
 
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
           a_out(i,j,k) = a_out(i,j,k) &
                   +  ( &
               ((ekm(i+1,j,k)+ekm(i,j,k))*(e120(i+1,j,k)-e120(i,j,k)) &
@@ -746,7 +802,6 @@ contains
               - rhobh(k)/rhobf(k) * (dzf(k-1)*ekm(i,j,k) + dzf(k)*ekm(i,j,k-1)) &
               *(e120(i,j,k)-e120(i,j,k-1)) / dzh(k)**2        )/dzf(k) &
                             )
-
         end do
       end do
     end do
@@ -755,10 +810,9 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
-    !$acc parallel loop collapse(2)
-    do j=2,j1
-      do i=2,i1
-
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
         a_out(i,j,1) = a_out(i,j,1) + &
             ( (ekm(i+1,j,1)+ekm(i,j,1))*(e120(i+1,j,1)-e120(i,j,1)) &
               -(ekm(i,j,1)+ekm(i-1,j,1))*(e120(i,j,1)-e120(i-1,j,1)) )*dx2i * anis_fac(1) &
@@ -768,12 +822,11 @@ contains
             + &
               ( rhobh(2)/rhobf(1) * (dzf(2)*ekm(i,j,1) + dzf(1)*ekm(i,j,2)) &
               *  (e120(i,j,2)-e120(i,j,1)) / dzh(2)**2              )/dzf(1)
-
       end do
     end do
+    !$acc wait(1,2)
 
   end subroutine diffe
-
 
   subroutine diffu (a_out)
 
@@ -788,11 +841,10 @@ contains
     real                :: ucu, upcu
     integer             :: i,j,k
 
-    !$acc parallel loop collapse(3) default(present) private(emom, emop, empo, emmo)
-    do k=2,kmax
-      do j=2,j1
-        do i=2,i1
-
+    !$acc parallel loop collapse(3) default(present) private(emom, emop, empo, emmo) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
           emom = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) / &
                     ( 4.   * dzh(k) )
@@ -822,7 +874,6 @@ contains
                             +(w0(i,j,k+1)-w0(i-1,j,k+1))*dxi) &
                     - rhobh(k)/rhobf(k) * emom * ( (u0(i,j,k)-u0(i,j,k-1))   /dzh(k) &
                             +(w0(i,j,k)-w0(i-1,j,k))  *dxi)   ) /dzf(k)
-
         end do
       end do
     end do
@@ -831,10 +882,9 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
-    !$acc parallel loop collapse(2) default(present) private(empo, emmo, emop, ucu, upcu, fu)
-    do j=2,j1
-      do i=2,i1
-
+    !$acc parallel loop collapse(2) default(present) private(empo, emmo, emop, ucu, upcu, fu) async(2)
+    do j = 2, j1
+      do i = 2, i1
         empo = 0.25 * ( &
               ekm(i,j,1)+ekm(i,j+1,1)+ekm(i-1,j+1,1)+ekm(i-1,j,1)  )
 
@@ -845,7 +895,6 @@ contains
                     dzf(1) * ( ekm(i,j,2) + ekm(i-1,j,2) ) ) / &
                   ( 4.   * dzh(2) )
 
-
         ucu   = 0.5*(u0(i,j,1)+u0(i+1,j,1))+cu
 
         !if(ucu >= 0.) then
@@ -853,7 +902,7 @@ contains
         !else
         !  upcu  = min(ucu,-1.e-10)
         !end if
-        
+
         ! Branchless version of the algorithm above,
         ! may or may not be more efficient
         upcu = sign(1.,ucu) * max(abs(ucu),1.e-10)
@@ -875,7 +924,6 @@ contains
               ( rhobh(2)/rhobf(1) * emop * ( (u0(i,j,2)-u0(i,j,1))    /dzh(2) &
                         +(w0(i,j,2)-w0(i-1,j,2))  *dxi) &
                 -rhobh(1)/rhobf(1)*fu   ) / dzf(1)
-
       end do
     end do
 
@@ -895,11 +943,10 @@ contains
     real                :: fv, vcv,vpcv
     integer             :: i,j,k
 
-    !$acc parallel loop collapse(3) default(present) private(eomm, eomp, emmo, epmo)
-    do k=2,kmax
-      do j=2,j1
-        do i=2,i1
-
+    !$acc parallel loop collapse(3) default(present) private(eomm, eomp, emmo, epmo) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
           eomm = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
                       dzf(k)  * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) / &
                     ( 4.   * dzh(k) )
@@ -929,7 +976,6 @@ contains
                         +(w0(i,j,k+1)-w0(i,j-1,k+1))  *dyi) &
                 - rhobh(k)/rhobf(k) * eomm * ( (v0(i,j,k)-v0(i,j,k-1))    /dzh(k) &
                         +(w0(i,j,k)-w0(i,j-1,k))    *dyi)   ) / dzf(k)
-
         end do
       end do
     end do
@@ -938,10 +984,9 @@ contains
   !     special treatment for lowest full level: k=1
   !     --------------------------------------------
 
-    !$acc parallel loop collapse(2) default(present) private(emmo, epmo, eomp, vcv, vpcv, fv)
-    do j=2,j1
-      do i=2,i1
-
+    !$acc parallel loop collapse(2) default(present) private(emmo, epmo, eomp, vcv, vpcv, fv) async(4)
+    do j = 2, j1
+      do i = 2, i1
         emmo = 0.25 * ( &
               ekm(i,j,1)+ekm(i,j-1,1)+ekm(i-1,j-1,1)+ekm(i-1,j,1)  )
 
@@ -980,13 +1025,10 @@ contains
                 ( rhobh(2)/rhobf(1) * eomp * ( (v0(i,j,2)-v0(i,j,1))     /dzh(2) &
                           +(w0(i,j,2)-w0(i,j-1,2))    *dyi) &
                   -rhobh(1)/rhobf(1)*fv   ) / dzf(1)
-
       end do
     end do
 
   end subroutine diffv
-
-
 
   subroutine diffw(a_out)
 
@@ -999,11 +1041,11 @@ contains
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
     real                :: emom, eomm, eopm, epom
     integer             :: i,j,k
-    
-    !$acc parallel loop collapse(3) default(present) private(emom, eomm, eopm, epom)
-    do k=2,kmax
-      do j=2,j1
-        do i=2,i1
+
+    !$acc parallel loop collapse(3) default(present) private(emom, eomm, eopm, epom) async(5)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
 
           emom = ( dzf(k-1) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
                       dzf(k)  * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) / &
@@ -1021,7 +1063,6 @@ contains
                       dzf(k)  * ( ekm(i,j,k-1) + ekm(i+1,j,k-1) ) ) / &
                     ( 4.   * dzh(k) )
 
-
           a_out(i,j,k) = a_out(i,j,k) &
                 + &
                   ( epom * ( (w0(i+1,j,k)-w0(i,j,k))    *dxi &
@@ -1037,11 +1078,9 @@ contains
                   ( rhobf(k) * ekm(i,j,k) * (w0(i,j,k+1)-w0(i,j,k)) /dzf(k) &
                   - rhobf(k-1) * ekm(i,j,k-1)* (w0(i,j,k)-w0(i,j,k-1)) /dzf(k-1) ) * 2. &
                                                               / dzh(k)
-
         end do
       end do
     end do
-
   end subroutine diffw
 
 end module
