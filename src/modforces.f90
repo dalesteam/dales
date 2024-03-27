@@ -109,8 +109,8 @@ contains
   call timer_toc('modforces/forces')
 
   end subroutine forces
-  subroutine coriolis
 
+  subroutine coriolis
 !-----------------------------------------------------------------|
 !                                                                 |
 !      Thijs Heus TU Delft                                        |
@@ -137,11 +137,10 @@ contains
 
   call timer_tic('modforces/coriolis', 0)
 
-  !$acc parallel loop collapse(3) default(present) async
-  do k=2,kmax
-    do j=2,j1
-      do i=2,i1
-
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 2, kmax
+    do j = 2, j1
+      do i = 2, i1
         up(i,j,k) = up(i,j,k)+ cv*om23 &
               +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25 &
               -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25
@@ -149,23 +148,19 @@ contains
         vp(i,j,k) = vp(i,j,k)  - cu*om23 &
               -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25
 
-
         wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
                     +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
                     * om22*0.25
       end do
     end do
-!     -------------------------------------------end i&j-loop
   end do
-!     -------------------------------------------end k-loop
 
-!     --------------------------------------------
-!     special treatment for lowest full level: k=1
-!     --------------------------------------------
-  !$acc parallel loop collapse(2) default(present) async
-  do j=2,j1
-    do i=2,i1
-
+  ! --------------------------------------------
+  ! special treatment for lowest full level: k=1
+  ! --------------------------------------------
+  !$acc parallel loop collapse(2) default(present) async(2)
+  do j = 2, j1
+    do i = 2, i1
       up(i,j,1) = up(i,j,1)  + cv*om23 &
             +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25 &
             -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25
@@ -174,11 +169,10 @@ contains
             -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25
 
       wp(i,j,1) = 0.0
-
     end do
   end do
-!     ----------------------------------------------end i,j-loop
-  !$acc wait
+  !$acc wait(1,2)
+
   call timer_toc('modforces/coriolis')
   return
   end subroutine coriolis
@@ -222,9 +216,9 @@ contains
 !     1.2 other model levels twostream
 
   !$acc parallel loop collapse(3) default(present) async(1)
-  do k=1,kmax
-    do j=2,j1
-      do i=2,i1
+  do k = 1, kmax
+    do j = 2, j1
+      do i = 2, i1
         if (whls(k+1) < 0) then   !downwind scheme for subsidence
           thlp(i,j,k) = thlp(i,j,k) - whls(k+1) * (thl0(i,j,k+1) - thl0(i,j,k))/dzh(k+1)
           qtp (i,j,k) = qtp (i,j,k) - whls(k+1) * (qt0 (i,j,k+1) - qt0 (i,j,k))/dzh(k+1)
@@ -255,12 +249,13 @@ contains
         end do
       end do
     end do
-  end if 
-  
-  !$acc parallel loop collapse(3) async wait(1,2)
-  do k=1,kmax
-    do j=2,j1
-      do i=2,i1
+  end if
+  !$acc wait
+
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 1, kmax
+    do j = 2, j1
+      do i = 2, i1
         thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k) + dthldtls(k)
         qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
         up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
@@ -268,19 +263,19 @@ contains
       end do
     end do
   end do
-  
+
   ! Only do above for scalars if there are any scalar fields
   if (nsv > 0) then
-    !$acc parallel loop collapse(4) default(present) async
-    do n=1,nsv
-      do k=1,kmax
-        do j=1,j1
-          do i=1,i1
+    !$acc parallel loop collapse(4) default(present) async(2)
+    do n = 1, nsv
+      do k = 1, kmax
+        do j = 1, j1
+          do i = 1, i1
             if (whls(k+1).lt.0) then
               svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1)
             else
               if (k > 1) then
-                svp(i,j,k,n) = svp(i,j,k,n)-whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k)
+                svp(i,j,k,n) = svp(i,j,k,n) - whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k)
               end if
             end if
           end do
@@ -288,7 +283,6 @@ contains
       end do
     end do
   end if
-  
   !$acc wait
 
   call timer_toc('modforces/lstend')
