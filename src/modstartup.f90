@@ -67,9 +67,10 @@ contains
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
+                                  ifnamopt,fname_options,llsadv,lconstexner,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
-                                  lnoclouds,lrigidlid,unudge,ntimedep,&
+                                  lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, loutdirs, output_prefix
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
@@ -109,8 +110,9 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge
+        lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
+        irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
@@ -169,7 +171,7 @@ contains
     call initmpi
 
   !broadcast namelists
-    call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr) ! RUN
     call D_MPI_BCAST(lwarmstart ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(startfile  ,50,0,commwrld,mpierr)
     call D_MPI_BCAST(author     ,80,0,commwrld,mpierr)
@@ -183,7 +185,7 @@ contains
     call D_MPI_BCAST(nsv        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(loutdirs   ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr) ! DOMAIN
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(kmax       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xsize      ,1,0,commwrld,mpierr)
@@ -194,27 +196,30 @@ contains
     call D_MPI_BCAST(xday       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xtime      ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(z0         ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ustin      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(z0          ,1,0,commwrld,mpierr) ! PHYSICS
+    call D_MPI_BCAST(ustin       ,1,0,commwrld,mpierr)
     !call D_MPI_BCAST(lneutraldrag ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(wtsurf     ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(wqsurf     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(wtsurf      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(wqsurf      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(wsvsurf(1:nsv),nsv,0,commwrld,mpierr)
-    call D_MPI_BCAST(ps         ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(thls       ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(chi_half   ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lmoist     ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lcoriol    ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lpressgrad ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(igrw_damp  ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(geodamptime,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lforce_user,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lmomsubs   ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ltimedep   ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ltimedepuv ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(ltimedepsv ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(lrigidlid  ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(unudge     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ps          ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(thls        ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(chi_half    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lmoist      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lcoriol     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lpressgrad  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(igrw_damp   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(geodamptime ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(uvdamprate  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ltimedepuv  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ltimedepsv  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lrigidlid   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
@@ -234,7 +239,7 @@ contains
     call D_MPI_BCAST(isvsmoke   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lcloudshading,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(llsadv     ,1,0,commwrld,mpierr) ! DYNAMICS
     call D_MPI_BCAST(lqlnr      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lambda_crit,1,0,commwrld,mpierr)
     call D_MPI_BCAST(cu         ,1,0,commwrld,mpierr)
@@ -248,7 +253,7 @@ contains
     call D_MPI_BCAST(randqt     ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(randu      ,1,0,commwrld,mpierr)
 
-    call D_MPI_BCAST(ladaptive  ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(ladaptive  ,1,0,commwrld,mpierr) ! RUN
     call D_MPI_BCAST(courant,1,0,commwrld,mpierr)
     call D_MPI_BCAST(peclet,1,0,commwrld,mpierr)
 
@@ -402,7 +407,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -658,6 +663,9 @@ contains
     else !if lwarmstart
 
       call readrestartfiles
+      call baseprofs         ! reads rhobf, rhobh. Needed before calc_halflev,
+                             ! which needs base densities
+                             ! in case of kappa scheme for thl or qt
       um   = u0
       vm   = v0
       wm   = w0
@@ -666,9 +674,14 @@ contains
       svm  = sv0
       e12m = e120
       call calc_halflev
-      exnf = (presf/pref0)**(rd/cp)
-      exnh = (presh/pref0)**(rd/cp)
-
+      if (lconstexner) then
+         exnf = (initial_presf/pref0)**(rd/cp)
+         exnh = (initial_presh/pref0)**(rd/cp)
+      else
+         exnf = (presf/pref0)**(rd/cp)
+         exnh = (presh/pref0)**(rd/cp)
+      end if
+ 
       do  j=2,j1
       do  i=2,i1
       do  k=2,k1
@@ -727,7 +740,6 @@ contains
 
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
-      call baseprofs !call baseprofs
 
     end if  ! end if (.not. warmstart)
 
@@ -879,7 +891,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(13:20)=cmyid
+    name(14:21)=cmyid
     if (myid == 0) write(6,*) 'loading ',name
     open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
 
@@ -1028,11 +1040,11 @@ contains
 
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initdXXXhXXmXXXXXXXX.XXX'
-      write (name(6:8)  ,'(i3.3)') ihour
-      write (name(10:11),'(i2.2)') imin
-      name(13:20)= cmyid
-      name(22:24)= cexpnr
+      name = 'initdXXXXhXXmXXXXXXXX.XXX'
+      write (name(6:9)  ,'(i4.4)') ihour
+      write (name(11:12),'(i2.2)') imin
+      name(14:21)= cmyid
+      name(23:25)= cexpnr
       open  (ifoutput,file=trim(output_prefix)//name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -1099,7 +1111,7 @@ contains
       endif
       close (ifoutput)
       linkname = name
-      linkname(6:11) = "latest"
+      linkname(6:13) = "_latest_"
       call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       if (nsv>0) then
@@ -1112,7 +1124,7 @@ contains
 
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       end if
@@ -1135,7 +1147,7 @@ contains
 
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       end if
 

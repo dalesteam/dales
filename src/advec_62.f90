@@ -48,22 +48,22 @@ subroutine advecc_62(a_in, a_out)
   if (leq) then
 
   k = 1
-  inv2dzfk = 1./(2. * dzf(k))
+  inv2dzfk = 1/(2 * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
   do j=2,j1
      do i=2,i1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
-             u0(i+1,j,k)/60. &
-             *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -u0(i,j,k)/60. &
-             *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+             u0(i+1,j,k)/60 &
+             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+             -u0(i,j,k)/60 &
+             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
              )*dxi&
              +(&
-             v0(i,j+1,k)/60. &
-             *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -v0(i,j,k)/60. &
-             *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+             v0(i,j+1,k)/60 &
+             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+             -v0(i,j,k)/60 &
+             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
              )* dyi &
              + ( &
              w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) + a_in(i,j,k)) &
@@ -74,7 +74,7 @@ subroutine advecc_62(a_in, a_out)
 
 
   do k=2,kmax
-     inv2dzfk = 1./(2. * dzf(k))
+     inv2dzfk = 1/(2 * dzf(k))
      rhobf_p = rhobf(k+1)/rhobf(k)
      rhobf_m = rhobf(k-1)/rhobf(k)
 
@@ -84,16 +84,16 @@ subroutine advecc_62(a_in, a_out)
 
               a_out(i,j,k)  = a_out(i,j,k)- (  &
                   ( &
-                      u0(i+1,j,k)/60. &
-                      *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                      -u0(i,j,k)/60. &
-                      *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                      u0(i+1,j,k)/60 &
+                      *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                      -u0(i,j,k)/60 &
+                      *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                   )*dxi&
                 +(&
-                      v0(i,j+1,k)/60. &
-                      *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                      -v0(i,j,k)/60. &
-                      *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                      v0(i,j+1,k)/60 &
+                      *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                      -v0(i,j,k)/60 &
+                      *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                   )* dyi &
                 + ( &
                   w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) + a_in(i,j,k)) &
@@ -106,22 +106,22 @@ subroutine advecc_62(a_in, a_out)
  end do
 else ! non-equidistant grid
  k = 1
-  inv2dzfk = 1./(2. * dzf(k))
+  inv2dzfk = 1/(2 * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
   do j=2,j1
      do i=2,i1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
-             u0(i+1,j,k)/60. &
-             *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -u0(i,j,k)/60. &
-             *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+             u0(i+1,j,k)/60 &
+             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+             -u0(i,j,k)/60 &
+             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
              )*dxi&
              +(&
-             v0(i,j+1,k)/60. &
-             *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -v0(i,j,k)/60. &
-             *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+             v0(i,j+1,k)/60 &
+             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+             -v0(i,j,k)/60 &
+             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
              )* dyi &
              + ( &
              w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) * dzf(k) +  a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
@@ -132,7 +132,7 @@ else ! non-equidistant grid
 
 
   do k=2,kmax
-     inv2dzfk = 1./(2. * dzf(k))
+     inv2dzfk = 1/(2 * dzf(k))
      rhobf_p = rhobf(k+1)/rhobf(k)
      rhobf_m = rhobf(k-1)/rhobf(k)
 
@@ -142,16 +142,16 @@ else ! non-equidistant grid
 
               a_out(i,j,k)  = a_out(i,j,k)- (  &
                   ( &
-                      u0(i+1,j,k)/60. &
-                      *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                      -u0(i,j,k)/60. &
-                      *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                      u0(i+1,j,k)/60 &
+                      *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                      -u0(i,j,k)/60 &
+                      *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                   )*dxi&
                 +(&
-                      v0(i,j+1,k)/60. &
-                      *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                      -v0(i,j,k)/60. &
-                      *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                      v0(i,j+1,k)/60 &
+                      *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                      -v0(i,j,k)/60 &
+                      *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                   )* dyi &
                   + ( &
                    w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) * dzf(k) +  a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
@@ -183,23 +183,23 @@ subroutine advecu_62(a_in,a_out)
   if (leq) then
   
   k = 1
-  inv4dzfk = 1./(4. * dzf(k))
+  inv4dzfk = 1/(4 * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
   do j=2,j1
      do i=2,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
-             (u0(i+1,j,k)+u0(i,j,k))/60. &
-             *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -(u0(i,j,k)+u0(i-1,j,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+             (u0(i+1,j,k)+u0(i,j,k))/60 &
+             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i-1,j,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
              )*dxi5&
              +(&
-             (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
-             *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -(v0(i,j,k)+v0(i-1,j,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+             (v0(i,j+1,k)+v0(i-1,j+1,k))/60 &
+             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i-1,j,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
              )* dyi5 &
              + ( &
              (rhobf_p * a_in(i,j,k+1) + a_in(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
@@ -210,7 +210,7 @@ subroutine advecu_62(a_in,a_out)
 
 
     do k=2,kmax
-       inv4dzfk = 1./(4. * dzf(k))
+       inv4dzfk = 1/(4 * dzf(k))
        rhobf_p = rhobf(k+1)/rhobf(k)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
@@ -219,16 +219,16 @@ subroutine advecu_62(a_in,a_out)
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
-                    (u0(i+1,j,k)+u0(i,j,k))/60. &
-                    *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                    -(u0(i,j,k)+u0(i-1,j,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                    (u0(i+1,j,k)+u0(i,j,k))/60 &
+                    *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                    -(u0(i,j,k)+u0(i-1,j,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                 )*dxi5&
               +(&
-                    (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
-                    *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                    -(v0(i,j,k)+v0(i-1,j,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                    (v0(i,j+1,k)+v0(i-1,j+1,k))/60 &
+                    *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                    -(v0(i,j,k)+v0(i-1,j,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                 )* dyi5 &
               + ( &
                      (a_in(i,j,k) + rhobf_p * a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
@@ -241,23 +241,23 @@ subroutine advecu_62(a_in,a_out)
     end do
  else ! non-equidistant grid
     k = 1
-  inv4dzfk = 1./(4. * dzf(k))
+  inv4dzfk = 1/(4 * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
   do j=2,j1
      do i=2,i1
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
-             (u0(i+1,j,k)+u0(i,j,k))/60. &
-             *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -(u0(i,j,k)+u0(i-1,j,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+             (u0(i+1,j,k)+u0(i,j,k))/60 &
+             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i-1,j,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
              )*dxi5&
              +(&
-             (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
-             *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -(v0(i,j,k)+v0(i-1,j,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+             (v0(i,j+1,k)+v0(i-1,j+1,k))/60 &
+             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i-1,j,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
              )* dyi5 &
              + ( &
              (a_in(i,j,k) * dzf(k+1) + rhobf_p * a_in(i,j,k+1)*dzf(k)) * (w0(i,j,k+1)+w0(i-1,j,k+1)) / dzh(k+1) &
@@ -268,7 +268,7 @@ subroutine advecu_62(a_in,a_out)
 
 
     do k=2,kmax
-       inv4dzfk = 1./(4. * dzf(k))
+       inv4dzfk = 1/(4 * dzf(k))
        rhobf_p = rhobf(k+1)/rhobf(k)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
@@ -277,16 +277,16 @@ subroutine advecu_62(a_in,a_out)
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
-                    (u0(i+1,j,k)+u0(i,j,k))/60. &
-                    *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                    -(u0(i,j,k)+u0(i-1,j,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                    (u0(i+1,j,k)+u0(i,j,k))/60 &
+                    *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                    -(u0(i,j,k)+u0(i-1,j,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                 )*dxi5&
               +(&
-                    (v0(i,j+1,k)+v0(i-1,j+1,k))/60. &
-                    *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                    -(v0(i,j,k)+v0(i-1,j,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                    (v0(i,j+1,k)+v0(i-1,j+1,k))/60 &
+                    *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                    -(v0(i,j,k)+v0(i-1,j,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                 )* dyi5 &
               + ( &
                      (a_in(i,j,k) * dzf(k+1) + rhobf_p * a_in(i,j,k+1) *dzf(k)) * (w0(i,j,k+1)+w0(i-1,j,k+1)) / dzh(k+1) &
@@ -320,7 +320,7 @@ subroutine advecv_62(a_in, a_out)
   if (leq) then
 
   k = 1
-  inv4dzfk = 1./(4. * dzf(k))
+  inv4dzfk = 1/(4 * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
 
     do j=2,j1
@@ -328,16 +328,16 @@ subroutine advecv_62(a_in, a_out)
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
-             (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
-             *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -(u0(i,j,k)+u0(i,j-1,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+             (u0(i+1,j,k)+u0(i+1,j-1,k))/60 &
+             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i,j-1,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
              )*dxi5&
              +(&
-             (v0(i,j+1,k)+v0(i,j,k))/60. &
-             *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -(v0(i,j,k)+v0(i,j-1,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+             (v0(i,j+1,k)+v0(i,j,k))/60 &
+             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i,j-1,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
              )* dyi5 &
              +( &
              (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf_p * a_in(i,j,k+1)+a_in(i,j,k)) &                          
@@ -347,7 +347,7 @@ subroutine advecv_62(a_in, a_out)
   end do
         
     do k=2,kmax
-       inv4dzfk = 1./(4. * dzf(k))
+       inv4dzfk = 1/(4 * dzf(k))
        rhobf_p = rhobf(k+1)/rhobf(k)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
@@ -356,16 +356,16 @@ subroutine advecv_62(a_in, a_out)
         
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
-                    (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
-                    *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                    -(u0(i,j,k)+u0(i,j-1,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                    (u0(i+1,j,k)+u0(i+1,j-1,k))/60 &
+                    *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                    -(u0(i,j,k)+u0(i,j-1,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                  )*dxi5&
                 +(&
-                    (v0(i,j+1,k)+v0(i,j,k))/60. &
-                    *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                    -(v0(i,j,k)+v0(i,j-1,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                    (v0(i,j+1,k)+v0(i,j,k))/60 &
+                    *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                    -(v0(i,j,k)+v0(i,j-1,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                   )* dyi5 &
                 + ( &
                 (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf_p * a_in(i,j,k+1) + a_in(i,j,k))&
@@ -377,7 +377,7 @@ subroutine advecv_62(a_in, a_out)
     end do
  else ! non-equidistant grid
     k = 1
-  inv4dzfk = 1./(4. * dzf(k))
+  inv4dzfk = 1/(4 * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
 
     do j=2,j1
@@ -385,16 +385,16 @@ subroutine advecv_62(a_in, a_out)
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
-             (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
-             *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -(u0(i,j,k)+u0(i,j-1,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+             (u0(i+1,j,k)+u0(i+1,j-1,k))/60 &
+             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+             -(u0(i,j,k)+u0(i,j-1,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
              )*dxi5&
              +(&
-             (v0(i,j+1,k)+v0(i,j,k))/60. &
-             *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -(v0(i,j,k)+v0(i,j-1,k))/60. &
-             *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+             (v0(i,j+1,k)+v0(i,j,k))/60 &
+             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+             -(v0(i,j,k)+v0(i,j-1,k))/60 &
+             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
              )* dyi5 &
              +( &
              (w0(i,j,k+1)+w0(i,j-1,k+1)) * (rhobf_p * a_in(i,j,k+1)*dzf(k) + a_in(i,j,k)*dzf(k+1)) / dzh(k+1)&
@@ -404,7 +404,7 @@ subroutine advecv_62(a_in, a_out)
   end do
         
     do k=2,kmax
-       inv4dzfk = 1./(4. * dzf(k))
+       inv4dzfk = 1/(4 * dzf(k))
        rhobf_p = rhobf(k+1)/rhobf(k)
        rhobf_m = rhobf(k-1)/rhobf(k)
 
@@ -413,16 +413,16 @@ subroutine advecv_62(a_in, a_out)
         
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
-                    (u0(i+1,j,k)+u0(i+1,j-1,k))/60. &
-                    *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                    -(u0(i,j,k)+u0(i,j-1,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                    (u0(i+1,j,k)+u0(i+1,j-1,k))/60 &
+                    *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                    -(u0(i,j,k)+u0(i,j-1,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                  )*dxi5&
                 +(&
-                    (v0(i,j+1,k)+v0(i,j,k))/60. &
-                    *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                    -(v0(i,j,k)+v0(i,j-1,k))/60. &
-                    *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                    (v0(i,j+1,k)+v0(i,j,k))/60 &
+                    *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                    -(v0(i,j,k)+v0(i,j-1,k))/60 &
+                    *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                   )* dyi5 &
                   + ( &
                   (w0(i,j,k+1)+w0(i,j-1,k+1)) * (rhobf_p * a_in(i,j,k+1) * dzf(k) + a_in(i,j,k) * dzf(k+1)) / dzh(k+1)&
@@ -454,7 +454,7 @@ subroutine advecw_62(a_in, a_out)
   !if (leq) then
 
     do k=2,kmax
-       inv4dzhk = 1./(4. * dzh(k))
+       inv4dzhk = 1/(4 * dzh(k))
        rhobh_p = rhobh(k+1)/rhobh(k)
        rhobh_m = rhobh(k-1)/rhobh(k)
 
@@ -463,16 +463,16 @@ subroutine advecw_62(a_in, a_out)
 
            a_out(i,j,k)  = a_out(i,j,k)- ( &
                  (&
-                     (u0(i+1,j,k)+u0(i+1,j,k-1))/60. &
-                     *(37.*(a_in(i+1,j,k)+a_in(i,j,k))-8.*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                     -(u0(i,j,k)+u0(i,j,k-1))/60. &
-                     *(37.*(a_in(i,j,k)+a_in(i-1,j,k))-8.*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
+                     (u0(i+1,j,k)+u0(i+1,j,k-1))/60 &
+                     *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
+                     -(u0(i,j,k)+u0(i,j,k-1))/60 &
+                     *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
                  )*dxi5&
                 +(&
-                     (v0(i,j+1,k)+v0(i,j+1,k-1))/60. &
-                     *(37.*(a_in(i,j+1,k)+a_in(i,j,k))-8.*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                     -(v0(i,j,k)+v0(i,j,k-1))/60. &
-                     *(37.*(a_in(i,j,k)+a_in(i,j-1,k))-8.*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
+                     (v0(i,j+1,k)+v0(i,j+1,k-1))/60 &
+                     *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
+                     -(v0(i,j,k)+v0(i,j,k-1))/60 &
+                     *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
                   )* dyi5 &
                 + ( &
                       (a_in(i,j,k)+rhobh_p * a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &

@@ -6,7 +6,7 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 4.4
+!! @version 4.4.2
 !!
 !! @author
 !! Steef Boing
@@ -141,6 +141,7 @@ program DALES
   use modbudget,       only : initbudget, budgetstat, exitbudget
   use modheterostats,  only : initheterostats, heterostats, exitheterostats
   use modvarbudget,    only : initvarbudget, varbudget, exitvarbudget
+  use modmsebudg,      only : initmsebudg, msebudg1, msebudg2, exitmsebudg
   ! modules below are disabled by default to improve compilation time
   !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
 
@@ -189,6 +190,7 @@ program DALES
   call initbulkmicrostat
   call initbudget
   call initvarbudget
+  call initmsebudg
   !call initstressbudget
 ! call initchem
   call initheterostats
@@ -261,6 +263,8 @@ program DALES
     call poisson
     call samptend(tend_pois,lastterm=.true.)
 
+    call msebudg1
+
     ! Apply tendencies to all variables
     call tstep_integrate
     ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
@@ -298,6 +302,7 @@ program DALES
     call bulkmicrostat
     call budgetstat
     call varbudget
+    call msebudg2
     !call stressbudgetstat
     call heterostats
 
@@ -326,6 +331,7 @@ program DALES
   call exitbulkmicrostat
   call exitbudget
   call exitvarbudget
+  call exitmsebudg
   !call exitstressbudget
   call exitcrosssection
   call exitAGScross

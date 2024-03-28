@@ -427,7 +427,8 @@ contains
       implicit none
 
       integer n
-      real x,y, xa(n), y2a(n), ya(n)
+      real(field_r) x
+      real y, xa(n), y2a(n), ya(n)
       integer k,khi,klo
       real a,b,h
       klo = 1

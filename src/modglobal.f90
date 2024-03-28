@@ -63,14 +63,14 @@ save
       integer, parameter :: ifnamopt   = 3
 
       real,parameter :: pi       = 3.141592653589793116
-      real,parameter :: grav     = 9.81             !<    *gravity acceleration.
-      real,parameter :: rd       = 287.04           !<    *gas constant for dry air.
-      real,parameter :: rv       = 461.5            !<    *gas constant for water vapor.
-      real,parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
-      real,parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation
-      real,parameter :: riv     = 2.84e6           !<    *latent heat for sublimation
-      real,parameter :: tup     = 268.             !<    * Temperature range over which mixed phase occurs (high)
-      real,parameter :: tdn     = 253.             !<    * Temperature range over which mixed phase occurs (low)
+      real(field_r),parameter :: grav     = 9.81             !<    *gravity acceleration.
+      real(field_r),parameter :: rd       = 287.04           !<    *gas constant for dry air.
+      real(field_r),parameter :: rv       = 461.5            !<    *gas constant for water vapor.
+      real(field_r),parameter :: cp       = 1004.            !<    *specific heat at constant pressure (dry air).
+      real(field_r),parameter :: rlv     = 2.53e6           !<    *latent heat for vaporisation J/kg
+      real(field_r),parameter :: riv     = 2.84e6           !<    *latent heat for sublimation
+      real(field_r),parameter :: tup     = 268.             !<    * Temperature range over which mixed phase occurs (high)
+      real(field_r),parameter :: tdn     = 253.             !<    * Temperature range over which mixed phase occurs (low)
       real,parameter :: ep       = rd/rv            !<    0.622
       real,parameter :: ep2      = rv/rd - 1.       !<    0.61
       !< real,parameter :: cv       = cp-rd            !<    716.96
@@ -84,8 +84,8 @@ save
       real,parameter :: es0      = 610.78           !<    * constants used for computation
       real,parameter :: at       = 17.27            !<    * of saturation mixing ratio
       real,parameter :: bt       = 35.86            !<    * using Tetens Formula.
-      real,parameter :: ekmin    = 1.e-6            !<    *minimum value for k-coefficient.
-      real,parameter :: e12min   = 5.e-5            !<    *minimum value for TKE.
+      real(field_r),parameter :: ekmin    = 1.e-6            !<    *minimum value for k-coefficient.
+      real(field_r),parameter :: e12min   = 5.e-5            !<    *minimum value for TKE.
       real,parameter :: fkar     = 0.4              !<    *Von Karman constant
       real(field_r),parameter :: eps1     = 1.e-10           !<    *very small number*
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
@@ -93,17 +93,17 @@ save
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
       logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
-
-      integer :: igrw_damp = 2 !< switch to enable gravity wave damping
-      real    :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
-      real    :: om22                       !<    *2.*omega_earth*cos(lat)
-      real    :: om23                       !<    *2.*omega_earth*sin(lat)
-      real    :: om22_gs                       !<    *2.*omega_earth*cos(lat)
-      real    :: om23_gs                       !<    *2.*omega_earth*sin(lat)
-      real    :: xlat    = 52.              !<    *latitude  in degrees.
-      real    :: xlon    = 0.               !<    *longitude in degrees.
-      logical :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
-      real    :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
+      integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
+      real(field_r) :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
+      real(field_r) :: uvdamprate = 0.  !< rate for damping mean horizontal wind
+      real(field_r) :: om22                       !<    *2.*omega_earth*cos(lat)
+      real(field_r) :: om23                       !<    *2.*omega_earth*sin(lat)
+      real(field_r) :: om22_gs                       !<    *2.*omega_earth*cos(lat)
+      real(field_r) :: om23_gs                       !<    *2.*omega_earth*sin(lat)
+      real          :: xlat    = 52.              !<    *latitude  in degrees.
+      real          :: xlon    = 0.               !<    *longitude in degrees.
+      logical       :: lrigidlid = .false. !< switch to enable simulations with a rigid lid
+      real(field_r) :: unudge = 1.0   !< Nudging factor if igrw_damp == -1 (nudging mean wind fields to geostrophic values provided by lscale.inp)
 
       !Base state
       integer :: ibas_prf = 3
@@ -132,13 +132,16 @@ save
       real, dimension(1:2000) :: ttab
       real, dimension(1:2000) :: esatltab
       real, dimension(1:2000) :: esatitab
+      real, dimension(1:2000) :: esatmtab
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
 
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
+      logical :: lfast_thermo = .false. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
-
+      logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
+      
       ! Poisson solver: modpois / modhypre
       integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
                                      !                                     FFT  SMG PFMG BiCGSTAB GMRES
@@ -167,7 +170,7 @@ save
     !<     real :: dsv(nsv)          !<     * applied gradient of sv(n) at top of model
 
       integer(kind=longint) :: dt                !<     * time integration interval
-      real :: rdt                !<     * time integration interval
+      real(field_r) :: rdt                !<     * time integration interval
       integer               :: dt_reason=0  !< indicates which dt limit was the lowest
       integer(kind=longint) :: timee             !<     * elapsed time since the "cold" start
       real :: rtimee             !<     * elapsed time since the "cold" start
@@ -188,39 +191,39 @@ save
 
       character(3) cexpnr
       logical :: loutdirs = .false.       !< if true, create output directories using myidy
-      character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory 
+      character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory
 
       ! modphsgrd.f90
 
-      real :: dx              !<  grid spacing in x-direction
-      real :: dy              !<  grid spacing in y-direction
-      real :: dz              !<  grid spacing in z-direction
-      real :: dxi             !<  1/dx
-      real :: dyi             !<  1/dy
-      real :: dzi             !<  1/dz
-      real :: dxiq            !<  1/(dx*4)
-      real :: dyiq            !<  1/(dy*4)
-      real :: dziq            !<  1/(dz*4)
-      real :: dxi5            !<  1/(dx*2)
-      real :: dyi5            !<  1/(dy*2)
-      real :: dzi5            !<  1/(dz*2)
-      real :: dx2i            !<  (1/dx)**2
-      real :: dy2i            !<  (1/dy)**2
+      real(field_r) :: dx              !<  grid spacing in x-direction
+      real(field_r) :: dy              !<  grid spacing in y-direction
+      real(field_r) :: dz              !<  grid spacing in z-direction
+      real(field_r) :: dxi             !<  1/dx
+      real(field_r) :: dyi             !<  1/dy
+      real(field_r) :: dzi             !<  1/dz
+      real(field_r) :: dxiq            !<  1/(dx*4)
+      real(field_r) :: dyiq            !<  1/(dy*4)
+      real(field_r) :: dziq            !<  1/(dz*4)
+      real(field_r) :: dxi5            !<  1/(dx*2)
+      real(field_r) :: dyi5            !<  1/(dy*2)
+      real(field_r) :: dzi5            !<  1/(dz*2)
+      real(field_r) :: dx2i            !<  (1/dx)**2
+      real(field_r) :: dy2i            !<  (1/dy)**2
 
 
-      real :: ijtot
-      real, allocatable :: dzf(:)         !<  thickness of full level
-      real, allocatable :: dzh(:)         !<  thickness of half level
-      real, allocatable :: zh(:)          !<  height of half level [m]
-      real, allocatable :: zf(:)          !<  height of full level [m]
-      real :: xsize    = -1 !<  domain size in x-direction
-      real :: ysize    = -1 !<  domain size in y-direction
-      real, allocatable :: delta(:)       !<  (dx*dy*dz)**(1/3)
-      real, allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)
+      real(field_r) :: ijtot
+      real(field_r), allocatable :: dzf(:), dzfi(:) !<  thickness of full level, and inverse
+      real(field_r), allocatable :: dzh(:), dzhi(:) !<  thickness of half level, and inverse
+      real(field_r), allocatable :: zh(:)           !<  height of half level [m]
+      real(field_r), allocatable :: zf(:)           !<  height of full level [m]
+      real(field_r) :: xsize    = -1                !<  domain size in x-direction
+      real(field_r) :: ysize    = -1                !<  domain size in y-direction
+      real(field_r), allocatable :: delta(:)        !<  (dx*dy*dz)**(1/3)
+      real(field_r), allocatable :: deltai(:)       !<  (dx*dy*dz)**(-1/3)  or dzf**-1 for anisotropic diffusion
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-      character(80) :: author='', version='DALES 4.4'
+      character(80) :: author='', version='DALES 4.4.2'
 contains
 
 !> Initialize global settings.
@@ -320,20 +323,6 @@ contains
 
     ! Global constants
 
-
-
-    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
-    ! esatitab(m) is the same over ice
-    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
-    ! Murphy and Koop 2005 parameterization formula.
-    do m=1,2000
-    ttab(m)=150.+0.2*m
-    esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
-         tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
-
-    esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
-    end do
-
     mygamma251(-100)=0.
     mygamma21(-100)=0.
     do m=-99,4000
@@ -375,8 +364,8 @@ contains
 
 
     ! Create the physical grid variables
-    allocate(dzf(k1))
-    allocate(dzh(k1))
+    allocate(dzf(k1), dzfi(k1))
+    allocate(dzh(k1), dzhi(k1))
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1),deltai(k1))
@@ -430,10 +419,13 @@ contains
       dzh(k) = zf(k) - zf(k-1)
     end do
 
+    dzfi = 1.0 / dzf
+    dzhi = 1.0 / dzh
+
     do k=1,k1
 
        delta(k) = (dx*dy*dzf(k))**(1./3.)
-       deltai(k) = 1./delta(k)
+       deltai(k) = 1./delta(k)     !can be overruled in modsubgrid in case anisotropic diffusion is applied
     end do
 
   !--------------------------------------------------
@@ -490,7 +482,7 @@ contains
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    deallocate(dsv,dzf,dzh,zh,zf,delta,deltai)
+    deallocate(dsv,dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)

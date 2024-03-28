@@ -574,7 +574,7 @@ contains
       if    (TRIM(traceGasNameOrder(m))=='O3')    then
         o3(:) = tmpTrace(:)
       elseif(TRIM(traceGasNameOrder(m))=='CO2')   then
-        co2(:) = REAL(co2factor,KIND=kind_rb)*tmpTrace(:)
+        co2(:) = tmpTrace(:)
       elseif(TRIM(traceGasNameOrder(m))=='CH4')   then
         ch4(:) = tmpTrace(:)  !cstep ch4(:) = ch4factor for RCE
       elseif(TRIM(traceGasNameOrder(m))=='N2O')   then
@@ -591,6 +591,17 @@ contains
         ccl4(:) = tmpTrace(:)
       end if
     end do !loop over trace gases, m
+
+    ! use trace gas concentrations from namoptions, if provided
+    if (co2_fraction >= 0) then
+       co2(:) = co2_fraction
+    end if
+    if (ch4_fraction >= 0) then
+       ch4(:) = ch4_fraction
+    end if
+    if (n2o_fraction >= 0) then
+       n2o(:) = n2o_fraction
+    end if
 
     if(myid==0)then
       write(*,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np

@@ -285,6 +285,9 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   lcloudshading	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch to let clouds shade the surface for rad\_lsm & -\\
   lrigidlid	& .false. & $x\in\{\text{.false.},\text{.true.}\}$ & Switch to enable simulations with a rigid lid & -\\
   unudge	& 1		& $x \in \mathbb{R}, \quad 0 \leq x \leq 1$	& Nudging factor if \hyperlink{igrw}{igrw\_damp} is -1 & -\\
+  uvdamprate	& 0		& $x \in \mathbb{R}, \quad 0 \leq x $	& damp $u$ and $v$ to geostrophic wind with this rate constant & - \\ 
+  lfast\_thermo & .false.       & $x\in\{\text{.false.},\text{.true.}\}$ & Enable a faster thermodynamics routine & \\
+  lconstexner   & .false.       & $x\in\{\text{.false.},\text{.true.}\}$ & Keep the exner function constant in time, calculated from the initial profile & \\
 \end{supertabular}
 \end{center}
 
@@ -370,10 +373,11 @@ $^*$If $\hyperlink{iadvmom}{\text{iadv\_mom}} \in \lbrace6, 62\rbrace$ or any va
   cn		& 0.76		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter				& -\\
   Rigc		& 0.25		& $x \in \mathbb{R}, \quad x>0$	& Critical Richardson number				& -\\
   Prandtl	& $\frac{1}{3}$	& $x \in \mathbb{R}, \quad x>0$	& Prandtl number					& -\\
-  lsmagorinsky & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for smagorinsky subgrid scheme & -\\
+  lsmagorinsky & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for Smagorinsky subgrid scheme & -\\
+  lanisotrop   & .false.& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for anisotropic subgrid scheme & -\\
   cs	& -1	& $x \in \mathbb{R}, \quad x>0$ & Smagorinsky constant	& -\\
   nmason	& 2	& $x \in \mathbb{R}, \quad x>0$ & Exponent in Mason correction function & -\\
-%  sgs\_surface\_fix & .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
+  sgs\_surface\_fix & .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to apply a fix to the coupling of SFS TKE to the surface (experimental) & - \\
   ch1		& 1.0		& $x \in \mathbb{R}, \quad x>0$	& Subfilter scale parameter					& -\\
 \end{supertabular}
 \end{center}
@@ -810,6 +814,16 @@ tolerance = 1E-12
   lthl	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save $\theta_l$ & -\\
   lbuoy	       & .true.	        & $x\in\{\text{.false.},\text{.true.}\}$	& Save buoyancy field & -\\
   lsv	       & .true.         & $x\in\{\text{.false.},\text{.true.}\}$	& List of booleans for saving sv001, sv002, ... & -\\
+  lcli         & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the cli field & - \\
+  lclw         & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the clw field & - \\
+  lta          & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the ta field  & - \\
+  lplw         & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the plw field & - \\
+  lpli         & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the pli field & - \\
+  lhus         & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the hus field & - \\
+  lhur         & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the hur field & - \\
+  ltntr        & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the tntr field  & - \\
+  ltntrs       & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the tntrs field & - \\
+  ltntrl       & .false.        & $x\in\{\text{.false.},\text{.true.}\}$	& save the tntrl field & - \\
 \end{supertabular}
 \end{center}
 
@@ -1135,7 +1149,9 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
  &&&&\\
  ocean		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to calculate radiation over ocean	& -\\
  usero3		& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch to take O$_3$ profile from backrad.inp instead of standard profile	& -\\
- co2factor	& 1			& $x \in \mathbb{R},\quad x \geq 0$			& Multiplication factor for reading CO$_2$ input by RRTMG	& - \\
+ co2\_fraction	& -1		& $x \in \mathbb{R},\quad x \geq 0$	        & If given, CO2 volume fraction is set to this value for RRTMG	& - \\
+ ch4\_fraction	& -1		& $x \in \mathbb{R},\quad x \geq 0$	        & If given, CH4 volume fraction is set to this value for RRTMG	& - \\
+ n2o\_fraction	& -1		& $x \in \mathbb{R},\quad x \geq 0$	        & If given, N2O volume fraction is set to this value for RRTMG	& - \\
  &&&&\\
  doperpetual	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& \parbox{6cm}{Switch to not use a diurnal cycle	(code not yet inserted if .true.; highly recommended not to enable)}& -\\
   &&&&\\
@@ -1232,7 +1248,7 @@ This namelist is only used if the RTE-RRTMGP model for GCMs is applied, i.e.  \h
 \end{center}
 
 \newpage
-\subsection{Namelist NAMVARBUDGET}\label{par:varbudget}
+\subsection{Namelist NAMMSEBUDG}\label{par:msebudget}
 
 \begin{center}
 	  \tablefirsthead{
@@ -1254,9 +1270,8 @@ This namelist is only used if the RTE-RRTMGP model for GCMs is applied, i.e.  \h
         &&&&\\\hline
   }
 \begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
-  lvarbudget	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	        & Switch to turn on variance budget output      & -\\
-  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of variance budget	& s\\
-  timeav	& timeav\_glob	& $x = n \cdot \text{dtav},  \quad n \in \mathbb{N}^*$	& Time interval for writing statistics		& s\\
+  lmsebudg	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	        & Switch to turn on moist static energy budget output & -\\
+  dtav		& dtav\_glob	& $x = n \cdot \text{dtmax}, \quad n \in \mathbb{N}^*$	& Time interval for sampling of variance budget	& s \\
 \end{supertabular}
 \end{center}
 
@@ -1386,7 +1401,8 @@ This namelist is only used if the RTE-RRTMGP model for GCMs is applied, i.e.  \h
   ustin	& -1	& $x \in \mathbb{R}, \quad x \ge 0$	& Prescribed friction velocity & m s$^{-1}$\\
   wtsurf	& -1	& $x \in \mathbb{R}$	& Prescribed kinematic temperature flux	& K m s$^{-1}$\\
   wqsurf	& -1	& $x \in \mathbb{R}$	& Prescribed kinematic moisture flux & kg kg$^{-1}$ m s$^{-1}$\\
-  wsvsurf(1:nsv)& 0	& $x \in \mathbb{R}[100]$	& Prescribed surface scalar flux & ppb m s$^{-1}$\\ 
+  wsvsurf(1:nsv)& 0	& $x \in \mathbb{R}[100]$	& Prescribed surface scalar flux & ppb m s$^{-1}$\\
+  min\_horv     & 0.1   & $x \in \mathbb{R}, \quad x \ge 0$ & Minimum surface wind velocity for drag calculation & m s$^{-1}$\\
   tsoilav	& -	& $x \in \mathbb{R}[4], \quad x[i] > 0$	& Initial soil temperature (for 4 layers, only used if isurf = 1)	& K\\
   tsoildeepav	& - & $x \in \mathbb{R}, \quad x>0$ & Soil bottom temperature (if isurf = 1)& K \\
   &&&&\\
