@@ -372,7 +372,7 @@ contains
       use modglobal, only : cexpnr,ifoutput,kmax,k1,zf,zh,rtimee
       use modstat_nc, only: lnetcdf, writestat_nc
       use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
-      use modraddata, only : iradiation,irad_par,irad_rrtmg
+      use modraddata, only : iradiation,irad_par,irad_rrtmg,irad_rte_rrtmgp
       implicit none
       real,dimension(k1,nvar) :: vars
       integer nsecs, nhrs, nminut,k
@@ -434,7 +434,7 @@ contains
       end do
       close (ifoutput)
 
-     if(iradiation == irad_par .or. iradiation ==irad_rrtmg) then ! delta eddington or RRTMG)
+     if(iradiation == irad_par .or. iradiation ==irad_rrtmg .or. iradiation == irad_rte_rrtmgp) then ! delta eddington or RRTMG)
       open (ifoutput,file='radsplitstat.'//cexpnr,position='append')
       write(ifoutput,'(//A,/A,F5.0,A,I4,A,I2,A,I2,A)') &
       '#--------------------------------------------------------'      &

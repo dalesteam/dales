@@ -31,7 +31,7 @@
 module modraddata
 
 ! implicit none
-  use modglobal, only : longint,kind_rb,SHR_KIND_IN,SHR_KIND_R4
+  use modglobal, only : longint,kind_rb,SHR_KIND_IN,SHR_KIND_R4,kind_im
   use modprecision, only : field_r
 SAVE
 
@@ -41,6 +41,7 @@ SAVE
   integer, parameter :: irad_lsm   = 3   !< 3=simple surface radiation for land surface model
   integer, parameter :: irad_rrtmg = 4   !< 4=radiation using the rapid radiative transfer model
   integer, parameter :: irad_user  = 10  !< 10=user specified radiation
+  integer, parameter :: irad_rte_rrtmgp = 5 !< 5=radiation using the rapid radiative transfer model parallel
 
   logical :: rad_ls      = .true.        !< prescribed radiative forcing
   logical :: rad_longw   = .true.        !< parameterized longwave radiative forcing
@@ -74,13 +75,14 @@ SAVE
   real :: cnstZenith=0.                  !< constant zenith angle, only used when lCnstZenith=.true. (degrees!)
 
   ! Options in NAMRADIATION that apply to the rrtmg script
-  integer :: ioverlap = 2                ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
-  integer :: inflglw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer :: iceflglw = 3                ! 0,1,2,3: ice influence calculations
-  integer :: liqflglw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
-  integer :: inflgsw = 2                 ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
-  integer :: iceflgsw = 3                ! 0,1,2,3: ice influence calculations
-  integer :: liqflgsw = 1                ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer(kind=kind_im) :: iaer = 0      ! Aerosol option (SW flag); 0: No aerosol; 6: ECMWF method; 10: Input aerosol optical properties
+  integer(kind=kind_im) :: ioverlap = 2  ! Cloud overlap method; 0: Clear only; 1: Random; 2: Maximum/random; 3: Maximum
+  integer(kind=kind_im) :: inflglw = 2   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer(kind=kind_im) :: iceflglw = 3  ! 0,1,2,3: ice influence calculations
+  integer(kind=kind_im) :: liqflglw = 1  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
+  integer(kind=kind_im) :: inflgsw = 2   ! 0:inp. cld fr and opt. depth; 1:cf and LWP are input; 2:also ice fraction inp.
+  integer(kind=kind_im) :: iceflgsw = 3  ! 0,1,2,3: ice influence calculations
+  integer(kind=kind_im) :: liqflgsw = 1  ! 0:optical depths computed; 1:drop eff. rad. is input, opt. depth computed
   logical :: ocean  = .false.            ! if true, run is over ocean.
   logical :: usero3 = .false.            ! if true, the o3 profile is taken from backrad.inp, otherwise from stnd prof RRTMG
   real    :: co2_fraction = -1.          ! If given in namoptions, the CO2 volume fraction is set to this value for RRTMG (CGILS)
@@ -89,6 +91,11 @@ SAVE
   logical :: doperpetual = .false.       ! if true, no diurnal cycle is used, but rather a diurnally averaged forcing
   logical :: doseasons = .true.          ! if false, the same day will be repeated, otherwise, next day is taken
   integer(SHR_KIND_IN) :: iyear = 1992   ! The year of the simulation
+
+  ! Options in NAMRTERRTMGP that apply to the RTE-RRTMGP library
+  logical :: doclearsky = .false.
+  logical :: usepade = .false.
+  integer :: nbatch = 0
 
   ! Logicals and variables that are used in the modradrrtmg module
   logical :: isInitializedRrtmg = .false.           ! used as a initialization check
@@ -103,26 +110,28 @@ SAVE
                                                    qci_slice,      &    ! Ice content          (2D slice)
                                                    o3_slice,       &    ! Ozon content         (2D slice)
                                                    rho_slice,      &    ! Density              (2D slice)
-                                                   lwUp_slice,     &    ! Upwelling longwave rad                    (2D slice)
-                                                   lwDown_slice,   &    ! Downwelling longwave rad                  (2D slice)
-                                                   lwUpCS_slice,   &    ! Upwelling longwave rad, clear sky value   (2D slice)
-                                                   lwDownCS_slice, &    ! Downwelling longwave rad, clear sky value (2D slice)
                                                    lwHR_slice,     &    ! Heating rate due to longwave rad          (2D slice)
                                                    lwHRCS_slice,   &    ! Heating rate due to longwave rad,clear sky value          (2D slice)
-                                                   swUp_slice,     &    ! Upwelling shortwave rad                   (2D slice)
-                                                   swDown_slice,   &    ! Downwelling shortwave rad                 (2D slice)
-                                                   swDownDir_slice,&    ! Downwelling shortwave direct rad          (2D slice)
                                                    swDownDif_slice,&    ! Downwelling shortwave diffuse rad         (2D slice)
-                                                   swUpCS_slice,   &    ! Upwelling shortwave rad, clear sky value  (2D slice)
-                                                   swDownCS_slice, &    ! Downwelling shortwave rad, clear sky value(2D slice)
                                                    swHR_slice,     &    ! Heating rate due to shortwave rad         (2D slice)
                                                    swHRCS_slice         ! Heating rate due to shortwave rad,clear sky value         (2D slice)
+  real(kind=kind_rb),allocatable,target,dimension(:,:) :: lwUp_slice,     & ! Upwelling longwave rad                    (2D slice)
+                                                          lwDown_slice,   & ! Downwelling longwave rad                  (2D slice)
+                                                          swUp_slice,     & ! Upwelling shortwave rad                   (2D slice)
+                                                          swDown_slice,   & ! Downwelling shortwave rad                 (2D slice)
+                                                          swDownDir_slice,& ! Downwelling shortwave direct rad          (2D slice)
+                                                          lwUpCS_slice,   &  ! Upwelling longwave rad, clear sky value   (2D slice)
+                                                          lwDownCS_slice, &  ! Downwelling longwave rad, clear sky value (2D slice)
+                                                          swUpCS_slice,   &  ! Upwelling shortwave rad, clear sky value  (2D slice)
+                                                          swDownCS_slice     ! Downwelling shortwave rad, clear sky value(2D slice)
 
-  real,allocatable,dimension(:) ::                 solarZenithAngleCos  ! The zenith angle of a slice
+  real(kind=kind_rb),allocatable,dimension(:) :: solarZenithAngleCos  ! The zenith angle of a slice
   real(kind=kind_rb),allocatable,dimension(:) :: asdir,asdif,aldir,aldif                         ! Albedos ...
 
   real(kind=kind_rb),allocatable,dimension(:,:) :: layerP,    &
                                                    layerT,    &
+                                                   interfaceP,&
+                                                   interfaceT,&
                                                    h2ovmr,    &
                                                    o3vmr,     &
                                                    co2vmr,    &
@@ -132,10 +141,20 @@ SAVE
                                                    cfc11vmr,  &
                                                    cfc12vmr,  &
                                                    cfc22vmr,  &
-                                                   ccl4vmr
+                                                   ccl4vmr,   &
+                                                   tracevmr,  &
+                                                   emis
   real(kind=kind_rb),allocatable,dimension(:,:) :: LWP_slice,IWP_slice ,cloudFrac,liquidRe,iceRe
-  real(kind=kind_rb),allocatable,dimension(:,:) :: interfaceP,    &
-                                                   interfaceT
+  real(kind=kind_rb),allocatable,dimension(:,:,:) :: taucldlw, &
+                                                     tauaerlw, &
+                                                     taucldsw, &
+                                                     ssacldsw, &
+                                                     asmcldsw, &
+                                                     fsfcldsw, &
+                                                     tauaersw, &
+                                                     ssaaersw, &
+                                                     asmaersw, &
+                                                     ecaersw
   real(SHR_KIND_R4)                             :: eccen,     &  ! Eccentricity
                                                    obliqr,    &  ! Earths obliquity in radians
                                                    lambm0,    &  ! Mean long of perihelion at the vernal equinox (radians)

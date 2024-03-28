@@ -48,6 +48,9 @@ contains
       inflglw, iceflglw, liqflglw, inflgsw, iceflgsw, liqflgsw, &
       ocean, usero3, co2_fraction, ch4_fraction, n2o_fraction, doperpetual, doseasons, iyear
 
+    namelist/NAMRTERRTMGP/ &
+      nbatch, doclearsky, usepade
+
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
       read (ifnamopt,NAMDE,iostat=ierr)
@@ -59,6 +62,12 @@ contains
       read (ifnamopt,NAMRADIATION,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'NAMRADIATION')
       write(6 ,NAMRADIATION)
+
+      rewind(ifnamopt)
+
+      read (ifnamopt,NAMRTERRTMGP,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMRTERRTMGP')
+      write(6 ,NAMRTERRTMGP)
 
       close(ifnamopt)
     end if
@@ -85,6 +94,10 @@ contains
     call D_MPI_BCAST(doperpetual,1,0,comm3d,ierr)
     call D_MPI_BCAST(doseasons,  1,0,comm3d,ierr)
     call D_MPI_BCAST(iyear,      1,0,comm3d,ierr)
+
+    call D_MPI_BCAST(nbatch,     1,0,comm3d,ierr)
+    call D_MPI_BCAST(doclearsky, 1,0,comm3d,ierr)
+    call D_MPI_BCAST(usepade,    1,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )
@@ -195,6 +208,7 @@ contains
     use moduser,   only : rad_user
     use modradfull,only : radfull
     use modradrrtmg, only : radrrtmg
+    use modradrte_rrtmgp, only : radrte_rrtmgp
     implicit none
     real wtime
 
@@ -218,6 +232,8 @@ contains
             call radlsm
           case (irad_rrtmg)
             call radrrtmg
+          case (irad_rte_rrtmgp)
+            call radrte_rrtmgp
           case (irad_user)
 ! EWB: the if statement should came first because moduser uses a radpar variable
             if(rad_longw.or.rad_shortw) then

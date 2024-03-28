@@ -246,7 +246,7 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
 %  & & & 4 = Simple surface radiation for land surface model&\\
 %  & & & 10 = User defined radiation (use \texttt{rad\_user.f90})&\\
 %  & & & &\\
-  \hypertarget{iradiation}{iradiation}	& 0	& $x \in \{0, 1, 2, 3, 4, 10\}$	&  
+  \hypertarget{iradiation}{iradiation}	& 0	& $x \in \{0, 1, 2, 3, 4, 5, 10\}$ &
   \begin{tabular}{@{\hspace{0cm}}p{6cm}}
   Flag for radiation calculations \\
   0 = No radiation \\
@@ -254,8 +254,10 @@ lambda\_crit & 100 & $x \in \mathbb{R}$ & Maximum value for the smoothness. This
   2 = Parametrized radiation				\\
   3 = Simple surface radiation for land surface model\\
   4 = Radiation using the rapid radiative transfer model\\
+  5 = Radiation using the RTE-RRTMGP library\\
   10 = User defined radiation (use \texttt{rad\_user.f90})\\
   \end{tabular} & - \\
+  \qquad	&		&				&						& \\
   useMcICA	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for the Monte Carlo Independent Column Approach & -\\
   rad\_ls	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for prescribed radiative forcing		& -\\
   rad\_longw	& .true.	& $x\in\{\text{.false.},\text{.true.}\}$		& Switch for parametrized longwave radiative forcing	& -\\
@@ -1160,6 +1162,34 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{center}
 
 \newpage
+\subsection{Namelist NAMRTERRTMGP}\label{par:rterrtmgp}
+This namelist is only used if the RTE-RRTMGP model for GCMs is applied, i.e.  \hyperlink{iradiation}{iradiation}~=~5.
+\begin{center}
+	  \tablefirsthead{
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tablehead{
+        \multicolumn{5}{l}{\small \it Continued from previous page}\\
+        \multicolumn{5}{c}{}\\
+        \multicolumn{1}{c}{Option} & \multicolumn{1}{c}{Default} & \multicolumn{1}{c}{Possible values} & \multicolumn{1}{c}{Description} & \multicolumn{1}{c}{Unit}\\
+        \hline &&&&\\
+  }
+  \tabletail{
+        &&&&\\\hline
+        \multicolumn{5}{c}{}\\
+        \multicolumn{5}{r}{\small \it Continued on next page}\\
+  }
+  \tablelasttail{
+        &&&&\\\hline
+  }
+\begin{supertabular}{|l|p{2cm}|p{4cm}|p{6cm}|l|}
+  nbatch & jmax &  $x \in \mathbb{N}^*, \quad 1\le x \le \text{jmax}$ & Number of batch of vertical columns sent to the RTE-RRTMGP routines, chosen such that jmax is a multiple of nbatch & -\\
+  doclearsky	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Perform additional clear-sky calculations	& -\\
+  usepade	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Use Pade coefficients to compute cloud optical properties instead of look up tables	& -\\
+\end{supertabular}
+\end{center}
+
 \subsection{Namelist NAMRADSTAT}\label{par:radstat}
 \begin{center}
 	  \tablefirsthead{
@@ -1217,7 +1247,7 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
-
+\newpage
 \subsection{Namelist NAMMSEBUDG}\label{par:msebudget}
 
 \begin{center}
@@ -1245,7 +1275,6 @@ Detailed information under ``iceflag'' in rrtmg\_lw\_cldprop.f90}& - \\
 \end{supertabular}
 \end{center}
 
-\newpage
 \subsection{Namelist NAMSAMPLING}\label{par:sampling}
 \begin{center}
 	  \tablefirsthead{
