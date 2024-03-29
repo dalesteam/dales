@@ -565,7 +565,8 @@ module modsimpleice2
        enddo
     enddo
 
-    if (qrsmall > 0.000001*qrsum) then
+    !if (qrsmall > 0.000001*qrsum) then ! this relative limit is eaily crossed, qrsum is local to tile
+    if (qrsmall > 0.001) then ! arbitrary, absolute limit
       write(*,*)'amount of neg. qr thrown away is too high  ',rtimee, ' sec', qrsmall, qrsum
     end if
 
