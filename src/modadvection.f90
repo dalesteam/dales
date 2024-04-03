@@ -50,7 +50,7 @@ subroutine advection
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
-
+  istart = 2; iend = i1; jstart = 2; jend = j1
   select case(iadv_mom)
     case(iadv_cd2)
       istart = 2; iend = i1; jstart = 2; jend = j1
