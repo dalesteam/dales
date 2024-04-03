@@ -37,7 +37,7 @@ module advec_5th
 use modprecision, only : field_r
 contains
 !> Advection at cell center
-subroutine advecc_5th(a_in, a_out)
+subroutine advecc_5th(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
@@ -46,14 +46,15 @@ subroutine advecc_5th(a_in, a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart, iend, jstart, jend
 
   integer :: i,j,k
 
 
   do k=1,kmax
      if(k==1) then
-        do j=2,j1
-           do i=2,i1
+        do j=jstart,jend
+           do i=istart,iend
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
                   u0(i+1,j,k)/60.&
@@ -82,8 +83,8 @@ subroutine advecc_5th(a_in, a_out)
        end do
     end do
  elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
-    do j=2,j1
-       do i=2,i1
+    do j=jstart,jend
+       do i=istart,iend
         !CvH do 2nd order for bottom and top
 
             a_out(i,j,k)  = a_out(i,j,k)- (  &
@@ -117,8 +118,8 @@ subroutine advecc_5th(a_in, a_out)
       
    elseif(k == 3) then
         !CvH do 2nd order for bottom and top
-      do j=2,j1
-         do i=2,i1
+      do j=jstart,jend
+         do i=istart,iend
 
             a_out(i,j,k)  = a_out(i,j,k)- (  &
                   ( &
@@ -155,8 +156,8 @@ subroutine advecc_5th(a_in, a_out)
       end do
       
    elseif(k==kmax-2) then
-      do j=2,j1
-         do i=2,i1
+      do j=jstart,jend
+         do i=istart,iend
             a_out(i,j,k)  = a_out(i,j,k)- (  &
                   ( &
                       u0(i+1,j,k)/60.&
@@ -192,8 +193,8 @@ subroutine advecc_5th(a_in, a_out)
       end do
       
    else
-      do j=2,j1
-         do i=2,i1
+      do j=jstart,jend
+         do i=istart,iend
 
 
             a_out(i,j,k)  = a_out(i,j,k)- (  &
@@ -244,14 +245,14 @@ end subroutine advecc_5th
 
 
 !> Advection at the u point.
-subroutine advecu_5th(a_in,a_out,sx)
+subroutine advecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart, iend, jstart, jend
 
   integer :: i,j,k
 
@@ -259,8 +260,8 @@ subroutine advecu_5th(a_in,a_out,sx)
 
   do k=1,kmax
      if(k==1) then
-        do j=2,j1
-           do i=sx,i1
+        do j=jstart,jend
+           do i=istart,iend
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
                     (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -289,8 +290,8 @@ subroutine advecu_5th(a_in,a_out,sx)
        end do
     end do
  elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
-    do j=2,j1
-       do i=sx,i1
+    do j=jstart,jend
+       do i=istart,iend
           
           a_out(i,j,k)  = a_out(i,j,k)-( &
                 ( &
@@ -321,8 +322,8 @@ subroutine advecu_5th(a_in,a_out,sx)
        end do
     end do
  elseif(k==3) then
-    do j=2,j1
-       do i=sx,i1
+    do j=jstart,jend
+       do i=istart,iend
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
@@ -358,8 +359,8 @@ subroutine advecu_5th(a_in,a_out,sx)
        end do
     end do
  elseif(k==kmax-2) then
-    do j=2,j1
-       do i=sx,i1
+    do j=jstart,jend
+       do i=istart,iend
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
@@ -395,8 +396,8 @@ subroutine advecu_5th(a_in,a_out,sx)
        end do
     end do
  else
-    do j=2,j1
-       do i=sx,i1
+    do j=jstart,jend
+       do i=istart,iend
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
                       (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -446,12 +447,12 @@ end subroutine advecu_5th
 
 
 !> Advection at the v point.
-subroutine advecv_5th(a_in, a_out, sy)
+subroutine advecv_5th(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-  integer, intent(in) :: sy
+  integer, intent(in) :: istart, iend, jstart, jend
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
 
@@ -463,8 +464,8 @@ subroutine advecv_5th(a_in, a_out, sy)
   do k=1,kmax
      
      if(k==1) then
-        do j=sy,j1
-           do i=2,i1
+        do j=jstart,jend
+           do i=istart,iend
               
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
@@ -495,8 +496,8 @@ subroutine advecv_5th(a_in, a_out, sy)
     end do
     
  elseif(k==2 .or. k==kmax-1 .or. k==kmax) then
-    do j=sy,j1
-       do i=2,i1
+    do j=jstart,jend
+       do i=istart,iend
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
@@ -528,8 +529,8 @@ subroutine advecv_5th(a_in, a_out, sy)
     end do
 
  elseif(k==kmax-2) then
-    do j=sy,j1
-       do i=2,i1
+    do j=jstart,jend
+       do i=istart,iend
 
            a_out(i,j,k)  = a_out(i,j,k)- ( &
                   ( &
@@ -567,8 +568,8 @@ subroutine advecv_5th(a_in, a_out, sy)
      
   elseif(k==3) then
      
-     do j=sy,j1
-        do i=2,i1
+     do j=jstart,jend
+        do i=istart,iend
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
@@ -604,8 +605,8 @@ subroutine advecv_5th(a_in, a_out, sy)
        end do
     end do
  else
-    do j=sy,j1
-       do i=2,i1
+    do j=jstart,jend
+       do i=istart,iend
 
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                   ( &
@@ -653,7 +654,7 @@ end do
 end subroutine advecv_5th
 
 !> Advection at the w point.
-subroutine advecw_5th(a_in, a_out)
+subroutine advecw_5th(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzh
   use modfields, only : u0, v0, w0, rhobh
@@ -661,14 +662,15 @@ subroutine advecw_5th(a_in, a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart, iend, jstart, jend
 
   integer :: i,j,k
 
 
   do k=2,kmax
      if(k==2 .or. k==kmax-1 .or. k==kmax) then
-        do j=2,j1
-           do i=2,i1
+        do j=jstart,jend
+           do i=istart,iend
 
             a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
@@ -699,8 +701,8 @@ subroutine advecw_5th(a_in, a_out)
          end do
       end do
    elseif(k==3) then
-      do j=2,j1
-         do i=2,i1
+      do j=jstart,jend
+         do i=istart,iend
             
             a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
@@ -736,8 +738,8 @@ subroutine advecw_5th(a_in, a_out)
          end do
       end do
    elseif(k==kmax-2) then
-      do j=2,j1
-         do i=2,i1
+      do j=jstart,jend
+         do i=istart,iend
 
             a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&
@@ -773,8 +775,8 @@ subroutine advecw_5th(a_in, a_out)
          end do
       end do
    else
-      do j=2,j1
-         do i=2,i1
+      do j=jstart,jend
+         do i=istart,iend
 
             a_out(i,j,k)  = a_out(i,j,k)- ( &
                   (&

@@ -37,12 +37,13 @@ module advec_52
 use modprecision, only : field_r
 contains
 !> Advection at cell center
-subroutine advecc_52(a_in, a_out)
+subroutine advecc_52(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
 
+  integer, intent(in) :: istart, iend, jstart, jend
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real                                       :: inv2dzfk, rhobf_p, rhobf_m
@@ -50,13 +51,13 @@ subroutine advecc_52(a_in, a_out)
   integer :: i,j,k
 
   if (leq) then
-   
+
   k = 1
   inv2dzfk = 1./(2. * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
-  
-  do j=2,j1
-     do i=2,i1
+
+  do j=jstart,jend
+     do i=istart,iend
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
@@ -90,8 +91,8 @@ subroutine advecc_52(a_in, a_out)
      inv2dzfk = 1./(2. * dzf(k))
      rhobf_p = rhobf(k+1)/rhobf(k)
      rhobf_m = rhobf(k-1)/rhobf(k)
-     do j=2,j1
-        do i=2,i1
+     do j=jstart,jend
+        do i=istart,iend
 
             a_out(i,j,k)  = a_out(i,j,k)- (  &
                   ( &
@@ -129,9 +130,9 @@ subroutine advecc_52(a_in, a_out)
   k = 1
   inv2dzfk = 1./(2. * dzf(k))
   rhobf_p = rhobf(k+1)/rhobf(k)
-  
-  do j=2,j1
-     do i=2,i1
+
+  do j=jstart,jend
+     do i=istart,iend
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
@@ -157,7 +158,7 @@ subroutine advecc_52(a_in, a_out)
              + ( &
              w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) * dzf(k) +  a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
              ) * inv2dzfk  &
-             )       
+             )
      end do
   end do
 
@@ -165,8 +166,8 @@ subroutine advecc_52(a_in, a_out)
      inv2dzfk = 1./(2. * dzf(k))
      rhobf_p = rhobf(k+1)/rhobf(k)
      rhobf_m = rhobf(k-1)/rhobf(k)
-     do j=2,j1
-        do i=2,i1
+     do j=jstart,jend
+        do i=istart,iend
 
             a_out(i,j,k)  = a_out(i,j,k)- (  &
                   ( &
@@ -204,20 +205,20 @@ end subroutine advecc_52
 
 
 !> Advection at the u point.
-subroutine advecu_52(a_in,a_out,sx)
+subroutine advecu_52(a_in,a_out,istart,iend,jstart,jend)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
-  integer, intent(in) :: sx
+  integer, intent(in) :: istart,iend,jstart,jend
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   integer :: i,j,k
 
 if (leq) then
   k = 1
-  do j=2,j1
-     do i=sx,i1
-        
+  do j=jstart,jend
+     do i=istart,iend
+
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              (&
              (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -245,10 +246,10 @@ if (leq) then
              )
      end do
   end do
-  
+
   do k=2,kmax
-    do j=2,j1
-      do i=sx,i1
+    do j=jstart,jend
+      do i=istart,iend
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
@@ -283,9 +284,9 @@ if (leq) then
 
 else ! non-equidistant grid
      k = 1
-  do j=2,j1
-     do i=sx,i1
-        
+  do j=jstart,jend
+     do i=istart,iend
+
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              (&
              (u0(i+1,j,k)+u0(i,j,k))/60.&
@@ -313,10 +314,10 @@ else ! non-equidistant grid
              )
      end do
   end do
-  
+
   do k=2,kmax
-    do j=2,j1
-      do i=sx,i1
+    do j=jstart,jend
+      do i=istart,iend
 
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
@@ -353,11 +354,11 @@ end subroutine advecu_52
 
 
 !> Advection at the v point.
-subroutine advecv_52(a_in, a_out, sy)
+subroutine advecv_52(a_in, a_out, istart, iend, jstart, jend)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf,dzh,leq
   use modfields, only : u0, v0, w0,rhobf
   implicit none
-  integer,intent(in) :: sy
+  integer,intent(in) :: istart, iend, jstart, jend
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   integer :: i,j,k
@@ -365,8 +366,8 @@ subroutine advecv_52(a_in, a_out, sy)
   if (leq) then
 
   k = 1
-  do j=sy,j1
-     do i=2,i1      
+  do j=jstart,jend
+     do i=istart,iend
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
              (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
@@ -394,10 +395,10 @@ subroutine advecv_52(a_in, a_out, sy)
              )
      end do
   end do
-  
+
   do k=2,kmax
-    do j=sy,j1
-      do i=2,i1      
+    do j=jstart,jend
+      do i=istart,iend
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
                   (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
@@ -430,8 +431,8 @@ subroutine advecv_52(a_in, a_out, sy)
   end do
 else ! non-equidistant grid
    k = 1
-  do j=sy,j1
-     do i=2,i1      
+  do j=jstart,jend
+     do i=istart,iend
         a_out(i,j,k)  = a_out(i,j,k)- ( &
              ( &
              (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
@@ -459,10 +460,10 @@ else ! non-equidistant grid
              )
      end do
   end do
-  
+
   do k=2,kmax
-    do j=sy,j1
-      do i=2,i1      
+    do j=jstart,jend
+      do i=istart,iend
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
                   (u0(i+1,j,k)+u0(i+1,j-1,k))/60.&
@@ -500,7 +501,7 @@ end subroutine advecv_52
 
 
 !> Advection at the w point.
-subroutine advecw_52(a_in, a_out)
+subroutine advecw_52(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzh,dzh,leq
   use modfields, only : u0, v0, w0,rhobh
@@ -508,14 +509,14 @@ subroutine advecw_52(a_in, a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-
+  integer,intent(in) :: istart, iend, jstart, jend
   integer :: i,j,k
   ! if (leq) then
   ! FJ: judging from advec_2nd, equidistant and non-equidistant cases are similar
-  
+
   do k=2,kmax
-    do j=2,j1
-      do i=2,i1
+    do j=jstart,jend
+      do i=istart,iend
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (&
                     (u0(i+1,j,k)+u0(i+1,j,k-1))/60.&
@@ -547,6 +548,6 @@ subroutine advecw_52(a_in, a_out)
   end do
 
 
-     
+
 end subroutine advecw_52
 end module advec_52

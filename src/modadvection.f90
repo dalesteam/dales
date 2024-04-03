@@ -32,7 +32,7 @@ subroutine advection
   use modglobal,      only : lmoist, nsv, iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv, &
                              iadv_cd2,iadv_5th,iadv_52,iadv_cd6,iadv_62,iadv_kappa,&
                              iadv_upw,iadv_hybrid,iadv_hybrid_f,iadv_null,leq,&
-                             lopenbc,lboundary,lperiodic
+                             lopenbc,lboundary,lperiodic, i1, j1
   use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid,     only : lsmagorinsky
   use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, advecc_2nd
@@ -44,50 +44,75 @@ subroutine advection
   use advec_hybrid_f, only : advecc_hybrid_f
   use advec_kappa,    only : advecc_kappa
   use advec_upw,      only : advecc_upw
+  use modopenboundary,only : advecu_2nd_boundary_buffer, advecv_2nd_boundary_buffer, advecw_2nd_boundary_buffer, advecc_2nd_boundary_buffer
   implicit none
-  integer :: n,sx = 2,sy = 2
+  integer :: n, istart, iend, jstart, jend, ibuffer, jbuffer
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
 
-  if(lopenbc) then ! Calculate tendencies only for non-domain boundary cells if openboundaries are used
-    if(lboundary(1).and. .not. lperiodic(1)) sx = 3
-    if(lboundary(3).and. .not. lperiodic(3)) sy = 3
-  endif
-
   select case(iadv_mom)
     case(iadv_cd2)
-      call advecu_2nd(u0,up,sx)
-      call advecv_2nd(v0,vp,sy)
-      call advecw_2nd(w0,wp)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      call advecu_2nd(u0,up,merge(istart+1, istart, (lboundary(1) .and. .not. lperiodic(1))),iend,jstart,jend)
+      call advecv_2nd(v0,vp,istart,iend,merge(jstart+1, jstart, (lboundary(3) .and. .not. lperiodic(3))),jend)
+      call advecw_2nd(w0,wp,istart,iend,jstart,jend)
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-      call advecu_5th(u0,up,sx)
-      call advecv_5th(v0,vp,sy)
-      call advecw_5th(w0,wp)
+      ibuffer = 2; jbuffer = 2
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecu_2nd_boundary_buffer(u0,up,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecu_5th(u0,up,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecv_2nd_boundary_buffer(v0,vp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecv_5th(v0,vp,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecw_2nd_boundary_buffer(w0,wp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecw_5th(w0,wp,istart,iend,jstart,jend)
     case(iadv_52)
-      call advecu_52(u0,up,sx)
-      call advecv_52(v0,vp,sy)
-      call advecw_52(w0,wp)
+      ibuffer = 2; jbuffer = 2
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecu_2nd_boundary_buffer(u0,up,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecu_52(u0,up,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecv_2nd_boundary_buffer(v0,vp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecv_52(v0,vp,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecw_2nd_boundary_buffer(w0,wp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecw_52(w0,wp,istart,iend,jstart,jend)
     case(iadv_cd6)
       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-      call advecu_6th(u0,up,sx)
-      call advecv_6th(v0,vp,sy)
-      call advecw_6th(w0,wp)
+      ibuffer = 2; jbuffer = 2
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecu_2nd_boundary_buffer(u0,up,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecu_6th(u0,up,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecv_2nd_boundary_buffer(v0,vp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecv_6th(v0,vp,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecw_2nd_boundary_buffer(w0,wp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecw_6th(w0,wp,istart,iend,jstart,jend)
     case(iadv_62)
-      call advecu_62(u0,up,sx)
-      call advecv_62(v0,vp,sy)
-      call advecw_62(w0,wp)
+      ibuffer = 2; jbuffer = 2
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecu_2nd_boundary_buffer(u0,up,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecu_62(u0,up,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecv_2nd_boundary_buffer(v0,vp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecv_62(v0,vp,istart,iend,jstart,jend)
+      istart = 2; iend = i1; jstart = 2; jend = j1
+      if(lopenbc) call advecw_2nd_boundary_buffer(w0,wp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecw_62(w0,wp,istart,iend,jstart,jend)
     case(iadv_hybrid)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-      call advecu_5th(u0,up,sx)
-      call advecv_5th(v0,vp,sy)
-      call advecw_5th(w0,wp)
+      call advecu_5th(u0,up,istart,iend,jstart,jend)
+      call advecv_5th(v0,vp,istart,iend,jstart,jend)
+      call advecw_5th(w0,wp,istart,iend,jstart,jend)
     case(iadv_hybrid_f)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-      call advecu_5th(u0,up,sx)
-      call advecv_5th(v0,vp,sy)
-      call advecw_5th(w0,wp)
+      call advecu_5th(u0,up,istart,iend,jstart,jend)
+      call advecv_5th(v0,vp,istart,iend,jstart,jend)
+      call advecw_5th(w0,wp,istart,iend,jstart,jend)
     case(iadv_null)
       ! null advection scheme
       stop "Null advection scheme selected for iadv_mom - probably a bad idea."
@@ -96,19 +121,28 @@ subroutine advection
   end select
 
   if (.not. lsmagorinsky) then
+    istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_tke)
       case(iadv_cd2)
-        call advecc_2nd(e120,e12p)
+        call advecc_2nd(e120,e12p,istart,iend,jstart,jend)
       case(iadv_5th)
         !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-        call advecc_5th(e120,e12p)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(e120,e12p,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_5th(e120,e12p,istart,iend,jstart,jend)
       case(iadv_52)
-        call advecc_52(e120,e12p)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(e120,e12p,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_52(e120,e12p,istart,iend,jstart,jend)
       case(iadv_cd6)
         !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-        call advecc_6th(e120,e12p)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(e120,e12p,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_6th(e120,e12p,istart,iend,jstart,jend)
       case(iadv_62)
-        call advecc_62(e120,e12p)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(e120,e12p,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_62(e120,e12p,istart,iend,jstart,jend)
       case(iadv_kappa)
         call advecc_kappa(e120,e12p)
       case(iadv_hybrid)
@@ -124,20 +158,28 @@ subroutine advection
         stop "Unknown advection scheme "
     end select
   end if
-
+  istart = 2; iend = i1; jstart = 2; jend = j1
   select case(iadv_thl)
     case(iadv_cd2)
-      call advecc_2nd(thl0,thlp)
+      call advecc_2nd(thl0,thlp,istart,iend,jstart,jend)
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-      call advecc_5th(thl0,thlp)
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_5th(thl0,thlp,istart,iend,jstart,jend)
     case(iadv_52)
-      call advecc_52(thl0,thlp)
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_52(thl0,thlp,istart,iend,jstart,jend)
     case(iadv_cd6)
       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-      call advecc_6th(thl0,thlp)
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_6th(thl0,thlp,istart,iend,jstart,jend)
     case(iadv_62)
-      call advecc_62(thl0,thlp)
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(thl0,thlp,istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_62(thl0,thlp,istart,iend,jstart,jend)
     case(iadv_kappa)
       call advecc_kappa(thl0,thlp)
     case(iadv_upw)
@@ -156,19 +198,28 @@ subroutine advection
       stop "Unknown advection scheme "
   end select
   if (lmoist) then
+    istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_qt)
       case(iadv_cd2)
-        call advecc_2nd(qt0,qtp)
+        call advecc_2nd(qt0,qtp,istart,iend,jstart,jend)
       case(iadv_5th)
         !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-        call advecc_5th(qt0,qtp)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(qt0,qtp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_5th(qt0,qtp,istart,iend,jstart,jend)
       case(iadv_52)
-        call advecc_52(qt0,qtp)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(qt0,qtp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_52(qt0,qtp,istart,iend,jstart,jend)
       case(iadv_cd6)
         !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-        call advecc_6th(qt0,qtp)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(qt0,qtp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_6th(qt0,qtp,istart,iend,jstart,jend)
       case(iadv_62)
-        call advecc_62(qt0,qtp)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(qt0,qtp,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call advecc_62(qt0,qtp,istart,iend,jstart,jend)
       case(iadv_kappa)
         call advecc_kappa(qt0,qtp)
       case(iadv_upw)
@@ -188,19 +239,28 @@ subroutine advection
     end select
   end if
   do n=1,nsv
+    istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_sv(n))
     case(iadv_cd2)
-      call advecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
+      call advecc_2nd(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
-      call advecc_5th(sv0(:,:,:,n),svp(:,:,:,n))
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_5th(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_52)
-      call advecc_52(sv0(:,:,:,n),svp(:,:,:,n))
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_52(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_cd6)
       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
-      call advecc_6th(sv0(:,:,:,n),svp(:,:,:,n))
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_6th(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_62)
-      call advecc_62(sv0(:,:,:,n),svp(:,:,:,n))
+      ibuffer = 2; jbuffer = 2
+      if(lopenbc) call advecc_2nd_boundary_buffer(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend,ibuffer,jbuffer)
+      call advecc_62(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_kappa)
       call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)

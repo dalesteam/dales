@@ -31,7 +31,7 @@ module advec_6th
 use modprecision, only : field_r
 contains
 !> Advection at cell center
-subroutine advecc_6th(a_in, a_out)
+subroutine advecc_6th(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf
   use modfields, only : u0, v0, w0, rhobf
@@ -41,22 +41,23 @@ subroutine advecc_6th(a_in, a_out)
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
+  integer, intent(in) :: istart, iend, jstart ,jend
 
   integer :: i,j,k
 
 !   if (leq) then
 
   do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
+    do j=jstart-jh,jend+jh
+      do i=istart-ih,iend+ih
       rho_a_in(i,j,k)=rhobf(k)*a_in(i,j,k)
       end do
     end do
   end do
 
   do k=1,kmax
-    do j=2,j1
-      do i=2,i1
+    do j=jstart,jend
+      do i=istart,iend
 
         if(k==1) then
 
@@ -211,13 +212,13 @@ end subroutine advecc_6th
 
 
 !> Advection at the u point.
-subroutine advecu_6th(a_in,a_out,sx)
+subroutine advecu_6th(a_in,a_out,istart,iend,jstart,jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
 
   implicit none
-  integer, intent(in) :: sx
+  integer, intent(in) :: istart, iend, jstart, jend
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
@@ -226,8 +227,8 @@ subroutine advecu_6th(a_in,a_out,sx)
 
 
   do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
+    do j=jstart-jh,jend+jh
+      do i=istart-ih,iend+ih
       rho_a_in(i,j,k)=rhobf(k)*a_in(i,j,k)
       end do
     end do
@@ -236,8 +237,8 @@ subroutine advecu_6th(a_in,a_out,sx)
 !   if (leq) then
 
     do k=1,kmax
-      do j=2,j1
-        do i=sx,i1
+      do j=jstart,jend
+        do i=istart,iend
 
         if(k==1) then
 
@@ -386,12 +387,12 @@ subroutine advecu_6th(a_in,a_out,sx)
 end subroutine advecu_6th
 
 !> Advection at the v point.
-subroutine advecv_6th(a_in, a_out, sy)
+subroutine advecv_6th(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzf
   use modfields, only : u0, v0, w0, rhobf
   implicit none
-  integer, intent(in) :: sy
+  integer, intent(in) :: istart, iend, jstart, jend
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
@@ -399,8 +400,8 @@ subroutine advecv_6th(a_in, a_out, sy)
   integer :: i,j,k
 
   do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
+    do j=jstart-jh,jend+jh
+      do i=istart-ih,iend+ih
       rho_a_in(i,j,k)=rhobf(k)*a_in(i,j,k)
       end do
     end do
@@ -409,8 +410,8 @@ subroutine advecv_6th(a_in, a_out, sy)
 !   if (leq) then
 
     do k=1,kmax
-      do j=sy,j1
-        do i=2,i1
+      do j=jstart,jend
+        do i=istart,iend
 
         if(k==1) then
 
@@ -562,7 +563,7 @@ end subroutine advecv_6th
 
 
 !> Advection at the w point.
-subroutine advecw_6th(a_in, a_out)
+subroutine advecw_6th(a_in, a_out, istart, iend, jstart, jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzh
   use modfields, only : u0, v0, w0, rhobh
@@ -571,13 +572,14 @@ subroutine advecw_6th(a_in, a_out)
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
+  integer, intent(in) :: istart, iend, jstart, jend
 
   integer :: i,j,k
 
 
   do k=1,k1
-    do j=2-jh,j1+jh
-      do i=2-ih,i1+ih
+    do j=jstart-jh,jend+jh
+      do i=istart-ih,iend+ih
       rho_a_in(i,j,k)=rhobh(k)*a_in(i,j,k)
       end do
     end do
@@ -586,8 +588,8 @@ subroutine advecw_6th(a_in, a_out)
 !   if (leq) then
 
     do k=2,kmax
-      do j=2,j1
-        do i=2,i1
+      do j=jstart,jend
+        do i=istart,iend
 
           if(k==2) then
             a_out(i,j,k)  = a_out(i,j,k)- ( &

@@ -1179,6 +1179,238 @@ contains
     end select
   end subroutine radcorrection
 
+  subroutine advecu_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
+    use modfields, only : u0, v0, w0, rhobf
+    use advec_2nd, only : advecu_2nd
+
+    implicit none
+    integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
+    integer, intent(in) :: ibuffer, jbuffer
+    integer :: istart_bound, iend_bound, jstart_bound, jend_bound
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+    if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary
+      istart_bound = 3
+      iend_bound = 3+ibuffer-1
+      jstart_bound = 2
+      jend_bound = j1
+      istart_int   = 3+ibuffer
+      call advecu_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary
+      istart_bound = i1-ibuffer+1
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = j1
+      iend_int   = i1-ibuffer
+      call advecu_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(3) .and. .not. lperiodic(3)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = 2+jbuffer-1
+      jstart_int   = 2+jbuffer
+      if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary also present (don't do corners twice)
+        istart_bound = 3+ibuffer
+      endif
+      if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary also present (don't do corners twice)
+        iend_bound = i1-ibuffer
+      endif
+      call advecu_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(4) .and. .not. lperiodic(4)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = j1-jbuffer+1
+      jend_bound = j1
+      jend_int   = j1-jbuffer
+      if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary also present (don't do corners twice)
+        istart_bound = 3+ibuffer
+      endif
+      if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary also present (don't do corners twice)
+        iend_bound = i1-ibuffer
+      endif
+      call advecu_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+  end subroutine
+
+  subroutine advecv_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
+    use modfields, only : u0, v0, w0, rhobf
+    use advec_2nd, only : advecv_2nd
+
+    implicit none
+    integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
+    integer, intent(in) :: ibuffer, jbuffer
+    integer :: istart_bound, iend_bound, jstart_bound, jend_bound
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+    if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary
+      istart_bound = 2
+      iend_bound = 2+ibuffer-1
+      jstart_bound = 2
+      jend_bound = j1
+      istart_int   = 2+ibuffer
+      if(lboundary(3) .and. .not. lperiodic(3)) then ! West boundary also present (don't do corners twice)
+        jstart_bound = 3+jbuffer
+      endif
+      if(lboundary(4) .and. .not. lperiodic(4)) then ! East boundary also present (don't do corners twice)
+        jend_bound = j1-jbuffer
+      endif
+      call advecv_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary
+      istart_bound = i1-ibuffer+1
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = j1
+      iend_int   = i1-ibuffer
+      if(lboundary(3) .and. .not. lperiodic(3)) then ! West boundary also present (don't do corners twice)
+        jstart_bound = 3+jbuffer
+      endif
+      if(lboundary(4) .and. .not. lperiodic(4)) then ! East boundary also present (don't do corners twice)
+        jend_bound = j1-jbuffer
+      endif
+      call advecv_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(3) .and. .not. lperiodic(3)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = 3
+      jend_bound = 3+jbuffer-1
+      jstart_int   = 3+jbuffer
+      call advecv_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(4) .and. .not. lperiodic(4)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = j1-jbuffer+1
+      jend_bound = j1
+      jend_int   = j1-jbuffer
+      call advecv_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+  end subroutine
+
+  subroutine advecw_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
+    use modfields, only : u0, v0, w0, rhobf
+    use advec_2nd, only : advecw_2nd
+
+    implicit none
+    integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
+    integer, intent(in) :: ibuffer, jbuffer
+    integer :: istart_bound, iend_bound, jstart_bound, jend_bound
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+    if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary
+      istart_bound = 2
+      iend_bound = 2+ibuffer-1
+      jstart_bound = 2
+      jend_bound = j1
+      istart_int   = 2+ibuffer
+      call advecw_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary
+      istart_bound = i1-ibuffer+1
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = j1
+      iend_int   = i1-ibuffer
+      call advecw_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(3) .and. .not. lperiodic(3)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = 2+jbuffer-1
+      jstart_int   = 2+jbuffer
+      if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary also present (don't do corners twice)
+        istart_bound = 2+ibuffer
+      endif
+      if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary also present (don't do corners twice)
+        iend_bound = i1-ibuffer
+      endif
+      call advecw_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(4) .and. .not. lperiodic(4)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = j1-jbuffer+1
+      jend_bound = j1
+      jend_int   = j1-jbuffer
+      if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary also present (don't do corners twice)
+        istart_bound = 2+ibuffer
+      endif
+      if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary also present (don't do corners twice)
+        iend_bound = i1-ibuffer
+      endif
+      call advecw_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+  end subroutine
+
+  subroutine advecc_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
+    use modfields, only : u0, v0, w0, rhobf
+    use advec_2nd, only : advecc_2nd
+
+    implicit none
+    integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
+    integer, intent(in) :: ibuffer, jbuffer
+    integer :: istart_bound, iend_bound, jstart_bound, jend_bound
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
+    real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+    if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary
+      istart_bound = 2
+      iend_bound = 2+ibuffer-1
+      jstart_bound = 2
+      jend_bound = j1
+      istart_int   = 2+ibuffer
+      call advecc_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary
+      istart_bound = i1-ibuffer+1
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = j1
+      iend_int   = i1-ibuffer
+      call advecc_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(3) .and. .not. lperiodic(3)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = 2
+      jend_bound = 2+jbuffer-1
+      jstart_int   = 2+jbuffer
+      if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary also present (don't do corners twice)
+        istart_bound = 2+ibuffer
+      endif
+      if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary also present (don't do corners twice)
+        iend_bound = i1-ibuffer
+      endif
+      call advecc_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+    if(lboundary(4) .and. .not. lperiodic(4)) then ! South boundary
+      istart_bound = 2
+      iend_bound = i1
+      jstart_bound = j1-jbuffer+1
+      jend_bound = j1
+      jend_int   = j1-jbuffer
+      if(lboundary(1) .and. .not. lperiodic(1)) then ! West boundary also present (don't do corners twice)
+        istart_bound = 2+ibuffer
+      endif
+      if(lboundary(2) .and. .not. lperiodic(2)) then ! East boundary also present (don't do corners twice)
+        iend_bound = i1-ibuffer
+      endif
+      call advecc_2nd(a_in,a_out,istart_bound,iend_bound,jstart_bound,jend_bound)
+    endif
+  end subroutine
+
   subroutine take_prof(field0,fieldm,prof)
     use modglobal, only : i1,j1,k1,ih,jh,kmax
     implicit none
