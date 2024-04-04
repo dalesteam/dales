@@ -243,6 +243,7 @@ contains
     call D_MPI_BCAST(lrigidlid   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
