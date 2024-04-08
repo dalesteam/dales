@@ -101,7 +101,8 @@ contains
       !old notations nlay-1=kradmax=nzrad, nlay=krad1, nlev=krad2
       nlay = kmax + npatch + 1
       nlev = nlay + 1 ! necessary?
-      !the two indices below are necessary for the readTraceProfs routine
+      !the indices below are necessary for the readTraceProfs routine
+      kradmax=nlay-1
       krad1=nlay
       krad2=nlev
 
