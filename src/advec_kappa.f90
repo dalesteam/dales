@@ -65,9 +65,9 @@ subroutine advecc_kappa(a_in,a_out)
   k_low = k1 + 1
 
   !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
-  do k=1,k1
-     do j=2,j1
-        do i=2,i1
+  do k = 1, k1
+     do j = 2, j1
+        do i = 2, i1
            if (a_in(i,j,k).ne.0.) then
              k_low = k
            endif
@@ -128,7 +128,7 @@ subroutine advecc_kappa(a_in,a_out)
   kbeg = max(k_low-1,1)
   kend = min(k_high+2, kmax)
 
-  !$acc parallel loop collapse(3) default(present) async(1)
+  !$acc parallel loop collapse(3) default(present) wait(1) async(2)
   do k = kbeg, kend
      do j = 2, j1
         do i = 2, i2
@@ -161,7 +161,7 @@ subroutine advecc_kappa(a_in,a_out)
      end do
   end do
 
-  !$acc parallel loop collapse(3) default(present) async(2)
+  !$acc parallel loop collapse(3) default(present) wait(1) async(3)
   do k = kbeg, kend
      do j = 2, j2
         do i = 2, i1
@@ -194,7 +194,7 @@ subroutine advecc_kappa(a_in,a_out)
      end do
   end do
 
-  !$acc parallel loop collapse(3) default(present) async(3)
+  !$acc parallel loop collapse(3) default(present) wait(1) async(4)
   do k = 3, kend
      do j = 2, j1
         do i = 2, i1
@@ -226,6 +226,7 @@ subroutine advecc_kappa(a_in,a_out)
         end do
      end do
   end do
+  !$acc wait
 
 end subroutine advecc_kappa
 
@@ -272,8 +273,7 @@ subroutine  halflev_kappa(a_in,a_out)
         a_out(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
       end do
     end do
-
-    !$acc wait
+    !$acc wait(1,2)
 
   end subroutine halflev_kappa
 
