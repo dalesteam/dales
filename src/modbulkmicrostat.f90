@@ -32,6 +32,7 @@
 module modbulkmicrostat
   use modprecision, only : longint, field_r
   use modtimer
+  use modmpi_tests,    only : slabsum_multi
 
 implicit none
 private
@@ -56,30 +57,27 @@ save
                qlpmn  , &
                qtpav  , &
                qtpmn
-  real, allocatable, dimension(:)    :: precavl  , &
+  real, allocatable, dimension(:)    :: &
                precav  , &
                precmn  , &
-               preccountavl  , &
                preccountav  , &
                preccountmn  , &
-               prec_prcavl  , &
                prec_prcav  , &
                prec_prcmn  , &
-               cloudcountavl, &
                cloudcountav  , &
                cloudcountmn  , &
-               raincountavl  , &
                raincountav  , &
                raincountmn  , &
-               Nrrainavl  , &
                Nrrainav  , &
                Nrrainmn  , &
-               qravl  , &
                qrav    , &
                qrmn    , &
-               Dvravl  , &
                Dvrav  , &
                Dvrmn
+
+  real, allocatable, dimension(:) :: tend_np, &
+                                     tend_qrp, &
+                                     tend_qtp
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -136,36 +134,29 @@ subroutine initbulkmicrostat
       stop 'dtav must be an integer multiple of dtmax (NAMBULKMICROSTAT)'
     end if
 
-    allocate(Npav    (k1, nrfields)  , &
-       Npmn    (k1, nrfields)  , &
-       qlpav    (k1, nrfields)  , &
-       qlpmn    (k1, nrfields)  , &
-       qtpav    (k1, nrfields)  , &
-       qtpmn    (k1, nrfields)  )
-    allocate(precavl  (k1)    , &
-       precav    (k1)    , &
-       precmn    (k1)    , &
-       preccountavl  (k1)    , &
-       preccountav  (k1)    , &
-       preccountmn  (k1)    , &
-       prec_prcavl  (k1)    , &
-       prec_prcav  (k1)    , &
-       prec_prcmn  (k1)    , &
-       cloudcountavl  (k1)    , &
-       cloudcountav  (k1)    , &
-       cloudcountmn  (k1)    , &
-       raincountavl  (k1)    , &
-       raincountav  (k1)    , &
-       raincountmn  (k1)    , &
-       Nrrainavl  (k1)    , &
-       Nrrainav  (k1)    , &
-       Nrrainmn  (k1)    , &
-       qravl    (k1)    , &
-       qrav    (k1)    , &
-       qrmn    (k1)    , &
-       Dvravl    (k1)    , &
-       Dvrav    (k1)    , &
-       Dvrmn    (k1))
+    allocate(Npav    (k1, nrfields), &
+             Npmn    (k1, nrfields), &
+             qlpav   (k1, nrfields), &
+             qlpmn   (k1, nrfields), &
+             qtpav   (k1, nrfields), &
+             qtpmn   (k1, nrfields))
+    allocate(&
+             precav    (k1)    , &
+             precmn    (k1)    , &
+             preccountav  (k1)    , &
+             preccountmn  (k1)    , &
+             prec_prcav  (k1)    , &
+             prec_prcmn  (k1)    , &
+             cloudcountav  (k1)    , &
+             cloudcountmn  (k1)    , &
+             raincountav  (k1)    , &
+             raincountmn  (k1)    , &
+             Nrrainav  (k1)    , &
+             Nrrainmn  (k1)    , &
+             qrav    (k1)    , &
+             qrmn    (k1)    , &
+             Dvrav    (k1)    , &
+             Dvrmn    (k1))
     Npmn    = 0.0
     qlpmn    = 0.0
     qtpmn    = 0.0
@@ -178,6 +169,18 @@ subroutine initbulkmicrostat
     qrmn    = 0.0
     Dvrmn    = 0.0
 
+    allocate(tend_np(k1))
+    allocate(tend_qrp(k1))
+    allocate(tend_qtp(k1))
+    tend_np(:) = 0.0
+    tend_qrp(:) = 0.0
+    tend_qtp(:) = 0.0
+
+    !$acc enter data copyin(tend_np, tend_qrp, tend_qtp, Npmn, qlpmn, qtpmn,&
+    !$acc&                  Npav, qlpav, qtpav, precav, preccountav, prec_prcav, &
+    !$acc&                  cloudcountav, raincountav, Nrrainav, qrav, Dvrav, &
+    !$acc&                  preccountmn, prec_prcmn, &
+    !$acc&                  precmn, cloudcountmn, raincountmn, Nrrainmn, qrmn, Dvrmn)
 
     if (myid == 0 .and. .not. lwarmstart) then
       open (ifoutput,file = 'precep.'//cexpnr ,status = 'replace')
@@ -189,6 +192,7 @@ subroutine initbulkmicrostat
       open (ifoutput,file = 'qtptend.'//cexpnr,status = 'replace')
       close(ifoutput)
     end if
+
     if (lnetcdf) then
       idtav = idtav_prof
       itimeav = itimeav_prof
@@ -260,54 +264,86 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 !> Performs the calculations for rainrate etc.
   subroutine dobulkmicrostat
-    use modmpi,    only  :  mpi_sum, comm3d, mpierr, D_MPI_ALLREDUCE
     use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
     use modfields,  only  : ql0
+    use modmpiinterface
+    use modgpumpiinterface
+    use modmpi
+#if defined(_OPENACC)
+    use openacc
+    use modgpumpiinterface
+#endif
     implicit none
 
-    integer :: k
+    integer :: i, j, k
+    real :: c_count, r_count, p_count, p_sum_cl
+    real :: Nr_sum, p_sum, qr_sum, Dvr_sum_cl
 
-
-    precav = 0.0
-    preccountav = 0.0
-    prec_prcav = 0.0
-    cloudcountav = 0.0
-    raincountav = 0.0
-    Nrrainav = 0.0
-    qrav = 0.0
-    Dvrav = 0.0
-
-    do k = 1,k1
-      cloudcountavl(k)  = count(ql0     (2:i1,2:j1,k) > epscloud)
-      raincountavl (k)  = count(qr      (2:i1,2:j1,k) > epsqr)
-      preccountavl (k)  = count(precep  (2:i1,2:j1,k) > epsprec)
-      prec_prcavl  (k)  = sum  (precep  (2:i1,2:j1,k) , precep(2:i1,2:j1,k) > epsprec)
-      Nrrainavl    (k)  = sum  (Nr      (2:i1,2:j1,k))
-      precavl      (k)  = sum  (precep  (2:i1,2:j1,k))
-      qravl        (k)  = sum  (qr      (2:i1,2:j1,k))
+    !$acc parallel loop gang default(present) private(c_count, r_count, p_count, p_sum_cl,&
+    !$acc&                                            Nr_sum, p_sum, qr_sum, Dvr_sum_cl)
+    do k = 1, k1
+      c_count = 0.0
+      r_count = 0.0
+      p_count = 0.0
+      p_sum_cl = 0.0
+      Nr_sum = 0.0
+      p_sum = 0.0
+      qr_sum = 0.0
+      Dvr_sum_cl = 0.0
+      !$acc loop collapse(2) reduction(+:c_count, r_count, p_count, p_sum_cl,&
+      !$acc&                             Nr_sum, p_sum, qr_sum, Dvr_sum_cl)
+      do j = 2, j1
+        do i = 2, i1
+          if (ql0(i,j,k) > epscloud) then
+            c_count = c_count + 1.0
+          endif
+          if (qr(i,j,k) > epsqr) then
+            r_count = r_count + 1.0
+          endif
+          if (precep(i,j,k) > epsprec) then
+            p_count = p_count + 1.0
+            p_sum_cl = p_sum_cl + precep(i,j,k)
+          endif
+          Nr_sum = Nr_sum + Nr(i,j,k)
+          p_sum = p_sum + precep(i,j,k)
+          qr_sum = qr_sum + qr(i,j,k)
+          if (imicro==imicro_bulk .and. qr(i,j,k) > epsqr) then
+            Dvr_sum_cl = Dvr_sum_cl + Dvr(i,j,k)
+          end if
+        end do
+      end do
+      cloudcountav(k) = c_count
+      raincountav (k) = r_count
+      preccountav (k) = p_count
+      prec_prcav  (k) = p_sum_cl
+      Nrrainav    (k) = Nr_sum
+      precav      (k) = p_sum
+      qrav        (k) = qr_sum
       if (imicro==imicro_bulk) then
-        Dvravl     (k)  = sum  (Dvr     (2:i1,2:j1,k) , qr(2:i1,2:j1,k) > epsqr)
+        Dvrav     (k) = Dvr_sum_cl
       end if
     end do
 
-    call D_MPI_ALLREDUCE(cloudcountavl,cloudcountav,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(raincountavl ,raincountav ,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(preccountavl ,preccountav ,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(prec_prcavl  ,prec_prcav  ,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(Dvravl       ,Dvrav       ,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(Nrrainavl    ,Nrrainav    ,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(precavl      ,precav      ,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qravl        ,qrav        ,k1,MPI_SUM,comm3d,mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, cloudcountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, raincountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, preccountav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, prec_prcav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, Dvrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, Nrrainav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, precav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    call MPI_ALLREDUCE(MPI_IN_PLACE, qrav, k1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
 
-    cloudcountmn  = cloudcountmn  +  cloudcountav  /ijtot
-    raincountmn  = raincountmn  +  raincountav  /ijtot
-    preccountmn  = preccountmn  +  preccountav  /ijtot
-    prec_prcmn  = prec_prcmn  +  prec_prcav  /ijtot
-    Dvrmn    = Dvrmn    +  Dvrav    /ijtot
-    Nrrainmn  = Nrrainmn  +  Nrrainav  /ijtot
-    precmn    = precmn  +  precav    /ijtot
-    qrmn    = qrmn    +  qrav    /ijtot
+    !$acc kernels default(present)
+    cloudcountmn(:) = cloudcountmn(:) +  cloudcountav(:) / ijtot
+    raincountmn(:)  = raincountmn(:)  +  raincountav(:)  / ijtot
+    preccountmn(:)  = preccountmn(:)  +  preccountav(:)  / ijtot
+    prec_prcmn(:)   = prec_prcmn(:)   +  prec_prcav(:)   / ijtot
+    Dvrmn(:)        = Dvrmn(:)        +  Dvrav(:)        / ijtot
+    Nrrainmn(:)     = Nrrainmn(:)     +  Nrrainav(:)     / ijtot
+    precmn(:)       = precmn(:)       +  precav(:)       / ijtot
+    qrmn(:)         = qrmn(:)         +  qrav(:)         / ijtot
+    !$acc end kernels
 
   end subroutine dobulkmicrostat
 
@@ -320,7 +356,6 @@ subroutine initbulkmicrostat
     use modmicrodata,  only  : qrp, Nrp
     implicit none
 
-    real(field_r), dimension(:), allocatable  :: avfield
     integer        :: ifield = 0
 
     call timer_tic('modbulkmicrostat/bulkmicrotend', 1)
@@ -328,38 +363,42 @@ subroutine initbulkmicrostat
     if (.not. lmicrostat)  return
     if (rk3step /= 3)  return
     if (timee == 0)    return
+
     if (timee < tnext .and. timee < tnextwrite) then
       dt_lim  = minval((/dt_lim, tnext - timee, tnextwrite - timee/))
       return
     end if
-!    tnext = tnext+dtav
-
-    allocate(avfield(k1))
 
     ifield    = mod(ifield, nrfields) + 1
 
-    avfield    = 0.0
-    call slabsum(avfield  ,1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
-    Npav(:,ifield)  = avfield - sum(Npav  (:,1:ifield-1),2)
+    !$acc kernels default(present)
+    tend_np(:) = 0.0
+    tend_qrp(:) = 0.0
+    tend_qtp(:) = 0.0
+    !$acc end kernels
 
-    avfield    = 0.0
-    call slabsum(avfield  ,1,k1,qrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
-    qlpav(:,ifield) = avfield - sum(qlpav  (:,1:ifield-1),2)
+    !$acc host_data use_device(tend_np, Nrp, tend_qrp, qrp, tend_qtp, qtp)
+    call slabsum_multi(tend_np , 1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1, &
+                       tend_qrp      ,qrp)
+    call slabsum(tend_qtp  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
 
-    avfield    = 0.0
-    call slabsum(avfield  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    qtpav(:,ifield) = avfield - sum(qtpav  (:,1:ifield-1),2)
+    !$acc kernels default(present)
+    Npav(:,ifield)  = tend_np(:)  - sum(Npav (:,1:ifield-1),2)
+    qlpav(:,ifield) = tend_qrp(:) - sum(qlpav(:,1:ifield-1),2)
+    qtpav(:,ifield) = tend_qtp(:) - sum(qtpav(:,1:ifield-1),2)
+    !$acc end kernels
 
     if (ifield == nrfields) then
-      Npmn    = Npmn  + Npav  /nsamples/ijtot
-      qlpmn    = qlpmn  + qlpav /nsamples/ijtot
-      qtpmn    = qtpmn  + qtpav /nsamples/ijtot
-      Npav    = 0.0
-      qlpav    = 0.0
-      qtpav    = 0.0
+      !$acc kernels default(present)
+      Npmn(:,:)  = Npmn(:,:)  + Npav(:,:)  / nsamples / ijtot
+      qlpmn(:,:) = qlpmn(:,:) + qlpav(:,:) / nsamples / ijtot
+      qtpmn(:,:) = qtpmn(:,:) + qtpav(:,:) / nsamples / ijtot
+      Npav(:,:)  = 0.0
+      qlpav(:,:) = 0.0
+      qtpav(:,:) = 0.0
+      !$acc end kernels
     end if
-
-    deallocate(avfield)
 
     call timer_toc('modbulkmicrostat/bulkmicrotend')
 
@@ -375,8 +414,8 @@ subroutine initbulkmicrostat
     use modstat_nc, only: lnetcdf, writestat_nc
     use modgenstat, only: ncid_prof=>ncid,nrec_prof=>nrec
 
-      implicit none
-      real,dimension(k1,nvar) :: vars
+    implicit none
+    real,dimension(k1,nvar) :: vars
 
     integer    :: nsecs, nhrs, nminut
     integer    :: k
@@ -386,17 +425,20 @@ subroutine initbulkmicrostat
     nminut    = int (nsecs/60)-nhrs*60
     nsecs    = mod (nsecs,60)
 
-    cloudcountmn    = cloudcountmn  /nsamples
-                raincountmn     = raincountmn   /nsamples
-                preccountmn     = preccountmn   /nsamples
-                prec_prcmn      = prec_prcmn    /nsamples
-                Dvrmn           = Dvrmn         /nsamples
-                Nrrainmn        = Nrrainmn      /nsamples
-                precmn          = precmn        /nsamples
-                qrmn            = qrmn          /nsamples
+    !$acc update self(Npmn, qlpmn, qtpmn, cloudcountmn, raincountmn, preccountmn,&
+    !$acc&            prec_prcmn, Dvrmn, Nrrainmn, precmn, qrmn)
+
+    cloudcountmn(:) = cloudcountmn(:) / nsamples
+    raincountmn(:)  = raincountmn(:)  / nsamples
+    preccountmn(:)  = preccountmn(:)  / nsamples
+    prec_prcmn(:)   = prec_prcmn(:)   / nsamples
+    Dvrmn(:)        = Dvrmn(:)        / nsamples
+    Nrrainmn(:)     = Nrrainmn(:)     / nsamples
+    precmn(:)       = precmn(:)       / nsamples
+    qrmn(:)         = qrmn(:)         / nsamples
 
     where (raincountmn > 0.)
-      Dvrmn        = Dvrmn / raincountmn
+      Dvrmn = Dvrmn / raincountmn
     elsewhere
       Dvrmn = 0.0
     end where
@@ -559,17 +601,19 @@ subroutine initbulkmicrostat
 
     end if
 
-    cloudcountmn    = 0.0
-    raincountmn    = 0.0
-    preccountmn    = 0.0
-    prec_prcmn    = 0.0
-    Dvrmn      = 0.0
-    Nrrainmn    = 0.0
-    precmn      = 0.0
-    qrmn      = 0.0
-    Npmn      = 0.0
-    qlpmn      = 0.0
-    qtpmn      = 0.0
+    !$acc kernels default(present)
+    cloudcountmn(:) = 0.0
+    raincountmn(:)  = 0.0
+    preccountmn(:)  = 0.0
+    prec_prcmn(:)   = 0.0
+    Dvrmn(:)        = 0.0
+    Nrrainmn(:)     = 0.0
+    precmn(:)       = 0.0
+    qrmn(:)         = 0.0
+    Npmn(:,:)         = 0.0
+    qlpmn(:,:)        = 0.0
+    qtpmn(:,:)        = 0.0
+    !$acc end kernels
 
   end subroutine writebulkmicrostat
 
@@ -588,36 +632,37 @@ subroutine initbulkmicrostat
     
     if (.not. lmicrostat)  return
 
-    deallocate(Npav      , &
-         Npmn      , &
-         qlpav    , &
-         qlpmn    , &
-         qtpav    , &
-         qtpmn    )
-    deallocate(precavl    , &
+    !$acc exit data delete(tend_np, tend_qrp, tend_qtp, Npmn, qlpmn, qtpmn,&
+    !$acc&                 Npav, qlpav, qtpav, precav, preccountav, prec_prcav, &
+    !$acc&                 cloudcountav, raincountav, Nrrainav, qrav, Dvrav, &
+    !$acc&                 preccountmn, prec_prcmn, &
+    !$acc&                 precmn, cloudcountmn, raincountmn, Nrrainmn, qrmn, Dvrmn)
+
+    deallocate(Npav     , &
+               Npmn     , &
+               qlpav    , &
+               qlpmn    , &
+               qtpav    , &
+               qtpmn    )
+    deallocate(&
          precav    , &
          precmn    , &
-         preccountavl    , &
          preccountav    , &
          preccountmn    , &
-         prec_prcavl    , &
          prec_prcav    , &
          prec_prcmn    , &
-         cloudcountavl  , &
          cloudcountav    , &
          cloudcountmn    , &
-         raincountavl    , &
          raincountav    , &
          raincountmn    , &
-         Nrrainavl    , &
          Nrrainav    , &
          Nrrainmn    , &
-         qravl    , &
          qrav      , &
          qrmn      , &
-         Dvravl    , &
          Dvrav    , &
          Dvrmn)
+
+    deallocate(tend_np, tend_qrp, tend_qtp)
 
   end subroutine exitbulkmicrostat
 
