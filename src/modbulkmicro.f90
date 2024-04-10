@@ -285,10 +285,10 @@ module modbulkmicro
           qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
           qcmask(i,j,k) = ql0(i,j,k) > qcmin
           if (qrmask(i,j,k)) then
-            qrbase = k
+            qrbase = min(k, qrbase)
           endif
           if (qcmask(i,j,k)) then
-            qcbase = k
+            qcbase = min(k, qcbase)
           endif
         enddo
       enddo
@@ -302,10 +302,10 @@ module modbulkmicro
         do j = 2, j1
           do i = 2, i1
             if (qrmask(i,j,k)) then
-              qrroof = k
+              qrroof = max(k, qrroof)
             endif
             if (qcmask(i,j,k)) then
-              qcroof = k
+              qcroof = max(k, qcroof)
             endif
           enddo
         enddo
