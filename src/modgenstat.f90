@@ -652,9 +652,9 @@ contains
     thmav  = thlmav + (rlv/cp)*qlmav/exnf
     thvmav = thvmav/ijtot
     svmav = svmav/ijtot
+    cszav = csz
     !$acc end kernels
 
-    cszav  = csz
   !------------------------------------------------------------------
   !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
   !     -------------------------------------------------------------
