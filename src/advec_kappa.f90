@@ -59,7 +59,6 @@ subroutine advecc_kappa(a_in,a_out)
   real :: d1, d2, cf
   real :: d1m, d2m, d1p, cfm, cfp, work
   integer :: i, j, k, k_low, k_high, kbeg, kend
-  integer :: nonZeroFound
 
   ! find the lowest and highest k level with a non-zero value in a_in
   k_low = k1 + 1
@@ -69,7 +68,7 @@ subroutine advecc_kappa(a_in,a_out)
      do j = 2, j1
         do i = 2, i1
            if (a_in(i,j,k).ne.0.) then
-             k_low = k
+             k_low = min(k,k_low)
            endif
         enddo
      enddo
@@ -86,7 +85,7 @@ subroutine advecc_kappa(a_in,a_out)
      do j = 2, j1
         do i = 2, i1
            if ((a_in(i,j,k).ne.0.)) then
-             k_high = k
+             k_high = max(k,k_high)
            endif
         enddo
      enddo
@@ -95,8 +94,8 @@ subroutine advecc_kappa(a_in,a_out)
   ! vertical advection from layer 1 to 2, special case. k=2
   if (k_low <= 3) then
      !$acc parallel loop collapse(2) default(present) async(1)
-     do j=2,j1
-        do i=2,i1
+     do j = 2, j1
+        do i = 2, i1
            d1m = 0
            d2m = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
            cfm = rhobf(1) * a_in(i,j,1)
@@ -118,7 +117,9 @@ subroutine advecc_kappa(a_in,a_out)
                 (sign(0.5, d1) + sign(0.5, d2))
 
            work = work * w0(i,j,2)
+           !$acc atomic update
            a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
+           !$acc atomic update
            a_out(i,j,2) = a_out(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
         end do
      end do
@@ -128,7 +129,7 @@ subroutine advecc_kappa(a_in,a_out)
   kbeg = max(k_low-1,1)
   kend = min(k_high+2, kmax)
 
-  !$acc parallel loop collapse(3) default(present) wait(1) async(2)
+  !$acc parallel loop collapse(3) default(present) async(2)
   do k = kbeg, kend
      do j = 2, j1
         do i = 2, i2
@@ -161,7 +162,7 @@ subroutine advecc_kappa(a_in,a_out)
      end do
   end do
 
-  !$acc parallel loop collapse(3) default(present) wait(1) async(3)
+  !$acc parallel loop collapse(3) default(present) async(3)
   do k = kbeg, kend
      do j = 2, j2
         do i = 2, i1
@@ -194,7 +195,7 @@ subroutine advecc_kappa(a_in,a_out)
      end do
   end do
 
-  !$acc parallel loop collapse(3) default(present) wait(1) async(4)
+  !$acc parallel loop collapse(3) default(present) async(4)
   do k = 3, kend
      do j = 2, j1
         do i = 2, i1
