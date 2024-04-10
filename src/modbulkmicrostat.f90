@@ -32,7 +32,6 @@
 module modbulkmicrostat
   use modprecision, only : longint, field_r
   use modtimer
-  use modmpi_tests,    only : slabsum_multi
 
 implicit none
 private
@@ -350,7 +349,7 @@ subroutine initbulkmicrostat
 !------------------------------------------------------------------------------!
 !> Performs the calculations for the tendencies etc.
   subroutine bulkmicrotend
-    use modmpi,    only  : slabsum
+    use modmpi,    only  : slabsum, slabsum_multi
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot
     use modfields,    only  : qtp
     use modmicrodata,  only  : qrp, Nrp
