@@ -93,11 +93,11 @@ contains
   !> @brief Copies surface data to GPU containers
   subroutine update_gpu_surface
 
-    use modsurfdata, only: obl, tskin, qskin
+    use modsurfdata, only: obl, tskin, qskin, ra, rs
 
     implicit none
 
-    !$acc update device(tskin, qskin, obl)
+    !$acc update device(tskin, qskin, ra, rs, obl)
 
   end subroutine update_gpu_surface
   
