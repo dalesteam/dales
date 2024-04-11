@@ -621,7 +621,7 @@ contains
     enddo
 
     !$acc parallel loop default(present) async(1)
-    do k=1,k1
+    do k = 1, k1
       cfracav(k)    = cfracav(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
 
@@ -864,7 +864,7 @@ contains
         !$acc parallel loop default(present) private(wsvres_s) async(1)
         do k = 2, kmax
           wsvres_s = 0.0
-          !$acc loop collapse(2) reduction(+: wsvres)
+          !$acc loop collapse(2) reduction(+: wsvres_s)
           do j = 2, j1
             do i = 2, i1
               wsvres_s = wsvres_s + w0(i,j,k)*sv0h(i,j,k)
@@ -928,7 +928,7 @@ contains
     call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr)
 
     if (nsv > 0) then
-      do n=1,nsv
+      do n = 1, nsv
         call D_MPI_ALLREDUCE(sv2av(:,n),k1, MPI_SUM, comm3d,mpierr)
         call D_MPI_ALLREDUCE(wsvsub(:,n), k1, MPI_SUM, comm3d,mpierr)
         call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr)
@@ -961,15 +961,15 @@ contains
       wthvtot  = wthvres + wthvsub
 
       if (nsv > 0) then
-        wsvsub = wsvsub /ijtot
-        wsvres = wsvres /ijtot
+        wsvsub = wsvsub / ijtot
+        wsvres = wsvres / ijtot
         wsvtot = wsvsub + wsvres
       end if
 
-      uwres    = uwres    /ijtot
-      vwres    = vwres    /ijtot
-      uwsub    = uwsub    /ijtot
-      vwsub    = vwsub    /ijtot
+      uwres    = uwres / ijtot
+      vwres    = vwres / ijtot
+      uwsub    = uwsub / ijtot
+      vwsub    = vwsub / ijtot
       uwtot    = uwres + uwsub
       vwtot    = vwres + vwsub
       !$acc end kernels
@@ -1152,13 +1152,13 @@ contains
       ql2mn    = ql2mn  /nsamples
 
       if (nsv > 0) then
-        svmmn   = svmmn  /nsamples
-        svpmn   = svpmn  /nsamples
-        svptmn  = svptmn /nsamples
-        sv2mn  = sv2mn/nsamples
-        wsvsmn = wsvsmn/nsamples
-        wsvrmn = wsvrmn/nsamples
-        wsvtmn = wsvtmn/nsamples
+        svmmn  = svmmn  / nsamples
+        svpmn  = svpmn  / nsamples
+        svptmn = svptmn / nsamples
+        sv2mn  = sv2mn  / nsamples
+        wsvsmn = wsvsmn / nsamples
+        wsvrmn = wsvrmn / nsamples
+        wsvtmn = wsvtmn / nsamples
       end if
 
       cszmn = cszmn / nsamples
