@@ -53,7 +53,7 @@ save
   logical :: ltimestat= .false. !<switch for timestatistics (on/off)
   real    :: zi,ziold=-1, we
   integer, parameter :: iblh_flux = 1, iblh_grad = 2, iblh_thres = 3
-  integer, parameter :: iblh_thv = -1,iblh_thl = -2, iblh_qt = -3
+  integer, parameter :: iblh_thv = -1, iblh_thl = -2, iblh_qt = -3
   integer :: iblh_meth = iblh_grad, iblh_var = iblh_thv
   integer :: blh_nsamp = 4
   real    :: blh_thres=-1 ,blh_sign=1.0
@@ -392,7 +392,7 @@ contains
     end if
 
     call timer_tic('modtimestat/timestat', 0)
-    
+
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
@@ -487,7 +487,7 @@ contains
             qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
           end do
           if (qlint > 0.) then
-            ccl = ccl + 1 
+            ccl = ccl + 1
             qlintavl = qlintavl + qlint
             qlintmaxl = max(qlint, qlintmaxl)
             cc_field(i,j)                  = 1.0
@@ -511,7 +511,7 @@ contains
             qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
           end do
           if (qlint > 0.) then
-            ccl = ccl + 1 
+            ccl = ccl + 1
             qlintavl = qlintavl + qlint
             qlintmaxl = max(qlint, qlintmaxl)
           end if
@@ -521,9 +521,12 @@ contains
     end if
 
     if (imicro > 0) then
+      !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
+      !$acc& private(qrint) async
       do j = 2, j1
         do i = 2, i1
           qrint = 0.0
+          !$acc loop reduction(+: qrint)
           do k = 1, kmax
             qrint = qrint + sv0(i, j, k, iqr) * rhof(k) * dzf(k)
           end do
@@ -532,7 +535,6 @@ contains
       end do
     end if
 
-    
     if (lhetero) then
       do j = 2, j1
         do i = 2, i1
@@ -581,7 +583,7 @@ contains
           patchx = patchxnr(i)
           ztop = 0.0
           do k = 1, kmax
-            if (ql0(i,j,k) > 0) then 
+            if (ql0(i,j,k) > 0.0) then
               ztop = zf(k)
               ztop_field(i,j) = zf(k)
             end if
@@ -597,19 +599,20 @@ contains
         end do
       end do
     else
-      !$acc parallel loop collapse(2) default(present) reduction(+: ztopavl) &
-      !$acc& reduction(max: wmaxl, qlmaxl, ztopmaxl) private(ztop) async
+      !$acc parallel loop collapse(2) default(present) reduction(+:ztopavl) private(ztop)
       do j = 2, j1
-        do i = 1, i1
+        do i = 2, i1
           ztop = 0.0
-          !$acc loop
+          !$acc loop seq
           do k = 1, kmax
-            if (ql0(i,j,k) > 0) ztop = zf(k)
-            wmaxl = max(w0(i,j,k),wmaxl)
-            qlmaxl = max(ql0(i,j,k),qlmaxl)
+            if (ql0(i,j,k) > 0.0) then
+              ztop = zf(k)
+            endif
+            wmaxl = max(w0(i,j,k), wmaxl)
+            qlmaxl = max(ql0(i,j,k), qlmaxl)
           end do
           ztopavl = ztopavl + ztop
-          if (ztop> ztopmaxl) ztopmaxl = ztop
+          if (ztop > ztopmaxl) ztopmaxl = ztop
         end do
       end do
     end if
@@ -648,7 +651,7 @@ contains
                                          ) + e120(i,j,k)**2
           end do
         end do
-      end do 
+      end do
       tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
     end if
 
@@ -664,10 +667,12 @@ contains
     !$acc end kernels
 
     if(isurf < 3) then
+      !$acc kernels default(present) async
       thlfluxl = sum(thlflux(2:i1, 2:j1))
       qtfluxl  = sum(qtflux (2:i1, 2:j1))
+      !$acc end kernels
     end if
-  
+
   ! -----------------------------------
   ! 9.7 Communication and normalisation
   ! -----------------------------------
@@ -712,14 +717,14 @@ contains
     endif
 
     if (cc > 0.0) then
-      zbaseav = zbaseav/cc
-      ztopav  = ztopav/cc
+      zbaseav = zbaseav / cc
+      ztopav  = ztopav / cc
     else
       zbaseav = 0.0
       ztopav = 0.0
     end if
 
-    cc      = cc/ijtot
+    cc      = cc / ijtot
     qlintav = qlintav / ijtot !domain averaged liquid water path
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
@@ -743,7 +748,7 @@ contains
     call D_MPI_ALLREDUCE(tke_totl, tke_tot, 1,   &
                           MPI_SUM, comm3d,mpierr)
 
-    tke_tot = tke_tot/ijtot
+    tke_tot = tke_tot / ijtot
 
     call D_MPI_ALLREDUCE(ustl, ust, 1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(tstl, tst, 1, MPI_SUM, comm3d,mpierr)
@@ -1041,8 +1046,8 @@ contains
 
     implicit none
 
-    real    :: zil, dhdt,locval,oldlocval
-    integer :: location,i,j,k,nsamp,stride
+    real    :: zil, dhdt, locval, oldlocval
+    integer :: location, i, j, k, nsamp, stride
     real, allocatable,dimension(:,:,:) :: blh_fld2
 
 
@@ -1051,52 +1056,72 @@ contains
     endif
 
     zil = 0.0
-    gradient = 0.0
-    dgrad = 0.0
+    !$acc kernels default(present)
+    gradient(:) = 0.0
+    dgrad(:) = 0.0
+    !$acc end kernels
 
     select case (iblh_meth)
       case (iblh_flux)
         select case (iblh_var)
           case(iblh_qt)
-            blh_fld = w0*qt0h
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = w0(:,:,:)*qt0h(:,:,:)
+            !$acc end kernels
           case(iblh_thl)
-            blh_fld = w0*thl0h
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = w0(:,:,:)*thl0h(:,:,:)
+            !$acc end kernels
           case(iblh_thv)
-            blh_fld = w0*thv0h
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = w0(:,:,:)*thv0h(:,:,:)
+            !$acc end kernels
           case(1:)
-            if (iadv_sv(iblh_var)==iadv_kappa) then
+            if (iadv_sv(iblh_var) == iadv_kappa) then
               call halflev_kappa(sv0(:,:,:,iblh_var),sv0h)
+              !$acc kernels default(present)
+              sv0h(2:i1,2:j1,1) = svs(iblh_var)
+              blh_fld(:,:,:) = w0(:,:,:)*sv0h(:,:,:)
+              !$acc end kernels
             else
-              do  k=2,k1
-                do  j=2,j1
-                  do  i=2,i1
+              !$acc kernels default(present)
+              do k = 2, k1
+                do j = 2, j1
+                  do i = 2, i1
                     sv0h(i,j,k) = (sv0(i,j,k,iblh_var)*dzf(k-1)+sv0(i,j,k-1,iblh_var)*dzf(k))/(2*dzh(k))
                   enddo
                 enddo
               enddo
               sv0h(2:i1,2:j1,1) = svs(iblh_var)
-              blh_fld = w0*sv0h
+              blh_fld(:,:,:) = w0(:,:,:)*sv0h(:,:,:)
+              !$acc end kernels
             end if
         end select
 
       case (iblh_grad,iblh_thres)
         select case (iblh_var)
           case(iblh_qt)
-            blh_fld = qt0
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = qt0(:,:,:)
+            !$acc end kernels
           case(iblh_thl)
-            blh_fld = thl0
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = thl0(:,:,:)
+            !$acc end kernels
           case(iblh_thv)
             !$acc parallel loop collapse(3) default(present) async
-            do k=1,k1
-              do j=2,j1
-                do i=2,i1
+            do k = 1, k1
+              do j = 2, j1
+                do i = 2, i1
                   blh_fld(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
-                              *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+                                   *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
                 end do
               end do
             end do
           case(1:)
-            blh_fld = sv0(2:i1,2:j1,1:k1,iblh_var)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = sv0(2:i1,2:j1,1:k1,iblh_var)
+            !$acc end kernels
         end select
 
     end select
@@ -1104,20 +1129,21 @@ contains
     select case (iblh_meth)
       case (iblh_flux)
         stride = ceiling(real(imax)/real(blh_nsamp))
-        do i=2,stride+1
-          nsamp =  ceiling(real(i1-i+1)/real(stride))
-          do j=2,j1
+        !$acc parallel loop collapse(2) default(present) reduction(+:zil) async
+        do i = 2, stride+1
+          do j = 2, j1
+            nsamp =  ceiling(real(i1-i+1)/real(stride))
             zil = zil + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
           end do
         end do
 
       case (iblh_grad)
         stride = ceiling(real(imax)/real(blh_nsamp))
-        !$acc parallel loop collapse(2) default(present) reduction(+:zil) async
-        do i=2,stride+1
-          do j=2,j1
+        !$acc parallel loop collapse(2) default(present) reduction(+:zil)
+        do i = 2, stride+1
+          do j = 2, j1
             nsamp =  ceiling(real(i1-i+1)/real(stride))
-            profile  = sum(blh_fld(i:i1:stride,j,:),1)
+            profile(:) = sum(blh_fld(i:i1:stride,j,:),1)
             select case (iblh_var)
               case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
                 gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
