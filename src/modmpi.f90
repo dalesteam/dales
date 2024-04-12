@@ -453,8 +453,8 @@ contains
       do j = 1, jh
         do i = 1, xl
           ii = i + (j-1)*xl + (k-1)*xl*jh
-          sends(ii) = a(i,ey-jh+j,k)
-          sendn(ii) = a(i,sy+j-1,k)
+          sends(ii) = a(sx-ih+i-1,ey-jh+j,k)
+          sendn(ii) = a(sx-ih+i-1,sy+j-1,k)
         end do
       end do
     end do
@@ -481,8 +481,8 @@ contains
       do j = 1, jh
         do i = 1, xl
           ii = i + (j-1)*xl + (k-1)*xl*jh
-          a(i,ey+j,k) = recvn(ii)
-          a(i,sy-jh+(j-1),k) = recvs(ii)
+          a(sx-ih+i-1,ey+j,k) = recvn(ii)
+          a(sx-ih+i-1,sy-jh+(j-1),k) = recvs(ii)
         end do
       end do
     end do
@@ -508,8 +508,8 @@ contains
       do j = 1, yl
         do i = 1, ih
           ii = i + (j-1)*ih + (k-1)*ih*yl
-          sende(ii) = a(ex-ih+i,j,k)
-          sendw(ii) = a(sx+i-1,j,k)
+          sende(ii) = a(ex-ih+i,sy-jh+j-1,k)
+          sendw(ii) = a(sx+i-1,sy-jh+j-1,k)
         end do
       end do
     end do
@@ -536,8 +536,8 @@ contains
       do j = 1, yl
         do i = 1, ih
           ii = i + (j-1)*ih + (k-1)*ih*yl
-          a(sx-jh+(i-1),j,k) = recvw(ii)
-          a(ex+i,j,k) = recve(ii)
+          a(sx-jh+(i-1),sy-jh+j-1,k) = recvw(ii)
+          a(ex+i,sy-jh+j-1,k) = recve(ii)
         end do
       end do
     end do
@@ -617,8 +617,8 @@ contains
       do j = 1, jh
         do i = 1, xl
           ii = i + (j-1)*xl + (k-1)*xl*jh
-          sendn(ii) = a(i,ey-jh+j,k)
-          sends(ii) = a(i,sy+j-1,k)
+          sendn(ii) = a(sx-ih+i-1,ey-jh+j,k)
+          sends(ii) = a(sx-ih+i-1,sy+j-1,k)
         end do
       end do
     end do
@@ -646,8 +646,8 @@ contains
       do j = 1, jh
         do i = 1, xl
           ii = i + (j-1)*xl + (k-1)*xl*jh
-          a(i,ey+j,k) = recvn(ii)
-          a(i,sy-jh+(j-1),k) = recvs(ii)
+          a(sx-ih+i-1,ey+j,k) = recvn(ii)
+          a(sx-ih+i-1,sy-jh+(j-1),k) = recvs(ii)
         end do
       end do
     end do
@@ -673,8 +673,8 @@ contains
       do j = 1, yl
         do i = 1, ih
           ii = i + (j-1)*ih + (k-1)*ih*yl
-          sende(ii) = a(ex-ih+i,j,k)
-          sendw(ii) = a(sx+i-1,j,k)
+          sende(ii) = a(ex-ih+i,sy-jh+j-1,k)
+          sendw(ii) = a(sx+i-1,sy-jh+j-1,k)
         end do
       end do
     end do
@@ -701,8 +701,8 @@ contains
       do j = 1, yl
         do i = 1, ih
           ii = i + (j-1)*ih + (k-1)*ih*yl
-          a(sx-ih+(i-1),j,k) = recvw(ii)
-          a(ex+i,j,k) = recve(ii)
+          a(sx-ih+(i-1),sy-jh+j-1,k) = recvw(ii)
+          a(ex+i,sy-jh+j-1,k) = recve(ii)
         end do
       end do
     end do
