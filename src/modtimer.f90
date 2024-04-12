@@ -32,6 +32,7 @@ module modtimer
   logical :: ltimer_write = .false. ! Switch for writing timing results to a csv file
 contains
   subroutine inittimer
+    use modmpi, only : comm3d, D_MPI_BCAST
     implicit none
     integer :: myid, ierr
     namelist /TIMER/ ltimer, ltimer_print, ltimer_write
@@ -45,6 +46,10 @@ contains
       write(6, TIMER)
       close(ifnamopt)
     end if
+
+    call D_MPI_BCAST(ltimer, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(ltimer_print, 1, 0, comm3d, ierr)
+    call D_MPI_BCAST(ltimer_write, 1, 0, comm3d, ierr)
 
   end subroutine inittimer
   subroutine timer_print(myid_arg)
@@ -116,6 +121,9 @@ contains
         end do
       end if
     end if
+    deallocate(timing_results_acc, &
+               timing_results_min, &
+               timing_results_max)
   end subroutine timer_print
   subroutine timer_write(myid_arg)
     integer , parameter :: MYID_PRINT = 0
@@ -167,7 +175,9 @@ contains
       close(file)
 
     end if
-
+    deallocate(timing_results_acc, &
+               timing_results_min, &
+               timing_results_max)
   end subroutine timer_write
   subroutine timer_tic(timer_name,nvtx_id_fix,nvtx_color,nvtx_id_inc,nvtx_gpu_stream)
     !@cuf use cudafor
