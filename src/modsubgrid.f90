@@ -666,7 +666,7 @@ contains
   end subroutine sources
 
   subroutine diffc (a_in,a_out,flux)
-    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh,dzhi
+    use modglobal, only : i1,ih,i2,j1,jh,j2,k1,kmax,dx2i,dzf,dy2i,dzh,dzhi,dzfi
     use modfields, only : rhobf,rhobh
     implicit none
 
