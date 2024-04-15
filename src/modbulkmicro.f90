@@ -262,12 +262,12 @@ module modbulkmicro
         enddo
       enddo
 
-      if ( -qrsum_neg > 0.000001*qrsum) then
-        write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
-      end if
-      if ( -Nrsum_neg > 0.000001*Nrsum) then
-         write(*,*)'amount of neg. Nr thrown away is too high  ',timee,' sec'
-      end if
+      !if ( -qrsum_neg > 0.000001*qrsum) then
+      !  write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
+      !end if
+      !if ( -Nrsum_neg > 0.000001*Nrsum) then
+      !   write(*,*)'amount of neg. Nr thrown away is too high  ',timee,' sec'
+      !end if
     end if   ! l_rain
 
     !*********************************************************************
