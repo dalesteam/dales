@@ -65,64 +65,64 @@ subroutine advecc_kappa(a_in,a_out)
 
   !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
   do k = 1, k1
-     do j = 2, j1
-        do i = 2, i1
-           if (a_in(i,j,k).ne.0.) then
-             k_low = min(k,k_low)
-           endif
-        enddo
-     enddo
+    do j = 2, j1
+      do i = 2, i1
+        if (a_in(i,j,k).ne.0.) then
+          k_low = min(k,k_low)
+        endif
+      enddo
+    enddo
   enddo
 
   ! a_in == zero
   if (k_low == (k1 + 1)) then
-     return
+    return
   endif
 
   k_high = 0
   !$acc parallel loop collapse(3) default(present) reduction(max:k_high)
   do k = k_low, k1
-     do j = 2, j1
-        do i = 2, i1
-           if ((a_in(i,j,k).ne.0.)) then
-             k_high = max(k,k_high)
-           endif
-        enddo
-     enddo
+    do j = 2, j1
+      do i = 2, i1
+        if ((a_in(i,j,k).ne.0.)) then
+          k_high = max(k,k_high)
+        endif
+      enddo
+    enddo
   enddo
 
   ! vertical advection from layer 1 to 2, special case. k=2
   if (k_low <= 3) then
-     !$acc parallel loop collapse(2) default(present) async(1)
-     do j = 2, j1
-        do i = 2, i1
-           d1m = 0
-           d2m = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
-           cfm = rhobf(1) * a_in(i,j,1)
-           d1p = rhobf(2) * a_in(i,j,2) - rhobf(3) * a_in(i,j,3)
-           cfp = rhobf(2) * a_in(i,j,2)
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j = 2, j1
+      do i = 2, i1
+        d1m = 0
+        d2m = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
+        cfm = rhobf(1) * a_in(i,j,1)
+        d1p = rhobf(2) * a_in(i,j,2) - rhobf(3) * a_in(i,j,3)
+        cfp = rhobf(2) * a_in(i,j,2)
 
-           if (w0(i,j,2) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
+        if (w0(i,j,2) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
 
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
-           work = work * w0(i,j,2)
-           !$acc atomic update
-           a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
-           !$acc atomic update
-           a_out(i,j,2) = a_out(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
-        end do
-     end do
+        work = work * w0(i,j,2)
+        !$acc atomic update
+        a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
+        !$acc atomic update
+        a_out(i,j,2) = a_out(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
+      end do
+    end do
   end if
 
   ! loop accesses k-2, k-1, k, k+1
@@ -131,101 +131,101 @@ subroutine advecc_kappa(a_in,a_out)
 
   !$acc parallel loop collapse(3) default(present) async(2)
   do k = kbeg, kend
-     do j = 2, j1
-        do i = 2, i2
-           d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
-           d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
-           d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
-           cfm = a_in(i-1,j,k)
-           cfp = a_in(i  ,j,k)
+    do j = 2, j1
+      do i = 2, i2
+        d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
+        d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
+        d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
+        cfm = a_in(i-1,j,k)
+        cfp = a_in(i  ,j,k)
 
-           if (u0(i,j,k) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
+        if (u0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
 
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
-           work = work * u0(i,j,k) * dxi
-           !$acc atomic update
-           a_out(i-1,j,k) = a_out(i-1,j,k) - work
-           !$acc atomic update
-           a_out(i,j,k)   = a_out(i,j,k)   + work
-        end do
-     end do
+        work = work * u0(i,j,k) * dxi
+        !$acc atomic update
+        a_out(i-1,j,k) = a_out(i-1,j,k) - work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + work
+      end do
+    end do
   end do
 
   !$acc parallel loop collapse(3) default(present) async(3)
   do k = kbeg, kend
-     do j = 2, j2
-        do i = 2, i1
-           d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
-           d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
-           d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
-           cfm = a_in(i,j-1,k)
-           cfp = a_in(i,j  ,k)
+    do j = 2, j2
+      do i = 2, i1
+        d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
+        d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
+        d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
+        cfm = a_in(i,j-1,k)
+        cfp = a_in(i,j  ,k)
 
-           if (v0(i,j,k) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
+        if (v0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
 
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
-           work = work * v0(i,j,k) * dyi
-           !$acc atomic update
-           a_out(i,j-1,k) = a_out(i,j-1,k) - work
-           !$acc atomic update
-           a_out(i,j,k)   = a_out(i,j,k)   + work
-        end do
-     end do
+        work = work * v0(i,j,k) * dyi
+        !$acc atomic update
+        a_out(i,j-1,k) = a_out(i,j-1,k) - work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + work
+      end do
+    end do
   end do
 
   !$acc parallel loop collapse(3) default(present) async(4)
   do k = 3, kend
-     do j = 2, j1
-        do i = 2, i1
-           d1m = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
-           d2m = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
-           d1p = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
-           cfm = rhobf(k-1) * a_in(i,j,k-1)
-           cfp = rhobf(k)   * a_in(i,j,k  )
+    do j = 2, j1
+      do i = 2, i1
+        d1m = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
+        d2m = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
+        d1p = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
+        cfm = rhobf(k-1) * a_in(i,j,k-1)
+        cfp = rhobf(k)   * a_in(i,j,k  )
 
-           if (w0(i,j,k) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
+        if (w0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
 
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
+             (sign(0.5, d1) + sign(0.5, d2))
 
-           work = work * w0(i,j,k)
-           !$acc atomic update
-           a_out(i,j,k-1) = a_out(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
-           !$acc atomic update
-           a_out(i,j,k)   = a_out(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
-        end do
-     end do
+        work = work * w0(i,j,k)
+        !$acc atomic update
+        a_out(i,j,k-1) = a_out(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
+      end do
+    end do
   end do
   !$acc wait
 

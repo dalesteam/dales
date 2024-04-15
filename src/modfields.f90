@@ -236,7 +236,7 @@ subroutine initfields
              ,esl (2-ih:i1+ih,2-jh:j1+jh,k1)    & ! es-liquid
              ,qsat(2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(surf_rain(2-ih:i1+ih,2-jh:j1+jh))
+    allocate(surf_rain(2:i1,2:j1))
 
     um=0.;u0=0.;up=0.
     vm=0.;v0=0.;vp=0.

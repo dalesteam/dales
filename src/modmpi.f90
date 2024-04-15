@@ -112,10 +112,13 @@ interface D_MPI_ISEND
     procedure :: D_MPI_BCAST_INT32_S
     procedure :: D_MPI_BCAST_REAL32_R1
     procedure :: D_MPI_BCAST_REAL32_R2
+    procedure :: D_MPI_BCAST_REAL32_R3
     procedure :: D_MPI_BCAST_REAL64_R1
     procedure :: D_MPI_BCAST_REAL64_R2
+    procedure :: D_MPI_BCAST_REAL64_R3
     procedure :: D_MPI_BCAST_INT32_R1
     procedure :: D_MPI_BCAST_INT32_R2
+    procedure :: D_MPI_BCAST_INT32_R3
     procedure :: D_MPI_BCAST_LOGICAL_R1
     procedure :: D_MPI_BCAST_STRING
 #if defined(_OPENACC)

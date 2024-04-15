@@ -34,6 +34,8 @@
 
 module modforces
 use modtimer
+use modprecision, only : field_r
+
 !Calculates additional forces and large scale tendencies
 implicit none
 save
@@ -75,7 +77,7 @@ contains
 
   if (lpressgrad) then
      !$acc kernels default(present) async(1)
-     do k=1,kmax
+     do k = 1, kmax
         up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
         vp(:,:,k) = vp(:,:,k) - dpdyl(k)
      end do
@@ -142,15 +144,15 @@ contains
     do j = 2, j1
       do i = 2, i1
         up(i,j,k) = up(i,j,k)+ cv*om23 &
-              +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25 &
-              -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25
+              +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
+              -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
 
         vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-              -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25
+              -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
 
         wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
                     +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
-                    * om22*0.25
+                    * om22*0.25_field_r
       end do
     end do
   end do
@@ -162,11 +164,11 @@ contains
   do j = 2, j1
     do i = 2, i1
       up(i,j,1) = up(i,j,1)  + cv*om23 &
-            +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25 &
-            -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25
+            +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25_field_r &
+            -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r
 
       vp(i,j,1) = vp(i,j,1) - cu*om23 &
-            -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25
+            -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25_field_r
 
       wp(i,j,1) = 0.0
     end do
@@ -209,12 +211,6 @@ contains
 
   call timer_tic('modforces/lstend', 0)
 
-!     1. DETERMINE LARGE SCALE TENDENCIES
-!        --------------------------------
-
-!     1.1 lowest model level above surface : only downward component
-!     1.2 other model levels twostream
-
   !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, kmax
     do j = 2, j1
@@ -256,10 +252,10 @@ contains
   do k = 1, kmax
     do j = 2, j1
       do i = 2, i1
-        thlp(i,j,k) = thlp(i,j,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k) + dthldtls(k)
-        qtp (i,j,k) = qtp (i,j,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
-        up  (i,j,k) = up  (i,j,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
-        vp  (i,j,k) = vp  (i,j,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
+        thlp(i,j,k) = thlp(i,j,k) - u0av(k)*dthldxls(k) - v0av(k)*dthldyls(k) + dthldtls(k)
+        qtp (i,j,k) = qtp (i,j,k) - u0av(k)*dqtdxls (k) - v0av(k)*dqtdyls (k) + dqtdtls(k)
+        up  (i,j,k) = up  (i,j,k) - u0av(k)*dudxls  (k) - v0av(k)*dudyls  (k) + dudtls(k)
+        vp  (i,j,k) = vp  (i,j,k) - u0av(k)*dvdxls  (k) - v0av(k)*dvdyls  (k) + dvdtls(k)
       end do
     end do
   end do

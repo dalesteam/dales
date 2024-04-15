@@ -42,6 +42,7 @@
 !! \endlatexonly
 module tstep
 use modtimer
+use modprecision, only: field_r
 implicit none
 
   ! Arrays for keeping track of maximum values
@@ -192,7 +193,7 @@ subroutine tstep_update
 
   ! Scalars
   if (nsv > 0) then
-    !$acc parallel loop collapse(4) default(present) async(1)
+    !$acc parallel loop collapse(4) default(present) async(2)
     do n = 1, nsv
       do k = 1, k1
         do j = 2, j1
@@ -203,7 +204,7 @@ subroutine tstep_update
       enddo
     enddo
   endif
-  !$acc wait(1)
+  !$acc wait(1,2)
 
   call timer_toc('tstep/tstep_update')
 end subroutine tstep_update
@@ -234,11 +235,11 @@ subroutine tstep_integrate
 
   integer :: i,j,k,n
 
-  real rk3coef
+  real(field_r) rk3coef
 
   call timer_tic('tstep/tstep_integrate', 0)
 
-  rk3coef = rdt / (4. - dble(rk3step))
+  rk3coef = rdt / (4 - dble(rk3step))
 
   if(rk3step /= 3) then
     !$acc parallel loop collapse(3) default(present) async(1)
@@ -257,7 +258,7 @@ subroutine tstep_integrate
 
     ! Scalars
     if (nsv > 0) then
-      !$acc parallel loop collapse(4) default(present) async(1)
+      !$acc parallel loop collapse(4) default(present) async(2)
       do n = 1, nsv
         do k = 1, kmax
           do j = 2, j1
@@ -268,6 +269,8 @@ subroutine tstep_integrate
         end do
       end do
     endif
+    !$acc wait(1,2)
+
   else ! step 3 - store result in both ..0 and ..m
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
@@ -291,7 +294,7 @@ subroutine tstep_integrate
 
     ! Scalars
     if (nsv > 0) then
-      !$acc parallel loop collapse(4) default(present) async(1)
+      !$acc parallel loop collapse(4) default(present) async(2)
       do n = 1, nsv
         do k = 1, kmax
           do j = 2, j1
@@ -303,8 +306,8 @@ subroutine tstep_integrate
         end do
       end do
     endif
+    !$acc wait(1,2)
   end if
-  !$acc wait(1)
   call timer_toc('tstep/tstep_integrate')
 end subroutine tstep_integrate
 

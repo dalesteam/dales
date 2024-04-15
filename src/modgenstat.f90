@@ -75,7 +75,7 @@ module modgenstat
   save
 
 !NetCDF variables
-  integer :: nvar = 40
+  integer :: nvar = 47
   integer :: ncid,nrec = 0
   character(80) :: fname = 'profiles.xxx.nc'
   character(80),allocatable, dimension(:,:) :: ncname
@@ -89,7 +89,8 @@ module modgenstat
 
   real, allocatable  :: umn   (:)       ,vmn   (:)
   real, allocatable  :: thlmn (:)       ,thvmn (:)
-  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:)
+  real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:),tamn(:)
+  real, allocatable  :: clwmn(:), climn(:), plwmn(:), plimn(:)
 
 ! real, allocatable  ::     --- fluxes (resolved, subgrid and total) ---
   real, allocatable  :: wthlsmn (:),wthlrmn (:),wthltmn(:)
@@ -218,12 +219,12 @@ contains
     call D_MPI_BCAST(timeav     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(dtav       ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lstat      ,1,0,comm3d,mpierr)
-    idtav = dtav/tres
-    itimeav = timeav/tres
+    idtav = int(dtav/tres,kind=longint)
+    itimeav = int(timeav/tres,kind=longint)
 
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
-    nsamples = itimeav/idtav
+    nsamples = int(itimeav/idtav)
     if(.not.(lstat)) return
     dt_lim = min(dt_lim,tnext)
 
@@ -233,7 +234,8 @@ contains
 
     allocate(umn(k1)       ,vmn   (k1))
     allocate(thlmn (k1)       ,thvmn (k1))
-    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1))
+    allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1), tamn(k1))
+    allocate(clwmn(k1), climn(k1), plwmn(k1), plimn(k1))
     allocate(wthlsmn (k1),wthlrmn (k1),wthltmn(k1))
     allocate(wthvsmn (k1),wthvrmn (k1),wthvtmn(k1))
     allocate(wqlsmn (k1),wqlrmn (k1),wqltmn(k1))
@@ -254,6 +256,9 @@ contains
     allocate(qtmav (k1))
     allocate(qlmav (k1))
     allocate(cfracav(k1))
+    allocate(hurav(k1))
+    allocate(clwav(k1), cliav(k1), plwav(k1), pliav(k1))
+    allocate(taav(k1))
     allocate(svmav (k1,nsv))
     allocate(uptav(k1))
     allocate(vptav(k1))
@@ -511,20 +516,22 @@ contains
 
   subroutine do_genstat
 
-    use modfields, only : u0,v0,w0,um,vm,wm,qtm,thlm,thl0,qt0,qt0h, &
-                          ql0,ql0h,thl0h,thv0h,sv0, svm, e12m,exnf,exnh
+    use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
+                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE,myid
     use advec_kappa, only : halflev_kappa
+    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
+    use modthermodynamics, only: qsat_tab
     implicit none
 
     real cthl,cqt,den
 
     integer i, j, k, n, km
-    real    tsurf, qsat, c1, c2
+    real    tsurf, qsat_, c1, c2
     real    qs0h, t0h, ekhalf, euhalf, evhalf
     real    wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
     real    uws,vws,uwr,vwr
@@ -616,6 +623,7 @@ contains
         do  i=2,i1
           thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                         *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+          huravl(k) = huravl(k) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
         enddo
       enddo
     enddo
@@ -816,6 +824,7 @@ contains
           vwsub_s = vwsub_s + vws
         end do
       end do
+
       wqlsub(k) = wqlsub_s
       wqlres(k) = wqlres_s
       wthlsub(k) = wthlsub_s
@@ -986,6 +995,15 @@ contains
       qtmn   = qtmn  + qtmav
       qlmn   = qlmn  + qlmav
       cfracmn= cfracmn+cfracav
+      hurmn  = hurmn + hurav
+
+      clwmn  = clwmn + clwav
+      climn  = climn + cliav
+      plwmn  = plwmn + plwav
+      plimn  = plimn + pliav
+
+      tamn   = tamn  + taav
+
       qlhmn  = qlhmn + qlhav
 
       wthlsmn = wthlsmn + wthlsub
@@ -1114,6 +1132,12 @@ contains
       qtmn   = qtmn   /nsamples
       qlmn   = qlmn   /nsamples
       cfracmn= cfracmn/nsamples
+      hurmn  = hurmn /nsamples
+      clwmn  = clwmn /nsamples
+      climn  = climn /nsamples
+      plwmn  = plwmn /nsamples
+      plimn  = plimn /nsamples
+      tamn  =  tamn   /nsamples
       qlhmn  = qlhmn  /nsamples
 
 
@@ -1456,14 +1480,22 @@ contains
         vars(:,38)=ql2mn
         vars(:,39)=csz
         vars(:,40)=cfracmn
+        vars(:,41)=hurmn
+        vars(:,42)=qtmn-qlmn
+        vars(:,43)=tamn
+        vars(:,44)=clwmn
+        vars(:,45)=climn
+        vars(:,46)=plwmn
+        vars(:,47)=plimn
+
         do n=1,nsv
-          vars(:,40+7*(n-1)+1)=svmmn(:,n)
-          vars(:,40+7*(n-1)+2)=svpmn(:,n)
-          vars(:,40+7*(n-1)+3)=svptmn(:,n)
-          vars(:,40+7*(n-1)+4)=sv2mn(:,n)
-          vars(:,40+7*(n-1)+5)=wsvsmn(:,n)
-          vars(:,40+7*(n-1)+6)=wsvrmn(:,n)
-          vars(:,40+7*(n-1)+7)=wsvtmn(:,n)
+          vars(:,47+7*(n-1)+1)=svmmn(:,n)
+          vars(:,47+7*(n-1)+2)=svpmn(:,n)
+          vars(:,47+7*(n-1)+3)=svptmn(:,n)
+          vars(:,47+7*(n-1)+4)=sv2mn(:,n)
+          vars(:,47+7*(n-1)+5)=wsvsmn(:,n)
+          vars(:,47+7*(n-1)+6)=wsvrmn(:,n)
+          vars(:,47+7*(n-1)+7)=wsvtmn(:,n)
         end do
         call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
         call writestat_nc(ncid,nvar,ncname,vars(1:kmax,:),nrec,kmax)
@@ -1483,6 +1515,12 @@ contains
       qlmn     = 0.
       qlhmn    = 0.
       cfracmn  = 0.
+      hurmn    = 0.
+      clwmn    = 0.
+      climn    = 0.
+      plwmn    = 0.
+      plimn    = 0.
+      tamn     = 0.
 
       wthlsmn =  0.
       wthlrmn =  0.
@@ -1535,8 +1573,8 @@ contains
       deallocate(tmn, thmn)
 
       call timer_toc('modgenstat/writestat')
-
   end subroutine writestat
+
   subroutine exitgenstat
     use modmpi, only : myid
     use modstat_nc, only : exitstat_nc,lnetcdf
@@ -1548,7 +1586,8 @@ contains
 
     deallocate(umn       ,vmn   )
     deallocate(thlmn        ,thvmn )
-    deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn)
+    deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn, hurmn)
+    deallocate(clwmn,climn,plwmn,plimn)
     deallocate(wthlsmn ,wthlrmn ,wthltmn)
     deallocate(wthvsmn ,wthvrmn ,wthvtmn)
     deallocate(wqlsmn ,wqlrmn ,wqltmn)
@@ -1569,6 +1608,8 @@ contains
     deallocate(qtmav )
     deallocate(qlmav )
     deallocate(cfracav )
+    deallocate(hurav )
+    deallocate(clwav,cliav,plwav,pliav)
     deallocate(svmav )
     deallocate(uptav)
     deallocate(vptav)

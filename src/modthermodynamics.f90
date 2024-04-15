@@ -45,9 +45,11 @@ contains
 
 !> Allocate and initialize arrays
   subroutine initthermodynamics
-    use modglobal, only : ih,i1,jh,j1,k1
-
+    use modglobal, only : ih,i1,jh,j1,k1,tdn,tup,esatltab,esatitab,esatmtab,ttab
+    use modmicrodata, only: imicro,imicro_bulk3
     implicit none
+    real :: ilratio
+    integer :: m
 
     allocate(th0av(k1))
     allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
@@ -57,6 +59,26 @@ contains
 
     !$acc enter data copyin(th0av, thv0, thetah, qth, qlh)
 
+    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
+    ! esatitab(m) is the same over ice
+    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
+    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
+    ! Murphy and Koop 2005 parameterization formula.
+    do m=1,2000
+       ttab(m)=150.+0.2*m
+       esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
+            tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+
+       esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
+       ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
+       if(imicro.eq.imicro_bulk3) then
+          ! bulkmicro3 thermodynamics is for liquid only, ice is explicitely accounted for separately.
+          esatmtab(m) = esatltab(m)
+       else
+          ! for all other microphysics, saturation is w.r.t. liquid and ice
+          esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
+       end if
+    end do
   end subroutine initthermodynamics
 
 !> Do moist thermodynamics.
@@ -279,9 +301,10 @@ contains
   subroutine diagfld
 
   use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0, &
-                        is_starting
+                        timee,lconstexner,is_starting
   use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
-                        presf,presh,exnf,exnh,rhof,thvf
+                        presf,presh,exnf,exnh,rhof,thvf, &
+                        initial_presf,initial_presh
   use modsurfdata,only : thls,ps
   use modmpi,    only : slabsum
   implicit none
@@ -328,8 +351,10 @@ contains
    qt0av  = qt0av /ijtot
    ql0av  = ql0av /ijtot
    sv0av  = sv0av /ijtot
-   exnf   = 1-grav*zf/(cp*thls)
-   exnh   = 1-grav*zh/(cp*thls)
+   if (timee < 0.01 .or. .not. lconstexner) then
+     exnf   = 1-grav*zf/(cp*thls)
+     exnh   = 1-grav*zh/(cp*thls)
+   endif
    th0av  = thl0av+ (rlv/cp)*ql0av/exnf
    !$acc end kernels
 
@@ -343,8 +368,10 @@ contains
    call fromztop
 
    !$acc kernels default(present)
-   exnf = (presf/pref0)**(rd/cp)
    th0av = thl0av + (rlv/cp)*ql0av/exnf
+   if (timee < 0.01 .or. .not. lconstexner) then
+      exnf = (presf/pref0)**(rd/cp)
+   endif
    !$acc end kernels
 
 !    2.2 Use new updated value of theta for determination of pressure
@@ -356,34 +383,32 @@ contains
 !       for further use in the program                     *
 !***********************************************************
 
-!    3.1 determine exner
+!  3.1 determine exner
+   if (timee < 0.01 .or. .not. lconstexner) then
+     !$acc serial default(present) async(1)
+     exnh(1) = (ps/pref0)**(rd/cp)
+     exnf(1) = (presf(1)/pref0)**(rd/cp)
+     !$acc end serial
 
-   !$acc serial default(present) async(1)
-   exnh(1) = (ps/pref0)**(rd/cp)
-   exnf(1) = (presf(1)/pref0)**(rd/cp)
-   !$acc end serial
+     !$acc parallel loop default(present) async(2)
+     do k=2,k1
+       exnf(k) = (presf(k)/pref0)**(rd/cp)
+       exnh(k) = (presh(k)/pref0)**(rd/cp)
+     end do
+   endif
 
-   !$acc parallel loop default(present) async(2)
-   do k=2,k1
-     exnf(k) = (presf(k)/pref0)**(rd/cp)
-     exnh(k) = (presh(k)/pref0)**(rd/cp)
-   end do
-
-!    3.2 determine rho
-
+!  3.2 determine rho
    !$acc parallel loop default(present) async wait(1, 2)
    do k=1,k1
      thvf(k) = th0av(k)*exnf(k)*(1.+(rv/rd-1)*qt0av(k)-rv/rd*ql0av(k))
      rhof(k) = presf(k)/(rd*thvf(k))
    end do
-
    !$acc wait
 
    call timer_toc('modthermodynamics/diagfld')
 
    return
   end subroutine diagfld
-
 
 !> Calculates slab averaged pressure
 !!      Input :  zf,zh,theta and qt profile
@@ -593,6 +618,7 @@ contains
     real(field_r) :: tlo, thi, es
 
     ! interpolated ice-liquid saturation vapor pressure from table
+    ! note if imicto==imicro_bulk3, the table is for liquid only
     tlonr=int((T-150.)*5.)
     tlo = 150. + 0.2*tlonr
     thi = tlo + 0.2
@@ -810,7 +836,6 @@ contains
     call timer_toc('modthermodynamics/icethermoh_fast')
   end subroutine icethermoh_fast
 !!!!!!!!! new thermo
-
 
   subroutine icethermo0
 !> Calculates liquid water content.and temperature

@@ -41,6 +41,8 @@ save
   integer                         :: method
   integer                         :: konx, kony
   integer                         :: iony, jonx
+  integer                         :: konx_last, kony_last
+  integer                         :: iony_last, jonx_last
   real(pois_r), dimension(:), allocatable :: bufin, bufout
   interface fftw_plan_many_r2r_if
     procedure :: d_fftw_plan_many_r2r
@@ -134,6 +136,11 @@ contains
       jonx = jonx + 1
     endif
 
+    konx_last = kmax - konx*(nprocx-1)
+    kony_last = kmax - kony*(nprocy-1)
+    iony_last = itot - iony*(nprocy-1)
+    jonx_last = jtot - jonx*(nprocx-1)
+
 ! Allocate communication buffers for the transpose functions
     sz = max( imax * jmax * konx * nprocx, & ! transpose a1
               iony * jmax * konx * nprocy, & ! transpose a2
@@ -141,7 +148,8 @@ contains
 
     allocate(bufin (sz))
     allocate(bufout(sz))
-
+    bufin = 0
+    bufout = 0
 ! Allocate temporary arrays to hold transposed matrix
 
     ! calculate memory size as an long int (size_t)
@@ -164,7 +172,7 @@ contains
     p210(1:itot,1:jmax,1:konx) => fptr(1:itot*jmax*konx)
     p210_flat(1:itot*jmax*konx)=> fptr(1:itot*jmax*konx)
     p201(1:jtot,1:konx,1:iony) => fptr(1:jtot*konx*iony)
-    p201_flat(1:itot*konx*iony)=> fptr(1:itot*konx*iony)
+    p201_flat(1:jtot*konx*iony)=> fptr(1:jtot*konx*iony)
     Fp(1:iony,1:jonx,1:kmax) => fptr(1:iony*jonx*kmax)
 
     ! Prepare 1d FFT transforms
@@ -253,6 +261,10 @@ contains
     pe = iony
     qs = 1
     qe = jonx
+
+    ! special case for final task in x or y, which may have fewer elements
+    if (myidx == nprocx-1) qe = jonx_last
+    if (myidy == nprocy-1) pe = iony_last
 
     else if (method == 2) then
 
@@ -647,6 +659,10 @@ contains
       call fftw_execute_r2r_if(planx, p210_flat, p210_flat)
 
       call transpose_a2(p210, p201)
+      ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
+      ! p201(jtot,konx,iony)
+      if (myidx == nprocx-1) p201(:,konx_last+1:, :) = 0
+      if (myidy == nprocy-1) p201(:,:,iony_last+1:)  = 0
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
       call transpose_a3(p201, Fp)
@@ -692,7 +708,9 @@ contains
 
     integer :: i,j,iv,jv
     real(pois_r)    :: fac
-    real(pois_r)    :: xrt(itot), yrt(jtot)
+    real(pois_r)    :: xrt(nprocy*iony), yrt(nprocx*jonx)
+    xrt = 0
+    yrt = 0
 
   ! Generate Eigenvalues xrt and yrt resulting from d**2/dx**2 F = a**2 F
 
@@ -712,33 +730,25 @@ contains
 
   ! I --> direction
     fac = 1./(2.*itot)
-    do i=2,(itot/2)
+    do i=2,itot
       xrt(i)=-4.*dxi*dxi*(sin(float(2*(i-1))*pi*fac))**2
-      xrt(itot - i + 2) = xrt(i)
     end do
     xrt(1) = 0.
-    if (mod(itot,2) == 0) then
-      ! Nyquist frequency
-      xrt(1 + itot/2) = -4.*dxi*dxi
-    endif
 
   ! J --> direction
     fac = 1./(2.*jtot)
-    do j=2,(jtot/2)
+    do j=2,jtot
       yrt(j)=-4.*dyi*dyi*(sin(float(2*(j-1))*pi*fac))**2
-      yrt(jtot - j + 2) = yrt(j)
     end do
     yrt(1) = 0.
-    if (mod(jtot,2) == 0) then
-      ! Nyquist frequency
-      yrt(1 + jtot/2) = -4.*dyi*dyi
-    endif
 
   ! Combine I and J directions
   ! Note that:
   ! 1. MPI starts counting at 0 so it should be myidy * jmax
   ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
 
+  ! the last tile in x or y may have fewer elements than the rest
+  ! filling xyrt will then access xrt or yrt beyond itot or jtot. xrt and yrt are padded above with zeroes.
     if (method == 1) then
       ! nprocx /= 1, nprocy /= 1
       ! we will be working on matrix Fp(1:iony,1:jonx,1:kmax)

@@ -73,7 +73,7 @@ contains
   subroutine initsurface
 
     use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg, irad_rte_rrtmgp
     use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
 
     implicit none
@@ -101,7 +101,8 @@ contains
       !2leaf AGS, sunlit/shaded
       lsplitleaf, &
       ! Exponential emission function
-      i_expemis, expemis0, expemis1, expemis2
+      i_expemis, expemis0, expemis1, expemis2, &
+      min_horv
 
     call timer_tic('modsurface/initsurface', 0)
 
@@ -176,12 +177,16 @@ contains
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
 
+    call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
+
     if(lCO2Ags .and. (.not. lrsAgs)) then
       if(myid==0) print *,"WARNING::: You set lCO2Ags to .true., but lrsAgs to .false."
       if(myid==0) print *,"WARNING::: Since AGS does not run, lCO2Ags will be set to .false. as well."
       lCO2Ags = .false.
     endif
-    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) .or. (iradiation .eq. irad_rrtmg))))) then
+    if(lsplitleaf .and. (.not. (rad_shortw .and. ((iradiation.eq.irad_par).or.(iradiation .eq. irad_user) &
+                                                                          .or.(iradiation .eq. irad_rrtmg) &
+                                                                          .or.(iradiation .eq. irad_rte_rrtmgp))))) then
       if(myid==0) stop "WARNING::: You set lsplitleaf to .true., but that needs direct and diffuse calculations. Make sure you enable rad_shortw"
       if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
       lsplitleaf = .false.
@@ -1101,6 +1106,7 @@ contains
       end if
 
       if (lCO2Ags) then
+        !$acc parallel loop collapse(3) default(present)
         do n = 1, indCO2
           do j = 2, j1
             do i = 2, i1
@@ -1138,7 +1144,7 @@ contains
         end do
       end if
     else
-      !$acc parallel loop collapse(2) default(present)
+      !$acc parallel loop collapse(2) default(present) async(1)
       do j = 2, j1
         do i = 2, i1
           thlflux(i,j) = wtsurf
@@ -1147,7 +1153,7 @@ contains
       end do
 
       if (nsv > 0) then
-        !$acc parallel loop collapse(3) default(present)
+        !$acc parallel loop collapse(3) default(present) async(2)
         do n = 1, nsv
           do j = 2, j1
             do i = 2, i1
@@ -1156,9 +1162,9 @@ contains
           end do
         end do
       end if
+      !$acc wait(1,2)
     end if
-    
-    !$acc wait
+
   end subroutine presc_surface_flux
 
   !> Calculates the surface gradients
@@ -1168,36 +1174,29 @@ contains
     implicit none
 
     integer :: i, j
-    real :: scaling
-    real :: upcu, vpcv
-    real :: phimzf, phihzf
+    real(field_r) :: scaling
+    real(field_r) :: upcu, vpcv
+    real(field_r) :: phimzf, phihzf
 
     scaling = 1.0 / (fkar * zf(1))
 
-    ! Momentum fluxes
     !$acc parallel loop collapse(2) default(present)
     do j = 2, j1
       do i = 2, i1
-        upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
-        vpcv = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
         phimzf = phim(zf(1) / obl(i,j))
+
+        ! Momentum fluxes
+        upcu = 0.5_field_r * (u0(i,j,1) + u0(i+1,j,1)) + cu
+        vpcv = 0.5_field_r * (v0(i,j,1) + v0(i,j+1,1)) + cv
         dudz(i,j) = ustar(i,j) * phimzf * scaling * (upcu / horv(i,j))
         dvdz(i,j) = ustar(i,j) * phimzf * scaling * (vpcv / horv(i,j))
-      end do
-    end do
 
-    ! Scalar fluxes
-    !$acc parallel loop collapse(2) default(present)
-    do j = 2, j1
-      do i = 2, i1
-        phihzf = phih(zf(1) / obl(i,j))
+
+        ! Scalar fluxes
         dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf * scaling
         dqtdz(i,j) = - qtflux(i,j) / ustar(i,j) * phihzf * scaling
       end do
     end do
-
-    !$acc wait
-
   end subroutine calc_surface_gradients
 
 !> Calculate the surface humidity assuming saturation.
@@ -1309,7 +1308,7 @@ contains
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
           horv2   =   upcu ** 2. + vpcv ** 2.
-          horv2   =   max(horv2, 0.01)
+          horv2   =   max(horv2, min_horv**2)
 
           if(lhetero) then
             patchx = patchxnr(i)
@@ -1396,7 +1395,7 @@ contains
       MPI_SUM, comm3d,mpierr)
 
       horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
-      horvpatch = max(horvpatch, 0.1)
+      horvpatch = max(horvpatch, min_horv)
 
       thlpatch  = thlpatch / SNpatch
       qpatch    = qpatch   / SNpatch
@@ -1457,7 +1456,7 @@ contains
 
     !$acc update self(u0av(1), v0av(1))
     horv2 = u0av(1)**2. + v0av(1)**2.
-    horv2 = max(horv2, 0.01)
+    horv2 = max(horv2, min_horv**2)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
     if (Rib == 0) then

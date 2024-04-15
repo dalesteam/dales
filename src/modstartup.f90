@@ -68,7 +68,8 @@ contains
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
                                   lwarmstart,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
-                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,cu, cv,ifnamopt,fname_options,llsadv,&
+                                  lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
+                                  ifnamopt,fname_options,llsadv,lconstexner,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
                                   solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, loutdirs, output_prefix
@@ -115,8 +116,9 @@ contains
     namelist/PHYSICS/ &
         !cstep z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,chi_half,lmoist,isurf,lneutraldrag,&
         z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,lmoist,isurf,chi_half,&
-        lcoriol,lpressgrad,igrw_damp,geodamptime,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
-        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo
+        lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,ltimedep,ltimedepuv,ltimedepsv,ntimedep,&
+        irad,timerad,iradiation,rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
+        rka,dlwtop,dlwbot,sw0,gc,reff,isvsmoke,lforce_user,lcloudshading,lrigidlid,unudge,lfast_thermo,lconstexner
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
@@ -219,6 +221,7 @@ contains
     call D_MPI_BCAST(lpressgrad  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(igrw_damp   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(geodamptime ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(uvdamprate  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lforce_user ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lmomsubs    ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ltimedep    ,1,0,commwrld,mpierr)
@@ -227,6 +230,7 @@ contains
     call D_MPI_BCAST(lrigidlid   ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(unudge      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(lfast_thermo,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lconstexner ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(irad       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(timerad    ,1,0,commwrld,mpierr)
@@ -420,7 +424,7 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -925,7 +929,7 @@ contains
   !-----------------------------------------------------------------
     name = startfile
     name(5:5) = 'd'
-    name(13:20)=cmyid
+    name(14:21)=cmyid
     if (myid == 0) write(6,*) 'loading ',name
     open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
 
@@ -1080,11 +1084,11 @@ contains
 
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
-      name = 'initdXXXhXXmXXXXXXXX.XXX'
-      write (name(6:8)  ,'(i3.3)') ihour
-      write (name(10:11),'(i2.2)') imin
-      name(13:20)= cmyid
-      name(22:24)= cexpnr
+      name = 'initdXXXXhXXmXXXXXXXX.XXX'
+      write (name(6:9)  ,'(i4.4)') ihour
+      write (name(11:12),'(i2.2)') imin
+      name(14:21)= cmyid
+      name(23:25)= cexpnr
       open  (ifoutput,file=trim(output_prefix)//name,form='unformatted',status='replace')
 
       write(ifoutput)  (((u0 (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
@@ -1151,7 +1155,7 @@ contains
       endif
       close (ifoutput)
       linkname = name
-      linkname(6:11) = "latest"
+      linkname(6:13) = "_latest_"
       call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       if (nsv>0) then
@@ -1164,7 +1168,7 @@ contains
 
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
 
       end if
@@ -1187,7 +1191,7 @@ contains
 
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       end if
 

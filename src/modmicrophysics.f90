@@ -37,7 +37,7 @@ implicit none
 contains
   subroutine initmicrophysics
     use modmpi,   only :myid,comm3d,mpi_integer,mpi_logical, D_MPI_BCAST
-    use modglobal,only :ifnamopt,fname_options,nsv,checknamelisterror
+    use modglobal,only :ifnamopt,fname_options,nsv,checknamelisterror,lfast_thermo
     use modbulkmicro, only : initbulkmicro
     use modsimpleice, only : initsimpleice
     use modsimpleice2, only : initsimpleice2
@@ -59,6 +59,13 @@ contains
       call checknamelisterror(ierr, ifnamopt, 'NAMMICROPHYSICS')
       write(6 ,NAMMICROPHYSICS)
       close(ifnamopt)
+
+      if(imicro == imicro_bulk3) then
+         if (.not. lfast_thermo) then
+            STOP 'Bulkmicro 3 requires lfast_thermo (special treatment, liquid-only saturation adjustment)'
+            ! Bulkmicro 3 special treatment of saturation adjustment is currently only impmemented in the fast_thermo scheme
+         end if
+      end if
     end if
 
     call D_MPI_BCAST(imicro,   1, 0,comm3d,ierr)

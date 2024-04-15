@@ -3,7 +3,7 @@ module modradrrtmg
   implicit none
 
   private
-  public :: radrrtmg
+  public :: radrrtmg, readSounding, readTraceProfs
 
 contains
 
@@ -22,7 +22,7 @@ contains
     implicit none
 
     integer                :: npatch    ! Sounding levels above domain
-    integer                :: i,j,k,ierr(3)
+    integer                :: i,j,k,ierr(4)
     logical                :: sunUp
     real(SHR_KIND_R4),save ::  eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
                                obliq, & ! Earth's obliquity angle (deg) (-90 to +90) (typically 22-26)
@@ -120,7 +120,19 @@ contains
       allocate(solarZenithAngleCos(imax), asdir(imax), asdif(imax), aldir(imax),       &
                  aldif(imax),                                                          &
                  STAT=ierr(3))
-
+      !Extra input for RRTMG, number of bands is hardcoded but will not change
+      allocate(emis(imax,16),           &
+               taucldlw(16,imax,krad1), &
+               taucldsw(14,imax,krad1), &
+               ssacldsw(14,imax,krad1), &
+               asmcldsw(14,imax,krad1), &
+               fsfcldsw(14,imax,krad1), &
+               tauaerlw(imax,krad1,16), &
+               tauaersw(imax,krad1,14), &
+               ssaaersw(imax,krad1,14), &
+               asmaersw(imax,krad1,14), &
+               ecaersw(imax,krad1,14),  &
+               STAT=ierr(4))
       if(any(ierr(:)/=0)) then
         if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrrtmg'
         stop 'ERROR: Radiation variables could not be allocated in modradrrtmg.f90'
@@ -162,6 +174,18 @@ contains
 
 ! +=+=+=+=+=+=+=+= End of reading and initialization stage =+=+=++=+=+=+=+=+=+=+=++ !
 
+    ! initialize some RRTMG input arrays
+    emis = 0.95
+    taucldlw = 0
+    tauaerlw = 0
+    taucldsw = 0
+    ssacldsw = 0
+    asmcldsw = 0
+    fsfcldsw = 0
+    tauaersw = 0
+    ssaaersw = 0
+    asmaersw = 0
+    ecaersw = 0
     ! zero the RRTMG output arrays here, in case rrtmg_lw or rrtmg_sw is not executed
     swUp_slice = 0
     swDown_slice = 0
@@ -181,21 +205,40 @@ contains
            LWP_slice, IWP_slice, cloudFrac, liquidRe, iceRe )             !output
 
       if (rad_longw) then
-        call rrtmg_lw &
-             ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )!input
+        call rrtmg_lw & !comments = corresponding variable names in the RRTMGP library
+                (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, & !ncol, nlay, icld, (+ idrv in later versions !)
+                 layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
+                 h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
+                 cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis, & !cfc11vmr, cfc12vmr, cfc22vmr, ccl4vmr, emis
+                 inflglw, iceflglw, liqflglw, cloudFrac, & !inflglw, iceflglw, liqflglw, cldfr,
+                 taucldlw, IWP_slice, LWP_slice, iceRe, liquidRe, & !taucld, cicewp, cliqwp, reice, reliq
+                 tauaerlw, lwUp_slice, lwDown_slice, lwHR_slice, & !tauaer, uflx, dflx, hr
+                 lwUpCS_slice, lwDownCS_slice, lwHRCS_slice) !uflxc, dflxc, hrc
+                 !duflx_dt,duflxc_dt (extra optional arguments only if idrv=1 for later versions)
         !if(myid==0) write(*,*) 'after call to rrtmg_lw'
       end if
       if (rad_shortw) then
          call setupSW(sunUp)
          if (sunUp) then
-           call rrtmg_sw &
-                ( tg_slice, cloudFrac, IWP_slice, LWP_slice, iceRe, liquidRe )
+           call rrtmg_sw & !comments = corresponding variable names in the RRTMGP library
+                   (int(imax,kind_im), int(nzrad+1,kind_im), ioverlap, & !ncol, nlay, icld, (+ iaer in later versions !)
+                    layerP, interfaceP, layerT, interfaceT, tg_slice, & !play, plev, tlay, tlev, tsfc
+                    h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr, & !h2ovmr, o3vmr, co2vmr, ch4vmr, n2ovmr, o2vmr
+                    asdir, asdif, aldir, aldif, & !asdir, asdif, aldir, aldif
+                    solarZenithAngleCos, real(eccf,kind_rb), int(0,kind_im), real(sw0,kind_rb), & !coszen, adjes, dyofyr, scon, (+ isolvar in later versions)
+                    inflgsw, iceflgsw, liqflgsw, cloudFrac, & !inflgsw, iceflgsw, liqflgsw, cldfr
+                    taucldsw, ssacldsw, asmcldsw, fsfcldsw, & !taucld, ssacld, asmcld, fsfcld
+                    IWP_slice, LWP_slice, iceRe, liquidRe, & !cicewp, cliqwp, reice, reliq
+                    tauaersw, ssaaersw, asmaersw, ecaersw, & !tauaer, ssaaer, asmaer, ecaer
+                    swUp_slice, swDown_slice, swHR_slice, swUpCS_slice, swDownCS_slice, swHRCS_slice, & !swuflx, swdflx, swhr, swuflxc, swdflxc, swhrc
+                    swDownDir_slice) ! extra optional output only available in the RRTMG_SW fork in dalesteam
+                    !bndsolvar, indsolvar, solcycfrac (extra optional inputs in later versions)
          end if
       end if
 
       lwu(2:i1,j,1:k1) =  lwUp_slice  (1:imax,1:k1)
       lwd(2:i1,j,1:k1) = -lwDown_slice(1:imax,1:k1)
-      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine 
+      if (.not. rad_longw) then !we get LW at surface identically to how it is done in sunray subroutine
         do i=2,i1
           lwd(i,j,1) =  -0.8 * boltz * thl0(i,j,1) ** 4.
           lwu(i,j,1) =  1.0 * boltz * tskin(i,j) ** 4.
@@ -206,9 +249,9 @@ contains
       swd(2:i1,j,1:k1) = -swDown_slice(1:imax,1:k1)
 
       swdir(2:i1,j,1:k1) = -swDownDir_slice(1:imax,1:k1)
-      swdif(2:i1,j,1:k1) = -swDownDif_slice(1:imax,1:k1)
+      swdif(2:i1,j,1:k1) = -(swDown_slice(1:imax,1:k1)-swDownDir_slice(1:imax,1:k1))
       lwc  (2:i1,j,1:k1) =  LWP_slice      (1:imax,1:k1)
- 
+
       lwuca(2:i1,j,1:k1) =  lwUpCS_slice  (1:imax,1:k1)
       lwdca(2:i1,j,1:k1) = -lwDownCS_slice(1:imax,1:k1)
       swuca(2:i1,j,1:k1) =  swUpCS_slice  (1:imax,1:k1)
@@ -531,7 +574,7 @@ contains
       if    (TRIM(traceGasNameOrder(m))=='O3')    then
         o3(:) = tmpTrace(:)
       elseif(TRIM(traceGasNameOrder(m))=='CO2')   then
-        co2(:) = REAL(co2factor,KIND=kind_rb)*tmpTrace(:)
+        co2(:) = tmpTrace(:)
       elseif(TRIM(traceGasNameOrder(m))=='CH4')   then
         ch4(:) = tmpTrace(:)  !cstep ch4(:) = ch4factor for RCE
       elseif(TRIM(traceGasNameOrder(m))=='N2O')   then
@@ -548,6 +591,17 @@ contains
         ccl4(:) = tmpTrace(:)
       end if
     end do !loop over trace gases, m
+
+    ! use trace gas concentrations from namoptions, if provided
+    if (co2_fraction >= 0) then
+       co2(:) = co2_fraction
+    end if
+    if (ch4_fraction >= 0) then
+       ch4(:) = ch4_fraction
+    end if
+    if (n2o_fraction >= 0) then
+       n2o(:) = n2o_fraction
+    end if
 
     if(myid==0)then
       write(*,*) 'RRTMG rrtmg_lw.nc trace gas profile: number of levels=',np
@@ -583,8 +637,8 @@ contains
   ! JvdDussen, 24-6-2010                                                        !
   ! ============================================================================!
 
-      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0
-      use modfields, only: thl0,ql0,qt0,exnf
+      use modglobal, only: imax,jmax,kmax,i1,k1,grav,kind_rb,rlv,cp,Rd,pref0,tup,tdn
+      use modfields, only: thl0,ql0,qt0,exnf,rhof
       use modsurfdata, only: tskin,ps
       use modmicrodata, only : Nc_0,sig_g
       use modmpi, only: myid
@@ -640,10 +694,14 @@ contains
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
 
         do k=1,kmax
-           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values 
-           qcl_slice (im,k) = ql0(i,j,k)
-           qci_slice (im,k) = 0.
+           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values
+
+           ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+           qcl_slice (im,k) = ql0(i,j,k) * ilratio
+           qci_slice (im,k) = ql0(i,j,k) * (1-ilratio)
+
            o3_slice  (im,k) = o3snd(npatch_start) ! o3 constant below domain top (if usero3!)
+           rho_slice (im,k) = rhof(k)
 
            h2ovmr    (im,k) = mwdry/mwh2o * qv_slice(im, k)
 !           h2ovmr    (im,k) = mwdry/mwh2o * (qv_slice(im,k)/(1-qv_slice(im,k)))
@@ -767,15 +825,15 @@ contains
           endif
 
           if (IWP_slice(i,k).gt.0) then
-             cloudFrac(i,k) = 1.
              !cstep Ou Liou: tempC = layerT(i,k)--tmelt
              !cstep Ou Liou  iceRe(i,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
+             cloudFrac(i,k) = 1.
              B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
-             cloudFrac(i,k) = 1.
-             B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0)
-             iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998
-
+             if (isnan(iceRe(i,k))) then
+                write (*,*) "B", B_function, "iceRe", iceRe(i,k), "qci_slice", qci_slice(i,k), "layerT", layerT(i,k)
+                stop "modradrrtmg: iceRe is nan."
+             end if
              if (iceRe(i,k).lt.5.) then
                 iceRe(i,k) = 5.
              endif

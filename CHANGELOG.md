@@ -1,6 +1,63 @@
 Changes in DALES
 ================
 
+Version 4.4.2
+-------------
+
+Additional output, support for running RCEMIP experiments.
+
+### Bugs fixed
+
+* Fix typo in bulkmicro accessing uninitialized qcbase in place of qrbase. 6771d557f
+* #68, crash with warmstart and kappa scheme cde8e768
+* vtke in profiles.nc: include density and possibly variable dz. Fix unit. 8e9a228e
+* modtimestat: don't replace zero cloud fraction by missing value 680bfc6d8
+
+### Changes
+
+* the behavior of `lpresgrad` has changed. 47ac7fa6
+  `lpressgrad` (default=true) is now always respected, previously the flag
+  had an effect only if one microphysics scheme was enabled, otherwise
+  the calculations were done as if the flag was true.
+* require cmake >= 3.5
+
+### Improvements
+
+* add PHYSICS/`lconstexner` flag to keep the Exner function constant, experimental. 28e9cdd66d
+* add option uvdamprate to dampen horizontal mean wind to geowind in whole domain (for RCEMIP) a481010b4c
+* restart files: add a fourth digit in the hours field to enable longer runs 136a7747c
+* RRTMG: add trace gas concetration settings in namoptions file 8fae48a4b8
+  Options `co2_fraction`, `ch4_fraction`, `n2o_fraction` in NAMRADIATION namelist
+* Put `sgs_surface_fix` back in NAMSUBGRID namelist (default false) 3fe0063
+* add several optional output fields to fielddump:
+  cli   cloud ice
+  clw   cloud liquid water
+  ta    temperature
+  plw   precipitation, liquid
+  pli   precipitation, ice
+  hus   specific humidity
+  hur   relative humidity
+  tntr  temperature due to radiative heating
+  tntrs temperature due to radiative heating, shortwave
+  tntrl temperature due to radiative heating, longwave
+* RRTMG now handles ice clouds 9d33d8b
+* add module for frozen moist static energy budget (for RCEMIP) 4bfb69c1b3
+* add coldpool detection variables to CAPE output (e219585)
+  From Rochetin et al, JAMES 2021, doi:10.1029/2020MS002402
+  hmix - the lowest height where thv > <thv> + 0.2K,
+         where the average is calculated from ground to hmix
+  umix - average of u from ground to hmix
+  vmix - average of v from ground to hmix
+  thetavmix - average of theta_v from ground to hmix
+  hinvsrf - lowest height where dT/dz < 0
+
+### Optimization
+
+* convert more fields to optional single precision aec874e, 83f3274, 89ad0459, c558f1fbe
+* faster thermodynamics, enabled with PHYSICS/`lfast_thermo` (default false)  51f183c11c
+* vectorize modforces 47ac7fa6f, dbd2834b6
+
+
 Version 4.4.1 - 2023-06-07
 --------------------------
 
@@ -38,13 +95,13 @@ Version 4.4 - 2022-06-20
 ------------------------
 
 This version introduces configurable floating point precision (by Victor Azizi, Jisk Attema, Fredrik Jansson). The main 3D fields can be either double (default) or single precision. The choice is made at compile time, and reduces the memory requirements and computation time by about 40%. See the [Wiki](https://github.com/dalesteam/dales/wiki/Installation-notes).
-A new two-moment ice microphysics scheme has been introduced (Jan Chylik, Roel Neggers, with tuning by Jisk Attema). 
-This version also introduces support and tuning for the Fugaku supercomputer, see 
+A new two-moment ice microphysics scheme has been introduced (Jan Chylik, Roel Neggers, with tuning by Jisk Attema).
+This version also introduces support and tuning for the Fugaku supercomputer, see
 [DALES on Fugaku](https://github.com/dalesteam/dales/wiki/DALES-on-Fugaku).
 
 ### Improvements
 
-* Automatic testing of git commits using GitHub actions (Victor Azizi) 
+* Automatic testing of git commits using GitHub actions (Victor Azizi)
 * All function interfaces are now explicit, reducing the chance of mistakes with variable type
 * Add `twp_bar`, `rwp_bar` to `tmser.nnn.nc`, commit 7da93bdc
 * fielddump: time windowing, save fields only when `tmin <= current time <= tmax`, commit a65b03
@@ -297,5 +354,3 @@ Handle chemicals sv fields. Add namelist options, maybe a vector for all sv - ac
 * Merged netCDF writing. It is tedious to stitch together the separate netCDF files produced - one file per MPI task. There are scripts in the Dales repository, but they are from the time of slab parallelization and only stitch in one direction. Consider the parallel netCDF API where many MPI tasks can write together into a single file.
 
 * Synchronize netCDF files periodically. When switching to compressed netCDF v4, the files can be unreadable while DALES is running or after DALES crashes or is stopped in the middle of the run.
-
-

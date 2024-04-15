@@ -149,6 +149,14 @@ contains
     call MPI_BCAST(buffer, count, MPI_REAL4, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_BCAST_REAL32_R2
+  subroutine D_MPI_BCAST_REAL32_R3(buffer, count, root, comm, ierror)
+    implicit none
+    real(real32), contiguous, intent(inout)   ::  buffer(:,:,:)
+    integer        :: count, root, ierror
+    type(MPI_COMM) :: comm
+    call MPI_BCAST(buffer, count, MPI_REAL4, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_BCAST_REAL32_R3
   subroutine D_MPI_BCAST_REAL64_R1(buffer, count, root, comm, ierror)
     implicit none
     real(real64), contiguous, intent(inout)  ::  buffer(:)
@@ -163,14 +171,13 @@ contains
     type(MPI_COMM) :: comm
     call MPI_BCAST(buffer, count, MPI_REAL8, root, comm, ierror)
   end subroutine D_MPI_BCAST_REAL64_R2
-  subroutine D_MPI_BCAST_INT32_R2(buffer, count, root, comm, ierror)
+  subroutine D_MPI_BCAST_REAL64_R3(buffer, count, root, comm, ierror)
     implicit none
-    integer(int32), contiguous, intent(inout) ::  buffer(:,:)
+    real(real64), contiguous, intent(inout)  ::  buffer(:,:,:)
     integer        :: count, root, ierror
     type(MPI_COMM) :: comm
-    call MPI_BCAST(buffer, count, MPI_INTEGER4, root, comm, ierror)
-    if (ierror /= MPI_SUCCESS) call abort
-  end subroutine D_MPI_BCAST_INT32_R2
+    call MPI_BCAST(buffer, count, MPI_REAL8, root, comm, ierror)
+  end subroutine D_MPI_BCAST_REAL64_R3
   subroutine D_MPI_BCAST_INT32_R1(buffer, count, root, comm, ierror)
     implicit none
     integer(int32), contiguous, intent(inout) ::  buffer(:)
@@ -179,6 +186,22 @@ contains
     call MPI_BCAST(buffer, count, MPI_INTEGER4, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_BCAST_INT32_R1
+  subroutine D_MPI_BCAST_INT32_R2(buffer, count, root, comm, ierror)
+    implicit none
+    integer(int32), contiguous, intent(inout) ::  buffer(:,:)
+    integer        :: count, root, ierror
+    type(MPI_COMM) :: comm
+    call MPI_BCAST(buffer, count, MPI_INTEGER4, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_BCAST_INT32_R2
+  subroutine D_MPI_BCAST_INT32_R3(buffer, count, root, comm, ierror)
+    implicit none
+    integer(int32), contiguous, intent(inout) ::  buffer(:,:,:)
+    integer        :: count, root, ierror
+    type(MPI_COMM) :: comm
+    call MPI_BCAST(buffer, count, MPI_INTEGER4, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_BCAST_INT32_R3
   subroutine D_MPI_BCAST_LOGICAL_R1(buffer, count, root, comm, ierror)
     implicit none
     logical, contiguous, intent(inout)        :: buffer(:)

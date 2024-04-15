@@ -725,7 +725,7 @@ contains
        x2Trfmn(ke), x2Disfmn(ke), x2Sfmn (ke), &
        x2residfmn(ke)
 
-  real zh(ke),zf(ke)
+  real(field_r) zh(ke),zf(ke)
 
   integer k
 

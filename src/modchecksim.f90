@@ -131,7 +131,7 @@ contains
     if (myid==0) then
       call date_and_time(time=timeday)
       write (*,*) '================================================================='
-      write (*,'(3A,F9.2,A,F12.9)') 'Time of Day: ', timeday(1:10),'    Time of Simulation: ', rtimee, '    dt: ',dtmn
+      write (*,'(7A,F11.2,A,F9.4)') 'Time of Day: ', timeday(1:2), ':', timeday(3:4), ':', timeday(5:10),' Time of Simulation: ', rtimee, '    dt: ',dtmn
     end if
     call calccourantandpeclet
     call chkdiv

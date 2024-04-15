@@ -28,14 +28,14 @@
 !!
 module modboundary
 use modtimer
-
+use modprecision, only: field_r
 implicit none
 save
 private
 public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
-  real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
-  real :: rnu0 = 2.75e-3
+  real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
+  real(field_r) :: rnu0 = 2.75e-3
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -153,7 +153,7 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,uvdamprate,nsv,rdt,unudge,dzf
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
@@ -231,6 +231,14 @@ contains
   !$acc wait
 
   call timer_toc('modboundary/grwdamp')
+
+  ! damp layer-average horizontal velocity towards geowind with udvamprate
+  if (uvdamprate > 0) then
+     do k=1,kmax
+        up(:,:,k)  = up(:,:,k) - (u0av(k)-(ug(k)-cu)) * uvdamprate
+        vp(:,:,k)  = vp(:,:,k) - (v0av(k)-(vg(k)-cv)) * uvdamprate
+     end do
+  end if
 
   return
   end subroutine grwdamp
