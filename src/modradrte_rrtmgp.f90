@@ -488,10 +488,6 @@ contains
              !cstep Ou Liou  iceRe(icol,k) = 326.3 + 12.42 * tempC + 0.197 * tempC**2 + 0.0012 * tempC**3  !cstep : Ou Liou 1995
              B_function =  -2 + 0.001 *(273.-layerT(icol,k))**1.5 * log10(qci*rhof(k)/IWC0) !Eq. 14 Wyser 1998
              iceRe(icol,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
-             if (isnan(iceRe(icol,k))) then
-                write (*,*) "B", B_function, "iceRe", iceRe(icol,k), "qci", qci, "layerT", layerT(icol,k)
-                stop "modradrte_rrtmgp: iceRe is nan."
-             endif
 
              if(iceRe(icol,k).lt.10.) iceRe(icol,k) = 10.
              if(iceRe(icol,k).gt.180.) iceRe(icol,k) = 180.

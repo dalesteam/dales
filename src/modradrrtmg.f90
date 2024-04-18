@@ -830,10 +830,6 @@ contains
              cloudFrac(i,k) = 1.
              B_function =  -2 + 0.001 *(273.-layerT(i,k))**1.5 * log10(qci_slice(i,k)/IWC0) !Eq. 14 Wyser 1998
              iceRe (i,k) = 377.4 + 203.3 * B_function + 37.91 * B_function**2 + 2.3696 * B_function**3 !micrometer, Wyser 1998, Eq. 35
-             if (isnan(iceRe(i,k))) then
-                write (*,*) "B", B_function, "iceRe", iceRe(i,k), "qci_slice", qci_slice(i,k), "layerT", layerT(i,k)
-                stop "modradrrtmg: iceRe is nan."
-             end if
              if (iceRe(i,k).lt.5.) then
                 iceRe(i,k) = 5.
              endif
