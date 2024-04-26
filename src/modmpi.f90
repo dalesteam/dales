@@ -315,6 +315,7 @@ contains
 
     if(myid==0)then
       CPU_program = MPI_Wtime() - CPU_program0
+      write(6,*)'Run successful!'
       write(6,*)'TOTAL wall time = ', CPU_program
     end if
 
