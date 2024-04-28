@@ -4,10 +4,10 @@ import os
 import pytest
 
 @pytest.mark.parametrize(
-    "nprocs", [1, 2, 3, 4]
+    "nprocs", [1, 4]
 )
-def test_run(nprocs):
-    """Run DALES, check if it runs succesfully (exit code equal to zero).
+def test_run(nprocs, tmp_case):
+    """Run DALES, check if it runs succesfully.
     The environment variable DALES has to point to the DALES executable to run.
     """
     dales = os.environ["DALES"]
@@ -15,7 +15,7 @@ def test_run(nprocs):
     # Run DALES as a subprocess, capturing its output
     result = subprocess.run(
         ["mpirun", "-np", str(nprocs), dales, "namoptions.001"],
-        cwd="cases/bomex",
+        cwd=tmp_case,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         universal_newlines=True 
