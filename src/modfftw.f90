@@ -660,9 +660,10 @@ contains
 
       call transpose_a2(p210, p201)
       ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
+      if (myidx == nprocx-1 .and. konx_last < konx) p201(:,konx_last+1:, :) = 0
+      if (myidy == nprocy-1 .and. iony_last < iony) p201(:,:,iony_last+1:) = 0
       ! p201(jtot,konx,iony)
-      if (myidx == nprocx-1) p201(:,konx_last+1:, :) = 0
-      if (myidy == nprocy-1) p201(:,:,iony_last+1:)  = 0
+
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
       call transpose_a3(p201, Fp)
