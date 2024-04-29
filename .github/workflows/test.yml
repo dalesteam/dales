@@ -34,7 +34,7 @@ jobs:
       - name: Build
         run: |
           cd build
-          make -j 4
+          make -j 2
 
       - name: Setup Python 3.11
         uses: actions/setup-python@v5

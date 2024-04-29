@@ -5,7 +5,7 @@ import pytest
 import f90nml
 
 @pytest.mark.parametrize(
-    "nprocs", [1, 4]
+    "nprocs", [1, 2]
 )
 def test_run(nprocs, tmp_case):
     """Run DALES, check if it runs succesfully.
