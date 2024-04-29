@@ -2,6 +2,7 @@ import subprocess
 import os
 
 import pytest
+import f90nml
 
 @pytest.mark.parametrize(
     "nprocs", [1, 4]
@@ -11,6 +12,10 @@ def test_run(nprocs, tmp_case):
     The environment variable DALES has to point to the DALES executable to run.
     """
     dales = os.environ["DALES"]
+
+    namopts = f90nml.read(tmp_case / "namoptions.001")
+    namopts["RUN"]["runtime"] = 100
+    namopts.write(tmp_case / "namoptions.001", force=True)
 
     # Run DALES as a subprocess, capturing its output
     result = subprocess.run(
