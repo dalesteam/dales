@@ -195,6 +195,11 @@ contains
        write (*,*) "modfftw: p201_flat is not associated"
        stop "modfftw: p201_flat is not associated"
     end if
+
+    if( .not. associated(p210_flat) ) then
+       write (*,*) "modfftw: p210_flat is not associated"
+       stop "modfftw: p210_flat is not associated"
+    end if
     
     ! Prepare 1d FFT transforms
     ! TODO: in plan_many, skip part where k > kmax
