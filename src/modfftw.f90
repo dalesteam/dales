@@ -59,7 +59,8 @@ save
 
   ! C pointer to the actual (aligned) memory for FFTW
   type (C_ptr)                    :: ptr
-
+  real(pois_r), allocatable,target :: fptr(:)
+      
   ! Method 1:
   !   domain composition in two dimensions (nprocx, nprocy)
   !    - transpose [x,k]
@@ -75,7 +76,7 @@ save
   type (C_ptr)                    :: planx, planxi, plany, planyi
   real(pois_r), pointer                   :: p210(:,:,:), p201(:,:,:)
   real(pois_r), pointer, contiguous       :: p210_flat(:), p201_flat(:)
-
+  
   ! Method 2:
   !   no domain decomposition nprocx = nprocy = 1
   !    - fft over xy
@@ -100,7 +101,7 @@ contains
     integer,intent(out)        :: ps,pe,qs,qe
 
     integer(kind=8)     :: sz
-    real(pois_r), pointer,contiguous :: fptr(:)
+    !real(pois_r), pointer,contiguous :: fptr(:)
     integer             :: embed(1), kinds(2)
     type (fftw_iodim)   :: dimij(2), dimk(1)
 
@@ -159,24 +160,25 @@ contains
               iony*jonx*kmax                    ) ! Fp (p102)
 
     ! get aligned memory for FFTW
-#if POIS_PRECISION == 64
-    ptr = fftw_alloc_real(sz)
-#else
-    ptr = fftwf_alloc_real(sz)
-#endif
+!#if POIS_PRECISION == 64
+!    ptr = fftw_alloc_real(sz)
+!#else
+!    ptr = fftwf_alloc_real(sz)
+!#endif
 
-    if( .not. c_associated(ptr) ) then
-       write (*,*) "modfftw: ptr is not associated,  fftw_alloc_real(", sz, ") failed."
-       stop 'modfftw: ptr is not associated'
-    end if
+ !   if( .not. c_associated(ptr) ) then
+ !      write (*,*) "modfftw: ptr is not associated,  fftw_alloc_real(", sz, ") failed."
+ !      stop 'modfftw: ptr is not associated'
+ !   end if
 
     ! convert it to a fortran pointer, or 1D array
-    call c_f_pointer(ptr, fptr, (/sz/))
+ !   call c_f_pointer(ptr, fptr, (/sz/))
 
-    if( .not. associated(fptr) ) then
-       write (*,*) "modfftw: fptr is not associated"
-       stop "modfftw: fptr is not associated"
-    end if
+    allocate(fptr(sz))
+!    if( .not. associated(fptr) ) then
+!       write (*,*) "modfftw: fptr is not associated"
+!       stop "modfftw: fptr is not associated"
+!    end if
     
     p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax)
 
@@ -375,8 +377,9 @@ contains
    ! so Nullify() doesnt work with them
    Nullify(p, p210, p201, Fp, p_nohalo)
 
-   call fftw_free(ptr)
-
+   !call fftw_free(ptr)
+   deallocate(fptr)
+   
    deallocate(xyrt, d)
    deallocate(bufin,bufout)
 
