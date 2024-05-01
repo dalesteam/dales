@@ -99,8 +99,9 @@ contains
     real(pois_r), allocatable          :: d(:,:,:)
     real(pois_r), allocatable          :: xyrt(:,:)
     integer,intent(out)        :: ps,pe,qs,qe
-
+    
     integer(kind=8)     :: sz
+    integer             :: ierr
     !real(pois_r), pointer,contiguous :: fptr(:)
     integer             :: embed(1), kinds(2)
     type (fftw_iodim)   :: dimij(2), dimk(1)
@@ -174,7 +175,17 @@ contains
     ! convert it to a fortran pointer, or 1D array
  !   call c_f_pointer(ptr, fptr, (/sz/))
 
-    allocate(fptr(sz))
+    allocate(fptr(sz), stat=ierr)
+    if (ierr /= 0) then
+       write (*,*) "modfftw: allocate fptr(", sz, ") failed with code", ierr
+       stop "modfftw: allocate fptr failed"
+    end if
+
+    if( .not. allocated(fptr) ) then
+       write (*,*) "modfftw: fptr is not allocated"
+       stop "modfftw: fptr is not allocated"
+    end if
+    
 !    if( .not. associated(fptr) ) then
 !       write (*,*) "modfftw: fptr is not associated"
 !       stop "modfftw: fptr is not associated"
