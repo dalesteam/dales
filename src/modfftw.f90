@@ -167,12 +167,17 @@ contains
 
     if( .not. c_associated(ptr) ) then
        write (*,*) "modfftw: ptr is not associated,  fftw_alloc_real(", sz, ") failed."
-       stop
+       stop 'modfftw: ptr is not associated'
     end if
 
     ! convert it to a fortran pointer, or 1D array
     call c_f_pointer(ptr, fptr, (/sz/))
 
+    if( .not. associated(fptr) ) then
+       write (*,*) "modfftw: fptr is not associated"
+       stop "modfftw: fptr is not associated"
+    end if
+    
     p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax)
 
     if (method == 1) then
@@ -184,6 +189,11 @@ contains
     p201_flat(1:jtot*konx*iony)=> fptr(1:jtot*konx*iony)
     Fp(1:iony,1:jonx,1:kmax) => fptr(1:iony*jonx*kmax)
 
+    if( .not. associated(p201_flat) ) then
+       write (*,*) "modfftw: p201_flat is not associated"
+       stop "modfftw: p201_flat is not associated"
+    end if
+    
     ! Prepare 1d FFT transforms
     ! TODO: in plan_many, skip part where k > kmax
     embed(1) = itot
