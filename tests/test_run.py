@@ -64,27 +64,28 @@ def test_domains(
     assert "Run successful!" in str(result.stdout)
 
 @pytest.mark.parametrize(
-    "mom,tke,thl,qt",
+    "mom,tke,thl,qt,sv",
     [
-        (2, 2, 2, 2),
-        (5, 5, 5, 5),
-        (52, 52, 52, 52),
-        (6, 6, 6, 6),
-        (62, 62, 62, 62),
-        (2, 55, 55, 55), # Hybrid scheme
-        (2, 555, 555, 555), # Alternative hybrid scheme
-        (2, 7, 7, 7), # Kappa scheme
-        (2, 2, 1, 1) # Upwinding for thl and qt
+        (2, 2, 2, 2, 2),
+        (5, 5, 5, 5, 5),
+        (52, 52, 52, 52, 52),
+        (6, 6, 6, 6, 6),
+        (62, 62, 62, 62, 62),
+        (2, 55, 55, 55, 55), # Hybrid scheme
+        (2, 555, 555, 555, 555), # Alternative hybrid scheme
+        (2, 7, 7, 7, 7), # Kappa scheme
+        (2, 2, 1, 1, 1) # Upwinding for thl and qt
     ]
 )
-def test_advection(tmp_case, mom, tke, thl, qt):
+def test_advection(tmp_case, mom, tke, thl, qt, sv):
     patch = {}
     
     patch["DYNAMICS"] = {
         "iadv_mom": mom,
         "iadv_tke": tke,
         "iadv_thl": thl,
-        "iadv_qt": qt
+        "iadv_qt": qt,
+        "iadv_sv": sv
     }
 
     patch["DOMAIN"] = {
