@@ -1,0 +1,186 @@
+&RUN
+iexpnr     =  001
+lwarmstart = .false.
+startfile  =  'initdlatestmx000y000.001'
+runtime = 43200
+trestart = 43200
+ladaptive  =  .true.
+irandom    =  44
+randthl    =  0.1
+randqt     =  2.5e-5
+nsv        =  2
+courant    = .5
+peclet     = .1
+loutdirs = .true.
+nprocx = 32
+nprocy = 32
+/
+
+&DOMAIN
+itot = 1536
+jtot = 1536
+kmax       =  175
+
+xsize = 153600
+ysize = 153600
+
+xlat       =  13.1
+xlon       =  302
+xyear      =  2020 ! Currently only used in netCDF time unit
+xday       =  32
+xtime      =  0.0
+/
+
+&PHYSICS
+z0         =  0.00016 ! 1.6e-4
+ustin      =  0.32
+ps         =  101604.87
+thls       =  298.5
+!  thls       =  299.135 ! EURECA
+!  thls       =  298.5   ! RICO
+
+lmoist     =  .true.
+isurf      =  2       !Forced surface temperature; fluxes are calculated
+timerad    =  60
+iradiation =  4
+lcoriol    =  .true.
+lmomsubs   =  .false.
+/
+&NAMSURFACE
+thls       =  298.5   ! duplicate temperature !
+z0mav =  1.6e-4
+z0hav =  3.2e-5
+albedoav = 0.07  ! From RCEMIP. note albedoav is used if  lCnstAlbedo = .true. in NAMRADIATION
+/
+&NAMRADIATION
+lCnstAlbedo = .true. ! use a albedoav as albedo instead of angle-dependent parameterization
+! locean = .true.    ! use ocean parameterization of albedo, otherwise land. (only for lCnstAlbedo = .false.)
+/
+
+&DYNAMICS
+llsadv     =  .false.
+lqlnr      =  .false. ! obsolete
+cu         =  0.      ! -5 in RICO
+cv         =  0.
+
+iadv_mom   =  62
+iadv_tke   =  62
+iadv_thl   =  62
+iadv_qt    =  52
+iadv_sv    =  52, 52
+/
+
+&NAMMICROPHYSICS
+imicro     = 2
+Nc_0       = 70000000.0
+l_sb       = .true.
+/
+
+&NAMBULKMICROSTAT
+lmicrostat = .true.
+timeav     = 300
+dtav       = 60
+/
+&NAMCHECKSIM
+tcheck     = 0
+/
+&NAMSAMPLING
+lsampcl    = .false.
+lsampco    = .false.
+dtav       = 60
+timeav     = 21600
+/
+&NAMTIMESTAT
+ltimestat  = .true.
+dtav       = 60
+/
+&NAMCROSSSECTION
+lcross     = .true.
+lxz        = .false.
+lyz        = .false.
+crossheight = 1, 13, 35, 52   ! 7.5m, 198m, 611m, 999m 
+dtav       = 300
+/
+
+&NAMGENSTAT
+lstat      = .true.
+dtav       = 300
+timeav     = 300
+/
+&NAMCAPE
+lcape      = .true.
+dtav       = 300
+/ 
+&NAMFIELDDUMP
+lfielddump = .true.
+! lclassic   = .false.
+dtav       = 3600
+khigh      = 149    ! 132=4030m  149=5048m
+! tmin       = 43200  ! start fielddumps at 12h (implemented in to4.4_Fredrik)
+! select vartiables to store (implemented in to4.4_Fredrik, not in v4.3)
+lu    = .true.      ! consider omitting u, v
+lv    = .true.
+lw    = .true.
+lqt   = .true.
+lql   = .true.
+lthl  = .true.
+lbuoy = .false.
+lsv   = .false., .true.  ! not Nr, just qr
+/
+&NAMSTATTEND
+dtav       = 60
+timeav     = 300
+ltend      = .false.
+/
+&NAMRADSTAT
+lstat = .true.
+dtav = 60
+timeav = 300
+/
+
+&NAMRADFIELD
+lradfield = .true.
+dtav  = 3600
+timeav = 3600
+/
+&NAMVARBUDGET
+lvarbudget = .true.    ! Note requires interactive radiation or it breaks
+dtav = 300
+timeav = 300
+/
+&NAMCLOUDFIELD
+dtav=1440
+lcloudfield = .false.
+/
+&NAMNETCDFSTATS
+lnetcdf = .true.
+! lsync = .true.  
+lclassic = .true. ! NetCDF 3. No compression but saves RAM. 
+/
+&SOLVER
+solver_id = 100 ! FFTW
+/
+
+&NAMNUDGE
+! nudge to profiles given in nudge.inp.NNN
+lnudge     = .true.
+tnudgefac  = 1.
+/
+
+&VVUQ_extra
+dudz          = 0.0022
+u0            = -10
+thl_low       = 
+w0            = 0.0045
+wpamp         = -0.00085
+case          = 2
+thl_Gamma     = 5.0
+qt_lambda     = 1850
+qt0           = 0.01425
+z_ml          = 500
+thl_tend0     = -5.78e-06
+qt_tend0      = -1.73e-08
+dthl0         = 1.25
+!thl_tend_z_max = 2000
+!qt_tend_z_max = 4000
+/ 
