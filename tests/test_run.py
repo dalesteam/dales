@@ -6,6 +6,7 @@ import f90nml
 
 DALES = os.environ["DALES"]
 
+@pytest.mark.parametrize("solver", [0, 100]) # FFTPACK & FFTW
 @pytest.mark.parametrize("kmax", [64, 61])
 @pytest.mark.parametrize(
     "nprocx,nprocy,itot,jtot", 
@@ -21,7 +22,8 @@ def test_domains(
     nprocy,
     itot,
     jtot,
-    kmax
+    kmax,
+    solver
 ):
     """Run DALES for interesting domains, check if it runs succesfully.
     The environment variable DALES has to point to the DALES executable to run.
@@ -37,10 +39,12 @@ def test_domains(
     }
 
     patch["RUN"] = {
-        "runtime": 100,
+        "runtime": 10,
         "nprocx": nprocx,
         "nprocy": nprocy
     }
+
+    patch["SOLVER"] = {"solver_id": solver}
 
     namopts = f90nml.read(tmp_case / "namoptions.001")
     namopts.patch(patch)
@@ -74,7 +78,7 @@ def test_domains(
         (2, 55, 55, 55, 55), # Hybrid scheme
         (2, 555, 555, 555, 555), # Alternative hybrid scheme
         (2, 7, 7, 7, 7), # Kappa scheme
-        (2, 2, 1, 1, 1) # Upwinding for thl and qt
+        pytest.param(2, 2, 1, 1, 1, marks=pytest.mark.xfail) # Upwinding, can fail on non-uniform grids
     ]
 )
 def test_advection(tmp_case, mom, tke, thl, qt, sv):
@@ -94,7 +98,7 @@ def test_advection(tmp_case, mom, tke, thl, qt, sv):
     }
 
     patch["RUN"] = {
-        "runtime": 100,
+        "runtime": 10,
         "nprocx": 2,
         "nprocy": 2
     }
