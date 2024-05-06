@@ -60,7 +60,7 @@ save
   ! C pointer to the actual (aligned) memory for FFTW
   type (C_ptr)                    :: ptr
   real(pois_r), allocatable,target :: fptr(:)
-      
+
   ! Method 1:
   !   domain composition in two dimensions (nprocx, nprocy)
   !    - transpose [x,k]
@@ -76,7 +76,7 @@ save
   type (C_ptr)                    :: planx, planxi, plany, planyi
   real(pois_r), pointer                   :: p210(:,:,:), p201(:,:,:)
   real(pois_r), pointer, contiguous       :: p210_flat(:), p201_flat(:)
-  
+
   ! Method 2:
   !   no domain decomposition nprocx = nprocy = 1
   !    - fft over xy
@@ -99,7 +99,7 @@ contains
     real(pois_r), allocatable          :: d(:,:,:)
     real(pois_r), allocatable          :: xyrt(:,:)
     integer,intent(out)        :: ps,pe,qs,qe
-    
+
     integer(kind=8)     :: sz
     integer             :: ierr
     !real(pois_r), pointer,contiguous :: fptr(:)
@@ -176,6 +176,8 @@ contains
  !   call c_f_pointer(ptr, fptr, (/sz/))
 
     allocate(fptr(sz), stat=ierr)
+    fptr = 0
+
     if (ierr /= 0) then
        write (*,*) "modfftw: allocate fptr(", sz, ") failed with code", ierr
        stop "modfftw: allocate fptr failed"
@@ -185,12 +187,12 @@ contains
        write (*,*) "modfftw: fptr is not allocated"
        stop "modfftw: fptr is not allocated"
     end if
-    
+
 !    if( .not. associated(fptr) ) then
 !       write (*,*) "modfftw: fptr is not associated"
 !       stop "modfftw: fptr is not associated"
 !    end if
-    
+
     p(2-ih:i1+ih,2-jh:j1+jh,1:kmax) => fptr(1:(imax+2*ih)*(jmax+2*jh)*kmax)
 
     if (method == 1) then
@@ -211,7 +213,7 @@ contains
        write (*,*) "modfftw: p210_flat is not associated"
        stop "modfftw: p210_flat is not associated"
     end if
-    
+
     ! Prepare 1d FFT transforms
     ! TODO: in plan_many, skip part where k > kmax
     embed(1) = itot
@@ -395,7 +397,7 @@ contains
 
    !call fftw_free(ptr)
    deallocate(fptr)
-   
+
    deallocate(xyrt, d)
    deallocate(bufin,bufout)
 
@@ -698,8 +700,8 @@ contains
 
       call transpose_a2(p210, p201)
       ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
-      if (myidx == nprocx-1 .and. konx_last < konx) p201(:,konx_last+1:, :) = 0
-      if (myidy == nprocy-1 .and. iony_last < iony) p201(:,:,iony_last+1:) = 0
+      ! if (myidx == nprocx-1 .and. konx_last < konx) p201(:,konx_last+1:, :) = 0
+      ! if (myidy == nprocy-1 .and. iony_last < iony) p201(:,:,iony_last+1:) = 0
       ! p201(jtot,konx,iony)
 
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
