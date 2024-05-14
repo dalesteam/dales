@@ -1111,7 +1111,6 @@ end subroutine correct_neg_qt
 !
 !*********************************************************************
 real function calc_avent (nn, mu_a, nu_a, a_a,b_a, av)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
   real, intent(in) ::  mu_a, nu_a, a_a,b_a, av
   integer, intent(in) :: nn
@@ -1124,10 +1123,10 @@ real function calc_avent (nn, mu_a, nu_a, a_a,b_a, av)
   arg22     = (nu_a+2.0)/mu_a
   expon02   = b_a+nn-1.0
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
 
   ! putting it together
   calc_avent = avf*(mtt11/mtt21)*(mtt12/mtt22)**expon02
@@ -1141,7 +1140,6 @@ end function calc_avent
 ! specified in Appendix B in S&B
 !*********************************************************************
 real function calc_bvent (nn, mu_a, nu_a, a_a, b_a, beta_a, bv)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
   real, intent(in) ::  mu_a, nu_a, a_a,b_a, beta_a, bv
   integer, intent(in) :: nn
@@ -1154,10 +1152,10 @@ real function calc_bvent (nn, mu_a, nu_a, a_a, b_a, beta_a, bv)
   arg22     = (nu_a+2.0)/mu_a
   expon02   = (3.0/2.0)*b_a+0.5*beta_a+nn-1.0
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
 
   ! putting it together
   calc_bvent = bv*(mtt11/mtt21)*(mtt12/mtt22)**expon02
@@ -1170,7 +1168,6 @@ end function calc_bvent
 ! specified in Appendix C in S&B
 !*********************************************************************
 real function calc_delta_b (kk, mu_b, nu_b, b_b)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
   real, intent(in) ::  mu_b, nu_b, b_b
   integer, intent(in) :: kk
@@ -1183,10 +1180,10 @@ real function calc_delta_b (kk, mu_b, nu_b, b_b)
   arg22     = (nu_b+2)/mu_b
   expon02   = 2.0*b_b+kk
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
 
   ! putting it together
   calc_delta_b = (mtt11/mtt21)*(mtt12/mtt22)**expon02
@@ -1200,7 +1197,6 @@ end function calc_delta_b
 !
 !*********************************************************************
 real function calc_delta_ab (kk, mu_a, nu_a, b_a, mu_b, nu_b, b_b)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
   real, intent(in) ::  mu_a, nu_a, b_a, mu_b, nu_b, b_b
   integer, intent(in) :: kk
@@ -1222,14 +1218,14 @@ real function calc_delta_ab (kk, mu_a, nu_a, b_a, mu_b, nu_b, b_b)
   exp03     = b_a+kk
   exp04     = b_b
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
   mtt13 = mtt21
-  mtt23 = lacz_gamma(arg23)
+  mtt23 = gamma(arg23)
   mtt14 = mtt22
-  mtt24 = lacz_gamma(arg24)
+  mtt24 = gamma(arg24)
 
   ! putting it together
   calc_delta_ab = 2.0*(mtt11/mtt21)*(mtt12/mtt22)*(mtt13/mtt23)**exp03*(mtt14/mtt24)**exp04
@@ -1244,7 +1240,6 @@ end function calc_delta_ab
 !
 !*********************************************************************
 real function calc_th_b (kk, mu_b, nu_b, b_b, beta_b)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
   real, intent(in) ::  mu_b, nu_b, b_b, beta_b
@@ -1260,10 +1255,10 @@ real function calc_th_b (kk, mu_b, nu_b, b_b, beta_b)
   arg22     = (nu_b+2.0)/mu_b
   exp02     = 2.0*beta_b
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
 
   ! putting it together
   calc_th_b = (mtt11/mtt21)*(mtt12/mtt22)**exp02
@@ -1278,7 +1273,6 @@ end function calc_th_b
 !
 !*********************************************************************
 real function calc_th_ab (kk, mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
   real, intent(in) ::  mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b
@@ -1302,14 +1296,14 @@ real function calc_th_ab (kk, mu_a, nu_a, b_a, beta_a, mu_b, nu_b, b_b, beta_b)
   exp03     = beta_a
   exp04     = beta_b
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
-  mtt13 = lacz_gamma(arg13)
-  mtt23 = lacz_gamma(arg23)
-  mtt14 = lacz_gamma(arg14)
-  mtt24 = lacz_gamma(arg24)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
+  mtt13 = gamma(arg13)
+  mtt23 = gamma(arg23)
+  mtt14 = gamma(arg14)
+  mtt24 = gamma(arg24)
 
   ! putting it together
   calc_th_ab = 2.0*(mtt11/mtt21)*(mtt12/mtt22)*(mtt13/mtt23)**exp03*(mtt14/mtt24)**exp04
@@ -1324,7 +1318,6 @@ end function calc_th_ab
 !
 !*********************************************************************
 real function calc_cons_mmt (kk, mu_a, nu_a)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
   real, intent(in) ::    mu_a, nu_a
@@ -1340,10 +1333,10 @@ real function calc_cons_mmt (kk, mu_a, nu_a)
   arg22     = (nu_a+2)/mu_a
   exp02     =  kk
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
 
   ! putting it together
   calc_cons_mmt = (mtt11/mtt21)*(mtt12/mtt22)**exp02
@@ -1357,7 +1350,6 @@ end function calc_cons_mmt
 !
 !*********************************************************************
 real function calc_cons_v (kk, mu_a, nu_a, al_a, be_a)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
   real, intent(in) ::    mu_a, nu_a, al_a, be_a
@@ -1373,10 +1365,10 @@ real function calc_cons_v (kk, mu_a, nu_a, al_a, be_a)
   arg22     = (nu_a+2)/mu_a
   exp02     =  be_a
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
-  mtt12 = lacz_gamma(arg12)
-  mtt22 = lacz_gamma(arg22)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
+  mtt12 = gamma(arg12)
+  mtt22 = gamma(arg22)
 
   ! putting it together
   calc_cons_v = al_a*(mtt11/mtt21)*(mtt12/mtt22)**exp02
@@ -1390,7 +1382,6 @@ end function calc_cons_v
 !
 !*********************************************************************
 real function calc_cons_lbd (mu_a, nu_a)
-  use modglobal, only : lacz_gamma ! LACZ_GAMMA
   implicit none
 
   real, intent(in) ::    mu_a, nu_a
@@ -1404,8 +1395,8 @@ real function calc_cons_lbd (mu_a, nu_a)
   arg21     = (nu_a+2.0)/mu_a
   exp01     =  -mu_a
 
-  mtt11 = lacz_gamma(arg11)
-  mtt21 = lacz_gamma(arg21)
+  mtt11 = gamma(arg11)
+  mtt21 = gamma(arg21)
 
   ! putting it together
   calc_cons_lbd = (mtt11/mtt21)**exp01

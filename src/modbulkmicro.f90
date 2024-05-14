@@ -59,7 +59,7 @@ module modbulkmicro
 !> Initializes and allocates the arrays
   subroutine initbulkmicro
     use modglobal, only : i1,j1,k1,ih,jh
-    use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
+    use modmicrodata, only : Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
                              lbdr, &
                              precep, qrmask, qcmask
@@ -81,9 +81,9 @@ module modbulkmicro
             ,qrmask   (2:i1,2:j1,k1)  & !
             ,qcmask   (2:i1,2:j1,k1)  )
 
-    gamma25=lacz_gamma(2.5)
+    gamma25=gamma(2.5)
     gamma3=2.
-    gamma35=lacz_gamma(3.5)
+    gamma35=gamma(3.5)
   end subroutine initbulkmicro
 
 !> Cleaning up after the run
@@ -727,7 +727,7 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
     use modmicrodata, only : Nr, mur, Dv, &
                              inr, iqr, Kt, &

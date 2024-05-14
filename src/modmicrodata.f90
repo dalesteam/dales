@@ -25,7 +25,7 @@
   module modmicrodata
   use modprecision, only : field_r
 
-  use modglobal, only : rhow,lacz_gamma
+  use modglobal, only : rhow
   implicit none
   save
   integer :: imicro = 0

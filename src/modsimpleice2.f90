@@ -56,7 +56,7 @@ module modsimpleice2
 
 !> Initializes and allocates the arrays
   subroutine initsimpleice2
-    use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
+    use modglobal, only : ih,i1,jh,j1,k1
     use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
@@ -89,18 +89,18 @@ module modsimpleice2
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
 
-    gamb1r=lacz_gamma(bbr+1)
-    gambd1r=lacz_gamma(bbr+ddr+1)
-    gamb1s=lacz_gamma(bbs+1)
-    gambd1s=lacz_gamma(bbs+dds+1)
-    gamb1g=lacz_gamma(bbg+1)
-    gambd1g=lacz_gamma(bbg+ddg+1)
-    gam2dr=lacz_gamma(2.5+0.5*ddr)
-    gam2ds=lacz_gamma(2.5+0.5*dds)
-    gam2dg=lacz_gamma(2.5+0.5*ddg)
-    gammaddr3=lacz_gamma(3.+ddr)
-    gammadds3=lacz_gamma(3.+dds)
-    gammaddg3=lacz_gamma(3.+ddg)
+    gamb1r=gamma(bbr+1)
+    gambd1r=gamma(bbr+ddr+1)
+    gamb1s=gamma(bbs+1)
+    gambd1s=gamma(bbs+dds+1)
+    gamb1g=gamma(bbg+1)
+    gambd1g=gamma(bbg+ddg+1)
+    gam2dr=gamma(2.5+0.5*ddr)
+    gam2ds=gamma(2.5+0.5*dds)
+    gam2dg=gamma(2.5+0.5*ddg)
+    gammaddr3=gamma(3.+ddr)
+    gammadds3=gamma(3.+dds)
+    gammaddg3=gamma(3.+ddg)
 
     nrp=0. ! not used in this scheme 
     nr=0.  ! set to 0 here in case the statistics use them

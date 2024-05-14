@@ -53,7 +53,7 @@ module modsimpleice
                              qrmask, qcmask, precep, &
                              ccrz, ccsz, ccgz, bbg, bbr, bbs, ddg, ddr, dds
 
-    use modglobal, only : ih,i1,jh,j1,k1,lacz_gamma
+    use modglobal, only : ih,i1,jh,j1,k1
 
     implicit none
 
@@ -79,18 +79,18 @@ module modsimpleice
 
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
 
-     gamb1r=lacz_gamma(bbr+1)
-     gambd1r=lacz_gamma(bbr+ddr+1)
-     gamb1s=lacz_gamma(bbs+1)
-     gambd1s=lacz_gamma(bbs+dds+1)
-     gamb1g=lacz_gamma(bbg+1)
-     gambd1g=lacz_gamma(bbg+ddg+1)
-     gam2dr=lacz_gamma(2.5+0.5*ddr)
-     gam2ds=lacz_gamma(2.5+0.5*dds)
-     gam2dg=lacz_gamma(2.5+0.5*ddg)
-     gammaddr3=lacz_gamma(3.+ddr)
-     gammadds3=lacz_gamma(3.+dds)
-     gammaddg3=lacz_gamma(3.+ddg)
+     gamb1r=gamma(bbr+1)
+     gambd1r=gamma(bbr+ddr+1)
+     gamb1s=gamma(bbs+1)
+     gambd1s=gamma(bbs+dds+1)
+     gamb1g=gamma(bbg+1)
+     gambd1g=gamma(bbg+ddg+1)
+     gam2dr=gamma(2.5+0.5*ddr)
+     gam2ds=gamma(2.5+0.5*dds)
+     gam2dg=gamma(2.5+0.5*ddg)
+     gammaddr3=gamma(3.+ddr)
+     gammadds3=gamma(3.+dds)
+     gammaddg3=gamma(3.+ddg)
 
   end subroutine initsimpleice
 
