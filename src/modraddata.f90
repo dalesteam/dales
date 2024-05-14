@@ -172,7 +172,7 @@ SAVE
   real, parameter :: tmelt = 273.16
   real,allocatable,dimension(:)   :: presf_input,     &   ! Full-level pressure (sounding patched to domain)
                                      presh_input          ! Halflevel  pressure (sounding patched to domain)
-  real,allocatable,dimension(:)   :: tg_slice             ! Sea surface temperature of a 2D slice
+  real(8),allocatable,dimension(:)   :: tg_slice             ! Sea surface temperature of a 2D slice
 
   real(kind_rb),allocatable,dimension(:)   :: &
        o3, co2, ch4, n2o, o2, cfc11, cfc12, cfc22, ccl4   ! Profiles of trace gases
