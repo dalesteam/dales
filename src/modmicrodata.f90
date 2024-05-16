@@ -49,7 +49,7 @@
                  ,sig_gr = 1.5        !<  geometric std dev of rain drop DSD
 
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
-
+  logical :: l_homogenize = .false.   !<  homogenize rain evaporation qt and thl tendency
   integer :: inr = 1, iqr=2
 
   real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
@@ -131,7 +131,10 @@
                              !< prec. liq. water and conc. for sedim. time splitting
   real(field_r),allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
                                                  sed_qr, & !<  sedimentation rain drops mix. ratio
-                                                 sed_Nr    !<  sedimentation rain drop number conc.
+                                                 sed_Nr, & !<  sedimentation rain drop number conc.
+                                                 qtpevap   !<  qt tendency from evaporation (added for homogenization)
+  real(field_r),allocatable, dimension(:) ::     qtpevaps  !<  slab mean qt tendency from evaporation
+  
   real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
     ,k_au                     !<  coeff. for autoconversion rate
   real(field_r),allocatable, dimension(:,:,:) ::  &

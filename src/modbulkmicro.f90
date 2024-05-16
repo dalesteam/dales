@@ -62,7 +62,7 @@ module modbulkmicro
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
                              lbdr, &
-                             precep, qrmask, qcmask
+                             precep, qrmask, qcmask, qtpevap, qtpevaps
     implicit none
 
                                         ! Fields accessed by:
@@ -71,7 +71,9 @@ module modbulkmicro
             ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
             ,qrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
             ,Dvr      (2:i1,2:j1,k1)  & ! dobulkmicrostat
-            ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
+            ,precep   (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat, docape
+            ,qtpevap  (2:i1,2:j1,k1) &
+            ,qtpevaps (k1) )
 
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! ghost cells added here for modvarbudget
@@ -93,10 +95,10 @@ module modbulkmicro
   !*********************************************************************
     use modmicrodata, only : Nr,Nrp,qr,qrp,thlpmcr,qtpmcr, &
                              Dvr,xr,mur,lbdr, &
-                             precep,qrmask,qcmask
+                             precep,qrmask,qcmask,qtpevap,qtpevaps
     implicit none
 
-    deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
+    deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr,qtpevap,qtpevaps)
     deallocate(Dvr,xr,mur,lbdr)
     deallocate(precep,qrmask,qcmask)
 
@@ -727,7 +729,7 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma,ijtot,k1
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
     use modmicrodata, only : Nr, mur, Dv, &
                              inr, iqr, Kt, &
@@ -736,7 +738,8 @@ module modbulkmicro
                              nu_a, Sc_num, avf, bvf, &
                              c_Nevap, c_evapkk, delt, &
                              qrmask, lbdr, xr, Dvr, qrp, Nrp, &
-                             qtpmcr, thlpmcr
+                             qtpmcr, thlpmcr, qtpevap, qtpevaps, l_homogenize
+    use modmpi, only: slabsum
     implicit none
     integer :: i,j,k
     integer :: numel
@@ -747,10 +750,13 @@ module modbulkmicro
 
     real :: evap, Nevap
 
-    if (qrbase.gt.qrroof) return
+    if (qrbase.gt.qrroof .and. .not. l_homogenize) return
+    ! cannot do early return here if homogenization is applied
+
+    qtpevap = 0 ! initialize to no rain evaporation in this tile
+                ! to have 0 outside the range qrbase...qrroof
 
     if (l_sb) then
-
        do k=qrbase,qrroof
        do j=2,j1
        do i=2,i1
@@ -777,8 +783,9 @@ module modbulkmicro
            qrp(i,j,k) = qrp(i,j,k) + evap
            Nrp(i,j,k) = Nrp(i,j,k) + Nevap
 
-           qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
+           qtpevap(i,j,k) = evap
+           !qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
+           !thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
          endif
        enddo
        enddo
@@ -803,13 +810,39 @@ module modbulkmicro
            qrp(i,j,k) = qrp(i,j,k) + evap
            Nrp(i,j,k) = Nrp(i,j,k) + Nevap
 
-           qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
+           qtpevap(i,j,k) = evap
+           !qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
+           !thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
          endif
        enddo
        enddo
        enddo
-     endif
+    endif
+
+    if (l_homogenize) then
+       call slabsum(qtpevaps,1,k1,qtpevap,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
+       qtpevaps = qtpevaps/ijtot
+
+       do k=1,k1   ! note: must use full k-range here, other MPI tiles may have a wider/different range in qrbase...qrroof
+          do j=2,j1
+             do i=2,i1
+                qtpmcr(i,j,k) = qtpmcr(i,j,k) - qtpevaps(k)
+                thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*qtpevaps(k)
+             end do
+          end do
+       end do
+    else
+       ! apply qtpevap tendency without homogenization
+       do k=qrbase,qrroof
+          do j=2,j1
+             do i=2,i1
+                qtpmcr(i,j,k) = qtpmcr(i,j,k) - qtpevap(i,j,k)
+                thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*qtpevap(i,j,k)
+             end do
+          end do
+       end do
+    end if
+
   end subroutine evaporation
 
   !*********************************************************************
