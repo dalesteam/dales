@@ -26,7 +26,7 @@ export DALES=$(pwd)/build/src/dales4.4
 4. Run the tests:
 
 ```{bash}
-pytest -rf --assert=plain --case bomex
+pytest -rf --assert=plain --case=bomex
 ```
 
 Any of the cases in the `cases/` directory can be tested by changing the `--case` argument. Keep in mind that some cases require a custom `moduser.f90`.
