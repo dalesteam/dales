@@ -41,8 +41,8 @@ save
   integer                         :: method
   integer                         :: konx, kony
   integer                         :: iony, jonx
-  integer                         :: konx_last, kony_last
-  integer                         :: iony_last, jonx_last
+  integer                         :: konx_me, kony_me
+  integer                         :: iony_me, jonx_me
   real(pois_r), dimension(:), allocatable :: bufin, bufout
   interface fftw_plan_many_r2r_if
     procedure :: d_fftw_plan_many_r2r
@@ -136,10 +136,13 @@ contains
       jonx = jonx + 1
     endif
 
-    konx_last = kmax - konx*(nprocx-1)
-    kony_last = kmax - kony*(nprocy-1)
-    iony_last = itot - iony*(nprocy-1)
-    jonx_last = jtot - jonx*(nprocx-1)
+    ! how many data elements are in use in the current process?
+    ! if the number of elements is not divisible by nprocx or nprocy,
+    ! one process may have fewer elements, and some processes may have *no* elements
+    konx_me = max(min(konx, kmax - konx*myidx), 0)
+    kony_me = max(min(kony, kmax - kony*myidy), 0)
+    iony_me = max(min(iony, itot - iony*myidy), 0)
+    jonx_me = max(min(jonx, jtot - jonx*myidx), 0)
 
 ! Allocate communication buffers for the transpose functions
     sz = max( imax * jmax * konx * nprocx, & ! transpose a1
@@ -258,13 +261,9 @@ contains
     allocate(xyrt(iony,jonx))
     allocate(d(iony,jonx,kmax))
     ps = 1
-    pe = iony
+    pe = iony_me
     qs = 1
-    qe = jonx
-
-    ! special case for final task in x or y, which may have fewer elements
-    if (myidx == nprocx-1) qe = jonx_last
-    if (myidy == nprocy-1) pe = iony_last
+    qe = jonx_me
 
     else if (method == 2) then
 
@@ -660,9 +659,10 @@ contains
 
       call transpose_a2(p210, p201)
       ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
-      if (myidx == nprocx-1 .and. konx_last < konx) p201(:,konx_last+1:, :) = 0
-      if (myidy == nprocy-1 .and. iony_last < iony) p201(:,:,iony_last+1:) = 0
-      ! p201(jtot,konx,iony)
+      ! indexing: p201(jtot,konx,iony)
+      if (konx_me < konx) p201(:,konx_me+1:, :) = 0
+      if (iony_me < iony) p201(:,:,iony_me+1:) = 0
+
 
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
