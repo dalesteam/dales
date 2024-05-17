@@ -65,7 +65,7 @@ def test_domains(
     print(result.stdout)
 
     # Check if run was successful (sort of)
-    assert "Run successful!" in str(result.stdout)
+    assert "TOTAL wall time" in str(result.stdout)
 
 @pytest.mark.parametrize(
     "mom,tke,thl,qt,sv",
@@ -117,4 +117,4 @@ def test_advection(tmp_case, mom, tke, thl, qt, sv):
 
     print(result.stdout)
 
-    assert "Run successful!" in str(result.stdout)
+    assert "TOTAL wall time" in str(result.stdout)
