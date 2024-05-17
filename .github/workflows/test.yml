@@ -48,6 +48,6 @@ jobs:
           
       - name: Run tests
         run: |
-          export DALES=$(find ~+/build/src -depth 1 -name "dales*")
+          export DALES=$(find ~+/build/src -maxdepth 1 -name "dales*")
           pytest -rf --assert=plain --case=${{ matrix.case }}
           
