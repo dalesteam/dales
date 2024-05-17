@@ -162,8 +162,15 @@ contains
               iony*jonx*kmax                    ) ! Fp (p102)
 
     ! get aligned memory for FFTW
+#if POIS_PRECISION == 64
     ptr = fftw_alloc_real(sz)
-
+#else
+    ptr = fftwf_alloc_real(sz)
+#endif
+    if( .not. c_associated(ptr) ) then
+       write (*,*) "modfftw: ptr is not associated,  fftw(f)_alloc_real(", sz, ") failed."
+       stop "fftw(f)_alloc_real failed"
+    end if
     ! convert it to a fortran pointer, or 1D array
     call c_f_pointer(ptr, fptr, (/sz/))
 
