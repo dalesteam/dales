@@ -48,6 +48,6 @@ jobs:
           
       - name: Run tests
         run: |
-          export DALES=$(pwd)/build/src/dales4.4 # TODO: this will break for DALES 4.5
+          export DALES=$(find ~+/build/src -depth 1 -name "dales*")
           pytest -rf --assert=plain --case=${{ matrix.case }}
           
