@@ -143,11 +143,10 @@ contains
       stop 'ERROR: Radiation variables could not be allocated in modradrte_rrtmgp.f90'
     end if
 
-    ! Reading Trace Profiles
+    ! Pressure, trace gases and sounding (patch above the DALES domain) initialization
     ! Patch sounding profile pressures above domain pressures (convert to hPa!)
     presf_input(1:kmax)   = initial_presf(1:kmax)  /100.
     presh_input(1:k1)     = initial_presh(1:k1)/100.
-
     if(npatch>0) then
       presf_input(k1  :kradmax) = psnd(npatch_start:npatch_end)
       presh_input(k1+1:kradmax) = 0.5*(psnd(npatch_start:npatch_end-1) &
@@ -155,8 +154,25 @@ contains
       presh_input(krad1) = max(0.5*psnd(npatch_end),            &
                                1.5*psnd(npatch_end)-0.5*psnd(npatch_end-1))
     end if
-    call readTraceProfs
 
+    ! Set up pressure layer and interface values (pressures in SI units, i.e. Pa)
+    do k=1,nlay
+      layerP(:,k) = presf_input(k)*100.00
+      interfaceP(:,k) = presh_input(k)*100.00
+    enddo
+    layerP(:,nlay) = 0.5*presh_input(nlay)*100.00
+    interfaceP(:, nlay+1) = min(1.e-4_kind_rb , 0.25*layerP(1,nlay))
+
+    ! Set up temperature and h2o layer values above the DALES domain
+    do k=1,nlay-kmax-1
+      layerT(:,kmax+k) = tsnd(npatch_start+k-1)
+      h2ovmr(:,kmax+k) = mwdry/mwh2o * qsnd(npatch_start+k-1)
+    enddo
+    h2ovmr(:,nlay) = h2ovmr(:,nlay-1)
+    layerT(:,nlay) = 2.*layerT(:,nlay-1)-layerT(:, nlay-2)
+
+    ! Reading Trace Profiles
+    call readTraceProfs
     if(myid==0) write(*,*) 'Trace gas profile have been read'
 
     ! Specific RRTMGP initialization
@@ -439,25 +455,9 @@ contains
         icol=i-1+(j-jstart)*imax
         tg_slice(icol) = tskin(i,j)*exners
         do k=1,kmax
-          layerP(icol,k) = presf_input(k)
           layerT(icol,k) = thl0(i,j,k) * exnf(k) + (rlv / cp) * ql0(i,j,k)
           h2ovmr(icol,k) = mwdry/mwh2o * max(qt0(i,j,k)-ql0(i,j,k),1e-10) !avoid negative values
         enddo
-      enddo
-    enddo
-
-    ! Set up layer values above the DALES domain
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        do k=1,nlay-kmax-1
-          layerP(icol,kmax+k) = presf_input(kmax+k)
-          layerT(icol,kmax+k) = tsnd(npatch_start+k-1)
-          h2ovmr(icol,kmax+k) = mwdry/mwh2o * qsnd(npatch_start+k-1)
-        enddo
-        h2ovmr(icol,nlay) = h2ovmr(icol,nlay-1)
-        layerP(icol,nlay) = 0.5*presh_input(nlay)
-        layerT(icol,nlay) = 2.*layerT(icol,nlay-1)-layerT(icol, nlay-2)
       enddo
     enddo
 
@@ -468,19 +468,12 @@ contains
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
         interfaceT(icol, 1) = tg_slice(icol) !enforce ground temperature
-        interfaceP(icol, 1) = presh_input(1)
         do k=2,nlay
           interfaceT(icol,k) = (layerT(icol,k-1) + layerT(icol, k))/2.
-          interfaceP(icol,k) = presh_input(k)
         enddo
         interfaceT(icol, nlay+1) = 2.*layerT(icol, nlay) - interfaceT(icol, nlay)
-        interfaceP(icol, nlay+1) = min(1.e-4_kind_rb , 0.25*layerP(1,nlay))
       enddo
     enddo
-
-    ! pressures are in SI unit, i.e. Pa
-    layerP(:,:)=layerP(:,:)*100.00
-    interfaceP(:,:)=interfaceP(:,:)*100.00
 
     ! Setup cloud properties (above the DALES domain everyhting is set to zero)
     LWP_slice = 0.0
@@ -499,7 +492,6 @@ contains
 
           LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m2
           IWP_slice(icol,k) = qci * layerMass*1e3 !g/m2
-
 
           if (LWP_slice(icol,k).gt.0.) then
             !cstep liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
