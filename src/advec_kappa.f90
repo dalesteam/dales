@@ -61,6 +61,9 @@ subroutine advecc_kappa(a_in,a_out)
   integer :: i, j, k, k_low, k_high, kbeg, kend
 
   ! find the lowest and highest k level with a non-zero value in a_in
+
+#if defined(DALES_GPU)
+  ! This version is faster with OpenACC acceleration as it enables collapse(3)
   k_low = k1 + 1
 
   !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
@@ -90,6 +93,27 @@ subroutine advecc_kappa(a_in,a_out)
       enddo
     enddo
   enddo
+
+#else
+  k_low = -1
+  do k=1,k1
+     if (any(a_in(:,:,k).ne.0.)) then
+        k_low = k
+        exit
+     endif
+  enddo
+  if (k_low == -1) then
+     ! a_in == zero
+     return
+  endif
+
+  do k=k1,1,-1
+     if (any(a_in(:,:,k).ne.0.)) then
+        k_high = k
+        exit
+     endif
+  enddo
+#endif
 
   ! vertical advection from layer 1 to 2, special case. k=2
   if (k_low <= 3) then
