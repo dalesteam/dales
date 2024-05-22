@@ -450,11 +450,10 @@ contains
     jend   =  ibatch    * jmax/nbatch + 1
 
     ! Set up layer values within the DALES domain
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        tg_slice(icol) = tskin(i,j)*exners
-        do k=1,kmax
+    do k=1,kmax
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
           layerT(icol,k) = thl0(i,j,k) * exnf(k) + (rlv / cp) * ql0(i,j,k)
           h2ovmr(icol,k) = mwdry/mwh2o * max(qt0(i,j,k)-ql0(i,j,k),1e-10) !avoid negative values
         enddo
@@ -463,14 +462,20 @@ contains
 
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
 
-    ! Set up interface values // use table assignment?
+    ! Set up temperature interface values
+    do k=2,nlay
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
+          interfaceT(icol,k) = (layerT(icol,k-1) + layerT(icol, k))/2.
+        enddo
+      enddo
+    enddo
     do j=jstart, jend
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
+        tg_slice(icol) = tskin(i,j)*exners
         interfaceT(icol, 1) = tg_slice(icol) !enforce ground temperature
-        do k=2,nlay
-          interfaceT(icol,k) = (layerT(icol,k-1) + layerT(icol, k))/2.
-        enddo
         interfaceT(icol, nlay+1) = 2.*layerT(icol, nlay) - interfaceT(icol, nlay)
       enddo
     enddo
@@ -480,10 +485,10 @@ contains
     IWP_slice = 0.0
     liquidRe = 0.
     iceRe = 0.
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        do k=1,kmax
+    do k=1,kmax
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
           ! set up working variables
           ilratio  = max(0.,min(1.,(layerT(icol,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
           layerMass = (interfaceP(icol,k)-interfaceP(icol,k+1))/grav !kg/m2
