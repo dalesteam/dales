@@ -262,6 +262,7 @@ module modbulkmicro
         enddo
       enddo
 
+      ! LE: Commenting those out for now, popping up too often.
       !if ( -qrsum_neg > 0.000001*qrsum) then
       !  write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
       !end if
@@ -273,6 +274,9 @@ module modbulkmicro
     !*********************************************************************
     ! Find gridpoints where the microphysics scheme should run
     !*********************************************************************
+
+#if defined(DALES_GPU)
+    ! Faster with OpenACC acceleration as it enables collapse(3)
     qrbase = k1 + 1
     qrroof = 1 - 1
     qcbase = k1 + 1
@@ -313,6 +317,43 @@ module modbulkmicro
       qrroof = min(k1, qrroof)
       qcroof = min(k1, qcroof)
     endif
+#else
+    qrmask = qr.gt.qrmin.and.Nr.gt.0
+    qrbase = k1 + 1
+    qrroof = 1 - 1
+    do k=1,k1
+      if (any(qrmask(:,:,k))) then
+        qrbase = max(1, k)
+        exit
+      endif
+    enddo
+    if (qrbase.le.k1) then
+      do k=k1,qrbase,-1
+        if (any(qrmask(:,:,k))) then
+          qrroof = min(k1, k)
+          exit
+        endif
+      enddo
+    endif
+
+    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
+    qcbase = k1 + 1
+    qcroof = 1 - 1
+    do k=1,k1
+      if (any(qcmask(:,:,k))) then
+        qcbase = max(1, k)
+        exit
+      endif
+    enddo
+    if (qcbase.le.k1) then
+      do k=k1,qcbase,-1
+        if (any(qcmask(:,:,k))) then
+          qcroof = min(k1, k)
+          exit
+        endif
+      enddo
+    endif
+#endif
 
     ! if there is nothing to do, we can return at this point
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
@@ -339,7 +380,11 @@ module modbulkmicro
       call bulkmicrotend
       call evaporation
       call bulkmicrotend
+#if defined(DALES_GPU)
+      call sedimentation_rain_gpu
+#else
       call sedimentation_rain
+#endif
       call bulkmicrotend
     endif
 
@@ -626,7 +671,9 @@ module modbulkmicro
 !! - l_lognormal =T : lognormal DSD is assumed with D_g and N known and
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
-  subroutine sedimentation_rain
+!! - this version is reworked with a temporary holder which enables
+!!   more collaspe with OpenACC acceleration, but slower on CPU.
+  subroutine sedimentation_rain_gpu
     use modglobal, only : i1,j1,k1,eps1,dzf
     use modfields, only : rhof
     use modmpi,    only : myid
@@ -939,6 +986,169 @@ module modbulkmicro
     !$acc exit data delete(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
 
     deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
+
+    call timer_toc('modbulkmicro/sedimentation_rain')
+
+  end subroutine sedimentation_rain_gpu
+
+  subroutine sedimentation_rain
+    use modglobal, only : i1,j1,k1,eps1,dzf
+    use modfields, only : rhof
+    use modmpi,    only : myid
+    use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
+                             l_sb, l_lognormal, delt, &
+                             qrmask, qrmin, pirhow, sig_gr, &
+                             D_s, a_tvsb, b_tvsb, c_tvsb, &
+                             Dvr, mur, lbdr
+
+    implicit none
+    integer :: i,j,k,jn
+    integer :: n_spl      !<  sedimentation time splitting loop
+    real    :: pwcont
+    real :: Dgr           !<  lognormal geometric diameter
+    real :: wfall_qr      !<  fall velocity for qr
+    real :: wfall_Nr      !<  fall velocity for Nr
+    real :: sed_qr
+    real :: sed_Nr
+    real(field_r), allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
+
+    real,save :: dt_spl,wfallmax
+
+    call timer_tic('modbulkmicro/sedimentation_rain', 1)
+
+    precep = 0 ! zero the precipitation flux field
+               ! the update below is not always performed
+
+    if (qrbase.gt.qrroof) return
+
+    allocate(qr_spl(2:i1,2:j1,1:k1))
+    allocate(Nr_spl(2:i1,2:j1,1:k1))
+
+    wfallmax = 9.9
+    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
+    dt_spl = delt/real(n_spl)
+
+    do jn=1,n_spl ! time splitting loop
+
+      if (jn .eq. 1) then
+        qr_spl = qr
+        Nr_spl = Nr
+      else
+        ! update parameters after the first iteration
+
+        ! a new mask
+        qrmask = (qr_spl .gt. qrmin).and.(Nr_spl .gt. 0) ! BUG: added Nr_spl
+
+        ! lower the rain base by one level to include the rain fall
+        ! from the previous step
+        qrbase = max(1, qrbase - 1)
+
+        call calculate_rain_parameters(Nr_spl, qr_spl)
+      endif
+
+      if (l_sb) then
+        if (l_lognormal) then
+          do k = qrbase,qrroof
+          do j = 2,j1
+          do i = 2,i1
+            if (qrmask(i,j,k)) then
+              ! correction for width of DSD
+              Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
+              sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+              sed_Nr = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
+
+              ! correction for the fact that pwcont .ne. qr_spl
+              ! actually in this way for every grid box a fall velocity is determined
+              pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
+              if (pwcont > eps1) then
+                sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr
+                ! or:
+                ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+              endif
+
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+              Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+              if (k .gt. 1) then
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+              endif
+              if (jn==1) then
+                precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+              endif
+            endif ! qr_spl threshold statement
+          enddo
+          enddo
+          enddo
+        else
+          !
+          ! SB rain sedimentation
+          !
+          do k=qrbase,qrroof
+          do j=2,j1
+          do i=2,i1
+            if (qrmask(i,j,k)) then
+              wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+              wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
+
+              sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
+              sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
+
+              qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+              Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+              if (k .gt. 1) then
+                qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+              endif
+              if (jn==1) then
+                precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+              endif
+            endif
+          enddo
+          enddo
+          enddo
+        endif ! l_lognormal
+      else
+        !
+        ! KK00 rain sedimentation
+        !
+        do k=qrbase,qrroof
+        do j=2,j1
+        do i=2,i1
+          if (qrmask(i,j,k)) then
+            sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
+            sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
+
+            qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+            Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+            if (k .gt. 1) then
+              qr_spl(i,j,k-1) = qr_spl(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+              Nr_spl(i,j,k-1) = Nr_spl(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+            endif
+            if (jn==1) then
+              precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+            endif
+          endif
+        enddo
+        enddo
+        enddo
+      endif ! l_sb
+
+    enddo ! time splitting loop
+
+    ! the last time splitting step lowered the base level
+    ! and we still need to adjust for it
+    qrbase = max(1,qrbase-1)
+
+    Nrp(:,:,qrbase:qrroof) = Nrp(:,:,qrbase:qrroof) + &
+      (Nr_spl(:,:,qrbase:qrroof) - Nr(:,:,qrbase:qrroof))/delt
+
+    qrp(:,:,qrbase:qrroof) = qrp(:,:,qrbase:qrroof) + &
+      (qr_spl(:,:,qrbase:qrroof) - qr(:,:,qrbase:qrroof))/delt
+
+    deallocate(qr_spl, Nr_spl)
 
     call timer_toc('modbulkmicro/sedimentation_rain')
 
