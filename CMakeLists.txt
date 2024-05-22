@@ -64,6 +64,7 @@ elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
     set(CMAKE_Fortran_FLAGS "-W -Wall -acc=gpu,host -cuda -Minfo=accel -gpu=cc80,fastmath -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -O3 -g -traceback" CACHE STRING "")
     set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+    add_compile_definitions(DALES_GPU)
 elseif("$ENV{SYST}" STREQUAL "NV-multicore")
     set(CMAKE_Fortran_COMPILER "mpif90")
     # Includes (temporary) flags for linking to nVidia-built NetCDF
