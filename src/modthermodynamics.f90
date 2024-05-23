@@ -98,7 +98,11 @@ contains
     end if
     if (lmoist .and. (.not. lnoclouds)) then
        if (lfast_thermo) then
+#if defined (DALES_GPU)
+          call icethermo0_fast_gpu
+#else
           call icethermo0_fast
+#endif
        else
           call icethermo0
        end if
@@ -109,7 +113,11 @@ contains
 
     if (lmoist .and. (.not. lnoclouds)) then
        if (lfast_thermo) then
+#if defined (DALES_GPU)
+          call icethermoh_fast_gpu
+#else
           call icethermoh_fast
+#endif
        else
           call icethermoh
        end if
@@ -688,15 +696,143 @@ contains
     implicit none
     integer :: i, j, k
     real(field_r) :: Tl, qsat_, qt, ql, b, T
+    real(field_r) :: Tl_min, Tl_max, qt_max
+    real(field_r) :: esi1, tlo, thi
+    integer       :: tlonr
+    do k=1,k1
+       ! Optimization: if the whole horizontal slab at k is unsaturated,
+       ! the calculation of this slab can be skipped.
+       ! Find highest qt and lowest thl in the slab.
+       ! If they in combination are not saturated, the whole slab is below saturation.
+       ! Also do range checks of Tl here. Tl must be within the range of the table,
+       ! and below the boiling point of water at this level.
+       ! Setting the limit at 5K below the boiling point here. Crossing the boiling point
+       ! is detected by esat > presf(k)
+       Tl_min = minval(thl0(2:i1,2:j1,k)) * exnf(k)
+       Tl_max = maxval(thl0(2:i1,2:j1,k)) * exnf(k)
+       qt_max = maxval(qt0(2:i1,2:j1,k))
+       if (Tl_min < 150) STOP 'icethermo0_fast: Tl_min below limit 150K'
+       if (esat_tab(Tl_max + 5) > presf(k)) STOP 'icethermo0_fast: Tl_max too close to boiling point'
+
+       qsat_ = qsat_tab(Tl_min, presf(k)) ! lowest possible qsat in this slab
+       if (qt_max > qsat_) then
+          do j=2,j1
+             do i=2,i1
+                Tl = exnf(k)*thl0(i,j,k)
+                qt = qt0(i,j,k)
+
+                ! first step
+                qsat_ = qsat_tab(Tl, presf(k))
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+
+                ql = max(qt0(i,j,k) - qsat_, 0.)
+
+                ! update the starting point
+                Tl = Tl + (rlv/cp) * ql
+                qt = qt - ql
+
+                ! second step
+                qsat_ = qsat_tab(Tl, presf(k))
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
+
+                ! save results
+                ql = max(qt0(i,j,k) - qsat_, 0.)
+                ql0(i,j,k) = ql
+
+                !!!!!!!!!!!!!!!!!
+                ! The following could
+                ! be done on the fly to save
+                ! precious memory
+
+                !qsat(i,j,k) = qsat_ ! qsat_ is not a good approximation when not saturated
+                                     ! but ql is still good in that case.
+                T = exnf(k)*thl0(i,j,k) + (rlv/cp) * ql
+                tmp0(i,j,k) = T
+
+                ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
+                tlonr=int((T-150.)*5.)
+                tlo = 150. + 0.2*tlonr
+                thi = tlo + 0.2
+                esl(i,j,k) = (thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(tlonr+1) ! saturation vapor pressure liquid
+                esi1       = (thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(tlonr+1) ! saturation vapor pressure ice
+                qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
+                qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1.-rd/rv)*esi1)              ! saturation humidity ice
+                !!!!!!!!!!!
+             end do
+          end do
+       else
+          ! possibly faster option when the whole layer is below saturation
+          ! If many of the els, qsvl, qsvi are stored in arrays, they still need to be saved here
+          ql0(2:i1,2:j1,k) = 0
+          do j=2,j1
+             do i=2,i1
+                T = exnf(k)*thl0(i,j,k) ! + (rlv/cp) * ql omitted because ql is 0
+                tmp0(i,j,k) = T
+                qsat(i,j,k) = qsat_tab(T, presf(k))
+
+                ! use the separate e_sat tables for liquid and ice to calculate and store esl, qvsl, qvsi
+                tlonr=int((T-150.)*5.)
+                tlo = 150. + 0.2*tlonr
+                thi = tlo + 0.2
+                esl(i,j,k) = (thi-T)*5.*esatltab(tlonr)+(T-tlo)*5.*esatltab(tlonr+1) ! saturation vapor pressure liquid
+                esi1       = (thi-T)*5.*esatitab(tlonr)+(T-tlo)*5.*esatitab(tlonr+1) ! saturation vapor pressure ice
+                qvsl(i,j,k)=rd/rv*esl(i,j,k)/(presf(k)-(1.-rd/rv)*esl(i,j,k))        ! saturation humidity liquid
+                qvsi(i,j,k)=rd/rv*esi1      /(presf(k)-(1.-rd/rv)*esi1)              ! saturation humidity ice
+             end do
+          end do
+       end if
+    end do
+  end subroutine icethermo0_fast
+
+  subroutine icethermo0_fast_gpu
+    !> Calculates liquid water content ql from thl0 and qt0.
+    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
+    !> and e_sat interpolated between liquid and ice expressions.
+    !>
+    !> Given thl0 and qt0, we search for T such that
+    !> (1) ql = qt - qsat(T)     (definition of ql, instant condensation if above saturation)
+    !> (2) ql = cp/L * (T - Tl)  (definition of Tl)
+    !> hold simultaneously, and solve for qsat(T).
+    !> Tl is thl0/exnf(k) .
+    !>
+    !> Steps of the derivation:
+    !> - 1st order Taylor expansion of qsat(T) around T = Tl
+    !> - insert (1) and (2)
+    !> - solve for qsat(T)
+    !> - use the Clausius-Clapeyron relation for the T-derivative of qsat
+    !>
+    !> 2 iterations gives a good accuracy, 1 iteration is not
+    !> sufficient.  Fixing the number of iterations makes the code
+    !> vectorize, a variable number of iterations prevents
+    !> vectorization.
+    !>
+    !> The procedure works also when qsat(T) is a linear interoplation
+    !> between qsat_liquid and qsat_ice, with slightly reduced
+    !> accuracy in the interpolation region.
+    !>
+    !> qsat (T) can be calculated in different ways, with different
+    !> accuracy vs computing cost.  The fastest so far is to use a
+    !> lookup table for esat(T), and interpolate linearly in it.
+    !>
+    !> C. Jungbacker: This version is faster on GPU than the original
+    !> because it does not check for each slab.
+    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+
+    use modglobal, only : i1,j1,k1,rv,rlv,cp,rd
+    use modfields, only : qt0,thl0,exnf,presf,ql0
+    use modfields, only : tmp0, qsat, esl, qvsl, qvsi          ! consider not storing these
+    use modglobal, only : esatltab, esatitab
+
+    implicit none
+    integer :: i, j, k
+    real(field_r) :: Tl, qsat_, qt, ql, b, T
     real(field_r) :: Tl_min, Tl_max, PrDiff_min
     real(field_r) :: esi1, tlo, thi
     integer       :: tlonr
 
     call timer_tic('modthermodynamics/icethermo0_fast', 1)
-
-    ! This version of icethermo0_fast is faster on GPU than the original version on branch to4.4.2_Fredrik, because it does
-    ! not check for each slab if it is below saturation. This makes it slower on CPU however, so maybe we want the original
-    ! subroutine in here as well, and switch between them depending on if the GPU is used or not.
 
     ! Sanity checks
     Tl_min = 400.0
@@ -762,23 +898,90 @@ contains
       end do
     end do
     call timer_toc('modthermodynamics/icethermo0_fast')
-  end subroutine icethermo0_fast
+  end subroutine icethermo0_fast_gpu
 
-!> Calculates liquid water content ql for halflevels
-!> Using 2 iterations of Eq. (59) in the Heus 2010 article
-!> and e_sat interpolated between liquid and ice expressions.
-!> See comments in icethermo0_fast above for more details.
-!>
-!> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
   subroutine icethermoh_fast
+    !> Calculates liquid water content ql for halflevels
+    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
+    !> and e_sat interpolated between liquid and ice expressions.
+    !> See comments in icethermo0_fast above for more details.
+    !>
+    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+    !> this could be merged with icethermo0
+    !> and input and output fields are given as parameters.
+    !> in: thl, qt, exner,
+    !> out: ql
+    !>
+    !> alternatively merge with calc_halflev and calthv
+    !> to eliminate qt0h, thl0h, ql0h fields
 
-! this could be merged with icethermo0
-! and input and output fields are given as parameters.
-! in: thl, qt, exner,
-! out: ql
-!
-! alternatively merge with calc_halflev and calthv
-! to eliminate qt0h, thl0h, ql0h fields
+    use modglobal, only : i1,j1,k1,rv,rlv,cp
+    use modfields, only : qt0h,thl0h,exnh,presh,ql0h
+
+    implicit none
+    integer :: i, j, k
+    real(field_r) :: Tl, qsat, qt, ql, b
+    real(field_r) :: Tl_min, Tl_max, qt_max
+
+    do k=1,k1
+       ! find highest qt and lowest thl in the slab.
+       ! if they in combination are not saturated, the whole slab is below saturation
+       Tl_min = minval(thl0h(2:i1,2:j1,k)) * exnh(k)
+       Tl_max = maxval(thl0h(2:i1,2:j1,k)) * exnh(k)
+       if (Tl_min < 150) STOP 'icethermoh_fast: Tl_min below limit 150K'
+       if (esat_tab(Tl_max + 5) > presh(k)) STOP 'icethermoh_fast: Tl_max too close to boiling point'
+       qt_max = maxval(qt0h(2:i1,2:j1,k))
+       qsat = qsat_tab(Tl_min, presh(k))
+       if (qt_max > qsat) then
+          do j=2,j1
+             do i=2,i1
+                Tl = exnh(k)*thl0h(i,j,k)
+                qt = qt0h(i,j,k)
+
+                ! first step
+                qsat = qsat_tab(Tl, presh(k))
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
+
+                ql = max(qt0h(i,j,k) - qsat, 0.)
+
+                ! update the starting point
+                Tl = Tl + (rlv/cp) * ql
+                qt = qt - ql
+
+                ! second step
+                qsat = qsat_tab(Tl, presh(k))
+                b = rlv**2 / (rv * cp * Tl**2)
+                qsat = qsat * (1 + b * qt) / (1 + b * qsat)
+
+                ! save results
+                ql = max(qt0h(i,j,k) - qsat, 0.)
+                ql0h(i,j,k) = ql
+             end do
+          end do
+       else
+          ql0h(2:i1,2:j1,k) = 0
+       end if
+    end do
+  end subroutine icethermoh_fast
+
+  subroutine icethermoh_fast_gpu
+    !> Calculates liquid water content ql for halflevels
+    !> Using 2 iterations of Eq. (59) in the Heus 2010 article
+    !> and e_sat interpolated between liquid and ice expressions.
+    !> See comments in icethermo0_fast above for more details.
+    !>
+    !> C. Jungbacker: This version is faster on GPU than the original
+    !> because it does not check for each slab.
+    !> \author Fredrik Jansson, Jisk Attema, Pier Siebesma
+    !>
+    !> this could be merged with icethermo0
+    !> and input and output fields are given as parameters.
+    !> in: thl, qt, exner,
+    !> out: ql
+    !>
+    !> alternatively merge with calc_halflev and calthv
+    !> to eliminate qt0h, thl0h, ql0h fields
 
     use modglobal, only : i1, j1, k1, rv, rlv, cp
     use modfields, only : qt0h, thl0h, exnh, presh, ql0h
@@ -834,7 +1037,7 @@ contains
       end do
     end do
     call timer_toc('modthermodynamics/icethermoh_fast')
-  end subroutine icethermoh_fast
+  end subroutine icethermoh_fast_gpu
 !!!!!!!!! new thermo
 
   subroutine icethermo0
@@ -940,7 +1143,7 @@ contains
       end do
       end do
       if(nitert>99) then
-      write(*,*) 'thermowarning'
+        write(*,*) 'thermowarning'
       endif
 
   end subroutine icethermo0
@@ -1040,7 +1243,7 @@ contains
       end do
       end do
       if(nitert>99) then
-      write(*,*) 'thermowarning'
+        write(*,*) 'thermowarning'
       endif
 
   end subroutine icethermoh
@@ -1048,7 +1251,7 @@ contains
 !> Calculates the scalars at half levels.
 !! If the kappa advection scheme is active, interpolation needs to be done consistently.
   subroutine calc_halflev
-    use modglobal, only : i1, j1, k1, dzf, dzh, iadv_thl, iadv_qt, iadv_kappa
+    use modglobal, only : i1, j1, k1, dzf, dzhi, iadv_thl, iadv_qt, iadv_kappa
     use modfields, only : thl0, thl0h, qt0, qt0h
     use modsurfdata,only: qts, thls
     use advec_kappa,only: halflev_kappa
@@ -1065,7 +1268,7 @@ contains
       do k = 2, k1
         do j = 2 ,j1
           do i = 2 ,i1
-            thl0h(i,j,k) = (thl0(i,j,k)*dzf(k-1)+thl0(i,j,k-1)*dzf(k))/(2*dzh(k))
+            thl0h(i,j,k) = (thl0(i,j,k)*dzf(k-1)+thl0(i,j,k-1)*dzf(k)) * (0.5_field_r * dzhi(k))
           end do
         end do
       end do
@@ -1085,7 +1288,7 @@ contains
       do k = 2, k1
         do j = 2, j1
           do i = 2, i1
-            qt0h(i,j,k)  = (qt0(i,j,k)*dzf(k-1)+qt0(i,j,k-1)*dzf(k))/(2*dzh(k))
+            qt0h(i,j,k)  = (qt0(i,j,k)*dzf(k-1)+qt0(i,j,k-1)*dzf(k)) * (0.5_field_r * dzhi(k))
           end do
         end do
       end do
