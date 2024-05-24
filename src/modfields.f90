@@ -122,7 +122,6 @@ save
   real(field_r), allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
 
   real(field_r), allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
-  real(field_r), allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:)
   real(field_r), allocatable :: qvsl(:,:,:)
   real(field_r), allocatable :: qvsi(:,:,:)
   real(field_r), allocatable :: esl(:,:,:)
@@ -226,11 +225,6 @@ subroutine initfields
     allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
 
-    allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-ice
              ,esl (2-ih:i1+ih,2-jh:j1+jh,k1)    & ! es-liquid
@@ -258,7 +252,6 @@ subroutine initfields
     dudxls=0.;dudyls=0.;dudtls=0.
     dvdxls=0.;dvdyls=0.;dvdtls=0.
     dthvdz=0.
-    SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
     qsat=0.
 
@@ -304,7 +297,6 @@ subroutine initfields
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
-    deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)
     deallocate(surf_rain)
