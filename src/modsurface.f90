@@ -1497,8 +1497,8 @@ contains
        if(.not. lmostlocal) then
           if(.not. lhetero) then
             !$acc parallel loop collapse(2) default(present)
-            do j = 2, j1
-              do i = 2, i1
+            do j = 1, j2
+              do i = 1, i2
                 obl(i,j) = L
               end do
             end do
@@ -1506,8 +1506,6 @@ contains
        end if
     end if
     oblav = L
-
-    call D_MPI_BCAST(oblav, 1, 0, comm3d, mpierr)
 
     return
   end subroutine getobl
