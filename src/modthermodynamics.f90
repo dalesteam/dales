@@ -126,25 +126,6 @@ contains
     ! recalculate thv and rho on the basis of results
     call calthv
 
-    !$acc kernels default(present)
-    thvh(:) = 0.0
-    thvf(:) = 0.0
-    !$acc end kernels
-
-    !$acc host_data use_device(thvh, thv0h)
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-    !$acc end host_data
-
-    !$acc host_data use_device(thvf, thv0)
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
-
-    !$acc kernels default(present) async(1)
-    thvh(:) = thvh(:)/ijtot
-    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
-    thvf(:) = thvf(:)/ijtot
-    !$acc end kernels
-
     !$acc parallel loop collapse(3) default(present) async(2)
     do k = 1, k1
       do j = 2, j1
@@ -154,6 +135,22 @@ contains
         end do
       end do
     end do
+
+    !$acc kernels default(present)
+    thvh(:) = 0.0
+    thvf(:) = 0.0
+    !$acc end kernels
+
+    !$acc host_data use_device(thvh, thv0h, thvf, thv0)
+    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
+    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
+
+    !$acc kernels default(present) async(1)
+    thvh(:) = thvh(:)/ijtot
+    thvh(1) = th0av(1)*(1+(rv/rd-1)*qt0av(1)-rv/rd*ql0av(1)) ! override first level
+    thvf(:) = thvf(:)/ijtot
+    !$acc end kernels
 
     !$acc parallel loop default(present) async(1)
     do k = 1, k1
@@ -187,12 +184,12 @@ contains
     call timer_tic('modthermodynamics/calthv', 1)
 
     dthvdz = 0
-    if (lmoist) then
 
+    if (lmoist) then
       !$acc parallel loop collapse(3) default(present) async(1)
-      do  k=2,k1
-        do  j=2,j1
-          do  i=2,i1
+      do k = 2, k1
+        do j = 2, j1
+          do i = 2, i1
             thv0h(i,j,k) = (thl0h(i,j,k)+rlv*ql0h(i,j,k)/(cp*exnh(k))) &
                           *(1+(rv/rd-1)*qt0h(i,j,k)-rv/rd*ql0h(i,j,k))
           end do
@@ -203,9 +200,9 @@ contains
       !$acc parallel loop collapse(3) default(present) &
       !$acc& private(a_dry, b_dry, a_moist, b_moist, c_liquid, epsilon, eps_I, chi_sat, chi, dthv, del_thv_dry, del_thv_sat, temp, qs, dq, dth) &
       !$acc& async(2)
-      do k=2,kmax
-        do j=2,j1
-          do i=2,i1
+      do k = 2, kmax
+        do j = 2 , j1
+          do i = 2, i1
 !
 !         default thv jump computed unsaturated
 !
@@ -268,9 +265,9 @@ contains
 
     else
       !$acc parallel loop collapse(3) default(present)
-      do k=2,kmax
-        do j=2,j1
-          do i=2,i1
+      do k = 2, kmax
+        do j = 2, j1
+          do i = 2, i1
             thv0h(i,j,k)  = thl0h(i,j,k)
             dthvdz(i,j,k) = (thl0(i,j,k+1)-thl0(i,j,k-1))/(dzh(k+1)+dzh(k))
           end do
@@ -278,17 +275,17 @@ contains
       end do
 
       !$acc parallel loop collapse(2) default(present)
-      do  j=2,j1
-        do  i=2,i1
+      do j = 2, j1
+        do i = 2, i1
           dthvdz(i,j,1) = dthldz(i,j)
         end do
       end do
     end if
 
     !$acc parallel loop collapse(3) default(present) async wait(2, 3)
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
           if(abs(dthvdz(i,j,k)) < eps1) then
             dthvdz(i,j,k) = sign(eps1, dthvdz(i,j,k))
           end if
