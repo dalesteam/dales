@@ -1186,6 +1186,7 @@ contains
     do j = 2, j1
       do i = 2, i1
         phimzf = phim(zf(1) / obl(i,j))
+        phihzf = phih(zf(1) / obl(i,j))
 
         ! Momentum fluxes
         upcu = 0.5_field_r * (u0(i,j,1) + u0(i+1,j,1)) + cu
