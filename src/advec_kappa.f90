@@ -142,9 +142,9 @@ subroutine advecc_kappa(a_in,a_out)
 
         work = work * w0(i,j,2)
         !$acc atomic update
-        a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
+        a_out(i,j,1) = a_out(i,j,1) - (1/(rhobf(1)*dzf(1)))*work
         !$acc atomic update
-        a_out(i,j,2) = a_out(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
+        a_out(i,j,2) = a_out(i,j,2) + (1/(rhobf(2)*dzf(2)))*work
       end do
     end do
   end if
@@ -240,14 +240,14 @@ subroutine advecc_kappa(a_in,a_out)
         end if
 
         work = cf + &
-             min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-             (sign(0.5, d1) + sign(0.5, d2))
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
         work = work * w0(i,j,k)
         !$acc atomic update
-        a_out(i,j,k-1) = a_out(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
+        a_out(i,j,k-1) = a_out(i,j,k-1) - (1/(rhobf(k-1)*dzf(k-1)))*work
         !$acc atomic update
-        a_out(i,j,k)   = a_out(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
+        a_out(i,j,k)   = a_out(i,j,k)   + (1/(rhobf(k)  *dzf(k)  ))*work
       end do
     end do
   end do
@@ -278,7 +278,7 @@ subroutine  halflev_kappa(a_in,a_out)
             d2 = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k)   * a_in(i,j,k  )
             cf = rhobf(k)   * a_in(i,j,k  )
           end if
-          a_out(i,j,k) = (1./rhobh(k))*(cf + rlim(d1,d2))
+          a_out(i,j,k) = (1/rhobh(k))*(cf + rlim(d1,d2))
         end do
       end do
     end do
@@ -295,7 +295,7 @@ subroutine  halflev_kappa(a_in,a_out)
           d2 = rhobf(1) * a_in(i,j,1) - rhobf(2) * a_in(i,j,2)
           cf = rhobf(2) * a_in(i,j,2)
         end if
-        a_out(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
+        a_out(i,j,2) = (1/rhobh(2))*(cf + rlim(d1,d2))
       end do
     end do
     !$acc wait(1,2)
@@ -312,8 +312,9 @@ subroutine  halflev_kappa(a_in,a_out)
     real(field_r) ri,phir
 
     ri    = (d2+eps1)/(d1+eps1)
-    phir  = max(0.,min(2.*ri,min(1./3.+2./3.*ri,2.)))
-    rlim  = 0.5*phir*d1
+    phir  = max(0.,min(2._field_r*ri,min(1._field_r/3._field_r + &
+                                         2._field_r/3._field_r*ri , 2._field_r)))
+    rlim  = 0.5_field_r*phir*d1
     end function rlim
 
 end module advec_kappa
