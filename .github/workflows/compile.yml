@@ -7,12 +7,8 @@ on:
   # Triggers the workflow on push or pull request events
   push:
     branches:
-      - master
-      - OpenACC-Dev
   pull_request:
     branches:
-      - master
-      - OpenACC-Dev
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
