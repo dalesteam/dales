@@ -839,7 +839,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           Tl_min = min(Tl_min,thl0(i,j,k)*exnf(k))
-          PrDiff_min = min(PrDiff_min, presf(k) - esat_tab(thl0(i,j,k)*exnf(k) + 5.0))
+          PrDiff_min = min(PrDiff_min, presf(k) - esat_tab(thl0(i,j,k)*exnf(k) + 5.0_field_r))
         end do
       end do
     end do
@@ -997,7 +997,7 @@ contains
       do j = 2, j1
         do i = 2, i1
           Tl_min = min(Tl_min,thl0h(i,j,k)*exnh(k))
-          PrDiff_min = min(PrDiff_min, presh(k) - esat_tab(thl0h(i,j,k)*exnh(k) + 5.0))
+          PrDiff_min = min(PrDiff_min, presh(k) - esat_tab(thl0h(i,j,k)*exnh(k) + 5.0_field_r))
         end do
       end do
     end do
