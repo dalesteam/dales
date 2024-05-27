@@ -74,9 +74,9 @@ save
                Dvrav  , &
                Dvrmn
 
-  real, allocatable, dimension(:) :: tend_np, &
-                                     tend_qrp, &
-                                     tend_qtp
+  real(field_r), allocatable, dimension(:) :: tend_np, &
+                                              tend_qrp, &
+                                              tend_qtp
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -237,7 +237,6 @@ subroutine initbulkmicrostat
     use modmicrodata,only: imicro, imicro_bulk3             ! #sb3
     implicit none
 
-    call timer_tic('modbulkmicrostat/bulkmicrostat', 1)
     
     if (imicro.eq.imicro_bulk3) return  ! #sb3 treated separately
     if (.not. lmicrostat)  return
@@ -247,6 +246,9 @@ subroutine initbulkmicrostat
       dt_lim  = minval((/dt_lim, tnext - timee, tnextwrite - timee/))
       return
     end if
+
+    call timer_tic('modbulkmicrostat/bulkmicrostat', 1)
+
     if (timee >= tnext) then
       tnext = tnext + idtav
       call dobulkmicrostat
@@ -357,8 +359,6 @@ subroutine initbulkmicrostat
 
     integer        :: ifield = 0
 
-    call timer_tic('modbulkmicrostat/bulkmicrotend', 1)
-
     if (.not. lmicrostat)  return
     if (rk3step /= 3)  return
     if (timee == 0)    return
@@ -367,6 +367,8 @@ subroutine initbulkmicrostat
       dt_lim  = minval((/dt_lim, tnext - timee, tnextwrite - timee/))
       return
     end if
+
+    call timer_tic('modbulkmicrostat/bulkmicrotend', 1)
 
     ifield    = mod(ifield, nrfields) + 1
 
