@@ -56,8 +56,8 @@ subroutine advecc_kappa(a_in,a_out)
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
 
-  real :: d1, d2, cf
-  real :: d1m, d2m, d1p, cfm, cfp, work
+  real(field_r) :: d1, d2, cf
+  real(field_r) :: d1m, d2m, d1p, cfm, cfp, work
   integer :: i, j, k, k_low, k_high, kbeg, kend
 
   ! find the lowest and highest k level with a non-zero value in a_in
