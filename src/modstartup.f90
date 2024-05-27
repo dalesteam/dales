@@ -437,14 +437,8 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
-#if defined(_OPENACC) 
-    use modgpu, only: update_gpu, update_host, host_is_updated
-#endif
-
-    use modgpu, only: update_gpu, update_host, host_is_updated
-
 #if defined(_OPENACC)
-    use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface, update_host_surface
+    use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
 
     integer i,j,k,n,ierr
@@ -684,12 +678,14 @@ contains
 
       ! save initial pressure profiles
       ! used for initialising radiation scheme at restart, to reproduce the same state
-      initial_presf = presf
-      initial_presh = presh
+      initial_presf(:) = presf(:)
+      initial_presh(:) = presh(:)
 
     else !if lwarmstart
 
       call readrestartfiles
+      call baseprofs
+
       um(:,:,:) = u0(:,:,:)
       vm(:,:,:) = v0(:,:,:)
       wm(:,:,:) = w0(:,:,:)
@@ -702,8 +698,13 @@ contains
       call calc_halflev
       !$acc set device_type(nvidia)
 
-      exnf(:) = (presf(:)/pref0)**(rd/cp)
-      exnh(:) = (presh(:)/pref0)**(rd/cp)
+      if (lconstexner) then
+        exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
+        exnh(:) = (initial_presh(:)/pref0)**(rd/cp)
+      else
+        exnf(:) = (presf(:)/pref0)**(rd/cp)
+        exnh(:) = (presh(:)/pref0)**(rd/cp)
+      endif
 
       do k = 2, k1
         do j = 2, j1
@@ -761,21 +762,8 @@ contains
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
 
-      call baseprofs !call baseprofs
-
 #if defined(_OPENACC)
       call update_gpu
-#endif
-
-      call boundary
-      call thermodynamics
-      call surface
-      call boundary
-      call thermodynamics
-
-#if defined(_OPENACC)
-      call update_host
-      host_is_updated = .false.
 #endif
 
     end if  ! end if (.not. warmstart)
@@ -1234,10 +1222,13 @@ contains
     use modsubgrid,        only : exitsubgrid
     use modsurface,        only : exitsurface
     use modthermodynamics, only : exitthermodynamics
+    use modchecksim,       only : exitchecksim
     use tstep,             only : exittstep
 
     call exittimedep
     call exitthermodynamics
+    call exittstep
+    call exitchecksim
     call exitsurface
     call exitsubgrid
     call exitradiation
@@ -1454,24 +1445,26 @@ contains
       read (ifinput,'(a80)') chmess
       read (ifinput,'(a80)') chmess
 
-      do k=1,kmax
+      do k = 1, kmax
         read (ifinput,*) &
                 height(k), &
                 rhobf (k)
       end do
       close(ifinput)
 
+      ! Set height at k1 equal to kmax for the sake of printing to screen
+      height(k1) = height(kmax)
 
       rhobf(k1)=rhobf(kmax)+(zf(k1)-zf(kmax))/(zf(kmax)-zf(kmax-1))*(rhobf(kmax)-rhobf(kmax-1))
 
-      do k=2,k1
-      rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
+      do k = 2, k1
+        rhobh(k) = (rhobf(k)*dzf(k-1)+rhobf(k-1)*dzf(k))/(dzf(k)+dzf(k-1))
       end do
 
       rhobh(1) = rhobf(1)-(rhobf(2)-rhobf(1))*(zf(1)-zh(1))/(zf(2)-zf(1))
 
       ! calculate derivatives
-      do  k=1,kmax
+      do k = 1, kmax
         drhobdzf(k) = (rhobh(k+1) - rhobh(k))/dzf(k)
       end do
 
@@ -1479,7 +1472,7 @@ contains
 
       drhobdzh(1) = 2*(rhobf(1)-rhobh(1))/dzh(1)
 
-      do k=2,k1
+      do k = 2, k1
         drhobdzh(k) = (rhobf(k)-rhobf(k-1))/dzh(k)
       end do
 
@@ -1507,7 +1500,7 @@ contains
     call D_MPI_BCAST(drhobdzf    ,k1,0,comm3d,mpierr)
     call D_MPI_BCAST(drhobdzh    ,k1,0,comm3d,mpierr)
 
-    deallocate(pb,tb)
+    deallocate(height,pb,tb)
 
   end subroutine baseprofs
 
