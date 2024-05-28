@@ -288,6 +288,9 @@ contains
 !> General routine, does the timekeeping
   subroutine quadrant
     use modglobal, only : rk3step,timee,dt_lim
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
     if(.not. lquadrant) return
     if (rk3step/=3) return
@@ -297,6 +300,9 @@ contains
     end if
     if (timee>=tnext) then
       tnext = tnext+idtav
+#if defined(_OPENACC)
+      call update_host
+#endif
       do isamp = 1,isamptot
         call doquadrant
       end do

@@ -1,0 +1,219 @@
+module modgpu
+  use modprecision, only: pois_r
+  implicit none
+
+save
+  real(pois_r), allocatable, target :: workspace_0(:), workspace_1(:)
+  logical :: host_is_updated = .false.
+
+#if defined(_OPENACC)
+contains
+
+  !> @brief Binds devices to MPI ranks
+  subroutine initgpu(commwrld)
+    use openacc
+    use mpi_f08
+    implicit none
+    type(MPI_COMM), intent(in) :: commwrld
+    type(MPI_COMM) :: commlocal
+    integer(acc_device_kind) :: device_type
+    integer :: num_devices, my_device_num, ierr
+
+    ! Make a shared memory communicator that contains all ranks local to a node
+    call MPI_Comm_split_type(commwrld, MPI_COMM_TYPE_SHARED, 0, MPI_INFO_NULL, commlocal, ierr)
+    
+    ! Who am I?
+    call MPI_Comm_rank(commlocal, my_device_num, ierr)
+
+    device_type = acc_get_device_type()
+    num_devices = acc_get_num_devices(device_type)
+    
+    my_device_num = mod(my_device_num, num_devices)
+
+    call acc_set_device_num(my_device_num, device_type)
+    call acc_init(device_type)
+     
+  end subroutine initgpu
+
+  !> @brief Copies fields and arrays to GPU  
+  subroutine update_gpu
+    use modfields, only: um, u0, up, vm, v0, vp, wm, w0, wp, &
+                         thlm, thl0, thlp, qtm, qt0, qtp, &
+                         e12m, e120, e12p, svm, sv0, svp, &
+                         rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+                         thl0h, qt0h, presf, presh, exnf, exnh, &
+                         thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+                         u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+                         wfls, whls, thlpcar, dthldxls, dthldyls, &
+                         dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+                         dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+                         dvdtls, dthvdz, qvsl, qvsi, esl, qsat
+    use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
+                         dsv, rd, rv, esatmtab, esatitab, esatltab
+    use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+                           ustar, dudz, dvdz, thlflux, qtflux, &
+                           dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
+    use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
+                              sbdiss, sbshr, sbbuo
+    use modradiation, only: thlprad
+    use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
+    use modboundary, only: tsc
+    use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+                            qtpmcr, xr, mur, lbdr, qrmask, qcmask
+    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
+
+    implicit none
+
+    !$acc update device(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$acc&              thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$acc&              e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&              rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&              thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$acc&              thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$acc&              u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&              wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&              dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$acc&              dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$acc&              dvdtls, dthvdz, qvsl, qvsi, esl, qsat, &
+    !$acc&              dzf, dzh, zh, zf, delta, deltai, dsv, &
+    !$acc&              z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !$acc&              ustar, dudz, dvdz, thlflux, qtflux, &
+    !$acc&              dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
+    !$acc&              ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
+    !$acc&              anis_fac, tsc, thlpcar, thlprad, presf, & 
+    !$acc&              presh, exnf, exnh, thetah, &
+    !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
+    !$acc&              esatmtab, esatitab, esatltab, &
+    !$acc&              th0av, thv0, thetah, qth, qlh, &
+    !$acc&              Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+    !$acc&              qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+
+  end subroutine update_gpu
+
+  !> @brief Copies surface data to GPU containers
+  subroutine update_gpu_surface
+
+    use modsurfdata, only: obl, tskin, qskin, ra, rs
+
+    implicit none
+
+    !$acc update device(tskin, qskin, ra, rs, obl)
+
+  end subroutine update_gpu_surface
+  
+  !> @brief Copies data from GPU to host, mostly for debugging
+  subroutine update_host
+    use modfields, only: um, u0, up, vm, v0, vp, wm, w0, wp, &
+                         thlm, thl0, thlp, qtm, qt0, qtp, &
+                         e12m, e120, e12p, svm, sv0, svp, &
+                         rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+                         thl0h, qt0h, presf, presh, exnf, exnh, &
+                         thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+                         u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+                         wfls, whls, thlpcar, dthldxls, dthldyls, &
+                         dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+                         dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+                         dvdtls, dthvdz, qvsl, qvsi, esl, qsat
+    use modglobal, only: dzf, dzh, zh, zf, delta, deltai, &
+                         dsv, rd, rv, esatmtab, esatitab, esatltab
+    use modsurfdata, only: z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+                           ustar, dudz, dvdz, thlflux, qtflux, &
+                           dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
+    use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
+                              sbdiss, sbshr, sbbuo
+    use modradiation, only: thlprad
+    use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
+    use modboundary, only: tsc
+    use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+                            qtpmcr, xr, mur, lbdr, qrmask, qcmask
+    use modchecksim, only: courxl, couryl, courzl, courtotl, peclettotl
+
+    implicit none
+
+    if (host_is_updated) return
+
+    !$acc update self(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$acc&            thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$acc&            e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&            rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&            thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$acc&            thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$acc&            u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&            wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&            dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$acc&            dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$acc&            dvdtls, dthvdz, qvsl, qvsi, esl, qsat, &
+    !$acc&            dzf, dzh, zh, zf, delta, deltai, dsv, &
+    !$acc&            z0m, z0h, obl, tskin, qskin, Cm, Cs, &
+    !$acc&            ustar, dudz, dvdz, thlflux, qtflux, &
+    !$acc&            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
+    !$acc&            ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
+    !$acc&            anis_fac, tsc, thlpcar, thlprad, presf, & 
+    !$acc&            presh, exnf, exnh, thetah, &
+    !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
+    !$acc&            esatmtab, esatitab, esatltab, &
+    !$acc&            th0av, thv0, thetah, qth, qlh, &
+    !$acc&            Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
+    !$acc&            qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+
+    host_is_updated = .true.
+
+  end subroutine update_host
+
+  !> @brief Copies surface data to host containers
+  subroutine update_host_surface
+
+    use modsurfdata, only: obl, tskin, qskin
+
+    implicit none
+
+    !$acc update self(tskin, qskin, obl)
+
+  end subroutine update_host_surface
+
+  !> @brief Allocate reusable workspace for transposes and FFT
+  subroutine allocate_workspace(n)
+    use modmpi, only: nprocs
+    implicit none
+    
+    integer, intent(in) :: n
+
+    allocate(workspace_0(n))
+    workspace_0 = 0
+    !$acc enter data copyin(workspace_0)
+
+    ! Allocate another workspace for the all-to-all operations
+    if (nprocs > 1) then
+      allocate(workspace_1(n))
+      workspace_1 = 0
+      !$acc enter data copyin(workspace_1)
+    end if
+
+  end subroutine allocate_workspace
+
+  !> @brief Deallocate GPU workspaces
+  subroutine deallocate_workspace
+    use modmpi, only: nprocs
+    implicit none
+
+    !$acc exit data delete(workspace_0)
+    deallocate(workspace_0)
+
+    if (nprocs > 1) then
+      !$acc exit data delete (workspace_1)
+      deallocate(workspace_1)
+    end if
+
+  end subroutine deallocate_workspace
+#else
+contains
+  ! Dummies because CI/CD complains
+  subroutine update_host
+    implicit none
+  end subroutine update_host
+
+  subroutine update_gpu
+    implicit none
+  end subroutine update_gpu
+#endif
+end module modgpu

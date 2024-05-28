@@ -243,6 +243,9 @@ contains
   subroutine crosssection
     use modglobal, only : rk3step,timee,dt_lim
     use modstat_nc, only : writestat_nc
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
 
@@ -252,6 +255,9 @@ contains
       dt_lim = min(dt_lim,tnext-timee)
       return
     end if
+#if defined(_OPENACC)
+    call update_host
+#endif
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 

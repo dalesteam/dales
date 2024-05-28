@@ -48,8 +48,9 @@ module modradrte_rrtmgp
   integer, parameter                        :: ngas = 10
   character(len=5), dimension(ngas)         :: gas_names = ['h2o  ', 'o3   ', 'co2  ', 'ch4  ', 'n2o  ', 'o2   ', 'cfc11', 'cfc12', 'cfc22', 'ccl4 ']
   integer                                   :: nlay, nlev, ncol, nbndlw, nbndsw, ngptsw
+  logical                                   :: initialized = .false.
 
-  public :: radrte_rrtmgp
+  public :: radrte_rrtmgp, exit_radrte_rrtmgp
 
 contains
 
@@ -66,232 +67,242 @@ contains
     end if
   end subroutine stop_on_err
 
-  subroutine radrte_rrtmgp
-    use mo_rte_lw,             only: rte_lw
-    use mo_rte_sw,             only: rte_sw
+  subroutine init_radrte_rrtmgp
     use mo_load_coefficients,  only: load_and_init
     use mo_load_cloud_coefficients, &
                                only: load_cld_lutcoeff, load_cld_padecoeff
+
     ! DALES modules
     use modradrrtmg,           only: readSounding, readTraceProfs
     use modmpi,                only: myid
-    use modglobal,             only: imax, jmax, kmax, k1 
     use modfields,             only: initial_presh, initial_presf
+    use modglobal,             only: imax, jmax, kmax, k1
     implicit none
 
-    logical                 :: top_at_1 = .false., sunUp = .false.
-    integer                 :: npatch, ibatch, ierr(3)=0
+    integer                 :: k, npatch, ierr(3)=0
     character(len=256)      :: k_dist_file_lw = "rrtmgp-data-lw-g128-210809.nc"
     character(len=256)      :: k_dist_file_sw = "rrtmgp-data-sw-g112-210809.nc"
     character(len=256)      :: cloud_optics_file_lw = "rrtmgp-cloud-optics-coeffs-lw.nc"
     character(len=256)      :: cloud_optics_file_sw = "rrtmgp-cloud-optics-coeffs-reordered-sw.nc"
-    integer                 :: ilay, icol, k
 
     ! Reading sounding (patch above Dales domain), only once
-    if(.not.isReadSounding) then
-      call readSounding(initial_presh(k1)/100.,npatch_start,npatch_end)
+    call readSounding(initial_presh(k1)/100.,npatch_start,npatch_end)
 
-      if(npatch_end.ne.npatch_start) then
-        npatch = npatch_end - npatch_start + 1
-      else
-        if(myid==0) write(*,*) 'No sounding levels above the LES domain, check sounding input file'
-        stop 'ERROR: No valid radiation sounding found (modradrte_rrtmgp.f90)'
-      end if
-
-      !old notations nlay-1=kradmax=nzrad, nlay=krad1, nlev=krad2
-      nlay = kmax + npatch + 1
-      nlev = nlay + 1 ! necessary?
-      !the indices below are necessary for the readTraceProfs routine
-      kradmax=nlay-1
-      krad1=nlay
-      krad2=nlev
-
-      !Set the default value of nbatch if not provided in nameoptions
-      if(nbatch==0) nbatch = jmax
-      !Check if jmax is a mutliple of nbatch, if user provided
-      if(mod(jmax,nbatch)/=0) stop 'ERROR: Wrong batch number specified in modradrte_rrtmgp.f90'
-      ncol = imax*jmax/nbatch
-
-      isReadSounding = .true.
+    if(npatch_end.ne.npatch_start) then
+      npatch = npatch_end - npatch_start + 1
+    else
+      if(myid==0) write(*,*) 'No sounding levels above the LES domain, check sounding input file'
+      stop 'ERROR: No valid radiation sounding found (modradrte_rrtmgp.f90)'
     end if
 
-    ! Allocating working variables, only once
-    if(.not.isAllocated_RadInputsOutputs) then
-      allocate(layerP(ncol,nlay), &
-               layerT(ncol,nlay), &
-               h2ovmr(ncol,nlay), &
-               tracevmr(ncol,nlay), &
-               liquidRe(ncol,nlay), &
-               iceRe(ncol,nlay), &
-               LWP_slice(ncol,nlay), &
-               IWP_slice(ncol,nlay), &
-               tg_slice(ncol), &
-               presf_input(nlay-1), &
-               solarZenithAngleCos(ncol), &
-               STAT=ierr(1))
-      allocate(interfaceP(ncol,nlay+1), &
-               interfaceT(ncol,nlay+1), &
-               lwUp_slice(ncol,nlay+1), &
-               lwDown_slice(ncol,nlay+1), &
-               swUp_slice(ncol,nlay+1), &
-               swDown_slice(ncol,nlay+1), &
-               swDownDir_slice(ncol,nlay+1), &
-               presh_input(nlay), &
-               STAT=ierr(2))
-      if(doclearsky) then
-        allocate(lwUpCS_slice(ncol,nlay+1), &
-                 lwDownCS_slice(ncol,nlay+1), &
-                 swUpCS_slice(ncol,nlay+1), &
-                 swDownCS_slice(ncol,nlay+1), &
-                 STAT=ierr(3))
-      endif
-      if(any(ierr(:)/=0)) then
-        if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrte_rrtmgp'
-        stop 'ERROR: Radiation variables could not be allocated in modradrte_rrtmgp.f90'
-      else
-        isAllocated_RadInputsOutputs = .true.
-      end if
-    end if       
+    !old notations nlay-1=kradmax=nzrad, nlay=krad1, nlev=krad2
+    nlay = kmax + npatch + 1
+    nlev = nlay + 1 ! necessary?
+    !the indices below are necessary for the readTraceProfs routine
+    kradmax=nlay-1
+    krad1=nlay
+    krad2=nlev
+
+    !Set the default value of nbatch if not provided in nameoptions
+    if(nbatch==0) nbatch = jmax
+    !Check if jmax is a mutliple of nbatch, if user provided
+    if(mod(jmax,nbatch)/=0) stop 'ERROR: Wrong batch number specified in modradrte_rrtmgp.f90'
+    ncol = imax*jmax/nbatch
+
+    ! Allocating working variables
+    allocate(layerP(ncol,nlay), &
+             layerT(ncol,nlay), &
+             h2ovmr(ncol,nlay), &
+             tracevmr(ncol,nlay), &
+             liquidRe(ncol,nlay), &
+             iceRe(ncol,nlay), &
+             LWP_slice(ncol,nlay), &
+             IWP_slice(ncol,nlay), &
+             tg_slice(ncol), &
+             presf_input(nlay-1), &
+             solarZenithAngleCos(ncol), &
+             STAT=ierr(1))
+    allocate(interfaceP(ncol,nlay+1), &
+             interfaceT(ncol,nlay+1), &
+             lwUp_slice(ncol,nlay+1), &
+             lwDown_slice(ncol,nlay+1), &
+             swUp_slice(ncol,nlay+1), &
+             swDown_slice(ncol,nlay+1), &
+             swDownDir_slice(ncol,nlay+1), &
+             presh_input(nlay), &
+             STAT=ierr(2))
+    if(doclearsky) then
+      allocate(lwUpCS_slice(ncol,nlay+1), &
+               lwDownCS_slice(ncol,nlay+1), &
+               swUpCS_slice(ncol,nlay+1), &
+               swDownCS_slice(ncol,nlay+1), &
+               STAT=ierr(3))
+    endif
+    if(any(ierr(:)/=0)) then
+      if(myid==0) write(*,*) 'Could not allocate input/output arrays in modradrte_rrtmgp'
+      stop 'ERROR: Radiation variables could not be allocated in modradrte_rrtmgp.f90'
+    end if
+
+    ! Pressure, trace gases and sounding (patch above the DALES domain) initialization
+    ! Patch sounding profile pressures above domain pressures (convert to hPa!)
+    presf_input(1:kmax)   = initial_presf(1:kmax)  /100.
+    presh_input(1:k1)     = initial_presh(1:k1)/100.
+    if(npatch>0) then
+      presf_input(k1  :kradmax) = psnd(npatch_start:npatch_end)
+      presh_input(k1+1:kradmax) = 0.5*(psnd(npatch_start:npatch_end-1) &
+                                     + psnd(npatch_start+1:npatch_end))
+      presh_input(krad1) = max(0.5*psnd(npatch_end),            &
+                               1.5*psnd(npatch_end)-0.5*psnd(npatch_end-1))
+    end if
+
+    ! Set up pressure layer and interface values (pressures in SI units, i.e. Pa)
+    do k=1,nlay
+      layerP(:,k) = presf_input(k)*100.00
+      interfaceP(:,k) = presh_input(k)*100.00
+    enddo
+    layerP(:,nlay) = 0.5*presh_input(nlay)*100.00
+    interfaceP(:, nlay+1) = min(1.e-4_kind_rb , 0.25*layerP(1,nlay))
+
+    ! Set up temperature and h2o layer values above the DALES domain
+    do k=1,nlay-kmax-1
+      layerT(:,kmax+k) = tsnd(npatch_start+k-1)
+      h2ovmr(:,kmax+k) = mwdry/mwh2o * qsnd(npatch_start+k-1)
+    enddo
+    h2ovmr(:,nlay) = h2ovmr(:,nlay-1)
+    layerT(:,nlay) = 2.*layerT(:,nlay-1)-layerT(:, nlay-2)
 
     ! Reading Trace Profiles
-    if(.not.isReadTraceProfiles) then
-      ! Patch sounding profile pressures above domain pressures (convert to hPa!)
-      presf_input(1:kmax)   = initial_presf(1:kmax)  /100.
-      presh_input(1:k1)     = initial_presh(1:k1)/100.
-
-      if(npatch>0) then
-        presf_input(k1  :kradmax) = psnd(npatch_start:npatch_end)
-        presh_input(k1+1:kradmax) = 0.5*(psnd(npatch_start:npatch_end-1) &
-                                       + psnd(npatch_start+1:npatch_end))
-        presh_input(krad1) = max(0.5*psnd(npatch_end),            &
-                                 1.5*psnd(npatch_end)-0.5*psnd(npatch_end-1))
-      end if
-      call readTraceProfs
-
-      if(myid==0) write(*,*) 'Trace gas profile have been read'
-      isReadTraceProfiles = .true.
-    end if
+    call readTraceProfs
+    if(myid==0) write(*,*) 'Trace gas profile have been read'
 
     ! Specific RRTMGP initialization
-    if(.not.isInitializedRrtmg) then
+    call stop_on_err(gas_concs%init(gas_names))
+    !setup trace gases concentration once for all
+    do k=1,nlay; tracevmr(:,k) = o3(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = co2(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = ch4(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = n2o(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = o2(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = cfc11(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = cfc12(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = cfc22(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), tracevmr))
+    do k=1,nlay; tracevmr(:,k) = ccl4(k); enddo
+    call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), tracevmr))
+    deallocate(tracevmr)
 
-      call stop_on_err(gas_concs%init(gas_names))
-      !setup trace gases concentration once for all
-      do k=1,nlay; tracevmr(:,k) = o3(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = co2(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = ch4(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = n2o(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = o2(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = cfc11(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = cfc12(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = cfc22(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), tracevmr))
-      do k=1,nlay; tracevmr(:,k) = ccl4(k); enddo
-      call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), tracevmr))
-      deallocate(tracevmr)
+    ! Longwave init
+    if(rad_longw) then
 
-      ! Longwave init
-      if(rad_longw) then
+      ! Load k distributions
+      call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
+      if(.not. k_dist_lw%source_is_internal()) &
+        stop "modradrte_rrtmgp: k-distribution file isn't LW"
+      nbndlw = k_dist_lw%get_nband()
 
-        ! Load k distributions
-        call load_and_init(k_dist_lw, k_dist_file_lw, gas_concs)
-        if(.not. k_dist_lw%source_is_internal()) &
-          stop "modradrte_rrtmgp: k-distribution file isn't LW"
-        nbndlw = k_dist_lw%get_nband()
+      ! Initialize gas optical properties
+      allocate(ty_optical_props_1scl::atmos_lw)
+      select type(atmos_lw)
+        class is (ty_optical_props_1scl)
+          call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
+      end select
 
-        ! Initialize gas optical properties
-        allocate(ty_optical_props_1scl::atmos_lw)
-        select type(atmos_lw)
-          class is (ty_optical_props_1scl)
-            call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
-        end select
-
-        ! Load cloud property data
-        if(usepade) then
-          call load_cld_padecoeff(cloud_optics_lw, cloud_optics_file_lw)
-        else
-          call load_cld_lutcoeff (cloud_optics_lw, cloud_optics_file_lw)
-        endif
-        call stop_on_err(cloud_optics_lw%set_ice_roughness(2))
-
-        ! Initialize cloud optical properties
-        allocate(ty_optical_props_1scl::clouds_lw)
-        call stop_on_err(clouds_lw%init(k_dist_lw%get_band_lims_wavenumber()))
-        select type(clouds_lw)
-          class is (ty_optical_props_1scl)
-            call stop_on_err(clouds_lw%alloc_1scl(ncol, nlay))
-        end select
-
-        ! Allocate source term and define emissivity
-        call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
-        allocate(emis(nbndlw,ncol))
-        emis=0.95
-
-        ! Define lw fluxes pointers
-        fluxes_lw%flux_up => lwUp_slice(:,:)
-        fluxes_lw%flux_dn => lwDown_slice(:,:)
-        if(doclearsky) then
-          fluxes_cs_lw%flux_up => lwUpCS_slice(:,:)
-          fluxes_cs_lw%flux_dn => lwDownCS_slice(:,:)
-        endif
+      ! Load cloud property data
+      if(usepade) then
+        call load_cld_padecoeff(cloud_optics_lw, cloud_optics_file_lw)
+      else
+        call load_cld_lutcoeff (cloud_optics_lw, cloud_optics_file_lw)
       endif
+      call stop_on_err(cloud_optics_lw%set_ice_roughness(2))
 
-      ! Shortwave init
-      if(rad_shortw) then
+      ! Initialize cloud optical properties
+      allocate(ty_optical_props_1scl::clouds_lw)
+      call stop_on_err(clouds_lw%init(k_dist_lw%get_band_lims_wavenumber()))
+      select type(clouds_lw)
+        class is (ty_optical_props_1scl)
+          call stop_on_err(clouds_lw%alloc_1scl(ncol, nlay))
+      end select
 
-        ! Load k distributions
-        call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
-        if(k_dist_sw%source_is_internal()) &
-          stop "modradrte_rrtmgp: k-distribution file isn't SW"
-        nbndsw = k_dist_sw%get_nband()
-        ngptsw = k_dist_sw%get_ngpt()
+      ! Allocate source term and define emissivity
+      call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
+      allocate(emis(nbndlw,ncol))
+      emis=0.95
 
-        ! Initialize gas optical properties
-        allocate(ty_optical_props_2str::atmos_sw)
-        select type(atmos_sw)
-          class is (ty_optical_props_2str)
-            call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
-        end select
-
-        ! Load cloud property data
-        if(usepade) then
-          call load_cld_padecoeff(cloud_optics_sw, cloud_optics_file_sw)
-        else
-          call load_cld_lutcoeff (cloud_optics_sw, cloud_optics_file_sw)
-        endif
-        call stop_on_err(cloud_optics_sw%set_ice_roughness(2))
-
-        ! Initialize cloud optical properties
-        allocate(ty_optical_props_2str::clouds_sw)
-        call stop_on_err(clouds_sw%init(k_dist_sw%get_band_lims_wavenumber()))
-        select type(clouds_sw)
-          class is (ty_optical_props_2str)
-            call stop_on_err(clouds_sw%alloc_2str(ncol, nlay))
-        end select
-
-        ! Define boundary conditions
-        allocate(inc_sw_flux(ncol,ngptsw))
-        allocate(sfc_alb_dir(nbndsw,ncol), sfc_alb_dif(nbndsw,ncol))
-
-        fluxes_sw%flux_up => swUp_slice(:,:)
-        fluxes_sw%flux_dn => swDown_slice(:,:)
-        fluxes_sw%flux_dn_dir => swDownDir_slice(:,:)
-        if(doclearsky) then
-          fluxes_cs_sw%flux_up => swUpCS_slice(:,:)
-          fluxes_cs_sw%flux_dn => swDownCS_slice(:,:)
-        endif
+      ! Define lw fluxes pointers
+      fluxes_lw%flux_up => lwUp_slice(:,:)
+      fluxes_lw%flux_dn => lwDown_slice(:,:)
+      if(doclearsky) then
+        fluxes_cs_lw%flux_up => lwUpCS_slice(:,:)
+        fluxes_cs_lw%flux_dn => lwDownCS_slice(:,:)
       endif
+    endif
 
-      isInitializedRrtmg = .true.
+    ! Shortwave init
+    if(rad_shortw) then
 
-    end if
+      ! Load k distributions
+      call load_and_init(k_dist_sw, k_dist_file_sw, gas_concs)
+      if(k_dist_sw%source_is_internal()) &
+        stop "modradrte_rrtmgp: k-distribution file isn't SW"
+      nbndsw = k_dist_sw%get_nband()
+      ngptsw = k_dist_sw%get_ngpt()
+
+      ! Initialize gas optical properties
+      allocate(ty_optical_props_2str::atmos_sw)
+      select type(atmos_sw)
+        class is (ty_optical_props_2str)
+          call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
+      end select
+
+      ! Load cloud property data
+      if(usepade) then
+        call load_cld_padecoeff(cloud_optics_sw, cloud_optics_file_sw)
+      else
+        call load_cld_lutcoeff (cloud_optics_sw, cloud_optics_file_sw)
+      endif
+      call stop_on_err(cloud_optics_sw%set_ice_roughness(2))
+
+      ! Initialize cloud optical properties
+      allocate(ty_optical_props_2str::clouds_sw)
+      call stop_on_err(clouds_sw%init(k_dist_sw%get_band_lims_wavenumber()))
+      select type(clouds_sw)
+        class is (ty_optical_props_2str)
+          call stop_on_err(clouds_sw%alloc_2str(ncol, nlay))
+      end select
+
+      ! Define boundary conditions
+      allocate(inc_sw_flux(ncol,ngptsw))
+      allocate(sfc_alb_dir(nbndsw,ncol), sfc_alb_dif(nbndsw,ncol))
+
+      fluxes_sw%flux_up => swUp_slice(:,:)
+      fluxes_sw%flux_dn => swDown_slice(:,:)
+      fluxes_sw%flux_dn_dir => swDownDir_slice(:,:)
+      if(doclearsky) then
+        fluxes_cs_sw%flux_up => swUpCS_slice(:,:)
+        fluxes_cs_sw%flux_dn => swDownCS_slice(:,:)
+      endif
+    endif
+
+    initialized = .true.
+
+  end subroutine init_radrte_rrtmgp
+
+  subroutine radrte_rrtmgp
+    use mo_rte_lw,             only: rte_lw
+    use mo_rte_sw,             only: rte_sw
+    implicit none
+
+    logical                 :: top_at_1 = .false., sunUp = .false.
+    integer                 :: ibatch
+
+    if(.not.initialized) call init_radrte_rrtmgp
 
     do ibatch = 1, nbatch
 
@@ -381,6 +392,39 @@ contains
 
   end subroutine radrte_rrtmgp
 
+  subroutine exit_radrte_rrtmgp
+    implicit none
+
+    if(isAllocated_RadInputsOutputs) then
+      deallocate(layerP, &
+                 layerT, &
+                 h2ovmr, &
+                 tracevmr, &
+                 liquidRe, &
+                 iceRe, &
+                 LWP_slice, &
+                 IWP_slice, &
+                 tg_slice, &
+                 presf_input, &
+                 solarZenithAngleCos)
+      deallocate(interfaceP, &
+                 interfaceT, &
+                 lwUp_slice, &
+                 lwDown_slice, &
+                 swUp_slice, &
+                 swDown_slice, &
+                 swDownDir_slice, &
+                 presh_input)
+      if(doclearsky) then
+        deallocate(lwUpCS_slice, &
+                   lwDownCS_slice, &
+                   swUpCS_slice, &
+                   swDownCS_slice)
+      endif
+    end if
+
+  end subroutine exit_radrte_rrtmgp
+
   subroutine setupColumnProfiles(ibatch)
 
     use modglobal,   only: imax, jmax, kmax, i1, j1, grav, kind_rb, rlv, cp, rd, pref0, tup, tdn
@@ -406,63 +450,45 @@ contains
     jend   =  ibatch    * jmax/nbatch + 1
 
     ! Set up layer values within the DALES domain
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        tg_slice(icol) = tskin(i,j)*exners
-        do k=1,kmax
-          layerP(icol,k) = presf_input(k)
+    do k=1,kmax
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
           layerT(icol,k) = thl0(i,j,k) * exnf(k) + (rlv / cp) * ql0(i,j,k)
           h2ovmr(icol,k) = mwdry/mwh2o * max(qt0(i,j,k)-ql0(i,j,k),1e-10) !avoid negative values
         enddo
       enddo
     enddo
 
-    ! Set up layer values above the DALES domain
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        do k=1,nlay-kmax-1
-          layerP(icol,kmax+k) = presf_input(kmax+k)
-          layerT(icol,kmax+k) = tsnd(npatch_start+k-1)
-          h2ovmr(icol,kmax+k) = mwdry/mwh2o * qsnd(npatch_start+k-1)
-        enddo
-        h2ovmr(icol,nlay) = h2ovmr(icol,nlay-1)
-        layerP(icol,nlay) = 0.5*presh_input(nlay)
-        layerT(icol,nlay) = 2.*layerT(icol,nlay-1)-layerT(icol, nlay-2)
-      enddo
-    enddo
-
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
 
-    ! Set up interface values // use table assignment?
+    ! Set up temperature interface values
+    do k=2,nlay
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
+          interfaceT(icol,k) = (layerT(icol,k-1) + layerT(icol, k))/2.
+        enddo
+      enddo
+    enddo
     do j=jstart, jend
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
+        tg_slice(icol) = tskin(i,j)*exners
         interfaceT(icol, 1) = tg_slice(icol) !enforce ground temperature
-        interfaceP(icol, 1) = presh_input(1)
-        do k=2,nlay
-          interfaceT(icol,k) = (layerT(icol,k-1) + layerT(icol, k))/2.
-          interfaceP(icol,k) = presh_input(k)
-        enddo
         interfaceT(icol, nlay+1) = 2.*layerT(icol, nlay) - interfaceT(icol, nlay)
-        interfaceP(icol, nlay+1) = min(1.e-4_kind_rb , 0.25*layerP(1,nlay))
       enddo
     enddo
-
-    ! pressures are in SI unit, i.e. Pa
-    layerP(:,:)=layerP(:,:)*100.00
-    interfaceP(:,:)=interfaceP(:,:)*100.00
 
     ! Setup cloud properties (above the DALES domain everyhting is set to zero)
     LWP_slice = 0.0
     IWP_slice = 0.0
     liquidRe = 0.
     iceRe = 0.
-    do j=jstart, jend
-      do i=2,i1 !i1=imax+1
-        icol=i-1+(j-jstart)*imax
-        do k=1,kmax
+    do k=1,kmax
+      do j=jstart, jend
+        do i=2,i1 !i1=imax+1
+          icol=i-1+(j-jstart)*imax
           ! set up working variables
           ilratio  = max(0.,min(1.,(layerT(icol,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
           layerMass = (interfaceP(icol,k)-interfaceP(icol,k+1))/grav !kg/m2
@@ -471,7 +497,6 @@ contains
 
           LWP_slice(icol,k) = qcl * layerMass*1e3 !g/m2
           IWP_slice(icol,k) = qci * layerMass*1e3 !g/m2
-
 
           if (LWP_slice(icol,k).gt.0.) then
             !cstep liquidRe(icol, k) = 1.e6*( 3.*( 1.e-3*LWP_slice(icol,k)/layerMass ) &
