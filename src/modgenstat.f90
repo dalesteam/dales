@@ -493,7 +493,8 @@ contains
     !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
     !$acc&                  uwtot, vwtot, umav, vmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
-    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav)
+    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
+    !$acc&                  hurmn, clwmn, climn, plwmn, plimn, tamn)
 
     call timer_toc('modgenstat/initgenstat')
 
@@ -637,7 +638,7 @@ contains
     end do
 
     !$acc host_data use_device(umav, um, vmav, vm, thlmav, thlm, qtmav, qtm, &
-    !$acc&                     qlmav, ql0, thvmav, thv0)
+    !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -729,7 +730,8 @@ contains
 
     !$acc parallel loop gang default(present) &
     !$acc& private(qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
-    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s) async(1)
+    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s, &
+    !$acc&         hurav_s, clwav_s, cliav_s, plwav_s, pliav_s) async(1)
     do k = 2, kmax
       qlhav_s = 0.0
       wthlsub_s = 0.0
@@ -754,7 +756,8 @@ contains
       !$acc& private(qs0h, t0h, den, cthl, cqt, a_dry, b_dry, a_moist, b_moist, ekhalf, euhalf, evhalf, wthls, wthlr, &
       !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
       !$acc& reduction(+:qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
-      !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s)
+      !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s, &
+      !$acc&             hurav_s, clwav_s, cliav_s, plwav_s, pliav_s)
       do j = 2, j1
         do i = 2, i1
           !------------------------------------------------------
@@ -943,7 +946,7 @@ contains
     !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
     !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
     !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres, cfracav, &
-    !$acc&                     clwav, cliav, plwav, pliav)
+    !$acc&                     hurav, clwav, cliav, plwav, pliav)
     call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr)
@@ -1242,7 +1245,7 @@ contains
       !$acc&            wqlsmn, wqlrmn, wqltmn, wthvsmn, wthvrmn, wthvtmn, &
       !$acc&            uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, w2mn, skewmn, &
       !$acc&            w2submn, qt2mn, v2mn, u2mn, thl2mn, thv2mn, th2mn, ql2mn, &
-      !$acc&            cszmn, cfracmn)
+      !$acc&            cszmn, cfracmn, hurmn, clwmn, climn, plwmn, plimn, tamn)
 
       !$acc update self(svmmn, svpmn, svptmn, sv2mn, wsvsmn, wsvrmn, wsvtmn) if(nsv > 0)
 
