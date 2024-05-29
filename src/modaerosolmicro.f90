@@ -134,6 +134,7 @@ module modaerosolmicro
              ,aer_sedr (2-ih:i1+ih,2-jh:j1+jh,k1,naer))  ! R<->R raindrop sedimen
 
   qlm(:,:,:) = 0.
+  Nc = 0.
 
   gamma25 = lacz_gamma(2.5)
   gamma3  = 2.
@@ -1048,7 +1049,7 @@ module modaerosolmicro
   do j=2,j1
   do k=1,k1
 
-     meancld =  min( max( 1e6*(3.*ql0(i,j,k)*rhof(k)/(4.*3.1415*Nc(i,j,k)*rhow))**(1/3.) ,5.001), 49.999) ! in micron
+     meancld =  min( max( 1e6*(3.*ql0(i,j,k)*rhof(k)/(4.*3.1415*Nc(i,j,k)*rhow + eps0))**(1/3.) ,5.001), 49.999) ! in micron
      rainrate = min( max(sed_qr(i,j,k)*3600., 0.01001) , 99.999)                                           !kg m-2 s-1 --> mm/hr
   
      mod_numb = 0.0
