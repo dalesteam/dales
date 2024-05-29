@@ -22,8 +22,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 
-  module modmicrodata
-  use modprecision, only : field_r
+  module modaerosoldata
 
   use modglobal, only : rhow,lacz_gamma
   implicit none
@@ -35,28 +34,88 @@
   integer, parameter :: imicro_bulk    = 2
   integer, parameter :: imicro_bin     = 3
   integer, parameter :: imicro_sice    = 5
-  integer, parameter :: imicro_sice2   = 6
-  integer, parameter :: imicro_aerosol = 7
-  integer, parameter :: imicro_bulk3   = 11  !#sb3
   integer, parameter :: imicro_user    = 10
-  logical :: l_sb        = .true. , &!< SB scheme (.true.) / KK00 scheme (.false.)   (in namelist NAMMICROPHYSICS)
-             l_sedc      = .true. , & !<  cloud droplet sedimentation flag             (in namelist NAMMICROPHYSICS)
-             l_rain      = .true. , & !<  rain formation / evolution flag              (in namelist NAMMICROPHYSICS)
-             l_mur_cst   = .false. ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
 
-  real    :: mur_cst     = 5        & !<  mur value if l_mur_cst=T                     (in namelist NAMMICROPHYSICS)
-                 ,Nc_0 = 70e6       & !<  initial cloud droplet number (#/m3)
-                 ,sig_g = 1.34      & !<  geom. std dev of cloud droplet DSD
-                 ,sig_gr = 1.5        !<  geometric std dev of rain drop DSD
+  logical :: l_sb        = .true. , & !< SB scheme (.true.) / KK00 scheme (.false.)  (in namelist NAMMICROPHYSICS)
+             l_sedc      = .true. , & !<  cloud droplet sedimentation flag           (in namelist NAMMICROPHYSICS)
+             l_rain      = .true. , & !<  rain formation / evolution flag            (in namelist NAMMICROPHYSICS)
+             l_mur_cst   = .false., & ! false = no constant value of mur (mur=f(Dv)) (in namelist NAMMICROPHYSICS)
+             l_kohler    = .true. , & ! true =  Explicit k-Kohler aerosol activation (in namelist NAMMICROPHYSICS)
+                                      ! false = updraft based following Pousse-Nottelman et al. (2015)
+             l_aertend   = .true.     ! Wrtiting of aerosol tendencies to nc file.   (in namelist NAMMICROPHYSICS)
+
+  real    :: mur_cst = 5,    & !<  mur value if l_mur_cst=T                          (in namelist NAMMICROPHYSICS)
+             Nc_0    = 70e6, & !<  initial cloud droplet number
+             sig_g   = 1.34, & !<  geom. std dev of cloud droplet DSD
+             sig_gr  = 1.5,  & !<  geometric std dev of rain drop DSD
+             Ssat    = 0.2     !< Prescribed value for supersaturation used in kohler activation routine
 
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
 
-  integer :: inr = 1, iqr=2
+  integer, parameter :: nmod        =  9, & ! M7 + cloud + rain
+                        nspec       =  6, & ! 5x mass + number
+                        naer        = 37, & ! 25 M7 + 12 cloud microphysics
+                        iaer_offset =  2    ! Number of non-aerosol scalars, i.e. qr and qc
 
-  real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
-                     ,qcmin = 1.0e-7     & !<  Cloud specific mixing ratio treshold for calculations
-                     ,qrmin = 1.0e-13    & !<  Rain  specific mixing ratio treshold for calculations
-!                     ,nuc = 0           & !< width parameter of cloud DSD
+  integer, parameter :: iqc = 1, iqr = 2
+
+  integer, parameter :: &
+  inus_n  = 1,  iais_n  = 2,  iacs_n  = 3,  icos_n  = 4,  iaii_n  = 5,  iaci_n  = 6,  icoi_n  = 7,  inc     = 8,  inr     = 9,  &
+  iso4nus = 10, iso4ais = 11, iso4acs = 12, iso4cos = 13,                                           iso4cld = 14, iso4rai = 15, &
+                ibcais  = 16, ibcacs  = 17, ibccos  = 18, ibcaii  = 19,                             ibccld  = 20, ibcrai  = 21, &
+                ipomais = 22, ipomacs = 23, ipomcos = 24, ipomaii = 25,                             ipomcld = 26, ipomrai = 27, &
+                              issacs  = 28, isscos  = 29,                                           isscld  = 30, issrai  = 31, &
+                              iduacs  = 32, iducos  = 33,               iduaci  = 34, iducoi = 35 , iducld  = 36, idurai  = 37  
+
+  real, dimension(nmod-2),  parameter :: sigma_lognormal = (/ 1.59, 1.59, 1.59, 2.00, 1.59, 1.59, 2.00 /)
+  real, dimension(nspec-1), parameter :: spec_rho  = (/ 1841,  1300, 1800, 2165, 2650 /) ! Densities [kg m-3]
+  real, dimension(nspec-1), parameter :: spec_k    = (/  0.88,   0.,  0.1, 1.28,   0. /) ! Hygroscopicity parameters [-]
+
+  real, parameter :: scalefac = 1.e9 
+
+  ! ====================================================================================
+  ! nmod_type, defining mode type, including cloud & rain 'phases'
+  ! 1: Nucleation
+  ! 2: Aitken
+  ! 3: Accumulation
+  ! 4: Coarse
+  ! 5: Aitken
+  ! 6: Accumulation
+  ! 7: Coarse
+  ! 8: Cloud
+  ! 9: Rain
+
+  integer, dimension(naer),parameter :: &
+  nmod_type   = (/   1, 2, 3, 4, 5, 6, 7, 8, 9, &  ! particle number
+                     1, 2, 3, 4,          8, 9, &  ! sulphate mass
+                        2, 3, 4, 5,       8, 9, &  ! BC mass
+                        2, 3, 4, 5,       8, 9, &  ! POM mass
+                           3, 4,          8, 9, &  ! SS mass
+                           3, 4,    6, 7, 8, 9  /) ! DUST mass
+
+  ! ====================================================================================
+  ! nspec_type, defining aerosol species
+  ! 1: Number
+  ! 2: SO4 Sulphate
+  ! 3: BC  Black carbon
+  ! 4: POM Particulate organic matter
+  ! 5: SS  Sea salt
+  ! 6: DU  Dust
+
+  integer, dimension(naer),parameter :: &
+  nspec_type   = (/   1, 1, 1, 1, 1, 1, 1, 1, 1, & ! particle number
+                      2, 2, 2, 2,          2, 2, & ! sulphate mass
+                         3, 3, 3, 3,       3, 3, & ! BC mass
+                         4, 4, 4, 4,       4, 4, & ! POM mass
+                            5, 5,          5, 5, & ! SS mass
+                            6, 6,    6, 6, 6, 6 /) ! DUST mass
+
+  real, parameter ::  D0_kk = 50e-6     & !< diameter sep. cloud and prec. in KK00 scheme
+                     ,qcmin = 1.0e-7    & !< Cloud specific mixing ratio treshold for calculations
+                     ,qrmin = 1.0e-13   & !< Rain  specific mixing ratio treshold for calculation
+                     ,ncmin = 1.0e3     & !< Cloud droplet number concentration threshold for calculations
+                     ,mcmin = 1.0e-12   & !< In-cloud aerosol mass mixing ratio threshold for calculations
+!                     ,nuc = 0          & !< width parameter of cloud DSD
                      ,eps0 = 1e-20      & !< parameter used to avoid division by zero floating point exceptions
                      ,epscloud= 0.01e-3 &
                      ,epsprec = 3.65e-5 & !<  RICO threshold
@@ -111,7 +170,7 @@
 !  is value for ~ 15C How sensitive is G for this Aug 2006, ~5% -> Dv changed to 15 C value?
         ,c_St  = 1.19e8  & !<  Stokes fall vel. coef. [m^-1 s^-1]
 !          ,pirhow = (pi*rhow)/6. & !< used in conversion of mass to diameter
-                     ,pirhow = 3.14159*rhow/6.        &
+         ,pirhow = 3.14159*rhow/6.        &
          ,Rv = 461.5       & !<  specific gas constant for water vapor
          ,avf = 0.78       & !<  constants in vent. factor fv   (fv = 1. --> av=1,
          ,bvf = 0.308      & !<                                             bv=0 )
@@ -123,19 +182,22 @@
          ,b_tvsb = 9.8     & !<  coeff in terminal velocity param
          ,c_tvsb = 600.      !<  coeff in terminal velocity param
 
-  real(field_r),allocatable, dimension(:,:,:) :: qc,  & !<  cloud droplets specific mixing ratio [kg_w/kg_a]
-                                                 Nc,  & !<  cloud droplets number conc.  [#/m^3]
-                                                 nuc, & !<  width parameter of cloud DSD
-                                                 rhoz   !< slab averaged density in 3 dimensions
+  real,allocatable, dimension(:,:,:) :: qc  & !<  cloud droplets specific mixing ratio [kg_w/kg_a]
+                                       ,Nc  & !<  cloud droplets number conc.  [#/m^3]
+                                       ,nuc & !<  width parameter of cloud DSD
+                                       ,rhoz  !< slab averaged density in 3 dimensions
 
-  real(field_r),allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
+  real,allocatable, dimension(:,:,:) :: qr_spl, Nr_spl
                              !< prec. liq. water and conc. for sedim. time splitting
-  real(field_r),allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
-                                                 sed_qr, & !<  sedimentation rain drops mix. ratio
-                                                 sed_Nr    !<  sedimentation rain drop number conc.
+  real,allocatable, dimension(:,:,:) :: sedc,   & !<  sedimentation cloud droplets mix. ratio
+                                        sedcn,  & !<  sedimentation cloud droplet number concentration
+                                        sed_qr, & !<  sedimentation rain drops mix. ratio
+                                        sed_Nr    !<  sedimentation rain drop number conc.
+
   real ::  rho_c             &      !<  term to correct for density dep. of fall vel.
-    ,k_au                     !<  coeff. for autoconversion rate
-  real(field_r),allocatable, dimension(:,:,:) ::  &
+           ,k_au                    !<  coeff. for autoconversion rate
+
+  real,allocatable, dimension(:,:,:) ::  &
     presz              &      !<  3D pressure
     ,Dvc               &      !<  cloud water mean diameter
     ,xc                &      !<  mean mass of cloud water droplets
@@ -154,16 +216,34 @@
     ,wfall_qr          &      !<  fall velocity for qr
     ,wfall_Nr                 !<  fall velocity for Nr
 
-  real :: csed                      !<  parameter in cloud water grav. settling formula
+  real :: csed                !<  parameter in cloud water grav. settling formula
 
   real, parameter ::  D_eq = 1.1E-3,  & !<  Parameters for break-up
             k_br = 1000       !<
 
-   real(field_r),allocatable,dimension(:,:,:) :: Nr,qr,thlpmcr,qtpmcr
-   real(field_r),allocatable,dimension(:,:,:) :: Nrp,qrp
-   real(field_r),allocatable,dimension(:,:,:) :: precep
+  real, allocatable, dimension(:,:,:) :: Nr,Nrp,qltot,qr,qrp,thlpmcr,qtpmcr
+  real, allocatable, dimension(:,:,:) :: precep
 
   real :: delt
+
+  real, allocatable, dimension(:,:,:,:) :: aer_conc & ! Local variable containing aerosol fields
+                                          ,aer_tend & !  ""     ""        ""        ""    tendencies
+                                  
+                                          ,aer_acti & !  ""     ""        ""        ""    A<->C activation   
+                                          ,aer_scvc & !  ""     ""        ""        ""    A<->C in-cloud scav   
+                                          ,aer_evpc & !  ""     ""        ""        ""    A<->C cloud evap 
+
+                                          ,aer_scvr & !  ""     ""        ""        ""    A<->R in-rain scav
+                                          ,aer_evpr & !  ""     ""        ""        ""    A<->R rain evap
+        
+                                          ,aer_auto & !  ""     ""        ""        ""    C<->R autoconversion   
+                                          ,aer_accr & !  ""     ""        ""        ""    C<->R accretion
+        
+                                          ,aer_slfc & !  ""     ""        ""        ""    C<->C clouddrop selfcol
+                                          ,aer_slfr & !  ""     ""        ""        ""    R<->R raindrop selfcol 
+                                          ,aer_sedr & !  ""     ""        ""        ""    R<->R raindrop sediment
+                                                
+                                          ,sedcm      ! Sedimentation in-cloud aerosol mass
 
   logical ,allocatable,dimension(:,:,:):: qcmask,qrmask
 
@@ -179,36 +259,35 @@
   logical :: l_graupel = .true. !  Switch for graupel
   logical :: l_warm = .false.   !  Run ice micro in warm mode, as a check
   logical :: l_mp = .true.      !  Use marshall-palmer distribution for rain?
-  real(field_r) :: evapfactor = 1.0      !  Prefactor to reduce evaporation
-  real(field_r) :: courantp = 1.0        !  CFLmax-criterion for precipitation
+  real :: evapfactor = 1.0      !  Prefactor to reduce evaporation
+  real :: courantp = 1.0        !  CFLmax-criterion for precipitation
 
   real, parameter :: &
      ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
      ! GRABOWSKI
      aar=5.2e2 &
-     ,bbr=3. &
+     ,bbr=3.   &
      ,ccr=130. &
-     ,ddr=0.5 &
+     ,ddr=0.5  &
 !     ,ccr=842. & coefficients in Khairoutdinov and Randall
 !     ,ddr=0.8 & coefficients in Khairoutdinov and Randall
      ! For snow
      ! GRABOWSKI
      ,aas=2.5e-2 &
-     ,bbs=2. &
-     ,ccs=4. &
-     ,dds=0.25 &
+     ,bbs=2.     &
+     ,ccs=4.     &
+     ,dds=0.25   &
      ! For graupel (if present, following Tomita 2008 for terminal velocities and using mass-diameter
      ! relationship as for rain, but with only 40% of density)
      ,aag=2.e2 &
-     ,bbg=3.&
+     ,bbg=3.   &
      ,ccg=82.5 &
-     ,ddg=0.25
+     ,ddg=0.25 &
      ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here GRABOSKWI
-     real(field_r), parameter :: &
-      ceffrl=0.8 &
+     ,ceffrl=0.8  &
      ,ceffsl=0.06 & ! probably 0.8 is better, wsa exp 156
      ,ceffgl=0.06 & ! probably 0.8 is better
-     ,ceffri=0.8 &
+     ,ceffri=0.8  &
      ,ceffsi=0.06 &
      ,ceffgi=0.06 &
      ! Shape factors beta GRABOWSKI
@@ -236,8 +315,10 @@
      ,tdnsg=223.   ! Following Khairoutdinov and Randall
 
    ! Fields related to ice-liquid partitioning and slope of distribution
-   real(field_r),allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
+   real,allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
    real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
-   real,allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
-  end module modmicrodata
+
+   real, allocatable :: qlm(:,:,:)
+
+  end module modaerosoldata

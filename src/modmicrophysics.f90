@@ -39,19 +39,21 @@ contains
     use modmpi,   only :myid,comm3d,mpi_integer,mpi_logical, D_MPI_BCAST
     use modglobal,only :ifnamopt,fname_options,nsv,checknamelisterror,lfast_thermo
     use modbulkmicro, only : initbulkmicro
+    use modaerosolmicro, only : initaerosolmicro
     use modsimpleice, only : initsimpleice
     use modsimpleice2, only : initsimpleice2
     use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
-                             imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, &
+                             imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, imicro_aerosol, &
                              l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
                              Nc_0, sig_g, sig_gr, courantp
+    use modaerosoldata, only: l_kohler, Ssat
     use modbulkmicro3, only : initbulkmicro3 !#sb3
     implicit none
     integer :: ierr
     namelist/NAMMICROPHYSICS/ &
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
     Nc_0, sig_g, sig_gr, &                                ! SdeR
-    courantp                                              ! FJ
+    courantp,l_kohler,Ssat                                       ! FJ
     
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -99,6 +101,9 @@ contains
     case(imicro_bulk3)  !#sb3
         if (nsv < 12) STOP "ERROR: Full Seifer-Beheng microphysics requires nsv >=12" !#sb3
         call initbulkmicro3 !#sb3
+    case(imicro_aerosol)
+      if (nsv < 2) STOP "ERROR: Bulk microphysics requires nsv >=2"
+      call initaerosolmicro
     case(imicro_user)
     end select
   end subroutine initmicrophysics
@@ -125,8 +130,9 @@ contains
    use modsimpleice2, only : simpleice2
    use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, &
                             imicro_sice, imicro_sice2, imicro_user, imicro_none, &
-                            imicro_bulk3
+                            imicro_bulk3, imicro_aerosol
    use modbulkmicro3, only : bulkmicro3 !#sb3
+   use modaerosolmicro, only: aerosolmicro
    use modtimer
 !     use modbinmicro,  only : binmicrosources
     implicit none
@@ -147,6 +153,8 @@ contains
       call simpleice2
     case(imicro_bulk3)  !#sb3
       call bulkmicro3   !#sb3
+    case(imicro_aerosol)
+      call aerosolmicro
     case(imicro_user)
       call micro_user
     end select
@@ -161,8 +169,9 @@ contains
     use modsimpleice2, only : exitsimpleice2
     use modmicrodata, only : imicro, imicro_none, imicro_drizzle, imicro_bin, &
                              imicro_user, imicro_bulk, imicro_sice, imicro_sice2, &
-                             imicro_bulk3
+                             imicro_bulk3, imicro_aerosol
     use modbulkmicro3, only : exitbulkmicro3 !#sb3
+    use modaerosolmicro, only: exitaerosolmicro
  !     use modbinmicro,  only : exitbinmicro
     implicit none
 
@@ -178,6 +187,8 @@ contains
         call exitsimpleice
      case(imicro_sice2)
       call exitsimpleice2
+     case(imicro_aerosol)
+       call exitaerosolmicro
      case(imicro_bulk3)    !#sb3
       call exitbulkmicro3  !#sb3
   end select
