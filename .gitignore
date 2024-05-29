@@ -1,3 +1,7 @@
 .DS_Store
 src/modversion.f90
 *~
+.vscode/
+.idea/
+build/
+runs/

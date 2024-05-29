@@ -127,8 +127,11 @@ contains
                             imicro_sice, imicro_sice2, imicro_user, imicro_none, &
                             imicro_bulk3
    use modbulkmicro3, only : bulkmicro3 !#sb3
+   use modtimer
 !     use modbinmicro,  only : binmicrosources
     implicit none
+
+    call timer_tic('modmicrophysics/microsources', 0)
 
     select case (imicro)
     case(imicro_none)
@@ -147,6 +150,8 @@ contains
     case(imicro_user)
       call micro_user
     end select
+
+    call timer_toc('modmicrophysics/microsources')
 
   end subroutine microsources
 

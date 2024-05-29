@@ -67,11 +67,12 @@ module modgenstat
     !    lstat      SWITCH TO ENABLE TIMESERIES                       |
     !-----------------------------------------------------------------|
   use modprecision
+  use modtimer
 
-implicit none
-! private
-PUBLIC :: initgenstat, genstat, exitgenstat
-save
+  implicit none
+  ! private
+  PUBLIC :: initgenstat, genstat, exitgenstat
+  save
 
 !NetCDF variables
   integer :: nvar = 47
@@ -102,86 +103,111 @@ save
   real, allocatable  :: uwrmn  (:),vwrmn  (:) !subgrid  uw, vw
 ! real, allocatable  ::     --- various moments ---
 
-!   real, allocatable  :: rmn        (:), r2mn   (:), r3mn (:), rhmn (:)
   real, allocatable  :: w2mn       (:), skewmn (:)
   real, allocatable  :: w2submn    (:)
   real, allocatable  :: u2mn       (:), v2mn  (:),     qt2mn(:)
   real, allocatable  :: thl2mn     (:), thv2mn(:),     th2mn(:),     ql2mn(:)
-!   real, allocatable  :: qs2mn      (:), qsmn  (:)
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
 
- real(field_r), allocatable :: umav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: vmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: thmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
- real, allocatable :: hurav (:)
- real, allocatable :: clwav(:), cliav(:), plwav(:), pliav(:)
- real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
- real(field_r), allocatable :: taav (:)
+  real(field_r), allocatable :: umav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: vmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: thmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
+  real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
+  real, allocatable :: hurav (:)
+  real, allocatable :: clwav(:), cliav(:), plwav(:), pliav(:)
+  real(field_r), allocatable :: svmav (:,:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: taav (:)
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
   real, allocatable :: uptav(:)                      !  slab averaged tendency for u
   real, allocatable :: vptav(:)                      !  slab averaged tendency for v
 
- real, allocatable :: thptav(:)     ! slab averaged turbulence tendency of theta
- real, allocatable :: qlptav(:)     ! slab averaged turbulence tendency of q_liq
- real, allocatable :: uwtot (:)     ! slab averaged tot w-u flux at half levels
- real, allocatable :: vwtot (:)     ! slab averaged tot w-v flux at half levels
- real, allocatable :: uwsub (:)     ! slab averaged sgs w-u flux at half levels
- real, allocatable :: vwsub (:)     ! slab averaged sgs w-v flux at half levels
- real, allocatable :: uwres (:)     ! slab averaged res w-u flux at half levels
- real, allocatable :: vwres (:)     ! slab averaged res w-v flux at half levels
+  real, allocatable :: thptav(:)     ! slab averaged turbulence tendency of theta
+  real, allocatable :: qlptav(:)     ! slab averaged turbulence tendency of q_liq
+  real, allocatable :: uwtot (:)     ! slab averaged tot w-u flux at half levels
+  real, allocatable :: vwtot (:)     ! slab averaged tot w-v flux at half levels
+  real, allocatable :: uwsub (:)     ! slab averaged sgs w-u flux at half levels
+  real, allocatable :: vwsub (:)     ! slab averaged sgs w-v flux at half levels
+  real, allocatable :: uwres (:)     ! slab averaged res w-u flux at half levels
+  real, allocatable :: vwres (:)     ! slab averaged res w-v flux at half levels
 
 
   real, allocatable :: thvhav(:)
   real, allocatable :: th0av(:)
- real, allocatable :: wthlsub(:)     ! slab averaged sub w-theta_l flux at half levels
- real, allocatable :: wthlres(:)     ! slab averaged res w-theta_l flux at half levels
- real, allocatable :: wthltot(:)     ! slab averaged tot w-theta_l flux at half levels
+  real, allocatable :: wthlsub(:)     ! slab averaged sub w-theta_l flux at half levels
+  real, allocatable :: wthlres(:)     ! slab averaged res w-theta_l flux at half levels
+  real, allocatable :: wthltot(:)     ! slab averaged tot w-theta_l flux at half levels
 
- real, allocatable :: wqtsub(:)    ! slab averaged sub w-qtot    flux at half levels
- real, allocatable :: wqtres(:)    ! slab averaged res w-qtot    flux at half levels
- real, allocatable :: wqttot(:)    ! slab averaged tot w-qtot    flux at half levels
+  real, allocatable :: wqtsub(:)    ! slab averaged sub w-qtot    flux at half levels
+  real, allocatable :: wqtres(:)    ! slab averaged res w-qtot    flux at half levels
+  real, allocatable :: wqttot(:)    ! slab averaged tot w-qtot    flux at half levels
 
- real, allocatable :: wqlsub(:)    ! slab averaged sub w-ql      flux at half levels
- real, allocatable :: wqlres(:)    ! slab averaged tot w-ql      flux at half levels
- real, allocatable :: wqltot(:)    ! slab averaged tot w-ql      flux at half levels
+  real, allocatable :: wqlsub(:)    ! slab averaged sub w-ql      flux at half levels
+  real, allocatable :: wqlres(:)    ! slab averaged tot w-ql      flux at half levels
+  real, allocatable :: wqltot(:)    ! slab averaged tot w-ql      flux at half levels
 
- real, allocatable :: wthvtot(:)    !  slab averaged total wthv-flux
- real, allocatable :: wthvres(:)    !  slab averaged res   wthv-flux
- real, allocatable :: wthvsub(:)    !  slab averaged sub   wthv-flux
+  real, allocatable :: wthvtot(:)    !  slab averaged total wthv-flux
+  real, allocatable :: wthvres(:)    !  slab averaged res   wthv-flux
+  real, allocatable :: wthvsub(:)    !  slab averaged sub   wthv-flux
 
- real, allocatable :: wsvsub(:,:)! slab averaged sub w-sv(n)  flux
- real, allocatable :: wsvres(:,:)! slab averaged res w-sv(n)  flux
- real, allocatable :: wsvtot(:,:)! slab averaged tot w-sv(n)  flux
+  real, allocatable :: wsvsub(:,:)! slab averaged sub w-sv(n)  flux
+  real, allocatable :: wsvres(:,:)! slab averaged res w-sv(n)  flux
+  real, allocatable :: wsvtot(:,:)! slab averaged tot w-sv(n)  flux
 
- real, allocatable :: cszmn(:)    ! Smagorinsky constant
- real, allocatable :: cszav(:)    ! Smagorinsky constant
+  real, allocatable :: cszmn(:)    ! Smagorinsky constant
+  real, allocatable :: cszav(:)    ! Smagorinsky constant
 
- real, allocatable :: qlmnlast(:)
- real, allocatable :: wthvtmnlast(:)
+  real, allocatable :: qlmnlast(:)
+  real, allocatable :: wthvtmnlast(:)
+
+    ! Local fields
+
+  real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
+  real,allocatable, dimension(:):: uwsubl
+  real,allocatable, dimension(:):: vwsubl
+  real,allocatable, dimension(:):: uwresl
+  real,allocatable, dimension(:):: vwresl
+  real,allocatable, dimension(:):: qlhav
+  real,allocatable, dimension(:):: u2av    , &
+            v2av    , &
+            w2av    , &
+            w3av    , &
+            w2subav , &
+            qt2av   , &
+            thl2av  , &
+            thv2av  , &
+            th2av   , &
+            ql2av
+  real, allocatable, dimension(:,:) :: sv2av
+  real(field_r),allocatable, dimension(:,:,:)::  thv0
+  real(field_r),allocatable, dimension(:)::   thvmav
+  real(field_r),allocatable, dimension(:,:,:):: sv0h
 
 contains
 
   subroutine initgenstat
-    use modmpi,    only : myid,mpierr, comm3d, D_MPI_BCAST
-    use modglobal, only : kmax,k1, nsv,ifnamopt,fname_options, ifoutput,&
-    cexpnr,dtav_glob,timeav_glob,dt_lim,btime,tres,lwarmstart,checknamelisterror
-    use modstat_nc, only : lnetcdf, open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
-    use modsurfdata, only : isurf,ksoilmax
+    use modmpi, only : myid,mpierr, comm3d, mpi_logical, D_MPI_BCAST
+    use modglobal, only : i1, ih, j1, jh, kmax, k1, nsv, ifnamopt, fname_options, ifoutput, &
+                          cexpnr, dtav_glob, timeav_glob, dt_lim, btime, tres, &
+                          lwarmstart, checknamelisterror
+    use modstat_nc, only : lnetcdf, open_nc, ncinfo, define_nc, nctiminfo, writestat_dims_nc
+    use modsurfdata, only : isurf, ksoilmax
 
     implicit none
 
     integer n, ierr
     character(40) :: name
     character(3) :: csvname
+
     namelist/NAMGENSTAT/ &
     dtav,timeav,lstat
+
+    call timer_tic('modgenstat/initgenstat', 0)
 
     dtav=dtav_glob;timeav=timeav_glob
 
@@ -219,12 +245,10 @@ contains
     allocate(wqtsmn (k1),wqtrmn (k1),wqttmn(k1))
     allocate(wsvsmn (k1,nsv),wsvrmn(k1,nsv),wsvtmn(k1,nsv))
     allocate(uwtmn  (k1),vwtmn  (k1),uwrmn  (k1),  vwrmn(k1),uwsmn(k1),vwsmn(k1))
-!     allocate(rmn(k1), r2mn   (k1), r3mn (k1), rhmn (k1))
     allocate(w2mn       (k1), skewmn (k1))
     allocate(w2submn    (k1))
     allocate(u2mn       (k1), v2mn  (k1),     qt2mn(k1))
     allocate(thl2mn     (k1), thv2mn(k1),     th2mn(k1),     ql2mn(k1))
-!     allocate(qs2mn      (k1), qsmn  (k1))
     allocate(svmmn(k1,nsv),svptmn(k1,nsv),svplsmn(k1,nsv),svpmn(k1,nsv))
     allocate(sv2mn(k1,nsv))
 
@@ -275,104 +299,112 @@ contains
     allocate(qlmnlast(k1))
     allocate(wthvtmnlast(k1))
 
-      umn      = 0.
-      vmn      = 0.
-      thlmn    = 0.
-      thvmn    = 0.
-      qtmn     = 0.
-      qlmn     = 0.
-      qlhmn    = 0.
-      cfracmn  = 0.
-      hurmn    = 0.
-      clwmn    = 0.
-      climn    = 0.
-      plwmn    = 0.
-      plimn    = 0.
-      tamn     = 0.
+    allocate( qlhav(k1))
+    allocate( u2av    (k1), &
+              v2av    (k1), &
+              w2av    (k1), &
+              w3av    (k1), &
+              w2subav (k1), &
+              qt2av   (k1), &
+              thl2av  (k1), &
+              thv2av  (k1), &
+              th2av   (k1), &
+              ql2av   (k1), &
+              sv2av   (k1,nsv))
+    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(thvmav(k1))
+    allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
 
-      wthlsmn =  0.
-      wthlrmn =  0.
-      wthltmn =  0.
+    umn      = 0.
+    vmn      = 0.
+    thlmn    = 0.
+    thvmn    = 0.
+    qtmn     = 0.
+    qlmn     = 0.
+    qlhmn    = 0.
+    cfracmn  = 0.
+    hurmn    = 0.
+    clwmn    = 0.
+    climn    = 0.
+    plwmn    = 0.
+    plimn    = 0.
+    tamn     = 0.
 
-      wthvsmn =  0.
-      wthvrmn =  0.
-      wthvtmn =  0.
+    wthlsmn =  0.
+    wthlrmn =  0.
+    wthltmn =  0.
 
-      wqtsmn =  0.
-      wqtrmn =  0.
-      wqttmn =  0.
+    wthvsmn =  0.
+    wthvrmn =  0.
+    wthvtmn =  0.
 
-      wqlsmn =  0.
-      wqlrmn =  0.
-      wqltmn =  0.
+    wqtsmn =  0.
+    wqtrmn =  0.
+    wqttmn =  0.
 
-      uwtmn  = 0.
-      vwtmn  = 0.
-      uwrmn  = 0.
-      vwrmn  = 0.
-      uwsmn  = 0.
-      vwsmn  = 0.
+    wqlsmn =  0.
+    wqlrmn =  0.
+    wqltmn =  0.
 
+    uwtmn  = 0.
+    vwtmn  = 0.
+    uwrmn  = 0.
+    vwrmn  = 0.
+    uwsmn  = 0.
+    vwsmn  = 0.
 
-      u2mn     = 0.
-      v2mn     = 0.
-      w2mn     = 0.
-      w2submn  = 0.
-      skewmn   = 0.
-      qt2mn    = 0.
-      thl2mn   = 0.
-      thv2mn   = 0.
-      th2mn    = 0.
-      ql2mn    = 0.
-!       qs2mn    = 0.
-!       qsmn     = 0.
-!       rhmn     = 0.
-!       rmn      = 0.
-!       r2mn     = 0.
-!       r3mn     = 0.
+    u2mn     = 0.
+    v2mn     = 0.
+    w2mn     = 0.
+    w2submn  = 0.
+    skewmn   = 0.
+    qt2mn    = 0.
+    thl2mn   = 0.
+    thv2mn   = 0.
+    th2mn    = 0.
+    ql2mn    = 0.
 
-      svmmn   = 0.
-      svpmn   = 0.
-      svpav   = 0.
-!       svplsmn = 0.
-      svptmn  = 0.
-      svptav  = 0.
+    svmmn   = 0.
+    svpmn   = 0.
+    svpav   = 0.
+    svptmn  = 0.
+    svptav  = 0.
 
-      sv2mn = 0.
+    sv2mn = 0.
 
-      wsvsmn = 0.
-      wsvrmn = 0.
-      wsvtmn = 0.
+    wsvsmn = 0.
+    wsvrmn = 0.
+    wsvtmn = 0.
 
-      cszav = 0.
-      cszmn = 0.
+    cszav = 0.
+    cszmn = 0.
 
-      qlmnlast = 0.
-      wthvtmnlast = 0.
+    qlmnlast = 0.
+    wthvtmnlast = 0.
 
-      if(myid==0)then
-         if (.not. lwarmstart) then
-            open (ifoutput,file='field.'//cexpnr,status='replace')
-            close (ifoutput)
-            open (ifoutput,file='flux1.'//cexpnr,status='replace')
-            close (ifoutput)
-            open (ifoutput,file='flux2.'//cexpnr,status='replace')
-            close (ifoutput)
-            open (ifoutput,file='moments.'//cexpnr,status='replace')
-            close (ifoutput)
-            do n=1,nsv
-               name = 'svnnnfld.'//cexpnr
-               write (name(3:5),'(i3.3)') n
-               open (ifoutput,file=name,status='replace')
-               close (ifoutput)
-            end do
-            do n=1,nsv
-               name = 'svnnnflx.'//cexpnr
-               write (name(3:5),'(i3.3)') n
-               open (ifoutput,file=name,status='replace')
-               close (ifoutput)
-            end do
-         end if
+    if (myid==0) then
+      if (.not. lwarmstart) then
+        open (ifoutput,file='field.'//cexpnr,status='replace')
+        close (ifoutput)
+        open (ifoutput,file='flux1.'//cexpnr,status='replace')
+        close (ifoutput)
+        open (ifoutput,file='flux2.'//cexpnr,status='replace')
+        close (ifoutput)
+        open (ifoutput,file='moments.'//cexpnr,status='replace')
+        close (ifoutput)
+        do n = 1, nsv
+          name = 'svnnnfld.'//cexpnr
+          write (name(3:5),'(i3.3)') n
+          open (ifoutput,file=name,status='replace')
+          close (ifoutput)
+        end do
+        do n = 1, nsv
+          name = 'svnnnflx.'//cexpnr
+          write (name(3:5),'(i3.3)') n
+          open (ifoutput,file=name,status='replace')
+          close (ifoutput)
+        end do
+      end if
 
       if (lnetcdf) then
         fname(10:12) = cexpnr
@@ -427,8 +459,7 @@ contains
         call ncinfo(ncname(45,:),'cli', 'Specific cloud ice content','kg/kg','tt')
         call ncinfo(ncname(46,:),'plw', 'Specific precipitation liquid water content','kg/kg','tt')
         call ncinfo(ncname(47,:),'pli', 'Specific precipitation ice content','kg/kg','tt')
-
-        do n=1,nsv
+        do n = 1, nsv
           write (csvname(1:3),'(i3.3)') n
           call ncinfo(ncname(47+7*(n-1)+1,:),'sv'//csvname,'Scalar '//csvname//' specific mixing ratio','(kg/kg)','tt')
           call ncinfo(ncname(47+7*(n-1)+2,:),'svp'//csvname,'Scalar '//csvname//' tendency','(kg/kg/s)','tt')
@@ -451,14 +482,27 @@ contains
         call define_nc( ncid, NVar, ncname)
       end if
 
+    end if
 
-      end if
+    !$acc enter data copyin(umn, vmn, thlmn, thvmn, qtmn, qlmn, qlhmn, cfracmn, wthlsmn, wthlrmn, wthltmn, &
+    !$acc&                  wthvsmn, wthvrmn, wthvtmn, wqtsmn, wqtrmn, wqttmn, wqlsmn, wqlrmn, wqltmn, &
+    !$acc&                  uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, u2mn, v2mn, w2mn, w2submn, skewmn, &
+    !$acc&                  qt2mn, thl2mn, thv2mn, th2mn, ql2mn, svmmn, svpmn, svpav, svptmn, svptav, &
+    !$acc&                  sv2mn, wsvsmn, wsvrmn, wsvtmn, cszav, cszmn, qlmnlast, wthvtmnlast, qlhav, &
+    !$acc&                  wqlsub, wqlres, wthlsub, wthlres, wqtsub, wqtres, wthvsub, wthvres, wqttot, &
+    !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
+    !$acc&                  uwtot, vwtot, umav, vmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
+    !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
+    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav)
+
+    call timer_toc('modgenstat/initgenstat')
 
   end subroutine initgenstat
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine genstat
 
-    use modglobal, only : rk3step,timee,dt_lim
+    use modglobal, only : rk3step, timee, dt_lim
     implicit none
     if (.not. lstat) return
     if (rk3step/=3) return
@@ -467,6 +511,9 @@ contains
       dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
       return
     end if
+
+    call timer_tic('modgenstat/genstat', 0)
+
     if (timee>=tnext) then
       tnext = tnext+idtav
       call do_genstat
@@ -476,801 +523,621 @@ contains
       call writestat
     end if
     dt_lim = minval((/dt_lim,tnext-timee,tnextwrite-timee/))
+
+    call timer_toc('modgenstat/genstat')
+
   end subroutine genstat
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
   subroutine do_genstat
 
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
-                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf
+                          ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf, &
+                          um, vm, wm, svm, qtm, thlm, e12m  
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
-    use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp, &
+    use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn
-    use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE
+    use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE,myid
     use advec_kappa, only : halflev_kappa
     use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
     use modthermodynamics, only: qsat_tab
     implicit none
 
+    real :: cthl,cqt,den
 
+    integer :: i, j, k, n, km
+    real :: tsurf, qsat_, c1, c2
+    real :: qs0h, t0h, ekhalf, euhalf, evhalf
+    real :: wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
+    real :: uws,vws,uwr,vwr
+    real :: upcu, vpcv
+    real :: qsat, qls, ilratio
+    real :: qlhav_s, wthlsub_s, wqtsub_s, wqlsub_s, wthvsub_s
+    real :: uwsub_s, vwsub_s, uwres_s, vwres_s
+    real :: wqlres_s, wthlres_s, wthvres_s, wqtres_s
+    real :: hurav_s, clwav_s, cliav_s, plwav_s, pliav_s
+    real :: wsvsub_s, wsvres_s
+    real :: a_dry, b_dry, a_moist, b_moist
 
-    real cthl,cqt,den
+    call timer_tic('modgenstat/do_genstat', 1)
 
-    real,allocatable, dimension(:) :: &
-        qlhavl , & ! slab averaged ql_0 at half level &
-        u2avl    , &
-        v2avl    , &
-        w2avl    , &
-        w3avl    , &
-        w2subavl , &
-        qt2avl   , &
-        thl2avl  , &
-        thv2avl  , &
-        ql2avl   , &
-        th2avl
-    real,allocatable, dimension(:,:) :: &
-        wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
-        wsvresl,&   ! slab averaged res w-sv(n)  flux &
-        sv2avl,&
-        sv2av
+    !--------------------------------------------------------
+    !1.0    RESET ARRAYS FOR SLAB AVERAGES
+    !---    ------------------------------
+    !--------------------------------------------------------
 
-    real,allocatable, dimension(:) :: wqlsubl
-    real,allocatable, dimension(:) :: wqlresl
-
-    real,allocatable, dimension(:):: wthlsubl
-    real,allocatable, dimension(:):: wthlresl
-
-    real,allocatable, dimension(:):: wqtsubl
-    real,allocatable, dimension(:):: wqtresl
-
-    real,allocatable, dimension(:):: wthvsubl
-    real,allocatable, dimension(:) ::wthvresl
-
-    real,allocatable, dimension(:):: cfracavl ! cloudfraction    at full level
-    real,allocatable, dimension(:):: huravl
-
-    real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
-    real,allocatable, dimension(:):: uwsubl
-    real,allocatable, dimension(:):: vwsubl
-    real,allocatable, dimension(:):: uwresl
-    real,allocatable, dimension(:):: vwresl
-    real,allocatable, dimension(:):: qlhav
-    real,allocatable, dimension(:):: u2av    , &
-              v2av    , &
-              w2av    , &
-              w3av    , &
-              w2subav , &
-              qt2av   , &
-              thl2av  , &
-              thv2av  , &
-              th2av   , &
-              ql2av
-    real(field_r),allocatable, dimension(:,:,:)::  thv0
-    real(field_r),allocatable, dimension(:)::   thvmav
-    real(field_r),allocatable, dimension(:,:,:):: sv0h
-
-    integer i, j, k, n, km
-    real    tsurf, qsat_, c1, c2
-    real    qs0h, t0h, ekhalf, euhalf, evhalf
-    real    wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
-    real    uws,vws,uwr,vwr
-    real    upcu, vpcv
-    real    qls
-    real(field_r) :: ilratio
-
-    allocate( &
-        qlhavl (k1), & ! slab averaged ql_0 at half level &
-        wsvsubl(k1,nsv),&   ! slab averaged sub w-sv(n)  flux &
-        wsvresl(k1,nsv),&   ! slab averaged res w-sv(n)  flux &
-        u2avl    (k1), &
-        v2avl    (k1), &
-        w2avl    (k1), &
-        w3avl    (k1), &
-        w2subavl (k1), &
-        qt2avl   (k1), &
-        thl2avl  (k1), &
-        thv2avl  (k1), &
-        th2avl   (k1))
-    allocate( &
-        ql2avl   (k1), &
-        sv2avl   (k1,nsv))
-
-
-    allocate( wqlsubl    (k1))
-    allocate( wqlresl    (k1))
-
-    allocate( wthlsubl    (k1))
-    allocate( wthlresl    (k1))
-
-    allocate( wqtsubl    (k1))
-    allocate( wqtresl    (k1))
-
-    allocate( wthvsubl    (k1))
-    allocate( wthvresl    (k1))
-
-    allocate( cfracavl(k1))  ! slab averaged cloud fraction
-    allocate( huravl(k1))
-
-    allocate( qlptavl(k1))   ! slab averaged turbulence tendency of q_liq
-    allocate( uwsubl(k1))
-    allocate( vwsubl(k1))
-    allocate( uwresl(k1))
-    allocate( vwresl(k1))
-    allocate( qlhav(k1))
-    allocate( u2av    (k1), &
-              v2av    (k1), &
-              w2av    (k1), &
-              w3av    (k1), &
-              w2subav (k1), &
-              qt2av   (k1), &
-              thl2av  (k1), &
-              thv2av  (k1), &
-              th2av   (k1), &
-              ql2av   (k1), &
-              sv2av   (k1,nsv))
-    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(thvmav(k1))
-    allocate(sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-
-
-
-  !-----------------------------------------------------------------------
-  !     1.    INITIALISE LOCAL CONSTANTS
-  !     --    --------------------------
-
-  !     --------------------------------------------------------
-  !     3.0    RESET ARRAYS FOR SLAB AVERAGES
-  !     ---    ------------------------------
-  !     --------------------------------------------------------
-    qlhavl      = 0.0
-    cfracavl    = 0.0
-    huravl      = 0.0
-
-    qlptavl     = 0.0
-
-    wqlsubl     = 0.0
-    wqlresl     = 0.0
-    wqltot      = 0.0
-
-    wthlsubl     = 0.0
-    wthlresl     = 0.0
-    wthltot      = 0.0
-
-    wqtsubl     = 0.0
-    wqtresl     = 0.0
-    wqttot      = 0.0
-
-    wthvsubl     = 0.0
-    wthvresl     = 0.0
-    wthvtot      = 0.0
-
-
-    wsvsubl = 0.
-    wsvresl = 0.
-    sv2avl  = 0.
-
-    uwresl  = 0.
-    vwresl  = 0.
-    uwtot   = 0.
-    uwsubl  = 0.
-    vwsubl  = 0.
-    vwtot   = 0.
-
-    u2avl     = 0.0
-    v2avl     = 0.0
-    w2avl     = 0.0
-    w3avl     = 0.0
-    w2subavl  = 0.0
-    qt2avl    = 0.0
-    thl2avl   = 0.0
-    thv2avl   = 0.0
-    th2avl    = 0.0
-    ql2avl    = 0.0
-    thvmav    = 0.0
-
-    sv2av   = 0.0
-
+    !$acc kernels default(present)
+    qlhav = 0.0
+    u2av = 0.0
+    v2av = 0.0
+    w2av = 0.0
+    w3av = 0.0
+    w2subav = 0.0
+    qt2av = 0.0
+    thl2av = 0.0
+    thv2av = 0.0
+    th2av = 0.0
+    ql2av = 0.0
+    thvmav = 0.0
+    wqtsub = 0.0
+    wqtres = 0.0
+    wqlsub = 0.0
+    wqlres = 0.0
     umav = 0.0
     vmav = 0.0
     thlmav = 0.0
-    thmav  = 0.0
-    qtmav  = 0.0
-    qlmav  = 0.0
+    thmav = 0.0
+    qtmav = 0.0
+    qlmav = 0.0
+    wthlsub = 0.0
+    wthlres = 0.0
+    wthvsub = 0.0
+    wthvres = 0.0
+    sv2av = 0.0
+    uwres = 0.0
+    vwres = 0.0
+    uwsub = 0.0
+    vwsub = 0.0
+    svmav = 0.0
+    qlptav = 0.0
+    wqltot = 0.0
+    wqttot = 0.0
+    wthvtot = 0.0
+    wthltot = 0.0
+    uwtot = 0.0
+    vwtot = 0.0
+    wsvsub = 0.0
+    wsvres = 0.0
+    sv2av = 0.0
     cfracav= 0.0
-    hurav  = 0.0
-    clwav  = 0.0
-    cliav  = 0.0
-    plwav  = 0.0
-    pliav  = 0.0
-    taav   = 0.0
-    svmav = 0.
+    cszav = 0.0
+    !$acc end kernels
 
-    cszav = 0.
 
-    do  k=1,k1
-      do  j=2,j1
-        do  i=2,i1
+    !-------------------------------------------------------------
+    ! 2     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
+    !-------------------------------------------------------------
+    !------------------------------------------
+    ! 2.1 SLAB AVERAGES OF PROGNOSTIC VARIABLES
+    !------------------------------------------
+
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
           thv0(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
                         *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
-          huravl(k) = huravl(k) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
         enddo
       enddo
     enddo
 
-    do  k=1,k1
-      do  j=2,j1
-         do  i=2,i1
-            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))
-            clwav(k) = clwav(k) + ql0(i,j,k) * ilratio
-            cliav(k) = cliav(k) + ql0(i,j,k) * (1-ilratio)
-         end do
-      end do
-   end do
-
-   if (imicro == imicro_sice .or. imicro == imicro_sice2) then
-      do  k=1,k1
-         do  j=2,j1
-            do  i=2,i1
-               ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-               plwav(k) = plwav(k) + ql0(i,j,k) * ilratio
-               pliav(k) = pliav(k) + ql0(i,j,k) * (1-ilratio)
-            end do
-         end do
-      end do
-   end if
-
-
-    do k=1,k1
-      cfracavl(k)    = cfracavl(k)+count(ql0(2:i1,2:j1,k)>0)
+    !$acc parallel loop default(present) async(1)
+    do k = 1, k1
+      cfracav(k) = cfracav(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
 
-    call D_MPI_ALLREDUCE(clwav,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(cliav,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(plwav,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(pliav,k1,MPI_SUM,comm3d,mpierr)
+    !$acc host_data use_device(umav, um, vmav, vm, thlmav, thlm, qtmav, qtm, &
+    !$acc&                     qlmav, ql0, thvmav, thv0)
+    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
+
+    if (nsv > 0) then
+      !$acc host_data use_device(svmav, svm)
+      do n = 1, nsv
+        call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+      enddo
+      !$acc end host_data
+    end if
+
+    !$acc kernels default(present) async(1)
+    umav    = umav    / ijtot + cu
+    vmav    = vmav    / ijtot + cv
+    thlmav  = thlmav  / ijtot
+    qtmav   = qtmav   / ijtot
+    qlmav   = qlmav   / ijtot
+    cfracav = cfracav / ijtot
+    taav    = taav    / ijtot
+    thvmav  = thvmav  / ijtot
+    svmav   = svmav   / ijtot
+    thmav   = thlmav + (rlv/cp)*qlmav/exnf
+    cszav   = csz
+    !$acc end kernels
+
+    !-------------------------------------------
+    ! 2.2 SLAB AVERAGES OF DIAGNOSTICS VARIABLES
+    !-------------------------------------------
+    !     TREAT LOWEST LAYER FIRST
+    !-------------------------------------------
+
+    !$acc update self(exnh(1))
+
+    qls   = 0.0 ! hj: no liquid water at the surface
+    tsurf = thls*exnh(1)+(rlv/cp)*qls
+    qsat  = qts - qls
+
+    a_dry = 1.+(rv/rd-1)*qts
+    b_dry = (rv/rd-1)
+    a_moist = (1.-qts+rv/rd*qsat*(1.+rlv/(rv*tsurf))) / (1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat)
+    b_moist = a_moist*rlv/(tsurf*cp)-1.
+
+    if (qls < eps1) then
+      c1 = a_dry
+      c2 = b_dry
+    else
+      c1 = a_moist
+      c2 = b_moist
+    end if
+
+    den = 1. + (rlv**2)*qsat/(rv*cp*(tsurf**2))
+    cthl = (exnh(1)*cp/rlv)*((1-den)/den)
+    cqt = 1./den
+
+    !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
+    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1)) async(1)
+    do j = 2, j1
+      do i = 2, i1
+        qlhav(1) = qlhav(1) + ql0h(i,j,1)
+        wthlsub(1) = wthlsub(1) + thlflux(i,j)
+        wqtsub(1) = wqtsub(1) + qtflux (i,j)
+        wthvsub(1) = wthvsub(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+        wqlsub(1) = 0.0
+
+        !Momentum flux
+        upcu = um(i, j, 1) + cu
+        upcu = sign(1., upcu) * max(abs(upcu), eps1)
+
+        uwsub(1) = uwsub(1) - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
+                    * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
+
+        vpcv = vm(i, j, 1) + cv
+        vpcv = sign(1., vpcv) * max(abs(vpcv), eps1)
+
+        vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
+                    * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
+      end do
+    end do
+
+    !-------------------------------------------
+    !     HIGHER LAYERS
+    !-------------------------------------------
+
+    !$acc parallel loop gang default(present) &
+    !$acc& private(qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
+    !$acc&         wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s) async(1)
+    do k = 2, kmax
+      qlhav_s = 0.0
+      wthlsub_s = 0.0
+      wqtsub_s = 0.0
+      wqlsub_s = 0.0
+      wthvsub_s = 0.0
+      uwsub_s = 0.0
+      vwsub_s = 0.0
+      uwres_s = 0.0
+      vwres_s = 0.0
+      wqlres_s = 0.0
+      wthlres_s = 0.0
+      wthvres_s = 0.0
+      wqtres_s = 0.0
+      clwav_s = 0.0
+      cliav_s = 0.0
+      plwav_s = 0.0
+      pliav_s = 0.0
+      hurav_s = 0.0
+
+      !$acc loop collapse(2) &
+      !$acc& private(qs0h, t0h, den, cthl, cqt, a_dry, b_dry, a_moist, b_moist, ekhalf, euhalf, evhalf, wthls, wthlr, &
+      !$acc&         wqts, wqtr, wqls, wqlr, wthvs, wthvr, uwr, vwr, uws, vws) &
+      !$acc& reduction(+:qlhav_s, wqlsub_s, wqlres_s, wthlsub_s, wthlres_s, wthvsub_s, wthvres_s, &
+      !$acc&             wqtsub_s, wqtres_s, uwres_s, vwres_s, uwsub_s, vwsub_s)
+      do j = 2, j1
+        do i = 2, i1
+          !------------------------------------------------------
+          ! Calculate ql and thv at time t0 at full and half level
+          !----------------------------------------------------
+          qlhav_s = qlhav_s  + ql0h(i,j,k)
+
+          !-----------------------------------------------------------
+          ! Calculate prefactors for subgrid wthv and wql fluxes
+          ! at half levels
+          !-----------------------------------------------------------
+          qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
+          t0h   =  exnh(k)*thl0h(i,j,k) + (rlv/cp)*ql0h(i,j,k)
+
+          den   = 1. + (rlv**2)*qs0h/(rv*cp*(t0h**2))
+          cthl  = (exnh(k)*cp/rlv)*((1-den)/den)
+          cqt   =  (1./den)
+
+          a_dry = 1. + (rv/rd-1)*qt0h(i,j,k)
+          b_dry = (rv/rd-1)
+          a_moist = (1.-qt0h(i,j,k)+rv/rd*qs0h * (1.+rd/rv*rlv/(rd*t0h)))/den
+          b_moist =  a_moist*rlv/(t0h*cp)-1.
+
+          c1 = merge(a_moist, a_dry, ql0h(i,j,k) > 0.)
+          c2 = merge(b_moist, b_dry, ql0h(i,j,k) > 0.)
+
+          !-----------------------------------------------------------
+          ! Calculate resolved and subgrid fluxes at half levels
+          !-----------------------------------------------------------
+          ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+          euhalf = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i-1,j,k  ) )  + &
+                     dzf(k  ) * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) * &
+                      ( 0.25 * dzhi(k) )
+          evhalf = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j-1,k  ) )  + &
+                     dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) * &
+                      ( 0.25 * dzhi(k) )
+
+          wthls  = -ekhalf*(thl0(i,j,k)-thl0(i,j,k-1))*dzhi(k)
+          wthlr  = w0(i,j,k)*thl0h(i,j,k)
+
+          wqts   = -ekhalf*(qt0(i,j,k)-qt0(i,j,k-1))*dzhi(k)
+          wqtr   = w0(i,j,k)*qt0h(i,j,k)
+
+          wqls   = cthl*wthls+ cqt*wqts
+          wqlr   = w0(i,j,k)*ql0h(i,j,k)
+
+          wthvs  = c1*wthls + c2*thl0h(i,j,k)*wqts
+          wthvr  = w0(i,j,k)*thv0h(i,j,k)
+
+          uwr    = (w0(i,j,k)+w0(i-1,j,k)) &
+                   *((u0(i,j,k-1)+cu)*dzf(k)+(u0(i,j,k)+cu)*dzf(k-1))*(0.25*dzhi(k))
+          vwr    = (w0(i,j,k)+w0(i,j-1,k)) &
+                   *((v0(i,j,k-1)+cv)*dzf(k)+(v0(i,j,k)+cv)*dzf(k-1))*(0.25*dzhi(k))
+          uws    = -euhalf &
+                   *((u0(i,j,k)-u0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i-1,j,k))*dxi)
+          vws    = -evhalf &
+                   *((v0(i,j,k)-v0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i,j-1,k))*dyi)
+
+          hurav_s = hurav_s + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
+
+          ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn) / (tup-tdn)))
+          clwav_s = clwav_s + ql0(i,j,k) * ilratio
+          cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
+
+          ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+          plwav_s = plwav_s + ql0(i,j,k) * ilratio
+          pliav_s = pliav_s + ql0(i,j,k) * (1-ilratio)
+
+          if (ql0h(i,j,k)>0) then
+            wqlsub_s = wqlsub_s + wqls
+          end if
+
+          wqlres_s = wqlres_s + wqlr
+
+          wthlsub_s = wthlsub_s + wthls
+          wthlres_s = wthlres_s + wthlr
+
+          wthvsub_s = wthvsub_s + wthvs
+          wthvres_s = wthvres_s + wthvr
+
+          wqtsub_s = wqtsub_s + wqts
+          wqtres_s = wqtres_s + wqtr
+
+          uwres_s = uwres_s + uwr
+          vwres_s = vwres_s + vwr
+          uwsub_s = uwsub_s + uws
+          vwsub_s = vwsub_s + vws
+        end do
+      end do
+
+      wqlsub(k) = wqlsub_s
+      wqlres(k) = wqlres_s
+      wthlsub(k) = wthlsub_s
+      wthlres(k) = wthlres_s
+      wqtsub(k) = wqtsub_s
+      wqtres(k) = wqtres_s
+      uwres(k) = uwres_s
+      vwres(k) = vwres_s
+      uwsub(k) = uwsub_s
+      vwsub(k) = vwsub_s
+      hurav(k) = hurav_s
+      clwav(k) = clwav_s
+      cliav(k) = cliav_s
+      plwav(k) = plwav_s
+      pliav(k) = pliav_s
+    end do
+
+    !------------
+    ! 2.3 MOMENTS
+    !------------
+
+    call calc_moment(u2av, um, 2, 1, kmax, 2, i1, 2, j1, umav, cu)
+    call calc_moment(v2av, vm, 2, 1, kmax, 2, i1, 2, j1, vmav, cv)
+    call calc_moment(w2av, wm, 2, 1, kmax, 2, i1, 2, j1)
+    call calc_moment(w3av, wm, 3, 1, kmax, 2, i1, 2, j1)
+    call calc_moment(w2subav, e12m, 2, 1, kmax, 2, i1, 2, j1)
+    call calc_moment(qt2av, qtm, 2, 1, kmax, 2, i1, 2, j1, qtmav)
+    call calc_moment(thl2av, thlm, 2, 1, kmax, 2, i1, 2, j1, thlmav)
+    call calc_moment(thv2av, thv0, 2, 1, kmax, 2, i1, 2, j1, thvmav)
+    call calc_moment(th2av, thlm, 2, 1, kmax, 2, i1, 2, j1, thmav)
+    call calc_moment(ql2av, ql0, 2, 1, kmax, 2, i1, 2, j1, qlmav)
+
+    if (nsv > 0) then
+      do n = 1, nsv
+        call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, 1, kmax, 2, i1, 2, j1, svmav(:, n))
+      end do
+
+      do n = 1, nsv
+        if (iadv_sv(n)==iadv_kappa) then
+           call halflev_kappa(sv0(:,:,:,n),sv0h)
+        else
+          !$acc parallel loop collapse(3) default(present) async(1)
+          do k = 2, k1
+            do j = 2, j1
+              do i = 2, i1
+                sv0h(i,j,k) = (sv0(i,j,k,n)*dzf(k-1)+sv0(i,j,k-1,n)*dzf(k))/(2*dzh(k))
+              enddo
+            enddo
+          enddo
+          !$acc kernels default(present) async(1)
+          sv0h(2:i1,2:j1,1) = svs(n)
+          !$acc end kernels
+        end if
+
+        !$acc parallel loop default(present) private(wsvres_s) async(1)
+        do k = 2, kmax
+          wsvres_s = 0.0
+          !$acc loop collapse(2) reduction(+: wsvres_s)
+          do j = 2, j1
+            do i = 2, i1
+              wsvres_s = wsvres_s + w0(i,j,k)*sv0h(i,j,k)
+            end do
+          end do
+          wsvres(k,n) = wsvres_s
+        end do
+
+        !$acc parallel loop collapse(2) default(present) reduction(+: wsvsub(1,n)) async(1)
+        do j = 2, j1
+          do i = 2, i1
+            wsvsub(1,n) = wsvsub(1,n) + svflux(i,j,n)
+          end do
+        end do
+
+        !$acc parallel loop private(wsvsub_s) async(1)
+        do k = 2, kmax
+          wsvsub_s = 0.0
+          !$acc loop collapse(2) private(ekhalf) reduction(+: wsvsub_s)
+          do j = 2, j1
+            do i= 2, i1
+              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+              wsvsub_s= wsvsub_s-ekhalf*(sv0(i,j,k,n)-sv0(i,j,k-1,n)) / dzh(k)
+            end do
+          end do
+          wsvsub(k,n) = wsvsub_s
+        end do
+      end do
+    end if
+
+    !---------------------------
+    ! 3 GATHER ACCROSS MPI RANKS
+    !---------------------------
+
+    ! MPI communication
+    !$acc wait(1)
+    !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
+    !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
+    !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
+    !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres, cfracav, &
+    !$acc&                     clwav, cliav, plwav, pliav)
+    call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wthlsub, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wthlres, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wqtsub, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wqtres, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wthvsub, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(wthvres, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(uwsub, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(vwsub, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(uwres, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(vwres, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(u2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(v2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(w2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(w3av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(w2subav, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qt2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thl2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qlptav, k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(hurav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(clwav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(cliav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(plwav,k1, MPI_SUM, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(pliav,k1, MPI_SUM, comm3d,mpierr)
+
+    if (nsv > 0) then
+      do n = 1, nsv
+        call D_MPI_ALLREDUCE(sv2av(:,n),k1, MPI_SUM, comm3d,mpierr)
+        call D_MPI_ALLREDUCE(wsvsub(:,n), k1, MPI_SUM, comm3d,mpierr)
+        call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr)
+      end do
+    end if
+    !$acc end host_data
+
+    !------------
+    ! 4 NORMALIZE
+    !------------
+    !$acc kernels default(present) async(1)
+    cfracav = cfracav / ijtot
+    qlhav   = qlhav  /ijtot
+
+    wqlsub  = wqlsub /ijtot
+    wqlres  = wqlres /ijtot
+
+    wthlsub  = wthlsub /ijtot
+    wthlres  = wthlres /ijtot
+
+    wqtsub  = wqtsub /ijtot
+    wqtres  = wqtres /ijtot
+
+    wthvsub  = wthvsub /ijtot
+    wthvres  = wthvres /ijtot
+
+    wqttot  = wqtres + wqtsub
+    wqltot  = wqlres + wqlsub
+    wthltot  = wthlres + wthlsub
+    wthvtot  = wthvres + wthvsub
+
+    if (nsv > 0) then
+      wsvsub = wsvsub / ijtot
+      wsvres = wsvres / ijtot
+      wsvtot = wsvsub + wsvres
+    end if
+
+    uwres    = uwres / ijtot
+    vwres    = vwres / ijtot
+    uwsub    = uwsub / ijtot
+    vwsub    = vwsub / ijtot
+    uwtot    = uwres + uwsub
+    vwtot    = vwres + vwsub
+
+    hurav = hurav / ijtot
     clwav = clwav / ijtot
     cliav = cliav / ijtot
     plwav = plwav / ijtot
     pliav = pliav / ijtot
+    !$acc end kernels
 
-    call D_MPI_ALLREDUCE(cfracavl,cfracav,k1,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(huravl,hurav,k1,MPI_SUM,comm3d,mpierr)
-
-    call slabsum(umav  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-
-    umav  = umav  /ijtot + cu
-    vmav  = vmav  /ijtot + cv
-    thlmav = thlmav/ijtot
-    qtmav = qtmav /ijtot
-    qlmav = qlmav /ijtot
-    cfracav = cfracav / ijtot
-    hurav  = hurav / ijtot
-    taav   = taav  / ijtot
-    thmav  = thlmav + (rlv/cp)*qlmav/exnf
-    thvmav = thvmav/ijtot
-
-    cszav  = csz
-  !
-
-    do n=1,nsv
-      call slabsum(svmav(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    enddo
-    svmav = svmav/ijtot
-  !------------------------------------------------------------------
-  !     4     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
-  !     -------------------------------------------------------------
-!         4.1 special treatment for lowest level
-  !     -------------------------------------------------
-
-    qls   = 0.0 ! hj: no liquid water at the surface
-    tsurf = thls*exnh(1)+(rlv/cp)*qls
-    qsat_  = qts - qls
-    if (qls< eps1) then  ! TH: Should always be true
-      c1  = 1.+(rv/rd-1)*qts
-      c2  = (rv/rd-1)
-    else
-      c1    = (1.-qts+rv/rd*qsat_*(1.+rlv/(rv*tsurf))) &
-                /(1.+rlv/(rv*tsurf)*rlv/(cp*tsurf)*qsat_)
-      c2    = c1*rlv/(tsurf*cp)-1.
+    !---------------------------------
+    ! 5 ADD SLAB AVERAGES TO TIME MEAN
+    !---------------------------------
+    !$acc kernels default(present) async(1)
+    umn     = umn     + umav
+    vmn     = vmn     + vmav
+    thvmn   = thvmn   + thvmav
+    thlmn   = thlmn   + thlmav
+    qtmn    = qtmn    + qtmav
+    qlmn    = qlmn    + qlmav
+    cfracmn = cfracmn + cfracav
+    hurmn   = hurmn   + hurav
+    clwmn   = clwmn   + clwav
+    climn   = climn   + cliav
+    plwmn   = plwmn   + plwav
+    plimn   = plimn   + pliav
+    tamn    = tamn    + taav
+    qlhmn   = qlhmn   + qlhav
+    wthlsmn = wthlsmn + wthlsub
+    wthlrmn = wthlrmn + wthlres
+    wthltmn = wthltmn + wthltot
+    wthvsmn = wthvsmn + wthvsub
+    wthvrmn = wthvrmn + wthvres
+    wthvtmn = wthvtmn + wthvtot
+    wqtsmn  = wqtsmn  + wqtsub
+    wqtrmn  = wqtrmn  + wqtres
+    wqttmn  = wqttmn  + wqttot
+    wqlsmn  = wqlsmn  + wqlsub
+    wqlrmn  = wqlrmn  + wqlres
+    wqltmn  = wqltmn  + wqltot
+    uwtmn   = uwtmn   + uwtot
+    vwtmn   = vwtmn   + vwtot
+    uwrmn   = uwrmn   + uwres
+    vwrmn   = vwrmn   + vwres
+    uwsmn   = uwsmn   + uwsub
+    vwsmn   = vwsmn   + vwsub
+    u2mn    = u2mn    + u2av
+    v2mn    = v2mn    + v2av
+    w2mn    = w2mn    + w2av
+    w2submn = w2submn + w2subav
+    qt2mn   = qt2mn   + qt2av
+    thl2mn  = thl2mn  + thl2av
+    thv2mn  = thv2mn  + thv2av
+    th2mn   = th2mn   + th2av
+    skewmn  = skewmn  + w3av/max(w2av**1.5,epsilon(w2av(1))) !
+    cszmn   = cszmn   + cszav
+    if (nsv > 0) then
+      svmmn  = svmmn  + svmav
+      svpmn  = svpmn  + svpav
+      svptmn = svptmn + svptav
+      sv2mn  = sv2mn  + sv2av
+      wsvsmn = wsvsmn + wsvsub
+      wsvrmn = wsvrmn + wsvres
+      wsvtmn = wsvtmn + wsvtot
     end if
-    den   = 1. + (rlv**2)*qsat_/(rv*cp*(tsurf**2))
-    cthl  = (exnh(1)*cp/rlv)*((1-den)/den)
-    cqt   = 1./den
-    do j=2,j1
-    do i=2,i1
-      qlhavl(1) = qlhavl(1) + ql0h(i,j,1)
-  !     thv(1) = thlm(i,j,1) * (1.+(rv/rd-1)*qtm(i,j,1))
+    !$acc end kernels
 
-      wthlsubl(1) = wthlsubl(1) + thlflux(i,j)
-      wqtsubl(1) = wqtsubl(1) + qtflux (i,j)
-      wqlsubl(1) = 0
-      wthvsubl(1) = wthvsubl(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
-
-      !Momentum flux
-      if (abs(u0(i,j,1)+cu)<eps1) then
-        upcu = sign(eps1,u0(i,j,1)+cu)
-      else
-        upcu = u0(i,j,1)+cu
-      end if
-      uwsubl(1) = uwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
-                upcu/sqrt(upcu**2  + &
-          ((v0(i,j,1)+v0(i-1,j,1)+v0(i,j+1,1)+v0(i-1,j+1,1))/4.+cv)**2)
-
-      if (abs(v0(i,j,1)+cv)<eps1) then
-        vpcv = sign(eps1,v0(i,j,1)+cv)
-      else
-        vpcv = v0(i,j,1)+cv
-      end if
-      vwsubl(1) = vwsubl(1) - ( 0.5*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
-                vpcv/sqrt(vpcv**2  + &
-          ((u0(i,j,1)+u0(i+1,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1))/4.+cu)**2)
-
-
-      !Higher order moments
-      u2avl    (1) = u2avl    (1) + (u0 (i,j,1)+cu - umav(1))**2
-      v2avl    (1) = v2avl    (1) + (v0 (i,j,1)+cv - vmav(1))**2
-      w2avl    (1) = w2avl    (1) + (w0  (i,j,1)**2)
-      w3avl    (1) = w3avl    (1) + (w0  (i,j,1)**3)
-      w2subavl (1) = w2subavl (1) + (e120(i,j,1)**2)
-      qt2avl   (1) = qt2avl   (1) + (qt0 (i,j,1) - qtmav (1))**2
-      thl2avl  (1) = thl2avl  (1) + (thl0(i,j,1) - thlmav(1))**2
-      thv2avl  (1) = thv2avl  (1) + (thv0(i,j,1) - thvmav(1))**2
-      th2avl   (1) = th2avl   (1) + (thl0(i,j,1) - thmav (1))**2
-      ql2avl   (1) = ql2avl   (1) + (ql0(i,j,1)  - qlmav (1))**2
-!       qs2avl   (1) = qs2avl   (1) + qs0**2
-!       qsavl    (1) = qsavl    (1) + qs0
-!       rhavl    (1) = rhavl    (1) + qtm (i,j,1)/qs0
-!       ravl     (1) = ravl     (1) + ((qt0(i,j,1) - qs0))
-!       r2avl    (1) = r2avl    (1) + ((qt0(i,j,1) - qs0)**2)
-!       r3avl    (1) = r3avl    (1) + ((qt0(i,j,1) - qs0)**3)
-
-      do n=1,nsv
-        wsvsubl(1,n) = wsvsubl(1,n) + svflux(i,j,n)
-        sv2avl(1,n)  = sv2avl(1,n) + (sv0(i,j,1,n)-svmav(1,n))**2
-      end do
-    end do
-    end do
-
-  !      --------------------------
-  !      4.2 higher levels
-  !      --------------------------
-
-    do j=2,j1
-    do i=2,i1
-
-  !     --------------------------------------------------------
-  !      Calculate half level fields for thl and qt consistent
-  !      with the used advection scheme ( kappa or cent. diff.)
-  !     ---------------
-
-  !     --------------------------------------------------------
-
-      do k=2,kmax
-        km = k-1
-
-
-    !     ------------------------------------------------------
-    !     calculate ql and thv at time t0 at full and half level
-    !      ----------------------------------------------------
-        qlhavl(k) = qlhavl(k)  + ql0h(i,j,k)
-
-    !     -----------------------------------------------------------
-    !     calculate prefactors for subgrid wthv and wql fluxes
-    !      at half levels
-    !     -----------------------------------------------------------
-        qs0h  =  (qt0h(i,j,k) - ql0h(i,j,k))
-        t0h   =  exnh(k)*thl0h(i,j,k) + (rlv/cp)*ql0h(i,j,k)
-
-        den   = 1. + (rlv**2)*qs0h/(rv*cp*(t0h**2))
-        cthl  = (exnh(k)*cp/rlv)*((1-den)/den)
-        cqt   =  (1./den)
-        if (ql0h(i,j,k)>0) then
-          c1    = (1.-qt0h(i,j,k)+rv/rd*qs0h &
-                  * (1.+rd/rv*rlv/(rd*t0h)))/den
-          c2    =  c1*rlv/(t0h*cp)-1.
-        else
-          c1 = 1. + (rv/rd-1)*qt0h(i,j,k)
-          c2 = (rv/rd-1)
-        end if
-
-    !     -----------------------------------------------------------
-    !     calculate resolved and subgrid fluxes at half levels
-    !     -----------------------------------------------------------
-
-        ekhalf  = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-        euhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i-1,j,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i-1,j,km) ) ) / &
-                    ( 4.   * dzh(k) )
-        evhalf = ( dzf(km) * ( ekm(i,j,k)  + ekm(i,j-1,k)  )  + &
-                      dzf(k)  * ( ekm(i,j,km) + ekm(i,j-1,km) ) ) / &
-                    ( 4.   * dzh(k) )
-
-        wthls    = -ekhalf*(thl0(i,j,k)-thl0(i,j,km))/dzh(k)
-        wthlr    = w0(i,j,k)*thl0h(i,j,k)
-
-        wqts    = -ekhalf*(qt0(i,j,k)-qt0(i,j,km))/dzh(k)
-        wqtr    = w0(i,j,k)*qt0h(i,j,k)
-
-        wqls    = cthl*wthls+ cqt*wqts
-        wqlr    = w0(i,j,k)*ql0h(i,j,k)
-
-        wthvs    = c1*wthls + c2*thl0h(i,j,k)*wqts
-        wthvr    = w0(i,j,k)*thv0h(i,j,k)
-
-        uwr     = (w0(i,j,k)+w0(i-1,j,k)) &
-                  *((u0(i,j,k-1)+cu)*dzf(k)+(u0(i,j,k)+cu)*dzf(k-1))/(4*dzh(k))
-        vwr     = (w0(i,j,k)+w0(i,j-1,k)) &
-                  *((v0(i,j,k-1)+cv)*dzf(k)+(v0(i,j,k)+cv)*dzf(k-1))/(4*dzh(k))
-        uws     = -euhalf &
-                  *((u0(i,j,k)-u0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i-1,j,k))*dxi)
-        vws     = -evhalf &
-                  *((v0(i,j,k)-v0(i,j,k-1))/dzh(k)+(w0(i,j,k)-w0(i,j-1,k))*dyi)
-
-
-        if (ql0h(i,j,k)>0) then
-          wqlsubl(k) = wqlsubl(k) + wqls
-        end if
-
-        wqlresl(k) = wqlresl(k) + wqlr
-
-        wthlsubl(k) = wthlsubl(k) + wthls
-        wthlresl(k) = wthlresl(k) + wthlr
-
-        wthvsubl(k) = wthvsubl(k) + wthvs
-        wthvresl(k) = wthvresl(k) + wthvr
-
-        wqtsubl(k) = wqtsubl(k) + wqts
-        wqtresl(k) = wqtresl(k) + wqtr
-
-        uwresl(k) = uwresl(k) + uwr
-        vwresl(k) = vwresl(k) + vwr
-        uwsubl(k) = uwsubl(k) + uws
-        vwsubl(k) = vwsubl(k) + vws
-    !     -----------------------------------------------------------
-    !     calculate various moments
-    !     -----------------------------------------------------------
-
-        u2avl    (k) = u2avl    (k) + (u0 (i,j,k)+cu - umav(k))**2
-        v2avl    (k) = v2avl    (k) + (v0 (i,j,k)+cv - vmav(k))**2
-        w2avl    (k) = w2avl    (k) + (w0  (i,j,k)**2)
-        w3avl    (k) = w3avl    (k) + (w0  (i,j,k)**3)
-        w2subavl (k) = w2subavl (k) + (e120(i,j,k)**2)
-        qt2avl   (k) = qt2avl   (k) + (qt0 (i,j,k) - qtmav (k))**2
-        thl2avl  (k) = thl2avl  (k) + (thl0(i,j,k) - thlmav(k))**2
-        thv2avl  (k) = thv2avl  (k) + (thv0(i,j,k) - thvmav(k))**2
-        th2avl   (k) = th2avl   (k) + (thl0(i,j,k) - thmav (k))**2 !thlm, no thm !?!
-        ql2avl   (k) = ql2avl   (k) + (ql0(i,j,k)  - qlmav (k))**2
-!         qs2avl   (k) = qs2avl   (k) + qs0**2
-!         qsavl    (k) = qsavl    (k) + qs0
-!         rhavl    (k) = rhavl    (k) + qtm (i,j,k)/qs0
-!         ravl     (k) = ravl     (k) + (qt0(i,j,k) - qs0)
-!         r2avl    (k) = r2avl    (k) + (qt0(i,j,k) - qs0)**2
-!         r3avl    (k) = r3avl    (k) + (qt0(i,j,k) - qs0)**3
-
-      end do
-    end do
-    end do
-  !     -------------------
-
-    do n=1,nsv
-      do k=2,kmax
-      do j=2,j1
-      do i=2,i1
-        sv2avl(k,n)  = sv2avl(k,n) + (sv0(i,j,k,n)-svmav(k,n))**2
-      end do
-      end do
-      end do
-    end do
-
-    do n=1,nsv
-      if (iadv_sv(n)==iadv_kappa) then
-         call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h)
-      else
-        do  k=2,k1
-        do  j=2,j1
-        do  i=2,i1
-          sv0h(i,j,k) = (sv0(i,j,k,n)*dzf(k-1)+sv0(i,j,k-1,n)*dzf(k))/(2*dzh(k))
-        enddo
-        enddo
-        enddo
-        sv0h(2:i1,2:j1,1) = svs(n)
-
-      end if
-      do  k=2,kmax
-      do  j=2,j1
-      do  i=2,i1
-        wsvresl(k,n) = wsvresl(k,n) + w0(i,j,k)*sv0h(i,j,k)
-      end do
-      end do
-      end do
-
-      do k=2,kmax
-        km = k-1
-      do j=2,j1
-      do i=2,i1
-        ekhalf      = (ekh(i,j,k)*dzf(km)+ekh(i,j,km)*dzf(k))/(2*dzh(k))
-        wsvsubl(k,n)= wsvsubl(k,n)-ekhalf*(sv0(i,j,k,n)-sv0(i,j,km,n)) &
-                                                        /dzh(k)
-      end do
-      end do
-      end do
-
-    end do
-
-
-  !     -------------------------------
-  !     5   CALCULATE MOMENTUM FLUXES
-  !     -------------------------------
-
-  !     5.1 special treatment for lowest level
-  !     -------------------------------------------------
-  !      DEPRECATED
-
-
-  !     5.2 higher levels by vert. integr. of the mom. tendencies
-  !     ---------------------------------------------------------
-  !         DEPRECATED
-
-  ! MPI communication
-    call D_MPI_ALLREDUCE(qlhavl, qlhav, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqlsubl, wqlsub, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqlresl, wqlres, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthlsubl, wthlsub, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthlresl, wthlres, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqtsubl, wqtsub, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wqtresl, wqtres, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthvsubl, wthvsub, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wthvresl, wthvres, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(uwsubl, uwsub, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vwsubl, vwsub, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(uwresl, uwres, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vwresl, vwres, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(u2avl, u2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(v2avl, v2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w2avl, w2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w3avl, w3av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(w2subavl, w2subav, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qt2avl, qt2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thl2avl, thl2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thv2avl, thv2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(th2avl, th2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(ql2avl, ql2av, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(qs2avl, qs2av, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(qsavl, qsav, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(rhavl, rhav, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(ravl, rav, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(r2avl, r2av, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-!     call D_MPI_ALLREDUCE(r3avl, r3av, k1,     &
-!                       MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qlptavl, qlptav, k1,     &
-                      MPI_SUM, comm3d,mpierr)
-
-    do n=1,nsv
-  call D_MPI_ALLREDUCE(sv2avl(:,n),sv2av(:,n),k1, &
-                        MPI_SUM, comm3d,mpierr)
-  call D_MPI_ALLREDUCE(wsvsubl(:,n),wsvsub(:,n), k1,     &
-      MPI_SUM, comm3d,mpierr)
-  call D_MPI_ALLREDUCE(wsvresl(:,n),wsvres(:,n), k1,     &
-      MPI_SUM, comm3d,mpierr)
-    end do
-
-  !     -----------------------------------------------
-  !     6   NORMALIZATION OF THE FIELDS AND FLUXES
-  !     -----------------------------------------------
-
-      qlhav   = qlhav  /ijtot
-
-      wqlsub  = wqlsub /ijtot
-      wqlres  = wqlres /ijtot
-
-      wthlsub  = wthlsub /ijtot
-      wthlres  = wthlres /ijtot
-
-      wqtsub  = wqtsub /ijtot
-      wqtres  = wqtres /ijtot
-
-      wthvsub  = wthvsub /ijtot
-      wthvres  = wthvres /ijtot
-
-      wqttot  = wqtres + wqtsub
-      wqltot  = wqlres + wqlsub
-      wthltot  = wthlres + wthlsub
-      wthvtot  = wthvres + wthvsub
-
-
-        wsvsub = wsvsub /ijtot
-        wsvres = wsvres /ijtot
-        wsvtot = wsvsub + wsvres
-
-      uwres    = uwres    /ijtot
-      vwres    = vwres    /ijtot
-      uwsub    = uwsub    /ijtot
-      vwsub    = vwsub    /ijtot
-      uwtot    = uwres + uwsub
-      vwtot    = vwres + vwsub
-
-      u2av     = u2av     /ijtot
-      v2av     = v2av     /ijtot
-      w2av     = w2av     /ijtot
-      w3av     = w3av     /ijtot
-      w2subav  = w2subav  /ijtot
-      qt2av    = qt2av    /ijtot
-      thl2av   = thl2av   /ijtot
-      thv2av   = thv2av   /ijtot
-      th2av    = th2av    /ijtot
-      ql2av    = ql2av    /ijtot
-!       qs2av    = qs2av    /ijtot
-!       qsav     = qsav     /ijtot
-!       qs2av    = qs2av    - qsav**2
-!       rhav     = rhav     /ijtot
-!       rav      = rav      /ijtot
-!       r2av     = r2av     /ijtot
-!       r3av     = r3av     /ijtot
-
-
-        sv2av = sv2av/ijtot
-
-  !********************************************************************
-
-  !     4.0   ADD SLAB AVERAGES TO TIME MEAN
-  !           ------------------------------
-      umn    = umn   + umav
-      vmn    = vmn   + vmav
-      thvmn  = thvmn + thvmav
-      thlmn  = thlmn + thlmav
-      qtmn   = qtmn  + qtmav
-      qlmn   = qlmn  + qlmav
-      cfracmn= cfracmn+cfracav
-      hurmn  = hurmn + hurav
-
-      clwmn  = clwmn + clwav
-      climn  = climn + cliav
-      plwmn  = plwmn + plwav
-      plimn  = plimn + pliav
-
-      tamn   = tamn  + taav
-
-      qlhmn  = qlhmn + qlhav
-
-      wthlsmn = wthlsmn + wthlsub
-      wthlrmn = wthlrmn + wthlres
-      wthltmn = wthltmn + wthltot
-      wthvsmn = wthvsmn + wthvsub
-      wthvrmn = wthvrmn + wthvres
-      wthvtmn = wthvtmn + wthvtot
-      wqtsmn = wqtsmn + wqtsub
-      wqtrmn = wqtrmn + wqtres
-      wqttmn = wqttmn + wqttot
-      wqlsmn = wqlsmn + wqlsub
-      wqlrmn = wqlrmn + wqlres
-      wqltmn = wqltmn + wqltot
-      uwtmn  = uwtmn + uwtot
-      vwtmn  = vwtmn + vwtot
-      uwrmn  = uwrmn + uwres
-      vwrmn  = vwrmn + vwres
-      uwsmn  = uwsmn + uwsub
-      vwsmn  = vwsmn + vwsub
-      u2mn     = u2mn     + u2av
-      v2mn     = v2mn     + v2av
-      w2mn     = w2mn     + w2av
-      w2submn  = w2submn  + w2subav
-      qt2mn    = qt2mn    + qt2av
-      thl2mn   = thl2mn   + thl2av
-      thv2mn   = thv2mn   + thv2av
-      th2mn    = th2mn    + th2av
-!       ql2mn    = ql2mn    + ql2av
-!       qs2mn    = qs2mn    + qs2av
-!       qsmn     = qsmn     + qsav
-!       rhmn     = rhmn     + rhav
-!       rmn      = rmn      + rav
-!       r2mn     = r2mn     + r2av
-!       r3mn     = r3mn     + r3av
-
-        svmmn   = svmmn  + svmav
-        svpmn   = svpmn  + svpav
-!         svplsmn = svplsmn+ svplsav
-        svptmn  = svptmn + svptav
-
-        sv2mn  = sv2mn + sv2av
-
-        wsvsmn = wsvsmn + wsvsub
-        wsvrmn = wsvrmn + wsvres
-        wsvtmn = wsvtmn + wsvtot
-      skewmn   = skewmn   + w3av/max(w2av**1.5,epsilon(w2av(1)))
-
-      cszmn = cszmn + cszav
-
-    deallocate( &
-        qlhavl , & ! slab averaged ql_0 at half level &
-        wsvsubl,&   ! slab averaged sub w-sv(n)  flux &
-        wsvresl,&   ! slab averaged res w-sv(n)  flux &
-        u2avl    , &
-        v2avl    , &
-        w2avl    , &
-        w3avl    , &
-        w2subavl , &
-        qt2avl   , &
-        thl2avl  , &
-        thv2avl  , &
-        th2avl   )
-    deallocate( &
-        ql2avl   , &
-        sv2avl   )
-
-
-    deallocate( wqlsubl    )
-    deallocate( wqlresl    )
-
-    deallocate( wthlsubl    )
-    deallocate( wthlresl    )
-
-    deallocate( wqtsubl    )
-    deallocate( wqtresl    )
-
-    deallocate( wthvsubl    )
-    deallocate( wthvresl    )
-
-    deallocate( cfracavl )
-    deallocate( huravl   )
-
-    deallocate( qlptavl)   ! slab averaged turbulence tendency of q_liq
-    deallocate( uwsubl)
-    deallocate( vwsubl)
-    deallocate( uwresl)
-    deallocate( vwresl)
-
-    deallocate( qlhav)
-    deallocate( u2av    , &
-              v2av    , &
-              w2av    , &
-              w3av    , &
-              w2subav , &
-              qt2av   , &
-              thl2av  , &
-              thv2av  , &
-              th2av   , &
-              ql2av   , &
-              sv2av   )
-    deallocate(thv0)
-    deallocate(thvmav)
-    deallocate(sv0h)
+    call timer_toc('modgenstat/do_genstat')
   end subroutine do_genstat
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  subroutine calc_moment(prof, var, n, kb, ke, ib, ie, jb, je, mean, c_in)
+    use modglobal, only: ijtot
+
+    implicit none
+
+    integer, intent(in) :: kb, ke, ib, ie, jb, je
+    integer, intent(in) :: n
+    real, intent(out) :: prof(kb:ke)
+    real(field_r), intent(in) :: var(:, :, :)
+    real(field_r), optional, intent(in) :: mean(kb:ke)
+    real(field_r), optional, intent(in) :: c_in !< Translational velocity
+    real(field_r) :: c
+    real(field_r) :: prof_s
+    integer :: i, j, k
+
+    if (.not.present(c_in)) then
+      c = 0.
+    else
+      c = c_in
+    end if
+
+    if (.not.present(mean)) then
+      !$acc parallel loop default(present) private(prof_s) async
+      do k = kb, ke
+        prof_s = 0.0
+        !$acc loop collapse(2) reduction(+: prof_s)
+        do j = jb, je
+          do i = ib, ie
+            prof_s = prof_s + (var(i, j, k) + c)**n
+          end do
+        end do
+        prof(k) = prof_s / ijtot
+      end do
+    else
+      !$acc parallel loop default(present) private(prof_s) async
+      do k = kb, ke
+        prof_s = 0.0
+        !$acc loop collapse(2) reduction(+: prof_s)
+        do j = jb, je
+          do i = ib, ie
+            prof_s = prof_s + (var(i, j, k) + c - mean(k))**n
+          end do
+        end do
+        prof(k) = prof_s / ijtot
+      end do
+    end if
+    !$acc wait
+
+  end subroutine calc_moment
+
   subroutine writestat
       use modglobal, only : kmax,k1,nsv, zh,zf,rtimee,rlv,cp,cexpnr,ifoutput
       use modfields, only : presf,presh,exnf,exnh,rhof,rhobf,rhobh
@@ -1285,6 +1152,9 @@ contains
       integer nsecs, nhrs, nminut,k,n
       real convt, convq
       character(40) :: name
+
+      call timer_tic('modgenstat/writestat', 1)
+
       nsecs   = nint(rtimee)
       nhrs    = int(nsecs/3600)
       nminut  = int(nsecs/60)-nhrs*60
@@ -1293,6 +1163,7 @@ contains
       convq   = 86400*1000.
       allocate(tmn   (k1), thmn  (k1))
 
+      !$acc kernels default(present)
       umn    = umn    /nsamples
       vmn    = vmn    /nsamples
       thvmn  = thvmn  /nsamples
@@ -1332,9 +1203,6 @@ contains
       uwsmn  = uwsmn /nsamples
       vwsmn  = vwsmn /nsamples
 
-!       rmn      = rmn    /nsamples
-!       r2mn     = r2mn   /nsamples
-!       rhmn     = rhmn   /nsamples
       w2mn     = w2mn   /nsamples
       skewmn   = skewmn /nsamples
       w2submn  = w2submn/nsamples
@@ -1345,31 +1213,38 @@ contains
       thv2mn   = thv2mn /nsamples
       th2mn    = th2mn  /nsamples
       ql2mn    = ql2mn  /nsamples
-!       qs2mn    = qs2mn  /nsamples
-!       qsmn     = qsmn   /nsamples
 
+      if (nsv > 0) then
+        svmmn  = svmmn  / nsamples
+        svpmn  = svpmn  / nsamples
+        svptmn = svptmn / nsamples
+        sv2mn  = sv2mn  / nsamples
+        wsvsmn = wsvsmn / nsamples
+        wsvrmn = wsvrmn / nsamples
+        wsvtmn = wsvtmn / nsamples
+      end if
 
-        svmmn   = svmmn  /nsamples
-        svpmn   = svpmn  /nsamples
-!         svplsmn = svplsmn/nsamples
-        svptmn  = svptmn /nsamples
-
-        sv2mn = sv2mn/nsamples
-
-        wsvsmn = wsvsmn/nsamples
-        wsvrmn = wsvrmn/nsamples
-        wsvtmn = wsvtmn/nsamples
-
-        cszmn = cszmn / nsamples
+      cszmn = cszmn / nsamples
+      !$acc end kernels
 
 
   !     ------------------------------------------
   !     2.0  Construct other time averaged fields
   !     ------------------------------------------
 
-
+      !$acc kernels default(present) copy(thmn, tmn)
       thmn = thlmn + (rlv/cp)*qlmn/exnf
       tmn  = thmn*exnf
+      !$acc end kernels
+
+      !$acc update self(umn, vmn, thvmn, thlmn, qtmn, qlmn, cfracmn, qlhmn, &
+      !$acc&            wthlsmn, wthlrmn, wthltmn, wqtsmn, wqtrmn, wqttmn, &
+      !$acc&            wqlsmn, wqlrmn, wqltmn, wthvsmn, wthvrmn, wthvtmn, &
+      !$acc&            uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, w2mn, skewmn, &
+      !$acc&            w2submn, qt2mn, v2mn, u2mn, thl2mn, thv2mn, th2mn, ql2mn, &
+      !$acc&            cszmn, cfracmn)
+
+      !$acc update self(svmmn, svpmn, svptmn, sv2mn, wsvsmn, wsvrmn, wsvtmn) if(nsv > 0)
 
   !     ----------------------
   !     2.0  write the fields
@@ -1667,6 +1542,7 @@ contains
 
     end if ! end if(myid==0)
 
+      !$acc kernels default(present)
       qlmnlast=qlmn
       wthvtmnlast=wthvtmn
 
@@ -1719,16 +1595,9 @@ contains
       thv2mn   = 0.
       th2mn    = 0.
       ql2mn    = 0.
-!       qs2mn    = 0.
-!       qsmn     = 0.
-!       rhmn     = 0.
-!       rmn      = 0.
-!       r2mn     = 0.
-!       r3mn     = 0.
 
       svmmn   = 0.
       svpmn   = 0.
-!       svplsmn = 0.
       svptmn  = 0.
 
       sv2mn = 0.
@@ -1738,8 +1607,11 @@ contains
       wsvtmn = 0.
 
       cszmn  = 0.
+      !$acc end kernels
 
       deallocate(tmn, thmn)
+
+      call timer_toc('modgenstat/writestat')
   end subroutine writestat
 
   subroutine exitgenstat
@@ -1761,12 +1633,10 @@ contains
     deallocate(wqtsmn ,wqtrmn ,wqttmn)
     deallocate(wsvsmn ,wsvrmn,wsvtmn)
     deallocate(uwtmn,vwtmn,uwrmn,vwrmn,uwsmn,vwsmn )
-!     deallocate(rmn, r2mn   , r3mn , rhmn )
     deallocate(w2mn       , skewmn )
     deallocate(w2submn    )
     deallocate(u2mn       , v2mn  ,     qt2mn)
     deallocate(thl2mn     , thv2mn,     th2mn,     ql2mn)
-!     deallocate(qs2mn      , qsmn  )
     deallocate(svmmn,svptmn,svplsmn,svpmn)
     deallocate(sv2mn)
 
@@ -1780,6 +1650,7 @@ contains
     deallocate(hurav )
     deallocate(clwav,cliav,plwav,pliav)
     deallocate(svmav )
+    deallocate(taav )
     deallocate(uptav)
     deallocate(vptav)
 
@@ -1817,7 +1688,22 @@ contains
     deallocate(qlmnlast)
     deallocate(wthvtmnlast)
 
-  end subroutine exitgenstat
+    deallocate( qlhav)
+    deallocate( u2av    , &
+              v2av    , &
+              w2av    , &
+              w3av    , &
+              w2subav , &
+              qt2av   , &
+              thl2av  , &
+              thv2av  , &
+              th2av   , &
+              ql2av   , &
+              sv2av   )
+    deallocate(thv0)
+    deallocate(thvmav)
+    deallocate(sv0h)
 
+  end subroutine exitgenstat
 
 end module modgenstat

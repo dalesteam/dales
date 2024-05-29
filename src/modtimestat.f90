@@ -32,8 +32,7 @@
 
 
 module modtimestat
-
-
+  use modtimer
   use modprecision, only : longint, field_r
 
 implicit none
@@ -55,7 +54,7 @@ save
   logical :: ltimestat= .false. !<switch for timestatistics (on/off)
   real    :: zi,ziold=-1, we
   integer, parameter :: iblh_flux = 1, iblh_grad = 2, iblh_thres = 3
-  integer, parameter :: iblh_thv = -1,iblh_thl = -2, iblh_qt = -3
+  integer, parameter :: iblh_thv = -1, iblh_thl = -2, iblh_qt = -3
   integer :: iblh_meth = iblh_grad, iblh_var = iblh_thv
   integer :: blh_nsamp = 4
   real    :: blh_thres=-1 ,blh_sign=1.0
@@ -66,6 +65,9 @@ save
   real   :: cc, wmax, qlmax
   real   :: qlint, qtint, qrint
   logical:: store_zi = .false.
+  real, allocatable, dimension(:) :: profile, gradient, dgrad
+  real, allocatable, dimension(:,:,:) :: blh_fld
+  real(field_r), allocatable,dimension(:,:,:) :: sv0h
 
   !Variables for heterogeneity
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
@@ -86,19 +88,20 @@ contains
   subroutine inittimestat
     use modmpi,    only : myid,comm3d,mpierr,D_MPI_BCAST
     use modglobal, only : ifnamopt, fname_options,cexpnr,dtmax,ifoutput,dtav_glob,tres,&
-                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror
+                          ladaptive,k1,kmax,rd,rv,dt_lim,btime,i1,j1,lwarmstart,checknamelisterror, &
+                          ih ,jh
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     use modraddata, only : iradiation
     implicit none
     integer :: ierr,k,location = 1
-    real :: gradient = 0.0
-    real, allocatable,dimension(:) :: profile
     integer :: i,j
 
     namelist/NAMTIMESTAT/ & !< namelist
     dtav,ltimestat,blh_thres,iblh_meth,iblh_var,blh_nsamp !! namelist contents
+
+    call timer_tic('modtimestat/inittimestat', 0)
 
     dtav=dtav_glob
     if(myid==0)then
@@ -136,7 +139,12 @@ contains
       stop 'TIMESTAT: dtav should be a integer multiple of dtmax'
     end if
 
-    allocate(profile(1:k1))
+    allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate(profile(k1),gradient(k1),dgrad(k1))
+
+    gradient = 0.
+    profile = 0.
+
     select case (iblh_var)
     case(iblh_qt)
       profile = qtprof
@@ -157,7 +165,7 @@ contains
     case (iblh_thres)
       if (blh_thres<0) then
         do k=kmax,2,-1
-          if (blh_sign*(profile(k+1) - profile(k-1)) > gradient) then
+          if (blh_sign*(profile(k+1) - profile(k-1)) > gradient(k)) then
             location = k
             gradient = blh_sign*(profile(k+1) - profile(k-1))
           endif
@@ -168,7 +176,6 @@ contains
     case default
       stop 'TIMESTAT: Incorrect iblh_meth'
     end select
-    deallocate(profile)
 
     if(myid==0) then
        if (.not. lwarmstart) then
@@ -367,6 +374,10 @@ contains
       allocate(we_patch      (xpatches,ypatches))
     endif
 
+    !$acc enter data copyin(blh_fld, sv0h, profile, gradient, dgrad)
+
+    call timer_toc('modtimestat/inittimestat')
+
   end subroutine inittimestat
 
 !>Run timestat. Calculate and write the statistics
@@ -383,6 +394,9 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
                             SW_up_ca_TOA,LW_up_ca_TOA,iradiation
     implicit none
@@ -411,6 +425,9 @@ contains
       dt_lim = min(dt_lim,tnext-timee)
       return
     end if
+
+    call timer_tic('modtimestat/timestat', 0)
+
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
 
@@ -491,55 +508,209 @@ contains
     qlintmaxl= 0.0
     tke_totl = 0.0
 
-    do j=2,j1
-      if (lhetero) then
-        patchy = patchynr(j)
-      endif
-      do i=2,i1
-        if (lhetero) then
+    ! Make qlint 2D array to get rid of the if statement?
+    if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1
+          patchy = patchynr(j)
           patchx = patchxnr(i)
-        endif
-
-        qlint     = 0.0
-        qtint     = 0.0
-        qrint     = 0.0
-        do k=1,kmax
-          qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
-          qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
-        end do
-        if (imicro > 0) then
-           do k=1,kmax
-              qrint = qrint + sv0(i,j,k,iqr)*rhof(k)*dzf(k)
-           end do
-        end if
-        if (qlint>0.) then
-          ccl      = ccl      + 1.0
-          qlintavl = qlintavl + qlint
-          qlintmaxl = max(qlint,qlintmaxl)
-          if (lhetero) then
+          qlint = 0.
+          qtint = 0.
+          do k = 1, kmax
+            qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
+            qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
+          end do
+          if (qlint > 0.) then
+            ccl = ccl + 1
+            qlintavl = qlintavl + qlint
+            qlintmaxl = max(qlint, qlintmaxl)
             cc_field(i,j)                  = 1.0
             qlint_field(i,j)               = qlint
             qlintmax_patchl(patchx,patchy) = max(qlintmax_patchl(patchx,patchy),qlint)
-          endif
-        end if
-        qtintavl = qtintavl + qtint
-        qrintavl = qrintavl + qrint
-
-        do k=1,kmax
-          if (ql0(i,j,k) > 0.) then
-            zbaseavl = zbaseavl + zf(k)
-            zbaseminl = min(zf(k),zbaseminl)
-            if (lhetero) then
-              zbase_field(i,j)               = zf(k)
-              zbasemin_patchl(patchx,patchy) = min(zbasemin_patchl(patchx,patchy),zf(k))
-            endif
-            exit
           end if
+          qtintavl = qtintavl + qtint
+          qrintavl = qrintavl + qrint
         end do
+      end do
+    else
+      !$acc parallel loop collapse(2) default(present) reduction(+:ccl, qlintavl, qtintavl) &
+      !$acc& reduction(max: qlintmaxl) private(qlint, qtint) async
+      do j = 2, j1
+        do i = 2, i1
+          qlint = 0.
+          qtint = 0.
+          !$acc loop reduction(+: qlint, qtint)
+          do k = 1, kmax
+            qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
+            qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
+          end do
+          if (qlint > 0.) then
+            ccl = ccl + 1
+            qlintavl = qlintavl + qlint
+            qlintmaxl = max(qlint, qlintmaxl)
+          end if
+          qtintavl = qtintavl + qtint
+        end do
+      end do
+    end if
 
+    if (imicro > 0) then
+      !$acc parallel loop collapse(2) default(present) reduction(+:qrintavl) &
+      !$acc& private(qrint) async
+      do j = 2, j1
+        do i = 2, i1
+          qrint = 0.0
+          !$acc loop reduction(+: qrint)
+          do k = 1, kmax
+            qrint = qrint + sv0(i, j, k, iqr) * rhof(k) * dzf(k)
+          end do
+          qrintavl = qrintavl + qrint
+        end do
+      end do
+    end if
+
+    if (lhetero) then
+      do j = 2, j1
+        do i = 2, i1
+          patchy = patchynr(j)
+          patchx = patchxnr(i)
+          do k = 1, kmax
+            if (ql0(i,j,k) > 0.) then
+              zbaseavl = zbaseavl + zf(k)
+              zbaseminl = min(zf(k),zbaseminl)
+              zbase_field(i,j) = zf(k)
+              zbasemin_patchl(patchx,patchy) = min(zbasemin_patchl(patchx,patchy),zf(k))
+              exit
+            end if
+          end do
+        end do
+      end do
+    else
+      !$acc parallel loop collapse(2) default(present) reduction(+: zbaseavl) reduction(min: zbaseminl) async
+      do j = 2, j1
+        do i = 2, i1
+          !$acc loop seq
+          do k = 1, kmax
+            if (ql0(i,j,k) > 0.) then
+              zbaseavl = zbaseavl + zf(k)
+              zbaseminl = min(zf(k),zbaseminl)
+              exit
+            end if
+          end do
+        end do
+      end do
+    end if
+
+  !     ---------------------------------------
+  !     9.3  determine maximum ql_max and w_max
+  !     ---------------------------------------
+
+    wmaxl  = 0.0
+    qlmaxl = 0.0
+    ztopavl = 0.0
+    ztopmaxl = 0.0
+
+    if (lhetero) then
+      do j = 2, j1
+        do i = 1, i1
+          patchy = patchynr(j)
+          patchx = patchxnr(i)
+          ztop = 0.0
+          do k = 1, kmax
+            if (ql0(i,j,k) > 0.0) then
+              ztop = zf(k)
+              ztop_field(i,j) = zf(k)
+            end if
+            wmaxl = max(w0(i,j,k),wmaxl)
+            qlmaxl = max(ql0(i,j,k),qlmaxl)
+            wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),w0 (i,j,k))
+            qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
+          end do
+          ztopavl = ztopavl + ztop
+          if (ztop> ztopmaxl) ztopmaxl = ztop
+          ztop_field = ztop
+          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop
+        end do
+      end do
+    else
+      !$acc parallel loop collapse(2) default(present) reduction(+:ztopavl) private(ztop)
+      do j = 2, j1
+        do i = 2, i1
+          ztop = 0.0
+          !$acc loop seq
+          do k = 1, kmax
+            if (ql0(i,j,k) > 0.0) then
+              ztop = zf(k)
+            endif
+            wmaxl = max(w0(i,j,k), wmaxl)
+            qlmaxl = max(ql0(i,j,k), qlmaxl)
+          end do
+          ztopavl = ztopavl + ztop
+          if (ztop > ztopmaxl) ztopmaxl = ztop
+        end do
+      end do
+    end if
+
+  !     -------------------------
+  !     9.5  Domain Averaged TKE
+  !     -------------------------
+
+    !$acc parallel loop collapse(3) default(present) reduction(+: tke_totl) async
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          tke_totl = tke_totl + 0.5*( &
+                              (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av(k))**2 &
+                              +(0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av(k))**2 &
+                              +(0.5*(w0(i,j,k)+w0(i,j,k+1))           )**2 &
+                                    ) + e120(i,j,k)**2
+        end do
       end do
     end do
 
+    if (lhetero) then
+      do k = 1, kmax
+        u0av_patch = patchsum_1level_field_r(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        v0av_patch = patchsum_1level_field_r(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        w0av_patch = patchsum_1level_field_r(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
+        do j = 2, j1
+          do i = 2, i1
+            patchy = patchynr(j)
+            patchx = patchxnr(i)
+
+            tke_tot_field(i,j) = tke_tot_field(i,j) + 0.5*( &
+                                     (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
+                                     (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
+                                     (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
+                                         ) + e120(i,j,k)**2
+          end do
+        end do
+      end do
+      tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
+    end if
+
+
+
+!     -------------------------
+!     9.6  Horizontally  Averaged ustar, tstar and obl
+!     -------------------------
+    !$acc kernels default(present) async
+    ustl=sum(ustar(2:i1,2:j1))
+    tstl=sum(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1))
+    qstl=sum(- qtflux (2:i1,2:j1) / ustar(2:i1,2:j1))
+    !$acc end kernels
+
+    if(isurf < 3) then
+      !$acc kernels default(present) async
+      thlfluxl = sum(thlflux(2:i1, 2:j1))
+      qtfluxl  = sum(qtflux (2:i1, 2:j1))
+      !$acc end kernels
+    end if
+
+  ! -----------------------------------
+  ! 9.7 Communication and normalisation
+  ! -----------------------------------
+    !$acc wait
     call D_MPI_ALLREDUCE(ccl   , cc   , 1,       &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlintavl, qlintav, 1  , &
@@ -565,48 +736,6 @@ contains
       call D_MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches, MPI_MIN, comm3d,mpierr)
     endif
-  !     ---------------------------------------
-  !     9.3  determine maximum ql_max and w_max
-  !     ---------------------------------------
-
-    wmaxl  = 0.0
-    qlmaxl = 0.0
-    ztopavl = 0.0
-    ztopmaxl = 0.0
-
-    do  j=2,j1
-      if (lhetero) then
-        patchy = patchynr(j)
-      endif
-      do  i=2,i1
-        if (lhetero) then
-          patchx = patchxnr(i)
-        endif
-         ztop  = 0.0
-
-         do  k=1,kmax
-           if (ql0(i,j,k) > 0) ztop = zf(k)
-           wmaxl = max(w0(i,j,k),wmaxl)
-           qlmaxl = max(ql0(i,j,k),qlmaxl)
-         end do
-
-         if (lhetero) then
-         do  k=1,kmax
-            if (ql0(i,j,k) > 0) ztop_field(i,j) = zf(k)
-            wmax_patchl(patchx,patchy)  = max(wmax_patchl (patchx,patchy),w0 (i,j,k))
-            qlmax_patchl(patchx,patchy) = max(qlmax_patchl(patchx,patchy),ql0(i,j,k))
-         enddo
-         endif
-
-        ztopavl = ztopavl + ztop
-        if (ztop > ztopmaxl) ztopmaxl = ztop
-
-        if (lhetero) then
-          ztop_field = ztop
-          if (ztop > ztopmax_patchl(patchx,patchy)) ztopmax_patchl(patchx,patchy) = ztop
-        endif
-      end do
-    end do
 
     call D_MPI_ALLREDUCE(wmaxl   , wmax   , 1,   &
                           MPI_MAX, comm3d,mpierr)
@@ -623,19 +752,16 @@ contains
       call D_MPI_ALLREDUCE(ztopmax_patchl, ztopmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       ztop_patch = patchsum_1level(ztop_field)
     endif
-  !     -------------------------
-  !     9.4  normalise the fields
-  !     -------------------------
 
     if (cc > 0.0) then
-      zbaseav = zbaseav/cc
-      ztopav  = ztopav/cc
+      zbaseav = zbaseav / cc
+      ztopav  = ztopav / cc
     else
       zbaseav = 0.0
       ztopav = 0.0
     end if
 
-    cc      = cc/ijtot
+    cc      = cc / ijtot
     qlintav = qlintav / ijtot !domain averaged liquid water path
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
@@ -657,65 +783,21 @@ contains
       enddo
     endif
 
-  !     -------------------------
-  !     9.5  Domain Averaged TKE
-  !     -------------------------
-
-    do  k=1,kmax
-      if (lhetero) then
-        u0av_patch = patchsum_1level_field_r(u0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        v0av_patch = patchsum_1level_field_r(v0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-        w0av_patch = patchsum_1level_field_r(w0(2:i1,2:j1,k)) * (xpatches*ypatches/ijtot)
-      endif
-      do  j=2,j1
-        if (lhetero) then
-          patchy = patchynr(j)
-        endif
-      do  i=2,i1
-        if (lhetero) then
-          patchx = patchxnr(i)
-        endif
-
-        tke_totl = tke_totl + ( &
-             0.5*( &
-              (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av(k))**2 &
-             +(0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av(k))**2 &
-             +(0.5*(w0(i,j,k)+w0(i,j,k+1))           )**2 &
-             ) + e120(i,j,k)**2                           &
-             ) * dzf(k) * rhof(k)
-
-        if (lhetero) then
-           tke_tot_field(i,j) = tke_tot_field(i,j) + ( &
-                0.5*( &
-                (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
-                (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
-                (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
-                ) + e120(i,j,k)**2                                            &
-                ) * dzf(k) * rhof(k)
-        endif
-      end do
-      end do
-    end do
-
     call D_MPI_ALLREDUCE(tke_totl, tke_tot, 1,   &
                           MPI_SUM, comm3d,mpierr)
 
-    tke_tot = tke_tot/ijtot
-
-    if (lhetero) then
-      tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
-    endif
-
-!     -------------------------
-!     9.6  Horizontally  Averaged ustar, tstar and obl
-!     -------------------------
-    ustl=sum(ustar(2:i1,2:j1))
-    tstl=sum(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1))
-    qstl=sum(- qtflux (2:i1,2:j1) / ustar(2:i1,2:j1))
+    tke_tot = tke_tot / ijtot
 
     call D_MPI_ALLREDUCE(ustl, ust, 1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(tstl, tst, 1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qstl, qst, 1, MPI_SUM, comm3d,mpierr)
+
+    if (isurf < 3) then
+      call D_MPI_ALLREDUCE(thlfluxl, usttst, 1, MPI_SUM, comm3d,mpierr)
+      call D_MPI_ALLREDUCE(qtfluxl,  ustqst, 1, MPI_SUM, comm3d,mpierr)
+      usttst = -usttst / ijtot
+      ustqst = -ustqst / ijtot
+    end if
 
     ust = ust / ijtot
     tst = tst / ijtot
@@ -726,17 +808,6 @@ contains
       tst_patch = patchsum_1level(- thlflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
       qst_patch = patchsum_1level(-  qtflux(2:i1,2:j1) / ustar(2:i1,2:j1)) * (xpatches*ypatches/ijtot)
     endif
-
-    if(isurf < 3) then
-      thlfluxl = sum(thlflux(2:i1, 2:j1))
-      qtfluxl  = sum(qtflux (2:i1, 2:j1))
-
-      call D_MPI_ALLREDUCE(thlfluxl, usttst, 1, MPI_SUM, comm3d,mpierr)
-      call D_MPI_ALLREDUCE(qtfluxl,  ustqst, 1, MPI_SUM, comm3d,mpierr)
-
-      usttst = -usttst / ijtot
-      ustqst = -ustqst / ijtot
-    end if
 
     !Constants c1 and c2
     c1   = 1.+(rv/rd-1)*qts
@@ -764,7 +835,7 @@ contains
       obl_patch  = patchsum_1level(obl(2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
     endif
 
-  !  9.7  Create statistics for the land surface scheme
+  !  9.8  Create statistics for the land surface scheme
     if(isurf == 1) then
       Qnetavl      = sum(Qnet(2:i1,2:j1))
       Havl         = sum(H(2:i1,2:j1))
@@ -1022,6 +1093,8 @@ contains
 
     end if
 
+    call timer_toc('modtimestat/timestat')
+
   end subroutine timestat
 
 !>Calculate the boundary layer height
@@ -1038,165 +1111,195 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : mpierr, comm3d,mpi_sum, D_MPI_ALLREDUCE
     use advec_kappa,only : halflev_kappa
+
     implicit none
-    real    :: zil, dhdt,locval,oldlocval
-    integer :: location,i,j,k,nsamp,stride
-    real, allocatable,dimension(:,:,:) :: blh_fld, blh_fld2
-    real(field_r), allocatable,dimension(:,:,:) :: sv0h
-    real, allocatable, dimension(:) :: profile, gradient, dgrad
-    allocate(blh_fld(2-ih:i1+ih,2-jh:j1+jh,k1),sv0h(2-ih:i1+ih,2-jh:j1+jh,k1))
-    allocate(profile(k1),gradient(k1),dgrad(k1))
+
+    real    :: zil, dhdt, locval, oldlocval
+    integer :: location, i, j, k, nsamp, stride
+    real, allocatable,dimension(:,:,:) :: blh_fld2
+
+
     if (lhetero) then
       allocate(blh_fld2(2:i1,2:j1,k1))
     endif
+
     zil = 0.0
-    gradient = 0.0
-    dgrad = 0.0
+    !$acc kernels default(present)
+    gradient(:) = 0.0
+    dgrad(:) = 0.0
+    !$acc end kernels
+
     select case (iblh_meth)
-    case (iblh_flux)
-      select case (iblh_var)
-      case(iblh_qt)
-        blh_fld = w0*qt0h
-      case(iblh_thl)
-        blh_fld = w0*thl0h
-      case(iblh_thv)
-        blh_fld = w0*thv0h
-      case(1:)
-        if (iadv_sv(iblh_var)==iadv_kappa) then
-          call halflev_kappa(sv0(:,:,:,iblh_var),sv0h)
-        else
-          do  k=2,k1
-          do  j=2,j1
-          do  i=2,i1
-            sv0h(i,j,k) = (sv0(i,j,k,iblh_var)*dzf(k-1)+sv0(i,j,k-1,iblh_var)*dzf(k))/(2*dzh(k))
-          enddo
-          enddo
-          enddo
-          sv0h(2:i1,2:j1,1) = svs(iblh_var)
-          blh_fld = w0*sv0h
-        end if
-      end select
-    case (iblh_grad,iblh_thres)
-      select case (iblh_var)
-      case(iblh_qt)
-        blh_fld = qt0
-      case(iblh_thl)
-        blh_fld = thl0
-      case(iblh_thv)
-        do k=1,k1
-          blh_fld(2:i1,2:j1,k) = (thl0(2:i1,2:j1,k)+rlv*ql0(2:i1,2:j1,k)/(cp*exnf(k))) &
-                      *(1+(rv/rd-1)*qt0(2:i1,2:j1,k)-rv/rd*ql0(2:i1,2:j1,k))
-        end do
-      case(1:)
-        blh_fld = sv0(2:i1,2:j1,1:k1,iblh_var)
-      end select
+      case (iblh_flux)
+        select case (iblh_var)
+          case(iblh_qt)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = w0(:,:,:)*qt0h(:,:,:)
+            !$acc end kernels
+          case(iblh_thl)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = w0(:,:,:)*thl0h(:,:,:)
+            !$acc end kernels
+          case(iblh_thv)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = w0(:,:,:)*thv0h(:,:,:)
+            !$acc end kernels
+          case(1:)
+            if (iadv_sv(iblh_var) == iadv_kappa) then
+              call halflev_kappa(sv0(:,:,:,iblh_var),sv0h)
+              !$acc kernels default(present)
+              sv0h(2:i1,2:j1,1) = svs(iblh_var)
+              blh_fld(:,:,:) = w0(:,:,:)*sv0h(:,:,:)
+              !$acc end kernels
+            else
+              !$acc kernels default(present)
+              do k = 2, k1
+                do j = 2, j1
+                  do i = 2, i1
+                    sv0h(i,j,k) = (sv0(i,j,k,iblh_var)*dzf(k-1)+sv0(i,j,k-1,iblh_var)*dzf(k))/(2*dzh(k))
+                  enddo
+                enddo
+              enddo
+              sv0h(2:i1,2:j1,1) = svs(iblh_var)
+              blh_fld(:,:,:) = w0(:,:,:)*sv0h(:,:,:)
+              !$acc end kernels
+            end if
+        end select
+
+      case (iblh_grad,iblh_thres)
+        select case (iblh_var)
+          case(iblh_qt)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = qt0(:,:,:)
+            !$acc end kernels
+          case(iblh_thl)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = thl0(:,:,:)
+            !$acc end kernels
+          case(iblh_thv)
+            !$acc parallel loop collapse(3) default(present) async
+            do k = 1, k1
+              do j = 2, j1
+                do i = 2, i1
+                  blh_fld(i,j,k) = (thl0(i,j,k)+rlv*ql0(i,j,k)/(cp*exnf(k))) &
+                                   *(1+(rv/rd-1)*qt0(i,j,k)-rv/rd*ql0(i,j,k))
+                end do
+              end do
+            end do
+          case(1:)
+            !$acc kernels default(present)
+            blh_fld(:,:,:) = sv0(2:i1,2:j1,1:k1,iblh_var)
+            !$acc end kernels
+        end select
+
     end select
 
     select case (iblh_meth)
-
-    case (iblh_flux)
-      stride = ceiling(real(imax)/real(blh_nsamp))
-      do i=2,stride+1
-        nsamp =  ceiling(real(i1-i+1)/real(stride))
-        do j=2,j1
-          zil = zil + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
+      case (iblh_flux)
+        stride = ceiling(real(imax)/real(blh_nsamp))
+        !$acc parallel loop collapse(2) default(present) reduction(+:zil) async
+        do i = 2, stride+1
+          do j = 2, j1
+            nsamp =  ceiling(real(i1-i+1)/real(stride))
+            zil = zil + nsamp*zh(minloc(sum(blh_fld(i:i1:stride,j,:),1),1))
+          end do
         end do
-      end do
 
-    case (iblh_grad)
-      stride = ceiling(real(imax)/real(blh_nsamp))
-      do i=2,stride+1
-        nsamp =  ceiling(real(i1-i+1)/real(stride))
-        do j=2,j1
-          profile  = sum(blh_fld(i:i1:stride,j,:),1)
-          select case (iblh_var)
-          case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
-            gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-          case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
-            gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-          case default
-            gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-          end select
-          dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
-          location = maxloc(gradient,1)
-          zil  = zil + nsamp*(zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-        enddo
-      enddo
-    case (iblh_thres)
-      stride = ceiling(real(imax)/real(blh_nsamp))
-      do i=2,stride+1
-        nsamp =  ceiling(real(i1-i+1)/real(stride))
-        do j=2,j1
-          locval = 0.0
-          do k=kmax,1,-1
-            oldlocval = locval
-            locval = blh_sign*sum(blh_fld(i:i1:stride,j,k))/nsamp
-            if (locval < blh_sign*blh_thres) then
-              zil = zil + nsamp *(zf(k) +  (blh_sign*blh_thres-locval) &
-                        *dzh(k+1)/(oldlocval-locval))
-              exit
-            endif
+      case (iblh_grad)
+        stride = ceiling(real(imax)/real(blh_nsamp))
+        !$acc parallel loop collapse(2) default(present) reduction(+:zil)
+        do i = 2, stride+1
+          do j = 2, j1
+            nsamp =  ceiling(real(i1-i+1)/real(stride))
+            profile(:) = sum(blh_fld(i:i1:stride,j,:),1)
+            select case (iblh_var)
+              case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
+                gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case default
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+            end select
+            dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
+            location = maxloc(gradient,1)
+            zil  = zil + nsamp*(zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
           enddo
         enddo
-      enddo
+
+      case (iblh_thres)
+        stride = ceiling(real(imax)/real(blh_nsamp))
+        do i=2,stride+1
+          nsamp =  ceiling(real(i1-i+1)/real(stride))
+          do j=2,j1
+            locval = 0.0
+            do k=kmax,1,-1
+              oldlocval = locval
+              locval = blh_sign*sum(blh_fld(i:i1:stride,j,k))/nsamp
+              if (locval < blh_sign*blh_thres) then
+                zil = zil + nsamp *(zf(k) +  (blh_sign*blh_thres-locval) &
+                          *dzh(k+1)/(oldlocval-locval))
+                exit
+              endif
+            enddo
+          enddo
+        enddo
 
     end select
 
     if (lhetero) then !Not using stride, instead use adjacent grid points in x-direction (to prevent processor communication)
 
       select case (iblh_meth)
+        case (iblh_flux)
+          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
 
-      case (iblh_flux)
-        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-        do i=2,i1
-          do j=2,j1
-            zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
+          do i=2,i1
+            do j=2,j1
+              zi_field(i,j) = zh(minloc(blh_fld2(i,j,:),1))
+            end do
           end do
-        end do
 
-      case (iblh_grad)
-        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+        case (iblh_grad)
+          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
 
-        do i=2,i1
-          do j=2,j1
-            profile  = blh_fld2(i,j,:)
-            select case (iblh_var)
-            case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
-              gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-            case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
-              gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-            case default
-              gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
-            end select
-            dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
-            location = maxloc(gradient,1)
-            zi_field(i,j) = (zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
-          enddo
-        enddo
-
-      case (iblh_thres)
-        blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
-        blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
-        blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
-
-        do i=2,i1
-          do j=2,j1
-            locval = 0.0
-            do k=kmax,1,-1
-              oldlocval = locval
-              locval = blh_sign*blh_fld2(i,j,k)/3
-              if (locval < blh_sign*blh_thres) then
-                zi_field(i,j) = (zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
-                exit
-              endif
+          do i=2,i1
+            do j=2,j1
+              profile  = blh_fld2(i,j,:)
+              select case (iblh_var)
+              case(iblh_qt) !Water vapour gradients near the inversion layer can be either positive or negative
+                gradient(2:k1) = abs(profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case(iblh_thl,iblh_thv) !temperature jumps near the inversion layer are always positive
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              case default
+                gradient(2:k1) = (profile(2:k1) - profile(1:kmax))/dzh(2:k1)
+              end select
+              dgrad(2:kmax)    = (gradient(3:k1) - gradient(2:kmax))/dzf(2:kmax)
+              location = maxloc(gradient,1)
+              zi_field(i,j) = (zh(location-1) - dzh(location)*dgrad(location-1)/(dgrad(location)-dgrad(location-1) + 1.e-8))
             enddo
           enddo
-        enddo
+
+        case (iblh_thres)
+          blh_fld2(2,2:j1,:)        = blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)        + blh_fld(3,2:j1,:)
+          blh_fld2(3:(i1-1),2:j1,:) = blh_fld(2:(i1-2),2:j1,:) + blh_fld(3:(i1-1),2:j1,:) + blh_fld(4:i1,2:j1,:)
+          blh_fld2(i1,2:j1,:)       = blh_fld(i1-1,2:j1,:)     + blh_fld(i1,2:j1,:)       + blh_fld(2,2:j1,:)
+
+          do i=2,i1
+            do j=2,j1
+              locval = 0.0
+              do k=kmax,1,-1
+                oldlocval = locval
+                locval = blh_sign*blh_fld2(i,j,k)/3
+                if (locval < blh_sign*blh_thres) then
+                  zi_field(i,j) = (zf(k) +  (blh_sign*blh_thres-locval) * dzh(k+1)/(oldlocval-locval))
+                  exit
+                endif
+              enddo
+            enddo
+          enddo
 
       end select
 
@@ -1221,23 +1324,23 @@ contains
 
     if (lhetero) then
       do j=1,ypatches
-      do i=1,xpatches
-        if (ziold_patch(i,j)<0) ziold_patch(i,j) = zi_patch(i,j)
-        k=2
-        do while (zh(k)<zi_patch(i,j) .and. k < kmax)
-          k=k+1
-        end do
-        we_patch(i,j) = ((zi_patch(i,j)-ziold_patch(i,j))/dtav) - whls(k)
-      enddo
+        do i=1,xpatches
+          if (ziold_patch(i,j)<0) ziold_patch(i,j) = zi_patch(i,j)
+          k=2
+          do while (zh(k)<zi_patch(i,j) .and. k < kmax)
+            k=k+1
+          end do
+          we_patch(i,j) = ((zi_patch(i,j)-ziold_patch(i,j))/dtav) - whls(k)
+        enddo
       enddo
       if(store_zi) ziold_patch = zi_patch
     endif
 
-    deallocate(blh_fld,sv0h)
     if (lhetero) then
       deallocate(blh_fld2)
     endif
-    deallocate(profile,gradient,dgrad)
+
+    !$acc wait
 
   end subroutine calcblheight
 
@@ -1249,6 +1352,12 @@ contains
     implicit none
 
     if(ltimestat .and. lnetcdf .and. myid==0) call exitstat_nc(ncid)
+    if(.not.ltimestat) return
+
+    !$acc exit data delete(blh_fld, sv0h, profile, gradient, dgrad)
+
+    deallocate(blh_fld,sv0h)
+    deallocate(profile,gradient,dgrad)
 
     if (lhetero) then
       deallocate(zbase_field  )

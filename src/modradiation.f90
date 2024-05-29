@@ -28,6 +28,7 @@
 
 module modradiation
 use modraddata
+use modtimer
 implicit none
 
 contains
@@ -50,6 +51,8 @@ contains
 
     namelist/NAMRTERRTMGP/ &
       nbatch, doclearsky, usepade
+
+    call timer_tic('modradiation/initradiation', 0)
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -182,19 +185,23 @@ contains
       rad_smoke  = .false.
     end if
 
-    if (iradiation == 0) return
+    !$acc enter data copyin(thlprad)
 
-    itimerad = floor(timerad/tres)
-    !setting tnext is done in modstartup, after btime has been set
-    !tnext = itimerad+btime
-    !dt_lim = min(dt_lim,tnext)
+    if (iradiation /= 0) then
+      itimerad = floor(timerad/tres)
+      !setting tnext is done in modstartup, after btime has been set
+      !tnext = itimerad+btime
+      !dt_lim = min(dt_lim,tnext)
 
-    if (rad_smoke.and.isvsmoke>nsv) then
-      if (rad_shortw) then
-         stop 'you want to compute solar radiative transfer through a smoke cloud'
+      if (rad_smoke.and.isvsmoke>nsv) then
+        if (rad_shortw) then
+           stop 'you want to compute solar radiative transfer through a smoke cloud'
+        endif
+        stop 'Smoke radiation with wrong (non-existent?) scalar field'
       endif
-      stop 'Smoke radiation with wrong (non-existent?) scalar field'
-    endif
+    end if
+
+    call timer_toc('modradiation/initradiation')
 
   end subroutine
 
@@ -215,11 +222,16 @@ contains
     if(timee<tnext .and. rk3step==3) then
       dt_lim = min(dt_lim,tnext-timee)
     end if
+    call timer_tic('modradiation/radiation', 0)
     if((itimerad==0 .or. timee>=tnext) .and. rk3step==1) then
       tnext = tnext+itimerad
 
       wtime = MPI_Wtime()
+
+      !$acc kernels default(present)
       thlprad = 0.0
+      !$acc end kernels
+
       select case (iradiation)
           case (irad_none)
           case (irad_full)
@@ -252,16 +264,24 @@ contains
          write (*,*) 'Radiation', timee, 'Time spent:', wtime, 's'
       end if
     end if
-
+    
+    !$acc kernels default(present)
     thlp = thlp + thlprad
+    !$acc end kernels
+
+    call timer_toc('modradiation/radiation')
+
   end subroutine
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine exitradiation
+    use modradrte_rrtmgp, only : exit_radrte_rrtmgp
     implicit none
+    !$acc exit data delete(thlprad)
     deallocate(thlprad,swd,swdir,swdif,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,lwc)
     deallocate(SW_up_TOA, SW_dn_TOA,LW_up_TOA,LW_dn_TOA, &
                SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA)
 
+    if(iradiation == irad_rte_rrtmgp) call exit_radrte_rrtmgp
   end subroutine exitradiation
 
 
@@ -489,9 +509,15 @@ subroutine radpar
   implicit none
   integer k
 
+  call timer_tic('modradiation/radprof', 1)
+    
+  !$acc kernels default(present)
   do k=1,kmax
     thlprad(2:i1,2:j1,k) = thlprad(2:i1,2:j1,k) + thlpcar(k)
   end do
+  !$acc end kernels
+
+  call timer_toc('modradiation/radprof')
 
   return
   end subroutine radprof

@@ -100,8 +100,8 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft
-  use modmpi,            only : initmpicomm
+  use modglobal,         only : rk3step,timeleft,is_starting
+  use modmpi,            only : initmpicomm!, myid
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
@@ -155,12 +155,28 @@ program DALES
   use modadvection,    only : advection
 
 
+!----------------------------------------------------------------
+!     0.2     USE STATEMENTS FOR TIMER MODULE
+!----------------------------------------------------------------
+
+  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write
+
+!----------------------------------------------------------------
+!     0.3     USE STATEMENTS FOR GPU UTILITIES
+!----------------------------------------------------------------
+
+#if defined(_OPENACC)
+  use modgpu, only: update_gpu, host_is_updated
+#endif
+
   implicit none
 
+  integer :: istep
+
+  ! Select CPU for execution of startup routines
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
-
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call initmpicomm
   call startup
@@ -199,13 +215,20 @@ program DALES
   !call initspectra2
   call initcape
 
+#if defined(_OPENACC)
+  call update_gpu
+#endif
+
+  ! Startup is done, set flag to false
+  is_starting = .false.
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
   call testwctime
-
+  istep = 1
   do while (timeleft>0 .or. rk3step < 3)
+    call timer_tic('program/timestep', istep)
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
     call timedep
@@ -305,16 +328,22 @@ program DALES
     call msebudg2
     !call stressbudgetstat
     call heterostats
-
+    
     call testwctime
     call writerestartfiles
-
+#if defined(_OPENACC)
+    host_is_updated = .false.
+#endif
+    call timer_toc('program/timestep')
+    istep = istep + 1
   end do
 
 !-------------------------------------------------------
 !             END OF TIME LOOP
 !-------------------------------------------------------
 
+  call timer_print
+  call timer_write
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
@@ -343,5 +372,6 @@ program DALES
   call exitcanopy
   call exittimestat
   call exitmodules
+
 
 end program DALES

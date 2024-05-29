@@ -91,6 +91,8 @@ save
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
+      !$acc declare copyin(rd, rv, pref0)
+
       logical :: lcoriol  = .true.  !<  switch for coriolis force
       logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
       integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
@@ -136,6 +138,8 @@ save
       real, dimension(-100:4000) :: mygamma251
       real, dimension(-100:4000) :: mygamma21
 
+      !$acc declare copyin(esatltab, esatitab, esatmtab)
+
       logical :: lmoist   = .true.  !<   switch to calculate moisture fields
       logical :: lnoclouds = .false. !<   switch to enable/disable thl calculations
       logical :: lfast_thermo = .false. !<   switch to enable faster icethermo scheme
@@ -167,7 +171,6 @@ save
       real :: dqt               !<     * applied gradient of qt at top of model
       real :: dtheta            !<     * applied gradient of theta at top of model
       real,allocatable :: dsv(:)          !<     * applied gradient of sv(n) at top of model
-    !<     real :: dsv(nsv)          !<     * applied gradient of sv(n) at top of model
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real(field_r) :: rdt                !<     * time integration interval
@@ -223,6 +226,9 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
+
+      logical :: is_starting = .true. !< flag for knowing if a routine is called during startup
+
       character(80) :: author='', version='DALES 4.4.2'
 contains
 
@@ -235,6 +241,7 @@ contains
 
     integer :: advarr(4)
     real phi, colat, silat, omega, omega_gs
+    real :: ilratio
     integer :: k, n, m, ierr
     character(80) chmess
 
@@ -323,11 +330,26 @@ contains
 
     ! Global constants
 
+    ! esatltab(m) gives the saturation vapor pressure over water at T corresponding to m
+    ! esatitab(m) is the same over ice
+    ! esatmtab(m) is interpolated between the ice and liquid values with ilratio
+    ! http://www.radiativetransfer.org/misc/atmlabdoc/atmlab/h2o/thermodynamics/e_eq_water_mk.html
+    ! Murphy and Koop 2005 parameterization formula.
+    do m=1,2000
+      ttab(m)=150.+0.2*m
+      esatltab(m)=exp(54.842763-6763.22/ttab(m)-4.21*log(ttab(m))+0.000367*ttab(m)+&
+           tanh(0.0415*(ttab(m)-218.8))*(53.878-1331.22/ttab(m)-9.44523*log(ttab(m))+ 0.014025*ttab(m)))
+
+      esatitab(m)=exp(9.550426-5723.265/ttab(m)+3.53068*log(ttab(m))-0.00728332*ttab(m))
+      ilratio = max(0.,min(1.,(ttab(m)-tdn)/(tup-tdn)))
+      esatmtab(m) = ilratio*esatltab(m) + (1-ilratio)*esatitab(m)
+    end do
+
     mygamma251(-100)=0.
     mygamma21(-100)=0.
     do m=-99,4000
-    mygamma251(m)=max(lacz_gamma(m/100._dp+2.5_dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
-    mygamma21(m)=max(lacz_gamma(m/100._dp+2._dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
+      mygamma251(m)=max(lacz_gamma(m/100._dp+2.5_dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./2.) ),0.)
+      mygamma21(m)=max(lacz_gamma(m/100._dp+2._dp)/lacz_gamma(m/100._dp+1._dp)*( ((m/100.+3)*(m/100.+2)*(m/100.+1))**(-1./3.) ),0.)
     end do
 
     ! Select advection scheme for scalars. If not set in the options file, the momentum scheme is used
@@ -369,7 +391,6 @@ contains
     allocate(zh(k1))
     allocate(zf(k1))
     allocate(delta(k1),deltai(k1))
-
 
     ijtot = real(itot*jtot)
 
@@ -479,9 +500,15 @@ contains
 !     tnextrestart = trestart/tres
 !     timeleft=ceiling(runtime/tres)
 
+    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, rd, rv, &
+    !$acc&                  dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
+    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, rd, rv, &
+    !$acc&                 dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+
     deallocate(dsv,dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
 

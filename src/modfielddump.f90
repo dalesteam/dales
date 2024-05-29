@@ -273,6 +273,9 @@ contains
     use modmicrodata, only : iqr, imicro, imicro_none, tuprsg, tdnrsg
     use modraddata, only   :lwu,lwd,swu,swd
     use modthermodynamics, only: qsat_tab
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     integer(KIND=selected_int_kind(4)), allocatable :: field(:,:,:)
@@ -295,6 +298,16 @@ contains
 
     ! Only write fields if time is in the range (tmin, tmax)
     if (timee < itmin .or. timee > itmax) return
+
+    !$acc update self(u0) if(lu) async
+    !$acc update self(v0) if(lv) async
+    !$acc update self(w0) if(lw) async
+    !$acc update self(qt0) if(lqt) async
+    !$acc update self(ql0) if(lql) async
+    !$acc update self(thl0) if(lthl) async
+    !$acc update self(sv0) if(any(lsv)) async
+    !$acc update self(thv0h, thvh) if(lbuoy) async
+    !$acc wait    
 
     if (lbinary) allocate(field(2-ih:i1+ih,2-jh:j1+jh,k1))
     if (lnetcdf) allocate(vars(ceiling(1.0*imax/ncoarse),ceiling(1.0*jmax/ncoarse),khigh-klow+1,nvar))

@@ -96,6 +96,7 @@ save
   real(field_r), allocatable :: dthldyls(:)                   !<   large scale y-gradient of th_liq
   real(field_r), allocatable :: dthldtls(:)                   !<   large scale tendency of thl
 
+
   real(field_r), allocatable :: dqtdxls(:)                    !<   large scale x-gradient of q_tot
   real(field_r), allocatable :: dqtdyls(:)                    !<   large scale y-gradient of q_tot
   real(field_r), allocatable :: dqtdtls(:)                    !<   large scale tendency of q_tot
@@ -121,13 +122,13 @@ save
   real(field_r), allocatable :: svprof(:,:)                 !<   initial sv(n)-profile
 
   real(field_r), allocatable :: thlpcar(:)                    !< prescribed radiatively forced thl tendency
-  real(field_r), allocatable :: SW_up_TOA(:,:), SW_dn_TOA(:,:), LW_up_TOA(:,:), LW_dn_TOA(:,:)
   real(field_r), allocatable :: qvsl(:,:,:)
   real(field_r), allocatable :: qvsi(:,:,:)
   real(field_r), allocatable :: esl(:,:,:)
 
   real(field_r), allocatable :: qsat(:,:,:)
   real(field_r), allocatable :: surf_rain(:,:)               !< integrated surface rain 
+
 
 contains
 !> Allocate and initialize the prognostic variables
@@ -224,11 +225,6 @@ subroutine initfields
     allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
 
-    allocate(SW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(SW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_up_TOA(2-ih:i1+ih,2-jh:j1+jh))
-    allocate(LW_dn_TOA(2-ih:i1+ih,2-jh:j1+jh))
-
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
              ,qvsi(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-ice
              ,esl (2-ih:i1+ih,2-jh:j1+jh,k1)    & ! es-liquid
@@ -256,16 +252,40 @@ subroutine initfields
     dudxls=0.;dudyls=0.;dudtls=0.
     dvdxls=0.;dvdyls=0.;dvdtls=0.
     dthvdz=0.
-    SW_up_TOA=0.;SW_dn_TOA=0.;LW_up_TOA=0.;LW_dn_TOA=0.
     qvsl=0.;qvsi=0.;esl=0.
     qsat=0.
 
     surf_rain = 0
+
+    !$acc enter data copyin(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$acc&                  thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$acc&                  e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&                  rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&                  thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$acc&                  thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$acc&                  u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&                  wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&                  dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$acc&                  dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$acc&                  dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
+
   end subroutine initfields
 
 !> Deallocate the fields
   subroutine exitfields
   implicit none
+    !$acc exit data delete(um, u0, up, vm, v0, vp, wm, w0, wp, &
+    !$acc&                 thlm, thl0, thlp, qtm, qt0, qtp, &
+    !$acc&                 e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&                 rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
+    !$acc&                 thl0h, qt0h, presf, presh, exnf, exnh, &
+    !$acc&                 thvh, thvf, rhof, qt0av, ql0av, thl0av, &
+    !$acc&                 u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&                 wfls, whls, thlpcar, dthldxls, dthldyls, &
+    !$acc&                 dthldtls, dqtdxls, dqtdyls, dqtdtls, &
+    !$acc&                 dudxls, dudyls, dudtls, dvdxls, dvdyls, &
+    !$acc&                 dvdtls, dthvdz, qvsl, qvsi, esl, qsat)
+
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,thlp,e12p,qtp)
     deallocate(svm,sv0,svp)
@@ -277,7 +297,6 @@ subroutine initfields
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
     deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
     deallocate(thlpcar)
-    deallocate(SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)
     deallocate(surf_rain)

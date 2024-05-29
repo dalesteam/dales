@@ -79,6 +79,9 @@ contains
     use modglobal, only : imax,i1,jmax,j1,kmax, rk3step,dt_lim,timee,rtimee, cexpnr,ifoutput
     use modfields, only : w0,ql0
     use modmpi,    only : cmyid
+#if defined(_OPENACC)
+    use modgpu, only: update_host
+#endif
     implicit none
 
     integer  :: ncl
@@ -94,6 +97,10 @@ contains
     end if
     tnext = tnext+idtav
     dt_lim = minval((/dt_lim,tnext-timee/))
+
+#if defined(_OPENACC)
+    call update_host
+#endif
 
     ncl  = imax*jmax*kmax
     allocate (ipos(ncl),jpos(ncl),kpos(ncl),wcl(ncl),qlcl(ncl))

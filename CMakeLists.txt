@@ -57,6 +57,20 @@ elseif("$ENV{SYST}" STREQUAL "FX-Fujitsu")
    #        128 gives good speedup
    # -Koptmsg=2 prints a lot of optimization information
    #
+
+# nVidia Fortran compiler
+elseif("$ENV{SYST}" STREQUAL "NV-OpenACC")
+    set(CMAKE_Fortran_COMPILER "mpif90")
+    set(CMAKE_Fortran_FLAGS "-W -Wall -acc=gpu,host -cuda -Minfo=accel -gpu=cc80,fastmath -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -O3 -g -traceback" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
+    add_compile_definitions(DALES_GPU)
+elseif("$ENV{SYST}" STREQUAL "NV-multicore")
+    set(CMAKE_Fortran_COMPILER "mpif90")
+    # Includes (temporary) flags for linking to nVidia-built NetCDF
+    set(CMAKE_Fortran_FLAGS "-W -Wall -acc=multicore -Minfo=accel -Mpreprocess -Mr8 -Mfree -Werror" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_RELEASE "-Munroll -Ofast -g -traceback" CACHE STRING "")
+    set(CMAKE_Fortran_FLAGS_DEBUG "-Minit-real=snan -traceback -O0 -g -ffpe-trap=invalid,zero,overflow" CACHE STRING "")
 elseif("$ENV{SYST}" STREQUAL "NO_OVERRIDES")
    # don't set any compilation flags here, allows setting them outside CMake
 else()
@@ -88,7 +102,6 @@ execute_process(COMMAND nf-config --prefix OUTPUT_VARIABLE NFCONFIG_PREFIX OUTPU
 execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_DIR OUTPUT_STRIP_TRAILING_WHITESPACE)
 # execute_process(COMMAND nf-config --flibs OUTPUT_VARIABLE NFCONFIG_FORTRAN_LIB OUTPUT_STRIP_TRAILING_WHITESPACE)
 # not used at the moment - not just a path but several compiler flags
-
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
 #execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
@@ -173,6 +186,12 @@ FIND_LIBRARY(FFTWF_LIB fftw3f
   DOC "FFTW single precision library"
 )
 
+#FIND_LIBRARY(NVTX_LIB nvToolsExt
+#  PATHS
+#  $ENV{NVTX_LIB}
+#  DOC "NVTX library"
+#)
+
 if(NETCDF_INCLUDE_DIR)
   include_directories(${NETCDF_INCLUDE_DIR})
 else(NETCDF_INCLUDE_DIR)
@@ -203,6 +222,8 @@ OPTION(USE_HYPRE "Also build iterative solver (optional, needs HYPRE)" OFF)
 ### FFTW based poisson solver (FFTW)
 OPTION(USE_FFTW "Also build FFTW based poisson solver (optional, needs FFTW3)" OFF)
 
+### NVTX
+OPTION(USE_NVTX "Enable GPU profiling" OFF)
 
 ### Documentation
 INCLUDE(FindDoxygen)
@@ -239,6 +260,30 @@ if(USE_FFTW)
   list(APPEND OPTIONAL_LIBS ${FFTW_LIB} ${FFTWF_LIB})
 	set(opt_flags "${opt_flags} -DUSE_FFTW")
 endif(USE_FFTW)
+# Flags for linking to custom netcdf
+if(NETCDF_C_LIB)
+    set(opt_flags "${opt_flags} -L${NETCDF_C_LIB} -lnetcdf")
+endif(NETCDF_C_LIB)
+if(NETCDF_FORTRAN_LIB)
+    set(opt_flags "${opt_flags} -L${NETCDF_FORTRAN_LIB} -lnetcdff")
+endif(NETCDF_FORTRAN_LIB)
+
+# Find CUDA Toolkit and set flags
+if("$ENV{SYST}" STREQUAL "NV-OpenACC")
+  include(FindCUDAToolkit REQUIRED)
+  include_directories(${CUDAToolkit_INCLUDE_DIRS})
+  set(opt_flags "${opt_flags} -cudalib=cufft")
+  if(USE_NVTX)
+    set(opt_flags "${opt_flags} -DUSE_NVTX -lnvToolsExt")
+  endif(USE_NVTX)
+endif()
+
+if("$ENV{SYST}" STREQUAL "NV-multicore")
+  include(FindCUDAToolkit REQUIRED)
+  include_directories(${CUDAToolkit_INCLUDE_DIRS})
+  set(opt_flags "${opt_flags} -cudalib=cufft")
+endif()
+
 
 ### Precision 
 set(POIS_PRECISION 64 CACHE STRING  "Precision for poisson solver (default 64 bit) [32,64]")
