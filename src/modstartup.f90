@@ -921,37 +921,35 @@ contains
     if (myid == 0) write(6,*) 'loading ',name
     open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
 
-      read(ifinput)  (((u0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-!       u0 = u0-cu
-      read(ifinput)  (((v0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-!       v0 = v0-cv
-      read(ifinput)  (((w0    (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((thl0  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((qt0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ql0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ql0h  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((e120  (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((dthvdz(i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ekm   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((ekh   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((tmp0   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((esl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((qvsl   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)  (((qvsi   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-      read(ifinput)   ((ustar (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((thlflux (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((qtflux  (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((dthldz(i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((dqtdz (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)  (  presf (    k)                            ,k=1,k1)
-      read(ifinput)  (  presh (    k)                            ,k=1,k1)
-      read(ifinput)  (  initial_presf (    k)                            ,k=1,k1)
-      read(ifinput)  (  initial_presh (    k)                            ,k=1,k1)
-      read(ifinput)  ps,thls,qts,thvs,oblav
-      read(ifinput)  dtheta,dqt,timee,dt,tres
-      read(ifinput)   ((obl (i,j  ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((tskin(i,j ),i=1,i2      ),j=1,j2      )
-      read(ifinput)   ((qskin(i,j ),i=1,i2      ),j=1,j2      )
+      read(ifinput) (((u0     (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1) !       u0 = u0-cu
+      read(ifinput) (((v0     (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1) !       v0 = v0-cv
+      read(ifinput) (((w0     (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((thl0   (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((qt0    (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((ql0    (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((ql0h   (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((e120   (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((dthvdz (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((ekm    (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((ekh    (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((tmp0   (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((esl    (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((qvsl   (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) (((qvsi   (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
+      read(ifinput) ((ustar   (i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((thlflux (i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((qtflux  (i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((dthldz  (i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((dqtdz   (i,j), i=1,i2), j=1,j2)
+      read(ifinput) (presf (k), k=1,k1)
+      read(ifinput) (presh (k), k=1,k1)
+      read(ifinput) (initial_presf (k), k=1,k1)
+      read(ifinput) (initial_presh (k), k=1,k1)
+      read(ifinput) ps, thls, qts, thvs, oblav
+      read(ifinput) dtheta, dqt, timee, dt, tres
+      read(ifinput) ((obl   (i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((tskin (i,j), i=1,i2), j=1,j2)
+      read(ifinput) ((qskin (i,j), i=1,i2), j=1,j2)
 
 !!!!! radiation quantities
       read(ifinput)  tnext_radiation
