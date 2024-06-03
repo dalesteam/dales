@@ -464,8 +464,8 @@ contains
       do j = 1, jh
         do i = 1, xl
           ii = i + (j-1)*xl + (k-1)*xl*jh
-          sends(ii) = a(sx-ih+i-1,ey-jh+j,k)
-          sendn(ii) = a(sx-ih+i-1,sy+j-1,k)
+          sendn(ii) = a(sx-ih+i-1,ey-jh+j,k)
+          sends(ii) = a(sx-ih+i-1,sy+j-1,k)
         end do
       end do
     end do
