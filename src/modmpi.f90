@@ -1394,7 +1394,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,5))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1436,7 +1436,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,4))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1473,7 +1473,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,3))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1506,7 +1506,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,2))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1544,7 +1544,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,5))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1586,7 +1586,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,4))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1623,7 +1623,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,3))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
@@ -1656,7 +1656,7 @@ contains
     integer :: i,j,k
 
     allocate(sum2d(kf-ks+1,2))
-
+    sum2d = 0
     do k = kbs, kes
       do j = jbs, jes
         do i = ibs, ies
