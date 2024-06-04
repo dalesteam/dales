@@ -906,24 +906,152 @@ contains
                            SW_up_ca_TOA, SW_dn_ca_TOA, LW_up_ca_TOA, LW_dn_ca_TOA
     use modfields, only : u0, v0, w0, thl0, qt0, ql0, ql0h, e120, dthvdz, presf, presh, &
                           initial_presf, initial_presh, sv0, tmp0, esl, qvsl, qvsi
-    use modglobal, only : i1, i2, ih, j1, j2, jh, k1, dtheta, dqt, dsv, startfile, timee,&
+    use modglobal, only : i1, i2, ih, j1, j2, jh, k1, imax, jmax, dtheta, dqt, dsv, startfile, timee, &
                           tres, ifinput, nsv, dt, output_prefix, lfrom_netcdf
     use modmpi, only : myid, cmyid, myidx, myidy
     use modsubgriddata, only : ekm, ekh
     use netcdf
 
     character(50) :: name
-    integer i,j,k,n
-    !********************************************************************
+    integer :: i, j, k, n
+    integer :: ncid, varid
 
-  !    1.0 Read initfiles
-  !-----------------------------------------------------------------
+    !********************************************************************
+    !
+    !    1.0 Read initfiles
+    !-----------------------------------------------------------------
+
+    if ( lfrom_netcdf ) then
+      call check(nf90_open('init.nc', NF90_NOWRITE, ncid))
+
+      call check(nf90_inq_varid(ncid, 'u0', varid))
+      call check(nf90_get_var(ncid, varid, u0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'v0', varid))
+      call check(nf90_get_var(ncid, varid, v0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'w0', varid))
+      call check(nf90_get_var(ncid, varid, w0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'thl0', varid))
+      call check(nf90_get_var(ncid, varid, thl0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'qt0', varid))
+      call check(nf90_get_var(ncid, varid, qt0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'ql0', varid))
+      call check(nf90_get_var(ncid, varid, ql0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'ql0h', varid))
+      call check(nf90_get_var(ncid, varid, ql0h(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'e120', varid))
+      call check(nf90_get_var(ncid, varid, e120(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'dthvdz', varid))
+      call check(nf90_get_var(ncid, varid, dthvdz(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'ekm', varid))
+      call check(nf90_get_var(ncid, varid, ekm(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'ekh', varid))
+      call check(nf90_get_var(ncid, varid, ekh(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'tmp0', varid))
+      call check(nf90_get_var(ncid, varid, tmp0(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'esl', varid))
+      call check(nf90_get_var(ncid, varid, esl(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'qvsl', varid))
+      call check(nf90_get_var(ncid, varid, qvsi(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'qvsi', varid))
+      call check(nf90_get_var(ncid, varid, qvsi(2-ih:i1+ih, 2-jh:j1+jh, 1:k1), &
+                              start=(/ 1 + myidx * imax , 1 + myidy * jmax, 1 /), &
+                              count=(/ imax, jmax, k1 /)))
+      call check(nf90_inq_varid(ncid, 'ustar', varid))
+      call check(nf90_get_var(ncid, varid, ustar(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'thlflux', varid))
+      call check(nf90_get_var(ncid, varid, thlflux(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'qtflux', varid))
+      call check(nf90_get_var(ncid, varid, qtflux(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'dthldz', varid))
+      call check(nf90_get_var(ncid, varid, dthldz(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'dqtdz', varid))
+      call check(nf90_get_var(ncid, varid, dqtdz(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'presf', varid))
+      call check(nf90_get_var(ncid, varid, presf(1:k1)))
+      call check(nf90_inq_varid(ncid, 'presh', varid))
+      call check(nf90_get_var(ncid, varid, presh(1:k1)))
+      call check(nf90_inq_varid(ncid, 'initial_presf', varid))
+      call check(nf90_get_var(ncid, varid, initial_presf(1:k1)))
+      call check(nf90_inq_varid(ncid, 'initial_presh', varid))
+      call check(nf90_get_var(ncid, varid, initial_presh(1:k1)))
+      call check(nf90_inq_varid(ncid, 'ps', varid))
+      call check(nf90_get_var(ncid, varid, ps))
+      call check(nf90_inq_varid(ncid, 'thls', varid))
+      call check(nf90_get_var(ncid, varid, thls))
+      call check(nf90_inq_varid(ncid, 'qts', varid))
+      call check(nf90_get_var(ncid, varid, qts))
+      call check(nf90_inq_varid(ncid, 'thvs', varid))
+      call check(nf90_get_var(ncid, varid, thvs))
+      call check(nf90_inq_varid(ncid, 'oblav', varid))
+      call check(nf90_get_var(ncid, varid, oblav))
+      call check(nf90_inq_varid(ncid, 'dtheta', varid))
+      call check(nf90_get_var(ncid, varid, dtheta))
+      call check(nf90_inq_varid(ncid, 'dqt', varid))
+      call check(nf90_get_var(ncid, varid, dqt))
+      call check(nf90_inq_varid(ncid, 'timee', varid))
+      call check(nf90_get_var(ncid, varid, timee))
+      call check(nf90_inq_varid(ncid, 'dt', varid))
+      call check(nf90_get_var(ncid, varid, dt))
+      call check(nf90_inq_varid(ncid, 'tres', varid))
+      call check(nf90_get_var(ncid, varid, tres))
+      call check(nf90_inq_varid(ncid, 'obl', varid))
+      call check(nf90_get_var(ncid, varid, obl(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'tskin', varid))
+      call check(nf90_get_var(ncid, varid, tskin(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+      call check(nf90_inq_varid(ncid, 'qskin', varid))
+      call check(nf90_get_var(ncid, varid, qskin(2-ih:i1+ih, 2-jh:j1+jh), &
+                              start=(/ 1 + myidx * imax, 1 + myidy * jmax /), &
+                              count=(/ imax, jmax /)))
+    else      
+
     name = startfile
     name(5:5) = 'd'
     name(14:21)=cmyid
     if (myid == 0) write(6,*) 'loading ',name
-    open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
 
+    open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted', status='old')
       read(ifinput) (((u0     (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1) !       u0 = u0-cu
       read(ifinput) (((v0     (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1) !       v0 = v0-cv
       read(ifinput) (((w0     (i,j,k), i=2-ih,i1+ih), j=2-jh,j1+jh), k=1,k1)
@@ -1017,6 +1145,8 @@ contains
       read(ifinput)  timee
       close(ifinput)
     end if
+
+    end if ! lfrom_netcdf
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1504,5 +1634,17 @@ contains
     deallocate(height,pb,tb)
 
   end subroutine baseprofs
+
+  subroutine check(status)
+    use netcdf
+    implicit none
+
+    integer, intent(in) :: status
+
+    if(status /= nf90_noerr) then
+       print *, trim(nf90_strerror(status))
+       stop 'NetCDF error in modsurface.'
+    end if
+  end subroutine check
 
 end module modstartup

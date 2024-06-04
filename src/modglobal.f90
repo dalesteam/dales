@@ -47,6 +47,7 @@ save
 
       character(256) :: fname_options = 'namoptions'
       logical :: lwarmstart = .false.!<   flag for "cold" or "warm" start
+      logical :: lfrom_netcdf = .false. !< warm start from netcdf file
       real    :: trestart  = 3600. !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
