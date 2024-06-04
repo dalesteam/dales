@@ -66,7 +66,7 @@ contains
       !-----------------------------------------------------------------|
 
     use modglobal,         only : version,initglobal,iexpnr, ltotruntime, runtime, dtmax, dtav_glob,timeav_glob,&
-                                  lwarmstart,startfile,trestart,&
+                                  lwarmstart,lfrom_netcdf,startfile,trestart,&
                                   nsv,itot,jtot,kmax,xsize,ysize,xlat,xlon,xyear,xday,xtime,&
                                   lmoist,lcoriol,lpressgrad,igrw_damp,geodamptime,uvdamprate,lmomsubs,cu,cv,&
                                   ifnamopt,fname_options,llsadv,lconstexner,&
@@ -105,7 +105,7 @@ contains
 
     !declare namelists
     namelist/RUN/ &
-        iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
+        iexpnr,lwarmstart,lfrom_netcdf,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
         nprocx,nprocy,loutdirs
@@ -184,6 +184,7 @@ contains
   !broadcast namelists
     call D_MPI_BCAST(iexpnr     ,1,0,commwrld,mpierr) ! RUN
     call D_MPI_BCAST(lwarmstart ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lfrom_netcdf ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(startfile  ,50,0,commwrld,mpierr)
     call D_MPI_BCAST(author     ,80,0,commwrld,mpierr)
     call D_MPI_BCAST(runtime    ,1,0,commwrld,mpierr)
@@ -894,20 +895,22 @@ contains
   end subroutine readinitfiles
 
   subroutine readrestartfiles
-
-    use modsurfdata, only : ustar,thlflux,qtflux,svflux,dthldz,dqtdz,ps,thls,qts,thvs,oblav,&
-                           tsoil,phiw,tskin,Wl,isurf,ksoilmax,Qnet,swdavn,swuavn,lwdavn,lwuavn,nradtime,&
-                           obl,xpatches,ypatches,ps_patch,thls_patch,qts_patch,thvs_patch,oblpatch,lhetero,qskin
-    use modraddata, only: iradiation,useMcICA, tnext_radiation => tnext, &
-                          thlprad,swd,swu,lwd,lwu,swdca,swuca,lwdca,lwuca,swdir,swdif,lwc,&
-                          SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
-                          SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
-    use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
-                           tres,ifinput,nsv,dt,output_prefix
-    use modmpi,     only : myid, cmyid
-    use modsubgriddata, only : ekm,ekh
-
+    use modsurfdata, only : ustar, thlflux, qtflux, svflux, dthldz, dqtdz, ps, thls, &
+                            qts, thvs, oblav, tsoil, phiw, tskin, Wl, isurf, ksoilmax, &
+                            Qnet, swdavn, swuavn, lwdavn, lwuavn, nradtime, obl, &
+                            xpatches, ypatches, ps_patch, thls_patch, qts_patch, thvs_patch, &
+                            oblpatch, lhetero, qskin
+    use modraddata, only : iradiation, useMcICA, tnext_radiation => tnext, &
+                           thlprad, swd, swu, lwd, lwu, swdca, swuca, lwdca, lwuca, swdir, swdif, lwc, &
+                           SW_up_TOA, SW_dn_TOA, LW_up_TOA, LW_dn_TOA, &
+                           SW_up_ca_TOA, SW_dn_ca_TOA, LW_up_ca_TOA, LW_dn_ca_TOA
+    use modfields, only : u0, v0, w0, thl0, qt0, ql0, ql0h, e120, dthvdz, presf, presh, &
+                          initial_presf, initial_presh, sv0, tmp0, esl, qvsl, qvsi
+    use modglobal, only : i1, i2, ih, j1, j2, jh, k1, dtheta, dqt, dsv, startfile, timee,&
+                          tres, ifinput, nsv, dt, output_prefix, lfrom_netcdf
+    use modmpi, only : myid, cmyid, myidx, myidy
+    use modsubgriddata, only : ekm, ekh
+    use netcdf
 
     character(50) :: name
     integer i,j,k,n
