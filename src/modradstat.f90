@@ -212,6 +212,11 @@ contains
 
    end if
 
+   !$acc enter data copyin(lwuav, lwdav, swdav, swdirav, swdifav, swuav, lwucaav, lwdcaav, swdcaav, swucaav, &
+   !$acc&                  thllwtendav, thltendav,thlswtendav, thllwtendcaav, thlswtendcaav, &
+   !$acc&                  lwumn, lwdmn, swdmn, swdirmn, swdifmn, swumn, lwucamn, lwdcamn, swdcamn, swucamn, &
+   !$acc&                  thllwtendmn, thltendmn, thlswtendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
+
   end subroutine initradstat
 !> General routine, does the timekeeping
   subroutine radstat
@@ -246,6 +251,7 @@ contains
     implicit none
     integer :: k
 
+    !$acc kernels default(present)
     lwdav  = 0.
     lwuav  = 0.
     swdav  = 0.
@@ -258,7 +264,10 @@ contains
     thltendav = 0.
     thllwtendcaav = 0.
     thlswtendcaav = 0.
+    !$acc end kernels
 
+    !$acc host_data use_device(lwdav, lwd, lwuav, lwu, swdav, swd, swdirav, swdir, &
+    !$acc&                     swdifav, swdif, swuav, swu, thltendav, thlprad)
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -266,7 +275,9 @@ contains
     call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
 
+    !$acc parallel loop default(present)
     do k=1,kmax
        thllwtendav(k) = (abs(lwdav(k+1)) - abs(lwuav(k+1)) - abs(lwdav(k)) + abs(lwuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
        thlswtendav(k) = (abs(swdav(k+1)) - abs(swuav(k+1)) - abs(swdav(k)) + abs(swuav(k)) )/(rhof(k)*exnf(k)*cp*dzf(k))
@@ -274,7 +285,7 @@ contains
     end do
 
  !    ADD SLAB AVERAGES TO TIME MEAN
-
+    !$acc kernels default(present)
     lwumn       = lwumn       + lwuav       / ijtot
     lwdmn       = lwdmn       + lwdav       / ijtot
     swdmn       = swdmn       + swdav       / ijtot
@@ -285,22 +296,26 @@ contains
     thllwtendmn = thllwtendmn + thllwtendav / ijtot
     thlswtendmn = thlswtendmn + thlswtendav / ijtot
     thlradlsmn  = thlradlsmn  + thlpcar
+    !$acc end kernels
 
-  if (lradclearair) then
+    if (lradclearair) then
         call radclearair
+        !$acc parallel loop default(present)
         do k=1,kmax
           thllwtendcaav(k) = (-lwdcaav(k+1) - lwucaav(k+1) + lwdcaav(k) + lwucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
           thlswtendcaav(k) = (-swdcaav(k+1) - swucaav(k+1) + swdcaav(k) + swucaav(k))/(rhof(k)*exnf(k)*cp*dzf(k))
         enddo
 
+        !$acc kernels default(present)
         thllwtendcamn = thllwtendcamn + thllwtendcaav / ijtot
         thlswtendcamn = thlswtendcamn + thlswtendcaav / ijtot
+        !$acc end kernels
     endif
 
 
   end subroutine do_radstat
 
-      subroutine radclearair
+  subroutine radclearair
     use modradfull,    only : d4stream
     use modglobal,    only : i1,ih,j1,jh,kmax,k1,cp,rlv,rd,pref0,ijtot
     use modfields,    only : rhof, exnf, thl0,qt0,ql0
@@ -308,17 +323,20 @@ contains
     use modmicrodata, only : Nc_0
     use modmpi,    only :  slabsum
     use modraddata, only: irad_full, iradiation, swdca,swuca,lwdca,lwuca
-      implicit none
+    implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
     real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: temp_b, qv_b, ql_b
     integer :: i,j,k
 
     real :: exnersurf
+    !$acc kernels default(present)
     lwdcaav  = 0.
     lwucaav  = 0.
     swdcaav  = 0.
     swucaav  = 0.
+    !$acc end kernels
 
+    !irad_full case is not ported to GPU, see modradiation.f90
     if (iradiation.eq.irad_full) then   !rrtmg has calculated lwdca already
        !take care of UCLALES z-shift for thermo variables.
       do k=1,kmax
@@ -353,18 +371,22 @@ contains
       call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
     end if
 
+    !$acc host_data use_device(lwdcaav, lwdca, lwucaav, lwuca, swdcaav, swdca, swucaav, swuca)
     call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwucaav ,1,k1,lwuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdcaav ,1,k1,swdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swucaav ,1,k1,swuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    !$acc end host_data
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 
+    !$acc kernels default(present)
     lwucamn = lwucamn + lwucaav/ijtot
     lwdcamn = lwdcamn + lwdcaav/ijtot
     swdcamn = swdcamn + swdcaav/ijtot
     swucamn = swucamn + swucaav/ijtot
-    end subroutine radclearair
+    !$acc end kernels
+  end subroutine radclearair
 
 !> Write the statistics to file
   subroutine writeradstat
@@ -383,6 +405,7 @@ contains
       nminut  = int(nsecs/60)-nhrs*60
       nsecs   = mod(nsecs,60)
 
+      !$acc kernels default(present)
       lwumn   = lwumn    /nsamples
       lwdmn   = lwdmn    /nsamples
       swdmn   = swdmn    /nsamples
@@ -399,6 +422,12 @@ contains
       thlswtendcamn = thlswtendcamn /nsamples
       thlradlsmn  = thlradlsmn  /nsamples
       thltendmn   = thltendmn   /nsamples
+      !$acc end kernels
+
+      !$acc update self(lwumn, lwdmn, swdmn, swumn, thllwtendmn, thlswtendmn, &
+      !$acc&            lwucamn, lwdcamn, swucamn, swdcamn, swdirmn, swdifmn, &
+      !$acc&            thltendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
+
   !     ----------------------
   !     2.0  write the fields
   !           ----------------
@@ -481,6 +510,7 @@ contains
       end if
     end if ! end if(myid==0)
 
+    !$acc kernels default(present)
     lwumn = 0.0
     lwdmn = 0.0
     swdmn = 0.0
@@ -497,6 +527,7 @@ contains
     thltendmn  = 0.0
     thllwtendcamn = 0.0
     thlswtendcamn = 0.0
+    !$acc end kernels
 
   end subroutine writeradstat
 
@@ -508,10 +539,17 @@ contains
 
     if(.not.(lstat)) return
 
+    !$acc exit data delete(lwuav, lwdav, swdav, swdirav, swdifav, swuav, lwucaav, lwdcaav, swdcaav, swucaav, &
+    !$acc&                 thllwtendav, thltendav,thlswtendav, thllwtendcaav, thlswtendcaav, &
+    !$acc&                 lwumn, lwdmn, swdmn, swdirmn, swdifmn, swumn, lwucamn, lwdcamn, swdcamn, swucamn, &
+    !$acc&                 thllwtendmn, thltendmn, thlswtendmn, thlradlsmn, thllwtendcamn, thlswtendcamn)
+
     deallocate(lwuav,lwdav,swdav,swdirav,swdifav,swuav)
-    deallocate(thllwtendav,thlswtendav)
+    deallocate(lwucaav, lwdcaav, swucaav, swdcaav)
+    deallocate(thllwtendav,thlswtendav, thltendav)
     deallocate(lwumn,lwdmn,swdmn,swdirmn,swdifmn,swumn)
-    deallocate(thllwtendmn,thlswtendmn,thlradlsmn)
+    deallocate(lwucamn, lwdcamn, swucamn, swdcamn)
+    deallocate(thllwtendmn,thlswtendmn,thlradlsmn, thltendmn)
     deallocate(thllwtendcaav,thlswtendcaav)
     deallocate(thllwtendcamn,thlswtendcamn)
 

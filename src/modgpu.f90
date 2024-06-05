@@ -55,7 +55,10 @@ contains
                            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
-    use modradiation, only: thlprad
+    use modraddata, only: thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
+                          lwdca, lwuca, swdca, swuca, &
+                          LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
+                          LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
@@ -80,13 +83,17 @@ contains
     !$acc&              ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&              dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
     !$acc&              ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
-    !$acc&              anis_fac, tsc, thlpcar, thlprad, presf, & 
+    !$acc&              anis_fac, tsc, thlpcar, presf, &
     !$acc&              presh, exnf, exnh, thetah, &
     !$acc&              qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&              esatmtab, esatitab, esatltab, &
     !$acc&              th0av, thv0, thetah, qth, qlh, &
     !$acc&              Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-    !$acc&              qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+    !$acc&              qtpmcr, xr, mur, lbdr, qrmask, qcmask, &
+    !$acc&              thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
+    !$acc&              lwdca, lwuca, swdca, swuca, &
+    !$acc&              LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
+    !$acc&              LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
 
   end subroutine update_gpu
 
@@ -121,7 +128,10 @@ contains
                            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf
     use modsubgriddata, only: ekm, ekh, zlt, csz, anis_fac, &
                               sbdiss, sbshr, sbbuo
-    use modradiation, only: thlprad
+    use modraddata, only: thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
+                          lwdca, lwuca, swdca, swuca, &
+                          LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
+                          LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA
     use modthermodynamics, only: th0av, thv0, thetah, qth, qlh
     use modboundary, only: tsc
     use modmicrodata, only: Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
@@ -148,13 +158,17 @@ contains
     !$acc&            ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&            dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf, &
     !$acc&            ekm, ekh, zlt, sbdiss, sbshr, sbbuo, csz, &
-    !$acc&            anis_fac, tsc, thlpcar, thlprad, presf, & 
+    !$acc&            anis_fac, tsc, thlpcar, presf, &
     !$acc&            presh, exnf, exnh, thetah, &
     !$acc&            qvsl, qvsi, esl, qsat, qth, qlh, &
     !$acc&            esatmtab, esatitab, esatltab, &
     !$acc&            th0av, thv0, thetah, qth, qlh, &
     !$acc&            Nr, qr, Nrp, qrp, Dvr, precep, thlpmcr, &
-    !$acc&            qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+    !$acc&            qtpmcr, xr, mur, lbdr, qrmask, qcmask, &
+    !$acc&            thlprad, lwd, lwu, swd, swu, lwc, swdir, swdif, &
+    !$acc&            lwdca, lwuca, swdca, swuca, &
+    !$acc&            LW_dn_TOA, LW_up_TOA, SW_dn_TOA, SW_up_TOA, &
+    !$acc&            LW_dn_ca_TOA, LW_up_ca_TOA, SW_dn_ca_TOA, SW_up_ca_TOA)
 
     host_is_updated = .true.
 
