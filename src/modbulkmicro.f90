@@ -46,6 +46,7 @@ module modbulkmicro
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
   use modprecision, only : field_r
+  use modtimer
   implicit none
   private
   public initbulkmicro, exitbulkmicro, bulkmicro
@@ -84,6 +85,10 @@ module modbulkmicro
     gamma25=lacz_gamma(2.5)
     gamma3=2.
     gamma35=lacz_gamma(3.5)
+
+    !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, &
+    !$acc&                  thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)
+
   end subroutine initbulkmicro
 
 !> Cleaning up after the run
@@ -95,6 +100,9 @@ module modbulkmicro
                              Dvr,xr,mur,lbdr, &
                              precep,qrmask,qcmask
     implicit none
+
+    !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, &
+    !$acc&                 thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
     deallocate(Dvr,xr,mur,lbdr)
@@ -109,76 +117,85 @@ module modbulkmicro
                              qrmask, xrmin, xrmax, xrmaxkk
     use modglobal, only : i1,j1,k1
     use modfields, only : rhof
+
     implicit none
+
     real(field_r), intent(in)    :: Nr  (2:i1, 2:j1, 1:k1), &
                                     qr  (2:i1, 2:j1, 1:k1)
     integer :: i,j,k
 
-    if (l_sb) then
-      do k=qrbase,qrroof
-        do j=2,j1
-          do i=2,i1
-            if (qrmask(i,j,k)) then
-              xr (i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
+    call timer_tic('modbulkmicro/calculate_rain_parameters', 1)
 
-              ! to ensure xr is within borders
-              xr (i,j,k) = min(max(xr(i,j,k),xrmin),xrmax)
-              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-            !else
-            !  xr (i,j,k) = 0.
-            !  Dvr(i,j,k) = 0.
+    if (qrbase .gt. qrroof) return
+
+    if (l_sb) then
+      !$acc parallel loop collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+              xr(i,j,k) = rhof(k) * qr(i,j,k) / Nr(i,j,k)
+
+              ! to ensure xr is within bounds
+              xr (i,j,k) = min(max(xr(i,j,k), xrmin), xrmax)
+              Dvr(i,j,k) = (xr(i,j,k) / pirhow)**(1./3.)
             endif
           enddo
         enddo
       enddo
 
       if (l_mur_cst) then
-        mur = mur_cst
-        do k=qrbase,qrroof
-          do j=2,j1
-            do i=2,i1
+        !$acc parallel loop collapse(3) default(present)
+        do k = qrbase, qrroof
+          do j = 2, j1
+            do i = 2, i1
+              mur(i,j,k) = mur_cst
+            enddo
+          enddo
+        enddo
+
+        !$acc parallel loop collapse(3) default(present)
+        do k = qrbase, qrroof
+          do j = 2, j1
+            do i = 2, i1
               if (qrmask(i,j,k)) then
                 lbdr(i,j,k) = ((mur_cst+3.)*(mur_cst+2.)*(mur_cst+1.))**(1./3.)/Dvr(i,j,k)
-              !else
-              !  lbdr = 0.
               endif
             enddo
           enddo
         enddo
       else
         ! mur = f(Dv)
-        do k=qrbase,qrroof
-          do j=2,j1
-            do i=2,i1
+        !$acc parallel loop collapse(3) default(present)
+        do k = qrbase, qrroof
+          do j = 2, j1
+            do i = 2, i1
               if (qrmask(i,j,k)) then
                 mur(i,j,k) = min(30.,- 1. + 0.008/ (qr(i,j,k)*rhof(k))**0.6)  ! G09b
                 lbdr(i,j,k) = ((mur(i,j,k)+3.)*(mur(i,j,k)+2.)*(mur(i,j,k)+1.))**(1./3.)/Dvr(i,j,k)
-              !else
-              !  mur (i,j,k) = 0.
-              !  lbdr(i,j,k) = 0.
               endif
             enddo
           enddo
         enddo
       endif
     else ! l_sb
-       do k=qrbase,qrroof
-         do j=2,j1
-           do i=2,i1
-             if (qrmask(i,j,k)) then
-               xr(i,j,k) = rhof(k)*qr(i,j,k)/Nr(i,j,k)
+      !$acc parallel loop collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+              xr(i,j,k) = rhof(k) * qr(i,j,k) / Nr(i,j,k)
 
-               ! to ensure x_pw is within borders
-               xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
-               Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
-             !else
-             !  xr(i,j,k) = 0.
-             !  Dvr(i,j,k) = 0.
-             endif
-           enddo
-         enddo
-       enddo
+              ! to ensure x_pw is within bounds
+              xr(i,j,k) = min(xr(i,j,k),xrmaxkk)
+              Dvr(i,j,k) = (xr(i,j,k)/pirhow)**(1./3.)
+            endif
+          enddo
+        enddo
+      enddo
     endif ! l_sb
+
+    call timer_toc('modbulkmicro/calculate_rain_parameters')
   end subroutine calculate_rain_parameters
 
 !> Calculates the microphysical source term.
@@ -192,16 +209,23 @@ module modbulkmicro
                              qrmask, qrmin, qcmask, qcmin, &
                              mur_cst, inr, iqr
     implicit none
-    integer :: i,j,k
+    integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
+    real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
 
-    Nr = sv0(2:i1,2:j1,1:k1,inr)
-    qr = sv0(2:i1,2:j1,1:k1,iqr)
-
-    Nrp    = 0.0
-    qrp    = 0.0
-    thlpmcr = 0.0
-    qtpmcr  = 0.0
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          Nr(i,j,k) = sv0(i,j,k,inr)
+          qr(i,j,k) = sv0(i,j,k,iqr)
+          Nrp(i,j,k)     = 0.0
+          qrp(i,j,k)     = 0.0
+          thlpmcr(i,j,k) = 0.0
+          qtpmcr(i,j,k)  = 0.0
+        enddo
+      enddo
+    enddo
 
     delt = rdt/ (4. - dble(rk3step))
 
@@ -216,26 +240,84 @@ module modbulkmicro
     ! remove neg. values of Nr and qr
     !*********************************************************************
     if (l_rain) then
-       if (sum(qr, qr<0.) > 0.000001*sum(qr)) then
-         write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
-       if (sum(Nr, Nr<0.) > 0.000001*sum(Nr)) then
-          write(*,*)'amount of neg. qr and Nr thrown away is too high  ',timee,' sec'
-       end if
+      qrsum_neg = 0.0
+      qrsum = 0.0
+      Nrsum_neg = 0.0
+      Nrsum = 0.00
+      !$acc parallel loop collapse(3) default(present) reduction(+: qrsum_neg, qrsum, Nrsum_neg, Nrsum)
+      do k = 1, k1
+        do j = 2, j1
+          do i = 2, i1
+            qrsum = qrsum + qr(i,j,k)
+            Nrsum = Nrsum + Nr(i,j,k)
+            if (qr(i,j,k) < 0.0) then
+              qrsum_neg = qrsum_neg + qr(i,j,k)
+              qr(i,j,k) = 0.0
+            end if
+            if (Nr(i,j,k) < 0.0) then
+              Nrsum_neg = Nrsum_neg + Nr(i,j,k)
+              Nr(i,j,k) = 0.0
+            end if
+          enddo
+        enddo
+      enddo
 
-       Nr = max(0.,Nr)
-       qr = max(0.,qr)
-
-       ! BUG: why write back these values here?
-       !      negative values in svm + svp are corrected for at the end
-       !      of bulkmicro, and tstep integrate does svm + svp
-       ! sv0(:,:,:,inr) = max(0.,sv0(:,:,:,inr))
-       ! sv0(:,:,:,iqr) = max(0.,sv0(:,:,:,iqr))
+      ! LE: Commenting those out for now, popping up too often.
+      !if ( -qrsum_neg > 0.000001*qrsum) then
+      !  write(*,*)'amount of neg. qr thrown away is too high  ',timee,' sec'
+      !end if
+      !if ( -Nrsum_neg > 0.000001*Nrsum) then
+      !   write(*,*)'amount of neg. Nr thrown away is too high  ',timee,' sec'
+      !end if
     end if   ! l_rain
 
     !*********************************************************************
     ! Find gridpoints where the microphysics scheme should run
     !*********************************************************************
+
+#if defined(DALES_GPU)
+    ! Faster with OpenACC acceleration as it enables collapse(3)
+    qrbase = k1 + 1
+    qrroof = 1 - 1
+    qcbase = k1 + 1
+    qcroof = 1 - 1
+    !$acc parallel loop collapse(3) default(present) reduction(min:qrbase,qcbase)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          ! Update mask prior to using it
+          qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
+          qcmask(i,j,k) = ql0(i,j,k) > qcmin
+          if (qrmask(i,j,k)) then
+            qrbase = min(k, qrbase)
+          endif
+          if (qcmask(i,j,k)) then
+            qcbase = min(k, qcbase)
+          endif
+        enddo
+      enddo
+    enddo
+    qrbase = max(1, qrbase)
+    qcbase = max(1, qcbase)
+
+    if (qrbase.le.k1 .or. qcbase.le.k1) then
+      !$acc parallel loop collapse(3) default(present) reduction(max:qrroof,qcroof)
+      do k = min(qrbase,qcbase), k1
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+              qrroof = max(k, qrroof)
+            endif
+            if (qcmask(i,j,k)) then
+              qcroof = max(k, qcroof)
+            endif
+          enddo
+        enddo
+      enddo
+      qrroof = min(k1, qrroof)
+      qcroof = min(k1, qcroof)
+    endif
+#else
     qrmask = qr.gt.qrmin.and.Nr.gt.0
     qrbase = k1 + 1
     qrroof = 1 - 1
@@ -246,7 +328,7 @@ module modbulkmicro
       endif
     enddo
     if (qrbase.le.k1) then
-      do k=k1,qcbase,-1
+      do k=k1,qrbase,-1
         if (any(qrmask(:,:,k))) then
           qrroof = min(k1, k)
           exit
@@ -271,6 +353,7 @@ module modbulkmicro
         endif
       enddo
     endif
+#endif
 
     ! if there is nothing to do, we can return at this point
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
@@ -297,7 +380,11 @@ module modbulkmicro
       call bulkmicrotend
       call evaporation
       call bulkmicrotend
+#if defined(DALES_GPU)
+      call sedimentation_rain_gpu
+#else
       call sedimentation_rain
+#endif
       call bulkmicrotend
     endif
 
@@ -315,22 +402,25 @@ module modbulkmicro
     !    already in the qc boundaries.
     if (qcbase.le.k1) qcbase = max(1, qcbase - 1)
 
-    do k=min(qrbase,qcbase),max(qrroof, qcroof)
-    do j=2,j1
-    do i=2,i1
-      qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
-      qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
-      nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
+    if (min(qrbase,qcbase) .gt. max(qrroof, qcroof)) return
 
-      ! correction, after Jerome's implementation in Gales
-      qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) + qr_cor
-      thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - qr_cor * (rlv/(cp*exnf(k)))
+    !$acc parallel loop collapse(3) default(present)
+    do k = min(qrbase,qcbase), max(qrroof, qcroof)
+      do j = 2, j1
+        do i = 2, i1
+          qrtest=svm(i,j,k,iqr)/delt+svp(i,j,k,iqr)+qrp(i,j,k)
+          qr_cor = (0.5 - sign(0.5, qrtest*delt - qrmin)) * qrtest
+          nr_cor = min(svm(i,j,k,inr)/delt+svp(i,j,k,inr)+Nrp(i,j,k), 0.)
 
-      svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) - qr_cor
-      svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nr_cor
-      ! adjust negative qr tendencies at the end of the time-step
-    enddo
-    enddo
+          ! correction, after Jerome's implementation in Gales
+          qtp (i,j,k) = qtp (i,j,k) + qtpmcr (i,j,k) + qr_cor
+          thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - qr_cor * (rlv/(cp*exnf(k)))
+
+          svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k) - qr_cor
+          svp(i,j,k,inr) = svp(i,j,k,inr) + Nrp(i,j,k) - nr_cor
+          ! adjust negative qr tendencies at the end of the time-step
+        enddo
+      enddo
     enddo
   end subroutine bulkmicro
 
@@ -357,6 +447,8 @@ module modbulkmicro
     real :: xc   !  mean mass of cloud water droplets
     real :: nuc  !  width parameter of cloud DSD
 
+    call timer_tic('modbulkmicro/autoconversion', 1)
+
     if (qcbase.gt.qcroof) return
 
     if (l_sb) then
@@ -365,53 +457,57 @@ module modbulkmicro
       !
       k_au = k_c/(20*x_s)
 
-      do k=qcbase,qcroof
-      do j=2,j1
-      do i=2,i1
-         if (qcmask(i,j,k)) then
-            nuc = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
-            xc  = rhof(k) * ql0(i,j,k) / Nc_0 ! No eps0 necessary
-            au = k_au * (nuc+2.) * (nuc+4.) / (nuc+1.)**2.    &
-                        * (ql0(i,j,k) * xc)**2. * 1.225 ! *rho**2/rho/rho (= 1)
+      !$acc parallel loop collapse(3) default(present)
+      do k = qcbase, qcroof
+        do j = 2, j1
+          do i = 2, i1
+             if (qcmask(i,j,k)) then
+                nuc = 1.58*(rhof(k)*ql0(i,j,k)*1000.) +0.72-1. !G09a
+                xc  = rhof(k) * ql0(i,j,k) / Nc_0 ! No eps0 necessary
+                au = k_au * (nuc+2.) * (nuc+4.) / (nuc+1.)**2.    &
+                          * (ql0(i,j,k) * xc)**2. * 1.225 ! *rho**2/rho/rho (= 1)
 
-            tau = qr(i,j,k)/(ql0(i,j,k)+qr(i,j,k))
-            phi = k_1 * tau**k_2 * (1.0 - tau**k_2)**3
-            au = au * (1.0 + phi/(1.0 - tau)**2)
+                tau = qr(i,j,k)/(ql0(i,j,k)+qr(i,j,k))
+                phi = k_1 * tau**k_2 * (1.0 - tau**k_2)**3
+                au = au * (1.0 + phi/(1.0 - tau)**2)
 
-            qrp(i,j,k) = qrp(i,j,k) + au
-            Nrp(i,j,k) = Nrp(i,j,k) + au/x_s
-            qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k))) * au
+                qrp(i,j,k) = qrp(i,j,k) + au
+                Nrp(i,j,k) = Nrp(i,j,k) + au / x_s
+                qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
+                thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k))) * au
 
-            if (ql0(i,j,k) .lt. au*delt) then
-              write(6,*)'au too large', au*delt, ql0(i,j,k), i, j, k, myid
-            end if
-         endif
-      enddo
-      enddo
+                !if (ql0(i,j,k) .lt. au*delt) then
+                !  write(6,*)'au too large', au*delt, ql0(i,j,k), i, j, k, myid
+                !end if
+             endif
+          enddo
+        enddo
       enddo
     else
       !
       ! KK00 autoconversion
       !
-      do k=qcbase,qcroof
-      do j=2,j1
-      do i=2,i1
-         if (qcmask(i,j,k)) then
-            au = 1350.0 * ql0(i,j,k)**(2.47) * (Nc_0/1.0E6)**(-1.79)
-            qrp(i,j,k) = qrp(i,j,k) + au
-            qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
-            thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*au
-            Nrp(i,j,k) = Nrp(i,j,k) + au * rhof(k)/(pirhow*D0_kk**3.)
+      !$acc parallel loop collapse(3) default(present)
+      do k = qcbase, qcroof
+        do j = 2, j1
+          do i = 2, i1
+             if (qcmask(i,j,k)) then
+                au = 1350.0 * ql0(i,j,k)**(2.47) * (Nc_0/1.0E6)**(-1.79)
+                qrp(i,j,k) = qrp(i,j,k) + au
+                qtpmcr(i,j,k) = qtpmcr(i,j,k) - au
+                thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv / (cp*exnf(k)))*au
+                Nrp(i,j,k) = Nrp(i,j,k) + au * rhof(k) / (pirhow*D0_kk**3.)
 
-            if (ql0(i,j,k) .lt. au*delt) then
-              write(6,*)'au too large', au*delt, ql0(i,j,k), i, j, k, myid
-            end if
-         endif
-      enddo
-      enddo
+                !if (ql0(i,j,k) .lt. au*delt) then
+                !  write(6,*)'au too large', au*delt, ql0(i,j,k), i, j, k, myid
+                !end if
+             endif
+          enddo
+        enddo
       enddo
     end if !l_sb
+
+    call timer_toc('modbulkmicro/autoconversion')
 
   end subroutine autoconversion
 
@@ -436,6 +532,8 @@ module modbulkmicro
     real :: phi_br
     real :: tau     !  internal time scale
 
+    call timer_tic('modbulkmicro/accretion', 1)
+
     if (l_sb) then
       !
       ! SB accretion
@@ -443,24 +541,25 @@ module modbulkmicro
 
       if (max(qrbase,qcbase).gt.min(qrroof,qcroof)) return
 
-      do k=max(qrbase,qcbase),min(qrroof, qcroof)
-      do j=2,j1
-      do i=2,i1
-        if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-           tau = qr(i,j,k)/(ql0(i,j,k)+qr(i,j,k))
-           phi = (tau/(tau + k_l))**4.
-           ac  = k_r * rhof(k) * ql0(i,j,k) * qr(i,j,k) * phi * (1.225/rhof(k))**0.5
+      !$acc parallel loop collapse(3) default(present)
+      do k = max(qrbase,qcbase), min(qrroof, qcroof)
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
+               tau = qr(i,j,k)/(ql0(i,j,k)+qr(i,j,k))
+               phi = (tau/(tau + k_l))**4.
+               ac  = k_r * rhof(k) * ql0(i,j,k) * qr(i,j,k) * phi * (1.225/rhof(k))**0.5
 
-           qrp(i,j,k) = qrp(i,j,k) + ac
-           qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac
+               qrp(i,j,k) = qrp(i,j,k) + ac
+               qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
+               thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac
 
-           if (ql0(i,j,k) .lt. ac * delt) then
-             write(6,*)'ac too large', ac*delt, ql0(i,j,k), i, j, k, myid
-           end if
-        endif
-      enddo
-      enddo
+               !if (ql0(i,j,k) .lt. ac * delt) then
+               !  write(6,*)'ac too large', ac*delt, ql0(i,j,k), i, j, k, myid
+               !end if
+            endif
+          enddo
+        enddo
       enddo
 
       !
@@ -468,23 +567,24 @@ module modbulkmicro
       !
       if (qrbase.gt.qrroof) return
 
-      do k=qrbase,qrroof
-      do j=2,j1
-      do i=2,i1
-        if (qrmask(i,j,k)) then
-           sc = k_rr *rhof(k)* qr(i,j,k) * Nr(i,j,k)  &
-                * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhof(k))**0.5
-           if (Dvr(i,j,k) .gt. 0.30E-3) then
-             phi_br = k_br * (Dvr(i,j,k)-D_eq)
-             br = (phi_br + 1.) * sc
-           else
-             br = 0.
-           endif
+      !$acc parallel loop collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+               sc = k_rr *rhof(k)* qr(i,j,k) * Nr(i,j,k)  &
+                    * (1 + kappa_r/lbdr(i,j,k)*pirhow**(1./3.))**(-9.)* (1.225/rhof(k))**0.5
+               if (Dvr(i,j,k) .gt. 0.30E-3) then
+                 phi_br = k_br * (Dvr(i,j,k)-D_eq)
+                 br = (phi_br + 1.) * sc
+               else
+                 br = 0.
+               endif
 
-           Nrp(i,j,k) = Nrp(i,j,k) - sc + br
-        endif
-      enddo
-      enddo
+               Nrp(i,j,k) = Nrp(i,j,k) - sc + br
+            endif
+          enddo
+        enddo
       enddo
     else
       !
@@ -492,24 +592,26 @@ module modbulkmicro
       !
       if (max(qrbase,qcbase).gt.min(qcroof,qcroof)) return
 
-      do k=max(qrbase,qcbase),min(qcroof,qrroof)
-      do j=2,j1
-      do i=2,i1
-        if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
-          ac = 67.0 * (ql0(i,j,k) * qr(i,j,k))**1.15
+      !$acc parallel loop collapse(3) default(present)
+      do k = max(qrbase,qcbase), min(qcroof,qrroof)
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
+              ac = 67.0 * (ql0(i,j,k) * qr(i,j,k))**1.15
+              qrp(i,j,k) = qrp(i,j,k) + ac
+              qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
+              thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac
 
-          qrp(i,j,k) = qrp(i,j,k) + ac
-          qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
-          thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*ac
-
-          if (ql0(i,j,k) .lt. ac * delt) then
-            write(6,*)'ac too large', ac*delt, ql0(i,j,k), i, j, k, myid
-          end if
-        endif
-      enddo
-      enddo
+              !if (ql0(i,j,k) .lt. ac * delt) then
+              !  write(6,*)'ac too large', ac*delt, ql0(i,j,k), i, j, k, myid
+              !end if
+            endif
+          enddo
+        enddo
       enddo
     end if !l_sb
+
+    call timer_toc('modbulkmicro/accretion')
   end subroutine accretion
 
 !> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
@@ -526,30 +628,40 @@ module modbulkmicro
     use modmicrodata, only : csed,c_St,rhow,sig_g,Nc_0, &
                              qtpmcr,thlpmcr,qcmask
     implicit none
-    integer :: i,j,k
+    integer :: i, j, k
     real :: sedc
 
-    if (qcbase.gt.qcroof) return
+    call timer_tic('modbulkmicro/sedimentation_cloud', 1)
+
+    if (qcbase .gt. qcroof) return
 
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
-    do k=qcbase,qcroof
-    do j=2,j1
-    do i=2,i1
-      if (qcmask(i,j,k)) then
-        sedc = csed*Nc_0**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
+    !$acc parallel loop collapse(3) default(present)
+    do k = qcbase, qcroof
+      do j = 2, j1
+        do i = 2, i1
+          if (qcmask(i,j,k)) then
+            sedc = csed*Nc_0**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
 
-        qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
-        thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
+            !$acc atomic update
+            qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
+            !$acc atomic update
+            thlpmcr(i,j,k) = thlpmcr(i,j,k) + sedc * (rlv/(cp*exnf(k)))/(dzf(k)*rhof(k))
 
-        if (k>1) then
-          qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
-          thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
-        endif
-      endif
+            if (k > 1) then
+              !$acc atomic update
+              qtpmcr(i,j,k-1)  = qtpmcr(i,j,k-1) + sedc / (dzf(k-1)*rhof(k-1))
+              !$acc atomic update
+              thlpmcr(i,j,k-1) = thlpmcr(i,j,k-1) - sedc * (rlv/(cp*exnf(k-1)))/(dzf(k-1)*rhof(k-1))
+            end if
+          endif
+        enddo
+      enddo
     enddo
-    enddo
-    enddo
+
+    call timer_toc('modbulkmicro/sedimentation_cloud')
+
   end subroutine sedimentation_cloud
 
 !> Sedimentaion of rain
@@ -559,6 +671,326 @@ module modbulkmicro
 !! - l_lognormal =T : lognormal DSD is assumed with D_g and N known and
 !!   sig_g assumed. Flux are calc. numerically with help of a
 !!   polynomial function
+!! - this version is reworked with a temporary holder which enables
+!!   more collaspe with OpenACC acceleration, but slower on CPU.
+  subroutine sedimentation_rain_gpu
+    use modglobal, only : i1,j1,k1,eps1,dzf
+    use modfields, only : rhof
+    use modmpi,    only : myid
+    use modmicrodata, only : Nr, Nrp, qr, qrp, precep, &
+                             l_sb, l_lognormal, delt, &
+                             qrmask, qrmin, pirhow, sig_gr, &
+                             D_s, a_tvsb, b_tvsb, c_tvsb, &
+                             Dvr, mur, lbdr
+
+    implicit none
+    integer :: i,j,k,jn,sedimbase
+    integer :: n_spl      !<  sedimentation time splitting loop
+    real    :: pwcont
+    real :: delt_inv
+    real :: Dgr           !<  lognormal geometric diameter
+    real :: wfall_qr      !<  fall velocity for qr
+    real :: wfall_Nr      !<  fall velocity for Nr
+    real :: sed_qr
+    real :: sed_Nr
+    real(field_r), allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
+    real(field_r), allocatable     :: qr_tmp(:,:,:), Nr_tmp(:,:,:)
+
+    real,save :: dt_spl,wfallmax
+
+    call timer_tic('modbulkmicro/sedimentation_rain', 1)
+
+    ! zero the precipitation flux field
+    ! the update below is not always performed
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          precep(i,j,k) = 0.0
+        enddo
+      enddo
+    enddo
+
+    if (qrbase .gt. qrroof) return
+
+    allocate(qr_spl(2:i1,2:j1,1:k1))
+    allocate(Nr_spl(2:i1,2:j1,1:k1))
+    allocate(qr_tmp(2:i1,2:j1,1:k1))
+    allocate(Nr_tmp(2:i1,2:j1,1:k1))
+
+    !$acc enter data create(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
+
+    wfallmax = 9.9
+    n_spl = ceiling(wfallmax*delt/(minval(dzf)))
+    dt_spl = delt/real(n_spl)
+
+    do jn = 1, n_spl ! time splitting loop
+
+      if (jn .eq. 1) then
+        !$acc parallel loop collapse(3) default(present)
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              qr_spl(i,j,k) = qr(i,j,k)
+              Nr_spl(i,j,k) = Nr(i,j,k)
+              qr_tmp(i,j,k) = qr(i,j,k)
+              Nr_tmp(i,j,k) = Nr(i,j,k)
+            enddo
+          enddo
+        enddo
+      else
+        !Copy from tmp into spl
+        !$acc parallel loop collapse(3) default(present)
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              qr_spl(i,j,k) = qr_tmp(i,j,k)
+              Nr_spl(i,j,k) = Nr_tmp(i,j,k)
+
+              ! Update mask
+              qrmask(i,j,k) = (qr_spl(i,j,k) > qrmin .and. Nr_spl(i,j,k) > 0.0)
+            enddo
+          enddo
+        enddo
+
+        ! lower the rain base by one level to include the rain fall
+        ! from the previous step
+        qrbase = max(1, qrbase - 1)
+
+        call calculate_rain_parameters(Nr_spl, qr_spl)
+      endif
+
+      ! Compute precep
+      if (jn == 1) then
+        if (l_sb) then
+          if (l_lognormal) then
+            !$acc parallel loop collapse(3) default(present) private(Dgr)
+            do k = qrbase, qrroof
+              do j = 2, j1
+                do i = 2, i1
+                  if (qrmask(i,j,k)) then
+                    Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
+                    sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+                    pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+                    if (pwcont > eps1) then
+                      sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr
+                    endif
+                    precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+                  endif
+                enddo
+              enddo
+            enddo
+          else ! l_lognormal
+            !$acc parallel loop collapse(3) default(present)
+            do k = qrbase, qrroof
+              do j = 2, j1
+                do i = 2, i1
+                  if (qrmask(i,j,k)) then
+                    wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+                    sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
+                    precep(i,j,k) = sed_qr/rhof(k)   ! kg kg-1 m s-1
+                  endif
+                enddo
+              enddo
+            enddo
+          endif ! l_lognormal
+        else ! l_sb
+          !$acc parallel loop collapse(3) default(present)
+          do k = qrbase, qrroof
+            do j = 2, j1
+              do i = 2, i1
+                if (qrmask(i,j,k)) then
+                  precep(i,j,k) = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)
+                endif
+              enddo
+            enddo
+          enddo
+        endif ! l_sb
+      endif ! jn == 1
+
+      sedimbase = qrbase
+
+      ! k qrbase if == 1
+      if (qrbase == 1) then
+        sedimbase = sedimbase + 1
+        k = 1
+        if (l_sb) then
+          if (l_lognormal) then
+            !$acc parallel loop collapse(2) default(present) private(Dgr)
+            do j = 2, j1
+              do i = 2, i1
+                if (qrmask(i,j,k)) then
+                  ! correction for width of DSD
+                  Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
+                  sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+                  sed_Nr = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
+
+                  ! correction for the fact that pwcont .ne. qr_spl
+                  ! actually in this way for every grid box a fall velocity is determined
+                  pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
+                  if (pwcont > eps1) then
+                    sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr
+                    ! or:
+                    ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+                  endif
+
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                endif
+              enddo
+            enddo
+          else ! l_lognormal
+            !$acc parallel loop collapse(2) default(present)
+            do j = 2, j1
+              do i = 2, i1
+                if (qrmask(i,j,k)) then
+                  wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+                  wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
+
+                  sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
+                  sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
+
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
+                endif
+              enddo
+            enddo
+          endif ! l_lognormal
+        else
+          !
+          ! KK00 rain sedimentation
+          !
+          !$acc parallel loop collapse(2) default(present)
+          do j = 2, j1
+            do i = 2, i1
+              if (qrmask(i,j,k)) then
+                sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
+                sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
+
+                qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
+              endif
+            enddo
+          enddo
+        endif ! l_sb
+      endif ! qrbase == 1
+
+      if (l_sb) then
+        !
+        ! SB rain sedimentation
+        !
+        if (l_lognormal) then
+          !$acc parallel loop collapse(3) default(present) private(Dgr)
+          do k = sedimbase, qrroof
+            do j = 2, j1
+              do i = 2, i1
+                if (qrmask(i,j,k)) then
+                  ! correction for width of DSD
+                  Dgr = (exp(4.5*(log(sig_gr))**2))**(-1./3.)*Dvr(i,j,k)
+                  sed_qr = 1.*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)
+                  sed_Nr = 1./pirhow*sed_flux(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,0)
+
+                  ! correction for the fact that pwcont .ne. qr_spl
+                  ! actually in this way for every grid box a fall velocity is determined
+                  pwcont = liq_cont(Nr_spl(i,j,k),Dgr,log(sig_gr)**2,D_s,3)       ! note : kg m-3
+                  if (pwcont > eps1) then
+                    sed_qr = (qr_spl(i,j,k)*rhof(k)/pwcont)*sed_qr
+                    ! or:
+                    ! qr_spl*(sed_qr/pwcont) = qr_spl*fallvel.
+                  endif
+
+                  !$acc atomic update
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+                  !$acc atomic update
+                  qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+                endif
+              enddo
+            enddo
+          enddo
+        else
+          !$acc parallel loop collapse(3) default(present)
+          do k = sedimbase, qrroof
+            do j = 2, j1
+              do i = 2, i1
+                if (qrmask(i,j,k)) then
+                  wfall_qr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+4.))))
+                  wfall_Nr = max(0.,(a_tvsb-b_tvsb*(1.+c_tvsb/lbdr(i,j,k))**(-1.*(mur(i,j,k)+1.))))
+
+                  sed_qr  = wfall_qr*qr_spl(i,j,k)*rhof(k)
+                  sed_Nr  = wfall_Nr*Nr_spl(i,j,k)
+
+                  !$acc atomic update
+                  qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+                  !$acc atomic update
+                  qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                  !$acc atomic update
+                  Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+                endif
+              enddo
+            enddo
+          enddo
+        endif ! l_lognormal
+      else
+        !
+        ! KK00 rain sedimentation
+        !
+        !$acc parallel loop collapse(3) default(present)
+        do k = sedimbase, qrroof
+          do j = 2, j1
+            do i = 2, i1
+              if (qrmask(i,j,k)) then
+                sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
+                sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
+
+                !$acc atomic update
+                qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
+                !$acc atomic update
+                Nr_tmp(i,j,k) = Nr_tmp(i,j,k) - sed_Nr*dt_spl/dzf(k)
+
+                !$acc atomic update
+                qr_tmp(i,j,k-1) = qr_tmp(i,j,k-1) + sed_qr*dt_spl/(dzf(k-1)*rhof(k-1))
+                !$acc atomic update
+                Nr_tmp(i,j,k-1) = Nr_tmp(i,j,k-1) + sed_Nr*dt_spl/dzf(k-1)
+              endif
+            enddo
+          enddo
+        enddo
+      endif ! l_sb
+
+    enddo ! time splitting loop
+
+    ! the last time splitting step lowered the base level
+    ! and we still need to adjust for it
+    qrbase = max(1,qrbase-1)
+
+    delt_inv = 1.0 / delt
+    !$acc parallel loop collapse(3) default(present)
+    do k = qrbase, qrroof
+      do j = 2, j1
+        do i = 2, i1
+          Nrp(i,j,k) = Nrp(i,j,k) + (Nr_tmp(i,j,k) - Nr(i,j,k)) * delt_inv
+          qrp(i,j,k) = qrp(i,j,k) + (qr_tmp(i,j,k) - qr(i,j,k)) * delt_inv
+        enddo
+      enddo
+    enddo
+
+    !$acc exit data delete(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
+
+    deallocate(qr_spl, Nr_spl, qr_tmp, Nr_tmp)
+
+    call timer_toc('modbulkmicro/sedimentation_rain')
+
+  end subroutine sedimentation_rain_gpu
+
   subroutine sedimentation_rain
     use modglobal, only : i1,j1,k1,eps1,dzf
     use modfields, only : rhof
@@ -581,6 +1013,8 @@ module modbulkmicro
     real(field_r), allocatable     :: qr_spl(:,:,:), Nr_spl(:,:,:)
 
     real,save :: dt_spl,wfallmax
+
+    call timer_tic('modbulkmicro/sedimentation_rain', 1)
 
     precep = 0 ! zero the precipitation flux field
                ! the update below is not always performed
@@ -716,6 +1150,8 @@ module modbulkmicro
 
     deallocate(qr_spl, Nr_spl)
 
+    call timer_toc('modbulkmicro/sedimentation_rain')
+
   end subroutine sedimentation_rain
 
   !*********************************************************************
@@ -727,7 +1163,7 @@ module modbulkmicro
   ! Cond. (S>0.) neglected (all water is condensed on cloud droplets)
   !*********************************************************************
 
-    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma
+    use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21
     use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
     use modmicrodata, only : Nr, mur, Dv, &
                              inr, iqr, Kt, &
@@ -747,69 +1183,76 @@ module modbulkmicro
 
     real :: evap, Nevap
 
+    call timer_tic('modbulkmicro/evaporation', 1)
+
     if (qrbase.gt.qrroof) return
 
     if (l_sb) then
 
-       do k=qrbase,qrroof
-       do j=2,j1
-       do i=2,i1
-         if (qrmask(i,j,k)) then
-           numel=nint(mur(i,j,k)*100.)
-           F = avf * mygamma21(numel)*Dvr(i,j,k) +  &
-              bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
-              (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
-                 -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
-                 -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
-                 -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
-           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-           G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-           G = 1./G
+      !$acc parallel loop collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+              numel=nint(mur(i,j,k)*100.)
+              F = avf * mygamma21(numel)*Dvr(i,j,k) +  &
+                 bvf*Sc_num**(1./3.)*(a_tvsb/nu_a)**0.5*mygamma251(numel)*Dvr(i,j,k)**(3./2.) * &
+                 (1.-(1./2.)  *(b_tvsb/a_tvsb)    *(lbdr(i,j,k)/(   c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
+                    -(1./8.)  *(b_tvsb/a_tvsb)**2.*(lbdr(i,j,k)/(2.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  &
+                    -(1./16.) *(b_tvsb/a_tvsb)**3.*(lbdr(i,j,k)/(3.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5) &
+                    -(5./128.)*(b_tvsb/a_tvsb)**4.*(lbdr(i,j,k)/(4.*c_tvsb+lbdr(i,j,k)))**(mur(i,j,k)+2.5)  )
+              S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+              G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+              G = 1./G
 
-           evap = 2*pi*Nr(i,j,k)*G*F*S/rhof(k)
-           Nevap = c_Nevap*evap*rhof(k)/xr(i,j,k)
+              evap = 2*pi*Nr(i,j,k)*G*F*S/rhof(k)
+              Nevap = c_Nevap*evap*rhof(k)/xr(i,j,k)
 
-           if (evap < -svm(i,j,k,iqr)/delt) then
-             Nevap = - svm(i,j,k,inr)/delt
-             evap  = - svm(i,j,k,iqr)/delt
-           endif
+              if (evap < -svm(i,j,k,iqr)/delt) then
+                Nevap = - svm(i,j,k,inr)/delt
+                evap  = - svm(i,j,k,iqr)/delt
+              endif
 
-           qrp(i,j,k) = qrp(i,j,k) + evap
-           Nrp(i,j,k) = Nrp(i,j,k) + Nevap
+              qrp(i,j,k) = qrp(i,j,k) + evap
+              Nrp(i,j,k) = Nrp(i,j,k) + Nevap
 
-           qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
-         endif
-       enddo
-       enddo
-       enddo
+              qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
+              thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
+            endif
+          enddo
+        enddo
+      enddo
     else ! l_sb
-       do k=qrbase,qrroof
-       do j=2,j1
-       do i=2,i1
-         if (qrmask(i,j,k)) then
-           S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
-           G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
-           G = 1./G
+      !$acc parallel loop collapse(3) default(present)
+      do k = qrbase, qrroof
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+              S = min(0.,(qt0(i,j,k)-ql0(i,j,k))/qvsl(i,j,k)- 1.)
+              G = (Rv * tmp0(i,j,k)) / (Dv*esl(i,j,k)) + rlv/(Kt*tmp0(i,j,k))*(rlv/(Rv*tmp0(i,j,k)) -1.)
+              G = 1./G
 
-           evap = c_evapkk*2*pi*Dvr(i,j,k)*G*S*Nr(i,j,k)/rhof(k)
-           Nevap = evap*rhof(k)/xr(i,j,k)
+              evap = c_evapkk*2*pi*Dvr(i,j,k)*G*S*Nr(i,j,k)/rhof(k)
+              Nevap = evap*rhof(k)/xr(i,j,k)
 
-           if (evap < -svm(i,j,k,iqr)/delt) then
-             Nevap = - svm(i,j,k,inr)/delt
-             evap  = - svm(i,j,k,iqr)/delt
-           endif
+              if (evap < -svm(i,j,k,iqr)/delt) then
+                Nevap = - svm(i,j,k,inr)/delt
+                evap  = - svm(i,j,k,iqr)/delt
+              endif
 
-           qrp(i,j,k) = qrp(i,j,k) + evap
-           Nrp(i,j,k) = Nrp(i,j,k) + Nevap
+              qrp(i,j,k) = qrp(i,j,k) + evap
+              Nrp(i,j,k) = Nrp(i,j,k) + Nevap
 
-           qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
-           thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
-         endif
-       enddo
-       enddo
-       enddo
-     endif
+              qtpmcr(i,j,k) = qtpmcr(i,j,k) - evap
+              thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*evap
+            endif
+          enddo
+        enddo
+      enddo
+    endif
+
+    call timer_toc('modbulkmicro/evaporation')
+
   end subroutine evaporation
 
   !*********************************************************************

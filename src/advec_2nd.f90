@@ -35,27 +35,19 @@ contains
 !> Advection at cell center
 subroutine advecc_2nd(a_in,a_out)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzfi,dzhi,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
 
   integer :: i,j,k
 
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rho_a_in(i,j,k)=rhobf(k)*a_in(i,j,k)
-!      end do
-!    end do
-!  end do
-
-  do k=1,kmax
-    do j=2,j1
-      do i=2,i1
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 1, kmax
+    do j = 2, j1
+      do i = 2, i1
         a_out(i,j,k)  = a_out(i,j,k)- (  &
               ( &
               u0(i+1,j,k) * ( a_in(i+1,j,k) + a_in(i,j,k) ) &
@@ -65,177 +57,142 @@ subroutine advecc_2nd(a_in,a_out)
               v0(i,j+1,k) * ( a_in(i,j+1,k) + a_in(i,j,k) ) &
              -v0(i,j ,k) * ( a_in(i,j-1,k) + a_in(i,j,k) ) &
               )* dyi5 )
-
       end do
     end do
   end do
 
   if (leq) then ! equidistant grid
-
-    do j=2,j1
-      do i=2,i1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-                w0(i,j,2) * (rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1) ) &
-                ) * dzi5
+    !$acc parallel loop collapse(2) default(present) wait(1) async(2)
+    do j = 2, j1
+      do i = 2, i1
+        a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
+                       w0(i,j,2) * (rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1) ) &
+                       ) * dzi5
       end do
     end do
 
-    do j=2,j1
-    do k=2,kmax
-       do i=2,i1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-                w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
-                -w0(i,j,k)   * (rhobf(k-1) * a_in(i,j,k-1)+ rhobf(k) * a_in(i,j,k)) &
-                )*dzi5
+    !$acc parallel loop collapse(3) default(present) wait(1) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
+                         w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
+                         -w0(i,j,k)   * (rhobf(k-1) * a_in(i,j,k-1)+ rhobf(k) * a_in(i,j,k)) &
+                         )*dzi5
         end do
       end do
     end do
 
   else   ! non-equidistant grid
-
-    do j=2,j1
-      do i=2,i1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-                w0(i,j,2) * (rhobf(2) * a_in(i,j,2) * dzf(1) + rhobf(1) * a_in(i,j,1) * dzf(2) ) / (2.*dzh(2)) &
-                ) / dzf(1)
+    !$acc parallel loop collapse(2) default(present) wait(1) async(2)
+    do j = 2, j1
+      do i = 2, i1
+        a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
+                       w0(i,j,2) * (rhobf(2) * a_in(i,j,2) * dzf(1) + rhobf(1) * a_in(i,j,1) * dzf(2) ) * (0.5_field_r * dzhi(2)) &
+                       ) * dzfi(1)
       end do
     end do
 
-    do j=2,j1
-    do k=2,kmax
-       do i=2,i1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-                w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
-               -w0(i,j,k ) * (rhobf(k-1) * a_in(i,j,k-1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k-1) ) / dzh(k) &
-                )/ (2. * dzf(k))
+    !$acc parallel loop collapse(3) default(present) wait(1) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
+                         w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k+1) ) * dzhi(k+1) &
+                        -w0(i,j,k ) * (rhobf(k-1) * a_in(i,j,k-1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k-1) ) * dzhi(k) &
+                         ) * (0.5_field_r * dzfi(k))
         end do
       end do
     end do
-
   end if
+  !$acc wait
 
 end subroutine advecc_2nd
 
 
 !> Advection at the u point.
 subroutine advecu_2nd(a_in, a_out, sx)
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
-  use modfields, only : u0, v0, w0, rhobf
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzfi,dzhi,leq
+  use modfields, only : u0, v0, w0, rhobf, up, vp, wp
+
   implicit none
 
   integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rho_a_in(i,j,k)=rhobf(k)*a_in(i,j,k)
-!      end do
-!    end do
-!  end do
-
-  do k=1,kmax
-  km=k-1
-  kp=k+1
-    do j=2,j1
-    jm=j-1
-    jp=j+1
-      do i=sx,i1
-      im=i-1
-      ip=i+1
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 1, kmax
+    do j = 2, j1
+      do i = sx, i1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
-                (a_in(i,j,k)+a_in(ip,j,k))*(u0(i,j,k)+u0(ip,j,k)) &
-                -(a_in(i,j,k)+a_in(im,j,k))*(u0(i,j,k)+u0(im,j,k)) &
+                (a_in(i,j,k)+a_in(i+1,j,k))*(u0(i,j,k)+u0(i+1,j,k)) &
+                -(a_in(i,j,k)+a_in(i-1,j,k))*(u0(i,j,k)+u0(i-1,j,k)) &
                 )*dxiq &
                 +(  &
-                (a_in(i,j,k)+a_in(i,jp,k))*(v0(i,jp,k)+v0(im,jp ,k)) &
-                -(a_in(i,j,k)+a_in(i,jm,k))*(v0(i,j  ,k)+v0(im,j  ,k)) &
+                (a_in(i,j,k)+a_in(i,j+1,k))*(v0(i,j+1,k)+v0(i-1,j+1 ,k)) &
+                -(a_in(i,j,k)+a_in(i,j-1,k))*(v0(i,j  ,k)+v0(i-1,j  ,k)) &
                 )*dyiq )
-
       end do
     end do
   end do
 
   if (leq) then
 
-    do j=2,j1
-    jm=j-1
-    jp=j+1
-      do i=sx,i1
-      im=i-1
-      ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)-(1./rhobf(1))*( &
-            ( rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1))*( w0(i,j,2)+ w0(im,j,2) ) &
-            ) *dziq
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j = 2, j1
+      do i = sx, i1
+        a_out(i,j,1) = a_out(i,j,1)-(1/rhobf(1))*( &
+                       ( rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1))*( w0(i,j,2)+ w0(i-1,j,2) ) &
+                       ) *dziq
       end do
     end do
 
-    do j=2,j1
-    jm=j-1
-    jp=j+1
-    do k=2,kmax
-       km=k-1
-       kp=k+1
-       do i=sx,i1
-          im=i-1
-          ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-              (rhobf(k) * a_in(i,j,k) + rhobf(kp) * a_in(i,j,kp) )*(w0(i,j,kp)+w0(im,j,kp)) &
-              -(rhobf(k) * a_in(i,j,k) + rhobf(km) * a_in(i,j,km) )*(w0(i,j,k )+w0(im,j,k )) &
-                  )*dziq
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = sx, i1
+          a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
+                         (rhobf(k) * a_in(i,j,k) + rhobf(k+1) * a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
+                         -(rhobf(k) * a_in(i,j,k) + rhobf(k-1) * a_in(i,j,k-1) )*(w0(i,j,k )+w0(i-1,j,k )) &
+                             )*dziq
         end do
       end do
     end do
 
   else
 
-    do j=2,j1
-    jm=j-1
-    jp=j+1
-      do i=sx,i1
-      im=i-1
-      ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-              ( rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) / dzh(2) &
-                *( w0(i,j,2)+ w0(im,j,2) ))/ (4.*dzf(1))
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j = 2, j1
+      do i = sx, i1
+        a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
+                       ( rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) * dzhi(2) &
+                         *( w0(i,j,2)+ w0(i-1,j,2) )) * (0.25_field_r * dzfi(1))
       end do
     end do
 
-    do j=2,j1
-    jm=j-1
-    jp=j+1
-    do k=2,kmax
-       km=k-1
-       kp=k+1
-       do i=sx,i1
-          im=i-1
-          ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-                ( rhobf(kp) * a_in(i,j,kp)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(kp) ) / dzh(kp) &
-                  *( w0(i,j,kp)+ w0(im,j,kp) ) &
-               -( rhobf(k) * a_in(i,j,k)*dzf(km) + rhobf(km) * a_in(i,j,km)*dzf(k) ) / dzh(k) &
-                  *( w0(i,j,k)  + w0(im,j,k)   ) &
-                )/ (4.*dzf(k))
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = sx, i1
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
+                ( rhobf(k+1) * a_in(i,j,k+1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k+1) ) * dzhi(k+1) &
+                  *( w0(i,j,k+1)+ w0(i-1,j,k+1) ) &
+               -( rhobf(k) * a_in(i,j,k)*dzf(k-1) + rhobf(k-1) * a_in(i,j,k-1)*dzf(k) ) * dzhi(k) &
+                  *( w0(i,j,k)  + w0(i-1,j,k)   ) &
+                ) * (0.25_field_r*dzfi(k))
         end do
       end do
     end do
-
-
-
-
   end if
-
 end subroutine advecu_2nd
-
 
 !> Advection at the v point.
 subroutine advecv_2nd(a_in, a_out, sy)
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzfi,dzhi,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
@@ -243,203 +200,143 @@ subroutine advecv_2nd(a_in, a_out, sy)
   integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rho_a_in(i,j,k)=rhobf(k)*a_in(i,j,k)
-!      end do
-!    end do
-!  end do
-
-  do k=1,kmax
-  km=k-1
-  kp=k+1
-    do j=sy,j1
-    jm=j-1
-    jp=j+1
-      do i=2,i1
-      im=i-1
-      ip=i+1
-
+  !$acc parallel loop collapse(3) default(present) async(2)
+  do k = 1, kmax
+    do j = sy, j1
+      do i = 2, i1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
-              ( u0(ip,j,k)+u0(ip,jm,k))*(a_in(i,j,k)+a_in(ip,j,k)) &
-              -(u0(i ,j,k)+u0(i ,jm,k))*(a_in(i,j,k)+a_in(im,j,k)) &
+              ( u0(i+1,j,k)+u0(i+1,j-1,k))*(a_in(i,j,k)+a_in(i+1,j,k)) &
+              -(u0(i ,j,k)+u0(i ,j-1,k))*(a_in(i,j,k)+a_in(i-1,j,k)) &
               )*dxiq &
               +( &
-              ( v0(i,jp,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,jp,k)) &
-              -(v0(i,jm,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,jm,k)) &
+              ( v0(i,j+1,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,j+1,k)) &
+              -(v0(i,j-1,k)+v0(i,j,k))*(a_in(i,j,k)+a_in(i,j-1,k)) &
               )*dyiq )
       end do
     end do
   end do
 
   if (leq) then
-
-    do j=sy,j1
-    jm=j-1
-    jp=j+1
-      do i=2,i1
-      im=i-1
-      ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-           (w0(i,j,2)+w0(i,jm,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = sy, j1
+      do i = 2, i1
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
+           (w0(i,j,2)+w0(i,j-1,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
             )*dziq
       end do
     end do
 
-    do j=sy,j1
-    jm=j-1
-    jp=j+1
-    do k=2,kmax
-       km=k-1
-       kp=k+1
-       do i=2,i1
-          im=i-1
-          ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-                ( w0(i,j,kp)+w0(i,jm,kp))*(rhobf(kp) * a_in(i,j,kp) + rhobf(k) * a_in(i,j,k)) &
-                -(w0(i,j,k) +w0(i,jm,k)) *(rhobf(km) * a_in(i,j,km) + rhobf(k) * a_in(i,j,k)) &
+    !$acc parallel loop collapse(3) default(present) async(2)
+    do k = 2, kmax
+      do j = sy, j1
+        do i = 2, i1
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
+                ( w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
+                -(w0(i,j,k) +w0(i,j-1,k)) *(rhobf(k-1) * a_in(i,j,k-1) + rhobf(k) * a_in(i,j,k)) &
                 )*dziq
         end do
       end do
     end do
 
   else
-    do j=sy,j1
-    jm=j-1
-    jp=j+1
-      do i=2,i1
-        im=i-1
-        ip=i+1
-        a_out(i,j,1)  = a_out(i,j,1)- (1./rhobf(1))*( &
-          (w0(i,j,2)+w0(i,jm,2)) &
-          *(rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) )/ dzh(2) &
-          ) / (4. * dzf(1))
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = sy, j1
+      do i = 2, i1
+        a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
+          (w0(i,j,2)+w0(i,j-1,2)) &
+          *(rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) * dzhi(2) &
+          ) * (0.25_field_r * dzfi(1))
       end do
     end do
 
-    do j=sy,j1
-    jm=j-1
-    jp=j+1
-    do k=2,kmax
-       km=k-1
-       kp=k+1
-       do i=2,i1
-          im=i-1
-          ip=i+1
-          a_out(i,j,k)  = a_out(i,j,k)- (1./rhobf(k))*( &
-            (w0(i,j,kp)+w0(i,jm,kp)) &
-            *(rhobf(kp) * a_in(i,j,kp)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(kp) )/ dzh(kp) &
-            -(w0(i,j,k)+w0(i,jm,k)) &
-            *(rhobf(km) * a_in(i,j,km)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(km)) / dzh(k) &
-            ) / (4. * dzf(k))
+    !$acc parallel loop collapse(3) default(present) async(2)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
+            (w0(i,j,k+1)+w0(i,j-1,k+1)) &
+            *(rhobf(k+1) * a_in(i,j,k+1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k+1) ) * dzhi(k+1) &
+            -(w0(i,j,k)+w0(i,j-1,k)) &
+            *(rhobf(k-1) * a_in(i,j,k-1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k-1)) * dzhi(k) &
+            ) * (0.25_field_r * dzfi(k))
         end do
       end do
     end do
-
   end if
 
 end subroutine advecv_2nd
 
-
-
 !> Advection at the w point.
 subroutine advecw_2nd(a_in,a_out)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzh,leq
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzhi,leq
   use modfields, only : u0, v0, w0, rhobh
   implicit none
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-!  real, dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rho_a_in
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
-!  do k=1,k1
-!    do j=2-jh,j1+jh
-!      do i=2-ih,i1+ih
-!      rho_a_in(i,j,k)=rhobh(k)*a_in(i,j,k)
-!      end do
-!    end do
-!  end do
-
   if (leq) then
 
-
-    do k=2,kmax
-    km=k-1
-    kp=k+1
-      do j=2,j1
-      jm=j-1
-      jp=j+1
-        do i=2,i1
-        im=i-1
-        ip=i+1
-
+    !$acc parallel loop collapse(3) default(present) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
-                (a_in(ip,j,k)+a_in(i,j,k))*(u0(ip,j,k)+u0(ip,j,km)) &
-              -(a_in(im,j,k)+a_in(i,j,k))*(u0(i  ,j,k)+u0(i  ,j,km)) &
+                (a_in(i+1,j,k)+a_in(i,j,k))*(u0(i+1,j,k)+u0(i+1,j,k-1)) &
+               -(a_in(i-1,j,k)+a_in(i,j,k))*(u0(i  ,j,k)+u0(i  ,j,k-1)) &
                 )*dxiq &
               + &
                 ( &
-                (a_in(i,jp,k)+a_in(i,j,k))*(v0(i,jp,k)+v0(i,jp,km)) &
-              -(a_in(i,jm,k)+a_in(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,km)) &
+                (a_in(i,j+1,k)+a_in(i,j,k))*(v0(i,j+1,k)+v0(i,j+1,k-1)) &
+               -(a_in(i,j-1,k)+a_in(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,k-1)) &
                 )*dyiq &
               + &
-                (1./rhobh(k))*( &
-                (rhobh(k) * a_in(i,j,k) + rhobh(kp) * a_in(i,j,kp) )*(w0(i,j,k) + w0(i,j,kp)) &
-               -(rhobh(k) * a_in(i,j,k) + rhobh(km) * a_in(i,j,km) )*(w0(i,j,k) + w0(i,j,km)) &
+                (1/rhobh(k))*( &
+                (rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
+               -(rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
                 )*dziq &
                 )
-
         end do
       end do
     end do
   else
-    do k=2,kmax
-    km=k-1
-    kp=k+1
-      do j=2,j1
-        jm=j-1
-        jp=j+1
-        do i=2,i1
-        im=i-1
-        ip=i+1
-
-          a_out(i,j,k)  = a_out(i,j,k) - (1./rhobh(k))*( &
+    !$acc parallel loop collapse(3) default(present) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,k)  = a_out(i,j,k) - (1/rhobh(k))*( &
                 ( &
-                ( rhobh(k) * a_in(ip,j,k) + rhobh(k) * a_in(i,j,k) ) &
-              *( dzf(km)*u0(ip,j,k) + dzf(k)*u0(ip,j,km) ) &
-              -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(im,j,k) ) &
-              *( dzf(km)*u0(i,j,k)+dzf(k)*u0(i ,j,km) ) &
-                )*dxiq / dzh(k) &
+                ( rhobh(k) * a_in(i+1,j,k) + rhobh(k) * a_in(i,j,k) ) &
+              *( dzf(k-1)*u0(i+1,j,k) + dzf(k)*u0(i+1,j,k-1) ) &
+              -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(i-1,j,k) ) &
+              *( dzf(k-1)*u0(i,j,k)+dzf(k)*u0(i ,j,k-1) ) &
+                )*dxiq * dzhi(k) &
               + &
                 ( &
-                ( rhobh(k) * a_in(i,jp,k) + rhobh(k) * a_in(i,j,k) ) &
-              *( dzf(km)*v0(i,jp,k) + dzf(k)*v0(i,jp,km) ) &
+                ( rhobh(k) * a_in(i,j+1,k) + rhobh(k) * a_in(i,j,k) ) &
+              *( dzf(k-1)*v0(i,j+1,k) + dzf(k)*v0(i,j+1,k-1) ) &
               -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(i,j-1,k) ) &
-              *( dzf(km)*v0(i,j,k) + dzf(k)*v0(i,j,km) ) &
-                ) *dyiq / dzh(k) &
+              *( dzf(k-1)*v0(i,j,k) + dzf(k)*v0(i,j,k-1) ) &
+                ) *dyiq * dzhi(k) &
               + &
                 ( &
-                ( rhobh(k) * a_in(i,j,k) + rhobh(kp) * a_in(i,j,kp) ) * (w0(i,j,k) + w0(i,j,kp) ) &
-               -( rhobh(k) * a_in(i,j,k) + rhobh(km) * a_in(i,j,km) ) * (w0(i,j,k) + w0(i,j,km) ) &
-                ) / (4. *dzh(k) ) &
+                ( rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) ) * (w0(i,j,k) + w0(i,j,k+1) ) &
+               -( rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) ) * (w0(i,j,k) + w0(i,j,k-1) ) &
+                ) * (0.25_field_r * dzhi(k) ) &
                 )
-
         end do
       end do
     end do
-
   end if
-
-
+  !$acc wait(1,2,3)
 end subroutine advecw_2nd
+
 end module advec_2nd

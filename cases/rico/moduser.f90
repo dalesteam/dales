@@ -52,7 +52,7 @@ subroutine surf_user
  use modsurfdata,only : ustar,dudz,dvdz,dqtdz,dthldz,&
                           svs,z0,qts,thls,thvs,thlflux,qtflux,svflux
   use modfields, only : u0,v0,thl0,qt0,sv0,u0av,v0av,qt0av,thl0av
-  use modmpi,    only :  excj
+  use modmpi,    only : excjs
   implicit none
   integer i, j, n
   real phihzf, phimzf
@@ -60,6 +60,7 @@ subroutine surf_user
   real horv2, horv, stab, obl
   real dthz1, dqz1, dsvz1
   real, parameter :: C_m = 0.001229, C_h = 0.001094, C_q = 0.001133
+  real, pointer   :: ustar_3D(:,:,:)
 
 !***********************************************************************
 !***  Calculate ust, tst, qst and obukhov-length iteratively   *********
@@ -105,8 +106,6 @@ subroutine surf_user
        phihzf = (1.+8.*zf(1)/obl)
     endif
     
-
-
     dudz(i,j)   = ustar(i,j)*(phimzf/(fkar*zf(1)))*(upcu/horv)
     dvdz(i,j)   = ustar(i,j)*(phimzf/(fkar*zf(1)))*(vpcv/horv)
     dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf / (fkar*zf(1))
@@ -115,11 +114,9 @@ subroutine surf_user
   end do
   end do
 
-  do j=2,j1
-    ustar(1,j)=ustar(i1,j)
-  end do
-
-  call excj( ustar  , 1, i2, 1, j2, 1,1)
+  ! excjs is a 3D function, reshape ustar
+  ustar_3D(1:i2, 1:j2, 1:1) => ustar
+  call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
 
   do n=1,nsv
     do j=2,j1

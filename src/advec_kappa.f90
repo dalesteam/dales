@@ -55,12 +55,46 @@ subroutine advecc_kappa(a_in,a_out)
   implicit none
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
-  
-  real      d1,d2,cf
-  real :: d1m, d2m, d1p, cfm, cfp, work
-  integer   i,j,k,k_low,k_high
 
-  ! find the lowest and highest k level with a non-zero value in a_in 
+  real(field_r) :: d1, d2, cf
+  real(field_r) :: d1m, d2m, d1p, cfm, cfp, work
+  integer :: i, j, k, k_low, k_high, kbeg, kend
+
+  ! find the lowest and highest k level with a non-zero value in a_in
+
+#if defined(DALES_GPU)
+  ! This version is faster with OpenACC acceleration as it enables collapse(3)
+  k_low = k1 + 1
+
+  !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
+  do k = 1, k1
+    do j = 2, j1
+      do i = 2, i1
+        if (a_in(i,j,k).ne.0.) then
+          k_low = min(k,k_low)
+        endif
+      enddo
+    enddo
+  enddo
+
+  ! a_in == zero
+  if (k_low == (k1 + 1)) then
+    return
+  endif
+
+  k_high = 0
+  !$acc parallel loop collapse(3) default(present) reduction(max:k_high)
+  do k = k_low, k1
+    do j = 2, j1
+      do i = 2, i1
+        if ((a_in(i,j,k).ne.0.)) then
+          k_high = max(k,k_high)
+        endif
+      enddo
+    enddo
+  enddo
+
+#else
   k_low = -1
   do k=1,k1
      if (any(a_in(:,:,k).ne.0.)) then
@@ -79,135 +113,151 @@ subroutine advecc_kappa(a_in,a_out)
         exit
      endif
   enddo
+#endif
 
+  ! vertical advection from layer 1 to 2, special case. k=2
   if (k_low <= 3) then
-     ! vertical advection from layer 1 to 2, special case. k=2
-     do j=2,j1
-        do i=2,i1 ! YES
-           d1m = 0
-           d2m = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
-           cfm = rhobf(1) * a_in(i,j,1)
-           d1p = rhobf(2) * a_in(i,j,2) - rhobf(3) * a_in(i,j,3)
-           cfp = rhobf(2) * a_in(i,j,2)
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j = 2, j1
+      do i = 2, i1
+        d1m = 0
+        d2m = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
+        cfm = rhobf(1) * a_in(i,j,1)
+        d1p = rhobf(2) * a_in(i,j,2) - rhobf(3) * a_in(i,j,3)
+        cfp = rhobf(2) * a_in(i,j,2)
 
-           if (w0(i,j,2) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
+        if (w0(i,j,2) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
 
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
-           work = work * w0(i,j,2)
-           a_out(i,j,1) = a_out(i,j,1) - (1./(rhobf(1)*dzf(1)))*work
-           a_out(i,j,2) = a_out(i,j,2) + (1./(rhobf(2)*dzf(2)))*work
-        end do
-     end do
+        work = work * w0(i,j,2)
+        !$acc atomic update
+        a_out(i,j,1) = a_out(i,j,1) - (1/(rhobf(1)*dzf(1)))*work
+        !$acc atomic update
+        a_out(i,j,2) = a_out(i,j,2) + (1/(rhobf(2)*dzf(2)))*work
+      end do
+    end do
   end if
 
-  !do k=1,kmax
-  do k= max(k_low-1,1), min(k_high+2, kmax) ! loop accesses k-2, k-1, k, k+1
-     do j=2,j1
-        do i=2,i2 ! YES
-           d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
-           d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
-           d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
-           cfm = a_in(i-1,j,k)
-           cfp = a_in(i  ,j,k)
+  ! loop accesses k-2, k-1, k, k+1
+  kbeg = max(k_low-1,1)
+  kend = min(k_high+2, kmax)
 
-           if (u0(i,j,k) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
+  !$acc parallel loop collapse(3) default(present) async(2)
+  do k = kbeg, kend
+    do j = 2, j1
+      do i = 2, i2
+        d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
+        d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
+        d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
+        cfm = a_in(i-1,j,k)
+        cfp = a_in(i  ,j,k)
 
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
+        if (u0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
 
-           work = work * u0(i,j,k) * dxi
-           a_out(i-1,j,k) = a_out(i-1,j,k) - work
-           a_out(i,j,k)   = a_out(i,j,k)   + work
-        end do
-     end do
-     !  end do
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
 
-     !  do k=1,kmax
-     do j=2,j2
-        do i=2,i1 ! YES
-           d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
-           d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
-           d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
-           cfm = a_in(i,j-1,k)
-           cfp = a_in(i,j  ,k)
-
-           if (v0(i,j,k) > 0) then
-              d1 = d1m
-              d2 = d2m
-              cf = cfm
-           else
-              d1 = d1p
-              d2 = -d2m
-              cf = cfp
-           end if
-
-           work = cf + &
-                min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                (sign(0.5, d1) + sign(0.5, d2))
-
-           work = work * v0(i,j,k) * dyi
-           a_out(i,j-1,k) = a_out(i,j-1,k) - work
-           a_out(i,j,k)   = a_out(i,j,k)   + work
-        end do
-     end do
-     !  end do
-
-     !  do k=3,kmax
-     if (k >= 3) then
-        do j=2,j1
-           do i=2,i1 ! YES
-              d1m = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
-              d2m = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
-              d1p = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
-              cfm = rhobf(k-1) * a_in(i,j,k-1)
-              cfp = rhobf(k)   * a_in(i,j,k  )
-
-              if (w0(i,j,k) > 0) then
-                 d1 = d1m
-                 d2 = d2m
-                 cf = cfm
-              else
-                 d1 = d1p
-                 d2 = -d2m
-                 cf = cfp
-              end if
-
-              work = cf + &
-                   min(abs(d1), abs(d2), abs((d1/6.0) + (d2/3.0))) * &
-                   (sign(0.5, d1) + sign(0.5, d2))
-
-              work = work * w0(i,j,k)
-              a_out(i,j,k-1) = a_out(i,j,k-1) - (1./(rhobf(k-1)*dzf(k-1)))*work
-              a_out(i,j,k)   = a_out(i,j,k)   + (1./(rhobf(k)  *dzf(k)  ))*work
-           end do
-        end do
-     end if
+        work = work * u0(i,j,k) * dxi
+        !$acc atomic update
+        a_out(i-1,j,k) = a_out(i-1,j,k) - work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + work
+      end do
+    end do
   end do
+
+  !$acc parallel loop collapse(3) default(present) async(3)
+  do k = kbeg, kend
+    do j = 2, j2
+      do i = 2, i1
+        d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
+        d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
+        d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
+        cfm = a_in(i,j-1,k)
+        cfp = a_in(i,j  ,k)
+
+        if (v0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
+
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
+
+        work = work * v0(i,j,k) * dyi
+        !$acc atomic update
+        a_out(i,j-1,k) = a_out(i,j-1,k) - work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + work
+      end do
+    end do
+  end do
+
+  !$acc parallel loop collapse(3) default(present) async(4)
+  do k = 3, kend
+    do j = 2, j1
+      do i = 2, i1
+        d1m = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
+        d2m = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
+        d1p = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
+        cfm = rhobf(k-1) * a_in(i,j,k-1)
+        cfp = rhobf(k)   * a_in(i,j,k  )
+
+        if (w0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
+
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
+
+        work = work * w0(i,j,k)
+        !$acc atomic update
+        a_out(i,j,k-1) = a_out(i,j,k-1) - (1/(rhobf(k-1)*dzf(k-1)))*work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + (1/(rhobf(k)  *dzf(k)  ))*work
+      end do
+    end do
+  end do
+  !$acc wait
+
 end subroutine advecc_kappa
 
 subroutine  halflev_kappa(a_in,a_out)
 
-  use modglobal, only : i1,ih,j1,jh,k1
+    use modglobal, only : i1,ih,j1,jh,k1
     use modfields, only : w0, rhobf, rhobh
     implicit none
     real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
@@ -215,26 +265,27 @@ subroutine  halflev_kappa(a_in,a_out)
     real(field_r)      d1,d2,cf
     integer   i,j,k
 
-
-    do k=3,k1
-      do j=2,j1
-        do i=2,i1
+    !$acc parallel loop collapse(3) private(d1,d2,cf) default(present) async(1)
+    do k = 3, k1
+      do j = 2, j1
+        do i = 2, i1
           if (w0(i,j,k)>=0) then
             d1 = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k-2) * a_in(i,j,k-2)
-            d2 = rhobf(k) * a_in(i,j,k  )   - rhobf(k-1) * a_in(i,j,k-1)
+            d2 = rhobf(k)   * a_in(i,j,k  ) - rhobf(k-1) * a_in(i,j,k-1)
             cf = rhobf(k-1) * a_in(i,j,k-1)
           else
             d1 = rhobf(k)   * a_in(i,j,k  ) - rhobf(k+1) * a_in(i,j,k+1)
             d2 = rhobf(k-1) * a_in(i,j,k-1) - rhobf(k)   * a_in(i,j,k  )
             cf = rhobf(k)   * a_in(i,j,k  )
           end if
-          a_out(i,j,k) = (1./rhobh(k))*(cf + rlim(d1,d2))
+          a_out(i,j,k) = (1/rhobh(k))*(cf + rlim(d1,d2))
         end do
       end do
     end do
 
-    do j=2,j1
-      do i=2,i1
+    !$acc parallel loop collapse(2) private(d1,d2,cf) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
         if (w0(i,j,2)>=0) then
           d1 = 0
           d2 = rhobf(2) * a_in(i,j,2) - rhobf(1) * a_in(i,j,1)
@@ -244,9 +295,10 @@ subroutine  halflev_kappa(a_in,a_out)
           d2 = rhobf(1) * a_in(i,j,1) - rhobf(2) * a_in(i,j,2)
           cf = rhobf(2) * a_in(i,j,2)
         end if
-        a_out(i,j,2) = (1./rhobh(2))*(cf + rlim(d1,d2))
+        a_out(i,j,2) = (1/rhobh(2))*(cf + rlim(d1,d2))
       end do
     end do
+    !$acc wait(1,2)
 
   end subroutine halflev_kappa
 
@@ -260,10 +312,9 @@ subroutine  halflev_kappa(a_in,a_out)
     real(field_r) ri,phir
 
     ri    = (d2+eps1)/(d1+eps1)
-    phir  = max(0.,min(2.*ri,min(1./3.+2./3.*ri,2.)))
-    rlim  = 0.5*phir*d1
+    phir  = max(0.,min(2._field_r*ri,min(1._field_r/3._field_r + &
+                                         2._field_r/3._field_r*ri , 2._field_r)))
+    rlim  = 0.5_field_r*phir*d1
     end function rlim
-
-
 
 end module advec_kappa

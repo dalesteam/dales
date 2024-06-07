@@ -178,8 +178,8 @@
   logical :: l_graupel = .true. !  Switch for graupel
   logical :: l_warm = .false.   !  Run ice micro in warm mode, as a check
   logical :: l_mp = .true.      !  Use marshall-palmer distribution for rain?
-  real :: evapfactor = 1.0      !  Prefactor to reduce evaporation
-  real :: courantp = 1.0        !  CFLmax-criterion for precipitation
+  real(field_r) :: evapfactor = 1.0      !  Prefactor to reduce evaporation
+  real(field_r) :: courantp = 1.0        !  CFLmax-criterion for precipitation
 
   real, parameter :: &
      ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
@@ -201,9 +201,10 @@
      ,aag=2.e2 &
      ,bbg=3.&
      ,ccg=82.5 &
-     ,ddg=0.25 &
+     ,ddg=0.25
      ! Collection efficiency matrix, alpha factor of Grabowski has been absorbed here GRABOSKWI
-     ,ceffrl=0.8 &
+     real(field_r), parameter :: &
+      ceffrl=0.8 &
      ,ceffsl=0.06 & ! probably 0.8 is better, wsa exp 156
      ,ceffgl=0.06 & ! probably 0.8 is better
      ,ceffri=0.8 &

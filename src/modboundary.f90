@@ -27,18 +27,17 @@
 !! \par Authors
 !!
 module modboundary
-  use modglobal, only : nsv
-
-  implicit none
-  
-  save
-!private
-  public :: initboundary, boundary, exitboundary,grwdamp, ksp,cyclich
+use modtimer
+use modprecision, only: field_r
+implicit none
+save
+private
+public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
-  real,allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
-  real :: rnu0 = 2.75e-3
+  real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
+  real(field_r) :: rnu0 = 2.75e-3
   logical :: lboundopen			!GT added on off switch for open boundary conditions
-  real,allocatable :: fillvalues(:)		!GT added a new array variable
+  real(field_r), allocatable :: fillvalues(:)		!GT added a new array variable
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -68,6 +67,8 @@ contains
     call d_mpi_bcast(lboundopen,          1,  0, comm3d, ierr)	!GT added
     call d_mpi_bcast(fillvalues,	nsv,  0, comm3d, ierr)	!GT added 
 
+    call timer_tic('modboundary/initboundary', 0)
+
     allocate(tsc(k1))
 ! Sponge layer
     if (ksp==-1) then
@@ -82,6 +83,11 @@ contains
       tsc(k) = rnu0*sin(0.5*pi*(zf(k)-zspb)/(zspt-zspb))**2
     end do
    tsc(k1)=tsc(kmax)
+
+   !$acc enter data copyin(tsc)
+
+   call timer_toc('modboundary/initboundary')
+
   end subroutine initboundary
 
 !>
@@ -99,6 +105,7 @@ contains
 !! \endlatexonly
   subroutine boundary
   implicit none
+    call timer_tic('modboundary/boundary', 0)
 
     call cyclicm
     call cyclich
@@ -106,18 +113,22 @@ contains
   
     call topm
     call toph
+
+    call timer_toc('modboundary/boundary')
   end subroutine boundary
 !> Cleans up after the run
   subroutine exitboundary
-  implicit none
-    deallocate(tsc)
+    implicit none
+    
     deallocate(fillvalues)
+    !$acc exit data delete(tsc)
+    deallocate(tsc)
   end subroutine exitboundary
 
 !> Sets lateral periodic boundary conditions for the scalars
  subroutine cyclich
 
-  use modglobal, only : i1,ih,j1,jh,k1,nsv
+  use modglobal, only : i1,ih,j1,jh,k1,nsv,is_starting
   use modfields, only : thl0,qt0,sv0
   use modmpi,    only : excjs
 
@@ -126,9 +137,11 @@ contains
   call excjs( thl0           , 2,i1,2,j1,1,k1,ih,jh)
   call excjs( qt0            , 2,i1,2,j1,1,k1,ih,jh)
 
-  do n=1,nsv
-    call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
-  enddo
+  if ( nsv > 0 ) then
+    do n=1,nsv
+      call excjs( sv0(:,:,:,n)   , 2,i1,2,j1,1,k1,ih,jh)
+    enddo
+  endif
 
   return
   end subroutine cyclich
@@ -136,7 +149,7 @@ contains
 !>set lateral periodic boundary conditions for momentum
  subroutine cyclicm
 
-  use modglobal, only : i1,ih,j1,jh,k1
+  use modglobal, only : i1,ih,j1,jh,k1,is_starting
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : excjs
 
@@ -180,16 +193,19 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc,uvdamprate
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
 
   integer k,n
 
+  call timer_tic('modboundary/grwdamp', 0)
+
   select case(igrw_damp)
   case(0) !do nothing
   case(1)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -197,13 +213,17 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+    !$acc end kernels
     if(lcoriol) then
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*((1./(geodamptime*rnu0))*tsc(k))
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*((1./(geodamptime*rnu0))*tsc(k))
     end do
+    !$acc end kernels
     end if
   case(2)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(ug(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(vg(k)-cv))*tsc(k)
@@ -211,7 +231,9 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+    !$acc end kernels
   case(3)
+    !$acc kernels default(present) async(1)
     do k=ksp,kmax
       up(:,:,k)  = up(:,:,k)-(u0(:,:,k)-(u0av(k)-cu))*tsc(k)
       vp(:,:,k)  = vp(:,:,k)-(v0(:,:,k)-(v0av(k)-cv))*tsc(k)
@@ -219,9 +241,12 @@ contains
       thlp(:,:,k)= thlp(:,:,k)-(thl0(:,:,k)-thl0av(k))*tsc(k)
       qtp(:,:,k) = qtp(:,:,k)-(qt0(:,:,k)-qt0av(k))*tsc(k)
     end do
+    !$acc end kernels
   case(-1)
+    !$acc kernels default(present) async(1)
     up(:,:,:) = up(:,:,:) - unudge * ( sum((u0av(1:kmax) - ug(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
     vp(:,:,:) = vp(:,:,:) - unudge * ( sum((v0av(1:kmax) - vg(1:kmax)) * dzf(1:kmax)) / sum(dzf(1:kmax)) ) / rdt
+    !$acc end kernels
   case default
     stop "no gravity wave damping option selected"
   end select
@@ -229,13 +254,33 @@ contains
   ! Additional to gravity wave damping, set qt, thl and sv0(:) equal to slabaverage
   ! at level kmax.
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
-  if(.not.lopenbc) then
+
+  if ( .not. lopenbc ) then
+    !$acc kernels default(present) async(1)
     thl0(2:i1,2:j1,kmax) = thl0av(kmax)
     qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
-    do n=1,nsv
-      sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
-    end do
-  endif
+    !$acc end kernels
+
+    if (nsv > 0) then
+      !$acc kernels default(present) async(1)
+      do n=1,nsv
+        sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+      end do
+      !$acc end kernels
+    end if
+
+    !$acc wait
+  end if
+
+  call timer_toc('modboundary/grwdamp')
+
+  ! damp layer-average horizontal velocity towards geowind with udvamprate
+  if (uvdamprate > 0) then
+     do k=1,kmax
+        up(:,:,k)  = up(:,:,k) - (u0av(k)-(ug(k)-cu)) * uvdamprate
+        vp(:,:,k)  = vp(:,:,k) - (v0av(k)-(vg(k)-cv)) * uvdamprate
+     end do
+  end if
 
   return
   end subroutine grwdamp
@@ -253,24 +298,38 @@ contains
 ! **  Top conditions :
   ! Calculate new gradient over several of the top levels, to be used
   ! to extrapolate thl and qt to level k1 !JvdD
+  
+  !$acc serial default(present)
   dtheta = sum((thl0av(kmax-kav+1:kmax)-thl0av(kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
   dqt    = sum((qt0av (kmax-kav+1:kmax)-qt0av (kmax-kav:kmax-1))/ &
              dzh(kmax-kav+1:kmax))/kav
-  do n=1,nsv
-    dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
-               dzh(kmax-kav:kmax-1))/kav
-  enddo
+  !$acc end serial
 
+  if ( nsv > 0 ) then
+    !$acc parallel loop default(present)
+    do n=1,nsv
+      dsv(n) = sum((sv0av(kmax-kav+1:kmax,n)-sv0av(kmax-kav:kmax-1,n))/ &
+                 dzh(kmax-kav:kmax-1))/kav
+    enddo
+  endif
+  
+  !$acc kernels default(present) 
   thl0(:,:,k1) = thl0(:,:,kmax) + dtheta*dzh(k1)
   qt0(:,:,k1)  = qt0 (:,:,kmax) + dqt*dzh(k1)
 
   thlm(:,:,k1) = thlm(:,:,kmax) + dtheta*dzh(k1)
   qtm(:,:,k1)  = qtm (:,:,kmax) + dqt*dzh(k1)
-  do n=1,nsv
-    sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
-    svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
-  enddo
+  !$acc end kernels
+  
+  if ( nsv > 0) then
+    !$acc kernels default(present)
+    do n=1,nsv
+      sv0(:,:,k1,n) = sv0(:,:,kmax,n) + dsv(n)*dzh(k1)
+      svm(:,:,k1,n) = svm(:,:,kmax,n) + dsv(n)*dzh(k1)
+    enddo
+    !$acc end kernels
+  endif
 
   return
   end subroutine toph
@@ -280,17 +339,31 @@ contains
     use modglobal, only : kmax,k1,e12min,lrigidlid
     use modfields, only : u0,v0,w0,e120,um,vm,wm,e12m
     implicit none
+    !$acc kernels default(present)
     u0(:,:,k1)   = u0(:,:,kmax)
     v0(:,:,k1)   = v0(:,:,kmax)
     w0(:,:,k1)   = 0.0
     e120(:,:,k1) = e12min
-    if (lrigidlid) e120(:,:,k1) = e120(:,:,kmax)
+    !$acc end kernels
 
+    if (lrigidlid) then
+        !$acc kernels default(present)
+        e120(:,:,k1) = e120(:,:,kmax)
+        !$acc end kernels
+    endif
+    
+    !$acc kernels default(present)
     um(:,:,k1)   = um(:,:,kmax)
     vm(:,:,k1)   = vm(:,:,kmax)
     wm(:,:,k1)   = 0.0
     e12m(:,:,k1) = e12min
-    if (lrigidlid) e12m(:,:,k1) = e12m(:,:,kmax)
+    !$acc end kernels
+
+    if (lrigidlid) then
+        !$acc kernels default(present)
+        e12m(:,:,k1) = e12m(:,:,kmax)
+        !$acc end kernels
+    endif
 
   return
   end subroutine topm

@@ -1,0 +1,9 @@
+[submodule "src/RRTMG/RRTMG_LW"]
+	path = src/RRTMG/RRTMG_LW
+	url = https://github.com/AER-RC/RRTMG_LW
+[submodule "src/RRTMG/RRTMG_SW"]
+	path = src/RRTMG/RRTMG_SW
+	url = https://github.com/dalesteam/RRTMG_SW.git
+[submodule "src/RTE-RRTMGP"]
+	path = src/RTE-RRTMGP
+	url = https://github.com/earth-system-radiation/rte-rrtmgp.git

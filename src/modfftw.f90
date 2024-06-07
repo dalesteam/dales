@@ -41,6 +41,8 @@ save
   integer                         :: method
   integer                         :: konx, kony
   integer                         :: iony, jonx
+  integer                         :: konx_me, kony_me
+  integer                         :: iony_me, jonx_me
   real(pois_r), dimension(:), allocatable :: bufin, bufout
   interface fftw_plan_many_r2r_if
     procedure :: d_fftw_plan_many_r2r
@@ -134,6 +136,14 @@ contains
       jonx = jonx + 1
     endif
 
+    ! how many data elements are in use in the current process?
+    ! if the number of elements is not divisible by nprocx or nprocy,
+    ! one process may have fewer elements, and some processes may have *no* elements
+    konx_me = max(min(konx, kmax - konx*myidx), 0)
+    kony_me = max(min(kony, kmax - kony*myidy), 0)
+    iony_me = max(min(iony, itot - iony*myidy), 0)
+    jonx_me = max(min(jonx, jtot - jonx*myidx), 0)
+
 ! Allocate communication buffers for the transpose functions
     sz = max( imax * jmax * konx * nprocx, & ! transpose a1
               iony * jmax * konx * nprocy, & ! transpose a2
@@ -141,7 +151,8 @@ contains
 
     allocate(bufin (sz))
     allocate(bufout(sz))
-
+    bufin = 0
+    bufout = 0
 ! Allocate temporary arrays to hold transposed matrix
 
     ! calculate memory size as an long int (size_t)
@@ -151,8 +162,15 @@ contains
               iony*jonx*kmax                    ) ! Fp (p102)
 
     ! get aligned memory for FFTW
+#if POIS_PRECISION == 64
     ptr = fftw_alloc_real(sz)
-
+#else
+    ptr = fftwf_alloc_real(sz)
+#endif
+    if( .not. c_associated(ptr) ) then
+       write (*,*) "modfftw: ptr is not associated,  fftw(f)_alloc_real(", sz, ") failed."
+       stop "fftw(f)_alloc_real failed"
+    end if
     ! convert it to a fortran pointer, or 1D array
     call c_f_pointer(ptr, fptr, (/sz/))
 
@@ -164,7 +182,7 @@ contains
     p210(1:itot,1:jmax,1:konx) => fptr(1:itot*jmax*konx)
     p210_flat(1:itot*jmax*konx)=> fptr(1:itot*jmax*konx)
     p201(1:jtot,1:konx,1:iony) => fptr(1:jtot*konx*iony)
-    p201_flat(1:itot*konx*iony)=> fptr(1:itot*konx*iony)
+    p201_flat(1:jtot*konx*iony)=> fptr(1:jtot*konx*iony)
     Fp(1:iony,1:jonx,1:kmax) => fptr(1:iony*jonx*kmax)
 
     ! Prepare 1d FFT transforms
@@ -269,9 +287,9 @@ contains
     allocate(xyrt(iony,jonx))
     allocate(d(iony,jonx,kmax))
     ps = 1
-    pe = iony
+    pe = iony_me
     qs = 1
-    qe = jonx
+    qe = jonx_me
 
     else if (method == 2) then
 
@@ -672,6 +690,12 @@ contains
       call fftw_execute_r2r_if(planx, p210_flat, p210_flat)
 
       call transpose_a2(p210, p201)
+      ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
+      ! indexing: p201(jtot,konx,iony)
+      if (konx_me < konx) p201(:,konx_me+1:, :) = 0
+      if (iony_me < iony) p201(:,:,iony_me+1:) = 0
+
+
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
       call transpose_a3(p201, Fp)
@@ -723,9 +747,11 @@ contains
 
     real(pois_r), allocatable :: xyrt(:,:)
 
-    integer      :: i,j,iv,jv
-    real(pois_r) :: fac
-    real(pois_r) :: xrt(itot), yrt(jtot)
+    integer :: i,j,iv,jv
+    real(pois_r)    :: fac
+    real(pois_r)    :: xrt(nprocy*iony), yrt(nprocx*jonx)
+    xrt = 0
+    yrt = 0
 
   ! Generate Eigenvalues xrt and yrt resulting from d**2/dx**2 F = a**2 F
 
@@ -746,6 +772,7 @@ contains
   ! I --> direction
     fac = 1./(2.*itot)
     if (.not. lperiodic(1)) fac = 1./(4.*itot)
+
     do i=2,itot
       xrt(i)=-4.*dxi*dxi*(sin(float(2*(i-1))*pi*fac))**2
     end do
@@ -754,6 +781,7 @@ contains
   ! J --> direction
     fac = 1./(2.*jtot)
     if (.not. lperiodic(3)) fac = 1./(4.*jtot)
+
     do j=2,jtot
       yrt(j)=-4.*dyi*dyi*(sin(float(2*(j-1))*pi*fac))**2
     end do
@@ -764,6 +792,8 @@ contains
   ! 1. MPI starts counting at 0 so it should be myidy * jmax
   ! 2. real data, ie. no halo, starts at index 2 in the array xyrt(2,2) <-> xrt(1), yrt(1)
 
+  ! the last tile in x or y may have fewer elements than the rest
+  ! filling xyrt will then access xrt or yrt beyond itot or jtot. xrt and yrt are padded above with zeroes.
     if (method == 1) then
       ! nprocx /= 1, nprocy /= 1
       ! we will be working on matrix Fp(1:iony,1:jonx,1:kmax)
@@ -793,16 +823,16 @@ contains
   subroutine D_fftw_execute_r2r(p, in, out)
       implicit none
       type(C_PTR) :: p
-      real(C_DOUBLE), pointer, contiguous, intent(inout) :: in(:)
-      real(C_DOUBLE), pointer, contiguous, intent(out)   :: out(:)
+      real(C_DOUBLE), pointer, contiguous :: in(:)
+      real(C_DOUBLE), pointer, contiguous :: out(:)
       call fftw_execute_r2r(p, in, out)
   end subroutine
 
   subroutine D_fftwf_execute_r2r(p, in, out)
       implicit none
       type(C_PTR) :: p
-      real(C_FLOAT), pointer, contiguous, intent(inout) :: in(:)
-      real(C_FLOAT), pointer, contiguous, intent(out)   :: out(:)
+      real(C_FLOAT), pointer, contiguous :: in(:)
+      real(C_FLOAT), pointer, contiguous :: out(:)
       call fftwf_execute_r2r(p, in, out)
   end subroutine
 
@@ -811,11 +841,11 @@ contains
       integer(C_INT) :: rank
       integer(C_INT), intent(in) :: n(:)
       integer(C_INT) :: howmany
-      real(C_DOUBLE), pointer, intent(out) :: in(:)
+      real(C_DOUBLE), pointer :: in(:)
       integer(C_INT), intent(in) :: inembed(:)
       integer(C_INT) :: istride
       integer(C_INT) :: idist
-      real(C_DOUBLE), pointer, intent(out) :: out(:)
+      real(C_DOUBLE), pointer :: out(:)
       integer(C_INT), intent(in) :: onembed(:)
       integer(C_INT) :: ostride
       integer(C_INT) :: odist
@@ -830,11 +860,11 @@ contains
       integer(C_INT) :: rank
       integer(C_INT), intent(in) :: n(:)
       integer(C_INT) :: howmany
-      real(C_FLOAT), pointer, intent(out) :: in(:)
+      real(C_FLOAT), pointer :: in(:)
       integer(C_INT), intent(in) :: inembed(:)
       integer(C_INT) :: istride
       integer(C_INT) :: idist
-      real(C_FLOAT), pointer, intent(out) :: out(:)
+      real(C_FLOAT), pointer :: out(:)
       integer(C_INT), intent(in) :: onembed(:)
       integer(C_INT) :: ostride
       integer(C_INT) :: odist
@@ -849,8 +879,8 @@ contains
       type(fftw_iodim), intent(in) :: dims(:)
       integer(C_INT) :: howmany_rank
       type(fftw_iodim), intent(in) :: howmany_dims(:)
-      real(C_DOUBLE), intent(out) :: in(:)
-      real(C_DOUBLE), intent(out) :: out(:)
+      real(C_DOUBLE) :: in(:)
+      real(C_DOUBLE) :: out(:)
       integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
       integer(C_INT) :: flags
       d_fftw_plan_guru_r2r = fftw_plan_guru_r2r(rank,dims,howmany_rank,howmany_dims,in,out,kind,flags)
@@ -861,8 +891,8 @@ contains
       type(fftw_iodim), intent(in) :: dims(:)
       integer(C_INT) :: howmany_rank
       type(fftw_iodim), intent(in) :: howmany_dims(:)
-      real(C_FLOAT), intent(out) :: in(:)
-      real(C_FLOAT), intent(out) :: out(:)
+      real(C_FLOAT) :: in(:)
+      real(C_FLOAT) :: out(:)
       integer(C_FFTW_R2R_KIND), intent(in) :: kind(:)
       integer(C_INT) :: flags
 

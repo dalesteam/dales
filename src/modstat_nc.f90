@@ -34,7 +34,7 @@ module modstat_nc
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
     logical :: lclassic = .false.    ! Create netCDF in CLASSIC format (less RAM usage, compression not supported)
     integer :: deflate = 2           ! Deflate level for netCDF files (only for NETCDF4 format)
-    
+
     integer, save :: timeID=0, ztID=0, zmID=0, xtID=0, xmID=0, ytID=0, ymID=0,ztsID=0, zqID=0
     real(kind=4) :: nc_fillvalue = -999.
 !> The only interface necessary to write data to netcdf, regardless of the dimensions.
@@ -70,7 +70,7 @@ contains
     call D_MPI_BCAST(lsync      ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(lclassic   ,1, 0,comm3d,mpierr)
     call D_MPI_BCAST(deflate    ,1, 0,comm3d,mpierr)
-    
+
   end subroutine initstat_nc
 !
 ! ----------------------------------------------------------------------
@@ -192,7 +192,7 @@ contains
     iret = nf90_enddef(ncID)
     ! Fails with  NetCDF: Operation not allowed in data mode
     ! when the netCDF files already exist
-    
+
   end subroutine open_nc
 
   !
@@ -339,20 +339,27 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse)
-    use modglobal, only : dx,dy,zf,zh,jmax,imax
+ subroutine writestat_dims_nc(ncid, ncoarse, klow)
+    ! optional arguments ncoarse (coarsegraining in the horizontal directions)
+    !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
+    use modglobal, only : dx,dy,zf,zh,jmax,imax,kmax
     use modsurfdata, only : zsoilc,isurf
     use modlsm, only : z_soil
     use modmpi, only : myidx,myidy
     implicit none
     integer, intent(in) :: ncid
-    integer, optional, intent(in) :: ncoarse
+    integer, optional, intent(in) :: ncoarse, klow
     integer             :: i=0,iret,length,varid, nc
-
+    integer             :: kl
     if (present(ncoarse)) then
       nc = ncoarse
     else
       nc = 1
+    end if
+    if (present(klow)) then
+      kl = klow
+    else
+      kl = 1
     end if
 
     iret = nf90_inq_varid(ncid, 'xt', VarID)
@@ -371,11 +378,10 @@ contains
 
     iret = nf90_inq_varid(ncid, 'zt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, zf(1:length),(/1/))
+    if (iret==0) iret = nf90_put_var(ncid, varID, zf(kl:kl+length-1),(/1/))
     iret = nf90_inq_varid(ncid, 'zm', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid, zmID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, zh(1:length),(/1/))
-
+    if (iret==0) iret = nf90_put_var(ncid, varID, zh(kl:kl+length-1),(/1/))
     if (isurf==1) then
       iret = nf90_inq_varid(ncid, 'zts', VarID)
       if (iret==0) iret = nf90_inquire_dimension(ncid, ztsID, len=length)

@@ -6,7 +6,7 @@
 !! Dutch Atmospheric Large Eddy Simulation
 !! \section DALES Dutch Atmospheric Large Eddy Simulation
 !!
-!! @version 4.4
+!! @version 4.4.2
 !!
 !! @author
 !! Steef Boing
@@ -145,6 +145,7 @@ program DALES
   use modbudget,       only : initbudget, budgetstat, exitbudget
   use modheterostats,  only : initheterostats, heterostats, exitheterostats
   use modvarbudget,    only : initvarbudget, varbudget, exitvarbudget
+  use modmsebudg,      only : initmsebudg, msebudg1, msebudg2, exitmsebudg
   ! modules below are disabled by default to improve compilation time
   !use modstress,       only : initstressbudget, stressbudgetstat, exitstressbudget
 
@@ -161,12 +162,28 @@ program DALES
   use modemission,     only : emission
   use modopenboundary, only : openboundary_ghost,openboundary_tend,openboundary_phasevelocity,openboundary_turb
 
+!----------------------------------------------------------------
+!     0.2     USE STATEMENTS FOR TIMER MODULE
+!----------------------------------------------------------------
+
+  use modtimer,       only : timer_tic, timer_toc, timer_print, timer_write
+
+!----------------------------------------------------------------
+!     0.3     USE STATEMENTS FOR GPU UTILITIES
+!----------------------------------------------------------------
+
+#if defined(_OPENACC)
+  use modgpu, only: update_gpu, host_is_updated
+#endif
+
   implicit none
 
+  integer :: istep
+
+  ! Select CPU for execution of startup routines
 !----------------------------------------------------------------
 !     1      READ NAMELISTS,INITIALISE GRID, CONSTANTS AND FIELDS
 !----------------------------------------------------------------
-
   ! call initmpi initmpi depends on options in the namelist, call moved to startup
   call initmpicomm
   call startup
@@ -199,6 +216,7 @@ program DALES
   call initbulkmicrostat
   call initbudget
   call initvarbudget
+  call initmsebudg
   !call initstressbudget
 ! call initchem
   call initheterostats
@@ -207,13 +225,20 @@ program DALES
   !call initspectra2
   call initcape
 
+#if defined(_OPENACC)
+  call update_gpu
+#endif
+
+  ! Startup is done, set flag to false
+  is_starting = .false.
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
 !------------------------------------------------------
   call testwctime
-
+  istep = 1
   do while (timeleft>0 .or. rk3step < 3)
+    call timer_tic('program/timestep', istep)
     ! Calculate new timestep, and reset tendencies to 0.
     call tstep_update
     call timedep
@@ -289,6 +314,8 @@ program DALES
     if(lopenbc) call openboundary_phasevelocity()
 
     call tstep_integrate                        ! Apply tendencies to all variables
+
+    call msebudg1
     ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
     !       Do not change them below this point.
     if(lopenbc) then
@@ -330,18 +357,25 @@ program DALES
     call bulkmicrostat
     call budgetstat
     call varbudget
+    call msebudg2
     !call stressbudgetstat
     call heterostats
-
+    
     call testwctime
     call writerestartfiles
-
+#if defined(_OPENACC)
+    host_is_updated = .false.
+#endif
+    call timer_toc('program/timestep')
+    istep = istep + 1
   end do
 
 !-------------------------------------------------------
 !             END OF TIME LOOP
 !-------------------------------------------------------
 
+  call timer_print
+  call timer_write
 
 !--------------------------------------------------------
 !    4    FINALIZE ADD ONS AND THE MAIN PROGRAM
@@ -360,6 +394,7 @@ program DALES
   call exitbulkmicrostat
   call exitbudget
   call exitvarbudget
+  call exitmsebudg
   !call exitstressbudget
   call exitcrosssection
   call exitAGScross
@@ -372,5 +407,6 @@ program DALES
   call exitcanopy
   call exittimestat
   call exitmodules
+
 
 end program DALES

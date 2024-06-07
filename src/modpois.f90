@@ -29,7 +29,7 @@
 
 module modpois
 use modprecision, only : pois_r
-
+use modtimer
 implicit none
 private
 public :: initpois,poisson,exitpois,p,Fp,xyrt,solmpj,ps,pe,qs,qe
@@ -43,6 +43,9 @@ save
 
   integer :: ps,pe,qs,qe           ! start and end index of fourier space matrices
 
+  real(pois_r), allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:) ! Work arrays for rhs
+  real(pois_r), allocatable :: a(:), b(:), c(:) ! Work arrays for solver
+
 contains
 
   subroutine initpois
@@ -50,6 +53,7 @@ contains
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre_grid, inithypre_solver
+    use modcufft, only : cufftinit
 
     implicit none
 
@@ -59,6 +63,8 @@ contains
     else if (solver_id == 100) then
       ! FFTW based solver
       call fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+    else if (solver_id == 200) then
+      call cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
     else
       ! HYPRE based solver
 
@@ -71,6 +77,14 @@ contains
       call inithypre_grid
       call inithypre_solver(psolver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,maxiter_precond)
     endif
+
+    allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
+    allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
+
+    allocate(a(kmax), b(kmax), c(kmax))
+    !$acc enter data create(pup, pvp, pwp, a, b, c)
+
   end subroutine initpois
 
   subroutine exitpois
@@ -78,6 +92,7 @@ contains
     use modfft2d, only : fft2dexit
     use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
+    use modcufft, only : cufftexit
 
     implicit none
 
@@ -87,6 +102,9 @@ contains
     else if (solver_id == 100) then
       ! FFTW based solver
       call fftwexit(p,Fp,d,xyrt)
+    else if (solver_id == 200) then
+      call cufftexit(p, Fp, d, xyrt)
+      !$acc exit data delete(pup, pvp, pwp, a, b, c)
     else
       ! HYPRE based solver
       !call fft2dexit(p,Fp,d,xyrt)
@@ -94,6 +112,7 @@ contains
       call exithypre_grid
       call exithypre_solver(psolver)
     endif
+
   end subroutine exitpois
 
   subroutine poisson
@@ -102,14 +121,14 @@ contains
     use modhypre, only : solve_hypre, set_zero_guess
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
-    use mpi
+    use modcufft, only : cufftf, cufftb
 
     implicit none
     !real wtime
     logical converged
 
-    !wtime = MPI_Wtime()
-
+    call timer_tic('modpois/poisson', 0)
+    
     call fillps
 
     if (solver_id == 0) then
@@ -128,6 +147,12 @@ contains
 
       ! Backward FFT
       call fftwb(p, Fp)
+    else if (solver_id == 200) then
+      call cufftf(p, Fp)
+
+      call solmpj
+
+      call cufftb(p, Fp)
     else
       call solve_hypre(psolver, p, converged)
       if (.not. converged) then
@@ -152,10 +177,7 @@ contains
 
     call tderive
 
-    !if (myid == 0) then
-    !   wtime = MPI_Wtime() - wtime
-    !   write (*,*) 'Poisson, time spent:', wtime, 's'
-    !end if
+    call timer_toc('modpois/poisson')
   end subroutine poisson
 
   subroutine fillps
@@ -174,15 +196,10 @@ contains
     use modmpi,    only : excjs
     use modopenboundary, only : openboundary_excjs
     implicit none
-    real(pois_r),allocatable :: pup(:,:,:), pvp(:,:,:), pwp(:,:,:)
-    integer i,j,k
-    real(pois_r) :: rk3coef
+    integer i,j,k, ex=i1, ey=j1
+    real(pois_r) :: rk3coef_inv
 
-    allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
-    allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
-    allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
-
-    rk3coef = rdt / (4. - dble(rk3step))
+    call timer_tic('modpois/fillps', 1)
 
     if(lopenbc) then
        ! do exchanges here, because we have boundary conditions for up, vp but not for pup,pvp below
@@ -191,17 +208,23 @@ contains
       call openboundary_excjs(vp   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
       call openboundary_excjs(um   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
       call openboundary_excjs(vm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      ex = i2
+      ey = j2
    endif
 
-    do k=1,kmax
-      do j=2,j2   ! openbc needs these to i2,j2. Periodic bc needs them to i1,j1 
-        do i=2,i2
-          pup(i,j,k) = up(i,j,k) + um(i,j,k) / rk3coef
-          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) / rk3coef
-          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) / rk3coef
-        end do
+  ! TODO: allocate these in initpois
+  rk3coef_inv = (4. - dble(rk3step)) / rdt
+
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k=1,kmax
+    do j=2,ey ! openbc needs these to i2,j2. Periodic bc needs them to i1,j1 
+      do i=2,ex
+        pup(i,j,k) = up(i,j,k) + um(i,j,k) * rk3coef_inv
+        pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) * rk3coef_inv
+        pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) * rk3coef_inv
       end do
     end do
+  end do
 
 
   !****************************************************************
@@ -212,6 +235,7 @@ contains
 
   !**************************************************************
 
+    !$acc parallel loop collapse(2) default(present) async(1)
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
@@ -227,7 +251,8 @@ contains
       call excjs( pup           , 2,i1,2,j1,1,kmax,ih,jh)
       call excjs( pvp           , 2,i1,2,j1,1,kmax,ih,jh)
     endif
-    
+
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k=1,kmax
       do j=2,j1
         do i=2,i1
@@ -238,7 +263,9 @@ contains
       end do
     end do
 
-    deallocate( pup,pvp,pwp )
+    !$acc wait(1)
+
+    call timer_toc('modpois/fillps')
 
   end subroutine fillps
 
@@ -271,6 +298,8 @@ contains
     implicit none
     integer i,j,k
 
+    call timer_tic('modpois/tderive', 1)
+
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
   if(lopenbc) then ! If openboundaries are used only cyclic conditions for non-domain boundaries, hom. Neumann otherwise.
@@ -288,23 +317,29 @@ contains
   ! **  pressure gradients.  ***************************************
   !*****************************************************************
 
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k=1,kmax
-    do j=2,j1
-    do i=2,i1
-      up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
-      vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
-    end do
-    end do
+      do j=2,j1
+        do i=2,i1
+          up(i,j,k) = up(i,j,k)-(p(i,j,k)-p(i-1,j,k))/dx
+          vp(i,j,k) = vp(i,j,k)-(p(i,j,k)-p(i,j-1,k))/dy
+        end do
+      end do
     end do
 
+    !$acc parallel loop collapse(3) default(present) async(1)
     do k=2,kmax
-    do j=2,j1
-    do i=2,i1
-      wp(i,j,k) = wp(i,j,k)-(p(i,j,k)-p(i,j,k-1))/dzh(k)
-    end do
-    end do
+      do j=2,j1
+        do i=2,i1
+          wp(i,j,k) = wp(i,j,k)-(p(i,j,k)-p(i,j,k-1))/dzh(k)
+        end do
+      end do
     end do
 
+    !$acc wait(1)
+
+    call timer_toc('modpois/tderive')
+    
     return
   end subroutine tderive
 
@@ -345,12 +380,14 @@ contains
     use modfields, only : rhobf, rhobh
     implicit none
 
-    real(pois_r) :: a(kmax),b(kmax),c(kmax)
     real(pois_r) :: z,ak,bk,bbk
     integer :: i, j, k
 
+    call timer_tic('modpois/solmpj', 1)
+    
   ! Generate tridiagonal matrix
-
+    
+    !$acc parallel loop default(present) async(1)
     do k=1,kmax
       ! SB fixed the coefficients
       a(k)=rhobh(k)  /(dzf(k)*dzh(k  ))
@@ -358,10 +395,12 @@ contains
       b(k)=-(a(k)+c(k))
     end do
 
+    !$acc serial default(present) async(1)
     b(1   )=b(1)+a(1)        ! -c(1)
     a(1   )=0.
     b(kmax)=b(kmax)+c(kmax)  ! -a(kmax)
     c(kmax)=0.
+    !$acc end serial
 
     ! SOLVE TRIDIAGONAL SYSTEMS WITH GAUSSIAN ELEMINATION
     ! a(i) x(i-1) + b(i) x(i) + c(i) x(i+1) = d(i)
@@ -375,6 +414,8 @@ contains
     ! Upward sweep i=1
     ! c'(1) = c(1) / b(1)
     ! d'(1) = d(1) / b(1)
+
+    !$acc parallel loop collapse(2) default(present) private(z) async(1)
     do j=qs,qe
       do i=ps,pe
         z        = 1./(b(1)+rhobf(1)*xyrt(i,j))
@@ -386,9 +427,11 @@ contains
     ! Upward sweep i=2..(n-1)
     ! c'(i) = c(i) / [ b(i) - c'(i-1) a(i) ]
     ! d'(i) = [ d(i) - d'(i-1) a(i) ] / [ b(i) - c'(i-1) a(i) ]
-    do k=2,kmax-1
-      do  j=qs,qe
-        do  i=ps,pe
+    !$acc parallel loop collapse(2) default(present) private(bbk, z) async(1)
+    do  j=qs,qe
+      do  i=ps,pe
+        !$acc loop seq
+        do k=2,kmax-1
           bbk      = b(k)+rhobf(k)*xyrt(i,j)
           z        = 1./(bbk-a(k)*d(i,j,k-1))
           d(i,j,k) = c(k)*z
@@ -399,14 +442,14 @@ contains
 
     ! Upward sweep i=n and backsubstitution i=n
     ! x(n) = d'(n)
-    ak = a(kmax)
-    bk = b(kmax)
+
+    !$acc parallel loop collapse(2) default(present) private(bbk, z) async(1)
     do j=qs,qe
       do i=ps,pe
-        bbk = bk + rhobf(kmax)*xyrt(i,j)
-        z        = bbk-ak*d(i,j,kmax-1)
+        bbk = b(kmax) + rhobf(kmax)*xyrt(i,j)
+        z        = bbk-a(kmax)*d(i,j,kmax-1)
         if(z/=0.) then
-          Fp(i,j,kmax) = (Fp(i,j,kmax)-ak*Fp(i,j,kmax-1))/z
+          Fp(i,j,kmax) = (Fp(i,j,kmax)-a(kmax)*Fp(i,j,kmax-1))/z
         else
           Fp(i,j,kmax) =0.
         end if
@@ -415,13 +458,20 @@ contains
 
     ! Backsubstitution i=n-1..1
     ! x(i) = d'(i) - c'(i) x(i+1)
-    do k=kmax-1,1,-1
-      do j=qs,qe
-        do i=ps,pe
+
+    !$acc parallel loop collapse(2) default(present) async(1)
+    do j=qs,qe
+      do i=ps,pe
+        !$acc loop seq
+        do k=kmax-1,1,-1
           Fp(i,j,k) = Fp(i,j,k)-d(i,j,k)*Fp(i,j,k+1)
         end do
       end do
     end do
+
+    !$acc wait
+
+    call timer_toc('modpois/solmpj')
   end subroutine solmpj
 
 end module modpois

@@ -27,7 +27,7 @@
 !
 
 module modsurfdata
-
+use modprecision, only: field_r
 ! implicit none
 
 SAVE
@@ -217,9 +217,11 @@ SAVE
   real, allocatable :: Cm    (:,:)            !<  Drag coefficient for momentum [-]
   real, allocatable :: Cs    (:,:)            !<  Drag coefficient for scalars [-]
   real, allocatable, target :: ustar (:,:)    !<  Friction velocity [m/s]
+  real, pointer     :: ustar_3D(:,:,:)        !<  Pointer for halo exchange
   real, allocatable :: thlflux (:,:)          !<  Kinematic temperature flux [K m/s]
   real, allocatable :: qtflux  (:,:)          !<  Kinematic specific humidity flux [kg/kg m/s]
   real, allocatable :: svflux  (:,:,:)        !<  Kinematic scalar flux [- m/s]
+  real              :: min_horv = .1          !<  minimum surface wind speed for drag calculation
 
   ! Surface gradients of prognostic variables
   real, allocatable :: dudz  (:,:)            !<  U-wind gradient in surface layer [1/s]
@@ -231,7 +233,7 @@ SAVE
   real              :: thls  = -1             !<  Surface liquid water potential temperature [K]
   real              :: qts                    !<  Surface specific humidity [kg/kg]
   real              :: thvs                   !<  Surface virtual temperature [K]
-  real, allocatable :: svs   (:)              !<  Surface scalar concentration [-]
+  real(field_r), allocatable :: svs   (:)              !<  Surface scalar concentration [-]
   real              :: z0    = -1             !<  Surface roughness length [m]
 
   ! prescribed surface fluxes
@@ -276,6 +278,9 @@ SAVE
   real              :: rsisurf2_land(max_lands)    = 0  !< Vegetation resistance [s/m] if isurf2 is used
   real, allocatable :: albedo_patch(:,:)                !< Albedo
   real              :: albedo_land(max_lands)      = -1 !< Albedo
+  real, allocatable :: horv(:,:)                        !< Horizontal wind velocity [m/s]
+  real, allocatable :: horvpatch(:,:)                   !< Horizontal wind velocity [m/s]
+  real              :: horvav                           !< Horizontal wind velocity [m/s]
   real, allocatable :: tsoil_patch(:,:,:)               !< Soil temperature [K]
   real, allocatable :: tsoildeep_patch(:,:)             !< Soil temperature [K]
   real, allocatable :: phiw_patch(:,:,:)                !<

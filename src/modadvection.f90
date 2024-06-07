@@ -25,6 +25,7 @@
 !
 
 module modadvection
+use modtimer
 contains
 !> Advection redirection function
 subroutine advection
@@ -46,6 +47,8 @@ subroutine advection
   use advec_upw,      only : advecc_upw
   implicit none
   integer :: n,sx = 2,sy = 2
+
+  call timer_tic('modadvection/advection', 0)
 
   ! leq = .false. ! for testing that the non-uniform advection routines agree with the uniform ones
                   ! when the grid is uniform
@@ -94,7 +97,7 @@ subroutine advection
     case default
       stop "Unknown advection scheme "
   end select
-
+  !$acc wait
   if (.not. lsmagorinsky) then
     select case(iadv_tke)
       case(iadv_cd2)
@@ -124,7 +127,6 @@ subroutine advection
         stop "Unknown advection scheme "
     end select
   end if
-
   select case(iadv_thl)
     case(iadv_cd2)
       call advecc_2nd(thl0,thlp)
@@ -187,6 +189,7 @@ subroutine advection
         stop "Unknown advection scheme "
     end select
   end if
+
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)
@@ -218,6 +221,7 @@ subroutine advection
       stop "Unknown advection scheme "
     end select
   end do
-
+  !$acc wait
+  call timer_toc('modadvection/advection')
 end subroutine advection
 end module modadvection

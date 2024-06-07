@@ -33,6 +33,9 @@
 
 
 module modforces
+use modtimer
+use modprecision, only : field_r
+
 !Calculates additional forces and large scale tendencies
 implicit none
 save
@@ -68,34 +71,48 @@ contains
 
   integer i, j, k
 
+  call timer_tic('modforces/forces', 0)
+
   if (lforce_user) call force_user
 
   if (lpressgrad) then
-     do k=1,kmax
+     !$acc kernels default(present) async(1)
+     do k = 1, kmax
         up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
         vp(:,:,k) = vp(:,:,k) - dpdyl(k)
      end do
+     !$acc end kernels
   end if
 
   if((imicro==imicro_sice).or.(imicro==imicro_sice2).or.(imicro==imicro_bulk).or.(imicro==imicro_bin)) then
+    !$acc kernels default(present) async(2)
     do k=2,kmax
        wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k) - &
                   grav*(sv0(:,:,k,iqr)*dzf(k-1)+sv0(:,:,k-1,iqr)*dzf(k))/(2.0*dzh(k))
     end do
+    !$acc end kernels
   else
+    !$acc kernels default(present) async(2)
     do k=2,kmax
       wp(:,:,k) = wp(:,:,k) + grav*(thv0h(:,:,k)-thvh(k))/thvh(k)
     end do
+    !$acc end kernels
   end if
 
 !     --------------------------------------------
 !     special treatment for lowest full level: k=1
 !     --------------------------------------------
+  !$acc kernels default(present) async(3)
   wp(:,:,1) = 0.0
+  !$acc end kernels
+
+  !$acc wait
+
+  call timer_toc('modforces/forces')
 
   end subroutine forces
-  subroutine coriolis
 
+  subroutine coriolis
 !-----------------------------------------------------------------|
 !                                                                 |
 !      Thijs Heus TU Delft                                        |
@@ -116,7 +133,7 @@ contains
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
-  integer :: i, j, k,im,ip, jm, jp, km, kp,sx=2,sy=2
+  integer i, j, k, sx=2, sy=2
 
   if (lcoriol .eqv. .false.) return
 
@@ -126,42 +143,92 @@ contains
     if(lboundary(3).and..not.lperiodic(3)) sy = 3
   endif
 
-  ! u tendency
-  do k = 1,kmax
-    kp = k+1
-    do j = 2,j1
-      jp = j+1
-      do i = sx,i1
-        im = i-1
-        up(i,j,k) = up(i,j,k)+ cv*om23 &
-              +(v0(i,j,k)+v0(i,jp,k)+v0(im,j,k)+v0(im,jp,k))*om23*0.25 &
-              -(w0(i,j,k)+w0(i,j,kp)+w0(im,j,kp)+w0(im,j,k))*om22*0.25
+  call timer_tic('modforces/coriolis', 0)
+
+  if ( lopenbc ) then
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = sx, i1
+          up(i,j,k) = up(i,j,k)+ cv*om23 &
+                +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
+                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
+        end do
       end do
     end do
-  end do
-  ! v tendency
-  do k = 1,kmax
-    do j = sy,j1
-      jm = j -1
-      do i = 2,i1
-        ip = i+1
-        vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-              -(u0(i,j,k)+u0(i,jm,k)+u0(ip,jm,k)+u0(ip,j,k))*om23*0.25
+    
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = sx, i1
+          vp(i,j,k) = vp(i,j,k)  - cu*om23 &
+                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
+        end do
       end do
     end do
-  end do
-  ! w tendency
-  do k=2,kmax ! wp(:,:,1)=0
-    km=k-1
-    do j=2,j1
-      do i=2,i1
-        ip = i+1
-        wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(km) * (u0(i,j,k)  + u0(ip,j,k) )    &
-                +    dzf(k)  * (u0(i,j,km) + u0(ip,j,km))  ) / dzh(k) ) &
-                * om22*0.25
+    
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                      * om22*0.25_field_r
+        end do
       end do
     end do
-  end do
+
+    ! --------------------------------------------
+    ! special treatment for lowest full level: k=1
+    ! --------------------------------------------
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
+        wp(i,j,1) = 0.0
+      end do
+    end do
+    !$acc wait(1,2)
+  else ! lopenbc
+    ! Efficient fused kernel for periodic bc
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          up(i,j,k) = up(i,j,k)+ cv*om23 &
+                +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
+                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
+
+          vp(i,j,k) = vp(i,j,k)  - cu*om23 &
+                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
+
+          wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                      * om22*0.25_field_r
+        end do
+      end do
+    end do
+
+    ! --------------------------------------------
+    ! special treatment for lowest full level: k=1
+    ! --------------------------------------------
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
+        up(i,j,1) = up(i,j,1)  + cv*om23 &
+              +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25_field_r &
+              -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r
+
+        vp(i,j,1) = vp(i,j,1) - cu*om23 &
+              -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25_field_r
+
+        wp(i,j,1) = 0.0
+      end do
+    end do
+    !$acc wait(1,2)
+  end if
+
+  call timer_toc('modforces/coriolis')
+  return
   end subroutine coriolis
 
   subroutine lstend
@@ -191,45 +258,84 @@ contains
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
                         dqtdtls, dthldtls, dudtls, dvdtls
   implicit none
+  
+  integer i, j, k, n
 
-  integer k,kp,km
+  call timer_tic('modforces/lstend', 0)
 
-!     1. DETERMINE LARGE SCALE TENDENCIES
-!        --------------------------------
-
-!     1.1 lowest model level above surface : only downward component
-!     1.2 other model levels twostream
-
-  do k=1,kmax
-    kp=k+1
-    km=k-1
-
-    if (whls(kp).lt.0) then   !upwind scheme for subsidence
-       thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(kp) * (thl0(2:i1,2:j1,kp) - thl0(2:i1,2:j1,k))/dzh(kp)
-       qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(kp) * (qt0 (2:i1,2:j1,kp) - qt0 (2:i1,2:j1,k))/dzh(kp)
-       if (lmomsubs) then
-          up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(kp) * (u0(2:i1,2:j1,kp) - u0(2:i1,2:j1,k))/dzh(kp)
-          vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(kp) * (v0(2:i1,2:j1,kp) - v0(2:i1,2:j1,k))/dzh(kp)
-       endif
-       svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:) - whls(kp) * (sv0(2:i1,2:j1,kp,:) - sv0(2:i1,2:j1,k,:))/dzh(kp)
-
-    else !upwind scheme for mean upward motions
-       if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
-          thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k) - whls(k) * (thl0(2:i1,2:j1,k) - thl0(2:i1,2:j1,km))/dzh(k)
-          qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k) - whls(k) * (qt0 (2:i1,2:j1,k) - qt0 (2:i1,2:j1,km))/dzh(k)
-          if (lmomsubs) then
-             up(2:i1,2:j1,k) = up(2:i1,2:j1,k) - whls(k) * (u0(2:i1,2:j1,k) - u0(2:i1,2:j1,km))/dzh(k)
-             vp(2:i1,2:j1,k) = vp(2:i1,2:j1,k) - whls(k) * (v0(2:i1,2:j1,k) - v0(2:i1,2:j1,km))/dzh(k)
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 1, kmax
+    do j = 2, j1
+      do i = 2, i1
+        if (whls(k+1) < 0) then   !downwind scheme for subsidence
+          thlp(i,j,k) = thlp(i,j,k) - whls(k+1) * (thl0(i,j,k+1) - thl0(i,j,k))/dzh(k+1)
+          qtp (i,j,k) = qtp (i,j,k) - whls(k+1) * (qt0 (i,j,k+1) - qt0 (i,j,k))/dzh(k+1)
+        else                      !downwind scheme for mean upward motions
+          if (k > 1) then !neglect effect of mean ascending on tendencies at the lowest full level
+            thlp(i,j,k) = thlp(i,j,k) - whls(k) * (thl0(i,j,k) - thl0(i,j,k-1))/dzh(k)
+            qtp (i,j,k) = qtp (i,j,k) - whls(k) * (qt0 (i,j,k) - qt0 (i,j,k-1))/dzh(k)
           endif
-          svp(2:i1,2:j1,k,:) = svp(2:i1,2:j1,k,:)-whls(k) * (sv0(2:i1,2:j1,k,:) - sv0(2:i1,2:j1,km,:))/dzh(k)
-       endif
-    endif
+        endif
+      end do
+    end do
+  end do
 
-    thlp(2:i1,2:j1,k) = thlp(2:i1,2:j1,k)-u0av(k)*dthldxls(k)-v0av(k)*dthldyls(k) + dthldtls(k)
-    qtp (2:i1,2:j1,k) = qtp (2:i1,2:j1,k)-u0av(k)*dqtdxls (k)-v0av(k)*dqtdyls (k) + dqtdtls(k)
-    up  (2:i1,2:j1,k) = up  (2:i1,2:j1,k)-u0av(k)*dudxls  (k)-v0av(k)*dudyls  (k) + dudtls(k)
-    vp  (2:i1,2:j1,k) = vp  (2:i1,2:j1,k)-u0av(k)*dvdxls  (k)-v0av(k)*dvdyls  (k) + dvdtls(k)
-  enddo
+  if (lmomsubs) then
+    !$acc parallel loop collapse(3) default(present) async(2)
+    do k = 1, kmax
+      do j = 1, j1
+        do i = 1, i1
+          if (whls(k+1) < 0) then
+            up(i,j,k) = up(i,j,k) - whls(k+1) * (u0(i,j,k+1) - u0(i,j,k))/dzh(k+1)
+            vp(i,j,k) = vp(i,j,k) - whls(k+1) * (v0(i,j,k+1) - v0(i,j,k))/dzh(k+1)
+          else
+            if (k > 1) then
+              up(i,j,k) = up(i,j,k) - whls(k) * (u0(i,j,k) - u0(i,j,k-1))/dzh(k)
+              vp(i,j,k) = vp(i,j,k) - whls(k) * (v0(i,j,k) - v0(i,j,k-1))/dzh(k)
+            end if
+          end if
+        end do
+      end do
+    end do
+  end if
+  !$acc wait
+
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k = 1, kmax
+    do j = 2, j1
+      do i = 2, i1
+        thlp(i,j,k) = thlp(i,j,k) - u0av(k)*dthldxls(k) - v0av(k)*dthldyls(k) + dthldtls(k)
+        qtp (i,j,k) = qtp (i,j,k) - u0av(k)*dqtdxls (k) - v0av(k)*dqtdyls (k) + dqtdtls(k)
+        up  (i,j,k) = up  (i,j,k) - u0av(k)*dudxls  (k) - v0av(k)*dudyls  (k) + dudtls(k)
+        vp  (i,j,k) = vp  (i,j,k) - u0av(k)*dvdxls  (k) - v0av(k)*dvdyls  (k) + dvdtls(k)
+      end do
+    end do
+  end do
+
+  ! Only do above for scalars if there are any scalar fields
+  if (nsv > 0) then
+    !$acc parallel loop collapse(4) default(present) async(2)
+    do n = 1, nsv
+      do k = 1, kmax
+        do j = 1, j1
+          do i = 1, i1
+            if (whls(k+1).lt.0) then
+              svp(i,j,k,n) = svp(i,j,k,n) - whls(k+1) * (sv0(i,j,k+1,n) - sv0(i,j,k,n))/dzh(k+1)
+            else
+              if (k > 1) then
+                svp(i,j,k,n) = svp(i,j,k,n) - whls(k) * (sv0(i,j,k,n) - sv0(i,j,k-1,n))/dzh(k)
+              end if
+            end if
+          end do
+        end do
+      end do
+    end do
+  end if
+  !$acc wait
+
+  call timer_toc('modforces/lstend')
+
+  return
   end subroutine lstend
 
 end module modforces
