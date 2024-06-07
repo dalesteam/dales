@@ -133,7 +133,7 @@ contains
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
-  integer i, j, k, sx=2, sy=2
+  integer :: i, j, k, sx=2, sy=2
 
   if (lcoriol .eqv. .false.) return
 

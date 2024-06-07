@@ -230,7 +230,6 @@ program DALES
 #endif
 
   ! Startup is done, set flag to false
-  is_starting = .false.
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP

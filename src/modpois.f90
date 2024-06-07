@@ -49,7 +49,7 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
+    use modglobal, only : solver_id,i1,j1,ih,jh,k1,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
     use modhypre, only : inithypre_grid, inithypre_solver
@@ -196,10 +196,14 @@ contains
     use modmpi,    only : excjs
     use modopenboundary, only : openboundary_excjs
     implicit none
-    integer i,j,k, ex=i1, ey=j1
+    
+    integer :: i, j, k, ex, ey
     real(pois_r) :: rk3coef_inv
 
     call timer_tic('modpois/fillps', 1)
+
+    ex = i1
+    ey = j1
 
     if(lopenbc) then
        ! do exchanges here, because we have boundary conditions for up, vp but not for pup,pvp below
@@ -239,7 +243,7 @@ contains
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
-        pwp(i,j,k1) = wp(i,j,k1) + wm(i,j,k1) / rk3coef
+        pwp(i,j,k1) = wp(i,j,k1) + wm(i,j,k1) * rk3coef_inv
         !pwp(i,j,k1) = 0.
       end do
     end do

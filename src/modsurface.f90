@@ -72,7 +72,7 @@ contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
     use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
     use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
     use netcdf
 
@@ -105,8 +105,7 @@ contains
       ! Exponential emission function
       i_expemis, expemis0, expemis1, expemis2, &
       ! heterogeneous tskin
-      ltskininp
-      min_horv
+      ltskininp,  min_horv
 
     call timer_tic('modsurface/initsurface', 0)
 
@@ -1010,7 +1009,7 @@ contains
   !> Calculates the friction velocity \f$u_*\f$
   subroutine calc_friction_velocity
     use modglobal, only: i1 ,j1, lopenbc, lboundary, lperiodic
-    use modmpi, only: excjs
+    use modmpi, only: excjs, openboundary_excjs
     implicit none
 
     integer :: i, j
@@ -1051,7 +1050,7 @@ contains
   !> Prescribes the friction velocity \f$u_*\f$
   subroutine presc_friction_velocity
     use modglobal, only: i1, j1, lopenbc, lboundary, lperiodic
-    use modmpi, only: excjs
+    use modmpi, only: excjs, openboundary_excjs
     implicit none
 
     integer :: i, j

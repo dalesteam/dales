@@ -99,8 +99,6 @@ contains
     use modraddata, only : iradiation
     implicit none
     integer :: ierr,k,location = 1
-    real :: gradient = 0.0
-    real, allocatable,dimension(:) :: profile
     integer :: i,j,vi
     character(len=1000) :: line
 
@@ -251,7 +249,8 @@ contains
                 enddo
              enddo
           endif
-       endif
+        endif
+      endif
 
       if (lnetcdf) then
         if (isurf == 1) then

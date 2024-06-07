@@ -846,7 +846,7 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
-
+    integer, intent(in) :: sx
     real(field_r)       :: emmo,emom,emop,empo
     real(field_r)       :: fu
     real(field_r)       :: ucu, upcu
