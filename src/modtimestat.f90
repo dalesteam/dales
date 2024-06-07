@@ -69,7 +69,7 @@ save
   real, allocatable, dimension(:,:,:) :: blh_fld
   real(field_r), allocatable,dimension(:,:,:) :: sv0h
 
-  ! Variables for heterogeneity
+  !Variables for heterogeneity
   real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
   real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
   real, allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
@@ -78,12 +78,10 @@ save
   real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
   real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
   real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
-
-  ! In combination with isurf = 1
+  !In combination with isurf = 1
   real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
   real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
   real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
-
 
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
@@ -95,12 +93,10 @@ contains
     use modfields, only : thlprof,qtprof,svprof
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
-    use modlsm, only : lags
     use modraddata, only : iradiation
     implicit none
     integer :: ierr,k,location = 1
-    integer :: i,j,vi
-    character(len=1000) :: line
+    integer :: i,j
 
     namelist/NAMTIMESTAT/ & !< namelist
     dtav,ltimestat,blh_thres,iblh_meth,iblh_var,blh_nsamp !! namelist contents
@@ -249,19 +245,9 @@ contains
                 enddo
              enddo
           endif
-        endif
-      endif
+       endif
 
-      if (lnetcdf) then
-        if (isurf == 1) then
-          nvar = 34
-        else if (isurf == 11) then
-          nvar = 30
-          if (lags) nvar = nvar + 2
-        else
-          nvar = 24
-        end if
-        
+       if (lnetcdf) then
         allocate(ncname(nvar,4))
 
         fname(7:9) = cexpnr
@@ -326,44 +312,6 @@ contains
           call ncinfo(ncname(ivar_rad+16,:),'rlutm',  'TOM outgoing longwave flux','W/m^2','time')
           call ncinfo(ncname(ivar_rad+17,:),'rsutmcs','TOM outgoing shortwave flux -clear sky','W/m^2','time')
           call ncinfo(ncname(ivar_rad+18,:),'rlutmcs','TOM outgoing longwave flux -clear sky','W/m^2','time')
-          
-        if (isurf==11) then
-          vi = 24
-          call ncinfo(ncname(vi,:),'Qnet','Net radiation','W/m^2','time')
-          vi = vi+1
-          call ncinfo(ncname(vi,:),'H','Sensible heat flux','W/m^2','time')
-          vi = vi+1
-          call ncinfo(ncname(vi,:),'LE','Latent heat flux','W/m^2','time')
-          vi = vi+1
-          call ncinfo(ncname(vi,:),'G','Ground heat flux','W/m^2','time')
-          vi = vi+1
-          call ncinfo(ncname(vi,:),'f1','Reduction canopy resistance f(swd)','-','time')
-          vi = vi+1
-          call ncinfo(ncname(vi,:),'f2b','Reduction soil resistance f(theta)','-','time')
-          vi = vi+1
-          call ncinfo(ncname(vi,:),'wl','Liquid water reservoir','m','time')
-          vi = vi+1
-
-        !! tiled variables
-        ! obuk_av(ilu)  
-        ! ustar_av(ilu) 
-        ! ra_av(ilu)    
-        ! f2_av(ilu)    
-        ! f3_av(ilu)   
-        ! rs_av(ilu)   
-        ! c_av(ilu)       
-        ! H_av(ilu)       
-        ! LE_av(ilu)      
-        ! thlskin_av(ilu) 
-        ! qtskin_av(ilu)  
-        ! G_av(ilu)
-
-          if (lags) then
-            call ncinfo(ncname(vi,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
-            vi = vi+1
-            call ncinfo(ncname(vi,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
-            vi = vi+1
-          end if
         end if
 
         call open_nc(fname,  ncid,nrec)
@@ -442,10 +390,8 @@ contains
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
-                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, &
-                           thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
+                           lhetero, xpatches, ypatches, qts_patch, wt_patch, wq_patch, thls_patch,obl,z0mav_patch, wco2av, Anav, Respav,gcco2av
     use modsurface, only : patchxnr,patchynr
-    use modlsm,     only : tile, f1, f2b, nlu, lags, an_co2, resp_co2
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
 #if defined(_OPENACC)
@@ -465,25 +411,10 @@ contains
     real   :: c1,c2 !Used to calculate wthvs
     real,dimension(nvar) :: vars
 
-    ! LSM variables
+    ! lsm variables
     real   :: Qnetavl, Havl, LEavl, G0avl, tendskinavl, rsavl, raavl, tskinavl,Wlavl,cliqavl,rsvegavl,rssoilavl
     real   :: Qnetav, Hav, LEav, G0av, tendskinav, rsav, raav, tskinav,Wlav,cliqav,rsvegav,rssoilav
-
-    ! LSM tiled variables
-    real   :: obuk_av(nlu)
-    real   :: ustar_av(nlu)
-    real   :: ra_av(nlu)
-    real   :: f1_av, f2_av(nlu), f3_av(nlu), f2b_av
-    real   :: rs_av(nlu)
-    real   :: c_av(nlu)
-    real   :: H_av(nlu)
-    real   :: LE_av(nlu)
-    real   :: G_av(nlu)
-    real   :: thlskin_av(nlu)
-    real   :: qtskin_av(nlu)
-    real   :: an_co2_av, resp_co2_av
-
-    integer:: i, j, k, vi, ilu
+    integer:: i, j, k
 
     ! heterogeneity variables
     integer:: patchx, patchy
@@ -959,64 +890,6 @@ contains
         rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
-
-    else if(isurf == 11) then
-
-      Qnet(:,:) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
-
-      Qnetav = mean_2d(Qnet)
-      Hav    = mean_2d(H)
-      LEav   = mean_2d(LE)
-      G0av   = mean_2d(G0)
-      oblav  = mean_2d(obl)
-
-      ! Tiled variables
-      obuk_av = 0
-      ustar_av = 0
-      ra_av = 0
-      f2_av = 0
-      f3_av = 0
-      do ilu=1,nlu
-        !skip for ws
-        if (trim(tile(ilu)%lushort) == 'ws') cycle 
-        obuk_av(ilu)  = mean_2d(tile(ilu)%obuk)
-        ustar_av(ilu) = mean_2d(tile(ilu)%ustar)
-        ra_av(ilu)    = mean_2d(tile(ilu)%ra)
-        f2_av(ilu)    = mean_2d(tile(ilu)%f2)
-        f3_av(ilu)    = mean_2d(tile(ilu)%f3)
-      end do
-
-      do ilu=1,nlu
-        !skip for ws and aq
-        if (trim(tile(ilu)%lushort) == 'ws' .or. &
-            trim(tile(ilu)%lushort) == 'aq') cycle 
-        rs_av(ilu)    = mean_2d(tile(ilu)%rs)
-      end do
-
-      f1_av    = mean_2d(f1)
-      f2b_av   = mean_2d(f2b)
-
-      do ilu=1,nlu
-        c_av(ilu)       = mean_2d(tile(ilu)%frac)
-        H_av(ilu)       = mean_2d(tile(ilu)%H)
-        LE_av(ilu)      = mean_2d(tile(ilu)%LE)
-        thlskin_av(ilu) = mean_2d(tile(ilu)%thlskin) 
-        qtskin_av(ilu)  = mean_2d(tile(ilu)%qtskin) 
-      end do
-
-      wlav = mean_2d(wl)
-
-      do ilu=1,nlu
-        !skip for aq
-        if (trim(tile(ilu)%lushort) == 'aq') cycle
-        G_av(ilu)    = mean_2d(tile(ilu)%G)
-      end do
-
-      if (lags) then
-        an_co2_av   = mean_2d(an_co2)
-        resp_co2_av = mean_2d(resp_co2)
-      endif
-
     end if
 
     ! calculate radiation fluxes at surface, TOM, TOA
@@ -1108,7 +981,6 @@ contains
             gcco2av
         close(ifoutput)
       end if
-
       if (lnetcdf) then
         vars( 1) = rtimee
         vars( 2) = cc
@@ -1150,21 +1022,6 @@ contains
           vars(33) = wlav
           vars(34) = rssoilav
           vars(35) = rsvegav
-        else if (isurf == 11) then
-          vi = 25
-          vars(vi) = Qnetav; vi = vi+1
-          vars(vi) = Hav; vi = vi+1
-          vars(vi) = LEav; vi = vi+1
-          vars(vi) = G0av; vi = vi+1
-
-          vars(vi) = f1_av; vi = vi+1
-          vars(vi) = f2b_av; vi = vi+1
-          vars(vi) = wlav; vi = vi+1
-
-          if (lags) then
-            vars(vi) = an_co2_av; vi = vi+1
-            vars(vi) = resp_co2_av; vi = vi+1
-          end if
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
@@ -1239,19 +1096,6 @@ contains
     call timer_toc('modtimestat/timestat')
 
   end subroutine timestat
-
-  function mean_2d(var_2d) result(res)
-      use modglobal, only : i1, j1, ijtot
-      use modmpi,    only : mpi_sum, comm3d, mpierr, d_mpi_allreduce
-      implicit none
-      real, intent(in) :: var_2d(:,:)
-      real :: res, var_sum_l, var_sum
-
-      var_sum_l = sum(var_2d(2:i1,2:j1))
-      call d_mpi_allreduce(var_sum_l, var_sum, 1, mpi_sum, comm3d, mpierr)
-      res = var_sum / ijtot
-
-  end function mean_2d
 
 !>Calculate the boundary layer height
 !!
