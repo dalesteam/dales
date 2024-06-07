@@ -259,7 +259,7 @@ contains
           nvar = 30
           if (lags) nvar = nvar + 2
         else
-          nvar = 23
+          nvar = 24
         end if
         
         allocate(ncname(nvar,4))
