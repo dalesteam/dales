@@ -94,6 +94,7 @@ contains
     use modsurfdata, only : isurf, lhetero, xpatches, ypatches
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, nctiminfo
     use modraddata, only : iradiation
+    use modlsm, only : lags
     implicit none
     integer :: ierr,k,location = 1
     integer :: i,j
@@ -127,6 +128,13 @@ contains
     if(isurf == 1) then
        nvar = nvar + 11
        ivar_rad = ivar_rad + 11
+    else if (isurf  == 11) then
+      nvar = nvar + 7
+      ivar_rad = ivar_rad + 7
+      if (lags) then
+        nvar = nvar + 2
+        ivar_rad = ivar_rad + 2
+      end if
     end if
     if (iradiation /= 0) then
        nvar = nvar + 19
@@ -288,6 +296,19 @@ contains
           call ncinfo(ncname(33,:),'Wl','Liquid water reservoir','m','time')
           call ncinfo(ncname(34,:),'rssoil','Soil evaporation resistance','s/m','time')
           call ncinfo(ncname(35,:),'rsveg','Vegitation resistance','s/m','time')
+        else if (isurf == 11) then
+          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(28,:),'G','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(29,:),'f1','Reduction canopy resistance f(swd)','-','time')
+          call ncinfo(ncname(30,:),'f2b','Reduction soil resistance f(theta)','-','time')
+          call ncinfo(ncname(31,:),'wl','Liquid water reservoir','m','time')
+
+          if (lags) then
+            call ncinfo(ncname(32,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
+            call ncinfo(ncname(33,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
+          end if
         end if
 
         if (iradiation /= 0) then
@@ -394,6 +415,7 @@ contains
     use modsurface, only : patchxnr,patchynr
     use modmpi,     only : mpi_sum,mpi_max,mpi_min,comm3d,mpierr,myid, D_MPI_ALLREDUCE
     use modstat_nc,  only : lnetcdf, writestat_nc,nc_fillvalue
+    use modlsm,     only : tile, f1, f2b, nlu, lags, an_co2, resp_co2
 #if defined(_OPENACC)
     use modgpu, only: update_host
 #endif
@@ -414,10 +436,25 @@ contains
     ! lsm variables
     real   :: Qnetavl, Havl, LEavl, G0avl, tendskinavl, rsavl, raavl, tskinavl,Wlavl,cliqavl,rsvegavl,rssoilavl
     real   :: Qnetav, Hav, LEav, G0av, tendskinav, rsav, raav, tskinav,Wlav,cliqav,rsvegav,rssoilav
-    integer:: i, j, k
+
+    ! LSM tiled variables
+    real   :: obuk_av(nlu)
+    real   :: ustar_av(nlu)
+    real   :: ra_av(nlu)
+    real   :: f1_av, f2_av(nlu), f3_av(nlu), f2b_av
+    real   :: rs_av(nlu)
+    real   :: c_av(nlu)
+    real   :: H_av(nlu)
+    real   :: LE_av(nlu)
+    real   :: G_av(nlu)
+    real   :: thlskin_av(nlu)
+    real   :: qtskin_av(nlu)
+    real   :: an_co2_av, resp_co2_av
 
     ! heterogeneity variables
     integer:: patchx, patchy
+
+    integer:: i, j, k, ilu
 
     if (.not.(ltimestat)) return
     if (rk3step/=3) return
@@ -890,7 +927,63 @@ contains
         rssoil_patch   = patchsum_1level(rssoil  (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
         tskin_patch    = patchsum_1level(tskin   (2:i1, 2:j1)) * (xpatches*ypatches/ijtot)
       endif
-    end if
+    else if (isurf == 11) then
+      Qnet(:,:) = swd(i,j,1) + swu(i,j,1) + lwd(i,j,1) + lwu(i,j,1)
+
+      ! TODO: replace mean_2d with slabsum?
+      Qnetav = mean_2d(Qnet)
+      Hav    = mean_2d(H)
+      LEav   = mean_2d(LE)
+      G0av   = mean_2d(G0)
+      oblav  = mean_2d(obl)
+
+      ! Tiled variables
+      obuk_av = 0
+      ustar_av = 0
+      ra_av = 0
+      f2_av = 0
+      f3_av = 0
+      do ilu=1,nlu
+        !skip for ws
+        if (trim(tile(ilu)%lushort) == 'ws') cycle 
+        obuk_av(ilu)  = mean_2d(tile(ilu)%obuk)
+        ustar_av(ilu) = mean_2d(tile(ilu)%ustar)
+        ra_av(ilu)    = mean_2d(tile(ilu)%ra)
+        f2_av(ilu)    = mean_2d(tile(ilu)%f2)
+        f3_av(ilu)    = mean_2d(tile(ilu)%f3)
+      end do
+
+      do ilu=1,nlu
+        !skip for ws and aq
+        if (trim(tile(ilu)%lushort) == 'ws' .or. &
+            trim(tile(ilu)%lushort) == 'aq') cycle 
+        rs_av(ilu)    = mean_2d(tile(ilu)%rs)
+      end do
+
+      f1_av    = mean_2d(f1)
+      f2b_av   = mean_2d(f2b)
+
+      do ilu=1,nlu
+        c_av(ilu)       = mean_2d(tile(ilu)%frac)
+        H_av(ilu)       = mean_2d(tile(ilu)%H)
+        LE_av(ilu)      = mean_2d(tile(ilu)%LE)
+        thlskin_av(ilu) = mean_2d(tile(ilu)%thlskin) 
+        qtskin_av(ilu)  = mean_2d(tile(ilu)%qtskin) 
+      end do
+
+      wlav = mean_2d(wl)
+
+      do ilu=1,nlu
+        !skip for aq
+        if (trim(tile(ilu)%lushort) == 'aq') cycle
+        G_av(ilu)    = mean_2d(tile(ilu)%G)
+      end do
+
+      if (lags) then
+        an_co2_av   = mean_2d(an_co2)
+        resp_co2_av = mean_2d(resp_co2)
+      endif
+     end if
 
     ! calculate radiation fluxes at surface, TOM, TOA
     if (iradiation /= 0) then
@@ -1022,6 +1115,19 @@ contains
           vars(33) = wlav
           vars(34) = rssoilav
           vars(35) = rsvegav
+        else if (isurf == 11) then
+          vars(25) = Qnetav
+          vars(26) = Hav
+          vars(27) = LEav
+          vars(28) = G0av
+          vars(29) = f1_av
+          vars(30) = f2b_av
+          vars(31) = wlav
+
+          if (lags) then
+            vars(32) = an_co2_av
+            vars(33) = resp_co2_av
+          end if
         end if
 
         call writestat_nc(ncid,nvar,ncname,vars,nrec,.true.)
@@ -1096,6 +1202,20 @@ contains
     call timer_toc('modtimestat/timestat')
 
   end subroutine timestat
+
+  function mean_2d(var_2d) result(res)
+    use modglobal, only : i1, j1, ijtot
+    use modmpi, only : mpi_sum, comm3d, mpierr, d_mpi_allreduce
+    implicit none
+
+    real, intent(in) :: var_2d(:,:)
+    real :: res, var_sum_l, var_sum
+
+    var_sum_l = sum(var_2d(2:i1, 2:j1))
+    call d_mpi_allreduce(var_sum_l, var_sum, 1, mpi_sum, comm3d, mpierr)
+    res = var_sum / ijtot
+  end function mean_2d
+    
 
 !>Calculate the boundary layer height
 !!
