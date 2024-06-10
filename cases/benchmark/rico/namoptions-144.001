@@ -14,8 +14,8 @@ nprocy     = 0
 /
 
 &NAMTRACERS
-ltracers = .false.
-tracernames = 'sv0', 'sv1'
+ltracers = .true.
+tracernames = 'nr', 'qr'
 /
 
 &DOMAIN

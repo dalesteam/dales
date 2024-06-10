@@ -1,5 +1,5 @@
 #  input file Scalar Profiles - RICO Trade Cu Period (12/16-01/08)
-height sv0 sv1
+height      nr  qr
 2.0000E+001	0	0
 6.0000E+001	0	0
 1.0000E+002	0	0
