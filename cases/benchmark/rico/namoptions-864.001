@@ -13,6 +13,11 @@ nprocx     = 0
 nprocy     = 0
 /
 
+&NAMTRACERS
+ltracers = .false.
+tracernames = 'sv0', 'sv1'
+/
+
 &DOMAIN
 itot       =  864
 jtot       =  864
