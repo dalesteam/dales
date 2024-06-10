@@ -151,6 +151,8 @@ contains
     integer   :: tdx, ierr, defined_tracers
     character(len=1500) :: readbuffer
 
+    if ( .not. ltracers ) return
+
     defined_tracers = 0
     open (ifinput,file='tracerdata.inp')
     ierr = 0
@@ -188,13 +190,22 @@ contains
 
     implicit none
 
+    character(len=5) :: default_name
+    character(len=3) :: num
+
     do isv=1,nsv
       ! First assign tracer index values. They are equal to the sv index by default
       tracer_prop(isv) % trac_idx = isv
 
       ! match species by short name and 
       ! look up species props in modtracdata arrays
-      tracer_prop(isv) % tracname = trim(tracernames(isv))
+      if ( ltracers ) then ! assume that we provide tracer names when ltracers is enabled
+        tracer_prop(isv) % tracname = trim(tracernames(isv))
+      else
+        write(num, '(I3)') isv - 1
+        default_name = 'sv' // trim(adjustl(num))
+        tracer_prop(isv) % tracname = trim(default_name)
+      end if
       tracer_prop(isv) % traclong = trim(findval_character(tracernames(isv), tracname_short, &
                                       tracname_long, defltvalue='dummy longname'))  ! Default is 'dummy '
       tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
