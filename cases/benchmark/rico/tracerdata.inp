@@ -1,0 +1,3 @@
+#tracname_short tracname_long                    tracer_unit molar_mass is_emitted is_reactive is_deposited is_photosynth is_microphys
+'qr    '        'Rain water mixing ratio       ' 'kg/kg   '  -999.      .false.    .false.     .false.      .false.       .true.
+'nr    '        'Cloud droplet number          ' '-       '  -999.      .false.    .false.     .false.      .false.       .true.
