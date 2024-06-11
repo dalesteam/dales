@@ -700,7 +700,7 @@ contains
                               (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av(k))**2 &
                               +(0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av(k))**2 &
                               +(0.5*(w0(i,j,k)+w0(i,j,k+1))           )**2 &
-                                    ) + e120(i,j,k)**2
+                                    ) + e120(i,j,k)**2 * dzf(k) * rhof(k)
         end do
       end do
     end do
@@ -719,7 +719,7 @@ contains
                                      (0.5*(u0(i,j,k)+u0(i+1,j,k))+cu-u0av_patch(patchx,patchy))**2 + &
                                      (0.5*(v0(i,j,k)+v0(i,j+1,k))+cv-v0av_patch(patchx,patchy))**2 + &
                                      (0.5*(w0(i,j,k)+w0(i,j,k+1))   -w0av_patch(patchx,patchy))**2 &
-                                         ) + e120(i,j,k)**2
+                                         ) + e120(i,j,k)**2 * dzf(k) * rhof(k)
           end do
         end do
       end do
