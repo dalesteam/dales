@@ -716,13 +716,14 @@ contains
       endif
     endif
 
+    dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
+
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
 
     call timer_toc('modsurface/initsurface')
 
-    return
   end subroutine initsurface
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
