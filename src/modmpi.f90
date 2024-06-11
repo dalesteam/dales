@@ -1966,7 +1966,7 @@ contains
     integer sx,ex,hx, sy,ey,hy, sz,ez
     real(field_r) :: field(sx-hx:ex+hx,sy-hy:ey+hy,sz:ez)
     real :: fillvalue = 0
-    real,optional :: fillvalue_in
+    real(field_r),optional :: fillvalue_in
     if(present(fillvalue_in)) fillvalue=fillvalue_in
 
     if      (myidx == 0) then        ! WEST boundary

@@ -406,6 +406,7 @@
 module LE_DryDepos_Gas_DEPAC
 
   use GO, only : gol, goPr, goErr
+  use modprecision, only : field_r
   
   implicit none
   
@@ -502,7 +503,7 @@ real             , intent(in)  :: lat              ! latitude Northern hemispher
 real             , intent(in)  :: t                ! temperature (C)
                                                    ! NB discussion issue is temp T_2m or T_surf or T_leaf?
 real             , intent(in)  :: ust              ! friction velocity (m/s)
-real             , intent(in)  :: glrad            ! global radiation (W/m2)
+real(field_r)    , intent(in)  :: glrad            ! global radiation (W/m2)
 real             , intent(in)  :: sinphi           ! sin of solar elevation angle
 real             , intent(in)  :: rh               ! relative humidity (%)
 real             , intent(in)  :: lai              ! one-sidedleaf area index (-)
@@ -530,7 +531,7 @@ real, optional   , intent(in)  :: c_ave_prev_nh3   ! air concentration averaged 
                                                    ! period (e.g. previous year or month) (ug/m3)
 real, optional   , intent(in)  :: c_ave_prev_so2   ! air concentration averaged over a previous
                                                    ! period (e.g. previous year or month) (ug/m3)
-real, optional   , intent(in)  :: catm             ! actual atmospheric concentration (ug/m3)
+real(field_r), optional, intent(in)  :: catm             ! actual atmospheric concentration (ug/m3)
 real, optional   , intent(in)  :: gamma_soil_water ! gammawater from gammawater.nc file
 ! optional arguments needed only if an effective Rc (based on compensation points) is computed;
 ! in this case, also the previous three optional arguments are needed
@@ -1093,7 +1094,7 @@ character(len=*),  intent(in) :: compnam       ! component name
 integer,           intent(in) :: lu            ! land use type , lu = 1,...,nlu
 logical,           intent(in) :: LAI_present
 real,              intent(in) :: lai           ! one-sided leaf area index
-real,              intent(in) :: glrad         ! global radiation (W/m2)
+real(field_r),     intent(in) :: glrad         ! global radiation (W/m2)
 real,              intent(in) :: sinphi        ! sin of solar elevation angle
 real,              intent(in) :: t             ! temperature (C)
 real,              intent(in) :: rh            ! relative humidity (%)
@@ -1206,7 +1207,7 @@ subroutine rc_gstom_emb( lu, glrad, T, vpd, LAI_present, lai, sinp, &
 
 ! Input/output variables:
 integer,           intent(in) :: lu                ! land use type, lu = 1,...,nlu
-real,              intent(in) :: glrad             ! global radiation (W/m2)
+real(field_r),     intent(in) :: glrad             ! global radiation (W/m2)
 real,              intent(in) :: T                 ! temperature (C)
 real,              intent(in) :: vpd               ! vapour pressure deficit (kPa)
 logical,           intent(in) :: LAI_present
@@ -1339,12 +1340,12 @@ subroutine par_dir_diff(glrad,sinphi,pres,pres_0,par_dir,par_diff)
 !     Leiming uses solar irradiance. This should be equal to global radiation and
 !     Willem Asman set it to global radiation
 
-      real,    intent(in)  :: glrad             ! global radiation (W m-2)
-      real,    intent(in)  :: sinphi            ! sine of the solar elevation
-      real,    intent(in)  :: pres              ! actual pressure (to correct for height) (Pa)
-      real,    intent(in)  :: pres_0            ! pressure at sea level (Pa)
-      real,    intent(out) :: par_dir           ! PAR direct : visible (photoactive) direct beam radiation (W m-2)
-      real,    intent(out) :: par_diff          ! PAR diffuse: visible (photoactive) diffuse radiation (W m-2)
+      real(field_r), intent(in)  :: glrad             ! global radiation (W m-2)
+      real,          intent(in)  :: sinphi            ! sine of the solar elevation
+      real,          intent(in)  :: pres              ! actual pressure (to correct for height) (Pa)
+      real,          intent(in)  :: pres_0            ! pressure at sea level (Pa)
+      real,          intent(out) :: par_dir           ! PAR direct : visible (photoactive) direct beam radiation (W m-2)
+      real,          intent(out) :: par_diff          ! PAR diffuse: visible (photoactive) diffuse radiation (W m-2)
 
 !     fn              = near-infrared direct beam fraction (dimensionless)
 !     fv              = PAR direct beam fraction (dimensionless)
@@ -1684,7 +1685,7 @@ subroutine rc_comp_point( compnam,lu,day_of_year,t,gw,gstom,gsoil_eff,gc_tot,&
                                                         ! separate compensation points) (ug/m3)
     integer, intent(out)          :: status
     
-    real, optional,  intent(in)   :: catm               ! actual atmospheric concentration (ug/m3)
+    real(field_r), optional,  intent(in)   :: catm               ! actual atmospheric concentration (ug/m3)
     real, optional,  intent(in)   :: c_ave_prev_nh3     ! air concentration averaged over a previous
                                                         ! period (e.g. previous year or month) (ug/m3)
     real, optional,  intent(in)   :: c_ave_prev_so2     ! air concentration averaged over a previous
@@ -1932,13 +1933,13 @@ subroutine rc_comp_point_rc_eff( ccomp_tot, catm, ra, rb, rc_tot, rc_eff, status
 implicit none
 
 ! Input/output variables:
-real, intent(in)        :: ccomp_tot  ! total compensation point (weighed average of separate compensation points) (ug/m3)
-real, intent(in)        :: catm       ! atmospheric concentration (ug/m3)
-real, intent(in)        :: ra         ! aerodynamic resistance (s/m)
-real, intent(in)        :: rb         ! boundary layer resistance (s/m)
-real, intent(in)        :: rc_tot     ! total canopy resistance (s/m)
-real, intent(out)       :: rc_eff     ! effective total canopy resistance (s/m)
-integer, intent(out)    :: status
+real, intent(in)          :: ccomp_tot  ! total compensation point (weighed average of separate compensation points) (ug/m3)
+real(field_r), intent(in) :: catm       ! atmospheric concentration (ug/m3)
+real, intent(in)          :: ra         ! aerodynamic resistance (s/m)
+real, intent(in)          :: rb         ! boundary layer resistance (s/m)
+real, intent(in)          :: rc_tot     ! total canopy resistance (s/m)
+real, intent(out)         :: rc_eff     ! effective total canopy resistance (s/m)
+integer, intent(out)      :: status
 
 ! constants:
 character(len=*), parameter   ::  rname = mname//'/rc_comp_point_rc_eff'

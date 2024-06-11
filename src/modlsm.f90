@@ -19,6 +19,7 @@
 
 module modlsm
     use netcdf
+    use modprecision, only : field_r
     implicit none
 
     public :: initlsm, lsm, exitlsm, init_lsm_tiles, lags, llsm
@@ -483,7 +484,7 @@ subroutine calc_obuk_ustar_ra(tile)
 
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
-                    tile%obuk(i,j), du_tot(i,j), tile%db(i,j), zf(1), tile%z0m(i,j), tile%z0h(i,j))
+                    tile%obuk(i,j), du_tot(i,j), tile%db(i,j), real(zf(1), 8), tile%z0m(i,j), tile%z0h(i,j))
             end if
         end do
     end do
@@ -492,8 +493,8 @@ subroutine calc_obuk_ustar_ra(tile)
         do i=2,i1
             if (tile%frac(i,j) > 0) then
                 ! Calculate friction velocity and aerodynamic resistance
-                tile%ustar(i,j) = du_tot(i,j) * fm(zf(1), tile%z0m(i,j), tile%obuk(i,j))
-                tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(zf(1), tile%z0h(i,j), tile%obuk(i,j)))
+                tile%ustar(i,j) = du_tot(i,j) * fm(real(zf(1), 8), tile%z0m(i,j), tile%obuk(i,j))
+                tile%ra(i,j)    = 1./(tile%ustar(i,j) * fh(real(zf(1), 8), tile%z0h(i,j), tile%obuk(i,j)))
             end if
         end do
     end do

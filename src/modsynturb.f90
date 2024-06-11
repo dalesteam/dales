@@ -30,7 +30,7 @@ use modprecision, only: field_r
 implicit none
 real, allocatable, dimension(:,:) :: kn,p,q,vturb,wturb,k_thl,k_qt
 real, allocatable, dimension(:) :: omega,omega_thl,omega_qt,p_thl,p_qt,q_thl,q_qt
-real, allocatable, dimension(:) :: xf,xh,yf,yh
+real(field_r), allocatable, dimension(:) :: xf,xh,yf,yh
 real :: nisqrt,ctot,nisqrt2
 real, dimension(3) :: lambdasxyz
 integer :: nxturb,nyturb,nzturb
@@ -263,17 +263,17 @@ contains
       call calc_eigdec(ib)
       select case(ib)
       case(1)
-        call calc_pert(ib,(/0./),yf,zf,1,jmax,kmax,boundary(ib)%uturb,1)
-        call calc_pert(ib,(/0./),yh,zf,1,j1,kmax,boundary(ib)%vturb,2)
-        call calc_pert(ib,(/0./),yf,zh,1,jmax,k1,boundary(ib)%wturb,3)
+        call calc_pert(ib,(/0._field_r/),yf,zf,1,jmax,kmax,boundary(ib)%uturb,1)
+        call calc_pert(ib,(/0._field_r/),yh,zf,1,j1,kmax,boundary(ib)%vturb,2)
+        call calc_pert(ib,(/0._field_r/),yf,zh,1,jmax,k1,boundary(ib)%wturb,3)
       case(2)
         call calc_pert(ib,(/(itot+1)*dx/),yf,zf,1,jmax,kmax,boundary(ib)%uturb,1)
         call calc_pert(ib,(/(itot+1)*dx/),yh,zf,1,j1,kmax,boundary(ib)%vturb,2)
         call calc_pert(ib,(/(itot+1)*dx/),yf,zh,1,jmax,k1,boundary(ib)%wturb,3)
       case(3)
-        call calc_pert(ib,xh,(/0./),zf,i1,1,kmax,boundary(ib)%uturb,1)
-        call calc_pert(ib,xf,(/0./),zf,imax,1,kmax,boundary(ib)%vturb,2)
-        call calc_pert(ib,xh,(/0./),zh,imax,1,k1,boundary(ib)%wturb,1)
+        call calc_pert(ib,xh,(/0._field_r/),zf,i1,1,kmax,boundary(ib)%uturb,1)
+        call calc_pert(ib,xf,(/0._field_r/),zf,imax,1,kmax,boundary(ib)%vturb,2)
+        call calc_pert(ib,xh,(/0._field_r/),zh,imax,1,k1,boundary(ib)%wturb,1)
       case(4)
         call calc_pert(ib,xh,(/(jtot+1)*dy/),zf,i1,1,kmax,boundary(ib)%uturb,1)
         call calc_pert(ib,xf,(/(jtot+1)*dy/),zf,imax,1,kmax,boundary(ib)%vturb,2)
@@ -295,20 +295,20 @@ contains
       call calc_eigdec(ib)
       select case(ib)
       case(1)
-        call calc_pert2(ib,(/0./),yf,zf,1,jmax,kmax,boundary(ib)%uturb,1, &
+        call calc_pert2(ib,(/0._field_r/),yf,zf,1,jmax,kmax,boundary(ib)%uturb,1, &
           & boundary(ib)%thlturb,boundary(ib)%qtturb)
-        call calc_pert(ib,(/0./),yh,zf,1,j1,kmax,boundary(ib)%vturb,2)
-        call calc_pert(ib,(/0./),yf,zh,1,jmax,k1,boundary(ib)%wturb,3)
+        call calc_pert(ib,(/0._field_r/),yh,zf,1,j1,kmax,boundary(ib)%vturb,2)
+        call calc_pert(ib,(/0._field_r/),yf,zh,1,jmax,k1,boundary(ib)%wturb,3)
       case(2)
         call calc_pert2(ib,(/(itot+1)*dx/),yf,zf,1,jmax,kmax,boundary(ib)%uturb,1, &
           & boundary(ib)%thlturb,boundary(ib)%qtturb)
         call calc_pert(ib,(/(itot+1)*dx/),yh,zf,1,j1,kmax,boundary(ib)%vturb,2)
         call calc_pert(ib,(/(itot+1)*dx/),yf,zh,1,jmax,k1,boundary(ib)%wturb,3)
       case(3)
-        call calc_pert(ib,xh,(/0./),zf,i1,1,kmax,boundary(ib)%uturb,1)
-        call calc_pert2(ib,xf,(/0./),zf,imax,1,kmax,boundary(ib)%vturb,2, &
+        call calc_pert(ib,xh,(/0._field_r/),zf,i1,1,kmax,boundary(ib)%uturb,1)
+        call calc_pert2(ib,xf,(/0._field_r/),zf,imax,1,kmax,boundary(ib)%vturb,2, &
           & boundary(ib)%thlturb,boundary(ib)%qtturb)
-        call calc_pert(ib,xh,(/0./),zh,imax,1,k1,boundary(ib)%wturb,1)
+        call calc_pert(ib,xh,(/0._field_r/),zh,imax,1,k1,boundary(ib)%wturb,1)
       case(4)
         call calc_pert(ib,xh,(/(jtot+1)*dy/),zf,i1,1,kmax,boundary(ib)%uturb,1)
         call calc_pert2(ib,xf,(/(jtot+1)*dy/),zf,imax,1,kmax,boundary(ib)%vturb,2, &
@@ -406,7 +406,7 @@ contains
     use modglobal, only : rtimee,dxturb,dyturb
     use modmpi, only : myidx,myidy
     implicit none
-    real, dimension(:), intent(in) :: x,y,z
+    real(field_r), dimension(:), intent(in) :: x,y,z
     integer, intent(in) :: nx,ny,nz,iuturb,ib
     real(field_r), dimension(:,:), intent(out) :: uturb
     integer,target :: i,j,k,ipatch,jpatch,kpatch
@@ -462,7 +462,7 @@ contains
     use modglobal, only : rtimee,tboundary,ntboundary
     use modmpi, only : myidx,myidy
     implicit none
-    real, dimension(:), intent(in) :: x,y,z
+    real(field_r), dimension(:), intent(in) :: x,y,z
     integer, intent(in) :: nx,ny,nz,iuturb,ib
     real(field_r), dimension(:,:), intent(out) :: uturb,thlturb,qtturb
     integer,target :: i,j,k,ipatch,jpatch,kpatch
