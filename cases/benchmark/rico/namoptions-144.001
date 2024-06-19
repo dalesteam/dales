@@ -13,6 +13,11 @@ nprocx     = 0
 nprocy     = 0
 /
 
+&NAMTRACERS
+ltracers = .true.
+tracernames = 'nr', 'qr'
+/
+
 &DOMAIN
 itot       =  144
 jtot       =  144
@@ -105,4 +110,7 @@ ltend      = .true.
 &NAMCLOUDFIELD
 dtav=1440
 lcloudfield = .false.
+/
+&SOLVER
+solver_id = 100
 /

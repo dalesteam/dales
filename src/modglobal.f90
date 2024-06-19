@@ -22,6 +22,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modglobal
+use iso_c_binding
 use modprecision
 implicit none
 save
@@ -91,6 +92,13 @@ save
       real,parameter :: epscloud = 1.e-5            !<    *limit for cloud calculation 0.01 g/kg
       real,parameter :: boltz    = 5.67e-8          !<    *Stefan-Boltzmann constant
 
+      ! Land-surface
+      real,parameter :: rho_solid_soil = 2700       !< Density of dry solid soil (kg m-3)
+      real,parameter :: rho_C_matrix   = 1.6e6      !< Volumetric soil heat capacity [J m-3 K-1]
+      real,parameter :: rho_C_water    = 4.18e6     !< Volumetric water heat capacity [J m-3 K-1]
+      real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
+      real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
+
       !$acc declare copyin(rd, rv, pref0)
 
       logical :: lcoriol  = .true.  !<  switch for coriolis force
@@ -145,7 +153,7 @@ save
       logical :: lfast_thermo = .false. !<   switch to enable faster icethermo scheme
       logical :: lsgbucorr= .false.  !<   switch to enable subgrid buoyancy flux
       logical :: lconstexner = .false.  !<  switch to use the initial pressure profile in the exner function
-      
+
       ! Poisson solver: modpois / modhypre
       integer :: solver_id = 0       ! Identifier for nummerical solver:    0    1   2     3       4
                                      !                                     FFT  SMG PFMG BiCGSTAB GMRES
@@ -153,7 +161,16 @@ save
       real(real64):: tolerance = 1E-8! Convergence threshold                .    X   X     X       X
       integer :: n_pre = 1           ! Number of pre and post relaxations   .    X   X     X       X
       integer :: n_post =1           ! Number of pre and post relaxations   .    X   X     X       X
-      integer :: precond = 1         ! Preconditioner ID                    .    .  12   0189     0189
+      integer :: precond_id = 1      ! Preconditioner ID                    .    .  12   0189     0189
+      integer :: maxiter_precond = 1 ! Number of iterations for precondition per iteration
+      integer :: hypre_logging = 1   ! HYPRE logging and print level - set higher value for more messages
+      type solver_type
+         !integer*8 solver,precond
+        type(c_ptr) solver, precond
+        integer   solver_id, precond_id, maxiter, n_post, n_pre, maxiter_precond
+        real      tolerance
+      end type
+      type(solver_type) :: psolver
 
       ! Global variables (modvar.f90)
       integer :: xyear  = 0     !<     * year, only for time units in netcdf
@@ -193,8 +210,28 @@ save
       integer :: iexpnr = 0     !<     * number of the experiment
 
       character(3) cexpnr
+
       logical :: loutdirs = .false.       !< if true, create output directories using myidy
       character(20) :: output_prefix = '' !< prefix for output files e.g. for an output directory
+
+      ! Variables for modopenboundary.f90
+      logical :: lopenbc = .false., lsynturb = .false.,linithetero = .false.
+      type boundary_type
+        integer :: nx1,nx2,nx1patch,nx2patch,nx1u,nx2u,nx1v,nx2v,nx1w,nx2w,nx1turb,nx2turb
+        real(field_r), allocatable, dimension(:,:,:) :: u,v,w,thl,qt,e12, &
+          & u2,v2,w2,uv,uw,vw,thl2,qt2,wthl,wqt,ci,svturb
+        real(field_r), allocatable, dimension(:,:,:,:) :: sv
+        real(field_r), allocatable, dimension(:,:) :: radcorr,uphase,uphasesingle, &
+          radcorrsingle,uturb,vturb,wturb,thlturb,qtturb,e12turb!,randqt,randthl
+        real(field_r), allocatable, dimension(:,:,:,:) :: eigvec
+        character (len=:), allocatable :: name
+      end type
+      type(boundary_type), dimension(5) :: boundary
+      logical, dimension(5) :: lboundary = .false.
+      logical, dimension(5) :: lperiodic =  (/.true., .true., .true., .true., .false./)
+      real :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.,dxturb=-1.,dyturb=-1.
+      integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
+      real,dimension(:),allocatable :: tboundary
 
       ! modphsgrd.f90
 
@@ -362,6 +399,7 @@ contains
     do n = 1, nsv
       if(iadv_sv(n) < 0) then
         iadv_sv(n) = iadv_mom
+        write (*,*) "Warning: iadv_sv(", n, ") not specified, defaulting to iadv_mom = ", iadv_mom
       end if
     end do
 
@@ -770,5 +808,15 @@ subroutine checknamelisterror (ierr, ifnamopt, namelist)
      stop 'ERROR: Problem in namelist.'
   endif
 end subroutine checknamelisterror
+
+! Subroutine to check for netcdf error
+subroutine handle_err(errcode)
+use netcdf
+implicit none
+integer errcode
+
+write(6,*) 'Error: ', nf90_strerror(errcode)
+stop 2
+end subroutine handle_err
 
 end module modglobal

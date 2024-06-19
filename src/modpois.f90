@@ -49,10 +49,10 @@ save
 contains
 
   subroutine initpois
-    use modglobal, only : solver_id,i1,j1,ih,jh,kmax,k1
+    use modglobal, only : solver_id,i1,j1,ih,jh,k1,kmax,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,psolver,maxiter_precond
     use modfft2d, only : fft2dinit
     use modfftw, only : fftwinit
-    use modhypre, only : inithypre
+    use modhypre, only : inithypre_grid, inithypre_solver
     use modcufft, only : cufftinit
 
     implicit none
@@ -69,12 +69,13 @@ contains
       ! HYPRE based solver
 
       ! using FFT based solver as fallback
-      call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+      !call fft2dinit(p, Fp, d, xyrt, ps,pe,qs,qe)
 
       !NOTE: If you don't want to do that, you will need the line below
       !allocate(p(2-ih:i1+ih,2-jh:j1+jh,kmax))
 
-      call inithypre
+      call inithypre_grid
+      call inithypre_solver(psolver,solver_id,maxiter,tolerance,precond_id,n_pre,n_post,maxiter_precond)
     endif
 
     allocate(pup(2-ih:i1+ih,2-jh:j1+jh,kmax))
@@ -87,9 +88,9 @@ contains
   end subroutine initpois
 
   subroutine exitpois
-    use modglobal, only : solver_id
+    use modglobal, only : solver_id,psolver
     use modfft2d, only : fft2dexit
-    use modhypre, only : exithypre
+    use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
     use modcufft, only : cufftexit
 
@@ -106,26 +107,28 @@ contains
       !$acc exit data delete(pup, pvp, pwp, a, b, c)
     else
       ! HYPRE based solver
-      call fft2dexit(p,Fp,d,xyrt)
-      call exithypre
+      !call fft2dexit(p,Fp,d,xyrt)
+      deallocate(p)
+      call exithypre_grid
+      call exithypre_solver(psolver)
     endif
 
   end subroutine exitpois
 
   subroutine poisson
-    use modglobal, only : solver_id
+    use modglobal, only : solver_id,psolver
     use modmpi, only : myid
-    use modhypre, only : solve_hypre, set_initial_guess
+    use modhypre, only : solve_hypre, set_zero_guess
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
     use modcufft, only : cufftf, cufftb
 
     implicit none
-
+    !real wtime
     logical converged
 
     call timer_tic('modpois/poisson', 0)
-
+    
     call fillps
 
     if (solver_id == 0) then
@@ -151,29 +154,30 @@ contains
 
       call cufftb(p, Fp)
     else
-      call solve_hypre(p, converged)
+      call solve_hypre(psolver, p, converged)
       if (.not. converged) then
         if (myid == 0) then
-          write (*,*) 'Falling back to fft2d solver.'
+          write (*,*) 'Not converged'
         endif
-        call fillps
+        !call set_zero_guess()
+        !call solve_hypre(psolver, p, converged)
+        !call fillps
         ! Forward FFT
-        call fft2df(p, Fp)
+        !call fft2df(p, Fp)
 
-        call solmpj
+        !call solmpj
 
         ! Backward FFT
-        call fft2db(p, Fp)
+        !call fft2db(p, Fp)
 
         ! Re-use our current solution as the next initial guess
-        call set_initial_guess(p)
+        !call set_initial_guess(p)
       endif
     endif
 
     call tderive
 
     call timer_toc('modpois/poisson')
-
   end subroutine poisson
 
   subroutine fillps
@@ -187,27 +191,44 @@ contains
   ! Adapted fillps for RK3 time loop
 
     use modfields, only : up, vp, wp, um, vm, wm, rhobf,rhobh
-    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt,ih,jh
+    use modglobal, only : rk3step,i1,j1,kmax,k1,dx,dy,dzf,rdt,ih,jh, &
+      lboundary,lopenbc,i2,j2,lperiodic
     use modmpi,    only : excjs
+    use modopenboundary, only : openboundary_excjs
     implicit none
-    integer i,j,k
+    
+    integer :: i, j, k, ex, ey
     real(pois_r) :: rk3coef_inv
 
     call timer_tic('modpois/fillps', 1)
 
-    ! TODO: allocate these in initpois
-    rk3coef_inv = (4. - dble(rk3step)) / rdt
-    
-    !$acc parallel loop collapse(3) default(present) async(1)
-    do k=1,kmax
-      do j=2,j1
-        do i=2,i1
-          pup(i,j,k) = up(i,j,k) + um(i,j,k) * rk3coef_inv
-          pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) * rk3coef_inv
-          pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) * rk3coef_inv
-        end do
+    ex = i1
+    ey = j1
+
+    if(lopenbc) then
+       ! do exchanges here, because we have boundary conditions for up, vp but not for pup,pvp below
+       ! note: needs um, vm to be exchanged also
+      call openboundary_excjs(up   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      call openboundary_excjs(vp   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      call openboundary_excjs(um   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      call openboundary_excjs(vm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      ex = i2
+      ey = j2
+   endif
+
+  ! TODO: allocate these in initpois
+  rk3coef_inv = (4. - dble(rk3step)) / rdt
+
+  !$acc parallel loop collapse(3) default(present) async(1)
+  do k=1,kmax
+    do j=2,ey ! openbc needs these to i2,j2. Periodic bc needs them to i1,j1 
+      do i=2,ex
+        pup(i,j,k) = up(i,j,k) + um(i,j,k) * rk3coef_inv
+        pvp(i,j,k) = vp(i,j,k) + vm(i,j,k) * rk3coef_inv
+        pwp(i,j,k) = wp(i,j,k) + wm(i,j,k) * rk3coef_inv
       end do
     end do
+  end do
 
 
   !****************************************************************
@@ -222,12 +243,18 @@ contains
     do j=2,j1
       do i=2,i1
         pwp(i,j,1)  = 0.
-        pwp(i,j,k1) = 0.
+        pwp(i,j,k1) = wp(i,j,k1) + wm(i,j,k1) * rk3coef_inv
+        !pwp(i,j,k1) = 0.
       end do
     end do
-    
-    call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
-    call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
+
+    ! Already implemented in loop for pup and periodicity check for up and vp for openbc
+    !call excjs(pup,2,i1,2,j1,1,kmax,ih,jh)
+    !call excjs(pvp,2,i1,2,j1,1,kmax,ih,jh)
+    if(.not. lopenbc) then
+      call excjs( pup           , 2,i1,2,j1,1,kmax,ih,jh)
+      call excjs( pvp           , 2,i1,2,j1,1,kmax,ih,jh)
+    endif
 
     !$acc parallel loop collapse(3) default(present) async(1)
     do k=1,kmax
@@ -269,8 +296,9 @@ contains
 !-----------------------------------------------------------------|
 
     use modfields, only : up, vp, wp
-    use modglobal, only : i1,j1,kmax,dx,dy,dzh,ih,jh
+    use modglobal, only : i1,j1,kmax,dx,dy,dzh,ih,jh,lopenbc,lboundary,i2,j2,k1,lperiodic
     use modmpi,    only : excjs
+    use modopenboundary, only : openboundary_excjs
     implicit none
     integer i,j,k
 
@@ -278,8 +306,15 @@ contains
 
   ! **  Cyclic boundary conditions **************
   ! **  set by the commcart communication in excj
-
-  call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  if(lopenbc) then ! If openboundaries are used only cyclic conditions for non-domain boundaries, hom. Neumann otherwise.
+    call openboundary_excjs(p   , 2,i1,2,j1,1,kmax,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+    if(lboundary(1).and. .not. lperiodic(1)) p(1,:,:) = p(2,:,:)
+    if(lboundary(2).and. .not. lperiodic(2)) p(i2,:,:) = p(i1,:,:)
+    if(lboundary(3).and. .not. lperiodic(3)) p(:,1,:) = p(:,2,:)
+    if(lboundary(4).and. .not. lperiodic(4)) p(:,j2,:) = p(:,j1,:)
+  else
+    call excjs( p, 2,i1,2,j1,1,kmax,ih,jh)
+  endif
 
   !*****************************************************************
   ! **  Calculate time-derivative for the velocities with known ****

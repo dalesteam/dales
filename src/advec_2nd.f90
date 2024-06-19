@@ -111,12 +111,13 @@ end subroutine advecc_2nd
 
 
 !> Advection at the u point.
-subroutine advecu_2nd(a_in, a_out)
-
+subroutine advecu_2nd(a_in, a_out, sx)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzfi,dzhi,leq
   use modfields, only : u0, v0, w0, rhobf, up, vp, wp
+
   implicit none
 
+  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
 
@@ -125,7 +126,7 @@ subroutine advecu_2nd(a_in, a_out)
   !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, kmax
     do j = 2, j1
-      do i = 2, i1
+      do i = sx, i1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
                 (a_in(i,j,k)+a_in(i+1,j,k))*(u0(i,j,k)+u0(i+1,j,k)) &
@@ -140,9 +141,10 @@ subroutine advecu_2nd(a_in, a_out)
   end do
 
   if (leq) then
+
     !$acc parallel loop collapse(2) default(present) async(1)
     do j = 2, j1
-      do i = 2, i1
+      do i = sx, i1
         a_out(i,j,1) = a_out(i,j,1)-(1/rhobf(1))*( &
                        ( rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1))*( w0(i,j,2)+ w0(i-1,j,2) ) &
                        ) *dziq
@@ -152,7 +154,7 @@ subroutine advecu_2nd(a_in, a_out)
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 2, kmax
       do j = 2, j1
-        do i = 2, i1
+        do i = sx, i1
           a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
                          (rhobf(k) * a_in(i,j,k) + rhobf(k+1) * a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
                          -(rhobf(k) * a_in(i,j,k) + rhobf(k-1) * a_in(i,j,k-1) )*(w0(i,j,k )+w0(i-1,j,k )) &
@@ -162,9 +164,10 @@ subroutine advecu_2nd(a_in, a_out)
     end do
 
   else
+
     !$acc parallel loop collapse(2) default(present) async(1)
     do j = 2, j1
-      do i = 2, i1
+      do i = sx, i1
         a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
                        ( rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) * dzhi(2) &
                          *( w0(i,j,2)+ w0(i-1,j,2) )) * (0.25_field_r * dzfi(1))
@@ -174,7 +177,7 @@ subroutine advecu_2nd(a_in, a_out)
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 2, kmax
       do j = 2, j1
-        do i = 2, i1
+        do i = sx, i1
           a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 ( rhobf(k+1) * a_in(i,j,k+1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k+1) ) * dzhi(k+1) &
                   *( w0(i,j,k+1)+ w0(i-1,j,k+1) ) &
@@ -188,12 +191,13 @@ subroutine advecu_2nd(a_in, a_out)
 end subroutine advecu_2nd
 
 !> Advection at the v point.
-subroutine advecv_2nd(a_in, a_out)
-
+subroutine advecv_2nd(a_in, a_out, sy)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzfi,dzhi,leq
   use modfields, only : u0, v0, w0, rhobf
   implicit none
 
+
+  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
 
@@ -201,7 +205,7 @@ subroutine advecv_2nd(a_in, a_out)
 
   !$acc parallel loop collapse(3) default(present) async(2)
   do k = 1, kmax
-    do j = 2, j1
+    do j = sy, j1
       do i = 2, i1
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
@@ -218,7 +222,7 @@ subroutine advecv_2nd(a_in, a_out)
 
   if (leq) then
     !$acc parallel loop collapse(2) default(present) async(2)
-    do j = 2, j1
+    do j = sy, j1
       do i = 2, i1
         a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
            (w0(i,j,2)+w0(i,j-1,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
@@ -228,7 +232,7 @@ subroutine advecv_2nd(a_in, a_out)
 
     !$acc parallel loop collapse(3) default(present) async(2)
     do k = 2, kmax
-      do j = 2, j1
+      do j = sy, j1
         do i = 2, i1
           a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 ( w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
@@ -240,7 +244,7 @@ subroutine advecv_2nd(a_in, a_out)
 
   else
     !$acc parallel loop collapse(2) default(present) async(2)
-    do j = 2, j1
+    do j = sy, j1
       do i = 2, i1
         a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
           (w0(i,j,2)+w0(i,j-1,2)) &

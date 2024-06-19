@@ -72,12 +72,20 @@ contains
                                   ifnamopt,fname_options,llsadv,lconstexner,&
                                   ibas_prf,lambda_crit,iadv_mom,iadv_tke,iadv_thl,iadv_qt,iadv_sv,courant,peclet,ladaptive,author,&
                                   lnoclouds,lfast_thermo,lrigidlid,unudge,ntimedep,&
-                                  solver_id, maxiter, tolerance, n_pre, n_post, precond, checknamelisterror, loutdirs, output_prefix
+                                  solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
+                                  loutdirs, output_prefix, &
+                                  lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
+                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
-    use modfields,         only : initfields
-    use modpois,           only : initpois
+    use moddatetime,       only : initdatetime
+    use modemission,       only : initemission
+    use modlsm,            only : initlsm, kmax_soil
+    use moddrydeposition,  only : initdrydep
+    use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp
+    use modtracers,        only : inittracers
+    use modpois,           only : initpois,poisson
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
                                   rad_ls,rad_longw,rad_shortw,rad_smoke,useMcICA,&
@@ -89,18 +97,22 @@ contains
     use modthermodynamics, only : initthermodynamics,lqlnr, chi_half
     use modmicrophysics,   only : initmicrophysics
     use modsubgrid,        only : initsubgrid
-    use modmpi,            only : initmpi,commwrld,myid,myidx,cmyidy,nprocx,nprocy,mpierr &
+    use modmpi,            only : initmpi,commwrld,myid,myidx,cmyidy,nprocx,nprocy,mpierr,periods &
                                 , D_MPI_BCAST
     use tstep,             only : inittstep
     use modchem,           only : initchem
     use modversion,        only : git_version
+    use modopenboundary,   only : initopenboundary,openboundary_divcorr,openboundary_excjs,lbuoytop
+    use modchecksim,       only : chkdiv
 #if defined(_OPENACC)
     use modgpu,             only : initgpu
 #endif
 
     implicit none
     integer :: ierr
+    logical,dimension(2) :: lper = .false.
     character(256), optional, intent(in) :: path
+    real rk3coef
 
 
     !declare namelists
@@ -110,7 +122,7 @@ contains
         krandumin, krandumax, randu,&
         nprocx,nprocy,loutdirs
     namelist/DOMAIN/ &
-        itot,jtot,kmax,&
+        itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
         xlat,xlon,xyear,xday,xtime,ksp
     namelist/PHYSICS/ &
@@ -122,7 +134,9 @@ contains
     namelist/DYNAMICS/ &
         llsadv,  lqlnr, lambda_crit, cu, cv, ibas_prf, iadv_mom, iadv_tke, iadv_thl, iadv_qt, iadv_sv, lnoclouds
     namelist/SOLVER/ &
-        solver_id, maxiter, tolerance, n_pre, n_post, precond
+        solver_id, maxiter, tolerance, n_pre, n_post, precond_id, maxiter_precond, hypre_logging
+    namelist/OPENBC/ &
+        lopenbc,linithetero,lper,lbuoytop,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,iturb,tau,lambda,nmodes,lambdas,lambdas_x,lambdas_y,lambdas_z,lbuoytop
 
 
     ! get myid
@@ -164,12 +178,24 @@ contains
       read (ifnamopt,SOLVER,iostat=ierr)
       call checknamelisterror(ierr, ifnamopt, 'SOLVER')
       write(6 ,SOLVER)
+      rewind(ifnamopt)
+      read (ifnamopt,OPENBC,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'OPENBC')
+      write(6 ,OPENBC)
+      close(ifnamopt)
+      if(lopenbc) then
+        ! Check if grid needs to be periodic
+        periods = (/lper(1),lper(2)/)
+        lperiodic(1:2) = lper(1)
+        lperiodic(3:4) = lper(2)
+      endif
       close(ifnamopt)
     end if
 
 
     ! these must be shared before initmpi sets up the cartesian grid
     ! commwrld is already set up
+    call D_MPI_BCAST(periods,2,0,commwrld,mpierr)
     call D_MPI_BCAST(nprocx ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(nprocy ,1,0,commwrld,mpierr)
 
@@ -199,6 +225,7 @@ contains
     call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr) ! DOMAIN
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(kmax       ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(kmax_soil  ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xsize      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(ysize      ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(xlat       ,1,0,commwrld,mpierr)
@@ -283,7 +310,31 @@ contains
     call D_MPI_BCAST(n_pre,1,0,commwrld,mpierr)
     call D_MPI_BCAST(n_post,1,0,commwrld,mpierr)
     call D_MPI_BCAST(tolerance,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(precond,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(precond_id,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(maxiter_precond,1,0,commwrld,mpierr)
+
+    ! Broadcast openboundaries Variables
+    call D_MPI_BCAST(lopenbc,    1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(linithetero,1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lperiodic,  5, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lbuoytop,   1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(dxint,      1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(dyint,      1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(dzint,      1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(dxturb,     1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(dyturb,     1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(taum,       1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(tauh,       1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(pbc,        1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lsynturb,   1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(iturb,      1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lambda,     1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(tau,        1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(nmodes,     1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lambdas,    1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lambdas_x,  1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lambdas_y,  1, 0,commwrld,mpierr)
+    call D_MPI_BCAST(lambdas_z,  1, 0,commwrld,mpierr)
 
     call testwctime
     ! Allocate and initialize core modules
@@ -291,13 +342,22 @@ contains
     call inittimer
     call timer_tic('modstartup/startup', 0)
     call initfields
+    call inittracers
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
-    call initboundary
+    if(.not.lopenbc) then
+      call initboundary
+    else
+      call initopenboundary
+    endif
     call initthermodynamics
     call initradiation
     call initchem
     call initsurface
+    call initdatetime
+    call initemission
+    call initlsm
+    call initdrydep
     call initsubgrid
 
     call initmicrophysics
@@ -313,6 +373,28 @@ contains
     call readinitfiles ! moved to obtain the correct btime for the timedependent forcings in case of a warmstart
     call inittimedep !depends on modglobal,modfields, modmpi, modsurf, modradiation
     call initpois ! hypre solver needs grid and baseprofiles
+    if(lopenbc) then  ! Correct boundaries and initial field for divergence
+      call chkdiv
+      call openboundary_divcorr ! Remove divergence from large scale input
+      ! Use poisson solver to get rid of divergence in initial field, needs to
+      ! be here to avoid cross dependencies between modopenbondaries and modpois
+      if(myid==0) print *, 'Start divergence correction initial field'
+      call chkdiv
+      up = 0.; vp = 0.; wp = 0. ! Set tendencies to zero
+      call poisson
+      rk3coef = rdt / (4. - dble(rk3step))
+      um = um + rk3coef * up
+      vm = vm + rk3coef * vp
+      wm = wm + rk3coef * wp
+      call openboundary_excjs(um   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      call openboundary_excjs(vm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      call openboundary_excjs(wm   , 2,i1,2,j1,1,k1,ih,jh,.not.lboundary(1:4).or.lperiodic(1:4))
+      u0 = um; v0 = vm; w0 = wm
+      call chkdiv
+      ! Reset tendencies
+      up = 0.; vp = 0.; wp = 0.
+      if(myid==0) print *, 'Finished divergence correction initial field'
+    endif
 
     call inittstep
 
@@ -395,6 +477,7 @@ contains
       case(3:4)
         if (wtsurf <-1e10)  stop 'wtsurf not set'
         if (wqsurf <-1e10)  stop 'wqsurf not set'
+      case(11)
       case default
         stop 'isurf out of range/not set'
       end select
@@ -424,12 +507,13 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
                                   thvs_patch,lhetero,qskin
     use modsurface,        only : surface,qtsurf,dthldz,ps
+    use modlsm,            only : init_lsm_tiles
     use modboundary,       only : boundary
     use modmpi,            only : slabsum,myid,comm3d,mpierr,D_MPI_BCAST
     use modthermodynamics, only : thermodynamics,calc_halflev
@@ -437,22 +521,33 @@ contains
 
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
+    use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
+    use modtracers,        only : tracer_prop
+    use go,                only : to_lower, goSplitString_s
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
 
     integer i,j,k,n,ierr
+    integer isv, sdx
     logical negval !switch to allow or not negative values in randomnization
 
     real, allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
+    integer, allocatable :: scalar_indices(:)
 
-    character(80) chmess
+    character(len=512) :: chmess
+    integer            :: status, nheader, ifield
+    integer, parameter :: maxcol = 30
+    character(len=6)   :: headers(maxcol)
+    !character(len=1)   :: sep
+    character(len=6)   ::  header
+    logical            :: found
 
     allocate (height(k1))
     allocate (th0av(k1))
-    allocate(thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
-
+    allocate (thv0(2-ih:i1+ih,2-jh:j1+jh,k1))
+    allocate (scalar_indices(nsv))
 
     if (.not. lwarmstart) then
 
@@ -491,9 +586,9 @@ contains
              write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
              STOP
           end if
-          read (ifinput,'(a80)') chmess
-          write(*,     '(a80)') chmess
-          read (ifinput,'(a80)') chmess
+          read (ifinput,'(a512)') chmess
+          write(*,     '(a512)') chmess
+          read (ifinput,'(a512)') chmess
 
           do k = 1, kmax
             read (ifinput,*) &
@@ -535,50 +630,6 @@ contains
       call D_MPI_BCAST(uprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(vprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(e12prof,kmax,0,comm3d,mpierr)
-      do k = 1, kmax
-        do j = 1, j2
-          do i = 1, i2
-            thl0(i,j,k) = thlprof(k)
-            thlm(i,j,k) = thlprof(k)
-            qt0 (i,j,k) = qtprof (k)
-            qtm (i,j,k) = qtprof (k)
-            u0  (i,j,k) = uprof  (k) - cu
-            um  (i,j,k) = uprof  (k) - cu
-            v0  (i,j,k) = vprof  (k) - cv
-            vm  (i,j,k) = vprof  (k) - cv
-            w0  (i,j,k) = 0.0
-            wm  (i,j,k) = 0.0
-            e120(i,j,k) = e12prof(k)
-            e12m(i,j,k) = e12prof(k)
-            ekm (i,j,k) = 0.0
-            ekh (i,j,k) = 0.0
-          end do
-        end do
-      end do
-      !---------------------------------------------------------------
-      !  1.2 randomnize fields
-      !---------------------------------------------------------------
-
-      krand  = min(krand,kmax)
-      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
-      do k = 1, krand
-        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
-        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
-      end do
-      negval = .True. ! negative perturbations allowed
-      do k = 1, krand
-        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
-        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
-      end do
-
-      do k = krandumin, krandumax
-        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
-        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
-      end do
 
       svprof = 0.
       if(myid==0)then
@@ -588,15 +639,46 @@ contains
              write(6,*) 'Cannot open the file ', 'scalar.inp.'//cexpnr
              STOP
           end if
-          read (ifinput,'(a80)') chmess
-          read (ifinput,'(a80)') chmess
+
+          ! reading header (2 lines)
+          read (ifinput,'(a512)') chmess
+          read (ifinput,'(a512)') chmess
+          call goSplitString_s( chmess, nheader, headers, status, sep=' ')
+          ! check if nheader equals the number of tracers in simulation (skipping first header item "#z")
+          if (nheader-1 /= nsv) then
+            write(6,"(A58, i3, A3, i3)") "STOPPED. Number of tracers in scalar.inp differs from nsv:  ", nheader-1, " /=", nsv
+            stop
+          end if
+
+          do isv=1,nsv
+            found = .false.
+            do ifield = 1, nheader
+              ! current
+              header = headers(ifield)
+              ! write(*,*) 'header: ', ifield, header
+                if (trim(to_lower(header)) == tracer_prop(isv)%tracname) then
+                  found = .true.
+                  write(6,*) 'found tracer in scalar.inp: ', tracer_prop(isv)%tracname
+                  scalar_indices(isv) = ifield -1
+                  continue
+                endif
+            enddo
+            if (.not. found) then
+              write(6,*) 'tracer not found in scalar.inp: ', tracer_prop(isv)%tracname
+              stop
+            endif
+          enddo
+          ! write(*,*) 'scalar_indices: ', scalar_indices
+          
           do k = 1, kmax
             read (ifinput,*) &
                   height (k), &
                   (svprof (k,n),n=1,nsv)
           end do
+
           open (ifinput,file='scalar.inp.'//cexpnr)
           write (6,*) 'height   sv(1) --------- sv(nsv) '
+
           do k = kmax, 1, -1
             write (6,*) &
                   height (k), &
@@ -606,17 +688,90 @@ contains
         end if
       end if ! end if myid==0
 
-      call D_MPI_BCAST(wsvsurf,nsv   ,0,comm3d,mpierr)
-      call D_MPI_BCAST(svprof ,k1*nsv,0,comm3d,mpierr)
-      do k = 1, kmax
-        do j = 1, j2
-          do i = 1, i2
-            do n = 1, nsv
-              sv0(i,j,k,n) = svprof(k,n)
-              svm(i,j,k,n) = svprof(k,n)
+      call D_MPI_BCAST(wsvsurf,        nsv,    0, comm3d, mpierr)
+      call D_MPI_BCAST(svprof,         k1*nsv, 0, comm3d, mpierr)
+      call D_MPI_BCAST(scalar_indices, nsv,    0, comm3d, mpierr)
+
+      ! Initialize fields
+      if(lopenbc .and. linithetero) then! Openboundaries with heterogeneous initialisation
+        call openboundary_initfields()
+        do j = 1,j2
+          do i = 1,i2
+            wm(i,j,1) = 0.
+            w0(i,j,1) = 0.
+          end do
+        end do
+        do k = 1,kmax
+          do j = 1,j2
+            do i = 1,i2
+               ekm(i,j,k) = 0.0
+               ekh(i,j,k) = 0.0
             end do
           end do
         end do
+      else
+        do k=1,kmax
+          do j=1,j2
+            do i=1,i2
+              thl0(i,j,k) = thlprof(k)
+              thlm(i,j,k) = thlprof(k)
+              qt0 (i,j,k) = qtprof (k)
+              qtm (i,j,k) = qtprof (k)
+              u0  (i,j,k) = uprof  (k) - cu
+              um  (i,j,k) = uprof  (k) - cu
+              v0  (i,j,k) = vprof  (k) - cv
+              vm  (i,j,k) = vprof  (k) - cv
+              w0  (i,j,k) = 0.0
+              wm  (i,j,k) = 0.0
+              e120(i,j,k) = e12prof(k)
+              e12m(i,j,k) = e12prof(k)
+              ekm (i,j,k) = 0.0
+              ekh (i,j,k) = 0.0
+            end do
+          end do
+        end do
+        if(nsv>0) then
+          do k=1,kmax
+            do j=1,j2
+              do i=1,i2
+                do n=1,nsv
+                  ! if (i==1 .and. j==1 .and. k==1) then
+                  !   write(*,*) 'filling tracer ', tracer_prop(n)%tracname, n, sdx, i,j,k
+                  !   call flush()
+                  !   write(*,*) 'with values    ', svprof(k,sdx)
+                  ! endif
+                  sdx = scalar_indices(n)
+                  sv0(i,j,k,n) = svprof(k,sdx)
+                  svm(i,j,k,n) = svprof(k,sdx)
+                end do
+              end do
+            end do
+          end do
+        endif
+      endif
+    !---------------------------------------------------------------
+    !  1.2 randomnize fields
+    !---------------------------------------------------------------
+
+      krand  = min(krand,kmax)
+      negval = .False. ! No negative perturbations for qt (negative moisture is non physical)
+      do k = 1,krand
+        call randomnize(qtm ,k,randqt ,irandom,ih,jh,negval)
+        call randomnize(qt0 ,k,randqt ,irandom,ih,jh,negval)
+      end do
+      negval = .True. ! negative perturbations allowed
+      do k = 1,krand
+        call randomnize(thlm,k,randthl,irandom,ih,jh,negval)
+        call randomnize(thl0,k,randthl,irandom,ih,jh,negval)
+      end do
+
+      do k=krandumin,krandumax
+        call randomnize(um  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(u0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(vm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(v0  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(wm  ,k,randu  ,irandom,ih,jh,negval)
+        call randomnize(w0  ,k,randu  ,irandom,ih,jh,negval)
       end do
 
       !-----------------------------------------------------------------
@@ -633,13 +788,23 @@ contains
       case(2)
         tskin(:,:)  = thls
       case(3,4)
-        thls = thlprof(1)
-        qts  = qtprof(1)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
         tskin(:,:)  = thls
         qskin(:,:)  = qts
+      case(11)
+        thls   = thlprof(1)
+        qts    = qtprof(1)
+        tskin(:,:)  = thls
+        qskin(:,:)  = qts
+        call init_lsm_tiles
       case(10)
         call initsurf_user
       end select
+      if(lopenbc) then
+        call openboundary_readboundary
+        call openboundary_ghost
+      endif
 
       ! Set initial Obukhov length to -0.1 for iteration
       obl(:,:) = -0.1
@@ -664,11 +829,22 @@ contains
 #if defined(_OPENACC)
       call update_gpu
 #endif
-
-      call boundary
+      if ( lopenbc ) then
+        call openboundary_ghost()
+      else
+        call boundary
+      end if
+      
       call thermodynamics
       call surface
       call boundary
+      
+      if ( lopenbc ) then
+        call openboundary_ghost()
+      else
+        call boundary
+      end if
+
       call thermodynamics
 
 #if defined(_OPENACC)
@@ -761,6 +937,11 @@ contains
 
       ! CvH - only do this for fixed timestepping. In adaptive dt comes from restartfile
       if(ladaptive .eqv. .false.) rdt=dtmax
+
+      call baseprofs !call baseprofs
+      if(lopenbc) then
+        call openboundary_readboundary
+      endif
 
 #if defined(_OPENACC)
       call update_gpu
@@ -907,10 +1088,11 @@ contains
                            tres,ifinput,nsv,dt,output_prefix
     use modmpi,     only : myid, cmyid
     use modsubgriddata, only : ekm,ekh
+    use modlsm, only : kmax_soil, tile, nlu
 
 
     character(50) :: name
-    integer i,j,k,n
+    integer i,j,k,n, ilu
     !********************************************************************
 
   !    1.0 Read initfiles
@@ -1015,7 +1197,26 @@ contains
       end if
       read(ifinput)  timee
       close(ifinput)
+
+    else if (isurf == 11) then
+      name(5:5) = 'l'
+      write(6,*) 'loading ',name
+      open(unit=ifinput,file=name,form='unformatted')
+      read(ifinput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+      read(ifinput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+      read(ifinput) ((tskin (i,j),   i=1,i2), j=1,j2)
+      read(ifinput) ((Wl    (i,j),   i=1,i2), j=1,j2)
+
+      do ilu=1,nlu
+        read(ifinput) ((tile(ilu)%thlskin(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((tile(ilu)%qtskin(i,j), i=1,i2), j=1,j2)
+        read(ifinput) ((tile(ilu)%obuk(i,j), i=1,i2), j=1,j2)
+      end do
+
+      read(ifinput) timee
+      close(ifinput)
     end if
+
   end subroutine readrestartfiles
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -1063,12 +1264,12 @@ contains
 
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
+    use modlsm,    only : kmax_soil, tile, nlu
 
     implicit none
     integer imin,ihour
-    integer i,j,k,n
+    integer i,j,k,n, ilu
     character(50) name,linkname
-
 
       ihour = floor(rtimee/3600)
       imin  = floor((rtimee-ihour * 3600) /3600. * 60.)
@@ -1181,8 +1382,27 @@ contains
         linkname = name
         linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
-      end if
+      else if (isurf == 11) then
+        name(5:5)='l'
+        open  (ifoutput,file=name,form='unformatted')
+        write(ifoutput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+        write(ifoutput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
+        write(ifoutput) ((tskin (i,j),   i=1,i2), j=1,j2)
+        write(ifoutput) ((Wl    (i,j),   i=1,i2), j=1,j2)
 
+        ! Sub-grid tiles
+        do ilu=1,nlu
+          write(ifoutput) ((tile(ilu)%thlskin(i,j), i=1,i2), j=1,j2)
+          write(ifoutput) ((tile(ilu)%qtskin(i,j), i=1,i2), j=1,j2)
+          write(ifoutput) ((tile(ilu)%obuk(i,j), i=1,i2), j=1,j2)
+        end do
+
+        write(ifoutput)  timee
+        close (ifoutput)
+        linkname = name
+        linkname(6:11) = "latest"
+        call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
+      end if
 
       if (myid==0) then
         write(*,'(A,F15.7,A,I4)') 'dump at time = ',rtimee,' unit = ',ifoutput
@@ -1212,7 +1432,7 @@ contains
 
   subroutine exitmodules
     use modfields,         only : exitfields
-    use modglobal,         only : exitglobal
+    use modglobal,         only : exitglobal,lopenbc
     use modmpi,            only : exitmpi
     use modboundary,       only : exitboundary
     use modmicrophysics,   only : exitmicrophysics
@@ -1220,21 +1440,34 @@ contains
     use modtimedep,        only : exittimedep
     use modradiation,      only : exitradiation
     use modsubgrid,        only : exitsubgrid
+    use modtracers,        only : exittracers
     use modsurface,        only : exitsurface
+    use modlsm,            only : exitlsm
+    use moddrydeposition,  only : exitdrydep
     use modthermodynamics, only : exitthermodynamics
+    use modemission,       only : exitemission
+    use modopenboundary,   only : exitopenboundary
     use modchecksim,       only : exitchecksim
     use tstep,             only : exittstep
 
     call exittimedep
     call exitthermodynamics
+    call exittracers
     call exittstep
     call exitchecksim
     call exitsurface
+    call exitlsm
+    call exitdrydep
     call exitsubgrid
     call exitradiation
     call exitpois
     call exitmicrophysics
-    call exitboundary
+    call exitemission
+    if(lopenbc) then
+      call exitopenboundary
+    else
+      call exitboundary
+    endif
     call exitfields
     call exitglobal
     call exitmpi

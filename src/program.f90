@@ -100,14 +100,16 @@ program DALES
 !!----------------------------------------------------------------
 !!     0.0    USE STATEMENTS FOR CORE MODULES
 !!----------------------------------------------------------------
-  use modglobal,         only : rk3step,timeleft,is_starting
-  use modmpi,            only : initmpicomm!, myid
+  use modglobal,         only : rk3step,timeleft,lopenbc
+  use modmpi,            only : initmpicomm
   use modstartup,        only : startup, writerestartfiles,testwctime,exitmodules
   use modtimedep,        only : timedep
   use modboundary,       only : boundary, grwdamp! JvdD ,tqaver
   use modthermodynamics, only : thermodynamics
   use modmicrophysics,   only : microsources
   use modsurface,        only : surface
+  use modlsm,            only : lsm
+  use moddrydeposition,  only : drydep      
   use modsubgrid,        only : subgrid
   use modforces,         only : forces, coriolis, lstend
   use modradiation,      only : radiation
@@ -126,11 +128,13 @@ program DALES
   use modgenstat,      only : initgenstat, genstat, exitgenstat
   use modradstat,      only : initradstat ,radstat, exitradstat
   use modlsmstat,      only : initlsmstat ,lsmstat, exitlsmstat
+  !use moddepstat,      only : initdepstat ,depstat, exitdepstat
   use modsampling,     only : initsampling, sampling,exitsampling
   use modquadrant,     only : initquadrant, quadrant,exitquadrant
   use modcrosssection, only : initcrosssection, crosssection,exitcrosssection
   use modAGScross,     only : initAGScross, AGScross,exitAGScross
   use modlsmcrosssection, only : initlsmcrosssection, lsmcrosssection,exitlsmcrosssection
+  use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
   use modradfield,     only : initradfield, radfield, exitradfield
@@ -148,12 +152,15 @@ program DALES
   !use modtilt,         only : inittilt, tiltedgravity, tiltedboundary, exittilt
   !use modparticles,    only : initparticles, particles, exitparticles
   use modnudge,        only : initnudge, nudge, exitnudge
+  use modnudgeboundary, only : initnudgeboundary, nudgeboundary, exitnudgeboundary
   use modtestbed,      only : testbednudge, exittestbed
   !use modprojection,   only : initprojection, projection
   use modchem,         only : initchem,twostep
   use modcanopy,       only : initcanopy, canopy, exitcanopy
   use modadvection,    only : advection
-
+  use moddatetime,     only : datetime
+  use modemission,     only : emission
+  use modopenboundary, only : openboundary_ghost,openboundary_tend,openboundary_phasevelocity,openboundary_turb
 
 !----------------------------------------------------------------
 !     0.2     USE STATEMENTS FOR TIMER MODULE
@@ -194,6 +201,7 @@ program DALES
   call initcrosssection
   call initAGScross
   call initlsmcrosssection
+  call initdepcrosssection
   !call initprojection
   call initcloudfield
   call initfielddump
@@ -201,8 +209,10 @@ program DALES
   call initradstat
   call initradfield
   call initlsmstat
+  !call initdepstat
   !call initparticles
   call initnudge
+  call initnudgeboundary
   call initbulkmicrostat
   call initbudget
   call initvarbudget
@@ -220,7 +230,6 @@ program DALES
 #endif
 
   ! Startup is done, set flag to false
-  is_starting = .false.
 
 !------------------------------------------------------
 !   3.0   MAIN TIME LOOP
@@ -233,20 +242,34 @@ program DALES
     call tstep_update
     call timedep
     call samptend(tend_start,firstterm=.true.)
+    call datetime
+
+    call datetime
 
 !-----------------------------------------------------
-!   3.1   RADIATION
+!   3.1   Openboundaries
+!-----------------------------------------------------
+    if(lopenbc) then
+      call openboundary_turb
+      call openboundary_ghost
+      call openboundary_tend
+    endif
+
+!-----------------------------------------------------
+!   3.2   RADIATION
 !-----------------------------------------------------
     call radiation !radiation scheme
     call samptend(tend_rad)
 
 !-----------------------------------------------------
-!   3.2   THE SURFACE LAYER
+!   3.3   THE SURFACE LAYER / LAND-SURFACE
 !-----------------------------------------------------
+    call lsm
+    call drydep
     call surface
 
 !-----------------------------------------------------
-!   3.3   ADVECTION AND DIFFUSION
+!   3.4   ADVECTION AND DIFFUSION
 !-----------------------------------------------------
     call advection
     call samptend(tend_adv)
@@ -255,7 +278,7 @@ program DALES
     call samptend(tend_subg)
 
 !-----------------------------------------------------
-!   3.4   REMAINING TERMS
+!   3.5   REMAINING TERMS
 !-----------------------------------------------------
     call coriolis !remaining terms of ns equation
     call samptend(tend_coriolis)
@@ -266,11 +289,13 @@ program DALES
     call samptend(tend_ls)
     call microsources !Drizzle etc.
     call samptend(tend_micro)
+    call emission
 
 !------------------------------------------------------
-!   3.4   EXECUTE ADD ONS
+!   3.6   EXECUTE ADD ONS
 !------------------------------------------------------
     call nudge
+    call nudgeboundary
     call testbednudge
 !    call dospecs
 !    call tiltedgravity
@@ -278,29 +303,33 @@ program DALES
     call samptend(tend_addon)
 
 !-----------------------------------------------------------------------
-!   3.5  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
+!   3.7  PRESSURE FLUCTUATIONS, TIME INTEGRATION AND BOUNDARY CONDITIONS
 !-----------------------------------------------------------------------
     call grwdamp !damping at top of the model
 !JvdD    call tqaver !set thl, qt and sv(n) equal to slab average at level kmax
     call samptend(tend_topbound)
     call poisson
     call samptend(tend_pois,lastterm=.true.)
+    if(lopenbc) call openboundary_phasevelocity()
+
+    call tstep_integrate                        ! Apply tendencies to all variables
 
     call msebudg1
-
-    ! Apply tendencies to all variables
-    call tstep_integrate
     ! NOTE: the tendencies are not zeroed yet, but kept for analysis and statistcis
     !       Do not change them below this point.
-    call boundary
+    if(lopenbc) then
+      call openboundary_ghost
+    else
+      call boundary
+    endif
     !call tiltedboundary
 !-----------------------------------------------------
-!   3.6   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
+!   3.8   LIQUID WATER CONTENT AND DIAGNOSTIC FIELDS
 !-----------------------------------------------------
     call thermodynamics
     call leibniztend
 !-----------------------------------------------------
-!   3.7  WRITE RESTARTFILES AND DO STATISTICS
+!   3.9  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------
     call twostep
     !call coldedge
@@ -309,11 +338,13 @@ program DALES
     call genstat  !Genstat must preceed all other statistics that could write in the same netCDF file (unless stated otherwise
     call radstat
     call lsmstat
+    !call depstat
     call sampling
     call quadrant
     call crosssection
     call AGScross
     call lsmcrosssection
+    call depcrosssection
     !call tanhfilter
     call docape
     !call projection
@@ -351,8 +382,10 @@ program DALES
   call exitgenstat
   call exitradstat
   call exitlsmstat
+  !call exitdepstat
   !call exitparticles
   call exitnudge
+  call exitnudgeboundary
   call exittestbed
   call exitsampling
   call exitquadrant
@@ -365,6 +398,7 @@ program DALES
   call exitcrosssection
   call exitAGScross
   call exitlsmcrosssection
+  call exitdepcrosssection
   call exitcape
   call exitfielddump
   call exitradfield

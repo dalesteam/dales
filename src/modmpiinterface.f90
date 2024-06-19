@@ -218,6 +218,14 @@ contains
     call MPI_BCAST(buffer, count, MPI_CHARACTER, root, comm, ierror)
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_BCAST_STRING
+  subroutine D_MPI_BCAST_STRING_R1(buffer, count, root, comm, ierror)
+    implicit none
+    character(len = *),contiguous, intent(inout):: buffer(:)
+    integer        :: count, root, ierror
+    type(MPI_COMM) :: comm
+    call MPI_BCAST(buffer, count, MPI_CHARACTER, root, comm, ierror)
+    if (ierror /= MPI_SUCCESS) call abort
+  end subroutine D_MPI_BCAST_STRING_R1
 
 !>D_MPI_ALLREDUCE
   subroutine D_MPI_ALLREDUCE_REAL32_S(sendbuf, recvbuf, count, op, comm, ierror)

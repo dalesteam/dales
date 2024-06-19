@@ -36,19 +36,39 @@ public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real(field_r) :: rnu0 = 2.75e-3
+  logical :: lboundopen			!GT added on off switch for open boundary conditions
+  real(field_r), allocatable :: fillvalues(:)		!GT added a new array variable
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
 !>
   subroutine initboundary
-    use modglobal, only : k1,kmax,pi,zf
+    use modglobal, only : k1,kmax,pi,zf,nsv, &
+			  ifnamopt, fname_options, checknamelisterror 		!GT added
+    use modmpi,    only : myid, comm3d, d_mpi_bcast                             !GT added
+    
     implicit none
 
     real    :: zspb, zspt
-    integer :: k
+    integer :: k, ierr			!GT added ierr
+      ! --- Read & broadcast namelist DEPOSITION -----------------------------------
+    namelist/NAMBOUNDSET/ lboundopen, fillvalues	!GT added
+      
+    allocate(fillvalues(nsv))		!GT added
+    
+    if (myid == 0) then
+      open(ifnamopt,file=fname_options,status='old',iostat=ierr)
+      read (ifnamopt,nml=NAMBOUNDSET,iostat=ierr)
+      call checknamelisterror(ierr, ifnamopt, 'NAMBOUNDSET')
+      write(6, NAMBOUNDSET)
+      close(ifnamopt)
+    endif 
+
+    call d_mpi_bcast(lboundopen,          1,  0, comm3d, ierr)	!GT added
+    call d_mpi_bcast(fillvalues,	nsv,  0, comm3d, ierr)	!GT added 
 
     call timer_tic('modboundary/initboundary', 0)
-    
+
     allocate(tsc(k1))
 ! Sponge layer
     if (ksp==-1) then
@@ -89,6 +109,8 @@ contains
 
     call cyclicm
     call cyclich
+    call setboundaries		!was uncommented GT
+  
     call topm
     call toph
 
@@ -96,9 +118,11 @@ contains
   end subroutine boundary
 !> Cleans up after the run
   subroutine exitboundary
-  implicit none
-  !$acc exit data delete(tsc)
-  deallocate(tsc)
+    implicit none
+    
+    deallocate(fillvalues)
+    !$acc exit data delete(tsc)
+    deallocate(tsc)
   end subroutine exitboundary
 
 !> Sets lateral periodic boundary conditions for the scalars
@@ -137,6 +161,22 @@ contains
   return
   end subroutine cyclicm
 
+  subroutine setboundaries
+
+  use modglobal, only : i1,ih,j1,jh,k1,nsv
+  use modfields, only : sv0, svm
+  use modmpi,    only : closeboundaries
+
+  implicit none
+  integer :: n
+  if(.not. lboundopen) return
+  do n=1,nsv
+    call closeboundaries(sv0(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, fillvalues(n))		!GT changes 0. (given BC) to fillvalues(n)
+    call closeboundaries(svm(:, :, 1:k1, n), 2,i1,ih, 2,j1,jh, 1,k1, fillvalues(n))		!GT changes 0. (given BC) to fillvalues(n)
+  enddo     
+
+  end subroutine setboundaries
+
 !>
 !! grwdamp damps gravity waves in the upper part of the domain.
 !>
@@ -153,7 +193,7 @@ contains
 !! to infinity at the bottom of the sponge layer.
 !! \endlatexonly
  subroutine grwdamp
-  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,uvdamprate,nsv,rdt,unudge,dzf
+  use modglobal, only : i1,j1,kmax,cu,cv,lcoriol,igrw_damp,geodamptime,nsv,rdt,unudge,dzf,lopenbc,uvdamprate
   use modfields, only : up,vp,wp,thlp,qtp,u0,v0,w0,thl0,qt0,sv0,ug,vg &
                         ,thl0av,qt0av,sv0av,u0av,v0av
   implicit none
@@ -215,20 +255,22 @@ contains
   ! at level kmax.
   ! Originally done in subroutine tqaver, now using averages from modthermodynamics
 
-  !$acc kernels default(present) async(1)
-  thl0(2:i1,2:j1,kmax) = thl0av(kmax)
-  qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
-  !$acc end kernels
-
-  if (nsv > 0) then
+  if ( .not. lopenbc ) then
     !$acc kernels default(present) async(1)
-    do n=1,nsv
-      sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
-    end do
+    thl0(2:i1,2:j1,kmax) = thl0av(kmax)
+    qt0 (2:i1,2:j1,kmax) = qt0av(kmax)
     !$acc end kernels
-  end if
 
-  !$acc wait
+    if (nsv > 0) then
+      !$acc kernels default(present) async(1)
+      do n=1,nsv
+        sv0(2:i1,2:j1,kmax,n) = sv0av(kmax,n)
+      end do
+      !$acc end kernels
+    end if
+
+    !$acc wait
+  end if
 
   call timer_toc('modboundary/grwdamp')
 

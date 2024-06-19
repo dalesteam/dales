@@ -161,7 +161,7 @@
 
    real(field_r),allocatable,dimension(:,:,:) :: Nr,qr,thlpmcr,qtpmcr
    real(field_r),allocatable,dimension(:,:,:) :: Nrp,qrp
-   real(field_r),allocatable,dimension(:,:,:) :: precep
+   real(field_r),allocatable,dimension(:,:,:) :: precep !< precipitation (m/s)
 
   real :: delt
 
