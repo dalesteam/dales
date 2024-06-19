@@ -178,25 +178,48 @@ contains
     ! Specific RRTMGP initialization
     call stop_on_err(gas_concs%init(gas_names))
     !setup trace gases concentration once for all
+    !it seems the array used by the set_vmr function has to be on the GPU... to be tested
+    !$acc data create(tracevmr)
     do k=1,nlay; tracevmr(:,k) = o3(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(2)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = co2(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(3)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = ch4(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(4)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = n2o(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(5)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = o2(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(6)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc11(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(7)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc12(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(8)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = cfc22(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(9)), tracevmr))
     do k=1,nlay; tracevmr(:,k) = ccl4(k); enddo
+    !$acc update device(tracevmr)
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(10)), tracevmr))
+    !$acc end data
     deallocate(tracevmr)
+
+    !$acc enter data copyin(layerP, layerT, interfaceP, h2ovmr)
+    !$acc enter data create(interfaceT, tg_slice)
+    !$acc enter data create(lwUp_slice, lwDown_slice)
+    !$acc enter data create(swUp_slice, swDown_slice, swDownDir_slice)
+    !$acc enter data create(solarZenithAngleCos)
+    !$acc enter data create(liquidRe, iceRe, LWP_slice, IWP_slice)
+    if(doclearsky) then
+      !$acc enter data create(lwUpCS_slice, lwDownCS_slice)
+      !$acc enter data create(swUpCS_slice, swDownCS_slice)
+    endif
 
     ! Longwave init
     if(rad_longw) then
@@ -212,6 +235,7 @@ contains
       select type(atmos_lw)
         class is (ty_optical_props_1scl)
           call stop_on_err(atmos_lw%alloc_1scl(ncol, nlay, k_dist_lw))
+          !$acc enter data copyin(atmos_lw) create(atmos_lw%tau)
       end select
 
       ! Load cloud property data
@@ -228,12 +252,16 @@ contains
       select type(clouds_lw)
         class is (ty_optical_props_1scl)
           call stop_on_err(clouds_lw%alloc_1scl(ncol, nlay))
+          !$acc enter data copyin(clouds_lw) create(clouds_lw%tau)
       end select
 
       ! Allocate source term and define emissivity
       call stop_on_err(sources_lw%alloc(ncol, nlay, k_dist_lw))
       allocate(emis(nbndlw,ncol))
       emis=0.95
+      !$acc enter data copyin(emis, sources_lw)
+      !$acc enter data create(sources_lw%lay_source, sources_lw%lev_source_inc, &
+      !$acc&                  sources_lw%lev_source_dec, sources_lw%sfc_source, sources_lw%sfc_source_Jac)
 
       ! Define lw fluxes pointers
       fluxes_lw%flux_up => lwUp_slice(:,:)
@@ -259,6 +287,7 @@ contains
       select type(atmos_sw)
         class is (ty_optical_props_2str)
           call stop_on_err(atmos_sw%alloc_2str(ncol, nlay, k_dist_sw))
+          !$acc enter data copyin(atmos_sw) create(atmos_sw%tau, atmos_sw%ssa, atmos_sw%g)
       end select
 
       ! Load cloud property data
@@ -275,11 +304,13 @@ contains
       select type(clouds_sw)
         class is (ty_optical_props_2str)
           call stop_on_err(clouds_sw%alloc_2str(ncol, nlay))
+          !$acc enter data copyin(clouds_sw) create(clouds_sw%tau, clouds_sw%ssa, clouds_sw%g)
       end select
 
       ! Define boundary conditions
       allocate(inc_sw_flux(ncol,ngptsw))
       allocate(sfc_alb_dir(nbndsw,ncol), sfc_alb_dif(nbndsw,ncol))
+      !$acc enter data create(inc_sw_flux, sfc_alb_dir, sfc_alb_dif)
 
       fluxes_sw%flux_up => swUp_slice(:,:)
       fluxes_sw%flux_dn => swDown_slice(:,:)
@@ -395,6 +426,34 @@ contains
   subroutine exit_radrte_rrtmgp
     implicit none
 
+    if (rad_longw) then
+      !$acc exit data delete(sources_lw)
+      !$acc exit data delete(emis)
+      deallocate(emis)
+
+      !$acc exit data delete(atmos_lw%tau) delete(atmos_lw)
+      !$acc exit data delete(clouds_lw%tau) delete(clouds_lw)
+
+    endif
+
+    if (rad_shortw) then
+      !$acc exit data delete(inc_sw_flux, sfc_alb_dir, sfc_alb_dif)
+      deallocate(inc_sw_flux, sfc_alb_dir, sfc_alb_dif)
+
+      !$acc exit data delete(atmos_sw%tau) delete(atmos_sw)
+      !$acc exit data delete(clouds_sw%tau) delete(clouds_sw)
+    endif
+
+    !$acc exit data delete(liquidRe, iceRe, LWP_slice, IWP_slice)
+    !$acc exit data delete(solarZenithAngleCos)
+    !$acc exit data delete(lwUp_slice, lwDown_slice)
+    !$acc exit data delete(swUp_slice, swDown_slice, swDownDir_slice)
+    !$acc exit data delete(layerP, layerT, interfaceP, interfaceT, tg_slice, h2ovmr)
+    if(doclearsky) then
+      !$acc exit data delete(lwUpCS_slice, lwDownCS_slice, &
+      !$acc&                 swUpCS_slice, swDownCS_slice)
+    endif
+
     if(isAllocated_RadInputsOutputs) then
       deallocate(layerP, &
                  layerT, &
@@ -450,6 +509,7 @@ contains
     jend   =  ibatch    * jmax/nbatch + 1
 
     ! Set up layer values within the DALES domain
+    !$acc parallel loop collapse(3) default(present) private(icol)
     do k=1,kmax
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -463,6 +523,7 @@ contains
     call stop_on_err(gas_concs%set_vmr(trim(gas_names(1)), h2ovmr))
 
     ! Set up temperature interface values
+    !$acc parallel loop collapse(3) default(present) private(icol)
     do k=2,nlay
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -471,6 +532,7 @@ contains
         enddo
       enddo
     enddo
+    !$acc parallel loop collapse(2) default(present) private(icol)
     do j=jstart, jend
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
@@ -481,10 +543,14 @@ contains
     enddo
 
     ! Setup cloud properties (above the DALES domain everyhting is set to zero)
+    !$acc kernels default(present)
     LWP_slice = 0.0
     IWP_slice = 0.0
     liquidRe = 0.
     iceRe = 0.
+    !$acc end kernels
+
+    !$acc parallel loop collapse(3) default(present) private(icol,ilratio,layerMass,qcl,qci,B_function)
     do k=1,kmax
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -539,6 +605,7 @@ contains
     jstart = (ibatch-1) * jmax/nbatch + 2
     jend   =  ibatch    * jmax/nbatch + 1
 
+    !$acc parallel loop collapse(3) default(present) private(icol)
     do k=1,k1
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
@@ -552,6 +619,7 @@ contains
         enddo
       enddo
     enddo
+    !$acc parallel loop collapse(2) default(present) private(icol)
     do j=jstart, jend
       do i=2,i1 !i1=imax+1
         icol=i-1+(j-jstart)*imax
@@ -563,6 +631,7 @@ contains
     enddo
 
     if(doclearsky) then
+      !$acc parallel loop collapse(3) default(present) private(icol)
       do k=1,k1
         do j=jstart, jend
           do i=2,i1 !i1=imax+1
@@ -574,6 +643,7 @@ contains
           enddo
         enddo
       enddo
+      !$acc parallel loop collapse(2) default(present) private(icol)
       do j=jstart, jend
         do i=2,i1 !i1=imax+1
           icol=i-1+(j-jstart)*imax
@@ -585,6 +655,7 @@ contains
       enddo
     endif
 
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
       do j=jstart, jend
         do i=2,i1
@@ -618,6 +689,7 @@ contains
     call shr_orb_decl(dayForSW) ! Saves some orbital values to modraddata
     solarZenithAngleCos(:) =  &
          zenith(xtime*3600 + rtimee, xday, xlat, xlon) ! Used function in modraddata
+    !$acc update device(solarZenithAngleCos)
 
     sunUp = .false.
     ! if all values in solarZenithAngleCos are >= its smallest positive, non-zero element
@@ -627,8 +699,10 @@ contains
       ! Constant albedo for now
       ! Albedos can be computed as a function of solarZenithAngleCos,
       ! so it makes sense to keep the init here
+      !$acc kernels default(present)
       sfc_alb_dir=albedoav
       sfc_alb_dif=albedoav
+      !$acc end kernels
 
     end if
 
