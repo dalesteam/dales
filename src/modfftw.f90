@@ -28,7 +28,7 @@ module modfftw
 use, intrinsic  :: iso_c_binding
 use modprecision, only : pois_r
 use modglobal, only : itot, jtot, imax, jmax, i1, j1, ih, jh, kmax, ijtot &
-                    , dxi,dyi,pi
+                    , dxi,dyi,pi, lperiodic
 use modmpi, only : commcol, commrow, mpierr, nprocx, D_MPI_ALLTOALL, nprocy &
                  , myidx, myidy
 implicit none
@@ -188,7 +188,12 @@ contains
     ! Prepare 1d FFT transforms
     ! TODO: in plan_many, skip part where k > kmax
     embed(1) = itot
-    kinds(1) = FFTW_R2HC
+    if (lperiodic(1)) then
+        kinds(1) = FFTW_R2HC
+     else
+        kinds(1) = FFTW_REDFT10 ! DCT for Neumann BC for pressure
+     end if
+
     planx = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
@@ -206,7 +211,12 @@ contains
     )
 
     embed(1) = itot
-    kinds(1) = FFTW_HC2R
+    if (lperiodic(1)) then
+        kinds(1) = FFTW_HC2R
+     else
+        kinds(1) = FFTW_REDFT01 ! Inverse DCT
+     end if
+
     planxi = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
@@ -224,7 +234,12 @@ contains
     )
 
     embed(1) = jtot
-    kinds(1) = FFTW_R2HC
+    if (lperiodic(3)) then
+       kinds(1) = FFTW_R2HC
+    else
+       kinds(1) = FFTW_REDFT10
+    end if
+
     plany = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
@@ -240,9 +255,13 @@ contains
       kinds, &       ! kind
       FFTW_MEASURE & ! flags (FFTW_MEASURE or FFTW_ESTIMATE)
     )
-
+    
     embed(1) = jtot
-    kinds(1) = FFTW_HC2R
+     if (lperiodic(3)) then
+        kinds(1) = FFTW_HC2R
+     else
+        kinds(1) = FFTW_REDFT01 ! Inverse DCT
+     end if
     planyi = fftw_plan_many_r2r_if( &
       1, &           ! rank
       embed, &       ! n (size)  [array]
@@ -294,6 +313,9 @@ contains
 
     kinds(1) = FFTW_R2HC
     kinds(2) = FFTW_R2HC
+    if (.not. lperiodic(1)) kinds(1) = FFTW_REDFT10
+    if (.not. lperiodic(3)) kinds(2) = FFTW_REDFT10
+
     planxy = fftw_plan_guru_r2r_if(&
       2, &             ! rank
       dimij, &         ! dims
@@ -307,6 +329,9 @@ contains
 
     kinds(1) = FFTW_HC2R
     kinds(2) = FFTW_HC2R
+    if (.not. lperiodic(1)) kinds(1) = FFTW_REDFT01
+    if (.not. lperiodic(3)) kinds(2) = FFTW_REDFT01
+
     planxyi = fftw_plan_guru_r2r_if(&
       2, &             ! rank
       dimij, &         ! dims
@@ -680,7 +705,7 @@ contains
       stop 'Illegal method in fftwsolver.'
     endif
 
-    Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
+    !Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)  ! moving normalization to fftwb
   end subroutine
 
   subroutine fftwb(p, Fp)
@@ -688,8 +713,9 @@ contains
 
     real(pois_r), pointer :: p(:,:,:)
     real(pois_r), pointer :: Fp(:,:,:)
-
-    Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
+    real :: norm
+    
+    !Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
 
     if (method == 1) then
       call transpose_a3inv(p201, Fp)
@@ -704,12 +730,19 @@ contains
       call fftw_execute_r2r_if(planxyi, p_nohalo, p_nohalo)
     else
       stop 'Illegal method in fftwsolver.'
-    endif
-  end subroutine
+   endif
 
+   norm = 1.0/ijtot
+   if (.not. lperiodic(1)) norm = norm / 2 ! different normalization for the DCT
+   if (.not. lperiodic(3)) norm = norm / 2
+   p(:,:,:) = p(:,:,:) * norm ! do all normalization at once
+  end subroutine
 
 ! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine fftwinit_factors(xyrt)
+    use modglobal, only : i1,j1,kmax,imax,jmax,itot,jtot,dxi,dyi,pi,ih,jh,lperiodic
+    use modmpi, only    : myidx, myidy
+
     implicit none
 
     real(pois_r), allocatable :: xyrt(:,:)
@@ -738,6 +771,8 @@ contains
 
   ! I --> direction
     fac = 1./(2.*itot)
+    if (.not. lperiodic(1)) fac = 1./(4.*itot)
+
     do i=2,itot
       xrt(i)=-4.*dxi*dxi*(sin(float(2*(i-1))*pi*fac))**2
     end do
@@ -745,6 +780,8 @@ contains
 
   ! J --> direction
     fac = 1./(2.*jtot)
+    if (.not. lperiodic(3)) fac = 1./(4.*jtot)
+
     do j=2,jtot
       yrt(j)=-4.*dyi*dyi*(sin(float(2*(j-1))*pi*fac))**2
     end do

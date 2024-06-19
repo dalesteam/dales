@@ -31,7 +31,7 @@ module modchecksim
   use modtimer
   implicit none
   private
-  public initchecksim,exitchecksim,checksim
+  public initchecksim,exitchecksim,checksim,chkdiv
 
   real    :: tcheck = 0.
   integer(kind=longint) :: tnext = 3600.,itcheck
@@ -240,4 +240,3 @@ contains
   end subroutine chkdiv
 
 end module modchecksim
-

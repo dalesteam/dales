@@ -245,7 +245,6 @@ contains
               stop 'STOP: No time dependend data for end of run'
             end if
           end do
-          write (*,*) 'timels = ',timels(t)
           if (ltimedepuv) then
              ! new, optional format with u,v in ls_flux.inp.*
              do k=1,kmax

@@ -304,9 +304,7 @@ contains
 !!     qt,ql,exner,pressure and the density
 !! \author      Pier Siebesma   K.N.M.I.     06/01/1995
   subroutine diagfld
-
-  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0, &
-                        timee,lconstexner,is_starting
+  use modglobal, only : i1,ih,j1,jh,k1,nsv,zh,zf,cu,cv,ijtot,grav,rlv,cp,rd,rv,pref0,timee,lconstexner
   use modfields, only : u0,v0,thl0,qt0,ql0,sv0,u0av,v0av,thl0av,qt0av,ql0av,sv0av, &
                         presf,presh,exnf,exnh,rhof,thvf, &
                         initial_presf,initial_presh

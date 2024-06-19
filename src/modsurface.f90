@@ -71,19 +71,21 @@ save
 contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
-
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg, irad_rte_rrtmgp
-    use modmpi,     only : myid, comm3d, mpierr, D_MPI_BCAST
+    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
+    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
+    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
+    use netcdf
 
     implicit none
 
     integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
     integer   :: tempx,tempy
+    integer   :: VARID,STATUS,NCID,timeID
+    character(len = nf90_max_name) :: RecordDimName
     character(len=1500) :: readbuffer
 
     namelist/NAMSURFACE/ & !< Soil related variables
-      isurf,tsoilav, tsoildeepav, phiwav, rootfav, &
+      isurf, tsoilav, tsoildeepav, phiwav, rootfav, &
       ! Land surface related variables
       lmostlocal, lsmoothflux, lneutral, z0mav, z0hav, rsisurf2, Cskinav, lambdaskinav, albedoav, Qnetav, cvegav, Wlav, &
       ! Jarvis-Steward related variables
@@ -102,10 +104,10 @@ contains
       lsplitleaf, &
       ! Exponential emission function
       i_expemis, expemis0, expemis1, expemis2, &
-      min_horv
+      ! heterogeneous tskin
+      ltskininp,  min_horv
 
     call timer_tic('modsurface/initsurface', 0)
-
 
     ! 1    -   Initialize soil
 
@@ -176,7 +178,7 @@ contains
     call D_MPI_BCAST(expemis0                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis1                   ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(expemis2                   ,            1, 0, comm3d, mpierr)
-
+    call D_MPI_BCAST(ltskininp                  ,            1, 0, comm3d, mpierr)
     call D_MPI_BCAST(min_horv                   ,            1, 0, comm3d, mpierr)
 
     if(lCO2Ags .and. (.not. lrsAgs)) then
@@ -553,7 +555,7 @@ contains
             enddo
           enddo
       end select
-    else
+    else  ! not lhetero:
       if((z0mav == -1 .and. z0hav == -1) .and. (z0 .ne. -1)) then
         z0mav = z0
         z0hav = z0
@@ -623,8 +625,8 @@ contains
     end if
 
     allocate(rs(i2,j2))
+    allocate(ra(i2,j2))
     if(isurf <= 2) then
-      allocate(ra(i2,j2))
 
       ! CvH set initial values for rs and ra to be able to compute qskin
       ra = 50.
@@ -716,6 +718,32 @@ contains
       endif
     endif
 
+    if(ltskininp) then ! Use tskin.inp.iexpnr.nc to define surface skin temperature
+      !--- open tskin.inp.xxx.nc ---
+      STATUS = NF90_OPEN('tskin.inp.'//cexpnr//'.nc', nf90_nowrite, NCID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !--- get time dimensions
+      STATUS = NF90_INQ_DIMID(NCID, "time", timeID)
+      if (STATUS /= nf90_noerr) call handle_err(status)
+      STATUS = nf90_INQUIRE_DIMENSION(NCID, timeID, len=nttskin, name=RecordDimName)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !--- read time
+      allocate(ttskin(nttskin))
+      STATUS = NF90_INQ_VARID(NCID, 'time', VARID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      STATUS = NF90_GET_VAR (NCID, VARID, ttskin, start=(/1/), count=(/nttskin/) )
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !--- read tskin input
+      allocate(tskininp(imax,jmax,nttskin))
+      STATUS = NF90_INQ_VARID(NCID,'tskin', VARID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      STATUS = NF90_GET_VAR (NCID, VARID, tskininp, start=(/myidx*imax+1,myidy*jmax+1,1/), &
+        & count=(/imax,jmax,nttskin/))
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      STATUS = NF90_CLOSE(NCID)
+      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+    endif
+
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
@@ -723,7 +751,6 @@ contains
     !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
 
     call timer_toc('modsurface/initsurface')
-
   end subroutine initsurface
 
 !> Calculates the interaction with the soil, the surface temperature and humidity, and finally the surface fluxes.
@@ -770,12 +797,13 @@ contains
         call calc_surface_scalars
       case (10) ! User defined surface scheme
         call surf_user
+      case (11) ! New LSM, handled by modlsm
+        return
       case default
         stop "Invalid option selected for isurf"
     end select
 
     call timer_toc('modsurface/surface')
-
   end subroutine surface
 
   !> Calculates the drag coefficients \f$C_m\f$ and \f$C_s\f$
@@ -980,8 +1008,8 @@ contains
 
   !> Calculates the friction velocity \f$u_*\f$
   subroutine calc_friction_velocity
-    use modglobal, only: i1 ,j1
-    use modmpi, only: excjs
+    use modglobal, only: i1 ,j1, lopenbc, lboundary, lperiodic
+    use modmpi, only: excjs, openboundary_excjs
     implicit none
 
     integer :: i, j
@@ -1010,15 +1038,19 @@ contains
         end do
       end do
     end if
-
-    call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
-
+    
+    if ( lopenbc ) then
+      call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
+                             (.not.lboundary(1:4)).or.lperiodic(1:4))
+    else
+       call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+    endif
   end subroutine calc_friction_velocity
 
   !> Prescribes the friction velocity \f$u_*\f$
   subroutine presc_friction_velocity
-    use modglobal, only: i1, j1
-    use modmpi, only: excjs
+    use modglobal, only: i1, j1, lopenbc, lboundary, lperiodic
+    use modmpi, only: excjs, openboundary_excjs
     implicit none
 
     integer :: i, j
@@ -1039,8 +1071,13 @@ contains
         end do
       end do
     end if
-    call excjs(ustar_3D, 2, i1, 2, j1, 1, 1, 1, 1)
-
+    
+    if ( lopenbc ) then
+      call openboundary_excjs(ustar_3D, 2,i1,2,j1,1,1,1,1, &
+                             (.not.lboundary(1:4)).or.lperiodic(1:4))
+    else
+       call excjs(ustar_3D,2,i1,2,j1,1,1,1,1)
+    endif
   end subroutine presc_friction_velocity
 
   !> Calculates the surfaces fluxes using the scalar values at the surface and
@@ -1194,7 +1231,6 @@ contains
         vpcv = 0.5_field_r * (v0(i,j,1) + v0(i,j+1,1)) + cv
         dudz(i,j) = ustar(i,j) * phimzf * scaling * (upcu / horv(i,j))
         dvdz(i,j) = ustar(i,j) * phimzf * scaling * (vpcv / horv(i,j))
-
 
         ! Scalar fluxes
         dthldz(i,j) = - thlflux(i,j) / ustar(i,j) * phihzf * scaling
@@ -1514,7 +1550,7 @@ contains
     return
   end subroutine getobl
 
-  function psim(zeta)
+  pure function psim(zeta)
     implicit none
 
     real             :: psim
@@ -1534,7 +1570,7 @@ contains
     return
   end function psim
 
-  function psih(zeta)
+  pure function psih(zeta)
 
     implicit none
 
@@ -1577,7 +1613,7 @@ contains
 
     return
   end function phim
-
+  
   ! stability function Phi for heat.
   function phih(zeta)
     !$acc routine seq

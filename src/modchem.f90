@@ -120,11 +120,14 @@ module modchem
 !
 
   use modprecision, only : longint, field_r
+  use modtracers, only : tracer_prop
 
 implicit none
 
 private
-PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2
+! PUBLIC :: lchem, initchem,inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem, RH, choffset, CO2
+PUBLIC :: lchem, initchem, inputchem, twostep, PL_scheme, nchsp, firstchem, lastchem
+
 save
 
   ! namoptions
@@ -153,8 +156,9 @@ save
   parameter (PRODUCTION=1, LOSS=2)
 
   integer nr_raddep !number of photolysis reactions
-  integer nchsp     !number of chemical species calculated from lastchem - firstchem
-  integer choffset  !=firstchem -1 => offset for chemicals in sv0
+  integer nchsp     !number of chemical species from NAMCHEM
+  integer isv, nchsp_tmp !number of chemical species calculated internally
+  integer H2Oloc, INERTloc
 
   type RCdef
     character*6 rname
@@ -192,7 +196,6 @@ save
   type,PUBLIC :: Name_Number
     character (len=6) name  !name of chemical
     logical active      !active=1 else 0
-    integer chem_number    !number (not really used)
     real atol
     real rtol
     integer nr_PL      !total number of reactions in which this chemical is used
@@ -213,15 +216,6 @@ save
 
   real, allocatable :: writearray(:,:)
   real*4, allocatable :: k3d(:,:,:,:)
-
-  type, PUBLIC :: location
-    character (len = 6) name
-    integer   loc
-  end type location
-
- type (location) :: INERT, PRODUC , O3, NO2, NO, NO3, N2O5, HNO3, RH, R, ISO, H2O2, HO2, HO, CO, CO2, H2O, NH3, H2SO4
-
-
   real, allocatable :: kefftemp(:,:)  !(1:kmax,1:nr_raddep)
 
   real, allocatable :: segregation(:)          !segregation calculated (amount of reactions)
@@ -241,12 +235,13 @@ SUBROUTINE initchem
   use modglobal,   only : i1,j1,nsv, ifnamopt, fname_options, ifoutput, cexpnr,timeav_glob,btime,tres,lwarmstart,checknamelisterror
   use modmpi,      only : myid, mpi_logical, mpi_integer,  comm3d, mpierr &
                         , D_MPI_BCAST
-  use modsurfdata, only : lCHon
+  use modsurfdata, only : lCHon ! TODO: duplicate of lchem: remove?
+
   implicit none
 
   integer i, ierr
 
-  namelist/NAMCHEM/ lchem, lcloudKconst, tnor, firstchem,lastchem,ldiuvar,h_ref,lchconst, t_ref, q_ref, p_ref,lchmovie, dtchmovie,lsegr
+  namelist/NAMCHEM/ lchem, lcloudKconst, tnor, nchsp, ldiuvar,h_ref,lchconst, t_ref, q_ref, p_ref,lchmovie, dtchmovie,lsegr
 
   itermin  = 1.e-6
 
@@ -260,9 +255,8 @@ SUBROUTINE initchem
   lchmovie = .false.
   dtchmovie= 60
   idtchmovie = dtchmovie/tres
-  firstchem= 1
-  lastchem = nsv
-  nchsp    = nsv
+  tnor     = 0
+  nchsp    = 0
   lcloudKconst  = .false.
   lsegr    = .false.
 
@@ -282,8 +276,7 @@ SUBROUTINE initchem
   call D_MPI_BCAST(lsegr       ,1, 0,comm3d, mpierr)
   call D_MPI_BCAST(lcloudKconst,1, 0,comm3d,mpierr)
   call D_MPI_BCAST(tnor        ,1, 0,comm3d, mpierr)
-  call D_MPI_BCAST(firstchem   ,1, 0,comm3d, mpierr)
-  call D_MPI_BCAST(lastchem    ,1, 0,comm3d, mpierr)
+  call D_MPI_BCAST(nchsp       ,1, 0,comm3d, mpierr)
   call D_MPI_BCAST(t_ref       ,1, 0,comm3d, mpierr)
   call D_MPI_BCAST(q_ref       ,1, 0,comm3d, mpierr)
   call D_MPI_BCAST(p_ref       ,1, 0,comm3d, mpierr)
@@ -297,8 +290,30 @@ SUBROUTINE initchem
   itimeav = floor(timeav_glob/tres)
   tnextwrite = itimeav+btime
   switch = .false.
-  nchsp = lastchem - firstchem  + 1
-  choffset = firstchem - 1
+
+  nchsp_tmp = 0
+  firstchem = 0
+  lastchem  = 0
+  do isv = 1,nsv
+    if (.not. tracer_prop(isv)%lreact) cycle
+    nchsp_tmp = nchsp_tmp + 1
+    if (nchsp_tmp == 1) then
+      firstchem = tracer_prop(isv)%trac_idx
+    endif
+    if ((isv == nsv) .or. (tracer_prop(isv)%lreact .and. .not. tracer_prop(isv+1)%lreact)) then
+      lastchem = isv
+    endif
+  enddo
+
+  ! check first and last species in chemical scheme
+  write(6,"(A24, A6)") "First reactive tracer:  ", tracer_prop(firstchem)%tracname
+  write(6,"(A24, A6)") "Last reactive tracer:   ", tracer_prop(lastchem)%tracname
+
+  if (nchsp_tmp /= nchsp) then
+    write(6,"(A80, i3, A3, i3)") "STOPPED. Number of reactive tracers differs from nchsp:  ", nchsp_tmp, " /=", nchsp
+    write(6,"(A30)") "Check NAMTRACERS: tracernames"
+    stop
+  end if
 
   allocate(PL_scheme(nchsp))
   allocate (atol(nchsp), rtol(nchsp))
@@ -311,7 +326,6 @@ SUBROUTINE initchem
   PL_scheme(1)%name = '     '
   PL_scheme(1)%atol = 0.
   PL_scheme(1)%rtol = 0.
-  PL_scheme(1)%chem_number = 0
   PL_scheme(1)%nr_PL = 0
 
   do i=1,mrpcc
@@ -359,11 +373,13 @@ subroutine inputchem
 !c  the scheme to solve the chemical production and loss terms
 !c
 !c***********************************************************************
- use modglobal, only : i1,j1,k1,kmax,cexpnr, ifoutput
+ use modglobal, only : i1,j1,k1,kmax,cexpnr, ifoutput, nsv
  use modmpi,    only : myid
+ use go,        only : to_lower
+
  implicit none
 
-  integer i,j,k,l,react
+  integer i,j,k,l,react, isv
   integer*2 number
   integer react_nr
   real reactconst,coefficient, fact(7)
@@ -467,7 +483,7 @@ subroutine inputchem
       read(line,*,end=300)reactconst,rname,raddep,func1,(fact(j),j=1,7),(spec(j),j=1,NNSPEC)
 300   j=j-1
 
-      if ((func1 == 6 .or. (raddep==1 .and. func1== 4)) .and. H2O%loc == 0) then
+      if ((func1 == 6 .or. (raddep==1 .and. func1== 4)) .and. H2Oloc == 0) then
         write(*,*) 'Function 6 or 4 needs H2O and this is not specified as a chemical component'
         STOP
       endif
@@ -512,8 +528,8 @@ subroutine inputchem
       RC(react)%G = fact(7)
 
 
-!analyze reaction scheme,determine chem species and location in scalar.inp
-!and store in reactions(react)
+  !analyze reaction scheme,determine chem species and location in scalar.inp
+  !and store in reactions(react)
 
       do j=1, 2 * nr_chemcomp - 1
         select case (spec(j))
@@ -583,7 +599,7 @@ subroutine inputchem
     endif
   end do ! while(1)
 
-!total number of reactions is equal to react
+  !total number of reactions is equal to react
 
   if (myid == 0)  print *, 'Total number of reactions is',react,'of which', keff_nr,'is/are radiation dependent'
 
@@ -597,9 +613,9 @@ subroutine inputchem
   allocate (keffT(2:i1,2:j1,keffT_nr))
   allocate (writearray(k1,tnor+2))
 
-!  if (lsegrk .EQV. .true.) then                    ! As of yet unused expansion of segregation
-!    allocate (keffT3D(2:i1,2:j1,keffT_nr,kmax))
-!  endif
+  !  if (lsegrk .EQV. .true.) then                    ! As of yet unused expansion of segregation
+  !    allocate (keffT3D(2:i1,2:j1,keffT_nr,kmax))
+  !  endif
 
   if (lsegr .EQV. .true.) then
     allocate (segregation(tnor))
@@ -653,7 +669,6 @@ subroutine inputchem
       if (found .EQV. .false.) then
         k=k+1
         PL_scheme(k)%name=name
-        PL_scheme(k)%chem_number = k
         reactions(i)%inp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
@@ -687,7 +702,6 @@ subroutine inputchem
       if (found .EQV. .false.) then
         k=k+1
         PL_scheme(k)%name=name
-        PL_scheme(k)%chem_number = k
         reactions(i)%outp(j)%chem_nr = k
         PL_scheme(l)%nr_PL = PL_scheme(l)%nr_PL +1
         if ( PL_scheme(l)%nr_PL > mrpcc ) then
@@ -941,8 +955,6 @@ subroutine inputchem
       if (PL_scheme(i)%name == chem_name(j)) then
         PL_scheme(i)%atol = atol(j)
         PL_scheme(i)%rtol = rtol(j)
-        !we don't need the org chem_number now use it as index to sv0
-        PL_scheme(i)%chem_number = j
         exit
       end if
     end do
@@ -994,6 +1006,8 @@ end subroutine inputchem
 SUBROUTINE read_chem(chem_name)
   use modmpi,      only : myid
   use modsurfdata, only : CO2loc
+  use modglobal,   only : nsv
+  use go,          only : to_lower
 
   implicit none
 
@@ -1001,61 +1015,20 @@ SUBROUTINE read_chem(chem_name)
   character*255 scalarline
   integer i,j
 
-  INERT%name  = 'INERT'
-  PRODUC%name = 'PRODUC'
-  O3%name     = 'O3'
-  NO%name     = 'NO'
-  NO2%name    = 'NO2'
-  NO3%name    = 'NO3'
-  N2O5%name   = 'N2O5'
-  HNO3%name   = 'HNO3'
-  HO2%name    = 'HO2'
-  HO%name     = 'HO'
-  H2O2%name   = 'H2O2'
-  H2O%name    = 'H2O'
-  CO%name     = 'CO'
-  CO2%name    = 'CO2'
-  RH%name     = 'RH'
-  R%name      = 'R'
-  NH3%name    = 'NH3'
-  H2SO4%name  = 'H2SO4'
-  ISO%name    = 'ISO'
-
-  CO2%loc     = -1
-
   !chem species and atol and rtol
   read(10,'(a)',err=100)scalarline
 
   read(scalarline,*)(chem_name(j),j=1,nchsp)
 
-  do i=1, nchsp
-    if (O3%name    == chem_name(i)) then ; O3%loc   = i;  cycle; endif
-    if (NO%name    == chem_name(i)) then ; NO%loc   = i;  cycle; endif
-    if (NO2%name   == chem_name(i)) then ; NO2%loc  = i;  cycle; endif
-    if (NO3%name   == chem_name(i)) then ; NO3%loc  = i;  cycle; endif
-    if (N2O5%name  == chem_name(i)) then ; N2O5%loc = i;  cycle; endif
-    if (HNO3%name  == chem_name(i)) then ; HNO3%loc = i;  cycle; endif
-    if (HO%name    == chem_name(i)) then ; HO%loc   = i;  cycle; endif
-    if (HO2%name   == chem_name(i)) then ; HO2%loc  = i;  cycle; endif
-    if (H2O2%name  == chem_name(i)) then ; H2O2%loc = i;  cycle; endif
-    if (H2O%name   == chem_name(i)) then ; H2O%loc  = i;  cycle; endif
-    if (CO%name    == chem_name(i)) then ; CO%loc   = i;  cycle; endif
-    if (CO2%name   == chem_name(i)) then ; CO2%loc  = i;  cycle; endif
-    if (RH%name    == chem_name(i)) then ; RH%loc   = i;  cycle; endif
-    if (R%name     == chem_name(i)) then ; R%loc    = i;  cycle; endif
-    if (ISO%name   == chem_name(i)) then ; ISO%loc    = i;  cycle; endif
-    if (NH3%name   == chem_name(i)) then ; NH3%loc  = i;  cycle; endif
-    if (H2SO4%name == chem_name(i)) then ; H2SO4%loc  = i;  cycle; endif
-    if (INERT%name == chem_name(i)) then ; INERT%loc  = i;  cycle; endif
-    if (PRODUC%name== chem_name(i)) then ; PRODUC%loc  = i;  cycle; endif
+  H2Oloc   = 0
+  INERTloc = 0
+  do i=1,nsv
+    if (trim(tracer_prop(i)%tracname) == 'co2')   then; CO2loc   = i; endif ! location in svm
+    if (trim(tracer_prop(i)%tracname) == 'h2o')   then; H2Oloc   = i; endif ! location in svm
+    if (trim(tracer_prop(i)%tracname) == 'inert') then; INERTloc = i; endif ! location in svm
+    ! if (.not. tracer_prop(i)%lreact) cycle
   enddo
-
-  CO2loc = CO2%loc
-  if (CO2%loc .gt. 0) CO2loc = CO2loc + choffset
-
-! the above loc gives the location of a chemical component relative to the first chemical position
-! in SV0. The loc of the first chemical is always 1.  If you need the absolute
-! position in SV0 you have to add CHOFFSET to the above loc position
+! write (*,*) 'H2Oloc CO2loc INERTloc ', H2Oloc, CO2loc, INERTloc
 
   read(10,'(a)',err=100)scalarline
   read(scalarline,*)(atol(j),j=1,nchsp)
@@ -1071,7 +1044,7 @@ SUBROUTINE read_chem(chem_name)
 
 RETURN
 
-100 print *, 'error in reading chem species in inputchem'
+100 print *, 'error in reading chem species in chem.inp'
     STOP
 
 
@@ -1162,7 +1135,20 @@ implicit none
   integer nsecs, nhrs, nminut
   real    rest_zi, zi_temp, we_temp
   real, allocatable :: s_buf(:), r_buf(:)
+  ! TODO: replace this temporary fix for indices in twostep2
+  integer H2Oloc_2s, INERTloc_2s
+  
   allocate(s_buf(kmax),r_buf(kmax))
+
+
+
+  if (firstchem>0) then
+    H2Oloc_2s   = H2Oloc - firstchem +1
+    INERTloc_2s = INERTloc - firstchem +1
+  else
+    H2Oloc_2s   = H2Oloc
+    INERTloc_2s = INERTloc
+  endif
 
   !c Initialization of logical and counters
   t = rtimee
@@ -1176,11 +1162,11 @@ implicit none
   tb      = t
   kdtmax  = te-t
 
-  if (H2O%loc /= 0) then
+  if (H2Oloc /= 0) then
     if (lchconst .EQV. .true.) then
-      y(2:i1,2:j1,:,H2O%loc) = q_ref * MW_air / MW_h2o * ppb
+      y(2:i1,2:j1,:,H2Oloc_2s) = q_ref * MW_air / MW_h2o * ppb
     else
-      y(2:i1,2:j1,:,H2O%loc) = qt0(2:i1,2:j1,:) * MW_air / MW_h2o * ppb
+      y(2:i1,2:j1,:,H2Oloc_2s) = qt0(2:i1,2:j1,:) * MW_air / MW_h2o * ppb
     endif
   endif
 
@@ -1217,7 +1203,7 @@ implicit none
 
     !  if n points to H2O or INERT skip calculations
     do n=1,nchsp
-      if (n == H2O%loc .or. (PL_scheme(n)%active .eqv. .false.)) cycle
+      if (n == H2Oloc_2s .or. (PL_scheme(n)%active .eqv. .false.)) cycle
       do j=2,j1
         do i=2,i1
           dyc=yp(i,j,n)-y(i,j, pl, n)*yl(i,j, n)
@@ -1277,7 +1263,7 @@ implicit none
     !c Stepsize control.
     errltel=0.0
     do n=1,nchsp
-      if (n == H2O%loc .or. n==INERT%loc) cycle  !we aren't interested in the chemistry of water and is kept constant
+      if (n == H2Oloc_2s .or. n==INERTloc_2s) cycle  !we aren't interested in the chemistry of water and is kept constant
       do j=2,j1
         do i=2,i1
           ytol=atol(n)+rtol(n)*abs(y(i,j,pl,n))
@@ -1749,7 +1735,7 @@ implicit none
         !first CBL
         rk1(:,:) = RC(i)%A * exp(RC(i)%B / T_abs(:,:)) * convppb(:,:)
         rk2(:,:) = RC(i)%C * exp(RC(i)%D / T_abs(:,:)) * convppb(:,:)**2 * 1e9
-        rk(:,:) =  RC(i)%E * exp(RC(i)%F / T_abs(:,:)) * svm(2:i1,2:j1,k,(H2O%loc+choffset)) * convppb(:,:)
+        rk(:,:) =  RC(i)%E * exp(RC(i)%F / T_abs(:,:)) * svm(2:i1,2:j1,k,H2Oloc) * convppb(:,:)
         keffT(:,:,RC(i)%Kindex) = (rk1(:,:) + rk2(:,:)) * (1. + rk(:,:))
       case(7) ! same as 3 but third order so conv_ppb to the power 2
         keffT(:,:,RC(i)%Kindex) = RC(i)%A * (T_abs(:,:)/RC(i)%B)**RC(i)%C * exp(RC(i)%D / T_abs(:,:))* (convppb(:,:)**2)
@@ -2055,6 +2041,8 @@ subroutine ratech
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 subroutine ITER(gdt,k)
+use go,          only : to_lower
+
 implicit none
 
   real    gdt
@@ -2067,8 +2055,7 @@ implicit none
 
   do n=1,nchsp
   if (PL_scheme(n)%active .EQV. .TRUE.) then
-    if (PL_scheme(n)%name == H2O%name )  cycle    !don't do calculation of H2O
-!    if (PL_scheme(n)%name == PRODUC%name) cycle
+    if (to_lower(trim(PL_scheme(n)%name)) == "h2o" )  cycle    !don't do calculation of H2O
 
     do j=1, PL_scheme(n)%nr_PL
 

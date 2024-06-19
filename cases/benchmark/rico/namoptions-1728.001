@@ -13,6 +13,11 @@ nprocx     = 0
 nprocy     = 0
 /
 
+&NAMTRACERS
+ltracers = .true.
+tracernames = 'nr', 'qr'
+/
+
 &DOMAIN
 itot       =  1728
 jtot       =  672

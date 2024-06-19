@@ -1,6 +1,9 @@
 .DS_Store
 src/modversion.f90
 *~
+*.jb
+DALES_TNO.sh
+build/
 .vscode/
 .idea/
 build/

@@ -129,51 +129,103 @@ contains
 !                                                                 |
 !-----------------------------------------------------------------|
 
-  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol
+  use modglobal, only : i1,j1,kmax,dzh,dzf,cu,cv,om22,om23,lcoriol,lopenbc,lboundary,lperiodic
   use modfields, only : u0,v0,w0,up,vp,wp
   implicit none
 
-  integer i, j, k
+  integer :: i, j, k, sx=2, sy=2
 
   if (lcoriol .eqv. .false.) return
 
+  ! Only calculate interior tendencies when open boundaries are used
+  if(lopenbc) then
+    if(lboundary(1).and..not.lperiodic(1)) sx = 3
+    if(lboundary(3).and..not.lperiodic(3)) sy = 3
+  endif
+
   call timer_tic('modforces/coriolis', 0)
 
-  !$acc parallel loop collapse(3) default(present) async(1)
-  do k = 2, kmax
-    do j = 2, j1
-      do i = 2, i1
-        up(i,j,k) = up(i,j,k)+ cv*om23 &
-              +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
-              -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
-
-        vp(i,j,k) = vp(i,j,k)  - cu*om23 &
-              -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
-
-        wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
-                    +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
-                    * om22*0.25_field_r
+  if ( lopenbc ) then
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = sx, i1
+          up(i,j,k) = up(i,j,k)+ cv*om23 &
+                +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
+                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
+        end do
       end do
     end do
-  end do
-
-  ! --------------------------------------------
-  ! special treatment for lowest full level: k=1
-  ! --------------------------------------------
-  !$acc parallel loop collapse(2) default(present) async(2)
-  do j = 2, j1
-    do i = 2, i1
-      up(i,j,1) = up(i,j,1)  + cv*om23 &
-            +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25_field_r &
-            -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r
-
-      vp(i,j,1) = vp(i,j,1) - cu*om23 &
-            -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25_field_r
-
-      wp(i,j,1) = 0.0
+    
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 1, kmax
+      do j = 2, j1
+        do i = sx, i1
+          vp(i,j,k) = vp(i,j,k)  - cu*om23 &
+                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
+        end do
+      end do
     end do
-  end do
-  !$acc wait(1,2)
+    
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                      * om22*0.25_field_r
+        end do
+      end do
+    end do
+
+    ! --------------------------------------------
+    ! special treatment for lowest full level: k=1
+    ! --------------------------------------------
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
+        wp(i,j,1) = 0.0
+      end do
+    end do
+    !$acc wait(1,2)
+  else ! lopenbc
+    ! Efficient fused kernel for periodic bc
+    !$acc parallel loop collapse(3) default(present) async(1)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          up(i,j,k) = up(i,j,k)+ cv*om23 &
+                +(v0(i,j,k)+v0(i,j+1,k)+v0(i-1,j,k)+v0(i-1,j+1,k))*om23*0.25_field_r &
+                -(w0(i,j,k)+w0(i,j,k+1)+w0(i-1,j,k+1)+w0(i-1,j,k))*om22*0.25_field_r
+
+          vp(i,j,k) = vp(i,j,k)  - cu*om23 &
+                -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
+
+          wp(i,j,k) = wp(i,j,k) + cu*om22 +( (dzf(k-1) * (u0(i,j,k)  + u0(i+1,j,k) )    &
+                      +    dzf(k)  * (u0(i,j,k-1) + u0(i+1,j,k-1))  ) / dzh(k) ) &
+                      * om22*0.25_field_r
+        end do
+      end do
+    end do
+
+    ! --------------------------------------------
+    ! special treatment for lowest full level: k=1
+    ! --------------------------------------------
+    !$acc parallel loop collapse(2) default(present) async(2)
+    do j = 2, j1
+      do i = 2, i1
+        up(i,j,1) = up(i,j,1)  + cv*om23 &
+              +(v0(i,j,1)+v0(i,j+1,1)+v0(i-1,j,1)+v0(i-1,j+1,1))*om23*0.25_field_r &
+              -(w0(i,j,1)+w0(i,j ,2)+w0(i-1,j,2)+w0(i-1,j ,1))*om22*0.25_field_r
+
+        vp(i,j,1) = vp(i,j,1) - cu*om23 &
+              -(u0(i,j,1)+u0(i,j-1,1)+u0(i+1,j-1,1)+u0(i+1,j,1))*om23*0.25_field_r
+
+        wp(i,j,1) = 0.0
+      end do
+    end do
+    !$acc wait(1,2)
+  end if
 
   call timer_toc('modforces/coriolis')
   return
@@ -206,7 +258,7 @@ contains
                         dudxls,dudyls,dvdxls,dvdyls,dthldxls,dthldyls,dqtdxls,dqtdyls, &
                         dqtdtls, dthldtls, dudtls, dvdtls
   implicit none
-
+  
   integer i, j, k, n
 
   call timer_tic('modforces/lstend', 0)

@@ -160,20 +160,24 @@ contains
  ! Diffusion subroutines
 ! Thijs Heus, Chiel van Heerwaarden, 15 June 2007
 
-    use modglobal, only : nsv, lmoist, deltai, delta, dzf, dzh
+    use modglobal, only : nsv, lmoist, deltai, delta, dzf, dzh, lopenbc, lboundary, lperiodic
     use modfields, only : up,vp,wp,e12p,thl0,thlp,qt0,qtp,sv0,svp,u0,v0,w0,rhobh,rhobf,e120,dthvdz, thvf
     use modsurfdata,only : thlflux,qtflux,svflux,ustar,dudz,dvdz
 
     implicit none
-    integer n
-
+    integer :: n,sx=2,sy=2
+    
     call timer_tic('modsubgrid/subgrid', 0)
 
+    if(lopenbc) then ! If openbounaries are used only calculate tendencies for non-domain boundary cells
+      if(lboundary(1).and. .not. lperiodic(1)) sx = 3
+      if(lboundary(3).and. .not. lperiodic(3)) sy = 3
+    endif
     call closure
     !$acc wait
-
-    call diffu(up)
-    call diffv(vp)
+    
+    call diffu(up,sx)
+    call diffv(vp,sy)
     call diffw(wp)
     ! All kernels in diff* are async. Wait here.
     !$acc wait
@@ -234,10 +238,11 @@ contains
 !-----------------------------------------------------------------|
 
   use modglobal,   only : i1,j1,kmax,k1,ih,jh,i2,j2,delta,ekmin,grav,zf,fkar,deltai, &
-                          dxi,dyi,dzf,dzfi,dzhi,dzh,is_starting
+                          dxi,dyi,dzf,dzfi,dzhi,dzh,lopenbc,lboundary,lperiodic
   use modfields,   only : dthvdz,e120,u0,v0,w0,thvf
   use modsurfdata, only : dudz,dvdz,z0m
   use modmpi,      only : excjs
+  use modopenboundary, only : openboundary_excjs
   implicit none
 
   real    :: strain2,mlen
@@ -412,8 +417,15 @@ contains
 !*************************************************************
 !     Set cyclic boundary condition for K-closure factors.
 !*************************************************************
-  call excjs( ekm, 2,i1,2,j1,1,k1,ih,jh)
-  call excjs( ekh, 2,i1,2,j1,1,k1,ih,jh)
+   if(lopenbc) then ! Set cyclic conditions only for non-domain boundaries if openboundaries are used
+    call openboundary_excjs(ekm   , 2,i1,2,j1,1,k1,ih,jh, &
+      & (.not.lboundary(1:4)).or.lperiodic(1:4))
+    call openboundary_excjs(ekh   , 2,i1,2,j1,1,k1,ih,jh, &
+      & (.not.lboundary(1:4)).or.lperiodic(1:4))
+  else
+    call excjs( ekm           , 2,i1,2,j1,1,k1,ih,jh)
+    call excjs( ekh           , 2,i1,2,j1,1,k1,ih,jh)
+  endif
 
   !$acc parallel loop collapse(2) default(present)
   do j = 1, j2
@@ -827,14 +839,14 @@ contains
 
   end subroutine diffe
 
-  subroutine diffu (a_out)
-
+  subroutine diffu (a_out, sx)
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dx2i,dzf,dzfi,dyi,dzhi,cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
     use modsurfdata,only : ustar
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
+    integer, intent(in) :: sx
     real(field_r)       :: emmo,emom,emop,empo
     real(field_r)       :: fu
     real(field_r)       :: ucu, upcu
@@ -843,7 +855,7 @@ contains
     !$acc parallel loop collapse(3) default(present) private(emom, emop, empo, emmo) async(1)
     do k = 2, kmax
       do j = 2, j1
-        do i = 2, i1
+        do i = sx, i1
           emom = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i-1,j,k  ) )  + &
                    dzf(k  ) * ( ekm(i,j,k-1) + ekm(i-1,j,k-1) ) ) * &
                     ( 0.25_field_r * dzhi(k) )
@@ -886,7 +898,7 @@ contains
 
     !$acc parallel loop collapse(2) default(present) private(empo, emmo, emop, ucu, upcu, fu) async(2)
     do j = 2, j1
-      do i = 2, i1
+      do i = sx, i1
         empo = 0.25_field_r * ( ekm(i  ,j  ,1)+&
                                 ekm(i  ,j+1,1)+&
                                 ekm(i-1,j+1,1)+&
@@ -935,7 +947,7 @@ contains
   end subroutine diffu
 
 
-  subroutine diffv (a_out)
+  subroutine diffv (a_out, sy)
 
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dzf,dzfi,dyi,dy2i,dzhi,cu,cv
     use modfields, only : u0,v0,w0,rhobf,rhobh
@@ -944,13 +956,14 @@ contains
     implicit none
 
     real(field_r), intent(inout) :: a_out(2-ih:i1+ih,2-jh:j1+jh,k1)
+    integer, intent(in)  :: sy
     real(field_r)                :: emmo, eomm,eomp,epmo
     real(field_r)                :: fv, vcv,vpcv
     integer             :: i,j,k
 
     !$acc parallel loop collapse(3) default(present) private(eomm, eomp, emmo, epmo) async(3)
     do k = 2, kmax
-      do j = 2, j1
+      do j = sy, j1
         do i = 2, i1
           eomm = ( dzf(k-1) * ( ekm(i,j,k  ) + ekm(i,j-1,k  ) )  + &
                    dzf(k  ) * ( ekm(i,j,k-1) + ekm(i,j-1,k-1) ) ) * &
@@ -994,7 +1007,7 @@ contains
   !     --------------------------------------------
 
     !$acc parallel loop collapse(2) default(present) private(emmo, epmo, eomp, vcv, vpcv, fv) async(4)
-    do j = 2, j1
+    do j = sy, j1
       do i = 2, i1
         emmo = 0.25_field_r * ( ekm(i  ,j  ,1)+ &
                                 ekm(i  ,j-1,1)+ &
