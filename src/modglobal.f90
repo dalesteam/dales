@@ -99,8 +99,6 @@ save
       real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
       real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
 
-      !$acc declare copyin(rd, rv, pref0)
-
       logical :: lcoriol  = .true.  !<  switch for coriolis force
       logical :: lpressgrad = .true.  !<  switch for horizontal pressure gradient force
       integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
@@ -538,13 +536,13 @@ contains
 !     tnextrestart = trestart/tres
 !     timeleft=ceiling(runtime/tres)
 
-    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, rd, rv, &
+    !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, &
     !$acc&                  dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
-    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, rd, rv, &
+    !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, &
     !$acc&                 dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
     deallocate(dsv,dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
