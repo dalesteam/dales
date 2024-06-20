@@ -48,6 +48,7 @@ module modaerosolmicro
 !
 !*********************************************************************
   use modaerosoldata
+  use modprecision, only: field_r
 
   implicit none
   real :: gamma25
@@ -66,6 +67,8 @@ module modaerosolmicro
 
   real, dimension(ncld,naer_inc) :: incmass, incnumb
   real, dimension(nrai,naer_blc) :: blcmass, blcnumb
+
+  
  
   contains
 
@@ -144,69 +147,71 @@ module modaerosolmicro
   ! Reading lookuptable for scavenging here
   ! Could also be placed somewhere else? What is the proper place?
   !*********************************************************************
-  if (myid == 0 )  then 
-      ! =============================================================
-      ! IN-CLOUD SCAVENGING    
-      ! =============================================================
-      cldrad = (/5., 10., 15., 20., 25., 30., 35., 40., 45., 50./)
+  ! if (myid == 0 )  then 
+  !     ! =============================================================
+  !     ! IN-CLOUD SCAVENGING    
+  !     ! =============================================================
+  !     cldrad = (/5., 10., 15., 20., 25., 30., 35., 40., 45., 50./)
 
-      open(100,file='rbar_aerosol')
-        read(100,*) aerrad
-      close(100)
+  !     open(100,file='rbar_aerosol')
+  !       read(100,*) aerrad
+  !     close(100)
 
-      logaerrad = log(aerrad)
-      logcldrad = log(cldrad)
+  !     logaerrad = log(aerrad)
+  !     logcldrad = log(cldrad)
 
-      ! =============================================================
+  !     ! =============================================================
 
-      do icld=1, ncld
+  !     do icld=1, ncld
 
-         write(cldrad_char,'(i3.3)') int(cldrad(icld))
+  !        write(cldrad_char,'(i3.3)') int(cldrad(icld))
 
-         open(101,file='CDNC1_cloudscavenging_'//cldrad_char//'.dat')
-         open(102,file='CDNC1_ncloudscavenging_'//cldrad_char//'.dat')
+  !        open(101,file='CDNC1_cloudscavenging_'//cldrad_char//'.dat')
+  !        open(102,file='CDNC1_ncloudscavenging_'//cldrad_char//'.dat')
 
-         do iaer=1, naer_inc
-            read(101,*) incmass(icld,iaer)
-            read(102,*) incnumb(icld,iaer)
-         enddo
+  !        do iaer=1, naer_inc
+  !           read(101,*) incmass(icld,iaer)
+  !           read(102,*) incnumb(icld,iaer)
+  !        enddo
 
-         close(101)
-         close(102)
-      enddo
+  !        close(101)
+  !        close(102)
+  !     enddo
       
-      ! =============================================================
-      ! BELOW CLOUD SCAVENGING    
-      ! =============================================================
-      rainrate = (/.01, .1, 1., 10., 100./)
+  !     ! =============================================================
+  !     ! BELOW CLOUD SCAVENGING    
+  !     ! =============================================================
+  !     rainrate = (/.01, .1, 1., 10., 100./)
 
-      open(100,file='rbar_aerosol_belowcloud.dat')
-        read(100,*) aerrad_blc
-      close(100)      
+  !     open(100,file='rbar_aerosol_belowcloud.dat')
+  !       read(100,*) aerrad_blc
+  !     close(100)      
  
-      logaerrad_blc = log(aerrad_blc)
-      lograinrate   = log(rainrate)
+  !     logaerrad_blc = log(aerrad_blc)
+  !     lograinrate   = log(rainrate)
 
-      ! =============================================================
+  !     ! =============================================================
 
-      open (101,file='belowcloud_m.dat')
-      read (101,*) blcmass
-      close(101)
+  !     open (101,file='belowcloud_m.dat')
+  !     read (101,*) blcmass
+  !     close(101)
 
-      open (102,file='belowcloud_n.dat')
-      read (102,*) blcnumb
-      close(102)
+  !     open (102,file='belowcloud_n.dat')
+  !     read (102,*) blcnumb
+  !     close(102)
 
-  end if
+  ! end if
 
-  call D_MPI_BCAST(logaerrad,     naer_inc,     0,comm3d,mpierr)
-  call D_MPI_BCAST(logaerrad_blc, naer_blc,     0,comm3d,mpierr)
-  call D_MPI_BCAST(logcldrad,     ncld,         0,comm3d,mpierr)
-  call D_MPI_BCAST(lograinrate,   nrai,         0,comm3d,mpierr)
-  call D_MPI_BCAST(incmass,       naer_inc*ncld,0,comm3d,mpierr)
-  call D_MPI_BCAST(incnumb,       naer_inc*ncld,0,comm3d,mpierr)
-  call D_MPI_BCAST(blcmass,       naer_blc*nrai,0,comm3d,mpierr)
-  call D_MPI_BCAST(blcnumb,       naer_blc*nrai,0,comm3d,mpierr)
+  ! call D_MPI_BCAST(logaerrad,     naer_inc,     0,comm3d,mpierr)
+  ! call D_MPI_BCAST(logaerrad_blc, naer_blc,     0,comm3d,mpierr)
+  ! call D_MPI_BCAST(logcldrad,     ncld,         0,comm3d,mpierr)
+  ! call D_MPI_BCAST(lograinrate,   nrai,         0,comm3d,mpierr)
+  ! call D_MPI_BCAST(incmass,       naer_inc*ncld,0,comm3d,mpierr)
+  ! call D_MPI_BCAST(incnumb,       naer_inc*ncld,0,comm3d,mpierr)
+  ! call D_MPI_BCAST(blcmass,       naer_blc*nrai,0,comm3d,mpierr)
+  ! call D_MPI_BCAST(blcnumb,       naer_blc*nrai,0,comm3d,mpierr)
+  include 'scavenging.inc'
+
 
   end subroutine initaerosolmicro
 
