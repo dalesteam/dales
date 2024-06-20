@@ -26,7 +26,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modfielddump
-
+  use modprecision, only: field_r
   use modglobal, only : longint, nsv
 
 implicit none
@@ -448,20 +448,20 @@ contains
     endif
 
     if (lnetcdf .and. lcli) vars(:,:,:,ind_cli) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) * &
-         (1 - max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn))))
+         (1 - max(0._field_r,min(1._field_r,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn))))
 
     if (lnetcdf .and. lclw) vars(:,:,:,ind_clw) = ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) * &
-         max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn)))
+         max(0._field_r,min(1._field_r,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdn)/(tup-tdn)))
 
     if (lnetcdf .and. lta) vars(:,:,:,ind_ta) = tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
 
     ! liquid and ice precip
     ! assuming simpleice is used
-    !rsgratio_= max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+    !rsgratio_= max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
     if (lnetcdf .and. lplw) vars(:,:,:,ind_plw) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr) * &
-         max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg)))
+         max(0._field_r,min(1._field_r,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg)))
     if (lnetcdf .and. lpli) vars(:,:,:,ind_pli) = sv0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh,iqr)  * &
-         (1 - max(0.,min(1.,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg))))
+         (1 - max(0._field_r,min(1._field_r,(tmp0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)-tdnrsg)/(tuprsg-tdnrsg))))
 
     if (lnetcdf .and. lhus) vars(:,:,:,ind_hus) = qt0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh) - ql0(2:i1:ncoarse,2:j1:ncoarse,klow:khigh)
 

@@ -29,6 +29,7 @@
 !
 
 module modsubgriddata
+use modprecision, only: field_r
 implicit none
 save
 ! private
@@ -37,32 +38,32 @@ save
   logical :: lsmagorinsky = .false. !<  switch for smagorinsky subgrid scheme
   logical :: lanisotrop   = .false. !<  switch for anisotropic diffusion
 
-  real :: cf      = 2.5  !< filter constant
-  real :: Rigc    = 0.25 !< critical Richardson number
-  real :: Prandtl = (1.0/3.0)
-  real :: cm      = 0.12
-  real :: cn      = 0.76
-  real :: ch1     = 1.
-  real :: ch2     = 2.
-  real :: ch                   ! ch = ch1 + ch2
-  real :: ce1     = 0.19
-  real :: ce2     = 0.51
-  real :: cs      = -1
-  real :: nmason  = 2.   !< exponent in Mason correction function
-  real :: alpha_kolm  = 1.5     !< factor in Kolmogorov expression for spectral energy
-  real :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
+  real(field_r) :: cf      = 2.5  !< filter constant
+  real(field_r) :: Rigc    = 0.25 !< critical Richardson number
+  real(field_r) :: Prandtl = (1.0/3.0)
+  real(field_r) :: cm      = 0.12
+  real(field_r) :: cn      = 0.76
+  real(field_r) :: ch1     = 1.
+  real(field_r) :: ch2     = 2.
+  real(field_r) :: ch                   ! ch = ch1 + ch2
+  real(field_r) :: ce1     = 0.19
+  real(field_r) :: ce2     = 0.51
+  real(field_r) :: cs      = -1
+  real(field_r) :: nmason  = 2.   !< exponent in Mason correction function
+  real(field_r) :: alpha_kolm  = 1.5     !< factor in Kolmogorov expression for spectral energy
+  real(field_r) :: beta_kolm   = 1.      !< factor in Kolmogorov relation for temperature spectrum
   logical :: sgs_surface_fix = .false.  !< which fix to apply to coupling of SGSTKE to surface
 
 
-  real, allocatable :: ekm(:,:,:)   !< k-coefficient for momentum
-  real, allocatable :: ekh(:,:,:)   !< k-coefficient for heat and q_tot
-  real, allocatable :: sbdiss(:,:,:)!< dissiation
-  real, allocatable :: sbshr(:,:,:) !< shear production
-  real, allocatable :: sbbuo(:,:,:) !< buoyancy production / destruction
-  real, allocatable :: zlt(:,:,:)   !< filter width
+  real(field_r), allocatable :: ekm(:,:,:)   !< k-coefficient for momentum
+  real(field_r), allocatable :: ekh(:,:,:)   !< k-coefficient for heat and q_tot
+  real(field_r), allocatable :: sbdiss(:,:,:)!< dissiation
+  real(field_r), allocatable :: sbshr(:,:,:) !< shear production
+  real(field_r), allocatable :: sbbuo(:,:,:) !< buoyancy production / destruction
+  real(field_r), allocatable :: zlt(:,:,:)   !< filter width
 
-  real, allocatable :: csz(:)       !< Smagorinsky constant
+  real(field_r), allocatable :: csz(:)       !< Smagorinsky constant
 
-  real, allocatable :: anis_fac(:)  !< grid anisotropy factor 
+  real(field_r), allocatable :: anis_fac(:)  !< grid anisotropy factor 
 end module modsubgriddata
 

@@ -362,7 +362,7 @@ subroutine integrals_bulk3
     if (l_rain) then
       ! limiting procedure (as per S&B)
       x_hr    = q_hr/n_hr
-      x_hr    = max(xrmin,min(xrmax,x_hr))
+      x_hr    = max(1.0*xrmin,min(1.0*xrmax,x_hr)) ! 1.0 to convert to double and keep nvfortran happy
 
       if (l_sb) then
         if(l_sb_classic) then

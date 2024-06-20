@@ -711,7 +711,7 @@ contains
     qtthres = 1e-6
     do k=1,kmax
 
-      currtnudge = max(rdt,tnudge(t,k)*dtp+tnudge(t+1,k)*dtm)
+      currtnudge = max(1.0 * rdt,tnudge(t,k)*dtp+tnudge(t+1,k)*dtm)
 
       if (ltb_u)   up(2:i1,2:j1,k) = up(2:i1,2:j1,k)     - &
           ( u0av(k)   - (tb_u(t,k)  *dtp + tb_u(t+1,k)  *dtm) ) / currtnudge

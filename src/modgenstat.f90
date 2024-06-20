@@ -554,7 +554,7 @@ contains
     real :: qs0h, t0h, ekhalf, euhalf, evhalf
     real :: wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
     real :: uws,vws,uwr,vwr
-    real :: upcu, vpcv
+    real(field_r) :: upcu, vpcv
     real :: qsat, qls, ilratio
     real :: qlhav_s, wthlsub_s, wqtsub_s, wqlsub_s, wthvsub_s
     real :: uwsub_s, vwsub_s, uwres_s, vwres_s
@@ -714,13 +714,13 @@ contains
 
         !Momentum flux
         upcu = um(i, j, 1) + cu
-        upcu = sign(1., upcu) * max(abs(upcu), eps1)
+        upcu = sign(1._field_r, upcu) * max(abs(upcu), eps1)
 
         uwsub(1) = uwsub(1) - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
                     * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
 
         vpcv = vm(i, j, 1) + cv
-        vpcv = sign(1., vpcv) * max(abs(vpcv), eps1)
+        vpcv = sign(1._field_r, vpcv) * max(abs(vpcv), eps1)
 
         vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)

@@ -29,13 +29,13 @@
 
 
 module modnudge
-
+use modprecision, only: field_r
 
 implicit none
 PRIVATE
 PUBLIC :: initnudge, nudge,exitnudge
 SAVE
-  real, dimension(:,:), allocatable :: tnudge,unudge,vnudge,wnudge,thlnudge,qtnudge
+  real(field_r), dimension(:,:), allocatable :: tnudge,unudge,vnudge,wnudge,thlnudge,qtnudge
   real, dimension(:)  , allocatable :: timenudge
   real :: tnudgefac = 1.
   logical :: lnudge = .false.,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
@@ -163,7 +163,7 @@ contains
     dtp = ( timenudge(t+1)-rtimee)/ ( timenudge(t+1)-timenudge(t) )
 
     do k=1,kmax
-      currtnudge = max(rdt,tnudge(k,t)*dtp+tnudge(k,t+1)*dtm)
+      currtnudge = max(1.0*rdt,tnudge(k,t)*dtp+tnudge(k,t+1)*dtm) ! 1.0: ocnvert to double for nvfortran
       if(lunudge  ) up  (2:i1,2:j1,k)=up  (2:i1,2:j1,k)-&
           (u0av  (k)-(unudge  (k,t)*dtp+unudge  (k,t+1)*dtm))/currtnudge
       if(lvnudge  ) vp  (2:i1,2:j1,k)=vp  (2:i1,2:j1,k)-&

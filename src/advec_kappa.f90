@@ -312,7 +312,7 @@ subroutine  halflev_kappa(a_in,a_out)
     real(field_r) ri,phir
 
     ri    = (d2+eps1)/(d1+eps1)
-    phir  = max(0.,min(2._field_r*ri,min(1._field_r/3._field_r + &
+    phir  = max(0._field_r,min(2._field_r*ri,min(1._field_r/3._field_r + &
                                          2._field_r/3._field_r*ri , 2._field_r)))
     rlim  = 0.5_field_r*phir*d1
     end function rlim

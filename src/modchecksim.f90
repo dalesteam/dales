@@ -27,6 +27,7 @@
 !
 !
 module modchecksim
+  use modprecision, only: field_r
   use modglobal, only : longint
   use modtimer
   implicit none
@@ -151,7 +152,7 @@ contains
     implicit none
 
     integer :: i, j, k
-    real    :: velx_max, vely_max, velz_max, velmag_max, ekm_max
+    real(field_r)    :: velx_max, vely_max, velz_max, velmag_max, ekm_max
 
     !$acc parallel loop gang default(present) private(velx_max, vely_max, velz_max, velmag_max, ekm_max)
     do k = 1, kmax

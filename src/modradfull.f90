@@ -134,7 +134,7 @@ contains
         exnf_b(k+1)     = exnf(k)
         do j=2,j1
           do i=2,i1
-            qv_b(i,j,k+1)   = max(0.,qt0(i,j,k) - ql0(i,j,k))
+            qv_b(i,j,k+1)   = max(0._field_r,qt0(i,j,k) - ql0(i,j,k))
             ql_b(i,j,k+1)   = ql0(i,j,k)
             temp_b(i,j,k+1) = thl0(i,j,k)*exnf(k)+(rlv/cp)*ql0(i,j,k)
             if (imicro==imicro_bulk) rr_b(i,j,k+1) = sv0(i,j,k,iqr)
@@ -1111,7 +1111,7 @@ contains
         do k = 1, nv
            f0a(k) = 2.0 * ( 1.0 - w(k) ) * bf(k)
            tmp    = log( bf(k+1)/bf(k) )
-           u0a(k) = -(t(k)-tkm1) / sign(max(abs(tmp),eps1),tmp)
+           u0a(k) = -(t(k)-tkm1) / sign(max(abs(tmp),eps1*1.0),tmp)
            u0a(k) = sign(max(abs(u0a(k)),1.e-8),u0a(k))
            tkm1   = t(k)
         end do

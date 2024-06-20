@@ -52,7 +52,7 @@
 
   integer :: inr = 1, iqr=2
 
-  real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
+  real(field_r), parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme
                      ,qcmin = 1.0e-7     & !<  Cloud specific mixing ratio treshold for calculations
                      ,qrmin = 1.0e-13    & !<  Rain  specific mixing ratio treshold for calculations
 !                     ,nuc = 0           & !< width parameter of cloud DSD

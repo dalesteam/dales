@@ -95,7 +95,7 @@ subroutine tstep_update
           do j = 2, j1
             do i = 2, i1
               cfl_sq_l = max(cfl_sq_l, &
-                               (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
+                              1.0 * (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
                              + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
                              + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k)))
               min_size_sq = min(dzh(k),min(dx,dy))**2
@@ -142,7 +142,7 @@ subroutine tstep_update
           do j = 2, j1
             do i = 2, i1
               cfl_sq_l = max(cfl_sq_l, &
-                               (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
+                               1.0 * (um(i,j,k)*rdt/dx) * (um(i,j,k)*rdt/dx) &
                              + (vm(i,j,k)*rdt/dy) * (vm(i,j,k)*rdt/dy) &
                              + (wm(i,j,k)*rdt/dzh(k)) * (wm(i,j,k)*rdt/dzh(k)))
               min_size_sq = min(dzh(k),min(dx,dy))**2

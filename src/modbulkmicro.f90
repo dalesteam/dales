@@ -1274,8 +1274,8 @@ module modbulkmicro
     use modglobal, only : pi,rhow
     implicit none
 
-    real(field_r), intent(in) :: Nin
-    real         , intent(in) :: Din, sig2, Ddiv
+    real(field_r), intent(in) :: Nin, Ddiv
+    real         , intent(in) :: Din, sig2
     integer, intent(in) :: nnn
     !para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
     !,power of of D in integral
@@ -1337,8 +1337,8 @@ module modbulkmicro
     use modglobal, only : pi,rhow
     implicit none
 
-    real(field_r), intent(in) :: Nin
-    real         , intent(in) :: Din, sig2, Ddiv
+    real(field_r), intent(in) :: Nin, Ddiv
+    real         , intent(in) :: Din, sig2
     integer, intent(in) :: nnn
     !para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
     !,power of of D in integral

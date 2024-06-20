@@ -25,7 +25,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modcape
-
+  use modprecision, only : field_r
   use modglobal, only : longint,kmax
 
 implicit none
@@ -229,8 +229,8 @@ contains
       endif
       if ((k>1).and.(k<k1)) then
       if ((zh(k+1)>200.).and.(zh(k)<400.)) then
-        thl200400(i,j)=thl200400(i,j)+thl0(i,j,k)*max(min(zh(k+1),400.)-max(zh(k),200.),0.)
-        qt200400(i,j)=qt200400(i,j)+qt0(i,j,k)*max(min(zh(k+1),400.)-max(zh(k),200.),0.)
+        thl200400(i,j)=thl200400(i,j)+thl0(i,j,k)*max(min(zh(k+1),400._field_r)-max(zh(k),200._field_r),0._field_r)
+        qt200400(i,j)=qt200400(i,j)+qt0(i,j,k)*max(min(zh(k+1),400._field_r)-max(zh(k),200._field_r),0._field_r)
       endif
       endif
     enddo
