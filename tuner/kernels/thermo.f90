@@ -1,6 +1,6 @@
-#define imax 514
-#define jmax 514
-#define kmax 128
+#define imax 1000
+#define jmax 500
+#define kmax 130
 module thermo
 contains
   subroutine icethermo

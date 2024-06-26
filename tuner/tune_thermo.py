@@ -38,7 +38,7 @@ kernel_string = generate_directive_function(
 
 tune_params = {}
 tune_params["nthreads"] = [32 * i for i in range(1, 33)]
-tune_params["ncoll"] = [1, 2, 3]
+tune_params["ncoll"] = [3]
 
 metrics = {}
 tune_kernel(
