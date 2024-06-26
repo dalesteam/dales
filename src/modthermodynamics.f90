@@ -721,7 +721,7 @@ contains
                 b = rlv**2 / (rv * cp * Tl**2)
                 qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
 
-                ql = max(qt0(i,j,k) - qsat_, 0.)
+                ql = max(qt0(i,j,k) - qsat_, 0._field_r)
 
                 ! update the starting point
                 Tl = Tl + (rlv/cp) * ql
@@ -733,7 +733,7 @@ contains
                 qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
 
                 ! save results
-                ql = max(qt0(i,j,k) - qsat_, 0.)
+                ql = max(qt0(i,j,k) - qsat_, 0._field_r)
                 ql0(i,j,k) = ql
 
                 !!!!!!!!!!!!!!!!!
@@ -857,7 +857,7 @@ contains
           b = rlv**2 / (rv * cp * Tl**2)
           qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
 
-          ql = max(qt0(i,j,k) - qsat_, 0.)
+          ql = max(qt0(i,j,k) - qsat_, 0._field_r)
 
           ! update the starting point
           Tl = Tl + (rlv/cp) * ql
@@ -869,7 +869,7 @@ contains
           qsat_ = qsat_ * (1 + b * qt) / (1 + b * qsat_)
 
           ! save results
-          ql = max(qt0(i,j,k) - qsat_, 0.)
+          ql = max(qt0(i,j,k) - qsat_, 0._field_r)
           ql0(i,j,k) = ql
 
           !!!!!!!!!!!!!!!!!
@@ -938,7 +938,7 @@ contains
                 b = rlv**2 / (rv * cp * Tl**2)
                 qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
-                ql = max(qt0h(i,j,k) - qsat, 0.)
+                ql = max(qt0h(i,j,k) - qsat, 0._field_r)
 
                 ! update the starting point
                 Tl = Tl + (rlv/cp) * ql
@@ -950,7 +950,7 @@ contains
                 qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
                 ! save results
-                ql = max(qt0h(i,j,k) - qsat, 0.)
+                ql = max(qt0h(i,j,k) - qsat, 0._field_r)
                 ql0h(i,j,k) = ql
              end do
           end do
@@ -1014,7 +1014,7 @@ contains
           b = rlv**2 / (rv * cp * Tl**2)
           qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
-          ql = max(qt0h(i,j,k) - qsat, 0.)
+          ql = max(qt0h(i,j,k) - qsat, 0._field_r)
 
           ! update the starting point
           Tl = Tl + (rlv/cp) * ql
@@ -1026,7 +1026,7 @@ contains
           qsat = qsat * (1 + b * qt) / (1 + b * qsat)
 
           ! save results
-          ql = max(qt0h(i,j,k) - qsat, 0.)
+          ql = max(qt0h(i,j,k) - qsat, 0._field_r)
           ql0h(i,j,k) = ql
         end do
       end do

@@ -24,6 +24,7 @@
 !
 module modradrte_rrtmgp
   use modraddata
+  use modprecision, only : field_r
   ! RTE-RRTMGP modules
   use mo_optical_props,      only: ty_optical_props, &
                                    ty_optical_props_arry, ty_optical_props_1scl, ty_optical_props_2str
@@ -515,7 +516,7 @@ contains
         do i=2,i1 !i1=imax+1
           icol=i-1+(j-jstart)*imax
           layerT(icol,k) = thl0(i,j,k) * exnf(k) + (rlv / cp) * ql0(i,j,k)
-          h2ovmr(icol,k) = mwdry/mwh2o * max(qt0(i,j,k)-ql0(i,j,k),1e-10) !avoid negative values
+          h2ovmr(icol,k) = mwdry/mwh2o * max(qt0(i,j,k)-ql0(i,j,k),1e-10_field_r) !avoid negative values
         enddo
       enddo
     enddo

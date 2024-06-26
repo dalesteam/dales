@@ -923,7 +923,7 @@ contains
 
         ! Branchless version of the algorithm above,
         ! may or may not be more efficient
-        upcu = sign(1._field_r,ucu) * max(abs(ucu),1.e-10)
+        upcu = sign(1._field_r,ucu) * max(abs(ucu),1.e-10_field_r)
 
         fu = ( 0.5_field_r*( ustar(i,j)+ustar(i-1,j) ) )**2  * &
                 upcu/sqrt(upcu**2  + &
@@ -1031,7 +1031,7 @@ contains
         !  vpcv  = min(vcv,-1.e-10)
         !end if
 
-        vpcv = sign(1._field_r, vcv) * max(abs(vcv),1.e-10)
+        vpcv = sign(1._field_r, vcv) * max(abs(vcv),1.e-10_field_r)
 
         fv   = ( 0.5_field_r*( ustar(i,j)+ustar(i,j-1) ) )**2  * &
                  vpcv/sqrt(vpcv**2  + &

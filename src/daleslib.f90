@@ -25,7 +25,7 @@
 
 module daleslib
     !use modglobal, only: ifmessages
-    
+    use modprecision, only : field_r
     implicit none
 
     integer, parameter :: FIELDID_U=1
@@ -851,7 +851,7 @@ module daleslib
          qi(k) = 0
          do j = 2,j1
             do i = 2,i1
-               ilratio = max(0.,min(1., (tmp0(i,j,k)-tdn) / (tup-tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
+               ilratio = max(0._field_r,min(1._field_r, (tmp0(i,j,k)-tdn) / (tup-tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
                qi(k) = qi(k) + (1.0 - ilratio) * ql0(i,j,k)              ! amount of ice 
             enddo
          enddo
@@ -884,8 +884,8 @@ module daleslib
       do k=1,kmax
          do j = 2,j1
             do i = 2,i1
-               ilratio = max(0., min(1., (tmp0(i,j,k) - tdn) / (tup - tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
-               qi(i,j,k) = (1.0 - ilratio) * ql0(i,j,k)              ! amount of ice
+               ilratio = max(0._field_r, min(1._field_r, (tmp0(i,j,k) - tdn) / (tup - tdn))) ! ice liquid ratio . 0 forice, 1 for liquid
+               qi(i,j,k) = (1.0_field_r - ilratio) * ql0(i,j,k)              ! amount of ice
             enddo
          enddo
       enddo

@@ -1,4 +1,5 @@
 module modbulkmicro3_column
+  use modprecision, only: field_r
   use modmicrodata
   use modmicrodata3
   implicit none
@@ -346,7 +347,7 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
       if (qr_spl(k) > q_hr_min.and.(Nr_spl(k) > 0.0)) then
         if (l_sb) then
           xr_spl   = qr_spl(k)/Nr_spl(k)
-          xr_spl   = max(xrmin,min(xrmax,xr_spl))
+          xr_spl   = max(1.0*xrmin,min(1.0*xrmax,xr_spl)) ! 1.0 to convert to double and keep nvfortran happy
           Dvr_spl  = (xr_spl/pirhow)**(1./3.)
 
           if (l_sb_classic) then
@@ -410,7 +411,7 @@ subroutine sedim_rain3(q_hr, n_hr, q_hrp, n_hrp, precep_hr, tend)
           xr_spl = rhof(k)*qr_spl(k)/Nr_spl(k)
 
           ! to ensure xr is within borders
-          xr_spl = min(xr_spl,xrmaxkk)
+          xr_spl = min(xr_spl,1.0*xrmaxkk) ! 1.0 to convert to double and keep nvfortran happy
 
           Dvr_spl = (xr_spl/pirhow)**(1./3.)
           sed_qr(k) = max(0., 0.006*1.0E6*Dvr_spl - 0.2) * qr_spl(k)*rhof(k)
@@ -839,7 +840,8 @@ real function sed_flux3(Nin,Din,sig2,Ddiv,nnn)
   use modglobal, only : pi,rhow
   implicit none
 
-  real, intent(in)    :: Nin, Din, sig2, Ddiv
+  real, intent(in)    :: Nin, Din, sig2
+  real(field_r), intent(in)    :: Ddiv
   integer, intent(in) :: nnn
 
   ! para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops
@@ -896,7 +898,8 @@ real function liq_cont3(Nin,Din,sig2,Ddiv,nnn)
   use modglobal, only : pi,rhow
   implicit none
 
-  real, intent(in)    :: Nin, Din, sig2, Ddiv
+  real, intent(in)    :: Nin, Din, sig2
+  real(field_r), intent(in) :: Ddiv
   integer, intent(in) :: nnn
 
   ! para. def. lognormal DSD (sig2 = ln^2 sigma_g), D sep. droplets from drops

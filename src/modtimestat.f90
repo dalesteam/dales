@@ -58,30 +58,30 @@ save
   integer :: iblh_meth = iblh_grad, iblh_var = iblh_thv
   integer :: blh_nsamp = 4
   real    :: blh_thres=-1 ,blh_sign=1.0
-  real   :: zbaseav, ztopav, ztopmax,zbasemin
-  real   :: qlintav, qlintmax, tke_tot
+  real(field_r) :: zbaseav, ztopav, ztopmax,zbasemin
+  real(field_r) :: qlintav, qlintmax, tke_tot
   real(field_r) :: prav, pravl
-  real   :: qtintav, qrintav
-  real   :: cc, wmax, qlmax
-  real   :: qlint, qtint, qrint
+  real(field_r) :: qtintav, qrintav
+  real(field_r) :: cc, wmax, qlmax
+  real(field_r) :: qlint, qtint, qrint
   logical:: store_zi = .false.
-  real, allocatable, dimension(:) :: profile, gradient, dgrad
-  real, allocatable, dimension(:,:,:) :: blh_fld
+  real(field_r), allocatable, dimension(:) :: profile, gradient, dgrad
+  real(field_r), allocatable, dimension(:,:,:) :: blh_fld
   real(field_r), allocatable,dimension(:,:,:) :: sv0h
 
   !Variables for heterogeneity
-  real, allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
-  real, allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
-  real, allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
-  real,allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field
-  real,allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
-  real,allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
-  real,allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
-  real,allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
+  real(field_r), allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
+  real(field_r), allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
+  real(field_r), allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
+  real(field_r),allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field
+  real(field_r),allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
+  real(field_r),allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
+  real(field_r),allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
+  real(field_r),allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
   !In combination with isurf = 1
-  real,allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
-  real,allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
-  real,allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
+  real(field_r),allocatable, dimension(:,:) :: Qnet_patch, H_patch, LE_patch, G0_patch, tendskin_patch,rs_patch,ra_patch
+  real(field_r),allocatable, dimension(:,:) :: cliq_patch, wl_patch, rsveg_patch, rssoil_patch, tskin_patch, obl_patch
+  real(field_r),allocatable, dimension(:,:) :: zi_patch,ziold_patch,we_patch, zi_field
 
 contains
 !> Initializing Timestat. Read out the namelist, initializing the variables
@@ -165,7 +165,7 @@ contains
     case(1:)
       profile = svprof(:,iblh_var)
     end select
-    blh_sign = sign(1.0,profile(kmax)-profile(1))
+    blh_sign = sign(1.0_field_r,profile(kmax)-profile(1))
 
     select case(iblh_meth)
     case (iblh_flux)
@@ -423,14 +423,14 @@ contains
                             SW_up_ca_TOA,LW_up_ca_TOA,iradiation
     implicit none
 
-    real   :: zbaseavl, ztopavl, ztopmaxl, ztop,zbaseminl
-    real   :: qlintavl, qlintmaxl, tke_totl
-    real   :: qrintavl, qtintavl
-    real   :: ccl, wmaxl, qlmaxl
-    real   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
-    real   :: usttst, ustqst
-    real   :: wts, wqls,wthvs
-    real   :: c1,c2 !Used to calculate wthvs
+    real(field_r)   :: zbaseavl, ztopavl, ztopmaxl, ztop, zbaseminl
+    real(field_r)   :: qlintavl, qlintmaxl, tke_totl
+    real(field_r)   :: qrintavl, qtintavl
+    real(field_r)   :: ccl, wmaxl, qlmaxl
+    real(field_r)   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
+    real(field_r)   :: usttst, ustqst
+    real(field_r)   :: wts, wqls,wthvs
+    real(field_r)   :: c1,c2 !Used to calculate wthvs
     real,dimension(nvar) :: vars
 
     ! lsm variables
@@ -723,7 +723,7 @@ contains
           end do
         end do
       end do
-      tke_tot_patch = patchsum_1level(tke_tot_field) * (xpatches*ypatches/ijtot)
+      tke_tot_patch = patchsum_1level_field_r(tke_tot_field) * (xpatches*ypatches/ijtot)
     end if
 
 
@@ -767,9 +767,9 @@ contains
        call D_MPI_ALLREDUCE(pravl, prav, 1, MPI_SUM, comm3d,mpierr)
     end if
     if (lhetero) then
-      cc_patch    = patchsum_1level(cc_field   )
-      qlint_patch = patchsum_1level(qlint_field)
-      zbase_patch = patchsum_1level(zbase_field)
+      cc_patch    = patchsum_1level_field_r(cc_field   )
+      qlint_patch = patchsum_1level_field_r(qlint_field)
+      zbase_patch = patchsum_1level_field_r(zbase_field)
       call D_MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches, MPI_MIN, comm3d,mpierr)
     endif
@@ -787,7 +787,7 @@ contains
       call D_MPI_ALLREDUCE(wmax_patchl ,      wmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(qlmax_patchl,     qlmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(ztopmax_patchl, ztopmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
-      ztop_patch = patchsum_1level(ztop_field)
+      ztop_patch = patchsum_1level_field_r(ztop_field)
     endif
 
     if (cc > 0.0) then
@@ -1429,7 +1429,7 @@ contains
     zi = zi / ijtot
 
     if (lhetero) then
-      zi_patch = patchsum_1level(zi_field) * (xpatches*ypatches/ijtot)
+      zi_patch = patchsum_1level_field_r(zi_field) * (xpatches*ypatches/ijtot)
     endif
 
     if (ziold< 0) ziold = zi

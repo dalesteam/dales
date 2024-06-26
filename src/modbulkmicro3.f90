@@ -50,7 +50,7 @@ module modbulkmicro3
 !*********************************************************************
   use modmicrodata
   use modmicrodata3
-
+  use modprecision, only : field_r
   implicit none
   private
   public initbulkmicro3, exitbulkmicro3, bulkmicro3
@@ -508,7 +508,7 @@ subroutine bulkmicro3
   !if (any(sv0(2:i1,2:j1,1:k1,:).lt.0.)) then
   !  write(*,*) 'Negative values in sv0.'
   !endif
-  sv0 = max(sv0, 0.)
+  sv0 = max(sv0, 0._field_r)
 
   ! Zero the summed statistics and tendencies
   if (l_tendencies) then
@@ -916,7 +916,7 @@ else
     if (q_tocl>0.0) then
       ! prepare number of droplet
       n_prop = Nc_set/rhof(k)                 ! to get number of droplets in kg^{-1}
-      n_prop = min(n_prop,sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN
+      n_prop = min(real(n_prop, field_r), sv0(i,j,k,in_cc))   ! number has to be lower than number of available CCN
       n_prop = min(n_prop,q_tocl/x_min)       ! droplets smaller than minimal size
 
       ! save values to arrays

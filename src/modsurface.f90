@@ -2123,8 +2123,8 @@ contains
           !PAR      = 0.40 * max(0.1,-swdav * cveg(i,j))
           PAR      = 0.50 * max(0.1,abs(swdav)) !Increase PAR to 50 SW
           if (lsplitleaf) then
-            PARdir   = 0.50 * max(0.1,abs(swdir(i,j,1)))
-            PARdif   = 0.50 * max(0.1,abs(swdif(i,j,1)))
+            PARdir   = 0.50 * max(0.1_field_r,abs(swdir(i,j,1)))
+            PARdif   = 0.50 * max(0.1_field_r,abs(swdif(i,j,1)))
           endif
 
           ! Calculate the light use efficiency

@@ -37,6 +37,7 @@
 
 module modsimpleice2
   use modfields, only : rhobf
+  use modprecision, only : field_r
   implicit none
   private
   public initsimpleice2, exitsimpleice2, simpleice2
@@ -284,8 +285,8 @@ module modsimpleice2
               !lambdas_=lambdar_ ! lambda snow    ! probably not right but they will not be used
               !lambdag_=lambdar_ ! lambda graupel
             elseif(l_graupel) then
-              rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
-              sgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
+              rsgratio_=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+              sgratio_=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnsg)/(tupsg-tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
               if (rsgratio_ > 0) then                                     ! sg = 0 -> only snow
                 rain_present = .true.
                 lambdar_=(aar*n0rr*gamb1r/(rhof(k)*(qr(i,j,k)*rsgratio_)))**(1./(1.+bbr)) ! lambda rain
@@ -304,7 +305,7 @@ module modsimpleice2
 
               ! no snow/graupel -> large lambda
             else ! rain, snow but no graupel
-              rsgratio_=max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
+              rsgratio_=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))   ! rain vs snow/graupel partitioning
               sgratio_=0.
               if (rsgratio_ > 0) then
                 rain_present = .true.
@@ -324,7 +325,7 @@ module modsimpleice2
             if(l_warm) then
               ilratio_=1.
             else
-              ilratio_=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+              ilratio_=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
             endif
 
             ! ql partitioning - used here and in Accrete
@@ -504,8 +505,8 @@ module modsimpleice2
               do i = 2, i1
                 if (qr_spl(i,j,k) > qrmin) then
                   ! re-evaluate lambda and rsgratios
-                  rsgratio_ = max(0.,min(1.,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
-                  sgratio_ = max(0.,min(1.,(tmp0(i,j,k)-tdnsg) /(tupsg -tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
+                  rsgratio_ = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg))) ! rain vs snow/graupel partitioning   rsg = 1 if t > tuprsg
+                  sgratio_ = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnsg) /(tupsg -tdnsg))) ! snow versus graupel partitioning    sg = 1 -> only graupel
 
                   !these ifs are here to avoid performing the power calculations unless they are going to be used
                   if (rsgratio_ > 0) then

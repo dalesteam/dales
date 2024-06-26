@@ -29,13 +29,13 @@
 
 
 module modnudge
-
+use modprecision, only: field_r
 
 implicit none
 PRIVATE
 PUBLIC :: initnudge, nudge,exitnudge
 SAVE
-  real, dimension(:,:), allocatable :: tnudge,unudge,vnudge,wnudge,thlnudge,qtnudge
+  real(field_r), dimension(:,:), allocatable :: tnudge,unudge,vnudge,wnudge,thlnudge,qtnudge
   real, dimension(:)  , allocatable :: timenudge
   real :: tnudgefac = 1.
   logical :: lnudge = .false.,lunudge,lvnudge,lwnudge,lthlnudge,lqtnudge
@@ -134,7 +134,8 @@ contains
     lwnudge = any(abs(wnudge)>1e-8)
     lthlnudge = any(abs(thlnudge)>1e-8)
     lqtnudge  = any(abs(qtnudge)>1e-8)
-
+    
+    !$acc enter data copyin(timenudge, tnudge, unudge, vnudge, wnudge, thlnudge, qtnudge)
   end subroutine initnudge
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -144,7 +145,7 @@ contains
     use modfields, only : up,vp,wp,thlp, qtp,u0av,v0av,qt0av,thl0av
     implicit none
 
-    integer k,t
+    integer i,j,k,t
     real :: dtm,dtp,currtnudge
 
     if (.not.(lnudge)) return
@@ -162,18 +163,23 @@ contains
     dtm = ( rtimee-timenudge(t) ) / ( timenudge(t+1)-timenudge(t) )
     dtp = ( timenudge(t+1)-rtimee)/ ( timenudge(t+1)-timenudge(t) )
 
+    !$acc parallel loop collapse(3) default(present)
     do k=1,kmax
-      currtnudge = max(rdt,tnudge(k,t)*dtp+tnudge(k,t+1)*dtm)
-      if(lunudge  ) up  (2:i1,2:j1,k)=up  (2:i1,2:j1,k)-&
-          (u0av  (k)-(unudge  (k,t)*dtp+unudge  (k,t+1)*dtm))/currtnudge
-      if(lvnudge  ) vp  (2:i1,2:j1,k)=vp  (2:i1,2:j1,k)-&
-          (v0av  (k)-(vnudge  (k,t)*dtp+vnudge  (k,t+1)*dtm))/currtnudge
-      if(lwnudge  ) wp  (2:i1,2:j1,k)=wp  (2:i1,2:j1,k)-&
-          (         -(wnudge  (k,t)*dtp+wnudge  (k,t+1)*dtm))/currtnudge
-      if(lthlnudge) thlp(2:i1,2:j1,k)=thlp(2:i1,2:j1,k)-&
-          (thl0av(k)-(thlnudge(k,t)*dtp+thlnudge(k,t+1)*dtm))/currtnudge
-      if(lqtnudge ) qtp (2:i1,2:j1,k)=qtp (2:i1,2:j1,k)-&
-          (qt0av (k)-(qtnudge (k,t)*dtp+qtnudge (k,t+1)*dtm))/currtnudge
+       do j = 2,j1
+          do i = 2,i1
+             currtnudge = max(1.0*rdt,tnudge(k,t)*dtp+tnudge(k,t+1)*dtm) ! 1.0: convert to double for nvfortran
+             if(lunudge  ) up  (i,j,k)=up  (i,j,k)-&
+                  (u0av  (k)-(unudge  (k,t)*dtp+unudge  (k,t+1)*dtm))/currtnudge
+             if(lvnudge  ) vp  (i,j,k)=vp  (i,j,k)-&
+                  (v0av  (k)-(vnudge  (k,t)*dtp+vnudge  (k,t+1)*dtm))/currtnudge
+             if(lwnudge  ) wp  (i,j,k)=wp  (i,j,k)-&
+                  (         -(wnudge  (k,t)*dtp+wnudge  (k,t+1)*dtm))/currtnudge
+             if(lthlnudge) thlp(i,j,k)=thlp(i,j,k)-&
+                  (thl0av(k)-(thlnudge(k,t)*dtp+thlnudge(k,t+1)*dtm))/currtnudge
+             if(lqtnudge ) qtp (i,j,k)=qtp (i,j,k)-&
+                  (qt0av (k)-(qtnudge (k,t)*dtp+qtnudge (k,t+1)*dtm))/currtnudge
+          end do
+       end do
     end do
   end subroutine nudge
 

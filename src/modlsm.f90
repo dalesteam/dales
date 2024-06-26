@@ -382,7 +382,7 @@ subroutine calc_canopy_resistance_js
             si = soil_index(i,j,k)
 
             ! f1: reduction vegetation resistance as f(sw_in):
-            swd_pos = max(0., -swd(i,j,1))
+            swd_pos = max(0._field_r, -swd(i,j,1))
             f1(i,j) = 1./min(1., (b_f1*swd_pos + c_f1) / (a_f1 * (b_f1*swd_pos + 1.)))
 
             ! f2: reduction vegetation resistance as f(theta):

@@ -1503,7 +1503,7 @@ contains
         if (i >= is .and. i <= ie .and. &
             j >= js .and. j <= je) then
             if (.not. negval) then ! Avoid non-physical negative values
-              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(ampl,field(i-is+2,j-js+2,klev))
+              field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*min(real(ampl, field_r),field(i-is+2,j-js+2,klev))
             else
               field(i-is+2,j-js+2,klev) = field(i-is+2,j-js+2,klev) + (ran-0.5)*2.0*ampl
             endif

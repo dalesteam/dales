@@ -21,7 +21,7 @@
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
 module modradfield
-
+  use modprecision, only : field_r
   use modglobal, only : longint
   use modprecision, only : field_r
 
@@ -206,7 +206,7 @@ contains
           do i=2,i1
              field_2D_mn (i,j,19) = field_2D_mn (i,j,19) + rhof(k) * (qt0(i,j,k) - ql0(i,j,k)) * dzf(k)
              field_2D_mn (i,j,20) = field_2D_mn (i,j,20) + rhof(k) *  ql0(i,j,k) * dzf(k)
-             ilratio=max(0.,min(1.,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
+             ilratio=max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
              field_2D_mn (i,j,21) = field_2D_mn (i,j,21) + rhof(k) *  ql0(i,j,k) * dzf(k) *(1-ilratio)
              field_2D_mn (i,j,22) = field_2D_mn (i,j,22) + rhof(k) *  qsat_tab(tmp0(i,j,k), presf(k)) * dzf(k)
           end do

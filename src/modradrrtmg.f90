@@ -1,4 +1,5 @@
 module modradrrtmg
+  use modprecision, only : field_r
   use modraddata
   implicit none
 
@@ -694,7 +695,7 @@ contains
         tg_slice  (im)   = tskin(i,j) * exners  ! Note: tskin = thlskin...
 
         do k=1,kmax
-           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18) !avoid RRTMG reading negative initial values
+           qv_slice  (im,k) = max(qt0(i,j,k) - ql0(i,j,k),1e-18_field_r) !avoid RRTMG reading negative initial values
 
            ilratio  = max(0.,min(1.,(tabs_slice(im,k)-tdn)/(tup-tdn)))! cloud water vs cloud ice partitioning
            qcl_slice (im,k) = ql0(i,j,k) * ilratio

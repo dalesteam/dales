@@ -298,7 +298,8 @@ contains
         v0_stor    (:,:,:), &    !container for v &
         w0_stor    (:,:,:), &    !container for w &
         ekh_stor   (:,:,:), &    !container for ekh &
-        dumfield   (:,:,:), &    !dummy field to construct terms &
+        dumfield   (:,:,:)       !dummy field to construct terms &
+    real(field_r), allocatable :: &
         ekhav      (:)           !mean ekh
     real(field_r), allocatable :: &
         varxfdev   (:,:,:), &    !fluctuation of varxf &

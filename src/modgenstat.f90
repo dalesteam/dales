@@ -554,7 +554,7 @@ contains
     real :: qs0h, t0h, ekhalf, euhalf, evhalf
     real :: wthls, wthlr, wqts, wqtr, wqls, wqlr, wthvs, wthvr
     real :: uws,vws,uwr,vwr
-    real :: upcu, vpcv
+    real(field_r) :: upcu, vpcv
     real :: qsat, qls, ilratio
     real :: qlhav_s, wthlsub_s, wqtsub_s, wqlsub_s, wthvsub_s
     real :: uwsub_s, vwsub_s, uwres_s, vwres_s
@@ -714,13 +714,13 @@ contains
 
         !Momentum flux
         upcu = um(i, j, 1) + cu
-        upcu = sign(1., upcu) * max(abs(upcu), eps1)
+        upcu = sign(1._field_r, upcu) * max(abs(upcu), eps1)
 
         uwsub(1) = uwsub(1) - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
                     * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
 
         vpcv = vm(i, j, 1) + cv
-        vpcv = sign(1., vpcv) * max(abs(vpcv), eps1)
+        vpcv = sign(1._field_r, vpcv) * max(abs(vpcv), eps1)
 
         vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
@@ -872,20 +872,20 @@ contains
     ! 2.3 MOMENTS
     !------------
 
-    call calc_moment(u2av, um, 2, 1, kmax, 2, i1, 2, j1, umav, cu)
-    call calc_moment(v2av, vm, 2, 1, kmax, 2, i1, 2, j1, vmav, cv)
-    call calc_moment(w2av, wm, 2, 1, kmax, 2, i1, 2, j1)
-    call calc_moment(w3av, wm, 3, 1, kmax, 2, i1, 2, j1)
-    call calc_moment(w2subav, e12m, 2, 1, kmax, 2, i1, 2, j1)
-    call calc_moment(qt2av, qtm, 2, 1, kmax, 2, i1, 2, j1, qtmav)
-    call calc_moment(thl2av, thlm, 2, 1, kmax, 2, i1, 2, j1, thlmav)
-    call calc_moment(thv2av, thv0, 2, 1, kmax, 2, i1, 2, j1, thvmav)
-    call calc_moment(th2av, thlm, 2, 1, kmax, 2, i1, 2, j1, thmav)
-    call calc_moment(ql2av, ql0, 2, 1, kmax, 2, i1, 2, j1, qlmav)
+    call calc_moment(u2av, um, 2, umav, cu)
+    call calc_moment(v2av, vm, 2, vmav, cv)
+    call calc_moment(w2av, wm, 2)
+    call calc_moment(w3av, wm, 3)
+    call calc_moment(w2subav, e12m, 2)
+    call calc_moment(qt2av, qtm, 2, qtmav)
+    call calc_moment(thl2av, thlm, 2, thlmav)
+    call calc_moment(thv2av, thv0, 2, thvmav)
+    call calc_moment(th2av, thlm, 2, thmav)
+    call calc_moment(ql2av, ql0, 2, qlmav)
 
     if (nsv > 0) then
       do n = 1, nsv
-        call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, 1, kmax, 2, i1, 2, j1, svmav(:, n))
+        call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, svmav(:, n))
       end do
 
       do n = 1, nsv
@@ -1094,16 +1094,15 @@ contains
     call timer_toc('modgenstat/do_genstat')
   end subroutine do_genstat
 
-  subroutine calc_moment(prof, var, n, kb, ke, ib, ie, jb, je, mean, c_in)
-    use modglobal, only: ijtot
+  subroutine calc_moment(prof, var, n, mean, c_in)
+    use modglobal, only: ijtot, i1,j1,k1,ih,jh
 
     implicit none
 
-    integer, intent(in) :: kb, ke, ib, ie, jb, je
     integer, intent(in) :: n
-    real, intent(out) :: prof(kb:ke)
-    real(field_r), intent(in) :: var(:, :, :)
-    real(field_r), optional, intent(in) :: mean(kb:ke)
+    real, intent(out) :: prof(1:k1)
+    real(field_r), intent(in) :: var(2-ih:i1+ih, 2-jh:j1+jh, 1:k1)
+    real(field_r), optional, intent(in) :: mean(1:k1)
     real(field_r), optional, intent(in) :: c_in !< Translational velocity
     real(field_r) :: c
     real(field_r) :: prof_s
@@ -1117,11 +1116,11 @@ contains
 
     if (.not.present(mean)) then
       !$acc parallel loop default(present) private(prof_s) async
-      do k = kb, ke
+      do k = 1, 1
         prof_s = 0.0
         !$acc loop collapse(2) reduction(+: prof_s)
-        do j = jb, je
-          do i = ib, ie
+        do j = 2, j1
+          do i = 2, i1
             prof_s = prof_s + (var(i, j, k) + c)**n
           end do
         end do
@@ -1129,11 +1128,11 @@ contains
       end do
     else
       !$acc parallel loop default(present) private(prof_s) async
-      do k = kb, ke
+      do k = 1, k1
         prof_s = 0.0
         !$acc loop collapse(2) reduction(+: prof_s)
-        do j = jb, je
-          do i = ib, ie
+        do j = 2, j1
+          do i = 2, i1
             prof_s = prof_s + (var(i, j, k) + c - mean(k))**n
           end do
         end do
