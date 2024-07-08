@@ -617,7 +617,6 @@ contains
     cszav = 0.0
     !$acc end kernels
 
-
     !-------------------------------------------------------------
     ! 2     CALCULATE SLAB AVERAGED OF FLUXES AND SEVERAL MOMENTS
     !-------------------------------------------------------------
@@ -639,6 +638,8 @@ contains
     do k = 1, k1
       cfracav(k) = cfracav(k)+count(ql0(2:i1,2:j1,k)>0)
     end do
+
+    !$acc wait(1)
 
     !$acc host_data use_device(umav, um, vmav, vm, thlmav, thlm, qtmav, qtm, &
     !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
@@ -905,7 +906,9 @@ contains
           !$acc end kernels
         end if
 
-        !$acc parallel loop default(present) private(wsvres_s) async(1)
+        !$acc wait(1)
+
+        !$acc parallel loop default(present) private(wsvres_s)
         do k = 2, kmax
           wsvres_s = 0.0
           !$acc loop collapse(2) reduction(+: wsvres_s)
@@ -917,23 +920,26 @@ contains
           wsvres(k,n) = wsvres_s
         end do
 
-        !$acc parallel loop collapse(2) default(present) reduction(+: wsvsub(1,n)) async(1)
-        do j = 2, j1
-          do i = 2, i1
-            wsvsub(1,n) = wsvsub(1,n) + svflux(i,j,n)
-          end do
-        end do
 
-        !$acc parallel loop private(wsvsub_s) async(1)
-        do k = 2, kmax
+        !$acc parallel loop gang private(wsvsub_s) async(1)
+        do k = 1, kmax
           wsvsub_s = 0.0
-          !$acc loop collapse(2) private(ekhalf) reduction(+: wsvsub_s)
-          do j = 2, j1
-            do i= 2, i1
-              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
-              wsvsub_s= wsvsub_s-ekhalf*(sv0(i,j,k,n)-sv0(i,j,k-1,n)) / dzh(k)
+          if (k == 1) then
+            !$acc loop collapse(2) reduction(+:wsvsub_s)
+            do j = 2, j1
+              do i = 2, i1
+                wsvsub_s = wsvsub_s + svflux(i,j,n)
+              end do
             end do
-          end do
+          else
+            !$acc loop collapse(2) private(ekhalf) reduction(+: wsvsub_s)
+            do j = 2, j1
+              do i= 2, i1
+                ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+                wsvsub_s= wsvsub_s-ekhalf*(sv0(i,j,k,n)-sv0(i,j,k-1,n)) / dzh(k)
+              end do
+            end do
+          endif
           wsvsub(k,n) = wsvsub_s
         end do
       end do
