@@ -25,7 +25,7 @@ module modnetcdf
 
   implicit none
 
-  private
+  public
   
   public :: check
 
