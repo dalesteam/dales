@@ -75,7 +75,7 @@ contains
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   loutdirs, output_prefix, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner
+                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, lstart_netcdf
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -120,7 +120,7 @@ contains
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
-        nprocx,nprocy,loutdirs
+        nprocx,nprocy,loutdirs, lstart_netcdf
     namelist/DOMAIN/ &
         itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
@@ -507,7 +507,8 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero, &
+                                  lstart_netcdf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -581,27 +582,38 @@ contains
           ps         = tb_ps(1)
 
         else
-          open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
-          if (ierr /= 0) then
-             write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-             STOP
-          end if
-          read (ifinput,'(a512)') chmess
-          write(*,     '(a512)') chmess
-          read (ifinput,'(a512)') chmess
+          if (lstart_netcdf) then
+            call read_init_netcdf(height)
+          else
+            open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+            if (ierr /= 0) then
+               write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+               STOP
+            end if
+            read (ifinput,'(a512)') chmess
+            write(*,     '(a512)') chmess
+            read (ifinput,'(a512)') chmess
 
-          do k = 1, kmax
-            read (ifinput,*) &
-                height (k), &
-                thlprof(k), &
-                qtprof (k), &
-                uprof  (k), &
-                vprof  (k), &
-                e12prof(k)
-          end do
+            do k = 1, kmax
+              read (ifinput,*) &
+                  height (k), &
+                  thlprof(k), &
+                  qtprof (k), &
+                  uprof  (k), &
+                  vprof  (k), &
+                  e12prof(k)
+            end do
 
-          close(ifinput)
+            close(ifinput)
 
+            open (ifinput, file='scalar.inp.'//cexpnr, status='old', iostat=ierr)
+            do k = 1, kmax
+              read (ifinput,*) &
+                    height (k), &
+                    (svprof (k,n),n=1,nsv)
+            end do
+            close(ifinput)
+          end if ! lstart_netcdf
         end if   !ltestbed
 
         write(*,*) 'height    thl      qt         u      v     e12'
@@ -631,7 +643,6 @@ contains
       call D_MPI_BCAST(vprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(e12prof,kmax,0,comm3d,mpierr)
 
-      svprof = 0.
       if(myid==0)then
         if (nsv>0) then
           open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
@@ -665,18 +676,13 @@ contains
             enddo
             if (.not. found) then
               write(6,*) 'tracer not found in scalar.inp: ', tracer_prop(isv)%tracname
-              stop
+              !stop
             endif
           enddo
           ! write(*,*) 'scalar_indices: ', scalar_indices
           
-          do k = 1, kmax
-            read (ifinput,*) &
-                  height (k), &
-                  (svprof (k,n),n=1,nsv)
-          end do
+          close(ifinput)
 
-          open (ifinput,file='scalar.inp.'//cexpnr)
           write (6,*) 'height   sv(1) --------- sv(nsv) '
 
           do k = kmax, 1, -1
@@ -1743,5 +1749,62 @@ contains
     deallocate(height,pb,tb)
 
   end subroutine baseprofs
+
+  !> Read initial profiles from init.XXX.nc
+  subroutine read_init_netcdf(height)
+
+    use modfields,  only: thlprof, qtprof, uprof, vprof, e12prof, svprof
+    use modglobal,  only: cexpnr, nsv, kmax
+    use modtracers, only: tracer_prop
+    use modnetcdf
+
+    real(field_r), intent(out) :: height(:) !< Vertical coordinates
+
+    integer :: ncid, grpid, varid, ierr !< NetCDF variables
+    integer :: itrac                    !< Loop variable
+
+    call check(nf90_open("init."//cexpnr//".nc", NF90_NOWRITE, ncid), __FILE__, __LINE__)
+
+    call check(nf90_inq_ncid(ncid, "init", grpid), __FILE__, __LINE__)
+
+    ! "Regular" prognostic fields
+    call check(nf90_inq_varid(grpid, "u", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, uprof(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "v", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, vprof(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "thl", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, thlprof(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "qt", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, qtprof(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "e12", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, e12prof(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "zf", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, height(1:kmax)), __FILE__, __LINE__)
+
+    ! Tracers
+    do itrac = 1, nsv
+      ! Search for the tracer
+      ierr = nf90_inq_varid(grpid, tracer_prop(itrac)%tracname, varid)
+
+      ! If tracer is not found, don't stop but init with zeroes
+      select case (ierr)
+        case (nf90_enotvar)
+          write(6,*) "Warning: tracer ", tracer_prop(itrac)%tracname, " not found in init."//cexpnr//".nc"
+          svprof(:,itrac) = 0._field_r
+        case (nf90_noerr) ! Tracer found, read profile
+          call check(nf90_get_var(ncid, varid, svprof(1:kmax,itrac)), __FILE__, __LINE__)
+        case default ! Other error, print info
+          call check(ierr, __FILE__, __LINE__)
+      end select
+    end do
+
+    call check(nf90_close(ncid), __FILE__, __LINE__)
+    
+  end subroutine read_init_netcdf
 
 end module modstartup
