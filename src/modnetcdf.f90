@@ -37,12 +37,17 @@ contains
   !! the location of the error
   subroutine check(status, file, line)
 
+    use modmpi, only: myid
+
     integer,      intent(in) :: status, line
     character(*), intent(in) :: file
 
     if (status /= nf90_noerr) then
-      write(*,*) trim(nf90_strerror(status))
-      stop "NetCDF error in ", file, "on line ", line
+      if (myid == 0) then
+        write(*,*) "NetCDF error in: ", file, " on line: ", line
+        write(*,*) trim(nf90_strerror(status))
+      end if
+      stop
     end if
 
   end subroutine check
