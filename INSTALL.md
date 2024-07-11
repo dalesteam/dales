@@ -1,7 +1,7 @@
 Installing DALES
 ================
 
-These are installation instruuctions for DALES. See also the [installation notes](https://github.com/dalesteam/dales/wiki/Installation-notes) in the DALES wiki for further notes on specific systems.
+These are installation instructions for DALES. See also the [installation notes](https://github.com/dalesteam/dales/wiki/Installation-notes) in the DALES wiki for further notes on specific systems.
 
 DEPENDENCIES
 ------------
