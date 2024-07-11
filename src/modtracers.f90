@@ -70,6 +70,8 @@ module modtracers
       logical           :: lags   
       ! Boolean if in cloud microphysics
       logical           :: lmicro     
+      ! Boolean if tracer is an aerosol
+      logical           :: laero
       ! ! Static tracer properties:
       ! real :: diffusivity
   end type T_tracer
