@@ -50,6 +50,9 @@ module modbulkmicro
   implicit none
   private
   public initbulkmicro, exitbulkmicro, bulkmicro
+  public :: remove_negative_values
+  public :: calculate_rain_parameters
+  public :: setup_micro_mask
 
   real :: gamma25
   real :: gamma3
@@ -240,27 +243,8 @@ module modbulkmicro
     ! remove neg. values of Nr and qr
     !*********************************************************************
     if (l_rain) then
-      qrsum_neg = 0.0
-      qrsum = 0.0
-      Nrsum_neg = 0.0
-      Nrsum = 0.00
-      !$acc parallel loop collapse(3) default(present) reduction(+: qrsum_neg, qrsum, Nrsum_neg, Nrsum)
-      do k = 1, k1
-        do j = 2, j1
-          do i = 2, i1
-            qrsum = qrsum + qr(i,j,k)
-            Nrsum = Nrsum + Nr(i,j,k)
-            if (qr(i,j,k) < 0.0) then
-              qrsum_neg = qrsum_neg + qr(i,j,k)
-              qr(i,j,k) = 0.0
-            end if
-            if (Nr(i,j,k) < 0.0) then
-              Nrsum_neg = Nrsum_neg + Nr(i,j,k)
-              Nr(i,j,k) = 0.0
-            end if
-          enddo
-        enddo
-      enddo
+      call remove_negative_values(qr, qrsum, qrsum_neg)
+      call remove_negative_values(Nr, Nrsum, Nrsum_neg)
 
       ! LE: Commenting those out for now, popping up too often.
       !if ( -qrsum_neg > 0.000001*qrsum) then
@@ -275,85 +259,6 @@ module modbulkmicro
     ! Find gridpoints where the microphysics scheme should run
     !*********************************************************************
 
-#if defined(DALES_GPU)
-    ! Faster with OpenACC acceleration as it enables collapse(3)
-    qrbase = k1 + 1
-    qrroof = 1 - 1
-    qcbase = k1 + 1
-    qcroof = 1 - 1
-    !$acc parallel loop collapse(3) default(present) reduction(min:qrbase,qcbase)
-    do k = 1, k1
-      do j = 2, j1
-        do i = 2, i1
-          ! Update mask prior to using it
-          qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
-          qcmask(i,j,k) = ql0(i,j,k) > qcmin
-          if (qrmask(i,j,k)) then
-            qrbase = min(k, qrbase)
-          endif
-          if (qcmask(i,j,k)) then
-            qcbase = min(k, qcbase)
-          endif
-        enddo
-      enddo
-    enddo
-    qrbase = max(1, qrbase)
-    qcbase = max(1, qcbase)
-
-    if (qrbase.le.k1 .or. qcbase.le.k1) then
-      !$acc parallel loop collapse(3) default(present) reduction(max:qrroof,qcroof)
-      do k = min(qrbase,qcbase), k1
-        do j = 2, j1
-          do i = 2, i1
-            if (qrmask(i,j,k)) then
-              qrroof = max(k, qrroof)
-            endif
-            if (qcmask(i,j,k)) then
-              qcroof = max(k, qcroof)
-            endif
-          enddo
-        enddo
-      enddo
-      qrroof = min(k1, qrroof)
-      qcroof = min(k1, qcroof)
-    endif
-#else
-    qrmask = qr.gt.qrmin.and.Nr.gt.0
-    qrbase = k1 + 1
-    qrroof = 1 - 1
-    do k=1,k1
-      if (any(qrmask(:,:,k))) then
-        qrbase = max(1, k)
-        exit
-      endif
-    enddo
-    if (qrbase.le.k1) then
-      do k=k1,qrbase,-1
-        if (any(qrmask(:,:,k))) then
-          qrroof = min(k1, k)
-          exit
-        endif
-      enddo
-    endif
-
-    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
-    qcbase = k1 + 1
-    qcroof = 1 - 1
-    do k=1,k1
-      if (any(qcmask(:,:,k))) then
-        qcbase = max(1, k)
-        exit
-      endif
-    enddo
-    if (qcbase.le.k1) then
-      do k=k1,qcbase,-1
-        if (any(qcmask(:,:,k))) then
-          qcroof = min(k1, k)
-          exit
-        endif
-      enddo
-    endif
-#endif
 
     ! if there is nothing to do, we can return at this point
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
@@ -1255,6 +1160,123 @@ module modbulkmicro
 
   end subroutine evaporation
 
+  subroutine remove_negative_values(var, sum, sum_neg)
+
+    use modglobal, only: i1, j1, k1, ih, jh
+
+    real(field_r), intent(inout) :: var(2-ih:i1+ih,2-jh:j1+jh,1:k1)
+    real(field_r), intent(out)   :: sum, sum_neg
+
+    integer :: i, j, k
+
+    sum = 0
+    sum_neg = 0
+
+    !$acc parallel loop collapse(3) default(present) reduction(+: ssum, sum_neg)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          sum = sum + var(i,j,k)
+          sum_neg = sum_neg + merge(var(i,j,k), 0._field_r, var(i,j,k) < 0)
+          var(i,j,k) = merge(var(i,j,k), 0._field_r, var(i,j,k) < 0)
+        end do
+      end do
+    end do
+    
+  end subroutine remove_negative_values
+
+  subroutine setup_micro_mask(qrbase, qrroof, qcbase, qcroof, qrmask, qcmask)
+
+    use modglobal,    only: i1, j1, k1, ih, jh
+    use modfields,    only: ql0
+    use modmicrodata, only: qcmin, qrmin, Nr, qr
+
+    integer, intent(out) :: qrbase, qrroof, qcbase, qcroof
+    logical, intent(out) :: qrmask(2-ih:i1+ih,2-jh:j1+jh,1:k1), qcmask(2-ih:i1+ih,2-jh:j1+jh,1:k1)
+
+    integer :: i, j, k
+
+#ifdef DALES_GPU
+    ! Faster with OpenACC acceleration as it enables collapse(3)
+    qrbase = k1 + 1
+    qrroof = 1 - 1
+    qcbase = k1 + 1
+    qcroof = 1 - 1
+    !$acc parallel loop collapse(3) default(present) reduction(min:qrbase,qcbase)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          ! Update mask prior to using it
+          qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
+          qcmask(i,j,k) = ql0(i,j,k) > qcmin
+          if (qrmask(i,j,k)) then
+            qrbase = min(k, qrbase)
+          endif
+          if (qcmask(i,j,k)) then
+            qcbase = min(k, qcbase)
+          endif
+        enddo
+      enddo
+    enddo
+    qrbase = max(1, qrbase)
+    qcbase = max(1, qcbase)
+
+    if (qrbase.le.k1 .or. qcbase.le.k1) then
+      !$acc parallel loop collapse(3) default(present) reduction(max:qrroof,qcroof)
+      do k = min(qrbase,qcbase), k1
+        do j = 2, j1
+          do i = 2, i1
+            if (qrmask(i,j,k)) then
+              qrroof = max(k, qrroof)
+            endif
+            if (qcmask(i,j,k)) then
+              qcroof = max(k, qcroof)
+            endif
+          enddo
+        enddo
+      enddo
+      qrroof = min(k1, qrroof)
+      qcroof = min(k1, qcroof)
+    endif
+#else
+    qrmask = qr.gt.qrmin.and.Nr.gt.0
+    qrbase = k1 + 1
+    qrroof = 1 - 1
+    do k=1,k1
+      if (any(qrmask(:,:,k))) then
+        qrbase = max(1, k)
+        exit
+      endif
+    enddo
+    if (qrbase.le.k1) then
+      do k=k1,qrbase,-1
+        if (any(qrmask(:,:,k))) then
+          qrroof = min(k1, k)
+          exit
+        endif
+      enddo
+    endif
+
+    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
+    qcbase = k1 + 1
+    qcroof = 1 - 1
+    do k=1,k1
+      if (any(qcmask(:,:,k))) then
+        qcbase = max(1, k)
+        exit
+      endif
+    enddo
+    if (qcbase.le.k1) then
+      do k=k1,qcbase,-1
+        if (any(qcmask(:,:,k))) then
+          qcroof = min(k1, k)
+          exit
+        endif
+      enddo
+    endif
+#endif
+  end subroutine setup_micro_mask
+
   !*********************************************************************
   !*********************************************************************
 
@@ -1395,4 +1417,6 @@ module modbulkmicro
 
     erfint = max(0., D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin))
   end function erfint
+
+
 end module modbulkmicro
