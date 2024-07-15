@@ -539,7 +539,7 @@ contains
 
     character(len=512) :: chmess
     integer            :: status, nheader, ifield
-    integer, parameter :: maxcol = 30
+    integer, parameter :: maxcol = 50
     character(len=6)   :: headers(maxcol)
     !character(len=1)   :: sep
     character(len=6)   ::  header
@@ -979,25 +979,29 @@ contains
 
       else
 
-        open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
-        if (ierr /= 0) then
-           write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
-           STOP
+        if (lstart_netcdf) then
+          call read_lscale_netcdf
+        else
+          open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
+             STOP
+          end if
+          read (ifinput,'(a80)') chmess
+          read (ifinput,'(a80)') chmess
+          do  k=1,kmax
+            read (ifinput,*) &
+                height (k), &
+                ug     (k), &
+                vg     (k), &
+                wfls   (k), &
+                dqtdxls(k), &
+                dqtdyls(k), &
+                dqtdtls(k), &
+                thlpcar(k)
+          end do
+          close(ifinput)
         end if
-        read (ifinput,'(a80)') chmess
-        read (ifinput,'(a80)') chmess
-        do  k=1,kmax
-          read (ifinput,*) &
-              height (k), &
-              ug     (k), &
-              vg     (k), &
-              wfls   (k), &
-              dqtdxls(k), &
-              dqtdyls(k), &
-              dqtdtls(k), &
-              thlpcar(k)
-        end do
-        close(ifinput)
 
       end if
 
@@ -1799,5 +1803,44 @@ contains
     call check(nf90_close(ncid), __FILE__, __LINE__)
     
   end subroutine read_prof_netcdf
+
+  !> Read large-scale forcings from init.XXX.nc
+  ! CJ: merge this with read_prof_netcdf?
+  subroutine read_lscale_netcdf
+
+    use modfields, only: ug, vg, wfls, dqtdxls, dqtdyls, dqtdtls, thlpcar
+    use modglobal, only: cexpnr, kmax
+    use modnetcdf
+
+    integer :: ncid, grpid, varid
+
+    call check(nf90_open("init."//cexpnr//".nc", nf90_nowrite, ncid), __FILE__, __LINE__)
+
+    call check(nf90_inq_ncid(ncid, "lscale", grpid), __FILE__, __LINE__)
+    
+    call check(nf90_inq_varid(grpid, "ug", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, ug(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "vg", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, vg(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "wfls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, wfls(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "dqtdxls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, dqtdxls(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "dqtdyls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, dqtdyls(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "dqtdtls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, dqtdtls(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_inq_varid(grpid, "dthlrad", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(grpid, varid, thlpcar(1:kmax)), __FILE__, __LINE__)
+
+    call check(nf90_close(ncid), __FILE__, __LINE__)
+
+  end subroutine read_lscale_netcdf
 
 end module modstartup
