@@ -33,6 +33,7 @@
   integer, parameter :: imicro_none    = 0
   integer, parameter :: imicro_drizzle = 1
   integer, parameter :: imicro_bulk    = 2
+  integer, parameter :: imicro_bulk_aero = 27 !< Bulk microphysics with interactive aerosols
   integer, parameter :: imicro_bin     = 3
   integer, parameter :: imicro_sice    = 5
   integer, parameter :: imicro_sice2   = 6

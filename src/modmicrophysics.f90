@@ -45,8 +45,9 @@ contains
     use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
                              imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, imicro_aerosol, &
                              l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
-                             Nc_0, sig_g, sig_gr, courantp
+                             Nc_0, sig_g, sig_gr, courantp, imicro_bulk_aero
     use modaerosoldata, only: l_kohler, Ssat
+    use modbulkmicro_aerosol, only : initaerosol
     use modbulkmicro3, only : initbulkmicro3 !#sb3
     implicit none
     integer :: ierr
@@ -90,6 +91,9 @@ contains
     case(imicro_bulk)
        if (nsv < 2) STOP "ERROR: Bulk microphysics requires nsv >=2"
       call initbulkmicro
+    case (imicro_bulk_aero)
+      call initbulkmicro
+      call initaerosol
     case(imicro_bin)
 !       call initbinmicro
     case(imicro_sice)
