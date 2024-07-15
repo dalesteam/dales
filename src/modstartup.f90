@@ -583,7 +583,7 @@ contains
 
         else
           if (lstart_netcdf) then
-            call read_init_netcdf(height)
+            call read_prof_netcdf(height)
           else
             open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
             if (ierr /= 0) then
@@ -1744,7 +1744,7 @@ contains
   end subroutine baseprofs
 
   !> Read initial profiles from init.XXX.nc
-  subroutine read_init_netcdf(height)
+  subroutine read_prof_netcdf(height)
 
     use modfields,  only: thlprof, qtprof, uprof, vprof, e12prof, svprof
     use modglobal,  only: cexpnr, nsv, kmax
@@ -1798,6 +1798,6 @@ contains
 
     call check(nf90_close(ncid), __FILE__, __LINE__)
     
-  end subroutine read_init_netcdf
+  end subroutine read_prof_netcdf
 
 end module modstartup
