@@ -271,23 +271,23 @@ subroutine initsamptend
           call ncinfo(ncname(48,:,isamp),'qttendleib'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'total water content total tendency with leibniz terms','kg/kg/s','tt')
           call ncinfo(ncname(49,:,isamp),'qrtendadv'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content advective tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content advective tendency','kg/kg/s','tt')
           call ncinfo(ncname(50,:,isamp),'qrtenddif'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content diffusive tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content diffusive tendency','kg/kg/s','tt')
           call ncinfo(ncname(51,:,isamp),'qrtendrad'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content radiative tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content radiative tendency','kg/kg/s','tt')
           call ncinfo(ncname(52,:,isamp),'qrtendmicro'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content microphysical tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'raom water content microphysical tendency','kg/kg/s','tt')
           call ncinfo(ncname(53,:,isamp),'qrtendls'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content large scale tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content large scale tendency','kg/kg/s','tt')
           call ncinfo(ncname(54,:,isamp),'qrtendtop'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content  top boundary tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content  top boundary tendency','kg/kg/s','tt')
           call ncinfo(ncname(55,:,isamp),'qrtendaddon'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content in addons tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content in addons tendency','kg/kg/s','tt')
           call ncinfo(ncname(56,:,isamp),'qrtendtot'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content total tendency','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content total tendency','kg/kg/s','tt')
           call ncinfo(ncname(57,:,isamp),'qrtendleib'//samplname(isamp),&
-          trim(longsamplname(isamp))//' '//'total water content total tendency with leibniz terms','kg/kg/s','tt')
+          trim(longsamplname(isamp))//' '//'rain water content total tendency with leibniz terms','kg/kg/s','tt')
           call ncinfo(ncname(58,:,isamp),'nrtendadv'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'RDNC advective tendency','/kg/s','tt')
           call ncinfo(ncname(59,:,isamp),'nrtenddif'//samplname(isamp),&
@@ -342,6 +342,9 @@ subroutine initsamptend
 
     IF (present(firstterm)) THEN
     IF (firstterm) THEN
+      ! Zero the process-contributed tendency fields (*ptm)
+      ! Define sampling masks (tendmask) based on the current fields of buoyancy and w
+      ! and sample the state variables over these isamptot masks
       nrsamplast=0
       tendmask=.false.
       uptm = 0.
@@ -466,6 +469,14 @@ subroutine initsamptend
     end do
 
     do isamp=1,isamptot
+    
+    ! Strategy
+    ! Call samptend after each new process has been added to the total tendency, which for each
+    ! prognostic variable is stored in a single field which accumulates as processes are added.
+    ! So each time a new process (tendterm) is added in program.f90, samptend is immediately called afterwards.
+    ! Here, we keep track of both the total tendency before tendterm was added (uptm(k,tend_tot, isamp))
+    ! and load up after tendterm was added, such that the difference is due to tendterm
+    ! This is then stored in uptm(k,tendterm,isamp)
     do k=1,kmax
       uptm(k,tendterm,isamp) = sum(up (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-uptm (k,tend_tot,isamp)
       vptm(k,tendterm,isamp) = sum(vp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-vptm (k,tend_tot,isamp)
@@ -499,6 +510,7 @@ subroutine initsamptend
 
     IF (present(lastterm)) THEN
     IF (lastterm) THEN
+      ! Update the total tendency a final time
       do isamp=1,isamptot
       do k=1,kmax
         upav(k,tend_tot,isamp) = upav(k,tend_tot,isamp)+uptm(k,tend_tot,isamp)
@@ -748,8 +760,8 @@ subroutine initsamptend
           vars(:,44) = qtpmn(:,tend_ls,isamp)
           vars(:,45) = qtpmn(:,tend_topbound,isamp)
           vars(:,46) = qtpmn(:,tend_addon,isamp)
-          vars(:,47) = qrpmn(:,tend_tot,isamp)
-          vars(:,48) = qrpmn(:,tend_totlb,isamp)
+          vars(:,47) = qtpmn(:,tend_tot,isamp)
+          vars(:,48) = qtpmn(:,tend_totlb,isamp)
           vars(:,49) = qrpmn(:,tend_adv,isamp)
           vars(:,50) = qrpmn(:,tend_subg,isamp)
           vars(:,51) = qrpmn(:,tend_rad,isamp)
