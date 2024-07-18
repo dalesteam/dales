@@ -264,7 +264,7 @@ contains
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
     use advec_52,       only : hadvecc_52
     use advec_5th,      only : advecc_5th
-    use advec_62,       only : advecc_62
+    use advec_62,       only : hadvecc_62
     use advec_6th,      only : advecc_6th
     use advec_hybrid,   only : advecc_hybrid
     use advec_hybrid_f, only : advecc_hybrid_f
@@ -427,7 +427,8 @@ contains
       case(iadv_cd6)
         call advecc_6th(varxfmn,term)
       case(iadv_62)
-        call advecc_62(varxfmn,term)
+        call hadvecc_62(varxfmn,term)
+        call vadvecc_2nd(varxfmn,term)
       case(iadv_kappa)
         call advecc_kappa(varxfmn,term)
       case(iadv_hybrid)
@@ -469,7 +470,8 @@ contains
       case(iadv_cd6)
         call advecc_6th(varxfdev,term)
       case(iadv_62)
-        call advecc_62(varxfdev,term)
+        call hadvecc_62(varxfdev,term)
+        call vadvecc_2nd(varxfdev,term)
       case(iadv_kappa)
         call advecc_kappa(varxfdev,term)
       case(iadv_hybrid)

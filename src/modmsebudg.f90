@@ -100,7 +100,7 @@ contains
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
     use advec_52,       only : hadvecc_52
     use advec_5th,      only : advecc_5th
-    use advec_62,       only : advecc_62
+    use advec_62,       only : hadvecc_62
     use advec_6th,      only : advecc_6th
     use advec_hybrid,   only : advecc_hybrid
     use advec_hybrid_f, only : advecc_hybrid_f
@@ -124,7 +124,8 @@ contains
       case(iadv_cd6)
         call advecc_6th(a_in,a_out)
       case(iadv_62)
-        call advecc_62(a_in,a_out)
+        call hadvecc_62(a_in,a_out)
+        call vadvecc_2nd(a_in,a_out)
       case(iadv_kappa)
         call advecc_kappa(a_in,a_out)
       case(iadv_hybrid)
