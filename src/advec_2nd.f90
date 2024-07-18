@@ -160,7 +160,7 @@ end subroutine hadvecu_2nd
 !> Vertical advection at the u point.
 subroutine vadvecu_2nd(a_in, a_out, sx)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzfi,dzhi,leq
-  use modfields, only : rhobf, wp
+  use modfields, only : w0, rhobf
 
   implicit none
 

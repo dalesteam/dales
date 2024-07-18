@@ -36,11 +36,11 @@
 module advec_52
 use modprecision, only : field_r
 contains
-!> Advection at cell center
-subroutine advecc_52(a_in, a_out)
+!> Horizontal advection at cell center
+subroutine hadvecc_52(a_in, a_out)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi,dzf,dzh,leq
-  use modfields, only : u0, v0, w0,rhobf
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi,dyi
+  use modfields, only : u0, v0
   implicit none
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
@@ -49,50 +49,10 @@ subroutine advecc_52(a_in, a_out)
 
   integer :: i,j,k
 
-  if (leq) then
-
-    k = 1
-    inv2dzfk = 1./(2. * dzf(k))
-    rhobf_p = rhobf(k+1)/rhobf(k)
-
-    !$acc parallel loop collapse(2) default(present) async(1)
-    do j = 2, j1
-      do i = 2, i1
-        a_out(i,j,k) = a_out(i,j,k) - ( &
-             ( &
-             u0(i+1,j,k)/60&
-             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -abs(u0(i+1,j,k))/60&
-             *(10*(a_in(i+1,j,k)-a_in(i,j,k))-5*(a_in(i+2,j,k)-a_in(i-1,j,k))+(a_in(i+3,j,k)-a_in(i-2,j,k)))&
-             -u0(i,j,k)/60&
-             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
-             +abs(u0(i,j,k))/60&
-             *(10*(a_in(i,j,k)-a_in(i-1,j,k))-5*(a_in(i+1,j,k)-a_in(i-2,j,k))+(a_in(i+2,j,k)-a_in(i-3,j,k)))&
-             )*dxi&
-             +(&
-             v0(i,j+1,k)/60&
-             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -abs(v0(i,j+1,k))/60&
-             *(10*(a_in(i,j+1,k)-a_in(i,j,k))-5*(a_in(i,j+2,k)-a_in(i,j-1,k))+(a_in(i,j+3,k)-a_in(i,j-2,k)))&
-             -v0(i,j,k)/60&
-             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
-             +abs(v0(i,j,k))/60&
-             *(10*(a_in(i,j,k)-a_in(i,j-1,k))-5*(a_in(i,j+1,k)-a_in(i,j-2,k))+(a_in(i,j+2,k)-a_in(i,j-3,k))) &
-             )* dyi &
-             + ( &
-             w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) + a_in(i,j,k)) &
-             ) * inv2dzfk  &
-             )
-       end do
-    end do
-
     !$acc parallel loop collapse(3) default(present) async(2)
-    do k = 2, kmax
+    do k = 1, kmax
       do j = 2, j1
         do i = 2, i1
-          inv2dzfk = 1./(2. * dzf(k))
-          rhobf_p = rhobf(k+1)/rhobf(k)
-          rhobf_m = rhobf(k-1)/rhobf(k)
           a_out(i,j,k)  = a_out(i,j,k)- (  &
                 ( &
                     u0(i+1,j,k)/60&
@@ -114,92 +74,13 @@ subroutine advecc_52(a_in, a_out)
                     +abs(v0(i,j,k))/60&
                     *(10*(a_in(i,j,k)-a_in(i,j-1,k))-5*(a_in(i,j+1,k)-a_in(i,j-2,k))+(a_in(i,j+2,k)-a_in(i,j-3,k)))&
                 )* dyi &
-              + ( &
-                w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) +  a_in(i,j,k)) &
-                -w0(i,j,k)  * (rhobf_m * a_in(i,j,k-1) +  a_in(i,j,k)) &
-                ) * inv2dzfk &
                 )
         end do
       end do
     end do
+end subroutine hadvecc_52
 
-  else ! non-equidistant grid
-    k = 1
-    inv2dzfk = 1./(2. * dzf(k))
-    rhobf_p = rhobf(k+1)/rhobf(k)
-
-    !$acc parallel loop collapse(2) default(present) async(1)
-    do j = 2, j1
-      do i = 2, i1
-        a_out(i,j,k) = a_out(i,j,k) - ( &
-             ( &
-             u0(i+1,j,k)/60&
-             *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-             -abs(u0(i+1,j,k))/60&
-             *(10*(a_in(i+1,j,k)-a_in(i,j,k))-5*(a_in(i+2,j,k)-a_in(i-1,j,k))+(a_in(i+3,j,k)-a_in(i-2,j,k)))&
-             -u0(i,j,k)/60&
-             *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
-             +abs(u0(i,j,k))/60&
-             *(10*(a_in(i,j,k)-a_in(i-1,j,k))-5*(a_in(i+1,j,k)-a_in(i-2,j,k))+(a_in(i+2,j,k)-a_in(i-3,j,k)))&
-             )*dxi&
-             +(&
-             v0(i,j+1,k)/60&
-             *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-             -abs(v0(i,j+1,k))/60&
-             *(10*(a_in(i,j+1,k)-a_in(i,j,k))-5*(a_in(i,j+2,k)-a_in(i,j-1,k))+(a_in(i,j+3,k)-a_in(i,j-2,k)))&
-             -v0(i,j,k)/60&
-             *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
-             +abs(v0(i,j,k))/60&
-             *(10*(a_in(i,j,k)-a_in(i,j-1,k))-5*(a_in(i,j+1,k)-a_in(i,j-2,k))+(a_in(i,j+2,k)-a_in(i,j-3,k))) &
-             )* dyi &
-             + ( &
-             w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) * dzf(k) +  a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
-             ) * inv2dzfk  &
-             )
-      end do
-    end do
-
-    !$acc parallel loop collapse(3) default(present) async(2)
-    do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
-          inv2dzfk = 1./(2. * dzf(k))
-          rhobf_p = rhobf(k+1)/rhobf(k)
-          rhobf_m = rhobf(k-1)/rhobf(k)
-          a_out(i,j,k) = a_out(i,j,k) - (  &
-                ( &
-                    u0(i+1,j,k)/60&
-                    *(37*(a_in(i+1,j,k)+a_in(i,j,k))-8*(a_in(i+2,j,k)+a_in(i-1,j,k))+(a_in(i+3,j,k)+a_in(i-2,j,k)))&
-                    -abs(u0(i+1,j,k))/60&
-                    *(10*(a_in(i+1,j,k)-a_in(i,j,k))-5*(a_in(i+2,j,k)-a_in(i-1,j,k))+(a_in(i+3,j,k)-a_in(i-2,j,k)))&
-                    -u0(i,j,k)/60&
-                    *(37*(a_in(i,j,k)+a_in(i-1,j,k))-8*(a_in(i+1,j,k)+a_in(i-2,j,k))+(a_in(i+2,j,k)+a_in(i-3,j,k)))&
-                    +abs(u0(i,j,k))/60&
-                    *(10*(a_in(i,j,k)-a_in(i-1,j,k))-5*(a_in(i+1,j,k)-a_in(i-2,j,k))+(a_in(i+2,j,k)-a_in(i-3,j,k)))&
-                )*dxi&
-              +(&
-                    v0(i,j+1,k)/60&
-                    *(37*(a_in(i,j+1,k)+a_in(i,j,k))-8*(a_in(i,j+2,k)+a_in(i,j-1,k))+(a_in(i,j+3,k)+a_in(i,j-2,k)))&
-                    -abs(v0(i,j+1,k))/60&
-                    *(10*(a_in(i,j+1,k)-a_in(i,j,k))-5*(a_in(i,j+2,k)-a_in(i,j-1,k))+(a_in(i,j+3,k)-a_in(i,j-2,k)))&
-                    -v0(i,j,k)/60&
-                    *(37*(a_in(i,j,k)+a_in(i,j-1,k))-8*(a_in(i,j+1,k)+a_in(i,j-2,k))+(a_in(i,j+2,k)+a_in(i,j-3,k)))&
-                    +abs(v0(i,j,k))/60&
-                    *(10*(a_in(i,j,k)-a_in(i,j-1,k))-5*(a_in(i,j+1,k)-a_in(i,j-2,k))+(a_in(i,j+2,k)-a_in(i,j-3,k)))&
-                )* dyi &
-              + ( &
-              w0(i,j,k+1) * (rhobf_p * a_in(i,j,k+1) * dzf(k) +  a_in(i,j,k) * dzf(k+1) ) / dzh(k+1) &
-              -w0(i,j,k ) * (rhobf_m * a_in(i,j,k-1) * dzf(k) +  a_in(i,j,k) * dzf(k-1) ) / dzh(k) &
-                ) * inv2dzfk &
-                )
-        end do
-      end do
-    end do
-  end if
-  !$acc wait(1,2)
-
-end subroutine advecc_52
-
+!> Vertical advection at cell center is done with the second order scheme (vadvecc_2nd)
 
 !> Advection at the u point.
 subroutine advecu_52(a_in,a_out)
