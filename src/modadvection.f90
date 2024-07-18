@@ -36,7 +36,8 @@ subroutine advection
                              lopenbc,lboundary,lperiodic
   use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid,     only : lsmagorinsky
-  use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, hadvecc_2nd, vadvecc_2nd
+  use advec_2nd,      only : hadvecu_2nd, vadvecu_2nd, hadvecv_2nd, vadvecv_2nd, &
+                             hadvecw_2nd, vadvecw_2nd, hadvecc_2nd, vadvecc_2nd
   use advec_52,       only : advecu_52, advecv_52, advecw_52, advecc_52
   use advec_5th,      only : advecu_5th, advecv_5th, advecw_5th, advecc_5th
   use advec_62,       only : advecu_62, advecv_62, advecw_62, advecc_62
@@ -60,9 +61,12 @@ subroutine advection
 
   select case(iadv_mom)
     case(iadv_cd2)
-      call advecu_2nd(u0,up,sx)
-      call advecv_2nd(v0,vp,sy)
-      call advecw_2nd(w0,wp)
+      call hadvecu_2nd(u0,up,sx)
+      call vadvecu_2nd(u0,up,sx)
+      call hadvecv_2nd(v0,vp,sy)
+      call vadvecv_2nd(v0,vp,sy)
+      call hadvecw_2nd(w0,wp)
+      call vadvecw_2nd(w0,wp)
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecu_5th(u0,up)

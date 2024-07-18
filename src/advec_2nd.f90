@@ -61,7 +61,7 @@ subroutine hadvecc_2nd(a_in,a_out)
     end do
   end do
   !$acc wait
-  
+
 end subroutine hadvecc_2nd
 
 !> Vertical advection at cell center
@@ -125,10 +125,10 @@ subroutine vadvecc_2nd(a_in,a_out)
 end subroutine vadvecc_2nd
 
 
-!> Advection at the u point.
-subroutine advecu_2nd(a_in, a_out, sx)
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzfi,dzhi,leq
-  use modfields, only : u0, v0, w0, rhobf, up, vp, wp
+!> Horizontal advection at the u point.
+subroutine hadvecu_2nd(a_in, a_out, sx)
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq
+  use modfields, only : u0, v0, up, vp
 
   implicit none
 
@@ -154,6 +154,21 @@ subroutine advecu_2nd(a_in, a_out, sx)
       end do
     end do
   end do
+
+end subroutine hadvecu_2nd
+
+!> Vertical advection at the u point.
+subroutine vadvecu_2nd(a_in, a_out, sx)
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzfi,dzhi,leq
+  use modfields, only : rhobf, wp
+
+  implicit none
+
+  integer, intent(in) :: sx
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
+
+  integer :: i,j,k,ip,im,jp,jm,kp,km
 
   if (leq) then
 
@@ -203,12 +218,12 @@ subroutine advecu_2nd(a_in, a_out, sx)
       end do
     end do
   end if
-end subroutine advecu_2nd
+end subroutine vadvecu_2nd
 
-!> Advection at the v point.
-subroutine advecv_2nd(a_in, a_out, sy)
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzfi,dzhi,leq
-  use modfields, only : u0, v0, w0, rhobf
+!> Horizontal advection at the v point.
+subroutine hadvecv_2nd(a_in, a_out, sy)
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq
+  use modfields, only : u0, v0
   implicit none
 
 
@@ -234,6 +249,21 @@ subroutine advecv_2nd(a_in, a_out, sy)
       end do
     end do
   end do
+
+end subroutine hadvecv_2nd
+
+!> Vertical advection at the v point.
+subroutine vadvecv_2nd(a_in, a_out, sy)
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzfi,dzhi,leq
+  use modfields, only : w0, rhobf
+  implicit none
+
+
+  integer,intent(in) :: sy
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+  integer :: i,j,k,ip,im,jp,jm,kp,km
 
   if (leq) then
     !$acc parallel loop collapse(2) default(present) async(2)
@@ -283,13 +313,13 @@ subroutine advecv_2nd(a_in, a_out, sy)
     end do
   end if
 
-end subroutine advecv_2nd
+end subroutine vadvecv_2nd
 
-!> Advection at the w point.
-subroutine advecw_2nd(a_in,a_out)
+!> Horiozntal advection at the w point.
+subroutine hadvecw_2nd(a_in,a_out)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzhi,leq
-  use modfields, only : u0, v0, w0, rhobh
+  use modfields, only : u0, v0, rhobh
   implicit none
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w-field
@@ -313,11 +343,6 @@ subroutine advecw_2nd(a_in,a_out)
                 (a_in(i,j+1,k)+a_in(i,j,k))*(v0(i,j+1,k)+v0(i,j+1,k-1)) &
                -(a_in(i,j-1,k)+a_in(i,j,k))*(v0(i,j  ,k)+v0(i,j  ,k-1)) &
                 )*dyiq &
-              + &
-                (1/rhobh(k))*( &
-                (rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
-               -(rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
-                )*dziq &
                 )
         end do
       end do
@@ -341,7 +366,46 @@ subroutine advecw_2nd(a_in,a_out)
               -( rhobh(k) * a_in(i,j,k) + rhobh(k) * a_in(i,j-1,k) ) &
               *( dzf(k-1)*v0(i,j,k) + dzf(k)*v0(i,j,k-1) ) &
                 ) *dyiq * dzhi(k) &
-              + &
+                )
+        end do
+      end do
+    end do
+  end if
+end subroutine hadvecw_2nd
+
+!> Vertical advection at the w point.
+subroutine vadvecw_2nd(a_in,a_out)
+
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzhi,leq
+  use modfields, only : w0, rhobh
+  implicit none
+
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w-field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+  integer :: i,j,k,ip,im,jp,jm,kp,km
+
+  if (leq) then
+
+    !$acc parallel loop collapse(3) default(present) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,k)  = a_out(i,j,k)- ( &
+                (1/rhobh(k))*( &
+                (rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
+               -(rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
+                )*dziq &
+                )
+        end do
+      end do
+    end do
+  else
+    !$acc parallel loop collapse(3) default(present) async(3)
+    do k = 2, kmax
+      do j = 2, j1
+        do i = 2, i1
+          a_out(i,j,k)  = a_out(i,j,k) - (1/rhobh(k))*( &
                 ( &
                 ( rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) ) * (w0(i,j,k) + w0(i,j,k+1) ) &
                -( rhobh(k) * a_in(i,j,k) + rhobh(k-1) * a_in(i,j,k-1) ) * (w0(i,j,k) + w0(i,j,k-1) ) &
@@ -352,6 +416,6 @@ subroutine advecw_2nd(a_in,a_out)
     end do
   end if
   !$acc wait(1,2,3)
-end subroutine advecw_2nd
+end subroutine vadvecw_2nd
 
 end module advec_2nd

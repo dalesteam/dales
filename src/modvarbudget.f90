@@ -458,7 +458,8 @@ contains
 
     select case(iadv_var)
       case(iadv_cd2)
-        call advecc_2nd(varxfdev,term)
+        call hadvecc_2nd(varxfdev,term)
+        call vadvecc_2nd(varxfdev,term)
       case(iadv_5th)
         call advecc_5th(varxfdev,term)
       case(iadv_52)
