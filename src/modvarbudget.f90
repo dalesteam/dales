@@ -268,7 +268,7 @@ contains
     use advec_6th,      only : advecc_6th
     use advec_hybrid,   only : advecc_hybrid
     use advec_hybrid_f, only : advecc_hybrid_f
-    use advec_kappa,    only : advecc_kappa
+    use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
     use advec_upw,      only : advecc_upw
 
     implicit none
@@ -430,7 +430,8 @@ contains
         call hadvecc_62(varxfmn,term)
         call vadvecc_2nd(varxfmn,term)
       case(iadv_kappa)
-        call advecc_kappa(varxfmn,term)
+        call hadvecc_kappa(varxfmn,term)
+        call vadvecc_kappa(varxfmn,term)
       case(iadv_hybrid)
         call advecc_hybrid(varxfmn,term)
       case(iadv_hybrid_f)

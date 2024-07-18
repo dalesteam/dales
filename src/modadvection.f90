@@ -44,7 +44,7 @@ subroutine advection
   use advec_6th,      only : advecu_6th, advecv_6th, advecw_6th, advecc_6th
   use advec_hybrid,   only : advecc_hybrid
   use advec_hybrid_f, only : advecc_hybrid_f
-  use advec_kappa,    only : advecc_kappa
+  use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
   use advec_upw,      only : advecc_upw
   implicit none
   integer :: n,sx = 2,sy = 2
@@ -126,7 +126,8 @@ subroutine advection
         call hadvecc_62(e120,e12p)
         call vadvecc_2nd(e120,e12p)
       case(iadv_kappa)
-        call advecc_kappa(e120,e12p)
+        call hadvecc_kappa(e120,e12p)
+        call vadvecc_kappa(e120,e12p)
       case(iadv_hybrid)
         !if (.not. leq) stop "advec_hybrid does not support a non-uniform vertical grid."
         call advecc_hybrid(e120,e12p)
@@ -157,7 +158,8 @@ subroutine advection
       call hadvecc_62(thl0,thlp)
       call vadvecc_2nd(thl0,thlp)
     case(iadv_kappa)
-      call advecc_kappa(thl0,thlp)
+      call hadvecc_kappa(thl0,thlp)
+      call vadvecc_kappa(thl0,thlp)
     case(iadv_upw)
       if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
       call advecc_upw(thl0,thlp)
@@ -191,7 +193,8 @@ subroutine advection
         call hadvecc_62(qt0,qtp)
         call vadvecc_2nd(qt0,qtp)
       case(iadv_kappa)
-        call advecc_kappa(qt0,qtp)
+        call hadvecc_kappa(qt0,qtp)
+        call vadvecc_kappa(qt0,qtp)
       case(iadv_upw)
         if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
         call advecc_upw(qt0,qtp)
@@ -227,7 +230,8 @@ subroutine advection
       call hadvecc_62(sv0(:,:,:,n),svp(:,:,:,n))
       call vadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_kappa)
-      call advecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
+      call hadvecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
+      call vadvecc_kappa(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_upw)
       if (.not. leq) stop "advec_upw does not support a non-uniform vertical grid."
       call advecc_upw(sv0(:,:,:,n),svp(:,:,:,n))

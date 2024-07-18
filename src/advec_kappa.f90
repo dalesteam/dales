@@ -49,9 +49,11 @@ module advec_kappa
 use modprecision, only : field_r
 contains
 
-subroutine advecc_kappa(a_in,a_out)
-  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi,dzf
-  use modfields, only : u0, v0, w0, rhobf
+!< Horizontal advection with the kappa scheme
+
+subroutine hadvecc_kappa(a_in,a_out)
+  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dxi,dyi
+  use modfields, only : u0, v0
   implicit none
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
@@ -61,6 +63,147 @@ subroutine advecc_kappa(a_in,a_out)
   integer :: i, j, k, k_low, k_high, kbeg, kend
 
   ! find the lowest and highest k level with a non-zero value in a_in
+
+#if defined(DALES_GPU)
+  ! This version is faster with OpenACC acceleration as it enables collapse(3)
+  k_low = k1 + 1
+
+  !$acc parallel loop collapse(3) default(present) reduction(min:k_low)
+  do k = 1, k1
+    do j = 2, j1
+      do i = 2, i1
+        if (a_in(i,j,k).ne.0.) then
+          k_low = min(k,k_low)
+        endif
+      enddo
+    enddo
+  enddo
+
+  ! a_in == zero
+  if (k_low == (k1 + 1)) then
+    return
+  endif
+
+  k_high = 0
+  !$acc parallel loop collapse(3) default(present) reduction(max:k_high)
+  do k = k_low, k1
+    do j = 2, j1
+      do i = 2, i1
+        if ((a_in(i,j,k).ne.0.)) then
+          k_high = max(k,k_high)
+        endif
+      enddo
+    enddo
+  enddo
+
+#else
+  k_low = -1
+  do k=1,k1
+     if (any(a_in(:,:,k).ne.0.)) then
+        k_low = k
+        exit
+     endif
+  enddo
+  if (k_low == -1) then
+     ! a_in == zero
+     return
+  endif
+
+  do k=k1,1,-1
+     if (any(a_in(:,:,k).ne.0.)) then
+        k_high = k
+        exit
+     endif
+  enddo
+#endif
+
+  ! loop accesses k-2, k-1, k, k+1
+  kbeg = max(k_low-1,1)
+  kend = min(k_high+2, kmax)
+
+  !$acc parallel loop collapse(3) default(present) async(2)
+  do k = kbeg, kend
+    do j = 2, j1
+      do i = 2, i2
+        d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
+        d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
+        d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
+        cfm = a_in(i-1,j,k)
+        cfp = a_in(i  ,j,k)
+
+        if (u0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
+
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
+
+        work = work * u0(i,j,k) * dxi
+        !$acc atomic update
+        a_out(i-1,j,k) = a_out(i-1,j,k) - work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + work
+      end do
+    end do
+  end do
+
+  !$acc parallel loop collapse(3) default(present) async(3)
+  do k = kbeg, kend
+    do j = 2, j2
+      do i = 2, i1
+        d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
+        d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
+        d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
+        cfm = a_in(i,j-1,k)
+        cfp = a_in(i,j  ,k)
+
+        if (v0(i,j,k) > 0) then
+           d1 = d1m
+           d2 = d2m
+           cf = cfm
+        else
+           d1 = d1p
+           d2 = -d2m
+           cf = cfp
+        end if
+
+        work = cf + &
+             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
+             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
+
+        work = work * v0(i,j,k) * dyi
+        !$acc atomic update
+        a_out(i,j-1,k) = a_out(i,j-1,k) - work
+        !$acc atomic update
+        a_out(i,j,k)   = a_out(i,j,k)   + work
+      end do
+    end do
+  end do
+
+end subroutine hadvecc_kappa
+
+!< Vertical advection with the kappa scheme
+
+subroutine vadvecc_kappa(a_in,a_out)
+  use modglobal, only : i1,i2,ih,j1,j2,jh,k1,kmax,dzf
+  use modfields, only : w0, rhobf
+  implicit none
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
+
+  real(field_r) :: d1, d2, cf
+  real(field_r) :: d1m, d2m, d1p, cfm, cfp, work
+  integer :: i, j, k, k_low, k_high, kend
+
+  ! find the lowest and highest k level with a non-zero value in a_in
+  ! TODO: Unnecessary to do this twice every time step, should do it when hadvecc is called and then reuse
 
 #if defined(DALES_GPU)
   ! This version is faster with OpenACC acceleration as it enables collapse(3)
@@ -149,75 +292,7 @@ subroutine advecc_kappa(a_in,a_out)
     end do
   end if
 
-  ! loop accesses k-2, k-1, k, k+1
-  kbeg = max(k_low-1,1)
   kend = min(k_high+2, kmax)
-
-  !$acc parallel loop collapse(3) default(present) async(2)
-  do k = kbeg, kend
-    do j = 2, j1
-      do i = 2, i2
-        d2m = a_in(i  ,j,k)-a_in(i-1,j,k)
-        d1m = a_in(i-1,j,k)-a_in(i-2,j,k)
-        d1p = a_in(i  ,j,k)-a_in(i+1,j,k)
-        cfm = a_in(i-1,j,k)
-        cfp = a_in(i  ,j,k)
-
-        if (u0(i,j,k) > 0) then
-           d1 = d1m
-           d2 = d2m
-           cf = cfm
-        else
-           d1 = d1p
-           d2 = -d2m
-           cf = cfp
-        end if
-
-        work = cf + &
-             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
-             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
-
-        work = work * u0(i,j,k) * dxi
-        !$acc atomic update
-        a_out(i-1,j,k) = a_out(i-1,j,k) - work
-        !$acc atomic update
-        a_out(i,j,k)   = a_out(i,j,k)   + work
-      end do
-    end do
-  end do
-
-  !$acc parallel loop collapse(3) default(present) async(3)
-  do k = kbeg, kend
-    do j = 2, j2
-      do i = 2, i1
-        d1m = a_in(i,j-1,k)-a_in(i,j-2,k)
-        d1p = a_in(i,j  ,k)-a_in(i,j+1,k)
-        d2m = a_in(i,j  ,k)-a_in(i,j-1,k)
-        cfm = a_in(i,j-1,k)
-        cfp = a_in(i,j  ,k)
-
-        if (v0(i,j,k) > 0) then
-           d1 = d1m
-           d2 = d2m
-           cf = cfm
-        else
-           d1 = d1p
-           d2 = -d2m
-           cf = cfp
-        end if
-
-        work = cf + &
-             min(abs(d1), abs(d2), abs((d1/6.0_field_r) + (d2/3.0_field_r))) * &
-             (sign(0.5_field_r, d1) + sign(0.5_field_r, d2))
-
-        work = work * v0(i,j,k) * dyi
-        !$acc atomic update
-        a_out(i,j-1,k) = a_out(i,j-1,k) - work
-        !$acc atomic update
-        a_out(i,j,k)   = a_out(i,j,k)   + work
-      end do
-    end do
-  end do
 
   !$acc parallel loop collapse(3) default(present) async(4)
   do k = 3, kend
@@ -253,7 +328,7 @@ subroutine advecc_kappa(a_in,a_out)
   end do
   !$acc wait
 
-end subroutine advecc_kappa
+end subroutine vadvecc_kappa
 
 subroutine  halflev_kappa(a_in,a_out)
 
