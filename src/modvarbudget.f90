@@ -262,7 +262,7 @@ contains
     use modmpi,         only : comm3d,mpi_sum,mpierr, &
                                slabsum, D_MPI_ALLREDUCE
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
-    use advec_52,       only : advecc_52
+    use advec_52,       only : hadvecc_52
     use advec_5th,      only : advecc_5th
     use advec_62,       only : advecc_62
     use advec_6th,      only : advecc_6th
@@ -422,7 +422,8 @@ contains
       case(iadv_5th)
         call advecc_5th(varxfmn,term)
       case(iadv_52)
-        call advecc_52(varxfmn,term)
+        call hadvecc_52(varxfmn,term)
+        call vadvecc_2nd(varxfmn,term)
       case(iadv_cd6)
         call advecc_6th(varxfmn,term)
       case(iadv_62)
@@ -463,7 +464,8 @@ contains
       case(iadv_5th)
         call advecc_5th(varxfdev,term)
       case(iadv_52)
-        call advecc_52(varxfdev,term)
+        call hadvecc_52(varxfdev,term)
+        call vadvecc_2nd(varxfdev,term)
       case(iadv_cd6)
         call advecc_6th(varxfdev,term)
       case(iadv_62)
