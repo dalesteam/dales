@@ -585,17 +585,11 @@ module modsimpleice2
       do j = 2, j1
         do i = 2, i1
           qrp(i,j,k) = qrp(i,j,k) + (qr_spl(i,j,k) - qr(i,j,k))/delt
-          qrtest = svm(i,j,k,iqr) + (svp(i,j,k,iqr) + qrp(i,j,k))*delt
-          if (qrtest .lt. qrmin) then ! correction, after Jerome's implementation in Gales
-            qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k) + svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k)
-            thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k) - (rlv/(cp*exnf(k)))*(svm(i,j,k,iqr)/delt + svp(i,j,k,iqr) + qrp(i,j,k))
-            svp(i,j,k,iqr) = - svm(i,j,k,iqr)/delt
-          else
-            svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k)
-            thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k)
-            qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k)
-            ! adjust negative qr tendencies at the end of the time-step
-          end if
+          thlp(i,j,k) = thlp(i,j,k) + thlpmcr(i,j,k)
+          qtp(i,j,k) = qtp(i,j,k) + qtpmcr(i,j,k)
+          svp(i,j,k,iqr) = svp(i,j,k,iqr) + qrp(i,j,k)
+          ! clip the qr tendency so that qr >= 0 next step
+          svp(i,j,k,iqr) = max(svp(i,j,k,iqr), -svm(i,j,k,iqr)/delt)
         enddo
       enddo
     enddo
