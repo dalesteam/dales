@@ -261,7 +261,7 @@ contains
     use modfields,      only : u0,v0,w0,u0av,v0av
     use modmpi,         only : comm3d,mpi_sum,mpierr, &
                                slabsum, D_MPI_ALLREDUCE
-    use advec_2nd,      only : advecc_2nd
+    use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
     use advec_52,       only : advecc_52
     use advec_5th,      only : advecc_5th
     use advec_62,       only : advecc_62
@@ -417,7 +417,8 @@ contains
 
     select case(iadv_var)
       case(iadv_cd2)
-        call advecc_2nd(varxfmn,term)
+        call hadvecc_2nd(varxfmn,term)
+        call vadvecc_2nd(varxfmn,term)
       case(iadv_5th)
         call advecc_5th(varxfmn,term)
       case(iadv_52)

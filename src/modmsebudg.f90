@@ -97,7 +97,7 @@ contains
                          iadv_cd6,iadv_62,iadv_kappa,   &
                          iadv_hybrid,iadv_hybrid_f
 
-    use advec_2nd,      only : advecc_2nd
+    use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
     use advec_52,       only : advecc_52
     use advec_5th,      only : advecc_5th
     use advec_62,       only : advecc_62
@@ -114,7 +114,8 @@ contains
 
     select case(iadv)
       case(iadv_cd2)
-        call advecc_2nd(a_in,a_out)
+        call hadvecc_2nd(a_in,a_out)
+        call vadvecc_2nd(a_in,a_out)
       case(iadv_5th)
         call advecc_5th(a_in,a_out)
       case(iadv_52)

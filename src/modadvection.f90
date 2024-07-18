@@ -36,7 +36,7 @@ subroutine advection
                              lopenbc,lboundary,lperiodic
   use modfields,      only : u0,up,v0,vp,w0,wp,e120,e12p,thl0,thlp,qt0,qtp,sv0,svp
   use modsubgrid,     only : lsmagorinsky
-  use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, advecc_2nd
+  use advec_2nd,      only : advecu_2nd, advecv_2nd, advecw_2nd, hadvecc_2nd, vadvecc_2nd
   use advec_52,       only : advecu_52, advecv_52, advecw_52, advecc_52
   use advec_5th,      only : advecu_5th, advecv_5th, advecw_5th, advecc_5th
   use advec_62,       only : advecu_62, advecv_62, advecw_62, advecc_62
@@ -101,7 +101,8 @@ subroutine advection
   if (.not. lsmagorinsky) then
     select case(iadv_tke)
       case(iadv_cd2)
-        call advecc_2nd(e120,e12p)
+        call hadvecc_2nd(e120,e12p)
+        call vadvecc_2nd(e120,e12p)
       case(iadv_5th)
         !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
         call advecc_5th(e120,e12p)
@@ -129,7 +130,8 @@ subroutine advection
   end if
   select case(iadv_thl)
     case(iadv_cd2)
-      call advecc_2nd(thl0,thlp)
+      call hadvecc_2nd(thl0,thlp)
+      call vadvecc_2nd(thl0,thlp)
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecc_5th(thl0,thlp)
@@ -160,7 +162,8 @@ subroutine advection
   if (lmoist) then
     select case(iadv_qt)
       case(iadv_cd2)
-        call advecc_2nd(qt0,qtp)
+        call hadvecc_2nd(qt0,qtp)
+        call vadvecc_2nd(qt0,qtp)
       case(iadv_5th)
         !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
         call advecc_5th(qt0,qtp)
@@ -193,7 +196,8 @@ subroutine advection
   do n=1,nsv
     select case(iadv_sv(n))
     case(iadv_cd2)
-      call advecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
+      call hadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
+      call vadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecc_5th(sv0(:,:,:,n),svp(:,:,:,n))

@@ -535,6 +535,8 @@ subroutine initsamptend
   end subroutine samptend
 
   subroutine leibniztend
+    ! If the sampling region changes in time, need to compute Leibniz terms to get total
+    ! time derivative
     use modmpi,    only : slabsum
     use modglobal, only : i1,j1,kmax,k1,ih,jh,&
                           cp,rv,rlv,rd,&

@@ -32,11 +32,11 @@
 module advec_2nd
 use modprecision, only : field_r
 contains
-!> Advection at cell center
-subroutine advecc_2nd(a_in,a_out)
+!> Horizontal advection at cell center
+subroutine hadvecc_2nd(a_in,a_out)
 
-  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzfi,dzhi,leq
-  use modfields, only : u0, v0, w0, rhobf
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5
+  use modfields, only : u0, v0
   implicit none
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
@@ -60,6 +60,21 @@ subroutine advecc_2nd(a_in,a_out)
       end do
     end do
   end do
+  !$acc wait
+  
+end subroutine hadvecc_2nd
+
+!> Vertical advection at cell center
+subroutine vadvecc_2nd(a_in,a_out)
+
+  use modglobal, only : i1,ih,j1,jh,k1,kmax,dzi5,dzf,dzfi,dzhi,leq
+  use modfields, only : w0, rhobf
+  implicit none
+
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
+  real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+
+  integer :: i,j,k
 
   if (leq) then ! equidistant grid
     !$acc parallel loop collapse(2) default(present) wait(1) async(2)
@@ -107,7 +122,7 @@ subroutine advecc_2nd(a_in,a_out)
   end if
   !$acc wait
 
-end subroutine advecc_2nd
+end subroutine vadvecc_2nd
 
 
 !> Advection at the u point.
