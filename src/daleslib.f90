@@ -454,7 +454,7 @@ module daleslib
             use modcloudfield,      only : cloudfield
             use modfielddump,       only : fielddump
             use modradfield,        only : radfield
-            use modsamptend,        only : samptend,tend_start,tend_adv,tend_subg,tend_force,&
+            use modsamptend,        only : samptend,tend_start,tend_subg,tend_force,&
                 tend_rad,tend_ls,tend_micro,tend_topbound,tend_pois,tend_addon,tend_coriolis,leibniztend
 
             use modbulkmicrostat,   only : bulkmicrostat
@@ -499,7 +499,6 @@ module daleslib
             !   3.3   ADVECTION AND DIFFUSION
             !-----------------------------------------------------
             call advection
-            call samptend(tend_adv)
             !call check_tend('after advection')
             call subgrid
             ! call check_tend('after subgrid')
