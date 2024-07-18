@@ -40,7 +40,7 @@ subroutine advection
                              hadvecw_2nd, vadvecw_2nd, hadvecc_2nd, vadvecc_2nd
   use advec_52,       only : hadvecu_52, hadvecv_52, hadvecw_52, hadvecc_52
   use advec_5th,      only : advecu_5th, advecv_5th, advecw_5th, advecc_5th
-  use advec_62,       only : advecu_62, advecv_62, advecw_62, hadvecc_62
+  use advec_62,       only : hadvecu_62, hadvecv_62, hadvecw_62, hadvecc_62
   use advec_6th,      only : advecu_6th, advecv_6th, advecw_6th, advecc_6th
   use advec_hybrid,   only : advecc_hybrid
   use advec_hybrid_f, only : advecc_hybrid_f
@@ -85,9 +85,12 @@ subroutine advection
       call advecv_6th(v0,vp)
       call advecw_6th(w0,wp)
     case(iadv_62)
-      call advecu_62(u0,up)
-      call advecv_62(v0,vp)
-      call advecw_62(w0,wp)
+      call hadvecu_62(u0,up)
+      call vadvecu_2nd(u0,up,sx)
+      call hadvecv_62(v0,vp)
+      call vadvecv_2nd(v0,vp,sy)
+      call hadvecw_62(w0,wp)
+      call vadvecw_2nd(w0,wp)
     case(iadv_hybrid)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call advecu_5th(u0,up)
