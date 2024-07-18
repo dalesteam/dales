@@ -33,7 +33,7 @@ module modsamptend
   public :: initsamptend, samptend, exitsamptend, leibniztend
   save
 !NetCDF variables
-  integer, parameter :: nvar = 66
+  integer, parameter :: nvar = 73
   character(80),allocatable,dimension(:,:,:) :: ncname
   character(80),dimension(1,4) :: tncname
   integer(kind=longint) :: idtav,itimeav,tnext,tnextwrite
