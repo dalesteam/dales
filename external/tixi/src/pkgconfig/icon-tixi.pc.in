@@ -1,0 +1,14 @@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+libdir=@libdir@
+includedir=@includedir@
+ccompiler=@CC@
+fccompiler=@FC@
+
+Name: @PACKAGE_NAME@
+Description: A limited version of the tixi library for ICON
+URL: @PACKAGE_URL@
+Version: @VERSION@
+Cflags: -I${includedir}
+Libs: -L${libdir} @TIXI_PKGCONF_CLIBS@
+

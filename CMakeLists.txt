@@ -286,4 +286,5 @@ set(FIELD_PRECISION 64 CACHE STRING "Precision for fields in modfields.f90 (defa
 set(opt_flags "${opt_flags} -DPOIS_PRECISION=${POIS_PRECISION} -DFIELD_PRECISION=${FIELD_PRECISION}")
 string(APPEND CMAKE_Fortran_FLAGS "${opt_flags}")
 
+add_subdirectory(external)
 ADD_SUBDIRECTORY(src)
