@@ -198,7 +198,7 @@ subroutine initsamptend
       fname(10:12) = cexpnr
       call open_nc(fname,ncid,nrec,n3=kmax)
     end if
-    
+
     call define_nc( ncid,1,tncname)
     call writestat_dims_nc(ncid)
       do isamp=1,isamptot
@@ -514,8 +514,8 @@ subroutine initsamptend
     ! prognostic variable is stored in a single field which accumulates as processes are added.
     ! So each time a new process (tendterm) is added in program.f90, samptend is immediately called afterwards.
     ! Here, we keep track of both the total tendency before tendterm was added (uptm(k,tend_tot, isamp))
-    ! and load up after tendterm was added, such that the difference is due to tendterm
-    ! This is then stored in uptm(k,tendterm,isamp)
+    ! and after tendterm was added (up), such that the difference is due to tendterm
+    ! This is summed over cells in each level which satisfy tendmask, then stored in uptm(k,tendterm,isamp)
     do k=1,kmax
       uptm(k,tendterm,isamp) = sum(up (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-uptm (k,tend_tot,isamp)
       vptm(k,tendterm,isamp) = sum(vp (2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))-vptm (k,tend_tot,isamp)
@@ -708,14 +708,12 @@ subroutine initsamptend
     use modglobal, only : kmax,k1,rtimee
     use modmpi,    only : mpi_integer,myid,comm3d,mpierr,mpi_sum &
                         , D_MPI_ALLREDUCE
-    use modstat_nc, only: lnetcdf,writestat_nc
+    use modstat_nc, only: lnetcdf
     implicit none
     integer :: field,k
-    real, allocatable :: vars(:,:)
 
     if (.not. lsamptend) return
 
-    allocate(vars(1:k1,nvar))
     upmn = 0.
     vpmn = 0.
     wpmn = 0.
@@ -725,14 +723,27 @@ subroutine initsamptend
     nrpmn = 0.
     nrsamptot=0
 
-    call D_MPI_ALLREDUCE(nrsamp   ,nrsamptot ,k1*isamptot         ,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(upav     ,upmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(vpav     ,vpmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(wpav     ,wpmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(thlpav   ,thlpmn    ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qtpav    ,qtpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qrpav    ,qrpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
-    call D_MPI_ALLREDUCE(nrpav    ,nrpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    if (lprocblock) then
+      ! Keep sums on each processor
+      nrsamptot = nrsamp
+      upmn = upav
+      vpmn = vpav
+      wpmn = wpav
+      thlpmn = thlpav
+      qtpmn = qtpav
+      qrpmn = qrpav
+      nrpmn = nrpav
+    else
+      ! Sum over all processors
+      call D_MPI_ALLREDUCE(nrsamp   ,nrsamptot ,k1*isamptot         ,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(upav     ,upmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(vpav     ,vpmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(wpav     ,wpmn      ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(thlpav   ,thlpmn    ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(qtpav    ,qtpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(qrpav    ,qrpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+      call D_MPI_ALLREDUCE(nrpav    ,nrpmn     ,k1*nrfields*isamptot,MPI_SUM,comm3d,mpierr)
+    end if
 
     do field=1,nrfields
     do isamp=1,isamptot
@@ -750,91 +761,112 @@ subroutine initsamptend
     enddo
     enddo
 
-    if(myid == 0) then
-      if (lnetcdf) then
-        call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
-        do isamp=1,isamptot
-          vars=0.
-          vars(:, 1) = upmn(:,tend_hadv,isamp)
-          vars(:, 2) = upmn(:,tend_vadv,isamp)
-          vars(:, 3) = upmn(:,tend_subg,isamp)
-          vars(:, 4) = upmn(:,tend_force,isamp)
-          vars(:, 5) = upmn(:,tend_coriolis,isamp)
-          vars(:, 6) = upmn(:,tend_ls,isamp)
-          vars(:, 7) = upmn(:,tend_topbound,isamp)
-          vars(:, 8) = upmn(:,tend_pois,isamp)
-          vars(:, 9) = upmn(:,tend_addon,isamp)
-          vars(:,10) = upmn(:,tend_tot,isamp)
-          vars(:,11) = upmn(:,tend_totlb,isamp)
-          vars(:,12) = vpmn(:,tend_hadv,isamp)
-          vars(:,13) = vpmn(:,tend_vadv,isamp)
-          vars(:,14) = vpmn(:,tend_subg,isamp)
-          vars(:,15) = vpmn(:,tend_force,isamp)
-          vars(:,16) = vpmn(:,tend_coriolis,isamp)
-          vars(:,17) = vpmn(:,tend_ls,isamp)
-          vars(:,18) = vpmn(:,tend_topbound,isamp)
-          vars(:,19) = vpmn(:,tend_pois,isamp)
-          vars(:,20) = vpmn(:,tend_addon,isamp)
-          vars(:,21) = vpmn(:,tend_tot,isamp)
-          vars(:,22) = vpmn(:,tend_totlb,isamp)
-          vars(:,23) = wpmn(:,tend_hadv,isamp)
-          vars(:,24) = wpmn(:,tend_vadv,isamp)
-          vars(:,25) = wpmn(:,tend_subg,isamp)
-          vars(:,26) = wpmn(:,tend_force,isamp)
-          vars(:,27) = wpmn(:,tend_coriolis,isamp)
-          vars(:,28) = wpmn(:,tend_ls,isamp)
-          vars(:,29) = wpmn(:,tend_topbound,isamp)
-          vars(:,30) = wpmn(:,tend_pois,isamp)
-          vars(:,31) = wpmn(:,tend_addon,isamp)
-          vars(:,32) = wpmn(:,tend_tot,isamp)
-          vars(:,33) = wpmn(:,tend_totlb,isamp)
-          vars(:,34) = thlpmn(:,tend_hadv,isamp)
-          vars(:,35) = thlpmn(:,tend_vadv,isamp)
-          vars(:,36) = thlpmn(:,tend_subg,isamp)
-          vars(:,37) = thlpmn(:,tend_rad,isamp)
-          vars(:,38) = thlpmn(:,tend_micro,isamp)
-          vars(:,39) = thlpmn(:,tend_ls,isamp)
-          vars(:,40) = thlpmn(:,tend_topbound,isamp)
-          vars(:,41) = thlpmn(:,tend_addon,isamp)
-          vars(:,42) = thlpmn(:,tend_tot,isamp)
-          vars(:,43) = thlpmn(:,tend_totlb,isamp)
-          vars(:,44) = qtpmn(:,tend_hadv,isamp)
-          vars(:,45) = qtpmn(:,tend_vadv,isamp)
-          vars(:,46) = qtpmn(:,tend_subg,isamp)
-          vars(:,47) = qtpmn(:,tend_rad,isamp)
-          vars(:,48) = qtpmn(:,tend_micro,isamp)
-          vars(:,49) = qtpmn(:,tend_ls,isamp)
-          vars(:,50) = qtpmn(:,tend_topbound,isamp)
-          vars(:,51) = qtpmn(:,tend_addon,isamp)
-          vars(:,52) = qtpmn(:,tend_tot,isamp)
-          vars(:,53) = qtpmn(:,tend_totlb,isamp)
-          vars(:,54) = qrpmn(:,tend_hadv,isamp)
-          vars(:,55) = qrpmn(:,tend_vadv,isamp)
-          vars(:,56) = qrpmn(:,tend_subg,isamp)
-          vars(:,57) = qrpmn(:,tend_rad,isamp)
-          vars(:,58) = qrpmn(:,tend_micro,isamp)
-          vars(:,59) = qrpmn(:,tend_ls,isamp)
-          vars(:,60) = qrpmn(:,tend_topbound,isamp)
-          vars(:,61) = qrpmn(:,tend_addon,isamp)
-          vars(:,62) = qrpmn(:,tend_tot,isamp)
-          vars(:,63) = qrpmn(:,tend_totlb,isamp)
-          vars(:,64) = nrpmn(:,tend_hadv,isamp)
-          vars(:,65) = nrpmn(:,tend_vadv,isamp)
-          vars(:,56) = nrpmn(:,tend_subg,isamp)
-          vars(:,67) = nrpmn(:,tend_rad,isamp)
-          vars(:,68) = nrpmn(:,tend_micro,isamp)
-          vars(:,69) = nrpmn(:,tend_ls,isamp)
-          vars(:,70) = nrpmn(:,tend_topbound,isamp)
-          vars(:,71) = nrpmn(:,tend_addon,isamp)
-          vars(:,72) = nrpmn(:,tend_tot,isamp)
-          vars(:,73) = nrpmn(:,tend_totlb,isamp)
-        call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec,kmax)
-        enddo
-      end if
+    if (lnetcdf) then
+      if (lprocblock) then
+        ! Each block writes its own budget to its own file
+        call writenetcdf()
+      else
+        ! We have averaged over all blocks and write to a single file
+        if (myid==0) then
+          call writenetcdf()
+        end if
+      end if      
     end if
-    deallocate(vars)
 
   end subroutine writesamptend
+
+
+  subroutine writenetcdf
+
+    use modstat_nc, only: writestat_nc
+    use modglobal, only : kmax,k1,rtimee
+
+    real, allocatable :: vars(:,:)
+    allocate(vars(1:k1,nvar))
+
+    call writestat_nc(ncid,1,tncname,(/rtimee/),nrec,.true.)
+    do isamp=1,isamptot
+      vars=0.
+      vars(:, 1) = upmn(:,tend_hadv,isamp)
+      vars(:, 2) = upmn(:,tend_vadv,isamp)
+      vars(:, 3) = upmn(:,tend_subg,isamp)
+      vars(:, 4) = upmn(:,tend_force,isamp)
+      vars(:, 5) = upmn(:,tend_coriolis,isamp)
+      vars(:, 6) = upmn(:,tend_ls,isamp)
+      vars(:, 7) = upmn(:,tend_topbound,isamp)
+      vars(:, 8) = upmn(:,tend_pois,isamp)
+      vars(:, 9) = upmn(:,tend_addon,isamp)
+      vars(:,10) = upmn(:,tend_tot,isamp)
+      vars(:,11) = upmn(:,tend_totlb,isamp)
+      vars(:,12) = vpmn(:,tend_hadv,isamp)
+      vars(:,13) = vpmn(:,tend_vadv,isamp)
+      vars(:,14) = vpmn(:,tend_subg,isamp)
+      vars(:,15) = vpmn(:,tend_force,isamp)
+      vars(:,16) = vpmn(:,tend_coriolis,isamp)
+      vars(:,17) = vpmn(:,tend_ls,isamp)
+      vars(:,18) = vpmn(:,tend_topbound,isamp)
+      vars(:,19) = vpmn(:,tend_pois,isamp)
+      vars(:,20) = vpmn(:,tend_addon,isamp)
+      vars(:,21) = vpmn(:,tend_tot,isamp)
+      vars(:,22) = vpmn(:,tend_totlb,isamp)
+      vars(:,23) = wpmn(:,tend_hadv,isamp)
+      vars(:,24) = wpmn(:,tend_vadv,isamp)
+      vars(:,25) = wpmn(:,tend_subg,isamp)
+      vars(:,26) = wpmn(:,tend_force,isamp)
+      vars(:,27) = wpmn(:,tend_coriolis,isamp)
+      vars(:,28) = wpmn(:,tend_ls,isamp)
+      vars(:,29) = wpmn(:,tend_topbound,isamp)
+      vars(:,30) = wpmn(:,tend_pois,isamp)
+      vars(:,31) = wpmn(:,tend_addon,isamp)
+      vars(:,32) = wpmn(:,tend_tot,isamp)
+      vars(:,33) = wpmn(:,tend_totlb,isamp)
+      vars(:,34) = thlpmn(:,tend_hadv,isamp)
+      vars(:,35) = thlpmn(:,tend_vadv,isamp)
+      vars(:,36) = thlpmn(:,tend_subg,isamp)
+      vars(:,37) = thlpmn(:,tend_rad,isamp)
+      vars(:,38) = thlpmn(:,tend_micro,isamp)
+      vars(:,39) = thlpmn(:,tend_ls,isamp)
+      vars(:,40) = thlpmn(:,tend_topbound,isamp)
+      vars(:,41) = thlpmn(:,tend_addon,isamp)
+      vars(:,42) = thlpmn(:,tend_tot,isamp)
+      vars(:,43) = thlpmn(:,tend_totlb,isamp)
+      vars(:,44) = qtpmn(:,tend_hadv,isamp)
+      vars(:,45) = qtpmn(:,tend_vadv,isamp)
+      vars(:,46) = qtpmn(:,tend_subg,isamp)
+      vars(:,47) = qtpmn(:,tend_rad,isamp)
+      vars(:,48) = qtpmn(:,tend_micro,isamp)
+      vars(:,49) = qtpmn(:,tend_ls,isamp)
+      vars(:,50) = qtpmn(:,tend_topbound,isamp)
+      vars(:,51) = qtpmn(:,tend_addon,isamp)
+      vars(:,52) = qtpmn(:,tend_tot,isamp)
+      vars(:,53) = qtpmn(:,tend_totlb,isamp)
+      vars(:,54) = qrpmn(:,tend_hadv,isamp)
+      vars(:,55) = qrpmn(:,tend_vadv,isamp)
+      vars(:,56) = qrpmn(:,tend_subg,isamp)
+      vars(:,57) = qrpmn(:,tend_rad,isamp)
+      vars(:,58) = qrpmn(:,tend_micro,isamp)
+      vars(:,59) = qrpmn(:,tend_ls,isamp)
+      vars(:,60) = qrpmn(:,tend_topbound,isamp)
+      vars(:,61) = qrpmn(:,tend_addon,isamp)
+      vars(:,62) = qrpmn(:,tend_tot,isamp)
+      vars(:,63) = qrpmn(:,tend_totlb,isamp)
+      vars(:,64) = nrpmn(:,tend_hadv,isamp)
+      vars(:,65) = nrpmn(:,tend_vadv,isamp)
+      vars(:,56) = nrpmn(:,tend_subg,isamp)
+      vars(:,67) = nrpmn(:,tend_rad,isamp)
+      vars(:,68) = nrpmn(:,tend_micro,isamp)
+      vars(:,69) = nrpmn(:,tend_ls,isamp)
+      vars(:,70) = nrpmn(:,tend_topbound,isamp)
+      vars(:,71) = nrpmn(:,tend_addon,isamp)
+      vars(:,72) = nrpmn(:,tend_tot,isamp)
+      vars(:,73) = nrpmn(:,tend_totlb,isamp)
+    call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec,kmax)
+    enddo
+
+    deallocate(vars)
+
+  end subroutine writenetcdf
+
 
 !> Cleans up after the run
   subroutine exitsamptend
