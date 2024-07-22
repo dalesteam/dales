@@ -262,10 +262,8 @@ contains
     use modmpi,         only : comm3d,mpi_sum,mpierr, &
                                slabsum, D_MPI_ALLREDUCE
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
-    use advec_52,       only : hadvecc_52
-    use advec_5th,      only : advecc_5th
-    use advec_62,       only : hadvecc_62
-    use advec_6th,      only : advecc_6th
+    use advec_5th,      only : hadvecc_5th, vadvecc_5th
+    use advec_6th,      only : hadvecc_6th, vadvecc_6th
     use advec_hybrid,   only : advecc_hybrid
     use advec_hybrid_f, only : advecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
@@ -420,14 +418,16 @@ contains
         call hadvecc_2nd(varxfmn,term)
         call vadvecc_2nd(varxfmn,term)
       case(iadv_5th)
-        call advecc_5th(varxfmn,term)
+        call hadvecc_5th(varxfmn,term)
+        call vadvecc_5th(varxfmn,term)
       case(iadv_52)
-        call hadvecc_52(varxfmn,term)
+        call hadvecc_5th(varxfmn,term)
         call vadvecc_2nd(varxfmn,term)
       case(iadv_cd6)
-        call advecc_6th(varxfmn,term)
+        call hadvecc_6th(varxfmn,term)
+        call vadvecc_6th(varxfmn,term)
       case(iadv_62)
-        call hadvecc_62(varxfmn,term)
+        call hadvecc_6th(varxfmn,term)
         call vadvecc_2nd(varxfmn,term)
       case(iadv_kappa)
         call hadvecc_kappa(varxfmn,term)
@@ -464,14 +464,16 @@ contains
         call hadvecc_2nd(varxfdev,term)
         call vadvecc_2nd(varxfdev,term)
       case(iadv_5th)
-        call advecc_5th(varxfdev,term)
+        call hadvecc_5th(varxfdev,term)
+        call vadvecc_5th(varxfdev,term)
       case(iadv_52)
-        call hadvecc_52(varxfdev,term)
+        call hadvecc_5th(varxfdev,term)
         call vadvecc_2nd(varxfdev,term)
       case(iadv_cd6)
-        call advecc_6th(varxfdev,term)
+        call hadvecc_6th(varxfdev,term)
+        call vadvecc_6th(varxfdev,term)
       case(iadv_62)
-        call hadvecc_62(varxfdev,term)
+        call hadvecc_6th(varxfdev,term)
         call vadvecc_2nd(varxfdev,term)
       case(iadv_kappa)
         call hadvecc_kappa(varxfdev,term)

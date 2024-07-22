@@ -98,10 +98,8 @@ contains
                          iadv_hybrid,iadv_hybrid_f
 
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
-    use advec_52,       only : hadvecc_52
-    use advec_5th,      only : advecc_5th
-    use advec_62,       only : hadvecc_62
-    use advec_6th,      only : advecc_6th
+    use advec_5th,      only : hadvecc_5th, vadvecc_5th
+    use advec_6th,      only : hadvecc_6th, vadvecc_6th 
     use advec_hybrid,   only : advecc_hybrid
     use advec_hybrid_f, only : advecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
@@ -117,14 +115,16 @@ contains
         call hadvecc_2nd(a_in,a_out)
         call vadvecc_2nd(a_in,a_out)
       case(iadv_5th)
-        call advecc_5th(a_in,a_out)
+        call hadvecc_5th(a_in,a_out)
+        call vadvecc_5th(a_in,a_out)
       case(iadv_52)
-        call hadvecc_52(a_in,a_out)
+        call hadvecc_5th(a_in,a_out)
         call vadvecc_2nd(a_in,a_out)
       case(iadv_cd6)
-        call advecc_6th(a_in,a_out)
+        call hadvecc_6th(a_in,a_out)
+        call vadvecc_6th(a_in,a_out)
       case(iadv_62)
-        call hadvecc_62(a_in,a_out)
+        call hadvecc_6th(a_in,a_out)
         call vadvecc_2nd(a_in,a_out)
       case(iadv_kappa)
         call hadvecc_kappa(a_in,a_out)
