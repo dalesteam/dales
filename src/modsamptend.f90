@@ -30,7 +30,7 @@ module modsamptend
   use modsampdata
   implicit none
   private
-  public :: initsamptend, samptend, exitsamptend, leibniztend
+  public :: initsamptend, samptend, exitsamptend, leibniztend, writesamptend
   save
 !NetCDF variables
   character(80),allocatable,dimension(:,:,:) :: ncname
@@ -41,7 +41,7 @@ module modsamptend
   integer,parameter :: nrfields = 13
   character(20),dimension(10) :: samplname,longsamplname
   integer :: nsamples,isamp,isamptot
-  logical :: ldosamptendwrite = .false. !< write tendencies after leibniz terms have been detemined
+  logical :: ldosamptendwrite = .false. !< write tendencies
   logical :: ldosamptendleib = .false. !< determine leibniz terms
   real :: lastrk3coef
 
@@ -123,15 +123,14 @@ subroutine initsamptend
 
     if (lsamptendu) allocate (uptm(k1,nrfields,isamptot), upmn(k1,nrfields,isamptot), upav(k1,nrfields,isamptot), ust(k1,isamptot))
     if (lsamptendv) allocate (vptm(k1,nrfields,isamptot), vpmn(k1,nrfields,isamptot), vpav(k1,nrfields,isamptot), vst(k1,isamptot))
-    if (lsamptendw) allocate (wptm(k1,nrfields,isamptot), wpmn(k1,nrfields,isamptot), wpav(k1,nrfields,isamptot))
+    if (lsamptendw) allocate (wptm(k1,nrfields,isamptot), wpmn(k1,nrfields,isamptot), wpav(k1,nrfields,isamptot), wst(k1,isamptot))
     if (lsamptendthl) allocate (thlptm(k1,nrfields,isamptot), thlpmn(k1,nrfields,isamptot), thlpav(k1,nrfields,isamptot), thlst(k1,isamptot))
     if (lsamptendqt) allocate (qtptm(k1,nrfields,isamptot), qtpmn(k1,nrfields,isamptot), qtpav(k1,nrfields,isamptot), qtst(k1,isamptot))
     if (lsamptendqr) allocate (qrptm(k1,nrfields,isamptot), qrpmn(k1,nrfields,isamptot), qrpav(k1,nrfields,isamptot), qrst(k1,isamptot))
     if (lsamptendnr) allocate (nrptm(k1,nrfields,isamptot), nrpmn(k1,nrfields,isamptot), nrpav(k1,nrfields,isamptot), nrst(k1,isamptot))
 
+    ! Needed to decompose advective terms
     if (ltenddec) allocate (wav(k1,isamptot))
-    ! Need wst for leibniz terms or for advection decomposition
-    if (ltenddec .or. lsamptendw) allocate(wst(k1,isamptot))
 
     ! Only allocate these if you have the budget for a scalar and you want to decompose that scalar's budget
     if (ltenddec .and. lsamptendthl) allocate(thlav(k1,isamptot))
@@ -162,9 +161,6 @@ subroutine initsamptend
     end if
     if (lsamptendnr) then
      nrptm = 0.; nrpmn = 0.; nrpav = 0.; nrst = 0.
-    end if
-    if (ltenddec) then
-      wst = 0.;
     end if
 
     tendmask=.false.
@@ -246,9 +242,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'U in addons tendency','m/s^2',dimst)
         call ncinfo(ncname(ifield + 10,:,isamp),'utendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'U total tendency','m/s^2',dimst)
-        call ncinfo(ncname(ifield +11,:,isamp),'utendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'U total tendency with leibniz terms','m/s^2',dimst)
-        ifield = ifield + 11
+        ifield = ifield + 10
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'utendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'U total tendency with leibniz terms','m/s^2',dimst)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendv) then
         call ncinfo(ncname(ifield +1,:,isamp),'vtendhadv'//samplname(isamp),&
@@ -271,9 +270,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'V in addons tendency','m/s^2',dimst)
         call ncinfo(ncname(ifield +10,:,isamp),'vtendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'V total tendency','m/s^2',dimst)
-        call ncinfo(ncname(ifield +11,:,isamp),'vtendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'V total tendency with leibniz terms','m/s^2',dimst)
-        ifield = ifield + 11
+        ifield = ifield + 10
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'vtendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'V total tendency with leibniz terms','m/s^2',dimst)
+          ifield = ifield +1
+        end if
       end if
       if (lsamptendw) then
         call ncinfo(ncname(ifield +1,:,isamp),'wtendhadv'//samplname(isamp),&
@@ -296,9 +298,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'W in addons tendency','m/s^2',dimsm)
         call ncinfo(ncname(ifield +10,:,isamp),'wtendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'W total tendency','m/s^2',dimsm)
-        call ncinfo(ncname(ifield +11,:,isamp),'wtendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'W total tendency with leibniz terms','m/s^2',dimst)
-        ifield = ifield + 11
+        ifield = ifield + 10
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'wtendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'W total tendency with leibniz terms','m/s^2',dimst)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendthl) then
         call ncinfo(ncname(ifield +1,:,isamp),'thltendhadv'//samplname(isamp),&
@@ -319,9 +324,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'theta_l in addons tendency','K/s',dimst)
         call ncinfo(ncname(ifield +9,:,isamp),'thltendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'theta_l total tendency','K/s',dimst)
-        call ncinfo(ncname(ifield +10,:,isamp),'thltendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'theta_l total tendency with leibniz terms','K/s',dimst)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'thltendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'theta_l total tendency with leibniz terms','K/s',dimst)
+          ifield = ifield + 1
+        end if
         if (ltenddec) then
           call ncinfo(ncname(ifield +1,:,isamp),'thlm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'theta_l block average','K',dimst)
@@ -347,9 +355,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'total water content in addons tendency','kg/kg/s',dimst)
         call ncinfo(ncname(ifield +9,:,isamp),'qttendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'total water content total tendency','kg/kg/s',dimst)
-        call ncinfo(ncname(ifield +10,:,isamp),'qttendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'total water content total tendency with leibniz terms','kg/kg/s',dimst)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'qttendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'total water content total tendency with leibniz terms','kg/kg/s',dimst)
+          ifield = ifield + 1
+        end if
         if (ltenddec) then
           call ncinfo(ncname(ifield +1,:,isamp),'qtm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'total water content block average','kg/kg',dimst)
@@ -375,9 +386,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'rain water content in addons tendency','kg/kg/s',dimst)
         call ncinfo(ncname(ifield +9,:,isamp),'qrtendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'rain water content total tendency','kg/kg/s',dimst)
-        call ncinfo(ncname(ifield +10,:,isamp),'qrtendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'rain water content total tendency with leibniz terms','kg/kg/s',dimst)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'qrtendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'rain water content total tendency with leibniz terms','kg/kg/s',dimst)
+          ifield = ifield + 1
+        end if        
         if (ltenddec) then
           call ncinfo(ncname(ifield +1,:,isamp),'qrm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'rain water content block average','kg/kg',dimst)   
@@ -403,9 +417,12 @@ subroutine initsamptend
         trim(longsamplname(isamp))//' '//'RDNC addons tendency','/kg/s',dimst)
         call ncinfo(ncname(ifield +9,:,isamp),'nrtendtot'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'RDNC total tendency','/kg/s',dimst)
-        call ncinfo(ncname(ifield +10,:,isamp),'nrtendleib'//samplname(isamp),&
-        trim(longsamplname(isamp))//' '//'RDNC total tendency with leibniz terms','/kg/s',dimst)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          call ncinfo(ncname(ifield +1,:,isamp),'nrtendleib'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'RDNC total tendency with leibniz terms','/kg/s',dimst)
+          ifield = ifield + 1
+        end if
         if (ltenddec) then
           call ncinfo(ncname(ifield +5,:,isamp),'nrm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'RDNC block average','kg/kg',dimst)
@@ -477,9 +494,6 @@ subroutine initsamptend
       end if
       if (lsamptendnr) then
         nrptm = 0.; nrst = 0.
-      end if
-      if (ltenddec) then
-        wst = 0.
       end if
       
       if (lsampco .or. lsampbuup) then
@@ -573,7 +587,7 @@ subroutine initsamptend
       do k=1,kmax
         if (lsamptendu) ust(k,isamp) = sum(u0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
         if (lsamptendv) vst(k,isamp) = sum(v0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
-        if (lsamptendw .or. ltenddec) wst(k,isamp) = sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
+        if (lsamptendw) wst(k,isamp) = sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
         if (lsamptendthl) thlst(k,isamp) = sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
         if (lsamptendqt) qtst(k,isamp) = sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))
         if(nsv>1) then
@@ -583,7 +597,7 @@ subroutine initsamptend
       end do
       end do
 
-      ldosamptendleib=.true.
+      if (ltendleib) ldosamptendleib=.true.
       lastrk3coef = rdt / (4. - dble(rk3step))
 
     ENDIF
@@ -714,6 +728,9 @@ subroutine initsamptend
         enddo
       end if
 
+      ! Calculate the decomposed advection terms
+      call decomposedadvtend
+
       tnext = tnext+idtav
 
       if (timee>=tnextwrite) then
@@ -725,6 +742,77 @@ subroutine initsamptend
     END IF
 
   end subroutine samptend
+
+  subroutine decomposedadvtend
+    ! Terms/variables needed to scale-decompose the advection terms, for each selected budget
+    use modglobal, only : i1,j1,kmax,k1,ih,jh,&
+                          ijtot,nsv
+    use modfields, only : w0,thl0,ql0,exnf,qt0,u0,v0,sv0
+    use modmicrodata, only : iqr,inr
+    implicit none
+    integer :: i,j,k
+
+    if (.not. lsamptend) return
+    if(.not.(ltenddec)) return
+
+    if (ltenddec) wav = 0.
+    if (ltenddec .and. lsamptendthl) thlav = 0.
+    if (ltenddec .and. lsamptendqt) qtav = 0.
+    if (ltenddec .and. lsamptendqr) qrav = 0.
+    if (ltenddec .and. lsamptendnr) nrav = 0.
+
+    if (ltenddec) then
+      do isamp=1,isamptot
+      do k=1,k1
+        if (nrsamp(k,isamp)>0) then
+          wav (k,isamp) = sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
+        endif
+      enddo
+      enddo
+      if (lsamptendthl) then
+        do isamp=1,isamptot
+        do k=1,k1
+          if (nrsamp(k,isamp)>0) then
+            thlav (k,isamp) = sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
+          endif
+        enddo
+        enddo
+      end if
+      if (lsamptendqt) then
+        do isamp=1,isamptot
+        do k=1,k1
+          if (nrsamp(k,isamp)>0) then
+            qtav (k,isamp) = sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
+          endif
+        enddo
+        enddo
+      end if
+      if (lsamptendqr) then
+        do isamp=1,isamptot
+        do k=1,k1
+          if (nrsamp(k,isamp)>0) then
+            qrav (k,isamp) = sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
+          endif
+        enddo
+        enddo
+      end if
+      if (lsamptendnr) then
+        do isamp=1,isamptot
+        do k=1,k1
+          if (nrsamp(k,isamp)>0) then
+            nrav (k,isamp) = sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
+          endif
+        enddo
+        enddo
+      end if
+    end if
+
+  end subroutine decomposedadvtend
+
+  ! Make its own subroutine which, like leibniztend, does the decomposed variables
+  ! Since (block) averaging is only done in writesamptend, but you need the actual averages to compute fluctuations,
+  ! we actually need to compute averages for state variables here. Since leibniztend assumes division by nrsamp has not happened,
+  ! this needs to occur after leibniztend would have been called, i.e. stick this subroutine after lebniztend in program.f90
 
   subroutine leibniztend
     ! If the sampling region changes in time, need to compute Leibniz terms to get total
@@ -846,19 +934,6 @@ subroutine initsamptend
 
     if (lsampup .or. lsampbuup .or. lsampcldup) deallocate(w0f)
 
-    if(ldosamptendwrite) then
-      ldosamptendwrite=.false.
-      call writesamptend
-      if (lsamptendu) upav = 0.
-      if (lsamptendv) vpav = 0.
-      if (lsamptendw) wpav = 0.
-      if (lsamptendthl) thlpav = 0.
-      if (lsamptendqt) qtpav = 0.
-      if (lsamptendqr) qrpav = 0.
-      if (lsamptendnr) nrpav = 0.
-      nrsamp = 0
-    endif
-
   end subroutine leibniztend
 
 !> Write the statistics to file
@@ -871,6 +946,9 @@ subroutine initsamptend
     integer :: field,k
 
     if (.not. lsamptend) return
+    if (.not. ldosamptendwrite) return
+
+    ldosamptendwrite=.false.
 
     if (lsamptendu) upmn = 0.
     if (lsamptendv) vpmn = 0.
@@ -879,11 +957,6 @@ subroutine initsamptend
     if (lsamptendqt) qtpmn = 0.
     if (lsamptendqr) qrpmn = 0.
     if (lsamptendnr) nrpmn = 0.
-    if (ltenddec) wav = 0.
-    if (ltenddec .and. lsamptendthl) thlav = 0.
-    if (ltenddec .and. lsamptendqt) qtav = 0.
-    if (ltenddec .and. lsamptendqr) qrav = 0.
-    if (ltenddec .and. lsamptendnr) nrav = 0.
     nrsamptot=0
 
     if (lprocblock) then
@@ -924,53 +997,6 @@ subroutine initsamptend
     enddo
     enddo
 
-    ! Write variables needed to scale-decompose the advection terms, for each selected budget
-    if (ltenddec) then
-      do isamp=1,isamptot
-      do k=1,k1
-        if (nrsamptot(k,isamp)>0) then
-          wav (k,isamp) = wst (k,isamp)/nrsamptot(k,isamp)
-        endif
-      enddo
-      enddo
-      if (lsamptendthl) then
-        do isamp=1,isamptot
-        do k=1,k1
-          if (nrsamptot(k,isamp)>0) then
-            thlav (k,isamp) = thlst (k,isamp)/nrsamptot(k,isamp)
-          endif
-        enddo
-        enddo
-      end if
-      if (lsamptendqt) then
-        do isamp=1,isamptot
-        do k=1,k1
-          if (nrsamptot(k,isamp)>0) then
-            qtav (k,isamp) = qtst (k,isamp)/nrsamptot(k,isamp)
-          endif
-        enddo
-        enddo
-      end if
-      if (lsamptendqr) then
-        do isamp=1,isamptot
-        do k=1,k1
-          if (nrsamptot(k,isamp)>0) then
-            qrav (k,isamp) = qrst (k,isamp)/nrsamptot(k,isamp)
-          endif
-        enddo
-        enddo
-      end if
-      if (lsamptendnr) then
-        do isamp=1,isamptot
-        do k=1,k1
-          if (nrsamptot(k,isamp)>0) then
-            nrav (k,isamp) = nrst (k,isamp)/nrsamptot(k,isamp)
-          endif
-        enddo
-        enddo
-      end if
-    end if
-
     if (lnetcdf) then
       if (lprocblock) then
         ! Each block writes its own budget to its own file
@@ -982,6 +1008,15 @@ subroutine initsamptend
         end if
       end if      
     end if
+
+    if (lsamptendu) upav = 0.
+    if (lsamptendv) vpav = 0.
+    if (lsamptendw) wpav = 0.
+    if (lsamptendthl) thlpav = 0.
+    if (lsamptendqt) qtpav = 0.
+    if (lsamptendqr) qrpav = 0.
+    if (lsamptendnr) nrpav = 0.
+    nrsamp = 0
 
   end subroutine writesamptend
 
@@ -1012,8 +1047,11 @@ subroutine initsamptend
         vars(:, ifield+8) = upmn(:,tend_pois,isamp)
         vars(:, ifield+9) = upmn(:,tend_addon,isamp)
         vars(:,ifield+10) = upmn(:,tend_tot,isamp)
-        vars(:,ifield+11) = upmn(:,tend_totlb,isamp)
-        ifield = ifield+11
+        ifield = ifield+10
+        if (ltendleib) then
+          vars(:,ifield+1) = upmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendv) then
         vars(:,ifield+1) = vpmn(:,tend_hadv,isamp)
@@ -1026,8 +1064,11 @@ subroutine initsamptend
         vars(:,ifield+8) = vpmn(:,tend_pois,isamp)
         vars(:,ifield+9) = vpmn(:,tend_addon,isamp)
         vars(:,ifield+10) = vpmn(:,tend_tot,isamp)
-        vars(:,ifield+11) = vpmn(:,tend_totlb,isamp)
-        ifield = ifield+11
+        ifield = ifield+10
+        if (ltendleib) then
+          vars(:,ifield+1) = vpmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendw) then
         vars(:,ifield+1) = wpmn(:,tend_hadv,isamp)
@@ -1040,8 +1081,11 @@ subroutine initsamptend
         vars(:,ifield+8) = wpmn(:,tend_pois,isamp)
         vars(:,ifield+9) = wpmn(:,tend_addon,isamp)
         vars(:,ifield+10) = wpmn(:,tend_tot,isamp)
-        vars(:,ifield+11) = wpmn(:,tend_totlb,isamp)
-        ifield = ifield+11
+        ifield = ifield+10
+        if (ltendleib) then
+          vars(:,ifield+1) = wpmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendthl) then
         vars(:,ifield+1) = thlpmn(:,tend_hadv,isamp)
@@ -1053,8 +1097,11 @@ subroutine initsamptend
         vars(:,ifield+7) = thlpmn(:,tend_topbound,isamp)
         vars(:,ifield+8) = thlpmn(:,tend_addon,isamp)
         vars(:,ifield+9) = thlpmn(:,tend_tot,isamp)
-        vars(:,ifield+10) = thlpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield+9
+        if (ltendleib) then
+          vars(:,ifield+1) = thlpmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendqt) then
         vars(:,ifield+1) = qtpmn(:,tend_hadv,isamp)
@@ -1066,8 +1113,11 @@ subroutine initsamptend
         vars(:,ifield+7) = qtpmn(:,tend_topbound,isamp)
         vars(:,ifield+8) = qtpmn(:,tend_addon,isamp)
         vars(:,ifield+9) = qtpmn(:,tend_tot,isamp)
-        vars(:,ifield+10) = qtpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          vars(:,ifield+1) = qtpmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendqr) then
         vars(:,ifield+1) = qrpmn(:,tend_hadv,isamp)
@@ -1079,8 +1129,11 @@ subroutine initsamptend
         vars(:,ifield+7) = qrpmn(:,tend_topbound,isamp)
         vars(:,ifield+8) = qrpmn(:,tend_addon,isamp)
         vars(:,ifield+9) = qrpmn(:,tend_tot,isamp)
-        vars(:,ifield+10) = qrpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          vars(:,ifield+1) = qrpmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
       if (lsamptendnr) then
         vars(:,ifield+1) = nrpmn(:,tend_hadv,isamp)
@@ -1092,8 +1145,11 @@ subroutine initsamptend
         vars(:,ifield+7) = nrpmn(:,tend_topbound,isamp)
         vars(:,ifield+8) = nrpmn(:,tend_addon,isamp)
         vars(:,ifield+9) = nrpmn(:,tend_tot,isamp)
-        vars(:,ifield+10) = nrpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield + 9
+        if (ltendleib) then
+          vars(:,ifield+1) = nrpmn(:,tend_totlb,isamp)
+          ifield = ifield + 1
+        end if
       end if
     nvar = ifield
     call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(1:kmax,:),nrec,kmax)
@@ -1129,8 +1185,11 @@ subroutine initsamptend
         vars(1, 1, :, ifield+8) = upmn(:,tend_pois,isamp)
         vars(1, 1, :, ifield+9) = upmn(:,tend_addon,isamp)
         vars(1, 1, :,ifield+10) = upmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+11) = upmn(:,tend_totlb,isamp)
-        ifield = ifield+11
+        ifield = ifield+10
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = upmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if
       end if
       if (lsamptendv) then
         vars(1, 1, :,ifield+1) = vpmn(:,tend_hadv,isamp)
@@ -1143,8 +1202,11 @@ subroutine initsamptend
         vars(1, 1, :,ifield+8) = vpmn(:,tend_pois,isamp)
         vars(1, 1, :,ifield+9) = vpmn(:,tend_addon,isamp)
         vars(1, 1, :,ifield+10) = vpmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+11) = vpmn(:,tend_totlb,isamp)
-        ifield = ifield+11
+        ifield = ifield+10
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = vpmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if
       end if
       if (lsamptendw) then
         vars(1, 1, :,ifield+1) = wpmn(:,tend_hadv,isamp)
@@ -1157,8 +1219,11 @@ subroutine initsamptend
         vars(1, 1, :,ifield+8) = wpmn(:,tend_pois,isamp)
         vars(1, 1, :,ifield+9) = wpmn(:,tend_addon,isamp)
         vars(1, 1, :,ifield+10) = wpmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+11) = wpmn(:,tend_totlb,isamp)
-        ifield = ifield+11
+        ifield = ifield+10
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = wpmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if
       end if
       if (lsamptendthl) then
         vars(1, 1, :,ifield+1) = thlpmn(:,tend_hadv,isamp)
@@ -1170,8 +1235,11 @@ subroutine initsamptend
         vars(1, 1, :,ifield+7) = thlpmn(:,tend_topbound,isamp)
         vars(1, 1, :,ifield+8) = thlpmn(:,tend_addon,isamp)
         vars(1, 1, :,ifield+9) = thlpmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+10) = thlpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield+9
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = thlpmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if
         if (ltenddec) then
           vars(1, 1, :,ifield+1) = thlav(:,isamp)
           ifield = ifield + 1
@@ -1187,8 +1255,11 @@ subroutine initsamptend
         vars(1, 1, :,ifield+7) = qtpmn(:,tend_topbound,isamp)
         vars(1, 1, :,ifield+8) = qtpmn(:,tend_addon,isamp)
         vars(1, 1, :,ifield+9) = qtpmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+10) = qtpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield+9
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = qtpmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if        
         if (ltenddec) then
           vars(1, 1, :,ifield+1) = qtav(:,isamp)
           ifield = ifield + 1
@@ -1203,9 +1274,11 @@ subroutine initsamptend
         vars(1, 1, :,ifield+6) = qrpmn(:,tend_ls,isamp)
         vars(1, 1, :,ifield+7) = qrpmn(:,tend_topbound,isamp)
         vars(1, 1, :,ifield+8) = qrpmn(:,tend_addon,isamp)
-        vars(1, 1, :,ifield+9) = qrpmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+10) = qrpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield+9
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = qrpmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if
         if (ltenddec) then
           vars(1, 1, :,ifield+1) = qrav(:,isamp)
           ifield = ifield + 1
@@ -1221,8 +1294,11 @@ subroutine initsamptend
         vars(1, 1, :,ifield+7) = nrpmn(:,tend_topbound,isamp)
         vars(1, 1, :,ifield+8) = nrpmn(:,tend_addon,isamp)
         vars(1, 1, :,ifield+9) = nrpmn(:,tend_tot,isamp)
-        vars(1, 1, :,ifield+10) = nrpmn(:,tend_totlb,isamp)
-        ifield = ifield + 10
+        ifield = ifield+9
+        if (ltendleib) then
+          vars(1, 1, :,ifield+1) = nrpmn(:,tend_totlb,isamp)
+          ifield = ifield+1
+        end if
         if (ltenddec) then
           vars(1, 1, :,ifield+1) = nrav(:,isamp)
           ifield = ifield + 1

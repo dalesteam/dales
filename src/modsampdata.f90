@@ -48,6 +48,7 @@ SAVE
   logical :: lsamptendqr = .false. !< switch to sample qr tendencies
   logical :: lsamptendnr = .false. !< switch to sample nr tendencies
   logical :: lprocblock = .false. !< switch to write (so far only tendencies) per processor block instead of domain-averaged
+  logical :: ltendleib = .false. !< switch to turn on leibniz tendencies
   logical :: ltenddec = .false. !< switch to get variables needed to scale-decompose (processor-averaged) advective tendencies
 
 end module modsampdata

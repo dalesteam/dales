@@ -71,7 +71,7 @@ contains
     integer :: ierr
 
     namelist/NAMSAMPLING/ &
-    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend,lprocblock,ltenddec, &
+    dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend,lprocblock,ltenddec,ltendleib, &
     lsamptendu,lsamptendv,lsamptendw,lsamptendthl,lsamptendqt,lsamptendqr,lsamptendnr
 
     dtav=dtav_glob;timeav=timeav_glob
@@ -103,6 +103,7 @@ contains
     call D_MPI_BCAST(lsamptendnr,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lprocblock,1,0,comm3d,mpierr)
     call D_MPI_BCAST(ltenddec,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(ltendleib,1,0,comm3d,mpierr)
 
     isamptot = 0
     if (lsampall) then
