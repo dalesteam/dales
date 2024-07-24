@@ -305,7 +305,7 @@ subroutine calc_liquid_reservoir
                 rainrate = 0.
             else
                !rainrate = -sed_qr(i,j,1)/rhow
-                rainrate = -precep(i,j,1)*rhof(1)/rhow
+                rainrate = precep(i,j,1)*rhof(1)/rhow ! positive for a downward rain flux
             end if
 
             wl_tend_precip = intercept_eff * cveg(i,j) * rainrate
@@ -314,7 +314,7 @@ subroutine calc_liquid_reservoir
             wl_tend_sum = wl_tend_liq + wl_tend_dew + wl_tend_precip
             wl_tend_lim = min(wl_tend_max, max(wl_tend_min,  wl_tend_sum))
 
-            ! Diagnose interception and throughfall
+            ! Diagnose interception and throughfall. Upward flux is positive.
             throughfall(i,j) = &
                 -(1.-cveg(i,j)) * rainrate &
                 -(1.-intercept_eff) * cveg(i,j) * rainrate &
@@ -865,7 +865,8 @@ subroutine calc_hydraulic_properties
                 si = soil_index(i,j,k)
 
                 ! Limit soil moisture just above the residual soil moisture content
-                theta_lim = max(phiw(i,j,k), 1.001*theta_res(si))
+                ! and just below saturation
+                theta_lim = min(max(phiw(i,j,k), 1.001*theta_res(si)), theta_sat(si))
 
                 ! Dimensionless soil water content
                 theta_norm = (theta_lim - theta_res(si)) / (theta_sat(si) - theta_res(si))
@@ -996,7 +997,7 @@ end subroutine integrate_t_soil
 subroutine integrate_theta_soil
     use modglobal, only : rk3step, rdt, i1, j1, rhow, rlv
     use modsurfdata, only : phiw, phiwm, lambdash, gammash
-
+    use modmpi, only : myidx, myidy
     implicit none
     integer :: i, j, k, si
     real :: tend, rk3coef, flux_top, fac
@@ -1016,7 +1017,6 @@ subroutine integrate_theta_soil
               flux_top = tile(ilu)%frac(i,j) * tile(ilu)%LE(i,j) * fac + throughfall(i,j)
               tend = (-flux_top - (lambdash(i,j,k) * (phiw(i,j,k) - phiw(i,j,k-1)) * dzhi_soil(k)))*dzi_soil(k) &
                     - gammash(i,j,k) * dzi_soil(k) + phiw_source(i,j,k)
-
               phiw(i,j,k) = phiwm(i,j,k) + rk3coef * tend
             end if
           end do
@@ -1046,6 +1046,15 @@ subroutine integrate_theta_soil
             end do
         end do
     end do
+
+    ! Range check of phiw
+    if (maxval(phiw) > 1 .or. minval(phiw) < 0) then
+       write(*,*) 'phiw out or range 0...1'
+       write(*,*) 'myid{x,y} =', myidx, myidy
+       write(*,*) 'max', maxval(phiw), 'at', maxloc(phiw)
+       write(*,*) 'min', minval(phiw), 'at', minloc(phiw)
+       !stop
+    end if
 
 end subroutine integrate_theta_soil
 
