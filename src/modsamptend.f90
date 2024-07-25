@@ -51,6 +51,7 @@ module modsamptend
   real, allocatable :: ust(:,:),vst(:,:),wst(:,:),thlst(:,:),qtst(:,:),qrst(:,:),nrst(:,:)
   real, allocatable :: uwav(:,:), vsav(:,:), wav(:,:), thlav(:,:), qtav(:,:), qrav(:,:), nrav(:,:)
   real, allocatable :: thlwav(:,:), thlsav(:,:), qtwav(:,:), qtsav(:,:), qrwav(:,:), qrsav(:,:), nrwav(:,:), nrsav(:,:)
+  real, allocatable :: uthlwav(:,:), vthlsav(:,:), uqtwav(:,:), vqtsav(:,:), uqrwav(:,:), vqrsav(:,:), unrwav(:,:), vnrsav(:,:)
   real, allocatable :: wthlav(:,:), wqtav(:,:), wqrav(:,:), wnrav(:,:)
   logical, allocatable :: tendmask(:,:,:,:)
   integer, allocatable :: nrsamptot(:,:),nrsamp(:,:),nrsamplast(:,:),nrsampnew(:,:)
@@ -135,10 +136,14 @@ subroutine initsamptend
     if (ltenddec) allocate (uwav(k1,isamptot), vsav(k1,isamptot), wav(k1,isamptot))
 
     ! Only allocate these if you have the budget for a scalar and you want to decompose that scalar's budget
-    if (ltenddec .and. lsamptendthl) allocate(thlav(k1,isamptot), thlwav(k1,isamptot), thlsav(k1,isamptot), wthlav(k1,isamptot))
-    if (ltenddec .and. lsamptendqt) allocate(qtav(k1,isamptot), qtwav(k1,isamptot), qtsav(k1,isamptot), wqtav(k1,isamptot))
-    if (ltenddec .and. lsamptendqr) allocate(qrav(k1,isamptot), qrwav(k1,isamptot), qrsav(k1,isamptot), wqrav(k1,isamptot))
-    if (ltenddec .and. lsamptendnr) allocate(nrav(k1,isamptot), nrwav(k1,isamptot), nrsav(k1,isamptot), wnrav(k1,isamptot))
+    if (ltenddec .and. lsamptendthl) allocate(thlav(k1,isamptot), thlwav(k1,isamptot), thlsav(k1,isamptot), wthlav(k1,isamptot), &
+                                              uthlwav(k1,isamptot), vthlsav(k1,isamptot))
+    if (ltenddec .and. lsamptendqt)  allocate(qtav(k1,isamptot), qtwav(k1,isamptot), qtsav(k1,isamptot), wqtav(k1,isamptot), &
+                                              uqtwav(k1,isamptot), vqtsav(k1,isamptot))
+    if (ltenddec .and. lsamptendqr)  allocate(qrav(k1,isamptot), qrwav(k1,isamptot), qrsav(k1,isamptot), wqrav(k1,isamptot), &
+                                              uqrwav(k1,isamptot), vqrsav(k1,isamptot))
+    if (ltenddec .and. lsamptendnr)  allocate(nrav(k1,isamptot), nrwav(k1,isamptot), nrsav(k1,isamptot), wnrav(k1,isamptot), &
+                                              unrwav(k1,isamptot), vnrsav(k1,isamptot))
 
     allocate (tendmask(2-ih:i1+ih,2-jh:j1+jh,k1,isamptot))
     allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot),nrsamplast(k1,isamptot),nrsampnew(k1,isamptot))
@@ -199,7 +204,7 @@ subroutine initsamptend
     implicit none
     logical :: proc = .true.
     character(80) :: dimst, dimsm, dimsu, dimsv
-    integer :: nvar = 92 ! Current maximum number of fields
+    integer :: nvar = 100 ! Current maximum number of fields
     integer :: ifield=0
 
     allocate(ncname(nvar,4,isamptot))
@@ -337,13 +342,17 @@ subroutine initsamptend
         if (ltenddec) then
           call ncinfo(ncname(ifield +1,:,isamp),'thlm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'theta_l block average','K',dimst)
-          call ncinfo(ncname(ifield +2,:,isamp),'thlmw'//samplname(isamp),&
+          call ncinfo(ncname(ifield +2,:,isamp),'thlw'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'theta_l west edge average','K',dimsu)
           call ncinfo(ncname(ifield +3,:,isamp),'thls'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'theta_l south edge average','K',dimsv)
-          call ncinfo(ncname(ifield +4,:,isamp),'wthlm'//samplname(isamp),&
+          call ncinfo(ncname(ifield +4,:,isamp),'uthlw'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'u*theta_l west edge average','K m/s',dimsu)
+          call ncinfo(ncname(ifield +5,:,isamp),'vthls'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'v*theta_l south edge average','K m/s',dimsv)
+          call ncinfo(ncname(ifield +6,:,isamp),'wthlm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'Vertical theta_l flux block average','K m/s',dimsm)
-          ifield = ifield + 4
+          ifield = ifield + 6
         end if
       end if
       if (lsamptendqt) then
@@ -378,9 +387,13 @@ subroutine initsamptend
           trim(longsamplname(isamp))//' '//'total water content west edge average','kg/kg',dimsu)
           call ncinfo(ncname(ifield +3,:,isamp),'qts'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'total water content south edge average','kg/kg',dimsv)
-          call ncinfo(ncname(ifield +4,:,isamp),'wqtm'//samplname(isamp),&
+          call ncinfo(ncname(ifield +4,:,isamp),'uqtw'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'u*qt west edge average','kg/kg m/s',dimsu)
+          call ncinfo(ncname(ifield +5,:,isamp),'vqts'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'v*qt south edge average','kg/kg m/s',dimsv)
+          call ncinfo(ncname(ifield +6,:,isamp),'wqtm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'Vertical total water content flux block average','kg/kg m/s',dimsm)
-          ifield = ifield + 4
+          ifield = ifield + 6
         end if
       end if
       if (lsamptendqr) then
@@ -415,9 +428,13 @@ subroutine initsamptend
           trim(longsamplname(isamp))//' '//'rain water content west edge average','kg/kg',dimsu)
           call ncinfo(ncname(ifield +3,:,isamp),'qrs'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'rain water content south edge average','kg/kg',dimsv)
-          call ncinfo(ncname(ifield +4,:,isamp),'wqrm'//samplname(isamp),&
+          call ncinfo(ncname(ifield +4,:,isamp),'uqrw'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'u*qr west edge average','kg/kg m/s',dimsu)
+          call ncinfo(ncname(ifield +5,:,isamp),'vqrs'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'v*qr south edge average','kg/kg m/s',dimsv)
+          call ncinfo(ncname(ifield +6,:,isamp),'wqrm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'Vertical rain water content flux block average','kg/kg m/s',dimsm)
-          ifield = ifield + 4
+          ifield = ifield + 6
         end if
       end if
       if (lsamptendnr) then
@@ -452,9 +469,13 @@ subroutine initsamptend
           trim(longsamplname(isamp))//' '//'RDNC west edge average','/kg',dimsu)
           call ncinfo(ncname(ifield +3,:,isamp),'nrs'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'RDNC south edge average','/kg',dimsv)
-          call ncinfo(ncname(ifield +4,:,isamp),'wnrm'//samplname(isamp),&
+          call ncinfo(ncname(ifield +4,:,isamp),'unrw'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'u*nr west edge average','/kg m/s',dimsu)
+          call ncinfo(ncname(ifield +5,:,isamp),'vnrs'//samplname(isamp),&
+          trim(longsamplname(isamp))//' '//'v*nr south edge average','/kg m/s',dimsv)
+          call ncinfo(ncname(ifield +6,:,isamp),'wnrm'//samplname(isamp),&
           trim(longsamplname(isamp))//' '//'Vertical RDNC flux block average','/kg m/s',dimsm)
-          ifield = ifield + 4
+          ifield = ifield + 6
         end if
       end if
       if (ltenddec) then
@@ -794,16 +815,16 @@ subroutine initsamptend
       uwav = 0.; vsav = 0; wav = 0.
     end if
     if (ltenddec .and. lsamptendthl) then
-      thlav = 0.; thlwav = 0.; thlsav = 0.; wthlav = 0.
+      thlav = 0.; thlwav = 0.; thlsav = 0.; wthlav = 0.; uthlwav = 0.; vthlsav = 0.
     end if
     if (ltenddec .and. lsamptendqt) then
-      qtav = 0.; qtwav = 0.; qtsav = 0.; wqtav = 0.
+      qtav = 0.; qtwav = 0.; qtsav = 0.; wqtav = 0.; uqtwav = 0.; vqtsav = 0.
     end if
     if (ltenddec .and. lsamptendqr) then
-      qrav = 0.; qrwav = 0.; qrsav = 0.; wqrav = 0.
+      qrav = 0.; qrwav = 0.; qrsav = 0.; wqrav = 0.; uqtwav = 0.; vqtsav = 0.
     end if
     if (ltenddec .and. lsamptendnr) then
-      nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.
+      nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; uqtwav = 0.; vqtsav = 0.
     end if
 
     if (ltenddec) then
@@ -826,6 +847,10 @@ subroutine initsamptend
             thlav (k,isamp)  = sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
             thlwav (k,isamp) = sum(thl0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
             thlsav (k,isamp) = sum(thl0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
+
+            ! Horizontal flux on edges
+            uthlwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(thl0(2   ,2:j1,k) - thlwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
+            vthlsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(thl0(2:i1,2   ,k) - thlsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
 
             ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
             if (k == 1) then
@@ -858,6 +883,10 @@ subroutine initsamptend
             qtwav (k,isamp) = sum(qt0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
             qtsav (k,isamp) = sum(qt0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
 
+            ! Horizontal flux on edges
+            uqtwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(qt0(2   ,2:j1,k) - qtwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
+            vqtsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(qt0(2:i1,2   ,k) - qtsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
+
             ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
             if (k == 1) then
               do i=2,i1
@@ -887,6 +916,10 @@ subroutine initsamptend
             qrav (k,isamp)  = sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
             qrwav (k,isamp) = sum(sv0(2   ,2:j1,k,iqr),tendmask(2   ,2:j1,k,isamp))/jmax
             qrsav (k,isamp) = sum(sv0(2:i1,2   ,k,iqr),tendmask(2:i1,2   ,k,isamp))/imax
+
+            ! Horizontal flux on edges
+            uqrwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(sv0(2   ,2:j1,k,iqr) - qrwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
+            vqrsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(sv0(2:i1,2   ,k,iqr) - qrsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
 
             ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
             if (k == 1) then
@@ -918,6 +951,10 @@ subroutine initsamptend
             nrav (k,isamp)  = sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
             nrwav (k,isamp) = sum(sv0(2   ,2:j1,k,inr),tendmask(2   ,2:j1,k,isamp))/jmax
             nrsav (k,isamp) = sum(sv0(2:i1,2   ,k,inr),tendmask(2:i1,2   ,k,isamp))/imax
+
+            ! Horizontal flux on edges
+            unrwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(sv0(2   ,2:j1,k,inr) - nrwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
+            vnrsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(sv0(2:i1,2   ,k,inr) - nrsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
 
             ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
             if (k == 1) then
@@ -1381,8 +1418,10 @@ subroutine initsamptend
           vars(1, 1, :,ifield+1) = thlav(:,isamp)
           vars(1, 1, :,ifield+2) = thlwav(:,isamp)
           vars(1, 1, :,ifield+3) = thlsav(:,isamp)
-          vars(1, 1, :,ifield+4) = wthlav(:,isamp)
-          ifield = ifield + 4
+          vars(1, 1, :,ifield+4) = uthlwav(:,isamp)
+          vars(1, 1, :,ifield+5) = vthlsav(:,isamp)
+          vars(1, 1, :,ifield+6) = wthlav(:,isamp)
+          ifield = ifield + 6
         end if
       end if
       if (lsamptendqt) then
@@ -1404,8 +1443,10 @@ subroutine initsamptend
           vars(1, 1, :,ifield+1) = qtav(:,isamp)
           vars(1, 1, :,ifield+2) = qtwav(:,isamp)
           vars(1, 1, :,ifield+3) = qtsav(:,isamp)
-          vars(1, 1, :,ifield+4) = wqtav(:,isamp)
-          ifield = ifield + 4
+          vars(1, 1, :,ifield+4) = uqtwav(:,isamp)
+          vars(1, 1, :,ifield+5) = vqtsav(:,isamp)
+          vars(1, 1, :,ifield+6) = wqtav(:,isamp)
+          ifield = ifield + 6
         end if
       end if
       if (lsamptendqr) then
@@ -1426,8 +1467,10 @@ subroutine initsamptend
           vars(1, 1, :,ifield+1) = qrav(:,isamp)
           vars(1, 1, :,ifield+2) = qrwav(:,isamp)
           vars(1, 1, :,ifield+3) = qrsav(:,isamp)
-          vars(1, 1, :,ifield+4) = wqrav(:,isamp)
-          ifield = ifield + 4
+          vars(1, 1, :,ifield+4) = uqrwav(:,isamp)
+          vars(1, 1, :,ifield+5) = vqrsav(:,isamp)
+          vars(1, 1, :,ifield+6) = wqrav(:,isamp)
+          ifield = ifield + 6
         end if
       end if
       if (lsamptendnr) then
@@ -1449,8 +1492,10 @@ subroutine initsamptend
           vars(1, 1, :,ifield+1) = nrav(:,isamp)
           vars(1, 1, :,ifield+2) = nrwav(:,isamp)
           vars(1, 1, :,ifield+3) = nrsav(:,isamp)
-          vars(1, 1, :,ifield+4) = wnrav(:,isamp)
-          ifield = ifield + 4
+          vars(1, 1, :,ifield+4) = unrwav(:,isamp)
+          vars(1, 1, :,ifield+5) = vnrsav(:,isamp)
+          vars(1, 1, :,ifield+6) = wnrav(:,isamp)
+          ifield = ifield + 6
         end if
       end if
       if (ltenddec) then
@@ -1484,10 +1529,10 @@ subroutine initsamptend
     if (lsamptendqr) deallocate (qrptm, qrpmn, qrpav, qrst)
     if (lsamptendnr) deallocate (nrptm, nrpmn, nrpav, nrst)
     if (ltenddec) deallocate (wav, uwav, vsav)
-    if (ltenddec .and. lsamptendthl) deallocate(thlav, thlwav, thlsav, wthlav)
-    if (ltenddec .and. lsamptendqt) deallocate(qtav, qtwav, qtsav, wqtav)
-    if (ltenddec .and. lsamptendqr) deallocate(qrav, qrwav, qrsav, wqrav)
-    if (ltenddec .and. lsamptendnr) deallocate(nrav, nrwav, nrsav, wnrav)
+    if (ltenddec .and. lsamptendthl) deallocate(thlav, thlwav, thlsav, uthlwav, vthlsav, wthlav)
+    if (ltenddec .and. lsamptendqt) deallocate(qtav, qtwav, qtsav, uqtwav, vqtsav, wqtav)
+    if (ltenddec .and. lsamptendqr) deallocate(qrav, qrwav, qrsav, uqrwav, vqrsav, wqrav)
+    if (ltenddec .and. lsamptendnr) deallocate(nrav, nrwav, nrsav, unrwav, vnrsav, wnrav)
 
     deallocate (tendmask)
     deallocate (nrsamptot,nrsamp,nrsamplast,nrsampnew)
