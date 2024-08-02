@@ -66,7 +66,7 @@ contains
     call d_mpi_bcast(scalefactor(1:100), 100,  0, comm3d, ierr)
 
     ! -- Interaction with AGs   ----------------------------------------------------
-
+    if (.not. (l_emission)) return
     allocate(co2fields(nsv))
 
     co2fields = 0
@@ -94,8 +94,6 @@ contains
     endif
 
     ! --- Local pre-calculations and settings
-    if (.not. (l_emission)) return
-
     if (kemis == -1) kemis = kmax
 
     ! --- Read emission files for first time step ----------------------------------
