@@ -104,7 +104,7 @@ execute_process(COMMAND nf-config --includedir OUTPUT_VARIABLE NFCONFIG_INCLUDE_
 # not used at the moment - not just a path but several compiler flags
 
 ### If necessary, resort to BASH-methods to find netcdf-directory
-#execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
+execute_process(COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/findnetcdf OUTPUT_VARIABLE ADDMODULEPATH)
 
 ### Find NetCDF files
 FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
@@ -113,6 +113,7 @@ FIND_PATH(NETCDF_INCLUDE_DIR netcdf.mod NETCDF.mod
   $ENV{SARA_NETCDF_INCLUDE}
   $ENV{SURFSARA_NETCDF_INCLUDE}
   $ENV{NETCDF_INCLUDE}
+  $ENV{NETCDF_FORTRAN_HOME}/include
   ${ADDMODULEPATH}/include
   /usr/include
   $ENV{HOME}/include
@@ -124,6 +125,7 @@ FIND_LIBRARY(NETCDF_C_LIB netcdf
   PATHS
   $ENV{SARA_NETCDF_LIB}
   $ENV{SURFSARA_NETCDF_LIB}
+  $ENV{NETCDF_C_HOME}/lib
   $ENV{NETCDF_LIB}
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64
@@ -139,6 +141,7 @@ FIND_LIBRARY(NETCDF_FORTRAN_LIB netcdff
   ${NFCONFIG_PREFIX}/lib
   $ENV{SARA_NETCDF_LIB}
   $ENV{SURFSARA_NETCDF_LIB}
+  $ENV{NETCDF_FORTRAN_HOME}/lib
   $ENV{NETCDF_LIB}
   ${ADDMODULEPATH}/lib
   ${ADDMODULEPATH}/lib64
@@ -165,6 +168,7 @@ FIND_LIBRARY(HYPRE_LIB HYPRE_core HYPRE
 FIND_PATH(FFTW_INCLUDE_DIR fftw3.f03
   PATHS
   $ENV{FFTW_INCLUDE_DIR}
+  $ENV{FFTWINCLUDE}
   /usr/include
   DOC "FFTW include files (fftw3.f03)"
 )
@@ -173,6 +177,7 @@ FIND_PATH(FFTW_INCLUDE_DIR fftw3.f03
 FIND_LIBRARY(FFTW_LIB fftw3
   PATHS
   $ENV{FFTW_LIB}
+  $ENV{FFTWLIB}
   /usr/lib
   /usr/lib64
   DOC "FFTW static library"
@@ -181,6 +186,7 @@ FIND_LIBRARY(FFTW_LIB fftw3
 FIND_LIBRARY(FFTWF_LIB fftw3f
   PATHS
   $ENV{FFTW_LIB}
+  $ENV{FFTWLIB}
   /usr/lib
   /usr/lib64
   DOC "FFTW single precision library"
@@ -224,6 +230,9 @@ OPTION(USE_FFTW "Also build FFTW based poisson solver (optional, needs FFTW3)" O
 
 ### NVTX
 OPTION(USE_NVTX "Enable GPU profiling" OFF)
+
+### Don't want to see all the warnings during compiling? Add option `-DNO_WARNINGS=ON`
+OPTION(NO_WARNINGS "Disable all warnings during compiling" OFF)
 
 ### Documentation
 INCLUDE(FindDoxygen)
