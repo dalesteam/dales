@@ -543,7 +543,7 @@ contains
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE,myid
     use advec_kappa, only : halflev_kappa
-    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2
+    use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2, iqr
     use modthermodynamics, only: qsat_tab
     implicit none
 
@@ -828,8 +828,8 @@ contains
           cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
 
           ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-          plwav_s = plwav_s + ql0(i,j,k) * ilratio
-          pliav_s = pliav_s + ql0(i,j,k) * (1-ilratio)
+          plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
+          pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
 
           if (ql0h(i,j,k)>0) then
             wqlsub_s = wqlsub_s + wqls
