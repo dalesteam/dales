@@ -2358,7 +2358,7 @@ subroutine check(status)
     integer, intent (in) :: status
     if(status /= nf90_noerr) then
         print *,'NetCDF error: ', trim(nf90_strerror(status))
-        stop
+        call abort
     end if
 end subroutine check
 

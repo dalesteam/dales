@@ -200,7 +200,7 @@ contains
   integer errcode
 
   write(6,*) 'Error: ', nf90_strerror(errcode)
-  stop 2
+  call abort
 
   end subroutine handle_err
 
