@@ -264,7 +264,7 @@ contains
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
     use advec_5th,      only : hadvecc_5th, vadvecc_5th
     use advec_6th,      only : hadvecc_6th, vadvecc_6th
-    use advec_hybrid,   only : advecc_hybrid
+    use advec_hybrid,   only : hadvecc_hybrid, vadvecc_hybrid
     use advec_hybrid_f, only : advecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
     use advec_upw,      only : advecc_upw
@@ -433,7 +433,8 @@ contains
         call hadvecc_kappa(varxfmn,term)
         call vadvecc_kappa(varxfmn,term)
       case(iadv_hybrid)
-        call advecc_hybrid(varxfmn,term)
+        call hadvecc_hybrid(varxfmn,term)
+        call vadvecc_hybrid(varxfmn,term)
       case(iadv_hybrid_f)
         call advecc_hybrid_f(varxfmn,term)
       case default
@@ -479,7 +480,8 @@ contains
         call hadvecc_kappa(varxfdev,term)
         call vadvecc_kappa(varxfdev,term)
       case(iadv_hybrid)
-        call advecc_hybrid(varxfdev,term)
+        call hadvecc_hybrid(varxfdev,term)
+        call vadvecc_hybrid(varxfdev,term)
       case(iadv_hybrid_f)
         call advecc_hybrid_f(varxfdev,term)
       case default

@@ -29,10 +29,63 @@ use modprecision, only: field_r
 implicit none
 contains
 
-subroutine advecc_hybrid(pin,pout)
+subroutine hadvecc_hybrid(pin,pout)
   use modglobal, only : ih,i1,jh,j1,kmax,k1 &
-                       ,dxi,dyi,dzf,lambda_crit
-  use modfields, only : u0,v0,w0,rhobf
+                       ,dxi,dyi,lambda_crit
+  use modfields, only : u0,v0
+  implicit none
+
+  ! input and output variables
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
+
+  ! local variables
+  logical,dimension(2:i1+1,2:j1+1,k1) :: lsmx,lsmy
+  real,dimension(2:i1+1,2:j1+1,k1) :: pfacex,pfacey ! face values, defined at the same interfaces as u0,v0 respectively
+  integer :: i,j,k
+  integer :: kp2,km3
+  integer :: jp2,jm3
+  integer :: ip2,im3
+
+  ! Initialize face values
+  pfacex=0.;pfacey=0.
+
+  ! calculate the smoothness indicator in 2 directions and immediately check if it exceeds the critical value
+  ! note that the smoothness indicator is defined at cell [i]faces[/i].
+  lsmx = smoothness(pin,1)<lambda_crit
+  lsmy = smoothness(pin,2)<lambda_crit
+
+  ! Do interpolation and save cell face values in a matrix. Avoid calculating cell face values twice.
+  ! In the old configuration, it was possible that a value at a face was calculated twice with different methods!
+  ! This was because the smoothness metric was supposed to be defined at cell centers, while it is actually at a face.
+
+  do j=2,j1+1
+    jp2=j+2;jm3=j-3
+    do i=2,i1+1
+      ip2=i+2;im3=i-3
+      do k=1,k1
+        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
+        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
+      end do !Loop over k
+    end do !Loop over i
+  end do !Loop over j
+
+  ! Calculate actual tendencies by multiplying matrices
+  do k=1,kmax
+    pout(2:i1,2:j1,k) = pout(2:i1,2:j1,k) - ( &
+                              (u0(3:i1+1,2:j1,k)*pfacex(3:i1+1,2:j1,k) -    &
+                               u0(2:i1,2:j1,k)*pfacex(2:i1,2:j1,k) )*dxi    &
+                             +(v0(2:i1,3:j1+1,k)*pfacey(2:i1,3:j1+1,k) -    &
+                               v0(2:i1,2:j1,k)*pfacey(2:i1,2:j1,k) )*dyi    &
+                                            )
+  end do
+
+end subroutine hadvecc_hybrid
+
+subroutine vadvecc_hybrid(pin,pout)
+  use modglobal, only : ih,i1,jh,j1,kmax,k1 &
+                        ,dzf,lambda_crit
+  use modfields, only : w0,rhobf
   implicit none
 
   ! input and output variables
@@ -42,8 +95,8 @@ subroutine advecc_hybrid(pin,pout)
   real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1) :: rhopin  !< 3D density profile * input
 
   ! local variables
-  logical,dimension(2:i1+1,2:j1+1,k1) :: lsmx,lsmy,lsmz
-  real,dimension(2:i1+1,2:j1+1,k1) :: pfacex,pfacey,pfacez ! face values, defined at the same interfaces as u0,v0 and w0 respectively
+  logical,dimension(2:i1+1,2:j1+1,k1) :: lsmz
+  real,dimension(2:i1+1,2:j1+1,k1) :: pfacez ! face values, defined at the same interfaces as u0,v0 and w0 respectively
   integer :: i,j,k
   integer :: kp2,km3
   integer :: jp2,jm3
@@ -58,18 +111,8 @@ subroutine advecc_hybrid(pin,pout)
     end do
   end do
 
-  ! Initialize face values
-  pfacex=0.;pfacey=0.;pfacez=0.
-
-  ! calculate the smoothness indicator in all 3 directions and immediately check if it exceeds the critical value
-  ! note that the smoothness indicator is defined at cell [i]faces[/i].
-  lsmx = smoothness(pin,1)<lambda_crit
-  lsmy = smoothness(pin,2)<lambda_crit
+  pfacez=0.
   lsmz = smoothness(pin,3)<lambda_crit
-
-  ! Do interpolation and save cell face values in a matrix. Avoid calculating cell face values twice.
-  ! In the old configuration, it was possible that a value at a face was calculated twice with different methods!
-  ! This was because the smoothness metric was supposed to be defined at cell centers, while it is actually at a face.
 
   ! Levels outside loop over k, to avoid if then else inside do-loop
   ! Lowest level (k=1) is at the surface, z=0. No flux is calculated with it
@@ -83,21 +126,9 @@ subroutine advecc_hybrid(pin,pout)
     jp2=j+2;jm3=j-3
     do i=2,i1+1
       ip2=i+2;im3=i-3
-      ! Loop over first two height levels to do horizontal interpolation
-      do k=1,3
-        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
-        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
-      end do
-      ! Loop over last two height levels to do horizontal interpolation
-      do k=kmax,k1
-        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
-        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
-      end do
       ! Loop over rest of levels, for horizontal and vertical faces
       do k=4,kmax-1
         kp2=k+2;km3=k-3
-        pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
-        pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
         pfacez(i,j,k) = ip_hybrid(rhopin(i,j,km3:kp2),w0(i,j,k)>=0.,lsmz(i,j,k))
       end do !Loop over k
     end do !Loop over i
@@ -107,16 +138,12 @@ subroutine advecc_hybrid(pin,pout)
   ! does not have the appropriate dimensions.
   do k=1,kmax
     pout(2:i1,2:j1,k) = pout(2:i1,2:j1,k) - ( &
-                              (u0(3:i1+1,2:j1,k)*pfacex(3:i1+1,2:j1,k) -    &
-                               u0(2:i1,2:j1,k)*pfacex(2:i1,2:j1,k) )*dxi    &
-                             +(v0(2:i1,3:j1+1,k)*pfacey(2:i1,3:j1+1,k) -    &
-                               v0(2:i1,2:j1,k)*pfacey(2:i1,2:j1,k) )*dyi    &
-                             +(1./rhobf(k))*(w0(2:i1,2:j1,k+1)*pfacez(2:i1,2:j1,k+1) -    &
+                              (1./rhobf(k))*(w0(2:i1,2:j1,k+1)*pfacez(2:i1,2:j1,k+1) -    &
                                w0(2:i1,2:j1,k)*pfacez(2:i1,2:j1,k) )/dzf(k) &
                                             )
   end do
 
-end subroutine advecc_hybrid
+end subroutine vadvecc_hybrid
 
 !=======================================================================================
 ! Function that interpolates cell centered values of a variable to the appropriate cell face
