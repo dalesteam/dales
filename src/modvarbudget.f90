@@ -265,9 +265,8 @@ contains
     use advec_5th,      only : hadvecc_5th, vadvecc_5th
     use advec_6th,      only : hadvecc_6th, vadvecc_6th
     use advec_hybrid,   only : hadvecc_hybrid, vadvecc_hybrid
-    use advec_hybrid_f, only : advecc_hybrid_f
+    use advec_hybrid_f, only : hadvecc_hybrid_f, vadvecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
-    use advec_upw,      only : advecc_upw
 
     implicit none
 
@@ -436,7 +435,8 @@ contains
         call hadvecc_hybrid(varxfmn,term)
         call vadvecc_hybrid(varxfmn,term)
       case(iadv_hybrid_f)
-        call advecc_hybrid_f(varxfmn,term)
+        call hadvecc_hybrid_f(varxfmn,term)
+        call vadvecc_hybrid_f(varxfmn,term)
       case default
           stop "Unknown advection scheme "
     end select
@@ -483,7 +483,8 @@ contains
         call hadvecc_hybrid(varxfdev,term)
         call vadvecc_hybrid(varxfdev,term)
       case(iadv_hybrid_f)
-        call advecc_hybrid_f(varxfdev,term)
+        call hadvecc_hybrid_f(varxfdev,term)
+        call vadvecc_hybrid_f(varxfdev,term)
       case default
           stop "Unknown advection scheme "
     end select

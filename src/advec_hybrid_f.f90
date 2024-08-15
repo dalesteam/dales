@@ -31,9 +31,10 @@ use modprecision, only : field_r
 implicit none
 contains
 
-subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
-  use modglobal, only : ih,i1,jh,j1,kmax,k1,dxi,dyi,dzf,lambda_crit
-  use modfields, only : u0,v0,w0,rhobf
+! Horizontal advection
+subroutine hadvecc_hybrid_f(pin, pout, phi_tilde_in)
+  use modglobal, only : ih,i1,jh,j1,kmax,k1,dxi,dyi,lambda_crit
+  use modfields, only : u0,v0
 
   implicit none
   
@@ -42,8 +43,8 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
   real,optional,intent(in) :: phi_tilde_in   !< Order of magnitude of the field, used in the smoothness criterion. Optional. 
 
   real :: phi_tilde
-  logical :: lsmx,lsmy,lsmz                   ! smoothness flags
-  real,dimension(2:i1+1,2:j1+1,k1) :: pfacex,pfacey,pfacez  ! face values, defined at the same interfaces as u0,v0 and w0 respectively
+  logical :: lsmx,lsmy                   ! smoothness flags
+  real,dimension(2:i1+1,2:j1+1,k1) :: pfacex,pfacey  ! face values, defined at the same interfaces as u0,v0 respectively
   real,dimension(3)    :: gam                 ! used for smoothness test
   integer              :: i,j,k
   real                 :: eps_hybrid
@@ -181,6 +182,77 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
               pfacey(i,j,k) = sum(wgt(:)*varFace(:))*wgtfac
            end if
            
+           !kp2=k+2;km3=k-3
+           !pfacex(i,j,k) = ip_hybrid(pin(im3:ip2,j,k),u0(i,j,k)>=0.,lsmx(i,j,k))
+           !pfacey(i,j,k) = ip_hybrid(pin(i,jm3:jp2,k),v0(i,j,k)>=0.,lsmy(i,j,k))
+        end do
+     end do
+  end do !Loop over k
+
+  ! Calculate actual tendencies by multiplying matrices, accept in the vertical, since dzf(k)
+  ! does not have the appropriate dimensions.
+  do k=1,kmax
+     pout(2:i1,2:j1,k) = pout(2:i1,2:j1,k) - ( &
+          (u0(3:i1+1,2:j1,k)*pfacex(3:i1+1,2:j1,k) -    &
+          u0(2:i1,2:j1,k)*pfacex(2:i1,2:j1,k) )*dxi    &
+          +(v0(2:i1,3:j1+1,k)*pfacey(2:i1,3:j1+1,k) -    &
+          v0(2:i1,2:j1,k)*pfacey(2:i1,2:j1,k) )*dyi    &
+          )
+  end do
+end subroutine hadvecc_hybrid_f
+
+! Vertical advection 
+subroutine vadvecc_hybrid_f(pin, pout, phi_tilde_in)
+  use modglobal, only : ih,i1,jh,j1,kmax,k1,dzf,lambda_crit
+  use modfields, only : w0,rhobf
+
+  implicit none
+  
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(in)   :: pin  !< Input: the cell centered field (qt,thetal,sv etc)
+  real(field_r),dimension(2-ih:i1+ih,2-jh:j1+jh,k1),intent(inout):: pout !< Output: the tendency for the input field (qtp,thetalp,svp etc)
+  real,optional,intent(in) :: phi_tilde_in   !< Order of magnitude of the field, used in the smoothness criterion. Optional. 
+
+  real :: phi_tilde
+  logical :: lsmz                   ! smoothness flags
+  real,dimension(2:i1+1,2:j1+1,k1) :: pfacez  ! face values, defined at the same interfaces as u0,v0 and w0 respectively
+  real,dimension(3)    :: gam                 ! used for smoothness test
+  integer              :: i,j,k
+  real                 :: eps_hybrid
+  real,dimension(-3:2) :: vin                 ! Subset of the field to be advected
+  real                 :: sgn                 ! 1 if velocity is positive, -1 if velocity is negative
+  real,parameter       :: c1=13./12.,c2=1./4. ! Multiplication constants
+  integer,parameter    :: pweno=1             ! Exponent used in WENO scheme
+                                              ! Values 1,2 or 3 should work
+  real,parameter       :: epsWeno=1e-12       ! Small value set to keep from dividing by zero
+  real,dimension(3)    :: wgtOpt=(/.1,.6,.3/) ! Optimal weights (see eg Hill and Pullin)
+  real,dimension(3)    :: beta,          &    ! Smoothness measure
+                          wgt,         &      ! Weighting factor
+                          varFace             ! Interpolated value at cell face
+  real                 :: wgtfac              ! Normalization factor for the weights
+
+
+  ! phi_tilde is some kind of order-of-magnitude, used to calculate eps_hybrid
+  ! it's unclear to me if it's necessary for this scheme or just used to avoid dividing by 0
+  ! but for now it's here, to give the same results as the original routine
+  ! If phi_tilde is passed as a function argument, use it, otherwise determine heuristically as in the original
+  ! e12 may be on either side of 1,
+  ! other fields like T, qt should always end up with the same phi_tilde.
+  if(.not. present(phi_tilde_in)) then
+     if (any(pin>=1.e5)) then   ! probably number density
+        phi_tilde = 1.e3
+     elseif (any(pin>=1.)) then ! probably (potential) temperature
+        phi_tilde = 1.
+     else                         ! probably qt
+        phi_tilde = 1.e-3
+     end if
+  else
+     phi_tilde = phi_tilde_in
+  end if
+  eps_hybrid = 1.e-8*phi_tilde**2
+   
+  do k=1,k1
+     do j=2,j1+1
+        do i=2,i1+1
            ! advection in z
            if (k < 4 .or. k >= kmax) then
               ! special treatment of top and bottom layers
@@ -254,15 +326,11 @@ subroutine advecc_hybrid_f(pin, pout, phi_tilde_in)
   ! does not have the appropriate dimensions.
   do k=1,kmax
      pout(2:i1,2:j1,k) = pout(2:i1,2:j1,k) - ( &
-          (u0(3:i1+1,2:j1,k)*pfacex(3:i1+1,2:j1,k) -    &
-          u0(2:i1,2:j1,k)*pfacex(2:i1,2:j1,k) )*dxi    &
-          +(v0(2:i1,3:j1+1,k)*pfacey(2:i1,3:j1+1,k) -    &
-          v0(2:i1,2:j1,k)*pfacey(2:i1,2:j1,k) )*dyi    &
-          +(1./rhobf(k))*(w0(2:i1,2:j1,k+1)*pfacez(2:i1,2:j1,k+1) -    &
+          (1./rhobf(k))*(w0(2:i1,2:j1,k+1)*pfacez(2:i1,2:j1,k+1) -    &
           w0(2:i1,2:j1,k)*pfacez(2:i1,2:j1,k) )/dzf(k) &
           )
   end do
-end subroutine advecc_hybrid_f
+end subroutine vadvecc_hybrid_f
 
 
 end module advec_hybrid_f

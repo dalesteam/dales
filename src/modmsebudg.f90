@@ -101,9 +101,8 @@ contains
     use advec_5th,      only : hadvecc_5th, vadvecc_5th
     use advec_6th,      only : hadvecc_6th, vadvecc_6th 
     use advec_hybrid,   only : hadvecc_hybrid, vadvecc_hybrid
-    use advec_hybrid_f, only : advecc_hybrid_f
+    use advec_hybrid_f, only : hadvecc_hybrid_f, vadvecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
-    use advec_upw,      only : advecc_upw
     implicit none
 
     real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
@@ -133,7 +132,8 @@ contains
         call hadvecc_hybrid(a_in,a_out)
         call vadvecc_hybrid(a_in,a_out)
       case(iadv_hybrid_f)
-        call advecc_hybrid_f(a_in,a_out)
+        call hadvecc_hybrid_f(a_in,a_out)
+        call vadvecc_hybrid_f(a_in,a_out)
       case default
           stop "Unknown advection scheme "
     end select
