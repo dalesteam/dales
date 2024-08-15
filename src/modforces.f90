@@ -159,8 +159,8 @@ contains
     
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 1, kmax
-      do j = 2, j1
-        do i = sx, i1
+      do j = sy, j1
+        do i = 2, i1
           vp(i,j,k) = vp(i,j,k)  - cu*om23 &
                 -(u0(i,j,k)+u0(i,j-1,k)+u0(i+1,j-1,k)+u0(i+1,j,k))*om23*0.25_field_r
         end do
