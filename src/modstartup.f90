@@ -870,9 +870,16 @@ contains
       svm(:,:,:,:)  = sv0(:,:,:,:)
       e12m(:,:,:) = e120(:,:,:)
 
-      !$acc set device_type(host)
+#if defined(_OPENACC)
+      call update_gpu
+#endif
+
       call calc_halflev
-      !$acc set device_type(nvidia)
+
+#if defined(_OPENACC)
+      call update_host
+      host_is_updated = .false.
+#endif
 
       if (lconstexner) then
         exnf(:) = (initial_presf(:)/pref0)**(rd/cp)
