@@ -25,6 +25,7 @@
 module modradrte_rrtmgp
   use modraddata
   use modprecision, only : field_r
+  use modtimer
   ! RTE-RRTMGP modules
   use mo_optical_props,      only: ty_optical_props, &
                                    ty_optical_props_arry, ty_optical_props_1scl, ty_optical_props_2str
@@ -342,12 +343,14 @@ contains
 
       if(rad_longw) then
         ! Compute optical properties and source
+        call timer_tic('modradrte_rrtmgp/lwgasoptics', 0)
         call stop_on_err(k_dist_lw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
                                               layerT, tg_slice, & ! t_lay, t_sfc (in, K)
                                               gas_concs, & ! gas volume mixing ratios (in)
                                               atmos_lw, & ! Optical properties (inout)
                                               sources_lw, & ! Planck source (inout)
                                               tlev = interfaceT)) ! t_lev (optional input, K)
+        call timer_toc('modradrte_rrtmgp/lwgasoptics')
 
         ! Solve clear sky radiation transport if required
         if(doclearsky) then
@@ -359,19 +362,23 @@ contains
         endif
 
         ! Compute and add cloud properties
+        call timer_tic('modradrte_rrtmgp/lwcloudsoptics', 0)
         call stop_on_err(cloud_optics_lw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
                                                       IWP_slice, & ! cloud ice water path (in, g/m2)
                                                       liquidRe, & ! cloud liquid particle effective size (in, microns)
                                                       iceRe, & ! cloud ice particle effective radius (in, microns)
                                                       clouds_lw)) ! cloud optical properties lw (inout)
         call stop_on_err(clouds_lw%increment(atmos_lw))
+        call timer_toc('modradrte_rrtmgp/lwcloudsoptics')
 
         ! Solve radiation transport
+        call timer_tic('modradrte_rrtmgp/lwrtesolve', 0)
         call stop_on_err(rte_lw(atmos_lw, & ! optical properties (in)
                                 top_at_1, & ! Is the top of the domain at index 1? (in)
                                 sources_lw, & ! source function (in)
                                 emis, & ! emissivity at surface (in)
                                 fluxes_lw)) ! fluxes (W/m2, inout)
+        call timer_toc('modradrte_rrtmgp/lwrtesolve')
       endif
 
       if(rad_shortw) then
@@ -381,11 +388,13 @@ contains
 
         if(sunUp) then
           ! Compute optical properties and incoming shortwave flux
+          call timer_tic('modradrte_rrtmgp/swgasoptics', 0)
           call stop_on_err(k_dist_sw%gas_optics(layerP, interfaceP, & ! p_lay, p_lev (in, Pa)
                                                 layerT, & ! t_lay (in, K)
                                                 gas_concs, & ! gas volume mixing ratios (in)
                                                 atmos_sw, & ! Optical properties (inout)
                                                 inc_sw_flux)) ! Incoming shortwave flux (inout)
+          call timer_toc('modradrte_rrtmgp/swgasoptics')
 
           ! Solve clear sky radiation transport if required
           if(doclearsky) then
@@ -398,6 +407,7 @@ contains
           endif
 
           ! Compute and add cloud properties
+          call timer_tic('modradrte_rrtmgp/swcloudsoptics', 0)
           call stop_on_err(cloud_optics_sw%cloud_optics(LWP_slice, & ! cloud liquid water path (in, g/m2)
                                                         IWP_slice, & ! cloud ice water path (in, g/m2)
                                                         liquidRe, & ! cloud liquid particle effective size (in, microns)
@@ -405,14 +415,17 @@ contains
                                                         clouds_sw)) ! cloud optical properties sw (inout)
           call stop_on_err(clouds_sw%delta_scale())
           call stop_on_err(clouds_sw%increment(atmos_sw))
+          call timer_toc('modradrte_rrtmgp/swcloudsoptics')
 
           ! Solve radiation transport
+          call timer_tic('modradrte_rrtmgp/swrtesolve', 0)
           call stop_on_err(rte_sw(atmos_sw, & ! optical properties (in)
                                   top_at_1, & ! Is the top of the domain at index 1? (in)
                                   solarZenithAngleCos, & ! cosine of the solar zenith angle (in)
                                   inc_sw_flux, & ! solar incoming flux (in)
                                   sfc_alb_dir, sfc_alb_dif, & ! surface albedos, direct and diffuse (in)
                                   fluxes_sw)) ! fluxes (inout, W/m2)
+          call timer_toc('modradrte_rrtmgp/swrtesolve')
 
         endif
 
