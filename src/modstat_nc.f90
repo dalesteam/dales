@@ -339,9 +339,10 @@ contains
    call nchandle_error(status)
  end subroutine exitstat_nc
 
- subroutine writestat_dims_nc(ncid, ncoarse, klow)
+ subroutine writestat_dims_nc(ncid, ncoarse, klow, proc)
     ! optional arguments ncoarse (coarsegraining in the horizontal directions)
     !                    klow    (lower bound for z. Upper bound is taken from the size of the dimension)
+    !                    proc    (if present and length on horizontal cooridinates is 1 include processor starting edges and center)
     use modglobal, only : dx,dy,zf,zh,jmax,imax,kmax
     use modsurfdata, only : zsoilc,isurf
     use modlsm, only : z_soil
@@ -349,8 +350,11 @@ contains
     implicit none
     integer, intent(in) :: ncid
     integer, optional, intent(in) :: ncoarse, klow
+    logical, optional, intent(in) :: proc
     integer             :: i=0,iret,length,varid, nc
     integer             :: kl
+    logical             :: lproc
+    lproc = .false.
     if (present(ncoarse)) then
       nc = ncoarse
     else
@@ -361,20 +365,35 @@ contains
     else
       kl = 1
     end if
+    if (present(proc)) then
+      lproc = .true.
+    end if
 
-    iret = nf90_inq_varid(ncid, 'xt', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
-    iret = nf90_inq_varid(ncid, 'xm', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
+    if (.not. lproc) then
+      iret = nf90_inq_varid(ncid, 'xt', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, xtID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*(0.5+nc*i)+myidx*imax*dx,i=0,length-1)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'xm', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, xmID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dx*nc*i+myidx*imax*dx,i=0,length-1)/),(/1/))
 
-    iret = nf90_inq_varid(ncid, 'yt', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
-    iret = nf90_inq_varid(ncid, 'ym', VarID)
-    if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
-    if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'yt', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, ytID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*(0.5+nc*i)+myidy*jmax*dy,i=0,length-1)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'ym', VarID)
+      if (iret==0) iret=nf90_inquire_dimension(ncid, ymID, len=length)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(dy*nc*i+myidy*jmax*dy,i=0,length-1)/),(/1/))
+    else
+      iret = nf90_inq_varid(ncid, 'xt', VarID)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(0.5*dx*imax+myidx*imax*dx)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'xm', VarID)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(myidx*imax*dx)/),(/1/))
+
+      iret = nf90_inq_varid(ncid, 'yt', VarID)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(0.5*dy*jmax+myidy*jmax*dy)/),(/1/))
+      iret = nf90_inq_varid(ncid, 'ym', VarID)
+      if (iret==0) iret = nf90_put_var(ncid, varID, (/(myidy*jmax*dy)/),(/1/))
+    end if
 
     iret = nf90_inq_varid(ncid, 'zt', VarID)
     if (iret==0) iret=nf90_inquire_dimension(ncid,ztID, len=length)

@@ -138,8 +138,9 @@ program DALES
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
   use modradfield,     only : initradfield, radfield, exitradfield
-  use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_adv,tend_subg,tend_force,&
-                              tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,leibniztend
+  use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_subg,tend_force,&
+                              tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,&
+                              leibniztend, writesamptend
 
   use modbulkmicrostat,only : initbulkmicrostat, bulkmicrostat,exitbulkmicrostat
   use modbudget,       only : initbudget, budgetstat, exitbudget
@@ -272,7 +273,6 @@ program DALES
 !   3.4   ADVECTION AND DIFFUSION
 !-----------------------------------------------------
     call advection
-    call samptend(tend_adv)
     call subgrid
     call canopy
     call samptend(tend_subg)
@@ -328,6 +328,7 @@ program DALES
 !-----------------------------------------------------
     call thermodynamics
     call leibniztend
+    call writesamptend
 !-----------------------------------------------------
 !   3.9  WRITE RESTARTFILES AND DO STATISTICS
 !------------------------------------------------------

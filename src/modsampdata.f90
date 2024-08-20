@@ -40,5 +40,15 @@ SAVE
   logical :: lsampbuup  = .false. !< switch for conditional sampling buoyant updraft (on/off)
   logical :: lsampcldup = .false. !< switch for condtional sampling cloudy updraft (on/off)
   logical :: lsamptend  = .false. !< switch to also sample tendencies
+  logical :: lsamptendu = .false. !< switch to sample u tendencies
+  logical :: lsamptendv = .false. !< switch to sample v tendencies
+  logical :: lsamptendw = .false. !< switch to sample w tendencies
+  logical :: lsamptendthl = .false. !< switch to sample thl tendencies
+  logical :: lsamptendqt = .false. !< switch to sample qt tendencies
+  logical :: lsamptendqr = .false. !< switch to sample qr tendencies
+  logical :: lsamptendnr = .false. !< switch to sample nr tendencies
+  logical :: lprocblock = .false. !< switch to write (so far only tendencies) per processor block instead of domain-averaged
+  logical :: ltendleib = .false. !< switch to turn on leibniz tendencies
+  logical :: ltenddec = .false. !< switch to get variables needed to scale-decompose (processor-averaged) advective tendencies
 
 end module modsampdata

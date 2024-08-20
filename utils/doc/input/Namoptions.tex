@@ -1304,6 +1304,16 @@ This namelist is only used if the RTE-RRTMGP model for GCMs is applied, i.e.  \h
   lsampbuup	& .false.	& $x\in\{\text{.false.},\text{.true.}\}$	& Switch for conditional sampling of buoyant updrafts ($w > 0, \theta_v' > 0$)	& -\\
   lsampcldup & .false.       & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for conditional sampling cloudy updrafts ($q_l > 0, w > 0$) & -\\
   lsamptend & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for conditional sampling of tendencies & -\\
+  lsamptendu & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of u tendencies & -\\
+  lsamptendv & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of v tendencies & -\\
+  lsamptendw & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of w tendencies & -\\
+  lsamptendthl & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of thl tendencies & -\\
+  lsamptendqt & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of qt tendencies & -\\
+  lsamptendqr & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of qr tendencies & -\\
+  lsamptendnr & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & Switch for (conditional) sampling of nr tendencies & -\\
+  lprocblock & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & switch to write tendencies averaged over processor blocks instead of a horizontal slab & -\\
+  ltendleib & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & switch to turn on leibniz tendencies & -\\
+  ltenddec & .false.        & $x\in\{\text{.false.},\text{.true.}\}$        & switch to get variables needed to scale-decompose (processor-averaged) advective tendencies & -\\
 \end{supertabular}
 \end{center}
 
