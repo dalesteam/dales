@@ -180,7 +180,7 @@ subroutine tstep_update
   !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, k1
     do j = 2, j2     ! i2, j2 here to include one ghost cell,
-      do i = 1, i2   ! needed for up, vp with open boundaries
+      do i = 2, i2   ! needed for up, vp with open boundaries
         up(i,j,k)=0.
         vp(i,j,k)=0.
         wp(i,j,k)=0.
@@ -197,7 +197,7 @@ subroutine tstep_update
     do n = 1, nsv
       do k = 1, k1
         do j = 2, j1
-          do i = 1, i1
+          do i = 2, i1
             svp(i,j,k,n)=0.
           enddo
         enddo
