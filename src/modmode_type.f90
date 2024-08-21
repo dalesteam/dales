@@ -2,7 +2,7 @@
 module modmode_type
 
   use modprecision, only: field_r
-  use modtracers,   only: T_tracer
+  use modtracer_type, only: T_tracer
 
   implicit none
 

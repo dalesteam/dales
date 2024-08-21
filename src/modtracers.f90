@@ -25,6 +25,7 @@
 module modtracers
 
   use modglobal, only : nsv
+  use modtracer_type, only: T_tracer
 
   implicit none
 
@@ -47,34 +48,6 @@ module modtracers
   character(len = 6), dimension(200) :: &
               tracernames = (/ ('      ', iname=1, 200) /) ! list with scalar names,
 
-  ! Data structure for tracers
-  type T_tracer
-  ! Fixed tracer properties
-      ! Tracer name
-      character(len=16) :: tracname
-      ! Tracer long name
-      character(len=64) :: traclong 
-      ! Tracer unit
-      character(len=16) :: unit     
-      ! Moleculare mass of tracer (g mol-1)
-      real              :: molar_mass
-      ! Tracer index in sv0, svm, svp
-      integer           :: trac_idx
-      ! Boolean if tracer is emitted 
-      logical           :: lemis
-      ! Boolean if tracer is reactive
-      logical           :: lreact
-      ! Boolean if tracer is deposited
-      logical           :: ldep
-      ! Boolean if in A-gs
-      logical           :: lags   
-      ! Boolean if in cloud microphysics
-      logical           :: lmicro     
-      ! Boolean if tracer is an aerosol
-      logical           :: laero
-      ! ! Static tracer properties:
-      ! real :: diffusivity
-  end type T_tracer
 
   ! Trace type for each tracer
   integer :: isv
