@@ -540,7 +540,7 @@ contains
     use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &
-                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn
+                          ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn,lopenbc
     use modmpi,    only : comm3d,mpi_sum,mpierr,slabsum,D_MPI_ALLREDUCE,myid
     use advec_kappa, only : halflev_kappa
     use modmicrodata, only: tuprsg, tdnrsg, imicro, imicro_sice, imicro_sice2, iqr
@@ -891,7 +891,7 @@ contains
       end do
 
       do n = 1, nsv
-        if (iadv_sv(n)==iadv_kappa) then
+        if (iadv_sv(n)==iadv_kappa .and. .not. lopenbc) then
            call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
           !$acc parallel loop collapse(3) default(present) async(1)

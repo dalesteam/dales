@@ -200,7 +200,7 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
-    use modglobal, only : i1,j1,k1,rdt,rk3step,timee,rlv,cp
+    use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp
     use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
@@ -321,16 +321,16 @@ module modbulkmicro
     qrmask = qr.gt.qrmin.and.Nr.gt.0
     qrbase = k1 + 1
     qrroof = 1 - 1
-    do k=1,k1
+    do k=1,kmax
       if (any(qrmask(:,:,k))) then
         qrbase = max(1, k)
         exit
       endif
     enddo
     if (qrbase.le.k1) then
-      do k=k1,qrbase,-1
+      do k=kmax,qrbase,-1
         if (any(qrmask(:,:,k))) then
-          qrroof = min(k1, k)
+          qrroof = min(kmax, k)
           exit
         endif
       enddo
@@ -339,16 +339,16 @@ module modbulkmicro
     qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
     qcbase = k1 + 1
     qcroof = 1 - 1
-    do k=1,k1
+    do k=1,kmax
       if (any(qcmask(:,:,k))) then
         qcbase = max(1, k)
         exit
       endif
     enddo
     if (qcbase.le.k1) then
-      do k=k1,qcbase,-1
+      do k=kmax,qcbase,-1
         if (any(qcmask(:,:,k))) then
-          qcroof = min(k1, k)
+          qcroof = min(kmax, k)
           exit
         endif
       enddo

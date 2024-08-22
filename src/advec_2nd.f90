@@ -300,7 +300,7 @@ subroutine vadvecv_2nd(a_in, a_out, sy)
 
     !$acc parallel loop collapse(3) default(present) async(2)
     do k = 2, kmax
-      do j = 2, j1
+      do j = sy, j1
         do i = 2, i1
           a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
             (w0(i,j,k+1)+w0(i,j-1,k+1)) &

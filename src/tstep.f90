@@ -64,7 +64,7 @@ subroutine exittstep
 end subroutine exittstep
 
 subroutine tstep_update
-  use modglobal, only : i1,j1,k1,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason,nsv, &
+  use modglobal, only : i1,j1,k1,i2,j2,rk3step,timee,rtimee,dtmax,dt,ntrun,courant,peclet,dt_reason,nsv, &
                         kmax,dx,dy,dzh,dt_lim,ladaptive,timeleft,idtmax,rdt,tres,longint ,lwarmstart
   use modfields, only : um,vm,wm,up,vp,wp,thlp,svp,qtp,e12p
   use modsubgrid,only : ekm,ekh
@@ -179,8 +179,8 @@ subroutine tstep_update
   ! set all tendencies to zero
   !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, k1
-    do j = 2, j1
-      do i = 1, i1
+    do j = 2, j2     ! i2, j2 here to include one ghost cell,
+      do i = 2, i2   ! needed for up, vp with open boundaries
         up(i,j,k)=0.
         vp(i,j,k)=0.
         wp(i,j,k)=0.
@@ -197,7 +197,7 @@ subroutine tstep_update
     do n = 1, nsv
       do k = 1, k1
         do j = 2, j1
-          do i = 1, i1
+          do i = 2, i1
             svp(i,j,k,n)=0.
           enddo
         enddo
@@ -227,7 +227,7 @@ end subroutine tstep_update
 subroutine tstep_integrate
 
 
-  use modglobal, only : rdt,rk3step,e12min,i1,j1,kmax,nsv
+  use modglobal, only : rdt,rk3step,e12min,i1,j1,i2,j2,kmax,k1,nsv
   use modfields, only : u0,um,up,v0,vm,vp,w0,wm,wp,&
                         thl0,thlm,thlp,qt0,qtm,qtp,&
                         e120,e12m,e12p,sv0,svm,svp
@@ -243,9 +243,9 @@ subroutine tstep_integrate
 
   if(rk3step /= 3) then
     !$acc parallel loop collapse(3) default(present) async(1)
-    do k = 1, kmax
-      do j = 2, j1
-        do i = 1, i1
+    do k = 1, k1
+      do j = 2, j2     ! i2, j2, k1 here to include one ghost cell,
+        do i = 1, i2   ! needed for u0, v0, w0 with open boundaries
           u0(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
           v0(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
           w0(i,j,k)   = wm(i,j,k)   + rk3coef * wp(i,j,k)
@@ -273,9 +273,9 @@ subroutine tstep_integrate
 
   else ! step 3 - store result in both ..0 and ..m
     !$acc parallel loop collapse(3) default(present) async(1)
-    do k = 1, kmax
-      do j = 2, j1
-        do i = 1, i1
+    do k = 1, k1
+      do j = 2, j2     ! i2, j2, k1 here to include one ghost cell,
+        do i = 1, i2   ! needed for u0, v0, w0 with open boundaries
           um(i,j,k)   = um(i,j,k)   + rk3coef * up(i,j,k)
           u0(i,j,k)   = um(i,j,k)
           vm(i,j,k)   = vm(i,j,k)   + rk3coef * vp(i,j,k)
