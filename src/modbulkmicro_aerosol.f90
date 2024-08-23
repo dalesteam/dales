@@ -911,6 +911,15 @@ contains
   end subroutine evaporation
 
   subroutine activation
+
+    use modmicrodata_aerosol, only: lkohler
+    
+    if (lkohler) then
+      call activation_kohler
+    else
+      call activation_updraft
+    end if
+
   end subroutine activation
 
   subroutine activation_kohler
@@ -920,47 +929,35 @@ contains
     use modmicrodata,         only: delt
     use modmicrodata_aerosol, only: modes, nmodes, iINC, ssat
     use modmode_type,         only: mode_t
-    
-    implicit none
 
-    real(field_r)              :: T, A, eps
-    real(field_r)              :: d_crit, dn_mean, dm_mean
-    real(field_r)              :: fn, fm, fac
-    real(field_r), allocatable :: kappa(:,:,:)
-    real(field_r), parameter   :: R = 8.1314, & ! Gas constant
-      &                           mw = 0.018, & ! Molar mass of water
-      &                           sw = 0.072    ! Surface tension of water
-    integer                    :: i, j, k, s, imod
-    integer                    :: idx_start, idx_end, idx_numb
-    type(mode_t)               :: this_mode
-
-    allocate(kappa(2:i1,2:j1,1:k1))
+    real(field_r), parameter :: R = 8.1314, & ! Gas constant
+      &                         mw = 0.018, & ! Molar mass of water
+      &                         sw = 0.072    ! Surface tension of water
+    real(field_r)            :: T, A, eps, kappa
+    real(field_r)            :: d_crit, dn_mean, dm_mean
+    real(field_r)            :: fn, fm
+    real(field_r)            :: mass_total, volume_total
+    integer                  :: i, j, k, s, ss, sss, imod
 
     do imod = 1, nmodes
       if (modes(imod) % lactivation) then ! Excluding in-cloud and in-rain
-        this_mode = modes(imod) ! Current mode
-        idx_start = this_mode%idx_start
-        idx_end = this_mode%idx_end
-        idx_numb = this_mode%idx_numb
+        !$acc parallel loop collapse(4) default(present) private(mass_total, volume_total, T, A, d_crit, dm_mean, fm) async(1)
+        do s = 2, modes(imod) % nspecies ! Loop over mass concentrations (s=1 is the number concentration)
+          do k = 1, k1
+            do j = 2, j1
+              do i = 2, i1
+                ! Calculate total aerosol mass and volume in mode
+                do ss = 2, modes(imod) % nspecies
+                  mass_total = mass_total + modes(imod) % aer_conc(i,j,k,ss)
+                  volume_total = volume_total + (modes(imod) % aer_conc(i,j,k,ss) / modes(imod) % species(ss) % rho)
+                end do
 
-        ! Calculate hygroscopicity parameter per mode
-        ! Can be merged with next kernel, reduces memory ops?
-        do s = idx_start, idx_end
-          do k = 1, k1
-            do j = 2, j1
-              do i = 2, i1
-                eps = sv0(i,j,k,s) / this_mode%rho_s(s) / &
-                      sum(sv0(i,j,k,idx_start:idx_end) / this_mode%rho_s(s))
-                kappa(i,j,k) = kappa(i,j,k) + eps * this_mode%kappa_s(s)
-              end do
-            end do
-          end do
-        end do
-        
-        do s = idx_start, idx_end ! Loop over mass concentrations
-          do k = 1, k1
-            do j = 2, j1
-              do i = 2, i1
+                ! Calculate kappa (PK07, eq 7)
+                do ss = 2, modes(imod) % nspecies
+                  eps = (modes(imod) % aer_conc(i,j,k,s) / modes(imod) % species(ss) % rho) / volume_total
+                  ! Some species have zero hygroscopicity
+                  if (modes(imod) % species(ss) % kappa > 0.) kappa = kappa + eps * modes(imod) % species(ss) % kappa
+                end do
                 
                 T = thl0(i,j,k) * exnf(k) + (rlv/cp) * ql0(i,j,k)
 
@@ -969,36 +966,62 @@ contains
 
                 ! The critical diameter
                 ! Instead of using _field_r, use integers?
-                d_crit = (4 * A**3 / &
-                          (27 * kappa(i,j,k) * log(ssat / 100 + 1)**2))**(1/3_field_r)
+                d_crit = (4 * A**3 / (27 * kappa * log(ssat / 100 + 1)**2))**(1/3_field_r)
 
-                ! Calculate the mean number and mass diameter per mode
-                dn_mean = (6 * sum(sv0(i,j,k,idx_start:idx_end)) / &
-                           pi * sv0(i,j,k,idx_numb))
-                dm_mean = dn_mean * exp(3 * log(this_mode%sigma_g)**2)
+                ! Calculate the mean mass diameter
+                dm_mean = (6 * mass_total / (pi * (modes(imod) % aer_conc(i,j,k,1) * 1.e9) * volume_total))**(1._field_r/3._field_r) &
+                          * exp(3 * log(modes(imod) % sigma_g)**2)
 
-                fn = 1 - 0.5_field_r * erfc(-log(d_crit / dn_mean) / sqrt(2.0_field_r) * log(this_mode%sigma_g))
-                fm = 1 - 0.5_field_r * erfc(-log(d_crit / dm_mean) / sqrt(2.0_field_r) * log(this_mode%sigma_g))
-
-                ! This should vectorize
-                fac = merge(fn, fm, s == this_mode%idx_numb)
+                ! Activated fraction
+                fm = 1._field_r - 0.5_field_r * erfc(-log(d_crit / dm_mean) / sqrt(2._field_r) * log(modes(imod) % sigma_g))
 
                 ! Tendency for source aerosol - negative
-                this_mode%aer_acti(i,j,k,s) = -fac * this_mode%aer_conc(i,j,k,s) / delt
-                this_mode%aer_tend(i,j,k,s) = this_mode%aer_tend(i,j,k,s) + this_mode%aer_acti(i,j,k,s)
+                modes(imod) % aer_acti(i,j,k,s) = -fm * modes(imod) % aer_conc(i,j,k,s) / delt
+                modes(imod) % aer_tend(i,j,k,s) = modes(imod) % aer_tend(i,j,k,s) + modes(imod) % aer_acti(i,j,k,s)
 
                 ! Tendency for in-cloud aerosol - positive
-                modes(iINC)%aer_acti(i,j,k,s) = modes(iINC)%aer_acti(i,j,k,s) - this_mode%aer_acti(i,j,k,s)
-                modes(iINC)%aer_tend(i,j,k,s) = modes(iINC)%aer_tend(i,j,k,s) - this_mode%aer_acti(i,j,k,s)
+                modes(iINC) % aer_acti(i,j,k,s) = modes(iINC) % aer_acti(i,j,k,s) - modes(imod) % aer_acti(i,j,k,s)
+                modes(iINC) % aer_tend(i,j,k,s) = modes(iINC) % aer_tend(i,j,k,s) - modes(imod) % aer_acti(i,j,k,s)
               end do
+            end do
+          end do
+        end do
+
+        ! Do the same but for the number concentration
+        !$acc parallel loop collapse(3) default(present) private(mass_total, volume_total, T, A, d_crit, dn_mean, fn) async(2)
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              do ss = 2, modes(imod) % nspecies
+                mass_total = mass_total + modes(imod) % aer_conc(i,j,k,ss)
+                volume_total = volume_total + (modes(imod) % aer_conc(i,j,k,ss) / modes(imod) % species(ss) % rho)
+              end do
+
+              do ss = 2, modes(imod) % nspecies
+                eps = (modes(imod) % aer_conc(i,j,k,s) / modes(imod) % species(ss) % rho) / volume_total
+                if (modes(imod) % species(ss) % kappa > 0.) kappa = kappa + eps * modes(imod) % species(ss) % kappa
+              end do
+
+              T = thl0(i,j,k) * exnf(k) + (rlv/cp) * ql0(i,j,k)
+              A = 4._field_r * sw * mw / (R * T * rhow)
+              d_crit = (4 * A**3 / (27 * kappa * log(ssat / 100 + 1)**2))**(1/3_field_r)
+
+              ! Number mean diameter 
+              dn_mean = (6 * mass_total / (pi * (modes(imod) % aer_conc(i,j,k,1) * 1.e9) * volume_total))**(1._field_r/3._field_r)
+              fn = 1._field_r - 0.5_field_r * erfc(-log(d_crit / dn_mean) / sqrt(2._field_r) * log(modes(imod) % sigma_g))
+
+              modes(imod) % aer_acti(i,j,k,1) = -fn * modes(imod) % aer_conc(i,j,k,1) / delt
+              modes(imod) % aer_tend(i,j,k,1) = modes(imod) % aer_tend(i,j,k,1) + modes(imod) % aer_acti(i,j,k,1)
+              modes(iINC) % aer_acti(i,j,k,1) = modes(iINC) % aer_acti(i,j,k,1) - modes(imod) % aer_acti(i,j,k,1)
+              modes(iINC) % aer_tend(i,j,k,1) = modes(iINC) % aer_tend(i,j,k,1) - modes(imod) % aer_acti(i,j,k,1)
             end do
           end do
         end do
       end if
     end do
 
-    deallocate(kappa)
-    
+    !$acc wait(1,2)
+
   end subroutine activation_kohler
 
   subroutine activation_updraft
