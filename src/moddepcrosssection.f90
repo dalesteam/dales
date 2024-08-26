@@ -55,7 +55,7 @@ contains
         mpierr, D_MPI_BCAST
     use modglobal, only : dtav_glob, ifnamopt, fname_options, &
         checknamelisterror, tres, btime, dt_lim, ladaptive, &
-        dtmax, iexpnr, imax, jmax
+        dtmax, iexpnr, imax, jmax, output_prefix
     use modstat_nc, only : lnetcdf, open_nc, define_nc, ncinfo, &
         nctiminfo, writestat_dims_nc
     use moddrydeposition, only : ndeptracers
@@ -109,7 +109,7 @@ contains
         call ncinfo(ncname(idt, :), varname, varlongname, 'kg / (m2 * s)', 'tt0t')
         idt = idt+1
       end do
-      call open_nc(fname, ncid, nrec, n1=imax, n2=jmax)
+      call open_nc(trim(output_prefix)//fname, ncid, nrec, n1=imax, n2=jmax)
       if (nrec==0) then
         call define_nc(ncid, 1, tncname)
         call writestat_dims_nc(ncid)
