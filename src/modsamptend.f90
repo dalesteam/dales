@@ -224,7 +224,7 @@ subroutine initsamptend
       fname(10:12) = cexpnr
       dimst='tt'
       dimsm='mt'
-      call open_nc(trim(output_prefix)//fname,ncid,nrec,n3=kmax)
+      call open_nc(fname,ncid,nrec,n3=kmax)
       call define_nc( ncid,1,tncname)
       call writestat_dims_nc(ncid)
     end if
