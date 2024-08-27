@@ -199,7 +199,7 @@ subroutine initsamptend
   subroutine initnetcdf
   
     use modmpi,   only : cmyid
-    use modglobal,only : cexpnr, kmax
+    use modglobal,only : cexpnr, kmax, output_prefix
     use modstat_nc, only : open_nc,define_nc,redefine_nc,ncinfo,nctiminfo,writestat_dims_nc
     implicit none
     logical :: proc = .true.
@@ -217,7 +217,7 @@ subroutine initsamptend
       dimsm='ttmt'
       dimsu='mttt'
       dimsv='tmtt'
-      call open_nc(fname_block,ncid,nrec,n1=1,n2=1,n3=kmax)
+      call open_nc(trim(output_prefix)//fname_block,ncid,nrec,n1=1,n2=1,n3=kmax)
       call define_nc( ncid,1,tncname)
       call writestat_dims_nc(ncid, 1, 1, proc)
     else
