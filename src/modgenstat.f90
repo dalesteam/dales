@@ -87,7 +87,7 @@ module modgenstat
   integer :: nsamples
 !     ----  total fields  ---
 
-  real, allocatable  :: umn   (:)       ,vmn   (:)
+  real, allocatable  :: umn   (:)       ,vmn   (:),  wmn  (:)
   real, allocatable  :: thlmn (:)       ,thvmn (:)
   real, allocatable  :: qtmn  (:)       ,qlmn  (:),  qlhmn(:),cfracmn(:),hurmn(:),tamn(:)
   real, allocatable  :: clwmn(:), climn(:), plwmn(:), plimn(:)
@@ -110,11 +110,12 @@ module modgenstat
   real, allocatable  :: svmmn(:,:),svptmn(:,:),svplsmn(:,:),svpmn(:,:)
   real, allocatable  :: sv2mn(:,:)
 
-  real(field_r), allocatable :: umav (:)     ! slab averaged ql_0    at full level
-  real(field_r), allocatable :: vmav (:)     ! slab averaged ql_0    at full level
-  real(field_r), allocatable :: thlmav (:)     ! slab averaged ql_0    at full level
-  real(field_r), allocatable :: thmav (:)     ! slab averaged ql_0    at full level
-  real(field_r), allocatable :: qtmav (:)     ! slab averaged ql_0    at full level
+  real(field_r), allocatable :: umav (:)     ! slab averaged u_0    at full level
+  real(field_r), allocatable :: vmav (:)     ! slab averaged v_0    at full level
+  real(field_r), allocatable :: wmav (:)     ! slab averaged w_0    at full level
+  real(field_r), allocatable :: thlmav (:)     ! slab averaged thl_0    at full level
+  real(field_r), allocatable :: thmav (:)     ! slab averaged th_0    at full level
+  real(field_r), allocatable :: qtmav (:)     ! slab averaged qt_0    at full level
   real(field_r), allocatable :: qlmav (:)     ! slab averaged ql_0    at full level
   real, allocatable :: cfracav (:)     ! slab averaged ql_0    at full level
   real, allocatable :: hurav (:)
@@ -237,7 +238,7 @@ contains
       stop 'timeav must be a integer multiple of dtav'
     end if
 
-    allocate(umn(k1)       ,vmn   (k1))
+    allocate(umn(k1),vmn(k1),wmn(k1))
     allocate(thlmn (k1)       ,thvmn (k1))
     allocate(qtmn  (k1)       ,qlmn  (k1),  qlhmn(k1),cfracmn(k1), hurmn(k1), tamn(k1))
     allocate(clwmn(k1), climn(k1), plwmn(k1), plimn(k1))
@@ -256,6 +257,7 @@ contains
 
     allocate(umav (k1))
     allocate(vmav (k1))
+    allocate(wmav (k1))
     allocate(thlmav (k1))
     allocate(thmav (k1))
     allocate(qtmav (k1))
@@ -319,6 +321,7 @@ contains
 
     umn      = 0.
     vmn      = 0.
+    wmn      = 0.
     thlmn    = 0.
     thvmn    = 0.
     qtmn     = 0.
@@ -487,14 +490,14 @@ contains
 
     end if
 
-    !$acc enter data copyin(umn, vmn, thlmn, thvmn, qtmn, qlmn, qlhmn, cfracmn, wthlsmn, wthlrmn, wthltmn, &
+    !$acc enter data copyin(umn, vmn, wmn, thlmn, thvmn, qtmn, qlmn, qlhmn, cfracmn, wthlsmn, wthlrmn, wthltmn, &
     !$acc&                  wthvsmn, wthvrmn, wthvtmn, wqtsmn, wqtrmn, wqttmn, wqlsmn, wqlrmn, wqltmn, &
     !$acc&                  uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, u2mn, v2mn, w2mn, w2submn, skewmn, &
     !$acc&                  qt2mn, thl2mn, thv2mn, th2mn, ql2mn, svmmn, svpmn, svpav, svptmn, svptav, &
     !$acc&                  sv2mn, wsvsmn, wsvrmn, wsvtmn, cszav, cszmn, qlmnlast, wthvtmnlast, qlhav, &
     !$acc&                  wqlsub, wqlres, wthlsub, wthlres, wqtsub, wqtres, wthvsub, wthvres, wqttot, &
     !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
-    !$acc&                  uwtot, vwtot, umav, vmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
+    !$acc&                  uwtot, vwtot, umav, vmav, wmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
     !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
     !$acc&                  hurmn, clwmn, climn, plwmn, plimn, tamn)
@@ -589,6 +592,7 @@ contains
     wqlres = 0.0
     umav = 0.0
     vmav = 0.0
+    wmav = 0.0
     thlmav = 0.0
     thmav = 0.0
     qtmav = 0.0
@@ -642,17 +646,17 @@ contains
 
     !$acc wait(1)
 
-    !$acc host_data use_device(umav, um, vmav, vm, thlmav, thlm, qtmav, qtm, &
+    !$acc host_data use_device(umav, um, vmav, vm, wmav, wm, thlmav, thlm, qtmav, qtm, &
     !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
     call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     !$acc end host_data
-
     if (nsv > 0) then
       !$acc host_data use_device(svmav, svm)
       do n = 1, nsv
@@ -664,6 +668,7 @@ contains
     !$acc kernels default(present) async(1)
     umav    = umav    / ijtot + cu
     vmav    = vmav    / ijtot + cv
+    wmav    = wmav    / ijtot
     thlmav  = thlmav  / ijtot
     qtmav   = qtmav   / ijtot
     qlmav   = qlmav   / ijtot
@@ -857,6 +862,8 @@ contains
       wqlres(k) = wqlres_s
       wthlsub(k) = wthlsub_s
       wthlres(k) = wthlres_s
+      wthvsub(k) = wthvsub_s
+      wthvres(k) = wthvres_s
       wqtsub(k) = wqtsub_s
       wqtres(k) = wqtres_s
       uwres(k) = uwres_s
@@ -873,18 +880,16 @@ contains
     !------------
     ! 2.3 MOMENTS
     !------------
-
     call calc_moment(u2av, um, 2, umav, cu)
     call calc_moment(v2av, vm, 2, vmav, cv)
-    call calc_moment(w2av, wm, 2)
-    call calc_moment(w3av, wm, 3)
-    call calc_moment(w2subav, e12m, 2)
+    call calc_moment(w2av, wm, 2, wmav)
+    call calc_moment(w3av, wm, 3, wmav)
+    call calc_moment(w2subav, e12m, 2, wmav)
     call calc_moment(qt2av, qtm, 2, qtmav)
     call calc_moment(thl2av, thlm, 2, thlmav)
     call calc_moment(thv2av, thv0, 2, thvmav)
     call calc_moment(th2av, thlm, 2, thmav)
     call calc_moment(ql2av, ql0, 2, qlmav)
-
     if (nsv > 0) then
       do n = 1, nsv
         call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, svmav(:, n))
@@ -1047,6 +1052,7 @@ contains
     !$acc kernels default(present) async(1)
     umn     = umn     + umav
     vmn     = vmn     + vmav
+    wmn     = wmn     + wmav
     thvmn   = thvmn   + thvmav
     thlmn   = thlmn   + thlmav
     qtmn    = qtmn    + qtmav
@@ -1085,6 +1091,7 @@ contains
     thl2mn  = thl2mn  + thl2av
     thv2mn  = thv2mn  + thv2av
     th2mn   = th2mn   + th2av
+    ql2mn   = ql2mn   + ql2av
     skewmn  = skewmn  + w3av/max(w2av**1.5,epsilon(w2av(1))) !
     cszmn   = cszmn   + cszav
     if (nsv > 0) then
@@ -1121,31 +1128,17 @@ contains
       c = c_in
     end if
 
-    if (.not.present(mean)) then
-      !$acc parallel loop default(present) private(prof_s) async
-      do k = 1, 1
-        prof_s = 0.0
-        !$acc loop collapse(2) reduction(+: prof_s)
-        do j = 2, j1
-          do i = 2, i1
-            prof_s = prof_s + (var(i, j, k) + c)**n
-          end do
+    !$acc parallel loop default(present) private(prof_s) async
+    do k = 1, k1
+      prof_s = 0.0
+      !$acc loop collapse(2) reduction(+: prof_s)
+      do j = 2, j1
+        do i = 2, i1
+          prof_s = prof_s + (var(i, j, k) + c - mean(k))**n
         end do
-        prof(k) = prof_s / ijtot
       end do
-    else
-      !$acc parallel loop default(present) private(prof_s) async
-      do k = 1, k1
-        prof_s = 0.0
-        !$acc loop collapse(2) reduction(+: prof_s)
-        do j = 2, j1
-          do i = 2, i1
-            prof_s = prof_s + (var(i, j, k) + c - mean(k))**n
-          end do
-        end do
-        prof(k) = prof_s / ijtot
-      end do
-    end if
+      prof(k) = prof_s / ijtot
+    end do
     !$acc wait
 
   end subroutine calc_moment
@@ -1178,6 +1171,7 @@ contains
       !$acc kernels default(present)
       umn    = umn    /nsamples
       vmn    = vmn    /nsamples
+      wmn    = wmn    /nsamples
       thvmn  = thvmn  /nsamples
       thlmn  = thlmn  /nsamples
       qtmn   = qtmn   /nsamples
@@ -1249,7 +1243,7 @@ contains
       tmn  = thmn*exnf
       !$acc end kernels
 
-      !$acc update self(umn, vmn, thvmn, thlmn, qtmn, qlmn, cfracmn, qlhmn, &
+      !$acc update self(umn, vmn, wmn, thvmn, thlmn, qtmn, qlmn, cfracmn, qlhmn, &
       !$acc&            wthlsmn, wthlrmn, wthltmn, wqtsmn, wqtrmn, wqttmn, &
       !$acc&            wqlsmn, wqlrmn, wqltmn, wthvsmn, wthvrmn, wthvtmn, &
       !$acc&            uwtmn, vwtmn, uwrmn, vwrmn, uwsmn, vwsmn, w2mn, skewmn, &
@@ -1635,7 +1629,7 @@ contains
 
     if(lnetcdf .and. myid==0) call exitstat_nc(ncid)
 
-    deallocate(umn       ,vmn   )
+    deallocate(umn       ,vmn, wmn)
     deallocate(thlmn        ,thvmn )
     deallocate(qtmn         ,qlmn  ,  qlhmn, cfracmn, hurmn)
     deallocate(clwmn,climn,plwmn,plimn)
@@ -1654,6 +1648,7 @@ contains
 
     deallocate(umav )
     deallocate(vmav )
+    deallocate(wmav )
     deallocate(thlmav )
     deallocate(thmav )
     deallocate(qtmav )
