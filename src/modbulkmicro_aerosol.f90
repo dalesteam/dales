@@ -605,6 +605,9 @@ contains
                 sed_qr = max(0., 0.006*1.0E6*Dvr(i,j,k) - 0.2) * qr_spl(i,j,k)*rhof(k)
                 sed_Nr = max(0.,0.0035*1.0E6*Dvr(i,j,k) - 0.1) * Nr_spl(i,j,k)
 
+                ! Save sed_qr for scavenging
+                sed_qr_dup(i,j,k) = sed_qr
+
                 !$acc atomic update
                 qr_tmp(i,j,k) = qr_tmp(i,j,k) - sed_qr*dt_spl/(dzf(k)*rhof(k))
                 !$acc atomic update
@@ -1028,6 +1031,75 @@ contains
 
   end subroutine activation_updraft
 
+  subroutine scavenging
+    
+    use modfields,            only: rhof, ql0
+    use modglobal,            only: k1, j1, i1, pi, rhow
+    use modmicrodata,         only: delt, eps0, qcmask, qrmask
+    use modmicrodata_aerosol, only: modes, maxmodes, ncmin, Nc, sed_qr_dup
+
+    real(field_r) :: mass_total, volume_total !< Mode mean quantities
+    real(field_r) :: meancld, rainrate
+    real(field_r) :: dcdt_inc_n, dcdt_inc_m   !< In-cloud scavenging
+    real(field_r) :: dcdt_blc_n, dcdt_blc_m   !< Below-cloud (rain) scavenging
+    real(field_r) :: rm, rm_inc, rm_blc       !< Various radii
+    
+    integer :: i, j, k, s, ss, imod
+    integer :: t_inc, t_inr !< Index of target in-cloud and in-rain modes
+
+    do imod = 1, maxmodes - 2 ! Exclude in-cloud and in-rain aerosols
+      if (.not. modes(imod) % enabled ) cycle
+        do k = min(qcbase, qrbase), max(qcroof, qrroof)
+          do j = 2, j1
+            do i = 2, i1
+              ! TODO: what is this?
+              meancld = 1e6_field_r * (3._field_r * ql0(i,j,k) * rhof(k) / (4._field_r * pi * Nc(i,j,k) * rhow + eps0))**(1._field_r/3._field_r)
+              meancld = min(max(meancld, 5.001), 49.999)
+
+              do ss = 2, modes(imod) % nspecies
+                mass_total = mass_total + modes(imod) % aer_conc(i,j,k,ss)
+                volume_total = volume_total + (modes(imod) % aer_conc(i,j,k,ss) / modes(imod) % species(ss) % rho)
+              end do
+              ! Geometric mean aerosol radius
+              ! TODO: CJ: check of deze formule klopt
+              rm = 0.5_field_r * (6 * mass_total / (pi * modes(imod) % aer_conc(i,j,k,1) * 1.e9_field_r * volume_total))**(1._field_r/3._field_r) &
+                   * exp(-(3._field_r/2._field_r))
+
+              if (qcmask(i,j,k) .and. Nc(i,j,k) > ncmin) then
+                ! Make sure rm is within bounds of the lookup table
+                rm_inc = max(min(100._field_r * rm, 8.0e-3_field_r), 1.0e-8_field_r)
+                
+                ! In-cloud scavenging
+                dcdt_inc_n = 1e-6_field_r * Nc(i,j,k) * &
+                             lookup_interpolate(ncld, logcldrad, naer_inc, logaerrad, incnumb, log(meancld), log(rm))
+                dcdt_inc_m = 1e-6_field_r * Nc(i,j,k) * & 
+                             lookup_interpolate(ncld, logcldrad, naer_inc, logaerrad, incmass, log(meancld), log(rm))
+
+                dcdt_inc_n = merge(1._field_r / delt, dcdt_inc_n, (dcdt_inc_n * delt > 1._field_r) .or. (dcdt_inc_m * delt > 1._field_r))
+                dcdt_inc_m = merge(1._field_r / delt, dcdt_inc_m, (dcdt_inc_n * delt > 1._field_r) .or. (dcdt_inc_m * delt > 1._field_r))
+
+                modes(imod) % aer_scvc(i,j,k,1) = - dcdt_inc_n * max(0._field_r, modes(imod) % aer_conc(i,j,k,1))
+                modes(imod) % aer_tend(i,j,k,1) = modes(imod) % aer_tend(i,j,k,1) + modes(imod) % aer_scvc(i,j,k,1)
+
+                do s = 2, modes(imod) % nspecies
+                  t_inc = modes(imod) % species(s) % iINC
+                  modes(imod) % aer_scvc(i,j,k,s) = - dcdt_inc_m * max(0._field_r, modes(imod) % aer_conc(i,j,k,s))
+                  modes(iINC) % aer_scvc(i,j,k,t_inc) = modes(iINC) % aer_scvc(i,j,k,t_inc) - modes(imod) % aer_scvc(i,j,k,s) 
+                end do
+              end if
+                
+              if (qrmask(i,j,k) .and. sed_qr_dup(i,j,k) * 3600_field_r > 0.01_field_r) then
+                ! Below-cloud scavenging
+                rm_blc = max(min(.9999e3_field_r, rm * 1.e6_field_r), 1.001e-3_field_r)
+
+                dcdt_blc_n = lookup_interpolate(nrai, lograinrate, naer_blc, logaerrad_blc, blcnumb, log(rainrate), log(rm))
+                dcdt_blc_m = lookup_interpolate(nrai, lograinrate, naer_blc, logaerrad_blc, blcmass, log(rainrate), log(rm))
+              end if 
+            end do
+          end do
+        end do
+      end do
+  end subroutine scavenging
   !*********************************************************************
   !*********************************************************************
 
