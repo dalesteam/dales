@@ -49,6 +49,7 @@ module modbulkmicro_aerosol
 
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
+  use modmicrodata_aerosol
 
   implicit none
 
@@ -66,6 +67,32 @@ contains
 
   !> Initializes and allocates the arrays
   subroutine initaerosol
+
+    use modtracers,           only: defined_tracers, tracer_prop, add_tracer
+
+    integer :: itrac, imod
+
+    ! Ok, now add the species to the modes
+    do itrac = 1, defined_tracers
+      if (.not. tracer_prop(itrac)%laero) cycle
+
+      ! Find the mode index
+      imod = findloc(modenames, tracer_prop(itrac)%mode, dim=1)
+
+      ! Enable the mode
+      modes(imod)%enabled = .true.
+
+      modes(imod)%name = modenames(imod)
+
+      ! Add aerosol to mode
+      call modes(imod)%add(tracer_prop(itrac))
+
+    end do
+
+    ! To prevent this file from getting too big, just include the source
+    ! of the scavenging LUT's
+    include 'scavenging.inc'
+
   end subroutine initaerosol
 
   !> Cleaning up after the run
@@ -75,6 +102,62 @@ contains
 
   !> Calculates the microphysical source term.
   subroutine bulkmicro_aerosol
+
+    use modglobal,    only: rdt
+    use modfields,    only: sv0
+    use modbulkmicro, only: remove_negative_values, calculate_rain_parameters
+    use modmicrodata, only: inr, iqr, delt, Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, l_rain
+
+    real(field_r) :: qrsum, qrsum_neg, Nrsum, Nrsum_neg
+    integer :: i, j, k, s, imod
+
+    delt = rdt
+
+    ! Populate the fields, reset tendencies
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, k1
+      do j = 2, j1
+        do i = 2, i1
+          Nr(i,j,k) = sv0(i,j,k,inr)
+          qr(i,j,k) = sv0(i,j,k,iqr)
+          Nrp(i,j,k)     = 0.0
+          qrp(i,j,k)     = 0.0
+          thlpmcr(i,j,k) = 0.0
+          qtpmcr(i,j,k)  = 0.0
+        enddo
+      enddo
+    enddo
+
+    do imod = 1, maxmodes
+      if (.not. modes(imod) % enabled) cycle
+
+      do s = 1, modes(imod) % nspecies
+        do k = 1, k1
+          do j = 2, j1
+            do i = 2, i1
+              modes(imod) % aer_conc(i,j,k,s) = sv0(i,j,k,modes(imod) % species(s) % trac_idx)
+              modes(imod) % aer_tend = 0.0_field_r
+              modes(imod) % aer_acti = 0.0_field_r
+              modes(imod) % aer_scvc = 0.0_field_r
+              modes(imod) % aer_evpc = 0.0_field_r
+              modes(imod) % aer_auto = 0.0_field_r
+              modes(imod) % aer_accr = 0.0_field_r
+              modes(imod) % aer_slfc = 0.0_field_r
+              modes(imod) % aer_slfr = 0.0_field_r
+              modes(imod) % aer_sedr = 0.0_field_r
+            end do
+          end do
+        end do
+      end do
+    end do
+
+    if (l_rain) then
+      call remove_negative_values(qr, qrsum, qrsum_neg)
+      call remove_negative_values(Nr, Nrsum, Nrsum_neg)
+
+      call calculate_rain_parameters(Nr, qr)
+    end if
+        
   end subroutine bulkmicro_aerosol
 
   !> Determine autoconversion rate and adjust qrp and Nrp accordingly
@@ -972,7 +1055,7 @@ contains
                 d_crit = (4 * A**3 / (27 * kappa * log(ssat / 100 + 1)**2))**(1/3_field_r)
 
                 ! Calculate the mean mass diameter
-                dm_mean = (6 * mass_total / (pi * (modes(imod) % aer_conc(i,j,k,1) * 1.e9) * volume_total))**(1._field_r/3._field_r) &
+                dm_mean = (6 * mass_total / (pi * (modes(imod) % aer_conc(i,j,k,1) * 1.e9_field_r) * volume_total))**(1._field_r/3._field_r) &
                           * exp(3 * log(modes(imod) % sigma_g)**2)
 
                 ! Activated fraction
@@ -991,6 +1074,8 @@ contains
         end do
 
         ! Do the same but for the number concentration
+        ! CJ: separated from the mass to keep the code clean, but from a performance perspective it might be
+        ! beneficial to merge the two into one kernel. Or just use async.
         !$acc parallel loop collapse(3) default(present) private(mass_total, volume_total, T, A, d_crit, dn_mean, fn) async(2)
         do k = 1, k1
           do j = 2, j1
@@ -1060,6 +1145,7 @@ contains
                 mass_total = mass_total + modes(imod) % aer_conc(i,j,k,ss)
                 volume_total = volume_total + (modes(imod) % aer_conc(i,j,k,ss) / modes(imod) % species(ss) % rho)
               end do
+
               ! Geometric mean aerosol radius
               ! TODO: CJ: check of deze formule klopt
               rm = 0.5_field_r * (6 * mass_total / (pi * modes(imod) % aer_conc(i,j,k,1) * 1.e9_field_r * volume_total))**(1._field_r/3._field_r) &
@@ -1088,18 +1174,26 @@ contains
                 end do
               end if
                 
+              ! GPU: probably too much thread divergence? 
               if (qrmask(i,j,k) .and. sed_qr_dup(i,j,k) * 3600_field_r > 0.01_field_r) then
                 ! Below-cloud scavenging
                 rm_blc = max(min(.9999e3_field_r, rm * 1.e6_field_r), 1.001e-3_field_r)
 
                 dcdt_blc_n = lookup_interpolate(nrai, lograinrate, naer_blc, logaerrad_blc, blcnumb, log(rainrate), log(rm))
                 dcdt_blc_m = lookup_interpolate(nrai, lograinrate, naer_blc, logaerrad_blc, blcmass, log(rainrate), log(rm))
+
+                do s = 2, modes(imod) % nspecies
+                  t_inr = modes(imod) % species(s) % iINR
+                  modes(imod) % aer_scvr(i,j,k,s) = - dcdt_blc_m * max(0._field_r, modes(imod) % aer_conc(i,j,k,s))
+                  modes(imod) % aer_scvr(i,j,k,t_inr) = modes(imod) % aer_scvr(i,j,k,t_inr) - modes(imod) % aer_scvr(i,j,k,s)
+                end do
               end if 
             end do
           end do
         end do
       end do
   end subroutine scavenging
+
   !*********************************************************************
   !*********************************************************************
 
@@ -1240,5 +1334,86 @@ contains
 
     erfint = max(0., D**nn*exp(0.5*nn**2*sig2)*0.5*(erfymax-erfymin))
   end function erfint
+
+  function binarysearch(length, array, value, delta)
+     ! Given an array and a value, returns the index of the element
+     ! that
+     ! is closest to, but less than, the given value.
+     ! Uses a binary search algorithm.
+     ! "delta" is the tolerance used to determine if two values are
+     ! equal
+     ! if ( abs(x1 - x2) <= delta) then
+     !    assume x1 = x2
+     ! endif
+
+     implicit none
+     integer, intent(in) :: length
+     real(field_r), dimension(length), intent(in) :: array
+     real(field_r), intent(in) :: value
+     real(field_r), intent(in), optional :: delta
+
+     integer :: binarysearch
+
+     integer :: left, middle, right
+     real(field_r) :: d
+
+     if (present(delta) .eqv. .true.) then
+         d = delta
+     else
+         d = 1e-9
+     endif
+
+     left = 1
+     right = length
+     do
+         if (left > right) then
+             exit
+         endif
+         middle = nint((left+right) / 2.0)
+         if ( abs(array(middle) - value) <= d) then
+             binarySearch = middle
+             return
+         else if (array(middle) > value) then
+             right = middle - 1
+         else
+             left = middle + 1
+         end if
+     end do
+     binarysearch = right
+
+    end function binarysearch
+
+    real function lookup_interpolate(x_len, x_array, y_len, y_array, f, x, y, delta)
+        ! This function uses bilinear interpolation to estimate the
+        ! value of a function f at point (x,y)
+        ! f is assumed to be sampled on a regular grid, with the grid x
+        ! values specified by x_array and the grid y values specified by y_array
+        ! Reference: http://en.wikipedia.org/wiki/Bilinear_interpolation
+        implicit none
+        integer, intent(in) :: x_len, y_len
+        real(field_r), dimension(x_len), intent(in) :: x_array
+        real(field_r), dimension(y_len), intent(in) :: y_array
+        real(field_r), dimension(x_len, y_len), intent(in) :: f
+        real(field_r), intent(in) :: x,y
+        real(field_r), intent(in), optional :: delta
+
+        real(field_r) :: denom, x1, x2, y1, y2
+        integer :: i,j
+
+        i = binarysearch(x_len, x_array, x)
+        j = binarysearch(y_len, y_array, y)
+
+        x1 = x_array(i)
+        x2 = x_array(i+1)
+
+        y1 = y_array(j)
+        y2 = y_array(j+1)
+
+        denom = (x2 - x1)*(y2 - y1)
+
+        lookup_interpolate = (f(i,j)*(x2-x)*(y2-y) + f(i+1,j)*(x-x1)*(y2-y) + &
+            f(i,j+1)*(x2-x)*(y-y1) + f(i+1, j+1)*(x-x1)*(y-y1))/denom
+
+    end function lookup_interpolate
 
 end module modbulkmicro_aerosol
