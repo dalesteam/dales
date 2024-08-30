@@ -21,7 +21,6 @@
 !  Copyright 2014 Netherlands eScience Center
 !
 
-
 module modfftw
 ! All use arguments must be outside of #ifdef because CMAKE doesnt read beyond
 ! it for dependency generation
@@ -423,273 +422,19 @@ contains
 !  transpose_a3: dimensions 0 and 2:
 !            p201(      jtot,      konx,iony) <=> p102(iony,jonx,kmax)
 !
-  subroutine transpose_a1(p,p210)
-    implicit none
-
-    !real, intent(in)    :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    !real, intent(out)   :: p210(itot,jmax,konx)
-    real(pois_r), pointer :: p(:,:,:)
-    real(pois_r), pointer :: p210(:,:,:)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx + 1, (n+1)*konx
-    do j=2,j1
-    do i=2,i1
-      ii = ii + 1
-      if (k <= kmax) then
-        bufin(ii) = p(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call D_MPI_ALLTOALL(bufin,   (imax*jmax*konx), &
-                        bufout,  (imax*jmax*konx), &
-                        commrow,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*imax + 1, (n+1)*imax
-        ii = ii + 1
-        p210(i,j,k) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a1inv(p,p210)
-    implicit none
-
-    !real, intent(out)   :: p(2-ih:i1+ih,2-jh:j1+jh,kmax)
-    !real, intent(in)    :: p210(itot,jmax,konx)
-    real(pois_r), pointer :: p(:,:,:)
-    real(pois_r), pointer :: p210(:,:,:)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*imax + 1, (n+1)*imax
-      ii = ii + 1
-      bufin(ii) = p210(i,j,k)
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call D_MPI_ALLTOALL(bufin,   (imax*jmax*konx), &
-                        bufout,  (imax*jmax*konx), &
-                        commrow,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx + 1,(n+1)*konx
-    do j=2,j1
-    do i=2,i1
-        ii = ii + 1
-        if (k <= kmax) then
-          p(i,j,k) = bufout(ii)
-        endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a2(p210, p201)
-    implicit none
-
-    !real, intent(in)    :: p210(itot,jmax,konx)
-    !real, intent(out)   :: p201(jtot,konx,iony)
-    real(pois_r), pointer :: p210(:,:,:)
-    real(pois_r), pointer :: p201(:,:,:)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*iony + 1,(n+1)*iony
-      ii = ii + 1
-      if (i <= itot) then
-        bufin(ii) = p210(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call D_MPI_ALLTOALL(bufin,   (iony*jmax*konx), &
-                        bufout,  (iony*jmax*konx), &
-                        commcol,mpierr)
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=n*jmax+1,(n+1)*jmax
-    do i=1,iony
-        ii = ii + 1
-        p201(j,k,i) = bufout(ii)
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a2inv(p210, p201)
-    implicit none
-
-    !real, intent(out)  :: p210(itot,jmax,konx)
-    !real, intent(in)   :: p201(jtot,konx,iony)
-    real(pois_r), pointer :: p210(:,:,:)
-    real(pois_r), pointer :: p201(:,:,:)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=n*jmax + 1,(n+1)*jmax
-    do i=1,iony
-      ii = ii + 1
-      bufin(ii) = p201(j,k,i)
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call D_MPI_ALLTOALL(bufin,   (iony*jmax*konx), &
-                        bufout,  (iony*jmax*konx), &
-                        commcol,mpierr)
-
-    ii = 0
-    do n=0,nprocy-1
-    do k=1,konx
-    do j=1,jmax
-    do i=n*iony+1,(n+1)*iony
-      ii = ii + 1
-      if (i <= itot) then
-        p210(i,j,k) = bufout(ii)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a3(p201, Fp)
-    implicit none
-
-    !real, intent(in)    :: p201(jtot,konx,iony)
-    !real, intent(out)   :: Fp(iony,jonx,kmax)
-    real(pois_r), pointer :: p201(:,:,:)
-    real(pois_r), pointer :: Fp(:,:,:)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=n*jonx+1,(n+1)*jonx
-    do i=1,iony
-      ii = ii + 1
-      if (j <= jtot) then
-        bufin(ii) = p201(j,k,i)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call D_MPI_ALLTOALL(bufin,   (iony*jonx*konx), &
-                        bufout,  (iony*jonx*konx), &
-                        commrow,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx+1,(n+1)*konx
-    do j=1,jonx
-    do i=1,iony
-        ii = ii + 1
-        if (k <= kmax) then
-          Fp(i,j,k) = bufout(ii)
-        endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
-
-  subroutine transpose_a3inv(p201, Fp)
-    implicit none
-
-    !real, intent(out)   :: p201(jtot,konx,iony)
-    !real, intent(in)    :: Fp(iony,jonx,kmax)
-    real(pois_r), pointer :: p201(:,:,:)
-    real(pois_r), pointer :: Fp(:,:,:)
-
-    integer :: n, i,j,k, ii
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=n*konx+1,(n+1)*konx
-    do j=1,jonx
-    do i=1,iony
-      ii = ii + 1
-      if (k <= kmax) then
-        bufin(ii) = Fp(i,j,k)
-      endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-    call D_MPI_ALLTOALL(bufin,   (iony*jonx*konx), &
-                        bufout,  (iony*jonx*konx), &
-                        commrow,mpierr)
-
-    ii = 0
-    do n=0,nprocx-1
-    do k=1,konx
-    do j=n*jonx+1,(n+1)*jonx
-    do i=1,iony
-        ii = ii + 1
-        if (j <= jtot) then
-          p201(j,k,i) = bufout(ii)
-        endif
-    enddo
-    enddo
-    enddo
-    enddo
-
-  end subroutine
 
   subroutine fftwf(p, Fp)
+    use modtranspose, only: transpose_a1, transpose_a2, transpose_a3
     implicit none
 
     real(pois_r), pointer :: p(:,:,:)
     real(pois_r), pointer :: Fp(:,:,:)
 
     if (method == 1) then
-      call transpose_a1(p, p210)
+      call transpose_a1(p, p210, konx_me, bufin, bufout)
       call fftw_execute_r2r_if(planx, p210_flat, p210_flat)
 
-      call transpose_a2(p210, p201)
+      call transpose_a2(p210, p201, iony_me, konx_me, bufin, bufout)
       ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
       ! indexing: p201(jtot,konx,iony)
       if (konx_me < konx) p201(:,konx_me+1:, :) = 0
@@ -698,7 +443,7 @@ contains
 
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
-      call transpose_a3(p201, Fp)
+      call transpose_a3(p201, Fp, iony_me, jonx_me, konx_me, bufin, bufout)
     else if (method == 2) then
       call fftw_execute_r2r_if(planxy, p_nohalo, p_nohalo)
     else
@@ -709,6 +454,7 @@ contains
   end subroutine
 
   subroutine fftwb(p, Fp)
+    use modtranspose, only: transpose_a1inv, transpose_a2inv, transpose_a3inv
     implicit none
 
     real(pois_r), pointer :: p(:,:,:)
@@ -718,13 +464,13 @@ contains
     !Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
 
     if (method == 1) then
-      call transpose_a3inv(p201, Fp)
+      call transpose_a3inv(p201, Fp, iony_me, jonx_me, konx_me, bufin, bufout)
 
       call fftw_execute_r2r_if(planyi, p201_flat, p201_flat)
-      call transpose_a2inv(p210, p201)
+      call transpose_a2inv(p210, p201, iony_me, konx_me, bufin, bufout)
 
       call fftw_execute_r2r_if(planxi, p210_flat, p210_flat)
-      call transpose_a1inv(p, p210)
+      call transpose_a1inv(p, p210, konx_me, bufin, bufout)
 
     else if (method == 2) then
       call fftw_execute_r2r_if(planxyi, p_nohalo, p_nohalo)
