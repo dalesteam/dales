@@ -148,11 +148,11 @@ subroutine vadvecc_6th(a_in, a_out)
   !$acc parallel loop collapse(2) default(present) async(1)
   do j = 2, j1
     do i = 2, i1
-      a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k))*( &
+      a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     w0(i,j,k+1) / 2 &
                     *     (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
                   - w0(i,j,k  ) / 12 &
-                    * ( 7*(rhobf(k  )*a_in(i,j,k  )+rhobf(k-1)*a_in(i,j,k-1))
+                    * ( 7*(rhobf(k  )*a_in(i,j,k  )+rhobf(k-1)*a_in(i,j,k-1)) &
                        -  (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k-2)*a_in(i,j,k-2)) ) &
               ) * dzfi(k) &
             )
@@ -247,7 +247,7 @@ subroutine vadvecu_6th(a_in,a_out)
     do i = 2, i1
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     ( w0(i,j,k+1) + w0(i-1,j,k+1) ) / 12 &
-                    * ( 7*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  ))
+                    * ( 7*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
                        -  (rhobf(k+2)*a_in(i,j,k+2)+rhobf(k-1)*a_in(i,j,k-1)) ) &
                   - ( w0(i,j,k  ) + w0(i-1,j,k  ) ) / 2 &
                     *     (rhobf(k  )*a_in(i,j,k  )+rhobf(k-1)*a_in(i,j,k-1)) &
