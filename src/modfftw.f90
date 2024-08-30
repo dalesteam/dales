@@ -393,36 +393,6 @@ contains
 
  end subroutine
 
-! Transpose functions:
-!   Data is stored such that a whole column, 1:kmax, is on one node (pencil layout).
-!   These funtions redistribute the data over the MPI nodes so that a whole dimension
-!   is on one processor.
-!   To facilitate processing after the MPI transpose, data is further transposed locally
-!   such that the complete dimension, one of itot, jtot, kmax, is consecutive (ie. fastest).
-!
-!   The figure below shows the transpose between dimension 0 and 1, or 'k' and 'i':
-!
-!
-!         /-------------/|                                /-------------/|
-!        /../          / |                               /             / |
-!  kmax  |------------|  |                               |------------|  |
-!        |..|         |  |            ==>                |            |  |
-!        |..|         |  |                         konx  |____________|. |
-!        |..|         | /    jmax                        |............|./    jmax
-!   1    |--|--|--|---|/   1                        1    |------------|/   1
-!
-!        1  imax                                         1            itot
-!
-!  transpose_a1: dimensions 0 and 2:
-!            p012(2-ih:i1+ih,2-jh:j1+jh,kmax) <=> p210(itot,jmax,konx)
-!
-!  transpose_a2: dimensions 1 and 2:
-!            p210(      itot,      jmax,konx) <=> p201(jtot,konx,iony)
-!
-!  transpose_a3: dimensions 0 and 2:
-!            p201(      jtot,      konx,iony) <=> p102(iony,jonx,kmax)
-!
-
   subroutine fftwf(p, Fp)
     use modtranspose, only: transpose_a1, transpose_a2, transpose_a3
     implicit none
