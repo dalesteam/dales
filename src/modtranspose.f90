@@ -77,7 +77,7 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(workspace_0, workspace_1)
+      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, imax*jmax*konx, &
                           bufout, imax*jmax*konx, &
                           commrow, mpierr)
@@ -130,7 +130,7 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(workspace_0, workspace_1)
+      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, imax*jmax*konx, &
                           bufout, imax*jmax*konx, &
                           commrow, mpierr)
@@ -178,7 +178,7 @@ contains
         do j = 1, jtot
          do i = 1, itot
             ii = i + (j-1)*itot + (k-1)*itot*jtot
-            py(j,k,i) = bufout(ii)
+            py(j,k,i) = bufin(ii)
           end do
         end do
       end do
@@ -195,7 +195,7 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(workspace_0, workspace_1)
+      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jmax*konx, &
                           bufout, iony*jmax*konx, &
                           commcol, mpierr)
@@ -261,7 +261,7 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(workspace_0, workspace_1)
+      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jmax*konx, &
                           bufout, iony*jmax*konx, &
                           commcol, mpierr)
@@ -316,7 +316,7 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(workspace_0, workspace_1)
+      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jonx*konx, &
                           bufout, iony*jonx*konx, &
                           commrow, mpierr)
@@ -372,7 +372,7 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(workspace_0, workspace_1)
+      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jonx*konx, &
                           bufout, iony*jonx*konx, &
                           commrow, mpierr)

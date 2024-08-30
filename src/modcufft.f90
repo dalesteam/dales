@@ -375,6 +375,7 @@ module modcufft
     subroutine cufftb(p, Fp)
       use cufft
       use modtranspose, only: transpose_a1inv, transpose_a2inv, transpose_a3inv
+      use modgpu,       only: workspace_0, workspace_1
 
       implicit none
       
