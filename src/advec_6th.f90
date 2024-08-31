@@ -41,7 +41,7 @@ subroutine hadvecc_6th(a_in, a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-  
+
   integer :: i,j,k
 
   !$acc parallel loop collapse(3) default(present)
@@ -190,7 +190,7 @@ subroutine hadvecu_6th(a_in,a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the u field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-  
+
   integer :: i,j,k
 
   !$acc parallel loop collapse(3) default(present)
