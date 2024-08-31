@@ -533,7 +533,7 @@ subroutine vadvecv_5th(a_in, a_out)
   end do
 
   !$acc parallel loop collapse(3) default(present) async(2)
-  do k = 1, kmax
+  do k = 4, kmax-3
     do j = 2, j1
       do i = 2, i1
         a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
