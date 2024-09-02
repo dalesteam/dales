@@ -1171,7 +1171,7 @@ contains
   subroutine advecc_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
     use modfields, only : u0, v0, w0, rhobf
-    use advec_2nd, only : advecc_2nd
+    use advec_2nd, only : hadvecc_2nd
 
     implicit none
     integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
@@ -1229,7 +1229,7 @@ contains
   subroutine advecu_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
     use modfields, only : u0, v0, w0, rhobf
-    use advec_2nd, only : advecu_2nd
+    use advec_2nd, only : hadvecu_2nd
 
     implicit none
     integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
@@ -1287,7 +1287,7 @@ contains
   subroutine advecv_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
     use modfields, only : u0, v0, w0, rhobf
-    use advec_2nd, only : advecv_2nd
+    use advec_2nd, only : hadvecv_2nd
 
     implicit none
     integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
@@ -1345,7 +1345,7 @@ contains
   subroutine advecw_2nd_boundary_buffer(a_in,a_out,istart_int,iend_int,jstart_int,jend_int,ibuffer,jbuffer)
     use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5,dzi5,dzf,dzh,leq
     use modfields, only : u0, v0, w0, rhobf
-    use advec_2nd, only : advecw_2nd
+    use advec_2nd, only : hadvecw_2nd
 
     implicit none
     integer, intent(inout) :: istart_int,iend_int,jstart_int,jend_int
