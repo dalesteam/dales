@@ -134,7 +134,6 @@ subroutine hadvecu_2nd(a_in, a_out,istart,iend,jstart,jend)
 
   implicit none
 
-  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
   integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
@@ -167,7 +166,6 @@ subroutine vadvecu_2nd(a_in, a_out,istart,iend,jstart,jend)
 
   implicit none
 
-  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
   integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
@@ -231,7 +229,6 @@ subroutine hadvecv_2nd(a_in, a_out,istart,iend,jstart,jend)
   implicit none
 
 
-  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
@@ -264,7 +261,6 @@ subroutine vadvecv_2nd(a_in, a_out,istart,iend,jstart,jend)
   implicit none
 
 
-  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
   integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
