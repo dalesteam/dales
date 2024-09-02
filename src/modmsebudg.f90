@@ -95,7 +95,7 @@ contains
   subroutine advect_scalar(a_in, a_out, iadv)
     use modglobal, only: i1,ih,j1,jh,k1,iadv_cd2,iadv_5th,iadv_52,     &
                          iadv_cd6,iadv_62,iadv_kappa,   &
-                         iadv_hybrid,iadv_hybrid_f
+                         iadv_hybrid,iadv_hybrid_f,lopenbc
 
     use advec_2nd,      only : hadvecc_2nd, vadvecc_2nd
     use advec_5th,      only : hadvecc_5th, vadvecc_5th
@@ -103,28 +103,42 @@ contains
     use advec_hybrid,   only : hadvecc_hybrid, vadvecc_hybrid
     use advec_hybrid_f, only : hadvecc_hybrid_f, vadvecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
+    use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
     implicit none
 
     real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
     real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
-    integer :: iadv
+    integer :: iadv,istart,iend,jstart,jend,ibuffer,jbuffer
 
+    istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv)
       case(iadv_cd2)
-        call hadvecc_2nd(a_in,a_out)
-        call vadvecc_2nd(a_in,a_out)
+        call hadvecc_2nd(a_in,a_out,istart,iend,jstart,jend)
+        call vadvecc_2nd(a_in,a_out,istart,iend,jstart,jend)
       case(iadv_5th)
-        call hadvecc_5th(a_in,a_out)
-        call vadvecc_5th(a_in,a_out)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(a_in,a_out,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(a_in,a_out,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_5th(a_in,a_out,istart,iend,jstart,jend)
       case(iadv_52)
-        call hadvecc_5th(a_in,a_out)
-        call vadvecc_2nd(a_in,a_out)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(a_in,a_out,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(a_in,a_out,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_2nd(a_in,a_out,istart,iend,jstart,jend)
       case(iadv_cd6)
-        call hadvecc_6th(a_in,a_out)
-        call vadvecc_6th(a_in,a_out)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(a_in,a_out,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(a_in,a_out,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_6th(a_in,a_out,istart,iend,jstart,jend)
       case(iadv_62)
-        call hadvecc_6th(a_in,a_out)
-        call vadvecc_2nd(a_in,a_out)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(a_in,a_out,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(a_in,a_out,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_2nd(a_in,a_out,istart,iend,jstart,jend)
       case(iadv_kappa)
         call hadvecc_kappa(a_in,a_out)
         call vadvecc_kappa(a_in,a_out)
