@@ -255,7 +255,7 @@ contains
                                dzf,dzh,ijtot,dx2i,dy2i,cu,cv, &
                                iadv_cd2,iadv_5th,iadv_52,     &
                                iadv_cd6,iadv_62,iadv_kappa,   &
-                               iadv_hybrid,iadv_hybrid_f
+                               iadv_hybrid,iadv_hybrid_f,lopenbc
     use modsubgriddata, only : ekh
     use modsubgrid,     only : diffc
     use modfields,      only : u0,v0,w0,u0av,v0av
@@ -267,10 +267,11 @@ contains
     use advec_hybrid,   only : hadvecc_hybrid, vadvecc_hybrid
     use advec_hybrid_f, only : hadvecc_hybrid_f, vadvecc_hybrid_f
     use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
+    use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
 
     implicit none
 
-    integer i,j,k,im,ip,jm,jp,km,kp       !counter variables
+    integer i,j,k,im,ip,jm,jp,km,kp,istart,iend,jstart,jend,ibuffer,jbuffer       !counter variables
 
 !    ----------- input variables
     real          varxflux   (i2,j2),                    &    !surface flux of varx
@@ -411,23 +412,35 @@ contains
     w0 = w0_dev
 
     term = 0.
-
+    istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_var)
       case(iadv_cd2)
-        call hadvecc_2nd(varxfmn,term)
-        call vadvecc_2nd(varxfmn,term)
+        call hadvecc_2nd(varxfmn,term,istart,iend,jstart,jend)
+        call vadvecc_2nd(varxfmn,term,istart,iend,jstart,jend)
       case(iadv_5th)
-        call hadvecc_5th(varxfmn,term)
-        call vadvecc_5th(varxfmn,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfmn,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(varxfmn,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_5th(varxfmn,term,istart,iend,jstart,jend)
       case(iadv_52)
-        call hadvecc_5th(varxfmn,term)
-        call vadvecc_2nd(varxfmn,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfmn,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(varxfmn,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_2nd(varxfmn,term,istart,iend,jstart,jend)
       case(iadv_cd6)
-        call hadvecc_6th(varxfmn,term)
-        call vadvecc_6th(varxfmn,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfmn,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(varxfmn,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_6th(varxfmn,term,istart,iend,jstart,jend)
       case(iadv_62)
-        call hadvecc_6th(varxfmn,term)
-        call vadvecc_2nd(varxfmn,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfmn,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(varxfmn,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_2nd(varxfmn,term,istart,iend,jstart,jend)
       case(iadv_kappa)
         call hadvecc_kappa(varxfmn,term)
         call vadvecc_kappa(varxfmn,term)
@@ -459,23 +472,35 @@ contains
   !-------------------------------------------------------------
 
     term = 0.
-
+    istart = 2; iend = i1; jstart = 2; jend = j1
     select case(iadv_var)
       case(iadv_cd2)
-        call hadvecc_2nd(varxfdev,term)
-        call vadvecc_2nd(varxfdev,term)
+        call hadvecc_2nd(varxfdev,term,istart,iend,jstart,jend)
+        call vadvecc_2nd(varxfdev,term,istart,iend,jstart,jend)
       case(iadv_5th)
-        call hadvecc_5th(varxfdev,term)
-        call vadvecc_5th(varxfdev,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfdev,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(varxfdev,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_5th(varxfdev,term,istart,iend,jstart,jend)
       case(iadv_52)
-        call hadvecc_5th(varxfdev,term)
-        call vadvecc_2nd(varxfdev,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfdev,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_5th(varxfdev,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_2nd(varxfdev,term,istart,iend,jstart,jend)
       case(iadv_cd6)
-        call hadvecc_6th(varxfdev,term)
-        call vadvecc_6th(varxfdev,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfdev,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(varxfdev,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_6th(varxfdev,term,istart,iend,jstart,jend)
       case(iadv_62)
-        call hadvecc_6th(varxfdev,term)
-        call vadvecc_2nd(varxfdev,term)
+        ibuffer = 2; jbuffer = 2
+        if(lopenbc) call advecc_2nd_boundary_buffer(varxfdev,term,istart,iend,jstart,jend,ibuffer,jbuffer)
+        call hadvecc_6th(varxfdev,term,istart,iend,jstart,jend)
+        istart = 2; iend = i1; jstart = 2; jend = j1
+        call vadvecc_2nd(varxfdev,term,istart,iend,jstart,jend)
       case(iadv_kappa)
         call hadvecc_kappa(varxfdev,term)
         call vadvecc_kappa(varxfdev,term)
