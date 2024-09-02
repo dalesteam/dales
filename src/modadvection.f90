@@ -47,6 +47,7 @@ subroutine advection
   use advec_hybrid_f, only : hadvecc_hybrid_f,vadvecc_hybrid_f
   use advec_kappa,    only : hadvecc_kappa, vadvecc_kappa
   use advec_upw,      only : hadvecc_upw, vadvecc_upw
+  use modopenboundary,only : advecc_2nd_boundary_buffer,advecu_2nd_boundary_buffer,advecv_2nd_boundary_buffer,advecw_2nd_boundary_buffer
   implicit none
   integer :: n,istart,iend,jstart,jend,ibuffer,jbuffer
 
