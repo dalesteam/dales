@@ -57,16 +57,16 @@ SAVE
   real, allocatable :: phiw    (:,:,:)    !<  Water content soil matrix [-]
   real, allocatable :: phiwm   (:,:,:)    !<  Water content soil matrix previous time step [-]
   real, allocatable :: phifrac (:,:,:)    !<  Relative water content per layer [-]
-  real              :: phiwav  (ksoilmax)
+  real              :: phiwav  (ksoilmax) = -1
   real, allocatable :: phitot  (:,:)      !<  Total soil water content [-]
   real, allocatable :: pCs     (:,:,:)    !<  Volumetric heat capacity [J/m3/K]
   real, allocatable :: rootf   (:,:,:)    !<  Root fraction per soil layer [-]
-  real              :: rootfav (ksoilmax)
+  real              :: rootfav (ksoilmax) = -1
   real, allocatable :: tsoil   (:,:,:)    !<  Soil temperature [K]
   real, allocatable :: tsoilm  (:,:,:)    !<  Soil temperature previous time step [K]
-  real              :: tsoilav (ksoilmax)
+  real              :: tsoilav (ksoilmax) = -1
   real, allocatable :: tsoildeep (:,:)    !<  Soil temperature [K]
-  real              :: tsoildeepav
+  real              :: tsoildeepav = -1
 
   real, allocatable :: swdavn  (:,:,:)
   real, allocatable :: swuavn  (:,:,:)
@@ -206,7 +206,7 @@ SAVE
   real              :: rssoilminav = -1
   real, allocatable :: tendskin (:,:)   !<  Tendency of skin [W/m2]
   real, allocatable :: gD       (:,:)   !<  Response factor vegetation to vapor pressure deficit [-]
-  real              :: gDav
+  real              :: gDav = -1
 
   ! Turbulent exchange variables
   logical           :: lmostlocal  = .false.  !<  Switch to apply MOST locally to get local Obukhov length

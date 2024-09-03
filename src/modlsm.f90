@@ -36,8 +36,8 @@ module modlsm
     integer, parameter :: iinterp_max   = 4  ! val = max(a,b)
 
     ! Soil grid
-    integer :: kmax_soil
-    real :: z_size_soil
+    integer :: kmax_soil = -1
+    real :: z_size_soil = -1
     real, allocatable :: z_soil(:), zh_soil(:)
     real, allocatable :: dz_soil(:), dzh_soil(:)
     real, allocatable :: dzi_soil(:), dzhi_soil(:)

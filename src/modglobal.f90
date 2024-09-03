@@ -227,7 +227,7 @@ save
       type(boundary_type), dimension(5) :: boundary
       logical, dimension(5) :: lboundary = .false.
       logical, dimension(5) :: lperiodic =  (/.true., .true., .true., .true., .false./)
-      real(field_r) :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.,dxturb=-1.,dyturb=-1.
+      real(field_r) :: dxint=-1.,dyint=-1.,dzint=-1.,tauh=60.,taum=0.,tau=60.,lambda=-1,lambdas=-1.,lambdas_x=-1.,lambdas_y=-1.,lambdas_z=-1.,dxturb=-1.,dyturb=-1.
       integer :: nmodes=100,ntboundary=1,pbc = 3,iturb=0
       real,dimension(:),allocatable :: tboundary
 
@@ -261,8 +261,6 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
-
-      logical :: is_starting = .true. !< flag for knowing if a routine is called during startup
 
       character(80) :: author='', version='DALES 4.4.2'
 contains
