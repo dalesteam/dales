@@ -738,16 +738,16 @@ contains
         vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
 
-        hurav(1) = hurav(1) + 100 * (qt0(i,j,k) - ql0(i,j,k)) / qsat_tab(tmp0(i,j,k), presf(k))
+        hurav(1) = hurav(1) + 100 * (qt0(i,j,1) - ql0(i,j,1)) / qsat_tab(tmp0(i,j,1), presf(1))
 
-        ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdn) / (tup-tdn)))
-        clwav(1) = clwav(1) + ql0(i,j,k) * ilratio
-        cliav(1) = cliav(1) + ql0(i,j,k) * (1-ilratio)
+        ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdn) / (tup-tdn)))
+        clwav(1) = clwav(1) + ql0(i,j,1) * ilratio
+        cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
 
         if (nsv > 1) then
-           ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-           plwav(1) = plwav(1) + sv0(i,j,k,iqr) * ilratio
-           pliav(1) = pliav(1) + sv0(i,j,k,iqr) * (1-ilratio)
+           ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
+           plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
+           pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
         end if
       end do
     end do
