@@ -832,9 +832,11 @@ contains
           clwav_s = clwav_s + ql0(i,j,k) * ilratio
           cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
 
-          ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-          plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
-          pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+          if (nsv > 0) then
+            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+            plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
+            pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+          end if
 
           if (ql0h(i,j,k)>0) then
             wqlsub_s = wqlsub_s + wqls
@@ -894,8 +896,7 @@ contains
       do n = 1, nsv
         call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, svmav(:, n))
       end do
-
-      do n = 1, nsv
+do n = 1, nsv
         if (iadv_sv(n)==iadv_kappa .and. .not. lopenbc) then
            call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
