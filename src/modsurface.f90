@@ -745,6 +745,7 @@ contains
     endif
 
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
+    ustar = 0 ! need to initialize, otherwise undefined values in the corners in the first exchange
 
     !$acc enter data copyin(z0m, z0h, obl, tskin, qskin, Cm, Cs, &
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
