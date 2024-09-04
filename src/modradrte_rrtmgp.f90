@@ -158,8 +158,10 @@ contains
     end if
 
     ! Set up pressure layer and interface values (pressures in SI units, i.e. Pa)
-    do k=1,nlay
+    do k=1,nlay-1
       layerP(:,k) = presf_input(k)*100.00
+    enddo
+    do k=1,nlay
       interfaceP(:,k) = presh_input(k)*100.00
     enddo
     layerP(:,nlay) = 0.5*presh_input(nlay)*100.00
