@@ -82,8 +82,12 @@ contains
     allocate(pvp(2-ih:i1+ih,2-jh:j1+jh,kmax))
     allocate(pwp(2-ih:i1+ih,2-jh:j1+jh,k1))
 
+    pup = 0 ! these fields use only one halo cell but are exchanged with ih,jh halo cells
+    pvp = 0 ! initialize now to not have uninitialized data in the unused halo cells
+
     allocate(a(kmax), b(kmax), c(kmax))
-    !$acc enter data create(pup, pvp, pwp, a, b, c)
+    !$acc enter data copyin(pup, pvp)
+    !$acc enter data create(pwp, a, b, c)
 
   end subroutine initpois
 

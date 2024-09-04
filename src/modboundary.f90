@@ -36,8 +36,8 @@ public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   integer :: ksp = -1                 !<    lowest level of sponge layer
   real(field_r),allocatable :: tsc(:)          !<   damping coefficients to be used in grwdamp.
   real(field_r) :: rnu0 = 2.75e-3
-  logical :: lboundopen			!GT added on off switch for open boundary conditions
-  real(field_r), allocatable :: fillvalues(:)		!GT added a new array variable
+  logical :: lboundopen = .false.	     !GT switch for open boundary conditions for all scalars
+  real(field_r) :: fillvalues(100) = 0       !GT fill value for each scalar to apply at the boundary
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -51,10 +51,10 @@ contains
 
     real    :: zspb, zspt
     integer :: k, ierr			!GT added ierr
-      ! --- Read & broadcast namelist DEPOSITION -----------------------------------
+      ! --- Read & broadcast namelist NAMBOUNDSET -----------------------------------
     namelist/NAMBOUNDSET/ lboundopen, fillvalues	!GT added
-      
-    allocate(fillvalues(nsv))		!GT added
+
+    call timer_tic('modboundary/initboundary', 0)
     
     if (myid == 0) then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -67,7 +67,6 @@ contains
     call d_mpi_bcast(lboundopen,          1,  0, comm3d, ierr)	!GT added
     call d_mpi_bcast(fillvalues,	nsv,  0, comm3d, ierr)	!GT added 
 
-    call timer_tic('modboundary/initboundary', 0)
 
     allocate(tsc(k1))
 ! Sponge layer
@@ -120,7 +119,6 @@ contains
   subroutine exitboundary
     implicit none
     
-    deallocate(fillvalues)
     !$acc exit data delete(tsc)
     deallocate(tsc)
   end subroutine exitboundary
@@ -128,7 +126,7 @@ contains
 !> Sets lateral periodic boundary conditions for the scalars
  subroutine cyclich
 
-  use modglobal, only : i1,ih,j1,jh,k1,nsv,is_starting
+  use modglobal, only : i1,ih,j1,jh,k1,nsv
   use modfields, only : thl0,qt0,sv0
   use modmpi,    only : excjs
 
@@ -149,7 +147,7 @@ contains
 !>set lateral periodic boundary conditions for momentum
  subroutine cyclicm
 
-  use modglobal, only : i1,ih,j1,jh,k1,is_starting
+  use modglobal, only : i1,ih,j1,jh,k1
   use modfields, only : u0,v0,w0,e120
   use modmpi,    only : excjs
 
@@ -272,8 +270,6 @@ contains
     !$acc wait
   end if
 
-  call timer_toc('modboundary/grwdamp')
-
   ! damp layer-average horizontal velocity towards geowind with udvamprate
   if (uvdamprate > 0) then
      do k=1,kmax
@@ -282,7 +278,7 @@ contains
      end do
   end if
 
-  return
+  call timer_toc('modboundary/grwdamp')
   end subroutine grwdamp
 
 !> Sets top boundary conditions for scalars
