@@ -540,7 +540,7 @@ contains
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
                           ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf, &
                           um, vm, wm, svm, qtm, thlm, e12m  
-    use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
+    use modsurfdata,only: thls,qts,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn,lopenbc
@@ -914,21 +914,18 @@ contains
       do n = 1, nsv
         call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, svmav(:, n))
       end do
-do n = 1, nsv
+    do n = 1, nsv
         if (iadv_sv(n)==iadv_kappa .and. .not. lopenbc) then
            call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
           !$acc parallel loop collapse(3) default(present) async(1)
           do k = 2, k1
             do j = 2, j1
-              do i = 2, i1
+              do i = 2, i1    ! note: sv0h only defined and only used for k=2...
                 sv0h(i,j,k) = (sv0(i,j,k,n)*dzf(k-1)+sv0(i,j,k-1,n)*dzf(k))/(2*dzh(k))
               enddo
             enddo
           enddo
-          !$acc kernels default(present) async(1)
-          sv0h(2:i1,2:j1,1) = svs(n)
-          !$acc end kernels
         end if
 
         !$acc wait(1)
