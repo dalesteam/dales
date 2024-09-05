@@ -540,7 +540,7 @@ contains
     use modfields, only : u0,v0,w0,thl0,qt0,qt0h,e120, &
                           ql0,ql0h,thl0h,thv0h,sv0,exnf,exnh,tmp0,presf, &
                           um, vm, wm, svm, qtm, thlm, e12m  
-    use modsurfdata,only: thls,qts,svs,ustar,thlflux,qtflux,svflux
+    use modsurfdata,only: thls,qts,ustar,thlflux,qtflux,svflux
     use modsubgriddata,only : ekm, ekh, csz
     use modglobal, only : i1,ih,j1,jh,k1,kmax,nsv,dzf,dzh,rlv,rv,rd,cp,dzhi, &
                           ijtot,cu,cv,iadv_sv,iadv_kappa,eps1,dxi,dyi,tup,tdn,lopenbc
@@ -620,6 +620,12 @@ contains
     cfracav= 0.0
     cszav = 0.0
     taav = 0.0
+    hurav = 0.0
+    clwav = 0.0
+    cliav = 0.0
+    plwav = 0.0
+    pliav = 0.0
+
     !$acc end kernels
 
     !-------------------------------------------------------------
@@ -710,7 +716,7 @@ contains
     cqt = 1./den
 
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
-    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1)) async(1)
+    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1), plwav(1), pliav(1)) async(1)
     do j = 2, j1
       do i = 2, i1
         qlhav(1) = qlhav(1) + ql0h(i,j,1)
@@ -731,6 +737,18 @@ contains
 
         vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
+
+        hurav(1) = hurav(1) + 100 * (qt0(i,j,1) - ql0(i,j,1)) / qsat_tab(tmp0(i,j,1), presf(1))
+
+        ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdn) / (tup-tdn)))
+        clwav(1) = clwav(1) + ql0(i,j,1) * ilratio
+        cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
+
+        if (nsv > 1) then
+           ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
+           plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
+           pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
+        end if
       end do
     end do
 
@@ -832,9 +850,11 @@ contains
           clwav_s = clwav_s + ql0(i,j,k) * ilratio
           cliav_s = cliav_s + ql0(i,j,k) * (1-ilratio)
 
-          ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
-          plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
-          pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+          if (nsv > 1) then
+            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,k)-tdnrsg)/(tuprsg-tdnrsg)))
+            plwav_s = plwav_s + sv0(i,j,k,iqr) * ilratio
+            pliav_s = pliav_s + sv0(i,j,k,iqr) * (1-ilratio)
+          end if
 
           if (ql0h(i,j,k)>0) then
             wqlsub_s = wqlsub_s + wqls
@@ -894,22 +914,18 @@ contains
       do n = 1, nsv
         call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, svmav(:, n))
       end do
-
-      do n = 1, nsv
+    do n = 1, nsv
         if (iadv_sv(n)==iadv_kappa .and. .not. lopenbc) then
            call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
           !$acc parallel loop collapse(3) default(present) async(1)
           do k = 2, k1
             do j = 2, j1
-              do i = 2, i1
+              do i = 2, i1    ! note: sv0h only defined and only used for k=2...
                 sv0h(i,j,k) = (sv0(i,j,k,n)*dzf(k-1)+sv0(i,j,k-1,n)*dzf(k))/(2*dzh(k))
               enddo
             enddo
           enddo
-          !$acc kernels default(present) async(1)
-          sv0h(2:i1,2:j1,1) = svs(n)
-          !$acc end kernels
         end if
 
         !$acc wait(1)
