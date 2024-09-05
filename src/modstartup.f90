@@ -1764,36 +1764,34 @@ contains
 
     real(field_r), intent(out) :: height(:) !< Vertical coordinates
 
-    integer :: ncid, grpid, varid, ierr !< NetCDF variables
+    integer :: ncid, varid, ierr !< NetCDF variables
     integer :: itrac                    !< Loop variable
 
     call check(nf90_open("init."//cexpnr//".nc", NF90_NOWRITE, ncid), __FILE__, __LINE__)
 
-    call check(nf90_inq_ncid(ncid, "init", grpid), __FILE__, __LINE__)
-
     ! "Regular" prognostic fields
-    call check(nf90_inq_varid(grpid, "u", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, uprof(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "u", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, uprof(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_varid(grpid, "v", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, vprof(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "v", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, vprof(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_varid(grpid, "thl", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, thlprof(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "thl", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, thlprof(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_varid(grpid, "qt", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, qtprof(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "qt", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, qtprof(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_varid(grpid, "e12", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, e12prof(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "e12", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, e12prof(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_varid(grpid, "zf", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, height(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "zf", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, height(1:kmax)), __FILE__, __LINE__)
 
     ! Tracers
     do itrac = 1, nsv
       ! Search for the tracer
-      ierr = nf90_inq_varid(grpid, tracer_prop(itrac)%tracname, varid)
+      ierr = nf90_inq_varid(ncid, tracer_prop(itrac)%tracname, varid)
 
       ! If tracer is not found, don't stop but init with zeroes
       select case (ierr)
