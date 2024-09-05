@@ -1755,7 +1755,7 @@ contains
   end subroutine baseprofs
 
   !> Read initial profiles from init.XXX.nc
-  subroutine read_prof_netcdf(height)
+  subroutine init_from_netcdf(height)
 
     use modfields,  only: thlprof, qtprof, uprof, vprof, e12prof, svprof
     use modglobal,  only: cexpnr, nsv, kmax
@@ -1805,47 +1805,30 @@ contains
       end select
     end do
 
-    call check(nf90_close(ncid), __FILE__, __LINE__)
-    
-  end subroutine read_prof_netcdf
+    ! Large-scale forcings
+    call check(nf90_inq_varid(ncid, "ug", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, ug(1:kmax)), __FILE__, __LINE__)
 
-  !> Read large-scale forcings from init.XXX.nc
-  ! CJ: merge this with read_prof_netcdf?
-  subroutine read_lscale_netcdf
+    call check(nf90_inq_varid(ncid, "vg", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, vg(1:kmax)), __FILE__, __LINE__)
 
-    use modfields, only: ug, vg, wfls, dqtdxls, dqtdyls, dqtdtls, thlpcar
-    use modglobal, only: cexpnr, kmax
-    use modnetcdf
+    call check(nf90_inq_varid(ncid, "wfls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, wfls(1:kmax)), __FILE__, __LINE__)
 
-    integer :: ncid, grpid, varid
+    call check(nf90_inq_varid(ncid, "dqtdxls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, dqtdxls(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_open("init."//cexpnr//".nc", nf90_nowrite, ncid), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "dqtdyls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, dqtdyls(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_ncid(ncid, "lscale", grpid), __FILE__, __LINE__)
-    
-    call check(nf90_inq_varid(grpid, "ug", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, ug(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "dqtdtls", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, dqtdtls(1:kmax)), __FILE__, __LINE__)
 
-    call check(nf90_inq_varid(grpid, "vg", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, vg(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(grpid, "wfls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, wfls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(grpid, "dqtdxls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, dqtdxls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(grpid, "dqtdyls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, dqtdyls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(grpid, "dqtdtls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, dqtdtls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(grpid, "dthlrad", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(grpid, varid, thlpcar(1:kmax)), __FILE__, __LINE__)
+    call check(nf90_inq_varid(ncid, "dthlrad", varid), __FILE__, __LINE__)
+    call check(nf90_get_var(ncid, varid, thlpcar(1:kmax)), __FILE__, __LINE__)
 
     call check(nf90_close(ncid), __FILE__, __LINE__)
-
-  end subroutine read_lscale_netcdf
+    
+  end subroutine init_from_netcdf
 
 end module modstartup
