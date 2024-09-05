@@ -1755,17 +1755,44 @@ contains
   end subroutine baseprofs
 
   !> Read initial profiles from init.XXX.nc
-  subroutine init_from_netcdf(height)
+  !!
+  !! @param filename Path to the netCDF file to read from.
+  !! @param height Vertical levels.
+  !! @param uprof Initial eastward velocity profile.
+  !! @param vprof Initial northward velocity profile.
+  !! @param thlprof Initial liquid water potential temperature profile.
+  !! @param qtprof Initial total water mixing ratio profile.
+  !! @param e12prof Initial profile of the square root of the turbulence kinetic energy (TKE).
+  !! @param svprof Initiales profiles of scalars.
+  !! @param ug Geostrophic eastward wind.
+  !! @param vg Geostrophic northward wind.
+  !! @param wfls Large-scale subsidence.
+  !! @param dqtdxls Eastward gradient of the total water mixing ratio due to advection.
+  !! @param dqtdyls Northward gradient of the total water mixing ratio due to advection.
+  !! @param dqtdtls Tendency of the total water mixing ratio.
+  !! @param dthlrad Tendency of the liquid water potential temperature due to radiative heating.
+  subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
+                              e12prof, svprof, ug, vg, wfls, dqtdxls, dqtdyls, &
+                              dqtdtls, dthlrad)
+                  
+    character(*),  intent(in)  :: filename
+    real(field_r), intent(out) :: height(:)
+    real(field_r), intent(out) :: uprof(:)
+    real(field_r), intent(out) :: vprof(:)
+    real(field_r), intent(out) :: thlprof(:)
+    real(field_r), intent(out) :: qtprof(:)
+    real(field_r), intent(out) :: e12prof(:)
+    real(field_r), intent(out) :: svprof(:,:)
+    real(field_r), intent(out) :: ug(:)
+    real(field_r), intent(out) :: vg(:)
+    real(field_r), intent(out) :: wfls(:)
+    real(field_r), intent(out) :: dqtdxls(:)
+    real(field_r), intent(out) :: dqtdyls(:)
+    real(field_r), intent(out) :: dqtdtls(:)
+    real(field_r), intent(out) :: dthlrad(:)
 
-    use modfields,  only: thlprof, qtprof, uprof, vprof, e12prof, svprof
-    use modglobal,  only: cexpnr, nsv, kmax
-    use modtracers, only: tracer_prop
-    use modnetcdf
-
-    real(field_r), intent(out) :: height(:) !< Vertical coordinates
-
-    integer :: ncid, varid, ierr !< NetCDF variables
-    integer :: itrac                    !< Loop variable
+    integer :: ncid, varid, ierr
+    integer :: itrac
 
     call check(nf90_open("init."//cexpnr//".nc", NF90_NOWRITE, ncid), __FILE__, __LINE__)
 
