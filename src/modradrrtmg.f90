@@ -25,16 +25,6 @@ contains
     integer                :: npatch    ! Sounding levels above domain
     integer                :: i,j,k,ierr(4)
     logical                :: sunUp
-    real(SHR_KIND_R4),save ::  eccen, & ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
-                               obliq, & ! Earth's obliquity angle (deg) (-90 to +90) (typically 22-26)
-                               mvelp, & ! Earth's moving vernal equinox at perhelion (deg)(0 to 360.0)
-                               !
-                               ! Orbital information after processed by orbit_params
-                               !
-                               obliqr, &  ! Earth's obliquity in radians
-                               lambm0, &  ! Mean longitude of perihelion at the vernal equinox (radians)
-                               mvelpp     ! Earth's moving vernal equinox longitude
-                                          ! of perihelion plus pi (radians)
 
     real                   :: thlpld,thlplu,thlpsd,thlpsu
     real(KIND=kind_rb)     :: cpdair

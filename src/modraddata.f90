@@ -155,12 +155,14 @@ SAVE
                                                      ssaaersw, &
                                                      asmaersw, &
                                                      ecaersw
-  real(SHR_KIND_R4)                             :: eccen,     &  ! Eccentricity
-                                                   obliqr,    &  ! Earths obliquity in radians
-                                                   lambm0,    &  ! Mean long of perihelion at the vernal equinox (radians)
-                                                   mvelpp,    &  ! moving vernal equinox longitude of perihelion plus pi (radians)
-                                                   delta,     &  ! Solar declination angle in rad
-                                                   eccf          ! Earth-sun distance factor (ie. (1/r)**2)
+  real(SHR_KIND_R4) :: eccen,   &  ! Earth's eccentricity factor (unitless) (typically 0 to 0.1)
+                       obliq,   &  ! Earth's obliquity angle (deg) (-90 to +90) (typically 22-26)
+                       obliqr,  &  ! Earths obliquity in radians
+                       lambm0,  &  ! Mean long of perihelion at the vernal equinox (radians)
+                       mvelp,   &  ! Earth's moving vernal equinox at perhelion (deg)(0 to 360.0)
+                       mvelpp,  &  ! moving vernal equinox longitude of perihelion plus pi (radians) 
+                       delta,   &  ! Solar declination angle in rad
+                       eccf        ! Earth-sun distance factor (ie. (1/r)**2)
 
   real,parameter :: mwdry = 28.966, &
                     mwh2o = 18.016, &
