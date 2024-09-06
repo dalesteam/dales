@@ -38,6 +38,7 @@
 module modsimpleice2
   use modfields, only : rhobf
   use modprecision, only : field_r
+  use ieee_arithmetic
   implicit none
   private
   public initsimpleice2, exitsimpleice2, simpleice2
@@ -246,6 +247,9 @@ module modsimpleice2
           ! initialise qr mask and check if we are not throwing away too much rain
           if (l_rain) then
             qrsum = qrsum + qr(i,j,k)
+            if( qr(i,j,k) > 1 .or. qr(i,j,k) < -1 .or. .not. ieee_is_finite(qr(i,j,k))) then
+               write (*,*) "bad qr(",i,j,k,") = ", qr(i,j,k)
+            end if
             if (qr(i,j,k) <= qrmin) then
               qrmask_ = .false.
               if (qr(i,j,k)<0.) then
