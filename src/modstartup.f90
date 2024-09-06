@@ -223,6 +223,7 @@ contains
     call D_MPI_BCAST(timeav_glob,1,0,commwrld,mpierr)
     call D_MPI_BCAST(nsv        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(loutdirs   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lstart_netcdf,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr) ! DOMAIN
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
