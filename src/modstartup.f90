@@ -33,6 +33,8 @@ module modstartup
 use iso_c_binding
 use modprecision,      only : field_r
 use modtimer
+use modstat_nc
+use modtracers, only: T_tracer
 
 implicit none
 ! private
@@ -1771,88 +1773,56 @@ contains
   !! @param dqtdyls Northward gradient of the total water mixing ratio due to advection.
   !! @param dqtdtls Tendency of the total water mixing ratio.
   !! @param dthlrad Tendency of the liquid water potential temperature due to radiative heating.
+  !! @param nsv Number of tracers.
+  !! @param tracers List of tracer properties (T_tracer type).
   subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
                               e12prof, svprof, ug, vg, wfls, dqtdxls, dqtdyls, &
-                              dqtdtls, dthlrad)
-                  
-    character(*),  intent(in)  :: filename
-    real(field_r), intent(out) :: height(:)
-    real(field_r), intent(out) :: uprof(:)
-    real(field_r), intent(out) :: vprof(:)
-    real(field_r), intent(out) :: thlprof(:)
-    real(field_r), intent(out) :: qtprof(:)
-    real(field_r), intent(out) :: e12prof(:)
-    real(field_r), intent(out) :: svprof(:,:)
-    real(field_r), intent(out) :: ug(:)
-    real(field_r), intent(out) :: vg(:)
-    real(field_r), intent(out) :: wfls(:)
-    real(field_r), intent(out) :: dqtdxls(:)
-    real(field_r), intent(out) :: dqtdyls(:)
-    real(field_r), intent(out) :: dqtdtls(:)
-    real(field_r), intent(out) :: dthlrad(:)
+                              dqtdtls, dthlrad, nsv, tracers) 
+    character(*),   intent(in)  :: filename
+    real(field_r),  intent(out) :: height(:)
+    real(field_r),  intent(out) :: uprof(:)
+    real(field_r),  intent(out) :: vprof(:)
+    real(field_r),  intent(out) :: thlprof(:)
+    real(field_r),  intent(out) :: qtprof(:)
+    real(field_r),  intent(out) :: e12prof(:)
+    real(field_r),  intent(out) :: svprof(:,:)
+    real(field_r),  intent(out) :: ug(:)
+    real(field_r),  intent(out) :: vg(:)
+    real(field_r),  intent(out) :: wfls(:)
+    real(field_r),  intent(out) :: dqtdxls(:)
+    real(field_r),  intent(out) :: dqtdyls(:)
+    real(field_r),  intent(out) :: dqtdtls(:)
+    real(field_r),  intent(out) :: dthlrad(:)
+    integer,        intent(in)  :: nsv
+    type(T_tracer), intent(in)  :: tracers(:)
 
     integer :: ncid, varid, ierr
     integer :: itrac
 
-    call check(nf90_open("init."//cexpnr//".nc", NF90_NOWRITE, ncid), __FILE__, __LINE__)
+    call check(nf90_open(filename, NF90_NOWRITE, ncid), __FILE__, __LINE__)
 
     ! "Regular" prognostic fields
-    call check(nf90_inq_varid(ncid, "u", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, uprof(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "v", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, vprof(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "thl", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, thlprof(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "qt", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, qtprof(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "e12", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, e12prof(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "zf", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, height(1:kmax)), __FILE__, __LINE__)
+    call read_nc_field(ncid, "u", uprof, fillvalue=0._field_r)
+    call read_nc_field(ncid, "v", vprof, fillvalue=0._field_r)
+    call read_nc_field(ncid, "thl", thlprof, fillvalue=0._field_r)
+    call read_nc_field(ncid, "qt", qtprof, fillvalue=0._field_r)
+    call read_nc_field(ncid, "e12", e12prof, fillvalue=0._field_r)
+    call read_nc_field(ncid, "zf", height)
 
     ! Tracers
     do itrac = 1, nsv
-      ! Search for the tracer
-      ierr = nf90_inq_varid(ncid, tracer_prop(itrac)%tracname, varid)
-
-      ! If tracer is not found, don't stop but init with zeroes
-      select case (ierr)
-        case (nf90_enotvar)
-          write(6,*) "Warning: tracer ", tracer_prop(itrac)%tracname, " not found in init."//cexpnr//".nc"
-          svprof(:,itrac) = 0._field_r
-        case (nf90_noerr) ! Tracer found, read profile
-          call check(nf90_get_var(ncid, varid, svprof(1:kmax,itrac)), __FILE__, __LINE__)
-        case default ! Other error, print info
-          call check(ierr, __FILE__, __LINE__)
-      end select
+      call read_nc_field(ncid, tracers(itrac) % tracname, &
+                         svprof(:,itrac), fillvalue=0._field_r)
     end do
 
     ! Large-scale forcings
-    call check(nf90_inq_varid(ncid, "ug", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, ug(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "vg", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, vg(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "wfls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, wfls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "dqtdxls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, dqtdxls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "dqtdyls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, dqtdyls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "dqtdtls", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, dqtdtls(1:kmax)), __FILE__, __LINE__)
-
-    call check(nf90_inq_varid(ncid, "dthlrad", varid), __FILE__, __LINE__)
-    call check(nf90_get_var(ncid, varid, thlpcar(1:kmax)), __FILE__, __LINE__)
+    call read_nc_field(ncid, "ug", ug, fillvalue=0._field_r)
+    call read_nc_field(ncid, "vg", vg, fillvalue=0._field_r)
+    call read_nc_field(ncid, "wfls", wfls, fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdxls", dqtdxls, fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdyls", dqtdyls, fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdtls", dqtdtls, fillvalue=0._field_r)
+    call read_nc_field(ncid, "dthlrad", dthlrad, fillvalue=0._field_r)
 
     call check(nf90_close(ncid), __FILE__, __LINE__)
     
