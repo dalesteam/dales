@@ -535,7 +535,7 @@ contains
     integer isv, sdx
     logical negval !switch to allow or not negative values in randomnization
 
-    real, allocatable :: height(:), th0av(:)
+    real(field_r), allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
     integer, allocatable :: scalar_indices(:)
 
@@ -583,39 +583,43 @@ contains
 
           ps         = tb_ps(1)
 
+        else if (lstart_netcdf) then
+          call init_from_netcdf('init.'//cexpnr//'.nc', height(1:kmax), &
+                                uprof(1:kmax), vprof(1:kmax), thlprof(1:kmax), &
+                                qtprof(1:kmax), e12prof(1:kmax), &
+                                svprof(1:kmax,:), ug(1:kmax), vg(1:kmax), &
+                                wfls(1:kmax), dqtdxls(1:kmax), &
+                                dqtdyls(1:kmax), dqtdtls(1:kmax), &
+                                thlpcar(1:kmax), nsv, tracer_prop)
         else
-          if (lstart_netcdf) then
-            call read_prof_netcdf(height)
-          else
-            open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
-            if (ierr /= 0) then
-               write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-               STOP
-            end if
-            read (ifinput,'(a512)') chmess
-            write(*,     '(a512)') chmess
-            read (ifinput,'(a512)') chmess
+          open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+             STOP
+          end if
+          read (ifinput,'(a512)') chmess
+          write(*,     '(a512)') chmess
+          read (ifinput,'(a512)') chmess
 
-            do k = 1, kmax
-              read (ifinput,*) &
+          do k = 1, kmax
+            read (ifinput,*) &
+                height (k), &
+                thlprof(k), &
+                qtprof (k), &
+                uprof  (k), &
+                vprof  (k), &
+                e12prof(k)
+          end do
+
+          close(ifinput)
+
+          open (ifinput, file='scalar.inp.'//cexpnr, status='old', iostat=ierr)
+          do k = 1, kmax
+            read (ifinput,*) &
                   height (k), &
-                  thlprof(k), &
-                  qtprof (k), &
-                  uprof  (k), &
-                  vprof  (k), &
-                  e12prof(k)
-            end do
-
-            close(ifinput)
-
-            open (ifinput, file='scalar.inp.'//cexpnr, status='old', iostat=ierr)
-            do k = 1, kmax
-              read (ifinput,*) &
-                    height (k), &
-                    (svprof (k,n),n=1,nsv)
-            end do
-            close(ifinput)
-          end if ! lstart_netcdf
+                  (svprof (k,n),n=1,nsv)
+          end do
+          close(ifinput)
         end if   !ltestbed
 
         write(*,*) 'height    thl      qt         u      v     e12'
@@ -989,7 +993,7 @@ contains
       else
 
         if (lstart_netcdf) then
-          call read_lscale_netcdf
+          continue ! Profiles have been read by init_from_netcdf
         else
           open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
           if (ierr /= 0) then
