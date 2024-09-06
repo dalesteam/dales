@@ -1799,7 +1799,7 @@ contains
     integer :: ncid, varid, ierr
     integer :: itrac
 
-    call check(nf90_open(filename, NF90_NOWRITE, ncid), __FILE__, __LINE__)
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
 
     ! "Regular" prognostic fields
     call read_nc_field(ncid, "u", uprof, fillvalue=0._field_r)
@@ -1824,7 +1824,7 @@ contains
     call read_nc_field(ncid, "dqtdtls", dqtdtls, fillvalue=0._field_r)
     call read_nc_field(ncid, "dthlrad", dthlrad, fillvalue=0._field_r)
 
-    call check(nf90_close(ncid), __FILE__, __LINE__)
+    call nchandle_error(nf90_close(ncid))
     
   end subroutine init_from_netcdf
 
