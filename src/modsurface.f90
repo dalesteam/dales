@@ -699,6 +699,14 @@ contains
     allocate(svflux  (i2,j2,nsv))
     allocate(svs(nsv))
 
+    thlflux = 0 ! halo cells are present  but apparently not used and not exchanged
+    qtflux = 0  ! initialize here to not have undefined values in save file
+    dqtdz = 0
+    obl = 0
+    tskin = 0
+    qskin = 0
+    svflux = 0
+
     allocate(horv(2:i1,2:j1))
 
     if (lrsAgs) then
