@@ -65,7 +65,7 @@ contains
     use modglobal, only : ladaptive, dtmax,k1,ifnamopt,fname_options,kmax,   &
                            dtav_glob,timeav_glob,btime,tres,cexpnr,ifoutput,lwarmstart,checknamelisterror
     use modstat_nc, only : lnetcdf,define_nc,ncinfo,open_nc,define_nc,ncinfo,nctiminfo,writestat_dims_nc
-    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
+!     use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
     implicit none
 
     integer :: ierr
@@ -74,7 +74,7 @@ contains
     dtav,timeav,lsampcl,lsampco,lsampup,lsampbuup,lsampcldup,lsamptend,lprocblock,ltenddec,ltendleib, &
     lsamptendu,lsamptendv,lsamptendw,lsamptendthl,lsamptendqt,lsamptendqr,lsamptendnr
 
-    dtav=dtav_glob;timeav=timeav_glob
+!     dtav=dtav_glob;timeav=timeav_glob
 
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)
@@ -137,9 +137,10 @@ contains
       longsamplname(isamptot) = 'Cloud Updraft '
     end if
 
-    if(isamptot < 2) return
     idtav = dtav/tres
     itimeav = timeav/tres
+
+    if(isamptot < 2) return
 
     tnext      = idtav   +btime
     tnextwrite = itimeav +btime
@@ -215,10 +216,6 @@ contains
     endif
 
     if (lnetcdf) then
-      idtav = idtav_prof
-      itimeav = itimeav_prof
-      tnext      = idtav+btime
-      tnextwrite = itimeav+btime
       nsamples = itimeav/idtav
      if (myid==0) then
         allocate(ncname(nvar,4,isamptot))
