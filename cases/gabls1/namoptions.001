@@ -36,6 +36,7 @@ lcoriol    =  .true.
 z0         =  0.1
 ps         =  100000.00
 isurf      =  2
+thls       = 265 ! time-dependent, needed here for base profile setup
 /
 
 &DYNAMICS
@@ -53,6 +54,7 @@ iadv_sv     =  52
 
 &NAMSUBGRID
   lmason = .true.
+  ldelta = .true. ! lmason requires ldelta
   cf = 2.0
 /
 
