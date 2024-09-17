@@ -26,13 +26,8 @@ module modtracer_type
       logical           :: lags   
       ! Boolean if in cloud microphysics
       logical           :: lmicro     
-      ! Boolean if tracer is an aerosol
-      logical           :: laero
       ! ! Static tracer properties:
       ! real :: diffusivity
-      real(field_r) :: rho
-      real(field_r) :: kappa
-      character(3) :: mode !< Comma-separated list of the modes
 
   contains
     procedure :: print_properties => tracer_print_properties
@@ -47,12 +42,6 @@ contains
     write(*,*) "Tracer: ", self%tracname
     write(*,*) "  long name: ", trim(self%traclong)
     write(*,*) "  is aerosol: ", self%laero
-
-    if (self%laero) then
-      write(*,*) "  mode: ", trim(self%mode)
-      write(*,'(a12,f6.1)') "  density: ", self%rho
-      write(*,'(a19,f4.2)') "  hygroscopicity: ", self%kappa
-    end if
 
   end subroutine tracer_print_properties
 
