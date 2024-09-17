@@ -523,7 +523,7 @@ contains
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
-    use modtracers,        only : tracer_prop
+    use modtracers,        only : tracer_prop, defined_tracers
     use go,                only : to_lower, goSplitString_s
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
@@ -651,15 +651,15 @@ contains
              STOP
           end if
 
-          ! reading header (2 lines)
-          read (ifinput,'(a512)') chmess
-          read (ifinput,'(a512)') chmess
-          call goSplitString_s( chmess, nheader, headers, status, sep=' ')
-          ! check if nheader equals the number of tracers in simulation (skipping first header item "#z")
-          if (nheader-1 /= nsv) then
-            write(6,"(A58, i3, A3, i3)") "STOPPED. Number of tracers in scalar.inp differs from nsv:  ", nheader-1, " /=", nsv
-            stop
-          end if
+      !     ! reading header (2 lines)
+      !     read (ifinput,'(a512)') chmess
+      !     read (ifinput,'(a512)') chmess
+      !     call goSplitString_s( chmess, nheader, headers, status, sep=' ')
+      !     ! check if nheader equals the number of tracers in simulation (skipping first header item "#z")
+      !     if (nheader-1 /= nsv) then
+      !       write(6,"(A58, i3, A3, i3)") "STOPPED. Number of tracers in scalar.inp differs from nsv:  ", nheader-1, " /=", nsv
+      !       stop
+      !     end if
 
           do isv=1,nsv
             found = .false.
@@ -740,15 +740,14 @@ contains
           do k=1,kmax
             do j=1,j2
               do i=1,i2
-                do n=1,nsv
+                do n=1, defined_tracers
                   ! if (i==1 .and. j==1 .and. k==1) then
                   !   write(*,*) 'filling tracer ', tracer_prop(n)%tracname, n, sdx, i,j,k
                   !   call flush()
                   !   write(*,*) 'with values    ', svprof(k,sdx)
                   ! endif
-                  sdx = scalar_indices(n)
-                  sv0(i,j,k,n) = svprof(k,sdx)
-                  svm(i,j,k,n) = svprof(k,sdx)
+                  sv0(i,j,k,n) = svprof(k,n)
+                  svm(i,j,k,n) = svprof(k,n)
                 end do
               end do
             end do
@@ -1159,7 +1158,6 @@ contains
       read(ifinput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       read(ifinput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-
       read(ifinput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
       read(ifinput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
       read(ifinput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)
@@ -1334,7 +1332,6 @@ contains
       write(ifoutput)  (((swdir   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((swdif   (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
       write(ifoutput)  (((lwc     (i,j,k),i=2-ih,i1+ih),j=2-jh,j1+jh),k=1,k1)
-
       write(ifoutput)  ((SW_up_TOA    (i,j ),i=1,i2),j=1,j2)
       write(ifoutput)  ((SW_dn_TOA    (i,j ),i=1,i2),j=1,j2)
       write(ifoutput)  ((LW_up_TOA    (i,j ),i=1,i2),j=1,j2)

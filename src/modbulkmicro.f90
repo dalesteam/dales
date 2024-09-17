@@ -64,9 +64,9 @@ module modbulkmicro
   subroutine initbulkmicro
     use modglobal, only : i1,j1,k1,ih,jh
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
-                             qtpmcr, Dvr, xr, mur, &
-                             lbdr, &
+                             qtpmcr, Dvr, xr, mur, lbdr, inr, iqr, &
                              precep, qrmask, qcmask
+    use modtracers,   only: add_tracer
     implicit none
 
                                         ! Fields accessed by:
@@ -88,6 +88,10 @@ module modbulkmicro
     gamma25=lacz_gamma(2.5)
     gamma3=2.
     gamma35=lacz_gamma(3.5)
+    
+    ! Add two prognostic tracers
+    call add_tracer(name='Nr', long_name='Rain drop number concentration', unit='1/m^3', lmicro=.true., isv=inr)
+    call add_tracer(name='qr', long_name='Rain water mixing ratio', unit='??', lmicro=.true., isv=iqr)
 
     !$acc enter data copyin(Nr, qr, Nrp, qrp, Dvr, precep, &
     !$acc&                  thlpmcr, qtpmcr, xr, mur, lbdr, qrmask, qcmask)

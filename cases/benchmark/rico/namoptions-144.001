@@ -2,15 +2,13 @@
 iexpnr     =  001
 lwarmstart =  .false.
 startfile  =  'initd001h00mx000y000.001'
-runtime    =  300
-trestart   =  300
+runtime    =  43200
+trestart   =  86400
 ladaptive  =  .true.
 irandom    =  43
 randthl    =  0.1
 randqt     =  2.5e-5
 nsv        =  2
-nprocx     = 0
-nprocy     = 0
 /
 
 &NAMTRACERS
@@ -46,6 +44,7 @@ irad       =  0
 timerad    =  2
 lcoriol    =  .true.
 lmomsubs   =  .false.
+lfast_thermo = .true.
 /
 &NAMSURFACE
 thls  =  298.5

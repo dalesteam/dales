@@ -57,7 +57,7 @@ iadv_sv     =  2
 ldelta      = .false.
 /
 &NAMBUDGET 
-lbudget     = .true.
+lbudget     = .false.
 dtav        = 60.
 timeav      = 600.
 /
@@ -93,4 +93,7 @@ ldiracc     = .true.
 &NAMSTATTEND
 dtav = 60
 ltend = .true.
+/
+&SOLVER
+solver_id = 100
 /

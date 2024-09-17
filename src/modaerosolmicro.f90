@@ -1638,7 +1638,7 @@ module modaerosolmicro
 
         do ispec = 1,nspec-1
            aer_in  = 0.
-           aer_out = 0.     
+           aer_out = 0. 
      
            if (qr_spl(i,j,k+1) > 0.) then
               aer_in  = min(rhof(k+1)*dzf(k+1)/dt_spl      *aer_spl(i,j,k+1,ispec), &
@@ -1652,7 +1652,7 @@ module modaerosolmicro
            aer_spl(i,j,k,ispec) = aer_spl(i,j,k,ispec) + (aer_in - aer_out)*dt_spl/(dzf(k)*rhof(k))
            if (aer_spl(i,j,k,ispec) < 0.) then
               write(6,"(A13, E11.4)") 'SEDIMENTATION', aer_in/(dt_spl/(dzf(k+1)*rhof(k+1))), aer_out/(dt_spl/(dzf(k)*rhof(k)))
-           end if          
+           end if
         enddo
 
         qr_spl(i,j,k) = qr_spl(i,j,k) + (sed_qr(i,j,k+1) - sed_qr(i,j,k))*dt_spl/(dzf(k)*rhof(k))
