@@ -52,8 +52,8 @@ subroutine hadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   !$acc parallel loop collapse(3) default(present)
   do k = 1, kmax
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k)  = a_out(i,j,k) - (  &
               ( &
                   u0(i+1,j,k)/60&
@@ -97,8 +97,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(1)) * ( &
                     w0(i,j,k+1) * (rhobf(k+1)*a_in(i,j,k+1) + rhobf(k)*a_in(i,j,k)) &
               ) * ( 0.5_field_r * dzfi(k) ) &
@@ -109,8 +109,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
   ! CvH do 2nd order for bottom and top
   k = 2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     w0(i,j,k+1) * (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
                   - w0(i,j,k  ) * (rhobf(k-1)*a_in(i,j,k-1)+rhobf(k)*a_in(i,j,k)) &
@@ -121,8 +121,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax-1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     w0(i,j,k+1) * (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
                   - w0(i,j,k  ) * (rhobf(k-1)*a_in(i,j,k-1)+rhobf(k)*a_in(i,j,k)) &
@@ -133,8 +133,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     w0(i,j,k+1) * (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
                   - w0(i,j,k  ) * (rhobf(k-1)*a_in(i,j,k-1)+rhobf(k)*a_in(i,j,k)) &
@@ -145,8 +145,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 3
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     w0(i,j,k+1) / 60 &
                     * ( 37*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -165,8 +165,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax-2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     w0(i,j,k+1) / 2 &
                     *      (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -186,8 +186,8 @@ subroutine vadvecc_5th(a_in, a_out,istart,iend,jstart,jend)
 
   !$acc parallel loop collapse(3) default(present) async(2)
   do k = 4, kmax-3
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                       w0(i,j,k+1) / 60 &
                       * ( 37*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -272,8 +272,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   k = 1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
           (1/rhobf(1))*( &
             ( rhobf(k+1)*a_in(i,j,k+1) + rhobf(k)*a_in(i,j,k)) *(w0(i,j,k+1)+ w0(i-1,j,k+1)) &
@@ -284,8 +284,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   k = 2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
           (1/rhobf(k))*( &
             (rhobf(k)*a_in(i,j,k)+rhobf(k+1)*a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
@@ -297,8 +297,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   k = kmax-1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
           (1/rhobf(k))*( &
             (rhobf(k)*a_in(i,j,k)+rhobf(k+1)*a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
@@ -310,8 +310,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   k = kmax
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
           (1/rhobf(k))*( &
             (rhobf(k)*a_in(i,j,k)+rhobf(k+1)*a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
@@ -323,8 +323,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   k = 3
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     ( w0(i,j,k+1) + w0(i-1,j,k+1) ) / 60 &
                     * ( 37*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -343,8 +343,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   k = kmax-2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     ( w0(i,j,k+1) + w0(i-1,j,k+1)) / 2 &
                     * ( rhobf(k)*a_in(i,j,k)+rhobf(k+1)*a_in(i,j,k+1) ) &
@@ -363,8 +363,8 @@ subroutine vadvecu_5th(a_in,a_out,istart,iend,jstart,jend)
 
   !$acc parallel loop collapse(3) default(present) async(2)
   do k = 4, kmax-3
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                       ( w0(i,j,k+1) + w0(i-1,j,k+1) ) / 60 &
                       * ( 37*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -405,8 +405,8 @@ subroutine hadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   !$acc parallel loop collapse(3) default(present)
   do k = 1, kmax
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k)  = a_out(i,j,k) - ( &
               ( &
                   (u0(i+1,j,k)+u0(i+1,j-1,k))/60&
@@ -450,8 +450,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
             (1/rhobf(1))*( &
               (w0(i,j,k+1)+w0(i,j-1,k+1)) *(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
@@ -462,8 +462,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
             (1/rhobf(k))*( &
               (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
@@ -475,8 +475,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax-1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
             (1/rhobf(k))*( &
               (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
@@ -488,8 +488,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( &
             (1/rhobf(k))*( &
               (w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
@@ -501,8 +501,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 3
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k)- ( (1/rhobf(k)) * ( &
                     ( w0(i,j,k+1) + w0(i,j-1,k+1) ) / 60 &
                     * ( 37*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -521,8 +521,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax-2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                     ( w0(i,j,k+1) + w0(i,j-1,k+1) ) / 2 &
                      * (rhobf(k+1)*a_in(i,j,k+1)+rhobf(k)*a_in(i,j,k)) &
@@ -541,8 +541,8 @@ subroutine vadvecv_5th(a_in, a_out,istart,iend,jstart,jend)
 
   !$acc parallel loop collapse(3) default(present) async(2)
   do k = 4, kmax-3
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
                       ( w0(i,j,k+1) + w0(i,j-1,k+1) ) / 60 &
                       * ( 37*(rhobf(k+1)*a_in(i,j,k+1)+rhobf(k  )*a_in(i,j,k  )) &
@@ -626,8 +626,8 @@ subroutine vadvecw_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - (  (1/rhobh(k)) * ( &
                      ( rhobh(k)*a_in(i,j,k)+rhobh(k+1)*a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
                    - ( rhobh(k)*a_in(i,j,k)+rhobh(k-1)*a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
@@ -638,8 +638,8 @@ subroutine vadvecw_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax-1
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - (  (1/rhobh(k)) * ( &
                      ( rhobh(k)*a_in(i,j,k)+rhobh(k+1)*a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
                    - ( rhobh(k)*a_in(i,j,k)+rhobh(k-1)*a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
@@ -650,8 +650,8 @@ subroutine vadvecw_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - (  (1/rhobh(k)) * ( &
                      ( rhobh(k)*a_in(i,j,k)+rhobh(k+1)*a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
                    - ( rhobh(k)*a_in(i,j,k)+rhobh(k-1)*a_in(i,j,k-1) )*(w0(i,j,k) + w0(i,j,k-1)) &
@@ -662,8 +662,8 @@ subroutine vadvecw_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = 3
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
                     ( w0(i,j,k) + w0(i,j,k+1) ) / 60 &
                     * ( 37*(rhobh(k+1)*a_in(i,j,k+1)+rhobh(k  )*a_in(i,j,k  )) &
@@ -682,8 +682,8 @@ subroutine vadvecw_5th(a_in, a_out,istart,iend,jstart,jend)
 
   k = kmax-2
   !$acc parallel loop collapse(2) default(present) async(1)
-  do j = 2, j1
-    do i = 2, i1
+  do j = jstart, jend
+    do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
                     ( w0(i,j,k) + w0(i,j,k+1) ) / 2 &
                      *      (rhobh(k  )*a_in(i,j,k  )+rhobh(k+1)*a_in(i,j,k+1)) &
@@ -701,8 +701,8 @@ subroutine vadvecw_5th(a_in, a_out,istart,iend,jstart,jend)
   end do
 
   do k = 4, kmax-3
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
          a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
                        ( w0(i,j,k) + w0(i,j,k+1) ) / 60 &
                         * ( 37*(rhobh(k+1)*a_in(i,j,k+1)+rhobh(k  )*a_in(i,j,k  )) &
