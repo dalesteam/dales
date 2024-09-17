@@ -35,12 +35,12 @@ module moddrydeposition
   save
   public  :: initdrydep, drydep, exitdrydep
 
-  logical :: ldrydep           !< On/Off switch dry deposition
+  logical :: ldrydep = .false.         !< On/Off switch dry deposition
   real, allocatable :: depfield(:,:,:) !< deposition flux (i,j,sv) [ug * m / (g * s)]
   logical, dimension(100) :: ldeptracers = .false. !< List of switches determining which of the tracers to deposit
   integer  :: ndeptracers = 0  !< Number of tracers that deposits
   integer  :: iname 
-  real :: nh3_avg, so2_avg	!GT added to not have the valiables needed for the calculations of ccomp hardcoded
+  real :: nh3_avg = -1, so2_avg = -1	!GT added to not have the variables needed for the calculations of ccomp hardcoded
 
   private :: Rc, Rb, vd
 
@@ -108,7 +108,7 @@ subroutine initdrydep
   enddo
 
   ! --- Local pre-calculations and settings
-  if (ldrydep .and. ndeptracers == 0) then
+  if (ldrydep .and. ndeptracers == 0 .and. myid == 0) then
     write (*,*) "initdrydep: WARNING .. drydeposition switched on, but no tracers to deposit. &
       Continuing without deposition model"
   end if

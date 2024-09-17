@@ -46,7 +46,7 @@ module modemisdata
               svskip   =  0, &     ! no. scalars to exclude for emission
               nemis    = 0         ! no. of emitted scalars  
   logical  :: l_scale = .false.    ! emission scaling switch
-  real, dimension(100) :: scalefactor
+  real, dimension(100) :: scalefactor = 1
 
   character(len = 6), dimension(100) :: & 
               emisnames = (/ ('      ', iname=1, 100) /) ! list with scalar names,
