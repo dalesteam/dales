@@ -1551,6 +1551,9 @@ contains
         ibas_prf = 5
         print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
       endif
+      if(ibas_prf <= 3 .and. thls < 0) then
+         STOP 'thls has not been initialized but is needed for setting up the base profiles.'
+      end if
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance
         thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
