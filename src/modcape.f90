@@ -33,7 +33,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 25
+  integer,parameter :: nvar = 29
   integer :: ncid4 = 0
   integer :: nrec = 0
   character(80) :: fname = 'cape.xxxxyxxx.xxx.nc'
@@ -107,6 +107,10 @@ contains
     call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','tt0t')
     call ncinfo(ncname( 24,:),'vmix','v wind speed averaged over mixed layer','m/s','tt0t')
     call ncinfo(ncname( 25,:),'thetavmix','theta_v averaged over mixed layer','K','tt0t')
+    call ncinfo(ncname( 26,:),'us','lowest layer wind speed','m/s','tt0t') ! consider interpolating these to 10m
+    call ncinfo(ncname( 27,:),'vs','lowest layer wind speed','m/s','tt0t')
+    call ncinfo(ncname( 28,:),'qts','lowest layer qt','kg/kg','tt0t')
+    call ncinfo(ncname( 29,:),'Ts','lowest layer temperature','K','tt0t')
 
     call open_nc(trim(output_prefix)//fname,  ncid4,nrec,n1=imax,n2=jmax)
     if (nrec==0) then
@@ -122,7 +126,7 @@ contains
   subroutine docape
     use modglobal, only : imax,jmax,i1,j1,k1,kmax,nsv,rlv,cp,rv,rd,rk3step,timee,rtimee,dt_lim,grav,eps1,&
     nsv,ttab,esatltab,esatitab,zf,dzf,tup,tdn,zh,kcb
-    use modfields, only : u0,v0,thl0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
+    use modfields, only : u0,v0,thl0,tmp0,qt0,ql0,w0,sv0,exnf,thvf,exnf,presf,rhobf
     use modstat_nc, only : lnetcdf, writestat_nc
     use modgenstat, only : qlmnlast,wthvtmnlast
     use modmicrodata, only : iqr, precep, imicro
@@ -507,6 +511,11 @@ contains
       vars(:,:,23) = umix(2:i1,2:j1)
       vars(:,:,24) = vmix(2:i1,2:j1)
       vars(:,:,25) = thetavmix(2:i1,2:j1)
+      vars(:,:,26) = u0(2:i1,2:j1,1)
+      vars(:,:,27) = v0(2:i1,2:j1,1)
+      vars(:,:,28) = qt0(2:i1,2:j1,1)
+      vars(:,:,29) = tmp0(2:i1,2:j1,1)
+
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
       deallocate(vars)
