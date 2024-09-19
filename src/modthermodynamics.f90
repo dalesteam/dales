@@ -85,7 +85,7 @@ contains
 !! Calculate the liquid water content, do the microphysics, calculate the mean hydrostatic pressure,
 !! calculate the fields at the half levels, and finally calculate the virtual potential temperature.
   subroutine thermodynamics
-    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo,is_starting
+    use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
     use modfields, only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
     use modmpi, only : slabsum, myid
     implicit none
@@ -265,10 +265,18 @@ contains
 
     else
       !$acc parallel loop collapse(3) default(present)
-      do k = 2, kmax
+      do k = 2, k1
         do j = 2, j1
           do i = 2, i1
             thv0h(i,j,k)  = thl0h(i,j,k)
+          end do
+        end do
+      end do
+
+      !$acc parallel loop collapse(3) default(present)
+      do k = 2, kmax
+        do j = 2, j1
+          do i = 2, i1
             dthvdz(i,j,k) = (thl0(i,j,k+1)-thl0(i,j,k-1))/(dzh(k+1)+dzh(k))
           end do
         end do

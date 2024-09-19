@@ -257,7 +257,7 @@ contains
         strain2 = ( &
           ((u0(i+1,j  ,1)-u0(i,j,1))*dxi    )**2 + &
           ((v0(i  ,j+1,1)-v0(i,j,1))*dyi    )**2 + &
-          ((w0(i  ,j  ,2)-w0(i,j,1))*dzfi(k))**2 )
+          ((w0(i  ,j  ,2)-w0(i,j,1))*dzfi(1))**2 )
 
         strain2 = strain2 + 0.5_field_r * ( &
                   ( 0.25_field_r*(w0(i+1,j,2)-w0(i-1,j,2))*dxi + &
