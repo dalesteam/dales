@@ -797,11 +797,11 @@ end subroutine do_genbudget
             ,'#',(timeav),'--- AVERAGING TIMESTEP --- ' &
             ,nhrs,':',nminut,':',nsecs &
             ,'   HRS:MIN:SEC AFTER INITIALIZATION '
-       write (ifoutput,'(A/2A/2A)'), &
+       write (ifoutput,'(A/2A/2A)') &
             '#-------------------------------------------------------------------', &
-            '#LEV HEIGHT  |   TKE        SHEAR      BUOYANCY     TRANSP',&
-            '     PRES_TRSP     DISS      BUDGET      STORAGE      RESID',&
-            '#     (m)    | (kg/ms^2)  ',&
+            '#LEV HEIGHT  |   TKE        SHEAR      BUOYANCY     TRANSP', &
+            '     PRES_TRSP     DISS      BUDGET      STORAGE      RESID', &
+            '#     (m)    | (kg/ms^2)  ', &
             '(-------------------------------- (kg/ms^3) -------------------------------------------------)'
 
        write(ifoutput,'(I3,F9.3,9E12.4)') &
