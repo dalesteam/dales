@@ -419,7 +419,6 @@ subroutine vadvecw_2nd(a_in,a_out,istart,iend,jstart,jend)
       end do
     end do
   end if
-  !$acc wait(1,2,3)
 end subroutine vadvecw_2nd
 
 end module advec_2nd

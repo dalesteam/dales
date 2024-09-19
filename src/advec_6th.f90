@@ -196,7 +196,7 @@ subroutine hadvecu_6th(a_in,a_out,istart,iend,jstart,jend)
 
   integer :: i,j,k
 
-  !$acc parallel loop collapse(3) default(present)
+  !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, kmax
     do j = jstart, jend
       do i = istart, iend
@@ -343,7 +343,7 @@ subroutine hadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
 
   integer :: i,j,k
 
-  !$acc parallel loop collapse(3) default(present)
+  !$acc parallel loop collapse(3) default(present) async(2)
   do k = 1, kmax
     do j = jstart, jend
       do i = istart, iend
@@ -380,7 +380,7 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
   integer :: i,j,k
 
   k = 1
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(3)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(1)) * ( &
@@ -392,7 +392,7 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
   enddo
 
   k = 2
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(3)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
@@ -407,7 +407,7 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
   enddo
 
   k = 3
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(3)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
@@ -424,7 +424,7 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
   enddo
 
   k = kmax-1
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(3)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
@@ -441,7 +441,7 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
   enddo
 
   k = kmax
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(3)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobf(k)) * ( &
@@ -455,7 +455,7 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
     enddo
   enddo
 
-  !$acc parallel loop collapse(3) default(present) async(2)
+  !$acc parallel loop collapse(3) default(present) async(4)
   do k = 4, kmax-2
     do j = jstart, jend
       do i = istart, iend
@@ -473,7 +473,6 @@ subroutine vadvecv_6th(a_in, a_out,istart,iend,jstart,jend)
       end do
     end do
   end do
-  !$acc wait
 end subroutine vadvecv_6th
 
 !> Horiontal advection at the w point.
@@ -489,7 +488,7 @@ subroutine hadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
 
   integer :: i,j,k
 
-  !$acc parallel loop collapse(3) default(present)
+  !$acc parallel loop collapse(3) default(present) async(3)
   do k = 2, kmax
     do j = jstart, jend
       do i = istart, iend
@@ -528,7 +527,7 @@ subroutine vadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
   integer :: i,j,k
 
   k = 2
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(5)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
@@ -543,7 +542,7 @@ subroutine vadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
   end do
 
   k = 3
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(5)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
@@ -560,7 +559,7 @@ subroutine vadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
   end do
 
   k = kmax-1
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(5)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
@@ -577,7 +576,7 @@ subroutine vadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
   end do
 
   k = kmax
-  !$acc parallel loop collapse(2) default(present) async(1)
+  !$acc parallel loop collapse(2) default(present) async(5)
   do j = jstart, jend
     do i = istart, iend
       a_out(i,j,k) = a_out(i,j,k) - ( (1/rhobh(k)) * ( &
@@ -591,7 +590,7 @@ subroutine vadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
     end do
   end do
 
-  !$acc parallel loop collapse(3) default(present) async(2)
+  !$acc parallel loop collapse(3) default(present) async(6)
   do k = 4, kmax-2
     do j = jstart, jend
       do i = istart, iend
@@ -609,6 +608,5 @@ subroutine vadvecw_6th(a_in, a_out,istart,iend,jstart,jend)
       end do
     end do
   end do
-  !$acc wait
 end subroutine vadvecw_6th
 end module advec_6th
