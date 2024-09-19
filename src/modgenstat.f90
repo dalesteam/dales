@@ -566,6 +566,8 @@ contains
     real :: hurav_s, clwav_s, cliav_s, plwav_s, pliav_s
     real :: wsvsub_s, wsvres_s
     real :: a_dry, b_dry, a_moist, b_moist
+    real :: qlhav1_sum, wthlsub1_sum, wqtsub1_sum, wthvsub1_sum, uwsub1_sum, &
+            vwsub1_sum, hurav1_sum, clwav1_sum, cliav1_sum, plwav1_sum, pliav1_sum 
 
     call timer_tic('modgenstat/do_genstat', 1)
 
@@ -716,42 +718,72 @@ contains
     cthl = (exnh(1)*cp/rlv)*((1-den)/den)
     cqt = 1./den
 
+    ! Can not reduce directly in qlhav(1), ...
+    ! with Cray Fortran. Using temporary sums.
+    qlhav1_sum = 0
+    wthlsub1_sum = 0
+    wqtsub1_sum = 0
+    wthvsub1_sum = 0
+    uwsub1_sum = 0
+    vwsub1_sum = 0
+    hurav1_sum = 0
+    clwav1_sum = 0
+    cliav1_sum = 0
+    plwav1_sum = 0
+    pliav1_sum = 0
+
     !$acc parallel loop collapse(2) default(present) private(upcu, vpcv) &
-    !$acc& reduction(+: qlhav(1), wthlsub(1), wqtsub(1), wthvsub(1), uwsub(1), vwsub(1), hurav(1), clwav(1), cliav(1), plwav(1), pliav(1)) async(1)
+    !$acc& reduction(+: qlhav1_sum, wthlsub1_sum, wqtsub1_sum, wthvsub1_sum, uwsub1_sum, &
+    !$acc&              vwsub1_sum, hurav1_sum, clwav1_sum, cliav1_sum, plwav1_sum, pliav1_sum) async(1)
     do j = 2, j1
       do i = 2, i1
-        qlhav(1) = qlhav(1) + ql0h(i,j,1)
-        wthlsub(1) = wthlsub(1) + thlflux(i,j)
-        wqtsub(1) = wqtsub(1) + qtflux (i,j)
-        wthvsub(1) = wthvsub(1) + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
+        qlhav1_sum = qlhav1_sum + ql0h(i,j,1)
+        wthlsub1_sum = wthlsub1_sum + thlflux(i,j)
+        wqtsub1_sum = wqtsub1_sum + qtflux (i,j)
+        wthvsub1_sum = wthvsub1_sum + ( c1*thlflux(i,j)+c2*thls*qtflux(i,j) ) !hj: thv0 replaced by thls
         wqlsub(1) = 0.0
 
         !Momentum flux
         upcu = um(i, j, 1) + cu
         upcu = sign(1._field_r, upcu) * max(abs(upcu), eps1)
 
-        uwsub(1) = uwsub(1) - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
+        uwsub1_sum = uwsub1_sum - (0.5 * (ustar(i,j) + ustar(i-1,j)))**2 &
                     * upcu / sqrt(upcu**2 + ((vm(i,j,1) + vm(i-1,j,1) + vm(i,j+1,1) + vm(i-1,j+1,1)) / 4. + cv)**2)
 
         vpcv = vm(i, j, 1) + cv
         vpcv = sign(1._field_r, vpcv) * max(abs(vpcv), eps1)
 
-        vwsub(1) = vwsub(1) - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
+        vwsub1_sum = vwsub1_sum - (0.5 * (ustar(i,j) + ustar(i,j-1)))**2 &
                     * vpcv / sqrt(vpcv**2 + ((um(i,j,1) + um(i+1,j,1) + um(i,j-1,1) + um(i+1,j-1,1)) / 4. + cu)**2)
 
-        hurav(1) = hurav(1) + 100 * (qt0(i,j,1) - ql0(i,j,1)) / qsat_tab(tmp0(i,j,1), presf(1))
+        hurav1_sum = hurav1_sum + 100 * (qt0(i,j,1) - ql0(i,j,1)) / qsat_tab(tmp0(i,j,1), presf(1))
 
         ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdn) / (tup-tdn)))
-        clwav(1) = clwav(1) + ql0(i,j,1) * ilratio
-        cliav(1) = cliav(1) + ql0(i,j,1) * (1-ilratio)
+        clwav1_sum = clwav1_sum + ql0(i,j,1) * ilratio
+        cliav1_sum = cliav1_sum + ql0(i,j,1) * (1-ilratio)
 
         if (nsv > 1) then
            ilratio = max(0._field_r,min(1._field_r,(tmp0(i,j,1)-tdnrsg)/(tuprsg-tdnrsg)))
-           plwav(1) = plwav(1) + sv0(i,j,1,iqr) * ilratio
-           pliav(1) = pliav(1) + sv0(i,j,1,iqr) * (1-ilratio)
+           plwav1_sum = plwav1_sum + sv0(i,j,1,iqr) * ilratio
+           pliav1_sum = pliav1_sum + sv0(i,j,1,iqr) * (1-ilratio)
         end if
       end do
     end do
+
+    ! Update device data with sums
+    !$acc kernels default(present) async(1)
+    qlhav(1) = qlhav1_sum
+    wthlsub(1) = wthlsub1_sum
+    wqtsub(1) = wqtsub1_sum
+    wthvsub(1) = wthvsub1_sum
+    uwsub(1) = uwsub1_sum
+    vwsub(1) = vwsub1_sum
+    hurav(1) = hurav1_sum
+    clwav(1) = clwav1_sum
+    cliav(1) = cliav1_sum
+    plwav(1) = plwav1_sum
+    pliav(1) = pliav1_sum
+    !$acc end kernels
 
     !-------------------------------------------
     !     HIGHER LAYERS
