@@ -30,12 +30,8 @@
 !
 !  Copyright 1993-2009 Delft University of Technology, Wageningen University, Utrecht University, KNMI
 !
-
-
-
 module modmpi
 use modmpiinterface
-use modgpumpiinterface
 #if defined(_OPENACC)
 use openacc
 use modgpumpiinterface
@@ -82,29 +78,15 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ISEND_REAL32_R1
     procedure :: D_MPI_ISEND_REAL64_R1
     procedure :: D_MPI_ISEND_LOGICAL_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_ISEND_REAL32_R1_GPU
-    procedure :: D_MPI_ISEND_REAL64_R1_GPU
-    procedure :: D_MPI_ISEND_LOGICAL_R1_GPU
-#endif
   end interface
   interface D_MPI_IRECV
     procedure :: D_MPI_IRECV_REAL32_R1
     procedure :: D_MPI_IRECV_REAL64_R1
     procedure :: D_MPI_IRECV_LOGICAL_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_IRECV_REAL32_R1_GPU
-    procedure :: D_MPI_IRECV_REAL64_R1_GPU
-    procedure :: D_MPI_IRECV_LOGICAL_R1_GPU
-#endif
   end interface
   interface D_MPI_RECV
     procedure :: D_MPI_RECV_REAL32_R1
     procedure :: D_MPI_RECV_REAL64_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_RECV_REAL32_R1_GPU
-    procedure :: D_MPI_RECV_REAL64_R1_GPU
-#endif
   end interface
   interface D_MPI_BCAST
     procedure :: D_MPI_BCAST_LOGICAL_S
@@ -123,19 +105,6 @@ interface D_MPI_ISEND
     procedure :: D_MPI_BCAST_LOGICAL_R1
     procedure :: D_MPI_BCAST_STRING
     procedure :: D_MPI_BCAST_STRING_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_BCAST_LOGICAL_S_GPU
-    procedure :: D_MPI_BCAST_REAL64_S_GPU
-    procedure :: D_MPI_BCAST_REAL32_S_GPU
-    procedure :: D_MPI_BCAST_INT32_S_GPU
-    procedure :: D_MPI_BCAST_REAL32_R1_GPU
-    procedure :: D_MPI_BCAST_REAL32_R2_GPU
-    procedure :: D_MPI_BCAST_REAL64_R1_GPU
-    procedure :: D_MPI_BCAST_REAL64_R2_GPU
-    procedure :: D_MPI_BCAST_INT32_R1_GPU
-    procedure :: D_MPI_BCAST_INT32_R2_GPU
-    procedure :: D_MPI_BCAST_LOGICAL_R1_GPU
-#endif
   end interface
   interface D_MPI_ALLREDUCE
     procedure :: D_MPI_ALLREDUCE_REAL32_S
@@ -151,31 +120,10 @@ interface D_MPI_ISEND
     procedure :: D_MPI_ALLREDUCE_INT32_R2
     procedure :: D_MPI_ALLREDUCE_REAL32_IP
     procedure :: D_MPI_ALLREDUCE_REAL64_IP
-#if defined(_OPENACC)
-    procedure :: D_MPI_ALLREDUCE_REAL32_S_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_S_GPU
-    procedure :: D_MPI_ALLREDUCE_INT32_S_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_R1_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_R3_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_R1_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_R3_GPU
-    procedure :: D_MPI_ALLREDUCE_INT32_R1_GPU
-    procedure :: D_MPI_ALLREDUCE_INT32_R2_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL32_IP_GPU
-    procedure :: D_MPI_ALLREDUCE_REAL64_IP_GPU
-#endif
   end interface
   interface D_MPI_ALLTOALL
     procedure :: D_MPI_ALLTOALL_REAL32_R1
     procedure :: D_MPI_ALLTOALL_REAL64_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_ALLTOALL_REAL32_R1_GPU
-    procedure :: D_MPI_ALLTOALL_REAL64_R1_GPU
-    procedure :: D_MPI_ALLTOALL_REAL32_R1_IP_GPU
-    procedure :: D_MPI_ALLTOALL_REAL64_R1_IP_GPU
-#endif
   end interface
   interface D_MPI_REDUCE
     procedure :: D_MPI_REDUCE_REAL32_R1
@@ -188,26 +136,10 @@ interface D_MPI_ISEND
     procedure :: D_MPI_REDUCE_REAL32_IP_R2
     procedure :: D_MPI_REDUCE_REAL64_IP_R1
     procedure :: D_MPI_REDUCE_REAL64_IP_R2
-#if defined(_OPENACC)
-    procedure :: D_MPI_REDUCE_REAL32_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL32_R2_GPU
-    procedure :: D_MPI_REDUCE_REAL32_R3_GPU
-    procedure :: D_MPI_REDUCE_REAL64_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL64_R2_GPU
-    procedure :: D_MPI_REDUCE_REAL64_R3_GPU
-    procedure :: D_MPI_REDUCE_REAL32_IP_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL32_IP_R2_GPU
-    procedure :: D_MPI_REDUCE_REAL64_IP_R1_GPU
-    procedure :: D_MPI_REDUCE_REAL64_IP_R2_GPU
-#endif
   end interface
   interface D_MPI_GATHER
     procedure :: D_MPI_GATHER_REAL32_R1
     procedure :: D_MPI_GATHER_REAL64_R1
-#if defined(_OPENACC)
-    procedure :: D_MPI_GATHER_REAL32_R1_GPU
-    procedure :: D_MPI_GATHER_REAL64_R1_GPU
-#endif
   end interface
   interface excjs
     procedure :: excjs_real32
