@@ -25,7 +25,10 @@
 module modtracers
 
   use modglobal, only : nsv
+  use modglobal,      only: nsv, i1, ih, j1, jh, k1
   use modtracer_type, only: T_tracer
+  use modprecision,   only: field_r
+  use modfields,      only: svm, sv0, svp, sv0av, svprof
 
   implicit none
 
@@ -100,18 +103,39 @@ contains
 
   end subroutine inittracers
 
+  subroutine allocate_tracers
+
+    allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+             sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+             svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+             sv0av(k1,nsv), svprof(k1,nsv))
+
+    svm(:,:,:,:) = 0
+    sv0(:,:,:,:) = 0
+    svp(:,:,:,:) = 0
+    sv0av(:,:) = 0
+    svprof(:,:) = 0
+
+    !$acc enter data copyin(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                  sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                  svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                  sv0av(k1,nsv), svprof(k1,nsv))
+
+  end subroutine allocate_tracers
   !
   ! Cleanup (deallocate) the tracers
   ! 
   subroutine exittracers
-    ! use ..., only :
-    implicit none
-
-    if (.not. ltracers) return
 
     ! Tracer properties:
     deallocate(tracer_prop)
 
+    !$acc exit data delete(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                 sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                 svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                 sv0av(k1,nsv), svprof(k1,nsv))
+
+    deallocate(svm, sv0, svp, sv0av, svprof)
   end subroutine exittracers
 
   !! Read the list of available tracers from tracerdata.inp
