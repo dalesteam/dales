@@ -137,6 +137,7 @@ program DALES
   use moddepcrosssection, only : initdepcrosssection, depcrosssection,exitdepcrosssection
   use modcloudfield,   only : initcloudfield, cloudfield
   use modfielddump,    only : initfielddump, fielddump,exitfielddump
+  use modlocalfielddump, only : initlocalfielddump, localfielddump,exitlocalfielddump
   use modradfield,     only : initradfield, radfield, exitradfield
   use modsamptend,     only : initsamptend, samptend,exitsamptend, tend_start,tend_subg,tend_force,&
                               tend_rad,tend_ls,tend_micro, tend_topbound,tend_pois,tend_addon, tend_coriolis,&
@@ -206,6 +207,7 @@ program DALES
   !call initprojection
   call initcloudfield
   call initfielddump
+  call initlocalfielddump
   call initsamptend
   call initradstat
   call initradfield
@@ -351,6 +353,7 @@ program DALES
     !call projection
     call cloudfield
     call fielddump
+    call localfielddump
     call radfield
     !call particles
 
@@ -402,6 +405,7 @@ program DALES
   call exitdepcrosssection
   call exitcape
   call exitfielddump
+  call exitlocalfielddump
   call exitradfield
   call exitheterostats
   call exitcanopy
