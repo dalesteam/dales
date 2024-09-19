@@ -479,16 +479,12 @@ contains
     end do
 
     !   Send north/south
-    !$acc host_data use_device(sendn, sends)
-    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
-    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr, ondevice=.true.)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr, ondevice=.true.)
 
     !   Receive south/north
-    !$acc host_data use_device(recvs, recvn)
-    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
-    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr, ondevice=.true.)
+    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr, ondevice=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrs, status, mpierr)
@@ -534,16 +530,12 @@ contains
     end do
 
     !   Send east/west
-    !$acc host_data use_device(sende, sendw)
-    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
-    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr, ondevice=.true.)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr, ondevice=.true.)
 
     !   Receive west/east
-    !$acc host_data use_device(recvw, recve)
-    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
-    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr, ondevice=.true.)
+    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr, ondevice=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrw, status, mpierr)
@@ -871,16 +863,12 @@ contains
     end do
 
     !   Send north/south
-    !$acc host_data use_device(sendn, sends)
-    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr)
-    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sendn, nssize, nbrnorth, 4, comm3d, reqn, mpierr, ondevice=.true.)
+    call D_MPI_ISEND(sends, nssize, nbrsouth, 5, comm3d, reqs, mpierr, ondevice=.true.)
 
     !   Receive south/north
-    !$acc host_data use_device(recvs, recvn)
-    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr)
-    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvs, nssize, nbrsouth, 4, comm3d, reqrs, mpierr, ondevice=.true.)
+    call D_MPI_IRECV(recvn, nssize, nbrnorth, 5, comm3d, reqrn, mpierr, ondevice=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrs, status, mpierr)
@@ -927,16 +915,12 @@ contains
     end do
 
     !   Send east/west
-    !$acc host_data use_device(sende, sendw)
-    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr)
-    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr)
-    !$acc end host_data
+    call D_MPI_ISEND(sende, ewsize, nbreast, 6, comm3d, reqe, mpierr, ondevice=.true.)
+    call D_MPI_ISEND(sendw, ewsize, nbrwest, 7, comm3d, reqw, mpierr, ondevice=.true.)
 
     !   Receive west/east
-    !$acc host_data use_device(recvw, recve)
-    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr)
-    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr)
-    !$acc end host_data
+    call D_MPI_IRECV(recvw, ewsize, nbrwest, 6, comm3d, reqrw, mpierr, ondevice=.true.)
+    call D_MPI_IRECV(recve, ewsize, nbreast, 7, comm3d, reqre, mpierr, ondevice=.true.)
 
     ! Wait until data is received
     call MPI_WAIT(reqrw, status, mpierr)

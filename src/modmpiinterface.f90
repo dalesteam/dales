@@ -25,22 +25,28 @@ contains
 
 !>D_MPI_ISEND
   !MPI interfaces instantations for the various types
-  subroutine D_MPI_ISEND_REAL32_R1(buf, count, dest, tag, comm, request, ierror)
+  subroutine D_MPI_ISEND_REAL32_R1(buf, count, dest, tag, comm, request, ierror, ondevice)
     implicit none
     real(real32), contiguous, asynchronous, intent(inout) ::   buf(:)
     integer       ::   count, dest, tag, ierror
+    logical, optional :: ondevice
     type(MPI_COMM):: comm
     type(MPI_REQUEST) :: request
+    !$acc host_data use_device(buf) if(present(ondevice))
     call MPI_ISEND(buf,count,MPI_REAL4,dest,tag,comm,request,ierror)
+    !$acc end host_data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ISEND_REAL32_R1
-  subroutine D_MPI_ISEND_REAL64_R1(buf, count, dest, tag, comm, request, ierror)
+  subroutine D_MPI_ISEND_REAL64_R1(buf, count, dest, tag, comm, request, ierror, ondevice)
     implicit none
     real(real64), contiguous, asynchronous, intent(inout) ::   buf(:)
     integer       ::   count, dest, tag, ierror
+    logical, optional :: ondevice
     type(MPI_COMM):: comm
     type(MPI_REQUEST) :: request
+    !$acc host_data use_device(buf) if(present(ondevice))
     call MPI_ISEND(buf,count,MPI_REAL8,dest,tag,comm,request,ierror)
+    !$acc end host_data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_ISEND_REAL64_R1
   subroutine D_MPI_ISEND_LOGICAL_R1(buf, count, dest, tag, comm, request, ierror)
@@ -54,22 +60,28 @@ contains
   end subroutine D_MPI_ISEND_LOGICAL_R1
 
 !>D_MPI_IRECV
-  subroutine D_MPI_IRECV_REAL32_R1(buf, count, source, tag, comm, request, ierror)
+  subroutine D_MPI_IRECV_REAL32_R1(buf, count, source, tag, comm, request, ierror, ondevice)
     implicit none
     real(real32), asynchronous,contiguous, intent(inout)  ::   buf(:)
     integer        :: count, source, tag, ierror
+    logical, optional :: ondevice
     type(MPI_COMM) :: comm
     type(MPI_REQUEST) :: request
+    !$acc host_data use_device(buf) if(present(ondevice))
     call MPI_IRECV(buf,count,MPI_REAL4,source,tag,comm,request,ierror)
+    !$acc end host_data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_IRECV_REAL32_R1
-  subroutine D_MPI_IRECV_REAL64_R1(buf, count, source, tag, comm, request, ierror)
+  subroutine D_MPI_IRECV_REAL64_R1(buf, count, source, tag, comm, request, ierror, ondevice)
     implicit none
     real(real64), contiguous, asynchronous, intent(inout)  ::   buf(:)
     integer        :: count, source, tag, ierror
+    logical, optional :: ondevice
     type(MPI_COMM) :: comm
     type(MPI_REQUEST) :: request
+    !$acc host_data use_device(buf) if(present(ondevice))
     call MPI_IRECV(buf,count,MPI_REAL8,source,tag,comm,request,ierror)
+    !$acc end host_data
     if (ierror /= MPI_SUCCESS) call abort
   end subroutine D_MPI_IRECV_REAL64_R1
   subroutine D_MPI_IRECV_LOGICAL_R1(buf, count, source, tag, comm, request, ierror)
