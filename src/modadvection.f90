@@ -67,41 +67,48 @@ subroutine advection
       call hadvecu_2nd(u0,up,sx)
       call hadvecv_2nd(v0,vp,sy)
       call hadvecw_2nd(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_5th)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call hadvecu_5th(u0,up)
       call hadvecv_5th(v0,vp)
       call hadvecw_5th(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_52)
       call hadvecu_5th(u0,up)
       call hadvecv_5th(v0,vp)
       call hadvecw_5th(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_cd6)
       !if (.not. leq) stop "advec_6th does not support a non-uniform vertical grid."
       call hadvecu_6th(u0,up)
       call hadvecv_6th(v0,vp)
       call hadvecw_6th(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_62)
       call hadvecu_6th(u0,up)
       call hadvecv_6th(v0,vp)
       call hadvecw_6th(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_hybrid)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call hadvecu_5th(u0,up)
       call hadvecv_5th(v0,vp)
       call hadvecw_5th(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_hybrid_f)
       !if (.not. leq) stop "advec_5th does not support a non-uniform vertical grid."
       call hadvecu_5th(u0,up)
       call hadvecv_5th(v0,vp)
       call hadvecw_5th(w0,wp)
+      !$acc wait(1,2,3)
     case(iadv_null)
       ! null advection scheme
       stop "Null advection scheme selected for iadv_mom - probably a bad idea."
     case default
       stop "Unknown advection scheme "
   end select
-  !$acc wait
+
   select case(iadv_thl)
     case(iadv_cd2)
       call hadvecc_2nd(thl0,thlp)
@@ -131,6 +138,7 @@ subroutine advection
     case default
       stop "Unknown advection scheme "
   end select
+
   if (lmoist) then
     select case(iadv_qt)
       case(iadv_cd2)
@@ -193,6 +201,7 @@ subroutine advection
       stop "Unknown advection scheme "
     end select
   end do
+  !$acc wait
   call samptend(tend_hadv)
 
 ! Vertical advection
@@ -232,6 +241,7 @@ subroutine advection
       call vadvecw_5th(w0,wp)
   end select
   !$acc wait
+
   select case(iadv_thl)
     case(iadv_cd2)
       call vadvecc_2nd(thl0,thlp)
