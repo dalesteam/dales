@@ -77,11 +77,9 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, imax*jmax*konx, &
                           bufout, imax*jmax*konx, &
-                          commrow, mpierr)
-      !$acc end host_data
+                          commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -130,11 +128,9 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, imax*jmax*konx, &
                           bufout, imax*jmax*konx, &
-                          commrow, mpierr)
-      !$acc end host_data
+                          commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -195,11 +191,9 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jmax*konx, &
                           bufout, iony*jmax*konx, &
-                          commcol, mpierr)
-      !$acc end host_data
+                          commcol, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -261,11 +255,9 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jmax*konx, &
                           bufout, iony*jmax*konx, &
-                          commcol, mpierr)
-      !$acc end host_data
+                          commcol, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -316,11 +308,9 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jonx*konx, &
                           bufout, iony*jonx*konx, &
-                          commrow, mpierr)
-      !$acc end host_data
+                          commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
@@ -372,11 +362,9 @@ contains
         end do
       end do
   
-      !$acc host_data use_device(bufin, bufout)
       call D_MPI_ALLTOALL(bufin, iony*jonx*konx, &
                           bufout, iony*jonx*konx, &
-                          commrow, mpierr)
-      !$acc end host_data
+                          commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx-1
