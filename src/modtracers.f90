@@ -152,6 +152,8 @@ contains
     integer,       intent(out), optional :: isv
 
     integer :: s
+    integer                     :: s
+    type(T_tracer), allocatable :: tmp(:)
 
     ! Check if the tracer already exists. If so, don't add a new one.
     if (nsv > 0) then
@@ -164,6 +166,15 @@ contains
     end if
 
     nsv = nsv + 1
+    isv = nsv
+
+    if (.not. allocated(tracer_prop)) then
+      allocate(tracer_prop(nsv))
+    else
+      allocate(tmp(nsv))
+      tmp(1:nsv-1) = tracer_prop(1:nsv-1)
+      call move_alloc(tmp, tracer_prop)
+    end if
 
     tracer_prop(nsv) % tracname = name
     tracer_prop(nsv) % trac_idx = nsv
