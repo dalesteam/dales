@@ -54,6 +54,7 @@ contains
     use modfftw, only : fftwinit
     use modhypre, only : inithypre_grid, inithypre_solver
     use modcufft, only : cufftinit
+    use modhipfft, only : hipfftinit
 
     implicit none
 
@@ -65,6 +66,8 @@ contains
       call fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
     else if (solver_id == 200) then
       call cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
+    else if (solver_id == 300) then
+      call hipfftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
     else
       ! HYPRE based solver
 
@@ -97,6 +100,7 @@ contains
     use modhypre, only : exithypre_grid, exithypre_solver
     use modfftw, only : fftwexit
     use modcufft, only : cufftexit
+    use modhipfft, only : hipfftexit
 
     implicit none
 
@@ -108,6 +112,9 @@ contains
       call fftwexit(p,Fp,d,xyrt)
     else if (solver_id == 200) then
       call cufftexit(p, Fp, d, xyrt)
+      !$acc exit data delete(pup, pvp, pwp, a, b, c)
+    else if (solver_id == 300) then
+      call hipfftexit(p, Fp, d, xyrt)
       !$acc exit data delete(pup, pvp, pwp, a, b, c)
     else
       ! HYPRE based solver
@@ -126,6 +133,7 @@ contains
     use modfftw, only : fftwf, fftwb
     use modfft2d,  only : fft2df, fft2db
     use modcufft, only : cufftf, cufftb
+    use modhipfft, only : hipfftf, hipfftb
 
     implicit none
     !real wtime
@@ -157,6 +165,12 @@ contains
       call solmpj
 
       call cufftb(p, Fp)
+    else if (solver_id == 300) then
+      call hipfftf(p, Fp)
+
+      call solmpj
+
+      call hipfftb(p, Fp)
     else
       call solve_hypre(psolver, p, converged)
       if (.not. converged) then
