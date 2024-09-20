@@ -24,17 +24,31 @@
 
 module modtracers
 
-  use modglobal, only : nsv
   use modglobal,      only: nsv, i1, ih, j1, jh, k1
   use modtracer_type, only: T_tracer
   use modprecision,   only: field_r
   use modfields,      only: svm, sv0, svp, sv0av, svprof
+  use utils
 
   implicit none
 
-  save
-  public  :: inittracers, read_tracer_props, assign_tracer_props
+  private
 
+  save
+
+  integer :: iname
+
+  type(T_tracer), allocatable, public :: tracer_prop(:) !< List of tracers
+  logical,                     protected :: ltracers = .false.
+  character(6),                protected :: &
+    tracernames(200) = (/ ('      ', iname=1, 200)/)            !< For compatibility
+  integer,                     protected :: ntracers = -1
+
+  public :: inittracers
+  public :: allocate_tracers
+  public :: exittracers
+
+  ! Old stuff, to be removed at some point
   integer, parameter:: max_tracs  =  31 !<  Max. number of tracers that can be defined
   character(len=10),dimension(max_tracs) :: tracname_short = "NA" ! Short tracer name
   character(len=32),dimension(max_tracs) :: tracname_long  = "NA" ! Long tracer name
@@ -45,16 +59,6 @@ module modtracers
   logical  :: tracer_is_deposited(max_tracs) = .false. ! Tracer is deposited (T/F)
   logical  :: tracer_is_photosynth(max_tracs) = .false. ! Tracer is photosynthesized (T/F)
   logical  :: tracer_is_microphys(max_tracs) = .false. ! Tracer is involved in cloud microphysics (T/F)
-
-  integer  :: iname
-  logical  :: ltracers = .false. ! tracer switch
-  character(len = 6), dimension(200) :: &
-              tracernames = (/ ('      ', iname=1, 200) /) ! list with scalar names,
-
-
-  ! Trace type for each tracer
-  integer :: isv
-  type(T_tracer), allocatable :: tracer_prop(:)
 
 contains
 
@@ -76,7 +80,7 @@ contains
 
     ! Namelist definition
     namelist /NAMTRACERS/ &
-        ltracers, tracernames
+        ltracers, tracernames, ntracers
 
     ! Read namelist
     if (myid == 0) then
@@ -87,22 +91,93 @@ contains
         close(ifnamopt)
     end if
 
+    nsv = 0
+
     ! Broadcast namelist values to all MPI tasks
     call d_mpi_bcast(ltracers,             1, 0, comm3d, ierr)
     call d_mpi_bcast(tracernames(1:200), 200, 0, comm3d, ierr)
+    call d_mpi_bcast(ntracers, 1, 0, comm3d, ierr)
 
-    allocate(tracer_prop(nsv), stat=ierr)
-    if (ierr/=0) stop
+    if (ltracers) then
 
-    call read_tracer_props
-    call assign_tracer_props
+      if (ntracers < 0) then
+        write(*,*) "TRACER ERROR"
+        write(*,*) "Please add the following information to NAMTRACERS:"
+        write(*,*) ""
+        write(*,*) "  ntracers = <number of tracers defined>"
+        write(*,*) ""
+        write(*,*) "Or set ltracers to .false. if you do not use tracers."
+        stop
+      end if
 
-    ! do isv = 1, nsv
-    !   write(6,"(A17, A6)") "species: ", trim(tracer_prop(isv) % tracname)
-    ! enddo
+      allocate(tracer_prop(ntracers), stat=ierr)
+      if (ierr/=0) stop
+
+      call read_tracer_props
+      call assign_tracer_props
+
+      ! do isv = 1, nsv
+      !   write(6,"(A17, A6)") "species: ", trim(tracer_prop(isv) % tracname)
+      ! enddo
+    end if ! ltracers
+
 
   end subroutine inittracers
 
+  !> Define a new tracer
+  !!
+  !! @param name Short name of the tracer.
+  !! @param long_name Full name of the tracer.
+  !! @param unit Unit.
+  !! @param molar_mass Molar mass (g mol^-1)
+  !! @param lemis Tracer is emitted.
+  !! @param lreact Tracer is reactive.
+  !! @param ldep Tracer is deposited.
+  !! @param lags Tracer is photosynthesized.
+  !! @param lmicro Tracer is involved in cloud microphysics.
+  !! @param laero Tracer is involved in aerosol microphyiscs.
+  !! @note All tracers should be added before readinitfiles is called!
+  subroutine add_tracer(name, long_name, unit, molar_mass, lemis, lreact, &
+                        ldep, lags, lmicro, isv)
+    character(*),  intent(in)            :: name
+    character(*),  intent(in),  optional :: long_name
+    character(*),  intent(in),  optional :: unit
+    real(field_r), intent(in),  optional :: molar_mass
+    logical,       intent(in),  optional :: lemis
+    logical,       intent(in),  optional :: lreact
+    logical,       intent(in),  optional :: ldep
+    logical,       intent(in),  optional :: lags
+    logical,       intent(in),  optional :: lmicro
+    integer,       intent(out), optional :: isv
+
+    integer :: s
+
+    ! Check if the tracer already exists. If so, don't add a new one.
+    if (nsv > 0) then
+      do s = 1, nsv
+        if (trim(to_lower(name)) == trim(to_lower(tracer_prop(s) % tracname))) then
+          write(*,*), "Tracer", name, "already exists!"
+          return
+        end if
+      end do
+    end if
+
+    nsv = nsv + 1
+
+    tracer_prop(nsv) % tracname = name
+    tracer_prop(nsv) % trac_idx = nsv
+    if (present(long_name)) tracer_prop(nsv) % traclong = trim(long_name)
+    if (present(unit)) tracer_prop(nsv) % unit = unit
+    if (present(molar_mass)) tracer_prop(nsv) % molar_mass = molar_mass
+    if (present(lemis)) tracer_prop(nsv) % lemis = lemis
+    if (present(lreact)) tracer_prop(nsv) % lreact = lreact
+    if (present(ldep)) tracer_prop(nsv) % ldep = ldep
+    if (present(lags)) tracer_prop(nsv) % lags = lags
+    if (present(lmicro)) tracer_prop(nsv) % lmicro = lmicro
+
+  end subroutine add_tracer
+
+  !> Allocates all tracer fields
   subroutine allocate_tracers
 
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
@@ -122,9 +197,8 @@ contains
     !$acc&                  sv0av(k1,nsv), svprof(k1,nsv))
 
   end subroutine allocate_tracers
-  !
-  ! Cleanup (deallocate) the tracers
-  ! 
+
+  !> Deallocates all tracers fields
   subroutine exittracers
 
     ! Tracer properties:
@@ -136,10 +210,12 @@ contains
     !$acc&                 sv0av(k1,nsv), svprof(k1,nsv))
 
     deallocate(svm, sv0, svp, sv0av, svprof)
+
   end subroutine exittracers
 
-  !! Read the list of available tracers from tracerdata.inp
-  !! and their properties
+  !> DEPRECATED
+  !!
+  !! For reading "old" tracerdata.inp files.
   subroutine read_tracer_props
 
     use modglobal,  only : ifinput
@@ -185,33 +261,28 @@ contains
   subroutine assign_tracer_props
     !!! ! use modtracdata ! arrays with tracer properties
 
-    implicit none
+    integer :: isv
 
-    do isv=1,nsv
-      ! First assign tracer index values. They are equal to the sv index by default
-      tracer_prop(isv) % trac_idx = isv
-
-      ! match species by short name and 
-      ! look up species props in modtracdata arrays
-      tracer_prop(isv) % tracname = trim(tracernames(isv))
-      tracer_prop(isv) % traclong = trim(findval_character(tracernames(isv), tracname_short, &
-                                      tracname_long, defltvalue='dummy longname'))  ! Default is 'dummy '
-      tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
-                                      tracer_unit, defltvalue='dummy unit'))  ! Default is 'dummy unit'
-      tracer_prop(isv) % molar_mass = findval_real(tracernames(isv), tracname_short, &
-                                      molar_mass, defltvalue=-999.)  ! Default is -999.
-      tracer_prop(isv) % lemis    = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_emitted, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % lreact   = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_reactive, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % ldep     = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_deposited, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % lags     = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_photosynth, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % lmicro   = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_microphys, defltvalue=.false.)  ! Default is False
-
-      ! write(*,*) 'tracer props ', tracer_prop(isv) % trac_idx, tracer_prop(isv) % tracname, tracer_prop(isv) % traclong, tracer_prop(isv) % unit, tracer_prop(isv) % lemis, tracer_prop(isv) % ldep, tracer_prop(isv) % lreact, tracer_prop(isv) % lags, tracer_prop(isv) % lmicro
+    do isv=1,ntracers
+      call add_tracer( &
+        name=trim(tracernames(isv)), &
+        long_name=trim(findval(tracernames(isv), tracname_short, &
+                                         tracname_long, defltvalue='dummy longname')), & ! Default is 'dummy '
+        unit=trim(findval(tracernames(isv), tracname_short, &
+                    tracer_unit, defltvalue='dummy unit')), & ! Default is 'dummy unit'
+        molar_mass=findval(tracernames(isv), tracname_short, & 
+                     molar_mass, defltvalue=-999.), & ! Default is -999.
+        lemis=findval(tracernames(isv), tracname_short, &
+                tracer_is_emitted, defltvalue=.false.), & ! Default is False
+        lreact=findval(tracernames(isv), tracname_short, &
+                 tracer_is_reactive, defltvalue=.false.), & ! Default is False
+        ldep=findval(tracernames(isv), tracname_short, &
+               tracer_is_deposited, defltvalue=.false.), & ! Default is False
+        lags=findval(tracernames(isv), tracname_short, &
+               tracer_is_photosynth, defltvalue=.false.), & ! Default is False
+        lmicro=findval(tracernames(isv), tracname_short, &
+                 tracer_is_microphys, defltvalue=.false.) & ! Default is False
+      )
     end do
 
   end subroutine assign_tracer_props

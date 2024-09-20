@@ -84,7 +84,7 @@ contains
     use modlsm,            only : initlsm, kmax_soil
     use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp
-    use modtracers,        only : inittracers
+    use modtracers,        only : inittracers, allocate_tracers
     use modpois,           only : initpois,poisson
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
@@ -361,6 +361,7 @@ contains
     call initsubgrid
 
     call initmicrophysics
+    call allocate_tracers
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy

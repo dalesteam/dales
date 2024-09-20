@@ -41,7 +41,6 @@ contains
 
     write(*,*) "Tracer: ", self%tracname
     write(*,*) "  long name: ", trim(self%traclong)
-    write(*,*) "  is aerosol: ", self%laero
 
   end subroutine tracer_print_properties
 
