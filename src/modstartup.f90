@@ -523,7 +523,8 @@ contains
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
     use modtracers,        only : tracer_prop
-    use go,                only : to_lower, goSplitString_s
+    use go,                only : goSplitString_s
+    use utils,             only : to_lower
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
