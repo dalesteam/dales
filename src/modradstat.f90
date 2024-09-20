@@ -266,8 +266,6 @@ contains
     thlswtendcaav = 0.
     !$acc end kernels
 
-    !$acc host_data use_device(lwdav, lwd, lwuav, lwu, swdav, swd, swdirav, swdir, &
-    !$acc&                     swdifav, swdif, swuav, swu, thltendav, thlprad)
     call slabsum(lwdav ,1,k1,lwd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(lwuav ,1,k1,lwu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swdav ,1,k1,swd ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
@@ -275,7 +273,6 @@ contains
     call slabsum(swdifav ,1,k1,swdif ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(swuav ,1,k1,swu ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
     call slabsum(thltendav ,1,k1,thlprad ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
 
     !$acc parallel loop default(present)
     do k=1,kmax
@@ -321,7 +318,7 @@ contains
     use modfields,    only : rhof, exnf, thl0,qt0,ql0
     use modsurfdata,  only : albedo, tskin, qskin, thvs, ps
     use modmicrodata, only : Nc_0
-    use modmpi,    only :  slabsum
+    use modmpi,    only :  slabsum_multi
     use modraddata, only: irad_full, iradiation, swdca,swuca,lwdca,lwuca
     implicit none
     real, dimension(k1)  :: rhof_b, exnf_b
@@ -371,12 +368,11 @@ contains
       call d4stream(i1,ih,j1,jh,k1,tskin,albedo,Nc_0,rhof_b,exnf_b*cp,temp_b,qv_b,ql_b,swdca,swuca,lwdca,lwuca)
     end if
 
-    !$acc host_data use_device(lwdcaav, lwdca, lwucaav, lwuca, swdcaav, swdca, swucaav, swuca)
-    call slabsum(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(lwucaav ,1,k1,lwuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swdcaav ,1,k1,swdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(swucaav ,1,k1,swuca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
+    call slabsum_multi(lwdcaav ,1,k1,lwdca ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,&
+                       lwucaav, lwuca, &
+                       swdcaav, swdca, &
+                       swucaav, swuca, &
+                       .true.)
 
  !    ADD SLAB AVERAGES TO TIME MEAN
 

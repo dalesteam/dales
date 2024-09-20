@@ -87,9 +87,10 @@ contains
   subroutine thermodynamics
     use modglobal, only : lmoist,timee,k1,i1,j1,ih,jh,rd,rv,ijtot,cp,rlv,lnoclouds,lfast_thermo
     use modfields, only : thl0, qt0, ql0, presf, exnf, thvh, thv0h, qt0av, ql0av, thvf, rhof
-    use modmpi, only : slabsum, myid
+    use modmpi, only : slabsum_multi, myid
     implicit none
     integer:: i, j, k
+    logical :: on_gpu = .true.
 
     call timer_tic('modthermodynamics/thermodynamics', 0)
 
@@ -141,10 +142,9 @@ contains
     thvf(:) = 0.0
     !$acc end kernels
 
-    !$acc host_data use_device(thvh, thv0h, thvf, thv0)
-    call slabsum(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1) ! redefine halflevel thv using calculated thv
-    call slabsum(thvf,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
+    call slabsum_multi(thvh,1,k1,thv0h,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, &
+                       thvf,     thv0, &
+                       on_gpu)
 
     !$acc kernels default(present) async(1)
     thvh(:) = thvh(:)/ijtot
@@ -317,10 +317,11 @@ contains
                         presf,presh,exnf,exnh,rhof,thvf, &
                         initial_presf,initial_presh
   use modsurfdata,only : thls,ps
-  use modmpi,    only : slabsum
+  use modmpi,    only : slabsum, slabsum_multi
   implicit none
 
   integer :: k,n
+  logical :: on_gpu = .true.
 
   call timer_tic('modthermodynamics/diagfld', 1)
 
@@ -343,17 +344,15 @@ contains
     !$acc end kernels
 
 !  !CvH changed momentum array dimensions to same value as scalars!
-   !$acc host_data use_device(u0av, u0, v0av, v0, thl0av, thl0, qt0av, qt0, &
-   !$acc&                     ql0av, ql0, sv0av, sv0)
-   call slabsum(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(v0av  ,1,k1,v0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(thl0av,1,k1,thl0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(qt0av ,1,k1,qt0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   call slabsum(ql0av ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-   do n=1,nsv
-      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+   call slabsum_multi(u0av  ,1,k1,u0  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, &
+                      v0av,       v0, &
+                      thl0av,     thl0, &
+                      qt0av,      qt0, &
+                      ql0av,      ql0, &
+                      on_gpu)
+   do n = 1, nsv
+      call slabsum(sv0av(1:1,n),1,k1,sv0(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,on_gpu)
    end do
-   !$acc end host_data
 
    !$acc kernels default(present)
    u0av   = u0av  /ijtot + cu

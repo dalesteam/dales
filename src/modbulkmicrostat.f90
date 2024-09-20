@@ -376,11 +376,9 @@ subroutine initbulkmicrostat
     tend_qtp(:) = 0.0
     !$acc end kernels
 
-    !$acc host_data use_device(tend_np, Nrp, tend_qrp, qrp, tend_qtp, qtp)
     call slabsum_multi(tend_np , 1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1, &
-                       tend_qrp      ,qrp)
-    call slabsum(tend_qtp  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
+                       tend_qrp      ,qrp, .true.)
+    call slabsum(tend_qtp  ,1,k1,qtp  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1, .true.)
 
     !$acc kernels default(present)
     Npav(:,ifield)  = tend_np(:)  - sum(Npav (:,1:ifield-1),2)
