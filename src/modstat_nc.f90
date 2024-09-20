@@ -29,6 +29,7 @@
 !
 module modstat_nc
     use netcdf
+    use modprecision, only: field_r
     implicit none
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
@@ -45,6 +46,14 @@ module modstat_nc
       module procedure writestat_3D_nc
       module procedure writestat_3D_short_nc
     end interface writestat_nc
+
+    !> Read a field from a netCDF file by its name
+    interface read_nc_field
+        module procedure read_nc_field_1D
+    end interface read_nc_field
+
+    private :: read_nc_field_1D
+
 contains
 
 
@@ -540,6 +549,40 @@ contains
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
 
+  !> Read a 1D field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  subroutine read_nc_field_1D(ncid, varname, array, fillvalue)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    real(field_r), intent(out)          :: array(:)
+    real(field_r), intent(in), optional :: fillvalue
+
+    integer :: varid
+    integer :: ierr
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (present(fillvalue)) then
+          array(:) = fillvalue
+        else
+          call nchandle_error(ierr)
+        end if
+      case (NF90_NOERR)
+        ierr = nf90_get_var(ncid, varid, array(:))
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_1D
 
   subroutine ncinfo(out,in1,in2,in3,in4)
 
