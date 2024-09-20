@@ -269,11 +269,9 @@ subroutine initbulkmicrostat
     use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
     use modfields,  only  : ql0
     use modmpiinterface
-    use modgpumpiinterface
     use modmpi
 #if defined(_OPENACC)
     use openacc
-    use modgpumpiinterface
 #endif
     implicit none
 
