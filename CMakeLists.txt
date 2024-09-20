@@ -287,7 +287,14 @@ endif()
 
 # Need HipFort
 if("$ENV{SYST}" STREQUAL "Cray-OpenACC")
-  include_directories($ENV{EBROOTHIPFORT}/include/hipfort/amdgcn/)
+  find_path(HIPFORT_INCLUDE_DIRS HIPFORT.mod
+      HINTS ENV EBROOTHIPFORT
+      PATH_SUFFIXES include/hipfort/amdgcn/ REQUIRED)
+  include_directories(${HIPFORT_INCLUDE_DIRS})
+  find_path(HIPFORT_LIB_DIRS libhipfort-amdgcn.a
+      HINTS ENV EBROOTHIPFORT
+      PATH_SUFFIXES lib/ REQUIRED)
+  list(APPEND OPTIONAL_LIBS -L${HIPFORT_LIB_DIRS} -lhipfort-amdgcn -lhipfft)
 endif()
 
 
