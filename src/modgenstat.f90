@@ -655,23 +655,18 @@ contains
 
     !$acc wait(1)
 
-    !$acc host_data use_device(umav, um, vmav, vm, wmav, wm, thlmav, thlm, qtmav, qtm, &
-    !$acc&                     qlmav, ql0, thvmav, thv0, taav, tmp0)
-    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
-    !$acc end host_data
+    call slabsum(umav  ,1,k1,um  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(vmav  ,1,k1,vm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(wmav  ,1,k1,wm  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(thlmav,1,k1,thlm,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(qtmav ,1,k1,qtm ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(qlmav ,1,k1,ql0 ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(thvmav,1,k1,thv0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
+    call slabsum(taav  ,1,k1,tmp0,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
     if (nsv > 0) then
-      !$acc host_data use_device(svmav, svm)
       do n = 1, nsv
-        call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+        call slabsum(svmav(1:1,n),1,k1,svm(:,:,:,n),2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1,.true.)
       enddo
-      !$acc end host_data
     end if
 
     !$acc kernels default(present) async(1)
@@ -1006,11 +1001,6 @@ contains
 
     ! MPI communication
     !$acc wait(1)
-    !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
-    !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
-    !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
-    !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres, cfracav, &
-    !$acc&                     hurav, clwav, cliav, plwav, pliav)
     call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlres, k1, MPI_SUM, comm3d,mpierr)
@@ -1049,7 +1039,6 @@ contains
         call D_MPI_ALLREDUCE(wsvres(:,n), k1, MPI_SUM, comm3d,mpierr)
       end do
     end if
-    !$acc end host_data
 
     !------------
     ! 4 NORMALIZE
