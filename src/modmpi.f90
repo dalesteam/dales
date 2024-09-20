@@ -1130,7 +1130,9 @@ contains
         aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
       end do
       !$acc end kernels
+      !$acc host_data use_device(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+      !$acc end host_data
     else
       averl       = 0.
       avers       = 0.
@@ -1139,7 +1141,7 @@ contains
       enddo
       call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
                          MPI_SUM, comm3d,mpierr)
-      
+
       aver = aver + avers
     endif
 
@@ -1158,14 +1160,15 @@ contains
     real(real64)      :: avers(ks:kf)
     integer           :: k
 
-    
     if (present(on_gpu)) then
       !$acc kernels default(present)
       do k = kbs, kes
         aver(k) = aver(k) + sum(var(ibs:ies, jbs:jes, k))
       end do
       !$acc end kernels
+      !$acc host_data use_device(aver)
       call MPI_ALLREDUCE(MPI_IN_PLACE, aver, kf-ks+1, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+      !$acc end host_data
     else
       averl       = 0.
       avers       = 0.
@@ -1229,7 +1232,6 @@ contains
         sum2d(k,4) = sum_lcl4
         sum2d(k,5) = sum_lcl5
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1245,12 +1247,17 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     aver5(:) = sum2d(:,5)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1304,7 +1311,6 @@ contains
         sum2d(k,3) = sum_lcl3
         sum2d(k,4) = sum_lcl4
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1319,11 +1325,16 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1372,7 +1383,6 @@ contains
         sum2d(k,2) = sum_lcl2
         sum2d(k,3) = sum_lcl3
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1386,10 +1396,15 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1433,7 +1448,6 @@ contains
         sum2d(k,1) = sum_lcl1
         sum2d(k,2) = sum_lcl2
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1446,9 +1460,14 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL4, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1508,7 +1527,6 @@ contains
         sum2d(k,4) = sum_lcl4
         sum2d(k,5) = sum_lcl5
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1524,12 +1542,17 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*5, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
     aver5(:) = sum2d(:,5)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1584,7 +1607,6 @@ contains
         sum2d(k,3) = sum_lcl3
         sum2d(k,4) = sum_lcl4
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1599,11 +1621,16 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*4, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
     aver4(:) = sum2d(:,4)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1652,7 +1679,6 @@ contains
         sum2d(k,2) = sum_lcl2
         sum2d(k,3) = sum_lcl3
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1666,10 +1692,15 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*3, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
     aver3(:) = sum2d(:,3)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
@@ -1713,7 +1744,6 @@ contains
         sum2d(k,1) = sum_lcl1
         sum2d(k,2) = sum_lcl2
       end do
-      !$acc exit data copyout(sum2d)
     else
       sum2d = 0
       do k = kbs, kes
@@ -1726,9 +1756,14 @@ contains
       end do
     endif
 
+    !$acc host_data use_device(sum2d)
     call MPI_ALLREDUCE(MPI_IN_PLACE, sum2d, (kf-ks+1)*2, MPI_REAL8, MPI_SUM, comm3d, mpierr)
+    !$acc end host_data
+
+    !$acc kernels default(present)
     aver1(:) = sum2d(:,1)
     aver2(:) = sum2d(:,2)
+    !$acc end kernels
 
     if (present(on_gpu)) then
       !$acc exit data delete(sum2d)
