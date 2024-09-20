@@ -62,9 +62,17 @@ module modbulkmicro
     use modglobal, only : i1,j1,k1,ih,jh
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
-                             lbdr, &
+                             lbdr, iqr, inr, &
                              precep, qrmask, qcmask
+    use modtracers,   only: add_tracer
     implicit none
+
+    ! Setup two tracers for precipitation
+    call add_tracer("qr", long_name="Rain water mixing ratio", &
+                    unit="kg/kg", lmicro=.true., isv=iqr) 
+    
+    call add_tracer("Nr", long_name="Cloud droplet number concentration", &
+                    unit="-", lmicro=.true., isv=inr)
 
                                         ! Fields accessed by:
     allocate(Nr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat

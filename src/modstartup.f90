@@ -343,6 +343,8 @@ contains
     call timer_tic('modstartup/startup', 0)
     call initfields
     call inittracers
+    call initmicrophysics
+    call allocate_tracers ! At this point, all tracers have to be defined
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
 
     if(.not.lopenbc) then
@@ -360,8 +362,6 @@ contains
     call initdrydep
     call initsubgrid
 
-    call initmicrophysics
-    call allocate_tracers
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy

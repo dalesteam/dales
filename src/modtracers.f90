@@ -45,6 +45,7 @@ module modtracers
   integer,                     protected :: ntracers = -1
 
   public :: inittracers
+  public :: add_tracer
   public :: allocate_tracers
   public :: exittracers
 
