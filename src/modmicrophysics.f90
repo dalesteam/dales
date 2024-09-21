@@ -86,7 +86,7 @@ contains
     case(imicro_none)
     case(imicro_drizzle)
     case(imicro_bulk)
-       if (nsv < 2) STOP "ERROR: Bulk microphysics requires nsv >=2"
+       !if (nsv < 2) STOP "ERROR: Bulk microphysics requires nsv >=2"
       call initbulkmicro
     case(imicro_bin)
 !       call initbinmicro
