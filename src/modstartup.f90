@@ -653,7 +653,7 @@ contains
       call D_MPI_BCAST(e12prof,kmax,0,comm3d,mpierr)
 
       if(myid==0)then
-        if (nsv>0) then
+        if (nsv>0 .and. .not. lstart_netcdf) then
           open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
              write(6,*) 'Cannot open the file ', 'scalar.inp.'//cexpnr
@@ -755,9 +755,9 @@ contains
                   !   call flush()
                   !   write(*,*) 'with values    ', svprof(k,sdx)
                   ! endif
-                  sdx = scalar_indices(n)
-                  sv0(i,j,k,n) = svprof(k,sdx)
-                  svm(i,j,k,n) = svprof(k,sdx)
+                  !sdx = scalar_indices(n)
+                  sv0(i,j,k,n) = svprof(k,n)
+                  svm(i,j,k,n) = svprof(k,n)
                 end do
               end do
             end do
