@@ -40,7 +40,7 @@ module modsamptend
                               tend_ls=7,tend_micro=8, tend_topbound=9,tend_pois=10,tend_addon=11, tend_coriolis=12, tend_totlb=13
   integer,parameter :: nrfields = 13
   character(20),dimension(10) :: samplname,longsamplname
-  integer :: nsamples,isamp,isamptot
+  integer :: isamp,isamptot,ntsamp
   logical :: ldosamptendwrite = .false. !< write tendencies
   logical :: ldosamptendleib = .false. !< determine leibniz terms
   real :: lastrk3coef
@@ -49,6 +49,7 @@ module modsamptend
   real, allocatable :: upav(:,:,:),vpav(:,:,:),wpav(:,:,:),thlpav(:,:,:),qtpav(:,:,:),qrpav(:,:,:),nrpav(:,:,:)
   real, allocatable :: upmn(:,:,:),vpmn(:,:,:),wpmn(:,:,:),thlpmn(:,:,:),qtpmn(:,:,:),qrpmn(:,:,:),nrpmn(:,:,:)
   real, allocatable :: ust(:,:),vst(:,:),wst(:,:),thlst(:,:),qtst(:,:),qrst(:,:),nrst(:,:)
+  real, allocatable :: uwavr(:,:), vsavr(:,:), wavr(:,:), thlavr(:,:), qtavr(:,:), qravr(:,:), nravr(:,:)
   real, allocatable :: uwav(:,:), vsav(:,:), wav(:,:), thlav(:,:), qtav(:,:), qrav(:,:), nrav(:,:)
   real, allocatable :: thlwav(:,:), thlsav(:,:), qtwav(:,:), qtsav(:,:), qrwav(:,:), qrsav(:,:), nrwav(:,:), nrsav(:,:)
   real, allocatable :: uthlwav(:,:), vthlsav(:,:), uqtwav(:,:), vqtsav(:,:), uqrwav(:,:), vqrsav(:,:), unrwav(:,:), vnrsav(:,:)
@@ -66,7 +67,6 @@ subroutine initsamptend
     use modglobal,only : dtmax,k1,ladaptive,&
                          btime,tres,j1,jh,i1,ih
     use modstat_nc, only : lnetcdf
-    use modgenstat, only : idtav_prof=>idtav, itimeav_prof=>itimeav
 
     implicit none
 
@@ -133,7 +133,8 @@ subroutine initsamptend
     if (lsamptendnr) allocate (nrptm(k1,nrfields,isamptot), nrpmn(k1,nrfields,isamptot), nrpav(k1,nrfields,isamptot), nrst(k1,isamptot))
 
     ! Needed to decompose advective terms
-    if (ltenddec) allocate (uwav(k1,isamptot), vsav(k1,isamptot), wav(k1,isamptot))
+    if (ltenddec) allocate (uwav(k1,isamptot), vsav(k1,isamptot), wav(k1,isamptot), uwavr(k1,isamptot), vsavr(k1,isamptot), & 
+                            wavr(k1,isamptot), thlavr(k1,isamptot), qtavr(k1,isamptot), qravr(k1,isamptot), nravr(k1,isamptot))
 
     ! Only allocate these if you have the budget for a scalar and you want to decompose that scalar's budget
     if (ltenddec .and. lsamptendthl) allocate(thlav(k1,isamptot), thlwav(k1,isamptot), thlsav(k1,isamptot), wthlav(k1,isamptot), &
@@ -148,6 +149,7 @@ subroutine initsamptend
     allocate (tendmask(2-ih:i1+ih,2-jh:j1+jh,k1,isamptot))
     allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot),nrsamplast(k1,isamptot),nrsampnew(k1,isamptot))
     
+    ! Tendency terms
     if (lsamptendu) then
       uptm = 0.; upmn = 0.; upav = 0.; ust = 0.
     end if
@@ -170,17 +172,29 @@ subroutine initsamptend
      nrptm = 0.; nrpmn = 0.; nrpav = 0.; nrst = 0.
     end if
 
+    ! Advection decomposition terms
+    if (ltenddec) then
+      uwav = 0.; vsav = 0; wav = 0.
+    end if
+    if (ltenddec .and. lsamptendthl) then
+      thlav = 0.; thlwav = 0.; thlsav = 0.; wthlav = 0.; uthlwav = 0.; vthlsav = 0.
+    end if
+    if (ltenddec .and. lsamptendqt) then
+      qtav = 0.; qtwav = 0.; qtsav = 0.; wqtav = 0.; uqtwav = 0.; vqtsav = 0.
+    end if
+    if (ltenddec .and. lsamptendqr) then
+      qrav = 0.; qrwav = 0.; qrsav = 0.; wqrav = 0.; uqrwav = 0.; vqrsav = 0.
+    end if
+    if (ltenddec .and. lsamptendnr) then
+      nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; unrwav = 0.; vnrsav = 0.
+    end if
+
     tendmask=.false.
     nrsamp=0
+    ntsamp=0
     nrsamptot=0
     nrsamplast=0
     nrsampnew=0
-
-    idtav = idtav_prof
-    itimeav = itimeav_prof
-    tnext      = idtav+btime
-    tnextwrite = itimeav+btime
-    nsamples = itimeav/idtav
 
     if (lnetcdf) then
       if (lprocblock) then
@@ -806,180 +820,194 @@ subroutine initsamptend
     use modsurfdata,only: thlflux,qtflux,svflux
     implicit none
     real :: ekhalf, thlhav, qthav, qrhav, qr0h, nrhav, nr0h
+    real :: thlwavr, thlsavr, qtwavr, qtsavr
+    real :: qrwavr, qrsavr, nrwavr, nrsavr
+    real :: wthlavr, wqtavr, wqravr, wnravr
     integer :: i,j,k
 
-    if (.not. lsamptend) return
     if(.not.(ltenddec)) return
 
-    if (ltenddec) then
-      uwav = 0.; vsav = 0; wav = 0.
-    end if
-    if (ltenddec .and. lsamptendthl) then
-      thlav = 0.; thlwav = 0.; thlsav = 0.; wthlav = 0.; uthlwav = 0.; vthlsav = 0.
-    end if
-    if (ltenddec .and. lsamptendqt) then
-      qtav = 0.; qtwav = 0.; qtsav = 0.; wqtav = 0.; uqtwav = 0.; vqtsav = 0.
-    end if
-    if (ltenddec .and. lsamptendqr) then
-      qrav = 0.; qrwav = 0.; qrsav = 0.; wqrav = 0.; uqtwav = 0.; vqtsav = 0.
-    end if
-    if (ltenddec .and. lsamptendnr) then
-      nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; uqtwav = 0.; vqtsav = 0.
-    end if
+      uwavr = 0.
+      vsavr = 0.
+      wavr = 0.
+      thlavr = 0.
+      thlwavr = 0.
+      thlsavr = 0.
+      qtavr = 0.
+      qtwavr = 0.
+      qtsavr = 0.
+      qravr = 0.
+      qrwavr = 0.
+      qrsavr = 0.
+      nravr = 0.
+      nrwavr = 0.
+      nrsavr = 0.
 
-    if (ltenddec) then
       do isamp=1,isamptot
       do k=1,k1
-        if (nrsamp(k,isamp)>0) then
-          ! uwav and vsav (averaged horizontal velocities over western/southern block edges)
-          ! will not work for samp not equal all, because we do not sample object boundaries
-          uwav(k,isamp) = sum(u0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
-          vsav(k,isamp) = sum(v0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
-          wav (k,isamp) = sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
-        endif
+        ! uwav and vsav (averaged horizontal velocities over western/southern block edges)
+        ! will not work for samp not equal all, because we do not sample object boundaries
+        uwavr(k,isamp) = sum(u0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
+        vsavr(k,isamp) = sum(v0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
+        wavr (k,isamp) = sum(w0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
+
+        uwav(k,isamp) = uwav(k,isamp) + uwavr(k,isamp)
+        vsav(k,isamp) = vsav(k,isamp) + vsavr(k,isamp)
+        wav(k,isamp) = wav(k,isamp) + wavr(k,isamp)
       enddo
       enddo
       if (lsamptendthl) then
         do isamp=1,isamptot
         do k=1,k1
-          if (nrsamp(k,isamp)>0) then
-            ! Average over block, and over edges
-            thlav (k,isamp)  = sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
-            thlwav (k,isamp) = sum(thl0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
-            thlsav (k,isamp) = sum(thl0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
+          ! Average over block, and over edges
+          thlavr(k,isamp) = sum(thl0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
+          thlwavr = sum(thl0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
+          thlsavr = sum(thl0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
 
-            ! Horizontal flux on edges
-            uthlwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(thl0(2   ,2:j1,k) - thlwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
-            vthlsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(thl0(2:i1,2   ,k) - thlsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
+          thlav(k,isamp) = thlav(k,isamp) + thlavr(k,isamp)
+          thlwav(k,isamp) = thlwav(k,isamp) + thlwavr
+          thlsav(k,isamp) = thlsav(k,isamp) + thlsavr
 
-            ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
-            if (k == 1) then
-              do i=2,i1
-              do j=2,j1
-                wthlav(k,isamp) = wthlav(k,isamp) + thlflux(i,j)
-              end do
-              end do
-            else
-              thlhav = thlav(k,isamp)*dzf(k-1)+thlav(k-1,isamp)*dzf(k)/(2*dzh(k))
-              do i=2,i1
-              do j=2,j1
-                ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
-                wthlav(k,isamp) = wthlav(k,isamp) + (w0(i,j,k) - wav(k,isamp))*(thl0h(i,j,k) - thlhav) &
-                                                  - ekhalf*(thl0(i,j,k)-thl0(i,j,k-1))*dzhi(k)
-              end do
-              end do
-            end if
-            wthlav(k,isamp) = wthlav(k,isamp)/nrsamp(k,isamp)
+          ! Horizontal flux on edges
+          uthlwav(k,isamp) = uthlwav(k,isamp) + sum((u0(2   ,2:j1,k) - uwavr(k,isamp))*(thl0(2   ,2:j1,k) - thlwavr), tendmask(2,2:j1,k,isamp))/jmax
+          vthlsav(k,isamp) = vthlsav(k,isamp) + sum((v0(2:i1,2   ,k) - vsavr(k,isamp))*(thl0(2:i1,2   ,k) - thlsavr), tendmask(2:i1,2,k,isamp))/imax
 
-          endif
+          ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
+          wthlavr = 0.
+          if (k == 1) then
+            do i=2,i1
+            do j=2,j1
+              wthlavr = wthlavr + thlflux(i,j)
+            end do
+            end do
+          else
+            thlhav = thlavr(k,isamp)*dzf(k-1)+thlavr(k-1,isamp)*dzf(k)/(2*dzh(k))
+            do i=2,i1
+            do j=2,j1
+              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+              wthlavr = wthlavr + (w0(i,j,k) - wavr(k,isamp))*(thl0h(i,j,k) - thlhav) &
+                                - ekhalf*(thl0(i,j,k)-thl0(i,j,k-1))*dzhi(k)
+            end do
+            end do
+          end if
+          wthlav(k,isamp) = wthlav(k,isamp) + wthlavr/jmax/imax
         enddo
         enddo
       end if
       if (lsamptendqt) then
         do isamp=1,isamptot
         do k=1,k1
-          if (nrsamp(k,isamp)>0) then
-            qtav (k,isamp)  = sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
-            qtwav (k,isamp) = sum(qt0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
-            qtsav (k,isamp) = sum(qt0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
+          qtavr(k,isamp)  = sum(qt0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
+          qtwavr = sum(qt0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
+          qtsavr = sum(qt0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
 
-            ! Horizontal flux on edges
-            uqtwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(qt0(2   ,2:j1,k) - qtwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
-            vqtsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(qt0(2:i1,2   ,k) - qtsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
+          qtav(k,isamp) = qtav(k,isamp) + qtavr(k,isamp)
+          qtwav(k,isamp) = qtwav(k,isamp) + qtwavr
+          qtsav(k,isamp) = qtsav(k,isamp) + qtsavr
 
-            ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
-            if (k == 1) then
-              do i=2,i1
-              do j=2,j1
-                wqtav(k,isamp) = wqtav(k,isamp) + qtflux(i,j)
-              end do
-              end do
-            else
-              qthav = qtav(k,isamp)*dzf(k-1)+qtav(k-1,isamp)*dzf(k)/(2*dzh(k))
-              do i=2,i1
-              do j=2,j1
-                ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
-                wqtav(k,isamp) = wqtav(k,isamp) + (w0(i,j,k) - wav(k,isamp))*(qt0h(i,j,k) - qthav) &
-                                                  - ekhalf*(qt0(i,j,k)-qt0(i,j,k-1))*dzhi(k)
-              end do
-              end do
-            end if
-            wqtav(k,isamp) = wqtav(k,isamp)/nrsamp(k,isamp)
-          endif
+          ! Horizontal flux on edges
+          uqtwav(k,isamp) = uqtwav(k,isamp) + sum((u0(2   ,2:j1,k) - uwavr(k,isamp))*(qt0(2   ,2:j1,k) - qtwavr), tendmask(2,2:j1,k,isamp))/jmax
+          vqtsav(k,isamp) = vqtsav(k,isamp) + sum((v0(2:i1,2   ,k) - vsavr(k,isamp))*(qt0(2:i1,2   ,k) - qtsavr), tendmask(2:i1,2,k,isamp))/imax
+
+          ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
+          wqtavr = 0.
+          if (k == 1) then
+            do i=2,i1
+            do j=2,j1
+              wqtavr = wqtavr + qtflux(i,j)
+            end do
+            end do
+          else
+            qthav = qtavr(k,isamp)*dzf(k-1)+qtavr(k-1,isamp)*dzf(k)/(2*dzh(k))
+            do i=2,i1
+            do j=2,j1
+              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+              wqtavr = wqtavr + (w0(i,j,k) - wavr(k,isamp))*(qt0h(i,j,k) - qthav) &
+                              - ekhalf*(qt0(i,j,k)-qt0(i,j,k-1))*dzhi(k)
+            end do
+            end do
+          end if
+          wqtav(k,isamp) = wqtav(k,isamp) + wqtavr/jmax/imax
         enddo
         enddo
       end if
       if (lsamptendqr) then
         do isamp=1,isamptot
         do k=1,k1
-          if (nrsamp(k,isamp)>0) then
-            qrav (k,isamp)  = sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
-            qrwav (k,isamp) = sum(sv0(2   ,2:j1,k,iqr),tendmask(2   ,2:j1,k,isamp))/jmax
-            qrsav (k,isamp) = sum(sv0(2:i1,2   ,k,iqr),tendmask(2:i1,2   ,k,isamp))/imax
+          qravr(k,isamp)  = sum(sv0(2:i1,2:j1,k,iqr),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
+          qrwavr = sum(sv0(2   ,2:j1,k,iqr),tendmask(2   ,2:j1,k,isamp))/jmax
+          qrsavr = sum(sv0(2:i1,2   ,k,iqr),tendmask(2:i1,2   ,k,isamp))/imax
 
-            ! Horizontal flux on edges
-            uqrwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(sv0(2   ,2:j1,k,iqr) - qrwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
-            vqrsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(sv0(2:i1,2   ,k,iqr) - qrsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
+          qrav(k,isamp) = qrav(k,isamp) + qravr(k,isamp)
+          qrwav(k,isamp) = qrwav(k,isamp) + qrwavr
+          qrsav(k,isamp) = qrsav(k,isamp) + qrsavr
 
-            ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
-            if (k == 1) then
-              do i=2,i1
-              do j=2,j1
-                wqrav(k,isamp) = wqrav(k,isamp) + svflux(i,j,iqr)
-              end do
-              end do
-            else
-              qrhav = qrav(k,isamp)*dzf(k-1)+qrav(k-1,isamp)*dzf(k)/(2*dzh(k))
-              do i=2,i1
-              do j=2,j1
-                ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
-                qr0h = (sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2*dzh(k))
-                wqrav(k,isamp) = wqrav(k,isamp) + (w0(i,j,k) - wav(k,isamp))*(qr0h - qrhav) &
-                                                  - ekhalf*(sv0(i,j,k,iqr)-sv0(i,j,k-1,iqr))*dzhi(k)
-              end do
-              end do
-            end if
-            wqrav(k,isamp) = wqrav(k,isamp)/nrsamp(k,isamp)
-          endif
+          ! Horizontal flux on edges
+          uqrwav(k,isamp) = uqrwav(k,isamp) + sum((u0(2   ,2:j1,k) - uwavr(k,isamp))*(sv0(2   ,2:j1,k,iqr) - qrwavr), tendmask(2,2:j1,k,isamp))/jmax
+          vqrsav(k,isamp) = vqrsav(k,isamp) + sum((v0(2:i1,2   ,k) - vsavr(k,isamp))*(sv0(2:i1,2   ,k,iqr) - qrsavr), tendmask(2:i1,2,k,isamp))/imax
+
+          ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
+          wqravr = 0.
+          if (k == 1) then
+            do i=2,i1
+            do j=2,j1
+              wqravr = wqravr + svflux(i,j,iqr)
+            end do
+            end do
+          else
+            qrhav = qravr(k,isamp)*dzf(k-1)+qravr(k-1,isamp)*dzf(k)/(2*dzh(k))
+            do i=2,i1
+            do j=2,j1
+              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+              qr0h = (sv0(i,j,k,iqr)*dzf(k-1)+sv0(i,j,k-1,iqr)*dzf(k))/(2*dzh(k))
+              wqravr = wqravr + (w0(i,j,k) - wavr(k,isamp))*(qr0h - qrhav) &
+                              - ekhalf*(sv0(i,j,k,iqr)-sv0(i,j,k-1,iqr))*dzhi(k)
+            end do
+            end do
+          end if
+          wqrav(k,isamp) = wqrav(k,isamp) + wqravr/jmax/imax
         enddo
         enddo
       end if
       if (lsamptendnr) then
         do isamp=1,isamptot
         do k=1,k1
-          if (nrsamp(k,isamp)>0) then
-            nrav (k,isamp)  = sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))/nrsamp(k,isamp)
-            nrwav (k,isamp) = sum(sv0(2   ,2:j1,k,inr),tendmask(2   ,2:j1,k,isamp))/jmax
-            nrsav (k,isamp) = sum(sv0(2:i1,2   ,k,inr),tendmask(2:i1,2   ,k,isamp))/imax
+          nravr(k,isamp)  = sum(sv0(2:i1,2:j1,k,inr),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
+          nrwavr = sum(sv0(2   ,2:j1,k,inr),tendmask(2   ,2:j1,k,isamp))/jmax
+          nrsavr = sum(sv0(2:i1,2   ,k,inr),tendmask(2:i1,2   ,k,isamp))/imax
 
-            ! Horizontal flux on edges
-            unrwav(k,isamp) = sum((u0(2   ,2:j1,k) - uwav(k,isamp))*(sv0(2   ,2:j1,k,inr) - nrwav(k,isamp)), tendmask(2,2:j1,k,isamp))/jmax
-            vnrsav(k,isamp) = sum((v0(2:i1,2   ,k) - vsav(k,isamp))*(sv0(2:i1,2   ,k,inr) - nrsav(k,isamp)), tendmask(2:i1,2,k,isamp))/imax
+          nrav(k,isamp) = nrav(k,isamp) + nravr(k,isamp)
+          nrwav(k,isamp) = nrwav(k,isamp) + nrwavr
+          nrsav(k,isamp) = nrsav(k,isamp) + nrsavr
 
-            ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
-            if (k == 1) then
-              do i=2,i1
-              do j=2,j1
-                wnrav(k,isamp) = wnrav(k,isamp) + svflux(i,j,inr)
-              end do
-              end do
-            else
-              nrhav = nrav(k,isamp)*dzf(k-1)+qrav(k-1,isamp)*dzf(k)/(2*dzh(k))
-              do i=2,i1
-              do j=2,j1
-                ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
-                nr0h = (sv0(i,j,k,inr)*dzf(k-1)+sv0(i,j,k-1,inr)*dzf(k))/(2*dzh(k))
-                wnrav(k,isamp) = wnrav(k,isamp) + (w0(i,j,k) - wav(k,isamp))*(nr0h - qrhav) &
-                                                  - ekhalf*(sv0(i,j,k,inr)-sv0(i,j,k-1,inr))*dzhi(k)
-              end do
-              end do
-            end if
-            wnrav(k,isamp) = wnrav(k,isamp)/nrsamp(k,isamp)
-          endif
+          ! Horizontal flux on edges
+          unrwav(k,isamp) = unrwav(k,isamp) + sum((u0(2   ,2:j1,k) - uwavr(k,isamp))*(sv0(2   ,2:j1,k,inr) - nrwavr), tendmask(2,2:j1,k,isamp))/jmax
+          vnrsav(k,isamp) = vnrsav(k,isamp) + sum((v0(2:i1,2   ,k) - vsavr(k,isamp))*(sv0(2:i1,2   ,k,inr) - nrsavr), tendmask(2:i1,2,k,isamp))/imax
+
+          ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
+          wnravr = 0.
+          if (k == 1) then
+            do i=2,i1
+            do j=2,j1
+              wnravr = wnravr + svflux(i,j,inr)
+            end do
+            end do
+          else
+            nrhav = nravr(k,isamp)*dzf(k-1)+nravr(k-1,isamp)*dzf(k)/(2*dzh(k))
+            do i=2,i1
+            do j=2,j1
+              ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+              nr0h = (sv0(i,j,k,inr)*dzf(k-1)+sv0(i,j,k-1,inr)*dzf(k))/(2*dzh(k))
+              wnravr = wnravr + (w0(i,j,k) - wavr(k,isamp))*(nr0h - nrhav) &
+                              - ekhalf*(sv0(i,j,k,inr)-sv0(i,j,k-1,inr))*dzhi(k)
+            end do
+            end do
+          end if
+          wnrav(k,isamp) = wnrav(k,isamp) + wnravr/jmax/imax
         enddo
         enddo
       end if
-    end if
+      ntsamp = ntsamp + 1
 
   end subroutine decomposedadvtend
 
@@ -1166,10 +1194,53 @@ subroutine initsamptend
         if (lsamptendqt)  qtpmn (k,field,isamp) = qtpmn (k,field,isamp)/nrsamptot(k,isamp)
         if (lsamptendqr)  qrpmn (k,field,isamp) = qrpmn (k,field,isamp)/nrsamptot(k,isamp)
         if (lsamptendnr)  nrpmn (k,field,isamp) = nrpmn (k,field,isamp)/nrsamptot(k,isamp)
-      endif
+      end if
     enddo
     enddo
     enddo
+
+    ! Advection decomposition terms
+    if (ltenddec) then
+      do isamp=1,isamptot
+      do k=1,k1
+        uwav(k,isamp) = uwav(k,isamp)/ntsamp
+        vsav(k,isamp) = vsav(k,isamp)/ntsamp
+        wav(k,isamp) = wav(k,isamp)/ntsamp
+        if (lsamptendthl) then
+          thlav(k,isamp) = thlav(k,isamp)/ntsamp
+          thlwav(k,isamp) = thlwav(k,isamp)/ntsamp
+          thlsav(k,isamp) = thlsav(k,isamp)/ntsamp
+          wthlav(k,isamp) = wthlav(k,isamp)/ntsamp
+          uthlwav(k,isamp) = uthlwav(k,isamp)/ntsamp
+          vthlsav(k,isamp) = vthlsav(k,isamp)/ntsamp
+        end if
+        if (lsamptendqt) then
+          qtav(k,isamp) = qtav(k,isamp)/ntsamp
+          qtwav(k,isamp) = qtwav(k,isamp)/ntsamp
+          qtsav(k,isamp) = qtsav(k,isamp)/ntsamp
+          wqtav(k,isamp) = wqtav(k,isamp)/ntsamp
+          uqtwav(k,isamp) = uqtwav(k,isamp)/ntsamp
+          vqtsav(k,isamp) = vqtsav(k,isamp)/ntsamp
+        end if
+        if (lsamptendqr) then
+          qrav(k,isamp) = qrav(k,isamp)/ntsamp
+          qrwav(k,isamp) = qrwav(k,isamp)/ntsamp
+          qrsav(k,isamp) = qrsav(k,isamp)/ntsamp
+          wqrav(k,isamp) = wqrav(k,isamp)/ntsamp
+          uqrwav(k,isamp) = uqrwav(k,isamp)/ntsamp
+          vqrsav(k,isamp) = vqrsav(k,isamp)/ntsamp
+        end if
+        if (lsamptendnr) then
+          nrav(k,isamp) = nrav(k,isamp)/ntsamp
+          nrwav(k,isamp) = nrwav(k,isamp)/ntsamp
+          nrsav(k,isamp) = nrsav(k,isamp)/ntsamp
+          wnrav(k,isamp) = wnrav(k,isamp)/ntsamp
+          unrwav(k,isamp) = unrwav(k,isamp)/ntsamp
+          vnrsav(k,isamp) = vnrsav(k,isamp)/ntsamp
+        end if
+      enddo
+      enddo
+    end if
 
     if (lnetcdf) then
       if (lprocblock) then
@@ -1191,6 +1262,23 @@ subroutine initsamptend
     if (lsamptendqr) qrpav = 0.
     if (lsamptendnr) nrpav = 0.
     nrsamp = 0
+    ntsamp = 0
+
+    if (ltenddec) then
+      uwav = 0.; vsav = 0; wav = 0.
+    end if
+    if (ltenddec .and. lsamptendthl) then
+      thlav = 0.; thlwav = 0.; thlsav = 0.; wthlav = 0.; uthlwav = 0.; vthlsav = 0.
+    end if
+    if (ltenddec .and. lsamptendqt) then
+      qtav = 0.; qtwav = 0.; qtsav = 0.; wqtav = 0.; uqtwav = 0.; vqtsav = 0.
+    end if
+    if (ltenddec .and. lsamptendqr) then
+      qrav = 0.; qrwav = 0.; qrsav = 0.; wqrav = 0.; uqrwav = 0.; vqrsav = 0.
+    end if
+    if (ltenddec .and. lsamptendnr) then
+      nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; unrwav = 0.; vnrsav = 0.
+    end if
 
   end subroutine writesamptend
 
