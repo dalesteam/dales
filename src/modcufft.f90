@@ -31,6 +31,7 @@ module modcufft
     subroutine cufftinit(p, Fp, d, xyrt, ps, pe, qs, qe)
       use cufft
       use modgpu, only: workspace_0, allocate_workspace
+      use modtranspose, only: inittranspose
 
       implicit none
 
@@ -237,6 +238,8 @@ module modcufft
 
       !$acc enter data copyin(xyrt, d)
 
+      call inittranspose
+
     end subroutine cufftinit
 
     !< Exit routine
@@ -343,7 +346,7 @@ module modcufft
 
       call timer_tic('modcufft/cufftf', 1)
       
-      call transpose_a1(p, px, konx, workspace_0, workspace_1)
+      call transpose_a1(p, px)
 
       !$acc host_data use_device(px)
 #if POIS_PRECISION==32
@@ -354,7 +357,7 @@ module modcufft
       !$acc end host_data
       
       call postprocess_f_fft(px, (/2*nphix, jmax, konx/), itot)
-      call transpose_a2(px, py, iony, konx, workspace_0, workspace_1)
+      call transpose_a2(px, py)
       
       !$acc host_data use_device(py)
 #if POIS_PRECISION==32
@@ -365,7 +368,7 @@ module modcufft
       !$acc end host_data
       call postprocess_f_fft(py, (/2*nphiy, konx, iony/), jtot)
 
-      call transpose_a3(py, Fp, iony, jonx, konx, workspace_0, workspace_1)
+      call transpose_a3(py, Fp)
 
       call timer_toc('modcufft/cufftf')
 
@@ -384,7 +387,7 @@ module modcufft
 
       call timer_tic('modcufft/cufftb', 1)
 
-      call transpose_a3inv(py, Fp, iony, jonx, konx, workspace_0, workspace_1)
+      call transpose_a3inv(py, Fp)
       call preprocess_b_fft(py, (/2*nphiy, konx, iony/), jtot)
 
       !$acc host_data use_device(py)
@@ -396,7 +399,7 @@ module modcufft
       !$acc end host_data
 
       call check_exitcode(istat)
-      call transpose_a2inv(px, py, iony, konx, workspace_0, workspace_1)
+      call transpose_a2inv(px, py)
       call preprocess_b_fft(px, (/2*nphix, jmax, konx/), itot)
 
       !$acc host_data use_device(px)
@@ -408,7 +411,7 @@ module modcufft
       !$acc end host_data
 
       call check_exitcode(istat)
-      call transpose_a1inv(p, px, konx, workspace_0, workspace_1)
+      call transpose_a1inv(p, px)
       
       !$acc parallel loop collapse(3) default(present)
       do k=1,kmax

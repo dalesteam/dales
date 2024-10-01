@@ -89,6 +89,7 @@ save
 contains
 
   subroutine fftwinit(p, Fp, d, xyrt, ps,pe,qs,qe)
+    use modtranspose, only: inittranspose
 
     implicit none
 
@@ -159,6 +160,8 @@ contains
               itot*jmax*konx,                   & ! p210
               jtot*konx*iony,                   & ! p201
               iony*jonx*kmax                    ) ! Fp (p102)
+
+    call inittranspose
 
     ! get aligned memory for FFTW
 #if POIS_PRECISION == 64
@@ -361,7 +364,57 @@ contains
 
     call fftwinit_factors(xyrt)
 
+    call test_transpose(p, Fp)
+
  end subroutine
+
+ subroutine test_transpose(p, Fp)
+  use modtranspose
+  use modmpi, only: myid, comm3d
+  use mpi_f08
+    real(pois_r), pointer              :: p(:,:,:)
+    real(pois_r), pointer              :: Fp(:,:,:)
+    real(pois_r), allocatable :: test(:,:,:)
+    integer ::i ,j,k
+    integer :: incorrect_count = 0
+
+    allocate(test, mold=p)
+
+    call random_number(test)
+
+    p(:,:,:) = test(:,:,:)
+
+    call transpose_a1(p, p210)
+    call transpose_a2(p210, p201)
+    call transpose_a3(p201, Fp)
+    call transpose_a3inv(p201, Fp)
+    call transpose_a2inv(p210, p201)
+    call transpose_a1inv(p, p210)
+
+    do k = 1, kmax
+      do j = 2, j1
+        do i = 2, i1
+          if (p(i,j,k) /= test(i,j,k)) then
+            print *, "p incorrect at i,j,k,myid:", i,j,k,myid
+            incorrect_count = incorrect_count + 1
+          end if
+        end do
+      end do
+    end do
+
+
+    deallocate(test)
+
+    call MPI_ALLREDUCE(MPI_IN_PLACE, incorrect_count, 1, MPI_INTEGER4, MPI_SUM, comm3d, mpierr)
+    if (incorrect_count > 0 .and. myid==0) then
+      print *, "Transpose incorrect"
+      print *, "Number incorrect:", incorrect_count
+      stop
+    else
+      print *, "Transpose correct!"
+    end if
+
+ end subroutine test_transpose
 
  subroutine fftwexit(p,Fp,d,xyrt)
    implicit none
@@ -401,10 +454,10 @@ contains
     real(pois_r), pointer :: Fp(:,:,:)
 
     if (method == 1) then
-      call transpose_a1(p, p210, konx_me, bufin, bufout)
+      call transpose_a1(p, p210)
       call fftw_execute_r2r_if(planx, p210_flat, p210_flat)
 
-      call transpose_a2(p210, p201, iony_me, konx_me, bufin, bufout)
+      call transpose_a2(p210, p201)
       ! zero the unused part, avoinds SIGFPE from the FFT (Debug mode)
       ! indexing: p201(jtot,konx,iony)
       if (konx_me < konx) p201(:,konx_me+1:, :) = 0
@@ -413,7 +466,7 @@ contains
 
       call fftw_execute_r2r_if(plany, p201_flat, p201_flat)
 
-      call transpose_a3(p201, Fp, iony_me, jonx_me, konx_me, bufin, bufout)
+      call transpose_a3(p201, Fp)
     else if (method == 2) then
       call fftw_execute_r2r_if(planxy, p_nohalo, p_nohalo)
     else
@@ -434,13 +487,13 @@ contains
     !Fp(:,:,:) = Fp(:,:,:) / sqrt(ijtot)
 
     if (method == 1) then
-      call transpose_a3inv(p201, Fp, iony_me, jonx_me, konx_me, bufin, bufout)
+      call transpose_a3inv(p201, Fp)
 
       call fftw_execute_r2r_if(planyi, p201_flat, p201_flat)
-      call transpose_a2inv(p210, p201, iony_me, konx_me, bufin, bufout)
+      call transpose_a2inv(p210, p201)
 
       call fftw_execute_r2r_if(planxi, p210_flat, p210_flat)
-      call transpose_a1inv(p, p210, konx_me, bufin, bufout)
+      call transpose_a1inv(p, p210)
 
     else if (method == 2) then
       call fftw_execute_r2r_if(planxyi, p_nohalo, p_nohalo)
