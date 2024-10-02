@@ -136,12 +136,7 @@ contains
       end do
   
       ! CJ: updated to use in-place all-to-all so we only need to allocate one buffer.
-      ! TODO: make generic interface for this one
-#if POIS_PRECISION==32
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, buffer, imax*jmax*konx, MPI_REAL4, commrow, mpierr)
-#else
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, buffer, imax*jmax*konx, MPI_REAL8, commrow, mpierr)
-#endif
+      call D_MPI_ALLTOALL(buffer, imax*jmax*konx, commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(3) default(present) private(ii)
       do k = 1, konx
@@ -194,13 +189,7 @@ contains
         end do
       end do
   
-      ! CJ: updated to use in-place all-to-all so we only need to allocate one buffer.
-      ! TODO: make generic interface for this one
-#if POIS_PRECISION==32
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, buffer, imax*jmax*konx, MPI_REAL4, commrow, mpierr)
-#else
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, buffer, imax*jmax*konx, MPI_REAL8, commrow, mpierr)
-#endif
+      call D_MPI_ALLTOALL(buffer, imax*jmax*konx_me, commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx - 1
@@ -279,11 +268,7 @@ contains
         end do
       end do
   
-#if POIS_PRECISION==32
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, buffer, iony*jmax*konx, MPI_REAL4, commcol, mpierr)
-#else
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, buffer, iony*jmax*konx, MPI_REAL8, commcol, mpierr)
-#endif
+      call D_MPI_ALLTOALL(buffer, iony_me*jmax*konx_me, commcol, mpierr, ondevice=.true.)
 
       !$acc parallel loop gang collapse(4) default(present) &
       !$acc& private(shmem) vector_length(NX*NY)
@@ -392,11 +377,7 @@ contains
         end do
       end do
 
-#if POIS_PRECISION==32
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, buffer, iony*jmax*konx, MPI_REAL4, commcol, mpierr)
-#else
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, buffer, iony*jmax*konx, MPI_REAL8, commcol, mpierr)
-#endif
+      call D_MPI_ALLTOALL(buffer, iony_me*jmax*konx_me, commcol, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocy-1
@@ -475,11 +456,7 @@ contains
         end do
       end do
   
-#if POIS_PRECISION==32
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, buffer, iony_me*jonx_me*konx_me, MPI_REAL4, commrow, mpierr)
-#else
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, buffer, iony_me*jonx_me*konx_me, MPI_REAL8, commrow, mpierr)
-#endif
+      call D_MPI_ALLTOALL(buffer, iony_me*jonx_me*konx_me, commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop gang collapse(4) default(present) private(ii)
       !$acc& private(shmem(1:NY,1:NX)) vector_length(NX*NY)
@@ -589,11 +566,7 @@ contains
         end do
       end do
   
-#if POIS_PRECISION==32
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL4, buffer, iony_me*jonx_me*konx_me, MPI_REAL4, commrow, mpierr)
-#else
-      call MPI_ALLTOALL(MPI_IN_PLACE, 0, MPI_REAL8, buffer, iony_me*jonx_me*konx_me, MPI_REAL8, commrow, mpierr)
-#endif
+      call D_MPI_ALLTOALL(buffer, iony_me*jonx_me*konx_me, commrow, mpierr, ondevice=.true.)
   
       !$acc parallel loop collapse(4) default(present) private(ii)
       do n = 0, nprocx - 1
