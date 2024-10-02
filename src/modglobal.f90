@@ -52,6 +52,7 @@ save
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
       character(50) :: startfile    !<    * name of the restart file
+      logical :: lstart_netcdf = .false.      !< Start from a NetCDF file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
       integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
