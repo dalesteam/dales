@@ -376,7 +376,6 @@ contains
     om23_gs   = 2.*omega_gs*silat
 
     ! Variables
-    allocate(dsv(nsv))
     write(cexpnr,'(i3.3)') iexpnr
 
 
@@ -496,15 +495,15 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, &
-    !$acc&                  dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc&                  esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, &
-    !$acc&                 dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc&                 esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
-    deallocate(dsv,dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
+    deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)
