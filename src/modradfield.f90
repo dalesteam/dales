@@ -30,7 +30,7 @@ private
 PUBLIC :: initradfield, radfield, exitradfield
 save
 !NetCDF variables
-  integer,parameter :: nvar = 30
+  integer,parameter :: nvar = 32
   integer :: ncid2,nrec2 = 0
   integer :: nsamples
   character(80) :: fname
@@ -128,6 +128,9 @@ contains
     call ncinfo(ncname(29,:),'rsutcs','TOA outgoing shortwave flux - clear sky','W/m2','tt0t')
     call ncinfo(ncname(30,:),'rlutcs','TOA outgoing longwave flux - clear sky','W/m2','tt0t')
 
+    call ncinfo(ncname(31,:),'ewss','eastward surface stress','kg/m/s2','tt0t')
+    call ncinfo(ncname(32,:),'nsss','northward surface stress','kg/m/s2','tt0t')
+
     call open_nc(trim(output_prefix)//fname,  ncid2,nrec2,n1=imax,n2=jmax,n3=1)
     if (nrec2==0) then
        call define_nc( ncid2, 1, tncname)
@@ -167,9 +170,9 @@ contains
 
 
   subroutine sample_radfield
-    use modfields, only : rhof,qt0,ql0,tmp0,u0,v0,presf
-    use modsurfdata, only: qtflux,thlflux
-    use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp
+    use modfields, only : rhof,qt0,ql0,tmp0,u0,v0,presf,rhobh
+    use modsurfdata, only: qtflux,thlflux,ustar
+    use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp,cu,cv
     use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif,&
                             SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
                             SW_up_ca_TOA,LW_up_ca_TOA
@@ -177,7 +180,7 @@ contains
 
     implicit none
     integer :: i,j,k
-    real :: ilratio
+    real :: ilratio,upcu2,vpcv2,horv2
 
     ! rcemip , neglect density difference zf and zh (consistent with surface flux parameterization)
     field_2D_mn (2:i1,2:j1,1) = field_2D_mn (2:i1,2:j1,1) + rhof(1) * rlv * qtflux (2:i1,2:j1)
@@ -222,6 +225,15 @@ contains
     field_2D_mn (2:i1,2:j1,28) = field_2D_mn (2:i1,2:j1,28) + abs(LW_up_TOA(2:i1,2:j1))    !rlut,  TOA outgoing longwave flux
     field_2D_mn (2:i1,2:j1,29) = field_2D_mn (2:i1,2:j1,29) + abs(SW_up_ca_TOA(2:i1,2:j1)) !rsutcs,TOA outgoing shortwave flux - clear sky
     field_2D_mn (2:i1,2:j1,30) = field_2D_mn (2:i1,2:j1,30) + abs(LW_up_ca_TOA(2:i1,2:j1)) !rlutcs,TOA outgoing longwave flux - clear sky
+    do j = 2, j1
+      do i = 2, i1
+        upcu2 = (0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu)**2.
+        vpcv2 = (0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv)**2.
+        horv2 = upcu2 + vpcv2
+        field_2D_mn (i,j,31) = field_2D_mn (i,j,31) + rhobh(1)*ustar(i,j)**2.*upcu2/horv2 !ewss, eastward surface stress
+        field_2D_mn (i,j,32) = field_2D_mn (i,j,32) + rhobh(1)*ustar(i,j)**2.*vpcv2/horv2 !nsss, northward surface stress
+      end do
+    end do
   end subroutine sample_radfield
 
 
