@@ -164,7 +164,7 @@ subroutine advection
   end if
 
   do n=1,nsv
-    select case(iadv_sv(n))
+    select case(iadv_sv)
     case(iadv_cd2)
       call hadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_5th)
@@ -284,7 +284,7 @@ subroutine advection
   end if
 
   do n=1,nsv
-    select case(iadv_sv(n))
+    select case(iadv_sv)
     case(iadv_cd2)
       call vadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n))
     case(iadv_5th)

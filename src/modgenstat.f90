@@ -915,7 +915,7 @@ contains
         call calc_moment(sv2av(:, n), svm(:, :, :, n), 2, svmav(:, n))
       end do
     do n = 1, nsv
-        if (iadv_sv(n)==iadv_kappa .and. .not. lopenbc) then
+        if (iadv_sv==iadv_kappa .and. .not. lopenbc) then
            call halflev_kappa(sv0(:,:,:,n),sv0h)
         else
           !$acc parallel loop collapse(3) default(present) async(1)

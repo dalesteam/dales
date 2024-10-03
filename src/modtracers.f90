@@ -151,7 +151,6 @@ contains
     logical,       intent(in),  optional :: lmicro
     integer,       intent(out), optional :: isv
 
-    integer :: s
     integer                     :: s
     type(T_tracer), allocatable :: tmp(:)
 

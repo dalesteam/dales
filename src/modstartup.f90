@@ -304,7 +304,7 @@ contains
     call D_MPI_BCAST(iadv_tke,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_thl,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_qt ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(iadv_sv(1:nsv) ,nsv,0,commwrld,mpierr)
+    call D_MPI_BCAST(iadv_sv ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(lnoclouds  ,1,0,commwrld,mpierr)
 
@@ -349,6 +349,7 @@ contains
     call initmicrophysics
     call allocate_tracers ! At this point, all tracers have to be defined
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
+    call inittstep
 
     if(.not.lopenbc) then
       call initboundary

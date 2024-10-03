@@ -123,7 +123,7 @@ save
       integer, parameter :: ibas_usr    = 5 !< User specified
 
       !Advection scheme
-      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
+      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv = -1
       integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
@@ -279,44 +279,6 @@ contains
     integer :: k, n, m, ierr
     character(80) chmess
 
-    !timestepping
-    if (courant<0) then
-      select case(iadv_mom)
-      case(iadv_cd2)
-        courant = 1.
-      case(iadv_cd6)
-        courant = 0.7
-      case(iadv_62)
-        courant = 0.7
-      case(iadv_5th)
-        courant = 1.
-      case(iadv_52)
-        courant = 1.
-      case(iadv_hybrid)
-         courant = 1.
-      case(iadv_hybrid_f)
-        courant = 1.
-      case default
-        courant = 1.
-      end select
-      if (any(iadv_sv(1:nsv)==iadv_cd6) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd6)) then
-        courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_62) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_62)) then
-        courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_kappa) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_kappa)) then
-        courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_5th) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_5th)) then
-        courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_52 ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_52)) then
-        courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_cd2) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
-        courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_hybrid ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_hybrid)) then
-        courant = min(courant, 1.0)
-      end if
-
-   end if
-
     ! phsgrid
     imax = itot/nprocx
     jmax = jtot/nprocy
@@ -328,35 +290,35 @@ contains
     j2=jmax+2
     !set the number of ghost cells. NB: This switch has to run in order of required ghost cells
     advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt/)
-    if     (any(advarr==iadv_cd6).or.any(iadv_sv(1:nsv)==iadv_cd6)) then
+    if     (any(advarr==iadv_cd6).or.iadv_sv==iadv_cd6) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_62).or.any(iadv_sv(1:nsv)==iadv_62)) then
+    elseif (any(advarr==iadv_62).or.iadv_sv==iadv_62) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_5th).or.any(iadv_sv(1:nsv)==iadv_5th)) then
+    elseif (any(advarr==iadv_5th).or.iadv_sv==iadv_5th) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_52).or.any(iadv_sv(1:nsv)==iadv_52)) then
+    elseif (any(advarr==iadv_52).or.iadv_sv==iadv_52) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_hybrid).or.any(iadv_sv(1:nsv)==iadv_hybrid)) then
+    elseif (any(advarr==iadv_hybrid).or.iadv_sv==iadv_hybrid) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_hybrid_f).or.any(iadv_sv(1:nsv)==iadv_hybrid_f)) then
+    elseif (any(advarr==iadv_hybrid_f).or.iadv_sv==iadv_hybrid_f) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_kappa).or.any(iadv_sv(1:nsv)==iadv_kappa)) then
+    elseif (any(advarr==iadv_kappa).or.iadv_sv==iadv_kappa) then
       ih = 2
       jh = 2
       kh = 1
-    elseif (any(advarr==iadv_cd2).or.any(iadv_sv(1:nsv)==iadv_cd2)) then
+    elseif (any(advarr==iadv_cd2).or.iadv_sv==iadv_cd2) then
       ih = 1
       jh = 1
       kh = 1
@@ -393,12 +355,10 @@ contains
 
     !CvH remove where
     !where (iadv_sv<0)  iadv_sv  = iadv_mom
-    do n = 1, nsv
-      if(iadv_sv(n) < 0) then
-        iadv_sv(n) = iadv_mom
-        write (*,*) "Warning: iadv_sv(", n, ") not specified, defaulting to iadv_mom = ", iadv_mom
-      end if
-    end do
+    if (iadv_sv < 0) then
+      iadv_sv = iadv_mom
+      write (*,*) "Warning: iadv_sv not specified, defaulting to iadv_mom = ", iadv_mom
+    end if
 
     phi    = xlat*pi/180.
     colat  = cos(phi)
