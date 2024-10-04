@@ -171,7 +171,7 @@ contains
 
   subroutine sample_radfield
     use modfields, only : rhof,qt0,ql0,tmp0,u0,v0,presf,rhobh
-    use modsurfdata, only: qtflux,thlflux,ustar
+    use modsurfdata, only: qtflux,thlflux,ustar,min_horv
     use modglobal, only: dzf,tup,tdn,i1,j1,kmax,rlv,cp,cu,cv
     use modraddata, only : lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,swdir,swdif,&
                             SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
@@ -227,11 +227,12 @@ contains
     field_2D_mn (2:i1,2:j1,30) = field_2D_mn (2:i1,2:j1,30) + abs(LW_up_ca_TOA(2:i1,2:j1)) !rlutcs,TOA outgoing longwave flux - clear sky
     do j = 2, j1
       do i = 2, i1
-        upcu2 = (0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu)**2.
-        vpcv2 = (0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv)**2.
+        upcu2 = (0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu)**2
+        vpcv2 = (0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv)**2
         horv2 = upcu2 + vpcv2
-        field_2D_mn (i,j,31) = field_2D_mn (i,j,31) + rhobh(1)*ustar(i,j)**2.*upcu2/horv2 !ewss, eastward surface stress
-        field_2D_mn (i,j,32) = field_2D_mn (i,j,32) + rhobh(1)*ustar(i,j)**2.*vpcv2/horv2 !nsss, northward surface stress
+        horv2 = max(horv2, min_horv**2)
+        field_2D_mn (i,j,31) = field_2D_mn (i,j,31) + rhobh(1)*ustar(i,j)**2*upcu2/horv2 !ewss, eastward surface stress
+        field_2D_mn (i,j,32) = field_2D_mn (i,j,32) + rhobh(1)*ustar(i,j)**2*vpcv2/horv2 !nsss, northward surface stress
       end do
     end do
   end subroutine sample_radfield

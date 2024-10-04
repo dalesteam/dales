@@ -968,7 +968,7 @@ contains
       do i = 2, i1
         upcu = 0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
         vpcv = 0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-        horv(i,j) = sqrt(upcu**2. + vpcv**2.)
+        horv(i,j) = sqrt(upcu**2 + vpcv**2)
         horv(i,j) = max(horv(i,j), 0.1)
       end do
     end do
@@ -995,11 +995,11 @@ contains
       call D_MPI_ALLREDUCE(Npatch(1:xpatches, 1:ypatches), SNpatch(1:xpatches, 1:ypatches), &
                            xpatches*ypatches, MPI_SUM, comm3d, mpierr)
 
-      horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
+      horvpatch = sqrt(((Supatch/SNpatch) + cu) **2 + ((Svpatch/SNpatch) + cv) ** 2)
       horvpatch = max(horvpatch, 0.1)
     else
       !$acc update self(u0av(1), v0av(1))
-      horvav = sqrt(u0av(1)**2. + v0av(1)**2.)
+      horvav = sqrt(u0av(1)**2 + v0av(1)**2)
       horvav = max(horvav, 0.1)
     end if
 
@@ -1348,7 +1348,7 @@ contains
           thvsl   =   tskin(i,j)   * (1. + (rv/rd - 1.) * qskin(i,j))
           upcu    =   0.5 * (u0(i,j,1) + u0(i+1,j,1)) + cu
           vpcv    =   0.5 * (v0(i,j,1) + v0(i,j+1,1)) + cv
-          horv2   =   upcu ** 2. + vpcv ** 2.
+          horv2   =   upcu ** 2 + vpcv ** 2
           horv2   =   max(horv2, min_horv**2)
 
           if(lhetero) then
@@ -1377,13 +1377,13 @@ contains
                 iter    = iter + 1
                 Lold    = L
                 fx      = Rib - zf(1) / L * (log(zf(1) / z0h(i,j)) - psih(zf(1) / L) + psih(z0h(i,j) / L)) /&
-                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2.
+                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / L) + psim(z0m(i,j) / L)) ** 2
                 Lstart  = L - 0.001*L
                 Lend    = L + 0.001*L
                 fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lstart) + psih(z0h(i,j) / Lstart)) /&
-                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2.) - (-zf(1) / Lend * &
+                     (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lstart) + psim(z0m(i,j) / Lstart)) ** 2) - (-zf(1) / Lend * &
                      (log(zf(1) / z0h(i,j)) - psih(zf(1) / Lend) + psih(z0h(i,j) / Lend)) / (log(zf(1) / z0m(i,j)) - psim(zf(1) / Lend)&
-                     + psim(z0m(i,j) / Lend)) ** 2.) ) / (Lstart - Lend)
+                     + psim(z0m(i,j) / Lend)) ** 2) ) / (Lstart - Lend)
                 L = L - fx / fxdif
                 if(Rib * L < 0. .or. abs(L) == 1e5) then
                    if(Rib > 0) L = 0.01
@@ -1435,7 +1435,7 @@ contains
       call D_MPI_ALLREDUCE(loblpatch(1:xpatches,1:ypatches),oblpatch(1:xpatches,1:ypatches),xpatches*ypatches,&
       MPI_SUM, comm3d,mpierr)
 
-      horvpatch = sqrt(((Supatch/SNpatch) + cu) **2. + ((Svpatch/SNpatch) + cv) ** 2.)
+      horvpatch = sqrt(((Supatch/SNpatch) + cu) **2 + ((Svpatch/SNpatch) + cv) ** 2)
       horvpatch = max(horvpatch, min_horv)
 
       thlpatch  = thlpatch / SNpatch
@@ -1447,7 +1447,7 @@ contains
       do patchy = 1, ypatches
         do patchx = 1, xpatches
           Rib   = grav / thvs_patch(patchx,patchy) * zf(1) *&
-          (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2.)
+          (thvpatch(patchx,patchy) - thvs_patch(patchx,patchy)) / (horvpatch(patchx,patchy) ** 2)
           iter = 0
           L = oblpatch(patchx,patchy)
 
@@ -1461,14 +1461,14 @@ contains
             Lold    = L
             fx      = Rib - zf(1) / L * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / L) +&
             psih(z0hav_patch(patchx,patchy) / L)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / L) &
-            + psim(z0mav_patch(patchx,patchy) / L)) ** 2.
+            + psim(z0mav_patch(patchx,patchy) / L)) ** 2
             Lstart  = L - 0.001*L
             Lend    = L + 0.001*L
             fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav_patch(patchx,patchy)) - psih(zf(1) / Lstart) +&
             psih(z0hav_patch(patchx,patchy) / Lstart)) / (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lstart) + &
-            psim(z0mav_patch(patchx,patchy) / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav_patch(patchx,patchy)) &
+            psim(z0mav_patch(patchx,patchy) / Lstart)) ** 2) - (-zf(1) / Lend * (log(zf(1) / z0hav_patch(patchx,patchy)) &
             - psih(zf(1) / Lend) + psih(z0hav_patch(patchx,patchy) / Lend)) / &
-            (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lend) + psim(z0mav_patch(patchx,patchy) / Lend)) ** 2.) )&
+            (log(zf(1) / z0mav_patch(patchx,patchy)) - psim(zf(1) / Lend) + psim(z0mav_patch(patchx,patchy) / Lend)) ** 2) )&
             / (Lstart - Lend)
             L       = L - fx / fxdif
             if(Rib * L < 0. .or. abs(L) == 1e5) then
@@ -1496,7 +1496,7 @@ contains
     thv    = thl0av(1) * (1. + (rv/rd - 1.) * qt0av(1))
 
     !$acc update self(u0av(1), v0av(1))
-    horv2 = u0av(1)**2. + v0av(1)**2.
+    horv2 = u0av(1)**2 + v0av(1)**2
     horv2 = max(horv2, min_horv**2)
 
     Rib   = grav / thvs * zf(1) * (thv - thvs) / horv2
@@ -1518,13 +1518,13 @@ contains
           iter    = iter + 1
           Lold    = L
           fx      = Rib - zf(1) / L * (log(zf(1) / z0hav) - psih(zf(1) / L) + psih(z0hav / L)) /&
-               (log(zf(1) / z0mav) - psim(zf(1) / L) + psim(z0mav / L)) ** 2.
+               (log(zf(1) / z0mav) - psim(zf(1) / L) + psim(z0mav / L)) ** 2
           Lstart  = L - 0.001*L
           Lend    = L + 0.001*L
           fxdif   = ( (- zf(1) / Lstart * (log(zf(1) / z0hav) - psih(zf(1) / Lstart) + psih(z0hav / Lstart)) /&
-               (log(zf(1) / z0mav) - psim(zf(1) / Lstart) + psim(z0mav / Lstart)) ** 2.) - (-zf(1) / Lend * (log(zf(1) / z0hav) &
+               (log(zf(1) / z0mav) - psim(zf(1) / Lstart) + psim(z0mav / Lstart)) ** 2) - (-zf(1) / Lend * (log(zf(1) / z0hav) &
                - psih(zf(1) / Lend) + psih(z0hav / Lend)) / (log(zf(1) / z0mav) - psim(zf(1) / Lend) &
-               + psim(z0mav / Lend)) ** 2.) ) / (Lstart - Lend)
+               + psim(z0mav / Lend)) ** 2) ) / (Lstart - Lend)
           L       = L - fx / fxdif
           if(Rib * L < 0. .or. abs(L) == 1e5) then
              if(Rib > 0) L = 0.01
@@ -1560,7 +1560,7 @@ contains
 
     if(zeta <= 0) then
       x     = (1. - 16. * zeta) ** (0.25)
-      psim  = 3.14159265 / 2. - 2. * atan(x) + log( (1.+x) ** 2. * (1. + x ** 2.) / 8.)
+      psim  = 3.14159265 / 2. - 2. * atan(x) + log( (1.+x) ** 2 * (1. + x ** 2) / 8.)
       ! CvH use Wilson, 2001 rather than Businger-Dyer for correct free convection limit
       !x     = (1. + 3.6 * abs(zeta) ** (2./3.)) ** (-0.5)
       !psim = 3. * log( (1. + 1. / x) / 2.)
@@ -1581,7 +1581,7 @@ contains
 
     if(zeta <= 0) then
       x     = (1. - 16. * zeta) ** (0.25)
-      psih  = 2. * log( (1. + x ** 2.) / 2. )
+      psih  = 2. * log( (1. + x ** 2) / 2. )
       ! CvH use Wilson, 2001
       !x     = (1. + 7.9 * abs(zeta) ** (2./3.)) ** (-0.5)
       !psih  = 3. * log( (1. + 1. / x) / 2.)
@@ -2028,7 +2028,7 @@ contains
         ! Response to temperature
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
-        f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2.)
+        f4      = 1./ (1. - 0.0016 * (298.0 - Tatm) ** 2)
 
         rsveg(i,j)  = rsmin(i,j) / LAI(i,j) * f1 * f2 * f3! * f4 Not considered anymore
 
@@ -2083,7 +2083,7 @@ contains
 
           ! calculate CO2 concentration inside the leaf (ci)
           fmin0    = gmin/nuco2q - (1.0/9.0) * gm
-          fmin     = (-fmin0 + ( fmin0 ** 2.0 + 4 * gmin/nuco2q * gm ) ** (0.5)) / (2. * gm)
+          fmin     = (-fmin0 + ( fmin0 ** 2 + 4 * gmin/nuco2q * gm ) ** (0.5)) / (2. * gm)
 
           esatsurf = 0.611e3 * exp(17.2694 * (tskin(i,j) - 273.16) / (tskin(i,j) - 35.86))
           Ds       = (esatsurf - e) / 1000.0 ! In kPa
@@ -2276,7 +2276,7 @@ contains
         else
           qsat    = 0.622 * esat / ps
         endif
-        desatdT = esat * (17.2694 / (tsurfm - 35.86) - 17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86)**2.)
+        desatdT = esat * (17.2694 / (tsurfm - 35.86) - 17.2694 * (tsurfm - 273.16) / (tsurfm - 35.86)**2)
         if(lhetero) then
           dqsatdT = 0.622 * desatdT / ps_patch(patchx,patchy)
         else
@@ -2284,7 +2284,7 @@ contains
         endif
 
         ! First, remove LWup from Qnet calculation
-        Qnet(i,j) = Qnet(i,j) + boltz * tsurfm ** 4.
+        Qnet(i,j) = Qnet(i,j) + boltz * tsurfm ** 4
 
         ! Calculate coefficients for surface fluxes
         fH      = rhof(1) * cp / ra(i,j)
@@ -2308,11 +2308,11 @@ contains
         exnera  = (presf(1) / pref0) ** (rd/cp)
         Tatm    = exnera * thl0(i,j,1) + (rlv / cp) * ql0(i,j,1)
 
-        Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
+        Acoef   = Qnet(i,j) - boltz * tsurfm ** 4 + 4. * boltz * tsurfm ** 4 + fH * Tatm + fLE *&
         (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)
 !\todo  Acoef   = Qnet(i,j) - boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 4. + fH * Tatm + fLE *&
 !       (dqsatdT * tsurfm - qsat + qt0(i,j,1)) + lambdaskin(i,j) * tsoil(i,j,1)- fRs[t]*(1.0 - albedoav(i,j))*swdown
-        Bcoef   = 4. * boltz * tsurfm ** 3. + fH + fLE * dqsatdT + lambdaskin(i,j)
+        Bcoef   = 4. * boltz * tsurfm ** 3 + fH + fLE * dqsatdT + lambdaskin(i,j)
 
         if (Cskin(i,j) == 0.) then
           tskin(i,j) = Acoef * Bcoef ** (-1.) / exner
@@ -2320,7 +2320,7 @@ contains
           tskin(i,j) = (1. + rk3coef / Cskin(i,j) * Bcoef) ** (-1.) * (tsurfm + rk3coef / Cskin(i,j) * Acoef) / exner
         end if
 
-        Qnet(i,j)     = Qnet(i,j) - (boltz * tsurfm ** 4. + 4. * boltz * tsurfm ** 3. * (tskin(i,j) * exner - tsurfm))
+        Qnet(i,j)     = Qnet(i,j) - (boltz * tsurfm ** 4 + 4. * boltz * tsurfm ** 3 * (tskin(i,j) * exner - tsurfm))
         G0(i,j)       = lambdaskin(i,j) * ( tskin(i,j) * exner - tsoil(i,j,1) )
         LE(i,j)       = - fLE * ( qt0(i,j,1) - (dqsatdT * (tskin(i,j) * exner - tsurfm) + qsat))
 
