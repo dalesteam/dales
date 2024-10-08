@@ -283,6 +283,11 @@ contains
         call ncinfo(ncname(22,:),'twp_bar','Total water path','kg/m^2','time')
         call ncinfo(ncname(23,:),'rwp_bar','Rain water path','kg/m^2','time')
         call ncinfo(ncname(24,:),'pr','surface precipitation rate','kg/m^2/s','time')
+        call ncinfo(ncname(25,:),'hfls','surface upward latent heat flux','W/m2','time')
+        call ncinfo(ncname(26,:),'hfss','surface upward sensible heat flux','W/m2','time')
+        call ncinfo(ncname(27,:),'prw','water vapor path','kg/m2','time')
+        call ncinfo(ncname(28,:),'spwr','saturated water vapor path','kg/m2','time')
+
 
         if(isurf==1) then
           call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
@@ -945,7 +950,7 @@ contains
       f3_av = 0
       do ilu=1,nlu
         !skip for ws
-        if (trim(tile(ilu)%lushort) == 'ws') cycle 
+        if (trim(tile(ilu)%lushort) == 'ws') cycle
         obuk_av(ilu)  = mean_2d(tile(ilu)%obuk)
         ustar_av(ilu) = mean_2d(tile(ilu)%ustar)
         ra_av(ilu)    = mean_2d(tile(ilu)%ra)
@@ -956,7 +961,7 @@ contains
       do ilu=1,nlu
         !skip for ws and aq
         if (trim(tile(ilu)%lushort) == 'ws' .or. &
-            trim(tile(ilu)%lushort) == 'aq') cycle 
+            trim(tile(ilu)%lushort) == 'aq') cycle
         rs_av(ilu)    = mean_2d(tile(ilu)%rs)
       end do
 
@@ -967,8 +972,8 @@ contains
         c_av(ilu)       = mean_2d(tile(ilu)%frac)
         H_av(ilu)       = mean_2d(tile(ilu)%H)
         LE_av(ilu)      = mean_2d(tile(ilu)%LE)
-        thlskin_av(ilu) = mean_2d(tile(ilu)%thlskin) 
-        qtskin_av(ilu)  = mean_2d(tile(ilu)%qtskin) 
+        thlskin_av(ilu) = mean_2d(tile(ilu)%thlskin)
+        qtskin_av(ilu)  = mean_2d(tile(ilu)%qtskin)
       end do
 
       wlav = mean_2d(wl)
@@ -1102,6 +1107,10 @@ contains
         vars(22) = qtintav
         vars(23) = qrintav
         vars(24) = prav
+        vars(25) = rhof(1) * rlv * wqls  ! hfls
+        vars(26) = rhof(1) * cp * wts    ! hfss
+        vars(27) = qtintav - qlintav     ! prw = water vapor path
+        !vars(28) = sprw
 
         if (isurf == 1) then
           vars(25) = Qnetav
@@ -1215,7 +1224,7 @@ contains
     call d_mpi_allreduce(var_sum_l, var_sum, 1, mpi_sum, comm3d, mpierr)
     res = var_sum / ijtot
   end function mean_2d
-    
+
 
 !>Calculate the boundary layer height
 !!
