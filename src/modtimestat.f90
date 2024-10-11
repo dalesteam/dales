@@ -59,11 +59,11 @@ save
   integer :: blh_nsamp = 4
   real    :: blh_thres=-1 ,blh_sign=1.0
   real(field_r) :: zbaseav, ztopav, ztopmax,zbasemin
-  real(field_r) :: qlintav, qlintmax, tke_tot
+  real(field_r) :: qlintav, qlintmax, tke_tot, qsatintav
   real(field_r) :: prav, pravl
   real(field_r) :: qtintav, qrintav
   real(field_r) :: cc, wmax, qlmax
-  real(field_r) :: qlint, qtint, qrint
+  real(field_r) :: qlint, qtint, qrint, qsatint
   logical:: store_zi = .false.
   real(field_r), allocatable, dimension(:) :: profile, gradient, dgrad
   real(field_r), allocatable, dimension(:,:,:) :: blh_fld
@@ -73,9 +73,9 @@ save
   real(field_r), allocatable :: u0av_patch (:,:)     ! patch averaged um    at full level
   real(field_r), allocatable :: v0av_patch (:,:)     ! patch averaged vm    at full level
   real(field_r), allocatable :: w0av_patch (:,:)     ! patch averaged wm    at full level
-  real(field_r),allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field
+  real(field_r),allocatable, dimension(:,:) :: zbase_field, ztop_field, cc_field, qlint_field, tke_tot_field, qsatint_field
   real(field_r),allocatable, dimension(:,:) :: zbase_patch, ztop_patch, zbasemin_patch, zbasemin_patchl
-  real(field_r),allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch
+  real(field_r),allocatable, dimension(:,:) :: cc_patch, qlint_patch, qlintmax_patch, qlintmax_patchl, tke_tot_patch, qsatint_patch
   real(field_r),allocatable, dimension(:,:) :: wmax_patch, wmax_patchl, qlmax_patch, qlmax_patchl, ztopmax_patch, ztopmax_patchl
   real(field_r),allocatable, dimension(:,:) :: ust_patch, qst_patch, tst_patch, wthls_patch, wqls_patch, wthvs_patch
   !In combination with isurf = 1
@@ -123,8 +123,8 @@ contains
 
     tnext = idtav+btime
 
-    nvar = 24
-    ivar_rad = 25
+    nvar = 28
+    ivar_rad = 29
     if(isurf == 1) then
        nvar = nvar + 11
        ivar_rad = ivar_rad + 11
@@ -290,29 +290,29 @@ contains
 
 
         if(isurf==1) then
-          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(28,:),'G0','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(29,:),'tendskin','Skin tendency','W/m^2','time')
-          call ncinfo(ncname(30,:),'rs','Surface resistance','s/m','time')
-          call ncinfo(ncname(31,:),'ra','Aerodynamic resistance','s/m','time')
-          call ncinfo(ncname(32,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
-          call ncinfo(ncname(33,:),'Wl','Liquid water reservoir','m','time')
-          call ncinfo(ncname(34,:),'rssoil','Soil evaporation resistance','s/m','time')
-          call ncinfo(ncname(35,:),'rsveg','Vegitation resistance','s/m','time')
+          call ncinfo(ncname(29,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(30,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(31,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(32,:),'G0','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(33,:),'tendskin','Skin tendency','W/m^2','time')
+          call ncinfo(ncname(34,:),'rs','Surface resistance','s/m','time')
+          call ncinfo(ncname(35,:),'ra','Aerodynamic resistance','s/m','time')
+          call ncinfo(ncname(36,:),'cliq','Fraction of vegetated surface covered with liquid water','-','time')
+          call ncinfo(ncname(37,:),'Wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(38,:),'rssoil','Soil evaporation resistance','s/m','time')
+          call ncinfo(ncname(39,:),'rsveg','Vegitation resistance','s/m','time')
         else if (isurf == 11) then
-          call ncinfo(ncname(25,:),'Qnet','Net radiation','W/m^2','time')
-          call ncinfo(ncname(26,:),'H','Sensible heat flux','W/m^2','time')
-          call ncinfo(ncname(27,:),'LE','Latent heat flux','W/m^2','time')
-          call ncinfo(ncname(28,:),'G','Ground heat flux','W/m^2','time')
-          call ncinfo(ncname(29,:),'f1','Reduction canopy resistance f(swd)','-','time')
-          call ncinfo(ncname(30,:),'f2b','Reduction soil resistance f(theta)','-','time')
-          call ncinfo(ncname(31,:),'wl','Liquid water reservoir','m','time')
+          call ncinfo(ncname(29,:),'Qnet','Net radiation','W/m^2','time')
+          call ncinfo(ncname(30,:),'H','Sensible heat flux','W/m^2','time')
+          call ncinfo(ncname(31,:),'LE','Latent heat flux','W/m^2','time')
+          call ncinfo(ncname(32,:),'G','Ground heat flux','W/m^2','time')
+          call ncinfo(ncname(33,:),'f1','Reduction canopy resistance f(swd)','-','time')
+          call ncinfo(ncname(34,:),'f2b','Reduction soil resistance f(theta)','-','time')
+          call ncinfo(ncname(35,:),'wl','Liquid water reservoir','m','time')
 
           if (lags) then
-            call ncinfo(ncname(32,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
-            call ncinfo(ncname(33,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
+            call ncinfo(ncname(36,:),'an_co2','Net CO2 assimilation','ppb m s-1','time')
+            call ncinfo(ncname(37,:),'resp_co2','CO2 respiration soil','ppb m s-1','time')
           end if
         end if
 
@@ -350,6 +350,7 @@ contains
       allocate(ztop_field   (2:i1,2:j1))
       allocate(cc_field     (2:i1,2:j1))
       allocate(qlint_field  (2:i1,2:j1))
+      allocate(qsatint_field(2:i1,2:j1))
       allocate(tke_tot_field(2:i1,2:j1))
 
       allocate(zbase_patch    (xpatches,ypatches))
@@ -360,6 +361,7 @@ contains
       allocate(qlint_patch    (xpatches,ypatches))
       allocate(qlintmax_patch (xpatches,ypatches))
       allocate(qlintmax_patchl(xpatches,ypatches))
+      allocate(qsatint_patch  (xpatches,ypatches))
       allocate(tke_tot_patch  (xpatches,ypatches))
       allocate(wmax_patch     (xpatches,ypatches))
       allocate(wmax_patchl    (xpatches,ypatches))
@@ -410,9 +412,9 @@ contains
   subroutine timestat
 
     use modglobal,  only : i1,j1,kmax,zf,dzf,cu,cv,rv,rd,eps1, &
-                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput
+                          ijtot,timee,rtimee,dt_lim,rk3step,cexpnr,ifoutput,rlv,cp
     use modmicrodata, only : imicro, iqr, imicro_sice, imicro_sice2, imicro_bulk, precep
-    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0
+    use modfields,  only : e120,qt0,ql0,u0av,v0av,rhobf,rhof,u0,v0,w0,sv0,tmp0,presf
     use modsurfdata,only : wtsurf, wqsurf, isurf,ustar,thlflux,qtflux,z0,oblav,qts,thls,&
                            Qnet, H, LE, G0, rs, ra, tskin, tendskin, &
                            cliq,rsveg,rssoil,Wl, &
@@ -426,10 +428,11 @@ contains
 #endif
     use modraddata, only :  lwd,lwu,swd,swu,lwdca,lwuca,swdca,swuca,SW_up_TOA,SW_dn_TOA,LW_up_TOA,&
                             SW_up_ca_TOA,LW_up_ca_TOA,iradiation
+    use modthermodynamics, only: qsat_tab
     implicit none
 
     real(field_r)   :: zbaseavl, ztopavl, ztopmaxl, ztop, zbaseminl
-    real(field_r)   :: qlintavl, qlintmaxl, tke_totl
+    real(field_r)   :: qlintavl, qlintmaxl, tke_totl, qsatintavl
     real(field_r)   :: qrintavl, qtintavl
     real(field_r)   :: ccl, wmaxl, qlmaxl
     real(field_r)   :: ust,tst,qst,ustl,tstl,qstl,thlfluxl,qtfluxl
@@ -478,6 +481,7 @@ contains
       ztop_field     = 0
       cc_field       = 0
       qlint_field    = 0
+      qsatint_field  = 0
       tke_tot_field  = 0
 
       zbase_patch    = 0
@@ -488,6 +492,7 @@ contains
       qlint_patch    = 0
       qlintmax_patch = 0
       qlintmax_patchl= 0
+      qsatint_patch  = 0
       tke_tot_patch  = 0
       wmax_patch     = 0
       wmax_patchl    = 0
@@ -548,6 +553,7 @@ contains
     qtintavl = 0.0
     qrintavl = 0.0
     qlintmaxl= 0.0
+    qsatintavl = 0.0
     tke_totl = 0.0
 
     ! Make qlint 2D array to get rid of the if statement?
@@ -558,9 +564,11 @@ contains
           patchx = patchxnr(i)
           qlint = 0.
           qtint = 0.
+          qsatint = 0.
           do k = 1, kmax
             qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
             qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
+            qsatint = qsatint + qsat_tab(tmp0(i,j,k), presf(k))*rhof(k)*dzf(k)
           end do
           if (qlint > 0.) then
             ccl = ccl + 1
@@ -572,6 +580,7 @@ contains
           end if
           qtintavl = qtintavl + qtint
           qrintavl = qrintavl + qrint
+          qsatintavl = qsatintavl + qsatint
         end do
       end do
     else
@@ -581,10 +590,12 @@ contains
         do i = 2, i1
           qlint = 0.
           qtint = 0.
+          qsatint = 0.
           !$acc loop reduction(+: qlint, qtint)
           do k = 1, kmax
             qlint = qlint + ql0(i,j,k)*rhof(k)*dzf(k)
             qtint = qtint + qt0(i,j,k)*rhof(k)*dzf(k)
+            qsatint = qsatint + qsat_tab(tmp0(i,j,k), presf(k))*rhof(k)*dzf(k)
           end do
           if (qlint > 0.) then
             ccl = ccl + 1
@@ -592,6 +603,7 @@ contains
             qlintmaxl = max(qlint, qlintmaxl)
           end if
           qtintavl = qtintavl + qtint
+          qsatintavl = qsatintavl + qsatint
         end do
       end do
     end if
@@ -763,6 +775,8 @@ contains
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(qlintmaxl, qlintmax, 1, &
                           MPI_MAX, comm3d,mpierr)
+    call D_MPI_ALLREDUCE(qsatintavl, qsatintav, 1  , &
+                          MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseavl, zbaseav, 1,   &
                           MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(zbaseminl, zbasemin, 1, &
@@ -774,6 +788,7 @@ contains
     if (lhetero) then
       cc_patch    = patchsum_1level_field_r(cc_field   )
       qlint_patch = patchsum_1level_field_r(qlint_field)
+      qsatint_patch = patchsum_1level_field_r(qsatint_field)
       zbase_patch = patchsum_1level_field_r(zbase_field)
       call D_MPI_ALLREDUCE(qlintmax_patchl, qlintmax_patch, xpatches*ypatches, MPI_MAX, comm3d,mpierr)
       call D_MPI_ALLREDUCE(zbasemin_patchl, zbasemin_patch, xpatches*ypatches, MPI_MIN, comm3d,mpierr)
@@ -807,6 +822,7 @@ contains
     qlintav = qlintav / ijtot !domain averaged liquid water path
     qtintav = qtintav / ijtot !domain averaged total water path
     qrintav = qrintav / ijtot !domain averaged rain water path
+    qsatintav = qsatintav / ijtot ! domain averaged saturation water path
     prav    = prav*rhobf(1) / ijtot !domain averaged precipitation rate
 
     if (lhetero) then
@@ -821,6 +837,7 @@ contains
            endif
            cc_patch    = cc_patch    * (xpatches*ypatches/ijtot)
            qlint_patch = qlint_patch * (xpatches*ypatches/ijtot)
+           qsatint_patch = qsatint_patch * (xpatches*ypatches/ijtot)
         enddo
       enddo
     endif
@@ -1110,32 +1127,32 @@ contains
         vars(25) = rhof(1) * rlv * wqls  ! hfls
         vars(26) = rhof(1) * cp * wts    ! hfss
         vars(27) = qtintav - qlintav     ! prw = water vapor path
-        !vars(28) = sprw
+        vars(28) = qsatintav             ! spwr = saturated water vapor path
 
         if (isurf == 1) then
-          vars(25) = Qnetav
-          vars(26) = Hav
-          vars(27) = LEav
-          vars(28) = G0av
-          vars(29) = tendskinav
-          vars(30) = rsav
-          vars(31) = raav
-          vars(32) = cliqav
-          vars(33) = wlav
-          vars(34) = rssoilav
-          vars(35) = rsvegav
+          vars(29) = Qnetav
+          vars(30) = Hav
+          vars(31) = LEav
+          vars(32) = G0av
+          vars(33) = tendskinav
+          vars(34) = rsav
+          vars(35) = raav
+          vars(36) = cliqav
+          vars(37) = wlav
+          vars(38) = rssoilav
+          vars(39) = rsvegav
         else if (isurf == 11) then
-          vars(25) = Qnetav
-          vars(26) = Hav
-          vars(27) = LEav
-          vars(28) = G0av
-          vars(29) = f1_av
-          vars(30) = f2b_av
-          vars(31) = wlav
+          vars(29) = Qnetav
+          vars(30) = Hav
+          vars(31) = LEav
+          vars(32) = G0av
+          vars(33) = f1_av
+          vars(34) = f2b_av
+          vars(35) = wlav
 
           if (lags) then
-            vars(32) = an_co2_av
-            vars(33) = resp_co2_av
+            vars(36) = an_co2_av
+            vars(37) = resp_co2_av
           end if
         end if
 
@@ -1493,6 +1510,7 @@ contains
       deallocate(ztop_field   )
       deallocate(cc_field     )
       deallocate(qlint_field  )
+      deallocate(qsatint_field)
       deallocate(tke_tot_field)
 
       deallocate(zbase_patch    )
@@ -1503,6 +1521,7 @@ contains
       deallocate(qlint_patch    )
       deallocate(qlintmax_patch )
       deallocate(qlintmax_patchl)
+      deallocate(qsatint_patch  )
       deallocate(tke_tot_patch  )
       deallocate(wmax_patch     )
       deallocate(wmax_patchl    )
