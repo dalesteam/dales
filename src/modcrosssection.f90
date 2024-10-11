@@ -149,11 +149,12 @@ contains
     dt_lim = min(dt_lim,tnext)
 
     nvar = nvar + nsv
-    allocate(ncname1(nvar,4))
-    allocate(ncname2(nvar,4))
-    allocate(ncname3(nvar,4))
 
     if (lnetcdf) then
+       allocate(ncname1(nvar,4))
+       allocate(ncname2(nvar,4))
+       allocate(ncname3(nvar,4))
+
        if (lxz) then
           do cross=1,nxz
              if (crossplane(cross) >= 2 .and. crossplane(cross) <= j1) then
@@ -663,9 +664,10 @@ end subroutine initcrosssection
              end if
           end do
        end if
+
+       deallocate(ncname1,ncname2,ncname3)
     end if
 
-  deallocate(ncname1,ncname2,ncname3)
   end subroutine exitcrosssection
 
 end module modcrosssection
