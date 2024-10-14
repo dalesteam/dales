@@ -1111,8 +1111,9 @@ contains
                           SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
+    use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,startfile,timee,&
                            tres,ifinput,nsv,dt,output_prefix
+    use modboundary, only: dqt, dtheta, dsv
     use modmpi,     only : myid, cmyid
     use modsubgriddata, only : ekm,ekh
     use modlsm, only : kmax_soil, tile, nlu
@@ -1287,8 +1288,8 @@ contains
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
 
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt,output_prefix
-
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,cexpnr,ifoutput,timee,rtimee,tres,nsv,dt,output_prefix
+    use modboundary, only: dqt, dtheta, dsv
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
     use modlsm,    only : kmax_soil, tile, nlu
