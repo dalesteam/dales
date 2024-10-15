@@ -50,6 +50,7 @@
 
   logical :: l_lognormal = .false.    !<  log param of rain terminal velocities for rain sedim
   logical :: l_homogenize = .false.   !<  homogenize rain evaporation qt and thl tendency
+  logical :: l_homcb = .false.        !<  homogenize rain evaporation tendencies only below cloud base
   integer :: inr = 1, iqr=2
 
   real, parameter ::  D0_kk = 50e-6     & !<  diameter sep. cloud and prec. in KK00 scheme

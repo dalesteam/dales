@@ -44,7 +44,7 @@ contains
     use modmicrodata, only : imicro, imicro_drizzle, imicro_bulk, imicro_bin, imicro_user,&
                              imicro_sice, imicro_sice2, imicro_none, imicro_bulk3, &
                              l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &
-                             Nc_0, sig_g, sig_gr, courantp, l_homogenize
+                             Nc_0, sig_g, sig_gr, courantp, l_homogenize, l_homcb
     use modbulkmicro3, only : initbulkmicro3 !#sb3
     implicit none
     integer :: ierr
@@ -52,7 +52,7 @@ contains
     imicro,l_sb,l_rain,l_sedc,l_mur_cst,l_berry,l_graupel,l_warm,mur_cst, &     ! OG
     Nc_0, sig_g, sig_gr, &                                ! SdeR
     courantp, &                                           ! FJ
-    l_homogenize
+    l_homogenize, l_homcb
     
     if(myid==0)then
       open(ifnamopt,file=fname_options,status='old',iostat=ierr)

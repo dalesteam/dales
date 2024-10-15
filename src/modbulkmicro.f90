@@ -730,7 +730,7 @@ module modbulkmicro
   !*********************************************************************
 
     use modglobal, only : i1,j1,Rv,rlv,cp,pi,mygamma251,mygamma21,lacz_gamma,ijtot,k1
-    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof
+    use modfields, only : exnf,qt0,svm,qvsl,tmp0,ql0,esl,rhof,ql0av
     use modmicrodata, only : Nr, mur, Dv, &
                              inr, iqr, Kt, &
                              l_sb, &
@@ -738,11 +738,12 @@ module modbulkmicro
                              nu_a, Sc_num, avf, bvf, &
                              c_Nevap, c_evapkk, delt, &
                              qrmask, lbdr, xr, Dvr, qrp, Nrp, &
-                             qtpmcr, thlpmcr, qtpevap, qtpevaps, l_homogenize
+                             qtpmcr, thlpmcr, qtpevap, qtpevaps, l_homogenize, l_homcb
     use modmpi, only: slabsum
     implicit none
     integer :: i,j,k
     integer :: numel
+    integer :: kcb
 
     real :: F !< ventilation factor
     real :: S !< super or undersaturation
@@ -823,14 +824,50 @@ module modbulkmicro
        call slabsum(qtpevaps,1,k1,qtpevap,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1)
        qtpevaps = qtpevaps/ijtot
 
-       do k=1,k1   ! note: must use full k-range here, other MPI tiles may have a wider/different range in qrbase...qrroof
-          do j=2,j1
-             do i=2,i1
-                qtpmcr(i,j,k) = qtpmcr(i,j,k) - qtpevaps(k)
-                thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*qtpevaps(k)
+       if (.not. l_homcb) then
+          do k=1,k1   ! note: must use full k-range here, other MPI tiles may have a wider/different range in qrbase...qrroof
+             do j=2,j1
+                do i=2,i1
+                   qtpmcr(i,j,k) = qtpmcr(i,j,k) - qtpevaps(k)
+                   thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*qtpevaps(k)
+                end do
              end do
           end do
-       end do
+       else ! homogenize only in the subcloud layer
+
+          ! determine kcb = level of the lowest non-zero ql
+          kcb = 1 ! if there is no cloud, kcb=1, no homogenization
+          do k=1,k1
+             if (ql0av(k) > 0) then
+                kcb = k
+                exit
+             end if
+          end do
+
+          ! homogenize qtpmcr below kcb
+          if (kcb > 1) then
+             do k=1,kcb-1
+                do j=2,j1
+                   do i=2,i1
+                      qtpmcr(i,j,k) = qtpmcr(i,j,k) - qtpevaps(k)
+                      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*qtpevaps(k)
+                   end do
+                end do
+             end do
+          end if
+
+          ! apply qtpevap tendency without homogenization from kcb and up
+          if (kcb < k1) then
+             do k=kcb,k1
+                do j=2,j1
+                   do i=2,i1
+                      qtpmcr(i,j,k) = qtpmcr(i,j,k) - qtpevap(i,j,k)
+                      thlpmcr(i,j,k) = thlpmcr(i,j,k) + (rlv/(cp*exnf(k)))*qtpevap(i,j,k)
+                   end do
+                end do
+             end do
+          end if
+       end if
     else
        ! apply qtpevap tendency without homogenization
        do k=qrbase,qrroof
