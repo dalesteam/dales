@@ -26,7 +26,7 @@
 module moddrydeposition
   use modlsm,    only : tile, nlu
   use modfields, only : svp   ! tracer tendency array
-  use modglobal, only : nsv, i1, j1
+  use modglobal, only : nsv, i1, j1, ldrydep
   use modlsm, only : llsm
   use modtracers, only: tracer_prop
 
@@ -35,7 +35,6 @@ module moddrydeposition
   save
   public  :: initdrydep, drydep, exitdrydep
 
-  logical :: ldrydep = .false.         !< On/Off switch dry deposition
   real, allocatable :: depfield(:,:,:) !< deposition flux (i,j,sv) [ug * m / (g * s)]
   logical, dimension(100) :: ldeptracers = .false. !< List of switches determining which of the tracers to deposit
   integer  :: ndeptracers = 0  !< Number of tracers that deposits

@@ -261,6 +261,7 @@ save
 
       logical :: leq      = .true.  !<  switch for (non)-equidistant mode.
       logical :: lmomsubs = .false.  !<  switch to apply subsidence on the momentum or not
+      logical :: ldrydep = .false.         !< On/Off switch dry deposition
 
       character(80) :: author='', version='DALES 4.4.2'
 contains
