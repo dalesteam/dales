@@ -1207,8 +1207,8 @@ contains
 
     else if (isurf == 11) then
       name(5:5) = 'l'
-      write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
+      if (myid == 0) write(6,*) 'loading ',name
+      open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
       read(ifinput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
       read(ifinput) ((tskin (i,j),   i=1,i2), j=1,j2)
@@ -1391,7 +1391,7 @@ contains
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       else if (isurf == 11) then
         name(5:5)='l'
-        open  (ifoutput,file=name,form='unformatted')
+        open  (ifoutput,file=trim(output_prefix)//name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
         write(ifoutput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
         write(ifoutput) ((tskin (i,j),   i=1,i2), j=1,j2)
@@ -1407,7 +1407,7 @@ contains
         write(ifoutput)  timee
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       end if
 
