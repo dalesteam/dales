@@ -24,10 +24,11 @@
 
 module modtracers
 
-  use modglobal,      only: nsv, i1, ih, j1, jh, k1
+  use modglobal,      only: nsv, i1, ih, j1, jh, k1, cexpnr
   use modtracer_type, only: T_tracer
   use modprecision,   only: field_r
   use modfields,      only: svm, sv0, svp, sv0av, svprof
+  use modstat_nc
   use utils
 
   implicit none
@@ -48,6 +49,7 @@ module modtracers
   public :: add_tracer
   public :: allocate_tracers
   public :: exittracers
+  public :: tracer_profs_from_netcdf
 
   ! Old stuff, to be removed at some point
   integer, parameter:: max_tracs  =  31 !<  Max. number of tracers that can be defined
@@ -97,29 +99,20 @@ contains
     ! Broadcast namelist values to all MPI tasks
     call d_mpi_bcast(ltracers,             1, 0, comm3d, ierr)
     call d_mpi_bcast(tracernames(1:200), 200, 0, comm3d, ierr)
-    call d_mpi_bcast(ntracers, 1, 0, comm3d, ierr)
 
     if (ltracers) then
+      call read_tracer_props
 
-      if (ntracers < 0) then
-        write(*,*) "TRACER ERROR"
-        write(*,*) "Please add the following information to NAMTRACERS:"
-        write(*,*) ""
-        write(*,*) "  ntracers = <number of tracers defined>"
-        write(*,*) ""
-        write(*,*) "Or set ltracers to .false. if you do not use tracers."
-        stop
-      end if
-
-      allocate(tracer_prop(ntracers), stat=ierr)
+      allocate(tracer_prop(nsv), stat=ierr)
       if (ierr/=0) stop
 
-      call read_tracer_props
       call assign_tracer_props
 
       ! do isv = 1, nsv
       !   write(6,"(A17, A6)") "species: ", trim(tracer_prop(isv) % tracname)
       ! enddo
+    else
+      call tracer_props_from_netcdf('tracers.'//cexpnr//'.nc')
     end if ! ltracers
 
 
@@ -165,7 +158,6 @@ contains
     end if
 
     nsv = nsv + 1
-    isv = nsv
 
     if (.not. allocated(tracer_prop)) then
       allocate(tracer_prop(nsv))
@@ -186,6 +178,7 @@ contains
     if (present(lags)) tracer_prop(nsv) % lags = lags
     if (present(lmicro)) tracer_prop(nsv) % lmicro = lmicro
 
+    if (present(isv)) isv = nsv
   end subroutine add_tracer
 
   !> Allocates all tracer fields
@@ -234,10 +227,9 @@ contains
 
     implicit none
 
-    integer   :: tdx, ierr, defined_tracers
+    integer   :: tdx, ierr
     character(len=1500) :: readbuffer
 
-    defined_tracers = 0
     open (ifinput,file='tracerdata.inp')
     ierr = 0
     do while (ierr == 0)
@@ -248,8 +240,8 @@ contains
           if (myid == 0)   print *, trim(readbuffer)
         else
           if (myid == 0)   print *, trim(readbuffer)
-          defined_tracers = defined_tracers + 1
-          tdx = defined_tracers
+          nsv = nsv + 1
+          tdx = nsv
           read(readbuffer, *, iostat=ierr) tracname_short(tdx), tracname_long(tdx), tracer_unit(tdx), molar_mass(tdx), &
                                            tracer_is_emitted(tdx), tracer_is_reactive(tdx), tracer_is_deposited(tdx), &
                                            tracer_is_photosynth(tdx), tracer_is_microphys(tdx)
@@ -274,7 +266,7 @@ contains
 
     integer :: isv
 
-    do isv=1,ntracers
+    do isv=1,nsv
       call add_tracer( &
         name=trim(tracernames(isv)), &
         long_name=trim(findval(tracernames(isv), tracname_short, &
@@ -298,4 +290,72 @@ contains
 
   end subroutine assign_tracer_props
 
+  !> \brief Read tracer properties from tracers.XXX.nc
+  !!
+  !! \param filename Name of the input file.
+  subroutine tracer_props_from_netcdf(filename)
+    character(*),  intent(in)  :: filename
+
+    integer              :: ncid, nvars
+    integer              :: ivar
+    integer, allocatable :: varids(:)
+
+    ! Tracer attributes
+    character(NF90_MAX_NAME) :: name
+    character(32) :: long_name
+    character(16) :: unit
+    real(field_r) :: molar_mass
+    logical       :: lemis, lreact, ldep, lags
+
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
+    call nchandle_error(nf90_inquire(ncid, nVariables=nvars))
+
+    allocate(varids(nvars))
+
+    call nchandle_error(nf90_inq_varids(ncid, nvars, varids))
+
+    do ivar = 1, nvars
+      call nchandle_error(nf90_inquire_variable(ncid, varids(ivar), name=name))
+
+      ! Read attributes
+      call read_nc_attribute(ncid, varids(ivar), "long_name", long_name, default="dummy")
+      call read_nc_attribute(ncid, varids(ivar), "unit", unit, default="---")
+      call read_nc_attribute(ncid, varids(ivar), "molar_mass", molar_mass, default=-999._field_r)
+      call read_nc_attribute(ncid, varids(ivar), "lemis", lemis, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), "lreact", lreact, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), "ldep", ldep, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), "lags", lags, default=.false.)
+      
+      ! Setup tracer
+      call add_tracer(trim(name), long_name=trim(long_name), unit=unit, &
+                      molar_mass=molar_mass, lemis=lemis, lreact=lreact, &
+                      ldep=ldep, lags=lags, lmicro=.false.)
+    end do
+
+    deallocate(varids)
+
+  end subroutine tracer_props_from_netcdf
+
+  !> \brief Read initial profiles for tracers
+  !!
+  !! \param filename Name of the input file.
+  !! \param tracers List of tracers to read input for.
+  !! \param svprof 2D array (z,s) to place initial profiles in.
+  subroutine tracer_profs_from_netcdf(filename, tracers, nsv, svprof)
+    character(*),   intent(in)  :: filename
+    type(T_tracer), intent(in)  :: tracers(:)
+    real(field_r),  intent(out) :: svprof(:,:)
+
+    integer :: ncid
+    integer :: ivar, isv, nsv
+
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
+
+    nsv = size(tracers)
+
+    do ivar = 1, nsv
+      call read_nc_field(ncid, trim(tracers(ivar) % tracname), svprof(:,ivar), fillvalue=0._field_r)
+    end do
+
+  end subroutine tracer_profs_from_netcdf
 end module modtracers

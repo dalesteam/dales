@@ -528,7 +528,7 @@ contains
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
-    use modtracers,        only : tracer_prop
+    use modtracers,        only : tracer_prop, tracer_profs_from_netcdf
     use go,                only : goSplitString_s
     use utils,             only : to_lower
 #if defined(_OPENACC)
@@ -591,10 +591,11 @@ contains
           call init_from_netcdf('init.'//cexpnr//'.nc', height(1:kmax), &
                                 uprof(1:kmax), vprof(1:kmax), thlprof(1:kmax), &
                                 qtprof(1:kmax), e12prof(1:kmax), &
-                                svprof(1:kmax,:), ug(1:kmax), vg(1:kmax), &
+                                ug(1:kmax), vg(1:kmax), &
                                 wfls(1:kmax), dqtdxls(1:kmax), &
                                 dqtdyls(1:kmax), dqtdtls(1:kmax), &
-                                thlpcar(1:kmax), nsv, tracer_prop)
+                                thlpcar(1:kmax))
+          call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', tracer_prop, nsv, svprof(1:kmax,:))
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
@@ -1785,8 +1786,8 @@ contains
   !! @param nsv Number of tracers.
   !! @param tracers List of tracer properties (T_tracer type).
   subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
-                              e12prof, svprof, ug, vg, wfls, dqtdxls, dqtdyls, &
-                              dqtdtls, dthlrad, nsv, tracers) 
+                              e12prof, ug, vg, wfls, dqtdxls, dqtdyls, &
+                              dqtdtls, dthlrad) 
     character(*),   intent(in)  :: filename
     real(field_r),  intent(out) :: height(:)
     real(field_r),  intent(out) :: uprof(:)
@@ -1794,7 +1795,6 @@ contains
     real(field_r),  intent(out) :: thlprof(:)
     real(field_r),  intent(out) :: qtprof(:)
     real(field_r),  intent(out) :: e12prof(:)
-    real(field_r),  intent(out) :: svprof(:,:)
     real(field_r),  intent(out) :: ug(:)
     real(field_r),  intent(out) :: vg(:)
     real(field_r),  intent(out) :: wfls(:)
@@ -1802,8 +1802,6 @@ contains
     real(field_r),  intent(out) :: dqtdyls(:)
     real(field_r),  intent(out) :: dqtdtls(:)
     real(field_r),  intent(out) :: dthlrad(:)
-    integer,        intent(in)  :: nsv
-    type(T_tracer), intent(in)  :: tracers(:)
 
     integer :: ncid, varid, ierr
     integer :: itrac
@@ -1817,12 +1815,6 @@ contains
     call read_nc_field(ncid, "qt", qtprof, fillvalue=0._field_r)
     call read_nc_field(ncid, "e12", e12prof, fillvalue=0._field_r)
     call read_nc_field(ncid, "zf", height)
-
-    ! Tracers
-    do itrac = 1, nsv
-      call read_nc_field(ncid, tracers(itrac) % tracname, &
-                         svprof(:,itrac), fillvalue=0._field_r)
-    end do
 
     ! Large-scale forcings
     call read_nc_field(ncid, "ug", ug, fillvalue=0._field_r)
