@@ -354,7 +354,8 @@ contains
     nsv = size(tracers)
 
     do ivar = 1, nsv
-      call read_nc_field(ncid, trim(tracers(ivar) % tracname), svprof(:,ivar), fillvalue=0._field_r)
+      call read_nc_field(ncid, trim(tracers(ivar) % tracname), svprof(:,ivar), &
+                         start=1, count=kmax, fillvalue=0._field_r)
     end do
 
   end subroutine tracer_profs_from_netcdf

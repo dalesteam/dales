@@ -571,16 +571,31 @@ contains
   !! @param array Array to fill.
   !! @param fillvalue Default value to fill array with in case the variable
   !! is not found.
-  subroutine read_nc_field_1D(ncid, varname, array, fillvalue)
+  subroutine read_nc_field_1D(ncid, varname, array, start, count, fillvalue)
     integer,       intent(in)           :: ncid
     character(*),  intent(in)           :: varname
     real(field_r), intent(out)          :: array(:)
+    integer,       intent(in), optional :: start
+    integer,       intent(in), optional :: count
     real(field_r), intent(in), optional :: fillvalue
 
     integer :: varid
     integer :: ierr
+    integer :: start_(1), count_(1)
 
     ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(1) = start
+    else
+      start_(1) = 1
+    end if
+
+    if (present(count)) then
+      count_(1) = count
+    else
+      count_(1) = size(array)
+    end if
 
     select case (ierr)
       case (NF90_ENOTVAR)
@@ -590,7 +605,7 @@ contains
           call nchandle_error(ierr)
         end if
       case (NF90_NOERR)
-        ierr = nf90_get_var(ncid, varid, array(:))
+        ierr = nf90_get_var(ncid, varid, array, start=start_, count=count_)
       case default
         call nchandle_error(ierr)
     end select

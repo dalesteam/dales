@@ -588,13 +588,13 @@ contains
           ps         = tb_ps(1)
 
         else if (lstart_netcdf) then
-          call init_from_netcdf('init.'//cexpnr//'.nc', height(1:kmax), &
-                                uprof(1:kmax), vprof(1:kmax), thlprof(1:kmax), &
-                                qtprof(1:kmax), e12prof(1:kmax), &
-                                ug(1:kmax), vg(1:kmax), &
-                                wfls(1:kmax), dqtdxls(1:kmax), &
-                                dqtdyls(1:kmax), dqtdtls(1:kmax), &
-                                thlpcar(1:kmax))
+          call init_from_netcdf('init.'//cexpnr//'.nc', height, &
+                                uprof, vprof, thlprof, &
+                                qtprof, e12prof, &
+                                ug, vg, &
+                                wfls, dqtdxls, &
+                                dqtdyls, dqtdtls, &
+                                thlpcar, kmax)
           call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', tracer_prop, nsv, svprof(1:kmax,:))
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
@@ -1787,7 +1787,7 @@ contains
   !! @param tracers List of tracer properties (T_tracer type).
   subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
                               e12prof, ug, vg, wfls, dqtdxls, dqtdyls, &
-                              dqtdtls, dthlrad) 
+                              dqtdtls, dthlrad, kmax) 
     character(*),   intent(in)  :: filename
     real(field_r),  intent(out) :: height(:)
     real(field_r),  intent(out) :: uprof(:)
@@ -1802,6 +1802,7 @@ contains
     real(field_r),  intent(out) :: dqtdyls(:)
     real(field_r),  intent(out) :: dqtdtls(:)
     real(field_r),  intent(out) :: dthlrad(:)
+    integer,        intent(in)  :: kmax
 
     integer :: ncid, varid, ierr
     integer :: itrac
@@ -1809,21 +1810,33 @@ contains
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
 
     ! "Regular" prognostic fields
-    call read_nc_field(ncid, "u", uprof, fillvalue=0._field_r)
-    call read_nc_field(ncid, "v", vprof, fillvalue=0._field_r)
-    call read_nc_field(ncid, "thl", thlprof, fillvalue=0._field_r)
-    call read_nc_field(ncid, "qt", qtprof, fillvalue=0._field_r)
-    call read_nc_field(ncid, "e12", e12prof, fillvalue=0._field_r)
+    call read_nc_field(ncid, "u", uprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "v", vprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "thl", thlprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "qt", qtprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "e12", e12prof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
     call read_nc_field(ncid, "zf", height)
 
     ! Large-scale forcings
-    call read_nc_field(ncid, "ug", ug, fillvalue=0._field_r)
-    call read_nc_field(ncid, "vg", vg, fillvalue=0._field_r)
-    call read_nc_field(ncid, "wfls", wfls, fillvalue=0._field_r)
-    call read_nc_field(ncid, "dqtdxls", dqtdxls, fillvalue=0._field_r)
-    call read_nc_field(ncid, "dqtdyls", dqtdyls, fillvalue=0._field_r)
-    call read_nc_field(ncid, "dqtdtls", dqtdtls, fillvalue=0._field_r)
-    call read_nc_field(ncid, "dthlrad", dthlrad, fillvalue=0._field_r)
+    call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "vg", vg, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "wfls", wfls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdxls", dqtdxls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdyls", dqtdyls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdtls", dqtdtls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dthlrad", dthlrad, start=1, count=kmax, &
+                       fillvalue=0._field_r)
 
     call nchandle_error(nf90_close(ncid))
     
