@@ -39,9 +39,6 @@ module modtracers
 
   integer :: iname
 
-  type(T_tracer), allocatable, public :: tracer_prop(:) !< List of tracers
-  logical,                     protected :: ltracers = .false.
-  character(6),                protected :: &
   type(T_tracer), allocatable, public, protected :: tracer_prop(:) !< List of tracers
   logical,                     protected         :: ltracers = .false.
   character(6),                protected         :: &
