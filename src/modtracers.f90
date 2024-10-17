@@ -44,6 +44,7 @@ module modtracers
   character(6),                protected :: &
     tracernames(200) = (/ ('      ', iname=1, 200)/)            !< For compatibility
   integer,                     protected :: ntracers = -1
+  logical :: file_exists
 
   public :: inittracers
   public :: add_tracer
@@ -307,6 +308,13 @@ contains
     real(field_r) :: molar_mass
     logical       :: lemis, lreact, ldep, lags
 
+    inquire(file=filename, exist=file_exists)
+    
+    if (.not. file_exists) then
+      write(6,*) "Warning: ", filename, " not found."
+      return
+    end if
+
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
     call nchandle_error(nf90_inquire(ncid, nVariables=nvars))
 
@@ -349,6 +357,7 @@ contains
     integer :: ncid
     integer :: ivar, isv, nsv
 
+    if (.not. file_exists) return
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
 
     nsv = size(tracers)
