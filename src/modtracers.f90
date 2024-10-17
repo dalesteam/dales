@@ -24,7 +24,7 @@
 
 module modtracers
 
-  use modglobal,      only: nsv, i1, ih, j1, jh, k1, cexpnr
+  use modglobal,      only: nsv, i1, ih, j1, jh, k1, kmax, cexpnr
   use modtracer_type, only: T_tracer
   use modprecision,   only: field_r
   use modfields,      only: svm, sv0, svp, sv0av, svprof
