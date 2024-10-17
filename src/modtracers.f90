@@ -42,8 +42,11 @@ module modtracers
   type(T_tracer), allocatable, public :: tracer_prop(:) !< List of tracers
   logical,                     protected :: ltracers = .false.
   character(6),                protected :: &
+  type(T_tracer), allocatable, public, protected :: tracer_prop(:) !< List of tracers
+  logical,                     protected         :: ltracers = .false.
+  character(6),                protected         :: &
     tracernames(200) = (/ ('      ', iname=1, 200)/)            !< For compatibility
-  integer,                     protected :: ntracers = -1
+
   logical :: file_exists
 
   public :: inittracers
@@ -84,7 +87,7 @@ contains
 
     ! Namelist definition
     namelist /NAMTRACERS/ &
-        ltracers, tracernames, ntracers
+        ltracers, tracernames
 
     ! Read namelist
     if (myid == 0) then
@@ -152,8 +155,8 @@ contains
     if (nsv > 0) then
       do s = 1, nsv
         if (trim(to_lower(name)) == trim(to_lower(tracer_prop(s) % tracname))) then
-          write(*,*), "Tracer", name, "already exists!"
           return
+          write(*,*) "Tracer", name, "already exists!"
         end if
       end do
     end if
@@ -206,15 +209,16 @@ contains
   !> Deallocates all tracers fields
   subroutine exittracers
 
-    ! Tracer properties:
-    deallocate(tracer_prop)
 
     !$acc exit data delete(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
     !$acc&                 sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
     !$acc&                 svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
     !$acc&                 sv0av(k1,nsv), svprof(k1,nsv))
 
-    deallocate(svm, sv0, svp, sv0av, svprof)
+    if (nsv > 0) then
+      deallocate(tracer_prop)
+      deallocate(svm, sv0, svp, sv0av, svprof)
+    end if
 
   end subroutine exittracers
 
@@ -231,6 +235,7 @@ contains
     integer   :: tdx, ierr
     character(len=1500) :: readbuffer
 
+    tdx = nsv
     open (ifinput,file='tracerdata.inp')
     ierr = 0
     do while (ierr == 0)
@@ -241,8 +246,7 @@ contains
           if (myid == 0)   print *, trim(readbuffer)
         else
           if (myid == 0)   print *, trim(readbuffer)
-          nsv = nsv + 1
-          tdx = nsv
+          tdx = tdx + 1
           read(readbuffer, *, iostat=ierr) tracname_short(tdx), tracname_long(tdx), tracer_unit(tdx), molar_mass(tdx), &
                                            tracer_is_emitted(tdx), tracer_is_reactive(tdx), tracer_is_deposited(tdx), &
                                            tracer_is_photosynth(tdx), tracer_is_microphys(tdx)
