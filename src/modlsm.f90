@@ -151,13 +151,18 @@ module modlsm
 contains
 
 subroutine lsm
-    implicit none
+  use modglobal, only : ldrydep
+  implicit none
 
     if (.not. llsm) return
 
     ! Calculate dynamic tile fractions,
     ! based on the amount of liquid water on vegetation.
-    call calc_tile_fractions
+    ! For now only do this when dry deposition is on
+    ! warning: the wet surface tile has no z0h, z0m - will break in Obukhov length calculation
+    if (ldrydep) then
+       call calc_tile_fractions
+    end if
 
     ! Calculate root fraction weighted mean soil water content.
     do ilu=1,nlu
@@ -481,6 +486,10 @@ subroutine calc_obuk_ustar_ra(tile)
                 ! Buoyancy difference surface - atmosphere
                 thvs = tile%thlskin(i,j) * (1.+(rv/rd-1.)*tile%qtskin(i,j))
                 tile%db(i,j) = grav/thvs * (thv_1(i,j) - thvs)
+
+                if (tile%z0m(i,j) < 1e-6 .or. tile%z0h(i,j) < 1e-6) then
+                   write (*,*) 'z0 warning:', tile%lushort, i, j, tile%z0m(i,j), tile%z0h(i,j)
+                end if
 
                 ! Iteratively find Obukhov length
                 tile%obuk(i,j) = calc_obuk_dirichlet( &
@@ -2005,6 +2014,11 @@ subroutine init_heterogeneous_nc
     enddo
     wl_max(:,:) = wl_max(:,:) * wmax/land_frac(:,:)
     where (wl_max == 0) wl_max = eps1
+
+    ! initialize frac to base_frac (for now the dynamic wet skin is not done unless ldrydep is true)
+    do ilu=1,nlu
+        tile(ilu)%frac(:,:) = tile(ilu)%base_frac(:,:)
+    end do
 
     ! !! debugging: some checks
     ! write(*,*) '...checking LU inputs: mean, min and max, accounting for ghost cells'
