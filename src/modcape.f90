@@ -104,11 +104,11 @@ contains
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','kg/m^2/s','tt0t')
     call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
     call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
-    call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','tt0t')
-    call ncinfo(ncname( 24,:),'vmix','v wind speed averaged over mixed layer','m/s','tt0t')
+    call ncinfo(ncname( 23,:),'umix','u wind speed averaged over mixed layer','m/s','mt0t')
+    call ncinfo(ncname( 24,:),'vmix','v wind speed averaged over mixed layer','m/s','tm0t')
     call ncinfo(ncname( 25,:),'thetavmix','theta_v averaged over mixed layer','K','tt0t')
-    call ncinfo(ncname( 26,:),'us','lowest layer wind speed','m/s','tt0t') ! consider interpolating these to 10m
-    call ncinfo(ncname( 27,:),'vs','lowest layer wind speed','m/s','tt0t')
+    call ncinfo(ncname( 26,:),'us','lowest layer wind speed','m/s','mt0t') ! consider interpolating these to 10m
+    call ncinfo(ncname( 27,:),'vs','lowest layer wind speed','m/s','tm0t')
     call ncinfo(ncname( 28,:),'qts','lowest layer qt','kg/kg','tt0t')
     call ncinfo(ncname( 29,:),'Ts','lowest layer temperature','K','tt0t')
 
