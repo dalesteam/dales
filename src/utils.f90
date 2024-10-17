@@ -9,7 +9,8 @@ module utils
     module procedure :: findval_character
     module procedure :: findval_integer
     module procedure :: findval_logical
-    module procedure :: findval_real
+    module procedure :: findval_real4
+    module procedure :: findval_real8
   end interface findval
   
   public :: findval
@@ -29,11 +30,11 @@ contains
   !! @param[in] values The array of values
   !! @param[in] defltvalue The default value (optional, default 0.0)
   !! @return The value corresponding to the key
-  pure real function findval_real(key, keys, values, defltvalue)
+  pure real(4) function findval_real4(key, keys, values, defltvalue)
     character(*), intent(in)           :: key 
     character(*), intent(in)           :: keys(:)
-    real,         intent(in)           :: values(:)
-    real,         intent(in), optional :: defltvalue
+    real(4),      intent(in)           :: values(:)
+    real(4),      intent(in), optional :: defltvalue
 
     character(6) :: fkey
     integer      :: idx(1)
@@ -42,15 +43,49 @@ contains
 
     idx = findloc(keys, fkey)
     if (idx(1) /= 0 .and. idx(1) <= size(values)) then
-      findval_real = values(idx(1))
+      findval_real4 = values(idx(1))
     else
       if (present(defltvalue)) then
-        findval_real = defltvalue 
+        findval_real4 = defltvalue 
       else
-        findval_real = 0.0 
+        findval_real4 = 0.0 
       end if
     end if
-  end function findval_real
+  end function findval_real4
+
+  !> Find a value in an array of values based on a key in an array of keys
+  !!
+  !! Lookup a value in one array (`values`) at the index position of `key` in the array `keys`.
+  !! Provide the optional default value (`defltvalue`), that is returned when `key` isn't found.
+  !! When no default is given, zero is returned.
+  !!
+  !! @param[in] key The key to be looked up
+  !! @param[in] keys The array of keys
+  !! @param[in] values The array of values
+  !! @param[in] defltvalue The default value (optional, default 0.0)
+  !! @return The value corresponding to the key
+  pure real(8) function findval_real8(key, keys, values, defltvalue)
+    character(*), intent(in)           :: key 
+    character(*), intent(in)           :: keys(:)
+    real(8),      intent(in)           :: values(:)
+    real(8),      intent(in), optional :: defltvalue
+
+    character(6) :: fkey
+    integer      :: idx(1)
+
+    fkey = trim(key)
+
+    idx = findloc(keys, fkey)
+    if (idx(1) /= 0 .and. idx(1) <= size(values)) then
+      findval_real8 = values(idx(1))
+    else
+      if (present(defltvalue)) then
+        findval_real8 = defltvalue 
+      else
+        findval_real8 = 0.0 
+      end if
+    end if
+  end function findval_real8
 
   !> Find a value in an array of values based on a key in an array of keys
   !!

@@ -56,7 +56,7 @@ module modtracers
   character(len=10),dimension(max_tracs) :: tracname_short = "NA" ! Short tracer name
   character(len=32),dimension(max_tracs) :: tracname_long  = "NA" ! Long tracer name
   character(len=10),dimension(max_tracs) :: tracer_unit = "NA" ! Unit of tracer
-  real     :: molar_mass(max_tracs)       = -1.0 ! Molar mass of tracer (g mol-1)
+  real(field_r)     :: molar_mass(max_tracs)       = -1.0 ! Molar mass of tracer (g mol-1)
   logical  :: tracer_is_emitted(max_tracs) = .false. ! Tracer is emitted (T/F)
   logical  :: tracer_is_reactive(max_tracs) = .false. ! Tracer is reactive (T/F)
   logical  :: tracer_is_deposited(max_tracs) = .false. ! Tracer is deposited (T/F)
@@ -274,7 +274,7 @@ contains
         unit=trim(findval(tracernames(isv), tracname_short, &
                     tracer_unit, defltvalue='dummy unit')), & ! Default is 'dummy unit'
         molar_mass=findval(tracernames(isv), tracname_short, & 
-                     molar_mass, defltvalue=-999.), & ! Default is -999.
+                     molar_mass, defltvalue=-999._field_r), & ! Default is -999.
         lemis=findval(tracernames(isv), tracname_short, &
                 tracer_is_emitted, defltvalue=.false.), & ! Default is False
         lreact=findval(tracernames(isv), tracname_short, &
