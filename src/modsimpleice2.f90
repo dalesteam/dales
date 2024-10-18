@@ -63,9 +63,13 @@ module modsimpleice2
                              lambdar, lambdas, lambdag, &
                              qrmask, qcmask, precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
-                             bbg,bbr,bbs,ddg,ddr,dds
+                             bbg,bbr,bbs,ddg,ddr,dds, iqr
+    use modtracers, only: add_tracer
     implicit none
     integer:: i, j, k
+
+    call add_tracer("qr", long_name="Total precipitation mixing ratio", &
+                    unit="kg/kg", lmicro=.true., isv=iqr) 
 
     allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics

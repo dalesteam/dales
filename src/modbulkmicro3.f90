@@ -61,6 +61,7 @@ module modbulkmicro3
   subroutine initbulkmicro3
     use modglobal, only : lwarmstart,ifnamopt,fname_options,i1,ih,j1,jh,k1
     use modmpi,    only : myid,comm3d,mpi_logical,D_MPI_BCAST
+    use modtracers, only: add_tracer
     implicit none
     integer :: ierr
 
@@ -411,6 +412,32 @@ module modbulkmicro3
      write (6,*)   ' --------------------------------------------------- '
 
    endif
+
+   ! Setup tracers
+   call add_tracer("nhr", long_name="Rain number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_hr)
+   call add_tracer("qhr", long_name="Rain mixing ratio", &
+                   unit="kg/kg", lmicro=.true., isv=iq_hr)
+   call add_tracer("ncl", long_name="Cloud droplet number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_cl)
+   call add_tracer("qcl", long_name="Cloud droplet mixing ratio", &
+                   unit="kg/kg", lmicro=.true., isv=iq_cl)
+   call add_tracer("nci", long_name="Ice crystal number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_ci)
+   call add_tracer("qci", long_name="Ice crystal mixing ratio", &
+                   unit="kg/kg", lmicro=.true., isv=iq_ci)
+   call add_tracer("nhs", long_name="Snow number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_hs)
+   call add_tracer("qhs", long_name="Snow mixing ratio", &
+                   unit="kg/kg^-1", lmicro=.true., isv=iq_hs)
+   call add_tracer("nhg", long_name="Graupel number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_hg)
+   call add_tracer("qhg", long_name="Graupel mixing ratio", &
+                   unit="kg/kg", lmicro=.true., isv=iq_hg)
+   call add_tracer("ncc", long_name="CCN number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_cc)
+   call add_tracer("ntr1", long_name="Passive tracer number concentration", &
+                   unit="1/kg", lmicro=.true., isv=in_tr1) ! Why is this here?
 
    allocate(precep_l     (2-ih:i1+ih,2-jh:j1+jh) &
            ,precep_i     (2-ih:i1+ih,2-jh:j1+jh) )

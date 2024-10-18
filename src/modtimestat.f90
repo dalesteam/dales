@@ -1265,7 +1265,7 @@ contains
             blh_fld(:,:,:) = w0(:,:,:)*thv0h(:,:,:)
             !$acc end kernels
           case(1:)
-            if (iadv_sv(iblh_var) == iadv_kappa) then
+            if (iadv_sv == iadv_kappa) then
               call halflev_kappa(sv0(:,:,:,iblh_var),sv0h)
               !$acc kernels default(present)
               sv0h(2:i1,2:j1,1) = svs(iblh_var)

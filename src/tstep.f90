@@ -52,10 +52,52 @@ implicit none
 !  real, allocatable, dimension(:) :: ekhmax
 
 contains
-!> Allocate arrays
+
+!> \brief Initializes the time stepping scheme.
 subroutine inittstep
-  use modglobal, only : kmax
-  implicit none
+
+  use modglobal, only: courant, iadv_cd2, iadv_cd6, iadv_62, iadv_5th, &
+                       iadv_52, iadv_hybrid, iadv_hybrid_f, iadv_kappa, &
+                       iadv_mom, iadv_thl, iadv_qt, iadv_tke, iadv_sv
+
+  ! Set the courant number based on the advection scheme
+  if (courant < 0) then
+    select case(iadv_mom)
+      case(iadv_cd2)
+        courant = 1.
+      case(iadv_cd6)
+        courant = 0.7
+      case(iadv_62)
+        courant = 0.7
+      case(iadv_5th)
+        courant = 1.
+      case(iadv_52)
+        courant = 1.
+      case(iadv_hybrid)
+         courant = 1.
+      case(iadv_hybrid_f)
+        courant = 1.
+      case default
+        courant = 1.
+    end select
+
+    if (iadv_sv==iadv_cd6 .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd6)) then
+      courant = min(courant, 0.7)
+    elseif (iadv_sv==iadv_62 .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_62)) then
+      courant = min(courant, 0.7)
+    elseif (iadv_sv==iadv_kappa .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_kappa)) then
+      courant = min(courant, 0.7)
+    elseif (iadv_sv==iadv_5th .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_5th)) then
+      courant = min(courant, 1.0)
+    elseif (iadv_sv==iadv_52 .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_52)) then
+      courant = min(courant, 1.0)
+    elseif (iadv_sv==iadv_cd2 .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
+      courant = min(courant, 1.0)
+    elseif (iadv_sv==iadv_hybrid .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_hybrid)) then
+      courant = min(courant, 1.0)
+    end if
+  end if
+
 end subroutine inittstep
 
 !> Deallocate arrays

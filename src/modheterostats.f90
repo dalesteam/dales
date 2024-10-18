@@ -356,7 +356,7 @@ contains
     end do
 
     do n=1,nsv
-      if (iadv_sv(n)==iadv_kappa) then
+      if (iadv_sv==iadv_kappa) then
          call halflev_kappa(sv0(2-ih:i1+ih,2-jh:j1+jh,1:k1,n),sv0h(:,:,:,n))
       else
         do  k=2,k1

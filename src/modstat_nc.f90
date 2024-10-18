@@ -29,6 +29,8 @@
 !
 module modstat_nc
     use netcdf
+    use modprecision, only: field_r
+    use modmpi,       only: myid
     implicit none
     logical :: lnetcdf = .true.
     logical :: lsync   = .false.     ! Sync NetCDF file after each writestat_*_nc
@@ -45,6 +47,26 @@ module modstat_nc
       module procedure writestat_3D_nc
       module procedure writestat_3D_short_nc
     end interface writestat_nc
+
+    !> Read a field from a netCDF file by its name
+    interface read_nc_field
+        module procedure read_nc_field_1D
+    end interface read_nc_field
+
+    interface read_nc_attribute
+      module procedure read_nc_attribute_char
+      module procedure read_nc_attribute_r4
+      module procedure read_nc_attribute_r8
+      module procedure read_nc_attribute_logical
+    end interface read_nc_attribute
+
+    private :: read_nc_field_1D
+
+    private :: read_nc_attribute_char
+    private :: read_nc_attribute_r4
+    private :: read_nc_attribute_r8
+    private :: read_nc_attribute_logical
+
 contains
 
 
@@ -540,6 +562,146 @@ contains
     if (lsync) call sync_nc(ncid)
   end subroutine writestat_3D_short_nc
 
+  !> Read a 1D field from a netCDF by its name.
+  !!
+  !! Optionally, a fill value can be provided, which the is used in case the
+  !! requested variable is not found in the netCDF file.
+  !! @param ncid ID of the opened netCDF file.
+  !! @param varname Name of the variable to read.
+  !! @param array Array to fill.
+  !! @param fillvalue Default value to fill array with in case the variable
+  !! is not found.
+  subroutine read_nc_field_1D(ncid, varname, array, start, count, fillvalue)
+    integer,       intent(in)           :: ncid
+    character(*),  intent(in)           :: varname
+    real(field_r), intent(out)          :: array(:)
+    integer,       intent(in), optional :: start
+    integer,       intent(in), optional :: count
+    real(field_r), intent(in), optional :: fillvalue
+
+    integer :: varid
+    integer :: ierr
+    integer :: start_(1), count_(1)
+
+    ierr = nf90_inq_varid(ncid, varname, varid)
+
+    if (present(start)) then 
+      start_(1) = start
+    else
+      start_(1) = 1
+    end if
+
+    if (present(count)) then
+      count_(1) = count
+    else
+      count_(1) = size(array)
+    end if
+
+    select case (ierr)
+      case (NF90_ENOTVAR)
+        if (present(fillvalue)) then
+          array(:) = fillvalue
+        else
+          call nchandle_error(ierr)
+        end if
+      case (NF90_NOERR)
+        ierr = nf90_get_var(ncid, varid, array, start=start_, count=count_)
+      case default
+        call nchandle_error(ierr)
+    end select
+
+  end subroutine read_nc_field_1D
+
+  subroutine read_nc_attribute_char(ncid, varid, attname, value, default)
+    integer,      intent(in)           :: ncid
+    integer,      intent(in)           :: varid
+    character(*), intent(in)           :: attname
+    character(*), intent(out)          :: value
+    character(*), intent(in), optional :: default
+
+    integer :: ierr
+
+    ierr = nf90_get_att(ncid, varid, attname, value)
+
+    if (ierr == NF90_ENOTATT) then
+      if (present(default)) value = default
+    else
+      call nchandle_error(ierr)
+    end if
+
+  end subroutine read_nc_attribute_char
+
+  subroutine read_nc_attribute_r4(ncid, varid, attname, value, default)
+    integer,      intent(in)           :: ncid
+    integer,      intent(in)           :: varid
+    character(*), intent(in)           :: attname
+    real(4),      intent(out)          :: value
+    real(4),      intent(in), optional :: default
+
+    integer :: ierr
+
+    ierr = nf90_get_att(ncid, varid, attname, value)
+
+    if (ierr == NF90_ENOTATT) then
+      if (present(default)) value = default
+    else
+      call nchandle_error(ierr)
+    end if
+
+  end subroutine read_nc_attribute_r4
+
+  subroutine read_nc_attribute_r8(ncid, varid, attname, value, default)
+    integer,      intent(in)           :: ncid
+    integer,      intent(in)           :: varid
+    character(*), intent(in)           :: attname
+    real(8),      intent(out)          :: value
+    real(8),      intent(in), optional :: default
+
+    integer :: ierr
+
+    ierr = nf90_get_att(ncid, varid, attname, value)
+
+    if (ierr == NF90_ENOTATT) then
+      if (present(default)) value = default
+    else
+      call nchandle_error(ierr)
+    end if
+
+  end subroutine read_nc_attribute_r8
+
+  subroutine read_nc_attribute_logical(ncid, varid, attname, value, default)
+    integer,      intent(in)           :: ncid
+    integer,      intent(in)           :: varid
+    character(*), intent(in)           :: attname
+    logical,      intent(out)          :: value
+    logical,      intent(in), optional :: default
+
+    integer :: ierr, value_
+    
+    ierr = nf90_get_att(ncid, varid, attname, value_)
+
+    select case (ierr)
+      case (NF90_ENOTATT)
+        if (present(default)) then
+          value = default
+        else
+          call nchandle_error(ierr)
+        end if
+      case (NF90_NOERR)
+        select case (value_)
+          case (1)
+            value = .true.
+          case (0)
+            value = .false.
+          case default
+            if (myid == 0) write(*,*) "Invalid value provided for ", attname
+            stop
+        end select
+      case default
+        call nchandle_error(ierr)
+    end select
+    
+  end subroutine read_nc_attribute_logical
 
   subroutine ncinfo(out,in1,in2,in3,in4)
 

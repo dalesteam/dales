@@ -215,7 +215,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
 
   do n=1,nsv
     istart = 2; iend = i1; jstart = 2; jend = j1
-    select case(iadv_sv(n))
+    select case(iadv_sv)
     case(iadv_cd2)
       call hadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_5th)
@@ -349,7 +349,7 @@ istart = 2; iend = i1; jstart = 2; jend = j1
 
   do n=1,nsv
     istart = 2; iend = i1; jstart = 2; jend = j1
-    select case(iadv_sv(n))
+    select case(iadv_sv)
     case(iadv_cd2)
       call vadvecc_2nd(sv0(:,:,:,n),svp(:,:,:,n),istart,iend,jstart,jend)
     case(iadv_5th)

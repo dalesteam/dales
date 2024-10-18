@@ -36,7 +36,7 @@ private
 PUBLIC :: initcrosssection, crosssection,exitcrosssection
 save
 !NetCDF variables
-  integer,parameter :: nvar = 11
+  integer :: nvar = 9
   integer :: ncid1(100)
   integer :: ncid2(100)
   integer :: ncid3(100)
@@ -50,11 +50,11 @@ save
   character(80) :: fname1 = 'crossxz.yyyy.x000.exp.nc'
   character(80) :: fname2 = 'crossxy.zzzz.x000y000.exp.nc'
   character(80) :: fname3 = 'crossyz.xxxx.y000.exp.nc'
-  character(80),dimension(nvar,4) :: ncname1
+  character(80),dimension(:,:),allocatable :: ncname1
   character(80),dimension(1,4) :: tncname1
-  character(80),dimension(nvar,4) :: ncname2
+  character(80),dimension(:,:),allocatable :: ncname2
   character(80),dimension(1,4) :: tncname2
-  character(80),dimension(nvar,4) :: ncname3
+  character(80),dimension(:,:),allocatable :: ncname3
   character(80),dimension(1,4) :: tncname3
 
   real    :: dtav
@@ -85,6 +85,10 @@ contains
     namelist/NAMCROSSSECTION/ &
     lcross, lbinary, dtav, crossheight, crossplane, crossortho, lxy, lxz, lyz
 
+    nvar = nvar + nsv
+
+    allocate(ncname1(nvar,4), ncname2(nvar,4), ncname3(nvar,4))
+
     crossheight(1)=2
     crossheight(2:100)=-999
     crossplane(1)=2
@@ -110,6 +114,7 @@ contains
     call D_MPI_BCAST(lxy        ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lxz        ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(lyz        ,1,0,comm3d,mpierr)
+    call D_MPI_BCAST(nvar       ,1,0,comm3d,mpierr)
 
     if(any((crossheight(1:100).gt.kmax)) .or. any(crossplane > jtot+1) .or. any(crossortho > itot+1) ) then
       stop 'CROSSSECTION: crosssection out of range'
@@ -169,7 +174,7 @@ contains
                 call ncinfo(ncname1( 8,:),   'buoyxz', 'xz crosssection of the buoyancy',                          'K',       't0tt')
                 call ncinfo(ncname1( 9,:),   'e120xz', 'xz crosssection of sqrt(turbulent kinetic energy)',        'm^2/s^2', 't0tt')
                 do n = 1,nsv
-                  call ncinfo(ncname1(9+n,:), tracer_prop(n)%tracname, tracer_prop(n)%traclong//' specific concentration', tracer_prop(n)%unit, 't0tt')
+                  call ncinfo(ncname1(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 't0tt')
                 enddo
                 call open_nc(trim(output_prefix)//fname1,ncid1(cross),nrec1(cross),n1=imax,n3=kmax)
 
@@ -177,11 +182,10 @@ contains
                    call define_nc(ncid1(cross), 1, tncname1)
                    call writestat_dims_nc(ncid1(cross))
                 end if
-                call define_nc(ncid1(cross), NVar, ncname1)
+                call define_nc(ncid1(cross), nvar, ncname1)
              end if
           end do
         end if
-
         if (lxy) then
            do cross=1,nxy
               write(cheight,'(i4.4)') crossheight(cross)
@@ -200,14 +204,14 @@ contains
               call ncinfo(ncname2( 8,:),    'buoyxy', 'xy crosssection of the buoyancy',                           'K',       'tt0t')
               call ncinfo(ncname2( 9,:),    'e120xy', 'xy crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2', 'tt0t')
               do n = 1,nsv
-                call ncinfo(ncname2(9+n,:), tracer_prop(n)%tracname, tracer_prop(n)%traclong//' specific concentration', tracer_prop(n)%unit, 'tt0t')
+                call ncinfo(ncname2(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), 'tt0t')
               enddo
               call open_nc(trim(output_prefix)//fname2,ncid2(cross),nrec2(cross),n1=imax,n2=jmax)
               if (nrec2(cross)==0) then
                  call define_nc(ncid2(cross), 1, tncname2)
                  call writestat_dims_nc(ncid2(cross))
               end if
-              call define_nc(ncid2(cross), NVar, ncname2)
+              call define_nc(ncid2(cross), nvar, ncname2)
            end do
         end if
         if (lyz) then  ! .and. myidx == 0
@@ -230,19 +234,18 @@ contains
                  call ncinfo(ncname3( 8,:),    'buoyyz', 'yz crosssection of the buoyancy',                           'K',      '0ttt')
                  call ncinfo(ncname3( 9,:),    'e120yz', 'yz crosssection of sqrt(turbulent kinetic energy)',         'm^2/s^2','0ttt')
                  do n = 1,nsv
-                    call ncinfo(ncname3(9+n,:), tracer_prop(n)%tracname, tracer_prop(n)%traclong//' specific concentration', tracer_prop(n)%unit, '0ttt')
+                    call ncinfo(ncname3(9+n,:), trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit), '0ttt')
                  enddo
                  call open_nc(trim(output_prefix)//fname3,  ncid3(cross),nrec3(cross),n2=jmax,n3=kmax)
                  if (nrec3(cross)==0) then
                     call define_nc(ncid3(cross), 1, tncname3)
                     call writestat_dims_nc(ncid3(cross))
                  end if
-                 call define_nc(ncid3(cross), NVar, ncname3)
+                 call define_nc(ncid3(cross), nvar, ncname3)
               end if
            end do
         end if
     end if
-
 
   end subroutine initcrosssection
 !>Run crosssection. Mainly timekeeping
@@ -626,6 +629,8 @@ contains
           end do
        end if
     end if
+
+    deallocate(ncname1, ncname2, ncname3)
 
   end subroutine exitcrosssection
 

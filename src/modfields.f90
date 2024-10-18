@@ -161,9 +161,10 @@ subroutine initfields
     allocate(e12p    (2-ih:i1+ih,2-jh:j1+jh,k1))
     allocate(qtp     (2-ih:i1+ih,2-jh:j1+jh,k1))
 
-    allocate(svm     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(sv0     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
-    allocate(svp     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    ! Allocation of tracer fields has been moved to modtracers!
+    !allocate(svm     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    !allocate(sv0     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
+    !allocate(svp     (2-ih:i1+ih,2-jh:j1+jh,k1,nsv))
 
     ! Allocation of base state variables
     allocate(rhobf   (k1))
@@ -220,8 +221,8 @@ subroutine initfields
     allocate(uprof  (k1))
     allocate(vprof  (k1))
     allocate(e12prof(k1))
-    allocate(sv0av  (k1,nsv))
-    allocate(svprof (k1,nsv))
+    !allocate(sv0av  (k1,nsv))
+    !allocate(svprof (k1,nsv))
     allocate(thlpcar(k1))
 
     allocate (qvsl(2-ih:i1+ih,2-jh:j1+jh,k1)    & ! qv-liquid
@@ -237,13 +238,12 @@ subroutine initfields
     thlm=0.;thl0=0.;thlp=0.
     qtm=0.;qt0=0.;qtp=0.
     e12m=0.;e120=0.;e12p=0.
-    svm=0.;sv0=0.;svp=0.
 
     rhobf=0.;rhobh=0.;drhobdzf=0.;drhobdzh=0.
     ql0=0.;tmp0=0.;ql0h=0.;thv0h=0.;thl0h=0.;qt0h=0.
     presf=0.;presh=0.;exnf=0.;exnh=0.;thvh=0.;thvf=0.;rhof=0.    ! OG
-    qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;sv0av=0.
-    thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;svprof=0.
+    qt0av=0.;ql0av=0.;thl0av=0.;u0av=0.;v0av=0.;
+    thlprof=0.;qtprof=0.;uprof=0.;vprof=0.;e12prof=0.;
     ug=0.;vg=0.;dpdxl=0.;dpdyl=0.;wfls=0.;whls=0.
     thlpcar = 0.
     dthldxls=0.;dthldyls=0.;dthldtls=0.
@@ -258,11 +258,11 @@ subroutine initfields
 
     !$acc enter data copyin(um, u0, up, vm, v0, vp, wm, w0, wp, &
     !$acc&                  thlm, thl0, thlp, qtm, qt0, qtp, &
-    !$acc&                  e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&                  e12m, e120, e12p, &
     !$acc&                  rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
     !$acc&                  thl0h, qt0h, presf, presh, exnf, exnh, &
     !$acc&                  thvh, thvf, rhof, qt0av, ql0av, thl0av, &
-    !$acc&                  u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&                  u0av, v0av, ug, vg, dpdxl, dpdyl, &
     !$acc&                  wfls, whls, thlpcar, dthldxls, dthldyls, &
     !$acc&                  dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&                  dudxls, dudyls, dudtls, dvdxls, dvdyls, &
@@ -275,11 +275,11 @@ subroutine initfields
   implicit none
     !$acc exit data delete(um, u0, up, vm, v0, vp, wm, w0, wp, &
     !$acc&                 thlm, thl0, thlp, qtm, qt0, qtp, &
-    !$acc&                 e12m, e120, e12p, svm, sv0, svp, &
+    !$acc&                 e12m, e120, e12p, &
     !$acc&                 rhobf, rhobh, ql0, tmp0, ql0h, thv0h, &
     !$acc&                 thl0h, qt0h, presf, presh, exnf, exnh, &
     !$acc&                 thvh, thvf, rhof, qt0av, ql0av, thl0av, &
-    !$acc&                 u0av, v0av, sv0av, ug, vg, dpdxl, dpdyl, &
+    !$acc&                 u0av, v0av, ug, vg, dpdxl, dpdyl, &
     !$acc&                 wfls, whls, thlpcar, dthldxls, dthldyls, &
     !$acc&                 dthldtls, dqtdxls, dqtdyls, dqtdtls, &
     !$acc&                 dudxls, dudyls, dudtls, dvdxls, dvdyls, &
@@ -287,14 +287,13 @@ subroutine initfields
 
     deallocate(um,vm,wm,thlm,e12m,qtm,u0,v0,w0,thl0,thl0h,qt0h,e120,qt0)
     deallocate(up,vp,wp,thlp,e12p,qtp)
-    deallocate(svm,sv0,svp)
     deallocate(rhobf,rhobh)
     deallocate(drhobdzf,drhobdzh)
     deallocate(ql0,tmp0,ql0h,thv0h,dthvdz,whls,presf,presh,initial_presf,initial_presh,exnf,exnh,thvh,thvf,rhof,qt0av,ql0av,thl0av,u0av,v0av)
     deallocate(ug,vg,dpdxl,dpdyl,wfls)
     deallocate(dthldxls,dthldyls,dthldtls,dqtdxls,dqtdyls,dqtdtls)
     deallocate(dudxls,dudyls,dudtls,dvdxls,dvdyls,dvdtls)
-    deallocate(thlprof,qtprof,uprof,vprof,e12prof,sv0av,svprof)
+    deallocate(thlprof,qtprof,uprof,vprof,e12prof)
     deallocate(thlpcar)
     deallocate(qvsl,qvsi,esl)
     deallocate(qsat)

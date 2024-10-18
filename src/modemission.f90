@@ -25,7 +25,7 @@
 module modemission
 
 use modemisdata
-use modtracers,       only : tracernames, tracer_prop
+use modtracers,       only : tracer_prop
 
 implicit none
 
