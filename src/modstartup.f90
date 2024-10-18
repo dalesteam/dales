@@ -1815,13 +1815,13 @@ contains
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "v", vprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "thl", thlprof, start=1, count=kmax, &
+    call read_nc_field(ncid, "th_l", thlprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "qt", qtprof, start=1, count=kmax, &
+    call read_nc_field(ncid, "q_t", qtprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "e12", e12prof, start=1, count=kmax, &
+    call read_nc_field(ncid, "TKE_init", e12prof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "zf", height)
+    call read_nc_field(ncid, "zt", height)
 
     ! Large-scale forcings
     call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
