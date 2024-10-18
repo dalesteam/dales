@@ -9,23 +9,23 @@ module modtracer_type
       ! Tracer name
       character(len=16) :: tracname
       ! Tracer long name
-      character(len=32) :: traclong
+      character(len=64) :: traclong="dummy long name"
       ! Tracer unit
-      character(len=16) :: unit     
+      character(len=16) :: unit="dummy unit"
       ! Moleculare mass of tracer (g mol-1)
-      real              :: molar_mass
+      real(field_r)     :: molar_mass=-999.
       ! Tracer index in sv0, svm, svp
-      integer           :: trac_idx
+      integer           :: trac_idx=-1
       ! Boolean if tracer is emitted 
-      logical           :: lemis
+      logical           :: lemis=.false.
       ! Boolean if tracer is reactive
-      logical           :: lreact
+      logical           :: lreact=.false.
       ! Boolean if tracer is deposited
-      logical           :: ldep
+      logical           :: ldep=.false.
       ! Boolean if in A-gs
-      logical           :: lags   
+      logical           :: lags=.false.
       ! Boolean if in cloud microphysics
-      logical           :: lmicro     
+      logical           :: lmicro=.false.
       ! ! Static tracer properties:
       ! real :: diffusivity
 
