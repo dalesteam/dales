@@ -152,8 +152,9 @@ contains
     if (nsv > 0) then
       do s = 1, nsv
         if (trim(to_lower(name)) == trim(to_lower(tracer_prop(s) % tracname))) then
-          return
           write(*,*) "Tracer", name, "already exists!"
+          if(present(isv)) isv = s
+          return
         end if
       end do
     end if
@@ -180,6 +181,7 @@ contains
     if (present(lmicro)) tracer_prop(nsv) % lmicro = lmicro
 
     if (present(isv)) isv = nsv
+
   end subroutine add_tracer
 
   !> Allocates all tracer fields
@@ -205,7 +207,6 @@ contains
 
   !> Deallocates all tracers fields
   subroutine exittracers
-
 
     !$acc exit data delete(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
     !$acc&                 sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
@@ -233,6 +234,7 @@ contains
     character(len=1500) :: readbuffer
 
     tdx = nsv
+
     open (ifinput,file='tracerdata.inp')
     ierr = 0
     do while (ierr == 0)
@@ -359,6 +361,7 @@ contains
     integer :: ivar, isv, nsv
 
     if (.not. file_exists) return
+
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
 
     nsv = size(tracers)
@@ -369,4 +372,5 @@ contains
     end do
 
   end subroutine tracer_profs_from_netcdf
+
 end module modtracers
