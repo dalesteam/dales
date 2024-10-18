@@ -119,19 +119,19 @@ contains
 
   end subroutine inittracers
 
-  !> Define a new tracer
+  !> \brief Define a new tracer
   !!
-  !! @param name Short name of the tracer.
-  !! @param long_name Full name of the tracer.
-  !! @param unit Unit.
-  !! @param molar_mass Molar mass (g mol^-1)
-  !! @param lemis Tracer is emitted.
-  !! @param lreact Tracer is reactive.
-  !! @param ldep Tracer is deposited.
-  !! @param lags Tracer is photosynthesized.
-  !! @param lmicro Tracer is involved in cloud microphysics.
-  !! @param laero Tracer is involved in aerosol microphyiscs.
-  !! @note All tracers should be added before readinitfiles is called!
+  !! \param name Short name of the tracer.
+  !! \param long_name Full name of the tracer.
+  !! \param unit Unit.
+  !! \param molar_mass Molar mass (g mol^-1)
+  !! \param lemis Tracer is emitted.
+  !! \param lreact Tracer is reactive.
+  !! \param ldep Tracer is deposited.
+  !! \param lags Tracer is photosynthesized.
+  !! \param lmicro Tracer is involved in cloud microphysics.
+  !! \param laero Tracer is involved in aerosol microphyiscs.
+  !! \note All tracers should be added before readinitfiles is called!
   subroutine add_tracer(name, long_name, unit, molar_mass, lemis, lreact, &
                         ldep, lags, lmicro, isv)
     character(*),  intent(in)            :: name
