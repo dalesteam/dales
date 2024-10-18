@@ -40,7 +40,15 @@ contains
     class(T_tracer), intent(in) :: self
 
     write(*,*) "Tracer: ", self%tracname
-    write(*,*) "  long name: ", trim(self%traclong)
+    write(*,*) "  long name  : ", trim(self%traclong)
+    write(*,*) "  unit       : ", trim(self%unit)
+    write(*,*) "  molar mass : ", self%molar_mass
+    write(*,*) "  index      : ", self%trac_idx
+    write(*,*) "  lemis      : ", self%lemis
+    write(*,*) "  lreact     : ", self%lreact
+    write(*,*) "  ldep       : ", self%ldep
+    write(*,*) "  lags       : ", self%lags
+    write(*,*) "  lmicro     : ", self%lmicro
 
   end subroutine tracer_print_properties
 

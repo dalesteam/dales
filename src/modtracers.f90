@@ -187,6 +187,12 @@ contains
   !> Allocates all tracer fields
   subroutine allocate_tracers
 
+    integer :: s 
+
+    do s = 1, nsv
+      call tracer_prop(s) % print_properties()
+    end do
+
     allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
              sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
              svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
