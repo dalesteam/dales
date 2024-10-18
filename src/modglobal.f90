@@ -24,7 +24,7 @@
 module modglobal
 use iso_c_binding
 use modprecision
-use modstat_nc
+use netcdf
 implicit none
 save
 
@@ -397,10 +397,14 @@ contains
     ! has been split so that reading is only done on PE 1
 
     if (lstart_netcdf) then
-      call nchandle_error(nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid))
-      call nchandle_error(nf90_inq_varid(ncid, 'zt', height_id))
-      call nchandle_error(nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /)))
-      call nchandle_error(nf90_close(ncid))
+      ierr = nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid)
+      if (ierr /= nf90_noerr) call abort
+      ierr = nf90_inq_varid(ncid, 'zt', height_id)
+      if (ierr /= nf90_noerr) call abort
+      ierr = nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /))
+      if (ierr /= nf90_noerr) call abort
+      ierr = nf90_close(ncid)
+      if (ierr /= nf90_noerr) call abort
     else
       if(myid==0)then
         open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
