@@ -1766,25 +1766,26 @@ contains
 
   end subroutine baseprofs
 
-  !> Read initial profiles from init.XXX.nc
+  !> \brief Read initial profiles from init.XXX.nc
   !!
-  !! @param filename Path to the netCDF file to read from.
-  !! @param height Vertical levels.
-  !! @param uprof Initial eastward velocity profile.
-  !! @param vprof Initial northward velocity profile.
-  !! @param thlprof Initial liquid water potential temperature profile.
-  !! @param qtprof Initial total water mixing ratio profile.
-  !! @param e12prof Initial profile of the square root of the turbulence kinetic energy (TKE).
-  !! @param svprof Initiales profiles of scalars.
-  !! @param ug Geostrophic eastward wind.
-  !! @param vg Geostrophic northward wind.
-  !! @param wfls Large-scale subsidence.
-  !! @param dqtdxls Eastward gradient of the total water mixing ratio due to advection.
-  !! @param dqtdyls Northward gradient of the total water mixing ratio due to advection.
-  !! @param dqtdtls Tendency of the total water mixing ratio.
-  !! @param dthlrad Tendency of the liquid water potential temperature due to radiative heating.
-  !! @param nsv Number of tracers.
-  !! @param tracers List of tracer properties (T_tracer type).
+  !! \param filename Path to the netCDF file to read from.
+  !! \param height Vertical levels.
+  !! \param uprof Initial eastward velocity profile.
+  !! \param vprof Initial northward velocity profile.
+  !! \param thlprof Initial liquid water potential temperature profile.
+  !! \param qtprof Initial total water mixing ratio profile.
+  !! \param e12prof Initial profile of the square root of the turbulence kinetic energy (TKE).
+  !! \param ug Geostrophic eastward wind.
+  !! \param vg Geostrophic northward wind.
+  !! \param wfls Large-scale subsidence.
+  !! \param dqtdxls Eastward gradient of the total water mixing ratio due to advection.
+  !! \param dqtdyls Northward gradient of the total water mixing ratio due to advection.
+  !! \param dqtdtls Tendency of the total water mixing ratio.
+  !! \param dthlrad Tendency of the liquid water potential temperature due to radiative heating.
+  !! \param kmax Index of highest vertical level.
+  !! 
+  !! \note Tracers are read from tracers.XXX.nc, not here.
+  !! \todo Make DEPHY-compatible.
   subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
                               e12prof, ug, vg, wfls, dqtdxls, dqtdyls, &
                               dqtdtls, dthlrad, kmax) 
