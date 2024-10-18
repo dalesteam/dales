@@ -68,11 +68,11 @@ module modbulkmicro
     implicit none
 
     ! Setup two tracers for precipitation
-    call add_tracer("qr", long_name="Rain water mixing ratio", &
+    call add_tracer("qr", long_name="rain water mixing ratio", &
                     unit="kg/kg", lmicro=.true., isv=iqr) 
     
-    call add_tracer("Nr", long_name="Cloud droplet number concentration", &
-                    unit="-", lmicro=.true., isv=inr)
+    call add_tracer("Nr", long_name="rain droplet number concentration", &
+                    unit="1/m^3", lmicro=.true., isv=inr)
 
                                         ! Fields accessed by:
     allocate(Nr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
