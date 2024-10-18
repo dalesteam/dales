@@ -588,14 +588,11 @@ contains
           ps         = tb_ps(1)
 
         else if (lstart_netcdf) then
-          call init_from_netcdf('init.'//cexpnr//'.nc', height, &
-                                uprof, vprof, thlprof, &
-                                qtprof, e12prof, &
-                                ug, vg, &
-                                wfls, dqtdxls, &
-                                dqtdyls, dqtdtls, &
-                                thlpcar, kmax)
-          call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', tracer_prop, nsv, svprof(1:kmax,:))
+          call init_from_netcdf('init.'//cexpnr//'.nc', height, uprof, vprof, &
+                                thlprof, qtprof, e12prof, ug, vg, wfls, & 
+                                dqtdxls, dqtdyls, dqtdtls, thlpcar, kmax)
+          call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', & 
+                                        tracer_prop, nsv, svprof(1:kmax,:))
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
@@ -616,14 +613,6 @@ contains
                 e12prof(k)
           end do
 
-          close(ifinput)
-
-          open (ifinput, file='scalar.inp.'//cexpnr, status='old', iostat=ierr)
-          do k = 1, kmax
-            read (ifinput,*) &
-                  height (k), &
-                  (svprof (k,n),n=1,nsv)
-          end do
           close(ifinput)
         end if   !ltestbed
 
@@ -752,12 +741,6 @@ contains
             do j=1,j2
               do i=1,i2
                 do n=1,nsv
-                  ! if (i==1 .and. j==1 .and. k==1) then
-                  !   write(*,*) 'filling tracer ', tracer_prop(n)%tracname, n, sdx, i,j,k
-                  !   call flush()
-                  !   write(*,*) 'with values    ', svprof(k,sdx)
-                  ! endif
-                  !sdx = scalar_indices(n)
                   sv0(i,j,k,n) = svprof(k,n)
                   svm(i,j,k,n) = svprof(k,n)
                 end do
