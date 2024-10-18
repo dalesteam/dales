@@ -1697,7 +1697,7 @@ subroutine init_heterogeneous_nc
     use modglobal,   only : i1, j1, lwarmstart, iexpnr, eps1
     use modglobal,   only : i2, j2
     use modmpi,      only : myid, myidx, myidy
-    use modglobal,   only : imax, jmax, itot, jtot
+    use modglobal,   only : imax, jmax, itot, jtot, ldrydep
 
     use modsurfdata, only : tsoil, phiw, wl, wlm, wmax
     implicit none
@@ -1848,7 +1848,7 @@ subroutine init_heterogeneous_nc
                               count = (/imax, jmax/) ) )
 
     !!! deposition parameters
-    !!! TODO: read only if ldep=True
+    if (ldrydep) then
       ! ! R_inc_b
       ! call check( nf90_inq_varid( ncid, 'R_inc_b_'//trim(tile(ilu)%lushort), varid) )
       ! call check( nf90_get_var(ncid, varid, tile(ilu)%R_inc_b(2:i1, 2:j1) , &
@@ -1924,6 +1924,7 @@ subroutine init_heterogeneous_nc
      !  call check( nf90_get_var(ncid, varid, tile(ilu)%gamma_soil_default(2:i1, 2:j1) , &
      !                            start = (/1 + myidx * imax, 1 + myidy * jmax/), &
      !                            count = (/imax, jmax/) ))
+      end if
     end do
 
     ! 3D soil fields

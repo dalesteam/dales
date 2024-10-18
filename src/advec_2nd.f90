@@ -33,7 +33,7 @@ module advec_2nd
 use modprecision, only : field_r
 contains
 !> Horizontal advection at cell center
-subroutine hadvecc_2nd(a_in,a_out)
+subroutine hadvecc_2nd(a_in,a_out,istart,iend,jstart,jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxi5,dyi5
   use modfields, only : u0, v0
@@ -41,13 +41,14 @@ subroutine hadvecc_2nd(a_in,a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k
 
   !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, kmax
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k)  = a_out(i,j,k)- (  &
               ( &
               u0(i+1,j,k) * ( a_in(i+1,j,k) + a_in(i,j,k) ) &
@@ -65,7 +66,7 @@ subroutine hadvecc_2nd(a_in,a_out)
 end subroutine hadvecc_2nd
 
 !> Vertical advection at cell center
-subroutine vadvecc_2nd(a_in,a_out)
+subroutine vadvecc_2nd(a_in,a_out,istart,iend,jstart,jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dzi5,dzf,dzfi,dzhi,leq
   use modfields, only : w0, rhobf
@@ -73,13 +74,14 @@ subroutine vadvecc_2nd(a_in,a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the cell centered field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k
 
   if (leq) then ! equidistant grid
     !$acc parallel loop collapse(2) default(present) wait(1) async(2)
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
                        w0(i,j,2) * (rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1) ) &
                        ) * dzi5
@@ -88,8 +90,8 @@ subroutine vadvecc_2nd(a_in,a_out)
 
     !$acc parallel loop collapse(3) default(present) wait(1) async(3)
     do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
                          w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
                          -w0(i,j,k)   * (rhobf(k-1) * a_in(i,j,k-1)+ rhobf(k) * a_in(i,j,k)) &
@@ -100,8 +102,8 @@ subroutine vadvecc_2nd(a_in,a_out)
 
   else   ! non-equidistant grid
     !$acc parallel loop collapse(2) default(present) wait(1) async(2)
-    do j = 2, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
                        w0(i,j,2) * (rhobf(2) * a_in(i,j,2) * dzf(1) + rhobf(1) * a_in(i,j,1) * dzf(2) ) * (0.5_field_r * dzhi(2)) &
                        ) * dzfi(1)
@@ -110,8 +112,8 @@ subroutine vadvecc_2nd(a_in,a_out)
 
     !$acc parallel loop collapse(3) default(present) wait(1) async(3)
     do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
                          w0(i,j,k+1) * (rhobf(k+1) * a_in(i,j,k+1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k+1) ) * dzhi(k+1) &
                         -w0(i,j,k ) * (rhobf(k-1) * a_in(i,j,k-1) * dzf(k) + rhobf(k) * a_in(i,j,k) * dzf(k-1) ) * dzhi(k) &
@@ -126,22 +128,22 @@ end subroutine vadvecc_2nd
 
 
 !> Horizontal advection at the u point.
-subroutine hadvecu_2nd(a_in, a_out, sx)
+subroutine hadvecu_2nd(a_in, a_out,istart,iend,jstart,jend)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq
   use modfields, only : u0, v0, up, vp
 
   implicit none
 
-  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
   !$acc parallel loop collapse(3) default(present) async(1)
   do k = 1, kmax
-    do j = 2, j1
-      do i = sx, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
                 (a_in(i,j,k)+a_in(i+1,j,k))*(u0(i,j,k)+u0(i+1,j,k)) &
@@ -158,23 +160,23 @@ subroutine hadvecu_2nd(a_in, a_out, sx)
 end subroutine hadvecu_2nd
 
 !> Vertical advection at the u point.
-subroutine vadvecu_2nd(a_in, a_out, sx)
+subroutine vadvecu_2nd(a_in, a_out,istart,iend,jstart,jend)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzfi,dzhi,leq
   use modfields, only : w0, rhobf
 
   implicit none
 
-  integer, intent(in) :: sx
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in) :: a_in
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
   if (leq) then
 
     !$acc parallel loop collapse(2) default(present) async(1)
-    do j = 2, j1
-      do i = sx, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,1) = a_out(i,j,1)-(1/rhobf(1))*( &
                        ( rhobf(2) * a_in(i,j,2) + rhobf(1) * a_in(i,j,1))*( w0(i,j,2)+ w0(i-1,j,2) ) &
                        ) *dziq
@@ -183,8 +185,8 @@ subroutine vadvecu_2nd(a_in, a_out, sx)
 
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 2, kmax
-      do j = 2, j1
-        do i = sx, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k) = a_out(i,j,k)- (1/rhobf(k))*( &
                          (rhobf(k) * a_in(i,j,k) + rhobf(k+1) * a_in(i,j,k+1) )*(w0(i,j,k+1)+w0(i-1,j,k+1)) &
                          -(rhobf(k) * a_in(i,j,k) + rhobf(k-1) * a_in(i,j,k-1) )*(w0(i,j,k )+w0(i-1,j,k )) &
@@ -196,8 +198,8 @@ subroutine vadvecu_2nd(a_in, a_out, sx)
   else
 
     !$acc parallel loop collapse(2) default(present) async(1)
-    do j = 2, j1
-      do i = sx, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,1) = a_out(i,j,1)- (1/rhobf(1))*( &
                        ( rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) * dzhi(2) &
                          *( w0(i,j,2)+ w0(i-1,j,2) )) * (0.25_field_r * dzfi(1))
@@ -206,8 +208,8 @@ subroutine vadvecu_2nd(a_in, a_out, sx)
 
     !$acc parallel loop collapse(3) default(present) async(1)
     do k = 2, kmax
-      do j = 2, j1
-        do i = sx, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 ( rhobf(k+1) * a_in(i,j,k+1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k+1) ) * dzhi(k+1) &
                   *( w0(i,j,k+1)+ w0(i-1,j,k+1) ) &
@@ -221,22 +223,22 @@ subroutine vadvecu_2nd(a_in, a_out, sx)
 end subroutine vadvecu_2nd
 
 !> Horizontal advection at the v point.
-subroutine hadvecv_2nd(a_in, a_out, sy)
+subroutine hadvecv_2nd(a_in, a_out,istart,iend,jstart,jend)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq
   use modfields, only : u0, v0
   implicit none
 
 
-  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
   !$acc parallel loop collapse(3) default(present) async(2)
   do k = 1, kmax
-    do j = sy, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,k)  = a_out(i,j,k)- ( &
               ( &
               ( u0(i+1,j,k)+u0(i+1,j-1,k))*(a_in(i,j,k)+a_in(i+1,j,k)) &
@@ -253,22 +255,22 @@ subroutine hadvecv_2nd(a_in, a_out, sy)
 end subroutine hadvecv_2nd
 
 !> Vertical advection at the v point.
-subroutine vadvecv_2nd(a_in, a_out, sy)
+subroutine vadvecv_2nd(a_in, a_out,istart,iend,jstart,jend)
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzfi,dzhi,leq
   use modfields, only : w0, rhobf
   implicit none
 
 
-  integer,intent(in) :: sy
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the v-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
   if (leq) then
     !$acc parallel loop collapse(2) default(present) async(2)
-    do j = sy, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
            (w0(i,j,2)+w0(i,j-1,2))*(rhobf(2) * a_in(i,j,2)+rhobf(1) * a_in(i,j,1)) &
             )*dziq
@@ -277,8 +279,8 @@ subroutine vadvecv_2nd(a_in, a_out, sy)
 
     !$acc parallel loop collapse(3) default(present) async(2)
     do k = 2, kmax
-      do j = sy, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
                 ( w0(i,j,k+1)+w0(i,j-1,k+1))*(rhobf(k+1) * a_in(i,j,k+1) + rhobf(k) * a_in(i,j,k)) &
                 -(w0(i,j,k) +w0(i,j-1,k)) *(rhobf(k-1) * a_in(i,j,k-1) + rhobf(k) * a_in(i,j,k)) &
@@ -289,8 +291,8 @@ subroutine vadvecv_2nd(a_in, a_out, sy)
 
   else
     !$acc parallel loop collapse(2) default(present) async(2)
-    do j = sy, j1
-      do i = 2, i1
+    do j = jstart, jend
+      do i = istart, iend
         a_out(i,j,1)  = a_out(i,j,1)- (1/rhobf(1))*( &
           (w0(i,j,2)+w0(i,j-1,2)) &
           *(rhobf(2) * a_in(i,j,2)*dzf(1) + rhobf(1) * a_in(i,j,1)*dzf(2) ) * dzhi(2) &
@@ -300,8 +302,8 @@ subroutine vadvecv_2nd(a_in, a_out, sy)
 
     !$acc parallel loop collapse(3) default(present) async(2)
     do k = 2, kmax
-      do j = sy, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k)- (1/rhobf(k))*( &
             (w0(i,j,k+1)+w0(i,j-1,k+1)) &
             *(rhobf(k+1) * a_in(i,j,k+1)*dzf(k) + rhobf(k) * a_in(i,j,k)*dzf(k+1) ) * dzhi(k+1) &
@@ -316,7 +318,7 @@ subroutine vadvecv_2nd(a_in, a_out, sy)
 end subroutine vadvecv_2nd
 
 !> Horiozntal advection at the w point.
-subroutine hadvecw_2nd(a_in,a_out)
+subroutine hadvecw_2nd(a_in,a_out,istart,iend,jstart,jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dxiq,dyiq,dziq,dzf,dzhi,leq
   use modfields, only : u0, v0, rhobh
@@ -324,6 +326,7 @@ subroutine hadvecw_2nd(a_in,a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
@@ -331,8 +334,8 @@ subroutine hadvecw_2nd(a_in,a_out)
 
     !$acc parallel loop collapse(3) default(present) async(3)
     do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 ( &
                 (a_in(i+1,j,k)+a_in(i,j,k))*(u0(i+1,j,k)+u0(i+1,j,k-1)) &
@@ -350,8 +353,8 @@ subroutine hadvecw_2nd(a_in,a_out)
   else
     !$acc parallel loop collapse(3) default(present) async(3)
     do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k) - (1/rhobh(k))*( &
                 ( &
                 ( rhobh(k) * a_in(i+1,j,k) + rhobh(k) * a_in(i,j,k) ) &
@@ -374,7 +377,7 @@ subroutine hadvecw_2nd(a_in,a_out)
 end subroutine hadvecw_2nd
 
 !> Vertical advection at the w point.
-subroutine vadvecw_2nd(a_in,a_out)
+subroutine vadvecw_2nd(a_in,a_out,istart,iend,jstart,jend)
 
   use modglobal, only : i1,ih,j1,jh,k1,kmax,dziq,dzf,dzhi,leq
   use modfields, only : w0, rhobh
@@ -382,6 +385,7 @@ subroutine vadvecw_2nd(a_in,a_out)
 
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(in)  :: a_in !< Input: the w-field
   real(field_r), dimension(2-ih:i1+ih,2-jh:j1+jh,k1), intent(inout) :: a_out !< Output: the tendency
+  integer, intent(in) :: istart,iend,jstart,jend !< Input: start and end indices for advection routine
 
   integer :: i,j,k,ip,im,jp,jm,kp,km
 
@@ -389,8 +393,8 @@ subroutine vadvecw_2nd(a_in,a_out)
 
     !$acc parallel loop collapse(3) default(present) async(3)
     do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k)- ( &
                 (1/rhobh(k))*( &
                 (rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) )*(w0(i,j,k) + w0(i,j,k+1)) &
@@ -403,8 +407,8 @@ subroutine vadvecw_2nd(a_in,a_out)
   else
     !$acc parallel loop collapse(3) default(present) async(3)
     do k = 2, kmax
-      do j = 2, j1
-        do i = 2, i1
+      do j = jstart, jend
+        do i = istart, iend
           a_out(i,j,k)  = a_out(i,j,k) - (1/rhobh(k))*( &
                 ( &
                 ( rhobh(k) * a_in(i,j,k) + rhobh(k+1) * a_in(i,j,k+1) ) * (w0(i,j,k) + w0(i,j,k+1) ) &
@@ -415,7 +419,6 @@ subroutine vadvecw_2nd(a_in,a_out)
       end do
     end do
   end if
-  !$acc wait(1,2,3)
 end subroutine vadvecw_2nd
 
 end module advec_2nd

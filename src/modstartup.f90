@@ -1212,8 +1212,8 @@ contains
 
     else if (isurf == 11) then
       name(5:5) = 'l'
-      write(6,*) 'loading ',name
-      open(unit=ifinput,file=name,form='unformatted')
+      if (myid == 0) write(6,*) 'loading ',name
+      open(unit=ifinput,file=trim(output_prefix)//name,form='unformatted')
       read(ifinput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
       read(ifinput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
       read(ifinput) ((tskin (i,j),   i=1,i2), j=1,j2)
@@ -1396,7 +1396,7 @@ contains
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       else if (isurf == 11) then
         name(5:5)='l'
-        open  (ifoutput,file=name,form='unformatted')
+        open  (ifoutput,file=trim(output_prefix)//name,form='unformatted')
         write(ifoutput) (((tsoil(i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
         write(ifoutput) (((phiw (i,j,k), i=1,i2), j=1,j2), k=1,kmax_soil)
         write(ifoutput) ((tskin (i,j),   i=1,i2), j=1,j2)
@@ -1412,7 +1412,7 @@ contains
         write(ifoutput)  timee
         close (ifoutput)
         linkname = name
-        linkname(6:11) = "latest"
+        linkname(6:13) = "_latest_"
         call system("ln -s -f "//name //" "//trim(output_prefix)//linkname)
       end if
 
@@ -1556,6 +1556,9 @@ contains
         ibas_prf = 5
         print *, 'WARNING: warm start requires input files for density. ibas_prf defaulted to 5'
       endif
+      if(ibas_prf <= 3 .and. thls < 0) then
+         STOP 'thls has not been initialized but is needed for setting up the base profiles.'
+      end if
 
       if(ibas_prf==1) then !thv constant and hydrostatic balance
         thvb=thls*(1+(rv/rd-1)*qts) ! using thls, q_l assumed to be 0 during first time step
