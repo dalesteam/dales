@@ -630,7 +630,7 @@ contains
         write(*,*) 'height    thl      qt         u      v     e12'
         do k = kmax, 1, -1
           write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
-                height (k), &
+                zf     (k), &
                 thlprof(k), &
                 qtprof (k), &
                 uprof  (k), &
@@ -1027,7 +1027,7 @@ contains
                 ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
       do k=kmax,1,-1
         write (6,'(3f7.1,5e12.4)') &
-              height (k), &
+              zf     (k), &
               ug     (k), &
               vg     (k), &
               wfls   (k), &

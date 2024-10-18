@@ -24,6 +24,7 @@
 module modglobal
 use iso_c_binding
 use modprecision
+use modstat_nc
 implicit none
 save
 
@@ -274,6 +275,7 @@ contains
     real phi, colat, silat, omega, omega_gs
     real :: ilratio
     integer :: k, n, m, ierr
+    integer :: ncid, height_id
     character(80) chmess
 
     ! phsgrid
@@ -393,22 +395,28 @@ contains
     ! Note, that the loop for reading zf and calculating zh
     ! has been split so that reading is only done on PE 1
 
+    if (lstart_netcdf) then
+      call nchandle_error(nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid))
+      call nchandle_error(nf90_inq_varid(ncid, 'zt', height_id))
+      call nchandle_error(nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /)))
+      call nchandle_error(nf90_close(ncid))
+    else
+      if(myid==0)then
+        open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+        if (ierr /= 0) then
+           write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+           STOP
+        end if
+        read(ifinput,'(a72)') chmess
+        read(ifinput,'(a72)') chmess
 
-    if(myid==0)then
-      open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
-      if (ierr /= 0) then
-         write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-         STOP
-      end if
-      read(ifinput,'(a72)') chmess
-      read(ifinput,'(a72)') chmess
+        do k=1,kmax
+          read(ifinput,*) zf(k)
+        end do
+        close(ifinput)
 
-      do k=1,kmax
-        read(ifinput,*) zf(k)
-      end do
-      close(ifinput)
-
-    end if ! end if myid==0
+      end if ! end if myid==0
+    end if
 
   ! MPI broadcast kmax elements from zf
 
