@@ -33,7 +33,7 @@ private
 PUBLIC :: initcape,docape,exitcape
 save
 !NetCDF variables
-  integer,parameter :: nvar = 29
+  integer,parameter :: nvar = 30
   integer :: ncid4 = 0
   integer :: nrec = 0
   character(80) :: fname = 'cape.xxxxyxxx.xxx.nc'
@@ -82,25 +82,25 @@ contains
     fname(6:13) = cmyid
     fname(15:17) = cexpnr
     call nctiminfo(tncname(1,:))
-    call ncinfo(ncname( 1,:),'dcape','xy crosssections of actual dcape','J/m^2','tt0t')
-    call ncinfo(ncname( 2,:),'dscape','xy crosssections of actual dscape','J/m^2','tt0t')
-    call ncinfo(ncname( 3,:),'dcin','xy crosssections of actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')
-    call ncinfo(ncname( 4,:),'dscin','xy crosssections of actual CIN up to zcb','J/m^2','tt0t')
-    call ncinfo(ncname( 5,:),'dcintot','xy crosssections of total CIN up to dcape level','J/m^2','tt0t')
-    call ncinfo(ncname( 6,:),'capemax','xy crosssections of CAPEmax','J/m^2','tt0t')
-    call ncinfo(ncname( 7,:),'cinmax','xy crosssections of CIN as in CAPEmax','J/m^2','tt0t')
-    call ncinfo(ncname( 8,:),'hw2cb','xy crosssections of 1/2 W^2 at the top of the subcloud layer','m^2/s^2','tt0t')
-    call ncinfo(ncname( 9,:),'hw2max','xy crosssections of highest 1/2 W^2','m^2/s^2','tt0t')
-    call ncinfo(ncname( 10,:),'qtcb','xy crosssections of qt at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 11,:),'thlcb','xy crosssections of thl at cloudbase','K','tt0t')
-    call ncinfo(ncname( 12,:),'wcb','xy crosssections of w at cloudbase','m/s','tt0t')
-    call ncinfo(ncname( 13,:),'buoycb','xy crosssections buoyancy at cloudbase','K','tt0t')
-    call ncinfo(ncname( 14,:),'buoymax','xy crosssections maximum buoyancy','K','tt0t')
-    call ncinfo(ncname( 15,:),'qlcb','xy crosssections ql at cloudbase','kg/kg','tt0t')
-    call ncinfo(ncname( 16,:),'lwp','xy crosssections liquid water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 17,:),'rwp','xy crosssections rain water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 1,:),'dcape','actual dcape','J/m^2','tt0t')
+    call ncinfo(ncname( 2,:),'dscape','actual dscape','J/m^2','tt0t')
+    call ncinfo(ncname( 3,:),'dcin','actual CIN between zcb and 1.2 zcb','J/m^2','tt0t')
+    call ncinfo(ncname( 4,:),'dscin','actual CIN up to zcb','J/m^2','tt0t')
+    call ncinfo(ncname( 5,:),'dcintot','total CIN up to dcape level','J/m^2','tt0t')
+    call ncinfo(ncname( 6,:),'capemax','CAPEmax','J/m^2','tt0t')
+    call ncinfo(ncname( 7,:),'cinmax','CIN as in CAPEmax','J/m^2','tt0t')
+    call ncinfo(ncname( 8,:),'hw2cb','1/2 W^2 at the top of the subcloud layer','m^2/s^2','tt0t')
+    call ncinfo(ncname( 9,:),'hw2max','highest 1/2 W^2','m^2/s^2','tt0t')
+    call ncinfo(ncname( 10,:),'qtcb','qt at cloudbase','kg/kg','tt0t')
+    call ncinfo(ncname( 11,:),'thlcb','thl at cloudbase','K','tt0t')
+    call ncinfo(ncname( 12,:),'wcb','w at cloudbase','m/s','tt0t')
+    call ncinfo(ncname( 13,:),'buoycb','buoyancy at cloudbase','K','tt0t')
+    call ncinfo(ncname( 14,:),'buoymax','maximum buoyancy','K','tt0t')
+    call ncinfo(ncname( 15,:),'qlcb','ql at cloudbase','kg/kg','tt0t')
+    call ncinfo(ncname( 16,:),'lwp','liquid water path','kg/m^2','tt0t')
+    call ncinfo(ncname( 17,:),'rwp','rain water path','kg/m^2','tt0t')
     call ncinfo(ncname( 18,:),'twp','total water path','kg/m^2','tt0t')
-    call ncinfo(ncname( 19,:),'cldtop','xy crosssections cloud top height','m','tt0t')
+    call ncinfo(ncname( 19,:),'cldtop','cloud top height','m','tt0t')
     call ncinfo(ncname( 20,:),'surfprec','surface precipitation','kg/m^2/s','tt0t')
     call ncinfo(ncname( 21,:),'hmix','mixed layer height','m','tt0t')
     call ncinfo(ncname( 22,:),'hinvsrf','height of surface inversion','m','tt0t')
@@ -111,6 +111,7 @@ contains
     call ncinfo(ncname( 27,:),'vs','lowest layer wind speed','m/s','tm0t')
     call ncinfo(ncname( 28,:),'qts','lowest layer qt','kg/kg','tt0t')
     call ncinfo(ncname( 29,:),'Ts','lowest layer temperature','K','tt0t')
+    call ncinfo(ncname( 30,:),'lwp_low','liquid water path beneath 3 km','kg/m^2','tt0t')
 
     call open_nc(trim(output_prefix)//fname,  ncid4,nrec,n1=imax,n2=jmax)
     if (nrec==0) then
@@ -139,14 +140,14 @@ contains
     real, allocatable :: dcape(:,:),dscape(:,:),dcin(:,:),dscin(:,:),dcintot(:,:),capemax(:,:),&
     cinmax(:,:),hw2cb(:,:),hw2max(:,:),qtcb(:,:),&
     thlcb(:,:),wcb(:,:),buoycb(:,:),buoymax(:,:),qlcb(:,:),lwp(:,:),twp(:,:),rwp(:,:),&
-    cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),&
+    cldtop(:,:),thl200400(:,:),qt200400(:,:),sprec(:,:),lwp_low(:,:),&
     hmix(:,:), hinv(:,:), umix(:,:), vmix(:,:), thetavmix(:,:)
     real, allocatable :: thvfull(:,:,:),thvma(:,:,:),qlma(:,:,:),vars(:,:,:)
     integer, allocatable :: capetop(:,:),matop(:,:)
     logical,allocatable :: capemask(:,:,:)
 
     ! LOCAL VARIABLES
-    integer :: i,j,k,ktest,tlonr,thinr,niter,nitert,kdmax,kdmaxl
+    integer :: i,j,k,ktest,tlonr,thinr,niter,nitert,kdmax,kdmaxl,klow
     real :: Tnr,Tnr_old,ilratio,tlo,thi,esl1,esi1,qsatur,thlguess,thlguessmin,ttry,qvsl1,qvsi1
     real :: thv_sum, rho_sum, thv_avg, u_sum, v_sum, tmpk, tmpkp
 
@@ -170,7 +171,7 @@ contains
     allocate(buoycb(2:i1,2:j1),buoymax(2:i1,2:j1),qlcb(2:i1,2:j1),&
              lwp(2:i1,2:j1),rwp(2:i1,2:j1),cldtop(2:i1,2:j1),twp(2:i1,2:j1))
     allocate(thvfull(2:i1,2:j1,1:k1),thvma(2:i1,2:j1,1:k1),qlma(2:i1,2:j1,1:k1),&
-             capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1))
+             capemask(2:i1,2:j1,1:k1),capetop(2:i1,2:j1),matop(2:i1,2:j1),sprec(2:i1,2:j1),lwp_low(2:i1,2:j1))
     allocate(hmix(2:i1,2:j1),hinv(2:i1,2:j1),&
              umix(2:i1,2:j1),vmix(2:i1,2:j1),thetavmix(2:i1,2:j1))
 
@@ -201,6 +202,7 @@ contains
 
     ! loops over i,j,k
     lwp=0.
+    lwp_low = 0.
     twp=0.
     rwp=0.
     sprec=0.
@@ -240,6 +242,24 @@ contains
     enddo
     enddo
     enddo
+
+    ! determine klow = the first level where the upper boundary is above 3200m
+    klow = kmax
+    do k = 2, kmax
+       if (zh(k) >= 3200) then
+          klow = k-1
+          exit
+       end if
+    end do
+
+    do k=1,klow
+       do j=2,j1
+          do i=2,i1
+             lwp_low(i,j)=lwp_low(i,j)+rhobf(k)*ql0(i,j,k)*dzf(k)
+          end do
+       end do
+    end do
+
 
     call D_MPI_ALLREDUCE(kdmaxl,kdmax,1,MPI_MAX,comm3d,mpierr)
 
@@ -515,6 +535,7 @@ contains
       vars(:,:,27) = v0(2:i1,2:j1,1)
       vars(:,:,28) = qt0(2:i1,2:j1,1)
       vars(:,:,29) = tmp0(2:i1,2:j1,1)
+      vars(:,:,30) = lwp_low(2:i1,2:j1)
 
       call writestat_nc(ncid4,1,tncname,(/rtimee/),nrec,.true.)
       call writestat_nc(ncid4,nvar,ncname(1:nvar,:),vars,nrec,imax,jmax)
@@ -522,7 +543,7 @@ contains
     end if
 
     deallocate(dcape,dscape,dcin,dscin,dcintot,capemax,cinmax,hw2cb,hw2max,qtcb,thlcb,wcb,&
-    buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec)
+    buoycb,buoymax,qlcb,lwp,twp,rwp,cldtop,thvfull,thvma,qlma,capemask,capetop,matop,thl200400,qt200400,sprec,lwp_low)
     deallocate(hmix,hinv,umix,vmix,thetavmix)
 
   end subroutine docape
