@@ -399,7 +399,7 @@ contains
     if (lstart_netcdf) then
       ierr = nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid)
       if (ierr /= nf90_noerr) call abort
-      ierr = nf90_inq_varid(ncid, 'zt', height_id)
+      ierr = nf90_inq_varid(ncid, 'zh', height_id)
       if (ierr /= nf90_noerr) call abort
       ierr = nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /))
       if (ierr /= nf90_noerr) call abort
