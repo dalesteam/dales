@@ -375,7 +375,7 @@ subroutine inputchem
 !c***********************************************************************
  use modglobal, only : i1,j1,k1,kmax,cexpnr, ifoutput, nsv
  use modmpi,    only : myid
- use go,        only : to_lower
+ use utils,     only : to_lower
 
  implicit none
 
@@ -1007,7 +1007,7 @@ SUBROUTINE read_chem(chem_name)
   use modmpi,      only : myid
   use modsurfdata, only : CO2loc
   use modglobal,   only : nsv
-  use go,          only : to_lower
+  use utils,       only : to_lower
 
   implicit none
 
@@ -2041,7 +2041,7 @@ subroutine ratech
 !XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
 subroutine ITER(gdt,k)
-use go,          only : to_lower
+use utils,          only : to_lower
 
 implicit none
 

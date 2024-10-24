@@ -33,6 +33,8 @@ module modstartup
 use iso_c_binding
 use modprecision,      only : field_r
 use modtimer
+use modstat_nc
+use modtracer_type, only: T_tracer
 
 implicit none
 ! private
@@ -75,7 +77,7 @@ contains
                                   solver_id, maxiter, maxiter_precond, tolerance, n_pre, n_post, precond_id, checknamelisterror, &
                                   loutdirs, output_prefix, &
                                   lopenbc,linithetero,lperiodic,dxint,dyint,dzint,dxturb,dyturb,taum,tauh,pbc,lsynturb,nmodes,tau,lambda,lambdas,lambdas_x,lambdas_y,lambdas_z,iturb, &
-                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner
+                                  hypre_logging,rdt,rk3step,i1,j1,k1,ih,jh,lboundary,lconstexner, lstart_netcdf
     use modforces,         only : lforce_user
     use modsurfdata,       only : z0,ustin,wtsurf,wqsurf,wsvsurf,ps,thls,isurf
     use modsurface,        only : initsurface
@@ -84,7 +86,7 @@ contains
     use modlsm,            only : initlsm, kmax_soil
     use moddrydeposition,  only : initdrydep
     use modfields,         only : initfields,um,vm,wm,u0,v0,w0,up,vp,wp
-    use modtracers,        only : inittracers
+    use modtracers,        only : inittracers, allocate_tracers
     use modpois,           only : initpois,poisson
     use modradiation,      only : initradiation
     use modraddata,        only : irad,iradiation,&
@@ -120,7 +122,7 @@ contains
         iexpnr,lwarmstart,startfile,ltotruntime, runtime,dtmax,wctime,dtav_glob,timeav_glob,&
         trestart,irandom,randthl,randqt,krand,nsv,courant,peclet,ladaptive,author,&
         krandumin, krandumax, randu,&
-        nprocx,nprocy,loutdirs
+        nprocx,nprocy,loutdirs, lstart_netcdf
     namelist/DOMAIN/ &
         itot,jtot,kmax,kmax_soil,&
         xsize,ysize,&
@@ -221,6 +223,7 @@ contains
     call D_MPI_BCAST(timeav_glob,1,0,commwrld,mpierr)
     call D_MPI_BCAST(nsv        ,1,0,commwrld,mpierr)
     call D_MPI_BCAST(loutdirs   ,1,0,commwrld,mpierr)
+    call D_MPI_BCAST(lstart_netcdf,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(itot       ,1,0,commwrld,mpierr) ! DOMAIN
     call D_MPI_BCAST(jtot       ,1,0,commwrld,mpierr)
@@ -301,7 +304,7 @@ contains
     call D_MPI_BCAST(iadv_tke,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_thl,1,0,commwrld,mpierr)
     call D_MPI_BCAST(iadv_qt ,1,0,commwrld,mpierr)
-    call D_MPI_BCAST(iadv_sv(1:nsv) ,nsv,0,commwrld,mpierr)
+    call D_MPI_BCAST(iadv_sv ,1,0,commwrld,mpierr)
 
     call D_MPI_BCAST(lnoclouds  ,1,0,commwrld,mpierr)
 
@@ -343,7 +346,10 @@ contains
     call timer_tic('modstartup/startup', 0)
     call initfields
     call inittracers
+    call initmicrophysics
+    call allocate_tracers ! At this point, all tracers have to be defined
     call inittestbed    !reads initial profiles from scm_in.nc, to be used in readinitfiles
+    call inittstep
 
     if(.not.lopenbc) then
       call initboundary
@@ -360,7 +366,6 @@ contains
     call initdrydep
     call initsubgrid
 
-    call initmicrophysics
 
     if (loutdirs) then
        output_prefix(1:3) = cmyidy
@@ -507,7 +512,8 @@ contains
                                   rtimee,timee,ntrun,btime,dt_lim,nsv,&
                                   zf,dzf,dzh,rv,rd,cp,rlv,pref0,om23_gs,&
                                   ijtot,cu,cv,e12min,dzh,cexpnr,ifinput,lwarmstart,ltotruntime,itrestart,&
-                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero
+                                  trestart, ladaptive,llsadv,tnextrestart,longint,lconstexner,lopenbc, linithetero, &
+                                  lstart_netcdf
     use modsubgrid,        only : ekm,ekh
     use modsurfdata,       only : wsvsurf, &
                                   thls,tskin,tskinm,tsoil,tsoilm,phiw,phiwm,Wl,Wlm,thvs,qts,isurf,svs,obl,oblav,&
@@ -522,8 +528,9 @@ contains
     use modtestbed,        only : ltestbed,tb_ps,tb_thl,tb_qt,tb_u,tb_v,tb_w,tb_ug,tb_vg,&
                                   tb_dqtdxls,tb_dqtdyls,tb_qtadv,tb_thladv
     use modopenboundary,   only : openboundary_ghost,openboundary_readboundary,openboundary_initfields
-    use modtracers,        only : tracer_prop
-    use go,                only : to_lower, goSplitString_s
+    use modtracers,        only : tracer_prop, tracer_profs_from_netcdf
+    use go,                only : goSplitString_s
+    use utils,             only : to_lower
 #if defined(_OPENACC)
     use modgpu, only: update_gpu, update_host, host_is_updated, update_gpu_surface
 #endif
@@ -532,13 +539,13 @@ contains
     integer isv, sdx
     logical negval !switch to allow or not negative values in randomnization
 
-    real, allocatable :: height(:), th0av(:)
+    real(field_r), allocatable :: height(:), th0av(:)
     real(field_r), allocatable :: thv0(:,:,:)
     integer, allocatable :: scalar_indices(:)
 
     character(len=512) :: chmess
     integer            :: status, nheader, ifield
-    integer, parameter :: maxcol = 30
+    integer, parameter :: maxcol = 50
     character(len=6)   :: headers(maxcol)
     !character(len=1)   :: sep
     character(len=6)   ::  header
@@ -580,6 +587,12 @@ contains
 
           ps         = tb_ps(1)
 
+        else if (lstart_netcdf) then
+          call init_from_netcdf('init.'//cexpnr//'.nc', height, uprof, vprof, &
+                                thlprof, qtprof, e12prof, ug, vg, wfls, & 
+                                dqtdxls, dqtdyls, dqtdtls, thlpcar, kmax)
+          call tracer_profs_from_netcdf('tracers.'//cexpnr//'.nc', & 
+                                        tracer_prop, nsv, svprof(1:kmax,:))
         else
           open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
@@ -601,13 +614,12 @@ contains
           end do
 
           close(ifinput)
-
         end if   !ltestbed
 
         write(*,*) 'height    thl      qt         u      v     e12'
         do k = kmax, 1, -1
           write (*,'(f7.1,f8.1,e12.4,3f7.1)') &
-                height (k), &
+                zf     (k), &
                 thlprof(k), &
                 qtprof (k), &
                 uprof  (k), &
@@ -631,9 +643,8 @@ contains
       call D_MPI_BCAST(vprof  ,kmax,0,comm3d,mpierr)
       call D_MPI_BCAST(e12prof,kmax,0,comm3d,mpierr)
 
-      svprof = 0.
       if(myid==0)then
-        if (nsv>0) then
+        if (nsv>0 .and. .not. lstart_netcdf) then
           open (ifinput,file='scalar.inp.'//cexpnr,status='old',iostat=ierr)
           if (ierr /= 0) then
              write(6,*) 'Cannot open the file ', 'scalar.inp.'//cexpnr
@@ -665,18 +676,13 @@ contains
             enddo
             if (.not. found) then
               write(6,*) 'tracer not found in scalar.inp: ', tracer_prop(isv)%tracname
-              stop
+              !stop
             endif
           enddo
           ! write(*,*) 'scalar_indices: ', scalar_indices
           
-          do k = 1, kmax
-            read (ifinput,*) &
-                  height (k), &
-                  (svprof (k,n),n=1,nsv)
-          end do
+          close(ifinput)
 
-          open (ifinput,file='scalar.inp.'//cexpnr)
           write (6,*) 'height   sv(1) --------- sv(nsv) '
 
           do k = kmax, 1, -1
@@ -735,14 +741,8 @@ contains
             do j=1,j2
               do i=1,i2
                 do n=1,nsv
-                  ! if (i==1 .and. j==1 .and. k==1) then
-                  !   write(*,*) 'filling tracer ', tracer_prop(n)%tracname, n, sdx, i,j,k
-                  !   call flush()
-                  !   write(*,*) 'with values    ', svprof(k,sdx)
-                  ! endif
-                  sdx = scalar_indices(n)
-                  sv0(i,j,k,n) = svprof(k,sdx)
-                  svm(i,j,k,n) = svprof(k,sdx)
+                  sv0(i,j,k,n) = svprof(k,n)
+                  svm(i,j,k,n) = svprof(k,n)
                 end do
               end do
             end do
@@ -980,25 +980,29 @@ contains
 
       else
 
-        open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
-        if (ierr /= 0) then
-           write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
-           STOP
+        if (lstart_netcdf) then
+          continue ! Profiles have been read by init_from_netcdf
+        else
+          open (ifinput,file='lscale.inp.'//cexpnr, status='old',iostat=ierr)
+          if (ierr /= 0) then
+             write(6,*) 'Cannot open the file ', 'lscale.inp.'//cexpnr
+             STOP
+          end if
+          read (ifinput,'(a80)') chmess
+          read (ifinput,'(a80)') chmess
+          do  k=1,kmax
+            read (ifinput,*) &
+                height (k), &
+                ug     (k), &
+                vg     (k), &
+                wfls   (k), &
+                dqtdxls(k), &
+                dqtdyls(k), &
+                dqtdtls(k), &
+                thlpcar(k)
+          end do
+          close(ifinput)
         end if
-        read (ifinput,'(a80)') chmess
-        read (ifinput,'(a80)') chmess
-        do  k=1,kmax
-          read (ifinput,*) &
-              height (k), &
-              ug     (k), &
-              vg     (k), &
-              wfls   (k), &
-              dqtdxls(k), &
-              dqtdyls(k), &
-              dqtdtls(k), &
-              thlpcar(k)
-        end do
-        close(ifinput)
 
       end if
 
@@ -1006,7 +1010,7 @@ contains
                 ,'   dqtdx      dqtdy        dqtdtls     thl_rad '
       do k=kmax,1,-1
         write (6,'(3f7.1,5e12.4)') &
-              height (k), &
+              zf     (k), &
               ug     (k), &
               vg     (k), &
               wfls   (k), &
@@ -1091,8 +1095,9 @@ contains
                           SW_up_TOA,SW_dn_TOA,LW_up_TOA,LW_dn_TOA,&
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
     use modfields,  only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,dtheta,dqt,dsv,startfile,timee,&
+    use modglobal,  only : i1,i2,ih,j1,j2,jh,k1,startfile,timee,&
                            tres,ifinput,nsv,dt,output_prefix
+    use modboundary, only: dqt, dtheta, dsv
     use modmpi,     only : myid, cmyid
     use modsubgriddata, only : ekm,ekh
     use modlsm, only : kmax_soil, tile, nlu
@@ -1267,8 +1272,8 @@ contains
                           SW_up_ca_TOA,SW_dn_ca_TOA,LW_up_ca_TOA,LW_dn_ca_TOA
 
     use modfields, only : u0,v0,w0,thl0,qt0,ql0,ql0h,e120,dthvdz,presf,presh,initial_presf,initial_presh,sv0,tmp0,esl,qvsl,qvsi
-    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,dsv,cexpnr,ifoutput,timee,rtimee,tres,nsv,dtheta,dqt,dt,output_prefix
-
+    use modglobal, only : i1,i2,ih,j1,j2,jh,k1,cexpnr,ifoutput,timee,rtimee,tres,nsv,dt,output_prefix
+    use modboundary, only: dqt, dtheta, dsv
     use modmpi,    only : cmyid,myid
     use modsubgriddata, only : ekm,ekh
     use modlsm,    only : kmax_soil, tile, nlu
@@ -1746,5 +1751,82 @@ contains
     deallocate(height,pb,tb)
 
   end subroutine baseprofs
+
+  !> \brief Read initial profiles from init.XXX.nc
+  !!
+  !! \param filename Path to the netCDF file to read from.
+  !! \param height Vertical levels.
+  !! \param uprof Initial eastward velocity profile.
+  !! \param vprof Initial northward velocity profile.
+  !! \param thlprof Initial liquid water potential temperature profile.
+  !! \param qtprof Initial total water mixing ratio profile.
+  !! \param e12prof Initial profile of the square root of the turbulence kinetic energy (TKE).
+  !! \param ug Geostrophic eastward wind.
+  !! \param vg Geostrophic northward wind.
+  !! \param wfls Large-scale subsidence.
+  !! \param dqtdxls Eastward gradient of the total water mixing ratio due to advection.
+  !! \param dqtdyls Northward gradient of the total water mixing ratio due to advection.
+  !! \param dqtdtls Tendency of the total water mixing ratio.
+  !! \param dthlrad Tendency of the liquid water potential temperature due to radiative heating.
+  !! \param kmax Index of highest vertical level.
+  !! 
+  !! \note Tracers are read from tracers.XXX.nc, not here.
+  !! \todo Make DEPHY-compatible.
+  subroutine init_from_netcdf(filename, height, uprof, vprof, thlprof, qtprof, &
+                              e12prof, ug, vg, wfls, dqtdxls, dqtdyls, &
+                              dqtdtls, dthlrad, kmax) 
+    character(*),   intent(in)  :: filename
+    real(field_r),  intent(out) :: height(:)
+    real(field_r),  intent(out) :: uprof(:)
+    real(field_r),  intent(out) :: vprof(:)
+    real(field_r),  intent(out) :: thlprof(:)
+    real(field_r),  intent(out) :: qtprof(:)
+    real(field_r),  intent(out) :: e12prof(:)
+    real(field_r),  intent(out) :: ug(:)
+    real(field_r),  intent(out) :: vg(:)
+    real(field_r),  intent(out) :: wfls(:)
+    real(field_r),  intent(out) :: dqtdxls(:)
+    real(field_r),  intent(out) :: dqtdyls(:)
+    real(field_r),  intent(out) :: dqtdtls(:)
+    real(field_r),  intent(out) :: dthlrad(:)
+    integer,        intent(in)  :: kmax
+
+    integer :: ncid, varid, ierr
+    integer :: itrac
+
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
+
+    ! "Regular" prognostic fields
+    call read_nc_field(ncid, "ua", uprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "va", vprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "thetal", thlprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "qt", qtprof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "tke", e12prof, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "zh", height)
+
+    ! Large-scale forcings
+    call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "vg", vg, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "wa", wfls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdxls", dqtdxls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "dqtdyls", dqtdyls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "tnqt_adv", dqtdtls, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+    call read_nc_field(ncid, "tnthetal_rad", dthlrad, start=1, count=kmax, &
+                       fillvalue=0._field_r)
+
+    call nchandle_error(nf90_close(ncid))
+    
+  end subroutine init_from_netcdf
 
 end module modstartup

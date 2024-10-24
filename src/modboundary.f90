@@ -38,6 +38,10 @@ public :: initboundary, boundary, exitboundary, grwdamp, ksp, tsc, cyclich
   real(field_r) :: rnu0 = 2.75e-3
   logical :: lboundopen = .false.	     !GT switch for open boundary conditions for all scalars
   real(field_r) :: fillvalues(100) = 0       !GT fill value for each scalar to apply at the boundary
+
+  real(field_r), public              :: dtheta !< Applied gradient of qt at top of model
+  real(field_r), public              :: dqt    !< Applied gradient of theta at top of model
+  real(field_r), public, allocatable :: dsv(:) !< Applied gradient of sv(n) at top of model
 contains
 !>
 !! Initializing Boundary; specifically the sponge layer
@@ -83,7 +87,10 @@ contains
     end do
    tsc(k1)=tsc(kmax)
 
-   !$acc enter data copyin(tsc)
+   allocate(dsv(nsv))
+
+   !$acc enter data copyin(tsc) async
+   !$acc enter data create(dsv) async
 
    call timer_toc('modboundary/initboundary')
 
@@ -119,8 +126,8 @@ contains
   subroutine exitboundary
     implicit none
     
-    !$acc exit data delete(tsc)
-    deallocate(tsc)
+    !$acc exit data delete(tsc, dsv)
+    deallocate(tsc, dsv)
   end subroutine exitboundary
 
 !> Sets lateral periodic boundary conditions for the scalars
@@ -284,7 +291,7 @@ contains
 !> Sets top boundary conditions for scalars
   subroutine toph
 
-  use modglobal, only : kmax,k1,nsv,dtheta,dqt,dsv,dzh
+  use modglobal, only : kmax,k1,nsv,dzh
   use modfields, only : thl0,thlm,qt0,qtm,sv0,svm &
                        ,thl0av,qt0av,sv0av
   implicit none

@@ -178,7 +178,7 @@ subroutine depac_call(ilu, species, species_idx)		!GT added variable of species_
   use modfields, only : thl0, exnf, presf, qt0, qsat, sv0             !GT added sv0
   use le_drydepos_gas_depac, only : DryDepos_Gas_DEPAC
   use modraddata, only : zenith, swd
-  use go, only : to_upper
+  use utils, only : to_upper
   implicit none
 
   integer, intent(in) :: ilu, species_idx		!GT added species_idx

@@ -24,6 +24,7 @@
 module modglobal
 use iso_c_binding
 use modprecision
+use netcdf
 implicit none
 save
 
@@ -52,6 +53,7 @@ save
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
       character(50) :: startfile    !<    * name of the restart file
+      logical :: lstart_netcdf = .false.      !< Start from a NetCDF file
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
       integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
@@ -122,7 +124,7 @@ save
       integer, parameter :: ibas_usr    = 5 !< User specified
 
       !Advection scheme
-      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv(100) = -1
+      integer :: iadv_mom = 5, iadv_tke = -1, iadv_thl = -1,iadv_qt = -1,iadv_sv = -1
       integer, parameter :: iadv_null   = 0
       integer, parameter :: iadv_upw    = 1
       integer, parameter :: iadv_cd2    = 2
@@ -183,9 +185,6 @@ save
       real :: timeav_glob = 3600.
       real :: tres     = 0.001
       real :: thres     = 5.e-3 !<     * threshold value for inversion height calculations
-      real :: dqt               !<     * applied gradient of qt at top of model
-      real :: dtheta            !<     * applied gradient of theta at top of model
-      real,allocatable :: dsv(:)          !<     * applied gradient of sv(n) at top of model
 
       integer(kind=longint) :: dt                !<     * time integration interval
       real(field_r) :: rdt                !<     * time integration interval
@@ -277,45 +276,8 @@ contains
     real phi, colat, silat, omega, omega_gs
     real :: ilratio
     integer :: k, n, m, ierr
+    integer :: ncid, height_id
     character(80) chmess
-
-    !timestepping
-    if (courant<0) then
-      select case(iadv_mom)
-      case(iadv_cd2)
-        courant = 1.
-      case(iadv_cd6)
-        courant = 0.7
-      case(iadv_62)
-        courant = 0.7
-      case(iadv_5th)
-        courant = 1.
-      case(iadv_52)
-        courant = 1.
-      case(iadv_hybrid)
-         courant = 1.
-      case(iadv_hybrid_f)
-        courant = 1.
-      case default
-        courant = 1.
-      end select
-      if (any(iadv_sv(1:nsv)==iadv_cd6) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd6)) then
-        courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_62) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_62)) then
-        courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_kappa) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_kappa)) then
-        courant = min(courant, 0.7)
-      elseif (any(iadv_sv(1:nsv)==iadv_5th) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_5th)) then
-        courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_52 ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_52)) then
-        courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_cd2) .or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_cd2)) then
-        courant = min(courant, 1.0)
-      elseif (any(iadv_sv(1:nsv)==iadv_hybrid ).or. any((/iadv_thl,iadv_qt,iadv_tke/)==iadv_hybrid)) then
-        courant = min(courant, 1.0)
-      end if
-
-   end if
 
     ! phsgrid
     imax = itot/nprocx
@@ -328,35 +290,35 @@ contains
     j2=jmax+2
     !set the number of ghost cells. NB: This switch has to run in order of required ghost cells
     advarr = (/iadv_mom,iadv_tke,iadv_thl,iadv_qt/)
-    if     (any(advarr==iadv_cd6).or.any(iadv_sv(1:nsv)==iadv_cd6)) then
+    if     (any(advarr==iadv_cd6).or.iadv_sv==iadv_cd6) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_62).or.any(iadv_sv(1:nsv)==iadv_62)) then
+    elseif (any(advarr==iadv_62).or.iadv_sv==iadv_62) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_5th).or.any(iadv_sv(1:nsv)==iadv_5th)) then
+    elseif (any(advarr==iadv_5th).or.iadv_sv==iadv_5th) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_52).or.any(iadv_sv(1:nsv)==iadv_52)) then
+    elseif (any(advarr==iadv_52).or.iadv_sv==iadv_52) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_hybrid).or.any(iadv_sv(1:nsv)==iadv_hybrid)) then
+    elseif (any(advarr==iadv_hybrid).or.iadv_sv==iadv_hybrid) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_hybrid_f).or.any(iadv_sv(1:nsv)==iadv_hybrid_f)) then
+    elseif (any(advarr==iadv_hybrid_f).or.iadv_sv==iadv_hybrid_f) then
       ih = 3
       jh = 3
       kh = 1
-    elseif (any(advarr==iadv_kappa).or.any(iadv_sv(1:nsv)==iadv_kappa)) then
+    elseif (any(advarr==iadv_kappa).or.iadv_sv==iadv_kappa) then
       ih = 2
       jh = 2
       kh = 1
-    elseif (any(advarr==iadv_cd2).or.any(iadv_sv(1:nsv)==iadv_cd2)) then
+    elseif (any(advarr==iadv_cd2).or.iadv_sv==iadv_cd2) then
       ih = 1
       jh = 1
       kh = 1
@@ -393,12 +355,10 @@ contains
 
     !CvH remove where
     !where (iadv_sv<0)  iadv_sv  = iadv_mom
-    do n = 1, nsv
-      if(iadv_sv(n) < 0) then
-        iadv_sv(n) = iadv_mom
-        write (*,*) "Warning: iadv_sv(", n, ") not specified, defaulting to iadv_mom = ", iadv_mom
-      end if
-    end do
+    if (iadv_sv < 0) then
+      iadv_sv = iadv_mom
+      write (*,*) "Warning: iadv_sv not specified, defaulting to iadv_mom = ", iadv_mom
+    end if
 
     phi    = xlat*pi/180.
     colat  = cos(phi)
@@ -416,7 +376,6 @@ contains
     om23_gs   = 2.*omega_gs*silat
 
     ! Variables
-    allocate(dsv(nsv))
     write(cexpnr,'(i3.3)') iexpnr
 
 
@@ -437,22 +396,32 @@ contains
     ! Note, that the loop for reading zf and calculating zh
     ! has been split so that reading is only done on PE 1
 
+    if (lstart_netcdf) then
+      ierr = nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid)
+      if (ierr /= nf90_noerr) call abort
+      ierr = nf90_inq_varid(ncid, 'zh', height_id)
+      if (ierr /= nf90_noerr) call abort
+      ierr = nf90_get_var(ncid, height_id, zf, start=(/ 1 /), count=(/ kmax /))
+      if (ierr /= nf90_noerr) call abort
+      ierr = nf90_close(ncid)
+      if (ierr /= nf90_noerr) call abort
+    else
+      if(myid==0)then
+        open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
+        if (ierr /= 0) then
+           write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
+           STOP
+        end if
+        read(ifinput,'(a72)') chmess
+        read(ifinput,'(a72)') chmess
 
-    if(myid==0)then
-      open (ifinput,file='prof.inp.'//cexpnr,status='old',iostat=ierr)
-      if (ierr /= 0) then
-         write(6,*) 'Cannot open the file ', 'prof.inp.'//cexpnr
-         STOP
-      end if
-      read(ifinput,'(a72)') chmess
-      read(ifinput,'(a72)') chmess
+        do k=1,kmax
+          read(ifinput,*) zf(k)
+        end do
+        close(ifinput)
 
-      do k=1,kmax
-        read(ifinput,*) zf(k)
-      end do
-      close(ifinput)
-
-    end if ! end if myid==0
+      end if ! end if myid==0
+    end if
 
   ! MPI broadcast kmax elements from zf
 
@@ -536,15 +505,15 @@ contains
 !     timeleft=ceiling(runtime/tres)
 
     !$acc enter data copyin(dzf, dzh, dzfi,dzhi, zh, zf, delta, deltai, &
-    !$acc&                  dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc&                  esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
   end subroutine initglobal
 !> Clean up when leaving the run
   subroutine exitglobal
     !$acc exit data delete(dzf, dzh, zh, zf, delta, deltai, &
-    !$acc&                 dsv, esatmtab, esatitab, esatltab, mygamma251, mygamma21)
+    !$acc&                 esatmtab, esatitab, esatltab, mygamma251, mygamma21)
 
-    deallocate(dsv,dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
+    deallocate(dzf,dzh,dzfi,dzhi,zh,zf,delta,deltai)
   end subroutine exitglobal
 
 FUNCTION LACZ_GAMMA(X) RESULT(fn_val)

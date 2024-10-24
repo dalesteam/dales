@@ -24,59 +24,45 @@
 
 module modtracers
 
-  use modglobal, only : nsv
+  use modglobal,      only: nsv, i1, ih, j1, jh, k1, kmax, cexpnr
+  use modtracer_type, only: T_tracer
+  use modprecision,   only: field_r
+  use modfields,      only: svm, sv0, svp, sv0av, svprof
+  use modstat_nc
+  use utils
 
   implicit none
 
-  save
-  public  :: inittracers, read_tracer_props, assign_tracer_props
+  private
 
+  save
+
+  integer :: iname
+
+  type(T_tracer), allocatable, public, protected :: tracer_prop(:) !< List of tracers
+  logical,                     protected         :: ltracers = .false.
+  character(6),                protected         :: &
+    tracernames(200) = (/ ('      ', iname=1, 200)/)            !< For compatibility
+
+  logical :: file_exists
+
+  public :: inittracers
+  public :: add_tracer
+  public :: allocate_tracers
+  public :: exittracers
+  public :: tracer_profs_from_netcdf
+
+  ! Old stuff, to be removed at some point
   integer, parameter:: max_tracs  =  31 !<  Max. number of tracers that can be defined
   character(len=10),dimension(max_tracs) :: tracname_short = "NA" ! Short tracer name
   character(len=32),dimension(max_tracs) :: tracname_long  = "NA" ! Long tracer name
   character(len=10),dimension(max_tracs) :: tracer_unit = "NA" ! Unit of tracer
-  real     :: molar_mass(max_tracs)       = -1.0 ! Molar mass of tracer (g mol-1)
+  real(field_r)     :: molar_mass(max_tracs)       = -1.0 ! Molar mass of tracer (g mol-1)
   logical  :: tracer_is_emitted(max_tracs) = .false. ! Tracer is emitted (T/F)
   logical  :: tracer_is_reactive(max_tracs) = .false. ! Tracer is reactive (T/F)
   logical  :: tracer_is_deposited(max_tracs) = .false. ! Tracer is deposited (T/F)
   logical  :: tracer_is_photosynth(max_tracs) = .false. ! Tracer is photosynthesized (T/F)
   logical  :: tracer_is_microphys(max_tracs) = .false. ! Tracer is involved in cloud microphysics (T/F)
-
-  integer  :: iname
-  logical  :: ltracers = .false. ! tracer switch
-  character(len = 6), dimension(200) :: &
-              tracernames = (/ ('      ', iname=1, 200) /) ! list with scalar names,
-
-  ! Data structure for tracers
-  type T_tracer
-  ! Fixed tracer properties
-      ! Tracer name
-      character(len=16) :: tracname
-      ! Tracer long name
-      character(len=64) :: traclong 
-      ! Tracer unit
-      character(len=16) :: unit     
-      ! Moleculare mass of tracer (g mol-1)
-      real              :: molar_mass
-      ! Tracer index in sv0, svm, svp
-      integer           :: trac_idx
-      ! Boolean if tracer is emitted 
-      logical           :: lemis
-      ! Boolean if tracer is reactive
-      logical           :: lreact
-      ! Boolean if tracer is deposited
-      logical           :: ldep
-      ! Boolean if in A-gs
-      logical           :: lags   
-      ! Boolean if in cloud microphysics
-      logical           :: lmicro     
-      ! ! Static tracer properties:
-      ! real :: diffusivity
-  end type T_tracer
-
-  ! Trace type for each tracer
-  integer :: isv
-  type(T_tracer), allocatable :: tracer_prop(:)
 
 contains
 
@@ -109,38 +95,140 @@ contains
         close(ifnamopt)
     end if
 
+    nsv = 0
+
     ! Broadcast namelist values to all MPI tasks
     call d_mpi_bcast(ltracers,             1, 0, comm3d, ierr)
     call d_mpi_bcast(tracernames(1:200), 200, 0, comm3d, ierr)
 
-    allocate(tracer_prop(nsv), stat=ierr)
-    if (ierr/=0) stop
+    if (ltracers) then
+      call read_tracer_props
 
-    call read_tracer_props
-    call assign_tracer_props
+      allocate(tracer_prop(nsv), stat=ierr)
+      if (ierr/=0) stop
 
-    ! do isv = 1, nsv
-    !   write(6,"(A17, A6)") "species: ", trim(tracer_prop(isv) % tracname)
-    ! enddo
+      call assign_tracer_props
+
+      ! do isv = 1, nsv
+      !   write(6,"(A17, A6)") "species: ", trim(tracer_prop(isv) % tracname)
+      ! enddo
+    else
+      call tracer_props_from_netcdf('tracers.'//cexpnr//'.nc')
+    end if ! ltracers
+
 
   end subroutine inittracers
 
-  !
-  ! Cleanup (deallocate) the tracers
-  ! 
+  !> \brief Define a new tracer
+  !!
+  !! \param name Short name of the tracer.
+  !! \param long_name Full name of the tracer.
+  !! \param unit Unit.
+  !! \param molar_mass Molar mass (g mol^-1)
+  !! \param lemis Tracer is emitted.
+  !! \param lreact Tracer is reactive.
+  !! \param ldep Tracer is deposited.
+  !! \param lags Tracer is photosynthesized.
+  !! \param lmicro Tracer is involved in cloud microphysics.
+  !! \param laero Tracer is involved in aerosol microphyiscs.
+  !! \note All tracers should be added before readinitfiles is called!
+  subroutine add_tracer(name, long_name, unit, molar_mass, lemis, lreact, &
+                        ldep, lags, lmicro, isv)
+    character(*),  intent(in)            :: name
+    character(*),  intent(in),  optional :: long_name
+    character(*),  intent(in),  optional :: unit
+    real(field_r), intent(in),  optional :: molar_mass
+    logical,       intent(in),  optional :: lemis
+    logical,       intent(in),  optional :: lreact
+    logical,       intent(in),  optional :: ldep
+    logical,       intent(in),  optional :: lags
+    logical,       intent(in),  optional :: lmicro
+    integer,       intent(out), optional :: isv
+
+    integer                     :: s
+    type(T_tracer), allocatable :: tmp(:)
+
+    ! Check if the tracer already exists. If so, don't add a new one.
+    if (nsv > 0) then
+      do s = 1, nsv
+        if (trim(to_lower(name)) == trim(to_lower(tracer_prop(s) % tracname))) then
+          write(*,*) "Tracer", name, "already exists!"
+          if(present(isv)) isv = s
+          return
+        end if
+      end do
+    end if
+
+    nsv = nsv + 1
+
+    if (.not. allocated(tracer_prop)) then
+      allocate(tracer_prop(nsv))
+    else
+      allocate(tmp(nsv))
+      tmp(1:nsv-1) = tracer_prop(1:nsv-1)
+      call move_alloc(tmp, tracer_prop)
+    end if
+
+    tracer_prop(nsv) % tracname = name
+    tracer_prop(nsv) % trac_idx = nsv
+    if (present(long_name)) tracer_prop(nsv) % traclong = trim(long_name)
+    if (present(unit)) tracer_prop(nsv) % unit = unit
+    if (present(molar_mass)) tracer_prop(nsv) % molar_mass = molar_mass
+    if (present(lemis)) tracer_prop(nsv) % lemis = lemis
+    if (present(lreact)) tracer_prop(nsv) % lreact = lreact
+    if (present(ldep)) tracer_prop(nsv) % ldep = ldep
+    if (present(lags)) tracer_prop(nsv) % lags = lags
+    if (present(lmicro)) tracer_prop(nsv) % lmicro = lmicro
+
+    if (present(isv)) isv = nsv
+
+  end subroutine add_tracer
+
+  !> Allocates all tracer fields
+  subroutine allocate_tracers
+
+    integer :: s 
+
+    do s = 1, nsv
+      call tracer_prop(s) % print_properties()
+    end do
+
+    allocate(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+             sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+             svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+             sv0av(k1,nsv), svprof(k1,nsv))
+
+    svm(:,:,:,:) = 0
+    sv0(:,:,:,:) = 0
+    svp(:,:,:,:) = 0
+    sv0av(:,:) = 0
+    svprof(:,:) = 0
+
+    !$acc enter data copyin(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                  sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                  svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                  sv0av(k1,nsv), svprof(k1,nsv))
+
+  end subroutine allocate_tracers
+
+  !> Deallocates all tracers fields
   subroutine exittracers
-    ! use ..., only :
-    implicit none
 
-    if (.not. ltracers) return
+    !$acc exit data delete(svm(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                 sv0(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                 svp(2-ih:i1+ih,2-jh:j1+jh,k1,nsv), &
+    !$acc&                 sv0av(k1,nsv), svprof(k1,nsv))
 
-    ! Tracer properties:
-    deallocate(tracer_prop)
+    if (nsv > 0) then
+      deallocate(tracer_prop)
+      deallocate(svm, sv0, svp, sv0av, svprof)
+    end if
 
   end subroutine exittracers
 
-  !! Read the list of available tracers from tracerdata.inp
-  !! and their properties
+  !> DEPRECATED
+  !!
+  !! For reading "old" tracerdata.inp files.
   subroutine read_tracer_props
 
     use modglobal,  only : ifinput
@@ -148,10 +236,11 @@ contains
 
     implicit none
 
-    integer   :: tdx, ierr, defined_tracers
+    integer   :: tdx, ierr
     character(len=1500) :: readbuffer
 
-    defined_tracers = 0
+    tdx = nsv
+
     open (ifinput,file='tracerdata.inp')
     ierr = 0
     do while (ierr == 0)
@@ -162,8 +251,7 @@ contains
           if (myid == 0)   print *, trim(readbuffer)
         else
           if (myid == 0)   print *, trim(readbuffer)
-          defined_tracers = defined_tracers + 1
-          tdx = defined_tracers
+          tdx = tdx + 1
           read(readbuffer, *, iostat=ierr) tracname_short(tdx), tracname_long(tdx), tracer_unit(tdx), molar_mass(tdx), &
                                            tracer_is_emitted(tdx), tracer_is_reactive(tdx), tracer_is_deposited(tdx), &
                                            tracer_is_photosynth(tdx), tracer_is_microphys(tdx)
@@ -186,170 +274,109 @@ contains
   subroutine assign_tracer_props
     !!! ! use modtracdata ! arrays with tracer properties
 
-    implicit none
+    integer :: isv
 
     do isv=1,nsv
-      ! First assign tracer index values. They are equal to the sv index by default
-      tracer_prop(isv) % trac_idx = isv
-
-      ! match species by short name and 
-      ! look up species props in modtracdata arrays
-      tracer_prop(isv) % tracname = trim(tracernames(isv))
-      tracer_prop(isv) % traclong = trim(findval_character(tracernames(isv), tracname_short, &
-                                      tracname_long, defltvalue='dummy longname'))  ! Default is 'dummy '
-      tracer_prop(isv) % unit     = trim(findval_character(tracernames(isv), tracname_short, &
-                                      tracer_unit, defltvalue='dummy unit'))  ! Default is 'dummy unit'
-      tracer_prop(isv) % molar_mass = findval_real(tracernames(isv), tracname_short, &
-                                      molar_mass, defltvalue=-999.)  ! Default is -999.
-      tracer_prop(isv) % lemis    = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_emitted, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % lreact   = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_reactive, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % ldep     = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_deposited, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % lags     = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_photosynth, defltvalue=.false.)  ! Default is False
-      tracer_prop(isv) % lmicro   = findval_logical(tracernames(isv), tracname_short, &
-                                      tracer_is_microphys, defltvalue=.false.)  ! Default is False
-
-      ! write(*,*) 'tracer props ', tracer_prop(isv) % trac_idx, tracer_prop(isv) % tracname, tracer_prop(isv) % traclong, tracer_prop(isv) % unit, tracer_prop(isv) % lemis, tracer_prop(isv) % ldep, tracer_prop(isv) % lreact, tracer_prop(isv) % lags, tracer_prop(isv) % lmicro
+      call add_tracer( &
+        name=trim(tracernames(isv)), &
+        long_name=trim(findval(tracernames(isv), tracname_short, &
+                                         tracname_long, defltvalue='dummy longname')), & ! Default is 'dummy '
+        unit=trim(findval(tracernames(isv), tracname_short, &
+                    tracer_unit, defltvalue='dummy unit')), & ! Default is 'dummy unit'
+        molar_mass=findval(tracernames(isv), tracname_short, & 
+                     molar_mass, defltvalue=-999._field_r), & ! Default is -999.
+        lemis=findval(tracernames(isv), tracname_short, &
+                tracer_is_emitted, defltvalue=.false.), & ! Default is False
+        lreact=findval(tracernames(isv), tracname_short, &
+                 tracer_is_reactive, defltvalue=.false.), & ! Default is False
+        ldep=findval(tracernames(isv), tracname_short, &
+               tracer_is_deposited, defltvalue=.false.), & ! Default is False
+        lags=findval(tracernames(isv), tracname_short, &
+               tracer_is_photosynth, defltvalue=.false.), & ! Default is False
+        lmicro=findval(tracernames(isv), tracname_short, &
+                 tracer_is_microphys, defltvalue=.false.) & ! Default is False
+      )
     end do
 
   end subroutine assign_tracer_props
 
-  ! > Find a value in an array of values based on a key in an array of keys
-  ! !
-  ! ! Lookup a value in one array (`values`) at the index position of `key` in the array `keys`.
-  ! ! Provide the optional default value (`defltvalue`), that is returned when `key` isn't found.
-  ! ! When no default is given, zero is returned.
-  ! !
-  ! ! @param[in] key The key to be looked up
-  ! ! @param[in] keys The array of keys
-  ! ! @param[in] values The array of values
-  ! ! @param[in] defltvalue The default value (optional, default 0.0)
-  ! ! @return The value corresponding to the key
-  pure real function findval_real(key, keys, values, defltvalue)
-    implicit none
-    character(*), intent(in) :: key 
-    character(*), intent(in) :: keys(:)
-    real, intent(in) :: values(:)
-    real, intent(in), optional :: defltvalue
-    character(6) :: fkey
-    integer :: idx(1)
+  !> \brief Read tracer properties from tracers.XXX.nc
+  !!
+  !! \param filename Name of the input file.
+  subroutine tracer_props_from_netcdf(filename)
+    character(*),  intent(in)  :: filename
 
-    fkey = trim(key)
+    integer              :: ncid, nvars
+    integer              :: ivar
+    integer, allocatable :: varids(:)
 
-    idx = findloc(keys, fkey)
-    if (idx(1) /= 0 .and. idx(1) <= size(values)) then
-      findval_real = values(idx(1))
-    else
-      if (present(defltvalue)) then
-        findval_real = defltvalue 
-      else
-        findval_real = 0.0 
-      end if
+    ! Tracer attributes
+    character(NF90_MAX_NAME) :: name
+    character(32) :: long_name
+    character(16) :: unit
+    real(field_r) :: molar_mass
+    logical       :: lemis, lreact, ldep, lags
+
+    inquire(file=filename, exist=file_exists)
+    
+    if (.not. file_exists) then
+      write(6,*) "Warning: ", filename, " not found."
+      return
     end if
-  end function findval_real
 
-  ! > Find a value in an array of values based on a key in an array of keys
-  ! !
-  ! ! Lookup a value in one array (`values`) at the index position of `key` in the array `keys`.
-  ! ! Provide the optional default value (`defltvalue`), that is returned when `key` isn't found.
-  ! ! When no default is given, zero is returned.
-  ! !
-  ! ! @param[in] key The key to be looked up
-  ! ! @param[in] keys The array of keys
-  ! ! @param[in] values The array of values
-  ! ! @param[in] defltvalue The default value (optional, default -1)
-  ! ! @return The value corresponding to the key
-  pure integer function findval_integer(key, keys, values, defltvalue)
-    implicit none
-    character(*), intent(in) :: key 
-    character(*), intent(in) :: keys(:)
-    integer, intent(in) :: values(:)
-    integer, intent(in), optional :: defltvalue
-    character(6) :: fkey
-    integer :: idx(1)
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
+    call nchandle_error(nf90_inquire(ncid, nVariables=nvars))
 
-    fkey = trim(key)
+    allocate(varids(nvars))
 
-    idx = findloc(keys, fkey)
-    if (idx(1) /= 0 .and. idx(1) <= size(values)) then
-      findval_integer = values(idx(1))
-    else
-      if (present(defltvalue)) then
-        findval_integer = defltvalue 
-      else
-        findval_integer = -1 
-      end if
-    end if
-  end function findval_integer
+    call nchandle_error(nf90_inq_varids(ncid, nvars, varids))
 
-  ! > Find a value in an array of values based on a key in an array of keys
-  ! !
-  ! ! Lookup a value in one array (`values`) at the index position of `key` in the array `keys`.
-  ! ! Provide the optional default value (`defltvalue`), that is returned when `key` isn't found.
-  ! ! When no default is given, zero is returned.
-  ! !
-  ! ! @param[in] key The key to be looked up
-  ! ! @param[in] keys The array of keys
-  ! ! @param[in] values The array of values
-  ! ! @param[in] defltvalue The default value (optional, default .False.)
-  ! ! @return The value corresponding to the key
-  pure logical function findval_logical(key, keys, values, defltvalue)
-    implicit none
-    character(*), intent(in) :: key 
-    character(*), intent(in) :: keys(:)
-    logical, intent(in) :: values(:)
-    logical, intent(in), optional :: defltvalue
-    character(6) :: fkey
-    integer :: idx(1)
+    do ivar = 1, nvars
+      call nchandle_error(nf90_inquire_variable(ncid, varids(ivar), name=name))
 
-    fkey = trim(key)
+      ! Read attributes
+      call read_nc_attribute(ncid, varids(ivar), "long_name", long_name, default="dummy")
+      call read_nc_attribute(ncid, varids(ivar), "unit", unit, default="---")
+      call read_nc_attribute(ncid, varids(ivar), "molar_mass", molar_mass, default=-999._field_r)
+      call read_nc_attribute(ncid, varids(ivar), "lemis", lemis, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), "lreact", lreact, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), "ldep", ldep, default=.false.)
+      call read_nc_attribute(ncid, varids(ivar), "lags", lags, default=.false.)
+      
+      ! Setup tracer
+      call add_tracer(trim(name), long_name=trim(long_name), unit=unit, &
+                      molar_mass=molar_mass, lemis=lemis, lreact=lreact, &
+                      ldep=ldep, lags=lags, lmicro=.false.)
+    end do
 
-    idx = findloc(keys, fkey)
-    if (idx(1) /= 0 .and. idx(1) <= size(values)) then
-      findval_logical = values(idx(1))
-    else
-      if (present(defltvalue)) then
-        findval_logical = defltvalue 
-      else
-        findval_logical = .False. 
-      end if
-    end if
-  end function findval_logical
+    deallocate(varids)
 
-  ! > Find a value in an array of values based on a key in an array of keys
-  ! !
-  ! ! Lookup a value in one array (`values`) at the index position of `key` in the array `keys`.
-  ! ! Provide the optional default value (`defltvalue`), that is returned when `key` isn't found.
-  ! ! When no default is given, zero is returned.
-  ! !
-  ! ! @param[in] key The key to be looked up
-  ! ! @param[in] keys The array of keys
-  ! ! @param[in] values The array of values
-  ! ! @param[in] defltvalue The default value (optional, default .False.)
-  ! ! @return The value corresponding to the key
-  pure character(32) function findval_character(key, keys, values, defltvalue)
-    implicit none
-    character(*), intent(in) :: key 
-    character(*), intent(in) :: keys(:)
-    character(*), intent(in) :: values(:)
-    character(6), intent(in), optional :: defltvalue
-    character(6) :: fkey
-    integer :: idx(1)
+  end subroutine tracer_props_from_netcdf
 
-    fkey = trim(key)
-    idx = findloc(keys, fkey)
-    if (idx(1) /= 0 .and. idx(1) <= size(values)) then
-      findval_character = trim(values(idx(1)))
-    else
-      if (present(defltvalue)) then
-        findval_character = defltvalue 
-      else
-        findval_character = 'dummy'
-      end if
-    end if
-  end function findval_character
+  !> \brief Read initial profiles for tracers
+  !!
+  !! \param filename Name of the input file.
+  !! \param tracers List of tracers to read input for.
+  !! \param svprof 2D array (z,s) to place initial profiles in.
+  subroutine tracer_profs_from_netcdf(filename, tracers, nsv, svprof)
+    character(*),   intent(in)  :: filename
+    type(T_tracer), intent(in)  :: tracers(:)
+    real(field_r),  intent(out) :: svprof(:,:)
+
+    integer :: ncid
+    integer :: ivar, isv, nsv
+
+    if (.not. file_exists) return
+
+    call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
+
+    nsv = size(tracers)
+
+    do ivar = 1, nsv
+      call read_nc_field(ncid, trim(tracers(ivar) % tracname), svprof(:,ivar), &
+                         start=1, count=kmax, fillvalue=0._field_r)
+    end do
+
+  end subroutine tracer_profs_from_netcdf
 
 end module modtracers
