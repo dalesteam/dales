@@ -1797,32 +1797,32 @@ contains
     call nchandle_error(nf90_open(filename, NF90_NOWRITE, ncid))
 
     ! "Regular" prognostic fields
-    call read_nc_field(ncid, "u", uprof, start=1, count=kmax, &
+    call read_nc_field(ncid, "ua", uprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "v", vprof, start=1, count=kmax, &
+    call read_nc_field(ncid, "va", vprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "th_l", thlprof, start=1, count=kmax, &
+    call read_nc_field(ncid, "thetal", thlprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "q_t", qtprof, start=1, count=kmax, &
+    call read_nc_field(ncid, "qt", qtprof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "TKE_init", e12prof, start=1, count=kmax, &
+    call read_nc_field(ncid, "tke", e12prof, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "zt", height)
+    call read_nc_field(ncid, "zh", height)
 
     ! Large-scale forcings
     call read_nc_field(ncid, "ug", ug, start=1, count=kmax, &
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "vg", vg, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "wfls", wfls, start=1, count=kmax, &
+    call read_nc_field(ncid, "wa", wfls, start=1, count=kmax, &
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "dqtdxls", dqtdxls, start=1, count=kmax, &
                        fillvalue=0._field_r)
     call read_nc_field(ncid, "dqtdyls", dqtdyls, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "dqtdtls", dqtdtls, start=1, count=kmax, &
+    call read_nc_field(ncid, "tnqt_adv", dqtdtls, start=1, count=kmax, &
                        fillvalue=0._field_r)
-    call read_nc_field(ncid, "dthlrad", dthlrad, start=1, count=kmax, &
+    call read_nc_field(ncid, "tnthetal_rad", dthlrad, start=1, count=kmax, &
                        fillvalue=0._field_r)
 
     call nchandle_error(nf90_close(ncid))
