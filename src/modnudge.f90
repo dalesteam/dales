@@ -95,6 +95,11 @@ contains
     end if
 
     call D_MPI_BCAST(lnudge, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(lunudge, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(lvnudge, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(lwnudge, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(lthlnudge, 1, 0, comm3d, mpierr)
+    call D_MPI_BCAST(lqtnudge, 1, 0, comm3d, mpierr)
     call D_MPI_BCAST(tnudgefac, 1, 0, comm3d, mpierr)
 
     if (.not. lnudge) return
@@ -112,15 +117,22 @@ contains
       end if
 
       call D_MPI_BCAST(ntnudge, 1, 0, comm3d, mpierr)
+      allocate(timenudge(0:ntnudge))
+      timenudge(:) = 0
+      if (myid == 0) then
+        call nchandle_error(nf90_inq_varid(ncid, "time", varid))
+        call nchandle_error(nf90_get_var(ncid, varid, timenudge(1:)))
+      end if
+      call D_MPI_BCAST(timenudge, ntnudge + 1, 0, comm3d, mpierr)
       
       if (lunudge) then
         allocate(unudge(k1,ntnudge), tunudge(k1,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "ua_nud", varid))
-          call nchandle_error(nf90_get_var(ncid, varid, unudge))
+          call nchandle_error(nf90_get_var(ncid, varid, unudge(1:kmax,:)))
           call nchandle_error(nf90_inq_varid(ncid, "nudging_constant_ua", &
                               varid))
-          call nchandle_error(nf90_get_var(ncid, varid, tunudge))
+          call nchandle_error(nf90_get_var(ncid, varid, tunudge(1:kmax,:)))
         end if
       end if
 
@@ -128,10 +140,10 @@ contains
         allocate(vnudge(k1,ntnudge), tvnudge(k1,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "va_nud", varid))
-          call nchandle_error(nf90_get_var(ncid, varid, vnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, vnudge(1:kmax,:)))
           call nchandle_error(nf90_inq_varid(ncid, "nudging_constant_va", &
                               varid))
-          call nchandle_error(nf90_get_var(ncid, varid, tvnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, tvnudge(1:kmax,:)))
         end if
       end if
 
@@ -150,10 +162,10 @@ contains
         allocate(thlnudge(k1,ntnudge), tthlnudge(k1,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "thetal_nud", varid))
-          call nchandle_error(nf90_get_var(ncid, varid, thlnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, thlnudge(1:kmax,:)))
           call nchandle_error(nf90_inq_varid(ncid, "nudging_constant_thetal", &
                               varid))
-          call nchandle_error(nf90_get_var(ncid, varid, tthlnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, tthlnudge(1:kmax,:)))
         end if
       end if
 
@@ -161,10 +173,10 @@ contains
         allocate(qtnudge(k1,ntnudge), tqtnudge(k1,ntnudge))
         if (myid == 0) then
           call nchandle_error(nf90_inq_varid(ncid, "qt_nud", varid))
-          call nchandle_error(nf90_get_var(ncid, varid, qtnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, qtnudge(1:kmax,:)))
           call nchandle_error(nf90_inq_varid(ncid, "nudging_constant_qt", &
                               varid))
-          call nchandle_error(nf90_get_var(ncid, varid, tqtnudge))
+          call nchandle_error(nf90_get_var(ncid, varid, tqtnudge(1:kmax,:)))
         end if
       end if
 
@@ -180,12 +192,15 @@ contains
               nf90_inq_varid(ncid, &
                 "nudging_constant_"//trim(tracer_prop(n) % tracname), &
                 varid))
-            call nchandle_error(nf90_get_var(ncid, varid, tsvnudge(:,:,n)))
+            call nchandle_error(nf90_get_var(ncid, varid, tsvnudge(1:kmax,:,n)))
           else
             svnudge(:,:,n) = 0
             tsvnudge(:,:,n) = 0
           end if
         end do
+
+      if (myid == 0) then
+        call nchandle_error(nf90_close(ncid))
       end if
     else
       allocate(tnudge(k1,ntnudge), unudge(k1,ntnudge), vnudge(k1,ntnudge), &
@@ -253,6 +268,12 @@ contains
         close (ifinput)
       end if
 
+      lunudge = any(abs(unudge) > 1e-8)
+      lvnudge = any(abs(vnudge) > 1e-8)
+      lwnudge = any(abs(wnudge) > 1e-8)
+      lthlnudge = any(abs(thlnudge) > 1e-8)
+      lqtnudge = any(abs(qtnudge) > 1e-8)
+
       tnudge = tnudgefac * tnudge
 
       tunudge(:,:) = tnudge(:,:)
@@ -263,26 +284,30 @@ contains
     end if
 
     call D_MPI_BCAST(timenudge, ntnudge + 1, 0, comm3d, mpierr)
-    call D_MPI_BCAST(unudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(vnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(wnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(thlnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(qtnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(tunudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(tvnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(twnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(tthlnudge, k1 * ntnudge, 0, comm3d, mpierr)
-    call D_MPI_BCAST(tqtnudge, k1 * ntnudge, 0, comm3d, mpierr)
+    if (lunudge) then
+      call D_MPI_BCAST(unudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tunudge, k1 * ntnudge, 0, comm3d, mpierr)
+    end if
+    if (lvnudge) then
+      call D_MPI_BCAST(vnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tvnudge, k1 * ntnudge, 0, comm3d, mpierr)
+    end if
+    if (lwnudge) then
+      call D_MPI_BCAST(wnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(twnudge, k1 * ntnudge, 0, comm3d, mpierr)
+    end if
+    if (lthlnudge) then
+      call D_MPI_BCAST(thlnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tthlnudge, k1 * ntnudge, 0, comm3d, mpierr)
+    end if
+    if (lqtnudge) then
+      call D_MPI_BCAST(qtnudge, k1 * ntnudge, 0, comm3d, mpierr)
+      call D_MPI_BCAST(tqtnudge, k1 * ntnudge, 0, comm3d, mpierr)
+    end if
     if (lsvnudge) then
       call D_MPI_BCAST(svnudge, nsv * k1 * ntnudge, 0, comm3d, mpierr)
       call D_MPI_BCAST(tsvnudge, nsv * k1 * ntnudge, 0, comm3d, mpierr)
     end if
-
-    lunudge = any(abs(unudge) > 1e-8)
-    lvnudge = any(abs(vnudge) > 1e-8)
-    lwnudge = any(abs(wnudge) > 1e-8)
-    lthlnudge = any(abs(thlnudge) > 1e-8)
-    lqtnudge = any(abs(qtnudge) > 1e-8)
 
     !$acc enter data copyin(timenudge, unudge, vnudge, wnudge, thlnudge, &
     !$acc&                  qtnudge, tunudge, tvnudge, twnudge, tthlnudge, &
