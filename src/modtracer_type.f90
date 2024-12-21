@@ -26,6 +26,8 @@ module modtracer_type
       logical           :: lags=.false.
       ! Boolean if in cloud microphysics
       logical           :: lmicro=.false.
+      ! Boolean if tracer is nudged
+      logical           :: lnudge=.false.
       ! ! Static tracer properties:
       ! real :: diffusivity
 
