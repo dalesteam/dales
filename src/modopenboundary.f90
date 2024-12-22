@@ -44,6 +44,7 @@ contains
     ! Initialisation routine for openboundaries
     use modmpi, only : myidx, myidy, nprocx, nprocy, myid
     use modglobal, only : imax,jmax,kmax,i1,j1,k1,dx,dy,itot,jtot,solver_id,nsv,cu,cv
+    use modboundary, only: dsv
     implicit none
     integer :: i
 
@@ -137,11 +138,14 @@ contains
         endif
     end do
     call initsynturb
+    allocate(dsv(nsv)) ! dsv is not used with open boundaries
+    dsv = 0            ! but it is written to the restart files
   end subroutine initopenboundary
 
   subroutine exitopenboundary
     ! Exit routine for openboundaries
     use modglobal, only : nsv
+    use modboundary, only : dsv
     implicit none
     integer :: i
     if(.not.lopenbc) return
@@ -155,6 +159,7 @@ contains
       if(nsv>0) deallocate(boundary(i)%sv,boundary(i)%svturb)
     end do
     deallocate(rhointi)
+    deallocate(dsv)
     call exitsynturb
   end subroutine exitopenboundary
 

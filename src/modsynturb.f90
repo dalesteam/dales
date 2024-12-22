@@ -72,6 +72,9 @@ contains
         nxturb = int(dx/dxturb*real(itot));
         nyturb = int(dy/dyturb*real(jtot));
         nzturb = kmax
+        if (nxturb < 1 .or. nyturb < 1) then
+           STOP 'nxturb or nyturb < 1, perhaps dxturb or dyturb is too large.'
+        end if
         lambdas = merge(lambda,lambdas,lambdas==-1.)
         lambdasxyz = (/merge(lambdas,lambdas_x,lambdas_x==-1.), &
                     & merge(lambdas,lambdas_y,lambdas_y==-1.), &

@@ -1601,12 +1601,24 @@ subroutine initsamptend
 
 !> Cleans up after the run
   subroutine exitsamptend
-    use modstat_nc, only: lnetcdf
+    use modstat_nc, only: exitstat_nc,lnetcdf
+    use modmpi, only: myid
   implicit none
 
     if (.not. lsamptend) return
     if(isamptot == 0) return
     if(.not.(lnetcdf)) return
+
+    if (lprocblock) then
+       ! Each block writes its own budget to its own file
+       call exitstat_nc(ncid)
+    else
+       ! We average over all blocks and write to a single file
+       if (myid==0) then
+          call exitstat_nc(ncid)
+       end if
+    end if
+    
     if (lsamptendu) deallocate (uptm, upmn, upav, ust)
     if (lsamptendv) deallocate (vptm, vpmn, vpav, vst)
     if (lsamptendw) deallocate (wptm, wpmn, wpav, wst)

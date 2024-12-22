@@ -410,93 +410,100 @@ contains
   end subroutine startup
 
 
+  !> Checks whether crucial parameters are set correctly
   subroutine checkinitvalues
-  !-----------------------------------------------------------------|
-  !                                                                 |
-  !      Thijs Heus   TU Delft  9/2/2006                            |
-  !                                                                 |
-  !     purpose.                                                    |
-  !     --------                                                    |
-  !                                                                 |
-  !      checks whether crucial parameters are set correctly        |
-  !                                                                 |
-  !     interface.                                                  |
-  !     ----------                                                  |
-  !                                                                 |
-  !     *checkinitvalues* is called from *program*.                 |
-  !                                                                 |
-  !-----------------------------------------------------------------|
+    use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps, lhetero
+    use modglobal,   only: itot, jtot, ysize, xsize, dtmax, runtime, &
+                           startfile, lwarmstart, eps1, imax, jmax, ih, jh
+    use modmpi,      only: myid, nprocx, nprocy, mpierr, MPI_FINALIZE
+    use modtimedep,  only: ltimedep
 
-    use modsurfdata,only : wtsurf,wqsurf,ustin,thls,isurf,ps,lhetero
-    use modglobal, only : itot,jtot, ysize,xsize,dtmax,runtime, startfile,lwarmstart,eps1, imax,jmax
-    use modmpi,    only : myid,nprocx,nprocy,mpierr, MPI_FINALIZE
-    use modtimedep, only : ltimedep
-
-
-      if(mod(jtot,nprocy) /= 0) then
-        if(myid==0)then
-          write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocy must divide jtot!!! '
-          write(6,*)'nprocy and jtot are: ',nprocy, jtot
-        end if
-        call MPI_FINALIZE(mpierr)
-        stop
-      else
-        if(myid==0)then
-          write(6,*)'jmax = jtot / nprocy = ', jmax
-        endif
+    ! Check MPI configuration
+    if (mod(jtot, nprocy) /= 0) then
+      if (myid == 0)then
+        write(6,'(A13,I4,A30,I4,A40)') 'ERROR: jtot (', jtot, ') is not &
+          &divisible by nprocy (', nprocy, '). Please change your MPI &
+          &configuration.'
       end if
-
-      if(mod(itot,nprocx)/=0)then
-        if(myid==0)then
-          write(6,*)'STOP ERROR IN NUMBER OF PROCESSORS'
-          write(6,*)'nprocx must divide itot!!! '
-          write(6,*)'nprocx and itot are: ',nprocx,itot
-        end if
-        call MPI_FINALIZE(mpierr)
-        stop
-      else
-        if(myid==0)then
-          write(6,*)'imax = itot / nprocx = ', imax
-        endif
+      call MPI_FINALIZE(mpierr)
+      stop
+    else
+      if(myid == 0) then
+        write(6,*) 'jmax = jtot / nprocy = ', jmax
       end if
+    end if
 
-  !Check Namroptions
+    if (mod(itot, nprocx) /= 0) then
+      if (myid == 0) then
+        write(6,'(A13,I4,A30,I4,A40)') 'ERROR: jtot (', itot, ') is not &
+          &divisible by nprocy (', nprocx, '). Please change your MPI &
+          &configuration.'
+      end if
+      call MPI_FINALIZE(mpierr)
+      stop
+    else
+      if (myid == 0) then
+        write(6,*)'imax = itot / nprocx = ', imax
+      end if
+    end if
 
+    ! Check if we have overlapping ghost cells
+    if (ih > imax) then
+      if (myid == 0) then
+        write(6,'(A13,I4,A54,I4,A40)') 'ERROR: imax (', imax, ') is smaller &
+         &than the required number of ghost cells (', ih, '). Please change &
+         &your MPI configuration.'
+      end if
+      call MPI_FINALIZE(mpierr)
+      stop
+    end if
 
-    if (runtime < 0)stop 'runtime out of range/not set'
-    if (dtmax < 0)  stop 'dtmax out of range/not set '
-    if (ps < eps1)     stop 'psout of range/not set'
-    if (thls < eps1)   stop 'thls out of range/not set'
-    if (xsize < 0)  stop 'xsize out of range/not set'
-    if (ysize < 0)  stop 'ysize out of range/not set '
+    if (jh > jmax) then
+      if (myid == 0) then
+        write(6,'(A13,I4,A54,I4,A40)') 'ERROR: jmax (', jmax, ') is smaller &
+         &than the required number of ghost cells (', jh, '). Please change &
+         &your MPI configuration.'
+      end if
+      call MPI_FINALIZE(mpierr)
+      stop
+    end if
+
+    ! Check namoptions
+    if (runtime < 0) stop 'runtime out of range/not set'
+    if (dtmax < 0) stop 'dtmax out of range/not set'
+    if (ps < eps1) stop 'psout of range/not set'
+    if (thls < eps1) stop 'thls out of range/not set'
+    if (xsize < 0) stop 'xsize out of range/not set'
+    if (ysize < 0) stop 'ysize out of range/not set'
 
     if (lwarmstart) then
       if (startfile == '') stop 'no restartfile set'
     end if
-  !isurf
+
+    ! Surface
     if (myid == 0) then
       select case (isurf)
-      case(1)
-      case(2,10)
-      case(3:4)
-        if (wtsurf <-1e10)  stop 'wtsurf not set'
-        if (wqsurf <-1e10)  stop 'wqsurf not set'
-      case(11)
-      case default
-        stop 'isurf out of range/not set'
+        case (1)
+        case (2,10)
+        case (3:4)
+          if (wtsurf < -1E10) stop 'wtsurf not set'
+          if (wqsurf < -1E10) stop 'wqsurf not set'
+        case (11)
+        case default
+          stop 'isurf out of range/not set'
       end select
-      if (isurf ==3) then
-        if (ustin < 0)  stop 'ustin out of range/not set'
+
+      if (isurf == 3) then
+        if (ustin < 0) stop 'ustin out of range/not set'
       end if
     end if
 
     if (ltimedep .and. lhetero) then
-      if (myid == 0) write(6,*)&
-      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
-      if (myid == 0) write(0,*)&
-      'WARNING: You selected to use time dependent (ltimedep) and heterogeneous surface conditions (lhetero) at the same time'
-    endif
+      if (myid == 0) then
+        write(6,*) 'WARNING: You selected to use time dependent (ltimedep) &
+          &and heterogeneous surface conditions (lhetero) at the same time'
+      end if
+    end if
 
   end subroutine checkinitvalues
 
@@ -837,7 +844,6 @@ contains
       
       call thermodynamics
       call surface
-      call boundary
       
       if ( lopenbc ) then
         call openboundary_ghost()
