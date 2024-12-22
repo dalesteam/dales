@@ -84,7 +84,7 @@ contains
     real, allocatable, dimension(:) :: height
 
     namelist /NAMNUDGE/ lnudge, lunudge, lvnudge, lwnudge, lthlnudge, &
-                        lqtnudge, tnudgefac
+                        lqtnudge, lsvnudge, tnudgefac
 
     if (myid == 0) then
       open(ifnamopt, file=fname_options, status='old', iostat=ierr)
@@ -183,7 +183,8 @@ contains
       if (lsvnudge) then
         allocate(svnudge(k1,ntnudge,nsv), tsvnudge(k1,ntnudge,nsv))
         do n = 1, nsv
-          if (tracer_prop(n) % lnudge) then
+          if (tracer_prop(n) % lnudge .and. myid == 0) then
+            write(6,*) "Nudging enabled for tracer ", tracer_prop(n) % tracname
             call nchandle_error(nf90_inq_varid(ncid, &
                                   trim(tracer_prop(n) % tracname)//"_nud", &
                                   varid))
@@ -198,6 +199,7 @@ contains
             tsvnudge(:,:,n) = 0
           end if
         end do
+      end if
 
       if (myid == 0) then
         call nchandle_error(nf90_close(ncid))
