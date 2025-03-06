@@ -71,10 +71,10 @@ save
 contains
 !> Reads the namelists and initialises the soil.
   subroutine initsurface
-    use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
-    use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
-    use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
-    use modtracers, only : tracer_prop
+    use modglobal,   only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
+    use modraddata,  only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
+    use modmpi,      only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
+    use modtracers,  only : tracer_prop
     use netcdf
 
     implicit none
@@ -728,6 +728,7 @@ contains
     endif
 
     if(ltskininp) then ! Use tskin.inp.iexpnr.nc to define surface skin temperature
+      PRINT *, "Reading skin temperature from file"
       !--- open tskin.inp.xxx.nc ---
       STATUS = NF90_OPEN('tskin.inp.'//cexpnr//'.nc', nf90_nowrite, NCID)
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
@@ -743,7 +744,7 @@ contains
       STATUS = NF90_GET_VAR (NCID, VARID, ttskin, start=(/1/), count=(/nttskin/) )
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       !--- read tskin input
-      allocate(tskininp(imax,jmax,nttskin))
+      allocate(tskininp(2:i1,2:j1,nttskin))
       STATUS = NF90_INQ_VARID(NCID,'tskin', VARID)
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       STATUS = NF90_GET_VAR (NCID, VARID, tskininp, start=(/myidx*imax+1,myidy*jmax+1,1/), &
@@ -751,8 +752,10 @@ contains
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
       STATUS = NF90_CLOSE(NCID)
       if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-    endif
 
+    
+    endif
+    PRINT *, 'skin temp read in'
     dqtdz = 0 ! need to initialize, otherwise undefined in the first call to thermodynamics, before call surface (cold start)
     ustar = 0 ! need to initialize, otherwise undefined values in the corners in the first exchange
 
@@ -760,6 +763,10 @@ contains
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
 
+    if (ltskininp.and.thls<0) then 
+    
+        thls = sum(tskininp)/size(tskininp)
+    endif 
     call timer_toc('modsurface/initsurface')
   end subroutine initsurface
 
@@ -872,7 +879,8 @@ contains
 
   !> Prescribes the skin temperature
   subroutine presc_skin_temperature
-    use modglobal, only: i1, j1
+    use modglobal, only: i1, j1,imax,jmax
+    use modmpi, only: myidx, myidy
     implicit none
 
     integer :: i, j
@@ -883,6 +891,19 @@ contains
           tskin(i,j) = thls_patch(patchxnr(i), patchynr(j))
         end do
       end do
+
+    else if (ltskininp) then
+            !! read tskin from input
+    !$acc parallel loop collapse(2) default(present)
+    
+     do j =2, j1
+       do i=2, i1
+         !!!!tskin(i,j) = tskininp(myidx*imax + i, myidy*jmax + j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later  
+         tskin(i,j) = tskininp(i,j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later 
+        end do
+      end do
+    
+    
     else
       !$acc parallel loop collapse(2) default(present)
       do j = 2, j1
@@ -910,6 +931,7 @@ contains
 
     ! TODO: check if splitting these loops speeds things up on the GPU (async)
     !$acc parallel loop collapse(2) default(present) 
+    
     do j = 2, j1
       do i = 2, i1
         tskin(i,j) = min(max(thlflux(i,j) / (Cs(i,j) * horv(i,j)), -10.), 10.) + thl0(i,j,1)
@@ -1372,6 +1394,8 @@ contains
              ! L is capped at 1e6 below, so use the same cap here
              L = 1e6
              write(*,*) 'Obukhov length: Rib = 0 -> setting L=1e6'
+             PRINT *, 'stopping on line 1400'
+             STOP
           else
              iter = 0
              L = obl(i,j)
@@ -1513,6 +1537,8 @@ contains
        ! L is capped at 1e6 below, so use the same cap here
        L = 1e6
        write(*,*) 'Obukhov length: Rib = 0 -> setting L=1e6 (2nd point)'
+       PRINT *, 'Stopping on line 1543'
+       STOP
     else
        iter = 0
        L = oblav
