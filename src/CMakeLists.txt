@@ -74,6 +74,7 @@ set( dales_srcs
 	modsampdata.f90
 	modsampling.f90
 	modsamptend.f90
+	modscalarpulse.f90
 	modsimpleice.f90
 	modsimpleice2.f90
 	modstartup.f90
