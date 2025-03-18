@@ -49,11 +49,11 @@ module modsamptend
   real, allocatable :: upav(:,:,:),vpav(:,:,:),wpav(:,:,:),thlpav(:,:,:),qtpav(:,:,:),qrpav(:,:,:),nrpav(:,:,:)
   real, allocatable :: upmn(:,:,:),vpmn(:,:,:),wpmn(:,:,:),thlpmn(:,:,:),qtpmn(:,:,:),qrpmn(:,:,:),nrpmn(:,:,:)
   real, allocatable :: ust(:,:),vst(:,:),wst(:,:),thlst(:,:),qtst(:,:),qrst(:,:),nrst(:,:)
-  real, allocatable :: uwavr(:,:), vsavr(:,:), wavr(:,:), thlavr(:,:), qtavr(:,:), qravr(:,:), nravr(:,:)
-  real, allocatable :: uwav(:,:), vsav(:,:), wav(:,:), thlav(:,:), qtav(:,:), qrav(:,:), nrav(:,:)
-  real, allocatable :: thlwav(:,:), thlsav(:,:), qtwav(:,:), qtsav(:,:), qrwav(:,:), qrsav(:,:), nrwav(:,:), nrsav(:,:)
-  real, allocatable :: uthlwav(:,:), vthlsav(:,:), uqtwav(:,:), vqtsav(:,:), uqrwav(:,:), vqrsav(:,:), unrwav(:,:), vnrsav(:,:)
-  real, allocatable :: wthlav(:,:), wqtav(:,:), wqrav(:,:), wnrav(:,:)
+  real, allocatable :: uwavr(:,:), vsavr(:,:), wavr(:,:), thlavr(:,:), qtavr(:,:), qravr(:,:), nravr(:,:), qlavr(:,:)
+  real, allocatable :: uwav(:,:), vsav(:,:), wav(:,:), thlav(:,:), qtav(:,:), qrav(:,:), nrav(:,:), qlav(:,:)
+  real, allocatable :: thlwav(:,:), thlsav(:,:), qtwav(:,:), qtsav(:,:), qrwav(:,:), qrsav(:,:), nrwav(:,:), nrsav(:,:), qlwav(:,:), qlsav(:,:)
+  real, allocatable :: uthlwav(:,:), vthlsav(:,:), uqtwav(:,:), vqtsav(:,:), uqrwav(:,:), vqrsav(:,:), unrwav(:,:), vnrsav(:,:), uqlwav(:,:), vqlsav(:,:)
+  real, allocatable :: wthlav(:,:), wqtav(:,:), wqrav(:,:), wnrav(:,:), wqlav(:,:)
   logical, allocatable :: tendmask(:,:,:,:)
   integer, allocatable :: nrsamptot(:,:),nrsamp(:,:),nrsamplast(:,:),nrsampnew(:,:)
   character(80) :: fname = 'samptend.xxx.nc'
@@ -134,7 +134,7 @@ subroutine initsamptend
 
     ! Needed to decompose advective terms
     if (ltenddec) allocate (uwav(k1,isamptot), vsav(k1,isamptot), wav(k1,isamptot), uwavr(k1,isamptot), vsavr(k1,isamptot), & 
-                            wavr(k1,isamptot), thlavr(k1,isamptot), qtavr(k1,isamptot), qravr(k1,isamptot), nravr(k1,isamptot))
+                            wavr(k1,isamptot), thlavr(k1,isamptot), qtavr(k1,isamptot), qravr(k1,isamptot), nravr(k1,isamptot), qlavr(k1,isamptot))
 
     ! Only allocate these if you have the budget for a scalar and you want to decompose that scalar's budget
     if (ltenddec .and. lsamptendthl) allocate(thlav(k1,isamptot), thlwav(k1,isamptot), thlsav(k1,isamptot), wthlav(k1,isamptot), &
@@ -145,6 +145,8 @@ subroutine initsamptend
                                               uqrwav(k1,isamptot), vqrsav(k1,isamptot))
     if (ltenddec .and. lsamptendnr)  allocate(nrav(k1,isamptot), nrwav(k1,isamptot), nrsav(k1,isamptot), wnrav(k1,isamptot), &
                                               unrwav(k1,isamptot), vnrsav(k1,isamptot))
+	if (ltenddec .and. lqlflux) allocate(qlav(k1, isamptot), qlwav(k1, isamptot), qlsav(k1, isamptot), wqlav(k1, isamptot), &
+ 	                                     uqlwav(k1, isamptot), vqlsav(k1, isamptot))
 
     allocate (tendmask(2-ih:i1+ih,2-jh:j1+jh,k1,isamptot))
     allocate (nrsamptot(k1,isamptot),nrsamp(k1,isamptot),nrsamplast(k1,isamptot),nrsampnew(k1,isamptot))
@@ -187,6 +189,9 @@ subroutine initsamptend
     end if
     if (ltenddec .and. lsamptendnr) then
       nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; unrwav = 0.; vnrsav = 0.
+    end if
+	if (ltenddec .and. lqlflux) then
+       qlav = 0.; qlwav = 0.; qlsav = 0.; wqlav = 0.; uqlwav = 0.; vqlsav = 0.
     end if
 
     tendmask=.false.
@@ -500,6 +505,21 @@ subroutine initsamptend
         call ncinfo(ncname(ifield +3,:,isamp),'vs'//samplname(isamp),&
         trim(longsamplname(isamp))//' '//'V southern edge average','m/s',dimsv)
         ifield = ifield + 3
+		if (lqlflux) then
+ 		  call ncinfo(ncname(ifield +1,:,isamp),'qlm'//samplname(isamp),&
+           trim(longsamplname(isamp))//' '//'total liquid water content block average','kg/kg',dimst)
+           call ncinfo(ncname(ifield +2,:,isamp),'qlw'//samplname(isamp),&
+           trim(longsamplname(isamp))//' '//'total liquid water content west edge average','kg/kg',dimsu)
+           call ncinfo(ncname(ifield +3,:,isamp),'qls'//samplname(isamp),&
+           trim(longsamplname(isamp))//' '//'total liquid water content south edge average','kg/kg',dimsv)
+           call ncinfo(ncname(ifield +4,:,isamp),'uqlw'//samplname(isamp),&
+           trim(longsamplname(isamp))//' '//'u*ql west edge average','kg/kg m/s',dimsu)
+           call ncinfo(ncname(ifield +5,:,isamp),'vqls'//samplname(isamp),&
+           trim(longsamplname(isamp))//' '//'v*ql south edge average','kg/kg m/s',dimsv)
+           call ncinfo(ncname(ifield +6,:,isamp),'wqlm'//samplname(isamp),&
+           trim(longsamplname(isamp))//' '//'Vertical total liquid water content flux block average','kg/kg m/s',dimsm)
+           ifield = ifield + 6
+ 		end if
       end if
       nvar = ifield ! total number of fields actually in use
       call define_nc(ncid,nvar,ncname(1:nvar,:,isamp)) ! Slice ncname up to nvar, which may have decreased
@@ -813,15 +833,15 @@ subroutine initsamptend
   subroutine decomposedadvtend
     ! Terms/variables needed to scale-decompose the advection terms, for each selected budget
     use modglobal, only : i1,imax,j1,jmax,k1,dzhi,dzf,dzh
-    use modfields, only : w0,thl0,thl0h,qt0,qt0h,u0,v0,sv0
+    use modfields, only : w0,thl0,thl0h,qt0,qt0h,u0,v0,sv0, ql0, ql0h
     use modmicrodata, only : iqr,inr
     use modsubgriddata, only : ekh
     use modsurfdata,only: thlflux,qtflux,svflux
     implicit none
-    real :: ekhalf, thlhav, qthav, qrhav, qr0h, nrhav, nr0h
+    real :: ekhalf, thlhav, qthav, qrhav, qr0h, nrhav, nr0h, qlhav
     real :: thlwavr, thlsavr, qtwavr, qtsavr
-    real :: qrwavr, qrsavr, nrwavr, nrsavr
-    real :: wthlavr, wqtavr, wqravr, wnravr
+    real :: qrwavr, qrsavr, nrwavr, nrsavr, qlwavr, qlsavr
+    real :: wthlavr, wqtavr, wqravr, wnravr, wqlavr
     integer :: i,j,k
 
     if(.not.(ltenddec)) return
@@ -841,6 +861,9 @@ subroutine initsamptend
       nravr = 0.
       nrwavr = 0.
       nrsavr = 0.
+	  qlavr = 0.
+	  qlwavr = 0.
+	  qlsavr = 0.
 
       do isamp=1,isamptot
       do k=1,k1
@@ -1006,6 +1029,43 @@ subroutine initsamptend
         enddo
         enddo
       end if
+	  if (lqlflux) then
+         do isamp=1,isamptot
+         do k=1,k1
+           qlavr(k,isamp)  = sum(ql0(2:i1,2:j1,k),tendmask(2:i1,2:j1,k,isamp))/jmax/imax
+           qlwavr = sum(ql0(2   ,2:j1,k),tendmask(2   ,2:j1,k,isamp))/jmax
+           qlsavr = sum(ql0(2:i1,2   ,k),tendmask(2:i1,2   ,k,isamp))/imax
+ 
+           qlav(k,isamp) = qlav(k,isamp) + qlavr(k,isamp)
+           qlwav(k,isamp) = qlwav(k,isamp) + qlwavr
+           qlsav(k,isamp) = qlsav(k,isamp) + qlsavr
+ 
+           ! Horizontal flux on edges
+           uqlwav(k,isamp) = uqlwav(k,isamp) + sum((u0(2   ,2:j1,k) - uwavr(k,isamp))*(ql0(2   ,2:j1,k) - qlwavr), tendmask(2,2:j1,k,isamp))/jmax
+           vqlsav(k,isamp) = vqlsav(k,isamp) + sum((v0(2:i1,2   ,k) - vsavr(k,isamp))*(ql0(2:i1,2   ,k) - qlsavr), tendmask(2:i1,2,k,isamp))/imax
+ 
+           ! Vertical flux (including the subgrid flux), excluding block-averaged contributions
+           wqlavr = 0.
+           if (k == 1) then
+             do i=2,i1
+             do j=2,j1
+               wqlavr = wqlavr !+ svflux(i,j,iqr)
+             end do
+             end do
+           else
+             qlhav = qlavr(k,isamp)*dzf(k-1)+qlavr(k-1,isamp)*dzf(k)/(2*dzh(k))
+             do i=2,i1
+             do j=2,j1
+               ekhalf = (ekh(i,j,k)*dzf(k-1)+ekh(i,j,k-1)*dzf(k))/(2*dzh(k))
+               wqlavr = wqlavr + (w0(i,j,k) - wavr(k,isamp))*(ql0h(i,j,k) - qlhav) &
+                               - ekhalf*(ql0(i,j,k)-ql0(i,j,k-1))*dzhi(k)
+             end do
+             end do
+           end if
+           wqlav(k,isamp) = wqlav(k,isamp) + wqlavr/jmax/imax
+         enddo
+         enddo
+	  end if
       ntsamp = ntsamp + 1
 
   end subroutine decomposedadvtend
@@ -1236,6 +1296,14 @@ subroutine initsamptend
           unrwav(k,isamp) = unrwav(k,isamp)/ntsamp
           vnrsav(k,isamp) = vnrsav(k,isamp)/ntsamp
         end if
+		if (lsamptendqt) then
+           qlav(k,isamp) = qlav(k,isamp)/ntsamp
+           qlwav(k,isamp) = qlwav(k,isamp)/ntsamp
+           qlsav(k,isamp) = qlsav(k,isamp)/ntsamp
+           wqlav(k,isamp) = wqlav(k,isamp)/ntsamp
+           uqlwav(k,isamp) = uqlwav(k,isamp)/ntsamp
+           vqlsav(k,isamp) = vqlsav(k,isamp)/ntsamp
+		end if
       enddo
       enddo
     end if
@@ -1277,6 +1345,9 @@ subroutine initsamptend
     if (ltenddec .and. lsamptendnr) then
       nrav = 0.; nrwav = 0.; nrsav = 0.; wnrav = 0.; unrwav = 0.; vnrsav = 0.
     end if
+ 	if (ltenddec .and. lqlflux) then
+       qlav = 0.; qlwav = 0.; qlsav = 0.; wqlav = 0.; uqlwav = 0.; vqlsav = 0.
+	end if
 
   end subroutine writesamptend
 
@@ -1589,6 +1660,15 @@ subroutine initsamptend
         vars(1, 1, :,ifield+2) = uwav(:,isamp)
         vars(1, 1, :,ifield+3) = vsav(:,isamp)
         ifield = ifield+3
+		if (lqlflux) then
+ 		  vars(1, 1, :,ifield+1) = qlav(:,isamp)
+ 		  vars(1, 1, :,ifield+2) = qlwav(:,isamp)
+           vars(1, 1, :,ifield+3) = qlsav(:,isamp)
+           vars(1, 1, :,ifield+4) = uqlwav(:,isamp)
+           vars(1, 1, :,ifield+5) = vqlsav(:,isamp)
+           vars(1, 1, :,ifield+6) = wqlav(:,isamp)
+           ifield = ifield + 6
+ 		end if
       end if
     nvar = ifield
     call writestat_nc(ncid,nvar,ncname(:,:,isamp),vars(:,:,1:kmax,:),nrec,1,1,kmax)
@@ -1631,6 +1711,7 @@ subroutine initsamptend
     if (ltenddec .and. lsamptendqt) deallocate(qtav, qtwav, qtsav, uqtwav, vqtsav, wqtav)
     if (ltenddec .and. lsamptendqr) deallocate(qrav, qrwav, qrsav, uqrwav, vqrsav, wqrav)
     if (ltenddec .and. lsamptendnr) deallocate(nrav, nrwav, nrsav, unrwav, vnrsav, wnrav)
+	if (ltenddec .and. lqlflux) deallocate(qlav, qlwav, qlsav, uqlwav, vqlsav, wqlav)
 
     deallocate (tendmask)
     deallocate (nrsamptot,nrsamp,nrsamplast,nrsampnew)
