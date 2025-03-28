@@ -75,6 +75,7 @@ contains
     use modraddata,  only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
     use modmpi,      only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
     use modtracers,  only : tracer_prop
+    use modnetcdf,   only : readfile2d, readfile_dim_len,readfile1d
     use netcdf
 
     implicit none
@@ -728,31 +729,46 @@ contains
     endif
 
     if(ltskininp) then ! Use tskin.inp.iexpnr.nc to define surface skin temperature
-      PRINT *, "Reading skin temperature from file"
-      !--- open tskin.inp.xxx.nc ---
-      STATUS = NF90_OPEN('tskin.inp.'//cexpnr//'.nc', nf90_nowrite, NCID)
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      !--- get time dimensions
-      STATUS = NF90_INQ_DIMID(NCID, "time", timeID)
-      if (STATUS /= nf90_noerr) call handle_err(status)
-      STATUS = nf90_INQUIRE_DIMENSION(NCID, timeID, len=nttskin, name=RecordDimName)
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      !--- read time
-      allocate(ttskin(nttskin))
-      STATUS = NF90_INQ_VARID(NCID, 'time', VARID)
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      STATUS = NF90_GET_VAR (NCID, VARID, ttskin, start=(/1/), count=(/nttskin/) )
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      !--- read tskin input
-      allocate(tskininp(2:i1,2:j1,nttskin))
-      STATUS = NF90_INQ_VARID(NCID,'tskin', VARID)
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      STATUS = NF90_GET_VAR (NCID, VARID, tskininp, start=(/myidx*imax+1,myidy*jmax+1,1/), &
-        & count=(/imax,jmax,nttskin/))
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
-      STATUS = NF90_CLOSE(NCID)
-      if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      
 
+      !PRINT *, "Reading skin temperature from file"
+      !--- open tskin.inp.xxx.nc ---
+      !STATUS = NF90_OPEN('tskin.inp.'//cexpnr//'.nc', nf90_nowrite, NCID)
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !!--- get time dimensions
+      !STATUS = NF90_INQ_DIMID(NCID, "time", timeID)
+      !if (STATUS /= nf90_noerr) call handle_err(status)
+      !STATUS = nf90_INQUIRE_DIMENSION(NCID, timeID, len=nttskin, name=RecordDimName)
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !!--- read time
+      !allocate(ttskin(nttskin))
+      !STATUS = NF90_INQ_VARID(NCID, 'time', VARID)
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !STATUS = NF90_GET_VAR (NCID, VARID, ttskin, start=(/1/), count=(/nttskin/) )
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !!--- read tskin input
+      !allocate(tskininp(2:i1,2:j1,nttskin))
+
+      !STATUS = NF90_INQ_VARID(NCID,'tskin', VARID)
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !STATUS = NF90_GET_VAR (NCID, VARID, tskininp, start=(/myidx*imax+1,myidy*jmax+1,1/), &
+      !  & count=(/imax,jmax,nttskin/))
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+      !STATUS = NF90_CLOSE(NCID)
+      !if (STATUS .ne. nf90_noerr) call handle_err(STATUS)
+
+      call readfile_dim_len('tskin.inp.'//cexpnr//'.nc','time',nttskin)
+      PRINT *, nttskin
+      PRINT *, '-----------'
+      PRINT *, ttskin
+
+      allocate(ttskin(nttskin))
+      call readfile1d('tskin.inp.'//cexpnr//'.nc','time',ttskin)
+
+      PRINT *, ttskin
+      allocate(tskininp(2:i1,2:j1,nttskin))
+
+      call readfile2d('tskin.inp.'//cexpnr//'.nc','tskin',tskininp)
     
     endif
     PRINT *, 'skin temp read in'
@@ -763,9 +779,13 @@ contains
     !$acc&                  ustar, dudz, dvdz, thlflux, qtflux, &
     !$acc&                  dqtdz, dthldz, svflux, svs, horv, ra, rs, wsvsurf)
 
-    if (ltskininp.and.thls<0) then 
+    if (ltskininp) then 
     
-        thls = sum(tskininp)/size(tskininp)
+        thls = sum(tskininp(:,:,1))/size(tskininp(:,:,1))
+        !PRINT *, sum(tskininp_test(:,:,1))/size(tskininp_test(:,:,1))
+        PRINT *, 'thls: ', thls
+        !STOP
+        !SLEEP(5)
     endif 
     call timer_toc('modsurface/initsurface')
   end subroutine initsurface
@@ -899,7 +919,8 @@ contains
      do j =2, j1
        do i=2, i1
          !!!!tskin(i,j) = tskininp(myidx*imax + i, myidy*jmax + j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later  
-         tskin(i,j) = tskininp(i,j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later 
+         tskin(i,j) = tskininp(i,j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later
+         !PRINT *, tskin(i,j) 
         end do
       end do
     
@@ -2477,5 +2498,4 @@ contains
     call qtsurf
 
   end subroutine do_lsm
-
 end module modsurface
