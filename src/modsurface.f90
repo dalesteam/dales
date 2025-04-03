@@ -899,12 +899,12 @@ contains
 
   !> Prescribes the skin temperature
   subroutine presc_skin_temperature
-    use modglobal, only: i1, j1,imax,jmax
+    use modglobal, only: i1, j1,imax,jmax,rtimee
     use modmpi, only: myidx, myidy
     implicit none
 
-    integer :: i, j
-
+    integer :: i, j, t
+    real    :: fac 
     if (lhetero) then
       do j = 2, j1
         do i = 2, i1
@@ -913,13 +913,25 @@ contains
       end do
 
     else if (ltskininp) then
-            !! read tskin from input
-    !$acc parallel loop collapse(2) default(present)
-    
+     !! skin temperature read from file
+     !$acc parallel loop collapse(2) default(present)
+     t=1
+     do while(rtimee>ttskin(t+1))
+      t=t+1
+     end do
+     PRINT *, 'surface forcing timestep' 
+     PRINT *, rtimee
+     PRINT *, ttskin(t)
+     PRINT *, ttskin(t+1)
+     PRINT *,'-------------------------'
+     
+     fac = ( rtimee-ttskin(t) ) / ( ttskin(t+1)-ttskin(t))
      do j =2, j1
        do i=2, i1
-         !!!!tskin(i,j) = tskininp(myidx*imax + i, myidy*jmax + j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later  
-         tskin(i,j) = tskininp(i,j,1) !!!!! NOTE: the 1 is temporary. Add temporally evolving later
+         
+         !    wqsurf = wqsurft(t) + fac * ( wqsurft(t+1) - wqsurft(t)  )
+
+         tskin(i,j) = tskininp(i,j,t) + fac * (tskininp(i,j,t+1) - tskininp(i,j,t))
          !PRINT *, tskin(i,j) 
         end do
       end do
