@@ -73,7 +73,7 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   subroutine inittimedep
     use modmpi,    only :myid,mpierr,comm3d,D_MPI_BCAST
-    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep,lcoriol,lpressgrad
+    use modglobal, only :cexpnr,k1,kmax,ifinput,runtime,zf,ntimedep,lcoriol
     use modsurfdata,only :ps,qts,wqsurf,wtsurf,thls, Qnetav
     use modtimedepsv, only : inittimedepsv
 
@@ -267,7 +267,7 @@ contains
                      dvdtlst (k,t)
              end do
           else
-            ! SvdL, 20241110: if lcoriol, read in 2nd and 3rd column as ug and vg
+            ! if lcoriol, read in 2nd and 3rd column as ug and vg
             if (lcoriol) then
               ! old format without u,v in ls_flux.inp.*  (default)
               do k=1,kmax
@@ -281,7 +281,7 @@ contains
                       dqtdtlst(k,t), &
                       thlpcart(k,t)
               end do
-            else ! else read in same columns as pressure gradients dpdx and dpdy (chosen for this approach as these columns anyway MUST exist in ls_flux.inp.xxx)
+            else ! else read in same columns as pressure gradients dpdx and dpdy (these columns MUST exist in ls_flux.inp.xxx)
                 do k=1,kmax
                   read (ifinput,*) &
                         height  (k)  , &
@@ -341,7 +341,7 @@ contains
     call D_MPI_BCAST(timels(1:kls)    ,kls     ,0,comm3d,mpierr)
     call D_MPI_BCAST(ugt              ,kmax*kls,0,comm3d,mpierr)
     call D_MPI_BCAST(vgt              ,kmax*kls,0,comm3d,mpierr)
-    call D_MPI_BCAST(dpdxlt           ,kmax*kls,0,comm3d,mpierr) ! SvdL, 20241111: broadcast time dependent pressure gradients..
+    call D_MPI_BCAST(dpdxlt           ,kmax*kls,0,comm3d,mpierr)
     call D_MPI_BCAST(dpdylt           ,kmax*kls,0,comm3d,mpierr)
     call D_MPI_BCAST(wflst            ,kmax*kls,0,comm3d,mpierr)
     call D_MPI_BCAST(dqtdxlst,kmax*kls ,0,comm3d,mpierr)

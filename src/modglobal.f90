@@ -105,8 +105,8 @@ save
       real,parameter :: gamma_T_matrix = 3.4293695508945325 !< Heat conductivity soil [J s-1 m-1 K-1]
       real,parameter :: gamma_T_water  = 0.57       !< Heat conductivity water [J s-1 m-1 K-1]
 
-      logical :: lcoriol  = .true.  !<  switch for coriolis force
-      logical :: lpressgrad = .false.  !<  switch for horizontal pressure gradient force (update 20241110: only intended for channel-like pressure-driven flow, not to be used in combination with coriolis force; thus default to false)
+      logical :: lcoriol  = .true.  !< switch for coriolis force
+      logical :: lpressgrad = .false.  !< switch for horizontal pressure gradient force (not to be used in combination with coriolis force)
       integer       :: igrw_damp = 2 !< switch to enable gravity wave damping
       real(field_r) :: geodamptime = 7200. !< time scale for nudging to geowind in sponge layer, prevents oscillations
       real(field_r) :: uvdamprate = 0.  !< rate for damping mean horizontal wind
@@ -376,7 +376,7 @@ contains
     colat  = cos(phi)
     silat  = sin(phi)
 
-    ! SvdL, 20241110: define omega(_gs) per default, remove "hidden" rewrite to zero pressure gradient when lcoriol = .false.
+    ! define omega(_gs) per default, remove "implicit" overwrite to zero pressure gradient when lcoriol = .false.
     omega = 7.292e-5
     omega_gs = 7.292e-5
 

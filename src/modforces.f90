@@ -75,11 +75,11 @@ contains
 
   if (lforce_user) call force_user
 
-  ! SvdL, 20241110: either apply pressure gradient calculated from geostrophic wind speeds (lcoriol) or imposed pressure gradient (lpressgrad)
+  ! apply pressure gradient calculated from geostrophic wind speeds (lcoriol) or imposed pressure gradient (lpressgrad)
   if (lcoriol .or. lpressgrad) then
     !$acc kernels default(present) async(1)
     do k = 1, kmax
-      up(:,:,k) = up(:,:,k) - dpdxl(k)      !RN LS pressure gradient force in x,y directions;
+      up(:,:,k) = up(:,:,k) - dpdxl(k)      !LS pressure gradient force in x,y directions;
       vp(:,:,k) = vp(:,:,k) - dpdyl(k)
     end do
     !$acc end kernels

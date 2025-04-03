@@ -424,7 +424,8 @@ contains
   subroutine checkinitvalues
     use modsurfdata, only: wtsurf, wqsurf, ustin, thls, isurf, ps, lhetero
     use modglobal,   only: itot, jtot, ysize, xsize, dtmax, runtime, &
-                           startfile, lwarmstart, lcoriol, lpressgrad, eps1, imax, jmax, ih, jh
+                           startfile, lwarmstart, eps1, imax, jmax, ih, jh, &
+                           lcoriol, lpressgrad
     use modmpi,      only: myid, nprocx, nprocy, mpierr, MPI_FINALIZE
     use modtimedep,  only: ltimedep
 
@@ -515,7 +516,7 @@ contains
       end if
     end if
 
-    ! SvdL, 20241110: new lpressgrad intended for pressure-driven channel flow, not to be used i.c.w. Coriolis force
+    ! horizontal pressgrad not to be used i.c.w. Coriolis force
     if (lcoriol .and. lpressgrad) then
       if (myid==0) stop "Coriolis force (lcoriol) and channel-like pressure gradient (lpressgrad) are mutually exclusive. To use Coriolis force with NO pressure gradient, set geowinds to zero."
     end if
