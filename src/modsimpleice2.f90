@@ -38,6 +38,7 @@
 module modsimpleice2
   use modfields, only : rhobf
   use modprecision, only : field_r
+  use modtimer
   implicit none
   private
   public initsimpleice2, exitsimpleice2, simpleice2
@@ -94,12 +95,12 @@ module modsimpleice2
     allocate(ccrz(k1),ccsz(k1),ccgz(k1))
     allocate(ccrz2(k1),ccsz2(k1),ccgz2(k1))
 
-    gamb1r=lacz_gamma(bbr+1)
-    gambd1r=lacz_gamma(bbr+ddr+1)
-    gamb1s=lacz_gamma(bbs+1)
-    gambd1s=lacz_gamma(bbs+dds+1)
-    gamb1g=lacz_gamma(bbg+1)
-    gambd1g=lacz_gamma(bbg+ddg+1)
+    gamb1r=lacz_gamma(bbr+1.0)
+    gambd1r=lacz_gamma(bbr+ddr+1.0)
+    gamb1s=lacz_gamma(bbs+1.0)
+    gambd1s=lacz_gamma(bbs+dds+1.0)
+    gamb1g=lacz_gamma(bbg+1.0)
+    gambd1g=lacz_gamma(bbg+ddg+1.0)
     gam2dr=lacz_gamma(2.5+0.5*ddr)
     gam2ds=lacz_gamma(2.5+0.5*dds)
     gam2dg=lacz_gamma(2.5+0.5*ddg)
@@ -161,8 +162,6 @@ module modsimpleice2
                              qcmin,qrmin,qli0,qll0,tdnrsg,tdnsg,tuprsg,tupsg,&
                              l_berry,l_graupel,l_rain,l_warm,timekessl
 
-    use modsimpleicestat, only : simpleicetend
-
     implicit none
 
     integer:: i,j,k
@@ -180,6 +179,7 @@ module modsimpleice2
     logical :: rain_present, snow_present, graupel_present   ! logicals for presence of different forms of water in the current cell
     logical :: any_qr, any_snow_graupel                      ! logicals for precense of any precipitation, and for presense of snow/graupel in the whole system
 
+    call timer_tic('modsimpleice2', 1)
     delt = rdt/ (4. - dble(rk3step))
 
     wfallmax = 9.9 ! cap for fall velocity
@@ -601,6 +601,7 @@ module modsimpleice2
 !    if (l_rain) then
 !      call simpleicetend !after corrections
 !    endif
+    call timer_toc('modsimpleice2')
   end subroutine simpleice2
 
 end module modsimpleice2

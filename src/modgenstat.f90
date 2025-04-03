@@ -125,11 +125,6 @@ module modgenstat
   real, allocatable :: svpav(:,:)                  !  slab average total tendency of sv(n)
   real, allocatable :: svptav(:,:)                 !  slab average tendency of sv(n) due to turb.
 
-  real, allocatable :: uptav(:)                      !  slab averaged tendency for u
-  real, allocatable :: vptav(:)                      !  slab averaged tendency for v
-
-  real, allocatable :: thptav(:)     ! slab averaged turbulence tendency of theta
-  real, allocatable :: qlptav(:)     ! slab averaged turbulence tendency of q_liq
   real, allocatable :: uwtot (:)     ! slab averaged tot w-u flux at half levels
   real, allocatable :: vwtot (:)     ! slab averaged tot w-v flux at half levels
   real, allocatable :: uwsub (:)     ! slab averaged sgs w-u flux at half levels
@@ -168,7 +163,6 @@ module modgenstat
 
     ! Local fields
 
-  real,allocatable, dimension(:):: qlptavl   ! slab averaged turbulence tendency of q_liq
   real,allocatable, dimension(:):: uwsubl
   real,allocatable, dimension(:):: vwsubl
   real,allocatable, dimension(:):: uwresl
@@ -266,11 +260,7 @@ contains
     allocate(clwav(k1), cliav(k1), plwav(k1), pliav(k1))
     allocate(taav(k1))
     allocate(svmav (k1,nsv))
-    allocate(uptav(k1))
-    allocate(vptav(k1))
 
-    allocate(thptav(k1))
-    allocate(qlptav(k1))
     allocate(uwtot (k1))
     allocate(vwtot (k1))
     allocate(uwsub (k1))
@@ -465,7 +455,7 @@ contains
         call ncinfo(ncname(47,:),'plw', 'Specific precipitation liquid water content','kg/kg','tt')
         call ncinfo(ncname(48,:),'pli', 'Specific precipitation ice content','kg/kg','tt')
         do n = 1, nsv
-          call ncinfo(ncname(48+7*(n-1)+1,:),trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong)//' specific mixing ratio', trim(tracer_prop(n)%unit),'tt')
+          call ncinfo(ncname(48+7*(n-1)+1,:),trim(tracer_prop(n)%tracname), trim(tracer_prop(n)%traclong), trim(tracer_prop(n)%unit),'tt')
           call ncinfo(ncname(48+7*(n-1)+2,:),trim(tracer_prop(n)%tracname)//'p', trim(tracer_prop(n)%traclong)//' tendency',trim(tracer_prop(n)%unit)//'/s)','tt')
           call ncinfo(ncname(48+7*(n-1)+3,:),trim(tracer_prop(n)%tracname)//'pt', trim(tracer_prop(n)%traclong)//' turbulence tendency',trim(tracer_prop(n)%unit)//'/s','tt')
           call ncinfo(ncname(48+7*(n-1)+4,:),trim(tracer_prop(n)%tracname)//'2r','Resolved '//trim(tracer_prop(n)%traclong)//' variance','('//trim(tracer_prop(n)%unit)//')^2','tt')
@@ -499,7 +489,7 @@ contains
     !$acc&                  wqltot, wthltot, wthvtot, wsvsub, wsvres, wsvtot, uwres, vwres, uwsub, vwsub, &
     !$acc&                  uwtot, vwtot, umav, vmav, wmav, thvmav, thlmav, qtmav, qlmav, cfracav, u2av, v2av, &
     !$acc&                  w2av, w2subav, qt2av, thl2av, thv2av, th2av, svmav, svpav, svptav, sv2av, w3av, &
-    !$acc&                  ql2av, thvmav, thmav, qlptav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
+    !$acc&                  ql2av, thvmav, thmav, thv0, sv0h, hurav, clwav, cliav, plwav, pliav, taav, &
     !$acc&                  hurmn, clwmn, climn, plwmn, plimn, tamn)
 
     call timer_toc('modgenstat/initgenstat')
@@ -607,7 +597,6 @@ contains
     uwsub = 0.0
     vwsub = 0.0
     svmav = 0.0
-    qlptav = 0.0
     wqltot = 0.0
     wqttot = 0.0
     wthvtot = 0.0
@@ -678,7 +667,6 @@ contains
     thlmav  = thlmav  / ijtot
     qtmav   = qtmav   / ijtot
     qlmav   = qlmav   / ijtot
-    cfracav = cfracav / ijtot
     taav    = taav    / ijtot
     thvmav  = thvmav  / ijtot
     svmav   = svmav   / ijtot
@@ -976,7 +964,7 @@ contains
     !$acc host_data use_device(qlhav, wqlsub, wqlres, wthlsub, wthlres, wthvsub, &
     !$acc&                     wthvres, uwsub, vwsub, uwres, vwres, u2av, v2av, &
     !$acc&                     w2av, w3av, w2subav, qt2av, thl2av, thv2av, th2av, &
-    !$acc&                     ql2av, qlptav, sv2av, wsvsub, wsvres, cfracav, &
+    !$acc&                     ql2av, sv2av, wsvsub, wsvres, cfracav, &
     !$acc&                     hurav, clwav, cliav, plwav, pliav)
     call D_MPI_ALLREDUCE(qlhav, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(wqlsub, k1, MPI_SUM, comm3d,mpierr)
@@ -1001,7 +989,6 @@ contains
     call D_MPI_ALLREDUCE(thv2av, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(th2av, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(ql2av, k1, MPI_SUM, comm3d,mpierr)
-    call D_MPI_ALLREDUCE(qlptav, k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(cfracav,k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(hurav,k1, MPI_SUM, comm3d,mpierr)
     call D_MPI_ALLREDUCE(clwav,k1, MPI_SUM, comm3d,mpierr)
@@ -1676,11 +1663,7 @@ contains
     deallocate(clwav,cliav,plwav,pliav)
     deallocate(svmav )
     deallocate(taav )
-    deallocate(uptav)
-    deallocate(vptav)
 
-    deallocate(thptav)
-    deallocate(qlptav)
     deallocate(uwtot )
     deallocate(vwtot )
     deallocate(uwres )

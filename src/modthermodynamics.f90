@@ -106,6 +106,9 @@ contains
        else
           call icethermo0
        end if
+    else
+       call calc_dry_tmp ! tmp0 is used in statistics
+                         ! can consider calculating it only when needed
     end if
     call diagfld
 
@@ -167,6 +170,26 @@ contains
     !$acc exit data delete(th0av, thv0, thetah, qth, qlh)
     deallocate(th0av, thv0, thetah, qth, qlh)
   end subroutine exitthermodynamics
+
+  !> Calculate real temperature tmp0 from thl0, for the dry case i.e. ql=0
+  subroutine calc_dry_tmp
+    use modglobal, only : i1,j1,k1
+    use modfields, only : thl0,exnf
+    use modfields, only : tmp0
+
+    implicit none
+    integer :: i, j, k
+
+    !$acc parallel loop collapse(3) default(present) async
+    do k = 1,k1
+       do j = 2,j1
+          do i = 2,i1
+             tmp0(i,j,k) = exnf(k)*thl0(i,j,k)
+          end do
+       end do
+    end do
+
+  end subroutine calc_dry_tmp
 
 !> Calculate thetav and dthvdz
   subroutine calthv

@@ -48,6 +48,7 @@ set( dales_srcs
 	modhypre.f90
 	modlsm.f90
 	modlsmcrosssection.f90
+	modlsmdata.f90
 	modlsmstat.f90
 	modmicrodata.f90
 	modmicrodata3.f90
@@ -75,7 +76,6 @@ set( dales_srcs
 	modsamptend.f90
 	modsimpleice.f90
 	modsimpleice2.f90
-	modsimpleicestat.f90
 	modstartup.f90
 	modstat_nc.f90
 	modstattend.f90
@@ -90,8 +90,6 @@ set( dales_srcs
 	modtimedepsv.f90
 	modtimer.f90
 	modtimestat.f90
-	modtracdata.f90
-	modtracer_type.f90
 	modtracers.f90
 	moduser.f90
 	modvarbudget.f90
@@ -185,16 +183,17 @@ set( rrtmgp_srcs
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/accel/mo_rte_solver_kernels.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_util_array.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_fluxes_broadband_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-kernels/mo_rte_kind.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_fluxes.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_optical_props.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_config.F90
-	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_kind.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_lw.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_sw.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_source_functions.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rte-frontend/mo_rte_util_array_validation.F90
 	# RRTMGP
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/accel/mo_gas_optics_rrtmgp_kernels.F90
+	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-kernels/mo_cloud_optics_rrtmgp_kernels.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_gas_optics_rrtmgp.F90
 	${PROJECT_SOURCE_DIR}/external/RTE-RRTMGP/rrtmgp-frontend/mo_cloud_optics_rrtmgp.F90
 	# Gas optics

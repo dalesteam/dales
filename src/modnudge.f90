@@ -69,7 +69,7 @@ contains
   subroutine initnudge
     use modmpi,     only: myid, mpierr, comm3d, D_MPI_BCAST
     use modglobal,  only: ifnamopt, fname_options, runtime, cexpnr, ifinput, &
-                          k1, kmax, checknamelisterror, lstart_netcdf
+                          k1, kmax, checknamelisterror, iinput, input_netcdf
     use modstat_nc
 
     character(*), parameter :: routine = modname//"::initnudge"
@@ -102,7 +102,7 @@ contains
 
     call timer_tic(routine, 0)
 
-    if (lstart_netcdf) then
+    if (iinput == input_netcdf) then
       if (myid == 0) then
         call nchandle_error(nf90_open("init."//cexpnr//".nc", NF90_NOWRITE, &
                             ncid))

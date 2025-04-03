@@ -53,7 +53,11 @@ save
       integer(kind=longint) :: itrestart !<     * each trestart sec. a restart file is written to disk
       integer(kind=longint)    :: tnextrestart    !<     * each trestart sec. a restart file is written to disk
       character(50) :: startfile    !<    * name of the restart file
-      logical :: lstart_netcdf = .false.      !< Start from a NetCDF file
+
+      ! Format of input files
+      integer, parameter :: input_ascii = 1      !< Classic DALES ASCII input
+      integer, parameter :: input_netcdf = 2     !< NetCDF input
+      integer            :: iinput = input_ascii !< Selected input format
 
       logical :: llsadv   = .false. !<  switch for large scale forcings
       integer :: ntimedep = 100     !< maximum number of time points for time-dependent forcings
@@ -401,7 +405,7 @@ contains
     ! Note, that the loop for reading zf and calculating zh
     ! has been split so that reading is only done on PE 1
 
-    if (lstart_netcdf) then
+    if (iinput == input_netcdf) then
       ierr = nf90_open('init.'//cexpnr//'.nc', NF90_NOWRITE, ncid)
       if (ierr /= nf90_noerr) call abort
       ierr = nf90_inq_varid(ncid, 'zh', height_id)

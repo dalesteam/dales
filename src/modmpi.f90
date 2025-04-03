@@ -41,6 +41,9 @@ use openacc
 use modgpumpiinterface
 #endif
 implicit none
+
+  public :: print_info_stderr
+
 save
   type(MPI_COMM) :: commwrld, comm3d, commrow, commcol
   logical  :: libmode !Library mode: skip finalize, assumed to be called externally
@@ -898,7 +901,7 @@ contains
         end do
       end do
     end do
-    
+
   else
 
     ! Single processor, make sure the field is periodic
@@ -1133,7 +1136,7 @@ contains
 
     call MPI_ALLREDUCE(averl, avers, kf-ks+1,  MPI_REAL4, &
                        MPI_SUM, comm3d,mpierr)
-    
+
     aver = aver + avers
 
     return
@@ -1152,7 +1155,7 @@ contains
 
     averl       = 0.
     avers       = 0.
-    
+
     do k=kbs,kes
       averl(k) = sum(var(ibs:ies,jbs:jes,k))
     enddo
@@ -1982,4 +1985,18 @@ contains
     end if
 
   end subroutine closeboundaries
+
+  !> \brief Print a message to stderr
+  !!
+  !! \param routine Name of the subroutine that is printing
+  !! \param message The message to print
+  subroutine print_info_stderr(routine, message)
+    character(len=*), intent(in) :: routine, message
+
+    if (myid == 0) then
+      write(0, '(4(a))') " ", trim(routine), ": ", trim(message)
+    end if
+
+  end subroutine print_info_stderr
+
 end module

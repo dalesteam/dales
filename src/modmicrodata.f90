@@ -183,7 +183,7 @@
   real(field_r) :: evapfactor = 1.0      !  Prefactor to reduce evaporation
   real(field_r) :: courantp = 1.0        !  CFLmax-criterion for precipitation
 
-  real, parameter :: &
+  real(field_r), parameter :: &
      ! Mass-diameter parameters A and B, terminal velocity parameters C, and D
      ! GRABOWSKI
      aar=5.2e2 &
@@ -239,6 +239,6 @@
    ! Fields related to ice-liquid partitioning and slope of distribution
    real(field_r),allocatable,dimension(:,:,:) :: ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag
    ! Density-corrected A coefficients for terminal velocity
-   real,allocatable,dimension(:) :: ccrz,ccsz,ccgz
-   real,allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
+   real(field_r),allocatable,dimension(:) :: ccrz,ccsz,ccgz
+   real(field_r),allocatable,dimension(:) :: ccrz2,ccsz2,ccgz2
   end module modmicrodata

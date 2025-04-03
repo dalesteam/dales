@@ -37,7 +37,7 @@ private
 PUBLIC  :: initbulkmicrostat, bulkmicrostat, exitbulkmicrostat, bulkmicrotend
 save
 !NetCDF variables
-  integer,parameter :: nvar = 20
+  integer,parameter :: nvar = 21
   character(80),dimension(nvar,4) :: ncname
   character(80),dimension(1,4) :: tncname
   real          :: dtav, timeav
@@ -53,7 +53,9 @@ save
   real, allocatable, dimension(:,:)  :: Npav    , &
                Npmn    , &
                qrpav  , &
-               qrpmn
+               qrpmn  , &
+               qtpav  , &
+               qtpmn
   real, allocatable, dimension(:)    :: &
                precav  , &
                precmn  , &
@@ -73,7 +75,8 @@ save
                Dvrmn
 
   real(field_r), allocatable, dimension(:) :: tend_np, &
-                                              tend_qrp
+                                              tend_qrp,&
+                                              tend_qtp
 
 contains
 !> Initialization routine, reads namelists and inits variables
@@ -90,7 +93,7 @@ subroutine initbulkmicrostat
 
     namelist/NAMBULKMICROSTAT/ &
     lmicrostat, dtav, timeav
-    
+
     ! #sb3 START
     if (imicro.eq.imicro_bulk3) then
        call initbulkmicrostat3
@@ -100,8 +103,8 @@ subroutine initbulkmicrostat
 
     if ((imicro /=imicro_bulk) .and. (imicro /= imicro_sice)) return
 
-    
-    
+
+
     dtav  = dtav_glob
     timeav  = timeav_glob
     if(myid==0)then
@@ -133,7 +136,9 @@ subroutine initbulkmicrostat
     allocate(Npav    (k1, nrfields), &
              Npmn    (k1, nrfields), &
              qrpav   (k1, nrfields), &
-             qrpmn   (k1, nrfields))
+             qrpmn   (k1, nrfields), &
+             qtpav   (k1, nrfields), &
+             qtpmn   (k1, nrfields))
     allocate(&
              precav    (k1)    , &
              precmn    (k1)    , &
@@ -153,6 +158,7 @@ subroutine initbulkmicrostat
              Dvrmn    (k1))
     Npmn    = 0.0
     qrpmn    = 0.0
+    qtpmn    = 0.0
     precmn    = 0.0
     preccountmn  = 0.0
     prec_prcmn  = 0.0
@@ -162,10 +168,14 @@ subroutine initbulkmicrostat
     qrmn    = 0.0
     Dvrmn    = 0.0
 
+    Dvrav = 0
+
     allocate(tend_np(k1))
     allocate(tend_qrp(k1))
+    allocate(tend_qtp(k1))
     tend_np(:) = 0.0
     tend_qrp(:) = 0.0
+    tend_qtp(:) = 0.0
 
     !$acc enter data copyin(tend_np, tend_qrp, Npmn, qrpmn, &
     !$acc&                  Npav, qrpav, precav, preccountav, prec_prcav, &
@@ -210,6 +220,7 @@ subroutine initbulkmicrostat
         call ncinfo(ncname(18,:),'qrpevap','Evaporation rain water content tendency','kg/kg/s','tt')
         call ncinfo(ncname(19,:),'qrpclip','Rain water content tendency due to clipping','kg/kg/s','tt')
         call ncinfo(ncname(20,:),'qrptot','Total rain water content tendency','kg/kg/s','tt')
+        call ncinfo(ncname(21,:),'qtpsed','Sedimentation total water content tendency','kg/kg/s','tt')
         call define_nc( ncid_prof, NVar, ncname)
       end if
 
@@ -224,7 +235,7 @@ subroutine initbulkmicrostat
     use modmicrodata,only: imicro, imicro_bulk3             ! #sb3
     implicit none
 
-    
+
     if (imicro.eq.imicro_bulk3) return  ! #sb3 treated separately
     if (.not. lmicrostat)  return
     if (rk3step /= 3)  return
@@ -340,7 +351,7 @@ subroutine initbulkmicrostat
   subroutine bulkmicrotend
     use modmpi,    only  : slabsum, slabsum_multi
     use modglobal,    only  : rk3step, timee, dt_lim, k1, ih, i1, jh, j1, ijtot
-    use modmicrodata,  only  : qrp, Nrp
+    use modmicrodata, only  : qrp, Nrp, qtpmcr
     implicit none
 
     integer        :: ifield = 0
@@ -361,24 +372,33 @@ subroutine initbulkmicrostat
     !$acc kernels default(present)
     tend_np(:) = 0.0
     tend_qrp(:) = 0.0
+    tend_qtp(:) = 0.0
     !$acc end kernels
 
     !$acc host_data use_device(tend_np, Nrp, tend_qrp, qrp)
     call slabsum_multi(tend_np , 1,k1,Nrp  ,2,i1,2,j1,1,k1,2,i1,2,j1,1,k1, &
                        tend_qrp      ,qrp)
+
+    call slabsum(tend_qtp,1,k1,qtpmcr  ,2-ih,i1+ih,2-jh,j1+jh,1,k1,2,i1,2,j1,1,k1)
+    ! note qtpmcr has different shape, includes ghost cells
     !$acc end host_data
+
+
 
     !$acc kernels default(present)
     Npav(:,ifield)  = tend_np(:)  - sum(Npav (:,1:ifield-1),2)
     qrpav(:,ifield) = tend_qrp(:) - sum(qrpav(:,1:ifield-1),2)
+    qtpav(:,ifield) = tend_qtp(:) - sum(qtpav(:,1:ifield-1),2)
     !$acc end kernels
 
     if (ifield == nrfields) then
       !$acc kernels default(present)
       Npmn(:,:)  = Npmn(:,:)  + Npav(:,:)  / nsamples / ijtot
       qrpmn(:,:) = qrpmn(:,:) + qrpav(:,:) / nsamples / ijtot
+      qtpmn(:,:) = qtpmn(:,:) + qtpav(:,:) / nsamples / ijtot
       Npav(:,:)  = 0.0
       qrpav(:,:) = 0.0
+      qtpav(:,:) = 0.0
       !$acc end kernels
     end if
 
@@ -545,6 +565,7 @@ subroutine initbulkmicrostat
         do k=1,k1
         vars(k,20) =sum(qrpmn  (k,2:nrfields))
         enddo
+        vars(:,21) =qtpmn    (:,ised)
         call writestat_nc(ncid_prof,nvar,ncname,vars(1:kmax,:),nrec_prof,kmax)
       end if
 
@@ -561,6 +582,7 @@ subroutine initbulkmicrostat
     qrmn(:)         = 0.0
     Npmn(:,:)         = 0.0
     qrpmn(:,:)        = 0.0
+    qtpmn(:,:)        = 0.0
     !$acc end kernels
 
   end subroutine writebulkmicrostat
@@ -577,7 +599,7 @@ subroutine initbulkmicrostat
        return
     endif
     ! #sb3 END
-    
+
     if (.not. lmicrostat)  return
 
     !$acc exit data delete(tend_np, tend_qrp, Npmn, qrpmn, &
@@ -589,7 +611,9 @@ subroutine initbulkmicrostat
     deallocate(Npav     , &
                Npmn     , &
                qrpav    , &
-               qrpmn)
+               qrpmn    , &
+               qtpav    , &
+               qtpmn       )
     deallocate(&
          precav    , &
          precmn    , &
@@ -608,7 +632,7 @@ subroutine initbulkmicrostat
          Dvrav    , &
          Dvrmn)
 
-    deallocate(tend_np, tend_qrp)
+    deallocate(tend_np, tend_qrp, tend_qtp)
 
   end subroutine exitbulkmicrostat
 

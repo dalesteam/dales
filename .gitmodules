@@ -11,3 +11,6 @@
 	path = external/ecbuild
 	url = https://github.com/ecmwf/ecbuild.git
 	branch = develop
+[submodule "external/rrtmgp-data"]
+	path = external/rrtmgp-data
+	url = git@github.com:earth-system-radiation/rrtmgp-data.git

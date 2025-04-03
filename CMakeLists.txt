@@ -12,6 +12,9 @@ endif()
 
 project( DALES VERSION 5.0.0 LANGUAGES Fortran )
 
+# Disable Intel's MKL FFTW
+set( FFTW_ENABLE_MKL OFF )
+
 # Options
 
 ecbuild_add_option( FEATURE FFTW

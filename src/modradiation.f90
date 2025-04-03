@@ -50,7 +50,7 @@ contains
       ocean, usero3, co2_fraction, ch4_fraction, n2o_fraction, doperpetual, doseasons, iyear
 
     namelist/NAMRTERRTMGP/ &
-      nbatch, doclearsky, usepade
+      nbatch, doclearsky
 
     call timer_tic('modradiation/initradiation', 0)
 
@@ -100,7 +100,6 @@ contains
 
     call D_MPI_BCAST(nbatch,     1,0,comm3d,ierr)
     call D_MPI_BCAST(doclearsky, 1,0,comm3d,ierr)
-    call D_MPI_BCAST(usepade,    1,0,comm3d,ierr)
 
     allocate(thlprad   (2-ih:i1+ih,2-jh:j1+jh,k1) )
     allocate(swd       (2-ih:i1+ih,2-jh:j1+jh,k1) )

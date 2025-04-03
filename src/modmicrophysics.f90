@@ -66,7 +66,15 @@ contains
             ! Bulkmicro 3 special treatment of saturation adjustment is currently only impmemented in the fast_thermo scheme
          end if
       end if
-    end if
+
+      if (Nc_0 < 1e4) then
+         ! Check that Nc_0 is reasonable.
+         ! It's easy to give it in units of /cm3 by mistake,
+         ! and when run with RRTMG that results in a hard-to-understand crash
+         ! in the short-wave scheme
+         STOP 'Nc_0 is suspiciously small (unit should be number per m3).'
+      end if
+   end if
 
     call D_MPI_BCAST(imicro,   1, 0,comm3d,ierr)
     call D_MPI_BCAST(l_sb,     1, 0,comm3d,ierr)

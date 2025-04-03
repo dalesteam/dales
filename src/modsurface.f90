@@ -74,11 +74,12 @@ contains
     use modglobal,  only : i1, j1, i2, j2, itot, jtot,imax,jmax, nsv, ifnamopt, fname_options, ifinput, cexpnr, checknamelisterror, handle_err
     use modraddata, only : iradiation,rad_shortw,irad_par,irad_user,irad_rrtmg,irad_rte_rrtmgp
     use modmpi,     only : myid,  myidx, myidy, comm3d, mpierr, D_MPI_BCAST
+    use modtracers, only : tracer_prop
     use netcdf
 
     implicit none
 
-    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1
+    integer   :: i,j,k, landindex, ierr, defined_landtypes, landtype_0 = -1, isv
     integer   :: tempx,tempy
     integer   :: VARID,STATUS,NCID,timeID
     character(len = nf90_max_name) :: RecordDimName
@@ -91,7 +92,7 @@ contains
       ! Jarvis-Steward related variables
       rsminav, rssoilminav, LAIav, gDav, &
       ! Prescribed values for isurf 2, 3, 4
-      z0, thls, ps, ustin, wtsurf, wqsurf, wsvsurf, &
+      z0, thls, ps, ustin, wtsurf, wqsurf, &
       ! Heterogeneous variables
       lhetero, xpatches, ypatches, land_use, loldtable, &
       ! AGS variables
@@ -151,7 +152,6 @@ contains
     call D_MPI_BCAST(ustin      ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(wtsurf     ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(wqsurf     ,1,0,comm3d,mpierr)
-    call D_MPI_BCAST(wsvsurf(1:nsv),nsv,0,comm3d,mpierr)
     call D_MPI_BCAST(ps         ,1,0,comm3d,mpierr)
     call D_MPI_BCAST(thls       ,1,0,comm3d,mpierr)
 
@@ -193,6 +193,14 @@ contains
       if(myid==0) stop "WARNING::: Since there is no direct and diffuse radiation calculated in the atmopshere, we set lsplitleaf to .false."
       lsplitleaf = .false.
     endif
+
+    allocate(wsvsurf(nsv))
+
+    wsvsurf(1:nsv) = 0
+
+    do isv = 1, nsv
+      wsvsurf(isv) = tracer_prop(isv)%wsvsurf
+    end do
 
     if(lrsAgs) then
       select case (planttype)
@@ -510,7 +518,8 @@ contains
           ustin  = 0
           wtsurf = 0
           wqsurf = 0
-          wsvsurf(1:nsv) = 0
+
+
           if (.not. loldtable) then
             albedoav  = 0
           endif
