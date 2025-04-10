@@ -73,25 +73,25 @@ contains
     use modglobal,        only: dzf
     use modbulkmicrostat, only: bulkmicrotend
 
-    call calculate_rain_parameters(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
+    call calculate_rain_parameters_sb(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
                                    qrroof, qrmask, xr, Dvr, mur, lbdr)
     call bulkmicrotend
-    call autoconversion(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
+    call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
                         qtpmcr, qrp, Nrp)
     call bulkmicrotend
-    call accretion(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+    call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
                    qcmask, qrmask, Dvr, lbdr, thlpmcr, qtpmcr, qrp, Nrp)
     call bulkmicrotend
-    call evaporation(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
+    call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
                      esl, exnf, rhof, Nr, qrbase, qrroof, qrmask, Dvr, lbdr, &
                      mur, xr, qrp, Nrp, delt, qtpmcr, thlpmcr)
     call bulkmicrotend
 #ifdef DALES_GPU
-    call sedimentation_rain_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+    call sedimentation_rain_gpu_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                 l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
                                 mur, xr, qrp, Nrp, precep)
 #else
-    call sedimentation_rain(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+    call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                             l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
                             mur, xr, qrp, Nrp, precep)
 #endif
@@ -113,7 +113,7 @@ contains
   !! \param Dvr Rain water mean diameter.
   !! \param mur DSD $\mu$ parameter.
   !! \param lbdr DSD $\lambda$ parameter.
-  subroutine calculate_rain_parameters(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
+  subroutine calculate_rain_parameters_sb(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
                                        qrroof, qrmask, xr, Dvr, mur, lbdr)
     real(field_r), intent(in)  :: Nr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)  :: qr(2:i1,2:j1,1:k1)
@@ -178,7 +178,9 @@ contains
 
     call timer_toc('bulkmicro_sb/calculate_rain_parameters')
 
-  end subroutine calculate_rain_parameters
+  end subroutine calculate_rain_parameters_sb
+
+
 
   !> Calculate the autoconversion term.
   !!
@@ -193,7 +195,7 @@ contains
   !! \param qtpmcr Tendency of $\q_t$.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine autoconversion(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
+  subroutine autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
                             qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -249,7 +251,7 @@ contains
 
     call timer_toc('bulkmicro_sb/autoconversion')
 
-  end subroutine autoconversion
+  end subroutine autoconversion_sb
 
   !> Calculate the accretion term.
   !!
@@ -270,7 +272,7 @@ contains
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine accretion(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+  subroutine accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
                        qcmask, qrmask, Dvr, lbdr, thlpmcr, qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -344,7 +346,7 @@ contains
 
     call timer_toc('bulkmicro_sb/accretion')
 
-  end subroutine accretion
+  end subroutine accretion_sb
 
   !> Calculate the evaporation term.
   !!
@@ -370,7 +372,7 @@ contains
   !! \param delt Time step size.
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param thlpmcr Tendency of $\theta_l$.
-  subroutine evaporation(ql0, qt0, qrm, Nrm, qvsl, tmp0, esl, exnf, rhof, Nr, qrbase, &
+  subroutine evaporation_sb(ql0, qt0, qrm, Nrm, qvsl, tmp0, esl, exnf, rhof, Nr, qrbase, &
                          qrroof, qrmask, Dvr, lbdr, mur, xr, qrp, Nrp, delt, &
                          qtpmcr, thlpmcr)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
@@ -454,7 +456,7 @@ contains
 
     call timer_toc('bulkmicro_sb/evaporation')
 
-  end subroutine evaporation
+  end subroutine evaporation_sb
 
   !> Calculate the sedimentation term.
   !!
@@ -475,7 +477,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
-  subroutine sedimentation_rain(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+  subroutine sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                 l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
                                 mur, xr, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -539,7 +541,7 @@ contains
         ! from the previous step
         qrbase = max(1, qrbase - 1)
 
-        call calculate_rain_parameters(Nr_spl, qr_spl, rhof, l_mur_cst, mur_cst, &
+        call calculate_rain_parameters_sb(Nr_spl, qr_spl, rhof, l_mur_cst, mur_cst, &
                                        qrbase, qrroof, qrmask, xr, Dvr, mur, lbdr)
       end if
 
@@ -620,7 +622,7 @@ contains
 
     call timer_toc('bulkmicro_sb/sedimentation_rain')
 
-  end subroutine sedimentation_rain
+  end subroutine sedimentation_rain_sb
 
 #ifdef DALES_GPU
   !> Calculate the sedimentation term.
@@ -642,7 +644,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
-  subroutine sedimentation_rain_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+  subroutine sedimentation_rain_sb_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                     l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
                                     mur, xr, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -737,7 +739,7 @@ contains
         ! from the previous step
         qrbase = max(1, qrbase - 1)
 
-        call calculate_rain_parameters(Nr_spl, qr_spl, rhof, l_mur_cst, mur_cst, &
+        call calculate_rain_parameters_sb(Nr_spl, qr_spl, rhof, l_mur_cst, mur_cst, &
                                       qrbase, qrroof, qrmask, xr, Dvr, mur, lbdr)
       end if
 
@@ -912,7 +914,7 @@ contains
 
     call timer_toc('bulkmicro_sb/sedimentation_rain')
 
-  end subroutine sedimentation_rain_gpu
+  end subroutine sedimentation_rain_sb_gpu
 #endif
 
   real function sed_flux(Nin, Din, sig2, Ddiv, nnn)

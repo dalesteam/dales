@@ -48,24 +48,24 @@ contains
     use modglobal,        only: dzf
     use modbulkmicrostat, only: bulkmicrotend
 
-    call calculate_rain_parameters(Nr, qr, rhof, qrbase, qrroof, qrmask, Dvr, &
+    call calculate_rain_parameters_kk(Nr, qr, rhof, qrbase, qrroof, qrmask, Dvr, &
                                    xr)
     call bulkmicrotend
-    call autoconversion(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
+    call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
                         qtpmcr, qrp, Nrp)
     call bulkmicrotend
-    call accretion(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
+    call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
                    qrmask, thlpmcr, qtpmcr, qrp)
     call bulkmicrotend
-    call evaporation(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
+    call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
                      Nr, rhof, exnf, qrbase, qrroof, qrmask, Dvr, xr, delt, &
                     thlpmcr, qtpmcr, qrp, Nrp)
     call bulkmicrotend
 #ifdef DALES_GPU
-    call sedimentation_rain_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
+    call sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
                                 Dvr, xr, qrp, Nrp, precep)
 #else
-    call sedimentation_rain(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
+    call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
                             Dvr, xr, qrp, Nrp, precep)
 #endif
     call bulkmicrotend
@@ -82,7 +82,7 @@ contains
   !! \param qrmask Rain mask.
   !! \param Dvr Rain water mean diameter.
   !! \param xr Mean mass of rain drops.
-  subroutine calculate_rain_parameters(Nr, qr, rhof, qrbase, qrroof, qrmask, &
+  subroutine calculate_rain_parameters_kk(Nr, qr, rhof, qrbase, qrroof, qrmask, &
                                        Dvr, xr)
     real(field_r), intent(in)  :: Nr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)  :: qr(2:i1,2:j1,1:k1)
@@ -117,7 +117,7 @@ contains
 
     call timer_toc('bulkmicro_kk/calculate_rain_parameters')
 
-  end subroutine calculate_rain_parameters
+  end subroutine calculate_rain_parameters_kk
 
   !> Calculate the autoconversion term.
   !!
@@ -131,7 +131,7 @@ contains
   !! \param qtpmcr Tendency of $\q_t$.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine autoconversion(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
+  subroutine autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
                             qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: rhof(1:k1)
@@ -170,7 +170,7 @@ contains
 
     call timer_toc('bulkmicro_kk/autoconversion')
 
-  end subroutine autoconversion
+  end subroutine autoconversion_kk
 
   !> Calculate the accretion term.
   !!
@@ -186,7 +186,7 @@ contains
   !! \param thlpmcr Tendency of $\theta_l$.
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
-  subroutine accretion(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
+  subroutine accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
                        qrmask, thlpmcr, qtpmcr, qrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -224,7 +224,7 @@ contains
 
     call timer_toc('bulkmicro_kk/accretion')
 
-  end subroutine accretion
+  end subroutine accretion_kk
 
   !> Calculate the evaporation term.
   !!
@@ -248,7 +248,7 @@ contains
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine evaporation(ql0, qt0, qvsl, esl, tmp0, qrm, Nrm, Nr, rhof, exnf, &
+  subroutine evaporation_kk(ql0, qt0, qvsl, esl, tmp0, qrm, Nrm, Nr, rhof, exnf, &
                          qrbase, qrroof, qrmask, Dvr, xr, delt, thlpmcr, &
                          qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
@@ -314,7 +314,7 @@ contains
 
     call timer_toc('bulkmicro_kk/evaporation')
 
-  end subroutine evaporation
+  end subroutine evaporation_kk
 
   !> Calculate the sedimentation term.
   !!
@@ -331,7 +331,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
-  subroutine sedimentation_rain(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+  subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                 delt, Dvr, xr, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
@@ -386,7 +386,7 @@ contains
         ! from the previous step
         qrbase = max(1, qrbase - 1)
 
-        call calculate_rain_parameters(Nr_spl, qr_spl, rhof, qrbase, qrroof, qrmask, Dvr, xr)
+        call calculate_rain_parameters_kk(Nr_spl, qr_spl, rhof, qrbase, qrroof, qrmask, Dvr, xr)
       end if
 
       do k = qrbase, qrroof
@@ -426,7 +426,7 @@ contains
 
     call timer_toc('bulkmicro_kk/sedimentation_rain')
 
-  end subroutine sedimentation_rain
+  end subroutine sedimentation_rain_kk
 
 #ifdef DALES_GPU
   !> Calculate the sedimentation term. Optimized for GPU's.
@@ -444,7 +444,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
-  subroutine sedimentation_rain_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+  subroutine sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                     delt, Dvr, xr, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
@@ -612,7 +612,7 @@ contains
 
     call timer_toc('bulkmicro_kk/sedimentation_rain')
 
-  end subroutine sedimentation_rain_gpu
+  end subroutine sedimentation_kk_rain_gpu
 #endif
 
 end module bulkmicro_kk
