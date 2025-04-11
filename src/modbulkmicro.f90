@@ -48,12 +48,12 @@ module modbulkmicro
   use modprecision, only : field_r
   use modtimer
   use modmicrodata, only: qrbase, qrroof, qcbase, qcroof
-  use bulkmicro_sb, only: calculate_rain_parameters_sb, autoconversion_sb, &
+  use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
 #if defined(DALES_GPU)
   use bulkmicro_sb, only: sedimentation_rain_sb_gpu
 #endif
-  use bulkmicro_kk, only: calculate_rain_parameters_kk, autoconversion_kk, &
+  use bulkmicro_kk, only: autoconversion_kk, &
                           accretion_kk, evaporation_kk, sedimentation_rain_kk
 #if defined(DALES_GPU)
   use bulkmicro_kk, only: sedimentation_rain_kk_gpu
@@ -79,8 +79,8 @@ module modbulkmicro
 
     ! Setup two tracers for precipitation
     call add_tracer("qr", long_name="rain water mixing ratio", &
-                    unit="kg/kg", lmicro=.true., isv=iqr) 
-    
+                    unit="kg/kg", lmicro=.true., isv=iqr)
+
     call add_tracer("Nr", long_name="rain droplet number concentration", &
                     unit="1/m^3", lmicro=.true., isv=inr)
 
@@ -89,14 +89,10 @@ module modbulkmicro
             ,qr       (2:i1,2:j1,k1)  & ! dobulkmicrostat, dosimpleicestat
             ,Nrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
             ,qrp      (2:i1,2:j1,k1)  & ! bulkmicrotend, simpleicetend
-            ,Dvr      (2:i1,2:j1,k1)  & ! dobulkmicrostat
             ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
 
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
             ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! ghost cells added here for modvarbudget
-            ,xr       (2:i1,2:j1,k1)  & !
-            ,mur      (2:i1,2:j1,k1)  & !
-            ,lbdr     (2:i1,2:j1,k1)  & !
             ,qrmask   (2:i1,2:j1,k1)  & !
             ,qcmask   (2:i1,2:j1,k1)  )
 
@@ -298,32 +294,28 @@ module modbulkmicro
     !*********************************************************************
     if (l_rain) then
       if (l_sb) then
-        call calculate_rain_parameters_sb(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
-                qrroof, qrmask, xr, Dvr, mur, lbdr)
         call bulkmicrotend
         call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
                 qtpmcr, qrp, Nrp)
         call bulkmicrotend
         call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                qcmask, qrmask, Dvr, lbdr, thlpmcr, qtpmcr, qrp, Nrp)
+                qcmask, qrmask, thlpmcr, qtpmcr, qrp, Nrp)
         call bulkmicrotend
         call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
-                esl, exnf, rhof, Nr, qrbase, qrroof, qrmask, Dvr, lbdr, &
-                mur, xr, qrp, Nrp, delt, qtpmcr, thlpmcr)
+                esl, exnf, rhof, Nr, qr, qrbase, qrroof, qrmask, &
+                qrp, Nrp, delt, qtpmcr, thlpmcr)
         call bulkmicrotend
 #ifdef DALES_GPU
-    call sedimentation_rain_gpu_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                                l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
-                                mur, xr, qrp, Nrp, precep)
+        call sedimentation_rain_sb_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+                l_lognormal, delt, &
+                xr, qrp, Nrp, precep)
 #else
         call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
-                mur, xr, qrp, Nrp, precep)
+                l_lognormal, delt, &
+                qrp, Nrp, precep)
 #endif
         call bulkmicrotend
       else
-        call calculate_rain_parameters_kk(Nr, qr, rhof, qrbase, qrroof, qrmask, Dvr, &
-                xr)
         call bulkmicrotend
         call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
                 qtpmcr, qrp, Nrp)
@@ -332,7 +324,7 @@ module modbulkmicro
                 qrmask, thlpmcr, qtpmcr, qrp)
         call bulkmicrotend
         call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
-                Nr, rhof, exnf, qrbase, qrroof, qrmask, Dvr, xr, delt, &
+                Nr, qr, rhof, exnf, qrbase, qrroof, qrmask, delt, &
                 thlpmcr, qtpmcr, qrp, Nrp)
         call bulkmicrotend
 #ifdef DALES_GPU
@@ -340,7 +332,7 @@ module modbulkmicro
                                 Dvr, xr, qrp, Nrp, precep)
 #else
         call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
-                Dvr, xr, qrp, Nrp, precep)
+                qrp, Nrp, precep)
 #endif
         call bulkmicrotend
       end if

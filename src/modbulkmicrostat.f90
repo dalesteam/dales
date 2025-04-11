@@ -283,7 +283,10 @@ subroutine initbulkmicrostat
   subroutine dobulkmicrostat
     use modglobal,    only  : i1, j1, k1, ijtot
     use modmicrodata,  only  : qr,precep,Dvr,Nr,epscloud,epsqr,epsprec,imicro,imicro_bulk
-    use modfields,  only  : ql0
+    use modmicroutil, only: calc_dvr, calc_xr
+    use modfields,  only  : ql0, rhof
+    use bulkmicro_sb, only: xrmin_sb => xrmin, xrmax_sb => xrmax
+    use bulkmicro_kk, only: xrmin_kk => xrmin, xrmax_kk => xrmax
     use modmpiinterface
     use modgpumpiinterface
     use modmpi
@@ -296,6 +299,7 @@ subroutine initbulkmicrostat
     integer :: i, j, k
     real :: c_count, r_count, p_count, p_sum_cl
     real :: Nr_sum, p_sum, qr_sum, Dvr_sum_cl
+    real(field_r) :: xrmin, xrmax, xr
 
     if (lprocblock) then
        do k = 1, k1
@@ -323,7 +327,8 @@ subroutine initbulkmicrostat
              p_sum = p_sum + precep(i,j,k)
              qr_sum = qr_sum + qr(i,j,k)
              if (imicro==imicro_bulk .and. qr(i,j,k) > epsqr) then
-               Dvr_sum_cl = Dvr_sum_cl + Dvr(i,j,k)
+               xr = calc_xr(rhof(k), qr(i,j,i), nr(i,j,k), xrmin, xrmax)
+               Dvr_sum_cl = Dvr_sum_cl + calc_dvr(xr)
              end if
            end do
          end do
@@ -376,7 +381,8 @@ subroutine initbulkmicrostat
             p_sum = p_sum + precep(i,j,k)
             qr_sum = qr_sum + qr(i,j,k)
             if (imicro==imicro_bulk .and. qr(i,j,k) > epsqr) then
-              Dvr_sum_cl = Dvr_sum_cl + Dvr(i,j,k)
+              xr = calc_xr(rhof(k), qr(i,j,i), nr(i,j,k), xrmin, xrmax)
+              Dvr_sum_cl = Dvr_sum_cl + calc_dvr(xr)
             end if
           end do
         end do

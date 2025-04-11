@@ -53,6 +53,7 @@ set( dales_srcs
 	modmicrodata.f90
 	modmicrodata3.f90
 	modmicrophysics.f90
+	modmicroutil.f90
 	modmpi.f90
 	modmpiinterface.f90
 	modmsebudg.f90
@@ -245,8 +246,8 @@ ecbuild_add_executable( TARGET dales
                           $<$<BOOL:${ENABLE_ACC}>:OpenACC::OpenACC_Fortran>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3>
                           $<$<BOOL:${ENABLE_FFTW}>:FFTW::fftw3f>
-                          $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}> 
-                          $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft> 
+                          $<$<BOOL:${ENABLE_HYPRE}>:${HYPRE_LIB}>
+                          $<$<BOOL:${ENABLE_ACC}>:CUDA::cufft>
                           $<$<BOOL:${ENABLE_NVTX}>:CUDA::nvToolsExt>
 )
 # Temporary

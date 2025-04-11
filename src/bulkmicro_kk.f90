@@ -19,6 +19,7 @@
 module bulkmicro_kk
   use modglobal,    only: i1, ih, j1, jh, k1, rlv, cp, pi, rv
   use modmicrodata, only: pirhow, qrmin, Nc_0
+  use modmicroutil, only: calc_xr, calc_dvr
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
 
@@ -27,7 +28,6 @@ module bulkmicro_kk
 
   private
 
-  public :: calculate_rain_parameters_kk
   public :: autoconversion_kk
   public :: accretion_kk
   public :: evaporation_kk
@@ -35,6 +35,7 @@ module bulkmicro_kk
 #if defined(DALES_GPU)
   public :: sedimentation_rain_kk_gpu
 #endif
+  public :: xrmin, xrmax
 
   real(field_r), parameter :: &
     c_evap = 0.87,  & !< Coefficient for evaporation.
@@ -42,56 +43,10 @@ module bulkmicro_kk
     Dv = 2.4e-5,    & !< Diffusivity of water vapor [m2/s].
     Kt = 2.5e-2,    & !< Conductivity of heat [J/(sKm)].
     wfallmax = 9.9, & !< Terminal fall velocity.
+    xrmin = 0.0,    &
     xrmax = 5.2e-7    !< Max mean mass of pw.
 
 contains
-
-  !> Calculate rain DSD integral properties and parameters.
-  !!
-  !! \param nr rain drop number concentration.
-  !! \param qr rain water mixing ratio.
-  !! \param rhof Density at full levels.
-  !! \param qrbase Lowest level with rain.
-  !! \param qrroof Highest level with rain.
-  !! \param qrmask Rain mask.
-  !! \param Dvr Rain water mean diameter.
-  !! \param xr Mean mass of rain drops.
-  subroutine calculate_rain_parameters_kk(Nr, qr, rhof, qrbase, qrroof, qrmask, &
-                                       Dvr, xr)
-    real(field_r), intent(in)  :: Nr(2:i1,2:j1,1:k1)
-    real(field_r), intent(in)  :: qr(2:i1,2:j1,1:k1)
-    real(field_r), intent(in)  :: rhof(1:k1)
-
-    integer,       intent(in)  :: qrbase, qrroof
-    logical,       intent(in)  :: qrmask(2:i1,2:j1,1:k1)
-    
-    real(field_r), intent(out) :: xr(2:i1,2:j1,1:k1)
-    real(field_r), intent(out) :: Dvr(2:i1,2:j1,1:k1)
-
-    integer :: i, j, k
-
-    if (qrbase > qrroof) return
-
-    call timer_tic('bulkmicro_kk/calculate_rain_parameters', 1)
-
-    !$acc parallel loop collapse(3) default(present)
-    do k = qrbase, qrroof
-      do j = 2, j1
-        do i = 2, i1
-          if (qrmask(i,j,k)) then
-            xr(i,j,k) = rhof(k) * qr(i,j,k) / Nr(i,j,k)
-
-            ! to ensure x_pw is within bounds
-            xr(i,j,k) = min(xr(i,j,k), xrmax)
-            Dvr(i,j,k) = (xr(i,j,k) / pirhow)**(1.0_field_r/3)
-          endif
-        enddo
-      enddo
-    enddo
-
-    call timer_toc('bulkmicro_kk/calculate_rain_parameters')
-
-  end subroutine calculate_rain_parameters_kk
 
   !> Calculate the autoconversion term.
   !!
@@ -174,7 +129,7 @@ contains
     real(field_r), intent(inout) :: thlpmcr(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: qtpmcr(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
-    
+
     integer       :: i, j, k
     real(field_r) :: ac
 
@@ -204,8 +159,8 @@ contains
   !!
   !! \param ql0 Liquid water mixing ratio.
   !! \param qt0 Total water mixing ratio.
-  !! \param qvsl 
-  !! \param esl 
+  !! \param qvsl
+  !! \param esl
   !! \param tmp0 Temperature.
   !! \param qrm Rain water mixing ratio at previous time step.
   !! \param Nrm Rain drop number concentration at previous time step.
@@ -222,8 +177,8 @@ contains
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine evaporation_kk(ql0, qt0, qvsl, esl, tmp0, qrm, Nrm, Nr, rhof, exnf, &
-                         qrbase, qrroof, qrmask, Dvr, xr, delt, thlpmcr, &
+  subroutine evaporation_kk(ql0, qt0, qvsl, esl, tmp0, qrm, Nrm, Nr, qr, rhof, exnf, &
+                         qrbase, qrroof, qrmask, delt, thlpmcr, &
                          qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qt0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
@@ -233,15 +188,13 @@ contains
     real(field_r), intent(in)    :: qrm(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: Nrm(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
+    real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
 
     real(field_r), intent(in)    :: rhof(1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
 
     integer,       intent(in)    :: qrbase, qrroof
     logical,       intent(in)    :: qrmask(2:i1,2:j1,1:k1)
-    
-    real(field_r), intent(in)    :: Dvr(2:i1,2:j1,1:k1)
-    real(field_r), intent(in)    :: xr(2:i1,2:j1,1:k1)
 
     real(field_r), intent(in)    :: delt
 
@@ -253,6 +206,7 @@ contains
     integer       :: i, j, k
     real(field_r) :: S, G
     real(field_r) :: evap, Nevap
+    real(field_r) :: xr, dvr
 
     if (qrbase > qrroof) return
 
@@ -263,13 +217,16 @@ contains
       do j = 2, j1
         do i = 2, i1
           if (qrmask(i,j,k)) then
+            xr = calc_xr(rhof(k), qr(i,j,k), nr(i,j,k), xrmin, xrmax)
+            dvr = calc_dvr(xr)
+
             S = min(0.0_field_r, (qt0(i,j,k) - ql0(i,j,k)) / qvsl(i,j,k) - 1)
             G = (Rv * tmp0(i,j,k)) / (Dv * esl(i,j,k)) + rlv / &
                 (Kt * tmp0(i,j,k)) * (rlv / (Rv * tmp0(i,j,k)) - 1)
             G = 1 / G
 
-            evap = c_evap * 2 * pi * Dvr(i,j,k) * G * S * Nr(i,j,k) / rhof(k)
-            Nevap = evap * rhof(k) / xr(i,j,k)
+            evap = c_evap * 2 * pi * Dvr * G * S * Nr(i,j,k) / rhof(k)
+            Nevap = evap * rhof(k) / xr
 
             if (evap < - qrm(i,j,k) / delt) then
               Nevap = - Nrm(i,j,k) / delt
@@ -306,7 +263,7 @@ contains
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
   subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                                delt, Dvr, xr, qrp, Nrp, precep)
+                                delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: rhof(1:k1)
@@ -318,9 +275,6 @@ contains
 
     real(field_r), intent(in)    :: delt
 
-    real(field_r), intent(inout) :: Dvr(2:i1,2:j1,1:k1)
-    real(field_r), intent(inout) :: xr(2:i1,2:j1,1:k1)
-
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
     real(field_r), intent(out)   :: precep(2:i1,2:j1,1:k1)
@@ -329,6 +283,7 @@ contains
     integer       :: n_spl      !<  sedimentation time splitting loop
     real(field_r) :: sed_qr
     real(field_r) :: sed_Nr
+    real(field_r) :: xr, dvr
 
     real(field_r), allocatable :: qr_spl(:,:,:), Nr_spl(:,:,:)
 
@@ -359,16 +314,17 @@ contains
         ! lower the rain base by one level to include the rain fall
         ! from the previous step
         qrbase = max(1, qrbase - 1)
-
-        call calculate_rain_parameters_kk(Nr_spl, qr_spl, rhof, qrbase, qrroof, qrmask, Dvr, xr)
       end if
 
       do k = qrbase, qrroof
         do j = 2, j1
           do i = 2, i1
             if (qrmask(i,j,k)) then
-              sed_qr = max(0.0_field_r, 0.006_field_r * 1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
-              sed_Nr = max(0.0_field_r, 0.0035_field_r * 1E6_field_r * Dvr(i,j,k) - 0.1_field_r) * Nr_spl(i,j,k)
+              xr = calc_xr(rhof(k), qr_spl(i,j,k), nr(i,j,k), xrmin, xrmax)
+              dvr = calc_dvr(xr)
+
+              sed_qr = max(0.0_field_r, 0.006_field_r * 1E6_field_r * Dvr - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
+              sed_Nr = max(0.0_field_r, 0.0035_field_r * 1E6_field_r * Dvr - 0.1_field_r) * Nr_spl(i,j,k)
 
               qr_spl(i,j,k) = qr_spl(i,j,k) - sed_qr * dt_spl / (dzf(k) * rhof(k))
               Nr_spl(i,j,k) = Nr_spl(i,j,k) - sed_Nr * dt_spl / dzf(k)
@@ -383,7 +339,7 @@ contains
             endif
           enddo
         enddo
-      enddo    
+      enddo
     end do ! time splitting loop
 
     ! the last time splitting step lowered the base level
@@ -419,7 +375,7 @@ contains
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
   subroutine sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                                    delt, Dvr, xr, qrp, Nrp, precep)
+                                    delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: rhof(1:k1)
@@ -430,9 +386,6 @@ contains
     logical,       intent(inout) :: qrmask(2:i1,2:j1,1:k1)
 
     real(field_r), intent(in)    :: delt
-
-    real(field_r), intent(inout) :: Dvr(2:i1,2:j1,1:k1)
-    real(field_r), intent(inout) :: xr(2:i1,2:j1,1:k1)
 
     real(field_r), intent(inout) :: qrp(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: Nrp(2:i1,2:j1,1:k1)
