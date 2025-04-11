@@ -27,6 +27,15 @@ module bulkmicro_kk
 
   private
 
+  public :: calculate_rain_parameters_kk
+  public :: autoconversion_kk
+  public :: accretion_kk
+  public :: evaporation_kk
+  public :: sedimentation_rain_kk
+#if defined(DALES_GPU)
+  public :: sedimentation_rain_kk_gpu
+#endif
+
   real(field_r), parameter :: &
     c_evap = 0.87,  & !< Coefficient for evaporation.
     D0 = 50e-6,     & !< Diameter separating cloud and precipitation parts of the DSD.
@@ -34,43 +43,8 @@ module bulkmicro_kk
     Kt = 2.5e-2,    & !< Conductivity of heat [J/(sKm)].
     wfallmax = 9.9, & !< Terminal fall velocity.
     xrmax = 5.2e-7    !< Max mean mass of pw.
-  
-  public :: do_bulkmicro_kk
 
 contains
-
-  !> Calculate microphysical source terms according to Khairoutdinov and Kogan (2000).
-  subroutine do_bulkmicro_kk
-    use modmicrodata,     only: qr, Nr, iqr, iNr, thlpmcr, qtpmcr, qcbase, &
-                                qcroof, qrbase, qrroof, qcmask, qrmask, qrp, Nrp, &
-                                Dvr, xr, delt, precep
-    use modfields,        only: rhof, ql0, exnf, qvsl, tmp0, esl, svm, qt0
-    use modglobal,        only: dzf
-    use modbulkmicrostat, only: bulkmicrotend
-
-    call calculate_rain_parameters_kk(Nr, qr, rhof, qrbase, qrroof, qrmask, Dvr, &
-                                   xr)
-    call bulkmicrotend
-    call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
-                        qtpmcr, qrp, Nrp)
-    call bulkmicrotend
-    call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
-                   qrmask, thlpmcr, qtpmcr, qrp)
-    call bulkmicrotend
-    call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
-                     Nr, rhof, exnf, qrbase, qrroof, qrmask, Dvr, xr, delt, &
-                    thlpmcr, qtpmcr, qrp, Nrp)
-    call bulkmicrotend
-#ifdef DALES_GPU
-    call sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
-                                Dvr, xr, qrp, Nrp, precep)
-#else
-    call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
-                            Dvr, xr, qrp, Nrp, precep)
-#endif
-    call bulkmicrotend
-
-  end subroutine do_bulkmicro_kk
 
   !> Calculate rain DSD integral properties and parameters.
   !!

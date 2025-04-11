@@ -48,6 +48,16 @@ module modbulkmicro
   use modprecision, only : field_r
   use modtimer
   use modmicrodata, only: qrbase, qrroof, qcbase, qcroof
+  use bulkmicro_sb, only: calculate_rain_parameters_sb, autoconversion_sb, &
+                          accretion_sb, evaporation_sb, sedimentation_rain_sb
+#if defined(DALES_GPU)
+  use bulkmicro_sb, only: sedimentation_rain_sb_gpu
+#endif
+  use bulkmicro_kk, only: calculate_rain_parameters_kk, autoconversion_kk, &
+                          accretion_kk, evaporation_kk, sedimentation_rain_kk
+#if defined(DALES_GPU)
+  use bulkmicro_kk, only: sedimentation_rain_kk_gpu
+#endif
   implicit none
   private
   public initbulkmicro, exitbulkmicro, bulkmicro
@@ -120,16 +130,15 @@ module modbulkmicro
 
 !> Calculates the microphysical source term.
   subroutine bulkmicro
-    use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp
-    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof
+    use modglobal, only : i1,j1,kmax,k1,rdt,rk3step,timee,rlv,cp, dzf
+    use modfields, only : sv0,svm,svp,qtp,thlp,ql0,exnf,rhof, esl, qt0, qvsl, tmp0
     use modbulkmicrostat, only : bulkmicrotend
     use modmpi,    only : myid
     use modmicrodata, only : Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, delt, &
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
                              qrmask, qrmin, qcmask, qcmin, &
-                             mur_cst, inr, iqr, l_sb
-    use bulkmicro_sb, only: do_bulkmicro_sb
-    use bulkmicro_kk, only: do_bulkmicro_kk
+                             mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
+                             precep
     implicit none
     integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
@@ -289,9 +298,51 @@ module modbulkmicro
     !*********************************************************************
     if (l_rain) then
       if (l_sb) then
-        call do_bulkmicro_sb
+        call calculate_rain_parameters_sb(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
+                qrroof, qrmask, xr, Dvr, mur, lbdr)
+        call bulkmicrotend
+        call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
+                qtpmcr, qrp, Nrp)
+        call bulkmicrotend
+        call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+                qcmask, qrmask, Dvr, lbdr, thlpmcr, qtpmcr, qrp, Nrp)
+        call bulkmicrotend
+        call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
+                esl, exnf, rhof, Nr, qrbase, qrroof, qrmask, Dvr, lbdr, &
+                mur, xr, qrp, Nrp, delt, qtpmcr, thlpmcr)
+        call bulkmicrotend
+#ifdef DALES_GPU
+    call sedimentation_rain_gpu_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+                                l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
+                                mur, xr, qrp, Nrp, precep)
+#else
+        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+                l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
+                mur, xr, qrp, Nrp, precep)
+#endif
+        call bulkmicrotend
       else
-        call do_bulkmicro_kk
+        call calculate_rain_parameters_kk(Nr, qr, rhof, qrbase, qrroof, qrmask, Dvr, &
+                xr)
+        call bulkmicrotend
+        call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
+                qtpmcr, qrp, Nrp)
+        call bulkmicrotend
+        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
+                qrmask, thlpmcr, qtpmcr, qrp)
+        call bulkmicrotend
+        call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
+                Nr, rhof, exnf, qrbase, qrroof, qrmask, Dvr, xr, delt, &
+                thlpmcr, qtpmcr, qrp, Nrp)
+        call bulkmicrotend
+#ifdef DALES_GPU
+    call sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
+                                Dvr, xr, qrp, Nrp, precep)
+#else
+        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
+                Dvr, xr, qrp, Nrp, precep)
+#endif
+        call bulkmicrotend
       end if
     end if
 

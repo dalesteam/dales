@@ -27,6 +27,15 @@ module bulkmicro_sb
 
   private
 
+  public :: calculate_rain_parameters_sb
+  public :: autoconversion_sb
+  public :: accretion_sb
+  public :: evaporation_sb
+  public :: sedimentation_rain_sb
+#if defined(DALES_GPU)
+  public :: sedimentation_rain_sb_gpu
+#endif
+
   ! Constants
   ! TODO, maybe read these from a namelist.
   real(field_r), parameter :: &
@@ -59,45 +68,7 @@ module bulkmicro_sb
     xrmax = 5.0e-6,   & !< Max mean maxx of pw.
     x_s = xcmax         !< Drop mass separating the cloud and precipitation parts of the DSD.
 
-  ! Procedures
-  public :: do_bulkmicro_sb
-
 contains
-
-  subroutine do_bulkmicro_sb
-    use modmicrodata,     only: qr, Nr, iqr, iNr, thlpmcr, qtpmcr, qcbase, &
-                                qcroof, qrbase, qrroof, qcmask, qrmask, qrp, Nrp, &
-                                Dvr, xr, lbdr, mur, delt, l_lognormal, l_mur_cst, &
-                                mur_cst, precep
-    use modfields,        only: rhof, ql0, exnf, qvsl, tmp0, esl, svm, qt0
-    use modglobal,        only: dzf
-    use modbulkmicrostat, only: bulkmicrotend
-
-    call calculate_rain_parameters_sb(Nr, qr, rhof, l_mur_cst, mur_cst, qrbase, &
-                                   qrroof, qrmask, xr, Dvr, mur, lbdr)
-    call bulkmicrotend
-    call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
-                        qtpmcr, qrp, Nrp)
-    call bulkmicrotend
-    call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                   qcmask, qrmask, Dvr, lbdr, thlpmcr, qtpmcr, qrp, Nrp)
-    call bulkmicrotend
-    call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
-                     esl, exnf, rhof, Nr, qrbase, qrroof, qrmask, Dvr, lbdr, &
-                     mur, xr, qrp, Nrp, delt, qtpmcr, thlpmcr)
-    call bulkmicrotend
-#ifdef DALES_GPU
-    call sedimentation_rain_gpu_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                                l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
-                                mur, xr, qrp, Nrp, precep)
-#else
-    call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                            l_lognormal, l_mur_cst, mur_cst, delt, Dvr, lbdr, &
-                            mur, xr, qrp, Nrp, precep)
-#endif
-    call bulkmicrotend
-
-  end subroutine do_bulkmicro_sb
 
   !> Calculate rain DSD integral properties and parameters.
   !!
