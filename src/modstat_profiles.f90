@@ -2,7 +2,8 @@ module modstat_profiles
 
   use modglobal,      only: kmax, fname_options, ifnamopt, checknamelisterror, &
                             i1, j1, k1, kmax, ijtot, btime, ih, dt_lim, timee, &
-                            tres, rtimee, imax, cexpnr, dtav_glob, timeav_glob
+                            tres, rtimee, imax, cexpnr, dtav_glob, timeav_glob, &
+                            rk3step
   use modmpi,         only: d_mpi_bcast, comm3d, mpierr, print_info_stderr, &
                             cmyidx, cmyidy
   use modstat_nc
@@ -14,6 +15,9 @@ module modstat_profiles
   private
 
   character(len=*), parameter :: modname = 'modstat_profiles'
+
+  public :: is_sampling_timestep
+  public :: is_writing_timestep
 
   public :: add_profile
   public :: init_profiles
@@ -28,7 +32,7 @@ module modstat_profiles
 
   ! Namelist options
   logical :: lstat
-  logical :: lprocblock
+  logical :: lprocblock = .false.
   real    :: dtav, timeav
 
   ! NetCDF file variables
@@ -50,6 +54,18 @@ module modstat_profiles
   real(field_r), allocatable :: slab_average(:)
 
 contains
+
+  logical function is_sampling_timestep()
+
+    is_sampling_timestep = do_stats
+
+  end function is_sampling_timestep
+
+  logical function is_writing_timestep()
+
+    is_writing_timestep = write_stats
+
+  end function is_writing_timestep
 
   subroutine add_profile(name, long_name, unit, dim)
 
@@ -115,6 +131,9 @@ contains
     tnextwrite = itimeav + btime
     nsamples = int(itimeav / idtav)
 
+    do_stats = .false.
+    write_stats = .false.
+
     if (.not. lstat) return
 
     allocate(profiles(kmax,nvar))
@@ -149,28 +168,27 @@ contains
 
   end subroutine init_profiles
 
-  !> Bookkeeping
+  !> Bookkeeping routine
+  !!
+  !! Determines if profiles need to be sampled/written this timestep, and
+  !! limits the time step.
   subroutine sample_profiles
 
-    ! Do we need to sample profiles?
-    if (timee >= tnext) then
-      tnext = tnext + idtav
+    if (.not. lstat) return
+
+    if (rk3step == 3 .and. timee >= tnext) then
       do_stats = .true.
+      tnext = tnext + idtav
+      if (timee >= tnextwrite) then
+        write_stats = .true.
+        tnextwrite = tnextwrite + itimeav
+      end if
     else
       do_stats = .false.
-    end if
-
-    ! Do we need to write to file?
-    if (timee >= tnextwrite) then
-      tnextwrite = tnextwrite + itimeav
-      write_stats = .true.
-    else
       write_stats = .false.
+      if (timee < tnext) dt_lim = minval([dt_lim, tnext - timee])
+      if (timee < tnextwrite) dt_lim = minval([dt_lim, tnextwrite - timee])
     end if
-
-    ! Limit time step if we need to sample soon
-    ! Note: changing a variable from another module like this is VERY ugly!!
-    dt_lim = minval([dt_lim, tnext - timee, tnextwrite - timee])
 
   end subroutine sample_profiles
 
@@ -184,26 +202,28 @@ contains
     integer :: k, idx
     integer :: nh
 
-    if (.not. do_stats) return
+    if (do_stats) then
 
-    ! TODO: a hash is probably more efficient here
-    ! Find location in the list of profiles
-    idx = findloc(ncname(:,1), value=trim(name), dim=1)
+      ! TODO: a hash is probably more efficient here
+      ! Find location in the list of profiles
+      idx = findloc(ncname(:,1), value=trim(name), dim=1)
 
-    ! findloc() returns 0 if the given value is not found
-    if (idx == 0) then
-      call print_info_stderr(routine, 'profile '//trim(name)//' not found')
-      error stop
+      ! findloc() returns 0 if the given value is not found
+      if (idx == 0) then
+        call print_info_stderr(routine, 'profile '//trim(name)//' not found')
+        error stop
+      end if
+
+      ! A bit hacky maybe: figure out if the given field has ghost cells
+      nh = (size(field, dim=1) - imax) / 2
+
+      call slabavg(field, nh, slab_average, local=lprocblock)
+
+      do k = 1, kmax
+        profiles(k,idx) = profiles(k,idx) + slab_average(k)
+      end do
+
     end if
-
-    ! A bit hacky maybe: figure out if the given field has ghost cells
-    nh = (size(field, dim=1) - imax) / 2
-
-    call slabavg(field, nh, slab_average, local=lprocblock)
-
-    do k = 1, kmax
-      profiles(k,idx) = profiles(k,idx) + slab_average(k)
-    end do
 
   end subroutine sample_field
 
@@ -218,23 +238,27 @@ contains
     integer :: k, idx
     integer :: nh
 
-    ! Find location in the list of profiles
-    idx = findloc(ncname(:,1), value=trim(name), dim=1)
+    if (do_stats) then
 
-    ! findloc() returns 0 if the given value is not found
-    if (idx == 0) then
-      call print_info_stderr(routine, 'profile '//trim(name)//' not found')
-      error stop
+      ! Find location in the list of profiles
+      idx = findloc(ncname(:,1), value=trim(name), dim=1)
+
+      ! findloc() returns 0 if the given value is not found
+      if (idx == 0) then
+        call print_info_stderr(routine, 'profile '//trim(name)//' not found')
+        error stop
+      end if
+
+      ! A bit hacky maybe: figure out if the given field has ghost cells
+      nh = (size(field, dim=1) - imax) / 2
+
+      call slabavg(field, mask, nh, slab_average, local=lprocblock)
+
+      do k = 1, kmax
+        profiles(k,idx) = profiles(k,idx) + slab_average(k)
+      end do
+
     end if
-
-    ! A bit hacky maybe: figure out if the given field has ghost cells
-    nh = (size(field, dim=1) - imax) / 2
-
-    call slabavg(field, mask, nh, slab_average, local=lprocblock)
-
-    do k = 1, kmax
-      profiles(k,idx) = profiles(k,idx) + slab_average(k)
-    end do
 
   end subroutine sample_field_masked
 
@@ -242,25 +266,27 @@ contains
 
     integer :: k, n
 
-    if (.not. write_stats) return
+    if (write_stats) then
 
-    do n = 1, nvar
-      do k = 1, kmax
-        profiles(k,n) = profiles(k,n) / nsamples
+      do n = 1, nvar
+        do k = 1, kmax
+          profiles(k,n) = profiles(k,n) / nsamples
+        end do
       end do
-    end do
 
-    if (my_task_writes) then
-      call writestat_nc(ncid, 1, tncname, [rtimee], nrec, .true.)
-      call writestat_nc(ncid, nvar, ncname, profiles(1:kmax,:), nrec, kmax)
+      if (my_task_writes) then
+        call writestat_nc(ncid, 1, tncname, [rtimee], nrec, .true.)
+        call writestat_nc(ncid, nvar, ncname, profiles(1:kmax,:), nrec, kmax)
+      end if
+
+      ! Reset averages
+      do n = 1, nvar
+        do k = 1, kmax
+          profiles(k,n) = 0
+        end do
+      end do
+
     end if
-
-    ! Reset averages
-    do n = 1, nvar
-      do k = 1, kmax
-        profiles(k,n) = 0
-      end do
-    end do
 
   end subroutine write_profiles
 
