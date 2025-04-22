@@ -139,11 +139,13 @@ module modbulkmicro
                              qrmask, qrmin, qcmask, qcmin, &
                              mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
                              precep
+    use modmicroutil, only: zero_field, sum_fields
     use modstat_profiles, only: sample_field
     implicit none
     integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
     real :: qrsum_neg, qrsum, Nrsum_neg, Nrsum
+    real(field_r), allocatable :: qrp_tmp(:,:,:), nrp_tmp(:,:,:)
 
     !$acc parallel loop collapse(3) default(present)
     do k = 1, k1
@@ -296,53 +298,86 @@ module modbulkmicro
       call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
     endif
 
-    !*********************************************************************
-    ! call microphysical processes subroutines
-    !*********************************************************************
+    ! Rain processes
     if (l_rain) then
+      allocate(qrp_tmp(2:i1,2:j1,1:k1), nrp_tmp(2:i1,2:j1,1:k1))
+
+      call zero_field(qrp_tmp)
+      call zero_field(nrp_tmp)
+
+      ! 1. Autoconversion
       if (l_sb) then
-        call bulkmicrotend
         call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
-                qtpmcr, qrp, Nrp)
-        call bulkmicrotend
-        call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                qcmask, qrmask, thlpmcr, qtpmcr, qrp, Nrp)
-        call bulkmicrotend
-        call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
-                esl, exnf, rhof, Nr, qr, qrbase, qrroof, qrmask, &
-                qrp, Nrp, delt, qtpmcr, thlpmcr)
-        call bulkmicrotend
-#ifdef DALES_GPU
-        call sedimentation_rain_sb_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                l_lognormal, delt, &
-                xr, qrp, Nrp, precep)
-#else
-        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
-                l_lognormal, delt, &
-                qrp, Nrp, precep)
-#endif
-        call bulkmicrotend
+                               qtpmcr, qrp_tmp, Nrp_tmp)
       else
-        call bulkmicrotend
         call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
-                qtpmcr, qrp, Nrp)
-        call bulkmicrotend
-        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
-                qrmask, thlpmcr, qtpmcr, qrp)
-        call bulkmicrotend
-        call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
-                Nr, qr, rhof, exnf, qrbase, qrroof, qrmask, delt, &
-                thlpmcr, qtpmcr, qrp, Nrp)
-        call bulkmicrotend
-#ifdef DALES_GPU
-    call sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
-                                Dvr, xr, qrp, Nrp, precep)
-#else
-        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
-                qrp, Nrp, precep)
-#endif
-        call bulkmicrotend
+                               qtpmcr, qrp_tmp, Nrp_tmp)
       end if
+
+      call sample_field('qrpauto', qrp_tmp)
+      call sample_field('npauto', nrp_tmp)
+
+      call sum_fields(qrp_tmp, qrp)
+      call sum_fields(nrp_tmp, nrp)
+
+      call zero_field(qrp_tmp)
+      call zero_field(nrp_tmp)
+
+      ! 2. Accretion
+      if (l_sb) then
+        call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
+                          qcmask, qrmask, thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
+      else
+        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
+                          qrmask, thlpmcr, qtpmcr, qrp_tmp)
+      end if
+
+      call sample_field('qrpaccr', qrp_tmp)
+      call sample_field('npaccr', nrp_tmp)
+
+      call sum_fields(qrp_tmp, qrp)
+      call sum_fields(nrp_tmp, nrp)
+
+      call zero_field(qrp_tmp)
+      call zero_field(nrp_tmp)
+
+      ! 3. Evaporation
+      if(l_sb) then
+        call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
+                            esl, exnf, rhof, Nr, qr, qrbase, qrroof, qrmask, &
+                            qrp_tmp, Nrp_tmp, delt, qtpmcr, thlpmcr)
+      else
+        call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
+                            Nr, qr, rhof, exnf, qrbase, qrroof, qrmask, delt, &
+                            thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
+      end if
+
+      call sample_field('qrpevap', qrp_tmp)
+      call sample_field('npevap', nrp_tmp)
+
+      call sum_fields(qrp_tmp, qrp)
+      call sum_fields(nrp_tmp, nrp)
+
+      call zero_field(qrp_tmp)
+      call zero_field(nrp_tmp)
+
+      ! 4. Sedimentation
+      if (l_sb) then
+        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+                                   l_lognormal, delt, qrp_tmp, Nrp_tmp, precep)
+      else
+        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
+                                   qrp_tmp, Nrp_tmp, precep)
+      end if
+
+      call sample_field('qrpsed', qrp_tmp)
+      call sample_field('npsed', nrp_tmp)
+
+      call sum_fields(qrp_tmp, qrp)
+      call sum_fields(nrp_tmp, nrp)
+
+      deallocate(qrp_tmp, nrp_tmp)
+
     end if
 
     !*********************************************************************

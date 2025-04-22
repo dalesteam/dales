@@ -94,4 +94,39 @@ contains
 
   end function calc_lbdr
 
+  subroutine zero_field(field)
+
+    real(field_r), intent(out) :: field(:,:,:)
+
+    integer :: i, j, k
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, size(field, dim=3)
+      do j = 1, size(field, dim=2)
+        do i = 1, size(field, dim=1)
+          field(i,j,k) = 0
+        end do
+      end do
+    end do
+
+  end subroutine zero_field
+
+  subroutine sum_fields(field, other)
+
+    real(field_r), intent(in)  :: field(:,:,:)
+    real(field_r), intent(out) :: other(:,:,:)
+
+    integer :: i, j, k
+
+    !$acc parallel loop collapse(3) default(present)
+    do k = 1, size(field, dim=3)
+      do j = 1, size(field, dim=2)
+        do i = 1, size(field, dim=1)
+          other(i,j,k) = other(i,j,k) + field(i,j,k)
+        end do
+      end do
+    end do
+
+  end subroutine sum_fields
+
 end module modmicroutil
