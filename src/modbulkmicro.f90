@@ -45,9 +45,10 @@ module modbulkmicro
 !
 !   bulkmicro is called from *modmicrophysics*
 !*********************************************************************
+  use modglobal,    only: dzf, ih, jh, i1, j1, pi, rhow, rlv, cp
   use modprecision, only : field_r
   use modtimer
-  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof
+  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
 #if defined(DALES_GPU)
@@ -60,6 +61,9 @@ module modbulkmicro
 #endif
   implicit none
   private
+
+  character(len=*), parameter :: modname = 'modbulkmicro'
+
   public initbulkmicro, exitbulkmicro, bulkmicro
 
   real :: gamma25
@@ -135,6 +139,7 @@ module modbulkmicro
                              qrmask, qrmin, qcmask, qcmin, &
                              mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
                              precep
+    use modstat_profiles, only: sample_field
     implicit none
     integer :: i, j, k
     real :: qrtest,nr_cor,qr_cor
@@ -286,7 +291,9 @@ module modbulkmicro
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
     if (l_sedc) then
-      call sedimentation_cloud
+      call sedimentation_cloud(ql0, rhof, exnf, qcbase, qcroof, qcmask, &
+                               qtpmcr, thlpmcr)
+      call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
     endif
 
     !*********************************************************************
@@ -380,18 +387,29 @@ module modbulkmicro
   !! lognormal CDSD is assumed (1 free parameter : sig_g)
   !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
   !! flux is calc. anal.
-  subroutine sedimentation_cloud
-    use modglobal, only : i1,j1,rlv,cp,dzf,pi
-    use modfields, only : rhof,exnf,ql0
-    use modmicrodata, only : csed,c_St,rhow,sig_g,Nc_0, &
-                             qtpmcr,thlpmcr,qcmask
-    implicit none
-    integer :: i, j, k
-    real :: sedc
+  subroutine sedimentation_cloud(ql, rhof, exnf, qcbase, qcroof, qcmask, &
+                                 qtpmcr, thlpmcr)
 
-    call timer_tic('modbulkmicro/sedimentation_cloud', 1)
+    real(field_r), intent(in)    :: ql(2:,2:,:)
+    real(field_r), intent(in)    :: rhof(:)
+    real(field_r), intent(in)    :: exnf(:)
+    integer,       intent(in)    :: qcbase, qcroof
+    logical,       intent(in)    :: qcmask(2:,2:,:)
 
-    if (qcbase .gt. qcroof) return
+    real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:)
+    real(field_r), intent(inout) :: thlpmcr(2:,2:,:)
+
+    character(len=*), parameter :: routine = modname//'/sedimentation_cloud'
+    real(field_r),    parameter :: c_st = 1.19E8 ! Stokes fall velocity [m^-1 s^-1]
+    real(field_r),    parameter :: sig_g = 1.34  ! Geom. std. dev. of cloud DSD
+
+    integer       :: i, j, k
+    real(field_r) :: csed
+    real(field_r) :: sedc
+
+    call timer_tic(routine, 1)
+
+    if (qcbase > qcroof) return
 
     csed = c_St*(3./(4.*pi*rhow))**(2./3.)*exp(5.*log(sig_g)**2.)
 
@@ -400,7 +418,7 @@ module modbulkmicro
       do j = 2, j1
         do i = 2, i1
           if (qcmask(i,j,k)) then
-            sedc = csed*Nc_0**(-2./3.)*(ql0(i,j,k)*rhof(k))**(5./3.)
+            sedc = csed*Nc_0**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
 
             !$acc atomic update
             qtpmcr(i,j,k)  = qtpmcr (i,j,k) - sedc /(dzf(k)*rhof(k))
@@ -418,7 +436,7 @@ module modbulkmicro
       enddo
     enddo
 
-    call timer_toc('modbulkmicro/sedimentation_cloud')
+    call timer_toc(routine)
 
   end subroutine sedimentation_cloud
 
