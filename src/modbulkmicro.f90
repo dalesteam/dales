@@ -376,7 +376,8 @@ module modbulkmicro
       call sum_fields(qrp_tmp, qrp)
       call sum_fields(nrp_tmp, nrp)
 
-      deallocate(qrp_tmp, nrp_tmp)
+      call zero_field(qrp_tmp)
+      call zero_field(nrp_tmp)
 
     end if
 
@@ -392,13 +393,17 @@ module modbulkmicro
           Nr_cor = min(svp(i,j,k,iNr) + Nrp(i,j,k) + (svm(i,j,k,iNr) / delt), &
                        0.0_field_r)
 
-          qrp(i,j,k) = qrp(i,j,k) - qr_cor
-          Nrp(i,j,k) = Nrp(i,j,k) - Nr_cor
+          qrp_tmp(i,j,k) = - qr_cor
+          Nrp_tmp(i,j,k) = - Nr_cor
         end do
       end do
     end do
 
-    call bulkmicrotend
+    call sample_field('qrpclip', qrp_tmp)
+    call sample_field('npclip', nrp_tmp)
+
+    call sum_fields(qrp_tmp, qrp)
+    call sum_fields(nrp_tmp, nrp)
 
     !$acc parallel loop collapse(3) default(present)
     do k = 1, k1
@@ -412,6 +417,9 @@ module modbulkmicro
         enddo
       enddo
     enddo
+
+    deallocate(qrp_tmp, nrp_tmp)
+
   end subroutine bulkmicro
 
   !> Sedimentation of cloud water ((Bretherton et al,GRL 2007))
