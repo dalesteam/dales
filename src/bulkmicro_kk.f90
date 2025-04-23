@@ -32,9 +32,6 @@ module bulkmicro_kk
   public :: accretion_kk
   public :: evaporation_kk
   public :: sedimentation_rain_kk
-#if defined(DALES_GPU)
-  public :: sedimentation_rain_kk_gpu
-#endif
   public :: xrmin, xrmax
 
   real(field_r), parameter :: &
@@ -262,6 +259,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
+#ifndef DALES_GPU
   subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                 delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -357,24 +355,8 @@ contains
     call timer_toc('bulkmicro_kk/sedimentation_rain')
 
   end subroutine sedimentation_rain_kk
-
-#ifdef DALES_GPU
-  !> Calculate the sedimentation term. Optimized for GPU's.
-  !!
-  !! \param qr Rain water mixing ratio.
-  !! \param Nr Rain drop number concentration.
-  !! \param rhof Density at full levels.
-  !! \param dzf Thickness of vertical levels.
-  !! \param qrbase Lowest level with rain.
-  !! \param qrroof Highest level with rain.
-  !! \param qrmask Rain mask.
-  !! \param delt Time step size.
-  !! \param Dvr Rain water mean diameter.
-  !! \param xr Mean mass of rain drops.
-  !! \param qrp Tendency of rain water mixing ratio.
-  !! \param Nrp Tendency of rain drop number concentration.
-  !! \param precep Precipitation.
-  subroutine sedimentation_rain_kk_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+#else
+  subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                     delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
@@ -539,7 +521,7 @@ contains
 
     call timer_toc('bulkmicro_kk/sedimentation_rain')
 
-  end subroutine sedimentation_kk_rain_gpu
+  end subroutine sedimentation_kk_rain
 #endif
 
 end module bulkmicro_kk

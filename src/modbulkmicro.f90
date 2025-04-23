@@ -51,14 +51,8 @@ module modbulkmicro
   use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
-#if defined(DALES_GPU)
-  use bulkmicro_sb, only: sedimentation_rain_sb_gpu
-#endif
   use bulkmicro_kk, only: autoconversion_kk, &
                           accretion_kk, evaporation_kk, sedimentation_rain_kk
-#if defined(DALES_GPU)
-  use bulkmicro_kk, only: sedimentation_rain_kk_gpu
-#endif
   implicit none
   private
 

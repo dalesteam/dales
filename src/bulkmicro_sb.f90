@@ -32,9 +32,6 @@ module bulkmicro_sb
   public :: accretion_sb
   public :: evaporation_sb
   public :: sedimentation_rain_sb
-#if defined(DALES_GPU)
-  public :: sedimentation_rain_sb_gpu
-#endif
   public :: xrmin, xrmax
 
   ! Constants
@@ -369,6 +366,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
+#ifndef DALES_GPU
   subroutine sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                 l_lognormal, delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
@@ -513,27 +511,8 @@ contains
     call timer_toc('bulkmicro_sb/sedimentation_rain')
 
   end subroutine sedimentation_rain_sb
-
-  !> Calculate the sedimentation term.
-  !!
-  !! \param qr Rain water mixing ratio.
-  !! \param Nr Rain drop number concentration.
-  !! \param rhof Density at full levels.
-  !! \param dzf Thickness of vertical levels.
-  !! \param qrbase Lowest level with rain.
-  !! \param qrroof Highest level with rain.
-  !! \param qrmask Rain mask.
-  !! \param l_mur_cst Switch for selecting constant $\mu$.
-  !! \param mur_cst Constant $\mu$ value.
-  !! \param delt Time step size.
-  !! \param Dvr Rain water mean diameter.
-  !! \param lbdr DSD $\lambda$ parameter.
-  !! \param mur DSD $\mu$ parameter.
-  !! \param xr Mean mass of rain drops.
-  !! \param qrp Tendency of rain water mixing ratio.
-  !! \param Nrp Tendency of rain drop number concentration.
-  !! \param precep Precipitation.
-  subroutine sedimentation_rain_sb_gpu(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+#else
+  subroutine sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
                                     l_lognormal, delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
@@ -814,7 +793,8 @@ contains
 
     call timer_toc('bulkmicro_sb/sedimentation_rain')
 
-  end subroutine sedimentation_rain_sb_gpu
+  end subroutine sedimentation_rain_sb
+#endif
 
   real function sed_flux(Nin, Din, sig2, Ddiv, nnn)
   !*********************************************************************
