@@ -18,7 +18,7 @@
 !> Kernels for Khairoutdinov-Kogan microphysics.
 module bulkmicro_kk
   use modglobal,    only: i1, ih, j1, jh, k1, rlv, cp, pi, rv
-  use modmicrodata, only: pirhow, qrmin, Nc_0
+  use modmicrodata, only: pirhow, qrmin, Nc_0, qcmin
   use modmicroutil, only: calc_xr, calc_dvr
   use modprecision, only: field_r
   use modtimer,     only: timer_tic, timer_toc
@@ -52,19 +52,17 @@ contains
   !! \param exnf Exner function at full levels.
   !! \param qcbase Lowest level with cloud.
   !! \param qcroof Highest level with cloud.
-  !! \param qcmask Cloud mask.
   !! \param thlpmcr Tendency of $\theta_l$.
   !! \param qtpmcr Tendency of $\q_t$.
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
-  subroutine autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
+  subroutine autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, thlpmcr, &
                             qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: rhof(1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
 
     integer,       intent(in)    :: qcbase, qcroof
-    logical,       intent(in)    :: qcmask(2:i1,2:j1,1:k1)
 
     real(field_r), intent(inout) :: thlpmcr(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: qtpmcr(2-ih:i1+ih,2-jh:j1+jh,1:k1)
@@ -82,7 +80,7 @@ contains
     do k = qcbase, qcroof
       do j = 2, j1
         do i = 2, i1
-           if (qcmask(i,j,k)) then
+           if (ql0(i,j,k) > qcmin) then
               au = 1350 * ql0(i,j,k)**(2.47_field_r) &
                    * (Nc_0 / 1E6)**(-1.79_field_r)
               qrp(i,j,k) = qrp(i,j,k) + au
@@ -105,23 +103,19 @@ contains
   !! \param exnf Exner function at full levels.
   !! \param qcbase Lowest level with cloud.
   !! \param qcroof Highest level with cloud.
-  !! \param qcmask Cloud mask.
   !! \param qrbase Lowest level with rain.
   !! \param qrroof Highest level with rain.
-  !! \param qrmask Rain mask.
   !! \param thlpmcr Tendency of $\theta_l$.
   !! \param qtpmcr Tendency of total water mixing ratio.
   !! \param qrp Tendency of rain water mixing ratio.
-  subroutine accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
-                       qrmask, thlpmcr, qtpmcr, qrp)
+  subroutine accretion_kk(ql0, qr, exnf, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: exnf(1:k1)
 
     integer,       intent(in)    :: qcbase, qcroof
-    logical,       intent(in)    :: qcmask(2:i1,2:j1,1:k1)
     integer,       intent(in)    :: qrbase, qrroof
-    logical,       intent(in)    :: qrmask(2:i1,2:j1,1:k1)
 
     real(field_r), intent(inout) :: thlpmcr(2:i1,2:j1,1:k1)
     real(field_r), intent(inout) :: qtpmcr(2-ih:i1+ih,2-jh:j1+jh,1:k1)
@@ -138,7 +132,7 @@ contains
     do k = max(qrbase, qcbase), min(qcroof, qrroof)
       do j = 2, j1
         do i = 2, i1
-          if (qrmask(i,j,k) .and. qcmask(i,j,k)) then
+          if (ql0(i,j,k) > qcmin .and. qr(i,j,k) > qrmin) then
             ac = 67 * (ql0(i,j,k) * qr(i,j,k))**1.15_field_r
             qrp(i,j,k) = qrp(i,j,k) + ac
             qtpmcr(i,j,k) = qtpmcr(i,j,k) - ac
@@ -166,7 +160,6 @@ contains
   !! \param exnf Exner function at full levels.
   !! \param qrbase Lowest level with rain.
   !! \param qrroof Highest level with rain.
-  !! \param qrmask Rain mask.
   !! \param Dvr Rain water mean diameter.
   !! \param xr Mean mass of rain drops.
   !! \param delt Time step size.
@@ -175,8 +168,7 @@ contains
   !! \param qrp Tendency of rain water mixing ratio.
   !! \param Nrp Tendency of rain drop number concentration.
   subroutine evaporation_kk(ql0, qt0, qvsl, esl, tmp0, qrm, Nrm, Nr, qr, rhof, exnf, &
-                         qrbase, qrroof, qrmask, delt, thlpmcr, &
-                         qtpmcr, qrp, Nrp)
+                            qrbase, qrroof, delt, thlpmcr, qtpmcr, qrp, Nrp)
     real(field_r), intent(in)    :: ql0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qt0(2-ih:i1+ih,2-jh:j1+jh,1:k1)
     real(field_r), intent(in)    :: qvsl(2-ih:i1+ih,2-jh:j1+jh,1:k1)
@@ -191,7 +183,6 @@ contains
     real(field_r), intent(in)    :: exnf(1:k1)
 
     integer,       intent(in)    :: qrbase, qrroof
-    logical,       intent(in)    :: qrmask(2:i1,2:j1,1:k1)
 
     real(field_r), intent(in)    :: delt
 
@@ -213,7 +204,7 @@ contains
     do k = qrbase, qrroof
       do j = 2, j1
         do i = 2, i1
-          if (qrmask(i,j,k)) then
+          if (qr(i,j,k) > qrmin) then
             xr = calc_xr(rhof(k), qr(i,j,k), nr(i,j,k), xrmin, xrmax)
             dvr = calc_dvr(xr)
 
@@ -252,7 +243,6 @@ contains
   !! \param dzf Thickness of vertical levels.
   !! \param qrbase Lowest level with rain.
   !! \param qrroof Highest level with rain.
-  !! \param qrmask Rain mask.
   !! \param delt Time step size.
   !! \param Dvr Rain water mean diameter.
   !! \param xr Mean mass of rain drops.
@@ -260,7 +250,7 @@ contains
   !! \param Nrp Tendency of rain drop number concentration.
   !! \param precep Precipitation.
 #ifndef DALES_GPU
-  subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+  subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, &
                                 delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
@@ -269,7 +259,6 @@ contains
 
     integer,       intent(inout) :: qrbase
     integer,       intent(in)    :: qrroof
-    logical,       intent(inout) :: qrmask(2:i1,2:j1,1:k1)
 
     real(field_r), intent(in)    :: delt
 
@@ -305,10 +294,6 @@ contains
         qr_spl(:,:,:) = qr(:,:,:)
         Nr_spl(:,:,:) = Nr(:,:,:)
       else
-        ! update parameters after the first iteration
-        ! a new mask
-        qrmask(:,:,:) = (qr_spl(:,:,:) > qrmin) .and. (Nr_spl(:,:,:) > 0)
-
         ! lower the rain base by one level to include the rain fall
         ! from the previous step
         qrbase = max(1, qrbase - 1)
@@ -317,7 +302,7 @@ contains
       do k = qrbase, qrroof
         do j = 2, j1
           do i = 2, i1
-            if (qrmask(i,j,k)) then
+            if (qr_spl(i,j,k) > qrmin) then
               xr = calc_xr(rhof(k), qr_spl(i,j,k), nr(i,j,k), xrmin, xrmax)
               dvr = calc_dvr(xr)
 
@@ -356,7 +341,7 @@ contains
 
   end subroutine sedimentation_rain_kk
 #else
-  subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+  subroutine sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, &
                                     delt, qrp, Nrp, precep)
     real(field_r), intent(in)    :: qr(2:i1,2:j1,1:k1)
     real(field_r), intent(in)    :: Nr(2:i1,2:j1,1:k1)
@@ -365,7 +350,6 @@ contains
 
     integer,       intent(inout) :: qrbase
     integer,       intent(in)    :: qrroof
-    logical,       intent(inout) :: qrmask(2:i1,2:j1,1:k1)
 
     real(field_r), intent(in)    :: delt
 
@@ -427,9 +411,6 @@ contains
             do i = 2, i1
               qr_spl(i,j,k) = qr_tmp(i,j,k)
               Nr_spl(i,j,k) = Nr_tmp(i,j,k)
-
-              ! Update mask
-              qrmask(i,j,k) = (qr_spl(i,j,k) > qrmin .and. Nr_spl(i,j,k) > 0.0)
             end do
           end do
         end do
@@ -447,7 +428,7 @@ contains
         do k = qrbase, qrroof
           do j = 2, j1
             do i = 2, i1
-              if (qrmask(i,j,k)) then
+              if (qr_spl(i,j,k) > qrmin) then
                 precep(i,j,k) = max(0.0_field_r, 0.006_field_r * 1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k)
               endif
             enddo
@@ -465,7 +446,7 @@ contains
         !$acc parallel loop collapse(2) default(present) private(sed_qr, sed_Nr)
         do j = 2, j1
           do i = 2, i1
-            if (qrmask(i,j,k)) then
+            if (qr_spl(i,j,k) > qrmin) then
               sed_qr = max(0.0_field_r, 0.006_field_r *1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
               sed_Nr = max(0.0_field_r, 0.0035_field_r *1E6_field_r * Dvr(i,j,k) - 0.1_field_r) * Nr_spl(i,j,k)
 
@@ -480,7 +461,7 @@ contains
       do k = sedimbase, qrroof
         do j = 2, j1
           do i = 2, i1
-            if (qrmask(i,j,k)) then
+            if (qr_spl(i,j,k) > qrmin) then
               sed_qr = max(0.0_field_r, 0.006_field_r *1E6_field_r * Dvr(i,j,k) - 0.2_field_r) * qr_spl(i,j,k) * rhof(k)
               sed_Nr = max(0.0_field_r, 0.0035_field_r *1E6_field_r * Dvr(i,j,k) - 0.1_field_r) * Nr_spl(i,j,k)
 

@@ -164,8 +164,6 @@
 
   real(field_r) :: delt
 
-  logical ,allocatable,dimension(:,:,:):: qcmask,qrmask
-
   integer :: qrbase, qrroof, qcbase, qcroof
 
 ! Parameters for simple ice microphysics (Grabowski, JAS, 1998)

@@ -48,7 +48,7 @@ module modbulkmicro
   use modglobal,    only: dzf, ih, jh, i1, j1, pi, rhow, rlv, cp
   use modprecision, only : field_r
   use modtimer
-  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0
+  use modmicrodata, only: qrbase, qrroof, qcbase, qcroof, nc_0, qcmin
   use bulkmicro_sb, only: autoconversion_sb, &
                           accretion_sb, evaporation_sb, sedimentation_rain_sb
   use bulkmicro_kk, only: autoconversion_kk, &
@@ -71,7 +71,7 @@ module modbulkmicro
     use modmicrodata, only : lacz_gamma, Nr, Nrp, qr, qrp, thlpmcr, &
                              qtpmcr, Dvr, xr, mur, &
                              lbdr, iqr, inr, &
-                             precep, qrmask, qcmask
+                             precep
     use modtracers,   only: add_tracer
     implicit none
 
@@ -90,9 +90,7 @@ module modbulkmicro
             ,precep   (2:i1,2:j1,k1)  ) ! dobulkmicrostat, dosimpleicestat, docape
 
     allocate(thlpmcr  (2:i1,2:j1,k1)  & !
-            ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1) & ! ghost cells added here for modvarbudget
-            ,qrmask   (2:i1,2:j1,k1)  & !
-            ,qcmask   (2:i1,2:j1,k1)  )
+            ,qtpmcr(2-ih:i1+ih,2-jh:j1+jh,k1))  ! ghost cells added here for modvarbudget
 
     gamma25=lacz_gamma(2.5)
     gamma3=2.
@@ -110,7 +108,7 @@ module modbulkmicro
   !*********************************************************************
     use modmicrodata, only : Nr,Nrp,qr,qrp,thlpmcr,qtpmcr, &
                              Dvr,xr,mur,lbdr, &
-                             precep,qrmask,qcmask
+                             precep
     implicit none
 
     !$acc exit data delete(Nr, qr, Nrp, qrp, Dvr, precep, &
@@ -118,7 +116,7 @@ module modbulkmicro
 
     deallocate(Nr,Nrp,qr,qrp,thlpmcr,qtpmcr)
     deallocate(Dvr,xr,mur,lbdr)
-    deallocate(precep,qrmask,qcmask)
+    deallocate(precep)
 
   end subroutine exitbulkmicro
 
@@ -130,7 +128,7 @@ module modbulkmicro
     use modmpi,    only : myid
     use modmicrodata, only : Nr, qr, Nrp, qrp, thlpmcr, qtpmcr, delt, &
                              l_sedc, l_mur_cst, l_lognormal, l_rain, &
-                             qrmask, qrmin, qcmask, qcmin, &
+                             qrmin, qcmin, &
                              mur_cst, inr, iqr, l_sb, Dvr, xr, lbdr, mur, &
                              precep
     use modmicroutil, only: zero_field, sum_fields
@@ -203,7 +201,6 @@ module modbulkmicro
     ! Find gridpoints where the microphysics scheme should run
     !*********************************************************************
 
-#if defined(DALES_GPU)
     ! Faster with OpenACC acceleration as it enables collapse(3)
     qrbase = k1 + 1
     qrroof = 1 - 1
@@ -214,12 +211,10 @@ module modbulkmicro
       do j = 2, j1
         do i = 2, i1
           ! Update mask prior to using it
-          qrmask(i,j,k) = (qr(i,j,k) > qrmin .and. Nr(i,j,k) > 0.0)
-          qcmask(i,j,k) = ql0(i,j,k) > qcmin
-          if (qrmask(i,j,k)) then
+          if (qr(i,j,k) > qrmin) then
             qrbase = min(k, qrbase)
           endif
-          if (qcmask(i,j,k)) then
+          if (ql0(i,j,k) > qcmin) then
             qcbase = min(k, qcbase)
           endif
         enddo
@@ -233,10 +228,10 @@ module modbulkmicro
       do k = min(qrbase,qcbase), k1
         do j = 2, j1
           do i = 2, i1
-            if (qrmask(i,j,k)) then
+            if (qr(i,j,k) > qrmin) then
               qrroof = max(k, qrroof)
             endif
-            if (qcmask(i,j,k)) then
+            if (ql0(i,j,k) > qcmin) then
               qcroof = max(k, qcroof)
             endif
           enddo
@@ -245,50 +240,12 @@ module modbulkmicro
       qrroof = min(k1, qrroof)
       qcroof = min(k1, qcroof)
     endif
-#else
-    qrmask = qr.gt.qrmin.and.Nr.gt.0
-    qrbase = k1 + 1
-    qrroof = 1 - 1
-    do k=1,kmax
-      if (any(qrmask(:,:,k))) then
-        qrbase = max(1, k)
-        exit
-      endif
-    enddo
-    if (qrbase.le.k1) then
-      do k=kmax,qrbase,-1
-        if (any(qrmask(:,:,k))) then
-          qrroof = min(kmax, k)
-          exit
-        endif
-      enddo
-    endif
-
-    qcmask = ql0(2:i1,2:j1,1:k1).gt.qcmin
-    qcbase = k1 + 1
-    qcroof = 1 - 1
-    do k=1,kmax
-      if (any(qcmask(:,:,k))) then
-        qcbase = max(1, k)
-        exit
-      endif
-    enddo
-    if (qcbase.le.k1) then
-      do k=kmax,qcbase,-1
-        if (any(qcmask(:,:,k))) then
-          qcroof = min(kmax, k)
-          exit
-        endif
-      enddo
-    endif
-#endif
 
     ! if there is nothing to do, we can return at this point
     ! if (min(qrbase,qcbase).gt.max(qrroof,qcroof)) return
 
     if (l_sedc) then
-      call sedimentation_cloud(ql0, rhof, exnf, qcbase, qcroof, qcmask, &
-                               qtpmcr, thlpmcr)
+      call sedimentation_cloud(ql0, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
       call sample_field('qtpsedc', qtpmcr) ! First process, no need to zero beforehand
     endif
 
@@ -301,10 +258,10 @@ module modbulkmicro
 
       ! 1. Autoconversion
       if (l_sb) then
-        call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, qcmask, thlpmcr, &
+        call autoconversion_sb(ql0, qr, exnf, rhof, qcbase, qcroof, thlpmcr, &
                                qtpmcr, qrp_tmp, Nrp_tmp)
       else
-        call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, qcmask, thlpmcr, &
+        call autoconversion_kk(ql0, rhof, exnf, qcbase, qcroof, thlpmcr, &
                                qtpmcr, qrp_tmp, Nrp_tmp)
       end if
 
@@ -320,10 +277,10 @@ module modbulkmicro
       ! 2. Accretion
       if (l_sb) then
         call accretion_sb(ql0, qr, Nr, exnf, rhof, qcbase, qcroof, qrbase, qrroof, &
-                          qcmask, qrmask, thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
+                          thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
       else
-        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qcmask, qrbase, qrroof, &
-                          qrmask, thlpmcr, qtpmcr, qrp_tmp)
+        call accretion_kk(ql0, qr, exnf, qcbase, qcroof, qrbase, qrroof, &
+                          thlpmcr, qtpmcr, qrp_tmp)
       end if
 
       call sample_field('qrpaccr', qrp_tmp)
@@ -338,11 +295,11 @@ module modbulkmicro
       ! 3. Evaporation
       if(l_sb) then
         call evaporation_sb(ql0, qt0, svm(:,:,:,iqr), svm(:,:,:,inr), qvsl, tmp0, &
-                            esl, exnf, rhof, Nr, qr, qrbase, qrroof, qrmask, &
+                            esl, exnf, rhof, Nr, qr, qrbase, qrroof, &
                             qrp_tmp, Nrp_tmp, delt, qtpmcr, thlpmcr)
       else
         call evaporation_kk(ql0, qt0, qvsl, esl, tmp0, svm(:,:,:,iqr), svm(:,:,:,iNr), &
-                            Nr, qr, rhof, exnf, qrbase, qrroof, qrmask, delt, &
+                            Nr, qr, rhof, exnf, qrbase, qrroof, delt, &
                             thlpmcr, qtpmcr, qrp_tmp, Nrp_tmp)
       end if
 
@@ -357,10 +314,10 @@ module modbulkmicro
 
       ! 4. Sedimentation
       if (l_sb) then
-        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, &
+        call sedimentation_rain_sb(qr, Nr, rhof, dzf, qrbase, qrroof, &
                                    l_lognormal, delt, qrp_tmp, Nrp_tmp, precep)
       else
-        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, qrmask, delt, &
+        call sedimentation_rain_kk(qr, Nr, rhof, dzf, qrbase, qrroof, delt, &
                                    qrp_tmp, Nrp_tmp, precep)
       end if
 
@@ -424,14 +381,12 @@ module modbulkmicro
   !! lognormal CDSD is assumed (1 free parameter : sig_g)
   !! terminal velocity : Stokes velocity is assumed (v(D) ~ D^2)
   !! flux is calc. anal.
-  subroutine sedimentation_cloud(ql, rhof, exnf, qcbase, qcroof, qcmask, &
-                                 qtpmcr, thlpmcr)
+  subroutine sedimentation_cloud(ql, rhof, exnf, qcbase, qcroof, qtpmcr, thlpmcr)
 
     real(field_r), intent(in)    :: ql(2:,2:,:)
     real(field_r), intent(in)    :: rhof(:)
     real(field_r), intent(in)    :: exnf(:)
     integer,       intent(in)    :: qcbase, qcroof
-    logical,       intent(in)    :: qcmask(2:,2:,:)
 
     real(field_r), intent(inout) :: qtpmcr(2-ih:,2-jh:,:)
     real(field_r), intent(inout) :: thlpmcr(2:,2:,:)
@@ -454,7 +409,7 @@ module modbulkmicro
     do k = qcbase, qcroof
       do j = 2, j1
         do i = 2, i1
-          if (qcmask(i,j,k)) then
+          if (ql(i,j,k) > qcmin) then
             sedc = csed*Nc_0**(-2./3.)*(ql(i,j,k)*rhof(k))**(5./3.)
 
             !$acc atomic update

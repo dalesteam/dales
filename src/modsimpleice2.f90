@@ -62,7 +62,7 @@ module modsimpleice2
     use modmicrodata, only : qr, qrp, nr, nrp, thlpmcr, qtpmcr, sed_qr, qr_spl, &
                              ilratio, rsgratio, sgratio, &
                              lambdar, lambdas, lambdag, &
-                             qrmask, qcmask, precep, &
+                             precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2,&
                              bbg,bbr,bbs,ddg,ddr,dds, iqr
     use modtracers, only: add_tracer
@@ -70,7 +70,7 @@ module modsimpleice2
     integer:: i, j, k
 
     call add_tracer("qr", long_name="Total precipitation mixing ratio", &
-                    unit="kg/kg", lmicro=.true., isv=iqr) 
+                    unit="kg/kg", lmicro=.true., isv=iqr)
 
     allocate (qr(2:i1,2:j1,k1)        & ! qr (total precipitation!) converted from a scalar variable
              ,qrp(2:i1,2:j1,k1)       & ! qr tendency due to microphysics only, for statistics
@@ -86,9 +86,6 @@ module modsimpleice2
              ,lambdar(2:i1,2:j1,k1)   & ! slope parameter for rain
              ,lambdas(2:i1,2:j1,k1)   & ! slope parameter for snow
              ,lambdag(2:i1,2:j1,k1))    ! slope parameter for graupel
-
-    allocate (qrmask(2:i1,2:j1,k1)    & ! mask for rain water
-             ,qcmask(2:i1,2:j1,k1))     ! mask for cloud water
 
     allocate(precep(2:i1,2:j1,k1))      ! precipitation for statistics
 
@@ -129,7 +126,7 @@ module modsimpleice2
   subroutine exitsimpleice2
     use modmicrodata, only : nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl, &
                              ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag, &
-                             qrmask,qcmask,precep, &
+                             precep, &
                              ccrz,ccsz,ccgz,ccrz2,ccsz2,ccgz2
     implicit none
 
@@ -140,7 +137,6 @@ module modsimpleice2
     !$acc&                 ccrz, ccsz, ccgz, ccrz2, ccsz2, ccgz2)
 
     deallocate(nr,nrp,qr,qrp,thlpmcr,qtpmcr,sed_qr,qr_spl,ilratio,rsgratio,sgratio,lambdar,lambdas,lambdag)
-    deallocate(qrmask,qcmask)
     deallocate(precep)
     deallocate(ccrz,ccsz,ccgz)
     deallocate(ccrz2,ccsz2,ccgz2)
